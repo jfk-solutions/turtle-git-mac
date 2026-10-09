@@ -926,3 +926,9 @@ GitLogListBase.cpp::paintGraphLane. Original lanes authors: Marco Costalba
 Empty-slot reuse, join/tail/cross states and lane-index colors now replace the
 previous compacted stable-branch-color rendering. Compressed/path-filtered
 projection and physical raster/gradient/Retina parity still require acceptance.
+
+Filtered history graph snapshots and full-view Expand/Collapse adapt
+GitLogListBase.cpp's visible/forced rollup block and LogDataVector.cpp::append,
+which advances lane state for hidden commits too. Original upstream copyright
+and GPL version 2 or later terms listed above continue to apply. Native display
+parents remain separate from actual file/action parent metadata.

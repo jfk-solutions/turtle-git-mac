@@ -549,7 +549,7 @@ struct LogCommandRequest: Identifiable {
     private var rollupStates: [String: HistoryRollupChoice] = [:]
     private var historyFilterActive = false
     private let historyRegexExecutable: URL?
-    var canToggleRollup: Bool { !busy && !isInvalidated && !historyFilterActive && historyWalk.graphMode == .compressed && revision != nil && rollupInfo[revision!.hash] != nil }
+    var canToggleRollup: Bool { !busy && !isInvalidated && !historyFilterActive && historyWalk.graphMode != .labeled && revision != nil && rollupInfo[revision!.hash] != nil }
     var rollupTitle: String { revision.flatMap { rollupInfo[$0.hash] }?.collapsed == true ? "Expand" : "Collapse" }
     func toggleRollup() {
         guard canToggleRollup, let revision, let info = rollupInfo[revision.hash] else { return }
@@ -578,7 +578,7 @@ struct LogCommandRequest: Identifiable {
         if referenceVisibility.contains(command.flag) { referenceVisibility.remove(command.flag) }
         else { referenceVisibility.insert(command.flag) }
         labelDefaults.set(referenceVisibility.rawValue, forKey: labelDefaultsKey)
-        if historyWalk.graphMode != .all { reload() }
+        if historyWalk.graphMode != .all || !rollupStates.isEmpty { reload() }
     }
     @Published private(set) var canFollowRenames = false
     func canToggleHistoryWalk(_ command: HistoryWalkCommand) -> Bool {

@@ -1574,9 +1574,29 @@ Existing abstract edges remain a compatibility connectivity representation;
 they are no longer used for native painting. Shared GraphCell reacts to Apply
 and accessibility display revisions for Log and Blame.
 
-Compressed/labeled/path-simplified history still uses the native projection;
-full comparison with upstream's hidden-row lane walk/rollup is pending.
+Compressed/labeled visibility now preserves full-walk lane snapshots,
+including hidden records, and its forced-rollup logic is compared with the
+pinned source filter block. Git search/path-simplified walk metadata remains
+a separate parity task.
 Boundary state painting is supported but actual boundary metadata loading is
 not established. Source drawing coordinates/gradients are adapted to Core
 Graphics; physical raster, selected-row contrast, Retina, scroll/clipping and
 signed acceptance still need review. No new screenshot is supplied here.
+
+## Hidden-row walk and full-view rollup
+
+Upstream `LogDataVector::append` advances lane state even when a record is
+hidden. Projection now snapshots the full input walk before selecting visible
+rows; hidden merges/forks therefore retain their lane assignment at the next
+shown row. Actual commit parents and the compatibility display-parent edges
+remain separate from the painted lane states.
+
+Collapse/Expand is available in both complete and compressed views, with the
+existing single-selection/busy/closed/active-search guards. Complete view honors
+forced collapse until a label/merge/fork boundary, which stays expanded by
+default there; compressed boundaries stay collapsed by default. Labeled-only
+view ignores forced overrides. Label changes trigger a reload when any forced
+states exist, even in complete view. Source checks and hidden native menu/Git
+acceptance are recorded in [projection QA](qa/history-projection-2026-10-09.json).
+Physical graph/scroll/selection contrast and complete search/path walker
+metadata equivalence remain unverified.

@@ -289,7 +289,27 @@ final class CommitHistoryTests: XCTestCase {
         states = ["head": .expand, "a": .collapse]
         let mid = CommitGraph.project(entries, walk: walk, rollupStates: states)
         XCTAssertEqual(mid.entries.map(\.hash), ["head", "a", "tag", "merge", "root"], "Mid-segment collapse must hide its remaining linear ancestry"); XCTAssertTrue(mid.rollups["a"]!.forced); XCTAssertTrue(mid.rollups["a"]!.collapsed)
-        walk.graphMode = .all; XCTAssertEqual(CommitGraph.project(entries, walk: walk, rollupStates: states).entries.map(\.hash), entries.map(\.hash))
+        walk.graphMode = .all
+        XCTAssertEqual(CommitGraph.project(entries, walk: walk, rollupStates: states).entries.map(\.hash), ["head","a","tag","b","merge","left","right","root"], "Full graph honors forced collapse while keeping special nodes")
+    }
+    func testHiddenRowsKeepSourceLaneSnapshotsAndFullGraphCollapse() {
+        var tip = entry("tip", ["merge"]); tip.isHead = true
+        var end = entry("end", []); end.references = [RevisionReference(name: "refs/tags/end")]
+        let entries = [tip,entry("merge",["a","b"]),entry("a",["end"]),entry("b",["end"]),end]
+        let full = CommitGraph.layout(entries)
+        var walk = HistoryWalkOptions(); walk.graphMode = .labeled
+        let labeled = CommitGraph.project(entries,walk:walk)
+        XCTAssertEqual(labeled.entries.map(\.hash), ["tip","end"])
+        XCTAssertEqual(labeled.graph.map(\.lanes), [full[0].lanes,full[4].lanes], "Hidden merge/branch records must advance source lanes")
+        XCTAssertEqual(labeled.graph.map(\.column), [full[0].column,full[4].column])
+        XCTAssertEqual(labeled.entries.map(\.parents), [["merge"],[]])
+        walk.graphMode = .all
+        let collapsed = CommitGraph.project(entries,walk:walk,rollupStates:["merge":.collapse])
+        XCTAssertEqual(collapsed.entries.map(\.hash), ["tip","merge","end"])
+        XCTAssertTrue(collapsed.rollups["merge"]!.collapsed && collapsed.rollups["merge"]!.forced)
+        XCTAssertEqual(collapsed.graph.last!.lanes, full.last!.lanes)
+        walk.graphMode = .labeled
+        XCTAssertEqual(CommitGraph.project(entries,walk:walk,rollupStates:["tip":.expand]).entries.map(\.hash), ["tip","end"], "Labeled-only mode ignores forced overrides upstream")
     }
     func testRollupSearchActivityUsesSourceInactiveEmptyAndInvalidPatterns() throws {
         let helper = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("build/issue-regex-runtime/IssueRegex/issue-regex")

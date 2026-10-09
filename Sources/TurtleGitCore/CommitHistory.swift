@@ -484,11 +484,11 @@ public enum CommitGraph {
     /// Compression changes only graph copies, never action/detail parent metadata.
     public static func project(_ entries: [LogEntry], walk: HistoryWalkOptions, references: HistoryReferenceVisibility = .all, rollupStates: [String: HistoryRollupChoice] = [:]) -> (entries: [LogEntry], graph: [CommitGraphRow], rollups: [String: HistoryRollupInfo]) {
         var children: [String: Set<String>] = [:]
-        for entry in entries { for parent in entry.graphParents ?? entry.parents { children[parent, default: []].insert(entry.hash) } }
         var rollups: [String: HistoryRollupInfo] = [:]
         var expanded = Set<String>(), collapsed = Set<String>()
         let visible = entries.filter { entry in
             if entry.hash.isEmpty { return true }
+            for parent in entry.graphParents ?? entry.parents { children[parent, default: []].insert(entry.hash) }
             let labeled = entry.isHead || entry.references.contains { references.keepsCommit($0) }
             let descendants = children[entry.hash, default: []]
             let fork = descendants.count > 1
@@ -496,12 +496,13 @@ public enum CommitGraph {
             var show = walk.graphMode == .all || labeled || walk.graphMode == .compressed && special
             var defaultCollapse = walk.graphMode != .all
             var rolled = defaultCollapse
-            if walk.graphMode == .compressed && !rollupStates.isEmpty {
+            if walk.graphMode != .labeled && !rollupStates.isEmpty {
                 let child = descendants.count == 1 ? descendants.first : nil
                 let childExpanded = child.map { expanded.contains($0) } ?? false
                 let childCollapsed = !childExpanded && (child.map { collapsed.contains($0) } ?? false)
-                show = special || childExpanded
-                defaultCollapse = special || childCollapsed
+                let showAny = walk.graphMode == .all
+                show = special || childExpanded || (showAny && !childCollapsed)
+                defaultCollapse = (special && !showAny) || (!special && childCollapsed)
                 rolled = show ? rollupStates[entry.hash].map { $0 == .collapse } ?? defaultCollapse : defaultCollapse
                 if rolled { collapsed.insert(entry.hash) } else { expanded.insert(entry.hash) }
             }
@@ -529,10 +530,19 @@ public enum CommitGraph {
             copy.graphParents = nil
             return copy
         }
+        // append(hash, visible, firstParent) updates upstream lanes even when
+        // visible is false. Preserve each raw row's snapshot before filtering.
+        var machine = HistoryLanes()
+        var sourceRows: [String: (lanes: [HistoryLane], column: Int)] = [:]
+        for entry in entries {
+            let lanes = machine.consume(hash: entry.hash, parents: entry.graphParents ?? entry.parents, mergeCommit: entry.parents.count > 1, firstParent: walk.firstParent)
+            sourceRows[entry.hash] = (lanes,machine.activeLane)
+        }
         let graph = zip(visible, layout(graphEntries, mergeCommits: visible.map { $0.parents.count > 1 }, firstParent: walk.firstParent)).map { entry, row in
-            CommitGraphRow(column: row.column, color: row.color, lanes: row.lanes,
+            let snapshot = sourceRows[entry.hash]!
+            return CommitGraphRow(column: snapshot.column, color: snapshot.column, lanes: snapshot.lanes,
                 junction: entry.parents.count > 1 || children[entry.hash, default: []].count > 1,
-                collapsed: rollups[entry.hash]?.collapsed ?? false, edges: row.edges, width: row.width)
+                collapsed: rollups[entry.hash]?.collapsed ?? false, edges: row.edges, width: snapshot.lanes.count)
         }
         return (visible, graph, rollups)
     }

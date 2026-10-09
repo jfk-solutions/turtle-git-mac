@@ -116,9 +116,10 @@ three quarters of row height and node radius is the integer lane width times
 node size divided by 30. Line width uses the saved setting. Native graph drawing now uses the source lane state machine, retains empty
 slots, colors by lane index and routes join/tail arc gradients from the active
 merge lane. Source horizontal/vertical line and circle/square/rolled/boundary
-shapes are adapted to Core Graphics. Complete filtered/compressed topology,
-physical raster/Retina/gradient parity and boundary metadata loading remain
-pending. The revision table reloads existing cells after Apply while retaining
+shapes are adapted to Core Graphics. Compressed/labeled visibility now preserves each raw row's lane snapshot,
+advancing through hidden commits as upstream append does. Physical
+raster/Retina/gradient parity, Git search/path metadata equivalence and boundary
+metadata loading remain pending. The revision table reloads existing cells after Apply while retaining
 selection and scroll state through the existing update logic.
 
 AppKit on this host resolves named accessibility appearances to ordinary
@@ -147,3 +148,13 @@ Shared GraphCell also invalidates on saved color/accessibility revisions, so
 existing Log and Blame cells can repaint without replacing the cell. Hidden
 native drawing acceptance and its limits are recorded in the QA file. No
 current screenshot or physical visual parity is implied.
+
+[History projection QA](qa/history-projection-2026-10-09.json) checks the pinned
+visibility/forced-rollup/filter walk against Core projection, including complete,
+compressed and labeled views, label masks and forced overrides. Collapse/Expand
+is also available in the complete graph, matching upstream FILTERSHOW_ALL.
+Hidden commits advance the lane machine; display-parent bridging remains the
+separate compatibility edge API and does not replace painted lane snapshots.
+Changing label visibility with forced states reloads the projection in complete
+view. Actual action/detail parents remain untouched. Search/path revision-walk
+metadata and physical graph pixels still require separate acceptance.

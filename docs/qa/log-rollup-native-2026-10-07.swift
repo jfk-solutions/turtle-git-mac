@@ -37,13 +37,25 @@ import TurtleGitCore
         let model = LogWindowModel(repository: repo, access: nil, labelDefaults: defaults, historyRegexExecutable: helper)
         defer { model.invalidate() }
         model.showWorkingTree = false; model.search = ""; model.searchRegex = false
-        model.reload(); try await wait(model); model.toggleHistoryWalk(.compressed); try await wait(model)
-        precondition(model.entries.map(\.hash) == [hashes[5], hashes[2], hashes[0]])
-        precondition(model.canToggleRollup && model.rollupTitle == "Expand" && model.graph[0].collapsed)
+        model.reload(); try await wait(model)
+        precondition(model.entries.count == 6 && model.canToggleRollup && model.rollupTitle == "Collapse")
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 740), styleMask: [.titled, .resizable], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false; defer { window.close() }
         window.contentViewController = NSHostingController(rootView: LogDialog(model: model)); window.contentView?.layoutSubtreeIfNeeded()
         guard let table = table(in: window.contentView!), let menu = table.menu else { preconditionFailure("Native revision menu missing") }
+        menu.delegate?.menuNeedsUpdate?(menu)
+        let fullCollapse = menu.indexOfItem(withTitle: "Collapse"); precondition(fullCollapse >= 0)
+        menu.performActionForItem(at: fullCollapse); try await wait(model)
+        precondition(model.entries.map(\.hash) == [hashes[5],hashes[2],hashes[1],hashes[0]], "Full-view Collapse must preserve labels and show regular rows after an expanded label boundary")
+        model.toggleHistoryLabel(.tags); try await wait(model)
+        precondition(model.entries.map(\.hash) == [hashes[5]], "Full-view label changes with forced states must reload the projection")
+        model.toggleHistoryLabel(.tags); try await wait(model)
+        precondition(model.entries.map(\.hash) == [hashes[5],hashes[2],hashes[1],hashes[0]])
+        model.select([hashes[5]]); menu.delegate?.menuNeedsUpdate?(menu)
+        menu.performActionForItem(at: menu.indexOfItem(withTitle: "Expand")); try await wait(model)
+        precondition(model.entries.count == 6 && !model.graph[0].collapsed)
+        model.toggleHistoryWalk(.compressed); try await wait(model)
+        precondition(model.entries.map(\.hash) == [hashes[5],hashes[2],hashes[0]] && model.rollupTitle == "Expand")
         menu.delegate?.menuNeedsUpdate?(menu)
         let expand = menu.indexOfItem(withTitle: "Expand"); precondition(expand >= 0 && expand < menu.indexOfItem(withTitle: "Copy to clipboard"))
         menu.performActionForItem(at: expand); try await wait(model)
@@ -67,6 +79,6 @@ import TurtleGitCore
         model.busy = true; precondition(!model.canToggleRollup); model.toggleRollup(); model.busy = false
         model.invalidate(); precondition(!model.canToggleRollup)
         let after = try paths.map { try Data(contentsOf: root.appendingPathComponent($0)) }; precondition(before == after)
-        print("Native rollup: actual Expand/Collapse menu routing, linear label boundaries, mid-segment forced collapse, hollow state, parent preservation, multiple/busy/closed/search guards and invalid regex passed; repository unchanged")
+        print("Native rollup: actual full-view Collapse/Expand and forced label-mask reload, plus compressed Expand/Collapse menu routing, linear label boundaries, mid-segment forced collapse, hollow state, parent preservation, multiple/busy/closed/search guards and invalid regex passed; repository unchanged")
     }
 }

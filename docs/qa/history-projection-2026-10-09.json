@@ -1,0 +1,63 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "10dd423",
+  "scope": "Full-walk hidden history lane snapshots and full-view forced rollup; full port goal remains active",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/GitLogListBase.cpp": "19518f37689e19b7e913c9ff8cc9d65ec223c187",
+    "src/TortoiseProc/LogDataVector.cpp": "0859b5b1fae54d5632f9482f5460d3d80cd4f1d2",
+    "src/TortoiseProc/lanes.cpp": "1c17035bf30db9ae2d294127457bd3881f0d5a01",
+    "src/TortoiseProc/lanes.h": "c05d1050064ef3d541b7fc814fb94dc1ed70c8bd"
+  },
+  "sources_manifest_sha256": "2ac2916080381c3e229c94e15967790344e27b03dae0150309ec89eccdda235d",
+  "changed_files_sha256": {
+    "NOTICE": "83fb1fcf5d55bd7758b46d2138d12d7fd2cd3b0d8b8667f9c52161730b60546d",
+    "Sources/TurtleGitCore/CommitHistory.swift": "c511105509cc8cd0b00165288cb76b3e01ffc7f8789917f8c3fd49e5a87a15a4",
+    "Sources/TurtleGitMac/LogWindow.swift": "791b31026bdcf5f63699930be997c2c0959ffd0e1e3fdfd74a7103ca7a812609",
+    "Tests/TurtleGitCoreTests/CommitHistoryTests.swift": "4aef905ab1160d4161d6611ec54753c8e55e6a2130426e8a8b4a3c6aa557e1e0",
+    "docs/APPEARANCE.md": "9138102d09751a02f77683a7f175dadbc31c158020008905425463e832ad0c89",
+    "docs/LOG-PARITY.md": "644577078a251552da129bacff2764b4d101653b25743f716271588a274ebe6a",
+    "docs/qa/history-projection-native-2026-10-09.swift": "37be0a01d0e826538888529e3715c2fbc732a7e1c3e1cf9df37c0eef59016138",
+    "docs/qa/log-rollup-native-2026-10-07.swift": "b2915d112ea250ea0d5b13acfcab8b3f85390d1aa206806f5df854f170febb17",
+    "docs/upstream-files.csv": "5541604a6c2e4206fa4b0d7d7217d807f3687b64f71209450a3b017090813062",
+    "scripts/test-history-projection.py": "8b3c1da114b216a5d0d1de0d6181ad1b3e44c5594d9dac4e7d9c464dade96b4b"
+  },
+  "verification": {
+    "projection_oracle": "648 projections, 10233 visibility/rollup/forced snapshots and visible full-walk lane states match compiled pinned C++ filter/rollup/Lanes/updateLanes bodies. Actual action/detail parents remain unchanged. Fixture SHA c638953a47a778b2ed0a29b9871929685fd04ad113b1e5134d681fa0dab14520.",
+    "core": "46 CommitHistoryTests and 5 WorkingTreeHistoryTests pass.",
+    "native": "Owned hidden native Log receiver passes Apple and bundled Git: actual full-view Collapse/Expand, forced label-mask reload, compressed rollup, selection/busy/closed/search guards, parent preservation and unchanged repository bytes.",
+    "packages": "Final unsigned Debug and AppStore builds and bundle audits pass. Current NOTICE matches both packages. Store started after all Core/native/compiler handles completed.",
+    "inventory": "Pinned source and diff checks pass; four partial inventory mappings updated.",
+    "site": "Local site generation checked separately; no deployment or fresh screenshot claim."
+  },
+  "iterations": [
+    "Initial Core expected full-view fixture omitted ordinary ancestor b after expanded tag boundary; corrected expected list to source behavior.",
+    "Initial portable C++ prefix adapter lacked wide-string support; corrected adapter without altering compiled source algorithm bodies."
+  ],
+  "limitations": [
+    "Native Git raw-walk/search/path/boundary metadata equivalence remains incomplete.",
+    "Physical Windows/macOS raster, gradients, Retina, clipping and selection comparison remains unverified.",
+    "Full dialog/menu/Finder parity, signed sandbox/distribution, App Store acceptance and complete documentation remain incomplete. GitHub push and CI unavailable."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "private_preferences_removed": 2,
+    "preference_cleanup_sha256": "23c989a699f9e907361de67c7e8a728487c7b01c54371664e7db72d5098cfc89",
+    "windows": "Receivers close owned hidden windows; pure projection oracle opens no UI.",
+    "process_audit": "No owned receivers/main app, private rollup preferences or private fixture directories remain."
+  },
+  "local_log_sha256": {
+    "build/qa/history-projection-2026-10-09/core-final.log": "a668477e7e4cdcf9daa6b5fe545235483354c62fc1d2edcdbbe625e311873070",
+    "build/qa/history-projection-2026-10-09/core.log": "1d33dba9cb60ea29c2fed0a7856a7fbe7ae4a15b4528772dee04a1fe7890463c",
+    "build/qa/history-projection-2026-10-09/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/history-projection-2026-10-09/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/history-projection-2026-10-09/native.log": "7d21e65bfe9afeca4a36719eac1a8ddbd297fc8e150f90572ab4d8b0368038b2",
+    "build/qa/history-projection-2026-10-09/oracle-final.log": "20b722e5cf4a8554bc3bf3eda1efaba39675ce45541061c2ecec5bf7c712a438",
+    "build/qa/history-projection-2026-10-09/oracle.log": "b007d639f39505d5bb841818f71ae70da67c3d96e7ecee04c71d29fa863fd673",
+    "build/qa/history-projection-2026-10-09/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/history-projection-2026-10-09/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/history-projection-2026-10-09/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca",
+    "build/qa/history-projection-2026-10-09/working-core.log": "1d9fa42566435fdd148a8a20acd04b38343400b31fca71fcda6b145115920a5a",
+    "build/qa/history-projection-2026-10-09/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}
