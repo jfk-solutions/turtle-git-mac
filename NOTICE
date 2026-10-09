@@ -23,6 +23,15 @@ third-party notices and reconstruction scripts are included under
 Contents/Helpers/Git/share/licenses/git/. Configuration/GitRuntime.json records
 the version, source URL and checksum. macOS system libraries are not redistributed.
 
+All Xcode configurations now bundle pinned OpenSSH clients/agent tools with
+statically linked OpenSSL. OpenSSH retains its BSD and other permissive notices;
+OpenSSL retains Apache License 2.0. Original license texts, complete publisher
+source archives, pin configuration and reconstruction/audit scripts are retained
+under Contents/Helpers/OpenSSH/. Configuration/OpenSSHRuntime.json records the
+versions and archive checksums. These are separate helper executables; no OpenSSL
+code is linked into the Swift application or Git engine. Signed sandbox invocation
+and full authentication parity remain unverified.
+
 The app bundles EditorConfig C Core and statically linked PCRE2. Their original
 license texts, pinned source/test archives and reconstruction script are retained
 under Contents/Helpers/EditorConfig/. Configuration/EditorConfigRuntime.json
@@ -1069,14 +1078,14 @@ SSHAgentSession.swift is original Swift transport infrastructure for the
 CAppUtils::LaunchPAgent workflow. AppUtils.cpp: Copyright (C) 2008-2026
 TortoiseGit and 2003-2011, 2013-2014 TortoiseSVN, GPL-2.0-or-later.
 No Pageant or OpenSSH source/binary is included by that implementation.
-Development currently invokes macOS OpenSSH tools; packaged agent helpers
-and native encrypted-key authentication remain unfinished.
+Bundled agent helpers now replace the system fallback in Xcode builds; signed
+invocation and complete native encrypted-key authentication remain unfinished.
 
 The SSH passphrase response CLI, private one-use response channel and native
 secure response dialog are original Swift implementations under GPL version 2
 or later. Their response contract replaces the Pageant ask_passphrase callback
 referenced in the pinned TortoisePlink/pageant.h. No PuTTY or OpenSSH source is
-copied into these components. Bundled OpenSSH agent/add and complete native
+copied into these components. Signed OpenSSH agent/add invocation and complete native
 authentication integration remain pending.
 
 SSHIdentityAccess.swift implements original app-private read-only key bookmark
@@ -1093,7 +1102,7 @@ SSHTransportCoordinator.swift implements original native key-grant, private-agen
 and secure response orchestration under GPL version 2 or later. Fetch/Pull/Push
 auto-load controls adapt the pinned PullFetchDlg and PushDlg preferences and
 loading points; Windows PuTTY configuration remains separate. Signed access,
-OpenSSH packaging and complete network authentication remain release gates.
+Bundled SSH client selection and complete network authentication remain release gates.
 
 RemoteTags.swift, ReferenceBrowser.swift and native RemoteTag/ReferenceBrowser
 SSH orchestration adapt the pinned BrowseRefsDlg remote-group loading behavior

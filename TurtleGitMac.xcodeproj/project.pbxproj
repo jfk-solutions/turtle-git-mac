@@ -832,6 +832,7 @@
 				CEE1C93388E81BE0FC471865 /* Embed SSH passphrase helper */,
 				51D7E3DB4C35C2277F3C9C8D /* Embed C++ issue-matching runtime */,
 				05E9103FE147A460078548D0 /* Embed pinned EditorConfig runtime */,
+				E1188D36737E73638718384D /* Embed pinned OpenSSH runtime */,
 				C45E6CCF59E8F543668B15BE /* Embed pinned Git runtime for App Store */,
 			);
 			buildRules = (
@@ -1009,6 +1010,25 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "/usr/bin/python3 \"$SRCROOT/scripts/embed-ssh-askpass.py\" \"$BUILT_PRODUCTS_DIR/TurtleGitSSHAskpass\" \"$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME\"\n";
+		};
+		E1188D36737E73638718384D /* Embed pinned OpenSSH runtime */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Embed pinned OpenSSH runtime";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/usr/bin/python3 \"$SRCROOT/scripts/embed-openssh-runtime.py\" \"$SRCROOT/build/openssh-runtime/OpenSSH\" \"$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

@@ -47,3 +47,5 @@ subprocess.run(['/usr/bin/python3', str(root / 'scripts/validate-issue-regex-run
 askpass_arguments = ['/usr/bin/python3', str(root / 'scripts/validate-ssh-askpass.py'), str(app / 'Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass')]
 if args.require_git: askpass_arguments.append('--universal')
 subprocess.run(askpass_arguments, check=True)
+
+subprocess.run(['/usr/bin/python3', str(root / 'scripts/validate-openssh-runtime.py'), str(app / 'Contents/Helpers/OpenSSH')], check=True)

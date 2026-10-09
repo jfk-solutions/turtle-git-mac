@@ -17,6 +17,7 @@ configuration requires a prepared pinned runtime and refuses external fallback.
 ```sh
 python3 scripts/build-editorconfig-runtime.py
 python3 scripts/build-issue-regex-runtime.py
+python3 scripts/build-openssh-runtime.py
 python3 scripts/build-git-runtime.py
 xcodebuild -project TurtleGitMac.xcodeproj -scheme TurtleGitAppStore \
   -configuration AppStore -destination 'platform=macOS' \
@@ -216,7 +217,7 @@ Provenance retains shipping source and post-sign binary hashes. The unsigned
 bundle audit exercises a private dummy response and replay refusal, and checks
 macOS 13/system linkage and both AppStore architectures. This does not verify
 signed inherited invocation. Native Fetch/Pull/Push/browse transport wiring now
-exists, but OpenSSH agent/add packaging, real authentication and signed access
+exists, and OpenSSH helpers are now embedded; real authentication and signed access
 are still required before this enables App Store SSH authentication.
 
 Native SSH identity bookmarks are created with read-only security scope and kept
@@ -230,6 +231,12 @@ See [identity selection](SSH-IDENTITY-PARITY.md).
 A standalone pinned universal OpenSSH/static OpenSSL build retains source
 archives, original licenses, reconstruction tools and file hashes. See
 [OpenSSH runtime preparation](OPENSSH-RUNTIME.md) for build/audit commands and
-explicit feature gaps. It is not yet embedded or selected by packaged Git.
-Signing, inherited sandbox invocation, real authentication and complete
-SSH behavior remain release gates.
+explicit feature gaps. All Xcode configurations embed it under
+Contents/Helpers/OpenSSH. Each helper is signed before the containing app;
+AppStore signing uses inherited sandbox entitlements. Provenance preserves
+unsigned binary hashes and records post-sign binary/file hashes. Unsigned builds
+exercise fixture keys; inherited signed copies receive static signature and
+entitlement checks, not execution from an unsandboxed Python parent.
+
+Selecting the bundled client for packaged Git, signed parent invocation, real
+authentication and complete SSH behavior remain release gates.

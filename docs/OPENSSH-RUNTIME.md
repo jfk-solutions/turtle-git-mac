@@ -1,8 +1,9 @@
 # OpenSSH runtime preparation
 
 The full port needs an app-owned SSH client and private-agent tools for sandboxed
-Git transports. This build foundation does not yet embed them in the app or
-change transport resolution. App Store SSH acceptance remains incomplete.
+Git transports. All Xcode configurations now embed these tools. The existing
+agent resolver selects bundled agent/add tools, but packaged Git client selection
+is still pending. App Store SSH acceptance remains incomplete.
 
 `Configuration/OpenSSHRuntime.json` pins OpenSSH 10.6p1 and OpenSSL 3.5.9,
 publisher archive checksums, arm64/x86_64 slices and a macOS 13 deployment target.
@@ -47,8 +48,8 @@ from the retained reconstruction package has not yet been exercised.
 
 ## Remaining integration and acceptance
 
-- Embed and sign helpers with inherited App Store sandbox entitlements, updating
-  post-sign provenance and verifying the containing app.
+- Verify signed app invocation and security-scope inheritance; embedded helpers
+  now receive configured signing and static entitlement checks.
 - Select the bundled SSH client for packaged Git without replacing explicit user
   SSH commands; retain operation-owned agent and identity security scopes.
 - Exercise encrypted-key loading through the existing one-use askpass channel.
@@ -59,3 +60,19 @@ from the retained reconstruction package has not yet been exercised.
 See [SSH agent parity](SSH-AGENT-PARITY.md) and
 [distribution preparation](DISTRIBUTION.md). Successful standalone compilation
 is not evidence of signed sandbox invocation or App Store submission readiness.
+
+## Embedding and signing
+
+`embed-openssh-runtime.py` audits the unsigned input, stages a private copy and
+validates it before replacing the app helper directory. With Xcode signing
+enabled it signs all five tools with hardened runtime options, preserving
+unsigned hashes and updating both binary and file hashes. AppStore uses
+GitHelper.entitlements (app-sandbox and inherit). The validator verifies each
+signature and exact inherited entitlements. It skips runtime execution for
+inherited helpers because execution must be tested from a signed sandboxed
+parent. Ad-hoc signing checks establish neither distribution signing nor sandbox
+behavior. Failed preparation preserves the previous helper directory.
+
+The [embedding audit record](qa/openssh-embedding-2026-10-10.json) records both
+unsigned app builds, their bundle checks and private fixture signing/failure
+tests. Failed inputs and signing preserve every previous package file hash.

@@ -29,8 +29,8 @@ it. Socket path length is checked against macOS's Unix-domain socket limit.
 
 Development resolves system OpenSSH tools when bundled helpers are absent. The
 App Store resolver requires both bundled agent/add helpers and refuses fallback.
-Those helpers are not embedded in the app yet. A standalone pinned universal
-build and audit foundation is tracked in
+Xcode builds now embed the pinned universal agent/add tools and SSH client.
+Build, signing and audit preparation are tracked in
 [OpenSSH runtime preparation](OPENSSH-RUNTIME.md). The app now embeds an original Swift askpass
 CLI. A supplied response can load an encrypted key through a private one-use
 channel; without a response, the headless loader rejects interactive prompting.
@@ -41,8 +41,8 @@ signed sandbox acceptance.
 
 ## Remaining end-to-end work
 
-- Package pinned universal OpenSSH helpers, notices/reconstruction material and
-  signed sandbox inheritance; audit their own dependencies and runtime behavior.
+- Verify signed parent invocation of the embedded OpenSSH helpers and select
+  the bundled client for packaged Git; static signing checks are not execution acceptance.
 - Verify signed identity selection, renewal and loading; add permission management. Native mock-scope loading exists and Windows PuTTY configuration is preserved. Conversion or native PPK support remains pending.
 - Verify physical encrypted-key response sheets and add Keychain decisions with owned
   cancellation. Keep private bytes out of command output, Finder and docs.

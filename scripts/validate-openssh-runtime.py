@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import plistlib
 import re
 import subprocess
 import tempfile
@@ -45,7 +46,21 @@ for name in pin['binaries']:
             assert line.strip().split(' (')[0].startswith(('/usr/lib/','/System/Library/')), line
 for name in ['OpenSSH-LICENCE.txt','OpenSSL-LICENSE.txt']:
     assert (runtime/'Licenses'/name).stat().st_size > 1000
-assert not manifest.get('signed'), 'Use native signed-parent acceptance for inherited sandbox helpers'
+if manifest.get('signed'):
+    assert set(manifest['unsigned_binary_sha256']) == set(pin['binaries'])
+    for name in pin['binaries']:
+        binary = runtime/'bin'/name
+        subprocess.run(['/usr/bin/codesign','--verify','--strict',binary],check=True)
+        if manifest.get('sandbox_inherited'):
+            output = subprocess.check_output(['/usr/bin/codesign','-d','--entitlements',':-',binary],stderr=subprocess.STDOUT)
+            start = output.index(b'<?xml'); end = output.index(b'</plist>',start)+len(b'</plist>')
+            assert plistlib.loads(output[start:end]) == {'com.apple.security.app-sandbox':True,'com.apple.security.inherit':True},name
+    if manifest.get('sandbox_inherited'):
+        print('OpenSSH: all five signed inherited-sandbox helpers, both slices, linkage and retained resources verified. Signed parent invocation and authentication require native acceptance.')
+        raise SystemExit(0)
+else:
+    assert not manifest.get('sandbox_inherited'), 'Unsigned runtime cannot claim inherited signing'
+
 with tempfile.TemporaryDirectory(prefix='tg-openssh-audit-') as temporary:
     root = Path(temporary); socket = root/'s'
     assert len(str(socket).encode()) < 104

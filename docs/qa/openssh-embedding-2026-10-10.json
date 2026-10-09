@@ -1,0 +1,60 @@
+{
+  "checked_at": "2026-10-09T22:20:54.177638+00:00",
+  "parent_commit": "8812495d8380868f25386ab4e09559f69cb2ef7b",
+  "scope": "Xcode OpenSSH packaging/signing and local unsigned app bundle verification",
+  "checks": {
+    "refreshed_runtime_build_exit": 0,
+    "fixture_embedding_exit": 0,
+    "fixture_branches": [
+      "Unsigned runtime execution",
+      "Debug ad-hoc signature and runtime execution",
+      "AppStore ad-hoc signature and exact inherited entitlement audit; no execution"
+    ],
+    "failure_preservation": [
+      "Missing identity",
+      "Failed signing",
+      "Damaged source resource"
+    ],
+    "preservation": "All prior helper package file hashes unchanged; stage/backup directories removed",
+    "debug_build_exit": 0,
+    "debug_bundle_audit_exit": 0,
+    "appstore_build_exit": 0,
+    "appstore_bundle_audit_exit": 0,
+    "bundled_icons": 100,
+    "appstore_git_audit": "12 Mach-O files, both slices and existing Git fixture suite passed",
+    "python_compile_exit": 0,
+    "final_audit": {
+      "matching_processes": [],
+      "current_fixtures": []
+    }
+  },
+  "provenance_sha256": {
+    "Debug": "f1a33e07f8cd692b819c763c9ea05040c7961a1d3ab9761756abdabc8fa9bbab",
+    "AppStore": "f1a33e07f8cd692b819c763c9ea05040c7961a1d3ab9761756abdabc8fa9bbab"
+  },
+  "source_sha256": {
+    ".github/workflows/macos.yml": "8f7aec7bda61650077a52ee189743c8a1bc5cce023d905eb8370955a76c93d2e",
+    "NOTICE": "d7e82a374f16fb6b5d34989ffd1488fb9d6ea410e3941c793f94ceb0c49df4d3",
+    "README.md": "f21f98bc3554a9d0a0fe5c2cda159eaa7dff4cecdccc7c4838ef9dcc376f4522",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "f4493d2eb731f36a7692616fdccdd684369856ae92bfd8303b676b49b0e8509d",
+    "docs/DISTRIBUTION.md": "5c891f23798e118ca33e1176c177b358ab5c22f41063c8c069a0f7aee227fb68",
+    "docs/OPENSSH-RUNTIME.md": "465990d1a40db1d21fa071baf4f736ce2e149eed03262cf7a55ef376c852333c",
+    "docs/SSH-AGENT-PARITY.md": "2ecb27d10d205a209af3a635c055ad82d5a9577c3d8606b48d9383915a389d88",
+    "project.yml": "24cacfe4f81b53e27b0eac821620f04d116355d207a26ba0065a493567f5a31a",
+    "scripts/build.sh": "eff57592be91205817f620c39fbdf2e534107ee0eb12a107fa62a7aad6fba390",
+    "scripts/validate-app-bundle.py": "d0869cec6c8205db0ef1287ac1c612bd13216deb4fb98a9c8fcd461e44bd0a84",
+    "scripts/validate-openssh-runtime.py": "0773a8d58cc70e7c1d5172255bf8a4cae25500396bab4f288e4d843d478409f8",
+    "scripts/embed-openssh-runtime.py": "d82bc3b439850294f8ea7a1937acb14175ec72a515f334381e90f95561528f94",
+    "scripts/test-openssh-embedding.py": "39acbd6d2df97e5a4cfebc48bdd04696532a454fbaa42dcd5574c656b0cb9ab5",
+    "Configuration/OpenSSHRuntime.json": "21230f2c7a554fa5c2dc755cdef91c52bdf6bca205649ffb6f7b62abff0f8a7c"
+  },
+  "limitations": [
+    "Unsigned app builds; ad-hoc helper signatures are not distribution signatures",
+    "No signed app/sandbox invocation, Intel runtime or macOS 13 runtime acceptance",
+    "Bundled Git SSH client selection pending; agent/add resolver already prefers packaged helpers",
+    "No real SSH authentication, host-key/password/Keychain or hardware-key acceptance",
+    "No main app launched; no hosted GitHub CI verification",
+    "Complete TortoiseGit port remains incomplete"
+  ],
+  "logs": "build/qa/openssh-runtime-2026-10-09/ (ignored local logs)"
+}

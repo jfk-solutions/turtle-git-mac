@@ -44,15 +44,16 @@ The generated Xcode project is checked in; XcodeGen is optional unless changing
 ```sh
 python3 scripts/build-editorconfig-runtime.py
 python3 scripts/build-issue-regex-runtime.py
+python3 scripts/build-openssh-runtime.py
 swift test
 ./scripts/build.sh
 open build/Build/Products/Debug/TurtleGitMac.app
 ```
 
-The build script prepares both helpers before building the unsigned Debug app.
+The build script prepares the three helper runtimes before building the unsigned Debug app.
 The explicit helper commands above prepare them for the preceding tests.
 `swift run TurtleGitMac` is an alternative development launch; it does not embed
-the Finder extension or the EditorConfig and issue-matching helpers.
+the Finder extension or the EditorConfig, issue-matching and OpenSSH helpers.
 
 See [testing](docs/TESTING.md) for scoped checks, native receivers, compatibility
 coverage and process cleanup. Close app instances after manual testing.
@@ -120,7 +121,7 @@ The static site source is `docs/site`; `python3 scripts/build-site.py` builds
 
 GPL v2, matching upstream TortoiseGit; see [LICENSE](LICENSE) and [NOTICE](NOTICE).
 Native builds use Apple's frameworks and embed the pinned EditorConfig and
-issue-matching helpers. Development builds can use installed Git; the Store
+issue-matching and OpenSSH helpers. Development builds can use installed Git; the Store
 configuration embeds its pinned Git runtime. Bundled dependencies and original
 artwork are documented in NOTICE and the bundle's license resources.
 Distribution clearance remains incomplete; see [distribution requirements](docs/DISTRIBUTION.md).
