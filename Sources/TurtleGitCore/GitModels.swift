@@ -93,17 +93,31 @@ public struct LogEntry: Identifiable, Sendable {
     public var isBoundary = false
     /// Display-filter result when a history read retains the complete walked batch.
     public var matchesHistoryFilter = true
-    /// GitRev's raw first-LF subject/body split and MessageDisplayStr's line folding.
-    /// Keep raw message and action/clipboard metadata unchanged.
-    public func logLine(fullMessage: Bool = false) -> String {
-        guard !hash.isEmpty, !message.isEmpty else { return subject }
+    /// GitRev splits the raw message at the first LF, not Git's folded %s paragraph.
+    public static func splitHistoryMessage(_ message: String) -> (subject: String, body: String) {
         let raw = message as NSString
         let newline = raw.range(of: "\n")
-        guard newline.location != NSNotFound else { return message }
-        let heading = raw.substring(to: newline.location)
-        let body = raw.substring(from: NSMaxRange(newline))
-        guard fullMessage, !body.isEmpty else { return heading }
-        return (heading + " " + body).replacingOccurrences(of: "\n", with: " ").replacingOccurrences(of: "\r", with: " ")
+        guard newline.location != NSNotFound else { return (message, "") }
+        return (raw.substring(to: newline.location), raw.substring(from: NSMaxRange(newline)))
+    }
+    public var historySubject: String { message.isEmpty ? subject : Self.splitHistoryMessage(message).subject }
+    public var historyBody: String { Self.splitHistoryMessage(message).body }
+    /// Keep raw message and Git summary metadata unchanged.
+    public func logLine(fullMessage: Bool = false) -> String {
+        guard !hash.isEmpty, !message.isEmpty else { return subject }
+        let parts = Self.splitHistoryMessage(message)
+        guard fullMessage, !parts.body.isEmpty else { return parts.subject }
+        return (parts.subject + " " + parts.body).replacingOccurrences(of: "\n", with: " ").replacingOccurrences(of: "\r", with: " ")
+    }
+    /// CGitLogListBase's Subjects/Messages clipboard formats, including CRLF separators.
+    public static func historyClipboard(_ entries: [LogEntry], subjectsOnly: Bool) -> String {
+        entries.map { entry in
+            if subjectsOnly { return "* " + entry.historySubject.trimmingCharacters(in: .whitespacesAndNewlines) + "\r\n\r\n" }
+            let heading = String(entry.historySubject.reversed().drop(while: { $0.isWhitespace }).reversed())
+            let body = entry.historyBody.replacingOccurrences(of: "\n", with: "\r\n")
+            let trimmedBody = String(body.reversed().drop(while: { $0.isWhitespace }).reversed())
+            return "* " + heading + "\r\n" + trimmedBody + "\r\n\r\n"
+        }.joined()
     }
     public init(hash: String, author: String, date: String, subject: String, parents: [String] = [], email: String = "", message: String = "", committer: String = "", committerEmail: String = "", committerDate: String = "") {
         self.hash = hash; self.author = author; self.date = date; self.subject = subject

@@ -2563,9 +2563,9 @@ struct RevisionTable: NSViewRepresentable {
         @objc func copyAuthors() { model.copy(model.revisions.map { "\($0.author) <\($0.email)>" }.joined(separator: "\n")) }
         @objc func copyAuthorNames() { model.copy(model.revisions.map(\.author).joined(separator: "\n")) }
         @objc func copyAuthorEmails() { model.copy(model.revisions.map(\.email).joined(separator: "\n")) }
-        @objc func copySubjects() { model.copy(model.revisions.map(\.subject).joined(separator: "\n")) }
+        @objc func copySubjects() { model.copy(LogEntry.historyClipboard(model.revisions, subjectsOnly: true)) }
         @objc func copyHashes() { model.copy(model.revisions.map(\.hash).joined(separator: "\n")) }
-        @objc func copyMessages() { model.copy(model.revisions.map(\.message).joined(separator: "\n\n")) }
+        @objc func copyMessages() { model.copy(LogEntry.historyClipboard(model.revisions, subjectsOnly: false)) }
         @objc func copyDetails() { model.copyDetails() }
         @objc func copyDetailsWithoutPaths() { model.copyDetails(includePaths: false) }
     }

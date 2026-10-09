@@ -1,0 +1,63 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "7b58a61",
+  "scope": "Raw first-LF Subject/Messages filtering and actual Subjects/Messages menu clipboard formatting; whole application port remains incomplete",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/LogDlgFilter.cpp": "72c733884c004c4bdf6dd665e596210826f8d8bf",
+    "src/TortoiseProc/GitLogListBase.cpp": "19518f37689e19b7e913c9ff8cc9d65ec223c187",
+    "src/Git/GitRevLoglist.h": "e9d652c2ab1abd86e61bd452e9488b633163bc6c",
+    "src/Git/GitRev.cpp": "2d83c9ca0df508c45f11b89014987830af458cf4"
+  },
+  "sources_manifest_sha256": "2912e67d8400063c1296bee23dde78bdc96e294f97e98e809d7b61846540522b",
+  "changed_files_sha256": {
+    "NOTICE": "78b6c79e08ac1c03575b17339c789e086f1d7c3886c4175ae4b0637adadf5415",
+    "Sources/TurtleGitCore/CommitHistory.swift": "9edd027f9edd70252ec454c43512f6906e40df5798f0e735dd4ed361f0002fda",
+    "Sources/TurtleGitCore/GitModels.swift": "adb7c62abb1b08f6d21211664b032dc723cdb4025fbd3f0f4d3f5665d513c795",
+    "Sources/TurtleGitMac/LogWindow.swift": "70908d889965508ed04342074c543e1e7a4e4d62a26b9cc071297cf85fd0d043",
+    "Tests/TurtleGitCoreTests/LogMessageLineTests.swift": "adb8842b72a61588a7e94dc06718d3acac60c46d13a65f954c3ab94f7087e6ac",
+    "docs/LOG-PARITY.md": "66bf7e2b1a89d2e24b28e86fb15103130b563b220f33cf7aa8938d2c212ac512",
+    "docs/TESTING.md": "35fde03a57237aaf25068159614bf9a53b187a79257369e412410b02799c9335",
+    "docs/qa/log-message-line-native-2026-10-09.swift": "59fb5f3338fa641da84c31862454cb018ce9ba604bddb394ad3ee75ed01ad83a",
+    "docs/upstream-files.csv": "2f90804eab93eeb3c326ebf381a4521518746eee2ebb1cd2f135f28ccd765389"
+  },
+  "git_engines": {
+    "apple": "git version 2.50.1 (Apple Git-155)",
+    "bundled": "git version 2.55.0"
+  },
+  "verification": {
+    "core": "51 focused tests passed: 48 CommitHistoryTests and 3 LogMessageLineTests. Real Git multiline heading is excluded from Subject and included in Messages; raw heading remains searchable. Source display folding, CRLF split, Unicode/body, bullet/CRLF copy formatting and exact repository bytes checked. No full suite claim.",
+    "native": "Focused hidden receiver passed Apple and bundled Git. Actual production Log menu Subjects/Messages selectors with enabled icons write expected two-revision source strings to an owned private NSPasteboard; source default/false/true display choices do not change output. Log/Blame actual message cells and Rebase model/plan/selection/action data still pass. Raw message and Git summary metadata retained, exact repository HEAD/index/config/branch/file bytes preserved. No main app or replay operation.",
+    "debug": "Unsigned Debug build and bundle audit pass; packaged NOTICE matches current source.",
+    "store": "Unsigned AppStore build and required universal Git/Git LFS bundle audit pass; packaged NOTICE matches current source. Store started after Core/Debug/native handles were terminal; signed execution and App Store acceptance not claimed.",
+    "inventory": "Three partial mappings updated; pinned inventory checker passes.",
+    "site": "Local documentation generator succeeds; no deployment or new screenshots claimed."
+  },
+  "limitations": [
+    "Rebase rendered text remains unverified; strict receiver observation failure is retained. Focused mode does not establish full native acceptance.",
+    "CString Windows locale-specific whitespace classification versus Foundation/Swift Unicode whitespace remains unverified. Source CRLF clipboard separators are intentional; this check does not exercise external paste consumers.",
+    "Other clipboard commands/operation summary consumers, filter highlighting, all physical dialogs/context-menu gestures, accessibility, signed sandbox/Finder/distribution/App Store and new screenshots remain incomplete. GitHub push/hosted CI are unavailable and not claimed."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "private_preferences_removed": 2,
+    "removed_domains": [
+      "TurtleGit.MessageLine.Native.QA.7D42933A-0F29-402A-9806-AAA785EA0040",
+      "TurtleGit.MessageLine.Native.QA.D98AA9CC-0F61-45CC-90A7-D648CACFC2B6"
+    ],
+    "remaining_processes": [],
+    "remaining_fixtures": [],
+    "pasteboard": "Receiver releases its owned named pasteboard; system clipboard not used."
+  },
+  "local_log_sha256": {
+    "build/qa/log-message-search-copy-2026-10-09/cleanup.json": "be658f41958aeff0f2f5b465d04fb8632220d30cb7c09d5e5a3b951174dafc18",
+    "build/qa/log-message-search-copy-2026-10-09/core.log": "ac04152b750a152bd0ee60d3b6c927106e9710d2a43bc0e20389e51f1a507a03",
+    "build/qa/log-message-search-copy-2026-10-09/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/log-message-search-copy-2026-10-09/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-message-search-copy-2026-10-09/native.log": "9129515ec3f990907f6ca814cef539b69660314bd1d7b9d81d063b60d29c061f",
+    "build/qa/log-message-search-copy-2026-10-09/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/log-message-search-copy-2026-10-09/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-message-search-copy-2026-10-09/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/log-message-search-copy-2026-10-09/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca"
+  }
+}

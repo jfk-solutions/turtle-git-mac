@@ -46,6 +46,9 @@ final class MessageLineOffscreenWindow: NSWindow {
         let log = LogWindowModel(repository: repo, access: nil, labelDefaults: prefs)
         log.busy = true; log.entries = entries; log.graph = CommitGraph.layout(entries)
         for entry in entries { log.revisionActions[entry.hash] = [] }
+        let pasteboard = NSPasteboard(name: NSPasteboard.Name("TurtleGit.MessageLine.QA." + UUID().uuidString))
+        log.clipboard = pasteboard; log.selected = Set(entries.map(\.hash))
+        defer { pasteboard.releaseGlobally() }
         let blame = BlameWindowModel(repository: repo, access: nil, path: "file.txt", revision: "HEAD", labelDefaults: prefs)
         blame.historyEntries = entries; blame.selectedLogHashes = [entries[0].hash]
         let rebase = RebaseWindowModel(repository: repo, access: nil, messageDefaults: prefs)
@@ -70,6 +73,19 @@ final class MessageLineOffscreenWindow: NSWindow {
             }
         }
         try await settle(rebaseWindow.contentView!)
+        let logTable = descendants(logWindow.contentView!).compactMap { $0 as? NSTableView }.first!
+        let menu = logTable.menu!
+        menu.delegate?.menuNeedsUpdate?(menu)
+        let copyMenu = menu.items.first { $0.title == "Copy to clipboard" }!.submenu!
+        for (title, expectedCopy) in [
+            ("Subjects", "* first line\r\n\r\n* root\r\n\r\n"),
+            ("Messages", "* first line\r\ncontinued heading\r\n\r\nbody 雪\r\nsecond body line\r\n\r\n* root\r\n\r\n\r\n")
+        ] {
+            let item = copyMenu.items.first { $0.title == title }!
+            precondition(item.isEnabled && item.image != nil)
+            precondition(NSApp.sendAction(item.action!, to: item.target, from: item))
+            precondition(pasteboard.string(forType: .string) == expectedCopy, title + " actual menu clipboard output differs")
+        }
         precondition(log.fullCommitMessageOnLogLine == full && blame.fullCommitMessageOnLogLine == full && rebase.fullCommitMessageOnLogLine == full)
         precondition(message(logWindow).stringValue.hasSuffix(expected) && message(blameWindow).stringValue == expected)
         let label = message(logWindow).attributedStringValue
@@ -106,7 +122,7 @@ final class MessageLineOffscreenWindow: NSWindow {
         for enabled in [nil, false, true] as [Bool?] { try await check(enabled, repo: repo, entries: entries, plan: plan, prefs: prefs) }
         let after = try paths.map { try Data(contentsOf: repo.root.appendingPathComponent($0)) }; precondition(before == after)
         if CommandLine.arguments.contains("--log-blame-only") {
-            print("PASS (focused): actual hidden Log/Blame message cells, unset/false/true captured preferences, folding/label styling/one-line cells/selection/metadata preserved; Rebase model preference and read-only plan/selection/action checked, rendered Rebase text UNVERIFIED; unchanged repository bytes, all owned windows closed, no main app or replay operation")
+            print("PASS (focused): actual hidden Log/Blame message cells, unset/false/true captured preferences, folding/label styling/one-line cells/selection/metadata preserved, actual Subjects/Messages menu actions match source formatting on private pasteboard; Rebase model preference and read-only plan/selection/action checked, rendered Rebase text UNVERIFIED; unchanged repository bytes, all owned windows closed, no main app or replay operation")
         } else {
             print("PASS: offscreen native Log/Blame/Rebase message text and source captured preferences; unchanged repository bytes, all owned windows closed, no main app or replay operation")
         }

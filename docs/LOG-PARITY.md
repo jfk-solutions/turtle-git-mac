@@ -1761,9 +1761,12 @@ first line. Synthetic working-tree rows keep their existing descriptive title.
 Reference labels retain their styling, and the message remains a single
 truncated line. Full raw message, subject metadata, clipboard commands, commit
 actions, selection and details are unchanged by this display preference.
-Search/clipboard subject metadata still uses the existing Git summary and needs
-separate source comparison for multiline first paragraphs. Match highlighting,
-all-dialog physical appearance and signed sandbox acceptance remain pending.
+Subject and Messages searches now use the same raw first-LF split independently
+of the display preference. Git summary metadata remains available for other
+operation consumers; it is no longer substituted for source subject filtering.
+The Subjects/Messages clipboard actions use source bullet and CRLF formatting
+(see the following section). Match highlighting, all-dialog physical appearance
+and signed sandbox acceptance remain pending.
 
 For the packaged app, configure the source-equivalent runtime preference with:
 
@@ -1785,3 +1788,28 @@ unverified: both the production row and a minimal SwiftUI Table reproduction
 expose no row text through the in-process accessibility checks in this receiver.
 The strict full receiver retains that failing acceptance gate. No new physical
 screenshot is implied.
+
+
+## Raw subject search and clipboard formats
+
+The pinned LogDlgFilter searches the raw subject when either Subject or Messages
+is selected, then adds the raw body only for Messages. A continuation line in a
+multiline first paragraph is part of the body, although Git's `%s` folds it into
+the summary. Native history filtering now follows that split, including CRLF
+messages; original full message and Git summary metadata remain intact.
+
+The native Copy to clipboard → Subjects action emits `* `, the trimmed raw
+subject and two CRLF separators for every selected revision. Messages emits
+`* `, the right-trimmed raw subject, CRLF, the body with LF replaced by CRLF and
+trailing whitespace removed, then two CRLF separators. This follows
+GitLogListBase::CopySelectionToClipBoard and GitRevLoglist::GetSubjectBody(true),
+including the additional subject/body separator for a message with no body.
+Selection uses displayed revision order and the display preference does not
+change copied content. macOS pasteboard text stores these source CRLFs.
+
+The [search/copy QA record](qa/log-message-search-copy-2026-10-09.json) records
+verification scope. Windows locale-specific CString whitespace classification,
+physical context-menu interaction, all other clipboard formats and signed
+sandbox behavior still require comparison. Existing full-message display QA is
+a historical checkpoint; its pending search/copy note is superseded by this
+section, without changing its recorded results.

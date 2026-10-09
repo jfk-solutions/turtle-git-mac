@@ -964,3 +964,9 @@ and GitRev/gitdll's raw first-line subject/body parsing at the pinned revision,
 including FullCommitMessageOnLogLine's captured default-false preference and
 one-space-per-CR/LF folding. Original message text and operation metadata are
 retained separately from this native display adaptation.
+
+Raw history subject/body filtering adapts LogDlgFilter and GitRev parsing;
+Subjects/Messages clipboard output adapts GitLogListBase::CopySelectionToClipBoard
+and GitRevLoglist::GetSubjectBody(true), with source bullets, CRLF separators
+and trailing-whitespace removal at the pinned revision above. Full messages
+and separate Git summary metadata are retained.

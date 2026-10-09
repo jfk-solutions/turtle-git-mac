@@ -976,11 +976,9 @@ extension GitRepository {
             var matchesFilter = true
             if filterInMemory {
                 var searchable: [String] = []
-                if !options.searchFields.intersection([.subject, .messages]).isEmpty { searchable.append(fields[5]) }
-                if options.searchFields.contains(.messages) {
-                    let message = fields[6]
-                    searchable.append(message.firstIndex(of: "\n").map { String(message[message.index(after: $0)...]) } ?? "")
-                }
+                let messageParts = LogEntry.splitHistoryMessage(fields[6])
+                if !options.searchFields.intersection([.subject, .messages]).isEmpty { searchable.append(messageParts.subject) }
+                if options.searchFields.contains(.messages) { searchable.append(messageParts.body) }
                 if options.searchFields.contains(.bugIDs) { searchable.append(try issueIDs(fields[0].trimmingCharacters(in: .whitespacesAndNewlines), message: fields[6])) }
                 if options.searchFields.contains(.authors) { searchable += [fields[2], fields[7]] }
                 if options.searchFields.contains(.emails) { searchable += [fields[3], fields[8]] }

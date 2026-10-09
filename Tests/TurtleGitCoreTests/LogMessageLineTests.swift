@@ -20,6 +20,16 @@ final class LogMessageLineTests: XCTestCase {
         let working = LogEntry(hash: "", author: "", date: "", subject: "Working tree changes", message: "3 changed files")
         XCTAssertEqual(working.logLine(fullMessage: true), "Working tree changes")
     }
+    func testSourceClipboardFormatting() {
+        let first = LogEntry(hash: "one", author: "", date: "", subject: "folded paragraph", message: "  first line  \ncontinued heading\n\nbody 雪\n")
+        let second = LogEntry(hash: "two", author: "", date: "", subject: "fallback", message: "second")
+        XCTAssertEqual(LogEntry.historyClipboard([first, second], subjectsOnly: true), "* first line\r\n\r\n* second\r\n\r\n")
+        XCTAssertEqual(LogEntry.historyClipboard([first, second], subjectsOnly: false), "*   first line\r\ncontinued heading\r\n\r\nbody 雪\r\n\r\n* second\r\n\r\n\r\n")
+        XCTAssertEqual(LogEntry.historyClipboard([], subjectsOnly: false), "")
+        XCTAssertEqual(first.subject, "folded paragraph")
+        XCTAssertEqual(LogEntry.splitHistoryMessage("heading\r\nbody").subject, "heading\r")
+        XCTAssertEqual(LogEntry.splitHistoryMessage("heading\r\nbody").body, "body")
+    }
     func testGitFoldedSubjectIsNotRepeatedWithRawContinuation() async throws {
         let (root, repo, path) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
         let message = "first line\ncontinued heading\n\nbody 雪\nsecond body line\n"
@@ -32,6 +42,12 @@ final class LogMessageLineTests: XCTestCase {
         XCTAssertEqual(entry.logLine(), "first line")
         XCTAssertEqual(entry.logLine(fullMessage: true), "first line continued heading  body 雪 second body line ")
         XCTAssertEqual(entry.message, message)
+        var options = HistoryOptions(); options.searchFields = .subject; options.search = "continued heading"
+        let subjectMatches = try await repo.history(options: options); XCTAssertFalse(subjectMatches.contains { $0.hash == hash })
+        options.searchFields = .messages
+        let messageMatches = try await repo.history(options: options); XCTAssertTrue(messageMatches.contains { $0.hash == hash })
+        options.searchFields = .subject; options.search = "first line"
+        let headingMatches = try await repo.history(options: options); XCTAssertTrue(headingMatches.contains { $0.hash == hash })
         let after = try paths.map { try Data(contentsOf: root.appendingPathComponent($0)) }; XCTAssertEqual(before, after)
     }
 }

@@ -167,7 +167,9 @@ python3 scripts/test-log-message-line.py --log-blame-only --git /usr/bin/git \
 The native receiver constructs source-default, disabled and enabled models with
 private preferences. It inspects actual hidden Log/Blame message text and Rebase
 row/selection/action data from real multiline-message history and a read-only
-Rebase plan. The focused flag does not claim Rebase rendered-text acceptance.
+Rebase plan. Actual Subjects/Messages menu selectors also write source-formatted text to an
+owned private pasteboard, which is released afterwards. The system clipboard is
+not touched. The focused flag does not claim Rebase rendered-text acceptance.
 Omit it for the strict three-view check, which currently fails at Rebase text
 observation; the same absence is reproduced by a minimal SwiftUI Table. This
 full UI gate remains pending, rather than being counted as passed. Its temporary Blame source copy only appends a same-file view access
