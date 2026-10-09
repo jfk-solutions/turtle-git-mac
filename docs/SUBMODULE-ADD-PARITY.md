@@ -39,7 +39,15 @@ draft histories and persists after dialog cancellation, as in Manage Remotes.
 The native operation captures options/grants, prevents a second submission,
 uses bounded byte/CR/UTF-8 progress parsing and a fresh coordinator on Retry.
 A Git failure retains the bounded stream and reports its exit status instead of
-repeating the full captured command output.
+repeating the full captured command output. The shared native progress output
+now exposes parsed current work/percentage, source Copy/separator/Copy All menu
+with original icons, selectable text, completed URL/email links and source
+warning/error prefix colors in light/dark appearances. Completion reports Success,
+User cancelled, Git exit code or native Operation failed, reaches 100 percent,
+and appends source-style elapsed milliseconds/local timestamp unless
+ShowGitexeTimings is disabled. Retry clears the previous terminal range and
+progress before starting; forced-close fencing suppresses the completion footer
+as well as output. The shared UTF-8 display cap remains in force.
 Cancel stops its owned token; forced closure cancels and rejects late output,
 errors and completion callbacks. Quit is refused during operation/picker/sheet
 ownership. A dirty-document Quit question freezes the idle Add window as well.
@@ -60,4 +68,14 @@ edge cases, signed source/key/helper scopes, Finder dispatch acceptance, real
 screenshots, and adversarial filesystem/config races. Native progress remains
 inside the options window instead of source's separate ProgressDlg. Bundled
 OpenSSH agent/add and App Store SSH authentication are not ready. Existing Update
-and missing Sync workflows do not become complete through this Add port.
+and Sync workflows retain their own partial source and verification records.
+
+
+The progress styling continuation is recorded in
+[the Add progress verification record](qa/submodule-add-progress-styling-2026-10-09.json).
+Hidden native integration checks exercise successful Add with a private encrypted
+fixture key, bounded Git failure, retry after failure with timings disabled,
+key-preparation cancellation and retry followed by forced closure. These checks
+do not prove a displayed dialog matches the Windows layout; Add still embeds
+progress inside the options window and source separate-window/confirmation/
+autoclose behavior remains unfinished.

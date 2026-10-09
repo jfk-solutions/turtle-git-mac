@@ -1,0 +1,37 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "0c8bf3f1282515613768847253daf5d97e596dd1",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Extend shared native ProgressDlg presentation and completion to Submodule Add, with retry reset and cancellation/forced-close fences.",
+  "verification": {
+    "source": "Reviewed pinned SubmoduleCommand Add launch through separate ProgressDlg and ProgressDlg completion, timing and UpdateProgressFromLine. Shared rendering/formatting helpers are unchanged from parent checkpoint and retain its attributed-text/color/link/menu/private-clipboard verification; this continuation integrates those helpers into Add.",
+    "native": "Expanded hidden SSH coordinator receiver passes with system and bundled Git. Real Add with encrypted private fixture key verifies Success/currentWork/100 percent/completion range/default timing, child HEAD/key config/staged gitlink. Bounded 3000-line Git failure verifies exit-1 footer; retry resets terminal range/percentage/currentWork, succeeds with one result callback and disabled timings. Cancellation during key preparation verifies User cancelled/footer/100 percent/no error/no callback, followed by retry and forced-close fencing. Existing Push/Fetch/Pull/browse/deletion/Clone/private-agent tests remain passing. No displayed app or actual SSH server.",
+    "builds": "Unsigned Debug and AppStore builds pass.",
+    "bundles": "Both package audits pass, including Finder/licenses/100 icons; AppStore audits universal Git/LFS, EditorConfig, IssueRegex and private one-use askpass. No signing/runtime/App Store submission claim.",
+    "inventory": "Pinned inventory regression passes; all file mappings remain partial.",
+    "core": "No Core implementation changed; no new Core/full-suite run claimed."
+  },
+  "limitations": [
+    "Submodule Add still embeds progress in its options window; source separate progress window, auto-close, kill confirmation and complete keyboard behavior remain incomplete.",
+    "Physical layout, colors, links, menu interaction, VoiceOver, signed Finder and security-scope/helper acceptance remain unverified. Existing hidden shared-component tests do not prove displayed parity.",
+    "App Store distribution/runtime, OpenSSH packaging/authentication, host key/password/Keychain flows, real network tests, new screenshots and hosted CI/deployment remain unfinished. Strict Rebase rendered-text gate remains UNVERIFIED.",
+    "Entire application and documentation parity remain incomplete. No main app launch, actual URL open, general clipboard write, user-key/login-agent query, push or submission."
+  ],
+  "sha256": {
+    "Sources/TurtleGitMac/SubmoduleAddWindow.swift": "737e5e515e89d44531c13e38c17bc5b89b5bc263837111da72cd9d0e7fd85a6e",
+    "Sources/TurtleGitMac/SubmoduleProgressOutputView.swift": "c4f8cb4bef6bd74dcefb3edda94e2fdaea8464bea9ec73bef50b0ac1c193df12",
+    "Sources/TurtleGitMac/SubmoduleProgressCompletion.swift": "ca482ff6aa93ea3383fc75c29f70ea10af527ddf2a8e901aa2daba7b371f5a95",
+    "Sources/TurtleGitMac/GitProgressOutputState.swift": "2f48aa6d612aba5381d9bd6eac6eb4febf9c7867c638667eef1a1f4ff9312cff",
+    "docs/qa/ssh-coordinator-native-2026-10-09.swift": "f49e5213762b0858b0cc4c1eae469283c79c13590919cf34a6c40af73013315c",
+    "docs/SUBMODULE-ADD-PARITY.md": "527e4972a183c2299c787062fe33bcff357ab7486ff4da039b17200d4dddc602",
+    "scripts/test-ssh-coordinator.py": "5884a6c973eb028bcc1e5ffbfbbf6a26bcb14c4085575ec263232c76a623e0e6"
+  },
+  "logs": "build/qa/submodule-add-progress-styling-2026-10-09",
+  "cleanup": {
+    "all_handles_terminal": true,
+    "matching_processes": [],
+    "current_fixtures": [],
+    "main_app_launches": 0,
+    "removed_current_verified_empty_preference_domains": 2
+  }
+}

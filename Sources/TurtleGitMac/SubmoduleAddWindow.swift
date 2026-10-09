@@ -65,6 +65,9 @@ import TurtleGitCore
     @Published var confirmingQuit = false
     @Published var success = false
     @Published var output = ""
+    @Published private(set) var currentWork = ""
+    @Published private(set) var percentage: Int?
+    @Published private(set) var completionRange: NSRange?
     @Published var error: String?
     let sources: [String], paths: [String], keys: [String]
     var identities = SSHIdentityAccessStore()
@@ -131,7 +134,8 @@ import TurtleGitCore
     }
     func retry() { guard !activeOperation, !invalidated, !success, let submitted else { return }; execute(submitted) }
     private func execute(_ options: SubmoduleAddOptions) {
-        let request = OperationCancellation(); token = request; busy = true; output = "Adding submodule…"; error = nil; streamState.reset()
+        let request = OperationCancellation(); token = request; busy = true; success = false; output = "Adding submodule…"; error = nil; streamState.reset(); currentWork = ""; percentage = nil; completionRange = nil
+        let startedAt = ProcessInfo.processInfo.systemUptime
         let factory = makeSSHCoordinator, identities = identities, presenter = presentSSH
         let grants = (access, sourceAccess, keyAccess)
         Task {
@@ -145,10 +149,10 @@ import TurtleGitCore
                     defer { continuation.finish() }
                     return try await repository.addSubmodule(options, cancellation: request, prepareTransport: options.sshKey.map { coordinator.explicitPreparation(path: $0.path) }, onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) })
                 }
-                for await _ in updates { if !invalidated { streamState.consume(parser.processPending(), parser: parser); output = streamState.output } }
-                if !invalidated { streamState.consume(parser.processPending(), parser: parser); streamState.consume(parser.finish(), parser: parser); output = streamState.output }
+                for await _ in updates { if !invalidated { streamState.consume(parser.processPending(), parser: parser); refreshOutput() } }
+                if !invalidated { streamState.consume(parser.processPending(), parser: parser); streamState.consume(parser.finish(), parser: parser); refreshOutput() }
                 let text = try await operation.value
-                guard !invalidated else { return }; if !streamState.hasOutput { output = text.isEmpty ? "Submodule added." : text }; success = true; onAdded(output)
+                guard !invalidated else { return }; if !streamState.hasOutput { output = text.isEmpty ? "Submodule added." : text }; success = true; finishOutput(success: true, request: request, startedAt: startedAt); onAdded(output)
             } catch {
                 guard !invalidated else { return }
                 let message: String
@@ -156,8 +160,17 @@ import TurtleGitCore
                 else { message = error.localizedDescription }
                 output += (output.isEmpty || output.hasSuffix("\n") ? "" : "\n") + message
                 if !request.isCancelled { self.error = message }
+                finishOutput(success: false, request: request, startedAt: startedAt, exitCode: (error as? GitFailure)?.code)
             }
         }
+    }
+    private func refreshOutput() {
+        output = streamState.output; currentWork = streamState.currentWork; percentage = streamState.percentage
+    }
+    private func finishOutput(success: Bool, request: OperationCancellation, startedAt: TimeInterval, exitCode: Int32? = nil) {
+        let completion = SubmoduleProgressCompletion(success: success, cancelled: request.isCancelled, exitCode: exitCode,
+            elapsed: ProcessInfo.processInfo.systemUptime - startedAt, preferences: preferences)
+        currentWork = completion.currentWork; percentage = 100; completionRange = completion.append(to: &output)
     }
 }
 
@@ -167,7 +180,10 @@ private struct SubmoduleAddDialog: View {
         VStack(alignment: .leading, spacing: 12) {
             if model.busy || model.success || !model.output.isEmpty {
                 Text(model.success ? "Submodule added" : "Submodule Add").font(.headline)
-                OutputView(text: model.output).frame(minHeight: 160)
+                if !model.currentWork.isEmpty { Text(model.currentWork).font(.caption).lineLimit(2) }
+                if model.busy { ProgressView(value: model.percentage.map(Double.init), total: 100) }
+                else { ProgressView(value: 100, total: 100) }
+                SubmoduleProgressOutputView(text: model.output, completed: !model.busy, completionRange: model.completionRange, success: model.success).frame(minHeight: 160)
                 HStack { Spacer(); if model.busy { ProgressView().controlSize(.small); Button("Cancel") { model.cancelOperation() } } else { if !model.success { Button("Retry") { model.retry() } }; Button("Close") { model.close() }.keyboardShortcut(.defaultAction) } }
             } else {
                 GroupBox("Submodule of Project: " + model.repository.root.path) {

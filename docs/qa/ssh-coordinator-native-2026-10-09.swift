@@ -257,6 +257,7 @@ private final class NativeIdentityBookmarks: RepositoryBookmarkProvider {
         try require(appDelegate.applicationShouldTerminate(NSApplication.shared) == .terminateCancel, "Quit allowed a running Submodule Add")
         try await wait("Native Submodule Add") { !add.model.busy }
         try require(add.model.success && add.model.error == nil && added == 1, "Native Submodule Add failed or adopted twice")
+        try require(add.model.currentWork == "Success" && add.model.percentage == 100 && add.model.completionRange != nil && add.model.output.contains(" ms @ "), "Submodule Add missing default completion/timing")
         let child = GitRepository(root: root.appendingPathComponent("modules/native-child"), executable: git)
         let childSettings = try await child.remoteSettings(name: "origin")
         let childHead = try await child.run(["rev-parse", "HEAD"]), parentHead = try await repo.run(["rev-parse", "HEAD"])
@@ -274,7 +275,14 @@ private final class NativeIdentityBookmarks: RepositoryBookmarkProvider {
         var failureCallbacks = 0; failedAdd.onAdded = { _ in failureCallbacks += 1 }; failedAdd.apply()
         try await wait("Submodule Add bounded failure") { !failedAdd.busy }
         try require(!failedAdd.success && failedAdd.error == "Git command failed (1)." && failedAdd.output.contains("Output truncated") && failedAdd.output.utf8.count < 32768 && failureCallbacks == 0 && !FileManager.default.fileExists(atPath: root.appendingPathComponent("modules/failed-child").path), "Submodule Add failure replaced bounded output or published success")
-        failedAdd.invalidate(); try FileManager.default.removeItem(at: failureFlag)
+        try require(failedAdd.currentWork == "git did not exit cleanly (exit code 1)" && failedAdd.percentage == 100 && failedAdd.completionRange != nil, "Submodule Add missing failed completion")
+        try FileManager.default.removeItem(at: failureFlag)
+        preferences.set(false, forKey: "ShowGitexeTimings")
+        failedAdd.retry()
+        try require(failedAdd.completionRange == nil && failedAdd.percentage == nil && failedAdd.currentWork.isEmpty, "Retry retained terminal presentation")
+        try await wait("Submodule Add retry") { !failedAdd.busy }
+        try require(failedAdd.success && failedAdd.error == nil && failureCallbacks == 1 && failedAdd.output.hasSuffix("\nSuccess\n") && !failedAdd.output.contains(" ms @ "), "Submodule Add retry or disabled timing failed")
+        preferences.removeObject(forKey: "ShowGitexeTimings"); failedAdd.invalidate()
         let pendingAdd = SubmoduleAddWindowController(repository: transportRepo, access: RepositoryAccessLease(url: root), preferences: preferences)
         defer { pendingAdd.close() }
         var addPrompt: SSHKeyPassphraseWindowController?, addCoordinator: SSHTransportCoordinator?, addedAfterClose = 0
@@ -286,10 +294,15 @@ private final class NativeIdentityBookmarks: RepositoryBookmarkProvider {
         pendingAdd.model.useKey = true; pendingAdd.model.acceptSelection(encrypted, kind: .key)
         pendingAdd.model.onAdded = { _ in addedAfterClose += 1 }; pendingAdd.model.apply()
         try await wait("Submodule Add pending key") { addPrompt != nil }
+        pendingAdd.model.cancelOperation()
+        try await wait("Submodule Add cancelled completion") { !pendingAdd.model.busy }
+        try require(pendingAdd.model.currentWork == "User cancelled" && pendingAdd.model.percentage == 100 && pendingAdd.model.completionRange != nil && pendingAdd.model.error == nil && addedAfterClose == 0 && addPrompt?.finished == true, "Submodule Add cancellation missing terminal state")
+        addPrompt = nil; pendingAdd.model.retry()
+        try await wait("Submodule Add retry pending key") { addPrompt != nil }
         pendingAdd.close(); try await wait("Submodule Add closed cleanup") { addCoordinator?.closed == true && !pendingAdd.model.busy }; addPrompt?.submit()
         let beforeLateSelection = try Data(contentsOf: identities.storageURL); pendingAdd.model.acceptSelection(crlfKey, kind: .key)
         try require(try Data(contentsOf: identities.storageURL) == beforeLateSelection && addedAfterClose == 0 && pendingAdd.model.error == nil && !FileManager.default.fileExists(atPath: root.appendingPathComponent("modules/cancelled-child").path), "Closed Submodule Add allowed a late selection/operation/result")
-        try require(try String(contentsOf: URL(fileURLWithPath: wrapper.path+".calls")) == logCalls + "clone\nclone\nsubmodule\nsubmodule\n", "Submodule Add cancellation launched transport")
+        try require(try String(contentsOf: URL(fileURLWithPath: wrapper.path+".calls")) == logCalls + "clone\nclone\nsubmodule\nsubmodule\nsubmodule\n", "Submodule Add cancellation launched transport")
         try require(coordinators.allSatisfy { $0.closed } && provider.starts == provider.stops,"Finished transport coordinator or file lease remains")
         try require(!NSApplication.shared.windows.contains { $0.isVisible },"Receiver displayed UI")
         print("PASS native encrypted-key prompt/retry/dedup, Cancel/token/forced-close fences, private agent cleanup; shipping Push/Fetch/Pull/browse auto-load snapshots and local Git effects; CRLF headers, remote tag/browser deletion transports and Log remote deletion and Push/tag/Log/Clone controller close fences; direct and streamed native SSH Clone with remote-key config; Submodule Add captured branch/gitlink/child-key, bounded failure, Quit and forced-close fences")
