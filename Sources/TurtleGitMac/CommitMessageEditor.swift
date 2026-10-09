@@ -25,7 +25,7 @@ struct CommitMessageEditor: NSViewRepresentable {
     }
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let editor = scroll.documentView as? MessageTextView else { return }
-        editor.isEditable = enabled; editor.model = model
+        editor.isEditable = enabled && !model.loadingAmendMessage; editor.model = model
         model.prepareMessageCompletions()
         if !editor.string.utf8.elementsEqual(model.message.utf8) {
             let range = editor.selectedRange()

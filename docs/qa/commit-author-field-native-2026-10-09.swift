@@ -24,7 +24,7 @@ import Darwin
     @MainActor static func waitAuthor(_ value: String, model: CommitWindowModel, host: NSView) async throws {
         for _ in 0..<200 {
             host.layoutSubtreeIfNeeded()
-            if model.author == value && authorField(in: host)?.stringValue == value { return }
+            if !model.loadingAuthorIdentity, model.author == value, authorField(in: host)?.stringValue == value { return }
             try await Task.sleep(nanoseconds: 10_000_000)
         }
         throw Failure(description: "Author reseed did not complete: \(model.author), \(model.error ?? "no error")")

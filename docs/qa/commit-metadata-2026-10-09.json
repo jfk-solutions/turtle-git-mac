@@ -1,0 +1,62 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "3dd8455",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/CommitDlg.cpp": "3f4f032637786bef7e5943d0e7ea0bd4ea701de3",
+    "src/TortoiseProc/RebaseDlg.cpp": "92f8f3d666bcc43a83b311e6e35d84feb895be05"
+  },
+  "scope": "Commit Amend author/date initialization and asynchronous metadata transitions; whole app incomplete.",
+  "verification": {
+    "source": "OnBnClickedCommitAmend invokes date and author handlers in both directions. Date handler chooses current time for normal Commit and HEAD author date for Amend. Source caches initial amend message while nonempty. Caller SetAuthor/SetTime presets survive initial setup; later checkbox handlers still reset ordinary defaults.",
+    "native": "Final receiver passes Apple Git and bundled AppStore Git: actual full hidden Commit dialogs read configured/HEAD author/date/message, reset checked author date to current time when unamending, preserve drafts/cached amend text, reject superseded author/date/message replies and obsolete errors, keep newer loading state when older requests complete, preserve an explicitly replaced NFC/NFD author draft byte-exactly and gate Commit/native author/date/message editing while selected defaults load. Read-only identity copies through a private pasteboard during loading. Controlled continuation queues empty on successful completion.",
+    "replay_control_state": "Supplied Replay Split state fixture verifies old ordinary author/date replies cannot clobber first author/date, both initially-checked and initially-unchecked checkbox installation paths retain supplied metadata, and subsequent actual checkbox changes still load ordinary defaults. Fresh-dialog later changes use actual Git defaults. This does not execute a real rebase/squash engine or prove every date policy.",
+    "author_regression": "Existing author-field receiver passes both engines with waiter extended to await author-loading completion. Run after main transition changes and before Replay-only preset refinement; final metadata receiver exercises both ordinary and Replay paths after refinement. No component changes to author field itself.",
+    "debug": "Final one-shot-preset unsigned Debug build and bundle audit pass.",
+    "store": "Final unsigned AppStore build and required bundle audit pass, including universal Git 2.55.0/Git LFS 3.8.0, parser/matcher provenance, embedded Finder extension and original icons.",
+    "notice": "Both packaged NOTICE files byte-match source.",
+    "inventory": "CommitDlg.cpp remains partial-native-replacement; isolated pin/idempotence checker passes.",
+    "site": "Final local site generator passes; no new physical screenshot/deployment claim.",
+    "refinement": "Initial metadata and Replay-control-state receivers passed. Source review then replaced blanket Replay reseed suppression with one-shot preset notification suppression, preserving later user checkbox functionality. Final expanded receiver passes both engines. No receiver runtime failure during this checkpoint."
+  },
+  "limitations": [
+    "Source Amend handler explicitly focuses the message editor; that focus behavior and physical keyboard/pointer/IME acceptance remain pending.",
+    "Process cancellation/lifetime on close, moving HEAD/concurrent Git writers and all default-read error variants need broader checks.",
+    "Supplied Replay control-state tests do not prove full real rebase/squash policy/engine or physical caller UI parity.",
+    "Unsigned configuration builds do not prove signed sandbox/App Store acceptance; full application/Finder parity, updated screenshots/site deployment and hosted CI remain incomplete."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "remaining_preferences": [],
+    "remaining_fixtures": [],
+    "remaining_processes": [],
+    "windows": "All owned full Commit windows unordered, activation prohibited; receiver defers close windows and removes private defaults/pasteboard before normal exit. No runtime receiver failure in this checkpoint.",
+    "queries": "All controlled continuation queues empty at successful completion.",
+    "repos": "Native receivers perform no Commit after fixture setup; fixture HEAD and config bytes preserved. User repositories are not used as test fixtures."
+  },
+  "changed_files_sha256": {
+    "Sources/TurtleGitMac/CommitWindow.swift": "8ab689a71ed5812de56fd2b30ccf01f3f52804c3475ba5ed99a31a04fc05dab2",
+    "Sources/TurtleGitMac/CommitMessageEditor.swift": "7b0591115332996b999a24f8769b2cfcfd4b0a8fbb5346283dee515a2488e23a",
+    "docs/COMMIT-PARITY.md": "106ce887fff03e6c1f3dbc3040ce6b853e54f5f876efed64613b9d5f692081fd",
+    "docs/TESTING.md": "3dc3c069dc808dfba643408dcb838492822e2323d3b28768925a119b1f1252d4",
+    "docs/upstream-files.csv": "3f2b3d73c6af49f1afe99d48124ec7e945534f65e5269d9b104e9f67f4471b9f",
+    "docs/qa/commit-author-field-native-2026-10-09.swift": "5be1ac938e3804a6679b637fc4d0b8b373040327efa5fc618e32bc1770237c3d",
+    "docs/qa/commit-metadata-native-2026-10-09.swift": "8798a0fa6a05dbc5ee9c698a51b5d4f55b759ad80d2ebba21e28378f0d29629e",
+    "scripts/test-commit-metadata.py": "09ba8f7f19a1ef7a98e95a9da8cde679603755ec56b09fd0fc338089cd1b3bbc"
+  },
+  "local_log_sha256": {
+    "build/qa/commit-metadata-2026-10-09/author-regression.log": "74e147d6aef1e050474158e704ced4c1d3de46e93d32e0165446e70f67565f2e",
+    "build/qa/commit-metadata-2026-10-09/cleanup.json": "9088c60210c164b3f02b93330411717422d4d4283b3806b69de21bc6d6ce48bd",
+    "build/qa/commit-metadata-2026-10-09/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/commit-metadata-2026-10-09/debug-initial-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/commit-metadata-2026-10-09/debug-initial.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/commit-metadata-2026-10-09/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/commit-metadata-2026-10-09/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/commit-metadata-2026-10-09/native-initial.log": "6bdea1e0aa5fdd50dd960ab15fa2a4bf7dcd63afeaac29d7458352709b9e9b82",
+    "build/qa/commit-metadata-2026-10-09/native-replay-initial.log": "db38f835f0e445de6b5da26c500ace17e190609a0a092037ad20905b97de9124",
+    "build/qa/commit-metadata-2026-10-09/native.log": "db38f835f0e445de6b5da26c500ace17e190609a0a092037ad20905b97de9124",
+    "build/qa/commit-metadata-2026-10-09/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/commit-metadata-2026-10-09/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/commit-metadata-2026-10-09/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca"
+  }
+}
