@@ -444,8 +444,8 @@ double-click and close, owned-child gates and unchanged chooser selection policy
 The existing browser, deletion and actual Finder menu receivers are regressions.
 See `qa/reference-standalone-2026-10-09.json` for results and remaining limits.
 
-Two-reference Compare/Unified Diff and folder context menus remain pending.
-Batch deletion is recorded below. This checkpoint does not establish complete
+Two-reference Compare/Unified Diff and batch deletion are recorded below.
+Folder context menus remain pending. This checkpoint does not establish complete
 standalone menus, physical app/Finder activation, range Log window rendering,
 screenshots, signed sandbox or full application parity.
 
@@ -479,3 +479,36 @@ Push command counts/order and stopping after a checked-out branch failure. See
 Physical confirmations/errors/progress, failure or cancellation after each remote
 group, all Unicode/config/transport races, linked-worktree variants and signed
 acceptance remain pending. Complete browser/whole-app parity remains incomplete.
+
+
+## Two-reference comparisons
+
+Exactly two selected references receive **Compare selected refs** and **Show
+changes as unified diff** before both Log ranges, with the source Diff artwork.
+Both comparisons use displayed list order, independently of the last-selected
+reference used to direct Log ranges. The changed-files dialog receives canonical
+reference names and resolves their current values. Unified Diff receives the
+captured catalog object IDs, so moving a branch does not retarget its patch.
+The unified backend accepts tree objects too and preserves raw patch bytes/statistics.
+
+Compare opens a browser-owned native Changed Files sheet with shared Log/file-log
+and submodule routing. Closing it releases the parent without refreshing refs.
+A failed sheet presentation releases ownership. Unified Diff uses the existing
+built-in/external viewer preference, with Shift reversing the choice. The request
+blocks duplicate actions, F5, acceptance, ordinary close and Quit until completion.
+Forced browser closure cancels owned reads and rejects late results, errors or
+built-in viewer presentation. Changed Files catalog, comparison and patch reads
+also receive cancellation tokens and closed-window publication fences.
+
+`test-reference-comparison.py` runs hidden shipping controllers and menus. It checks
+source command order/icons, canonical names versus captured hashes, actual changed
+files, parent ownership, intercepted viewer bytes/Shift, duplicate/F5/close/Quit
+gates and recorded leader/helper cleanup while resolving revisions or generating
+a unified patch. Core tests cover moving names, forward/reverse bytes, tree/bare
+patches, invalid selection counts and pre-cancelled comparison/patch operations.
+Final results and limits are recorded in `qa/reference-comparison-2026-10-09.json`.
+
+Physical sheets, full Changed Files dialog parity, every patch/child-editor cleanup
+timing, external viewer launch, Unicode/config races and signed Finder/App Store
+acceptance are not established by hidden checks. Folder menus and full app parity
+remain unfinished.

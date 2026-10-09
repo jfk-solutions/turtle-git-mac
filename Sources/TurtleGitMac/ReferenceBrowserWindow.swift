@@ -9,6 +9,10 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
 @MainActor final class ReferenceBrowserWindowController: NSWindowController, NSWindowDelegate {
     let model: ReferenceBrowserWindowModel
     var onClosed: () -> Void = {}
+    private(set) var comparisonDialog: RevisionComparisonWindowController?
+    var presentComparison: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
+    private var unifiedViewer: PatchWindowController?
+    var presentUnified: ((Data, Bool, String) async throws -> Void)?
     private(set) var fetchDialog: FetchWindowController?
     var presentFetch: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
     private(set) var branchDialog: BranchTagWindowController?
@@ -43,6 +47,8 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
                 alert.beginSheetModal(for: window) { continuation.resume(returning: $0 == .alertFirstButtonReturn) }
             }
         }
+        model.onComparePair = { [weak self] pair in self?.showComparison(pair) }
+        model.onUnifiedPair = { [weak self] pair, alternate in self?.showUnified(pair, alternate: alternate) }
         model.onReflog = { [weak self] name in self?.showReflog(name) }
         model.onEditDescription = { [weak self] in self?.editDescription() }
         model.onSelectTracking = { [weak self] in self?.selectTracking() }
@@ -52,6 +58,30 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         model.onSwitch = { [weak self] in self?.showSwitch() }
         model.finish = { [weak self] reference in self?.finish(reference) }
         DialogGeometry.attach(window, identifier: "BrowseRefs", legacyName: "BrowseRefs")
+    }
+    func showComparison(_ pair: ReferenceBrowserComparison) {
+        guard let owner = window, owner.attachedSheet == nil, model.canComparePair else { return }
+        owner.makeFirstResponder(nil); model.hasChild = true
+        let child = RevisionComparisonWindowController(repository: model.repository, access: model.access, from: .revision(pair.from.rawValue), to: .revision(pair.to.rawValue))
+        comparisonDialog = child; model.configureComparison(child.model)
+        child.onClosed = { [weak self, weak child] in
+            guard let self, let child, self.comparisonDialog === child else { return }
+            if let window = child.window, window.sheetParent === self.window { self.window?.endSheet(window) }
+            self.comparisonDialog = nil; self.model.hasChild = false
+        }
+        guard let window = child.window, presentComparison(owner, window) else { child.close(); return }
+        child.model.load()
+    }
+    func showUnified(_ pair: ReferenceBrowserComparison, alternate: Bool) {
+        guard model.canComparePair, unifiedViewer?.model.busy != true, unifiedViewer?.window?.attachedSheet == nil else { return }
+        model.generateUnified(pair, alternate: alternate) { [weak self] bytes, alternate in
+            guard let self, !self.model.closed else { return }
+            let title = pair.from.rawValue + ":" + pair.to.rawValue
+            if let present = self.presentUnified { try await present(bytes, alternate, title); return }
+            if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate), !self.model.closed {
+                self.unifiedViewer = UnifiedDiffApplication.presentBuiltin(bytes, repository: self.model.repository, access: self.model.access, existing: self.unifiedViewer, title: title, onClosed: { [weak self] in self?.unifiedViewer = nil })
+            }
+        }
     }
     private func showReflog(_ reference: String) {
         guard let owner = window, owner.attachedSheet == nil, !model.busy, !model.hasChild, model.renameReference == nil, !model.closed else { return }
@@ -93,7 +123,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
             self.trackingRequest = nil
             if let upstream, GitReferenceName.removingPrefix("refs/remotes/", from: upstream) != nil { self.model.changeTracking(reference, upstream: GitReferenceName(upstream)) }
         }
-        child.model.onLogRange = model.onLogRange; child.model.onLog = model.onLog; child.model.onBrowse = model.onBrowse; child.model.onCompare = model.onCompare; child.model.configureSwitch = model.configureSwitch; child.model.configureMerge = model.configureMerge; child.model.configureBranch = model.configureBranch; child.model.configureFetch = model.configureFetch
+        child.model.configureComparison = model.configureComparison; child.model.onLogRange = model.onLogRange; child.model.onLog = model.onLog; child.model.onBrowse = model.onBrowse; child.model.onCompare = model.onCompare; child.model.configureSwitch = model.configureSwitch; child.model.configureMerge = model.configureMerge; child.model.configureBranch = model.configureBranch; child.model.configureFetch = model.configureFetch
         trackingPicker = child; configureTrackingPicker(child)
         child.onClosed = { [weak self, weak child] in
             guard let self, let child, self.trackingPicker === child else { return }
@@ -161,7 +191,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         if let window { window.sheetParent?.endSheet(window); window.close() }; completion(reference)
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { guard !model.hasChild, model.renameReference == nil, !model.busy, sender.attachedSheet == nil else { return false }; finish(nil); return false }
-    func windowWillClose(_ notification: Notification) { model.invalidate(); if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.close() }; fetchDialog?.close(); fetchDialog = nil; branchDialog?.close(); branchDialog = nil; mergeDialog?.close(); mergeDialog = nil; switchDialog?.close(); switchDialog = nil; trackingRequest = nil; trackingPicker?.abandonPresentation(); trackingPicker = nil; descriptionEditor?.close(); descriptionEditor = nil; reflog?.close(); reflog = nil; model.hasChild = false; let completion = completion; self.completion = nil; completion?(nil); onClosed() }
+    func windowWillClose(_ notification: Notification) { model.invalidate(); comparisonDialog?.close(); comparisonDialog = nil; unifiedViewer?.close(); unifiedViewer = nil; if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.close() }; fetchDialog?.close(); fetchDialog = nil; branchDialog?.close(); branchDialog = nil; mergeDialog?.close(); mergeDialog = nil; switchDialog?.close(); switchDialog = nil; trackingRequest = nil; trackingPicker?.abandonPresentation(); trackingPicker = nil; descriptionEditor?.close(); descriptionEditor = nil; reflog?.close(); reflog = nil; model.hasChild = false; let completion = completion; self.completion = nil; completion?(nil); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class ReferenceBrowserWindowModel: ObservableObject {
@@ -175,6 +205,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     private var invalidated = false
     private(set) var deletingReference = false
     private(set) var changingTracking = false
+    private var generatingUnified = false
     private var resolvingCurrentBranch = false
     private(set) var initialFocusPending = true
     var closed: Bool { invalidated }
@@ -278,6 +309,28 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     }
     var onEditDescription: (() -> Void)?
     var canEditDescription: Bool { canAccept && chosen?.objectType == "commit" && chosen.flatMap { GitReferenceName.removingPrefix("refs/heads/", from: $0.name.rawValue) } != nil }
+    var comparisonPair: ReferenceBrowserComparison? { ReferenceBrowserComparison(references: selectedRows.map { $0.reference }) }
+    var canComparePair: Bool { !invalidated && !busy && !hasChild && renameReference == nil && comparisonPair != nil }
+    var onComparePair: ((ReferenceBrowserComparison) -> Void)?
+    var onUnifiedPair: ((ReferenceBrowserComparison, Bool) -> Void)?
+    var configureComparison: (RevisionComparisonWindowModel) -> Void = { _ in }
+    func comparePair(unified: Bool, alternate: Bool = false) {
+        guard canComparePair, let pair = comparisonPair else { return }
+        if unified { onUnifiedPair?(pair, alternate) } else { onComparePair?(pair) }
+    }
+    func generateUnified(_ pair: ReferenceBrowserComparison, alternate: Bool, present: @escaping (Data, Bool) async throws -> Void) {
+        guard canComparePair else { return }
+        let request = OperationCancellation(); token = request; busy = true; generatingUnified = true
+        Task {
+            defer { if token === request { token = nil; busy = false; generatingUnified = false } }
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let bytes = try await repository.referenceBrowserUnifiedDiff(pair, cancellation: request)
+                guard !invalidated, token === request, !request.isCancelled else { return }
+                try await present(bytes, alternate)
+            } catch { if !invalidated, token === request, !request.isCancelled { self.error = error.localizedDescription } }
+        }
+    }
     var onLogRange: ((HistoryRevisionRange) -> Void)?
     var onLog: ((String) -> Void)?
     var onReflog: ((String) -> Void)?
@@ -343,7 +396,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         }
     }
     func load(preservingError: String? = nil) {
-        guard !invalidated, !hasChild, !deletingReference, !changingTracking, !resolvingCurrentBranch, renameReference == nil else { return }
+        guard !invalidated, !generatingUnified, !hasChild, !deletingReference, !changingTracking, !resolvingCurrentBranch, renameReference == nil else { return }
         let requested = selected?.rawValue ?? (snapshot == nil ? initial : folder.rawValue)
         token?.cancel(); let request = OperationCancellation(); token = request; busy = true; error = preservingError
         let filter = mergeFilter
@@ -358,7 +411,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
             } catch { if !invalidated, token === request, !request.isCancelled { self.error = error.localizedDescription } }
         }
     }
-    func invalidate() { invalidated = true; deletingReference = false; changingTracking = false; resolvingCurrentBranch = false; renameReference = nil; renameFolder = nil; initialFocusPending = false; token?.cancel(); token = nil; busy = false }
+    func invalidate() { invalidated = true; generatingUnified = false; deletingReference = false; changingTracking = false; resolvingCurrentBranch = false; renameReference = nil; renameFolder = nil; initialFocusPending = false; token?.cancel(); token = nil; busy = false }
     func setFolder(_ folder: GitReferenceName) { guard !busy, !hasChild, renameReference == nil, folders.contains(folder) else { return }; self.folder = folder; selected = nil }
     func refilter() {
         selection.formIntersection(Set(rows.map { $0.reference.name }))
@@ -561,6 +614,8 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
                 if model.canDelete, let kind = model.deletionKind { if !menu.items.isEmpty { menu.addItem(.separator()) }; item(kind.title(count: model.selectedRows.count), #selector(deleteReference), .remove, model.confirmDeletion != nil) }
             }
             if let range = model.range {
+                item("Compare selected refs", #selector(comparePair), .unifiedDiff, model.onComparePair != nil)
+                item("Show changes as unified diff", #selector(unifiedPair), .unifiedDiff, model.onUnifiedPair != nil)
                 item("Show log of " + range.label(), #selector(logRange), .log, model.onLogRange != nil)
                 item("Show log of " + range.label(symmetric: true), #selector(logSymmetricRange), .log, model.onLogRange != nil)
                 deletion(); menu.addItem(.separator()); item("Copy reference names", #selector(copyName), .copy, true); return
@@ -601,6 +656,8 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
         @objc func log() { if let chosen = model.chosen { model.onLog?(chosen.name.rawValue) } }
         @objc func reflog() { if let chosen = model.chosen { model.onReflog?(chosen.name.rawValue) } }
         @objc func browse() { if let chosen = model.chosen { model.onBrowse?(chosen.name.rawValue) } }
+        @objc func comparePair() { model.comparePair(unified: false) }
+        @objc func unifiedPair() { model.comparePair(unified: true, alternate: NSEvent.modifierFlags.contains(.shift)) }
         @objc func compare() { if let chosen = model.chosen { model.onCompare?(chosen.name.rawValue) } }
         @objc func copyName() { model.copySelection() }
     }

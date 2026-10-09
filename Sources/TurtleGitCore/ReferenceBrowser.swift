@@ -312,3 +312,29 @@ public struct ReferenceBrowserRange: Sendable {
         return short(from) + (symmetric ? "..." : "..") + short(to)
     }
 }
+
+/// BrowseRefs compares names but generates unified patches from the displayed
+/// object IDs. Selection order is the list order, independently of last-selected.
+public struct ReferenceBrowserComparison: Sendable {
+    public let from: GitReferenceName
+    public let to: GitReferenceName
+    public let fromHash: String
+    public let toHash: String
+    public init?(references: [BrowserReference]) {
+        guard references.count == 2, references[0].name != references[1].name else { return nil }
+        from = references[0].name; to = references[1].name
+        fromHash = references[0].hash; toHash = references[1].hash
+    }
+}
+extension GitRepository {
+    public func referenceBrowserUnifiedDiff(_ comparison: ReferenceBrowserComparison, cancellation: OperationCancellation? = nil) throws -> Data {
+        let token = cancellation ?? OperationCancellation()
+        try token.check()
+        // Accept trees and annotated tags too, as GetUnifiedDiff does; do not
+        // silently substitute a commit-only comparison or resolve moving names.
+        for hash in [comparison.fromHash, comparison.toHash] {
+            guard [40, 64].contains(hash.utf8.count), hash.utf8.allSatisfy({ (48...57).contains($0) || (97...102).contains($0) }) else { throw RevisionComparisonFailure.range }
+        }
+        return try run(["diff-tree", "-r", "-p", "--stat", "--no-ext-diff", "--no-textconv", "--no-color", "--end-of-options", comparison.fromHash, comparison.toHash, "--"], cancellation: token).stdout
+    }
+}

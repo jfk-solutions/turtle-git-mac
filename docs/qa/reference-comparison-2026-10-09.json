@@ -1,0 +1,50 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "3da0966d2d2872f568863a2f167b09842fdb97fa",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Two-reference BrowseRefs Compare and Unified Diff commands, owned Changed Files sheet and cancellable comparison reads. Whole-app parity remains incomplete.",
+  "verification": {
+    "source": "BrowseRefs eCmd_Diff receives displayed canonical names; eCmd_UnifiedDiff receives captured catalog hashes and Shift choice. Source list order is independent of last-selected Log range direction. Both commands precede Log ranges and use IDI_DIFF. Source AppUtils/GetUnifiedDiffCmd supplies diff-tree -r -p --stat for a revision pair.",
+    "core": "34 ReferenceBrowserTests/RevisionComparisonTests pass with Apple and bundled Git. Added moving-name versus captured-hash behavior, forward/reverse patch bytes, selection validation, bare/tree patches and pre-cancelled comparisons/unified/selected patch reads. Existing comparison options and metadata regressions pass.",
+    "native": "Hidden actual shipping table/menu checks pass both engines: first-four source titles/order and Diff icons, canonical-name owned child configuration/presentation, actual changed files, parent duplicate/F5/close/Quit gates, child release, intercepted raw unified bytes after ref moves, Shift choice, held/late viewer completion. Recorded live process leader/helper terminate on forced close during child rev-parse and browser diff-tree. No late snapshots/errors/viewers.",
+    "regressions": "Standalone browser/range and batch deletion native receivers pass both engines on final source.",
+    "routing": "Shared production factory supplies Changed Files Log/file-log/submodule interactions. Inspected without constructing RepositoryModel or writing shared Finder caches. Built-in/external production viewer routing retained; native QA intercepts presentation instead of launching applications.",
+    "builds": "Final unsigned Debug/AppStore builds and both bundle audits pass. Both embedded NOTICE files byte-equal source; universal Git/LFS, helper linkage, Finder extension, licenses and all 99 icons audited.",
+    "cycles": "Zero AttributeGraph cycles in three final native logs.",
+    "inventory_ci_docs": "Source pin check and safe workflow YAML parse/exact comparison-step check pass. Local site build follows manifest creation; hosted CI remains unverified.",
+    "correction": "Initial Core/Debug compilation caught an immutable catch-variable assignment in the new error handler. Both handles were terminal before changing to self.error. Final builds/Core/native checks use corrected source; initial logs retained."
+  },
+  "limitations": [
+    "Namespace folder menus and full BrowseRefs/Changed Files/application functionality and visual parity remain incomplete.",
+    "No physical sheets/pointer/focus/keyboard/light-dark/VoiceOver inspection, real external viewer launch, refreshed screenshots, signed Finder or App Store acceptance.",
+    "Not every load/patch/helper/child-editor/close timing, presentation rejection, Unicode/config race or linked-worktree route is individually exercised. Read tokens/fences do not establish complete child-editor cleanup.",
+    "No push, hosted CI or deployment claimed."
+  ],
+  "cleanup": {
+    "all_handles_terminal": true,
+    "main_app_launches": 0,
+    "remaining_processes": [],
+    "current_temporary_directories": [],
+    "current_preference_domains": []
+  },
+  "preference_cleanup": {
+    "removed": [],
+    "preserved": []
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "861beec8a8f8d6da43ca217657cf80f80ff5d22c9b04d7809fda1411cdd1b324",
+    "Sources/TurtleGitCore/ReferenceBrowser.swift": "382fd55ba443fc2d835e508222710faf97e27086d0d7814b5c30fe516521e7d4",
+    "Sources/TurtleGitCore/RevisionComparison.swift": "3de331e7c059f1fcbd9ce7f9f70bb7ec1ae7d0fbbd55a665094caa061258a6d2",
+    "Sources/TurtleGitMac/ReferenceBrowserWindow.swift": "dc702eb0e3077f52d0d853659c6d0e1b99adbd0525e73e5525e71c349ba7d1e3",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "7b39750de666e933a42bbd965f3ac6ec8aded67419d9df8ac509cb8707017cee",
+    "Sources/TurtleGitMac/RevisionComparisonWindow.swift": "4c1573fb5a4896cad3d890fd628acffcf17e33d4a1944b7ef34a9d091ef6aa34",
+    "Tests/TurtleGitCoreTests/ReferenceBrowserTests.swift": "26da96cc6a32ae1c1d5339600bbb62dbc9d1f112e6e63d81ac31bd9bb00e521c",
+    "docs/GETTING-STARTED.md": "50007cf96fc6d241e87e6be53aef4932b7cb934d8e1f10aa8b80eb6782797af5",
+    "docs/REFERENCE-BROWSER-PARITY.md": "5f566aa5892d8211e2565b7262e21f13ad639d0b279e857108cc4d145f49abbe",
+    "docs/TESTING.md": "bd8f9768d863d560c1d85a4b0597b77473f4b1800aefbbc355b27fc0b8e05c2e",
+    "docs/upstream-files.csv": "04d695bd391386aab4fe74cb28e6a6d621a9510d0498cea28c3c1b42e4c1fde4",
+    "docs/qa/reference-comparison-native-2026-10-09.swift": "f88e762982edc8ceae6c7f1a21e55df93336e3676ba605941df714f32febdf8e",
+    "scripts/test-reference-comparison.py": "5f899b175f8a779c72189b3db207bbe0a6ba65d01743c6bb97e5f8bc5a6a10e0"
+  },
+  "log_directory": "build/qa/reference-comparison-2026-10-09"
+}

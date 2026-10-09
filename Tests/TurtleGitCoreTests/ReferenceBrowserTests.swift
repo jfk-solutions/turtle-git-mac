@@ -384,4 +384,39 @@ extension ReferenceBrowserTests {
         XCTAssertFalse(alpha.references.contains { [GitReferenceName("refs/heads/one"), "refs/heads/two"].contains($0.name) }); XCTAssertFalse(zeta.references.contains { $0.name == "refs/heads/one" }); XCTAssertTrue(zeta.references.contains { $0.name == "refs/heads/two" })
         let local = try await repo.referenceBrowser(); XCTAssertTrue(local.references.contains { $0.name == "refs/heads/one" }); XCTAssertTrue(local.references.contains { $0.name == "refs/heads/two" })
     }
+    func testComparisonCapturesHashesButResolvesNamesAndKeepsDisplayedDirection() async throws {
+        let (root, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        _ = try await repo.run(["branch", "old"])
+        try Data("second\n".utf8).write(to: root.appendingPathComponent("file")); try await repo.stage(["file"]); _ = try await repo.commit(message: "second")
+        _ = try await repo.run(["branch", "new"])
+        let snapshot = try await repo.referenceBrowser()
+        let old = try XCTUnwrap(snapshot.references.first { $0.name == "refs/heads/old" }), new = try XCTUnwrap(snapshot.references.first { $0.name == "refs/heads/new" })
+        let pair = try XCTUnwrap(ReferenceBrowserComparison(references: [old, new]))
+        XCTAssertEqual(pair.from, old.name); XCTAssertEqual(pair.to, new.name)
+        let expected = try await repo.run(["diff-tree", "-r", "-p", "--stat", "--no-ext-diff", "--no-textconv", "--no-color", "--end-of-options", old.hash, new.hash, "--"]).stdout
+        _ = try await repo.run(["update-ref", "refs/heads/new", old.hash])
+        let captured = try await repo.referenceBrowserUnifiedDiff(pair); XCTAssertEqual(captured, expected); XCTAssertTrue(String(decoding: captured, as: UTF8.self).contains("+second"))
+        let byName = try await repo.revisionComparison(from: .revision(pair.from.rawValue), to: .revision(pair.to.rawValue)); XCTAssertTrue(byName.files.isEmpty)
+        let reverse = try XCTUnwrap(ReferenceBrowserComparison(references: [new, old])); let reversed = try await repo.referenceBrowserUnifiedDiff(reverse); XCTAssertTrue(String(decoding: reversed, as: UTF8.self).contains("-second"))
+        XCTAssertNil(ReferenceBrowserComparison(references: [])); XCTAssertNil(ReferenceBrowserComparison(references: [old])); XCTAssertNil(ReferenceBrowserComparison(references: [old, old])); XCTAssertNil(ReferenceBrowserComparison(references: [old, new, old]))
+        let bareRoot = root.appendingPathComponent("bare.git"); _ = try await repo.run(["clone", "--bare", root.path, bareRoot.path]); let bare = GitRepository(root: bareRoot, executable: repo.executable)
+        let barePatch = try await bare.referenceBrowserUnifiedDiff(pair); XCTAssertEqual(barePatch, expected)
+        let treeOld = try await repo.run(["rev-parse", old.hash + "^{tree}"]).text.trimmingCharacters(in: .newlines), treeNew = try await repo.run(["rev-parse", new.hash + "^{tree}"]).text.trimmingCharacters(in: .newlines)
+        _ = try await repo.run(["update-ref", "refs/custom/tree-old", treeOld]); _ = try await repo.run(["update-ref", "refs/custom/tree-new", treeNew])
+        let trees = try await repo.referenceBrowser(); let treePair = try XCTUnwrap(ReferenceBrowserComparison(references: [try XCTUnwrap(trees.references.first { $0.name == "refs/custom/tree-old" }), try XCTUnwrap(trees.references.first { $0.name == "refs/custom/tree-new" })]))
+        let treePatch = try await repo.referenceBrowserUnifiedDiff(treePair); XCTAssertEqual(treePatch, expected)
+    }
+    func testComparisonAndUnifiedDiffCancellationPreserveRepository() async throws {
+        let (root, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        _ = try await repo.run(["branch", "other"])
+        let snapshot = try await repo.referenceBrowser(), pair = try XCTUnwrap(ReferenceBrowserComparison(references: snapshot.references.filter { $0.name == "refs/heads/main" || $0.name == "refs/heads/other" }))
+        let head = try Data(contentsOf: root.appendingPathComponent(".git/HEAD")), index = try Data(contentsOf: root.appendingPathComponent(".git/index")), file = try Data(contentsOf: root.appendingPathComponent("file"))
+        let token = OperationCancellation(); token.cancel()
+        do { _ = try await repo.referenceBrowserUnifiedDiff(pair, cancellation: token); XCTFail("Cancelled unified diff ran") } catch OperationCancellationFailure.cancelled {}
+        do { _ = try await repo.revisionComparison(from: .revision(pair.from.rawValue), to: .revision(pair.to.rawValue), cancellation: token); XCTFail("Cancelled comparison ran") } catch OperationCancellationFailure.cancelled {}
+        let comparison = try await repo.revisionComparison(from: .revision(pair.from.rawValue), to: .revision(pair.to.rawValue))
+        do { _ = try await repo.revisionComparisonPatchData(comparison, cancellation: token); XCTFail("Cancelled comparison patch ran") } catch OperationCancellationFailure.cancelled {}
+        XCTAssertEqual(head, try Data(contentsOf: root.appendingPathComponent(".git/HEAD"))); XCTAssertEqual(index, try Data(contentsOf: root.appendingPathComponent(".git/index"))); XCTAssertEqual(file, try Data(contentsOf: root.appendingPathComponent("file")))
+    }
+
 }

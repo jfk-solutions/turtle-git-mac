@@ -418,3 +418,17 @@ processes must exit on forced owner closure. HEAD/index/worktree stay unchanged.
 `ReferenceBrowserTests` covers one Push per configured remote and stop-on-first
 local failure with earlier deletion retained. Keep single deletion and standalone
 range receivers as regressions; physical/signed/full menus remain unverified.
+
+
+### Reference comparisons
+
+After a Debug build run `python3 scripts/test-reference-comparison.py --git /usr/bin/git
+--git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git`.
+The hidden receiver checks actual two-reference menu order and source icons, an
+owned Changed Files controller using canonical names, displayed-order comparisons
+versus last-selected Log direction, captured patch bytes after a ref moves,
+Shift's alternative-viewer request, duplicate/F5/close/Quit gates and recorded
+revision/patch process-group termination on forced browser close. Viewer launch
+is intercepted; no main app or external application opens. Run ReferenceBrowserTests
+and RevisionComparisonTests plus standalone/batch receiver regressions. Complete
+physical comparison/viewer/child-editor and signed acceptance remain pending.

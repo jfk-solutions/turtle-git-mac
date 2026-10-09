@@ -107,41 +107,48 @@ extension GitRepository {
         }
         return RevisionComparisonSnapshot(root: root, from: snapshot.from, to: snapshot.to, fromDetails: snapshot.fromDetails, toDetails: snapshot.toDetails, files: files, options: snapshot.options)
     }
-    public func revisionComparison(from: ComparisonRevision, to: ComparisonRevision, options: RevisionDiffOptions = RevisionDiffOptions()) throws -> RevisionComparisonSnapshot {
+    public func revisionComparison(from: ComparisonRevision, to: ComparisonRevision, options: RevisionDiffOptions = RevisionDiffOptions(), cancellation: OperationCancellation? = nil) throws -> RevisionComparisonSnapshot {
+        let token = cancellation ?? OperationCancellation()
+        try token.check()
         func resolve(_ side: ComparisonRevision) throws -> ComparisonRevision {
-            if case .revision(let name) = side { return .revision(try run(["rev-parse", "--verify", "--end-of-options", name + "^{commit}"]).text.trimmingCharacters(in: .newlines)) }
+            if case .revision(let name) = side { return .revision(try run(["rev-parse", "--verify", "--end-of-options", name + "^{commit}"], cancellation: token).text.trimmingCharacters(in: .newlines)) }
             return side
+        }
+        func isAncestor(_ a: String, _ b: String) throws -> Bool {
+            do { return try run(["merge-base", "--is-ancestor", a, b], successfulExitCodes: 0...1, cancellation: token).exitCode == 0 }
+            catch { try token.check(); return false }
         }
         var old = try resolve(from), new = try resolve(to)
         // Match FileDiffDlg: replace the base only when its IsFastForward
         // check succeeds; divergent or working-tree pairs keep the direct range.
         if options.commonAncestor, case .revision(let a) = old, case .revision(let b) = new,
-           (try? run(["merge-base", "--is-ancestor", a, b])) != nil {
-            old = .revision(try run(["merge-base", a, b]).text.trimmingCharacters(in: .newlines))
+           try isAncestor(a, b) {
+            old = .revision(try run(["merge-base", a, b], cancellation: token).text.trimmingCharacters(in: .newlines))
         }
-        let args = try comparisonArguments(from: old, to: new, options: options)
-        let files = CommitFile.parse(names: try run(args + ["--name-status", "-z", "--"]).stdout, statistics: try run(args + ["--numstat", "-z", "--"]).stdout, raw: try run(args + ["--raw", "-z", "--"]).stdout).filter { $0.hasStatistics || $0.isSubmodule }
-        return RevisionComparisonSnapshot(root: root, from: old, to: new, fromDetails: try comparisonDetails(old), toDetails: try comparisonDetails(new), files: files, options: options)
+        let args = try comparisonArguments(from: old, to: new, options: options, cancellation: token)
+        let files = CommitFile.parse(names: try run(args + ["--name-status", "-z", "--"], cancellation: token).stdout, statistics: try run(args + ["--numstat", "-z", "--"], cancellation: token).stdout, raw: try run(args + ["--raw", "-z", "--"], cancellation: token).stdout).filter { $0.hasStatistics || $0.isSubmodule }
+        return RevisionComparisonSnapshot(root: root, from: old, to: new, fromDetails: try comparisonDetails(old, cancellation: token), toDetails: try comparisonDetails(new, cancellation: token), files: files, options: options)
     }
     public func revisionComparisonPatch(_ snapshot: RevisionComparisonSnapshot, paths: [String] = []) throws -> String {
         String(decoding: try revisionComparisonPatchData(snapshot, paths: paths), as: UTF8.self)
     }
-    public func revisionComparisonPatchData(_ snapshot: RevisionComparisonSnapshot, paths: [String] = []) throws -> Data {
+    public func revisionComparisonPatchData(_ snapshot: RevisionComparisonSnapshot, paths: [String] = [], cancellation: OperationCancellation? = nil) throws -> Data {
+        let token = cancellation ?? OperationCancellation(); try token.check()
         guard snapshot.root == root, paths.allSatisfy({ path in snapshot.files.contains { $0.path == path } }) else { throw RevisionComparisonFailure.selection }
         let selected = paths.isEmpty ? [] : snapshot.files.filter { paths.contains($0.path) }.flatMap { [$0.path] + ($0.oldPath.map { [$0] } ?? []) }
         for path in selected { _ = try restoreLocation(path) }
-        return try run(comparisonArguments(from: snapshot.from, to: snapshot.to, options: snapshot.options) + ["--"] + Set(selected).sorted()).stdout
+        return try run(comparisonArguments(from: snapshot.from, to: snapshot.to, options: snapshot.options, cancellation: token) + ["--"] + Set(selected).sorted(), cancellation: token).stdout
     }
-    private func comparisonDetails(_ side: ComparisonRevision) throws -> ComparisonRevisionDetails? {
+    private func comparisonDetails(_ side: ComparisonRevision, cancellation: OperationCancellation? = nil) throws -> ComparisonRevisionDetails? {
         guard case .revision(let hash) = side else { return nil }
-        let fields = try run(["show", "--encoding=UTF-8", "--no-patch", "--no-notes", "--format=%h%x00%s%x00%aN%x00%at%x00%ct", hash, "--"]).text.trimmingCharacters(in: .newlines).components(separatedBy: "\0")
+        let fields = try run(["show", "--encoding=UTF-8", "--no-patch", "--no-notes", "--format=%h%x00%s%x00%aN%x00%at%x00%ct", hash, "--"], cancellation: cancellation).text.trimmingCharacters(in: .newlines).components(separatedBy: "\0")
         guard fields.count == 5 else { throw RevisionComparisonFailure.range }
         return ComparisonRevisionDetails(shortHash: fields[0], subject: fields[1], author: fields[2], authorDate: TimeInterval(fields[3]).map(Date.init(timeIntervalSince1970:)), committerDate: TimeInterval(fields[4]).map(Date.init(timeIntervalSince1970:)))
     }
-    private func comparisonArguments(from: ComparisonRevision, to: ComparisonRevision, options: RevisionDiffOptions) throws -> [String] {
+    private func comparisonArguments(from: ComparisonRevision, to: ComparisonRevision, options: RevisionDiffOptions, cancellation: OperationCancellation? = nil) throws -> [String] {
         guard from != .workingTree || to != .workingTree else { throw RevisionComparisonFailure.range }
         func hash(_ side: ComparisonRevision) throws -> String {
-            switch side { case .revision(let value): return value; case .emptyTree: return try run(["mktree"]).text.trimmingCharacters(in: .newlines); case .workingTree: throw RevisionComparisonFailure.range }
+            switch side { case .revision(let value): return value; case .emptyTree: return try run(["mktree"], cancellation: cancellation).text.trimmingCharacters(in: .newlines); case .workingTree: throw RevisionComparisonFailure.range }
         }
         var args = ["diff", "--no-ext-diff", "--no-color", "-M"] + options.arguments
         if from == .workingTree { args += ["-R", try hash(to)] }

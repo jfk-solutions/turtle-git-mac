@@ -92,3 +92,9 @@ To delete several references, select branches, tags or remote branches from one
 namespace and choose **Delete N…** in the context menu. Review the confirmation:
 remote branches are removed on the remote, and branch batches do not check whether
 every branch is merged. A failed batch can leave earlier deletions completed.
+
+Select two references to use **Compare selected refs** for their changed-file list
+or **Show changes as unified diff** for a patch. Comparisons follow the displayed
+list order; Log ranges put the last-selected reference on the right. Unified Diff
+uses the displayed object IDs even if a branch moves afterward. Hold Shift to
+reverse the configured built-in/external unified viewer choice.

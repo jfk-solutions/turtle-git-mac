@@ -58,6 +58,8 @@ jobs:
         run: python3 scripts/test-reference-browser.py
       - name: Native standalone reference browser
         run: python3 scripts/test-reference-standalone.py
+      - name: Native reference-browser comparisons
+        run: python3 scripts/test-reference-comparison.py
       - name: Native reference-browser batch deletion
         run: python3 scripts/test-reference-batch-delete.py
       - name: Native reference-browser deletion

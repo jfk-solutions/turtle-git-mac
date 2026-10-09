@@ -55,7 +55,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         }
         return true
     }
-    func windowWillClose(_ notification: Notification) { model.patchWindow?.close(); Array(model.unifiedWindows.values).forEach { $0.close() }; Array(model.comparisonWindows.values).forEach { $0.close() }; onClosed() }
+    func windowWillClose(_ notification: Notification) { model.invalidate(); logPicker?.close(); reflogPicker?.close(); model.patchWindow?.close(); Array(model.unifiedWindows.values).forEach { $0.close() }; Array(model.comparisonWindows.values).forEach { $0.close() }; onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class RevisionComparisonWindowModel: ObservableObject {
@@ -79,6 +79,10 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     var patchWindow: PatchWindowController?
     var unifiedWindows: [String: PatchWindowController] = [:]
     private var patchGeneration = 0
+    private var patchTokens: [UUID: OperationCancellation] = [:]
+    private var loadToken: OperationCancellation?
+    private(set) var closed = false
+    func invalidate() { closed = true; patchTokens.values.forEach { $0.cancel() }; patchTokens.removeAll(); loadToken?.cancel(); loadToken = nil; patchGeneration += 1; busy = false }
     var onLog: (String?) -> Void = { _ in }
     var onFileLog: (String, String?) -> Void = { _, _ in }
     var onSubmoduleCompare: (String, ComparisonRevision, ComparisonRevision) -> Void = { _, _, _ in }
@@ -95,22 +99,25 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         switch input.lowercased() { case "working tree": return .workingTree; case "empty tree": return .emptyTree; default: return .revision(input) }
     }
     func load() {
-        guard !busy, !confirmingQuit else { return }; busy = true
+        guard !closed, !busy, !confirmingQuit else { return }; busy = true
+        let token = OperationCancellation(); loadToken = token
         let old = side(from), new = side(to), settings = options
         snapshot = nil; selection = []; patchGeneration += 1; patchWindow?.model.document = GitPatch(text: ""); patchWindow?.model.busy = false
         Task {
-            defer { busy = false }
+            defer { if loadToken === token { loadToken = nil; busy = false } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                references = try await repository.checkoutReferences(includeAll: true)
-                snapshot = try await repository.revisionComparison(from: old, to: new, options: settings)
+                let catalog = try await repository.checkoutReferences(includeAll: true, cancellation: token)
+                let result = try await repository.revisionComparison(from: old, to: new, options: settings, cancellation: token)
+                guard !closed, loadToken === token, !token.isCancelled else { return }
+                references = catalog; snapshot = result
                 if showingPatch { updatePatch() }
             }
-            catch { self.error = error.localizedDescription }
+            catch { if !closed, loadToken === token, !token.isCancelled { self.error = error.localizedDescription } }
         }
     }
     func choose(_ revision: String, side: ComparisonSide) {
-        guard !busy, !confirmingQuit else { return }
+        guard !closed, !busy, !confirmingQuit else { return }
         if side == .base { from = revision } else { to = revision }
         load()
     }
@@ -128,18 +135,18 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         guard let a = snapshot?.fromDetails?.committerDate, let b = snapshot?.toDetails?.committerDate else { return title }
         return (base ? a > b : b > a) ? title + " (newer)" : title
     }
-    func swap() { guard !busy, !confirmingQuit, side(to) != .workingTree else { return }; (from, to) = (to, from); load() }
+    func swap() { guard !closed, !busy, !confirmingQuit, side(to) != .workingTree else { return }; (from, to) = (to, from); load() }
     func log() {
-        guard !busy, !confirmingQuit, let snapshot else { return }
+        guard !closed, !busy, !confirmingQuit, let snapshot else { return }
         if case .revision(let value) = snapshot.to { onLog(value) } else { onLog(nil) }
     }
     func logFiles(_ ids: Set<String>) {
-        guard !busy, !confirmingQuit, let snapshot else { return }
+        guard !closed, !busy, !confirmingQuit, let snapshot else { return }
         let revision: String? = { if case .revision(let value) = snapshot.to { return value }; return nil }()
         for file in visibleFiles where ids.contains(file.path) { onFileLog(file.path, revision) }
     }
     func compare(_ ids: Set<String>) {
-        guard !busy, !confirmingQuit, let snapshot else { return }
+        guard !closed, !busy, !confirmingQuit, let snapshot else { return }
         for file in visibleFiles where ids.contains(file.path) {
             if file.isSubmodule { onSubmoduleCompare(file.path, snapshot.from, snapshot.to); continue }
             let key = file.path + "\0" + snapshot.from.label + "\0" + snapshot.to.label
@@ -154,7 +161,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         NSPasteboard.general.clearContents(); NSPasteboard.general.setString(ComparisonFileList.clipboard(files, extended: extended), forType: .string)
     }
     func saveList(_ ids: Set<String>) {
-        guard !busy, !confirmingQuit, let snapshot, let window else { return }
+        guard !closed, !busy, !confirmingQuit, let snapshot, let window else { return }
         let files = visibleFiles.filter { ids.contains($0.path) }; guard !files.isEmpty else { return }
         let text = ComparisonFileList.savedList(files, from: snapshot.from, to: snapshot.to)
         let panel = NSSavePanel(); panel.nameFieldStringValue = "changed-files.txt"; panel.allowedContentTypes = [.plainText]
@@ -164,7 +171,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         }
     }
     func togglePatch() {
-        guard !busy, !confirmingQuit, patchWindow?.model.busy != true, patchWindow?.window?.attachedSheet == nil else { return }
+        guard !closed, !busy, !confirmingQuit, patchWindow?.model.busy != true, patchWindow?.window?.attachedSheet == nil else { return }
         if showingPatch { patchWindow?.close(); return }
         let controller = PatchWindowController(repository: repository, access: access)
         controller.window?.title = "\(repository.root.lastPathComponent) – Unified Diff – TurtleGit"
@@ -182,7 +189,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); updatePatch()
     }
     func showPatch(_ ids: Set<String>, alternate: Bool) {
-        guard !busy, !confirmingQuit, let snapshot, !unifiedWindows.values.contains(where: { $0.model.busy }) else { return }
+        guard !closed, !busy, !confirmingQuit, let snapshot, !unifiedWindows.values.contains(where: { $0.model.busy }) else { return }
         let files = visibleFiles.filter { ids.contains($0.path) }
         guard !files.isEmpty else { return }
         let savedWarning = UserDefaults.standard.object(forKey: "TurtleGit.NumDiffWarning") as? Int ?? 10
@@ -192,14 +199,17 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
             guard alert.runModal() == .alertFirstButtonReturn else { return }
         }
         busy = true
+        let request = UUID(), token = OperationCancellation(); patchTokens[request] = token
         Task {
-            defer { busy = false }
+            defer { patchTokens.removeValue(forKey: request); if !closed { busy = false } }
             var failures: [String] = []
             for file in files {
+                guard !closed, !token.isCancelled else { return }
                 do {
                     try checkPatchAccess()
-                    let bytes = try await repository.revisionComparisonPatchData(snapshot, paths: [file.path])
-                    if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
+                    let bytes = try await repository.revisionComparisonPatchData(snapshot, paths: [file.path], cancellation: token)
+                    guard !closed, !token.isCancelled else { return }
+                    if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate), !closed, !token.isCancelled {
                         let controller = unifiedWindows[file.path] ?? PatchWindowController(repository: repository, access: access)
                         controller.model.setReadOnlyDiff(bytes)
                         controller.model.paths = [file.path]
@@ -207,15 +217,17 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
                         controller.model.readOnlyInformation = "Read-only unified diff for \(file.path). Right-click to save the patch."
                         controller.window?.title = "\(file.path) – Unified Diff – TurtleGit"
                         controller.model.customRefresh = { [weak self, weak controller] in
-                            guard let self, let controller, !controller.model.busy, !controller.model.confirmingQuit else { return }
+                            guard let self, let controller, !self.closed, !controller.model.busy, !controller.model.confirmingQuit else { return }
                             controller.model.busy = true
+                            let refresh = UUID(), token = OperationCancellation(); self.patchTokens[refresh] = token
                             Task {
-                                defer { controller.model.busy = false }
+                                defer { self.patchTokens.removeValue(forKey: refresh); if !self.closed { controller.model.busy = false } }
                                 do {
                                     try self.checkPatchAccess()
-                                    let bytes = try await self.repository.revisionComparisonPatchData(snapshot, paths: [file.path])
+                                    let bytes = try await self.repository.revisionComparisonPatchData(snapshot, paths: [file.path], cancellation: token)
+                                    guard !self.closed, !token.isCancelled else { return }
                                     controller.model.setReadOnlyDiff(bytes)
-                                } catch { controller.model.error = error.localizedDescription }
+                                } catch { if !self.closed, !token.isCancelled { controller.model.error = error.localizedDescription } }
                             }
                         }
                         controller.onClosed = { [weak self] in self?.unifiedWindows.removeValue(forKey: file.path) }
@@ -223,24 +235,26 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
                     }
                 } catch { failures.append(file.path + ": " + error.localizedDescription) }
             }
-            if !failures.isEmpty { error = failures.joined(separator: "\n") }
+            if !closed, !token.isCancelled, !failures.isEmpty { error = failures.joined(separator: "\n") }
         }
     }
     private func checkPatchAccess() throws {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     func updatePatch() {
-        guard showingPatch, let controller = patchWindow, let snapshot else { return }
+        guard !closed, showingPatch, let controller = patchWindow, let snapshot else { return }
         patchGeneration += 1; let request = patchGeneration
         let paths = visibleFiles.filter { selection.contains($0.path) }.map(\.path)
         controller.model.busy = true; controller.model.comparisonTitle = "\(snapshot.from.label.prefix(12)) → \(snapshot.to.label.prefix(12))"
         controller.model.paths = paths
+        let id = UUID(), token = OperationCancellation(); patchTokens[id] = token
         Task {
+            defer { patchTokens.removeValue(forKey: id) }
             do {
-                let bytes = paths.isEmpty ? Data() : try await repository.revisionComparisonPatchData(snapshot, paths: paths)
-                guard request == patchGeneration else { return }
+                let bytes = paths.isEmpty ? Data() : try await repository.revisionComparisonPatchData(snapshot, paths: paths, cancellation: token)
+                guard !closed, request == patchGeneration else { return }
                 controller.model.setReadOnlyDiff(bytes); controller.model.busy = false
-            } catch { if request == patchGeneration { controller.model.error = error.localizedDescription; controller.model.busy = false } }
+            } catch { if !closed, request == patchGeneration { controller.model.error = error.localizedDescription; controller.model.busy = false } }
         }
     }
 }
