@@ -134,6 +134,7 @@
 		A9E14DE01BAAD7CF54993E51 /* CommandLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ABAD60A21F60D01816B9D64 /* CommandLabel.swift */; };
 		A9FF0A885E44AF8F4261B5DA /* GitModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5BC4298E9DBF0AB06FA8087 /* GitModels.swift */; };
 		AAF6FA2415511B9D5A4357A7 /* LogSearchHighlights.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92C50E53F34624CECCEC69FA /* LogSearchHighlights.swift */; };
+		AC116BB031465CB0039846C6 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3691B7FD0C58C1472B2BEECF /* main.swift */; };
 		AC1988C449B92C1D5501A8DC /* FinderRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC55CCB5A12A46D5ACE608BA /* FinderRequest.swift */; };
 		AF368FB1112CF5C62DEC55A2 /* RepositoryBrowserDrag.swift in Sources */ = {isa = PBXBuildFile; fileRef = 377A8410F24CB6A92830EB11 /* RepositoryBrowserDrag.swift */; };
 		AFCF01F6659A02AC371A90B8 /* MergeWhitespace.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7809458AF943456197C0AC7 /* MergeWhitespace.swift */; };
@@ -179,6 +180,7 @@
 		DC324EE987ED199805D3DF0B /* ResetWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CFEE049A0098A0212AD01DA /* ResetWindow.swift */; };
 		DD16EA85352150A590AED3FB /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 152D20910797F40A39CBF1A8 /* LICENSE */; };
 		DD54AAAEE6EEE0B9B1245370 /* SubmoduleConflict.swift in Sources */ = {isa = PBXBuildFile; fileRef = F925723BED85497207863D60 /* SubmoduleConflict.swift */; };
+		DF0CD2448F2B8812C9593D7E /* SSHKeyPassphraseWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE84FD354494653334022AA8 /* SSHKeyPassphraseWindow.swift */; };
 		DF224DF655B4A741AE3BDC97 /* ReferenceLogDiff.swift in Sources */ = {isa = PBXBuildFile; fileRef = 553B03B8CB0E867E812A6B53 /* ReferenceLogDiff.swift */; };
 		E046B347B367E63019422195 /* WorkingTree.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20E461B2D9629D0293A80EB /* WorkingTree.swift */; };
 		E08926979B3B614AFB769298 /* CommitMessageEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B4940FBDB475FC25EC9B3EC /* CommitMessageEditor.swift */; };
@@ -232,6 +234,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = 611D1F05CCEE573C536A3781;
 			remoteInfo = TurtleGitCore;
+		};
+		EF97D4D412883C2FC2642160 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8499389742F1D4CC6667681D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 625F34574E04CB0465D145BF;
+			remoteInfo = TurtleGitSSHAskpass;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -319,6 +328,7 @@
 		3452891FA131668D74905133 /* WorkingTreeHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingTreeHistory.swift; sourceTree = "<group>"; };
 		35EFDB07D0E47ACAE56DF1EF /* MergeEditorPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeEditorPreferences.swift; sourceTree = "<group>"; };
 		366DB6C65F4EF18125B4B7D2 /* RevisionArchive.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevisionArchive.swift; sourceTree = "<group>"; };
+		3691B7FD0C58C1472B2BEECF /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		377A8410F24CB6A92830EB11 /* RepositoryBrowserDrag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryBrowserDrag.swift; sourceTree = "<group>"; };
 		3840500048AA0D9241AC5310 /* WorkingFileRestore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingFileRestore.swift; sourceTree = "<group>"; };
 		392877DE7F6A7F5BB1CC3391 /* LogAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogAppearance.swift; sourceTree = "<group>"; };
@@ -386,6 +396,7 @@
 		8BB0FD3A5C49E748AA9A42AC /* AddWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddWindow.swift; sourceTree = "<group>"; };
 		8D6B27BE15EAF8BC2A39D565 /* MergeMessageHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeMessageHistory.swift; sourceTree = "<group>"; };
 		8F84A36C85062FC9FF018CB1 /* AddProgressWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddProgressWindow.swift; sourceTree = "<group>"; };
+		9144F6030805FB115877C438 /* TurtleGitSSHAskpass */ = {isa = PBXFileReference; includeInIndex = 0; path = TurtleGitSSHAskpass; sourceTree = BUILT_PRODUCTS_DIR; };
 		9239515FD50D7B6B92A181A5 /* ComparisonFileList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComparisonFileList.swift; sourceTree = "<group>"; };
 		92BCC367833CF7B0CCC10BC6 /* NativeWatermarkTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeWatermarkTable.swift; sourceTree = "<group>"; };
 		92C50E53F34624CECCEC69FA /* LogSearchHighlights.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogSearchHighlights.swift; sourceTree = "<group>"; };
@@ -408,6 +419,7 @@
 		ACCD52A86C10025F3F1705C8 /* HistoryReferenceLabels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryReferenceLabels.swift; sourceTree = "<group>"; };
 		ADFF9F8C8624249F4AB965DF /* CommitFileInteraction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitFileInteraction.swift; sourceTree = "<group>"; };
 		AE81F1D25A56C6A243F01F23 /* UnifiedDiffViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedDiffViewer.swift; sourceTree = "<group>"; };
+		AE84FD354494653334022AA8 /* SSHKeyPassphraseWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHKeyPassphraseWindow.swift; sourceTree = "<group>"; };
 		AEC571DB776E587D10F568E9 /* AdvancedSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdvancedSettings.swift; sourceTree = "<group>"; };
 		B0144901E0020C531A5D86FB /* RepositoryAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryAccess.swift; sourceTree = "<group>"; };
 		B16F443B326FDAB1414D334B /* Appearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Appearance.swift; sourceTree = "<group>"; };
@@ -557,6 +569,7 @@
 				D1C08CE65957F3F0D4164400 /* RevisionComparisonWindow.swift */,
 				5CC68DDC9F827CA4F3DA9A05 /* SavedDataSettings.swift */,
 				DAD242D45D90F689D7AA5D91 /* SelectionAllCheckbox.swift */,
+				AE84FD354494653334022AA8 /* SSHKeyPassphraseWindow.swift */,
 				A3DED1F87985F333C460E700 /* StashRestoreWindow.swift */,
 				CC73279697B4174BE7ED4D66 /* StashWindow.swift */,
 				F1AD98D1D708DD20E49D436E /* StatisticsGraphExport.swift */,
@@ -585,8 +598,18 @@
 				1BCB9C51D9D69E943E22F2C8 /* TurtleGitCore.framework */,
 				79C5573349C11EE01ECA2C1E /* TurtleGitFinder.appex */,
 				6A72CBF70DA62980294AB41A /* TurtleGitMac.app */,
+				9144F6030805FB115877C438 /* TurtleGitSSHAskpass */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		4ADB6A0F6ED8465E04FB8154 /* TurtleGitSSHAskpass */ = {
+			isa = PBXGroup;
+			children = (
+				3691B7FD0C58C1472B2BEECF /* main.swift */,
+			);
+			name = TurtleGitSSHAskpass;
+			path = Sources/TurtleGitSSHAskpass;
 			sourceTree = "<group>";
 		};
 		4C67C511FAC3AAB8E4226B2B = {
@@ -599,6 +622,7 @@
 				94C1F64FCC0EAAF58BC807DF /* FinderSync */,
 				9216CD741C27CC93A27DDCBF /* TurtleGitCore */,
 				0B0ED7640D942B979726B592 /* TurtleGitMac */,
+				4ADB6A0F6ED8465E04FB8154 /* TurtleGitSSHAskpass */,
 				30663CB5DF2D6EB458048FF9 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -746,6 +770,23 @@
 			productReference = 1BCB9C51D9D69E943E22F2C8 /* TurtleGitCore.framework */;
 			productType = "com.apple.product-type.framework";
 		};
+		625F34574E04CB0465D145BF /* TurtleGitSSHAskpass */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E7F7E6676A67491716185881 /* Build configuration list for PBXNativeTarget "TurtleGitSSHAskpass" */;
+			buildPhases = (
+				58F420CA7E9CD9956AFF0CCA /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = TurtleGitSSHAskpass;
+			packageProductDependencies = (
+			);
+			productName = TurtleGitSSHAskpass;
+			productReference = 9144F6030805FB115877C438 /* TurtleGitSSHAskpass */;
+			productType = "com.apple.product-type.tool";
+		};
 		D85D48769A26BDEB1B7D6021 /* TurtleGitMac */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = AAF975E4580FB3C0CE2D3158 /* Build configuration list for PBXNativeTarget "TurtleGitMac" */;
@@ -755,6 +796,7 @@
 				F6F8AC92E0CCCF7FF9CECD59 /* Frameworks */,
 				ED03DD8CA52381A434D18935 /* Embed Foundation Extensions */,
 				C0FA93121C7653B8CED80394 /* Embed Frameworks */,
+				CEE1C93388E81BE0FC471865 /* Embed SSH passphrase helper */,
 				51D7E3DB4C35C2277F3C9C8D /* Embed C++ issue-matching runtime */,
 				05E9103FE147A460078548D0 /* Embed pinned EditorConfig runtime */,
 				C45E6CCF59E8F543668B15BE /* Embed pinned Git runtime for App Store */,
@@ -764,6 +806,7 @@
 			dependencies = (
 				2F1A6434A8999A42F189BA78 /* PBXTargetDependency */,
 				9D75796456298CAF2FB23654 /* PBXTargetDependency */,
+				571C4F943393C11C23396667 /* PBXTargetDependency */,
 			);
 			name = TurtleGitMac;
 			packageProductDependencies = (
@@ -803,6 +846,9 @@
 					611D1F05CCEE573C536A3781 = {
 						ProvisioningStyle = Automatic;
 					};
+					625F34574E04CB0465D145BF = {
+						ProvisioningStyle = Automatic;
+					};
 					D85D48769A26BDEB1B7D6021 = {
 						ProvisioningStyle = Automatic;
 					};
@@ -828,6 +874,7 @@
 				611D1F05CCEE573C536A3781 /* TurtleGitCore */,
 				FCB8B885505C2D762F814FD1 /* TurtleGitFinder */,
 				D85D48769A26BDEB1B7D6021 /* TurtleGitMac */,
+				625F34574E04CB0465D145BF /* TurtleGitSSHAskpass */,
 			);
 		};
 /* End PBXProject section */
@@ -910,6 +957,25 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "if [ \"$CONFIGURATION\" = \"AppStore\" ]; then\n  /usr/bin/python3 \"$SRCROOT/scripts/embed-git-runtime.py\" \"$SRCROOT/build/git-runtime/Git\" \"$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME\"\nfi\n";
+		};
+		CEE1C93388E81BE0FC471865 /* Embed SSH passphrase helper */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Embed SSH passphrase helper";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/usr/bin/python3 \"$SRCROOT/scripts/embed-ssh-askpass.py\" \"$BUILT_PRODUCTS_DIR/TurtleGitSSHAskpass\" \"$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -1027,6 +1093,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		58F420CA7E9CD9956AFF0CCA /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AC116BB031465CB0039846C6 /* main.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		6BA8FA4A742952106E7466A7 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -1099,6 +1173,7 @@
 				885DFCA3F39F7130AADDB93E /* RevertProgressWindow.swift in Sources */,
 				E0EF101FE5499CD99CF132F1 /* RevertWindow.swift in Sources */,
 				7CBA6AA078D63A8935313B51 /* RevisionComparisonWindow.swift in Sources */,
+				DF0CD2448F2B8812C9593D7E /* SSHKeyPassphraseWindow.swift in Sources */,
 				E870F93D67C68E0FCCDDC0F3 /* SavedDataSettings.swift in Sources */,
 				62913FA0A0A8052D1CF513A4 /* SelectionAllCheckbox.swift in Sources */,
 				20EF27A5F53CDA212F1CD35E /* StashRestoreWindow.swift in Sources */,
@@ -1136,6 +1211,11 @@
 			isa = PBXTargetDependency;
 			target = 611D1F05CCEE573C536A3781 /* TurtleGitCore */;
 			targetProxy = B11DE1A6AD9CC73741607249 /* PBXContainerItemProxy */;
+		};
+		571C4F943393C11C23396667 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 625F34574E04CB0465D145BF /* TurtleGitSSHAskpass */;
+			targetProxy = EF97D4D412883C2FC2642160 /* PBXContainerItemProxy */;
 		};
 		9D75796456298CAF2FB23654 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -1232,6 +1312,20 @@
 			};
 			name = AppStore;
 		};
+		0C43C743C127BFFA660052A0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "org.turtlegit.macos.ssh-askpass";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+			};
+			name = Debug;
+		};
 		107F35C44B41F7115B863224 /* AppStore */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1309,6 +1403,20 @@
 				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
+		};
+		3A5DD185FFDE61EC8BFA0F15 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "org.turtlegit.macos.ssh-askpass";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+			};
+			name = Release;
 		};
 		5163E9FE4FEFD974951F11E1 /* AppStore */ = {
 			isa = XCBuildConfiguration;
@@ -1423,6 +1531,20 @@
 			};
 			name = Debug;
 		};
+		93120B9272F6F5D4BD0354B8 /* AppStore */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "org.turtlegit.macos.ssh-askpass";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+			};
+			name = AppStore;
+		};
 		B256945284D4F6423C6D269D /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1527,6 +1649,16 @@
 				6CAE0EEBC9362CF3E8CE0E57 /* AppStore */,
 				77FA20D76E48D8F65A8AAECA /* Debug */,
 				B256945284D4F6423C6D269D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = AppStore;
+		};
+		E7F7E6676A67491716185881 /* Build configuration list for PBXNativeTarget "TurtleGitSSHAskpass" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				93120B9272F6F5D4BD0354B8 /* AppStore */,
+				0C43C743C127BFFA660052A0 /* Debug */,
+				3A5DD185FFDE61EC8BFA0F15 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = AppStore;

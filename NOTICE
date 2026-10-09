@@ -1071,3 +1071,10 @@ TortoiseGit and 2003-2011, 2013-2014 TortoiseSVN, GPL-2.0-or-later.
 No Pageant or OpenSSH source/binary is included by that implementation.
 Development currently invokes macOS OpenSSH tools; packaged agent helpers
 and native encrypted-key authentication remain unfinished.
+
+The SSH passphrase response CLI, private one-use response channel and native
+secure response dialog are original Swift implementations under GPL version 2
+or later. Their response contract replaces the Pageant ask_passphrase callback
+referenced in the pinned TortoisePlink/pageant.h. No PuTTY or OpenSSH source is
+copied into these components. Bundled OpenSSH agent/add and complete native
+authentication integration remain pending.

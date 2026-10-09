@@ -1,0 +1,54 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "35276b26f4c490ce9b3e0c3ad3f750e4badf3a28",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Encrypted-key response channel, embedded native CLI and isolated native secure response window; application authentication remains incomplete.",
+  "verification": {
+    "core": "7 targeted SSHAgentSession/SSHAskpass cases pass with the actual packaged Debug response helper: two identities, encrypted fixture wrong/correct responses, malformed envelopes, permissions, symlink/replay refusal, cancellation and live loader/child cleanup. Earlier initial source-compiled helper cases also pass.",
+    "native": "Hidden shipping dialog receiver passes secure field and Return/Escape configuration, one-shot OK/Cancel, forced-close clearing and late-action fence. No physical keyboard or displayed acceptance claimed.",
+    "build": "Final unsigned Debug and AppStore builds pass. Both embedded NOTICE files match repository.",
+    "bundles": "Both final bundle audits pass. Response helper binary/source provenance, deployment macOS 13, system linkage and native host private-response/replay probe pass. AppStore helper static architecture audit passes arm64/x86_64; x86 execution and signing not verified. Existing bundled Git/LFS/EditorConfig/IssueRegex/Finder/icons/license audits pass.",
+    "inventory": "Pinned inventory regression passes; pageant.h response callback mapped partial-native.",
+    "workflow": "Workflow YAML parses; exactly one native SSH response step present. Hosted CI not queried or verified."
+  },
+  "limitations": [
+    "No Fetch/Push/Pull/Clone/submodule/remote deletion transport wiring or key picker/bookmark/Keychain integration.",
+    "Plaintext response envelope exists briefly in mode-0600 file under private mode-0700 directory; no secure-memory erasure or exhaustive same-user race protection claimed.",
+    "Bundled OpenSSH agent/add and signed inherited sandbox runtime remain pending. AppStore agent resolver refuses missing helpers.",
+    "PPK, password/host-key authentication, hardware/certificate keys, retry orchestration and real SSH server acceptance remain pending.",
+    "Physical focus/key presses/light-dark/long filenames/VoiceOver/parent sheets and full upstream visual parity remain pending.",
+    "No main app launch, user keys/login-agent query/modification, network authentication, push, hosted CI or deployment."
+  ],
+  "sha256": {
+    ".github/workflows/macos.yml": "b1940a9e1a1eaf0516d5472c2c88ff65c0a589b9f1faac21238d53754a2d4271",
+    "NOTICE": "c0cc3137050869fa904689031b52dcf247be28dede7b1e4acc867de6671c817f",
+    "Sources/TurtleGitCore/SSHAgentSession.swift": "26efc03647325bfafb15a97c45a2cfc3e67440d62986730135ee7a7e65512ab3",
+    "Sources/TurtleGitMac/SSHKeyPassphraseWindow.swift": "7ca8042cc4df0a751699ff20a51adacbc60766da394d1bf04c5bc25e92d1e2c9",
+    "Sources/TurtleGitSSHAskpass/main.swift": "271663a8c0b59bdeb28387e493e70c5131071268b41163289f75efa142ceedc3",
+    "Tests/TurtleGitCoreTests/SSHAskpassTests.swift": "df8bbfa6de12953a5777039c9c22ddcfe91655f6c30a3971af933324e2f28d35",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "6b29b53a52780405f79e2bffc276ef118283c2294c1fc659fa52e3f2c405503c",
+    "docs/DISTRIBUTION.md": "f46d33c8e83b3777c5fddbcc4a2590912f488f202982ed8a3b5fec0b6cafa540",
+    "docs/PORTING.md": "d7d2703311be4e299fe875083785e55e06032e389bca4f316279b27b8a4e1b1b",
+    "docs/README.md": "1b53e4ad28f96b2841365cf95cbe5ee0a597159d7bdc2e0dcd23f42455a15f2a",
+    "docs/SSH-AGENT-PARITY.md": "554a2ab0decf13a72b3d48d382e010d1cd4c0d9eb3825a03d2bfb278e89eefc9",
+    "docs/SSH-PASSPHRASE-PARITY.md": "a61663e89a5691e8260d5f026a9db84d3825912fd650e857ab266e7827948059",
+    "docs/TESTING.md": "03df2022255cbe8548ccc3289eeddef870a6c0890e116555136ea15afd89cb85",
+    "docs/qa/ssh-passphrase-native-2026-10-09.swift": "4539e121fea27502a386cbe96c2725888ac477726564970cd2401558a3f6f429",
+    "docs/upstream-files.csv": "1df1168437cf84d186ed00433eee42c5011ee9356848f84e3efb625d2d705447",
+    "project.yml": "af9d0be31973591eadf9d0d0266396444817e9aeac30fce635d250c0c32baa81",
+    "scripts/embed-ssh-askpass.py": "611632212c8817a057809cf1664db087dc6c2e08753f202a9dce157e78ad0936",
+    "scripts/test-ssh-passphrase.py": "8509ae5b6683c9981ab1a2058dcb2d74bda494809b9d626fb3d532b4eaa66f6c",
+    "scripts/validate-app-bundle.py": "2b2a17e2451e34425c0abf78bc03dac083972667386fcba7d21c0c3468d95d4d",
+    "scripts/validate-ssh-askpass.py": "c4fd30c120f55143d526c25abdb0f6174fb3818807b9a26da5137e702c39df64"
+  },
+  "logs": "build/qa/ssh-passphrase-2026-10-09",
+  "cleanup": {
+    "all_handles_terminal": true,
+    "main_app_launches": 0,
+    "shared_preference_domains_created": 0,
+    "audit": {
+      "matching_processes": [],
+      "current_fixtures": []
+    }
+  }
+}

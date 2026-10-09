@@ -80,6 +80,7 @@ for baseline and update rules.
 - [Push dialog parity](PUSH-PARITY.md)
 - [Manage Remotes parity](REMOTE-SETTINGS-PARITY.md)
 - [SSH agent and identity port](SSH-AGENT-PARITY.md)
+- [Encrypted SSH key response port](SSH-PASSPHRASE-PARITY.md)
 - [Merge dialog parity](MERGE-PARITY.md)
 - [Stash Save parity](STASH-PARITY.md)
 - [Reset parity](RESET-PARITY.md)

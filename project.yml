@@ -17,6 +17,14 @@ settings:
     AppStore:
       SWIFT_ACTIVE_COMPILATION_CONDITIONS: '$(inherited) TURTLEGIT_APP_STORE'
 targets:
+  TurtleGitSSHAskpass:
+    type: tool
+    platform: macOS
+    sources: [Sources/TurtleGitSSHAskpass]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.turtlegit.macos.ssh-askpass
+        SKIP_INSTALL: YES
   TurtleGitCore:
     type: framework
     platform: macOS
@@ -48,6 +56,8 @@ targets:
         embed: true
       - target: TurtleGitFinder
         embed: true
+      - target: TurtleGitSSHAskpass
+        embed: false
     info:
       path: Configuration/App-Info.plist
       properties:
@@ -62,6 +72,10 @@ targets:
           - CFBundleURLName: org.turtlegit.macos.action
             CFBundleURLSchemes: [turtlegit]
     postBuildScripts:
+      - name: Embed SSH passphrase helper
+        script: |
+          /usr/bin/python3 "$SRCROOT/scripts/embed-ssh-askpass.py" "$BUILT_PRODUCTS_DIR/TurtleGitSSHAskpass" "$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME"
+        basedOnDependencyAnalysis: false
       - name: Embed C++ issue-matching runtime
         script: |
           /usr/bin/python3 "$SRCROOT/scripts/embed-issue-regex-runtime.py" "$SRCROOT/build/issue-regex-runtime/IssueRegex" "$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME"

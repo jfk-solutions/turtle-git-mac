@@ -2044,7 +2044,7 @@ src/TortoisePlink/defs.h,TortoisePlink,blob,8e45fc0418a0d6747d0de5f6dc2042888cd8
 src/TortoisePlink/errsock.c,TortoisePlink,blob,39cd4ba7d022b6994c867e67c509da927da3e118,pending-review,,
 src/TortoisePlink/marshal.h,TortoisePlink,blob,ca71e7d7a7b248442fdca43b81bdec04a7876987,pending-review,,
 src/TortoisePlink/mpint.h,TortoisePlink,blob,a101365a21293743c63a28737407c408c734b7a0,pending-review,,
-src/TortoisePlink/pageant.h,TortoisePlink,blob,9f050c93bde3bc51a3f86ca75bd08b45b81970d0,pending-review,,
+src/TortoisePlink/pageant.h,TortoisePlink,blob,9f050c93bde3bc51a3f86ca75bd08b45b81970d0,partial-native,Sources/TurtleGitCore/SSHAgentSession.swift; Sources/TurtleGitSSHAskpass/main.swift; Sources/TurtleGitMac/SSHKeyPassphraseWindow.swift,"ask_passphrase response contract reviewed; original native one-use encrypted key response helper and isolated secure-field dialog. Agent protocol, key types, PPK, app transport wiring, physical dialog parity and signed acceptance remain pending. See docs/SSH-PASSPHRASE-PARITY.md."
 src/TortoisePlink/proxy/cproxy.c,TortoisePlink,blob,f995ef065159fe3f7528113387d2dbab2cd4c0c9,pending-review,,
 src/TortoisePlink/proxy/cproxy.h,TortoisePlink,blob,2b4eac74c9e74eb512543463b2eb8cca0edb9d17,pending-review,,
 src/TortoisePlink/proxy/http.c,TortoisePlink,blob,c2e5e3b639e43fd3f3cc00f41aab435d72fd1212,pending-review,,

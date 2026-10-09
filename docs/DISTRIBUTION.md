@@ -204,3 +204,14 @@ EditorConfig helper's sandbox inheritance rules. Both CPU slices and both
 ad-hoc helper signing branches are checked; signed native App Store invocation,
 actual Intel/macOS 13 execution and complete issue-control parity remain pending.
 See [issue tracker parity](ISSUE-TRACKER-PARITY.md).
+
+## SSH response helper preparation
+
+The app embeds the original Swift `TurtleGitSSHAskpass` CLI, built as an Xcode
+tool target, under `Contents/Helpers/SSHAskpass/`. The embedding script signs it
+with the configured identity; AppStore uses inherited-sandbox helper entitlements.
+Provenance retains shipping source and post-sign binary hashes. The unsigned
+bundle audit exercises a private dummy response and replay refusal, and checks
+macOS 13/system linkage and both AppStore architectures. This does not verify
+signed inherited invocation. OpenSSH agent/add packaging and native transport
+wiring are still required before this enables App Store SSH authentication.

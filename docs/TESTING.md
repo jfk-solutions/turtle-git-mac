@@ -492,5 +492,17 @@ fixture keys and a private foreground agent. They verify two identities, literal
 punctuation paths, encrypted-key failure without prompting, earlier-key retention,
 pre-cancellation, startup failure, release/deinit cleanup and live key-loader
 helper/child termination during forced close. No login agent or SSH server is
-used. App wiring, encrypted-key UI and bundled/signed helpers remain pending; see
+used. App wiring and bundled/signed OpenSSH helpers remain pending; see
 [SSH agent parity](SSH-AGENT-PARITY.md).
+
+### Encrypted SSH key response
+
+Run `swift test --filter 'SSHAskpassTests|SSHAgentSessionTests'`. Without
+`TURTLEGIT_QA_ASKPASS`, tests compile the shipping CLI in a private fixture. To
+exercise the actual Debug product, set that variable to the absolute path of
+`TurtleGitMac.app/Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass`. After Debug
+building, run `python3 scripts/test-ssh-passphrase.py` for the hidden secure-field
+and one-shot OK/Cancel/forced-close checks. Bundle audits include the response
+CLI provenance, architecture/linkage and replay probe. Real authentication,
+physical UI and signed sandbox acceptance remain pending; see
+[SSH response parity](SSH-PASSPHRASE-PARITY.md).

@@ -17,7 +17,7 @@ locally; these upstream manuals do not establish signed macOS acceptance.
 the application's Fetch/Push or key picker. It starts a foreground OpenSSH agent
 in an owned process group, with an atomically-created mode-0700 directory and
 private socket. It never changes the login agent. Command arguments remain
-literal byte-preserving arrays. Loading multiple unencrypted identities uses
+literal byte-preserving arrays. Loading multiple identities uses
 owned `ssh-add` commands; earlier successful keys remain after a later failure.
 Close cancels and reaps the agent and any active key loader before removing its
 directory. The worker retains separate state, so releasing a session also closes
@@ -25,9 +25,13 @@ it. Socket path length is checked against macOS's Unix-domain socket limit.
 
 Development resolves system OpenSSH tools when bundled helpers are absent. The
 App Store resolver requires both bundled agent/add helpers and refuses fallback.
-Those helpers are not packaged yet. The headless loader rejects passphrase
-prompting; encrypted-key native prompts/Keychain and a bundled askpass helper are
-still required. This is not authentication or signed sandbox acceptance.
+Those helpers are not packaged yet. The app now embeds an original Swift askpass
+CLI. A supplied response can load an encrypted key through a private one-use
+channel; without a response, the headless loader rejects interactive prompting.
+The native secure response dialog is implemented and tested in isolation, but
+not connected to key loading or Fetch/Push. Keychain integration is pending. See
+[SSH passphrase parity](SSH-PASSPHRASE-PARITY.md). This is not authentication or
+signed sandbox acceptance.
 
 ## Remaining end-to-end work
 
@@ -36,7 +40,7 @@ still required. This is not authentication or signed sandbox acceptance.
 - Add native identity selection, app-private file bookmarks, renewal and scope
   leases held through key loading; preserve Windows PuTTY configuration without
   treating `.ppk` as an OpenSSH key. Conversion or native PPK support is pending.
-- Implement native encrypted-key prompts and Keychain decisions with owned
+- Connect the native encrypted-key response dialog and add Keychain decisions with owned
   cancellation. Keep private bytes out of command output, Finder and docs.
 - Wire source Auto-load behavior into Fetch/Pull/Push, remote tags, remote-branch
   deletion, Clone/submodules and Sync, including all-remotes and failure ordering.
