@@ -299,6 +299,12 @@ canonical native presets including packed NFC/NFD names, ownership/rejection/clo
 and a real captured fast-forward merge through native progress and acknowledgement.
 See [Merge route QA](qa/reference-merge-2026-10-09.json) and
 `scripts/test-reference-merge.py`. Source CAppUtils user-data/rebase preflight,
-full Merge chooser parity, force-close during active Merge, physical sheets,
+full Merge chooser parity and physical sheets,
 light/dark/accessibility and signed execution remain incomplete or unverified.
 Fetch, creation/tree/range/deletion commands and the full port remain unfinished.
+
+Merge now uses the owned full reference browser and typed-revision Log picker.
+Its forced lifetime cleanup is checked separately in
+[Merge cleanup QA](qa/merge-cleanup-2026-10-09.json); picker behavior is recorded in
+[Merge parity](MERGE-PARITY.md). Hidden receivers do not establish physical or
+signed acceptance.

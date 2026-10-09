@@ -2,9 +2,22 @@ import AppKit
 import SwiftUI
 import TurtleGitCore
 
+@MainActor protocol VersionPickerModel: AnyObject {
+    var repository: GitRepository { get }
+    var revision: String { get }
+    var commitRevision: String { get }
+    var error: String? { get }
+    var onBrowsePicker: ((CheckoutTarget) -> Void)? { get set }
+    func beginPicker(_ target: CheckoutTarget) -> Bool
+    func finishPicker()
+    func acceptReferenceSelection(_ name: String?, completion: @escaping () -> Void)
+    func acceptCommitSelection(_ entry: LogEntry?)
+    func invalidate()
+}
+
 @MainActor final class VersionPickerCoordinator {
     private weak var window: NSWindow?
-    private let model: SwitchWindowModel
+    private let model: any VersionPickerModel
     private let access: RepositoryAccessLease?
     private let preferences: UserDefaults
     private let allowed: () -> Bool
@@ -14,11 +27,12 @@ import TurtleGitCore
     private(set) var commitPicker: LogWindowController?
     private var pickerRequest: UUID?
     var configureReferencePicker: (ReferenceBrowserWindowModel) -> Void = { _ in }
+    var configureCommitPicker: (LogWindowModel) -> Void = { _ in }
     var presentPicker: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
     var makeCommitPicker: (GitRepository, RepositoryAccessLease?, @escaping (LogEntry?) -> Void, UserDefaults) -> LogWindowController = { repository, access, choose, preferences in
         LogWindowController(repository: repository, access: access, onChoose: choose, labelDefaults: preferences)
     }
-    init(window: NSWindow, model: SwitchWindowModel, access: RepositoryAccessLease?, preferences: UserDefaults, allowed: @escaping () -> Bool = { true }) {
+    init(window: NSWindow, model: any VersionPickerModel, access: RepositoryAccessLease?, preferences: UserDefaults, allowed: @escaping () -> Bool = { true }) {
         self.window = window; self.model = model; self.access = access; self.preferences = preferences; self.allowed = allowed
         model.onBrowsePicker = { [weak self] target in self?.showPicker(target) }
     }
@@ -41,7 +55,7 @@ import TurtleGitCore
             let child = makeCommitPicker(model.repository, access, { [weak self] entry in
                 guard let self, self.pickerRequest == request else { return }; self.pickerRequest = nil; self.model.acceptCommitSelection(entry); if entry != nil { self.onSelection() }
             }, preferences)
-            commitPicker = child
+            commitPicker = child; configureCommitPicker(child.model)
             child.onClosed = { [weak self, weak child] in
                 guard let self, let child, self.commitPicker === child else { return }
                 if let window = child.window, window.sheetParent === self.window { self.window?.endSheet(window) }; self.commitPicker = nil
@@ -104,7 +118,7 @@ import TurtleGitCore
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
-@MainActor final class SwitchWindowModel: ObservableObject {
+@MainActor final class SwitchWindowModel: ObservableObject, VersionPickerModel {
     let repository: GitRepository
     private let access: RepositoryAccessLease?
     private let initialRevision: String?

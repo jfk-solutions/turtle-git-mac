@@ -1226,6 +1226,9 @@ import TurtleGitCore
         mergeAbortWindows[id] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func configureMergeInteractions(_ controller: MergeWindowController, repository: GitRepository, access: RepositoryAccessLease?, showStashPop: Bool = false) {
+        controller.configureReferencePicker = { [weak self] model in
+            self?.configureReferenceBrowser(model, repository: repository, access: access)
+        }
         let root = repository.root
         controller.model.onChanged = { [weak self] output in
             self?.referenceLogWindows[root.path]?.model.reload()

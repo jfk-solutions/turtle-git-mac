@@ -327,3 +327,13 @@ execution, failure inspection, dismissal and branch deletion, including late
 confirmation answers and frozen result state. It does not launch the main app or
 establish physical/signed UI acceptance. Keep the existing Merge stream and
 reference-browser Merge receivers as regression gates for normal completion.
+
+### Merge revision pickers
+
+After Debug build, run `python3 scripts/test-merge-pickers.py --git /usr/bin/git
+--git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git`.
+This exercises shipping Merge controls, full reference browser and Log in hidden
+windows, private repositories and preferences. Its native presenter releases the
+parent's editor focus before disabling it. It verifies real responder state but
+uses no physical sheets and does not launch the main app. Run Switch and creation
+picker receivers after changes to the shared `VersionPickerCoordinator`.

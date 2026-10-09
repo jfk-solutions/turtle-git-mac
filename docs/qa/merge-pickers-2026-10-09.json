@@ -1,0 +1,85 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "60e9cca",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/ChooseVersion.h": "9bc3080bd557ba11f814e6d9221aa322b1414f1c",
+    "src/TortoiseProc/MergeDlg.cpp": "52095311feae10566902c8046bd1b606a1af3773"
+  },
+  "scope": "Merge owned full reference and typed Log pickers. Full app/chooser/physical/signed parity incomplete.",
+  "verification": {
+    "source": "CChooseVersion Branch Browse uses gPickRef_All, refreshes catalog on acceptance/cancel and maps Branch/Tag/Commit. Commit browse opens selecting, single-selection Log at typed revision, without working tree. Native canonical refs retain disambiguation.",
+    "native_merge": "Apple and bundled Git: shipping full reference table/menu/icons/configuration, branch/tag/symbolic-remote/notes mapping, retained Merge options/message/draft, F5/fresh return catalog and actual revision first responder. Full native Log typed ancestry/graph/single selection/accepted hash focus. Cancel/stale/reject/duplicate/cross-target/merge/reload/close/Quit/forced-parent guards; recorded leader/helper termination during paused return read, no closed-owner late publication; unchanged HEAD/tree/config.",
+    "shared_regression": "Switch and Branch/Tag/New Worktree receivers pass both engines for shared coordinator protocol. These ran before the isolated Merge-only termination guard addition; final Merge receivers verify that guard.",
+    "merge_regression": "Existing browser Merge real transaction/acknowledgement and seven-stage forced cleanup receivers pass both engines on final shipping sources.",
+    "cycles": "Zero AttributeGraph cycles across all five final native receiver logs.",
+    "debug_store": "Final unsigned Debug/AppStore builds and bundle audits pass; both NOTICE files byte-equal source. Universal Git 2.55.0/LFS 3.8.0, EditorConfig/IssueRegex, embedded Finder extension and 99 original icons audited.",
+    "inventory": "Pinned source/inventory checks pass; mapped rows remain partial.",
+    "ci": "Picker receiver added once; Ruby safe YAML parse/count pass. Hosted CI execution/status unverified.",
+    "site": "Local Pages rebuild passes. No deployment or refreshed physical captures."
+  },
+  "limitations": [
+    "Physical sheets/restoration, real keyboard/mouse/IME, light/dark/VoiceOver and signed Finder/AppStore acceptance remain unverified.",
+    "CAppUtils user-data/active-rebase preflight, history combo behavior, FETCH_HEAD/current-branch reselection edges, full reference-browser commands and full Merge/application parity remain incomplete.",
+    "RepositoryModel factory wiring inspected; native receiver captures configuration hooks without constructing shared Finder-settings writer. No external post-actions/network/push tested."
+  ],
+  "cleanup": {
+    "all_handles_terminal": true,
+    "main_app_launches": 0,
+    "remaining_owned_processes": [],
+    "private_domains_removed": [
+      {
+        "domain": "TurtleGit.MergeCleanup.QA.D5A4B077-9DFE-4A08-A3AE-8A11BDA9D65E",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "remaining": false
+      },
+      {
+        "domain": "TurtleGit.CreationPickers.QA.17EC02A9-FF7C-4464-A73E-5B353A4B7BF2",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "remaining": false
+      },
+      {
+        "domain": "TurtleGit.ReferenceMerge.QA.FDEA96A3-AA45-42C5-8CD3-A337DDE3A7E4",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "remaining": false
+      },
+      {
+        "domain": "TurtleGit.CreationPickers.QA.71E120F4-00F3-4580-8266-2ECD5FAA2B11",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "remaining": false
+      },
+      {
+        "domain": "TurtleGit.ReferenceMerge.QA.016FDD40-3D4B-409C-89DD-3D024AADA6EE",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "remaining": false
+      },
+      {
+        "domain": "TurtleGit.MergeCleanup.QA.422142C7-B9CE-4398-9E10-41D0E3D24B5B",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "remaining": false
+      }
+    ],
+    "older_preferences_retained": true,
+    "fixtures": "All native script TemporaryDirectory contexts exited; current receiver roots removed."
+  },
+  "local_logs": "build/qa/merge-pickers-2026-10-09",
+  "sha256": {
+    ".github/workflows/macos.yml": "e806807cedaccea4e84d99e7660ae6b4d2547e0ec24e7a96811d62f9e621a002",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "9fb1d0472109dbcd892ab97fa7ebd43126783f1316bae0151727b70917a9668a",
+    "Sources/TurtleGitMac/MergeWindow.swift": "cfb15c84fe7dc1617e26c9afd9094bccc279387bc0ff2118b0a725a66d771f5a",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "692479886923a2098200a1757e6d1d17ca400e3bf8c80dc53bb8c1afdf81b94d",
+    "Sources/TurtleGitMac/SwitchWindow.swift": "10c72d73acfe9290ca0715e83f976e82e1d3e7b80ed112f7af8a684a463adfd6",
+    "docs/MERGE-PARITY.md": "90f50699e0a61c65f0eb1b0d9eeed2b7ea233765cf675737973038e04fe9b868",
+    "docs/REFERENCE-BROWSER-PARITY.md": "36ef1e1145e3509537497ffa8ffbfc327b80552630fa5726353577753a975a7a",
+    "docs/TESTING.md": "75a0c61e350b0d3cee14f56c0d6f2cf15eb3b8b015572ff555292eec50a9920d",
+    "docs/upstream-files.csv": "a6b4e18c575c384ae8cd8b6f9867084a2b4610e6c47ac266fd4cebf7a3661975",
+    "docs/qa/merge-pickers-native-2026-10-09.swift": "86c2250f24a3211399aac3a5172eeb6d01a31ddaca8806a4d3b547af9c04ff9a",
+    "scripts/test-merge-pickers.py": "e90d40dac6e1ca406cb8bd8ac82539a6990c156994841269fe5ae902d0f37693"
+  }
+}

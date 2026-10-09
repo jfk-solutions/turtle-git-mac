@@ -320,3 +320,33 @@ progress state, rejected late confirmation/post-actions, unchanged pre-merge HEA
 and retained completed merge HEAD. This is scoped lifetime verification; physical
 sheet/focus behavior, every metadata/error variant and full Merge parity remain
 pending. See `scripts/test-merge-cleanup.py` and the dated QA record.
+
+## Full reference and Log revision pickers
+
+Merge now uses the same owned native version-picker coordinator as Switch,
+Branch/Tag and New Worktree. Its Branch browse button opens the full reference
+browser (`ChooseVersion.h::OnBnClickedButtonBrowseRef`, `gPickRef_All`), including
+local/remote branches, tags and other namespaces. Returning reloads the catalog
+and current branch with an owned cancellation token, maps canonical refs back to
+Branch/Tag/Commit, retains the unused commit draft and restores the appropriate
+native revision control. Cancel also refreshes the catalog without accepting a
+new ref. Merge options and its message are preserved.
+
+The Commit browse button opens native Log in single-revision selection mode,
+without a working-tree row, at the typed revision. Accept changes the commit hash;
+Cancel retains the draft. Both pickers lock the owner, reject duplicate and
+competing actions, and close/invalidate on forced owner closure. Stale callbacks
+and rejected presentation cannot affect another picker. Reference context commands
+inherit the repository's normal browser configuration; Log commands retain the
+existing Merge configuration. Tag remains a popup without a browse button,
+matching the source chooser layout.
+
+`test-merge-pickers.py` checks hidden native reference-table/menu/icon routing,
+branch/tag/symbolic-remote/notes mapping, F5/fresh catalogs, option/message/draft
+preservation, actual native first responder, full Log ancestry/graph/single
+selection, stale/cancel/rejected/forced-parent ownership, owned process termination
+during the return-catalog read, and unchanged repository
+HEAD/tree/config. The application termination guard now includes Merge pickers,
+progress and pending confirmations. These checks do not establish physical sheets, real key/mouse
+input, displayed appearance or signed scope acceptance. Full Merge parity,
+including user-data/rebase preflight, remains pending.
