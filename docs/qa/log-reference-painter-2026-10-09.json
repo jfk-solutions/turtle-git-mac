@@ -1,0 +1,80 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "8733800",
+  "scope": "Native Log reference badge painter and pinned source geometry/color comparison; whole port remains incomplete",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/GitLogListBase.cpp": "19518f37689e19b7e913c9ff8cc9d65ec223c187",
+    "src/TortoiseProc/Colors.cpp": "f83b8e189b041998f4627aa0da31c38f6899394e"
+  },
+  "verification": {
+    "core": "No Core code changed; prior checkpoint 63 focused Core tests not rerun.",
+    "debug": "Final source clipping changes build unsigned Debug and pass bundle audit.",
+    "oracle": "Final source oracle passes 1024 cases using unchanged pinned DrawTrackingRoundRect/CColors::MixColors bodies and the annotated-tag POINT initialization, with portable CRect/handle adapters. Checks even/odd sizes, negative coordinates, all channel values and 50/100 mix amounts. Six in-memory actual native cell draws (ordinary, tracking, annotated in aqua/darkAqua) additionally verify opaque resolved fill colors, transparent rounded corners and a filled pointed end with clear outer tip corners; no image exports or GDI/raster parity claim.",
+    "native": "Final hidden receiver passes Apple and bundled Git. Actual production Log message cells verify native painter type, source canonical metadata, tracked paired labels, annotated/lightweight kinds, eight-point tip/text-padding advances, nonoverlapping label rectangles, clip-edge fill and one-/45-point column bounds in light/dark appearances. Existing label ordering/symbolization attachments, actual preference checkboxes, branch-only live mask repaint, real search/highlight/copy actions and unchanged private repository bytes pass. Rebase rendered text remains UNVERIFIED.",
+    "store": "Final unsigned AppStore build and required universal packaged Git/Git LFS bundle audit pass after Core/Debug/native/source-oracle handles terminated. Signed sandbox/App Store acceptance not claimed.",
+    "notice": "Both Debug/AppStore packaged NOTICE files match current source.",
+    "inventory": "Two partial source mappings updated and pin check passes.",
+    "site": "Local site generator checked below; no current physical screenshots or deployment claimed."
+  },
+  "iterations": [
+    "Initial native bitmap check asserted that a one-point-wide column paints no badge. Actual production painter paints a clipped sliver, as source DrawTagBranch does. Expectation corrected to require clipping bounds; failure log retained.",
+    "A subsequent source read identified truncated label bodies and the tag join seam. Painter now measures full reference glyph positions before truncation, clips label bodies to the column before adding the tip, and erases the right bevel at the triangle join. Clipped labels use ordinary text clipping, whereas message-only truncation uses the native tail ellipsis.",
+    "The source integer midpoint (including odd heights/negative coordinates) and signed channel truncation are checked by the portable source oracle."
+  ],
+  "limitations": [
+    "Portable CRect/handle adapters record unchanged source RoundRect and triangle coordinates and CColors::MixColors output; they do not execute Windows GDI or verify raster/CRT/font equivalence.",
+    "In-memory native bitmap drawing and metadata/layout checks are headless numerical acceptance; no physical screenshots, Retina/selected-row/accessibility interaction or extreme-font acceptance claimed.",
+    "Full reference label hit/context actions, other shared-list consumers, Settings property-sheet lifecycle, full Rebase rendered text, all-dialog/Finder/signed distribution/App Store acceptance, current screenshots/publication and GitHub hosted CI remain incomplete.",
+    "TextKit uses AppKit point coordinates; performance for very large message/reference sets remains unverified."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "removed_domains": [
+      "TurtleGit.MessageLine.Native.QA.A99051E9-DDDB-43D0-8A1E-1606C446C1AA",
+      "TurtleGit.MessageLine.Native.QA.611862D3-EE1A-49D1-8F07-6AC8AD2C6737",
+      "TurtleGit.MessageLine.Native.QA.0EC3CDAF-4C4E-4B5E-8CB4-897A06B0657D",
+      "TurtleGit.MessageLine.Native.QA.F04A561E-C9A3-4E08-ADF8-86D041414A97",
+      "TurtleGit.MessageLine.Native.QA.887FD1EE-EC6C-4D83-972A-5BA07203B4BE"
+    ],
+    "remaining_preferences": [],
+    "remaining_processes": [],
+    "remaining_fixtures": [],
+    "windows": "Passing owned hidden windows closed/invalidate; failed receiver terminated before retry. Private pasteboards released in passing checks. Pure renderer oracle owns no windows; no images exported or system clipboard changes."
+  },
+  "sources_manifest_sha256": "fc6806ff116b7f8780f016c8b1c2dcadc23eeca6e3b324dc43f47c63b014c182",
+  "changed_files_sha256": {
+    "NOTICE": "d761c647612422049b9f96f5f7e33521c1c95e81f6f61b043c3a5d30bade5f33",
+    "Sources/TurtleGitMac/LogAppearance.swift": "6622c0e7aa06925ee349673d0d74b23b4d925f5799296a8853cd2c12505277bb",
+    "Sources/TurtleGitMac/LogReferenceDrawing.swift": "947cc4007833d2cf24d0dc9293b50418bf49cb81f0308a748be5df547f28d0e5",
+    "Sources/TurtleGitMac/LogWindow.swift": "9c31dbb0a479dc95977640f6de84314fe45dea9e451d23f30b76ad065c1103b6",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "33c68f9f25eec4b563c3c471bd7646da47ff2952ca62fe49aa9bcfc7cde9757e",
+    "docs/APPEARANCE.md": "7d7bbc0595b16ecd5e4594edba79892a45abedfcd2a9531e5aaa753e0f8e2b69",
+    "docs/LOG-PARITY.md": "8cd51d63d7473685f4be6b283468432b80947181739b5ab964bd6aa48ad93d58",
+    "docs/TESTING.md": "ed10103fecf4825f7d1634ba5fbc352f64158a3ef00b8ee35379c84c54ad9702",
+    "docs/qa/log-message-line-native-2026-10-09.swift": "5d6d3a9f53549e902a6bb9ab08f197b21e3c6c1f252259c09c8ceecab76e2214",
+    "docs/qa/log-reference-painter-oracle-2026-10-09.swift": "ed0d166800d4dccb2fe198c8f55f640cf0cc9b1adc8e9148e52dd880cee30780",
+    "docs/upstream-files.csv": "dc20183af39b33bd3002be912d00a5687aefce78a96fdb9724e47da7671dd73f",
+    "scripts/test-log-reference-painter-oracle.py": "5076e6808d70f51e7c04ac1e10ebf560f73e7c8a008cbb542123d1ef7ee5dd83"
+  },
+  "local_log_sha256": {
+    "build/qa/log-reference-painter-2026-10-09/cleanup.json": "e916c4d262ffb83e11a0d5e9891f041c914296d96456f3145906f21e076d6877",
+    "build/qa/log-reference-painter-2026-10-09/debug-audit-clipping.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/log-reference-painter-2026-10-09/debug-audit-final.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/log-reference-painter-2026-10-09/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/log-reference-painter-2026-10-09/debug-clipping.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-reference-painter-2026-10-09/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-reference-painter-2026-10-09/debug.log": "0ea7102dd1888fdf3241e06463dd2d211084fe5779cc50a76054e3be08be2fe4",
+    "build/qa/log-reference-painter-2026-10-09/native-clipping.log": "eb557ab598c0c16f7bede2ea2aa1aa151808732ca4090838c941dbc48f8a7d4d",
+    "build/qa/log-reference-painter-2026-10-09/native-final.log": "eb557ab598c0c16f7bede2ea2aa1aa151808732ca4090838c941dbc48f8a7d4d",
+    "build/qa/log-reference-painter-2026-10-09/native.log": "3c3ddb06a0def157d257ea7f81c9ea2010fb751f849657a72f1a4f2768a04caf",
+    "build/qa/log-reference-painter-2026-10-09/oracle-final.log": "45c94db494c19939f1dbccdac1e7c85f1992e81d6357379016945d9468a41a4f",
+    "build/qa/log-reference-painter-2026-10-09/oracle-paint.log": "45c94db494c19939f1dbccdac1e7c85f1992e81d6357379016945d9468a41a4f",
+    "build/qa/log-reference-painter-2026-10-09/oracle.log": "45c94db494c19939f1dbccdac1e7c85f1992e81d6357379016945d9468a41a4f",
+    "build/qa/log-reference-painter-2026-10-09/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/log-reference-painter-2026-10-09/project.log": "747909a44a9dc6f2c4861b91f09bc1d70097cf9053754a85a84fa1f2b7e93566",
+    "build/qa/log-reference-painter-2026-10-09/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-reference-painter-2026-10-09/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/log-reference-painter-2026-10-09/store.log": "7ab92001e3bd407d51b05c9bb9062ab26b30a906ef2b529a30e47c3a6a210b71"
+  }
+}

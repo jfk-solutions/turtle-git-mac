@@ -51,7 +51,7 @@ enum LogColorRole: String, CaseIterable {
         if name.hasPrefix("refs/heads/") { return reference.isCurrent ? .currentBranch : .localBranch }
         if name.hasPrefix("refs/remotes/") { return .remoteBranch }
         if name.hasPrefix("refs/tags/") { return .tag }
-        if name == "refs/stash" { return .stash }
+        if name.hasPrefix("refs/stash") { return .stash }
         let kind = reference.kind ?? HistoryReferenceLabel.shortName(name, terms: HistoryBisectTerms(good: goodTerm, bad: badTerm)).kind
         if kind == .bisectGood { return .bisectGood }
         if kind == .bisectSkip { return .bisectSkip }

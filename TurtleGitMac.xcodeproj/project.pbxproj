@@ -102,6 +102,7 @@
 		8D16E38543F1BE1F18352865 /* PushWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1491F4A59F19B27A3FCCF966 /* PushWindow.swift */; };
 		8DA2AEE022FFD2B386F6B6EF /* AdvancedSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEC571DB776E587D10F568E9 /* AdvancedSettings.swift */; };
 		8F4345E3454F4ABF3E75D4C9 /* ReferenceLogWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ED7A4FB5DF119ED7F648EF4 /* ReferenceLogWindow.swift */; };
+		8F8264C39C1DC2802012A483 /* LogReferenceDrawing.swift in Sources */ = {isa = PBXBuildFile; fileRef = F283527B86A5347FD06D7472 /* LogReferenceDrawing.swift */; };
 		9016DF6825447C08B8190B7A /* Add.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04D3808CD4999B158EA66D0B /* Add.swift */; };
 		90A423E07A63281C4163EAD0 /* Merge.swift in Sources */ = {isa = PBXBuildFile; fileRef = D975B1620A435727724213D1 /* Merge.swift */; };
 		91E94E7DF08198646C691752 /* MessageCompletion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3329485A1DA9D2066A853483 /* MessageCompletion.swift */; };
@@ -432,6 +433,7 @@
 		F014467B16BE2AE672DF757F /* StatisticsMenuCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsMenuCommands.swift; sourceTree = "<group>"; };
 		F01FB406B12CA9FED59A3121 /* FinderCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderCache.swift; sourceTree = "<group>"; };
 		F1AD98D1D708DD20E49D436E /* StatisticsGraphExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsGraphExport.swift; sourceTree = "<group>"; };
+		F283527B86A5347FD06D7472 /* LogReferenceDrawing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogReferenceDrawing.swift; sourceTree = "<group>"; };
 		F2E43773297420C7FDAE9748 /* GitRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitRepository.swift; sourceTree = "<group>"; };
 		F4626C39B694CD13BD1D8FA1 /* CommitCompletionPopup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitCompletionPopup.swift; sourceTree = "<group>"; };
 		F5B1B4492D159F92D3F03BBA /* Bisect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Bisect.swift; sourceTree = "<group>"; };
@@ -501,6 +503,7 @@
 				392877DE7F6A7F5BB1CC3391 /* LogAppearance.swift */,
 				D653B9C802C1DF2EE95F01A9 /* LogGraphDrawing.swift */,
 				58A976676E04B6BC290F5465 /* LogGravatar.swift */,
+				F283527B86A5347FD06D7472 /* LogReferenceDrawing.swift */,
 				92C50E53F34624CECCEC69FA /* LogSearchHighlights.swift */,
 				AB86EFEBCB6909C206458540 /* LogWindow.swift */,
 				63BFD8184C87A12A2F48AEA1 /* MergeEditorSettings.swift */,
@@ -1027,6 +1030,7 @@
 				79FAF64D9B79A6283E286D5A /* LogAppearance.swift in Sources */,
 				2368F21797097AE66DBADDAE /* LogGraphDrawing.swift in Sources */,
 				331C8EE4AE36F1AFA3067CD6 /* LogGravatar.swift in Sources */,
+				8F8264C39C1DC2802012A483 /* LogReferenceDrawing.swift in Sources */,
 				AAF6FA2415511B9D5A4357A7 /* LogSearchHighlights.swift in Sources */,
 				8372E655010246F1E9FDF3CB /* LogWindow.swift in Sources */,
 				78D4BE78EDFB1546367CD8B6 /* MergeEditorSettings.swift in Sources */,

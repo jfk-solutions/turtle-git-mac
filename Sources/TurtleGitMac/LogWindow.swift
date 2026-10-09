@@ -2413,6 +2413,11 @@ struct RevisionTable: NSViewRepresentable {
                 return cell
             }
             let text = NSTextField(labelWithString: "")
+            if column?.identifier.rawValue == "message" {
+                let painter = LogReferenceTextCell(textCell: "")
+                painter.isEditable = false; painter.isSelectable = false; painter.isBordered = false; painter.drawsBackground = false
+                text.cell = painter
+            }
             text.lineBreakMode = .byTruncatingTail; text.maximumNumberOfLines = 1
             if let logFont { text.font = entry.isHead ? NSFontManager.shared.convert(logFont, toHaveTrait: .boldFontMask) : logFont }
             else { text.font = .systemFont(ofSize: 12, weight: entry.isHead ? .bold : .regular) }
@@ -2435,13 +2440,22 @@ struct RevisionTable: NSViewRepresentable {
                     let foreground = NSColor(name: nil) { _ in LogPalette.foreground(background: color) }
                     let badgeFont = logFont ?? NSFont.systemFont(ofSize: 11, weight: .medium)
                     let attributes: [NSAttributedString.Key: Any] = [.backgroundColor: color, .foregroundColor: foreground, .font: badgeFont]
+                    let start = badges.length
                     badges.append(NSAttributedString(string: " ", attributes: attributes))
                     if badge.singleRemote {
                         let marker = NSMutableAttributedString(attachment: LogUpstreamMarker.attachment(foreground: foreground, font: badgeFont, isHead: entry.isHead))
                         marker.addAttributes(attributes, range: NSRange(location: 0, length: marker.length)); badges.append(marker)
                     }
                     badges.append(NSAttributedString(string: badge.text + " ", attributes: attributes))
+                    let range = NSRange(location: start, length: badges.length - start)
+                    badges.addAttribute(.logReference, value: LogReferenceStyle(badge, color: color), range: range)
+                    // DrawTagBranch reserves eight points of text padding and eight
+                    // additional points for an annotated tag's triangular end.
+                    let space = (" " as NSString).size(withAttributes: [.font: badgeFont]).width
+                    badges.addAttribute(.kern, value: 4 - space, range: NSRange(location: start, length: 1))
+                    badges.addAttribute(.kern, value: 4 - space + (badge.kind == .annotatedTag ? 8 : 0), range: NSRange(location: badges.length - 1, length: 1))
                     badges.append(NSAttributedString(string: " "))
+                    badges.addAttributes([.font: badgeFont, .kern: 1 - space], range: NSRange(location: badges.length - 1, length: 1))
                 }
                 let message = NSMutableAttributedString(string: entry.logLine(fullMessage: model.fullCommitMessageOnLogLine), attributes: [.font: text.font!])
                 if model.shouldHighlightMessage(entry) { applySearchHighlights(message, hash: entry.hash, column: "message") }

@@ -190,6 +190,10 @@ final class MessageLineOffscreenWindow: NSWindow {
             defer { window.close(); model.invalidate() }
             try await settle(window.contentView!)
             let field = message(window), value = field.attributedStringValue, text = value.string as NSString
+            try checkReferencePainter(field)
+            let painted = (field.cell as! LogReferenceTextCell).badgeFrames
+            precondition(painted.contains { $0.name == "refs/heads/main" && $0.style.label.hasTracking })
+            precondition(painted.contains { $0.name == "refs/remotes/origin/main" && $0.style.label.hasTracking })
             let heading = text.range(of: "first line"), main = text.range(of: "main")
             precondition(heading.location != NSNotFound && main.location != NSNotFound)
             precondition(right ? heading.location < main.location : main.location < heading.location)
@@ -260,6 +264,7 @@ final class MessageLineOffscreenWindow: NSWindow {
         defer { window.close(); model.invalidate() }
         try await settle(window.contentView!)
         let labels = model.visibleReferenceLabels(for: entry), text = message(window).attributedStringValue
+        try checkReferencePainter(message(window))
         for (name, alias, kind, role) in [
             ("refs/stash", "stash", HistoryReferenceKind.stash, LogColorRole.stash),
             ("refs/bisect/old-a", "old", .bisectGood, .bisectGood),
@@ -280,6 +285,47 @@ final class MessageLineOffscreenWindow: NSWindow {
         precondition(context.labels(entry.references, visibility: .bisect).map(\.text).sorted() == ["new", "old"])
         precondition(Set(context.labels(entry.references, visibility: .otherRefs).map(\.text)) == ["unrecognized", "custom", "custom/extra"])
         precondition(entry.references.first { $0.name == "refs/tags/annotated" }?.kind == .annotatedTag)
+    }
+    @MainActor static func checkReferencePainter(_ field: NSTextField) throws {
+        guard let cell = field.cell as? LogReferenceTextCell else { preconditionFailure("Production message cell must use the reference painter") }
+        // Exercise the real cell painter into an owned, in-memory drawing context.
+        // This is numerical headless QA, not a physical window screenshot.
+        func draw(width: CGFloat) -> [LogReferenceTextCell.BadgeFrame] {
+            let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(width), pixelsHigh: 30, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+            let context = NSGraphicsContext(bitmapImageRep: bitmap)!
+            NSGraphicsContext.saveGraphicsState(); defer { NSGraphicsContext.restoreGraphicsState() }
+            NSGraphicsContext.current = NSGraphicsContext(cgContext: context.cgContext, flipped: true)
+            cell.drawInterior(withFrame: NSRect(x: 0, y: 0, width: width, height: 30), in: field)
+            return cell.badgeFrames
+        }
+        for appearance in [NSAppearance.Name.aqua, .darkAqua] {
+            NSAppearance(named: appearance)!.performAsCurrentDrawingAppearance {
+                let frames = draw(width: 1600)
+                precondition(frames.contains { $0.name == "refs/tags/annotated" && $0.style.pointed })
+                precondition(frames.contains { $0.name == "refs/tags/light" && !$0.style.pointed })
+                precondition(frames.allSatisfy { $0.rect.width > 8 && $0.rect.height == 30 })
+                for frame in frames where frame.style.pointed {
+                    let font = field.attributedStringValue.attribute(.font, at: frame.range.location, effectiveRange: nil) as! NSFont
+                    let textWidth = (frame.style.label.text as NSString).size(withAttributes: [.font: font]).width
+                    precondition(frame.rect.width >= textWidth + 16 - 0.5, "Annotated tag must reserve text padding plus eight-point tip")
+                }
+                precondition(zip(frames, frames.dropFirst()).allSatisfy { $0.0.rect.maxX <= $0.1.rect.minX + 0.01 })
+                let clipped = draw(width: 45)
+                precondition(clipped.count < frames.count && clipped.allSatisfy { $0.rect.minX >= 0 && $0.rect.maxX <= 45 })
+                if !clipped.isEmpty { precondition(abs(clipped.last!.rect.maxX - 45) < 0.01, "A partially visible ref paints through the clipped column edge") }
+                let narrow = draw(width: 1)
+                precondition(narrow.count <= 1 && narrow.allSatisfy { $0.rect.minX >= 0 && $0.rect.maxX <= 1 })
+            }
+        }
+        _ = draw(width: 1600)
+        let rounded = LogReferenceDrawing.geometry(CGRect(x: 10, y: 20, width: 100, height: 18), tracking: true, pointed: false)
+        precondition(rounded.interior == CGRect(x: 11, y: 21, width: 98, height: 16))
+        precondition(rounded.shadow == CGRect(x: 13, y: 23, width: 98, height: 16))
+        let pointed = LogReferenceDrawing.geometry(CGRect(x: 10, y: 20, width: 100, height: 18), tracking: false, pointed: true)
+        precondition(pointed.body.width == 92 && pointed.tip == [CGPoint(x: 102, y: 20), CGPoint(x: 110, y: 29), CGPoint(x: 102, y: 38)])
+        precondition(LogReferenceDrawing.mix([0, 195, 255], toward: 255, amount: 100) == [100, 218, 255])
+        precondition(LogReferenceDrawing.mix([0, 195, 255], toward: 0, amount: 100) == [0, 119, 155])
+        precondition(LogColorRole.reference(RevisionReference(name: "refs/stash-extra")) == .stash)
     }
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)

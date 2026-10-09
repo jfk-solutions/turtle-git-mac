@@ -1925,3 +1925,31 @@ acceptance and signed distribution remain pending. No compiled Windows oracle
 is claimed for this checkpoint. Atypical refs/stash-prefixed names are classified
 as stash, while the existing color selector still recognizes exact refs/stash;
 that broad-prefix color edge remains pending.
+
+
+Native reference badge painter (2026-10-09)
+------------------------------------------
+
+Log message cells now use a native TextKit glyph painter. Reference labels remain
+text with canonical names, kind metadata, search styles and accessibility values.
+The painter lays out one line with native tail truncation, then paints ordinary
+labels with the source's two light/dark bevels, tracked labels with a four-point
+rounded diameter and offset shadow, and annotated tags with an eight-point tip.
+Padding and the inter-label gap are carried by glyph advances, so label placement
+shares the actual text/font/attachment layout. Reference bodies clip to the column
+before adding the tip; clipped label text has no ellipsis, while message
+truncation retains its tail ellipsis. The rectangle bevel is erased at the
+triangle join. Right-side labels retain their
+existing message-first order. The source's integer triangle midpoint and signed
+CColors::MixColors border arithmetic are preserved. The previously noted
+refs/stash-prefix color edge now follows source stash classification.
+
+[Painter QA](qa/log-reference-painter-2026-10-09.json) records the compiled pinned
+source geometry/color comparison and owned hidden cell checks. The source oracle
+uses portable CRect/handle adapters and records draw calls; it does not execute
+GDI or prove raster/font parity. Native rectangles are in AppKit points and are
+clipped to the message cell. Physical Retina/selected-row/extreme-font clipping,
+full upstream hit/context actions, other shared-list consumers, complete Settings
+lifecycle and signed distribution remain pending. No physical screenshot is
+claimed. The earlier flat-background/tracking/annotated-shape notes are historical
+checkpoints, superseded for this Log painter only.

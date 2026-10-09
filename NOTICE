@@ -988,3 +988,9 @@ Reference names/kinds now adapt CGit::GetShortName's prefix/peeled suffix rules
 and sequential bisect term classification, with bounded GetBisectTerms file
 parsing at the pinned revision above. Annotated-tag kind comes from the peeled
 ref object while canonical operation names remain unchanged.
+
+Log reference badge drawing adapts the pinned GitLogListBase.cpp
+DrawTagBranch/DrawTrackingRoundRect double bevels, rounded tracking shadows,
+annotated-tag triangle and spacing, and Colors.cpp CColors::MixColors arithmetic
+to native AppKit TextKit glyph drawing. Text and canonical reference metadata
+remain in the accessible native message cell.
