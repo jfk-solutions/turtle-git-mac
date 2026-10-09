@@ -778,6 +778,7 @@ struct RebaseDialog: View {
     }
 }
 struct RebaseConflictFiles: View {
+    @ObservedObject private var statusColorUpdates = StatusColorUpdates.shared
     @ObservedObject var model: RebaseWindowModel
     var body: some View {
         Table(model.conflictRows, selection: $model.selectedConflicts) {

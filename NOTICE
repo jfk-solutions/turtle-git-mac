@@ -900,3 +900,9 @@ GPL-2.0-or-later apply; native selection text uses macOS semantic primary.
 LFS result status text now follows GitProgressList.cpp::SetColorCode's neutral
 Lock/Unlock notification defaults and ReportError's Conflict role. The native
 combined per-file result layout remains an adaptation, not a full progress port.
+
+Editable status colors adapt Settings/SettingsColors.cpp draft/Apply/default
+behavior and Colors.cpp persisted status roles. Native packed RGB preferences
+use 0xRRGGBB; Apply mirrors Modified to PropertyChanged and updates open list
+owners. Note/OtherRef and graph settings remain outside this partial panel.
+Original TortoiseGit/TortoiseSVN copyright and GPL-2.0-or-later apply.

@@ -154,6 +154,7 @@ private struct RevertProgressDialog: View {
 /// The shared upstream progress list has Action and Path columns. Keep worker
 /// state in tooltips and color rather than adding a third visible column.
 struct RevertProgressTable: NSViewRepresentable {
+    @ObservedObject private var statusColorUpdates = StatusColorUpdates.shared
     @ObservedObject var model: RevertProgressWindowModel
     func makeCoordinator() -> Coordinator { Coordinator(model: model) }
     func makeNSView(context: Context) -> NSScrollView { context.coordinator.make() }

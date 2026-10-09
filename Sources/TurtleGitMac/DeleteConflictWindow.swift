@@ -63,6 +63,7 @@ import TurtleGitCore
     }
 }
 private struct DeleteConflictDialog: View {
+    @ObservedObject private var statusColorUpdates = StatusColorUpdates.shared
     @ObservedObject var model: DeleteConflictWindowModel
     func side(_ side: ConflictSide, details: DeleteConflictDetails) -> some View {
         VStack(alignment: .leading, spacing: 5) {

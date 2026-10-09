@@ -138,6 +138,7 @@ import TurtleGitCore
 }
 
 private struct ResolveDialog: View {
+    @ObservedObject private var statusColorUpdates = StatusColorUpdates.shared
     @ObservedObject var model: ResolveWindowModel
     var body: some View {
         Group {

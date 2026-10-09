@@ -3,12 +3,15 @@ import SwiftUI
 import TurtleGitCore
 
 @main struct StatusColorsVerification {
-    @MainActor static func main() throws {
+    @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
+        let suite = "TurtleGit.StatusColors.QA." + UUID().uuidString
+        let preferences = UserDefaults(suiteName: suite)!
+        defer { preferences.removePersistentDomain(forName: suite) }
         let reference = try JSONDecoder().decode([String:[String:[Int]]].self, from: Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[1])))
         let appearances: [(String,NSAppearance.Name)] = [("light",.aqua),("dark",.darkAqua),("highContrastDark",.accessibilityHighContrastDarkAqua),("highContrastLight",.accessibilityHighContrastAqua)]
         for role in StatusTextRole.allCases {
-            let dynamic = StatusTextPalette.native(role)
+            let dynamic = StatusTextPalette.native(role, preferences: preferences)
             for (mode,name) in appearances {
                 let expected = reference[role.rawValue]![mode == "highContrastLight" ? "light" : mode]!
                 precondition(StatusTextPalette.rgb(role, dark: mode == "dark" || mode == "highContrastDark", highContrast: mode == "highContrastDark") == expected, "C++ RGB mismatch: \(role) \(mode)")
@@ -29,14 +32,105 @@ import TurtleGitCore
         }
         let success = LFSFileResult(path: "file", success: true, output: "Locked")
         let failure = LFSFileResult(path: "file", success: false, output: "Error")
-        precondition(success.resultTextColor == Color.primary)
+        precondition(success.resultTextColor(preferences: preferences) == Color.primary)
         for (_,name) in appearances {
             NSAppearance(named: name)!.performAsCurrentDrawingAppearance {
-                let color = NSColor(failure.resultTextColor).usingColorSpace(.sRGB)!
+                let color = NSColor(failure.resultTextColor(preferences: preferences)).usingColorSpace(.sRGB)!
                 precondition([color.redComponent,color.greenComponent,color.blueComponent].map { Int(($0 * 255).rounded()) } == reference["conflict"]!["light"]!)
             }
         }
+        for (name,rgb) in [("black",[0,0,0]),("white",[255,255,255]),("custom",[3,127,249]),("bright",[250,240,230])] {
+            for (mode,_) in appearances {
+                precondition(StatusTextPalette.transform(rgb, dark: mode == "dark" || mode == "highContrastDark", highContrast: mode == "highContrastDark") == reference[name]![mode == "highContrastLight" ? "light" : mode]!)
+            }
+        }
+        preferences.set(777, forKey: "Colors.OtherRef")
+        preferences.set("dark", forKey: "appearance")
+        let model = StatusColorSettingsModel(preferences: preferences)
+        let updates = StatusColorUpdates.shared
+        let revision = updates.revision
+        precondition(!model.changed && preferences.object(forKey: "Colors.Modified") == nil)
+        model.set(.modified, rgb: [3,127,249])
+        precondition(model.changed && preferences.object(forKey: "Colors.Modified") == nil)
+        model.cancel(); precondition(!model.changed && model.draft.rgb(.modified) == StatusTextRole.modified.rgb)
+        model.setColor(.modified, color: Color(.sRGB, red: 3.0/255, green: 127.0/255, blue: 249.0/255, opacity: 0.25))
+        precondition(model.draft.rgb(.modified) == [3,127,249])
+        model.apply()
+        precondition(!model.changed && preferences.integer(forKey: "Colors.Modified") == 0x037ff9)
+        precondition(preferences.integer(forKey: "Colors.PropertyChanged") == 0x037ff9 && updates.revision == revision + 1)
+        let reopened = StatusColorSettingsModel(preferences: preferences)
+        precondition(reopened.draft.rgb(.modified) == [3,127,249] && !reopened.changed)
+        let custom = StatusTextPalette.native(.modified, preferences: preferences)
+        for (mode,name) in appearances {
+            NSAppearance(named: name)!.performAsCurrentDrawingAppearance {
+                let c = custom.usingColorSpace(.sRGB)!
+                precondition([c.redComponent,c.greenComponent,c.blueComponent].map { Int(($0 * 255).rounded()) } == reference["custom"]![mode == "highContrastLight" ? "light" : mode]!)
+            }
+        }
+        reopened.restoreDefaults(); precondition(reopened.changed && preferences.integer(forKey: "Colors.Modified") == 0x037ff9)
+        reopened.cancel(); precondition(reopened.draft.rgb(.modified) == [3,127,249])
+        reopened.automatic(.modified); reopened.apply()
+        precondition(StatusColorPreferences.load(preferences).rgb(.modified) == StatusTextRole.modified.rgb)
+        reopened.set(.added, rgb: [0,0,0]); reopened.set(.deleted, rgb: [255,255,255]); reopened.apply()
+        reopened.restoreDefaults(); reopened.apply()
+        for role in StatusTextRole.allCases { precondition(StatusColorPreferences.load(preferences).rgb(role) == role.rgb) }
+        precondition(preferences.integer(forKey: "Colors.OtherRef") == 777 && preferences.string(forKey: "appearance") == "dark")
+        let unchanged = updates.revision; reopened.apply(); precondition(updates.revision == unchanged)
+        let invalidValues: [Any] = [true,-1,0x1000000,1.5,"1234"]
+        for invalid in invalidValues {
+            preferences.set(invalid, forKey: "Colors.Modified")
+            precondition(StatusColorPreferences.load(preferences).rgb(.modified) == StatusTextRole.modified.rgb)
+        }
+        preferences.removeObject(forKey: "Colors.Modified")
+        let beforeInvalid = reopened.draft
+        reopened.set(.added, rgb: [-1,0,0]); reopened.set(.added, rgb: [1,2])
+        precondition(reopened.draft == beforeInvalid)
+        // Actual native settings content and action controls, without opening
+        // a shared color panel or changing the main application preferences.
+        let window = NSWindow(contentRect: NSRect(x: 0,y: 0,width: 580,height: 400), styleMask: [.titled], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentViewController = NSHostingController(rootView: StatusColorsSettings(model: reopened))
+        window.contentView!.layoutSubtreeIfNeeded()
+        func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
+        window.setContentSize(NSSize(width: 580,height: 400))
+        window.contentView!.layoutSubtreeIfNeeded()
+        defer { window.close() }
+        for _ in 0..<1000 {
+            if descendants(window.contentView!).compactMap({ $0 as? NSButton }).contains(where: { $0.title == "Apply" }) { break }
+            try await Task.sleep(nanoseconds: 5_000_000)
+        }
+        let buttons = descendants(window.contentView!).compactMap { $0 as? NSButton }
+        let apply = buttons.first { $0.title == "Apply" }!
+        let restore = buttons.first { $0.title == "Restore Defaults" }!
+        let cancel = buttons.first { $0.title == "Cancel" }!
+        precondition(buttons.filter { $0.title == "Default" }.count == 6)
+        precondition(!apply.isEnabled && !cancel.isEnabled)
+        let wells = descendants(window.contentView!).compactMap { $0 as? NSColorWell }
+        precondition(wells.count == 6)
+        wells[0].color = NSColor(srgbRed: 3.0/255, green: 127.0/255, blue: 249.0/255, alpha: 1)
+        precondition(wells[0].action != nil)
+        precondition(NSApplication.shared.sendAction(wells[0].action!, to: wells[0].target, from: wells[0]))
+        precondition(reopened.draft.rgb(.added) == [3,127,249])
+        for _ in 0..<1000 {
+            if apply.isEnabled && cancel.isEnabled { break }
+            try await Task.sleep(nanoseconds: 5_000_000)
+        }
+        cancel.performClick(nil)
+        precondition(reopened.draft.rgb(.added) == StatusTextRole.added.rgb && !reopened.changed)
+        wells[0].color = NSColor(srgbRed: 3.0/255, green: 127.0/255, blue: 249.0/255, alpha: 1)
+        _ = NSApplication.shared.sendAction(wells[0].action!, to: wells[0].target, from: wells[0])
+        for _ in 0..<1000 {
+            if apply.isEnabled { break }
+            try await Task.sleep(nanoseconds: 5_000_000)
+        }
+        apply.performClick(nil)
+        precondition(StatusColorPreferences.load(preferences).rgb(.added) == [3,127,249])
+        buttons.first(where: { $0.title == "Default" })!.performClick(nil)
+        precondition(reopened.draft.rgb(.added) == StatusTextRole.added.rgb && StatusColorPreferences.load(preferences).rgb(.added) == [3,127,249])
+        restore.performClick(nil)
+        precondition(reopened.draft.rgb(.added) == StatusTextRole.added.rgb && StatusColorPreferences.load(preferences).rgb(.added) == [3,127,249])
+        window.close()
         precondition(Set(StatusTextRole.allCases.map { StatusTextPalette.rgb($0, dark: false).description }).count == 6)
-        print("PASS: six pinned default RGB roles and native dynamic Aqua/Dark Aqua/high-contrast light+dark resolutions match independently compiled upstream C++ functions; mixed index/worktree priority, conflict precedence, rename/copy distinctions, neutral normal/unversioned/ignored roles and semantic selected text, neutral LFS success and Conflict LFS error verified. No pixel/physical visual acceptance claimed.")
+        print("PASS: six pinned default RGB roles and native dynamic Aqua/Dark Aqua/high-contrast light+dark resolutions match independently compiled upstream C++ functions; mixed index/worktree priority, conflict precedence, rename/copy distinctions, neutral normal/unversioned/ignored roles and semantic selected text, neutral LFS success and Conflict LFS error verified. Custom RGB/black/white/clamp reference checks, private preference Apply/Cancel/default/reopening/validation/alias/notification, preserved unrelated preferences and native settings action targets pass. No shared color-panel or pixel/physical visual acceptance claimed.")
     }
 }

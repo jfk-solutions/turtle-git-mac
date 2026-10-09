@@ -115,6 +115,7 @@ private final class RevertNativeWindow: NSWindow {
 }
 
 private struct RevertDialog: View {
+    @ObservedObject private var statusColorUpdates = StatusColorUpdates.shared
     @ObservedObject var model: RevertWindowModel
     private func lineCount(_ path: String, added: Bool) -> String {
         let count = added ? model.statistics[path]?.added : model.statistics[path]?.removed

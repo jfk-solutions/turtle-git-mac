@@ -1101,6 +1101,7 @@ struct CommitFileSort: SortComparator {
 }
 
 struct CommitDialog: View {
+    @ObservedObject private var statusColorUpdates = StatusColorUpdates.shared
     @ObservedObject var model: CommitWindowModel
     @AppStorage("Commit.MessagePaneHeight") private var messagePaneHeight = 300.0
     @AppStorage("StyleCommitMessages") private var styleCommitMessages = true

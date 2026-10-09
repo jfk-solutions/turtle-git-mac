@@ -3,6 +3,7 @@ import SwiftUI
 import TurtleGitCore
 
 struct AddProgressTable: NSViewRepresentable {
+    @ObservedObject private var statusColorUpdates = StatusColorUpdates.shared
     @ObservedObject var model: AddProgressWindowModel
     func makeCoordinator() -> Coordinator { Coordinator(model: model) }
     func makeNSView(context: Context) -> NSScrollView { context.coordinator.make() }

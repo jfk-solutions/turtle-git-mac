@@ -29,6 +29,7 @@ private final class AddNativeTable: NativeWatermarkTable {
 }
 
 struct AddFileTable: NSViewRepresentable {
+    @ObservedObject private var statusColorUpdates = StatusColorUpdates.shared
     @ObservedObject var model: AddWindowModel
     func makeCoordinator() -> Coordinator { Coordinator(model: model) }
     func makeNSView(context: Context) -> NSScrollView { context.coordinator.make() }

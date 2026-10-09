@@ -245,6 +245,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     }
 }
 private struct RevisionComparisonDialog: View {
+    @ObservedObject private var statusColorUpdates = StatusColorUpdates.shared
     @ObservedObject var model: RevisionComparisonWindowModel
     private func revisionGroup(_ title: String, value: Binding<String>, base: Bool) -> some View {
         GroupBox(model.revisionTitle(base: base)) {

@@ -17,6 +17,7 @@ theme = (upstream / 'src/Utils/Theme.cpp').read_text(encoding='utf-8-sig')
 colors = (upstream / 'src/TortoiseProc/Colors.cpp').read_text(encoding='utf-8-sig')
 roles = ['Conflict', 'Modified', 'Merged', 'Deleted', 'Added', 'Renamed']
 values = {role.lower(): [int(c.strip()) for c in re.search(r'\{ ' + role + r',.*?RGB\(([^)]+)\)', colors).group(1).split(',')] for role in roles}
+values.update({"black":[0,0,0],"white":[255,255,255],"custom":[3,127,249],"bright":[250,240,230]})
 functions = theme[theme.index('void CTheme::RGBtoHSL('):theme.index('std::optional<LRESULT> CTheme::HandleMenuBar')].replace('CTheme::', '')
 header = '#include <algorithm>\n#include <iostream>\n#include <cstdint>\nusing COLORREF=uint32_t; using BYTE=uint8_t;\n#define RGB(r,g,b) (uint32_t(r)|(uint32_t(g)<<8)|(uint32_t(b)<<16))\n#define GetRValue(c) ((c)&255)\n#define GetGValue(c) (((c)>>8)&255)\n#define GetBValue(c) (((c)>>16)&255)\n'
 with tempfile.TemporaryDirectory(prefix='turtlegit-status-colors-native-') as temporary:

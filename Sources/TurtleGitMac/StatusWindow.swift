@@ -310,6 +310,7 @@ struct StatusRow: Identifiable {
 }
 
 struct StatusDialog: View {
+    @ObservedObject private var statusColorUpdates = StatusColorUpdates.shared
     @ObservedObject var model: StatusWindowModel
     @State private var focusedPath: String?
     var body: some View {

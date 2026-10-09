@@ -84,6 +84,7 @@ import TurtleGitCore
 }
 
 struct RepositoryWindow: View {
+    @ObservedObject private var statusColorUpdates = StatusColorUpdates.shared
     @ObservedObject var model: RepositoryModel
     var body: some View {
         VStack(spacing: 0) {

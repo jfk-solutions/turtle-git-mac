@@ -29,7 +29,7 @@ all columns. Original icons and status words remain visible. Other FileState
 consumers share the exact default roles, but their complete action/selection
 behavior still needs individual source review. Graph lanes and branch/tag labels
 use multiple colors; the patch view distinguishes additions, removals and hunks.
-Remote-specific colors and user-configurable CColors settings remain pending.
+Remote-specific roles and the remaining CColors settings (Note/OtherRef, graph and other consumers) remain pending.
 
 [Status color QA](qa/status-colors-2026-10-09.json) compares numeric RGB values
 and Aqua/Dark Aqua/high-contrast dark AppKit resolutions against independently
@@ -47,10 +47,35 @@ light/dark rendering and live Settings switching Light → Dark → Light → Fo
 System were verified. Comprehensive switching across every open window, selected-row
 contrast, accessibility contrast settings, Finder appearance and every other
 window's visual comparison remain in the UI parity audit. User-selectable status
-palettes and upstream Colors settings are not implemented yet.
+palettes are now editable for the six status roles below; the complete upstream Colors settings remain partial.
 
 Original Log and Help icons are monochrome at every embedded size. They now use
 native template tinting alongside cherry-pick; the shared SwiftUI command label
 respects template images while preserving all colored artwork. The updated native
 submodule dark capture verifies readable Log/Help shapes and green Fast Forward
 types. The byte-exact source ICO files remain unchanged.
+
+## Editable status colors
+
+Settings → Appearance now includes Added, Deleted, Merged, Modified, Conflict
+and Renamed color wells, each with Default, plus Restore Defaults, Cancel and
+Apply. Edits, per-color Default and Restore Defaults affect a draft; Apply saves
+the six colors. Cancel discards the draft. Reopening loads the saved choices.
+The appearance choice and unrelated Note/OtherRef/graph preferences are preserved.
+Modified is also saved to the PropertyChanged alias, following the source Apply
+handler. Mac preferences use validated opaque packed 0xRRGGBB values rather than
+Windows registry COLORREF byte order. Invalid saved values fall back to defaults.
+
+The chosen light-mode RGB feeds the same source dark/high-contrast conversion.
+Open color-consuming SwiftUI views and native list adapters subscribe to Apply
+notifications; newly constructed colors read saved preferences. A selected
+row keeps semantic primary text regardless of the saved status color.
+
+[Color settings QA](qa/status-color-settings-2026-10-09.json) records independent
+C++ checks for custom RGB/black/white and clamp endpoints, native color-well
+binding, AppKit action targets, private preference round trips, draft/Cancel/
+Default/Restore semantics, validation, alias and notification assertions.
+Live recoloring across every already-open application window, shared color-panel
+interaction, current pixels/contrast and signed deployment remain unverified.
+Note/OtherRef controls, graph settings and full upstream Colors page parity are
+still pending.

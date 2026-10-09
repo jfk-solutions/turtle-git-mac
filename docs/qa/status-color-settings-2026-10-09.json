@@ -1,0 +1,80 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "b5c86867da15e29ad1e44859c68956e8b52ce0c8",
+  "scope": "Editable six status colors, draft/Apply/Cancel/default semantics, validated native RGB preferences, PropertyChanged alias and open-owner notification subscribers. Full Colors settings and full port remain incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/Settings/SettingsColors.cpp": "cc8a00046fa3fbf39f5ec465de68f75f23ed5995",
+    "src/TortoiseProc/Settings/SettingsColors.h": "fc32917811b3e9ac903774edb3aef5f809cfc518",
+    "src/TortoiseProc/Colors.cpp": "f83b8e189b041998f4627aa0da31c38f6899394e",
+    "src/Utils/Theme.cpp": "619a0b07219aa0fadefba8692cb35ebda3fd03c3"
+  },
+  "sources_manifest_sha256": "fa57881018a01b301bdbcd7526f7ae9e27602700a59d348c1e4b13676af35223",
+  "changed_files_sha256": {
+    "NOTICE": "f4da5d677795cf4c1c191773411e66d5e93e7da296039cf1c66869d8b46991c8",
+    "Sources/TurtleGitMac/AddFileTable.swift": "0bbc2912d4f3254896fb2d18f25598541718000cfb99591d8dbafb60c95c7b02",
+    "Sources/TurtleGitMac/AddProgressTable.swift": "9afaf07a13462ba8ebff0674a9d95d8510a295ab76d146e82e140960cb4a143b",
+    "Sources/TurtleGitMac/Appearance.swift": "0ba9fd86de9de4ea979dd08fb5c44d014566195cbb85853a8aa1feef432730b6",
+    "Sources/TurtleGitMac/CommitWindow.swift": "7d817680c6f8e92849da9b5357fef68fc98d849be44a5ce159020320c901f1b4",
+    "Sources/TurtleGitMac/DeleteConflictWindow.swift": "f3f5debfedd792efae07d8e5d0279a6835d7ec3700df63ece570ff6a3a41641e",
+    "Sources/TurtleGitMac/LFSLocksWindow.swift": "449a88693b7b39952fad539736608018af7d2a1462e10b8c299c28e01c259087",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "074cc60cf5ddb53f658c8bb7b6061e9a4bd14efb4a03ac2cc642983843f4ad36",
+    "Sources/TurtleGitMac/ResolveWindow.swift": "a2193caaff4b836367f7b82cd9c465daeda7b0036886716fd782797347331d0a",
+    "Sources/TurtleGitMac/RevertProgressWindow.swift": "6f16956d4d5a8f3b51fb51efed54731068a0e06ee1a59158e171cc55e13a3c4d",
+    "Sources/TurtleGitMac/RevertWindow.swift": "e6f462bbe37584fa68915961961dd2bf7417acb0b3881dc83e37631dc5b0e7c5",
+    "Sources/TurtleGitMac/RevisionComparisonWindow.swift": "9a6ba7293eb2c8cb38832d54ed21bc27977391fa0c3629d7997b18dda60a98e0",
+    "Sources/TurtleGitMac/StatusWindow.swift": "46882209de7ca071a1b49f3b542100816eb47498a0b7b716c138accc8e6f029b",
+    "Sources/TurtleGitMac/TurtleGitMacApp.swift": "b214eb2b78588cc210a9db574c3c344029bcc4d2f7d1b9237c934fc2f346d161",
+    "docs/APPEARANCE.md": "87fbe8f8003740fff632030af0aea3c8814188a43ff867c35f86d5861e2a33ea",
+    "docs/qa/status-colors-native-2026-10-09.swift": "4b5095f96cf6312c330172cae8c5a81b42a0f3313ac1c6acbaf6db36d81ecad8",
+    "docs/upstream-files.csv": "d165e3add9963f8032c55b77f9c9a2c8a48a7b031ac00aa89088e679042d3d15",
+    "scripts/test-status-colors.py": "ba1cfb3a5c78571bc53d46dfeaebd4d2797eef926d457e48e1b8dfe645b094ca"
+  },
+  "verification": {
+    "colors": "Final post-Store dedicated receiver passes independently compiled pinned C++ RGB/HSL oracle for six defaults plus custom (3,127,249), black, white and bright colors. Black/white exercise normal-dark clamp versus unclamped high-contrast endpoints. Dynamic custom NSColor resolutions match source in Aqua/Dark/high-contrast appearances. Existing combined-status/selected semantic/neutral LFS success/Conflict error checks retained.",
+    "settings": "Private UUID preferences verify draft edits do not save, Cancel restores saved state, opaque Color conversion ignores alpha, Apply persists packed RGB and mirrors Modified to PropertyChanged, notification revision increments once, reopening retains custom values, per-role automatic/global restore remain draft-only until Apply, unrelated OtherRef/appearance preserved, unchanged Apply sends no notification, malformed Bool/negative/out-of-range/fraction/string settings fall back and invalid RGB edits are refused. Actual six native NSColorWell controls dispatch their existing public target action into the Added binding. Actual AppKit Cancel/Apply/Default/Restore buttons performClick verify draft discard, persisted custom value and unsaved defaults. Owned hidden settings window closes; shared color panel not opened.",
+    "subscribers": "Source inspection/final Debug compilation shows Apply observers in Commit/Working Tree/LFS progress/workspace/Revert/Resolve/Rebase conflict/Delete conflict/Revision Comparison and native Add/Add progress/Revert progress adapters. Notification counter is verified; actual every-window repaint/selection/contrast is not claimed.",
+    "native_regression": "Complete LFS receiver passes Apple Git and bundled Git on final production sources. Existing table/header/layout/scroll/clipboard/checkbox/owner/progress/Force/Close-refresh/cancel/successful-Pull/Resolve and HEAD/raw-index/tracked-byte assertions retained.",
+    "builds": "Final Debug and unsigned AppStore builds/bundle audits pass; Store requires Git/Git LFS. Both packages contain current NOTICE. Final per-color Default receiver initially ran alongside Store; its concurrent evidence is superseded by a passing rerun after Store terminal.",
+    "inventory": "Pinned inventory and diff checks pass; five mappings extended/moved to partial.",
+    "site": "Appearance guide updated; local site generator passes. No new screenshots or deployment claim."
+  },
+  "iterations": [
+    "Initial private preference/conversion assertions pass, native NSButton discovery fails because SwiftUI draws footer buttons itself. Diagnostic confirms six native color wells and no NSButton descendants.",
+    "First public accessibility attempt has an incorrect Swift protocol name and fails compilation; corrected NSAccessibilityProtocol compiles, but hidden and one briefly ordered-front owned test window expose only a root AXGroup with no children. Logs retained; no private accessibility APIs or synthetic input used.",
+    "Color panel action controls implemented as rounded AppKit NSButtons with explicit target/disabled guards. Native color-well binding and Cancel/Apply/Restore targets pass. Per-color Default assertion added and final receiver rerun after Store completion passes. No assertions weakened to accept missing controls."
+  ],
+  "limitations": [
+    "Six status controls are a partial SettingsColors port; Note/OtherRef/graph/current-branch settings and complete role consumers remain pending.",
+    "Every-window live repaint, selected pixel contrast, native shared color-panel interaction, physical keyboard/pointer, accessibility evaluation and fresh screenshots unverified.",
+    "Authenticated providers, signed Finder/sandbox deployment, App Store acceptance, GitHub CI/push and full application parity incomplete."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "preferences": "Eleven private LFS.StatusQA/StatusColors.QA plist files removed after all receivers exited; remaining files verified empty before removal. Main application preferences untouched.",
+    "preference_cleanup_sha256": "4f40cf0b3594678c01d1c569b0f35d29e5252b74b6ebfd51125f219472e07923",
+    "windows": "Successful receivers close owned windows/sheets; one failed accessibility diagnostic briefly orders front an owned settings window, then process exits. No owned receivers/windows remain.",
+    "processes": [],
+    "private_fixture_directories": [],
+    "private_preference_plists": []
+  },
+  "local_log_sha256": {
+    "build/qa/status-color-settings-2026-10-09/colors-accessibility-protocol.log": "021a1071b23724d0a09d63475071e86e1cc2b9229988f6b1997fd5ed191d99e6",
+    "build/qa/status-color-settings-2026-10-09/colors-accessibility.log": "776fd5f3814e4ea32dea039dd7da2521969fe46a76370991484c6645d3507bf8",
+    "build/qa/status-color-settings-2026-10-09/colors-controls-final.log": "8c743e1a031197db7fae02478631e5ff0f1e73d9ccb20d8e0ceac97395e4a738",
+    "build/qa/status-color-settings-2026-10-09/colors-diagnostic.log": "69feeb3bf4fc4f0121ac85a229fd4f2090c9db95fc6b404f3ac375ede76724bd",
+    "build/qa/status-color-settings-2026-10-09/colors-final.log": "8c743e1a031197db7fae02478631e5ff0f1e73d9ccb20d8e0ceac97395e4a738",
+    "build/qa/status-color-settings-2026-10-09/colors-post-store.log": "8c743e1a031197db7fae02478631e5ff0f1e73d9ccb20d8e0ceac97395e4a738",
+    "build/qa/status-color-settings-2026-10-09/colors-visible-accessibility.log": "dd5586e1d55874b35b6f0a148a3a5abdc0b481e9dd674d9ccb996b0d8c152fb2",
+    "build/qa/status-color-settings-2026-10-09/colors.log": "80e856f4e0623cf0104733a8146ee7689620aac49ddd748382e38f602f3e52a4",
+    "build/qa/status-color-settings-2026-10-09/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/status-color-settings-2026-10-09/debug-final.log": "bab06d4792dcb19eb65d32250e1d06cec0b41350fbfb4af302c4f6be136bb540",
+    "build/qa/status-color-settings-2026-10-09/debug.log": "bab06d4792dcb19eb65d32250e1d06cec0b41350fbfb4af302c4f6be136bb540",
+    "build/qa/status-color-settings-2026-10-09/native-final.log": "f0d5a2ec6b020dc89274e22033954f9533864df73534f1560bfb6701ea9c6eca",
+    "build/qa/status-color-settings-2026-10-09/native.log": "7f057fbb74e26c2e0c975114dab752d6336d51d096ac9bfe48e8e4e9a5d9c172",
+    "build/qa/status-color-settings-2026-10-09/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/status-color-settings-2026-10-09/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/status-color-settings-2026-10-09/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca",
+    "build/qa/status-color-settings-2026-10-09/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

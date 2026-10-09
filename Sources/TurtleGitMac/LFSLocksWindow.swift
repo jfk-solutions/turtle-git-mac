@@ -301,6 +301,7 @@ struct LFSLocksDialog: View {
     }
 }
 struct LFSUnlockProgress: View {
+    @ObservedObject private var statusColorUpdates = StatusColorUpdates.shared
     @ObservedObject var model: LFSLocksWindowModel
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
