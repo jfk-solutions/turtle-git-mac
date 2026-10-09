@@ -264,10 +264,10 @@ extension GitRepository {
         }
         return ReferenceBrowserDeletionConfirmation(references: references, kind: kind, name: GitReferenceName.removingPrefix(kind.prefix, from: references[0].rawValue)!, unmerged: unmerged)
     }
-    public func deleteBrowserReference(_ reference: GitReferenceName, cancellation: OperationCancellation? = nil) throws {
-        try deleteBrowserReferences([reference], cancellation: cancellation)
+    public func deleteBrowserReference(_ reference: GitReferenceName, cancellation: OperationCancellation? = nil, prepareTransport: SSHTransportPreparation? = nil) async throws {
+        try await deleteBrowserReferences([reference], cancellation: cancellation, prepareTransport: prepareTransport)
     }
-    public func deleteBrowserReferences(_ references: [GitReferenceName], cancellation: OperationCancellation? = nil) throws {
+    public func deleteBrowserReferences(_ references: [GitReferenceName], cancellation: OperationCancellation? = nil, prepareTransport: SSHTransportPreparation? = nil) async throws {
         // POSIX argv retains canonical UTF-8 even without caller cancellation.
         let token = cancellation ?? OperationCancellation()
         let kind = try validateBrowserDeletion(references, cancellation: token)
@@ -282,7 +282,9 @@ extension GitRepository {
             }
             // CString map order uses UTF-16 units; keep byte-exact remote identity.
             for remote in grouped.keys.sorted(by: { $0.rawValue.utf16.lexicographicallyPrecedes($1.rawValue.utf16) }) {
-                _ = try run(["-c", "core.precomposeunicode=false", "push", "--", remote.rawValue] + grouped[remote]!, cancellation: token)
+                let session = try await prepareSSHTransport([remote.rawValue], cancellation: token, preparation: prepareTransport)
+                defer { withExtendedLifetime(session) {} }
+                _ = try run(["-c", "core.precomposeunicode=false", "push", "--", remote.rawValue] + grouped[remote]!, environmentOverrides: session?.transportEnvironment ?? [:], cancellation: token)
             }
         } else {
             // Source stops at the first failure; earlier deletions remain completed.

@@ -1,0 +1,64 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "d7bc519dfaed54a0cf67787acb2d50fdf5e41c6f",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Native SSH preparation for remote tag catalog/delete/refresh and Browse References remote-branch deletion groups; existing Fetch/Pull/Push coordinator retained.",
+  "verification": {
+    "source": "Reviewed BrowseRefsDlg DoDeleteRefs/DoDeleteRef: sorted remote groups load Pageant before each Push. DeleteRemoteTagDlg has no explicit Pageant call; automatic configured-key loading there is a macOS extension, not claimed exact source behavior.",
+    "core_system": "30 relevant tests passed: ReferenceBrowser 20, RemoteTag 2, SSHTransportPreparation 8. New private-agent fixtures prove remote tag catalog/delete, sorted grouped branch deletion, retained session/cleanup, invalid-before-preparation and late cancellation without transport.",
+    "core_bundled": "All 8 preparation tests passed with bundled Git selected explicitly through TURTLEGIT_QA_GIT. The other 22 legacy cases do not select that engine and are not claimed as bundled coverage.",
+    "native": "Expanded hidden coordinator receiver passed with both system/bundled Git. Shipping RemoteTag model performs keyed catalog/delete/refresh; BrowseRefs model performs keyed remote deletion; actual RemoteTag controller closure cancels a pending key response and refuses late transport. Existing encrypted retry/dedup/changed-key/CRLF/private lease/Push close and Fetch/Pull/Push/browse effects also pass.",
+    "regressions": "Existing hidden remote-tag receiver passed with both engines: real folder routes/icons, list/tri-state, Abort/Delete/Refresh, progress ownership/close/Quit, late Yes refusal and live ls-remote/check-ref-format/push helper-group reaping.",
+    "correction": "Initial compile exposed synchronous single-reference convenience wrapper; it now awaits and forwards the same optional preparation. Corrected Core and Debug runs passed.",
+    "debug": "Final unsigned Debug build passed; unrelated existing warnings remain.",
+    "appstore": "Final unsigned AppStore build passed; both embedded NOTICE files match root. Existing unrelated warnings remain.",
+    "bundles": "Both audits passed: embedded Finder, licenses, 99 original icons, Git/LFS where configured, EditorConfig/IssueRegex and SSH askpass provenance/linkage/private one-use response. Signed helper inheritance unverified.",
+    "inventory": "Pinned inventory regression passed; BrowseRefs/DeleteRemoteTag partial mapping extended.",
+    "site": "Local static website build passed; no new captures or hosted deployment verification.",
+    "workflow": "Safe YAML parse and exactly one existing step for each expanded receiver passed. Hosted CI status unverified."
+  },
+  "limitations": [
+    "No additional checkbox added to remote-tag or BrowseRefs dialogs. Available runtime automatically prepares configured native keys; source Pageant return errors can be ignored, while native failures abort.",
+    "Earlier successful remote deletions remain after later failure. Complete concurrent ref/config races and native error-policy equivalence are not proved.",
+    "Log history-reference remote deletion, Clone/submodules/Sync, bundled OpenSSH, Keychain, PPK conversion, host-key/password handling remain pending.",
+    "AppStore auto-load unavailable without bundled agent/add; signed file grants/helper inheritance and actual network SSH remain unverified.",
+    "Hidden receiver verifies models/controllers/callbacks, not displayed/nested sheets, physical keyboard, light/dark, accessibility, Finder or full UI parity.",
+    "No main app launch, user keys/login-agent access, SSH server, push, hosted CI/deployment or distribution submission."
+  ],
+  "sha256": {
+    "NOTICE": "438288aaf5e7a1c1c188dcbafcc8800a87de8417c51b510e5c60fb5a75057394",
+    "Sources/TurtleGitCore/ReferenceBrowser.swift": "c7e3671744300e16467088b0c336b0bb8ac49113fe24a79b50df44ae601f461a",
+    "Sources/TurtleGitCore/RemoteTags.swift": "cfd5646138a272366e11bdbe30f7e052779a63e53c9bb7873530156fc68a40da",
+    "Sources/TurtleGitMac/ReferenceBrowserWindow.swift": "1ec95a099ab47d92ecc713268bda9cb7b4bdb70be36c10b08f73d19633307ed4",
+    "Sources/TurtleGitMac/RemoteTagWindow.swift": "a360fab4093f0224359fc4017eea6890335a27891436f69b9c13bb5a3a017521",
+    "Tests/TurtleGitCoreTests/SSHTransportPreparationTests.swift": "bee502268f16365231abdcd50aaecd0191158f567384a8deaf6a2332c1c19029",
+    "docs/REFERENCE-BROWSER-PARITY.md": "25baada0e2875e82c1f35d3861aa04b0fe20a95baa235833c22fe9535c8f6a55",
+    "docs/REMOTE-TAGS-PARITY.md": "5184aadc361ab5fe09d0c363c4378b5360dc4491a6f6cc94c358f6e91800e0ae",
+    "docs/SSH-AGENT-PARITY.md": "c846b4017e61a044c1494cdf6b6326082452e533948de4e25fc6c5472e78e3b2",
+    "docs/SSH-IDENTITY-PARITY.md": "a603eefc7c65527171ef2e773a3b98ad57f913e0c83532cbb249a18ac1c1b64a",
+    "docs/SSH-TRANSPORT-PARITY.md": "bf0bc7f0a82cbb6673ba8ec7ff25b63367e7a82ba9784a420d2e952fe09070f6",
+    "docs/qa/ssh-coordinator-native-2026-10-09.swift": "1f125e6577492a73772eca77c2ea183f1e8734aec4f1e23881b53edd12a57494",
+    "docs/upstream-files.csv": "a3000e776ba28095c44cdab57a68e6cbd7a0fdbbf9c8eab2ea16ee094c5d3833"
+  },
+  "logs": "build/qa/ssh-remote-refs-2026-10-09",
+  "cleanup": {
+    "all_handles_terminal": true,
+    "main_app_launches": 0,
+    "audit": {
+      "matching_processes": [],
+      "current_fixtures": []
+    },
+    "empty_preferences_removed": [
+      {
+        "domain": "TurtleGit.SSHCoordinator.QA.DBB7D146-D2CD-49B3-B295-6B526F332A12",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SSHCoordinator.QA.29603987-6866-45AC-B12C-03FE84B55996",
+        "defaults_delete_exit": 1,
+        "removed": true
+      }
+    ]
+  }
+}

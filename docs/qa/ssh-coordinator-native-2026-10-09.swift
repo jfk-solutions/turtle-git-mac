@@ -110,6 +110,38 @@ private final class NativeIdentityBookmarks: RepositoryBookmarkProvider {
         browse.sshSettings.makeCoordinator = factory; browse.load(remote:"origin"); try await wait { !browse.busy }; browse.sshSettings.enabled = true; browse.browse(); try await wait { !browse.busy }
         try require(browse.branches == ["main"] && modelPrompts == 4,"Shipping remote branch lookup did not load key"); browse.invalidate()
         let calls = try String(contentsOf: URL(fileURLWithPath:wrapper.path+".calls")); try require(calls == "push\nfetch\npull\nls-remote\n","Unexpected transport order")
+        for tag in ["keep", "drop"] { _ = try await repo.run(["tag", tag]) }
+        _ = try await repo.run(["push", "origin", "--tags"])
+        let remoteTags = RemoteTagWindowModel(repository: transportRepo, access: nil, remote: "origin", preferences: preferences)
+        remoteTags.sshSettings.makeCoordinator = factory; remoteTags.sshSettings.enabled = true
+        remoteTags.load(); try await wait { !remoteTags.busy }
+        try require(remoteTags.error == nil && Set(remoteTags.tags.map(\.name)) == ["keep", "drop"] && modelPrompts == 5, "Remote tag listing missed key preparation")
+        remoteTags.select(["drop"]); remoteTags.confirm = { _ in true }; remoteTags.delete()
+        try await wait { !remoteTags.busy }
+        try require(remoteTags.error == nil && remoteTags.tags.map(\.name) == ["keep"] && modelPrompts == 7, "Remote tag delete/refresh missed owned key preparation")
+        remoteTags.invalidate()
+        let head = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await remote.run(["update-ref", "refs/heads/topic", head]); _ = try await repo.run(["fetch", "origin"])
+        let browser = ReferenceBrowserWindowModel(repository: transportRepo, access: nil, initial: "refs/remotes/origin", preferences: preferences, picking: false)
+        browser.sshSettings.makeCoordinator = factory; browser.sshSettings.enabled = true
+        browser.load(); try await wait { !browser.busy && browser.snapshot != nil }
+        browser.select(["refs/remotes/origin/topic"], last: "refs/remotes/origin/topic"); browser.confirmDeletion = { _ in true }; browser.deleteChosen()
+        try await wait { !browser.busy }
+        try require(browser.error == nil && modelPrompts == 8, "Browser remote deletion missed key preparation")
+        let refs = try await remote.checkoutReferences(); try require(!refs.contains { $0.name == "refs/heads/topic" }, "Browser did not delete selected remote branch"); browser.invalidate()
+        let pendingTags = RemoteTagWindowController(repository: transportRepo, access: nil, remote: "origin", preferences: preferences)
+        defer { pendingTags.close() }
+        pendingTags.presentProgress = { _, _ in true }
+        var tagPrompt: SSHKeyPassphraseWindowController?, tagCoordinator: SSHTransportCoordinator?
+        pendingTags.model.sshSettings.makeCoordinator = {
+            let value = SSHTransportCoordinator(repository: transportRepo, identities: identities, temporaryRoot: root, runtime: { tools })
+            value.present = { tagPrompt = $0; return true }; tagCoordinator = value; coordinators.append(value); return value
+        }
+        pendingTags.model.sshSettings.enabled = true; pendingTags.model.load(); try await wait { tagPrompt != nil }
+        pendingTags.close(); try await wait { tagCoordinator?.closed == true }; tagPrompt?.submit()
+        try require(pendingTags.model.closed && pendingTags.model.tags.isEmpty && pendingTags.model.error == nil && tagPrompt?.finished == true, "Closed remote tags accepted a late key response")
+        let refCalls = try String(contentsOf: URL(fileURLWithPath: wrapper.path+".calls"))
+        try require(refCalls == calls + "ls-remote\npush\nls-remote\npush\n", "Remote ref transport ordering or closed prompt transport")
         // Close the shipping controller while its actual Push task awaits a prompt.
         DialogGeometry.install(preferences: preferences)
         let controller = PushWindowController(repository: transportRepo, access: nil, preferences: preferences)
@@ -134,9 +166,9 @@ private final class NativeIdentityBookmarks: RepositoryBookmarkProvider {
         try await wait { pendingCoordinator?.closed == true && !controller.model.transportRunning }
         pendingControllerPrompt?.submit()
         try require(closedCallbacks == 1 && resultCallbacks == 0 && controller.model.error == nil && pendingControllerPrompt?.finished == true, "Controller close allowed a late result or live prompt")
-        try require(try String(contentsOf: URL(fileURLWithPath: wrapper.path+".calls")) == calls, "Closed prompt launched transport")
+        try require(try String(contentsOf: URL(fileURLWithPath: wrapper.path+".calls")) == refCalls, "Closed prompt launched transport")
         try require(coordinators.allSatisfy { $0.closed } && provider.starts == provider.stops,"Finished transport coordinator or file lease remains")
         try require(!NSApplication.shared.windows.contains { $0.isVisible },"Receiver displayed UI")
-        print("PASS native encrypted-key prompt/retry/dedup, Cancel/token/forced-close fences, private agent cleanup; shipping Push/Fetch/Pull/browse auto-load snapshots and local Git effects; CRLF key headers and Push controller close fence")
+        print("PASS native encrypted-key prompt/retry/dedup, Cancel/token/forced-close fences, private agent cleanup; shipping Push/Fetch/Pull/browse auto-load snapshots and local Git effects; CRLF headers, remote tag/browser deletion transports and Push/tag controller close fences")
     }
 }

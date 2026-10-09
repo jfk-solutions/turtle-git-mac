@@ -90,7 +90,30 @@ App Store runtime resolution still refuses missing bundled OpenSSH agent/add;
 auto-load is disabled there until packaging is complete. Unsigned Debug uses the
 system OpenSSH tools plus the embedded response helper.
 
-Remaining: other SSH consumers (Clone, submodules, tags/deletions and Sync), bundled
+## Remote tags and Browse References deletion
+
+Remote tag listing and accepted deletion now use the same awaited preparation
+boundary. Tag names are validated before loading any key; each catalog, deletion
+and post-deletion refresh owns a fresh coordinator and agent. These dialogs add
+no auto-load checkbox. Available native runtimes automatically prepare a
+configured native key; absent/unavailable native keys retain ordinary Git behavior.
+This extends macOS key loading to the source remote-tag workflow; the pinned
+DeleteRemoteTagDlg itself does not call LaunchPAgent.
+
+BrowseRefs remote-branch deletion follows the source's sorted remote groups:
+one preparation immediately before each remote's batch Push. Local branch/tag
+deletions perform no preparation. One operation-owned coordinator can retain
+loaded identities across groups; any preparation/Push failure stops later groups,
+retaining earlier server effects. The single-reference Core convenience route
+forwards the same optional hook. Log's separate history-reference deletion route
+is still pending and is not covered by this change.
+
+Native owners present encrypted-key responses using their existing window or
+progress window. Forced closure cancels their existing token, rejects late prompt
+answers and closes the agent. Physical nested-sheet and signed acceptance remain
+unverified. Preparation remains optional for Core callers.
+
+Remaining: other SSH consumers (Clone, submodules, Log reference deletion and Sync), bundled
 OpenSSH, Keychain, host-key/password prompts, physical UI/sheet acceptance,
 signed App Store/Finder and real network authentication. Concurrent config/ref changes across suspended preparation
 and complete source failure equivalence remain unverified.

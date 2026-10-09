@@ -53,6 +53,10 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
                 alert.beginSheetModal(for: window) { continuation.resume(returning: $0 == .alertFirstButtonReturn) }
             }
         }
+        model.sshSettings.present = { [weak window] prompt in
+            guard let window, window.attachedSheet == nil, let child = prompt.window else { return false }
+            window.makeFirstResponder(nil); window.beginSheet(child); return true
+        }
         model.onComparePair = { [weak self] pair in self?.showComparison(pair) }
         model.onUnifiedPair = { [weak self] pair, alternate in self?.showUnified(pair, alternate: alternate) }
         model.onReflog = { [weak self] name in self?.showReflog(name) }
@@ -243,6 +247,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
 }
 @MainActor final class ReferenceBrowserWindowModel: ObservableObject {
     let repository: GitRepository
+    let sshSettings: SSHTransportSettings
     let access: RepositoryAccessLease?
     let preferences: UserDefaults
     private let initial: String
@@ -322,6 +327,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     }
     private func deleteReferences(_ references: [GitReferenceName]) {
         guard !invalidated, !busy, !hasChild, renameReference == nil, !references.isEmpty, let confirmDeletion else { return }
+        let factory = sshSettings.capture()
         let request = OperationCancellation(); token = request; deletingReference = true; busy = true; error = nil
         Task {
             var failure: String?
@@ -331,7 +337,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
                 guard !invalidated, token === request, !request.isCancelled else { return }
                 let accepted = await confirmDeletion(confirmation)
                 guard !invalidated, token === request, !request.isCancelled else { return }
-                if accepted { try await repository.deleteBrowserReferences(references, cancellation: request) }
+                if accepted { let coordinator = factory?(); defer { coordinator?.close() }; try await repository.deleteBrowserReferences(references, cancellation: request, prepareTransport: coordinator?.preparation) }
             } catch { guard !invalidated, token === request, !request.isCancelled else { return }; failure = error.localizedDescription }
             guard !invalidated, token === request, !request.isCancelled else { return }
             token = nil; deletingReference = false; busy = false; load(preservingError: failure)
@@ -403,7 +409,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     var onBrowse: ((String) -> Void)?
     var onCompare: ((String) -> Void)?
     init(repository: GitRepository, access: RepositoryAccessLease?, initial: String, preferences: UserDefaults = .standard, scope: ReferenceBrowserScope = .all, picking: Bool = true) {
-        self.picking = picking
+        self.picking = picking; sshSettings = SSHTransportSettings(repository: repository); sshSettings.enabled = sshSettings.available
         self.repository = repository; self.access = access; self.initial = initial; self.preferences = preferences; self.scope = scope
         nested = preferences.object(forKey: "RefBrowserIncludeNestedRefs") as? Bool ?? true
     }

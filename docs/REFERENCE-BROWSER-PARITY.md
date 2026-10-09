@@ -569,5 +569,12 @@ See [remote tag parity](REMOTE-TAGS-PARITY.md) and
 `qa/remote-tags-2026-10-09.json` for checks and limits. Manage Remotes now has a
 native AppKit page on remote folders, with the original Settings icon and shared
 owned Fetch offer. See [remote settings parity](REMOTE-SETTINGS-PARITY.md).
-Per-remote native SSH identity and physical/signed acceptance remain
-pending. Physical/signed/full browser and application parity is incomplete.
+Per-remote native SSH identity selection and transport preparation now exist;
+physical/signed acceptance remains pending. Physical/signed/full browser and application parity is incomplete.
+
+Remote-branch deletion now awaits native key preparation per sorted remote batch,
+as source DoDeleteRefs does before each Push. Local branch/tag deletion does not
+load keys. Native operation closure cancels pending encrypted responses and owns
+agent cleanup. This does not cover Log's separate reference-deletion route or
+prove displayed sheets, signed scopes or real SSH authentication. See
+SSH-TRANSPORT-PARITY.md.

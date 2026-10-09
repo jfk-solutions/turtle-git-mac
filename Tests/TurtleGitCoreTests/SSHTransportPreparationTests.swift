@@ -89,6 +89,52 @@ final class SSHTransportPreparationTests: XCTestCase {
         XCTAssertEqual(try String(contentsOf: f.log), "fetch\nls-remote\nfetch\npull\n")
         let pid = try XCTUnwrap(Int32(String(contentsOf: URL(fileURLWithPath: f.agentHelper.path+".pid")).trimmingCharacters(in: .newlines))); XCTAssertNotEqual(kill(pid,0),0)
     }
+    func testRemoteTagsAndGroupedBrowserDeletionPrepareBeforeEachTransport() async throws {
+        let f = try await fixture(); defer { try? FileManager.default.removeItem(at: f.root) }
+        for tag in ["keep", "drop"] { _ = try await f.source.run(["tag", tag]) }
+        _ = try await f.source.run(["branch", "topic"])
+        let second = f.root.appendingPathComponent("second.git")
+        _ = try await f.source.run(["clone", "--bare", f.source.root.path, second.path])
+        let plain = GitRepository(root: f.repo.root, executable: f.realGit)
+        _ = try await plain.run(["remote", "add", "second", second.path])
+        _ = try await plain.run(["fetch", "--all"])
+        let events = TransportEvents()
+        let prepare: SSHTransportPreparation = { names, token in
+            _ = try await f.repo.remoteNames(cancellation: token)
+            let session = try f.agent(token); await events.record(names, session.directory); return session
+        }
+        let tags = try await f.repo.remoteTags(remote: "origin", prepareTransport: prepare)
+        XCTAssertEqual(Set(tags.map(\.name)), ["keep", "drop"])
+        try await f.repo.deleteRemoteTags(remote: "origin", tags: ["drop"], prepareTransport: prepare)
+        try await f.repo.deleteBrowserReferences(["refs/remotes/second/topic", "refs/remotes/origin/topic"], prepareTransport: prepare)
+        let result = await events.snapshot()
+        XCTAssertEqual(result.0, [["origin"], ["origin"], ["origin"], ["second"]])
+        XCTAssertTrue(result.1.allSatisfy { !FileManager.default.fileExists(atPath: $0.path) })
+        XCTAssertEqual(try String(contentsOf: f.log), "ls-remote\npush\npush\npush\n")
+        let remaining = try await f.source.remoteTags(remote: second.path)
+        XCTAssertEqual(Set(remaining.map(\.name)), ["keep", "drop"])
+        let originTags = try await plain.remoteTags(remote: "origin")
+        XCTAssertEqual(originTags.map(\.name), ["keep"])
+        for target in [f.source, GitRepository(root: second, executable: f.realGit)] {
+            let refs = try await target.checkoutReferences(); XCTAssertFalse(refs.contains { $0.name == "refs/heads/topic" })
+        }
+    }
+    func testRemoteRefValidationAndLateCancellationDoNotStartTransport() async throws {
+        let f = try await fixture(); defer { try? FileManager.default.removeItem(at: f.root) }
+        let events = TransportEvents()
+        let forbidden: SSHTransportPreparation = { names, token in
+            let session = try f.agent(token); await events.record(names, session.directory); return session
+        }
+        do { try await f.repo.deleteRemoteTags(remote: "origin", tags: ["bad..tag"], prepareTransport: forbidden); XCTFail("Invalid tags prepared") } catch {}
+        do { try await f.repo.deleteBrowserReferences(["refs/heads/main", "refs/remotes/origin/main"], prepareTransport: forbidden); XCTFail("Mixed namespace prepared") } catch {}
+        let before = await events.snapshot(); XCTAssertTrue(before.0.isEmpty)
+        let token = OperationCancellation()
+        do { _ = try await f.repo.remoteTags(remote: "origin", cancellation: token, prepareTransport: { names, token in
+            let session = try f.agent(token); await events.record(names, session.directory); token.cancel(); return session
+        }); XCTFail("Late cancellation ran catalog") } catch OperationCancellationFailure.cancelled {}
+        XCTAssertFalse(FileManager.default.fileExists(atPath: f.log.path))
+        let after = await events.snapshot(); XCTAssertEqual(after.0, [["origin"]]); XCTAssertTrue(after.1.allSatisfy { !FileManager.default.fileExists(atPath: $0.path) })
+    }
     func testFetchAllPreparesEveryRemoteOnceBeforeTransport() async throws {
         let f = try await fixture(); defer { try? FileManager.default.removeItem(at: f.root) }
         _ = try await f.repo.run(["remote","add","second",f.source.root.path])

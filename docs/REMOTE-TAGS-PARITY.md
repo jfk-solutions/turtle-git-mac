@@ -32,7 +32,8 @@ Delete artwork. Remote folders and descendants resolve the configured first-pref
 remote and offer Fetch from that remote plus Delete remote tags. Remote tag closure
 does not refresh the reference browser, matching the source. Fetch retains its
 existing owned dialog, preset, progress and browser Refresh behavior. Manage Remotes
-settings are still missing here; these are not complete remote folder menus.
+now opens the native settings page from remote folders; full folder parity remains
+incomplete. See REMOTE-SETTINGS-PARITY.md.
 
 Browser metadata's bare-repository read now receives the same cancellation token
 as its catalog request, so forced close cannot leave that subprocess unowned.
@@ -47,3 +48,10 @@ Unicode tags, normal/reversed ordering, URL input, one batch deletion, rejected
 Push, invalid batches and pre-cancellation. See `qa/remote-tags-2026-10-09.json` for
 final results and explicit limits. No main app, external network, installed Finder
 extension or screenshot is activated by these checks.
+
+Native configured-key loading now precedes tag catalog and accepted batch Push,
+with a fresh operation-owned coordinator for the post-deletion refresh. Validation
+and confirmation precede destructive transport preparation; no extra checkbox is
+added. This is a macOS extension of the remote-tag workflow: pinned source
+DeleteRemoteTagDlg itself does not call Pageant. See SSH-TRANSPORT-PARITY.md for
+private-agent lifetime, encrypted response, cancellation and runtime limits.
