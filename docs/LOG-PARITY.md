@@ -1693,8 +1693,49 @@ invalid modes, forced inheritance, boundary/action/file preservation, existing
 menu guards, same-identity graph refresh and Follow hide/restore. See
 [search-walk QA](qa/log-search-walk-2026-10-09.json).
 
-Native Log still starts with 200 raw records and Show next 200, rather than all
-of the source count/date-scope controls. Streaming, match highlighting, physical
-Windows/macOS raster/Retina/scroll/keyboard, all search/path combinations and
-signed sandbox acceptance remain pending. This does not establish full Log or
-application parity.
+The initial raw 200/Show next 200 scope recorded at this checkpoint is
+superseded by the count/date/no-limit scope below. Streaming, match highlighting,
+physical Windows/macOS raster/Retina/scroll/keyboard, all search/path combinations
+and signed sandbox acceptance remain pending. This does not establish full Log
+or application parity.
+
+
+## Default history limits and From/To controls
+
+The native Log replaces its fixed 200-record batch and Show next 200 button with
+the pinned source's No limitation default. Dialog settings offer the six source
+choices, in order: No limitation, Last selected date, Last N commit(s), Last N
+year(s), Last N month(s), and Last N week(s). The numeric field is blank and
+disabled for the first two. Apply saves the selected scale and only a positive
+parsed number; invalid, zero and negative input retain the saved number. Cancel
+restores the saved values. These controls use a draft, rather than writing each
+keystroke to preferences. The surrounding Settings property-sheet lifecycle is
+still a macOS adaptation and does not establish full source Settings parity.
+
+Log's From menu offers No limitation, the saved numeric scale when applicable,
+and Configure default. Configure default opens the same scope controls in a
+macOS sheet. The live window retains its captured number, as the source menu
+does. Choosing No limitation removes the repository's saved From date and
+ignores its lower bound, while retaining an explicit To bound. From changes
+select the date scale, clamp to To and use local midnight. To changes clamp to
+From and include the day's final second. From is saved per repository only when
+Last selected date is the configured default. Explicit revision callers ignore
+the initial date/relative default but preserve a saved commit-count limit.
+
+Relative years, months and weeks use the source's fixed 365-, 30- and 7-day
+intervals, anchored at local midnight, including the source DWORD cast before
+signed subtraction. They are not calendar-month/year subtraction. The initial
+displayed From/To dates come from the raw loaded committer dates, except for
+explicit bounds, matching the source loading handler. Count limits apply to the
+raw walk before visibility/search filtering; other scopes remove the count cap.
+
+The Core checks cover saved defaults, repository-specific dates, count/date Git
+reads, fixed intervals and a Berlin daylight-saving day. A compiled oracle checks
+2,160 scope cases against the pinned GetLogCmd filter body, with injected
+local-midnight epochs. The native receiver checks an uncapped 205-commit Log,
+range/count/date interactions and actual Settings controls with both Git engines.
+See [history limit QA](qa/log-history-limits-2026-10-09.json) for evidence and
+final build scope. Streaming and
+large-history performance, full Settings property-sheet integration, non-ASCII
+Windows numeric parsing, non-Gregorian user calendars, physical date/menu/sheet
+keyboard/VoiceOver/Retina behavior and signed sandbox acceptance remain pending.

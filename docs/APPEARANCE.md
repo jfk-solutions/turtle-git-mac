@@ -173,3 +173,10 @@ and same-identity graph changes reload existing cells. Follow renames hides the
 graph column and restores the saved choice on exit. See
 [search-walk QA](qa/log-search-walk-2026-10-09.json) for the compiled source masks,
 real Git/native checks and remaining physical/scope limitations.
+
+
+Log's From/date scope replaces the fixed batch control with the source No
+limitation default, numeric saved-scale menu choice and Configure default.
+The six source defaults share draft native controls between Dialog settings
+and a macOS sheet. Count/date behavior, native controls and remaining physical
+acceptance are described in [Log parity](LOG-PARITY.md#default-history-limits-and-fromto-controls).

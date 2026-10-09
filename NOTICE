@@ -951,3 +951,10 @@ applies match flags after source visibility/forced-rollup calculation, before
 visible append, matching GitLogListBase's filter/append ordering. Native Follow
 renames graph hiding follows its ShowGraphColumn call at end of loading. This
 continues the pinned TortoiseGit source adaptation described above.
+
+History limitation scales/defaults and fixed-day relative age arithmetic adapt
+CFilterData/CGit::GetLogCmd, SetDialogs' default number/scale controls and
+positive signed-LONG Apply semantics, and LogDlg's per-repository From date,
+no-limitation/default popup and inclusive local day endpoints at the pinned
+revision above. Native Configure default uses the shared draft control in a
+macOS sheet and the Dialogs settings page.

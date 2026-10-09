@@ -342,6 +342,91 @@ public struct HistoryRevisionRange: Equatable, Sendable {
     public var separator: String { kind == .difference ? ".." : "..." }
     public var expression: String { from + separator + to }
 }
+/// CFilterData's six stored scales, preserving source order and fixed-day units.
+public enum HistoryLimitScale: Int, CaseIterable, Sendable {
+    case noLimit, selectedDate, commits, years, months, weeks
+    public var requiresNumber: Bool { rawValue >= Self.commits.rawValue }
+    public var title: String {
+        switch self {
+        case .noLimit: return "No limitation"
+        case .selectedDate: return "Last selected date"
+        case .commits: return "Last N commit(s)"
+        case .years: return "Last N year(s)"
+        case .months: return "Last N month(s)"
+        case .weeks: return "Last N week(s)"
+        }
+    }
+    public func title(number: UInt32) -> String { requiresNumber ? title.replacingOccurrences(of: "N", with: String(Int32(bitPattern: number))) : title }
+}
+public struct HistoryLimitDefaults: Equatable, Sendable {
+    public var scale: HistoryLimitScale = .noLimit
+    public var number: UInt32 = 1
+    public init(scale: HistoryLimitScale = .noLimit, number: UInt32 = 1) { self.scale = scale; self.number = number }
+    public static func load(defaults: UserDefaults = .standard) -> Self {
+        Self(scale: HistoryLimitScale(rawValue: defaults.integer(forKey: "LogDialog.NumberOfLogsScale")) ?? .noLimit,
+             number: (defaults.object(forKey: "LogDialog.NumberOfLogs") as? NSNumber)?.uint32Value ?? 1)
+    }
+    /// SetDialogs::OnApply saves the scale, and only a positive _wtol number.
+    public static func apply(scale: HistoryLimitScale, numberText: String, defaults: UserDefaults = .standard) {
+        defaults.set(scale.rawValue, forKey: "LogDialog.NumberOfLogsScale")
+        let number = signedNumber(numberText)
+        if scale.requiresNumber && number > 0 { defaults.set(number, forKey: "LogDialog.NumberOfLogs") }
+    }
+    public static func signedNumber(_ text: String) -> Int32 {
+        let units = Array(text.utf8.drop(while: { [9,10,11,12,13,32].contains($0) }))
+        var i = 0, negative = false, magnitude: Int64 = 0
+        if units.first == 45 || units.first == 43 { negative = units.first == 45; i = 1 }
+        let limit = Int64(Int32.max) + (negative ? 1 : 0)
+        while i < units.count, (48...57).contains(units[i]) { magnitude = min(limit, magnitude * 10 + Int64(units[i] - 48)); i += 1 }
+        return Int32(negative ? -magnitude : magnitude)
+    }
+    public static func fromDateKey(root: URL) -> String { "History.LogDlg_Limits." + root.standardizedFileURL.path + ".FromDate" }
+    private static func dateFormatter(calendar: Calendar) -> DateFormatter {
+        let formatter = DateFormatter(); var gregorian = Calendar(identifier: .gregorian); gregorian.timeZone = calendar.timeZone
+        formatter.calendar = gregorian; formatter.timeZone = calendar.timeZone
+        formatter.locale = Locale(identifier: "en_US_POSIX"); formatter.dateFormat = "yyyy-MM-dd"; formatter.isLenient = false; return formatter
+    }
+    public static func savedFrom(root: URL, defaults: UserDefaults = .standard, calendar: Calendar = .current) -> Date? {
+        guard let text = defaults.string(forKey: fromDateKey(root: root)), text.count == 10 else { return nil }
+        let formatter = dateFormatter(calendar: calendar)
+        guard let date = formatter.date(from: text), formatter.string(from: date) == text else { return nil }; return date
+    }
+    public static func saveFrom(_ date: Date, root: URL, defaults: UserDefaults = .standard, calendar: Calendar = .current) {
+        defaults.set(dateFormatter(calendar: calendar).string(from: date), forKey: fromDateKey(root: root))
+    }
+}
+public struct HistoryLimitScope: Equatable, Sendable {
+    public var scale: HistoryLimitScale
+    public var number: UInt32
+    public var from: Date?
+    public var until: Date?
+    public init(defaults: HistoryLimitDefaults = HistoryLimitDefaults(), from: Date? = nil, until: Date? = nil) {
+        scale = defaults.scale; number = defaults.number; self.from = from; self.until = until
+    }
+    public func since(now: Date = Date(), calendar: Calendar = .current) -> Date? {
+        let timestamp: Int64
+        switch scale {
+        case .noLimit, .commits: return nil
+        case .selectedDate: return from.flatMap { $0.timeIntervalSince1970 > 0 ? $0 : nil }
+        case .years, .months, .weeks:
+            let days: Int64 = scale == .years ? 365 : scale == .months ? 30 : 7
+            // The source casts local midnight to DWORD before signed 64-bit subtraction.
+            let midnight = Int64(calendar.startOfDay(for: now).timeIntervalSince1970)
+            timestamp = Int64(UInt32(truncatingIfNeeded: midnight)) - Int64(number) * days * 86400
+        }
+        return timestamp > 0 ? Date(timeIntervalSince1970: TimeInterval(timestamp)) : nil
+    }
+    public func apply(to options: inout HistoryOptions, now: Date = Date(), calendar: Calendar = .current) {
+        options.limit = scale == .commits ? Int(number) : -1
+        options.since = since(now: now, calendar: calendar); options.until = until
+    }
+    public static func startOfDay(_ date: Date, calendar: Calendar = .current) -> Date { max(Date(timeIntervalSince1970: 0), calendar.startOfDay(for: date)) }
+    public static func endOfDay(_ date: Date, calendar: Calendar = .current) -> Date {
+        guard date.timeIntervalSince1970 >= 0 else { return Date(timeIntervalSince1970: 0) }
+        return calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: date))!.addingTimeInterval(-1)
+    }
+}
+
 public struct HistoryOptions: Sendable {
     public var walk = HistoryWalkOptions()
     public var allBranches = false
@@ -351,6 +436,7 @@ public struct HistoryOptions: Sendable {
     public var retainFilteredRows = false
     public var endRevision: String?
     public var revisionRange: HistoryRevisionRange?
+    /// Positive limits count rows; zero returns none; negative walks the full scope.
     public var limit = 200
     public var search = ""
     public var searchFields: HistorySearchFields = .messages
@@ -781,7 +867,7 @@ extension GitRepository {
         if options.walk.noMerges { args.append("--no-merges") }
         if options.walk.followRenames { args.append("--follow") }
         if options.walk.fullHistory { args.append("--full-history") }
-        if options.retainFilteredRows || !filterInMemory { args.append("-\(options.limit)") }
+        if options.limit > 0 && (options.retainFilteredRows || !filterInMemory) { args.append("-\(options.limit)") }
         if let range = options.revisionRange {
             let from = try historyRun(["rev-parse", "--verify", "--end-of-options", range.from + "^{commit}"]).text.trimmingCharacters(in: .newlines)
             let to = try historyRun(["rev-parse", "--verify", "--end-of-options", range.to + "^{commit}"]).text.trimmingCharacters(in: .newlines)

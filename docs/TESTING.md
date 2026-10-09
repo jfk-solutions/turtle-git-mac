@@ -128,3 +128,27 @@ checks from remaining physical, live-operation and signed acceptance.
 [Dialog sizes and positions](DIALOG-GEOMETRY.md) maps native frame persistence
 and Saved Data reset to the source, with Core/headless verification and physical,
 mode-specific and signed gaps. Evidence: [checkpoint](qa/dialog-geometry-2026-10-08.json).
+
+
+## Log history limit checks
+
+After the Debug build, use the compiled-source scope oracle and the hidden
+native scope/defaults receiver:
+
+```sh
+swift test --filter 'HistoryLimitTests|CommitHistoryTests|WorkingTreeHistoryTests'
+python3 scripts/test-history-limit-oracle.py
+python3 scripts/test-log-history-limits.py --git /usr/bin/git \
+  --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git
+```
+
+The bundled executable must exist from a prior Store build. Keep that build
+terminal before rebuilding Debug for the receiver; do not rebuild Store until
+all Debug receivers are terminal. The oracle extracts the pinned GetLogCmd
+filter body and supplies local-midnight epochs through a portable CTime adapter.
+It verifies scope arithmetic and arguments, not Windows time APIs. The native
+receiver uses a private 205-commit repository and preference domain, an owned
+hidden Settings window, actual native Apply/Cancel buttons and real history
+reads. It checks exact repository bytes after reading and closes its window.
+Physical menu/sheet gestures and signed sandbox execution require separate
+acceptance.

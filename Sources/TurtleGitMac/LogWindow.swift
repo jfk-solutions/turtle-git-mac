@@ -784,7 +784,33 @@ struct LogCommandRequest: Identifiable {
     @Published var filterPaths = "" { didSet { refreshPatchPreview() } }
     @Published var from = Date(timeIntervalSince1970: 0)
     @Published var to = Date()
-    @Published var useDates = false
+    @Published private(set) var historyLimit = HistoryLimitScope()
+    @Published var configureHistoryDefaults = false
+    private var initializedHistoryLimit = false
+    var useDates: Bool {
+        get { historyLimit.scale == .selectedDate || historyLimit.until != nil }
+        set {
+            if newValue { historyLimit.scale = .selectedDate; historyLimit.from = HistoryLimitScope.startOfDay(from); historyLimit.until = HistoryLimitScope.endOfDay(to) }
+            else { historyLimit.from = nil; historyLimit.until = nil; if historyLimit.scale != .commits { historyLimit.scale = .noLimit } }
+        }
+    }
+    var historyLimitTitle: String { historyLimit.scale.requiresNumber ? historyLimit.scale.title(number: historyLimit.number) : "From:" }
+    var defaultHistoryLimitScale: HistoryLimitScale { HistoryLimitDefaults.load(defaults: labelDefaults).scale }
+    func chooseHistoryLimit(_ scale: HistoryLimitScale) {
+        guard !busy, !isInvalidated else { return }; initializedHistoryLimit = true; historyLimit.scale = scale
+        if scale == .noLimit { labelDefaults.removeObject(forKey: HistoryLimitDefaults.fromDateKey(root: repository.root)) }
+        reload()
+    }
+    func changeHistoryFrom(_ date: Date) {
+        guard !busy, !isInvalidated else { return }; initializedHistoryLimit = true
+        from = min(date, to); historyLimit.from = HistoryLimitScope.startOfDay(from); historyLimit.scale = .selectedDate
+        if defaultHistoryLimitScale == .selectedDate { HistoryLimitDefaults.saveFrom(historyLimit.from!, root: repository.root, defaults: labelDefaults) }
+        reload()
+    }
+    func changeHistoryTo(_ date: Date) {
+        guard !busy, !isInvalidated else { return }; initializedHistoryLimit = true
+        to = max(date, from); historyLimit.until = HistoryLimitScope.endOfDay(to); reload()
+    }
     @Published var busy = false {
         didSet { if !busy { scheduleRepositoryRefresh() } }
     }
@@ -889,7 +915,6 @@ struct LogCommandRequest: Identifiable {
     private var clipboardGeneration = 0
     @Published var copyingDetails = false
     var clipboard = NSPasteboard.general
-    private var limit = 200
     var onCreateReference: (Bool, String) -> Void = { _, _ in }
     var onPush: (String) -> Void = { _ in }
     var onCheckout: (String) -> Void = { _ in }
@@ -935,6 +960,8 @@ struct LogCommandRequest: Identifiable {
             (revision.parents.isEmpty ? "" : "Parents: \(revision.parents.joined(separator: " "))\n") + "\n" + revision.message + (revision.notes.isEmpty ? "" : "\n----\nNotes:\n" + revision.notes) + (revision.tagInfo.isEmpty ? "" : "\n----\nTag Info:\n" + HistoryDateSettings.load().tagInfo(revision.tagInfo))
     }
     init(repository: GitRepository, access: RepositoryAccessLease?, selecting: Bool = false, selectingMultiple: Bool = false, labelDefaults: UserDefaults = .standard, gravatar: LogGravatar? = nil, historyRegexExecutable: URL? = nil) {
+        let limits = HistoryLimitDefaults.load(defaults: labelDefaults)
+        self.historyLimit = HistoryLimitScope(defaults: limits, from: limits.scale == .selectedDate ? HistoryLimitDefaults.savedFrom(root: repository.root, defaults: labelDefaults) : nil)
         self.includeWorkingTreeChanges = labelDefaults.object(forKey: "LogIncludeWorkingTreeChanges") == nil || labelDefaults.bool(forKey: "LogIncludeWorkingTreeChanges")
         self.includeBoundaryCommits = labelDefaults.bool(forKey: "LogIncludeBoundaryCommits")
         self.historyRegexExecutable = historyRegexExecutable
@@ -1038,7 +1065,7 @@ struct LogCommandRequest: Identifiable {
         if loadingHistory { historyCancellation?.cancel(); historyCancellation = nil; busy = false }
         generation += 1; detailGeneration += 1
     }
-    func reload(more: Bool = false) {
+    func reload() {
         guard !busy || loadingHistory else { return }
         cancelPatchPreview()
         cancelRepositoryRefresh()
@@ -1049,17 +1076,20 @@ struct LogCommandRequest: Identifiable {
         detailCancellation?.cancel(); detailCancellation = nil; detailGeneration += 1
         historyCancellation?.cancel()
         let cancellation = OperationCancellation(); historyCancellation = cancellation
-        if more { limit += 200 } else { limit = 200 }
+        if !initializedHistoryLimit {
+            initializedHistoryLimit = true
+            if (endRevision != nil || revisionRange != nil) && historyLimit.scale != .commits { historyLimit.scale = .noLimit }
+        }
         cancelClipboardRead()
         generation += 1; let request = generation
-        var options = HistoryOptions(); options.endRevision = endRevision; options.revisionRange = revisionRange; options.allBranches = allBranches; options.search = search; options.searchFields = searchFields; options.searchCaseSensitive = searchCaseSensitive; options.searchRegex = searchRegex; options.limit = limit
+        var options = HistoryOptions(); options.endRevision = endRevision; options.revisionRange = revisionRange; options.allBranches = allBranches; options.search = search; options.searchFields = searchFields; options.searchCaseSensitive = searchCaseSensitive; options.searchRegex = searchRegex
         options.walk = historyWalk; options.regexExecutable = historyRegexExecutable
         options.includeBoundaryCommits = includeBoundaryCommits
         options.retainFilteredRows = true
         let referenceVisibility = referenceVisibility, rollupStates = rollupStates
         let scope = historyPaths
         if !showWholeProject { options.paths = historyPaths }
-        if useDates { options.since = Calendar.current.startOfDay(for: from); options.until = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: to)) }
+        historyLimit.apply(to: &options)
         busy = true
         Task {
             do {
@@ -1080,6 +1110,11 @@ struct LogCommandRequest: Identifiable {
                 let submodules = working == nil ? Set<String>() : try await repository.submodulePaths()
                 if let working { result.insert(working.entry, at: 0) }
                 guard request == generation else { return }
+                let formatter = ISO8601DateFormatter()
+                let dates = result.compactMap { formatter.date(from: $0.committerDate.isEmpty ? $0.date : $0.committerDate) }
+                let selectedFrom = historyLimit.scale.rawValue >= HistoryLimitScale.selectedDate.rawValue ? historyLimit.from.flatMap { $0.timeIntervalSince1970 > 0 ? $0 : nil } : nil
+                if let first = selectedFrom ?? dates.min() { from = first }
+                if let last = historyLimit.until ?? dates.max() { to = last }
                 self.bare = bare; self.mergeActive = mergeActive; self.bisectActive = bisectActive; self.bisectGoodTerm = bisect?.goodTerm ?? "good"; self.bisectBadTerm = bisect?.badTerm ?? "bad"; self.currentBranch = currentBranch; self.issueProperties = issueProperties
                 self.conflictRebase = conflictRebase
                 hasStash = metadata.hasStash; hasSubmodules = metadata.hasSubmoduleConfig
@@ -1859,9 +1894,17 @@ struct LogDialog: View {
         VStack(spacing: 8) {
             HStack(spacing: 12) {
                 Text(model.repository.root.lastPathComponent).foregroundStyle(.blue).lineLimit(1)
-                Toggle("Dates", isOn: $model.useDates).toggleStyle(.checkbox)
-                DatePicker("From:", selection: $model.from, displayedComponents: .date).disabled(!model.useDates)
-                DatePicker("To:", selection: $model.to, displayedComponents: .date).disabled(!model.useDates)
+                Menu(model.historyLimitTitle) {
+                    Button("No limitation") { model.chooseHistoryLimit(.noLimit) }
+                    if model.defaultHistoryLimitScale.requiresNumber && model.historyLimit.number > 0 {
+                        Divider()
+                        Button(model.defaultHistoryLimitScale.title(number: model.historyLimit.number)) { model.chooseHistoryLimit(model.defaultHistoryLimitScale) }
+                    }
+                    Divider()
+                    Button("Configure default") { model.configureHistoryDefaults = true }
+                }.disabled(model.busy)
+                DatePicker("From:", selection: Binding(get: { model.from }, set: { model.changeHistoryFrom($0) }), displayedComponents: .date).labelsHidden().disabled(model.busy)
+                DatePicker("To:", selection: Binding(get: { model.to }, set: { model.changeHistoryTo($0) }), displayedComponents: .date).disabled(model.busy)
                 Menu {
                     ForEach([("Subject", HistorySearchFields.subject), ("Messages", .messages), ("Paths", .paths), ("Authors", .authors), ("Emails", .emails), ("Revisions", .revisions), ("Refname", .referenceNames), ("Tag Info", .tagInfo), ("Notes", .notes)], id: \.0) { title, field in
                         Toggle(title, isOn: Binding(get: { model.searchFields.contains(field) }, set: { enabled in
@@ -1967,7 +2010,6 @@ struct LogDialog: View {
             HStack {
                 Button("Refresh") { model.reload() }.disabled(model.busy)
                 Button("Statistics") { model.showStatistics() }.disabled(model.busy || model.entries.isEmpty || model.isInvalidated)
-                Button("Show next 200") { model.reload(more: true) }.disabled(model.busy)
                 if model.busy { ProgressView().controlSize(.small) }
                 if model.patchPreviewLoading { ProgressView("Reading patch…").controlSize(.small) }
                 if let error = model.patchPreviewError { Text(error).foregroundStyle(.red).font(.caption) }
@@ -1986,6 +2028,7 @@ struct LogDialog: View {
         .alert("Log navigation", isPresented: Binding(get: { model.navigationNotice != nil }, set: { if !$0 { model.navigationNotice = nil } })) {
             Button("OK") { model.navigationNotice = nil }
         } message: { Text(model.navigationNotice ?? "") }
+        .sheet(isPresented: $model.configureHistoryDefaults) { HistoryLimitSettings(defaults: model.colorPreferences, onClose: { model.configureHistoryDefaults = false }).frame(width: 440).padding(20) }
         .sheet(item: $model.noteRequest) { _ in LogNotesDialog(model: model) }
         .sheet(item: $model.commandRequest) { request in LogRevisionDialog(model: model, request: request) }
 
@@ -2105,6 +2148,7 @@ struct LogDialogSettings: View {
     var body: some View {
         Form {
             MessageEditorFontSettings()
+            HistoryLimitSettings()
             Picker("Autoclose Git progress dialog:", selection: Binding(get: { GitProgressAutoClose(rawValue: autoCloseGitProgress) ?? .manual }, set: { autoCloseGitProgress = $0.rawValue })) {
                 ForEach(GitProgressAutoClose.allCases, id: \.self) { policy in Text(policy.title).tag(policy) }
             }.help("Successful operations close according to this policy. Failed operations stay open.")
@@ -2125,6 +2169,49 @@ struct LogDialogSettings: View {
                 }.padding(8)
             }
         }.padding(20)
+    }
+}
+
+@MainActor final class HistoryLimitSettingsModel: ObservableObject {
+    @Published var scale: HistoryLimitScale
+    @Published var numberText: String
+    private var original: HistoryLimitDefaults
+    private var originalText: String
+    private let defaults: UserDefaults
+    init(defaults: UserDefaults = .standard) {
+        let saved = HistoryLimitDefaults.load(defaults: defaults)
+        let text = saved.scale.requiresNumber ? String(Int32(bitPattern: saved.number)) : ""
+        self.defaults = defaults; original = saved
+        scale = saved.scale; numberText = text; originalText = text
+    }
+    var modified: Bool { scale != original.scale || numberText != originalText }
+    func choose(_ value: HistoryLimitScale) {
+        scale = value
+        if !value.requiresNumber { numberText = "" }
+        else if numberText.isEmpty || HistoryLimitDefaults.signedNumber(numberText) == 0 { numberText = String(Int32(bitPattern: original.number)) }
+    }
+    func apply() { objectWillChange.send(); HistoryLimitDefaults.apply(scale: scale, numberText: numberText, defaults: defaults); original = .load(defaults: defaults); originalText = numberText }
+    func cancel() { original = .load(defaults: defaults); scale = original.scale; numberText = scale.requiresNumber ? String(Int32(bitPattern: original.number)) : ""; originalText = numberText }
+}
+struct HistoryLimitSettings: View {
+    @StateObject private var model: HistoryLimitSettingsModel
+    private let onClose: (() -> Void)?
+    init(defaults: UserDefaults = .standard, onClose: (() -> Void)? = nil) { _model = StateObject(wrappedValue: HistoryLimitSettingsModel(defaults: defaults)); self.onClose = onClose }
+    init(model: HistoryLimitSettingsModel) { _model = StateObject(wrappedValue: model); onClose = nil }
+    var body: some View {
+        GroupBox("Default number of log messages") {
+            VStack(alignment: .leading, spacing: 8) {
+                Picker("Default limitation", selection: Binding(get: { model.scale }, set: { model.choose($0) })) {
+                    ForEach(HistoryLimitScale.allCases, id: \.self) { Text($0.title).tag($0) }
+                }
+                TextField("Number of", text: $model.numberText).disabled(!model.scale.requiresNumber)
+                    .help("The number for Last N options. Should be greater than zero.")
+                HStack {
+                    StatusColorButton("Apply", action: { model.apply() }).frame(width: 70, height: 24).disabled(!model.modified)
+                    StatusColorButton("Cancel", action: { model.cancel(); onClose?() }).frame(width: 70, height: 24)
+                }
+            }.padding(8)
+        }
     }
 }
 

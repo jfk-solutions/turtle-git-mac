@@ -1,0 +1,71 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "6686786",
+  "scope": "Source Log No limitation/count/date/relative defaults and native From/To scope controls; full port goal remains active",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/Git/Git.h": "493a1e5511c8a4e874caa887d1361a6af9088fe6",
+    "src/Git/Git.cpp": "43dee91dbf94e46564b4cc1a139717fcbd8f6803",
+    "src/TortoiseProc/GitLogListBase.cpp": "19518f37689e19b7e913c9ff8cc9d65ec223c187",
+    "src/TortoiseProc/LogDlg.cpp": "d456ae8d668767195f464ad8d850a15c034127f5",
+    "src/TortoiseProc/Settings/SetDialogs.cpp": "14912ad2447b6a5e2828d0f0f1bfa035fcaf0298"
+  },
+  "sources_manifest_sha256": "9757171794b78bceabbdbb27c8a4c363e8431431c820f9437c43aa316ed6fc7f",
+  "changed_files_sha256": {
+    "NOTICE": "8738f95ada4c5fcd9173b079ac8465ec7f045b4b38884fa01c9a9d431cae0b6b",
+    "Sources/TurtleGitCore/CommitHistory.swift": "bd4fb6b5a7a4a1356d501f75333ba6f59a7f19e0d70ff4987d08b4759f6415a0",
+    "Sources/TurtleGitMac/LogWindow.swift": "181f9bef5b993c90a2cda2bb2dae71aeaee4a8221328bde08f7ef416b00e309f",
+    "Tests/TurtleGitCoreTests/HistoryLimitTests.swift": "a5444a3cb6729b8eadf3263647f68727334dd6385b37aba91038ecb53bebfcd3",
+    "docs/APPEARANCE.md": "d8603d26c461290d748978fc2296d12545fe5f8c3dbcdcdc277e91932099b877",
+    "docs/LOG-PARITY.md": "9fee06e16af52c042d2a8a18be2ade6ad7347b29459cff8947bdd535cd009797",
+    "docs/TESTING.md": "f2c5b96267593264818e23d02a2f9a11f49b93d1d78e8c94fd2fc0e068605648",
+    "docs/qa/log-history-limits-native-2026-10-09.swift": "fe16f18fba417b9d7dc164a683d4e2b9901a0d55547f7254c47902caae36358b",
+    "docs/qa/log-history-limits-oracle-2026-10-09.swift": "d5dcbe9c4dc26384cae910d9d23ad6d43d6e7cd7e5224a905375a5d3dcb15815",
+    "docs/upstream-files.csv": "e370b088c205b7c7db44764d95ddb19944c42a2489e3a7211128ceef40ba24f1",
+    "scripts/test-history-limit-oracle.py": "fcb09a63dc3202a6a87077fd4e23aa89a7dff80f217190fe8de86642f0cfc3a9",
+    "scripts/test-log-history-limits.py": "32edbbee7c7fb26705312928042baae5191d0a7d3e6422d92afc576eee91c3d0"
+  },
+  "git_engines": {
+    "apple": "git version 2.50.1 (Apple Git-155)",
+    "bundled": "git version 2.55.0"
+  },
+  "verification": {
+    "core": "57 focused tests pass: 4 new HistoryLimitTests, 48 CommitHistoryTests and 5 WorkingTreeHistoryTests. Covers source scale order/defaults/positive signed-number storage, strict per-repository saved From dates, fixed relative units at midnight, Berlin spring DST day end, unlimited/count/date real Git reads and exact HEAD/index/config/tracked file preservation.",
+    "oracle": "2160 logical scopes match the pinned GetLogCmd filter body compiled as C++. CRLF normalized only; portable CTime adapter supplies midnight epochs, CString is std::string, single-field std::format adapter supplies decimal formatting. Tests six scales, zero/positive/max DWORD counts, absent/zero/positive From/To and negative/zero/current/DWORD-wrap midnight. Swift receiver converts HistoryLimitScope options to canonical source flags for comparison; production uses existing Git count/since/until aliases. Does not compile/test Windows time APIs or CRT numeric parsing. Fixture SHA256 f15905da1cf3a270d8eaabc407c38be480725101a51297c5f51b86198c1c232f.",
+    "native": "Final hidden receiver passes Apple and bundled Git. Actual Log model loads private 205-commit history with No limitation default; saved count of 3, explicit endRevision preserving count/overriding relative scope, live numeric choice, saved selected date, From/To clamps and inclusive day end, No limitation retaining To/removing saved From, busy/invalidated guards. Actual hidden Settings NSPopUpButton has source six labels/order; native numeric NSTextField enablement updates, actual Apply/Cancel performClick verifies persistence/reset/invalid zero number. All observed repository HEAD/index/config/branch ref/file bytes unchanged. This does not claim physical menu/sheet gestures or all revisionRange forms.",
+    "debug": "Final unsigned Debug build and configured app bundle audit pass. Current NOTICE equals packaged NOTICE.",
+    "store": "Final unsigned AppStore build and required universal Git/Git LFS bundle audit pass; packaged NOTICE matches current source. Store began only after Core/Debug/native/oracle handles were terminal. No signed sandbox or App Store acceptance claimed.",
+    "inventory": "Five partial mappings updated in seven-field LF inventory; pinned inventory checker passes; upstream checkout is clean at recorded pin; diff check passes.",
+    "site": "Documentation generator succeeds locally after documentation updates. No new screenshots or deployment claimed."
+  },
+  "iterations": [
+    "Previous turn fixed Swift initialization-before-self-access failure in settings draft initializer by constructing saved defaults/text in locals; final focused test log passes.",
+    "First native Apple Git run passed, then second engine failed because invocation pointed at nonexistent Contents/Resources/Git/bin/git. Corrected invocation to actual Contents/Helpers/Git/bin/git and added path preflight in helper. Final both-engine run passes without production source changes.",
+    "First oracle extraction failed because pinned source uses CRLF. Normalized line endings before extracting unchanged filter body; final 2160-case comparison passes."
+  ],
+  "limitations": [
+    "Streaming and large-history performance, complete surrounding Settings property-sheet Apply/Cancel lifecycle and full Log/source parity remain incomplete.",
+    "Windows CTime conversion/CRT numeric parsing (including non-ASCII input), non-Gregorian calendar equivalence, physical date/menu/sheet keyboard/VoiceOver/Retina behavior and signed sandbox execution remain unverified.",
+    "Full app/dialog/menu/Finder parity, signed distribution/App Store acceptance, completed documentation/new screenshots, GitHub push and hosted CI remain incomplete."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "private_preferences_removed": 3,
+    "preference_cleanup_sha256": "1de0df57ea08d2b339728ca0f9b559d604e8337f1627ebf1c797258718f4424b",
+    "windows": "Owned hidden Settings window closes; receivers invalidate models and remove their domains. Initial failed receiver terminated; no app/native/oracle receiver processes or private fixture directories remain."
+  },
+  "local_log_sha256": {
+    "build/qa/log-history-limits-2026-10-09/cleanup.json": "1de0df57ea08d2b339728ca0f9b559d604e8337f1627ebf1c797258718f4424b",
+    "build/qa/log-history-limits-2026-10-09/core.log": "f6d42e0f06e07de4922ccb1d80a9ee12a96981d621e546cc987ec8a8788e81af",
+    "build/qa/log-history-limits-2026-10-09/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/log-history-limits-2026-10-09/debug.log": "323e81860f030bbdfcd2111f1dd95ce5693b68720b3fbc20add2ea489daa63ef",
+    "build/qa/log-history-limits-2026-10-09/native-final.log": "319a392b315f73212f48b3ee644a92727c5029faeb623520617fd9ec20ce4c2e",
+    "build/qa/log-history-limits-2026-10-09/native.log": "fdf8a1a5dd83c38a6ae539aa61e86737ba45404dddff3ece0fa9c3ec348a7adb",
+    "build/qa/log-history-limits-2026-10-09/oracle-final.log": "7763fbe159c8c5f68947765da07d3bdf6909dcd3cde3e4bee5628b992a65274d",
+    "build/qa/log-history-limits-2026-10-09/oracle.log": "edc4ad075143111f2b54e446d7859dfa1c58469617a2e7743db98dd094cf6163",
+    "build/qa/log-history-limits-2026-10-09/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/log-history-limits-2026-10-09/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-history-limits-2026-10-09/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/log-history-limits-2026-10-09/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca"
+  }
+}
