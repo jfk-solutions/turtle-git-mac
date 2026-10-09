@@ -124,7 +124,7 @@ import Darwin
             if mode == 2 { model.amend = true; model.amendDiffToLastCommit = false }
             let hooks = repo.root.appendingPathComponent("hooks"); try FileManager.default.createDirectory(at: hooks, withIntermediateDirectories: true)
             let hook = hooks.appendingPathComponent("pre-commit"), marker = hooks.appendingPathComponent("pids")
-            let script = "#!/bin/sh\nsleep 30 &\nchild=$!\nprintf '%s %s' \"$$\" \"$child\" > '" + marker.path.replacingOccurrences(of:"'",with:"'\\''") + "'\nwait\n"
+            let script = "#!/bin/sh\nprintf 'Receiving objects: 42%% (42/100)\\nlive hook 雪\\n' >&2\nsleep 30 &\nchild=$!\nprintf '%s %s' \"$$\" \"$child\" > '" + marker.path.replacingOccurrences(of:"'",with:"'\\''") + "'\nwait\n"
             try Data(script.utf8).write(to: hook); try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:hook.path)
             _ = try await repo.run(["config","core.hooksPath",hooks.path]); preferences.set(true,forKey:"ConfirmKillProcess")
             let decoy = Process(); decoy.executableURL = URL(fileURLWithPath:"/bin/sleep"); decoy.arguments = ["30"]; try decoy.run()
@@ -136,10 +136,13 @@ import Darwin
             model.commit(); try await wait { FileManager.default.fileExists(atPath:marker.path) }
             let pids = try String(contentsOf:marker).split(separator:" ").compactMap { Int32($0) }; try require(pids.count == 2)
             let progress = model.commitProgress!
+            try await wait { progress.output.contains("live hook 雪") }
+            try require(progress.busy && progress.percentage == 42 && progress.currentWork == "Receiving objects", "Hook output/percentage was not visible before cancellation")
             progress.cancel(); try require(progress.busy && !progress.cancelling && progress.canCancel && confirmations == 1)
             progress.cancel(); progress.cancel(); try require(progress.cancelling && !progress.canCancel && confirmations == 2)
             try await wait { !model.busy }
             let afterHead = try await repo.run(["rev-parse","HEAD"]).stdout
+            try require(progress.output.components(separatedBy: "live hook 雪").count == 2, "Commit stream duplicated hook output")
             try require(progress.currentWork == "User cancelled" && progress.completionRange != nil, "Commit cancellation missing terminal presentation")
             try require(head == afterHead && successes == 0 && closes == 0 && model.commitProgress == nil && model.message == "progress message" && progress.cancelled && decoy.isRunning)
             let end = Date().addingTimeInterval(3)
@@ -150,6 +153,27 @@ import Darwin
             _ = try await repo.run(["config","core.hooksPath","/dev/null"]); model.commit(); try await wait { model.commitProgress?.busy == false }
             try require(model.commitProgress!.success); model.commitProgress!.choose(nil); try await wait { !model.busy }
         }
+        let forcedRepo = try await fixture("forced-stream-close"), forcedOwner = try await owner(forcedRepo)
+        let forcedHooks = forcedRepo.root.appendingPathComponent("hooks"); try FileManager.default.createDirectory(at: forcedHooks, withIntermediateDirectories: true)
+        let forcedHook = forcedHooks.appendingPathComponent("pre-commit")
+        let forcedMarker = forcedHooks.appendingPathComponent("pids")
+        let forcedScript = "#!/bin/sh\nprintf 'forced live hook\\n' >&2\nsleep 30 &\nchild=$!\nprintf '%s %s' \"$$\" \"$child\" > '" + forcedMarker.path.replacingOccurrences(of:"'",with:"'\\''") + "'\nwait\n"
+        try Data(forcedScript.utf8).write(to: forcedHook)
+        try FileManager.default.setAttributes([.posixPermissions:0o755], ofItemAtPath:forcedHook.path); _ = try await forcedRepo.run(["config","core.hooksPath",forcedHooks.path])
+        var forcedController: CommitProgressWindowController?, forcedSuccesses = 0
+        forcedOwner.onCommitted = { _ in forcedSuccesses += 1 }
+        forcedOwner.onCommitProgress = { forcedController = CommitProgressWindowController(model:$0) }
+        defer { forcedController?.close() }
+        let forcedHead = try await forcedRepo.run(["rev-parse","HEAD"]).stdout
+        forcedOwner.commit(); try await wait { forcedOwner.commitProgress?.output.contains("forced live hook") == true }
+        try await wait { FileManager.default.fileExists(atPath: forcedMarker.path) }
+        let forcedPids = try String(contentsOf: forcedMarker).split(separator: " ").compactMap { Int32($0) }
+        try require(forcedPids.count == 2, "Forced-hook ownership marker")
+        let abandoned = forcedOwner.commitProgress!
+        forcedController?.close(); try await wait { !forcedOwner.busy }
+        try await wait { forcedPids.allSatisfy { kill($0, 0) != 0 } }
+        let forcedAfter = try await forcedRepo.run(["rev-parse","HEAD"]).stdout
+        try require(abandoned.isAbandoned && abandoned.cancellation.isCancelled && !abandoned.busy && abandoned.output.isEmpty && abandoned.completionRange == nil && abandoned.postActions.isEmpty && forcedSuccesses == 0 && forcedHead == forcedAfter, "Forced Commit progress close leaked result/operation")
         preferences.set(false, forKey: "ShowGitexeTimings"); preferences.set(16, forKey: "GitOutputLimitinKiB")
         let displayOptions = CommitOptions()
         let display = CommitProgressWindowModel(repository: staged, action: .commit, staging: false, paths: [], options: displayOptions, preferences: preferences, cancellable: true)

@@ -35,7 +35,7 @@ extension GitRepository {
     /// TortoiseGit's default checkbox mode commits the current whole-file contents
     /// of checked paths. HEAD-based commits use --only; parent-based amendments
     /// use a separate index so unrelated staged changes remain intact.
-    public func commitSelected(message: String, paths: Set<String>, options: CommitOptions = CommitOptions(), cancellation: OperationCancellation? = nil) throws -> String {
+    public func commitSelected(message: String, paths: Set<String>, options: CommitOptions = CommitOptions(), cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
         try cancellation?.check()
         func failure(_ message: String) -> GitFailure { GitFailure(arguments: ["commit"], code: 1, message: message) }
         guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw failure("Enter a commit message.") }
@@ -56,20 +56,20 @@ extension GitRepository {
             // A normal commit against a selected temporary index preserves the
             // operation's parents/author/state. --only is forbidden by Git for
             // merges and cherry-picks. The real index retains unchecked entries.
-            return try commitSeparateSelection(message: message, checked: checked, options: options, base: "HEAD", fileModes: selectedStagedFileModes(checked), cancellation: cancellation)
+            return try commitSeparateSelection(message: message, checked: checked, options: options, base: "HEAD", fileModes: selectedStagedFileModes(checked), cancellation: cancellation, onOutput: onOutput)
         }
         if options.amend { _ = try run(["rev-parse", "--verify", "HEAD"]) }
-        if parentMode { return try commitParentSelection(message: message, checked: checked, options: options, cancellation: cancellation) }
+        if parentMode { return try commitParentSelection(message: message, checked: checked, options: options, cancellation: cancellation, onOutput: onOutput) }
         let modes = try selectedStagedFileModes(checked)
         if !modes.isEmpty {
             let base = try (try? run(["rev-parse", "--verify", "HEAD^{commit}"]).text.trimmingCharacters(in: .newlines))
                 ?? (try run(["mktree"]).text.trimmingCharacters(in: .newlines))
-            return try commitSeparateSelection(message: message, checked: checked, options: options, base: base, fileModes: modes, cancellation: cancellation)
+            return try commitSeparateSelection(message: message, checked: checked, options: options, base: base, fileModes: modes, cancellation: cancellation, onOutput: onOutput)
         }
         if checked.contains(where: { $0.index == "D" && $0.hasUnversionedCopy }) {
             // --only would read the retained working copy and silently re-add it.
             // Build the selected tree separately while leaving that copy on disk.
-            return try commitSeparateSelection(message: message, checked: checked, options: options, base: "HEAD", cancellation: cancellation)
+            return try commitSeparateSelection(message: message, checked: checked, options: options, base: "HEAD", cancellation: cancellation, onOutput: onOutput)
         }
         let tracked = Set(try trackedPaths())
         var stagePaths = checked.filter { $0.state != .deleted || tracked.contains($0.path) }.map(\.path)
@@ -90,7 +90,7 @@ extension GitRepository {
         else if let date = options.authorDate { args.append("--date=" + ISO8601DateFormatter().string(from: date)) }
         if options.signOff { args.append("--signoff") }
         if let author = options.author, !author.isEmpty { args.append("--author=" + author) }
-        if commitPaths.isEmpty { return try run(args, cancellation: cancellation).text }
+        if commitPaths.isEmpty { return try run(args, cancellation: cancellation, onOutput: onOutput).text }
         let file = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGit-commit-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: file) }
         let data = Data(Set(commitPaths).sorted().flatMap { Array($0.utf8) + [0] })
@@ -98,7 +98,7 @@ extension GitRepository {
             throw failure("Could not prepare the checked file list.")
         }
         args += ["--pathspec-from-file=" + file.path, "--pathspec-file-nul"]
-        return try run(args, cancellation: cancellation).text
+        return try run(args, cancellation: cancellation, onOutput: onOutput).text
     }
 
     /// Preserve staged modes that differ from disk. Ordinary matching entries
@@ -142,7 +142,7 @@ extension GitRepository {
     }
 
     /// Staging mode commits the index exactly as it is, including partial files.
-    public func commitIndex(message: String, options: CommitOptions = CommitOptions(), cancellation: OperationCancellation? = nil) throws -> String {
+    public func commitIndex(message: String, options: CommitOptions = CommitOptions(), cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
         try cancellation?.check()
         guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw GitFailure(arguments: ["commit"], code: 1, message: "Enter a commit message.")
@@ -159,7 +159,7 @@ extension GitRepository {
         else if let date = options.authorDate { args.append("--date=" + ISO8601DateFormatter().string(from: date)) }
         if options.signOff { args.append("--signoff") }
         if let author = options.author, !author.isEmpty { args.append("--author=" + author) }
-        return try run(args, cancellation: cancellation).text
+        return try run(args, cancellation: cancellation, onOutput: onOutput).text
     }
     func prepareCommitBranch(_ name: String?, cancellation: OperationCancellation? = nil) throws {
         try cancellation?.check()

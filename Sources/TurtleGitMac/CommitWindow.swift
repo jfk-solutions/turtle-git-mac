@@ -1055,13 +1055,24 @@ import UniformTypeIdentifiers
                 let output: String
                 commitAttempted = true
                 if let replaySplit { output = try await repository.commitRebaseSplit(message: text, paths: paths, staging: staging, options: options, expected: replaySplit) }
-                else if staging { output = try await repository.commitIndex(message: text, options: options, cancellation: result.cancellation) }
-                else { output = try await repository.commitSelected(message: text, paths: paths, options: options, cancellation: result.cancellation) }
+                else {
+                    let parser = GitCliOutputParser(limit: result.outputLimit)
+                    let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
+                    let operation = Task {
+                        defer { continuation.finish() }
+                        let onOutput: @Sendable (GitOutputChunk) -> Void = { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }
+                        if staging { return try await repository.commitIndex(message: text, options: options, cancellation: result.cancellation, onOutput: onOutput) }
+                        return try await repository.commitSelected(message: text, paths: paths, options: options, cancellation: result.cancellation, onOutput: onOutput)
+                    }
+                    for await _ in updates { result.consume(parser.processPending(), parser: parser) }
+                    result.consume(parser.processPending(), parser: parser); result.consume(parser.finish(), parser: parser)
+                    output = try await operation.value
+                }
                 messageHistory?.add(written.draft)
                 if options.amend && !nonAmendMessage.isEmpty && nonAmendMessage != messageTemplate { messageHistory?.add(nonAmendMessage) }
-                onCommitted(output)
+                if !result.isAbandoned { onCommitted(output) }
                 result.complete(output: output, success: true, cancelled: false, postActions: replaySplit == nil ? [.push, .pull, .recommit, .createTag] : [])
-                if action != .commit || replaySplit != nil || !presented { result.choose(nil) }
+                if action != .commit || replaySplit != nil || !presented || result.isAbandoned { result.choose(nil) }
                 selectedPostAction = await result.waitForChoice()
                 rememberCompletionAction(action)
                 commitProgress = nil
@@ -1718,6 +1729,10 @@ enum CommitPostAction: String, CaseIterable, Hashable {
     @Published private(set) var confirmingCancellation = false
     @Published private(set) var output = ""
     @Published private(set) var currentWork = ""
+    @Published private(set) var percentage: Int?
+    private(set) var isAbandoned = false
+    var outputLimit: Int { outputState.limit }
+    var actionLogEligible: Bool { !busy && !isAbandoned }
     @Published private(set) var completionRange: NSRange?
     private let startedAt = ProcessInfo.processInfo.systemUptime
     @Published private(set) var postActions: [CommitPostAction] = []
@@ -1728,20 +1743,32 @@ enum CommitPostAction: String, CaseIterable, Hashable {
     var dismissWithoutWindow = false
     var onClose: () -> Void = {}
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
-    var canCancel: Bool { busy && cancellable && !cancelling && !confirmingCancellation }
+    var canCancel: Bool { !isAbandoned && busy && cancellable && !cancelling && !confirmingCancellation }
     init(repository: GitRepository, action: CommitWindowModel.CompletionAction, staging: Bool, paths: Set<String>, options: CommitOptions, preferences: UserDefaults, cancellable: Bool) {
         self.repository = repository; self.action = action; self.staging = staging; self.paths = paths; self.options = options; self.preferences = preferences; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences); self.cancellable = cancellable; outputState = GitProgressOutputState(preferences: preferences)
     }
     func complete(output: String, success: Bool, cancelled: Bool, postActions: [CommitPostAction], exitCode: Int32? = nil) {
         guard busy else { return }
-        let parser = GitCliOutputParser(limit: outputState.limit)
-        parser.appendChunk(Data(output.utf8)); outputState.consume(parser.processPending(), parser: parser); outputState.consume(parser.finish(), parser: parser)
-        self.output = outputState.output; self.success = success; self.cancelled = cancelled
+        if !outputState.hasOutput && !isAbandoned {
+            let parser = GitCliOutputParser(limit: outputState.limit)
+            parser.appendChunk(Data(output.utf8)); outputState.consume(parser.processPending(), parser: parser); outputState.consume(parser.finish(), parser: parser)
+        }
+        self.output = isAbandoned ? "" : outputState.output; self.success = success; self.cancelled = cancelled
         let completion = SubmoduleProgressCompletion(success: success, cancelled: cancelled, exitCode: exitCode,
             elapsed: ProcessInfo.processInfo.systemUptime - startedAt, preferences: preferences)
-        currentWork = completion.currentWork; completionRange = completion.append(to: &self.output)
-        self.postActions = postActions; busy = false; cancelling = false
+        if !isAbandoned { currentWork = completion.currentWork; percentage = 100; completionRange = completion.append(to: &self.output) }
+        self.postActions = isAbandoned ? [] : postActions; busy = false; cancelling = false
+        if isAbandoned { choose(nil); return }
         if autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { choose(nil) }
+    }
+    func consume(_ emission: GitCliOutputParser.Emission, parser: GitCliOutputParser) {
+        guard busy, !isAbandoned else { return }
+        outputState.consume(emission, parser: parser); output = outputState.output
+        currentWork = outputState.currentWork; percentage = outputState.percentage
+    }
+    func invalidate() {
+        guard !isAbandoned else { return }; isAbandoned = true; confirmingCancellation = false
+        cancellation.cancel(); onClose = {}
     }
     func waitForChoice() async -> CommitPostAction? {
         if resolved { return selected }
@@ -1793,7 +1820,7 @@ enum CommitPostAction: String, CaseIterable, Hashable {
         guard sender.attachedSheet == nil, !model.confirmingCancellation else { return false }
         model.choose(nil); return false
     }
-    func windowWillClose(_ notification: Notification) { model.saveActionLog(); onClosed() }
+    func windowWillClose(_ notification: Notification) { if model.busy { model.invalidate() }; model.saveActionLog(); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 private struct CommitProgressDialog: View {
@@ -1802,7 +1829,7 @@ private struct CommitProgressDialog: View {
         VStack(alignment: .leading, spacing: 12) {
             Text(model.repository.root.path).font(.caption).textSelection(.enabled)
             Text(model.currentWork.isEmpty ? " " : model.currentWork).font(.caption).lineLimit(1).help(model.currentWork)
-            ProgressView(value: model.busy ? 0 : 100, total: 100)
+            ProgressView(value: Double(model.busy ? model.percentage ?? 0 : 100), total: 100)
                 .tint(model.busy ? .accentColor : model.success ? .blue : .red).accessibilityLabel("Git command progress")
             SubmoduleProgressOutputView(text: model.output, completed: !model.busy, completionRange: model.completionRange, success: model.success)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -1493,7 +1493,7 @@ mode restoration. Existing callers retain their nil-token behavior.
 Rebase split Commit suppresses post-actions and closes successful progress, but
 its cancellation is temporarily disabled until sequencer metadata can be audited
 after an interrupted commit. Ordinary progress does not show the message-file
-command, as upstream disables command display. Streaming output remains pending.
+command, as upstream disables command display. Ordinary checked-file and staged commits now stream their final Git commit command output; split replay and preparatory metadata/staging output remain separate.
 A Git error is presented in progress; the owner does not repeat that error after
 Close. Saved-copy restoration and changelist cleanup still run after result
 acknowledgement, and their separate failures retain their existing owner warning.
@@ -1754,7 +1754,7 @@ The current-work label reports Success, User cancelled, Git exit status or nativ
 Operation failed. Completion appends monotonic execution milliseconds and local
 date/time unless ShowGitexeTimings is disabled. Locale selection uses the shared
 UseSystemLocaleForDates behavior. The progress bar shows completion and its result
-color; it does not report live percentage before completion yet.
+color; ordinary commit output now updates live percentage/current-work when Git or a hook emits a source-recognized progress line.
 
 Close is the default button and remains disabled while running or answering a
 question. Abort/Escape cancels a running cancellable operation, closes a failed
@@ -1768,5 +1768,33 @@ real-repository checks plus bounded completed text, links, private copy-all,
 completed Escape and duplicate resolution. The receiver now throws on invariant
 failure and cancels/awaits owned Commit operations before exit. This does not
 prove displayed window/sheet/button/menu/theme/VoiceOver parity. Current screenshots
-predate these changes; live output, complete progress behavior and signed/App Store
+predate these changes; complete progress behavior and signed/App Store
 acceptance remain unfinished.
+
+
+## Live Commit command output
+
+Optional output callbacks now reach commitSelected/commitIndex and their
+parent/separate-index final commit invocations without changing existing callers.
+Native Commit consumes a bounded AsyncStream of notifications around the shared
+CR/UTF-8 parser, updates output/current work/percentage while Git is running, and
+flushes the final parser state before completing. A streamed result is not fed
+back into the display again; repository callbacks still receive the original
+Git result. Preparatory metadata, branch creation and staging output are not
+streamed through this callback. Rebase split Commit retains its existing
+completion-only output and cancellation restriction.
+
+Forced progress-controller closure cancels its owned token, rejects late visible
+output/completion/post-actions and success callbacks, and resolves the owner's
+result wait after backend cleanup. Already completed Git/index/branch effects
+are retained. Abandoned progress does not save a premature action-log entry.
+Late-history/restoration/changelist races and broader signed/displayed acceptance
+remain partial.
+
+[Live output verification](qa/commit-progress-stream-2026-10-09.json) records
+focused Core regressions and the hidden native receiver. Hooks emit Unicode text
+and a 42-percent progress line before pausing; ordinary/index/parent-amend paths
+must show both while still busy before No/Yes cancellation. Hook output appears
+once. A separate running-hook controller is forcibly closed and must cancel,
+release its owner without success callbacks, retain HEAD and expose no late
+footer/post-actions. These checks do not complete full Commit or app parity.

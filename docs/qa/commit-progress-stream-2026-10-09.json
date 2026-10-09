@@ -1,0 +1,45 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "f6ec334f5222d1369e03473e902e4e4e4db44e2a",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Stream final ordinary/index/parent/separate-index Commit command output through bounded native progress, with forced-close cancellation/result fencing and owner release.",
+  "verification": {
+    "source": "Pinned CommitDlg/ProgressDlg command output and owned progress remain the reference. Optional Core onOutput defaults preserve existing callers and are forwarded to final commit run invocations; preparatory metadata/branch/staging and split replay are not streamed.",
+    "core": "CommitSelectionTests, CommitAmendTests and CommitFileModeTests: 21 cases, zero failures, 14.700 seconds with default system Git fixture resolution. No new full-suite or bundled Core suite run claimed.",
+    "native": "Final hidden Commit progress receiver passes with system and bundled Git. Ordinary/index/parent-amend hooks emit Unicode live output and a 42-percent line before pausing; model must remain busy and show text/current work/percentage before No/Yes cancellation. Hook output occurs once. Existing HEAD/unchecked bytes, post-actions/callbacks, metadata/new-branch/retry, cancellation/reaped hook+child and unrelated-decoy gates remain passing. Forced normal progress-controller closure cancels token, rejects late output/footer/post-actions/success callback, leaves HEAD unchanged, releases owner and explicitly verifies both marked hook/helper PIDs dead. Previous bounded completed output/timing/links/private copy/menu/Escape/duplicate resolution checks remain passing.",
+    "builds": "Unsigned Debug and AppStore builds pass.",
+    "bundles": "Both package audits pass including Finder/licenses/all 100 original icons; AppStore universal Git/LFS, EditorConfig, IssueRegex and private one-use askpass checks pass.",
+    "inventory_site": "Pinned inventory regression and local documentation-site build pass. Existing CI native Commit progress step compiles the expanded receiver; hosted CI/deployment unverified.",
+    "cleanup": "All compiler/Core/native/audit handles terminal. Receiver cancels and awaits owned operations on error/success. Final source-workspace process/prefix/current fixture audit is empty; private geometry/preferences/pasteboard remain isolated. Forced progress does not write a premature action-log entry; full action-log race acceptance remains partial.",
+    "corrections": "Initial native pass verified streaming and forced-close owner/result behavior. Final receiver adds explicit forced-hook/helper PID reaping and passes both engines. No production source changed between those native runs."
+  },
+  "limitations": [
+    "Entire application/dialog/menu/helper/documentation parity remains incomplete; all inventory rows stay partial.",
+    "Only final commit command output is streamed. Preparatory branch/staging/metadata and rebase split output remain outside this stream; split cancellation retains its existing restriction.",
+    "Physical progress/sheet/current-work/bar/menu/links/default/Escape/theme/VoiceOver and current screenshots remain unverified. Hidden model/controller checks do not establish displayed parity.",
+    "Forced closure cannot undo already completed Git/index/branch effects. Actual commit completion racing closure, message-history/restoration/changelist/action-log and split sequencer interactions still need broader audit.",
+    "Native display is bounded; original backend/callback result is retained. Invalid encodings/very large output/performance and all Core callback consumers are not fully audited.",
+    "Signed Finder/App Group/security-scope/helper inheritance, signing/editors/credentials/network, App Store OpenSSH packaging/authentication/runtime/distribution/submission and legal clearance remain pending. Strict Rebase rendered-text gate remains UNVERIFIED.",
+    "No main app launch, displayed window, general clipboard write, actual URL open, user-key/login-agent query, push, hosted CI/deployment or submission."
+  ],
+  "sha256": {
+    "Sources/TurtleGitCore/CommitAmend.swift": "e51e1f5374ae2aa84a644d890b2f1a8a460fd497f857d50d0d700f460467a3a0",
+    "Sources/TurtleGitCore/CommitSelection.swift": "2706b8918c12aa245f5cdf1a4061945432597a01d5465b9354403e4d42489178",
+    "Sources/TurtleGitMac/CommitWindow.swift": "1de43e1de54d23b09d93bb88012c2a1288b4557767820fbed9fb45dc528cd785",
+    "docs/COMMIT-PARITY.md": "cd12478e06d61fa9c325be070f676cacafe6b8321323d50235ebb4769b33c210",
+    "docs/qa/commit-progress-native-2026-10-08.swift": "fb05df60ff5f73239f00b6a8e0df3577f57ee8ba46b9119c63f16422ccefe0b1",
+    "docs/upstream-files.csv": "ae6cef0c96abfe1be639cf6d458ac0545dad1eb4162bd6402dfbb70955ae58d2",
+    "Sources/TurtleGitMac/SubmoduleProgressOutputView.swift": "c4f8cb4bef6bd74dcefb3edda94e2fdaea8464bea9ec73bef50b0ac1c193df12",
+    "Sources/TurtleGitMac/SubmoduleProgressCompletion.swift": "ca482ff6aa93ea3383fc75c29f70ea10af527ddf2a8e901aa2daba7b371f5a95",
+    "Sources/TurtleGitMac/GitProgressOutputState.swift": "2f48aa6d612aba5381d9bd6eac6eb4febf9c7867c638667eef1a1f4ff9312cff",
+    "scripts/test-commit-progress.py": "c553da0c241b807bc8c57af983e739e9c76b0ba8d1ff0f9be2ebb9ed69e208f6"
+  },
+  "logs": "build/qa/commit-progress-stream-2026-10-09",
+  "cleanup": {
+    "all_handles_terminal": true,
+    "matching_processes": [],
+    "current_fixtures": [],
+    "main_app_launches": 0,
+    "removed_current_verified_empty_preference_domains": 4
+  }
+}

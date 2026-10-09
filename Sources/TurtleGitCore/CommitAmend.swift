@@ -49,10 +49,10 @@ extension GitRepository {
         _ = try run(["restore", "--source=" + base, "--staged", "--"] + paths)
     }
 
-    func commitParentSelection(message: String, checked: [StatusEntry], options: CommitOptions, cancellation: OperationCancellation? = nil) throws -> String {
+    func commitParentSelection(message: String, checked: [StatusEntry], options: CommitOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
         try cancellation?.check()
         let base = try commitComparisonBase(amendToParent: true)
-        return try commitSeparateSelection(message: message, checked: checked, options: options, base: base, fileModes: selectedStagedFileModes(checked), cancellation: cancellation)
+        return try commitSeparateSelection(message: message, checked: checked, options: options, base: base, fileModes: selectedStagedFileModes(checked), cancellation: cancellation, onOutput: onOutput)
     }
     private func populateCommitSelectionIndex(checked: [StatusEntry], base: String, fileModes: [String: String], environment: [String: String], cancellation: OperationCancellation? = nil) throws -> [String] {
         try cancellation?.check()
@@ -85,7 +85,7 @@ extension GitRepository {
         let tree = try run(["write-tree"], environmentOverrides: environment).text
         return tree == (try run(["rev-parse", base + "^{tree}"]).text)
     }
-    func commitSeparateSelection(message: String, checked: [StatusEntry], options: CommitOptions, base: String, fileModes: [String: String] = [:], preservedAuthorDate: String? = nil, cancellation: OperationCancellation? = nil) throws -> String {
+    func commitSeparateSelection(message: String, checked: [StatusEntry], options: CommitOptions, base: String, fileModes: [String: String] = [:], preservedAuthorDate: String? = nil, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
         try cancellation?.check()
         let messageFile = try makeCommitMessageFile(message); defer { messageFile.remove() }
         let directory = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGit-amend-" + UUID().uuidString)
@@ -104,6 +104,6 @@ extension GitRepository {
         if let author = options.author, !author.isEmpty { args.append("--author=" + author) }
         if options.resetAuthorDate { args.append("--date=now") }
         else if let date = options.authorDate { args.append("--date=" + ISO8601DateFormatter().string(from: date)) }
-        return try run(args, environmentOverrides: environment, cancellation: cancellation).text
+        return try run(args, environmentOverrides: environment, cancellation: cancellation, onOutput: onOutput).text
     }
 }
