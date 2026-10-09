@@ -135,6 +135,32 @@ final class SSHTransportPreparationTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: f.log.path))
         let after = await events.snapshot(); XCTAssertEqual(after.0, [["origin"]]); XCTAssertTrue(after.1.allSatisfy { !FileManager.default.fileExists(atPath: $0.path) })
     }
+    func testLogRemoteDeletionPreparesOnlyServerChoiceAndRechecksSuspendedSnapshot() async throws {
+        let f = try await fixture(); defer { try? FileManager.default.removeItem(at: f.root) }
+        _ = try await f.source.run(["branch", "topic"])
+        let plain = GitRepository(root: f.repo.root, executable: f.realGit)
+        _ = try await plain.run(["fetch", "origin"])
+        let snapshot = try await f.repo.prepareHistoryReferenceDeletion("refs/remotes/origin/topic")
+        let events = TransportEvents()
+        let prepare: SSHTransportPreparation = { names, token in let session = try f.agent(token); await events.record(names, session.directory); return session }
+        _ = try await f.repo.deleteHistoryReference(snapshot, choice: .remoteLocal, prepareTransport: prepare)
+        let before = await events.snapshot(); XCTAssertTrue(before.0.isEmpty)
+        _ = try await plain.run(["fetch", "origin"])
+        _ = try await f.repo.deleteHistoryReference(snapshot, choice: .remoteAndLocal, prepareTransport: prepare)
+        let after = await events.snapshot(); XCTAssertEqual(after.0, [["origin"]]); XCTAssertTrue(after.1.allSatisfy { !FileManager.default.fileExists(atPath: $0.path) })
+        XCTAssertEqual(try String(contentsOf: f.log), "push\n")
+        _ = try await f.source.run(["branch", "topic"]); _ = try await f.source.run(["commit", "--allow-empty", "-m", "next"])
+        _ = try await plain.run(["fetch", "origin"])
+        let changed = try await f.repo.prepareHistoryReferenceDeletion("refs/remotes/origin/topic")
+        let newOID = try await f.source.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        do { _ = try await f.repo.deleteHistoryReference(changed, choice: .remoteAndLocal, prepareTransport: { names, token in
+            let session = try f.agent(token); await events.record(names, session.directory)
+            _ = try await plain.run(["update-ref", "refs/remotes/origin/topic", newOID], cancellation: token); return session
+        }); XCTFail("Changed snapshot deleted remote") } catch HistoryReferenceDeletionFailure.changed {}
+        XCTAssertEqual(try String(contentsOf: f.log), "push\n")
+        let refs = try await f.source.checkoutReferences(); XCTAssertTrue(refs.contains { $0.name == "refs/heads/topic" })
+        let final = await events.snapshot(); XCTAssertTrue(final.1.allSatisfy { !FileManager.default.fileExists(atPath: $0.path) })
+    }
     func testFetchAllPreparesEveryRemoteOnceBeforeTransport() async throws {
         let f = try await fixture(); defer { try? FileManager.default.removeItem(at: f.root) }
         _ = try await f.repo.run(["remote","add","second",f.source.root.path])

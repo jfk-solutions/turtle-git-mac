@@ -135,6 +135,10 @@ private enum LogSubmoduleHistoryFailure: LocalizedError {
                 }
             }
         }
+        model.sshSettings.present = { [weak window] prompt in
+            guard let window, window.attachedSheet == nil, let child = prompt.window else { return false }
+            window.makeFirstResponder(nil); window.beginSheet(child); return true
+        }
         model.acknowledgeReferenceDeletionFailure = { [weak window] message in
             guard let window, window.attachedSheet == nil else { return }
             await withCheckedContinuation { continuation in
@@ -313,7 +317,9 @@ private enum LogSubmoduleHistoryFailure: LocalizedError {
     func windowWillClose(_ notification: Notification) {
         let completion = selectionCompletion; selectionCompletion = nil
         let multiple = multipleSelectionCompletion; multipleSelectionCompletion = nil
-        model.unifiedWindow?.close(); model.invalidate(); completion?(nil); multiple?(nil); onClosed()
+        model.unifiedWindow?.close(); model.invalidate()
+        if let window, let child = window.attachedSheet { window.endSheet(child, returnCode: .abort); child.close() }
+        completion?(nil); multiple?(nil); onClosed()
     }
     private func setPatchPreviewVisible(_ visible: Bool) {
         if !visible {
@@ -415,6 +421,8 @@ struct LogCommandRequest: Identifiable {
 
 @MainActor final class LogWindowModel: ObservableObject {
     let repository: GitRepository
+    let sshSettings: SSHTransportSettings
+    private var deletionCancellation: OperationCancellation?
     let selecting: Bool
     let selectingMultiple: Bool
     // Keep the security-scoped grant alive if the main repository window changes.
@@ -1009,6 +1017,7 @@ struct LogCommandRequest: Identifiable {
         self.historyRegexExecutable = historyRegexExecutable
         self.showBranchRevisionNumber = labelDefaults.bool(forKey: "ShowBranchRevisionNumber")
         self.gravatar = gravatar ?? LogGravatar(defaults: labelDefaults)
+        sshSettings = SSHTransportSettings(repository: repository); sshSettings.enabled = sshSettings.available
         self.repository = repository; self.access = access; self.selecting = selecting; self.selectingMultiple = selectingMultiple; self.labelDefaults = labelDefaults; showWorkingTree = includeWorkingTreeChanges && !selecting
         showGravatar = labelDefaults.object(forKey: gravatarDefaultsKey) == nil ? labelDefaults.bool(forKey: "EnableGravatar") : labelDefaults.bool(forKey: gravatarDefaultsKey)
         showUnversionedFiles = labelDefaults.object(forKey: "AddBeforeCommit") == nil || labelDefaults.bool(forKey: "AddBeforeCommit")
@@ -1097,6 +1106,7 @@ struct LogCommandRequest: Identifiable {
     func invalidate() {
         statisticsWindow?.model.cancel(); statisticsWindow?.close(); statisticsWindow = nil
         isInvalidated = true; gravatar.clear()
+        if let deletionCancellation { deletionCancellation.cancel(); self.deletionCancellation = nil; busy = false }
         cancelPatchPreview(); onPatchPreviewVisibility?(false)
         cancelRepositoryRefresh()
         cancelNoteRead()
@@ -1298,21 +1308,23 @@ struct LogCommandRequest: Identifiable {
     func deleteReferences(_ targets: [LogReferenceMenuTarget]) {
         guard !isInvalidated, !busy, !targets.isEmpty, let chosen = revision,
               targets.allSatisfy({ deletionCandidates(target: $0).count == 1 }) else { return }
-        let request = generation; busy = true; error = nil
+        let request = generation, cancellation = OperationCancellation(), factory = sshSettings.capture()
+        deletionCancellation = cancellation; busy = true; error = nil
         Task {
+            let coordinator = factory?(); defer { coordinator?.close() }
             var refresh = false
-            defer { busy = false; if refresh && !isInvalidated { reload() } }
+            defer { if deletionCancellation === cancellation { deletionCancellation = nil; busy = false; if refresh && !isInvalidated { reload() } } }
             for target in targets {
-                guard !isInvalidated, generation == request, revision?.hash == chosen.hash else { break }
+                guard !isInvalidated, !cancellation.isCancelled, generation == request, revision?.hash == chosen.hash else { break }
                 var choice = HistoryReferenceDeleteChoice.abort
                 do {
                     if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                    let snapshot = try await repository.prepareHistoryReferenceDeletion(target.name)
+                    let snapshot = try await repository.prepareHistoryReferenceDeletion(target.name, cancellation: cancellation)
                     choice = await confirmReferenceDeletion(snapshot)
-                    guard choice != .abort, !isInvalidated, generation == request, revision?.hash == chosen.hash else { break }
-                    _ = try await repository.deleteHistoryReference(snapshot, choice: choice); refresh = true
+                    guard choice != .abort, !isInvalidated, !cancellation.isCancelled, generation == request, revision?.hash == chosen.hash else { break }
+                    _ = try await repository.deleteHistoryReference(snapshot, choice: choice, cancellation: cancellation, prepareTransport: coordinator?.preparation); refresh = true
                 } catch {
-                    if isInvalidated { break }
+                    if isInvalidated || cancellation.isCancelled { break }
                     self.error = error.localizedDescription
                     await acknowledgeReferenceDeletionFailure(error.localizedDescription)
                     // Upstream remote-push/stash paths return true after reporting

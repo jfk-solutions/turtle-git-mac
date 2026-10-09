@@ -12,7 +12,7 @@ private final class NativeIdentityBookmarks: RepositoryBookmarkProvider {
 @main struct SSHCoordinatorReceiver {
     struct Failure: Error { let message: String }
     @MainActor static func require(_ value: @autoclosure () throws -> Bool, _ message: String) throws { if try !value() { throw Failure(message: message) } }
-    @MainActor static func wait(_ value: () -> Bool) async throws { for _ in 0..<1000 { if value() { return }; try await Task.sleep(nanoseconds: 10_000_000) }; throw Failure(message: "Timed out") }
+    @MainActor static func wait(_ stage: String = "Timed out", _ value: () -> Bool) async throws { for _ in 0..<1000 { if value() { return }; try await Task.sleep(nanoseconds: 10_000_000) }; throw Failure(message: stage) }
     @MainActor static func main() async {
         NSApplication.shared.setActivationPolicy(.prohibited)
         do { try await run() } catch { fputs("FAIL \(error)\n", stderr); exit(1) }
@@ -142,6 +142,32 @@ private final class NativeIdentityBookmarks: RepositoryBookmarkProvider {
         try require(pendingTags.model.closed && pendingTags.model.tags.isEmpty && pendingTags.model.error == nil && tagPrompt?.finished == true, "Closed remote tags accepted a late key response")
         let refCalls = try String(contentsOf: URL(fileURLWithPath: wrapper.path+".calls"))
         try require(refCalls == calls + "ls-remote\npush\nls-remote\npush\n", "Remote ref transport ordering or closed prompt transport")
+        _ = try await remote.run(["update-ref", "refs/heads/log-topic", head]); _ = try await repo.run(["fetch", "origin"])
+        let log = LogWindowModel(repository: transportRepo, access: nil, labelDefaults: preferences)
+        log.entries = try await repo.history(); log.graph = CommitGraph.layout(log.entries); log.selected = [head]
+        log.sshSettings.makeCoordinator = factory; log.sshSettings.enabled = true; log.confirmReferenceDeletion = { _ in .remoteAndLocal }
+        log.deleteReferences([LogReferenceMenuTarget(hash: head, name: "refs/remotes/origin/log-topic")]); try await wait("Log deletion/reload") { !log.busy }
+        try require(log.error == nil && modelPrompts == 9, "Log remote delete missed native key loading")
+        let logRefs = try await remote.checkoutReferences(); try require(!logRefs.contains { $0.name == "refs/heads/log-topic" }, "Log did not delete remote branch"); log.invalidate()
+        _ = try await remote.run(["update-ref", "refs/heads/log-retain", head]); _ = try await repo.run(["fetch", "origin"])
+        DialogGeometry.install(preferences: preferences)
+        let pendingLog = LogWindowController(repository: transportRepo, access: nil, labelDefaults: preferences, savesColumnLayout: false)
+        defer { pendingLog.close() }
+        try await wait("Log initial history load") { !pendingLog.model.busy }
+        pendingLog.model.entries = try await repo.history(); pendingLog.model.graph = CommitGraph.layout(pendingLog.model.entries); pendingLog.model.selected = [head]
+        var logPrompt: SSHKeyPassphraseWindowController?, logCoordinator: SSHTransportCoordinator?, logFailures = 0
+        pendingLog.model.confirmReferenceDeletion = { _ in .remoteAndLocal }; pendingLog.model.acknowledgeReferenceDeletionFailure = { _ in logFailures += 1 }
+        pendingLog.model.sshSettings.makeCoordinator = {
+            let value = SSHTransportCoordinator(repository: transportRepo, identities: identities, temporaryRoot: root, runtime: { tools })
+            value.present = { logPrompt = $0; return true }; logCoordinator = value; coordinators.append(value); return value
+        }
+        pendingLog.model.sshSettings.enabled = true
+        try require(pendingLog.model.deletionCandidates(target: LogReferenceMenuTarget(hash: head, name: "refs/remotes/origin/log-retain")).count == 1, "Missing Log remote deletion target")
+        pendingLog.model.deleteReferences([LogReferenceMenuTarget(hash: head, name: "refs/remotes/origin/log-retain")]); try await wait("Log pending prompt") { logPrompt != nil }
+        pendingLog.close(); try await wait("Log coordinator cleanup") { logCoordinator?.closed == true }; logPrompt?.submit()
+        let retainedLogRefs = try await remote.checkoutReferences()
+        try require(logFailures == 0 && pendingLog.model.error == nil && logPrompt?.finished == true && retainedLogRefs.contains { $0.name == "refs/heads/log-retain" }, "Closed Log accepted late transport/result")
+        let logCalls = try String(contentsOf: URL(fileURLWithPath: wrapper.path+".calls")); try require(logCalls == refCalls + "push\n", "Log close launched extra transport")
         // Close the shipping controller while its actual Push task awaits a prompt.
         DialogGeometry.install(preferences: preferences)
         let controller = PushWindowController(repository: transportRepo, access: nil, preferences: preferences)
@@ -166,9 +192,9 @@ private final class NativeIdentityBookmarks: RepositoryBookmarkProvider {
         try await wait { pendingCoordinator?.closed == true && !controller.model.transportRunning }
         pendingControllerPrompt?.submit()
         try require(closedCallbacks == 1 && resultCallbacks == 0 && controller.model.error == nil && pendingControllerPrompt?.finished == true, "Controller close allowed a late result or live prompt")
-        try require(try String(contentsOf: URL(fileURLWithPath: wrapper.path+".calls")) == refCalls, "Closed prompt launched transport")
+        try require(try String(contentsOf: URL(fileURLWithPath: wrapper.path+".calls")) == logCalls, "Closed prompt launched transport")
         try require(coordinators.allSatisfy { $0.closed } && provider.starts == provider.stops,"Finished transport coordinator or file lease remains")
         try require(!NSApplication.shared.windows.contains { $0.isVisible },"Receiver displayed UI")
-        print("PASS native encrypted-key prompt/retry/dedup, Cancel/token/forced-close fences, private agent cleanup; shipping Push/Fetch/Pull/browse auto-load snapshots and local Git effects; CRLF headers, remote tag/browser deletion transports and Push/tag controller close fences")
+        print("PASS native encrypted-key prompt/retry/dedup, Cancel/token/forced-close fences, private agent cleanup; shipping Push/Fetch/Pull/browse auto-load snapshots and local Git effects; CRLF headers, remote tag/browser deletion transports and Log remote deletion and Push/tag/Log controller close fences")
     }
 }

@@ -1,4 +1,5 @@
 import XCTest
+import Darwin
 @testable import TurtleGitCore
 
 final class HistoryReferenceDeletionTests: XCTestCase {
@@ -69,4 +70,51 @@ final class HistoryReferenceDeletionTests: XCTestCase {
         let serverAfter = try await repo.run(["--git-dir=" + server.path, "show-ref", "--verify", "--quiet", "refs/heads/topic"], successfulExitCodes: 0...1); XCTAssertEqual(serverAfter.exitCode, 1)
         let localAfter = try await repo.run(["show-ref", "--verify", "--quiet", "refs/remotes/origin/topic"], successfulExitCodes: 0...1); XCTAssertEqual(localAfter.exitCode, 1)
     }
+    func testLiveMetadataAndRemoteDeleteCancellationReapsOwnedHelpers() async throws {
+        let (root, direct) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let server = root.appendingPathComponent("server.git")
+        _ = try await direct.run(["init", "--bare", server.path]); _ = try await direct.run(["remote", "add", "origin", server.path]); _ = try await direct.run(["push", "origin", "HEAD:refs/heads/topic"])
+        let snapshot = try await direct.prepareHistoryReferenceDeletion("refs/remotes/origin/topic")
+        try Data("stash fixture\n".utf8).write(to: root.appendingPathComponent("file")); _ = try await direct.run(["stash", "push", "-m", "owned cancellation"] )
+        let stash = try await direct.referenceLog("refs/stash")
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        func quote(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'" }
+        for stage in ["rev-parse", "push", "stash"] {
+            let helper = root.appendingPathComponent("slow-"+stage), marker = URL(fileURLWithPath: helper.path+".started")
+            let script = """
+            #!/bin/sh
+            matched=false
+            for argument in "$@"; do [ "$argument" = '\(stage)' ] && matched=true; done
+            if [ "$matched" = true ]; then
+              /bin/sleep 30 &
+              child=$!
+              trap 'kill "$child" 2>/dev/null; wait "$child" 2>/dev/null; exit 143' TERM INT
+              printf '%s %s\\n' "$$" "$child" > "$0.started"
+              wait "$child"
+            fi
+            exec \(quote(direct.executable.path)) "$@"
+            """
+            try Data(script.utf8).write(to: helper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
+            let repo = GitRepository(root: root, executable: helper), token = OperationCancellation()
+            let work = Task {
+                do {
+                    if stage == "rev-parse" { _ = try await repo.prepareHistoryReferenceDeletion(snapshot.name, cancellation: token) }
+                    else if stage == "push" { _ = try await repo.deleteHistoryReference(snapshot, choice: .remoteAndLocal, cancellation: token) }
+                    else { _ = try await repo.deleteStashEntries([stash[0].selector], expected: stash, cancellation: token) }
+                    XCTFail("Canceled helper completed")
+                } catch OperationCancellationFailure.cancelled {}
+                  catch is GitCommandCancellationFailure { XCTAssertTrue(token.isCancelled) }
+            }
+            let deadline = Date().addingTimeInterval(10)
+            while !FileManager.default.fileExists(atPath: marker.path) && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+            guard FileManager.default.fileExists(atPath: marker.path) else { token.cancel(); _ = try? await work.value; XCTFail("No live helper"); return }
+            let pids = try String(contentsOf: marker).split(whereSeparator: { $0.isWhitespace }).compactMap { Int32($0) }
+            token.cancel(); try await work.value
+            XCTAssertEqual(pids.count, 2); XCTAssertTrue(pids.allSatisfy { kill($0, 0) != 0 })
+        }
+        let retainedStash = try await direct.referenceLog("refs/stash"); XCTAssertEqual(retainedStash, stash)
+        XCTAssertEqual(index, try Data(contentsOf: root.appendingPathComponent(".git/index")))
+        let refs = try await GitRepository(root: server, executable: direct.executable).checkoutReferences(); XCTAssertTrue(refs.contains { $0.name == "refs/heads/topic" })
+    }
+
 }

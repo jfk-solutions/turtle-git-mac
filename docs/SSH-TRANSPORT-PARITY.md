@@ -105,15 +105,36 @@ one preparation immediately before each remote's batch Push. Local branch/tag
 deletions perform no preparation. One operation-owned coordinator can retain
 loaded identities across groups; any preparation/Push failure stops later groups,
 retaining earlier server effects. The single-reference Core convenience route
-forwards the same optional hook. Log's separate history-reference deletion route
-is still pending and is not covered by this change.
+forwards the same optional hook. Log's separate history-reference deletion route is described below.
 
 Native owners present encrypted-key responses using their existing window or
 progress window. Forced closure cancels their existing token, rejects late prompt
 answers and closes the agent. Physical nested-sheet and signed acceptance remain
 unverified. Preparation remains optional for Core callers.
 
-Remaining: other SSH consumers (Clone, submodules, Log reference deletion and Sync), bundled
+## Log reference deletion
+
+Log retains the source DeleteRef remote/local-tracking choices. Only the remote
+server choice prepares its configured remote before Push. An operation-owned
+coordinator can retain loaded identities across the source All-label sequence;
+local branch/tag/generic-ref and stash choices do not load keys. Runtime
+availability determines automatic loading; no additional checkbox is introduced.
+
+One owned token now covers reference validation, current/merged reads, snapshot
+reads, destructive commands and the shared stash/reflog batch helpers. Closing
+Log cancels that token, dismisses attached sheets and prevents late errors,
+acknowledgements or reloads. Shared batch deletion stops on cancellation rather
+than treating it as an ordinary command failure and continuing to another entry.
+Earlier successful deletions remain retained.
+
+After suspended SSH preparation the backend checks the local tracking reference
+snapshot again before Push. A changed snapshot aborts that transport; this is a
+native guard, not a claim that the remote server ref cannot change concurrently.
+The existing source All-label behavior remains: reported remote/stash errors can
+continue, ordinary/local-tracking errors stop, and Cancel stops the sequence.
+Signed access, physical sheet interactions and all races remain unverified.
+
+Remaining: other SSH consumers (Clone, submodules and Sync), bundled
 OpenSSH, Keychain, host-key/password prompts, physical UI/sheet acceptance,
 signed App Store/Finder and real network authentication. Concurrent config/ref changes across suspended preparation
 and complete source failure equivalence remain unverified.

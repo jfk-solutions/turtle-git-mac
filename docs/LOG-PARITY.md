@@ -2029,3 +2029,14 @@ Log now projects source `ID_DELETE` choices in reference order: a pointed non-cu
 Native owned sheets reproduce ordinary Delete/Abort with the unmerged-local-branch warning, remote/local-vs-local-tracking choices, and stash Delete-all/Drop-one/Abort choices, defaulting to Abort. Core uses branch/tag deletion commands (including branch config/reflog cleanup), stash snapshot operations and explicit remote deletion refspecs; generic refs use update-ref --no-deref as in the upstream libgit2 reference-delete path, so symbolic aliases are removed without deleting their targets. App Store mutation checks repository access first.
 
 Snapshots reject changes while confirmation is open and block current-branch deletion. Branch/tag commands still have a read-to-command race; concurrent writers/other worktrees, symbolic remote refs, unusual stash-prefixed refs and custom remote fetch refspecs need broader checks. Remote progress currently uses Log busy presentation; dedicated physical progress/prompt validation, full menu masks/order and signed sandbox/distribution acceptance remain incomplete.
+
+## Owned SSH preparation during reference deletion
+
+The separate Log DeleteRef route now prepares the configured native identity only
+for the server-and-local-tracking choice. Private agent/response ownership follows
+SSH-TRANSPORT-PARITY.md. Local-only and stash choices retain their source actions.
+The deletion sequence owns cancellation through metadata, mutation, shared
+stash/reflog helpers and suspended prompts. Forced Log closure dismisses sheets
+and rejects late acknowledgement/reload; earlier completed changes remain.
+A tracking snapshot changed during key preparation is rechecked before Push.
+This does not prove remote race protection, signed scope or physical prompt parity.

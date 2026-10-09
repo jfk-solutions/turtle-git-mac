@@ -9,7 +9,7 @@ Manage Remotes adds an SSH Key row with a native single-file picker. The existin
 PuTTY Key row retains `remote.<name>.puttykeyfile` for Windows interoperability;
 the native path uses `remote.<name>.turtlegitsshkeyfile`. These are independent.
 The native row is an explicit platform adaptation, not an upstream extra control.
-Fetch/Pull/Push, remote branch browsing, remote tags and BrowseRefs remote deletion now consume this setting when
+Fetch/Pull/Push, remote branch browsing, remote tags, BrowseRefs remote deletion and Log server deletion now consume this setting when
 Auto-load SSH key is enabled; see [transport parity](SSH-TRANSPORT-PARITY.md).
 
 Only edited fields are written; native key writes follow the source fields.

@@ -1100,3 +1100,9 @@ SSH orchestration adapt the pinned BrowseRefsDlg remote-group loading behavior
 and DeleteRemoteTagDlg workflow to an owned private OpenSSH agent. Original
 Swift implementation is GPL-2.0-or-later; no Pageant/PuTTY implementation copied.
 Signed sandbox and complete source/UI equivalence remain unverified.
+
+LogWindow.swift and HistoryReferenceDeletion.swift adapt AppUtils::DeleteRef
+remote Pageant preparation to native identity grants and an owned private agent.
+Cancellation is propagated through history metadata and stash/reflog deletion
+commands. Original Swift additions are GPL-2.0-or-later; complete displayed UI,
+signed sandbox and source failure-policy acceptance remain pending.

@@ -1,0 +1,83 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "5a1ce21f65caa9bdb89284f0749538dbcf39af0e",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Native SSH loading in Log server-reference deletion; owned metadata/mutation/stash cancellation, post-prompt snapshot guard and forced-close late-result fences.",
+  "verification": {
+    "source": "Pinned AppUtils::DeleteRef prepares Pageant only for remote server deletion. Log sequence preserves reported remote/stash error continuation and ordinary/local failure stop; Cancel stops sequence. Native read-only grants/private agent replace Pageant.",
+    "core_system": "23 cases passed: HistoryReferenceDeletion 4, ReferenceLog 10 and SSHTransportPreparation 9. Added actual remote/local choice preparation isolation, post-suspension tracking mutation rejection, live metadata/push/stash child-group cancellation with preserved stash/index/server reference.",
+    "core_bundled": "13 explicitly engine-selecting HistoryReferenceDeletion/SSHTransportPreparation cases passed with bundled Git. Other 10 legacy ReferenceLog cases do not select the second engine and are not claimed as bundled coverage.",
+    "correction": "First live Push cancellation test expected only OperationCancellationFailure; GitCommandCancellationFailure retains canceled command output/status and is also valid. Test now checks that category with canceled token; final run passed. Native initial prompt-close fixture timed out because Log initializer was still busy loading history. Labeled timeout confirmed that stage; fixture now waits for initial loading and validates its target before invoking deletion. Final both-engine run passed.",
+    "native_ssh": "Final expanded hidden coordinator receiver passed with both Git engines. Actual Log model server deletion loads its configured identity; actual Log controller closure during pending response clears prompt, closes agent and prevents late Push/error/acknowledgement. Existing Fetch/Pull/Push/browse/tag/BrowseRefs/CRLF/retry/changed-key/lease cases also pass.",
+    "native_log": "Existing focused hidden Log/Blame receiver passed with both Git engines, including actual reference deletion menus/Abort/All/partial failure/reload. Rebase rendered text remains UNVERIFIED; focused mode is not full Rebase acceptance.",
+    "debug": "Unsigned Debug build passed; existing unrelated warnings remain.",
+    "appstore": "Final unsigned AppStore build passed; both embedded NOTICE files match root. Existing unrelated compiler warnings remain.",
+    "bundles": "Both bundle audits passed: Git/LFS where configured, EditorConfig, IssueRegex, askpass provenance/linkage/one-use dummy response, embedded Finder, licenses and 99 original icons. Signed inherited runtime remains unverified.",
+    "inventory": "Pinned inventory regression passed; AppUtils/LogDlg retain partial mappings.",
+    "site": "Local site build passed; no new screenshot or hosted deployment verification.",
+    "workflow": "Safe YAML parse and expanded coordinator receiver present exactly once; hosted CI unverified."
+  },
+  "limitations": [
+    "Other SSH consumers Clone/submodules/Sync, bundled OpenSSH, Keychain, PPK and host-key/password handling remain pending.",
+    "AppStore automatic loading remains unavailable without bundled agent/add. Signed bookmark/helper inheritance and actual SSH server authentication remain unverified.",
+    "Post-preparation guard checks local tracking snapshot only; remote ref/config races and all timing variants remain unverified.",
+    "Token propagation in shared Core batch helpers does not prove all native RefLog callers pass cancellation or own closure correctly.",
+    "Hidden checks do not prove displayed/nested sheets, focus/keyboard, light/dark, VoiceOver, Finder or full UI/application parity.",
+    "No main app launch, user keys/login-agent query, SSH server, push, hosted CI/deployment or distribution submission."
+  ],
+  "sha256": {
+    "NOTICE": "d0c6c5f9b6dff164d242533df94d4a6adaf2e591fe1633545ded5128c78ba045",
+    "Sources/TurtleGitCore/HistoryReferenceDeletion.swift": "196afb887a61105581bb624f9eb0ceeb7f31c455ef3384b0c55a3f9a0cb631b4",
+    "Sources/TurtleGitCore/ReferenceLog.swift": "e7dfa7979d47e536fdb17e2b55b599b5fa59b0fc6b1d938bd2e03fda66ee721c",
+    "Sources/TurtleGitMac/LogWindow.swift": "82acd79a90ea2961e40444083e05ec035f8721f010e3b7d8364d5ad13e6aba7a",
+    "Tests/TurtleGitCoreTests/HistoryReferenceDeletionTests.swift": "a5081aa9d1306045ecb10b3ec143942fa6c096fbaa3f8a7eae8d8fa7eec3eea4",
+    "Tests/TurtleGitCoreTests/SSHTransportPreparationTests.swift": "aaf7ddd961505c72a77b7e6dcddc553a7ecc09aa27c7bb98b1d86c09b6772dc1",
+    "docs/LOG-PARITY.md": "57aa4a43e71986e39c898054eafb11ebfe73f83c6b73bbc600147a7c2ffa98d7",
+    "docs/SSH-AGENT-PARITY.md": "63fd89a82e7fc297f30b81af5e46a1d1e4ee8d75de955b0d4741a6050678b2db",
+    "docs/SSH-IDENTITY-PARITY.md": "e6668d267770f7fb42381f8f9c0cd2eef15d983d57b94d947815f993f3983307",
+    "docs/SSH-TRANSPORT-PARITY.md": "33dd78054fd333cdfc86362efd56b11679e3a0e60e6f2dc347a59082213f2fe0",
+    "docs/qa/ssh-coordinator-native-2026-10-09.swift": "e4a0338c4b2e3962871c9d1ea0a5213bff9c178cab911c53a04aa96f635e8b3b",
+    "docs/upstream-files.csv": "f0facfcd592ce8f29c7d14047813aa971cd529bdbd2636fd0333ffd637baeeef"
+  },
+  "logs": "build/qa/ssh-log-delete-2026-10-09",
+  "cleanup": {
+    "all_handles_terminal": true,
+    "main_app_launches": 0,
+    "audit": {
+      "matching_processes": [],
+      "current_fixtures": []
+    },
+    "empty_preferences_removed": [
+      {
+        "domain": "TurtleGit.SSHCoordinator.QA.A426023A-59B3-401E-BC7B-61B83EDA1626",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SSHCoordinator.QA.2C7D2823-8598-47AC-878A-3684907DB7AB",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SSHCoordinator.QA.AF3E20FA-45C5-4EB1-84CD-2A530232147D",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SSHCoordinator.QA.289F1331-19AE-4A1A-8E43-80D55C3DC9BD",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.MessageLine.Native.QA.F9B9BB4D-9F0E-4029-94E4-A6D7D35C42BE",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.MessageLine.Native.QA.DC1EDE29-6912-48D6-829E-B23C450CBA00",
+        "defaults_delete_exit": 1,
+        "removed": true
+      }
+    ]
+  }
+}
