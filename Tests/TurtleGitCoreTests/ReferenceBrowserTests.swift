@@ -167,4 +167,48 @@ final class ReferenceBrowserTests: XCTestCase {
         XCTAssertEqual(snapshot.references.first { $0.name == GitReferenceName("refs/heads/" + nfc) }?.description, "NFC")
     }
 
+    func testRemoteOnlyPickerAndTrackingFetchMappingUnsetPreservation() async throws {
+        let (root, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        _ = try await repo.run(["remote", "add", "origin", "https://example.invalid/unused"])
+        _ = try await repo.run(["update-ref", "refs/remotes/origin/main", "HEAD"])
+        _ = try await repo.run(["symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"])
+        _ = try await repo.run(["tag", "release"]); _ = try await repo.run(["update-ref", "refs/notes/custom", "HEAD"])
+        let head = try await repo.run(["rev-parse", "HEAD"]).stdout, index = try Data(contentsOf: root.appendingPathComponent(".git/index")), file = try Data(contentsOf: root.appendingPathComponent("file"))
+        for (key, value) in [("description", "keep me"), ("pushRemote", "other"), ("rebase", "true")] { _ = try await repo.run(["config", "branch.main." + key, value]) }
+        let remote = try await repo.referenceBrowser(scope: .remotes)
+        XCTAssertEqual(remote.references.map(\.name), ["refs/remotes/origin/HEAD", "refs/remotes/origin/main"])
+        XCTAssertFalse(remote.folders.contains("refs/heads")); XCTAssertFalse(remote.folders.contains("refs/tags"))
+        try await repo.updateBrowserTracking("refs/heads/main", upstream: "refs/remotes/origin/main", cancellation: OperationCancellation())
+        let snapshot = try await repo.referenceBrowser(); XCTAssertEqual(snapshot.references.first { $0.name == "refs/heads/main" }?.upstream, "origin/main")
+        let merge = try await repo.run(["config", "--get", "branch.main.merge"]).text; XCTAssertEqual(merge, "refs/heads/main\n")
+        try await repo.updateBrowserTracking("refs/heads/main", upstream: nil)
+        try await repo.updateBrowserTracking("refs/heads/main", upstream: nil) // absent keys accepted
+        let config = try await repo.run(["config", "--local", "--null", "--list"]).stdout
+        for (key, value) in [("description", "keep me"), ("pushremote", "other"), ("rebase", "true")] { XCTAssertNotNil(config.range(of: Data(("branch.main." + key + "\n" + value + "\0").utf8))) }
+        XCTAssertNil(config.range(of: Data("branch.main.remote\n".utf8))); XCTAssertNil(config.range(of: Data("branch.main.merge\n".utf8)))
+        _ = try await repo.run(["config", "--replace-all", "remote.origin.fetch", "+refs/heads/other:refs/remotes/origin/other"])
+        let before = try Data(contentsOf: root.appendingPathComponent(".git/config"))
+        do { try await repo.updateBrowserTracking("refs/heads/main", upstream: "refs/remotes/origin/main"); XCTFail("Missing fetch mapping accepted") } catch ReferenceBrowserTrackingFailure.fetchMapping(let message) { XCTAssertFalse(message.isEmpty) }
+        for upstream in ["refs/heads/main", "refs/remotes/unconfigured/main"] {
+            do { try await repo.updateBrowserTracking("refs/heads/main", upstream: GitReferenceName(upstream)); XCTFail("Invalid remote accepted") } catch ReferenceBrowserTrackingFailure.remoteBranchRequired {}
+        }
+        let cancelled = OperationCancellation(); cancelled.cancel()
+        do { try await repo.updateBrowserTracking("refs/heads/main", upstream: nil, cancellation: cancelled); XCTFail("Cancelled unset ran") } catch OperationCancellationFailure.cancelled {}
+        XCTAssertEqual(before, try Data(contentsOf: root.appendingPathComponent(".git/config")))
+        let after = try await repo.run(["rev-parse", "HEAD"]).stdout; XCTAssertEqual(head, after); XCTAssertEqual(index, try Data(contentsOf: root.appendingPathComponent(".git/index"))); XCTAssertEqual(file, try Data(contentsOf: root.appendingPathComponent("file")))
+    }
+    func testUnsetTrackingPreservesUnicodeSiblingAndForeignConfigLock() async throws {
+        let (root, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let nfc = "Café", nfd = "Cafe\u{301}", configURL = root.appendingPathComponent(".git/config")
+        var config = try Data(contentsOf: configURL)
+        config.append(Data(([nfc, nfd].map { "\n[branch \"" + $0 + "\"]\n remote = origin\n merge = refs/heads/main\n description = keep\n" }.joined()).utf8)); try config.write(to: configURL)
+        let lock = root.appendingPathComponent(".git/config.lock"); try Data("foreign".utf8).write(to: lock)
+        do { try await repo.updateBrowserTracking(GitReferenceName("refs/heads/" + nfd), upstream: nil); XCTFail("Foreign lock ignored") } catch is GitFailure {}
+        XCTAssertEqual(config, try Data(contentsOf: configURL)); XCTAssertEqual(try Data(contentsOf: lock), Data("foreign".utf8)); try FileManager.default.removeItem(at: lock)
+        try await repo.updateBrowserTracking(GitReferenceName("refs/heads/" + nfd), upstream: nil, cancellation: OperationCancellation())
+        let result = try await repo.run(["config", "--local", "--null", "--list"]).stdout
+        XCTAssertNotNil(result.range(of: Data(("branch." + nfc + ".remote\norigin\0").utf8))); XCTAssertNotNil(result.range(of: Data(("branch." + nfd + ".description\nkeep\0").utf8)))
+        XCTAssertNil(result.range(of: Data(("branch." + nfd + ".remote\n").utf8))); XCTAssertNil(result.range(of: Data(("branch." + nfd + ".merge\n").utf8)))
+    }
+
 }

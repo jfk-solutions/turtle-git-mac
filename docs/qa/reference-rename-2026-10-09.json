@@ -24,7 +24,7 @@
   "limitations": [
     "Complete deletion/tracking/range/tree/fetch/push menus, standalone multi-selection browser and whole app parity remain unfinished.",
     "No physical inline mouse/keyboard/F2/Return/Escape/focus-change delivery, IME, accessibility, visual light/dark or actual sheet acceptance; hidden receivers do not establish these.",
-    "Git errors use the existing native inline browser error surface; full source modal error presentation remains pending.",
+    "Correction recorded during tracked-branch work: Git errors use the existing SwiftUI modal browser alert. Physical alert presentation remains unverified.",
     "Concurrent external branch/ref mutations and rollback of already completed rename are not established. Forced cleanup cancels pending work and suppresses late publication only.",
     "Bare rename proven through Core; final native browser regression verifies bare menu behavior, not an actual bare inline rename. Destination NFD filesystem behavior and all case-only/linked-worktree restrictions remain pending.",
     "Signing, real security-scope/Finder activation, App Store acceptance, screenshots, push/deployment and hosted failing-job status unverified. Older WorktreeColumns.Test preference files retained."

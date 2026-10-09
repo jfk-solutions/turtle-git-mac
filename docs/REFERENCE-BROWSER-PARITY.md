@@ -53,7 +53,7 @@ Log and working-tree comparison are offered for commit objects, Reflog for local
 and remote branches, and working-tree comparison is suppressed in bare repos.
 Reflog is owned by the browser and blocks parent selection/close until released.
 Other context callbacks retain canonical names. Remote/local deletion,
-tracking edits, fetch/push, range selection/commands, tree
+fetch/push, range selection/commands, tree
 context commands and complete source menu parity remain unfinished. Reset, Switch, Branch/Tag and New Worktree use this browser; complete behavior
 and other chooser consumers remain pending.
 
@@ -126,3 +126,36 @@ Core and hidden native checks are recorded in
 focus-change acceptance, F2 keyboard delivery, IME, visual/accessibility comparison,
 concurrent external ref changes and signed/security-scope acceptance remain
 unverified. The full browser command set and whole port remain unfinished.
+
+## Tracked branches
+
+Local commit branches in working-tree repositories now offer **Select tracked
+branch** and, when a tracked branch is displayed, **Unset tracked branch**. Tags,
+remote refs, other namespaces and bare repositories omit these commands, following
+the pinned BrowseRefsDlg gate. Per the requested in-app icon treatment, these two
+commands reuse upstream branch/delete artwork; the original BrowseRefsDlg entries
+have no explicit icon ID.
+
+Select owns another full native reference browser restricted to `refs/remotes/`,
+including symbolic remote HEAD entries. It shares the browser's namespace tree,
+metadata table, text/merge/nested filters, private preference store and canonical
+context callbacks. Local branches, tags, notes and other namespaces are excluded
+from its catalog and tree. Cancel leaves the parent and repository unchanged.
+Parent selection, refresh, competing children, close and Quit are locked while
+it is owned. Rejected presentation and forced parent cleanup release/cancel the
+child; closed/stale callbacks cannot set tracking.
+
+The accepted canonical remote ref is checked against configured remotes. Git's
+`branch --set-upstream-to` validates the remote fetch mapping instead of writing
+remote/merge keys directly. Errors use the native browser alert, retain the current selection and explain the
+possible fetch-setting cause. Success reloads the catalog and tracked-branch
+column. Unset removes all local `branch.<name>.remote` and `.merge` values,
+accepts absent keys, and retains description, pushRemote, rebase and other branch
+settings. Errors during unset refresh metadata with the error retained. Unset is
+two config writes, as upstream; it is not atomic rollback across both keys.
+
+[Tracked-branch QA](qa/reference-tracking-2026-10-09.json) records Core and hidden
+native checks. Full remote picker mutation/tree/range/network menus, physical
+sheet/keyboard/focus/IME/layout/accessibility, signed security scopes and App Store
+acceptance remain pending. No fetch or network operation is performed by setting
+tracking. The whole port remains incomplete.

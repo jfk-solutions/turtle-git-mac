@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import Foundation
 
+public enum ReferenceBrowserScope: Sendable { case all, remotes }
 public enum ReferenceBrowserMergeFilter: String, CaseIterable, Sendable { case all = "All", merged = "Only merged", unmerged = "Only unmerged" }
 public struct BrowserReference: Sendable {
     public let name: GitReferenceName
@@ -70,10 +71,11 @@ public enum ReferenceBrowserFailure: LocalizedError {
     public var errorDescription: String? { "Git returned an invalid reference-browser record." }
 }
 extension GitRepository {
-    public func referenceBrowser(filter: ReferenceBrowserMergeFilter = .all, cancellation: OperationCancellation? = nil) throws -> ReferenceBrowserSnapshot {
+    public func referenceBrowser(filter: ReferenceBrowserMergeFilter = .all, scope: ReferenceBrowserScope = .all, cancellation: OperationCancellation? = nil) throws -> ReferenceBrowserSnapshot {
         let atoms = ["refname", "objectname", "objecttype", "symref", "upstream", "subject", "authorname", "authoremail", "authordate:unix", "committername", "committeremail", "committerdate:unix", "taggername", "taggeremail", "taggerdate:unix"]
         var arguments = ["for-each-ref", "--sort=refname", "--format=" + atoms.map { "%(" + $0 + ")" }.joined(separator: "%00") + "%00"]
         if filter != .all { arguments += [filter == .merged ? "--merged=HEAD" : "--no-merged=HEAD"] }
+        if scope == .remotes { arguments.append("refs/remotes/") }
         let bytes = try run(arguments, cancellation: cancellation).stdout
         let values = String(decoding: bytes, as: UTF8.self).components(separatedBy: "\0")
         var records: [[String]] = []
@@ -149,6 +151,37 @@ public enum ReferenceBrowserRenameFailure: LocalizedError {
         switch self {
         case .localBranchOnly: return "Only local branches can be renamed."
         case .namespaceChange: return "The reference type cannot be changed. Keep the new name within refs/heads/."
+        }
+    }
+}
+
+// BrowseRefsDlg's tracked-branch commands. Git validates the remote fetch mapping
+// for Set; Drop removes just remote and merge rather than other branch settings.
+extension GitRepository {
+    public func updateBrowserTracking(_ reference: GitReferenceName, upstream: GitReferenceName?, cancellation: OperationCancellation? = nil) throws {
+        try cancellation?.check()
+        guard let local = GitReferenceName.removingPrefix("refs/heads/", from: reference.rawValue) else { throw ReferenceBrowserRenameFailure.localBranchOnly }
+        if let upstream {
+            guard let short = GitReferenceName.removingPrefix("refs/remotes/", from: upstream.rawValue) else { throw ReferenceBrowserTrackingFailure.remoteBranchRequired }
+            let remotes = try run(["remote"], cancellation: cancellation).text.split(separator: "\n").map(String.init)
+            guard remotes.contains(where: { GitReferenceName.removingPrefix($0 + "/", from: short) != nil || GitReferenceName.equal($0, short) }) else { throw ReferenceBrowserTrackingFailure.remoteBranchRequired }
+            do { _ = try run(["-c", "core.precomposeunicode=false", "branch", "--set-upstream-to=" + short, "--", local], cancellation: cancellation) }
+            catch let failure as GitFailure { throw ReferenceBrowserTrackingFailure.fetchMapping(failure.message) }
+        } else {
+            for suffix in ["remote", "merge"] {
+                try cancellation?.check()
+                do { _ = try run(["-c", "core.precomposeunicode=false", "config", "--local", "--unset-all", "branch." + local + "." + suffix], cancellation: cancellation) }
+                catch let failure as GitFailure where failure.code == 5 { /* Already absent. */ }
+            }
+        }
+    }
+}
+public enum ReferenceBrowserTrackingFailure: LocalizedError {
+    case remoteBranchRequired, fetchMapping(String)
+    public var errorDescription: String? {
+        switch self {
+        case .remoteBranchRequired: return "Select a remote-tracking branch belonging to a configured remote."
+        case .fetchMapping(let message): return message + "\n\nThis is usually caused when the remote's fetch setting does not include the desired branch."
         }
     }
 }

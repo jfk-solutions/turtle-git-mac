@@ -263,3 +263,11 @@ field-editor command routes in private repositories/preferences, without display
 windows. Core `ReferenceBrowserTests` includes config/reflog/current HEAD, bare,
 invalid/collision/cancellation and packed NFC/NFD source-identity cases. No
 physical keyboard/focus-change/IME or signed acceptance is established.
+
+Tracked branches: `python3 scripts/test-reference-tracking.py` after Debug,
+optionally with repeated `--git` arguments. The hidden receiver uses actual
+parent/remote-only browser controllers and private repositories/preferences; it
+checks canonical set/unset, fetch mapping, retained branch settings, cancel,
+parent/Quit/type/bare/reject/stale/forced-close gates without ordering windows.
+Core coverage is in `ReferenceBrowserTests`. No physical/signed or network
+tracking/fetch acceptance is claimed.

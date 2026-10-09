@@ -9,13 +9,17 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
 @MainActor final class ReferenceBrowserWindowController: NSWindowController, NSWindowDelegate {
     let model: ReferenceBrowserWindowModel
     var onClosed: () -> Void = {}
+    private(set) var trackingPicker: ReferenceBrowserWindowController?
+    private var trackingRequest: UUID?
+    var configureTrackingPicker: (ReferenceBrowserWindowController) -> Void = { _ in }
+    var presentTrackingPicker: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
     private(set) var reflog: ReferenceLogWindowController?
     private(set) var descriptionEditor: ReferenceDescriptionWindowController?
     var presentDescription: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
     var presentReflog: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
     private var completion: ((String?) -> Void)?
-    init(repository: GitRepository, access: RepositoryAccessLease?, initial: String, preferences: UserDefaults = .standard, onChoose: @escaping (String?) -> Void) {
-        model = ReferenceBrowserWindowModel(repository: repository, access: access, initial: initial, preferences: preferences); completion = onChoose
+    init(repository: GitRepository, access: RepositoryAccessLease?, initial: String, preferences: UserDefaults = .standard, scope: ReferenceBrowserScope = .all, onChoose: @escaping (String?) -> Void) {
+        model = ReferenceBrowserWindowModel(repository: repository, access: access, initial: initial, preferences: preferences, scope: scope); completion = onChoose
         let window = ReferenceBrowserNativeWindow(contentRect: .init(x: 0, y: 0, width: 1130, height: 660), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Browse references – TurtleGit"; window.isReleasedWhenClosed = false; window.contentMinSize = .init(width: 940, height: 450)
         window.contentViewController = NSHostingController(rootView: ReferenceBrowserDialog(model: model).defaultAppStorage(preferences))
@@ -23,6 +27,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         window.refresh = { [weak model] in model?.load() }
         model.onReflog = { [weak self] name in self?.showReflog(name) }
         model.onEditDescription = { [weak self] in self?.editDescription() }
+        model.onSelectTracking = { [weak self] in self?.selectTracking() }
         model.finish = { [weak self] reference in self?.finish(reference) }
         DialogGeometry.attach(window, identifier: "BrowseRefs", legacyName: "BrowseRefs")
     }
@@ -58,13 +63,31 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         guard let window = child.window, presentDescription(owner, window) else { child.close(); return }
         child.focusEditor()
     }
+    func selectTracking() {
+        guard let owner = window, owner.attachedSheet == nil, model.canChangeTracking, let reference = model.chosen?.name else { return }
+        let request = UUID(); trackingRequest = request; model.hasChild = true
+        let child = ReferenceBrowserWindowController(repository: model.repository, access: model.access, initial: "HEAD", preferences: model.preferences, scope: .remotes) { [weak self] upstream in
+            guard let self, self.trackingRequest == request, !self.model.closed else { return }
+            self.trackingRequest = nil
+            if let upstream { self.model.changeTracking(reference, upstream: GitReferenceName(upstream)) }
+        }
+        child.model.onLog = model.onLog; child.model.onBrowse = model.onBrowse; child.model.onCompare = model.onCompare
+        trackingPicker = child; configureTrackingPicker(child)
+        child.onClosed = { [weak self, weak child] in
+            guard let self, let child, self.trackingPicker === child else { return }
+            if let window = child.window, window.sheetParent === self.window { self.window?.endSheet(window) }
+            self.trackingPicker = nil; self.model.hasChild = false
+        }
+        guard let window = child.window, presentTrackingPicker(owner, window) else { child.abandonPresentation(); trackingRequest = nil; return }
+        child.model.load()
+    }
     func abandonPresentation() { completion = nil; close() }
     private func finish(_ reference: String?) {
         guard let completion, !model.busy, !model.hasChild, model.renameReference == nil, window?.attachedSheet == nil else { return }; self.completion = nil
         if let window { window.sheetParent?.endSheet(window); window.close() }; completion(reference)
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { guard !model.hasChild, model.renameReference == nil, !model.busy, sender.attachedSheet == nil else { return false }; finish(nil); return false }
-    func windowWillClose(_ notification: Notification) { model.invalidate(); descriptionEditor?.close(); descriptionEditor = nil; reflog?.close(); reflog = nil; model.hasChild = false; let completion = completion; self.completion = nil; completion?(nil); onClosed() }
+    func windowWillClose(_ notification: Notification) { model.invalidate(); trackingRequest = nil; trackingPicker?.abandonPresentation(); trackingPicker = nil; descriptionEditor?.close(); descriptionEditor = nil; reflog?.close(); reflog = nil; model.hasChild = false; let completion = completion; self.completion = nil; completion?(nil); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class ReferenceBrowserWindowModel: ObservableObject {
@@ -72,8 +95,10 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     let access: RepositoryAccessLease?
     let preferences: UserDefaults
     private let initial: String
+    let scope: ReferenceBrowserScope
     private var token: OperationCancellation?
     private var invalidated = false
+    private(set) var changingTracking = false
     private(set) var initialFocusPending = true
     var closed: Bool { invalidated }
     @Published private(set) var renameReference: GitReferenceName?
@@ -94,14 +119,31 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     @Published var sortColumn = "name"
     @Published var descending = false
     var finish: (String?) -> Void = { _ in }
+    var onSelectTracking: (() -> Void)?
+    var canChangeTracking: Bool { canAccept && !bare && chosen?.objectType == "commit" && chosen.flatMap { GitReferenceName.removingPrefix("refs/heads/", from: $0.name.rawValue) } != nil }
+    func unsetTracking() { guard canChangeTracking, let chosen, !chosen.upstream.isEmpty else { return }; changeTracking(chosen.name, upstream: nil) }
+    func changeTracking(_ reference: GitReferenceName, upstream: GitReferenceName?) {
+        guard !invalidated, !busy, !hasChild, renameReference == nil, !bare else { return }
+        let request = OperationCancellation(); token = request; changingTracking = true; busy = true; error = nil
+        Task {
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                try await repository.updateBrowserTracking(reference, upstream: upstream, cancellation: request)
+                guard !invalidated, token === request else { return }; token = nil; changingTracking = false; busy = false; load()
+            } catch {
+                guard !invalidated, token === request else { return }; token = nil; changingTracking = false; busy = false
+                if upstream == nil { load(preservingError: error.localizedDescription) } else { self.error = error.localizedDescription }
+            }
+        }
+    }
     var onEditDescription: (() -> Void)?
     var canEditDescription: Bool { canAccept && chosen?.objectType == "commit" && chosen.flatMap { GitReferenceName.removingPrefix("refs/heads/", from: $0.name.rawValue) } != nil }
     var onLog: ((String) -> Void)?
     var onReflog: ((String) -> Void)?
     var onBrowse: ((String) -> Void)?
     var onCompare: ((String) -> Void)?
-    init(repository: GitRepository, access: RepositoryAccessLease?, initial: String, preferences: UserDefaults = .standard) {
-        self.repository = repository; self.access = access; self.initial = initial; self.preferences = preferences
+    init(repository: GitRepository, access: RepositoryAccessLease?, initial: String, preferences: UserDefaults = .standard, scope: ReferenceBrowserScope = .all) {
+        self.repository = repository; self.access = access; self.initial = initial; self.preferences = preferences; self.scope = scope
         nested = preferences.object(forKey: "RefBrowserIncludeNestedRefs") as? Bool ?? true
     }
     var rows: [ReferenceBrowserRow] {
@@ -157,23 +199,23 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         default: return ""
         }
     }
-    func load() {
-        guard !invalidated, !hasChild, renameReference == nil else { return }
+    func load(preservingError: String? = nil) {
+        guard !invalidated, !hasChild, !changingTracking, renameReference == nil else { return }
         let requested = selected?.rawValue ?? (snapshot == nil ? initial : folder.rawValue)
-        token?.cancel(); let request = OperationCancellation(); token = request; busy = true; error = nil
+        token?.cancel(); let request = OperationCancellation(); token = request; busy = true; error = preservingError
         let filter = mergeFilter
         Task {
             defer { if token === request { token = nil; busy = false } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let result = try await repository.referenceBrowser(filter: filter, cancellation: request)
+                let result = try await repository.referenceBrowser(filter: filter, scope: scope, cancellation: request)
                 let bare = try await repository.isBare()
                 guard !invalidated, token === request else { return }
                 let choice = result.initialSelection(requested); folders = result.folders; self.bare = bare; snapshot = result; folder = choice.folder; selected = choice.reference; refilter()
             } catch { if !invalidated, token === request, !request.isCancelled { self.error = error.localizedDescription } }
         }
     }
-    func invalidate() { invalidated = true; renameReference = nil; renameFolder = nil; initialFocusPending = false; token?.cancel(); token = nil; busy = false }
+    func invalidate() { invalidated = true; changingTracking = false; renameReference = nil; renameFolder = nil; initialFocusPending = false; token?.cancel(); token = nil; busy = false }
     func setFolder(_ folder: GitReferenceName) { guard !busy, !hasChild, renameReference == nil, folders.contains(folder) else { return }; self.folder = folder; selected = nil }
     func refilter() { if let selected, !rows.contains(where: { $0.reference.name == selected }) { self.selected = nil } }
     func nestedChanged() { preferences.set(nested, forKey: "RefBrowserIncludeNestedRefs"); load() }
@@ -357,10 +399,16 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
             if branch { item("Show Reflog", #selector(reflog), .log, model.onReflog != nil) }
             if model.canRename { item("Rename", #selector(rename), .rename, true) }
             if model.canEditDescription { item("Edit description", #selector(editDescription), .rename, model.onEditDescription != nil) }
+            if model.canChangeTracking {
+                if !chosen.upstream.isEmpty { item("Unset tracked branch", #selector(unsetTracking), .remove, true) }
+                item("Select tracked branch", #selector(selectTracking), .branch, model.onSelectTracking != nil)
+            }
             item("Browse repository", #selector(browse), .repositoryBrowser, model.onBrowse != nil)
             if !model.bare && chosen.objectType == "commit" { item("Compare with working tree", #selector(compare), .compare, model.onCompare != nil) }
             menu.addItem(.separator()); item("Copy reference name", #selector(copyName), .copy, true)
         }
+        @objc func selectTracking() { if model.canChangeTracking { model.onSelectTracking?() } }
+        @objc func unsetTracking() { model.unsetTracking() }
         @objc func rename() { beginRename() }
         @objc func editDescription() { if model.canEditDescription { model.onEditDescription?() } }
         @objc func log() { if let chosen = model.chosen { model.onLog?(chosen.name.rawValue) } }

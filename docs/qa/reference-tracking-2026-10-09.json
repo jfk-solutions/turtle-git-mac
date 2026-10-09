@@ -1,0 +1,79 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "9c9edfd",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/BrowseRefsDlg.cpp": "735fd67f1fcd366d415fd397344032eb5f297f51",
+    "src/TortoiseProc/BrowseRefsDlg.h": "8b70d06e007dfee40874b104619cedc80a690412"
+  },
+  "scope": "Select/Unset tracked branch commands and full remote-only owned browser; full app/browser parity remains unfinished.",
+  "verification": {
+    "source": "BrowseRefsDlg working-tree/local-commit gate, displayed-upstream Drop gate; PickRef remote-only single selection; known remote split and Git branch --set-upstream-to for fetch mapping validation; Drop removes just branch remote and merge config then refreshes. Source tracking entries have no explicit icon IDs; original branch/delete artwork reused per user icon request.",
+    "core": "8 ReferenceBrowserTests pass with Apple and bundled Git. Remote-only catalog/tree excludes heads/tags/notes and keeps symbolic remote HEAD. Real Git Set verifies valid remote fetch mapping and fails excluded mapping without config change; Drop accepts absent keys and retains description/pushRemote/rebase, preserves NFD/NFC sibling keys, respects foreign config lock, pre-cancelled no write and HEAD/index/tracked bytes.",
+    "native": "Final actual hidden parent/menu/remote-only browser and namespace tree/list pass both Git engines. Canonical inherited Log callback, successful Set/refreshed original local selection, Unset description/pushRemote retention, excluded-fetch mapping error, actual attached alert blocking/recovered through native OK performClick, Cancel, parent/close/Quit/duplicate/type/bare/rejected/forced/stale gates, and private HEAD/index/working-byte invariants. F5 load cannot supersede active tracking mutation; actual child menu presentation is injected and releases disabled-parent focus.",
+    "browser_regression": "Final-source existing full browser/Reset native receiver passes both engines, including metadata/Unicode/bare/context/Reflog/sorting/filter and canonical handoff/fresh focus/cancel/stale/reject/locks/invariants.",
+    "cycles": "Zero AttributeGraph cycle warnings in final native and browser regression logs.",
+    "debug": "Unsigned Debug build and standalone bundle audit pass.",
+    "store": "Unsigned AppStore build and required bundle audit pass: universal bundled Git 2.55.0 runtime smoke checks, embedded Finder extension, licenses and all 99 upstream icon resources. Signed execution/App Store acceptance unverified.",
+    "ci": "Receiver added once; Ruby safe YAML parse and command count pass. Hosted CI execution/status unverified.",
+    "inventory": "Pin checker passes; mappings remain partial.",
+    "site": "Local Pages rebuild passes; no deployment/new physical screenshot.",
+    "notice": "Both packaged NOTICE files byte-equal source."
+  },
+  "corrections": [
+    "Initial receiver failed reopening a picker after the expected fetch-mapping error. Trace established parent attachedSheet=true: the command correctly refused while its modal error alert remained open. Final receiver verifies this guard and performs the actual alert OK button before continuing. Reacquiring the native table/menu was not the cause.",
+    "Source inspection found F5 metadata load could supersede a tracking mutation. Added changingTracking guard and native assertion preventing refresh interruption.",
+    "Previous rename QA incorrectly described the browser error as inline. It is the existing SwiftUI modal alert; that historical limitation text is corrected here. No physical alert layout acceptance claimed."
+  ],
+  "limitations": [
+    "Full remote picker mutation/range/tree/network commands, standalone multi-select browser and whole port remain incomplete.",
+    "Hidden controllers do not establish physical sheets/focus restoration, keyboard/IME, accessibility, light/dark/layout, signed security scopes or App Store acceptance. Native alert OK performClick is synthetic UI execution.",
+    "Unset is sequential config writes without atomic rollback; concurrent external configuration/ref changes, mid-write cancellation and all Unicode Set/remote-prefix ambiguity variants remain unverified.",
+    "No fetch/network, main app launch, current physical screenshot, site deployment, remote push or hosted failing-job resolution. Older WorktreeColumns.Test preference files retained."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "removed_private_domains": [
+      {
+        "domain": "TurtleGit.ReferenceBrowser.QA.BE40A74E-1DCB-4EDD-9711-F32A3D91BD54",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "file_remaining": false
+      },
+      {
+        "domain": "TurtleGit.ReferenceBrowser.QA.7D2E0E61-2D03-4DD9-9C83-DF5A1F8207FE",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "file_remaining": false
+      },
+      {
+        "domain": "TurtleGit.ReferenceBrowser.QA.D9E22C3C-02F6-4A27-BE68-02214A1008EC",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "file_remaining": false
+      },
+      {
+        "domain": "TurtleGit.ReferenceBrowser.QA.D5FFDBE3-D4B6-4C43-864E-33C4DC9975B7",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "file_remaining": false
+      }
+    ],
+    "all_handles_terminal": true,
+    "remaining_current_preference_files": [],
+    "remaining_current_receiver_fixtures": []
+  },
+  "local_logs": "build/qa/reference-tracking-2026-10-09",
+  "sha256": {
+    ".github/workflows/macos.yml": "279e131eb99ad3f020e0dbf7889131526aa6306e5738f8711ca537ee1eaf8c4b",
+    "Sources/TurtleGitCore/ReferenceBrowser.swift": "faaa9a9b80624283e0548ea1a8b646ad4959392fe416ae141af64725228f0c8f",
+    "Sources/TurtleGitMac/ReferenceBrowserWindow.swift": "af8192aaf9c9e9aa93f745f0b19cf883c334dd1d0a70bf6754d04d2664cde298",
+    "Tests/TurtleGitCoreTests/ReferenceBrowserTests.swift": "003e8a2f4926310b9ed251f822e6d36be8b595c5498b8da3533a80a27b6225ac",
+    "docs/REFERENCE-BROWSER-PARITY.md": "eeb6198d532d0965563c3989a50eb38ddfc8d8653e0b576aa14db6251c5073ba",
+    "docs/TESTING.md": "afa7c94d1979248fb32f956e2b7b9e6190ad68b5c5d13248a67e9cd08a395d48",
+    "docs/upstream-files.csv": "098ec5f034d628cfb3fbddcf9b154335c1bc4113b6aa1e2c9c2b746ccffb6fc0",
+    "docs/qa/reference-rename-2026-10-09.json": "4fc78e5757fda25d6ffeb68985f7ee2a7a4ddb288560a28507e7a0f679198a51",
+    "docs/qa/reference-tracking-native-2026-10-09.swift": "1adc34120fed9e529847e48451018119863e9b3eb4f050a1c57e7e0f800091d3",
+    "scripts/test-reference-tracking.py": "12f9cbcbf1d4e9c995778e013172336bb488a57cef5f7b656adb19d0e94017e2"
+  }
+}
