@@ -308,3 +308,30 @@ Its forced lifetime cleanup is checked separately in
 [Merge cleanup QA](qa/merge-cleanup-2026-10-09.json); picker behavior is recorded in
 [Merge parity](MERGE-PARITY.md). Hidden receivers do not establish physical or
 signed acceptance.
+
+## Remote Create Branch command
+
+Single remote references now offer **Create Branch…** with the upstream Copy
+artwork after the working-tree Merge/Switch group. Local branches and tags do not
+receive this single-ref command. The action captures the displayed object hash,
+matching `BrowseRefsDlg::eCmd_CreateBranch`, and opens the owned native Branch
+creation dialog in explicit Commit mode. Moving the remote while the dialog is
+open does not change its base. Source CreateBranchTag callbacks are shared with
+the standalone factory, and remote-only tracking pickers inherit configuration.
+
+The browser blocks competing actions and normal close/Quit while the child is
+owned, releases on Cancel/rejected presentation, and refreshes its catalog after
+the child closes, matching source Refresh. Identity checks prevent an old child
+from releasing a newer one. Forced browser closure closes the child without
+refreshing a closed owner. Branch/Tag metadata and creation now own cancellation
+tokens; creation validation, reference lookup, mutation and description use the
+repository token. Closed models reject late metadata/errors/post-actions.
+
+`test-reference-create-branch.py` checks actual native menu/icon, namespace gates,
+private configuration, a moved remote after presentation, real branch creation
+at the captured hash, refreshed browser catalog, Cancel/rejection/duplicate/
+competing/close/Quit and live creation-process termination with unchanged refs.
+Existing creation-picker and browser-Merge receivers remain regression gates.
+Physical sheets/focus, bare/non-commit acceptance, every slow validation/metadata
+stage, routed post-creation checkout/description recovery and signed scope remain
+pending. Fetch and the remaining source browser commands are still incomplete.

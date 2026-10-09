@@ -122,3 +122,19 @@ release parent focus and never order windows or show real sheets. Physical input
 sheet restoration, error/close-during-load recovery, visual/theme/accessibility,
 complete browser/Log commands and signed acceptance remain pending. Existing
 screenshots predate these routes.
+
+## Owned creation cancellation and browser entry
+
+Create Branch can now be entered from a selected remote ref in the native
+reference browser. The source passes its stored object hash; this route retains
+that immutable Commit base and refreshes the browser after closure. Standalone
+and owned routes share repository interaction configuration. See
+[reference browser parity](REFERENCE-BROWSER-PARITY.md).
+
+Initial metadata and reference creation have owned cancellation tokens. Forced
+closure cancels the chooser and its independent metadata/creation work, rejects
+late state/error publication and preserves completed mutations. Core creation
+threads cancellation through validation, existence/revision lookup, mutation and
+description; ordinary error/default behavior remains compatible. Description
+retry also owns a token. Routed checkout/switch completion and all failure variants
+still need broader lifetime and physical/signed acceptance.

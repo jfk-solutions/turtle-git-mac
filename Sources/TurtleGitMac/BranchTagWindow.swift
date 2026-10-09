@@ -37,13 +37,15 @@ import TurtleGitCore
     let isTag: Bool
     private let access: RepositoryAccessLease?
     private let preferences: UserDefaults
+    private var loadToken: OperationCancellation?
+    private var creationToken: OperationCancellation?
     private var invalidated = false, finished = false
     private var conflictSnapshot: (ReferenceCreationOptions, Bool, Bool, Bool)?
     private var descriptionSnapshot: ReferenceCreationOptions?
     var hasPendingNameConflict: Bool { nameConflict || conflictSnapshot != nil }
     var retryDescription: Bool { descriptionSnapshot != nil }
     var onSwitch: ((String, @escaping () -> Void) -> Void)?
-    func invalidate() { invalidated = true; conflictSnapshot = nil; chooser.invalidate() }
+    func invalidate() { invalidated = true; loadToken?.cancel(); loadToken = nil; creationToken?.cancel(); creationToken = nil; conflictSnapshot = nil; chooser.invalidate(); busy = false }
     func abortNameConflict() { nameConflict = false; conflictSnapshot = nil }
     @Published var options = ReferenceCreationOptions()
     @Published var useHead = true
@@ -72,14 +74,17 @@ import TurtleGitCore
         useHead = revision == nil || revision == "HEAD" || revision?.isEmpty == true
         switchAfterCreation = preferences.bool(forKey: "NewBranchSwitchTo")
         pushAfterCreation = preferences.bool(forKey: "PushTag")
-        busy = true
+        busy = true; let token = OperationCancellation(); loadToken = token
         Task {
-            defer { busy = false }
+            defer { if loadToken === token { loadToken = nil; busy = false } }
             do {
-                currentBranch = try await chooser.repository.branch()
-                canSwitch = try await chooser.repository.run(["rev-parse", "--is-bare-repository"]).text.trimmingCharacters(in: .newlines) != "true"
-                canSign = !((try? await chooser.repository.run(["config", "--get", "user.signingkey"]).text.trimmingCharacters(in: .whitespacesAndNewlines)) ?? "").isEmpty
-            } catch { self.error = error.localizedDescription }
+                try checkAccess()
+                let current = try await chooser.repository.branch(cancellation: token)
+                let workingTree = !(try await chooser.repository.isBare(cancellation: token))
+                let signing = !((try? await chooser.repository.run(["config", "--get", "user.signingkey"], cancellation: token).text.trimmingCharacters(in: .whitespacesAndNewlines)) ?? "").isEmpty
+                guard !invalidated, loadToken === token, !token.isCancelled else { return }
+                currentBranch = current; canSwitch = workingTree; canSign = signing
+            } catch { if !invalidated, loadToken === token, !token.isCancelled { self.error = error.localizedDescription } }
         }
     }
     func changedBase() {
@@ -103,16 +108,17 @@ import TurtleGitCore
         else { preferences.set(shouldPush, forKey: "PushTag") }
         let nativeHandoff = onSwitch != nil
         let routedSwitch = shouldSwitch ? onSwitch : nil
-        busy = true; error = nil
+        busy = true; error = nil; let token = OperationCancellation(); creationToken = token
         Task {
-            defer { busy = false }
+            defer { if creationToken === token { creationToken = nil; busy = false } }
             do {
                 try checkAccess()
                 var output = ""
                 if createdBranch == nil {
-                    output = try await chooser.repository.createReference(snapshot, writeDescription: !nativeHandoff)
+                    output = try await chooser.repository.createReference(snapshot, writeDescription: !nativeHandoff, cancellation: token)
                     if shouldSwitch { createdBranch = snapshot.name }
                 }
+                guard !invalidated, creationToken === token, !token.isCancelled else { return }
                 if nativeHandoff {
                     onCreated(output)
                     if let routedSwitch {
@@ -124,28 +130,31 @@ import TurtleGitCore
                     guard !invalidated else { return }
                     if !isTag && !snapshot.message.isEmpty {
                         descriptionSnapshot = snapshot
-                        do { try checkAccess(); try await chooser.repository.updateBranchDescription(snapshot.name, message: snapshot.message); descriptionSnapshot = nil }
-                        catch { createdBranch = snapshot.name; self.error = "Branch \(snapshot.name) was created, but its description could not be saved. Retry the description or close this dialog.\n\n" + error.localizedDescription; return }
+                        do { try checkAccess(); try await chooser.repository.updateBranchDescription(snapshot.name, message: snapshot.message, cancellation: token); descriptionSnapshot = nil }
+                        catch { guard !invalidated, creationToken === token, !token.isCancelled else { return }; createdBranch = snapshot.name; self.error = "Branch \(snapshot.name) was created, but its description could not be saved. Retry the description or close this dialog.\n\n" + error.localizedDescription; return }
                     }
                     busy = false; finished = true; close(); if shouldPush { onPushTag("refs/tags/" + snapshot.name) }; return
                 }
                 if shouldSwitch, let createdBranch {
                     var checkout = CheckoutOptions(); checkout.revision = "refs/heads/" + createdBranch
-                    do { output += try await chooser.repository.checkout(checkout) }
-                    catch { self.error = "Branch \(createdBranch) was created, but checkout failed. Resolve the working-tree changes and retry checkout, or close this dialog.\n\n" + error.localizedDescription; return }
+                    do { output += try await chooser.repository.checkout(checkout, cancellation: token) }
+                    catch { guard !invalidated, creationToken === token, !token.isCancelled else { return }; self.error = "Branch \(createdBranch) was created, but checkout failed. Resolve the working-tree changes and retry checkout, or close this dialog.\n\n" + error.localizedDescription; return }
                 }
                 guard !invalidated else { return }; busy = false; finished = true; close(); onCreated(output)
                 if shouldPush { onPushTag("refs/tags/" + snapshot.name) }
-            } catch ReferenceCreationFailure.nameConflict { conflictSnapshot = (snapshot, shouldSwitch, shouldPush, switchPreference); nameConflict = true }
-            catch { self.error = error.localizedDescription }
+            } catch ReferenceCreationFailure.nameConflict { guard !invalidated, creationToken === token else { return }; conflictSnapshot = (snapshot, shouldSwitch, shouldPush, switchPreference); nameConflict = true }
+            catch { if !invalidated, creationToken === token, !token.isCancelled { self.error = error.localizedDescription } }
         }
     }
     private func saveDescription(_ snapshot: ReferenceCreationOptions) {
-        busy = true; error = nil
+        busy = true; error = nil; let token = OperationCancellation(); creationToken = token
         Task {
-            defer { busy = false }
-            do { try checkAccess(); try await chooser.repository.updateBranchDescription(snapshot.name, message: snapshot.message); descriptionSnapshot = nil; guard !invalidated else { return }; busy = false; finished = true; close() }
-            catch { self.error = error.localizedDescription }
+            defer { if creationToken === token { creationToken = nil; busy = false } }
+            do {
+                try checkAccess(); try await chooser.repository.updateBranchDescription(snapshot.name, message: snapshot.message, cancellation: token)
+                guard !invalidated, creationToken === token, !token.isCancelled else { return }
+                descriptionSnapshot = nil; busy = false; finished = true; close()
+            } catch { if !invalidated, creationToken === token, !token.isCancelled { self.error = error.localizedDescription } }
         }
     }
 

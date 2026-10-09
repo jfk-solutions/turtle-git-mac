@@ -2,6 +2,17 @@ import XCTest
 @testable import TurtleGitCore
 
 final class ReferenceCreationTests: XCTestCase {
+    func testCancelledCreationPropagatesWithoutChangingReferencesOrConfig() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let refs = try await repo.run(["show-ref"]).stdout, config = try Data(contentsOf: root.appendingPathComponent(".git/config"))
+        let token = OperationCancellation(); token.cancel()
+        for isTag in [false, true] {
+            var options = ReferenceCreationOptions(); options.name = "cancelled"; options.isTag = isTag; options.message = "description"
+            do { _ = try await repo.createReference(options, cancellation: token); XCTFail("Cancelled creation ran") } catch OperationCancellationFailure.cancelled {}
+        }
+        let after = try await repo.run(["show-ref"]).stdout
+        XCTAssertEqual(refs, after); XCTAssertEqual(config, try Data(contentsOf: root.appendingPathComponent(".git/config")))
+    }
     func testBranchDescriptionAndMixedChangesArePreservedWithoutSwitching() async throws {
         let (root, repo, path) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
         try Data("index\n".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path])

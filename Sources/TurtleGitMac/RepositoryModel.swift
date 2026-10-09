@@ -1472,10 +1472,8 @@ import TurtleGitCore
         pushWindows[key] = controller; controller.model.load(source: source)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showReference(repository: GitRepository, access: RepositoryAccessLease?, isTag: Bool, revision: String? = nil) {
-        let root = repository.root, key = repository.root.path + (isTag ? ":tag:" : ":branch:") + UUID().uuidString
-        let controller = referenceWindows[key] ?? BranchTagWindowController(repository: repository, access: access, isTag: isTag)
-        controller.onClosed = { [weak self] in self?.referenceWindows.removeValue(forKey: key) }
+    private func configureReferenceInteractions(_ controller: BranchTagWindowController, repository: GitRepository, access: RepositoryAccessLease?) {
+        let root = repository.root
         controller.model.onCreated = { [weak self] output in
             self?.refreshRepositoryLogs(root)
             self?.statusWindows[root.path]?.model.reload()
@@ -1489,6 +1487,12 @@ import TurtleGitCore
         controller.configureReferencePicker = { [weak self] model in
             self?.configureReferenceBrowser(model, repository: repository, access: access)
         }
+    }
+    private func showReference(repository: GitRepository, access: RepositoryAccessLease?, isTag: Bool, revision: String? = nil) {
+        let key = repository.root.path + (isTag ? ":tag:" : ":branch:") + UUID().uuidString
+        let controller = referenceWindows[key] ?? BranchTagWindowController(repository: repository, access: access, isTag: isTag)
+        controller.onClosed = { [weak self] in self?.referenceWindows.removeValue(forKey: key) }
+        configureReferenceInteractions(controller, repository: repository, access: access)
         referenceWindows[key] = controller; controller.model.load(revision: revision)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
@@ -1523,6 +1527,7 @@ import TurtleGitCore
         model.onLog = { [weak self] name in self?.showLog(repository: repository, access: access, paths: [], endRevision: name) }
         model.onBrowse = { [weak self] name in self?.showRepositoryBrowser(repository: repository, access: access, revision: name) }
         model.onCompare = { [weak self] name in self?.showRevisionComparison(repository: repository, access: access, from: .revision(name), to: .workingTree) }
+        model.configureBranch = { [weak self] controller in self?.configureReferenceInteractions(controller, repository: repository, access: access) }
         model.configureMerge = { [weak self] controller in self?.configureMergeInteractions(controller, repository: repository, access: access) }
         model.configureSwitch = { [weak self] controller in self?.configureSwitchInteractions(controller, repository: repository, access: access) }
     }

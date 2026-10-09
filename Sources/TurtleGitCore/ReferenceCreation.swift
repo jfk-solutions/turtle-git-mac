@@ -24,20 +24,25 @@ public enum ReferenceCreationFailure: LocalizedError {
     }
 }
 extension GitRepository {
-    public func createReference(_ options: ReferenceCreationOptions, writeDescription: Bool = true) throws -> String {
+    public func createReference(_ options: ReferenceCreationOptions, writeDescription: Bool = true, cancellation: OperationCancellation? = nil) throws -> String {
+        try cancellation?.check()
+        func exists(_ ref: String) throws -> Bool {
+            do { _ = try run(["show-ref", "--verify", "--quiet", ref], cancellation: cancellation); return true }
+            catch { try cancellation?.check(); return false }
+        }
         let name = options.name.trimmingCharacters(in: .whitespacesAndNewlines)
         let prefix = options.isTag ? "refs/tags/" : "refs/heads/"
         do {
-            _ = try run(["check-ref-format", prefix + name])
+            _ = try run(["check-ref-format", prefix + name], cancellation: cancellation)
             // Git's branch-name rules also reject leading dashes and checkout shorthand.
-            _ = try run(["check-ref-format", "--branch", name])
-        } catch { throw ReferenceCreationFailure.invalidName }
-        if !options.force, (try? run(["show-ref", "--verify", "--quiet", prefix + name])) != nil { throw ReferenceCreationFailure.exists }
+            _ = try run(["check-ref-format", "--branch", name], cancellation: cancellation)
+        } catch { try cancellation?.check(); throw ReferenceCreationFailure.invalidName }
+        if !options.force, try exists(prefix + name) { throw ReferenceCreationFailure.exists }
         let other = options.isTag ? "refs/heads/" : "refs/tags/"
-        if !options.allowNameConflict, (try? run(["show-ref", "--verify", "--quiet", other + name])) != nil { throw ReferenceCreationFailure.nameConflict }
+        if !options.allowNameConflict, try exists(other + name) { throw ReferenceCreationFailure.nameConflict }
         let hash: String
-        do { hash = try run(["rev-parse", "--verify", "--end-of-options", options.revision + "^{commit}"]).text.trimmingCharacters(in: .newlines) }
-        catch { throw ReferenceCreationFailure.invalidRevision }
+        do { hash = try run(["rev-parse", "--verify", "--end-of-options", options.revision + "^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) }
+        catch { try cancellation?.check(); throw ReferenceCreationFailure.invalidRevision }
         let message = options.message.replacingOccurrences(of: "\r", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
         var args = [options.isTag ? "tag" : "branch"]
         if options.force { args.append("--force") }
@@ -49,15 +54,15 @@ extension GitRepository {
             if !message.isEmpty { args += ["--annotate", "--message", message] }
             args += ["--", name, hash]
         } else {
-            let remote = options.revision.hasPrefix("refs/remotes/") && (try? run(["show-ref", "--verify", "--quiet", options.revision])) != nil
+            let remote = try options.revision.hasPrefix("refs/remotes/") && exists(options.revision)
             if remote {
                 if options.tracking == .track { args.append("--track") }
                 if options.tracking == .noTrack { args.append("--no-track") }
             } else { args.append("--no-track") }
             args += ["--", name, remote ? options.revision : hash]
         }
-        let output = try run(args).text
-        if writeDescription, !options.isTag, !message.isEmpty { _ = try run(["config", "--local", "branch." + name + ".description", message]) }
+        let output = try run(args, cancellation: cancellation).text
+        if writeDescription, !options.isTag, !message.isEmpty { _ = try run(["config", "--local", "branch." + name + ".description", message], cancellation: cancellation) }
         return output
     }
     /// Source CreateBranchTag writes the description after PerformSwitch returns,

@@ -1,0 +1,95 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "10e3d9f",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Remote reference-browser Create Branch command with immutable object-hash base, owned dialog and refresh. Full port remains incomplete.",
+  "verification": {
+    "source": "BrowseRefsDlg enables single-ref Create Branch for refs/remotes independent of object type/working tree, with IDI_COPY; eCmd_CreateBranch passes selected stored ref hash to CAppUtils::CreateBranchTag then Refresh. Native gate, icon and hash route follow this source.",
+    "native_route": "Both engines: real native table/context menu, remote/local/tag/symbolic-HEAD gate, original artwork, shared configuration capture, owner lock/Quit, immutable hash despite moved remote, real private branch creation, refreshed catalog, Cancel/rejected/competing commands and recorded live creation leader/helper termination. No cancelled branch or late state/callback.",
+    "factory": "Extracted standalone BranchTag interaction setup unchanged and used for owned browser; tracking picker inherits configuration. Receiver captures hook without RepositoryModel/Finder settings writer construction.",
+    "core": "Seven ReferenceCreationTests pass Apple and bundled Git; new pre-cancelled branch/tag creation preserves refs/config and propagates cancellation.",
+    "regressions": "Existing creation-picker and browser-Merge receivers pass both engines after shared factory/lifetime/context changes. They precede isolated metadata access-guard addition; final route receiver verifies final sources in Debug.",
+    "cycles": "Zero AttributeGraph cycles in all three final native logs.",
+    "builds": "Final unsigned Debug/AppStore builds and bundle audits pass; both NOTICE files byte-equal source. Universal Git 2.55.0/LFS 3.8.0, EditorConfig/IssueRegex helpers, Finder extension and all 99 original icons audited.",
+    "inventory_site": "Pinned inventory checks and local site build pass; no deployment/refreshed physical captures.",
+    "ci": "Route receiver added once; Ruby safe YAML parse/count pass. Hosted status/execution unverified."
+  },
+  "limitations": [
+    "Physical sheets/focus, real gestures, light/dark/VoiceOver, signed Finder/AppStore acceptance and full source/dialog/menu parity remain incomplete.",
+    "Bare/non-commit creation acceptance, every slow metadata/validation stage, external ref races, routed post-creation checkout/description failure recovery require broader work.",
+    "Fetch route and remaining browser commands remain incomplete.",
+    "No main app, network/post-action execution, push or shared Finder-settings writer used."
+  ],
+  "cleanup": {
+    "all_handles_terminal": true,
+    "main_app_launches": 0,
+    "remaining_owned_processes": [],
+    "removed_current_empty_domains": [
+      {
+        "domain": "TurtleGit.ReferenceCreateBranch.QA.107F71DC-3768-4575-BA85-A44C76B2913E",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "remaining": false
+      },
+      {
+        "domain": "TurtleGit.ReferenceMerge.QA.BF24C76F-E88F-466B-BDCF-C580AF8F1B88",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "remaining": false
+      },
+      {
+        "domain": "TurtleGit.ReferenceCreateBranch.QA.66E33B71-836E-4B6A-AA7C-622941987427",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "remaining": false
+      },
+      {
+        "domain": "TurtleGit.ReferenceMerge.QA.005FB564-5170-43C3-AC3B-6B56533F9827",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "remaining": false
+      },
+      {
+        "domain": "TurtleGit.ReferenceCreateBranch.QA.42AC9158-014C-43B1-9BCB-4118FD350AD8",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "remaining": false
+      },
+      {
+        "domain": "TurtleGit.ReferenceCreateBranch.QA.0B1B0EBB-E702-41F8-8B8F-344B4C1B44A0",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "remaining": false
+      },
+      {
+        "domain": "TurtleGit.CreationPickers.QA.8A66049A-9823-4E9E-A292-88D81C13C8A8",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "remaining": false
+      },
+      {
+        "domain": "TurtleGit.CreationPickers.QA.9C09B951-3D12-4931-80CA-2428860A8528",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "remaining": false
+      }
+    ],
+    "older_preferences_retained": true,
+    "fixtures": "Native TemporaryDirectory contexts completed/removed, including failed test-harness attempts."
+  },
+  "local_logs": "build/qa/reference-create-branch-2026-10-09",
+  "sha256": {
+    ".github/workflows/macos.yml": "f4e81411dc9c3f67ec2d21af52434c02dc49891ce128e630f05844ac63885ef4",
+    "Sources/TurtleGitCore/ReferenceCreation.swift": "c73527026925cdd30f10d12cb27ff7672881d8b73ae1c5e140e0712c6c9412bd",
+    "Sources/TurtleGitMac/BranchTagWindow.swift": "b70ae239ea8ad72a1f066a2b268b0b2e9c54f831a1b3357dedffc8cae679be30",
+    "Sources/TurtleGitMac/ReferenceBrowserWindow.swift": "a8aabf0859f445f1a4a8919f1b89ef42715e94ccd2099d604a3ecede9defe08c",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "b317643e027aabca9d43c240ef5d59b9c9151321de116d5876be4992ed5812f1",
+    "Tests/TurtleGitCoreTests/ReferenceCreationTests.swift": "c8857955e6b55b58e09edfb9e5f504c9d8401f60f004aece12741f67081008e2",
+    "docs/BRANCH-TAG-PARITY.md": "74221f489830123d64e188e0944c09b991f8eb4b92809e5605faae589dbd91e8",
+    "docs/REFERENCE-BROWSER-PARITY.md": "73bad158b13e71283e4d7f193b767bff7aca32c511b4c3cf143ec57942a530d7",
+    "docs/TESTING.md": "de47da7e4caa2e6badb017a585b50aaef691ce208a35a20779305910725e709a",
+    "docs/upstream-files.csv": "112c4672eb933567becceca44454a054f43799efe7273ffc580c0cd8fad3e256",
+    "docs/qa/reference-create-branch-native-2026-10-09.swift": "19742de595705014bbc31e0b0b0cbcef73c5fb2ffd3c2c43c3db5c8a279f8160",
+    "scripts/test-reference-create-branch.py": "7b66223a4cf8d3399ec6fb9be722e9cca82ba6f6013ae94d47d83decde30bb72"
+  }
+}

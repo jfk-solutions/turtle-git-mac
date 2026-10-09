@@ -9,6 +9,8 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
 @MainActor final class ReferenceBrowserWindowController: NSWindowController, NSWindowDelegate {
     let model: ReferenceBrowserWindowModel
     var onClosed: () -> Void = {}
+    private(set) var branchDialog: BranchTagWindowController?
+    var presentBranch: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
     private(set) var mergeDialog: MergeWindowController?
     var presentMerge: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
     private(set) var switchDialog: SwitchWindowController?
@@ -32,6 +34,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         model.onReflog = { [weak self] name in self?.showReflog(name) }
         model.onEditDescription = { [weak self] in self?.editDescription() }
         model.onSelectTracking = { [weak self] in self?.selectTracking() }
+        model.onCreateBranch = { [weak self] in self?.showCreateBranch() }
         model.onMerge = { [weak self] in self?.showMerge() }
         model.onSwitch = { [weak self] in self?.showSwitch() }
         model.finish = { [weak self] reference in self?.finish(reference) }
@@ -77,7 +80,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
             self.trackingRequest = nil
             if let upstream, GitReferenceName.removingPrefix("refs/remotes/", from: upstream) != nil { self.model.changeTracking(reference, upstream: GitReferenceName(upstream)) }
         }
-        child.model.onLog = model.onLog; child.model.onBrowse = model.onBrowse; child.model.onCompare = model.onCompare; child.model.configureSwitch = model.configureSwitch; child.model.configureMerge = model.configureMerge
+        child.model.onLog = model.onLog; child.model.onBrowse = model.onBrowse; child.model.onCompare = model.onCompare; child.model.configureSwitch = model.configureSwitch; child.model.configureMerge = model.configureMerge; child.model.configureBranch = model.configureBranch
         trackingPicker = child; configureTrackingPicker(child)
         child.onClosed = { [weak self, weak child] in
             guard let self, let child, self.trackingPicker === child else { return }
@@ -100,6 +103,19 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         guard let window = child.window, presentSwitch(owner, window) else { child.close(); return }
         child.model.load(revision: reference)
     }
+    func showCreateBranch() {
+        guard let owner = window, owner.attachedSheet == nil, model.canCreateBranch, let hash = model.chosen?.hash else { return }
+        model.hasChild = true
+        let child = BranchTagWindowController(repository: model.repository, access: model.access, isTag: false, preferences: model.preferences)
+        branchDialog = child; model.configureBranch(child)
+        child.onClosed = { [weak self, weak child] in
+            guard let self, let child, self.branchDialog === child else { return }
+            if let window = child.window, window.sheetParent === self.window { self.window?.endSheet(window) }
+            self.branchDialog = nil; self.model.hasChild = false; if !self.model.closed { self.model.load() }
+        }
+        guard let window = child.window, presentBranch(owner, window) else { child.close(); return }
+        child.model.load(revision: hash)
+    }
     func showMerge() {
         guard let owner = window, owner.attachedSheet == nil, model.canMerge, let reference = model.chosen?.name.rawValue else { return }
         model.hasChild = true
@@ -119,7 +135,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         if let window { window.sheetParent?.endSheet(window); window.close() }; completion(reference)
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { guard !model.hasChild, model.renameReference == nil, !model.busy, sender.attachedSheet == nil else { return false }; finish(nil); return false }
-    func windowWillClose(_ notification: Notification) { model.invalidate(); mergeDialog?.close(); mergeDialog = nil; switchDialog?.close(); switchDialog = nil; trackingRequest = nil; trackingPicker?.abandonPresentation(); trackingPicker = nil; descriptionEditor?.close(); descriptionEditor = nil; reflog?.close(); reflog = nil; model.hasChild = false; let completion = completion; self.completion = nil; completion?(nil); onClosed() }
+    func windowWillClose(_ notification: Notification) { model.invalidate(); branchDialog?.close(); branchDialog = nil; mergeDialog?.close(); mergeDialog = nil; switchDialog?.close(); switchDialog = nil; trackingRequest = nil; trackingPicker?.abandonPresentation(); trackingPicker = nil; descriptionEditor?.close(); descriptionEditor = nil; reflog?.close(); reflog = nil; model.hasChild = false; let completion = completion; self.completion = nil; completion?(nil); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class ReferenceBrowserWindowModel: ObservableObject {
@@ -152,6 +168,9 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     @Published var sortColumn = "name"
     @Published var descending = false
     var finish: (String?) -> Void = { _ in }
+    var onCreateBranch: (() -> Void)?
+    var configureBranch: (BranchTagWindowController) -> Void = { _ in }
+    var canCreateBranch: Bool { canAccept && chosen.map { GitReferenceName.removingPrefix("refs/remotes/", from: $0.name.rawValue) != nil } == true }
     var onMerge: (() -> Void)?
     var configureMerge: (MergeWindowController) -> Void = { _ in }
     var currentBranchName: String {
@@ -464,6 +483,7 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
             if model.canMerge { item(model.mergeTitle, #selector(mergeRevision), .merge, model.onMerge != nil) }
             if model.canSwitch { item("Switch/Checkout to this…", #selector(switchRevision), .checkout, model.onSwitch != nil) }
             if model.canSwitch { menu.addItem(.separator()) }
+            if model.canCreateBranch { item("Create Branch…", #selector(createBranch), .branch, model.onCreateBranch != nil) }
             if model.canEditDescription { item("Edit description", #selector(editDescription), .rename, model.onEditDescription != nil) }
             if model.canRename { item("Rename", #selector(rename), .rename, true) }
             if model.canChangeTracking {
@@ -472,6 +492,7 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
             }
             menu.addItem(.separator()); item("Copy reference name", #selector(copyName), .copy, true)
         }
+        @objc func createBranch() { if model.canCreateBranch { model.onCreateBranch?() } }
         @objc func mergeRevision() { if model.canMerge { model.onMerge?() } }
         @objc func switchRevision() { if model.canSwitch { model.onSwitch?() } }
         @objc func selectTracking() { if model.canChangeTracking { model.onSelectTracking?() } }

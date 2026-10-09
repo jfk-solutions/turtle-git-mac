@@ -337,3 +337,14 @@ windows, private repositories and preferences. Its native presenter releases the
 parent's editor focus before disabling it. It verifies real responder state but
 uses no physical sheets and does not launch the main app. Run Switch and creation
 picker receivers after changes to the shared `VersionPickerCoordinator`.
+
+### Reference browser Create Branch
+
+After Debug build, run `python3 scripts/test-reference-create-branch.py --git
+/usr/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git`.
+The hidden receiver checks original menu artwork, immutable hash handoff despite
+a moved remote, actual private branch creation and catalog refresh, ownership and
+recorded live process cleanup. Private preferences and fixtures are removed after
+the receiver. This does not establish physical/signed UI acceptance. Run
+`ReferenceCreationTests`, creation-picker and browser-Merge receiver regressions
+when changing the shared creation factory or context menu.
