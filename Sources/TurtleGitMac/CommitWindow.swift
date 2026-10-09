@@ -1101,6 +1101,57 @@ struct CommitFileSort: SortComparator {
     }
 }
 
+/// The upstream new-branch toggle focuses the newly shown edit control and
+/// selects its entire draft. Request this once per insertion, after attachment.
+struct CommitNewBranchField: NSViewRepresentable {
+    @Binding var name: String
+    func makeCoordinator() -> Coordinator { Coordinator(name: $name) }
+    func makeNSView(context: Context) -> Field {
+        let field = Field()
+        field.isBezeled = true
+        field.bezelStyle = .squareBezel
+        field.drawsBackground = true
+        field.font = .systemFont(ofSize: NSFont.systemFontSize)
+        field.placeholderString = "New branch name"
+        field.setAccessibilityLabel("New branch name")
+        field.delegate = context.coordinator
+        field.stringValue = name
+        return field
+    }
+    func updateNSView(_ field: Field, context: Context) {
+        context.coordinator.name = $name
+        if !field.stringValue.utf8.elementsEqual(name.utf8) { field.stringValue = name }
+        field.isEnabled = context.environment.isEnabled
+    }
+    static func dismantleNSView(_ field: Field, coordinator: Coordinator) {
+        field.focusPending = false
+        field.delegate = nil
+    }
+    final class Coordinator: NSObject, NSTextFieldDelegate {
+        var name: Binding<String>
+        init(name: Binding<String>) { self.name = name }
+        func controlTextDidChange(_ notification: Notification) {
+            guard let field = notification.object as? NSTextField else { return }
+            name.wrappedValue = field.stringValue
+        }
+    }
+    final class Field: NSTextField {
+        var focusPending = true
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            guard let owner = window, focusPending else { return }
+            DispatchQueue.main.async { [weak self, weak owner] in
+                guard let self, let owner, self.window === owner,
+                      self.focusPending, self.isEnabled, owner.attachedSheet == nil else { return }
+                self.focusPending = false
+                if owner.makeFirstResponder(self), let editor = self.currentEditor() {
+                    editor.selectedRange = NSRange(location: 0, length: self.stringValue.utf16.count)
+                }
+            }
+        }
+    }
+}
+
 struct CommitDialog: View {
     @ObservedObject private var statusColorUpdates = StatusColorUpdates.shared
     @ObservedObject var model: CommitWindowModel
@@ -1113,7 +1164,7 @@ struct CommitDialog: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text("Commit to:")
-                if model.createBranch { TextField("New branch name", text: $model.newBranch).frame(width: 250) }
+                if model.createBranch { CommitNewBranchField(name: $model.newBranch).frame(width: 250) }
                 else { Text(model.branch.isEmpty ? "Detached / unborn HEAD" : model.branch).foregroundStyle(.blue) }
                 Toggle("new branch", isOn: $model.createBranch).toggleStyle(.checkbox).disabled(model.operation != nil || model.replaySplit != nil)
                 Spacer()

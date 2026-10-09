@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "51d9742",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/CommitDlg.cpp": "3f4f032637786bef7e5943d0e7ea0bd4ea701de3"
+  },
+  "scope": "Match OnBnClickedCheckNewBranch focus/select-all behavior in native Commit; whole port incomplete.",
+  "verification": {
+    "source": "Pinned OnBnClickedCheckNewBranch shows/focuses IDC_NEWBRANCH and sends EM_SETSEL 0,-1; disabling restores IDC_COMMIT_TO.",
+    "native": "Final receiver passes with Apple Git and bundled AppStore Git. Actual full unordered Commit dialog verifies native field-editor first responder, whole UTF-16 Unicode draft selection, native replacement typing updating model, ordinary message update preserving caret, retained/reselected off/on draft, editable/selectable bezeled field and accessibility label. Disabled insertion and later enable do not steal focus.",
+    "debug": "Final unsigned Debug build and bundle audit pass.",
+    "store": "Final unsigned AppStore build and required bundle audit pass: universal Git 2.55.0/Git LFS 3.8.0, helper/parser/matcher provenance, embedded Finder and 99 icons. Signed sandbox/App Store acceptance unverified.",
+    "notice": "Both bundles contain byte-exact source NOTICE.",
+    "inventory": "CommitDlg.cpp remains partial-native-replacement; isolated inventory pin check passes.",
+    "site": "Local static site generator passes; no deployment or new screenshot claim.",
+    "initial_failure": "Apple native run passed; bundled run was given a nonexistent Debug Git path and stopped before dialog checks. Corrected to existing AppStore runtime, added preflight missing-file validation, final both-engine run passes. Initial private contexts/preferences removed."
+  },
+  "limitations": [
+    "Physical checkbox activation, Tab/Shift-Tab, Return/default button and appearance/layout acceptance remain unverified.",
+    "Issue-field initial focus, IME and other operation/sheet focus interactions need broader checks.",
+    "Full dialog/application/Finder parity, current screenshots/site deployment, hosted CI and signed App Store/legal clearance remain incomplete."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "remaining_preferences": [],
+    "remaining_fixtures": [],
+    "remaining_processes": [],
+    "windows": "Owned hidden full Commit windows closed by receiver defer; no user repository modified."
+  },
+  "changed_files_sha256": {
+    "Sources/TurtleGitMac/CommitWindow.swift": "19963e03ed0ab692de99b93001385096899b8841465702030df954da46121a40",
+    "docs/COMMIT-PARITY.md": "16ea81d3b75acaff22f513ab3a606135fb399f17d2269f3cef071e4a9adc8de3",
+    "docs/TESTING.md": "7a8c8197ae52b30d91761db6d6b623c1cd5a9666af9f496ecbd2e52b3c1ac15a",
+    "docs/upstream-files.csv": "1de6c145cc1c82bd1342aa17776329a49f7147c43d1014805c1e85f901274f13",
+    "docs/qa/commit-branch-focus-native-2026-10-09.swift": "ce3fff74dfd0eadbc8db5078cce53f12c28eb894cba07efe6ac700317394b09b",
+    "scripts/test-commit-branch-focus.py": "c44833c28beb55e3f3068efa1a67499138e586913dfaf4c897ba2ea0a689cb22"
+  },
+  "local_log_sha256": {
+    "build/qa/commit-branch-focus-2026-10-09/cleanup.json": "ca888a2665f2df249764da9b6dcacf2eb37d5e0a7b11840f9a796accb1633969",
+    "build/qa/commit-branch-focus-2026-10-09/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/commit-branch-focus-2026-10-09/debug-initial.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/commit-branch-focus-2026-10-09/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/commit-branch-focus-2026-10-09/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/commit-branch-focus-2026-10-09/native-initial.log": "c880541870d93e84603f1f9c52a7048c2568edbfd741c8eaf513938865557c84",
+    "build/qa/commit-branch-focus-2026-10-09/native.log": "02e5a4f91e3d2c6a7defc515fb386284a2a71992e92df48d3f5d5c5379556e94",
+    "build/qa/commit-branch-focus-2026-10-09/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/commit-branch-focus-2026-10-09/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/commit-branch-focus-2026-10-09/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca"
+  }
+}
