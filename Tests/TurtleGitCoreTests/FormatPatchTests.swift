@@ -1,6 +1,13 @@
 import XCTest
 @testable import TurtleGitCore
 
+private final class PatchOutputCapture: @unchecked Sendable {
+    private let lock = NSLock()
+    private var bytes = Data()
+    func append(_ chunk: GitOutputChunk) { lock.lock(); defer { lock.unlock() }; bytes.append(chunk.data) }
+    var text: String { lock.lock(); defer { lock.unlock() }; return String(decoding: bytes, as: UTF8.self) }
+}
+
 final class FormatPatchTests: XCTestCase {
     func testLogSelectionPresetsRespectRowOrderContinuityAndHiddenRows() throws {
         let rows = ["newest", "middle", "older", "oldest"]
@@ -63,7 +70,10 @@ final class FormatPatchTests: XCTestCase {
         var since: URL?
         for (name, selection, count) in [("since 雪", FormatPatchSelection.since(base), 2), ("number", .number(1), 1), ("range", .range(from: base, to: "HEAD"), 2), ("empty", .range(from: "HEAD", to: "HEAD"), 0)] {
             let folder = root.appendingPathComponent(name)
-            let result = try await repo.formatPatch(selection: selection, to: folder)
+            let capture = PatchOutputCapture()
+            let result = try await repo.formatPatch(selection: selection, to: folder, onOutput: { capture.append($0) })
+            XCTAssertEqual(capture.text, result.text, "Only patch filenames, not metadata probes, are streamed")
+            XCTAssertFalse(capture.text.contains("diff --git"), "Patch payload stays in the generated files")
             XCTAssertEqual(result.exitCode, 0)
             let files = (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) ?? []
             XCTAssertEqual(files.count, count)

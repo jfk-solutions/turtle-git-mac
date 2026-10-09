@@ -47,7 +47,7 @@ extension GitRepository {
     /// Adapted from FormatPatchCommand.cpp, GPL-2.0-or-later. Preserve Git's
     /// numbering, naming, configuration, binary patches and empty-range behavior.
     /// Existing patch files can be replaced, just as in the upstream command.
-    public func formatPatch(selection: FormatPatchSelection, to folder: URL, noPrefix: Bool = false, cancellation: OperationCancellation? = nil) throws -> GitResult {
+    public func formatPatch(selection: FormatPatchSelection, to folder: URL, noPrefix: Bool = false, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> GitResult {
         try cancellation?.check()
         func valid(_ revision: String) -> Bool { !revision.isEmpty && !revision.contains("\0") }
         let version: [String]
@@ -90,6 +90,6 @@ extension GitRepository {
             let metadata = (path.hasPrefix("/") ? URL(fileURLWithPath: path) : root.appendingPathComponent(path)).standardizedFileURL.resolvingSymlinksInPath()
             guard !RepositoryAccessLease.pathIsContained(destination, by: metadata) else { throw FormatPatchFailure.outputDirectory }
         }
-        return try run(["format-patch"] + (noPrefix ? ["--no-prefix"] : []) + ["-o", destination.path] + version + ["--"], cancellation: cancellation)
+        return try run(["format-patch"] + (noPrefix ? ["--no-prefix"] : []) + ["-o", destination.path] + version + ["--"], cancellation: cancellation, onOutput: onOutput)
     }
 }

@@ -3,9 +3,9 @@
 Baseline: TortoiseGit `7338078f8ddd924b8cddee35f512f2286072136d`.
 
 The repository operation is implemented and tested. A native dialog, app/Finder
-action, progress sheet and mail composition handoff now compile. Native runtime,
-visual and signed sandbox verification are still pending; this is not a completed
-dialog port.
+action, progress sheet and mail composition handoff compile. Core and selected
+hidden native workflows are verified below. Physical visual/keyboard and signed
+sandbox acceptance remain pending; this is not a completed dialog port.
 
 | Source | Blob | Replacement |
 | --- | --- | --- |
@@ -59,7 +59,7 @@ AppKit history fields, AppKit radio buttons, commit-count field and stepper, Fro
 Log selection sheets, both options and the four footer actions. The Since chooser
 lists local and remote references without tags. Histories and options persist with
 UserDefaults. Its fixed height and horizontal resizing match the source intent;
-geometry uses AppKit frame autosave. Repository and output-directory access leases
+geometry uses the shared native geometry store. Repository and output-directory access leases
 stay retained through Git operations. Store builds require a covered directory
 grant, and typed destinations outside existing grants open the folder chooser.
 
@@ -110,7 +110,7 @@ seen in status. The parent dialog also blocks editing/export/preset replacement
 while its mail composition service is active. These native interactions are
 implemented but remain unverified through actual UI control.
 
-The Debug preview launched once, but the computer-control connection failed with
+An earlier Debug preview launched once, but the computer-control connection failed with
 “Sky Computer Use native pipe closed before response” twice. No accessibility
 state or screenshot was obtained, so no layout or native interaction pass is
 claimed. Normal Quit could not be invoked through that failed connection; the
@@ -158,7 +158,7 @@ is the existing Mac ownership adaptation; upstream closes its options on OK.
 ConfirmKillProcess now presents native Yes/No, default Yes, on the owned progress
 sheet. No keeps Git running. Yes stops the existing owned process group and
 retains partial patches/diagnostics. While a confirmation is pending, Close and
-further Cancel are blocked. A success that finishes during the question waits
+further Abort are blocked. A success that finishes during the question waits
 for its answer before applying auto-close; a late Yes does not reinterpret that
 completed success as cancellation.
 
@@ -181,3 +181,40 @@ hosting does not display a result sheet or prove UI acceptance; no actual mail
 service or external editor was invoked. Physical nested alerts, default focus,
 keyboard/layout, output grants, service callbacks and signed acceptance remain
 pending. Existing screenshots predate these progress changes.
+
+## Source-style live progress
+
+The progress sheet now uses the shared read-only AppKit output view, including
+original Copy icons, source error/warning formatting and success/failure footer
+colors, locale/timing preferences and bounded UTF-8 output. Current work and
+percentage follow command output; ordinary format-patch emits paths without
+numeric progress, so no percentage estimate is invented. Close stays visible
+and disabled while Git runs. Abort requests the existing confirmation/cancellation
+flow, closes a failed result when idle, and is disabled on success. The sheet
+content explicitly enables its own controls while the options behind it remain
+locked. Escape retains the guarded cancellation/completed acknowledgement path.
+
+Only the final format-patch command streams into progress; FETCH_HEAD and metadata
+probes remain internal. Returned stdout still supplies all generated attachment
+URLs even if visible output is truncated. Streamed command diagnostics appear
+once, with the actual exit-code footer. Empty ranges keep the no-patches message;
+cancellation retains partial files and the output-directory explanation.
+
+Invalidating a closed owner cancels its operation, clears progress/confirmation,
+and suppresses late output, status refresh, completion/footer and mail/close
+handoffs. Busy remains true until the owned operation and child cleanup finish.
+Pre-start cancellation creates no output directory. A late unified-diff result
+also cannot open its viewer after owner closure. Physical sheet dismissal,
+rendered themes, keyboard/default controls, screenshots, signed sandbox grants
+and the complete upstream Send Mail options remain unverified.
+
+[October 10 streaming QA](qa/format-patch-stream-2026-10-10.json) records system
+and packaged Git checks for real patch paths, completion/copy/color attributes,
+live output before process exit, an exit-17 diagnostic appearing once, abandoned
+owner/confirmation fencing, leader/child cleanup and partial-file retention,
+pre-start cancellation, and unchanged HEAD/index. A flooded output fixture
+confirms the captured 16 KiB UTF-8 display limit while both real generated patch
+URLs survive in the captured mail handoff. The existing progress regression also
+passes with both engines, including all modes/policies and actual git am tree
+equality. These are hidden receivers; no mail was sent or composed and no main
+app instance was launched.

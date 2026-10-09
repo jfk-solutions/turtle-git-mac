@@ -1,0 +1,101 @@
+{
+  "checked_at": "2026-10-09T23:32:10.963296+00:00",
+  "parent_commit": "0145c6f0f4b243d67dac479e9a16f896fef022c7",
+  "scope": "Format Patch source-style live progress, bounded presentation/full attachment handoff and abandoned owner fencing",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blob_sha256": {
+    "src/TortoiseProc/Commands/FormatPatchCommand.cpp": "c52021cc43ffa63f5068d8a3f4de9205807d0d7bceaba525aa2c28f472c93c18",
+    "src/TortoiseProc/FormatPatchDlg.cpp": "809ecf90ea937542607f5a71645c19a0b2166aebda72307f547e843e00091ea0",
+    "src/TortoiseProc/ProgressDlg.cpp": "22a84c656904f19d5f39c0f4348ed56be483a2165c34938b43c39f8688162a67",
+    "src/Resources/TortoiseProcENG.rc": "619b0334a49f8b6065e04020ebb4c9ab82ed7375ca48a9494f6bb47f69ff5917"
+  },
+  "checks": {
+    "core_exit": 0,
+    "core_tests": 10,
+    "core_cases": "Seven FormatPatchTests plus three GitProcessCancellationTests; stream equals final filenames across modes/empty range without metadata or patch content; real binary git am, FETCH_HEAD/metadata/bare/unchanged contents; owned cancellation preserves partial output and reaps child",
+    "native_streaming": {
+      "system_git_exit": 0,
+      "packaged_git_exit": 0,
+      "cases": [
+        "Real two-patch filenames, one completion callback, timing-disabled source footer",
+        "Hidden progress content size and aqua/darkAqua color attributes; private Copy all",
+        "Actual exit-17 diagnostic once, retained failure/acknowledgement",
+        "Live current-work/42-percent parser before slow process exits",
+        "Direct owner invalidation cancels/reaps leader and child, keeps partial patch, suppresses late output/refresh/mail/close",
+        "Pending confirmation invalidation and late Yes/No fencing",
+        "Captured 16 KiB UTF-8-safe truncation under flood; full stdout still hands off two actual patch URLs in newline directory with captured Send Mail",
+        "Pre-start invalidation creates no output directory",
+        "HEAD/index unchanged"
+      ]
+    },
+    "native_regression": {
+      "system_git_exit": 0,
+      "packaged_git_exit": 0,
+      "cases": "All Since/Number/Range and captured policies, once acknowledgement, captured mail URLs, actual git am tree equality, histories, retained error/fresh export, No/Yes cancellation/partial output and deferred confirmation"
+    },
+    "debug_build_exit": 0,
+    "debug_bundle_audit_exit": 0,
+    "appstore_unsigned_build_exit": 0,
+    "appstore_bundle_audit_exit": 0,
+    "bundled_icons": 100,
+    "python_compile_exit": 0,
+    "preferences_cleanup": {
+      "removed": [
+        {
+          "domain": "TurtleGit.FormatPatchStreaming.QA.F446C1B2-15E3-4E57-91FA-47CA5D876932",
+          "defaults_delete_exit": 1,
+          "verified_empty": true,
+          "file_absent": true
+        },
+        {
+          "domain": "TurtleGit.FormatPatchStreaming.QA.94B3CF69-4750-433C-AC68-37D85B55291A",
+          "defaults_delete_exit": 1,
+          "verified_empty": true,
+          "file_absent": true
+        },
+        {
+          "domain": "TurtleGit.FormatPatchProgress.QA.6AD3E3AF-6797-4C06-BF2A-B89F3DBF39F6",
+          "defaults_delete_exit": 1,
+          "verified_empty": true,
+          "file_absent": true
+        },
+        {
+          "domain": "TurtleGit.FormatPatchProgress.QA.CA13697A-EB43-41E2-9B64-A25A6A47730F",
+          "defaults_delete_exit": 1,
+          "verified_empty": true,
+          "file_absent": true
+        }
+      ],
+      "preserved_nonempty": []
+    },
+    "final_audit": {
+      "matching_processes": [],
+      "current_fixtures": []
+    }
+  },
+  "source_sha256": {
+    ".github/workflows/macos.yml": "efa6ff168d9f33a1b6d7038e1677f35c92cbd3d837931d71689c7dedcfb4cdfd",
+    "Sources/TurtleGitCore/FormatPatch.swift": "90132cbdc43acb8d361a1329a6e00ca9f72ee19c3cf5f5ce6b13a17dffd4debc",
+    "Sources/TurtleGitMac/FormatPatchWindow.swift": "82c29b39422e2db101fbe96580839737c8833ab6a3d1a52532289650cc67026c",
+    "Sources/TurtleGitMac/ProgressActionLog.swift": "c86c09d784faf7ec0a615aa036019ccf5192933e02b53db3c4533ff58d1e6f0f",
+    "Tests/TurtleGitCoreTests/FormatPatchTests.swift": "fa66b946eaa873fdf154f35677cd02a08884eb6c8d11905cc2d6b2f68990697d",
+    "scripts/test-format-patch-progress.py": "69c7e341b74b29255c76f07d7cf0931a3a466a980319a3c97435f20244aecec5",
+    "docs/qa/format-patch-stream-native-2026-10-10.swift": "111453d6a78777cf925a30837345387565005805e3bfeb7d0a7c998286f65cd8",
+    "docs/FORMAT-PATCH-PARITY.md": "79aa2ac130b00ba8da8a965b86fef1d299b7b0a0d7b6119da350b89e3e0237ac",
+    "docs/PORTING.md": "d1a9360526ea39a269daf97929a2c1db35f2e316fc723062e9a6c1eff2376415"
+  },
+  "binary_sha256": {
+    "Debug_app": "ae0fc297ae892ad6d53e5bfb2e3aee3218b8dda08c01e7e3c33faa88de63b8d1",
+    "Debug_core": "9213fc56138de5df52b48c20ccbaa8100f5c51a7ac770a2778e735cdf0ebdbf2",
+    "AppStore_app": "8a520236da8547640ceab88ffafe3fed383fd79701a81d745989b15e98ffe609",
+    "AppStore_core": "c1dee0df8dcb2774e8039e072cde01c79897e2ea0ab610f05b7c64a7e96c834f"
+  },
+  "limitations": [
+    "Hidden native receivers; owner invalidation invoked directly, no physical window close/Quit/default-button/keyboard/rendered-theme/sheet acceptance",
+    "No mail service invocation or external viewer; complete upstream Send Mail options pending",
+    "Unsigned AppStore build; signed output directory grants/Finder/sandbox acceptance pending",
+    "Hosted GitHub CI unverified; workflow updated locally",
+    "Format Patch and whole TortoiseGit port remain partial"
+  ],
+  "logs": "build/qa/format-patch-progress-2026-10-10/ (ignored local logs)"
+}

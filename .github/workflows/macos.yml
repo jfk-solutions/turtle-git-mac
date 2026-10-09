@@ -120,6 +120,8 @@ jobs:
         run: python3 scripts/test-export-progress.py --receiver docs/qa/export-progress-native-2026-10-10.swift
       - name: Native Format Patch progress policies and cancellation
         run: python3 scripts/test-format-patch-progress.py
+      - name: Format Patch streaming and abandoned owner cleanup
+        run: python3 scripts/test-format-patch-progress.py --receiver docs/qa/format-patch-stream-native-2026-10-10.swift
       - name: Native Stash Apply and Pop result handoffs
         run: python3 scripts/test-stash-restore.py
       - name: Native Stash Save progress and post-actions

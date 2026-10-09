@@ -30,6 +30,7 @@ import TurtleGitCore
             guard let self, let window = self.window else { choose(false); return }
             let parent = window.attachedSheet ?? window
             guard parent.attachedSheet == nil else { choose(false); return }
+            parent.makeFirstResponder(nil)
             let alert = NSAlert(); alert.alertStyle = .informational; alert.messageText = "The process is still running."; alert.informativeText = "Are you sure to abort?"
             let yes = alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No"); yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
             alert.beginSheetModal(for: parent) { choose($0 == .alertFirstButtonReturn) }
@@ -39,7 +40,7 @@ import TurtleGitCore
         DialogGeometry.attach(window, identifier: "FormatPatchDialog", legacyName: "FormatPatchDialog")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !activeOperation && sender.attachedSheet == nil && patch?.model.busy != true && patch?.window?.attachedSheet == nil }
-    func windowWillClose(_ notification: Notification) { model.saveActionLog(); model.invalidate(); patch?.close(); onClosed() }
+    func windowWillClose(_ notification: Notification) { model.saveActionLog(); model.invalidate(); picker?.close(); picker = nil; patch?.close(); onClosed() }
     private func chooseDirectory() {
         guard let window, window.attachedSheet == nil else { return }
         let panel = NSOpenPanel(); panel.canChooseFiles = false; panel.canChooseDirectories = true; panel.canCreateDirectories = true
@@ -121,6 +122,12 @@ import TurtleGitCore
     @Published var error: String?
     @Published var progress = false
     @Published var output = ""
+    @Published private(set) var currentWork = ""
+    @Published private(set) var percentage: Int?
+    @Published private(set) var completionRange: NSRange?
+    private var outputState: GitProgressOutputState
+    var actionLogEligible: Bool { !busy && !invalidated && (progress || !output.isEmpty) }
+    var canCancel: Bool { busy && cancellation != nil && !cancelRequested && !confirmingCancellation && !invalidated }
     @Published var success = false
     @Published var cancelRequested = false
     @Published var cancelled = false
@@ -139,7 +146,7 @@ import TurtleGitCore
     var composeMail: ([URL]) -> Void = { _ in }
     var onOutputChanged: (String) -> Void = { _ in }
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
-    func invalidate() { invalidated = true; cancellation?.cancel() }
+    func invalidate() { invalidated = true; confirmingCancellation = false; progress = false; cancellation?.cancel() }
     func apply(_ preset: FormatPatchPreset?) {
         guard let preset, !busy, !progress, !finishScheduled, !invalidated, !composingMail, !openingViewer else { return }
         from = preset.from; to = preset.to
@@ -154,7 +161,7 @@ import TurtleGitCore
     var toHistory: [String] { preferences.stringArray(forKey: "FormatPatchTo") ?? [] }
     private var sinceKey: String { "FormatPatchSince:" + repository.root.path }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
-        self.repository = repository; self.access = access; self.preferences = preferences; directory = repository.root.path
+        self.repository = repository; self.access = access; self.preferences = preferences; outputState = GitProgressOutputState(preferences: preferences); directory = repository.root.path
         let defaults = preferences
         since = defaults.string(forKey: "FormatPatchSince:" + repository.root.path) ?? ""
         from = defaults.stringArray(forKey: "FormatPatchFrom")?.first ?? ""
@@ -198,21 +205,41 @@ import TurtleGitCore
         preferences.set(sendMail, forKey: "FormatPatchSendMail"); preferences.set(prefix, forKey: "FormatPatchNoPrefix")
         progressClosePolicy = GitProgressAutoClose(preferences: preferences)
         ProgressActionLog.nextAttempt(self, savePrevious: !output.isEmpty)
-        busy = true; progress = true; success = false; output = "Creating patch series…"; files = []
+        outputState = GitProgressOutputState(preferences: preferences)
+        busy = true; progress = true; success = false; output = ""; files = []
+        currentWork = ""; percentage = nil; completionRange = nil
         cancelRequested = false; cancelled = false
         let token = OperationCancellation(); cancellation = token
+        let startedAt = ProcessInfo.processInfo.systemUptime
         Task {
-            defer { busy = false; cancellation = nil; onOutputChanged(output); finishAutomatically() }
+            var exitCode: Int32?
+            defer {
+                busy = false; cancellation = nil
+                if !invalidated {
+                    let completion = SubmoduleProgressCompletion(success: success, cancelled: cancelled, exitCode: exitCode,
+                        elapsed: ProcessInfo.processInfo.systemUptime - startedAt, preferences: preferences)
+                    currentWork = completion.currentWork; percentage = 100; completionRange = completion.append(to: &output)
+                    onOutputChanged(output); finishAutomatically()
+                }
+            }
             do {
                 try checkAccess()
-                let result = try await repository.formatPatch(selection: selection, to: folder, noPrefix: prefix, cancellation: token)
-                guard !token.isCancelled else {
-                    cancelled = true; output = result.text + "\nOperation cancelled. Any patches written before cancellation remain in the output directory."
-                    return
+                let parser = GitCliOutputParser(limit: outputState.limit)
+                let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
+                let operation = Task {
+                    defer { continuation.finish() }
+                    return try await repository.formatPatch(selection: selection, to: folder, noPrefix: prefix, cancellation: token, onOutput: { chunk in
+                        parser.appendChunk(chunk.data); continuation.yield(())
+                    })
                 }
-                output = result.text.isEmpty ? "No patches created for this selection." : result.text
-                // Git sanitizes subject filenames. Split at the complete directory
-                // prefix so a newline inside the chosen directory remains literal.
+                for await _ in updates { consume(parser.processPending(), parser: parser) }
+                consume(parser.processPending(), parser: parser); consume(parser.finish(), parser: parser)
+                let result = try await operation.value
+                guard !invalidated else { return }
+                guard !token.isCancelled else { cancelled = true; appendDiagnostic("Operation cancelled. Any patches written before cancellation remain in the output directory."); return }
+                if !outputState.hasOutput { appendDiagnostic("No patches created for this selection.") }
+                // Use the full stdout, independently of the visible output limit.
+                // A newline in the directory remains literal; Git sanitizes names.
                 let resolved = folder.resolvingSymlinksInPath()
                 files = String(decoding: result.stdout, as: UTF8.self).components(separatedBy: resolved.path + "/").dropFirst().compactMap { part in
                     let name = part.hasSuffix("\n") ? String(part.dropLast()) : part
@@ -220,14 +247,29 @@ import TurtleGitCore
                     let file = resolved.appendingPathComponent(name)
                     return FileManager.default.fileExists(atPath: file.path) ? file : nil
                 }
-                success = true
+                success = true; exitCode = 0
             } catch let failure as GitCommandCancellationFailure {
-                cancelled = true
-                output = failure.result.text + "\nOperation cancelled. Any patches written before cancellation remain in the output directory."
+                cancelled = true; exitCode = failure.result.exitCode
+                if !invalidated { appendDiagnostic("Operation cancelled. Any patches written before cancellation remain in the output directory.") }
             } catch is OperationCancellationFailure {
-                cancelled = true; output = "Operation cancelled. Any patches written before cancellation remain in the output directory."
-            } catch { output = error.localizedDescription }
+                cancelled = true
+                if !invalidated { appendDiagnostic("Operation cancelled. Any patches written before cancellation remain in the output directory.") }
+            } catch {
+                exitCode = (error as? GitFailure)?.code
+                let alreadyStreamed = outputState.hasOutput && (error as? GitFailure)?.arguments.first == "format-patch"
+                if !invalidated && !alreadyStreamed { appendDiagnostic(error.localizedDescription) }
+            }
         }
+    }
+    private func consume(_ emission: GitCliOutputParser.Emission, parser: GitCliOutputParser) {
+        guard !invalidated else { return }
+        outputState.consume(emission, parser: parser); output = outputState.output
+        currentWork = outputState.currentWork; percentage = outputState.percentage
+    }
+    private func appendDiagnostic(_ text: String) {
+        let parser = GitCliOutputParser(limit: outputState.limit)
+        parser.appendChunk(Data(((output.isEmpty || output.hasSuffix("\n") ? "" : "\n") + text).utf8))
+        consume(parser.processPending(), parser: parser); consume(parser.finish(), parser: parser)
     }
     private func finishAutomatically() {
         if !busy, !confirmingCancellation, !invalidated,
@@ -263,6 +305,7 @@ import TurtleGitCore
             do {
                 try checkAccess()
                 let result = try await repository.run(["diff", "--no-ext-diff", "--no-color", "--stat", "--patch"] + (prefix ? ["--no-prefix"] : []) + ["--end-of-options", "HEAD", "--"])
+                guard !invalidated else { return }
                 if let onResult { onResult(result.stdout) } else { showPatch(result.stdout, alternate) }
             } catch { self.error = error.localizedDescription }
         }
@@ -311,7 +354,7 @@ struct FormatPatchDialog: View {
                 Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction)
                 Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-patch.html")!) }
             }
-        }.padding(16).disabled(model.busy || model.finishScheduled || model.composingMail || model.openingViewer)
+        }.padding(16).disabled(model.busy || model.progress || model.finishScheduled || model.composingMail || model.openingViewer)
         .alert("Format Patch", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
         .sheet(isPresented: $browseSince) {
             VStack(alignment: .leading, spacing: 12) {
@@ -323,16 +366,32 @@ struct FormatPatchDialog: View {
             }.padding(16).frame(width: 500)
         }
         .sheet(isPresented: $model.progress) {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack { Text("Format Patch").font(.headline); Spacer(); if model.busy { ProgressView().controlSize(.small) } }
-                ScrollView { Text(model.output).font(.system(.body, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }.frame(minHeight: 220)
-                HStack { Text(model.progressStatus).foregroundStyle(model.success ? Color.green : model.cancelled ? .orange : .secondary); Spacer()
-                    if model.busy { Button("Cancel") { model.cancelExport() }.keyboardShortcut(.cancelAction).disabled(model.cancelRequested || model.confirmingCancellation) }
-                    Button("Close") { model.finish() }.keyboardShortcut(.defaultAction).disabled(model.busy || model.confirmingCancellation) }
-            }.padding(16).frame(width: 620).disabled(model.confirmingCancellation)
+            FormatPatchProgressDialog(model: model).environment(\.isEnabled, true)
                 .interactiveDismissDisabled()
                 .onExitCommand { if model.busy { model.cancelExport() } else { model.finish() } }
         }
+    }
+}
+
+struct FormatPatchProgressDialog: View {
+    @ObservedObject var model: FormatPatchWindowModel
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(model.repository.root.path).font(.caption).textSelection(.enabled)
+            Text(model.currentWork.isEmpty ? " " : model.currentWork).font(.caption).lineLimit(1).help(model.currentWork)
+            ProgressView(value: Double(model.busy ? model.percentage ?? 0 : 100), total: 100)
+                .tint(model.busy ? .accentColor : model.success ? .blue : .red).accessibilityLabel("Git command progress")
+            SubmoduleProgressOutputView(text: model.output, completed: !model.busy, completionRange: model.completionRange, success: model.success)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            HStack {
+                if model.busy { ProgressView().controlSize(.small) }
+                Text(model.progressStatus).foregroundStyle(model.busy ? Color.primary : model.success ? .green : .red)
+                Spacer()
+                Button("Close") { model.finish() }.keyboardShortcut(.defaultAction).disabled(model.busy || model.confirmingCancellation)
+                Button("Abort") { if model.busy { model.cancelExport() } else { model.finish() } }.keyboardShortcut(.cancelAction)
+                    .disabled(model.success || model.confirmingCancellation || model.busy && !model.canCancel)
+            }
+        }.padding(16).frame(minWidth: 650, idealWidth: 760, minHeight: 320, idealHeight: 430)
     }
 }
 

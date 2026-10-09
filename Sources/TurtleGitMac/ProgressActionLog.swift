@@ -44,4 +44,4 @@ extension ResetProgressWindowModel: ActionLogProgress { var actionLogRepository:
 extension CleanProgressWindowModel: ActionLogProgress { var actionLogRepository: URL { repository.root }; var actionLogCancelled: Bool { cancelRequested } }
 extension ExportProgressWindowModel: ActionLogProgress { var actionLogRepository: URL { repository.root }; var actionLogCancelled: Bool { cancelled } }
 extension StashSaveProgressWindowModel: ActionLogProgress { var actionLogRepository: URL { repository.root }; var actionLogCancelled: Bool { cancelled } }
-extension FormatPatchWindowModel: ActionLogProgress { var actionLogEligible: Bool { progress || !output.isEmpty }; var actionLogRepository: URL { repository.root }; var actionLogCancelled: Bool { cancelled } }
+extension FormatPatchWindowModel: ActionLogProgress { var actionLogRepository: URL { repository.root }; var actionLogCancelled: Bool { cancelled } }
