@@ -23,8 +23,12 @@ then resolution resumes. Cancelling Reset leaves the conflict pending. Repeated
 Reset requests retain the existing window and append required completion callbacks.
 The app keeps the captured repository access lease alive for this operation.
 
-The browse controls reuse the current reference and commit choosers; their full
-upstream tree/search/log parity remains pending. Show modified files now opens an
+Commit browse now owns the full native Log dialog in single-commit selection
+mode, anchored at the typed commit revision, with the graph, filters and details.
+Its Working Tree row is suppressed. OK returns a full selected hash; Cancel
+preserves the draft. Reset/apply/modified-files/parent close/Quit wait until the
+picker releases. Branch browse still uses the flat reference chooser; upstream
+all-ref tree selection/reload/history-combo parity remains pending. Show modified files now opens an
 owned Changed Files comparison sheet of HEAD against the working tree, matching
 ResetDlg::OnBnClickedShowModifiedFiles. This range is independent of the selected
 Reset revision and leaves that selection intact. Reset/Apply/Cancel and parent
@@ -134,3 +138,27 @@ and unchanged HEAD, staged tree, configuration and working contents. The test
 injects presentation without displaying a sheet; actual sheet interaction,
 keyboard/default buttons, focus restoration, visual layout and signed sandbox
 behavior still require acceptance. Existing Reset screenshots predate this route.
+
+## Reset initial focus and commit Log picker
+
+The selected Reset type receives native first-responder focus once after initial
+metadata loading; bare repositories focus Soft. Caller-provided Soft/Mixed/Hard
+modes are preserved outside bare repositories. Ordinary updates do not repeat
+the handoff, and closed controllers invalidate pending focus. This follows
+ResetDlg::OnInitDialog, whose InitChooseVersion() does not request combo focus.
+
+[Picker QA](qa/reset-picker-2026-10-09.json) records hidden native focus and real
+Log-controller selection/cancellation, ancestry and child lifecycle checks with
+both Git engines. Single-commit Log pickers now enforce one row in NSTableView;
+ordinary and explicit multiple-selection Log modes retain multiple selection.
+Presentation is injected, so physical sheet interaction, keyboard navigation,
+focus after closing a child, visual comparison and signed acceptance remain
+unverified. Full BrowseRefs and ChooseVersion behavior is still partial.
+
+The injected presenters release keyboard focus from the disabled parent, without
+ordering either window. A retained-parent-focus diagnostic emitted SwiftUI
+AttributeGraph cycles; clearing parent focus removed them from the full Log
+picker receiver with identical source and assertions. This supports a synthetic
+presentation cause, not physical sheet acceptance. Initial focus bookkeeping is
+non-published and the radio state retains its original binding, avoiding needless
+view publications.

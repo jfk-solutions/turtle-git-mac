@@ -37,6 +37,7 @@ import TurtleGitCore
         var presentations = 0, configured = 0, logs = 0, fileLogs: [String] = []
         owner.presentModifiedComparison = { [weak owner] parent, child in
             presentations += 1
+            parent.makeFirstResponder(nil)
             return parent === owner?.window && child !== parent && !parent.isVisible && !child.isVisible
         }
         owner.configureModifiedComparison = { model in
@@ -76,7 +77,7 @@ import TurtleGitCore
         owner.configureModifiedComparison = { _ in }
         owner.model.bare = true; owner.model.showModifiedFiles(); try require(owner.modifiedComparison == nil, "Bare preview allowed")
         owner.model.bare = false; owner.model.busy = true; owner.model.showModifiedFiles(); try require(owner.modifiedComparison == nil, "Busy preview allowed"); owner.model.busy = false
-        owner.presentModifiedComparison = { _, _ in true }; owner.model.showModifiedFiles()
+        owner.presentModifiedComparison = { parent, _ in parent.makeFirstResponder(nil); return true }; owner.model.showModifiedFiles()
         guard let final = owner.modifiedComparison else { throw Failure(description: "Final preview missing") }
         try await wait { !final.model.busy }
         owner.close(); try require(owner.modifiedComparison == nil && !owner.model.showingModifiedFiles, "Forced parent close leaked child")

@@ -86,15 +86,15 @@ private enum LogSubmoduleHistoryFailure: LocalizedError {
     var onClosed: () -> Void = {}
     private var selectionCompletion: ((LogEntry?) -> Void)?
     private var multipleSelectionCompletion: (([LogEntry]?) -> Void)?
-    init(repository: GitRepository, access: RepositoryAccessLease?, onChooseMultiple: (([LogEntry]?) -> Void)? = nil, onChoose: ((LogEntry?) -> Void)? = nil) {
-        model = LogWindowModel(repository: repository, access: access, selecting: onChoose != nil || onChooseMultiple != nil, selectingMultiple: onChooseMultiple != nil)
+    init(repository: GitRepository, access: RepositoryAccessLease?, onChooseMultiple: (([LogEntry]?) -> Void)? = nil, onChoose: ((LogEntry?) -> Void)? = nil, labelDefaults: UserDefaults = .standard, savesColumnLayout: Bool = true) {
+        model = LogWindowModel(repository: repository, access: access, selecting: onChoose != nil || onChooseMultiple != nil, selectingMultiple: onChooseMultiple != nil, labelDefaults: labelDefaults)
         selectionCompletion = onChoose; multipleSelectionCompletion = onChooseMultiple
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 780),
             styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Log Messages – TurtleGit"
         window.minSize = NSSize(width: 1080, height: 700)
         window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: LogDialog(model: model))
+        window.contentViewController = NSHostingController(rootView: LogDialog(model: model, savesColumnLayout: savesColumnLayout).defaultAppStorage(labelDefaults))
         super.init(window: window)
         model.window = window
         model.onPatchPreviewVisibility = { [weak self] visible in self?.setPatchPreviewVisible(visible) }
@@ -2024,6 +2024,7 @@ extension LogWindowModel {
 struct LogDialog: View {
     @ObservedObject private var statusColorUpdates = StatusColorUpdates.shared
     @ObservedObject var model: LogWindowModel
+    var savesColumnLayout = true
     @AppStorage("LogDateFormat") private var shortDate = true
     @AppStorage("RelativeTimes") private var relativeTimes = false
     @AppStorage("UseSystemLocaleForDates") private var useSystemLocale = true
@@ -2076,7 +2077,7 @@ struct LogDialog: View {
 
             }.font(.system(size: 12))
             VSplitView {
-                RevisionTable(model: model).frame(minHeight: 200, idealHeight: 350)
+                RevisionTable(model: model, savesColumnLayout: savesColumnLayout).frame(minHeight: 200, idealHeight: 350)
                 HStack(alignment: .top, spacing: 0) {
                     OutputView(text: model.message, usesLogFont: true).frame(maxWidth: .infinity, maxHeight: .infinity)
                     if model.showGravatar { LogGravatarView(loader: model.gravatar) }
@@ -2409,7 +2410,7 @@ struct RevisionTable: NSViewRepresentable {
         let table = HistoryTableView()
         table.rowHeight = 24; table.intercellSpacing = NSSize(width: 4, height: 0)
         table.usesAlternatingRowBackgroundColors = false
-        table.allowsMultipleSelection = true; table.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
+        table.allowsMultipleSelection = !model.selecting || model.selectingMultiple; table.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
         for definition in LogRevisionColumns.definitions {
             let id = definition.id
             let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id)); column.title = definition.title; column.width = definition.width
@@ -2435,6 +2436,7 @@ struct RevisionTable: NSViewRepresentable {
         let coordinator = context.coordinator; coordinator.model = model
         guard let table = coordinator.table else { return }
         coordinator.updating = true
+        table.allowsMultipleSelection = !model.selecting || model.selectingMultiple
         let dateSettings = HistoryDateSettings(shortDate: shortDate, relative: relativeTimes, useSystemLocale: useSystemLocale)
         let colorsChanged = coordinator.colorRevision != statusColorUpdates.revision
         coordinator.colorRevision = statusColorUpdates.revision

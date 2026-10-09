@@ -8,21 +8,31 @@ import TurtleGitCore
     private var progressController: ResetProgressWindowController?
     private(set) var modifiedComparison: RevisionComparisonWindowController?
     private var closed = false
+    private(set) var commitPicker: LogWindowController?
+    private var commitPickerRequest: UUID?
+    var makeCommitPicker: (GitRepository, RepositoryAccessLease?, @escaping (LogEntry?) -> Void, UserDefaults) -> LogWindowController = { repository, access, choose, preferences in
+        LogWindowController(repository: repository, access: access, onChoose: choose, labelDefaults: preferences)
+    }
+    var presentCommitPicker: (NSWindow, NSWindow) -> Bool = { owner, child in
+        guard owner.attachedSheet == nil else { return false }
+        owner.beginSheet(child); return true
+    }
     var configureModifiedComparison: (RevisionComparisonWindowModel) -> Void = { _ in }
     var presentModifiedComparison: (NSWindow, NSWindow) -> Bool = { owner, child in
         guard owner.attachedSheet == nil else { return false }
         owner.beginSheet(child); return true
     }
-    init(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil) {
-        model = ResetWindowModel(repository: repository, access: access, revision: revision)
+    init(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, preferences: UserDefaults = .standard) {
+        model = ResetWindowModel(repository: repository, access: access, revision: revision, preferences: preferences)
         let size = NSSize(width: 690, height: 405)
         let window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Reset – TurtleGit"
         window.contentMinSize = size; window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: ResetDialog(model: model, chooser: model.chooser))
+        window.contentViewController = NSHostingController(rootView: ResetDialog(model: model, chooser: model.chooser).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self
         window.setContentSize(size); window.center()
-        model.close = { [weak self] in guard let self, !self.model.busy, !self.model.showingModifiedFiles, self.model.progress == nil, self.window?.attachedSheet == nil else { return }; self.window?.close() }
+        model.close = { [weak self] in guard let self, !self.model.busy, !self.model.showingModifiedFiles, !self.model.showingCommitPicker, self.model.progress == nil, self.window?.attachedSheet == nil else { return }; self.window?.close() }
+        model.onShowCommitPicker = { [weak self] in self?.showCommitPicker(preferences: preferences) }
         model.onShowModified = { [weak self] in self?.showModifiedFiles() }
         model.onProgress = { [weak self] result in
             guard let self, let window = self.window, window.attachedSheet == nil else { result.abandonPresentation(); return }
@@ -41,6 +51,28 @@ import TurtleGitCore
 
         DialogGeometry.attach(window, identifier: "ResetDialog", legacyName: "ResetDialog")
     }
+    private func showCommitPicker(preferences: UserDefaults) {
+        guard !closed, let owner = window, owner.attachedSheet == nil,
+              commitPicker == nil, model.beginCommitPicker() else { return }
+        let request = UUID(); commitPickerRequest = request
+        let picker = makeCommitPicker(model.chooser.repository, model.access, { [weak self] entry in
+            guard let self, self.commitPickerRequest == request else { return }
+            if !self.closed, let entry { self.model.chooser.commitRevision = entry.hash }
+            self.commitPickerRequest = nil; self.model.finishCommitPicker()
+        }, preferences)
+        commitPicker = picker
+        picker.onClosed = { [weak self, weak picker] in
+            guard let self, let picker, self.commitPicker === picker else { return }
+            if let child = picker.window, child.sheetParent === self.window { self.window?.endSheet(child) }
+            self.commitPicker = nil
+        }
+        let revision = model.chooser.commitRevision
+        picker.model.endRevision = revision.isEmpty ? nil : revision
+        guard let child = picker.window, presentCommitPicker(owner, child) else {
+            picker.close(); commitPicker = nil; commitPickerRequest = nil; model.finishCommitPicker(); return
+        }
+        picker.model.reload()
+    }
     private func showModifiedFiles() {
         guard !closed, let owner = window, owner.attachedSheet == nil,
               modifiedComparison == nil, model.beginModifiedFiles() else { return }
@@ -57,9 +89,11 @@ import TurtleGitCore
         }
         controller.model.load()
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.showingModifiedFiles && !model.busy && !model.confirmingHard && model.progress == nil && !model.chooser.busy && sender.attachedSheet == nil }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.showingModifiedFiles && !model.showingCommitPicker && !model.busy && !model.confirmingHard && model.progress == nil && !model.chooser.busy && sender.attachedSheet == nil }
     func windowWillClose(_ notification: Notification) {
-        closed = true; modifiedComparison?.close(); modifiedComparison = nil
+        closed = true; model.invalidateInitialModeFocus()
+        commitPicker?.close(); commitPicker = nil; commitPickerRequest = nil; model.finishCommitPicker()
+        modifiedComparison?.close(); modifiedComparison = nil
         model.finishModifiedFiles(); onClosed()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
@@ -87,9 +121,20 @@ import TurtleGitCore
     var close: () -> Void = {}
     var confirmHard: (ResetPlan, @escaping (Bool) -> Void) -> Void = { _, choose in choose(false) }
     var onReset: (String) -> Void = { _ in }
+    private(set) var initialModeFocusPending = true
+    private(set) var initialModeFocusAvailable = true
+    var canFocusInitialMode: Bool { initialModeFocusAvailable && initialModeFocusPending && !busy && !chooser.busy && !confirmingHard && progress == nil && !showingModifiedFiles && !showingCommitPicker && error == nil && chooser.error == nil }
+    func acknowledgeInitialModeFocus() { initialModeFocusPending = false }
+    func invalidateInitialModeFocus() { initialModeFocusAvailable = false; initialModeFocusPending = false }
+    @Published private(set) var showingCommitPicker = false
+    var onShowCommitPicker: () -> Void = {}
+    var canShowCommitPicker: Bool { !busy && !chooser.busy && chooser.browser == nil && !confirmingHard && progress == nil && !showingModifiedFiles && !showingCommitPicker && chooser.options.target == .commit }
+    func showCommitPicker() { guard canShowCommitPicker else { return }; onShowCommitPicker() }
+    func beginCommitPicker() -> Bool { guard canShowCommitPicker else { return false }; showingCommitPicker = true; return true }
+    func finishCommitPicker() { showingCommitPicker = false }
     @Published private(set) var showingModifiedFiles = false
     var onShowModified: () -> Void = {}
-    var canShowModifiedFiles: Bool { !bare && !busy && !chooser.busy && !confirmingHard && progress == nil && !showingModifiedFiles }
+    var canShowModifiedFiles: Bool { !bare && !busy && !chooser.busy && chooser.browser == nil && !showingCommitPicker && !confirmingHard && progress == nil && !showingModifiedFiles }
     func showModifiedFiles() { guard canShowModifiedFiles else { return }; onShowModified() }
     func beginModifiedFiles() -> Bool { guard canShowModifiedFiles else { return false }; showingModifiedFiles = true; return true }
     func finishModifiedFiles() { showingModifiedFiles = false }
@@ -97,7 +142,7 @@ import TurtleGitCore
         chooser = SwitchWindowModel(repository: repository, access: access); self.access = access; initialRevision = revision; self.preferences = preferences
     }
     func load() {
-        guard !busy, !showingModifiedFiles else { return }; busy = true; chooser.load(revision: initialRevision)
+        guard !busy, !showingCommitPicker, !showingModifiedFiles else { return }; busy = true; chooser.load(revision: initialRevision)
         Task {
             defer { busy = false }
             do { currentBranch = try await chooser.repository.branch(); bare = try await chooser.repository.isBare(); if bare { mode = .soft } }
@@ -108,7 +153,7 @@ import TurtleGitCore
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(chooser.repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     func reset() {
-        guard !busy, !showingModifiedFiles, !confirmingHard, progress == nil, !chooser.busy else { return }; busy = true
+        guard !busy, !showingCommitPicker, !showingModifiedFiles, !confirmingHard, progress == nil, !chooser.busy else { return }; busy = true
         let revision = chooser.revision, mode = mode
         Task {
             do {
@@ -123,7 +168,7 @@ import TurtleGitCore
         }
     }
     func apply(_ plan: ResetPlan) {
-        guard !busy, !showingModifiedFiles, !confirmingHard, progress == nil else { return }; busy = true; error = nil
+        guard !busy, !showingCommitPicker, !showingModifiedFiles, !confirmingHard, progress == nil else { return }; busy = true; error = nil
         do { try validateAccess() } catch { self.error = error.localizedDescription; busy = false; return }
         if let onProgress {
             let result = ResetProgressWindowModel(repository: chooser.repository, plan: plan, preferences: preferences)
@@ -157,15 +202,15 @@ private struct ResetDialog: View {
                     }.frame(height: 26)
                     HStack { SwitchRadio(title: "Commit", target: .commit, selection: $chooser.options.target).frame(width: 100)
                         TextField("Commit", text: $chooser.commitRevision).disabled(chooser.options.target != .commit)
-                        Button("…") { chooser.browse(.commit) }.accessibilityLabel("Choose commit").disabled(chooser.options.target != .commit)
+                        Button("…") { model.showCommitPicker() }.accessibilityLabel("Choose commit").disabled(chooser.options.target != .commit)
                     }.frame(height: 26)
                 }.padding(8)
             }
             GroupBox("Reset Type") {
                 VStack(alignment: .leading, spacing: 7) {
-                    ResetRadio(title: "Soft: Leave working tree and index untouched", value: .soft, selection: $model.mode).frame(height: 22)
-                    ResetRadio(title: "Mixed: Leave working tree untouched, reset index", value: .mixed, selection: $model.mode).frame(height: 22).disabled(model.bare)
-                    ResetRadio(title: "Hard: Reset working tree and index (discard all local changes)", value: .hard, selection: $model.mode).frame(height: 22).disabled(model.bare)
+                    ResetRadio(title: "Soft: Leave working tree and index untouched", value: .soft, selection: $model.mode, model: model).frame(height: 22)
+                    ResetRadio(title: "Mixed: Leave working tree untouched, reset index", value: .mixed, selection: $model.mode, model: model).frame(height: 22).disabled(model.bare)
+                    ResetRadio(title: "Hard: Reset working tree and index (discard all local changes)", value: .hard, selection: $model.mode, model: model).frame(height: 22).disabled(model.bare)
                 }.padding(8).frame(maxWidth: .infinity, alignment: .leading)
             }
             Button { model.showModifiedFiles() } label: { CommandLabel(title: "Show modified files in working tree", icon: .compare).frame(maxWidth: .infinity) }.disabled(model.bare)
@@ -174,7 +219,7 @@ private struct ResetDialog: View {
                 Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction)
                 Button { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-reset.html")!) } label: { CommandLabel(title: "Help", icon: .help) }
             }
-        }.padding(12).disabled(model.busy || model.showingModifiedFiles || model.confirmingHard || chooser.busy).onAppear { model.load() }
+        }.padding(12).disabled(model.busy || model.showingCommitPicker || model.showingModifiedFiles || model.confirmingHard || chooser.busy).onAppear { model.load() }
         .sheet(item: $chooser.browser) { target in SwitchReferenceChooser(model: chooser, target: target) }
         .alert("Reset failed", isPresented: Binding(get: { model.error != nil || chooser.error != nil }, set: { if !$0 { model.error = nil; chooser.error = nil } })) { Button("OK") { model.error = nil; chooser.error = nil } } message: { Text(model.error ?? chooser.error ?? "") }
     }
@@ -183,11 +228,38 @@ private struct ResetRadio: NSViewRepresentable {
     let title: String
     let value: ResetMode
     @Binding var selection: ResetMode
+    let model: ResetWindowModel
     @Environment(\.isEnabled) private var enabled
     func makeCoordinator() -> Coordinator { Coordinator() }
-    func makeNSView(context: Context) -> NSButton { NSButton(radioButtonWithTitle: title, target: context.coordinator, action: #selector(Coordinator.clicked(_:))) }
-    func updateNSView(_ button: NSButton, context: Context) { button.title = title; button.state = selection == value ? .on : .off; button.isEnabled = enabled; context.coordinator.select = { selection = value } }
+    func makeNSView(context: Context) -> Button {
+        let button = Button(radioButtonWithTitle: title, target: context.coordinator, action: #selector(Coordinator.clicked(_:)))
+        button.setAccessibilityLabel(title)
+        return button
+    }
+    func updateNSView(_ button: Button, context: Context) {
+        button.title = title; button.state = selection == value ? .on : .off; button.isEnabled = enabled
+        context.coordinator.select = { selection = value }
+        button.focus = { [weak button, weak model] in
+            guard let button, let model, model.mode == value, model.canFocusInitialMode,
+                  button.isEnabled, let owner = button.window, owner.attachedSheet == nil else { return }
+            if owner.makeFirstResponder(button) { model.acknowledgeInitialModeFocus() }
+        }
+        button.scheduleFocus()
+    }
+    static func dismantleNSView(_ button: Button, coordinator: Coordinator) { button.focus = nil; coordinator.select = {} }
     final class Coordinator: NSObject { var select: () -> Void = {}; @objc func clicked(_ sender: NSButton) { select() } }
+    final class Button: NSButton {
+        var focus: (() -> Void)?
+        private var focusQueued = false
+        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); scheduleFocus() }
+        func scheduleFocus() {
+            guard let owner = window, !focusQueued else { return }; focusQueued = true
+            DispatchQueue.main.async { [weak self, weak owner] in
+                guard let self else { return }; self.focusQueued = false
+                guard let owner, self.window === owner else { return }; self.focus?()
+            }
+        }
+    }
 }
 
 enum ResetPostAction: String, Hashable {

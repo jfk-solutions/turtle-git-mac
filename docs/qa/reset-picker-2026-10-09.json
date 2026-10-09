@@ -1,0 +1,73 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "602ac0c",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/ResetDlg.cpp": "b4bb451612a87b300c9439c39b644335b24c92e1",
+    "src/TortoiseProc/ChooseVersion.h": "9bc3080bd557ba11f814e6d9221aa322b1414f1c"
+  },
+  "scope": "Reset initial native focus and owned full Log commit picker; full app/ChooseVersion parity incomplete.",
+  "verification": {
+    "source": "ResetDlg InitChooseVersion() does not request combo focus and sets focus to selected Reset type. ChooseVersion commit browse uses Log SetParams with typed revision as highlight/range, selection and single-selection enabled, and working-tree changes hidden.",
+    "focus": "Final hidden native Reset receiver passes both Git engines: chosen Soft/Mixed/Hard button is actual first responder and selected/enabled after loading, mode changes retain current responder without another handoff, close invalidates focus. Real empty bare fixture focuses Soft and disables Mixed. No physical key/checkbox/tab/arrow interaction is claimed.",
+    "picker": "Real owned Log controller in single-selection mode loads typed prior revision ancestry; excludes newer HEAD and sibling branch commits, suppresses working-tree row, retains model graph rows and initial typed-revision selection. Actual HistoryTableView has expected rows and disallows multiple selection. Accept returns full selected hash despite close-before-result ordering; Cancel preserves draft. Stale/late results, rejected presentation, inactive target, duplicate/cross-route/reset/apply/close/Quit and forced parent cleanup are checked. HEAD/staged tree/config unchanged after setup.",
+    "selection_regression": "Ordinary Log and explicit multiple-selection Log tables retain native multiple selection. Setter also updates when a table receives a different model/mode; model replacement itself is not separately exercised here.",
+    "modified_files_regression": "Existing owned Changed Files receiver passes both engines against current source: tracked mixed/staged/unstaged/add/delete/Unicode paths, exclusions, selected target preservation, parent/reset/apply/close/Quit gates and owned child lifecycle; HEAD/staged tree/config/working bytes unchanged.",
+    "presentation_diagnostic": "Synthetic presenters originally retained native keyboard focus in the disabled parent: 176 AttributeGraph cycle warnings in each combined two-engine Log-picker and modified-files run. With identical product source and assertions, injected presenters release parent focus via makeFirstResponder(nil): final Log-picker and modified-files runs both pass and emit zero cycles. This supports an injected-presentation cause; physical AppKit sheet transfer/restoration remains unverified. Source focus bookkeeping is non-published and radio selection remains bound, avoiding needless publications.",
+    "repairs": "Initial Debug failure was Swift memberwise argument order for new LogDialog column-autosave option, corrected. Initial receiver failed to locate SwiftUI commit field by placeholder accessibility label; corrected to actual field text. Failed and diagnostic logs retained locally; throwing exits clean owned windows/preferences/fixtures.",
+    "debug": "Final unsigned Debug build and bundle audit pass.",
+    "store": "Final unsigned AppStore build and required bundle audit pass: bundled universal Git 2.55.0, Git LFS 3.8.0, Finder extension, all 99 original icons and EditorConfig/IssueRegex runtimes.",
+    "notice": "Both bundled NOTICE files byte-equal source.",
+    "inventory": "Pinned inventory checker passes; Reset and ChooseVersion mappings remain partial.",
+    "site": "Local GitHub Pages rebuild passes; no new physical captures or deployment."
+  },
+  "limitations": [
+    "Injected presenters release parent focus and never order windows or show real sheets. Actual sheet focus/default buttons/keyboard/arrow groups, error recovery, close while loading, visual/theme/accessibility and signed security-scope acceptance remain pending.",
+    "Full BrowseRefs all-reference tree/reload, history combos, chooser integration in other dialogs and full Log/FileDiff command parity remain unfinished.",
+    "No new physical screenshots or site deployment. Unsigned packaging does not prove App Store acceptance, signing or Finder activation; whole port and hosted CI remain incomplete."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "remaining": {
+      "fixtures": [],
+      "preferences": [],
+      "owned_processes_and_compilers": [],
+      "notice_byte_equal": [
+        "Debug",
+        "AppStore"
+      ]
+    },
+    "removed_private_domains": [],
+    "windows": "Owned native windows unordered and activation prohibited; column autosave disabled in test Log hosts, private suites removed on throwing/normal exits. No general pasteboard writes. All native/compiler/build handles terminal."
+  },
+  "changed_files_sha256": {
+    "Sources/TurtleGitMac/ResetWindow.swift": "7011453fee43e3df8e5bb1b22e7a98560d925ce75ee4bcfc45eee1b493d600f1",
+    "Sources/TurtleGitMac/LogWindow.swift": "65c5e3db29e6db7c550b191ff21956af899c232cd18fec131605e49b524f27c4",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "bfd5a06282b8766674b4db4737fb8bfe258ba2f8ac591b61429a4bf42c125c9f",
+    "docs/RESET-PARITY.md": "6d6de504931021b445a44357d454dfae1c92e0bd6a675c849c46a079e4637b96",
+    "docs/TESTING.md": "b2694ac22ff64cdee2829473ece9418717b2b4bf6b085db5a25a4ded1d2ca284",
+    "docs/upstream-files.csv": "0b9dc5325f9008b0c3b91a079252064150edb4faf1f598a36689bf755c765407",
+    "docs/qa/reset-picker-native-2026-10-09.swift": "e9e604cafbe5793525bb1bddf25f5dc7e3a5e70b161f443cdebffdaef4a2f272",
+    "docs/qa/reset-modified-files-native-2026-10-09.swift": "03fb62e6d77e488a6180f00f0fff270566144b88fb33489e087c05bd6a18429a",
+    "scripts/test-reset-picker.py": "0122a3adea922bc96e125c314208b0866bc89a356b1a5c3aea0cf120cd7d53f4"
+  },
+  "local_log_sha256": {
+    "build/qa/reset-picker-2026-10-09/cleanup.json": "a16133527fa1c2028535241df3d0fa70ce90a616cb0c29ab097e7c00ba71081c",
+    "build/qa/reset-picker-2026-10-09/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/reset-picker-2026-10-09/debug-initial.log": "93f7525ae8f1b907ba1e74a8662081a42a7f1466f1d46fae2003417ecb4850b7",
+    "build/qa/reset-picker-2026-10-09/debug-pre-focus-refinement.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/reset-picker-2026-10-09/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/reset-picker-2026-10-09/modified-regression-pre-focus-refinement.log": "379316e6adec35716d2ad613f6082de0e069d31ad88c590c8adc4bf489175f09",
+    "build/qa/reset-picker-2026-10-09/modified-regression.log": "6058da8c281f4f400a8826bda5fe6f4dcbd66b5fff31aba1e535513aee2a9f98",
+    "build/qa/reset-picker-2026-10-09/native-initial.log": "ea1c9a429742edaf2b98670c16b23b1fbccc6d0c0c723adddaefdd92c2250cc5",
+    "build/qa/reset-picker-2026-10-09/native-pre-diagnostic.log": "b583893be9affc2ddfb5615351f95eb2b2b5d04f0291247e00aa627fd3ab12ab",
+    "build/qa/reset-picker-2026-10-09/native-pre-focus-refinement.log": "f16e595f0410a3d51279f7735189d873f6738710708cf3c50bf3fd8e7cff078c",
+    "build/qa/reset-picker-2026-10-09/native-retained-parent-focus.log": "d501fc753cf45f7d883027cb8e4259d74a4550777063c5bbe5d8cded6a43489b",
+    "build/qa/reset-picker-2026-10-09/native.log": "36dd092ffaa3e009ea1e64bdd421419df4d0e2f73ba99cb87a67879d1919a6cf",
+    "build/qa/reset-picker-2026-10-09/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/reset-picker-2026-10-09/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/reset-picker-2026-10-09/store-pre-focus-refinement.log": "9cb624a36a2072b6302defa877265a43f4ee189e19e03dec4c180a27fe990b9d",
+    "build/qa/reset-picker-2026-10-09/store.log": "9cb624a36a2072b6302defa877265a43f4ee189e19e03dec4c180a27fe990b9d",
+    "build/qa/reset-picker-2026-10-09/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}
