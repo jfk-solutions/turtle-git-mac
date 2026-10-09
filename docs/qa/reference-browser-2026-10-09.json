@@ -1,0 +1,119 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "c952c06",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/Git/GitRevRefBrowser.cpp": "9f52554f338a85531703cfffe20899888f7093ae",
+    "src/Git/GitRevRefBrowser.h": "ffb10ff4a736fefc3823a4c5466a6cadec4d9c5f",
+    "src/TortoiseProc/BrowseRefsDlg.cpp": "735fd67f1fcd366d415fd397344032eb5f297f51",
+    "src/TortoiseProc/BrowseRefsDlg.h": "8b70d06e007dfee40874b104619cedc80a690412",
+    "src/TortoiseProc/BrowseRefsDlgFilter.cpp": "fdcbb7712f187479c477e97432783294cd05b93a",
+    "src/TortoiseProc/BrowseRefsDlgFilter.h": "92d56b471d786c0bd50359f7bb5c5b9315ca0f35",
+    "src/TortoiseProc/ChooseVersion.h": "9bc3080bd557ba11f814e6d9221aa322b1414f1c",
+    "src/TortoiseProc/ResetDlg.cpp": "b4bb451612a87b300c9439c39b644335b24c92e1"
+  },
+  "scope": "Partial native BrowseRefs tree/metadata/filter picker and Reset canonical handoff. Whole port and full browser parity incomplete.",
+  "verification": {
+    "core": "ReferenceBrowserTests (3) and CheckoutTests (8) pass on Apple and bundled Git: metadata/mailmap/gone upstream/description, original annotated-tag object and tagger, symbolic/custom/blob/tree/notes refs, scoped/nested/relative text/token filters, source post-quote prefix quirk, packed byte-distinct NFC/NFD and leading marks, cancellation, merged/unmerged/bare/empty catalogs, checkout regression and unchanged repository invariants.",
+    "native": "Final strict receiver passes both Git engines with activation prohibited and unordered actual reference browser/Reset/Reflog controllers: nine-column single-select native table and directory-only outline, selected NFD parent/leaf, initial 190-point split and table first responder, logical sort, nested preference/scope, NSSearchField native action/clear binding, authors filter, merged/unmerged/current branch and heads-only metadata. No F5 physical event, clear-button click or complete layout/menu interaction is claimed.",
+    "context": "Original icon images and canonical Log/Browse/Compare callbacks verified through actual native menu actions. Annotated-tag/blob object-type and bare working-tree gates checked. Owned canonical Reflog loads, blocks selection/refresh/close and releases. Copy reference name is not executed; no general pasteboard writes.",
+    "reset": "All-ref branch/NFD, leading-mark tag, symbolic remote and notes selections refresh the catalog and select proper Branch/Tag/Commit control with canonical name. Strict checks require actual popup or nonnil field editor first responder. Unused commit draft is retained; cancel/stale closed-child/rejected/duplicate/cross-route/reset/apply/close/Quit/forced-parent/late result gates checked. Exact native Unicode popup index/title/catalog checked; HEAD/config/raw index/working bytes unchanged after fixture setup.",
+    "regressions": "Existing Reset initial-mode/full Log picker and owned modified-files preview receivers pass both engines against final product source; no AttributeGraph cycle warnings in any final receiver.",
+    "repairs": "Initial Core fixture assertions failed because APFS aliases loose canonical-equivalent ref filenames and because the source token filter retains its post-quote prefix behavior; packed refs and source-correct expectations fixed them. Initial Debug Collection conversion fixed with Array. First native popup assertion incorrectly expected representedObject; corrected indexed/title check then exposed a real AppKit addItems title collapse. Isolated diagnostic shows bulk insertion merges NFC/NFD titles, direct NSMenuItem insertion preserves them; shared popup now uses direct insertion. Final focus assertion tightened to exclude nil-identity false positives and passes both engines. Failed and diagnostic logs retained locally.",
+    "debug": "Unsigned Debug build and bundle audit pass.",
+    "store": "Unsigned AppStore build and required bundle audit pass: universal Git 2.55.0, embedded Finder extension, all 99 original icons and runtime/license audits. This does not prove signed or App Store acceptance.",
+    "notice": "Debug and AppStore bundled NOTICE byte-equal source.",
+    "inventory": "Pinned source inventory checker passes; mappings remain partial.",
+    "site": "Local Pages build passes; no new physical captures or deployment."
+  },
+  "limitations": [
+    "Complete mutation/range/tree menus, Windows sort policies, invalid UTF-8, large-catalog performance, other dialog consumers and history combo behavior remain pending.",
+    "Injected presenters release keyboard focus from disabled parents and never order windows or physically present sheets. Physical mouse/keyboard/IME/default buttons, sheet focus restoration, error/close-during-load recovery, accessibility/light/dark visual comparison and signed security-scope/Finder acceptance remain unverified.",
+    "Full app port, signed distribution, refreshed screenshots/site deployment and hosted CI remain incomplete; no network operations, main-app launches or general pasteboard writes."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "removed_private_domains": [
+      {
+        "domain": "TurtleGit.ReferenceBrowser.QA.84645FF9-66A6-4473-8245-0E0747230260",
+        "defaults_delete_exit": 1,
+        "verified_empty": true
+      },
+      {
+        "domain": "TurtleGit.ReferenceBrowser.QA.1301E048-57D8-48B6-8726-1F79A72EC74B",
+        "defaults_delete_exit": 1,
+        "verified_empty": true
+      },
+      {
+        "domain": "TurtleGit.ReferenceBrowser.QA.F6B6CBAD-2433-498B-BB00-2B3EFB0B754C",
+        "defaults_delete_exit": 1,
+        "verified_empty": true
+      },
+      {
+        "domain": "TurtleGit.ReferenceBrowser.QA.8B9F99DA-D20D-44D6-9BC8-ACA7D1AA96C0",
+        "defaults_delete_exit": 1,
+        "verified_empty": true
+      },
+      {
+        "domain": "TurtleGit.ReferenceBrowser.QA.7D3C69E7-56BD-4B41-9EE1-E3C9225C9E6C",
+        "defaults_delete_exit": 1,
+        "verified_empty": true
+      },
+      {
+        "domain": "TurtleGit.ReferenceBrowser.QA.55CB3BF4-3361-4D39-9547-9581F78CF76C",
+        "defaults_delete_exit": 1,
+        "verified_empty": true
+      }
+    ],
+    "remaining": {
+      "preferences": [],
+      "fixtures": [],
+      "owned_processes_and_compilers": [],
+      "notice_byte_equal": [
+        "Debug",
+        "AppStore"
+      ]
+    }
+  },
+  "changed_files_sha256": {
+    "NOTICE": "c940cc0a12265700da08c434d9e6856074964dc2bca19bc0c09ff40152fef5e6",
+    "Sources/TurtleGitCore/Checkout.swift": "575220b752aa015341ef1ac015c120765ad36f95441b01e41d493c3b1c12f06e",
+    "Sources/TurtleGitCore/ReferenceBrowser.swift": "b2bc707dedf7d64bfdaae1d8d88522780e6a339afbaf30b28003182963bb30b6",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "89a77181ef3409b7932f032b90767065653f1d5deac9b38efa42821b5ac76aa6",
+    "Sources/TurtleGitMac/ReferenceLogWindow.swift": "348cf09449ab175745dcfb17b4e0e182a85a9208cf7a8191edba8ba3be713af2",
+    "Sources/TurtleGitMac/ReferenceBrowserWindow.swift": "16cc6c6fa1dda432d03a965d1b22939a970f253ceff3266d832e5800addf7353",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "c2e946ff0029843bbbfe562d174cc2167a2deb7a0044d36668130844f243a976",
+    "Sources/TurtleGitMac/ResetWindow.swift": "bfb3a749709400f53da369cbb693e8da3bcf355c09f606e2565ccf3d032fe1d0",
+    "Sources/TurtleGitMac/SwitchWindow.swift": "5d0f1e097883739ca6b0a9058b5728ab0e0ce4663b0bc2116c060566258cd39e",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "0a5125a09264ee3f1d6eb93fb931ed89b42e8fa8613c6b4c41c75293da60d137",
+    "Tests/TurtleGitCoreTests/ReferenceBrowserTests.swift": "3387de037baee5d18d26588870d96f67681abbbb6906ad0b9e70fc0de9727c5e",
+    "docs/REFERENCE-BROWSER-PARITY.md": "04f125d42c0f6f8addded2e56947dae8d826db8885daf3b9c1be6773332265db",
+    "docs/RESET-PARITY.md": "52194c1215b35e21d92fe70b8e19dbaf830bd60ac68386652b3ebf16497e07a4",
+    "docs/TESTING.md": "5491354a1ef5209ee616c8d2b1110e0b4596168c3963d3f3d384b9e289092083",
+    "docs/upstream-files.csv": "720c030dc33232944cb6aa64f5511de7a739a294d7a32307efee3d8dd90b6d2b",
+    "docs/qa/reference-browser-native-2026-10-09.swift": "c66db4bb49b26d9de83dad89a4b9f05a860e3d9407ce6ceea95db9444be3ff30",
+    "scripts/test-reference-browser.py": "2c74db61a49e4044803263a4759b706c74003fea0d92adb432d2380ced27fc2e"
+  },
+  "local_evidence_sha256": {
+    "build/qa/reference-browser-2026-10-09/cleanup.json": "06fe449326d36570f5cfb508f5b3cdcce14757d6c49f6de0dba8f674c402709c",
+    "build/qa/reference-browser-2026-10-09/core-bundled.log": "8339c631dac5393181f0dced9db689d4f9ef7cb698566cf6823cddce4d5be0d3",
+    "build/qa/reference-browser-2026-10-09/core-system-initial.log": "ef5a1fb1c07345bb7b7664d6d8ccaac28cd5d69e4bf9424bdec6c7c707a05c00",
+    "build/qa/reference-browser-2026-10-09/core-system.log": "aacd06c916c3bf11387b26d4fe4891ec5f9f8631ad0366e59ff104dec9f3d03d",
+    "build/qa/reference-browser-2026-10-09/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/reference-browser-2026-10-09/debug-initial.log": "b1bc512580e329f3f3cb08af67425a3bda7f08f94b4dad06769aefbd4c6ef6cd",
+    "build/qa/reference-browser-2026-10-09/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/reference-browser-2026-10-09/generate.log": "747909a44a9dc6f2c4861b91f09bc1d70097cf9053754a85a84fa1f2b7e93566",
+    "build/qa/reference-browser-2026-10-09/modified-regression.log": "6058da8c281f4f400a8826bda5fe6f4dcbd66b5fff31aba1e535513aee2a9f98",
+    "build/qa/reference-browser-2026-10-09/native-initial.log": "e9ac9dab7ec9e76c63725bd5d7fafb5d7c101d2c5c2ae9ccb50e221363362aef",
+    "build/qa/reference-browser-2026-10-09/native-popup-failure.log": "f363b781c387c6bff4e0e2786fcb095604d68435a695ce32be3cc2af382b4ee7",
+    "build/qa/reference-browser-2026-10-09/native-pre-strict-focus.log": "34a67430c2836a84305d78bd8c2779af2cd1abd5e84e6aeb3e8ef11bd136ed20",
+    "build/qa/reference-browser-2026-10-09/native.log": "34a67430c2836a84305d78bd8c2779af2cd1abd5e84e6aeb3e8ef11bd136ed20",
+    "build/qa/reference-browser-2026-10-09/picker-regression.log": "36dd092ffaa3e009ea1e64bdd421419df4d0e2f73ba99cb87a67879d1919a6cf",
+    "build/qa/reference-browser-2026-10-09/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/reference-browser-2026-10-09/popup-diagnostic.log": "55161a8d3f8021ab2669400a65f48d8f7f2c323c91c62efa01aa20415a28b44c",
+    "build/qa/reference-browser-2026-10-09/popup-unicode-diagnostic.swift": "b5b9f7654324a9a8d6d4b60fd91ad329e62c3ec4fcc5f6fb18ad4659b39c0722",
+    "build/qa/reference-browser-2026-10-09/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/reference-browser-2026-10-09/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/reference-browser-2026-10-09/store.log": "9cb624a36a2072b6302defa877265a43f4ee189e19e03dec4c180a27fe990b9d"
+  }
+}

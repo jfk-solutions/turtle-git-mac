@@ -1,0 +1,85 @@
+import XCTest
+@testable import TurtleGitCore
+
+final class ReferenceBrowserTests: XCTestCase {
+    func fixture() async throws -> (URL, GitRepository) {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-reference-browser-core-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let git = URL(fileURLWithPath: ProcessInfo.processInfo.environment["TURTLEGIT_QA_GIT"] ?? "/usr/bin/git")
+        let repo = GitRepository(root: root, executable: git)
+        _ = try await repo.run(["init", "-b", "main"])
+        for (key, value) in [("user.name", "Raw Author"), ("user.email", "raw@example.invalid"), ("commit.gpgsign", "false"), ("core.hooksPath", "/dev/null")] { _ = try await repo.run(["config", key, value]) }
+        try Data("Canonical Author <canonical@example.invalid> Raw Author <raw@example.invalid>\n".utf8).write(to: root.appendingPathComponent(".mailmap"))
+        try Data("base\n".utf8).write(to: root.appendingPathComponent("file")); try await repo.stage(["."])
+        _ = try await repo.run(["commit", "-m", "base red fox"], environmentOverrides: ["GIT_AUTHOR_DATE": "2001-01-02T03:04:05+02:00", "GIT_COMMITTER_DATE": "2001-01-03T04:05:06+01:00"])
+        return (root, repo)
+    }
+    func testAllNamespacesMetadataTagMailmapGoneAndNoMutation() async throws {
+        let (root, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        _ = try await repo.run(["remote", "add", "origin", "https://example.invalid/unused"])
+        _ = try await repo.run(["update-ref", "refs/remotes/origin/main", "HEAD"])
+        _ = try await repo.run(["symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"])
+        _ = try await repo.run(["branch", "gone"])
+        for (branch, merge) in [("main", "main"), ("gone", "missing")] { _ = try await repo.run(["config", "branch." + branch + ".remote", "origin"]); _ = try await repo.run(["config", "branch." + branch + ".merge", "refs/heads/" + merge]) }
+        _ = try await repo.run(["config", "branch.main.description", "first line\nsecond line"])
+        _ = try await repo.run(["-c", "tag.gpgsign=false", "tag", "-a", "release", "-m", "tag blue fox"], environmentOverrides: ["GIT_COMMITTER_DATE": "2002-02-03T04:05:06+03:00"])
+        _ = try await repo.run(["update-ref", "refs/notes/custom", "HEAD"])
+        let blob = try await repo.run(["hash-object", "-w", "file"]).text.trimmingCharacters(in: .newlines)
+        _ = try await repo.run(["update-ref", "refs/custom/blob", blob])
+        let treeHash = try await repo.run(["rev-parse", "HEAD^{tree}"]).text.trimmingCharacters(in: .newlines); _ = try await repo.run(["update-ref", "refs/custom/tree", treeHash])
+        let head = try await repo.run(["rev-parse", "HEAD"]).text, indexTree = try await repo.run(["write-tree"]).text
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index")), config = try Data(contentsOf: root.appendingPathComponent(".git/config"))
+        let snapshot = try await repo.referenceBrowser()
+        XCTAssertEqual(snapshot.currentBranch, "refs/heads/main")
+        let main = try XCTUnwrap(snapshot.references.first { $0.name == "refs/heads/main" })
+        XCTAssertEqual(main.author, "Canonical Author"); XCTAssertEqual(main.committer, "Canonical Author"); XCTAssertEqual(main.upstream, "origin/main"); XCTAssertEqual(main.description, "first line\nsecond line")
+        XCTAssertEqual(main.authorDate, ISO8601DateFormatter().date(from: "2001-01-02T01:04:05Z")!.timeIntervalSince1970)
+        XCTAssertEqual(main.committerDate, ISO8601DateFormatter().date(from: "2001-01-03T03:05:06Z")!.timeIntervalSince1970)
+        XCTAssertEqual(snapshot.references.first { $0.name == "refs/heads/gone" }?.upstream, "(gone: origin/missing)")
+        let tag = try XCTUnwrap(snapshot.references.first { $0.name == "refs/tags/release" })
+        let tagHash = try await repo.run(["rev-parse", "refs/tags/release"]).text.trimmingCharacters(in: .newlines)
+        XCTAssertEqual(tag.objectType, "tag"); XCTAssertEqual(tag.hash, tagHash); XCTAssertEqual(tag.subject, "tag blue fox"); XCTAssertEqual(tag.author, "Canonical Author"); XCTAssertEqual(tag.authorDate, tag.committerDate)
+        XCTAssertEqual(snapshot.references.first { $0.name == "refs/custom/blob" }?.objectType, "blob")
+        XCTAssertEqual(snapshot.references.first { $0.name == "refs/custom/tree" }?.hash, treeHash)
+        XCTAssertTrue(snapshot.folders.contains("refs/notes")); XCTAssertTrue(snapshot.folders.contains("refs/custom")); XCTAssertTrue(snapshot.folders.contains("refs/remotes/origin"))
+        let alias = snapshot.references.first { $0.name == "refs/remotes/origin/HEAD" }; XCTAssertEqual(alias?.symbolicTarget, "refs/remotes/origin/main")
+        let afterHead = try await repo.run(["rev-parse", "HEAD"]).text, afterTree = try await repo.run(["write-tree"]).text
+        XCTAssertEqual(head, afterHead); XCTAssertEqual(indexTree, afterTree); XCTAssertEqual(index, try Data(contentsOf: root.appendingPathComponent(".git/index"))); XCTAssertEqual(config, try Data(contentsOf: root.appendingPathComponent(".git/config")))
+    }
+    func testNestedScopeTextFiltersExactUnicodeAndCheckoutClassification() async throws {
+        let (root, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let nfc = "refs/heads/Café/leaf", nfd = "refs/heads/Cafe\u{301}/leaf", mark = "refs/tags/\u{301}tag"
+        for name in [nfc, nfd, mark, "refs/heads/nested/topic2", "refs/heads/nested/topic10"] { _ = try await repo.run(["update-ref", name, "HEAD"]) }
+        // APFS canonical-equivalent loose paths alias; packed refs preserve both spellings.
+        _ = try await repo.run(["pack-refs", "--all", "--prune"])
+        let oid = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        let names = ["refs/heads/main", nfc, nfd, mark, "refs/heads/nested/topic2", "refs/heads/nested/topic10"].sorted { $0.utf8.lexicographicallyPrecedes($1.utf8) }
+        try Data(("# pack-refs with: sorted\n" + names.map { oid + " " + $0 + "\n" }.joined()).utf8).write(to: root.appendingPathComponent(".git/packed-refs"))
+        let snapshot = try await repo.referenceBrowser()
+        XCTAssertTrue(snapshot.folders.contains("refs/heads/Café")); XCTAssertTrue(snapshot.folders.contains("refs/heads/Cafe\u{301}"))
+        XCTAssertEqual(snapshot.initialSelection(nfd).reference, GitReferenceName(nfd)); XCTAssertEqual(snapshot.initialSelection(nfd).folder, "refs/heads/Cafe\u{301}")
+        let direct = snapshot.rows(folder: "refs/heads", nested: false); XCTAssertEqual(direct.map(\.name), ["main"])
+        XCTAssertEqual(snapshot.rows(folder: "refs/heads/nested", nested: true).map(\.name), ["topic10", "topic2"])
+        XCTAssertTrue(snapshot.rows(folder: "refs/heads", nested: true, query: "heads/", fields: .referenceNames).isEmpty)
+        XCTAssertFalse(snapshot.rows(folder: "refs", nested: true, query: "heads/", fields: .referenceNames).isEmpty)
+        XCTAssertEqual(snapshot.rows(folder: "refs/heads", nested: true, query: "red fox -blue", fields: .subject).count, 5)
+        XCTAssertTrue(snapshot.rows(folder: "refs/heads", nested: true, query: "\"red fox\" -blue", fields: .subject).isEmpty) // source's post-quote prefix behavior
+        XCTAssertTrue(snapshot.rows(folder: "refs/heads", nested: true, query: "Raw Author", fields: .authors).isEmpty)
+        XCTAssertEqual(snapshot.rows(folder: "refs/heads", nested: true, query: "Canonical", fields: .authors).count, 5)
+        let references = try await repo.checkoutReferences()
+        let tag = try XCTUnwrap(references.first { GitReferenceName.equal($0.name, mark) }); XCTAssertEqual(tag.target, .tag); XCTAssertEqual(tag.label, "\u{301}tag")
+        var options = CheckoutOptions(); options.target = .tag; options.revision = mark; try await repo.validateCheckout(options)
+        let cancelled = OperationCancellation(); cancelled.cancel()
+        do { _ = try await repo.referenceBrowser(cancellation: cancelled); XCTFail("Cancelled metadata query ran") } catch OperationCancellationFailure.cancelled {}
+    }
+    func testMergedUnmergedBareAndEmptyCatalogs() async throws {
+        let (root, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        _ = try await repo.run(["checkout", "-b", "unmerged"]); _ = try await repo.run(["commit", "--allow-empty", "-m", "new blue fox"]); _ = try await repo.run(["checkout", "main"])
+        let merged = try await repo.referenceBrowser(filter: .merged), unmerged = try await repo.referenceBrowser(filter: .unmerged)
+        XCTAssertEqual(merged.references.map(\.name), ["refs/heads/main"]); XCTAssertEqual(unmerged.references.map(\.name), ["refs/heads/unmerged"])
+        let bareRoot = root.appendingPathComponent("bare.git"); _ = try await repo.run(["clone", "--bare", root.path, bareRoot.path])
+        let bare = try await GitRepository(root: bareRoot, executable: repo.executable).referenceBrowser(); XCTAssertEqual(bare.initialSelection("HEAD").reference, "refs/heads/main")
+        let emptyRoot = root.appendingPathComponent("empty.git"); _ = try await repo.run(["init", "--bare", "-b", "main", emptyRoot.path])
+        let empty = try await GitRepository(root: emptyRoot, executable: repo.executable).referenceBrowser(); XCTAssertTrue(empty.references.isEmpty); XCTAssertEqual(empty.folders, ["refs"])
+    }
+}

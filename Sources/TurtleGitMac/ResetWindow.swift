@@ -10,6 +10,12 @@ import TurtleGitCore
     private var closed = false
     private(set) var commitPicker: LogWindowController?
     private var commitPickerRequest: UUID?
+    private(set) var referencePicker: ReferenceBrowserWindowController?
+    private var referencePickerRequest: UUID?
+    var configureReferencePicker: (ReferenceBrowserWindowModel) -> Void = { _ in }
+    var presentReferencePicker: (NSWindow, NSWindow) -> Bool = { owner, child in
+        guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true
+    }
     var makeCommitPicker: (GitRepository, RepositoryAccessLease?, @escaping (LogEntry?) -> Void, UserDefaults) -> LogWindowController = { repository, access, choose, preferences in
         LogWindowController(repository: repository, access: access, onChoose: choose, labelDefaults: preferences)
     }
@@ -31,7 +37,8 @@ import TurtleGitCore
         window.contentViewController = NSHostingController(rootView: ResetDialog(model: model, chooser: model.chooser).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self
         window.setContentSize(size); window.center()
-        model.close = { [weak self] in guard let self, !self.model.busy, !self.model.showingModifiedFiles, !self.model.showingCommitPicker, self.model.progress == nil, self.window?.attachedSheet == nil else { return }; self.window?.close() }
+        model.close = { [weak self] in guard let self, !self.model.busy, !self.model.showingModifiedFiles, !self.model.showingCommitPicker, !self.model.showingReferencePicker, self.model.progress == nil, self.window?.attachedSheet == nil else { return }; self.window?.close() }
+        model.onShowReferencePicker = { [weak self] in self?.showReferencePicker(preferences: preferences) }
         model.onShowCommitPicker = { [weak self] in self?.showCommitPicker(preferences: preferences) }
         model.onShowModified = { [weak self] in self?.showModifiedFiles() }
         model.onProgress = { [weak self] result in
@@ -50,6 +57,25 @@ import TurtleGitCore
         }
 
         DialogGeometry.attach(window, identifier: "ResetDialog", legacyName: "ResetDialog")
+    }
+    private func showReferencePicker(preferences: UserDefaults) {
+        guard !closed, let owner = window, owner.attachedSheet == nil,
+              referencePicker == nil, model.beginReferencePicker() else { return }
+        let request = UUID(); referencePickerRequest = request
+        let picker = ReferenceBrowserWindowController(repository: model.chooser.repository, access: model.access, initial: model.chooser.revision, preferences: preferences) { [weak self] name in
+            guard let self, !self.closed, self.referencePickerRequest == request else { return }
+            self.model.acceptReferenceSelection(name) { [weak self] in if self?.referencePickerRequest == request { self?.referencePickerRequest = nil } }
+        }
+        referencePicker = picker; configureReferencePicker(picker.model)
+        picker.onClosed = { [weak self, weak picker] in
+            guard let self, let picker, self.referencePicker === picker else { return }
+            if let child = picker.window, child.sheetParent === self.window { self.window?.endSheet(child) }
+            self.referencePicker = nil
+        }
+        guard let child = picker.window, presentReferencePicker(owner, child) else {
+            picker.abandonPresentation(); referencePicker = nil; referencePickerRequest = nil; model.finishReferencePicker(); return
+        }
+        picker.model.load()
     }
     private func showCommitPicker(preferences: UserDefaults) {
         guard !closed, let owner = window, owner.attachedSheet == nil,
@@ -89,9 +115,10 @@ import TurtleGitCore
         }
         controller.model.load()
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.showingModifiedFiles && !model.showingCommitPicker && !model.busy && !model.confirmingHard && model.progress == nil && !model.chooser.busy && sender.attachedSheet == nil }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.showingModifiedFiles && !model.showingCommitPicker && !model.showingReferencePicker && !model.busy && !model.confirmingHard && model.progress == nil && !model.chooser.busy && sender.attachedSheet == nil }
     func windowWillClose(_ notification: Notification) {
-        closed = true; model.invalidateInitialModeFocus()
+        closed = true; model.invalidateInitialModeFocus(); model.invalidateReferenceSelection()
+        referencePicker?.close(); referencePicker = nil; referencePickerRequest = nil
         commitPicker?.close(); commitPicker = nil; commitPickerRequest = nil; model.finishCommitPicker()
         modifiedComparison?.close(); modifiedComparison = nil
         model.finishModifiedFiles(); onClosed()
@@ -123,18 +150,57 @@ import TurtleGitCore
     var onReset: (String) -> Void = { _ in }
     private(set) var initialModeFocusPending = true
     private(set) var initialModeFocusAvailable = true
-    var canFocusInitialMode: Bool { initialModeFocusAvailable && initialModeFocusPending && !busy && !chooser.busy && !confirmingHard && progress == nil && !showingModifiedFiles && !showingCommitPicker && error == nil && chooser.error == nil }
+    var canFocusInitialMode: Bool { initialModeFocusAvailable && initialModeFocusPending && !busy && !chooser.busy && !confirmingHard && progress == nil && !showingModifiedFiles && !showingCommitPicker && !showingReferencePicker && error == nil && chooser.error == nil }
     func acknowledgeInitialModeFocus() { initialModeFocusPending = false }
     func invalidateInitialModeFocus() { initialModeFocusAvailable = false; initialModeFocusPending = false }
+    @Published private(set) var showingReferencePicker = false
+    private var referenceSelectionAvailable = true
+    @Published private(set) var referenceFocusRequest = 0
+    private var appliedReferenceFocusRequest = 0
+    private var referenceSelectionToken: OperationCancellation?
+    var onShowReferencePicker: () -> Void = {}
+    var canShowReferencePicker: Bool { referenceSelectionAvailable && !busy && !chooser.busy && chooser.browser == nil && !confirmingHard && progress == nil && !showingModifiedFiles && !showingCommitPicker && !showingReferencePicker && chooser.options.target == .branch }
+    func showReferencePicker() { guard canShowReferencePicker else { return }; onShowReferencePicker() }
+    func beginReferencePicker() -> Bool { guard canShowReferencePicker else { return false }; showingReferencePicker = true; return true }
+    func finishReferencePicker() { referenceSelectionToken?.cancel(); referenceSelectionToken = nil; showingReferencePicker = false }
+    func invalidateReferenceSelection() { referenceSelectionAvailable = false; referenceFocusRequest = 0; finishReferencePicker() }
+    func focusReference(_ control: NSControl, target: CheckoutTarget) {
+        guard referenceSelectionAvailable, referenceFocusRequest > appliedReferenceFocusRequest,
+              chooser.options.target == target, !busy, !chooser.busy, !showingReferencePicker, !showingCommitPicker, !showingModifiedFiles,
+              !confirmingHard, progress == nil, error == nil, chooser.error == nil,
+              control.isEnabled, let window = control.window, window.attachedSheet == nil else { return }
+        if window.makeFirstResponder(control) { appliedReferenceFocusRequest = referenceFocusRequest }
+    }
+    func acceptReferenceSelection(_ name: String?, completion: @escaping () -> Void) {
+        guard referenceSelectionAvailable, showingReferencePicker else { return }
+        referenceSelectionToken?.cancel(); let token = OperationCancellation(); referenceSelectionToken = token
+        let revision = name ?? chooser.revision, commitDraft = chooser.commitRevision
+        Task {
+            var applied = false
+            defer { if referenceSelectionToken === token { referenceSelectionToken = nil; showingReferencePicker = false; if applied { initialModeFocusPending = false; referenceFocusRequest += 1 }; completion() } }
+            do {
+                try validateAccess()
+                let references = try await chooser.repository.checkoutReferences(cancellation: token)
+                guard referenceSelectionAvailable, referenceSelectionToken === token, !token.isCancelled else { return }
+                chooser.references = references
+                if let reference = references.first(where: { GitReferenceName.equal($0.name, revision) }), let target = reference.target {
+                    chooser.options.target = target
+                    if target == .tag { chooser.tagRevision = revision } else { chooser.branchRevision = revision }
+                    chooser.commitRevision = commitDraft
+                } else { chooser.options.target = .commit; chooser.commitRevision = revision }
+                applied = true
+            } catch { if referenceSelectionAvailable, referenceSelectionToken === token, !token.isCancelled { self.error = error.localizedDescription } }
+        }
+    }
     @Published private(set) var showingCommitPicker = false
     var onShowCommitPicker: () -> Void = {}
-    var canShowCommitPicker: Bool { !busy && !chooser.busy && chooser.browser == nil && !confirmingHard && progress == nil && !showingModifiedFiles && !showingCommitPicker && chooser.options.target == .commit }
+    var canShowCommitPicker: Bool { !busy && !chooser.busy && chooser.browser == nil && !confirmingHard && progress == nil && !showingModifiedFiles && !showingCommitPicker && !showingReferencePicker && chooser.options.target == .commit }
     func showCommitPicker() { guard canShowCommitPicker else { return }; onShowCommitPicker() }
     func beginCommitPicker() -> Bool { guard canShowCommitPicker else { return false }; showingCommitPicker = true; return true }
     func finishCommitPicker() { showingCommitPicker = false }
     @Published private(set) var showingModifiedFiles = false
     var onShowModified: () -> Void = {}
-    var canShowModifiedFiles: Bool { !bare && !busy && !chooser.busy && chooser.browser == nil && !showingCommitPicker && !confirmingHard && progress == nil && !showingModifiedFiles }
+    var canShowModifiedFiles: Bool { !bare && !busy && !chooser.busy && chooser.browser == nil && !showingCommitPicker && !showingReferencePicker && !confirmingHard && progress == nil && !showingModifiedFiles }
     func showModifiedFiles() { guard canShowModifiedFiles else { return }; onShowModified() }
     func beginModifiedFiles() -> Bool { guard canShowModifiedFiles else { return false }; showingModifiedFiles = true; return true }
     func finishModifiedFiles() { showingModifiedFiles = false }
@@ -142,7 +208,7 @@ import TurtleGitCore
         chooser = SwitchWindowModel(repository: repository, access: access); self.access = access; initialRevision = revision; self.preferences = preferences
     }
     func load() {
-        guard !busy, !showingCommitPicker, !showingModifiedFiles else { return }; busy = true; chooser.load(revision: initialRevision)
+        guard !busy, !showingReferencePicker, !showingCommitPicker, !showingModifiedFiles else { return }; busy = true; chooser.load(revision: initialRevision)
         Task {
             defer { busy = false }
             do { currentBranch = try await chooser.repository.branch(); bare = try await chooser.repository.isBare(); if bare { mode = .soft } }
@@ -153,7 +219,7 @@ import TurtleGitCore
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(chooser.repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     func reset() {
-        guard !busy, !showingCommitPicker, !showingModifiedFiles, !confirmingHard, progress == nil, !chooser.busy else { return }; busy = true
+        guard !busy, !showingReferencePicker, !showingCommitPicker, !showingModifiedFiles, !confirmingHard, progress == nil, !chooser.busy else { return }; busy = true
         let revision = chooser.revision, mode = mode
         Task {
             do {
@@ -168,7 +234,7 @@ import TurtleGitCore
         }
     }
     func apply(_ plan: ResetPlan) {
-        guard !busy, !showingCommitPicker, !showingModifiedFiles, !confirmingHard, progress == nil else { return }; busy = true; error = nil
+        guard !busy, !showingReferencePicker, !showingCommitPicker, !showingModifiedFiles, !confirmingHard, progress == nil else { return }; busy = true; error = nil
         do { try validateAccess() } catch { self.error = error.localizedDescription; busy = false; return }
         if let onProgress {
             let result = ResetProgressWindowModel(repository: chooser.repository, plan: plan, preferences: preferences)
@@ -194,14 +260,14 @@ private struct ResetDialog: View {
             GroupBox("Reset active branch") {
                 VStack(spacing: 6) {
                     HStack { SwitchRadio(title: "Branch", target: .branch, selection: $chooser.options.target).frame(width: 100)
-                        ReferencePopup(references: chooser.branches, selection: $chooser.branchRevision).disabled(chooser.options.target != .branch)
-                        Button("…") { chooser.browse(.branch) }.accessibilityLabel("Browse references").disabled(chooser.options.target != .branch)
+                        ReferencePopup(references: chooser.branches, selection: $chooser.branchRevision, accessibilityLabel: "Reset branch revision", focusRequest: model.referenceFocusRequest, onFocus: { model.focusReference($0, target: .branch) }).disabled(chooser.options.target != .branch)
+                        Button("…") { model.showReferencePicker() }.accessibilityLabel("Browse references").disabled(chooser.options.target != .branch)
                     }.frame(height: 26)
                     HStack { SwitchRadio(title: "Tag", target: .tag, selection: $chooser.options.target).frame(width: 100)
-                        ReferencePopup(references: chooser.tags, selection: $chooser.tagRevision).disabled(chooser.options.target != .tag); Color.clear.frame(width: 29)
+                        ReferencePopup(references: chooser.tags, selection: $chooser.tagRevision, accessibilityLabel: "Reset tag revision", focusRequest: model.referenceFocusRequest, onFocus: { model.focusReference($0, target: .tag) }).disabled(chooser.options.target != .tag); Color.clear.frame(width: 29)
                     }.frame(height: 26)
                     HStack { SwitchRadio(title: "Commit", target: .commit, selection: $chooser.options.target).frame(width: 100)
-                        TextField("Commit", text: $chooser.commitRevision).disabled(chooser.options.target != .commit)
+                        ResetRevisionField(text: $chooser.commitRevision, focusRequest: model.referenceFocusRequest, onFocus: { model.focusReference($0, target: .commit) }).disabled(chooser.options.target != .commit)
                         Button("…") { model.showCommitPicker() }.accessibilityLabel("Choose commit").disabled(chooser.options.target != .commit)
                     }.frame(height: 26)
                 }.padding(8)
@@ -219,9 +285,31 @@ private struct ResetDialog: View {
                 Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction)
                 Button { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-reset.html")!) } label: { CommandLabel(title: "Help", icon: .help) }
             }
-        }.padding(12).disabled(model.busy || model.showingCommitPicker || model.showingModifiedFiles || model.confirmingHard || chooser.busy).onAppear { model.load() }
+        }.padding(12).disabled(model.busy || model.showingReferencePicker || model.showingCommitPicker || model.showingModifiedFiles || model.confirmingHard || chooser.busy).onAppear { model.load() }
         .sheet(item: $chooser.browser) { target in SwitchReferenceChooser(model: chooser, target: target) }
         .alert("Reset failed", isPresented: Binding(get: { model.error != nil || chooser.error != nil }, set: { if !$0 { model.error = nil; chooser.error = nil } })) { Button("OK") { model.error = nil; chooser.error = nil } } message: { Text(model.error ?? chooser.error ?? "") }
+    }
+}
+private struct ResetRevisionField: NSViewRepresentable {
+    @Binding var text: String
+    let focusRequest: Int
+    let onFocus: (NSTextField) -> Void
+    @Environment(\.isEnabled) private var enabled
+    func makeCoordinator() -> Coordinator { Coordinator() }
+    func makeNSView(context: Context) -> NSTextField {
+        let field = NSTextField(); field.isBezeled = true; field.bezelStyle = .squareBezel; field.drawsBackground = true
+        field.font = .systemFont(ofSize: NSFont.systemFontSize); field.placeholderString = "Commit"; field.setAccessibilityLabel("Reset commit revision")
+        field.delegate = context.coordinator; return field
+    }
+    func updateNSView(_ field: NSTextField, context: Context) {
+        if !field.stringValue.utf8.elementsEqual(text.utf8) { field.stringValue = text }
+        field.isEnabled = enabled; context.coordinator.change = { text = $0 }
+        if focusRequest > 0 { DispatchQueue.main.async { [weak field] in if let field { onFocus(field) } } }
+    }
+    static func dismantleNSView(_ field: NSTextField, coordinator: Coordinator) { field.delegate = nil; coordinator.change = { _ in } }
+    final class Coordinator: NSObject, NSTextFieldDelegate {
+        var change: (String) -> Void = { _ in }
+        func controlTextDidChange(_ notification: Notification) { if let field = notification.object as? NSTextField, field.isEnabled { change(field.stringValue) } }
     }
 }
 private struct ResetRadio: NSViewRepresentable {

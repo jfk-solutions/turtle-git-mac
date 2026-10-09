@@ -7,13 +7,13 @@ import TurtleGitCore
     var onClosed: () -> Void = {}
     private var selectionCompletion: ((ReferenceLogEntry?) -> Void)?
     private(set) var findController: ReferenceLogFindController?
-    init(repository: GitRepository, access: RepositoryAccessLease?, reference: String, onChoose: ((ReferenceLogEntry?) -> Void)? = nil) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, reference: String, onChoose: ((ReferenceLogEntry?) -> Void)? = nil, preferences: UserDefaults = .standard) {
         model = ReferenceLogWindowModel(repository: repository, access: access, reference: reference, selecting: onChoose != nil)
         selectionCompletion = onChoose
         let window = ReferenceLogNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 530), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – RefLog – TurtleGit"
         window.minSize = NSSize(width: 800, height: 360); window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: ReferenceLogDialog(model: model))
+        window.contentViewController = NSHostingController(rootView: ReferenceLogDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self
         window.setContentSize(NSSize(width: 1000, height: 530)); window.center()
         model.close = { [weak self] in

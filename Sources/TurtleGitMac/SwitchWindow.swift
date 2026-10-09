@@ -64,10 +64,10 @@ import TurtleGitCore
     @Published var commits: [LogEntry] = []
     var close: () -> Void = {}
     var onSwitched: (String) -> Void = { _ in }
-    var branches: [CheckoutReference] { references.filter { ($0.name.hasPrefix("refs/heads/") || $0.remote) && ($0.symbolicTarget == nil || $0.name == branchRevision) } }
-    var tags: [CheckoutReference] { references.filter { $0.name.hasPrefix("refs/tags/") } }
+    var branches: [CheckoutReference] { references.filter { $0.target == .branch && ($0.symbolicTarget == nil || GitReferenceName.equal($0.name, branchRevision)) } }
+    var tags: [CheckoutReference] { references.filter { $0.target == .tag } }
     var revision: String { switch options.target { case .branch: return branchRevision; case .tag: return tagRevision; case .commit: return commitRevision } }
-    var remote: Bool { options.target == .branch && references.first { $0.name == branchRevision }?.remote == true }
+    var remote: Bool { options.target == .branch && references.first { $0.name.utf8.elementsEqual(branchRevision.utf8) }?.remote == true }
     init(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; initialRevision = revision; self.preferences = preferences }
     func load(revision preset: String? = nil) {
         guard !busy, progress == nil, !hasPendingTagConflict, !invalidated, !finished else { return }; busy = true
@@ -77,11 +77,11 @@ import TurtleGitCore
             do {
                 references = try await repository.checkoutReferences()
                 let current = try await repository.branch()
-                branchRevision = branches.first { $0.name == "refs/heads/" + current }?.name ?? branches.first?.name ?? ""
+                branchRevision = branches.first { GitReferenceName.equal($0.name, "refs/heads/" + current) }?.name ?? branches.first?.name ?? ""
                 tagRevision = tags.first?.name ?? ""
                 commitRevision = revision ?? "HEAD"; options = CheckoutOptions()
-                if let revision, references.contains(where: { $0.name == revision }) {
-                    if revision.hasPrefix("refs/tags/") { options.target = .tag; tagRevision = revision }
+                if let revision, references.contains(where: { GitReferenceName.equal($0.name, revision) }) {
+                    if GitReferenceName.removingPrefix("refs/tags/", from: revision) != nil { options.target = .tag; tagRevision = revision }
                     else { options.target = .branch; branchRevision = revision }
                 } else { options.target = revision == nil ? .branch : .commit }
                 defaults()
@@ -91,7 +91,7 @@ import TurtleGitCore
     func defaults() {
         options.overrideBranch = false
         options.tracking = remote ? .automatic : .noTrack
-        let reference = references.first { $0.name == revision }
+        let reference = references.first { GitReferenceName.equal($0.name, revision) }
         options.branchName = reference?.suggestedBranch ?? "Branch_" + String(commitRevision.prefix(7))
         switch options.target {
         case .branch: options.createBranch = remote
@@ -274,23 +274,32 @@ struct SwitchRadio: NSViewRepresentable {
 struct ReferencePopup: NSViewRepresentable {
     let references: [CheckoutReference]
     @Binding var selection: String
+    var accessibilityLabel: String? = nil
+    var focusRequest = 0
+    var onFocus: ((NSPopUpButton) -> Void)? = nil
     @Environment(\.isEnabled) private var enabled
     func makeCoordinator() -> Coordinator { Coordinator() }
     func makeNSView(context: Context) -> NSPopUpButton {
         let button = NSPopUpButton(frame: .zero, pullsDown: false)
+        if let accessibilityLabel { button.setAccessibilityLabel(accessibilityLabel) }
         button.target = context.coordinator; button.action = #selector(Coordinator.changed(_:))
         button.setContentHuggingPriority(.defaultLow, for: .horizontal)
         return button
     }
     func updateNSView(_ button: NSPopUpButton, context: Context) {
         let names = references.map(\.name)
-        if context.coordinator.names != names || button.numberOfItems == 0 {
-            button.removeAllItems(); button.addItems(withTitles: references.isEmpty ? ["No references"] : references.map(\.label))
+        if context.coordinator.names.map({ GitReferenceName($0) }) != names.map({ GitReferenceName($0) }) || button.numberOfItems == 0 {
+            button.removeAllItems()
+            // addItems(withTitles:) replaces canonically equivalent titles, but Git refs are byte-distinct.
+            for title in references.isEmpty ? ["No references"] : references.map(\.label) {
+                button.menu?.addItem(NSMenuItem(title: title, action: nil, keyEquivalent: ""))
+            }
         }
         context.coordinator.names = names
-        if let index = names.firstIndex(of: selection) { button.selectItem(at: index) }
+        if let index = names.firstIndex(where: { GitReferenceName.equal($0, selection) }) { button.selectItem(at: index) }
         button.isEnabled = enabled && !references.isEmpty
         context.coordinator.change = { selection = $0 }
+        if focusRequest > 0, let onFocus { DispatchQueue.main.async { [weak button] in if let button { onFocus(button) } } }
     }
     final class Coordinator: NSObject {
         var names: [String] = []; var change: (String) -> Void = { _ in }

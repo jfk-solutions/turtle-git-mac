@@ -9,16 +9,21 @@ public struct CheckoutReference: Identifiable, Sendable {
     public var id: String { name }
     public let name: String
     public let symbolicTarget: String?
-    public var remote: Bool { name.hasPrefix("refs/remotes/") }
+    public var remote: Bool { GitReferenceName.removingPrefix("refs/remotes/", from: name) != nil }
+    public var target: CheckoutTarget? {
+        if remote || GitReferenceName.removingPrefix("refs/heads/", from: name) != nil { return .branch }
+        if GitReferenceName.removingPrefix("refs/tags/", from: name) != nil { return .tag }
+        return nil
+    }
     public var label: String {
-        for prefix in ["refs/heads/", "refs/tags/"] { if name.hasPrefix(prefix) { return String(name.dropFirst(prefix.count)) } }
-        if remote { return "remotes/" + name.dropFirst("refs/remotes/".count) }
+        for prefix in ["refs/heads/", "refs/tags/"] { if let short = GitReferenceName.removingPrefix(prefix, from: name) { return short } }
+        if let short = GitReferenceName.removingPrefix("refs/remotes/", from: name) { return "remotes/" + short }
         return name
     }
     public var suggestedBranch: String {
         if remote {
-            let source = symbolicTarget?.hasPrefix("refs/remotes/") == true ? symbolicTarget! : name
-            return String(source.dropFirst("refs/remotes/".count).split(separator: "/", maxSplits: 1).last ?? "")
+            let source = symbolicTarget.flatMap { GitReferenceName.removingPrefix("refs/remotes/", from: $0) } ?? GitReferenceName.removingPrefix("refs/remotes/", from: name)!
+            return String(decoding: source.utf8.split(separator: 47, maxSplits: 1).last ?? [], as: UTF8.self)
         }
         return "Branch_" + label
     }
@@ -48,8 +53,8 @@ public enum CheckoutFailure: LocalizedError {
 }
 
 extension GitRepository {
-    public func checkoutReferences(includeAll: Bool = false) throws -> [CheckoutReference] {
-        let bytes = try run(["for-each-ref", "--sort=refname", "--format=%(refname)%00%(symref)%00"] + (includeAll ? [] : ["refs/heads", "refs/remotes", "refs/tags"])).stdout
+    public func checkoutReferences(includeAll: Bool = false, cancellation: OperationCancellation? = nil) throws -> [CheckoutReference] {
+        let bytes = try run(["for-each-ref", "--sort=refname", "--format=%(refname)%00%(symref)%00"] + (includeAll ? [] : ["refs/heads", "refs/remotes", "refs/tags"]), cancellation: cancellation).stdout
         let fields = String(decoding: bytes, as: UTF8.self).components(separatedBy: "\0")
         var result: [CheckoutReference] = []
         var i = 0
@@ -70,11 +75,11 @@ extension GitRepository {
         let revision = options.revision
         guard !revision.isEmpty else { throw CheckoutFailure.invalidRevision }
         let references = try checkoutReferences()
-        let reference = references.first { $0.name == revision }
+        let reference = references.first { GitReferenceName.equal($0.name, revision) }
         if options.target == .branch {
-            guard let reference, reference.name.hasPrefix("refs/heads/") || reference.remote else { throw CheckoutFailure.invalidRevision }
+            guard let reference, reference.target == .branch else { throw CheckoutFailure.invalidRevision }
         } else if options.target == .tag {
-            guard reference?.name.hasPrefix("refs/tags/") == true else { throw CheckoutFailure.invalidRevision }
+            guard reference?.target == .tag else { throw CheckoutFailure.invalidRevision }
         }
         let resolved: String
         do { resolved = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"]).text.trimmingCharacters(in: .newlines) }

@@ -523,6 +523,11 @@ import TurtleGitCore
         let controller = ResetWindowController(repository: repository, access: access, revision: revision)
         if let mode { controller.model.mode = mode }
         controller.onClosed = { [weak self] in self?.resetWindows.removeValue(forKey: key) }
+        controller.configureReferencePicker = { [weak self] model in
+            model.onLog = { [weak self] name in self?.showLog(repository: repository, access: access, paths: [], endRevision: name) }
+            model.onBrowse = { [weak self] name in self?.showRepositoryBrowser(repository: repository, access: access, revision: name) }
+            model.onCompare = { [weak self] name in self?.showRevisionComparison(repository: repository, access: access, from: .revision(name), to: .workingTree) }
+        }
         controller.configureModifiedComparison = { [weak self] model in
             self?.configureRevisionComparisonInteractions(model, repository: repository, access: access)
         }

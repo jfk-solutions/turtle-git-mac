@@ -27,8 +27,10 @@ Commit browse now owns the full native Log dialog in single-commit selection
 mode, anchored at the typed commit revision, with the graph, filters and details.
 Its Working Tree row is suppressed. OK returns a full selected hash; Cancel
 preserves the draft. Reset/apply/modified-files/parent close/Quit wait until the
-picker releases. Branch browse still uses the flat reference chooser; upstream
-all-ref tree selection/reload/history-combo parity remains pending. Show modified files now opens an
+picker releases. Branch browse now owns the native all-reference namespace tree and metadata
+list, including filters, merged/unmerged selection and canonical handoff with a
+fresh catalog and active-revision focus. See [reference browser parity](REFERENCE-BROWSER-PARITY.md);
+full menus, other chooser consumers and history-combo parity remain pending. Show modified files now opens an
 owned Changed Files comparison sheet of HEAD against the working tree, matching
 ResetDlg::OnBnClickedShowModifiedFiles. This range is independent of the selected
 Reset revision and leaves that selection intact. Reset/Apply/Cancel and parent
@@ -162,3 +164,12 @@ picker receiver with identical source and assertions. This supports a synthetic
 presentation cause, not physical sheet acceptance. Initial focus bookkeeping is
 non-published and the radio state retains its original binding, avoiding needless
 view publications.
+
+## Reset reference browser
+
+[Reference browser QA](qa/reference-browser-2026-10-09.json) records the native
+namespace/table and Reset branch/tag/remote/custom-ref handoff checkpoint. Private
+hidden hosts exercise nested/merge/text filters, original context icons, owned
+Reflog, refreshed catalogs, revision input focus, draft/cancel/rejected/stale/close
+and competing-route gates. Physical sheet interaction, visual layout comparison
+and complete BrowseRefs/ChooseVersion behavior remain pending.

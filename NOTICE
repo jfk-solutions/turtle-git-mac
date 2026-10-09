@@ -1042,3 +1042,9 @@ WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
 WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
 TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE
 OR PERFORMANCE OF THIS SOFTWARE.
+
+ReferenceBrowser.swift and ReferenceBrowserWindow.swift adapt BrowseRefsDlg,
+BrowseRefsDlgFilter, CChooseVersion and GitRevRefBrowser from the pinned
+TortoiseGit source to native AppKit namespace/tree and metadata-list selection.
+The source metadata, nested-reference and merged-reference filters and canonical
+reference handoff remain GPL-2.0-or-later under the TortoiseGit notices above.
