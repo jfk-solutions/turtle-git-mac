@@ -261,7 +261,7 @@ struct LFSLocksDialog: View {
                 TableColumn("Last modified", sortUsing: LFSFileSort(column: .lastModified)) { Text($0.metadata?.dateText ?? "–") }.width(min: 150, ideal: 170)
                 TableColumn("File size", sortUsing: LFSFileSort(column: .fileSize)) { Text($0.metadata?.sizeText ?? "–") }.width(min: 70, ideal: 100)
                 TableColumn("LFS Lock", sortUsing: LFSFileSort(column: .lfsOwner)) { Text($0.owner) }.width(min: 100, ideal: 160)
-            }.background(CommitFileInteraction(rows: [], keyboardDeleteEnabled: false, nativeColumns: LFSLocksWindowModel.columns,
+            }.fileListFont().background(CommitFileInteraction(rows: [], keyboardDeleteEnabled: false, nativeColumns: LFSLocksWindowModel.columns,
                 rowTexts: rows.map { row in Dictionary(uniqueKeysWithValues: LFSLocksWindowModel.columns.map { ($0,row.text($0)) }) }, itemIDs: rows.map(\.id),
                 copyIDs: { model.copy(Set($0), information: $1 ? .pathsAndStatus : .relativePaths) }, copyColumnIDs: { model.copy(Set($0), information: .column($1)) },
                 toggleCheckIDs: { model.toggleChecks($0, mark: $1) }, configureRefresh: { view in

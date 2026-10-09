@@ -938,3 +938,10 @@ Boundary history metadata follows CGit::GetLogCmd LOG_INFO_BOUNDARY
 CGitLogListBase construction/BeginFetchLog LogIncludeBoundaryCommits preference,
 at the pinned TortoiseGit revision above. Native LogEntry carries this mark
 to the source-adapted lane renderer without changing action/detail parents.
+
+Status/FileDiff list typography follows LogFontForFileListCtrl in
+GitStatusListCtrl::Init and FileDiffDlg::OnInitDialog; native status/file tables
+share the configured log font, including font-aware sizing. Working-tree Log
+visibility follows LogDlg's LogIncludeWorkingTreeChanges default true combined
+with a working checkout and the caller's ShowWorkingTreeChanges flag. These
+consumers refer to the pinned TortoiseGit revision above.

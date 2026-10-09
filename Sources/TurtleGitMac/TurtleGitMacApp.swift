@@ -203,7 +203,7 @@ struct RepositoryWindow: View {
                 }.width(min: 120, ideal: 145, max: 180)
                 TableColumn("Staged") { entry in Text(entry.staged ? "✓" : "") }.width(55)
                 TableColumn("File") { entry in Text(entry.path).help(entry.originalPath.map { "Renamed from \($0)" } ?? entry.path) }
-            }
+            }.fileListFont()
             .frame(minHeight: 140)
             .contextMenu {
                 TurtleGitContextMenu {

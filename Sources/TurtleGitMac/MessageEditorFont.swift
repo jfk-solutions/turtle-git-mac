@@ -34,3 +34,16 @@ struct MessageEditorFontSettings: View {
         .onChange(of: size) { draftSize = String($0) }
     }
 }
+
+/// Shared status/FileDiff list font, enabled independently of revision-list fonts.
+private struct FileListFontModifier: ViewModifier {
+    @AppStorage("LogFontForFileListCtrl") private var enabled = false
+    @AppStorage("LogFontName") private var name = MessageEditorFont.defaultName
+    @AppStorage("LogFontSize") private var size = MessageEditorFont.defaultSize
+    func body(content: Content) -> some View {
+        content.font(enabled ? Font(MessageEditorFont.resolve(name: name, size: size)) : nil)
+    }
+}
+extension View {
+    func fileListFont() -> some View { modifier(FileListFontModifier()) }
+}

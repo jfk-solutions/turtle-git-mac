@@ -1319,7 +1319,7 @@ GroupBox("Changes made (double-click on file for diff):") {
             TableColumn("LFS Lock", sortUsing: CommitFileSort(column: .lfsOwner)) { (row: CommitSortableRow) in
                 if let entry = row.entry { Text(row.lfsOwner).foregroundStyle(entry.statusTextColor(selected: selection.wrappedValue.contains(entry.id))) } else { groupRule }
             }.width(min: 100, ideal: 160)
-        }.contextMenu(forSelectionType: String.self) { requested in
+        }.fileListFont().contextMenu(forSelectionType: String.self) { requested in
             TurtleGitContextMenu {
                 let ids = requested.intersection(Set(entries.map(\.id)))
                 if requested.count == 1, let group = rows.first(where: { requested.contains($0.id) })?.group {

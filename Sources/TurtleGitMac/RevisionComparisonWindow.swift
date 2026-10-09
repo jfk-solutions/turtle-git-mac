@@ -292,7 +292,7 @@ private struct RevisionComparisonDialog: View {
                 TableColumn("Action", value: \.sortAction) { file in Text(file.status) }.width(100)
                 TableColumn("Lines added", value: \.sortAdded) { file in Text(file.addedText) }.width(85)
                 TableColumn("Lines deleted", value: \.sortRemoved) { file in Text(file.removedText) }.width(95)
-            }.contextMenu(forSelectionType: String.self) { ids in
+            }.fileListFont().contextMenu(forSelectionType: String.self) { ids in
                 TurtleGitContextMenu {
                     Button { model.compare(ids) } label: { CommandLabel(title: "Compare revisions", icon: .compare) }.disabled(ids.isEmpty)
                     Button { model.showPatch(ids, alternate: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.isEmpty)

@@ -95,3 +95,21 @@ full commit hashes and parents, and carry the minus mark into boundary lane
 states. The Advanced tooltip now identifies it as effective. Real difference/
 symmetric/full-history reads and native private-preference checks are recorded
 in [boundary history QA](qa/history-boundaries-2026-10-09.json).
+
+
+LogIncludeWorkingTreeChanges now gates the synthetic Log row at construction
+and history reads, with source default true, a working checkout and the caller's
+normal/picker context. Disabling it cannot be bypassed by the existing native
+Show Working Tree Changes checkbox. Bare repositories and revision pickers
+never add the row. New Logs read the saved setting.
+
+LogFontForFileListCtrl now uses the configured LogFontName/LogFontSize in
+Commit, Check for Modifications, Log changed files, revision Compare, Revert,
+Resolve, LFS locks, Rebase file/conflict lists and native Add. The application
+workspace file table shares this typography. Revision and file fonts have
+independent default-off flags; the already implemented LogFontForLogCtrl is
+also identified as effective by the Advanced tooltip. File font updates preserve
+checked files and highlighted rows. Native Add expands row/text frames and
+centers icons; shared status-list autosizing measures the selected font.
+See [list preference QA](qa/log-list-preferences-2026-10-09.json). Other consumers,
+physical font/raster/keyboard/VoiceOver and full settings acceptance remain pending.

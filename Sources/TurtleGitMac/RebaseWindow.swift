@@ -718,7 +718,7 @@ struct RebaseDialog: View {
                         TableColumn("Status", value: \.status).width(100)
                         TableColumn("Lines added") { file in Text(file.added.map(String.init) ?? "–") }.width(85)
                         TableColumn("Lines removed") { file in Text(file.removed.map(String.init) ?? "–") }.width(95)
-                    }
+                    }.fileListFont()
                     }
                     }.tabItem { Text(model.fileRecovery ? "Conflict Files" : "Revision Files") }.tag(0)
                     Group {
@@ -788,7 +788,7 @@ struct RebaseConflictFiles: View {
             TableColumn("Status") { Text($0.state.rawValue.capitalized).foregroundStyle($0.state.textColor) }.width(110)
             TableColumn("Lines added") { Text(model.conflictStatistics[$0.path]?.added.map(String.init) ?? "–") }.width(85)
             TableColumn("Lines removed") { Text(model.conflictStatistics[$0.path]?.removed.map(String.init) ?? "–") }.width(95)
-        }.contextMenu(forSelectionType: String.self) { ids in
+        }.fileListFont().contextMenu(forSelectionType: String.self) { ids in
             TurtleGitContextMenu {
                 Button { model.compareConflicts(ids) } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(!model.conflicts.contains { ids.contains($0.id) } || model.busy)
                 Divider()

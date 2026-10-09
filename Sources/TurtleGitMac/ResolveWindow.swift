@@ -153,7 +153,7 @@ private struct ResolveDialog: View {
                         TableColumn("Path") { entry in HStack { Image(nsImage: FileState.conflicted.icon.image() ?? NSImage()); Text(entry.path).foregroundStyle(FileState.conflicted.textColor) } }.width(min: 260, ideal: 440)
                         TableColumn("Extension") { Text(($0.path as NSString).pathExtension) }.width(70)
                         TableColumn("Status") { _ in Text("Conflicted").foregroundStyle(FileState.conflicted.textColor) }.width(95)
-                    }.contextMenu(forSelectionType: String.self) { ids in
+                    }.fileListFont().contextMenu(forSelectionType: String.self) { ids in
                         TurtleGitContextMenu {
                             Button { model.compare(ids) } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(ids.isEmpty)
                             Divider()

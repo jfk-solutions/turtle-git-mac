@@ -5,6 +5,9 @@ import TurtleGitCore
 /// Observe the public AppKit table underlying a SwiftUI Table without replacing
 /// its selection, accessibility, checkbox or context-menu implementations.
 struct CommitFileInteraction: NSViewRepresentable {
+    @AppStorage("LogFontForFileListCtrl") private var useLogFont = false
+    @AppStorage("LogFontName") private var fontName = MessageEditorFont.defaultName
+    @AppStorage("LogFontSize") private var fontSize = MessageEditorFont.defaultSize
     let rows: [StatusListRow]
     var leadingColumnCount = 1
     var keyboardDeleteEnabled = true
@@ -35,6 +38,7 @@ struct CommitFileInteraction: NSViewRepresentable {
         CGSize(width: proposal.width ?? nsView.frame.width, height: proposal.height ?? nsView.frame.height)
     }
     func updateNSView(_ view: Probe, context: Context) {
+        view.fileListFont = useLogFont ? MessageEditorFont.resolve(name: fontName, size: fontSize) : nil
         view.leadingColumnCount = leadingColumnCount; view.keyboardDeleteEnabled = keyboardDeleteEnabled
         view.nativeColumns = nativeColumns; view.rowTexts = rowTexts; view.itemIDs = itemIDs
         view.copyIDs = copyIDs; view.copyColumnIDs = copyColumnIDs; view.toggleCheckIDs = toggleCheckIDs
@@ -49,6 +53,7 @@ struct CommitFileInteraction: NSViewRepresentable {
     static func dismantleNSView(_ view: Probe, coordinator: ()) { view.stopObserving() }
 
     final class Probe: NSView {
+        var fileListFont: NSFont?
         var rows: [StatusListRow] = []
         var leadingColumnCount = 1
         var keyboardDeleteEnabled = true
@@ -133,7 +138,7 @@ struct CommitFileInteraction: NSViewRepresentable {
             desiredWidths = Dictionary(uniqueKeysWithValues: table.tableColumns.map { (ObjectIdentifier($0), $0.width) })
         }
         func fittedWidth(_ column: NSTableColumn, definition: StatusListColumn, includeHeader: Bool) -> CGFloat {
-            let font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
+            let font = fileListFont ?? NSFont.systemFont(ofSize: NSFont.systemFontSize)
             let padding: CGFloat = definition == .path ? 38 : 14
             let texts = rowTexts?.map { $0[definition] ?? "" } ?? rows.compactMap(\.entry).map { columnText($0, definition) }
             let content = texts.map { ($0 as NSString).size(withAttributes: [.font: font]).width + padding }.max() ?? column.minWidth

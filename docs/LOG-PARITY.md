@@ -1627,3 +1627,31 @@ reference-mask and first-parent combinations. Native model checks use private
 preferences on both Git engines. See [boundary QA](qa/history-boundaries-2026-10-09.json).
 Physical boundary raster/Retina/selection, search/path combinations and signed
 sandbox acceptance remain pending; this does not establish full Log parity.
+
+
+## Working-tree row preference and file-list font
+
+LogDlg's source LogIncludeWorkingTreeChanges is default true and combines with
+a non-bare checkout and the caller's ShowWorkingTreeChanges flag. Native Log
+now captures that saved preference when constructed, uses it to initialize the
+working-tree choice, and keeps it as a read gate. A disabled Advanced preference
+cannot be bypassed by setting the native runtime checkbox. Normal Logs can still
+hide the row; revision pickers and bare Logs never add it. This corrects a stored
+setting that previously had no effect.
+
+The changed-file Table now uses LogFontForFileListCtrl (default false), with the
+same configured log font used by source GitStatusListCtrl::Init and
+FileDiffDlg::OnInitDialog. It is independent of LogFontForLogCtrl, which still
+controls the revision table. The shared status/file table modifier covers the
+other status dialogs, including both Commit staging lists; native Add also
+updates text/row frames. Autosizing uses the selected file font rather than
+always measuring the system font. Changing fonts does not change the file data,
+checked paths or selection.
+
+[The native list preference QA](qa/log-list-preferences-2026-10-09.json) covers
+real history and dirty/untracked files with private defaults, Log/Commit row
+heights, native Add text fonts/frames and checkbox/highlight preservation,
+font-aware Commit column sizing, and enabled/disabled/picker/bare working-row
+gates on both Git engines. Other consumers are wired through the shared modifier
+and checked by compilation/source review. Physical raster, all-dialog interaction,
+header font equivalence, extreme font sizes and signed sandbox remain unverified.

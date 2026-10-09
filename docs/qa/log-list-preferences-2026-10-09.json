@@ -1,0 +1,75 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "bba325c",
+  "scope": "Advanced Log working-tree gate and shared status/FileDiff typography consumers; full port goal remains active",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/Git/GitStatusListCtrl.cpp": "bb3424966659715269d38fca610c8d46810b0b15",
+    "src/TortoiseProc/FileDiffDlg.cpp": "fe4171a852023344cac5af1711873104393e1b0a",
+    "src/TortoiseProc/LogDlg.cpp": "d456ae8d668767195f464ad8d850a15c034127f5",
+    "src/TortoiseProc/GitLogListBase.cpp": "19518f37689e19b7e913c9ff8cc9d65ec223c187",
+    "src/TortoiseProc/Settings/SettingsAdvanced.cpp": "1b222ebf9053e0e902f79413899dc92d35071464"
+  },
+  "sources_manifest_sha256": "73a0017c4a0e7858556b6b30c65d7294c7520e59daa83bdecafbac99794d2100",
+  "changed_files_sha256": {
+    "NOTICE": "ebc6afbd78e74f051b77b995f351da6993e33d8cdc5193aebce353444d8d7cf0",
+    "Sources/TurtleGitMac/AddFileTable.swift": "29680f74cc24e54013f43acf11bc8f0f5de68ed62896b66ba5b7c61ad3474b99",
+    "Sources/TurtleGitMac/AdvancedSettings.swift": "ffcde454b1313caebc9e49b84e0888e96f326fde78a8dc17f5d335aea717795b",
+    "Sources/TurtleGitMac/CommitFileInteraction.swift": "d395bedee91431a04b7a42e8488728d158a7f3aa23872ceb0fff2c81f45497e6",
+    "Sources/TurtleGitMac/CommitWindow.swift": "23e5831d8695e65951142e8c7dbfbf52832473a14289741ff851b0e45edc7c0b",
+    "Sources/TurtleGitMac/LFSLocksWindow.swift": "0f03222de204ff4d14f9202b2ec5c256bf46f47c835b3919f5fcec4cee55b6cd",
+    "Sources/TurtleGitMac/LogWindow.swift": "4fa1abe8494f0c1f563d160709ef24dec5e9fad01071eb2bd1b54706efc3bf31",
+    "Sources/TurtleGitMac/MessageEditorFont.swift": "2994138e561de05683b940157d450ff3fb8a354e2fa9c00b9f78e786e8f04952",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "3f0a23c97f34320fa1ed15e42974e377822f45595fa95e033fb932d91aa1db14",
+    "Sources/TurtleGitMac/ResolveWindow.swift": "c4d89eaa822e2ab319720b52e97afc9483f5e71e905c953a232c0a8eea6892f0",
+    "Sources/TurtleGitMac/RevertWindow.swift": "809f92d7e7f9729de36e5ae168c4aeaa89089a1534b9418e31d82adfaf8e6ec0",
+    "Sources/TurtleGitMac/RevisionComparisonWindow.swift": "62d2fb7d8a1101cf209b7287b5b70924ac0c4c36397b9b39a99a770151beee2a",
+    "Sources/TurtleGitMac/StatusWindow.swift": "8b715e23e2215848151e0dd0631923e8b78c6944376f63dbf21556244f30af9f",
+    "Sources/TurtleGitMac/TurtleGitMacApp.swift": "0aaf457951af33e801f967c7b93c15e6ef8ef6bdd836f4e5a83754fb1bfa0ceb",
+    "docs/ADVANCED-SETTINGS-PARITY.md": "a1f37c9ca7d4a290c75b309f7d467be849456cde1e49aa3b14586ccde315306d",
+    "docs/APPEARANCE.md": "d783a0f12d48b3e209022778cd322b074e0d7f09b295fd7e1d585b82a424bfa5",
+    "docs/LOG-PARITY.md": "ecbb8ac8b699736f78492ff6b00c3b74637431fe947997fefcd0ae5d74dfa1b1",
+    "docs/qa/log-table-font-native-2026-10-08.swift": "69f1c93b488258f8d83868f4483bfc26662127bc7493f763d5b5f0f8bcd1aa19",
+    "docs/upstream-files.csv": "d2263b7ca2857f02d650e79288a656e7073ed70f07542df6b9ec59701c7079f9"
+  },
+  "verification": {
+    "source": "LogDlg default-true LogIncludeWorkingTreeChanges combined with hasWC and caller flag; GitStatusListCtrl::Init/FileDiffDlg::OnInitDialog default-false LogFontForFileListCtrl uses shared log font. LogFontForLogCtrl revision consumer already active; Advanced tooltips reflect implemented consumers.",
+    "native": "Final expanded existing actual hidden native font receiver passes Apple and bundled Git. Original revision font default-off/enable/live size/disable, HEAD bold and message attributes preserved. Real Log file-table native row-height grows/restores and keeps selected IDs/native selection. Native Add actual NSTextField Menlo 22, text/frame/row height, checkbox and highlighted preservation pass. Actual Commit grouped file-table row height, selected/checked paths and shared autosize exact configured-font measurement pass.",
+    "working_tree": "Real dirty/untracked checkout checks default/enabled synthetic row, disabled preference initializes false and cannot be bypassed through runtime state, picker and bare Log never include it. HEAD/index/config/dirty/untracked file bytes unchanged. Constructor captures saved preference; fresh local bare query used inside asynchronous read.",
+    "consumers": "Ten SwiftUI file Tables across Commit, Status, Resolve, Revert, LFS locks, Log files, revision Compare, two Rebase file/conflict lists and workspace share modifier; native Add uses equivalent font/row sizing. Other dialogs verified by source wiring/compilation rather than individual physical acceptance. Shared CommitFileInteraction column measurement now receives private/default AppStorage font.",
+    "core": "Core sources unchanged this turn. Native receiver exercises actual Core history/file/status/add/working-tree APIs with both Git engines; no newly rerun Core suite claimed.",
+    "debug": "Final unsigned Debug build/configured bundle audit pass; current NOTICE checked in final package audit.",
+    "store": "Final unsigned AppStore build and required universal Git/Git LFS bundle audit pass; current NOTICE matches Debug and Store. Store starts after all Debug/native handles complete. Signed sandbox/distribution/App Store acceptance remains unverified.",
+    "inventory": "Four partial mappings updated; pin and diff checks pass.",
+    "site": "Local documentation site generator passes; no fresh screenshot or deployment claim."
+  },
+  "iterations": [
+    "First native fixture expected only file rows and omitted existing Commit group headers; corrected expected grouped rows and used actual file-row index for height checks.",
+    "Second native run caught read gate consulting stale model.bare before fresh query result was published; corrected production gate to use fresh local bare value. Final both-engine native run passes without relaxing gate assertions."
+  ],
+  "limitations": [
+    "Other status/file-list consumers, header font equivalence, physical glyph/raster/Retina/scroll/keyboard/VoiceOver and extreme sizes remain unverified.",
+    "SwiftUI Log/Commit acceptance checks actual native row dimensions and selection, not individual glyph-font raster against Windows. Native Add checks actual NSTextField fonts and frames.",
+    "Full application/dialog/menu/Finder parity, signed sandbox/distribution/App Store acceptance and completed documentation/screenshots remain incomplete. GitHub push and CI unavailable."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "private_preferences_removed": 4,
+    "preference_cleanup_sha256": "96d1bca0e8b9502ba53bd2f7f06108101672df03f38ef681c8461b159f24d70d",
+    "windows": "Passing receivers close owned hidden windows. Two failed precondition receivers terminated; final process audit confirms none remain.",
+    "process_audit": "No main app/native receiver processes, private test preference files or private fixture directories remain."
+  },
+  "local_log_sha256": {
+    "build/qa/log-list-preferences-2026-10-09/debug-audit-final.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/log-list-preferences-2026-10-09/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/log-list-preferences-2026-10-09/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-list-preferences-2026-10-09/debug.log": "01496684a8093d8f255b3f51ffba1a32a18bc1cd7b7304ac12072198bc852f47",
+    "build/qa/log-list-preferences-2026-10-09/native-corrected.log": "cd5479267ce8f91ef118a730d756fa7721921a8946caa45c30bad7a7df58db1e",
+    "build/qa/log-list-preferences-2026-10-09/native-final.log": "c0e45cfe109fc1b3cac02cf4697aa6fce2d75fd88306d096c8fdbcf6bcba3c9b",
+    "build/qa/log-list-preferences-2026-10-09/native.log": "efc42facdd828ccee518107dd627059414417f1554d00254bd09be69f15786f5",
+    "build/qa/log-list-preferences-2026-10-09/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/log-list-preferences-2026-10-09/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-list-preferences-2026-10-09/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/log-list-preferences-2026-10-09/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca"
+  }
+}

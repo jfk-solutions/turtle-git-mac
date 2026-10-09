@@ -130,7 +130,7 @@ private struct RevertDialog: View {
                 TableColumn("Status") { row in Text(row.originalPath != nil ? "Renamed" : row.state.rawValue.capitalized) }.width(95)
                 TableColumn("Lines added") { (row: StatusEntry) in Text(lineCount(row.path, added: true)) }.width(80)
                 TableColumn("Lines removed") { (row: StatusEntry) in Text(lineCount(row.path, added: false)) }.width(95)
-            }.contextMenu(forSelectionType: String.self) { ids in
+            }.fileListFont().contextMenu(forSelectionType: String.self) { ids in
                 TurtleGitContextMenu {
                     Button { model.diff(ids) } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(ids.isEmpty)
                     Button { model.checked.formUnion(ids) } label: { CommandLabel(title: "Check selected files", icon: .add) }.disabled(ids.isEmpty)

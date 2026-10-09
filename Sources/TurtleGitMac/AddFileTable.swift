@@ -30,14 +30,19 @@ private final class AddNativeTable: NativeWatermarkTable {
 
 struct AddFileTable: NSViewRepresentable {
     @ObservedObject private var statusColorUpdates = StatusColorUpdates.shared
+    @AppStorage("LogFontForFileListCtrl") private var useLogFont = false
+    @AppStorage("LogFontName") private var fontName = MessageEditorFont.defaultName
+    @AppStorage("LogFontSize") private var fontSize = MessageEditorFont.defaultSize
+    private var fileListFont: NSFont? { useLogFont ? MessageEditorFont.resolve(name: fontName, size: fontSize) : nil }
     @ObservedObject var model: AddWindowModel
     func makeCoordinator() -> Coordinator { Coordinator(model: model) }
-    func makeNSView(context: Context) -> NSScrollView { context.coordinator.make() }
-    func updateNSView(_ view: NSScrollView, context: Context) { context.coordinator.refresh() }
+    func makeNSView(context: Context) -> NSScrollView { context.coordinator.fileListFont = fileListFont; return context.coordinator.make() }
+    func updateNSView(_ view: NSScrollView, context: Context) { context.coordinator.fileListFont = fileListFont; context.coordinator.refresh() }
     @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate {
         let model: AddWindowModel
         private let nativeTable = AddNativeTable(icon: .addBackdrop)
         var table: NSTableView { nativeTable }
+        var fileListFont: NSFont?
         private var updating = false
         private(set) var contextColumnID: String?
         init(model: AddWindowModel) { self.model = model }
@@ -92,6 +97,7 @@ struct AddFileTable: NSViewRepresentable {
             table.menu = menu; scroll.documentView = table; refresh(); return scroll
         }
         func refresh() {
+            table.rowHeight = fileListFont.map { max(22, ceil($0.ascender - $0.descender + $0.leading) + 4) } ?? 22
             updating = true; table.reloadData()
             table.selectRowIndexes(IndexSet(rows.enumerated().compactMap { model.highlighted.contains($0.element.path) ? $0.offset : nil }), byExtendingSelection: false)
             updating = false
@@ -103,17 +109,17 @@ struct AddFileTable: NSViewRepresentable {
                 let button = NSButton(checkboxWithTitle: "", target: self, action: #selector(toggleRow(_:))); button.identifier = NSUserInterfaceItemIdentifier(row.path)
                 button.state = model.checked.contains(row.path) ? .on : .off; button.isEnabled = !model.busy && !model.confirmingQuit; return button
             }
-            let field = NSTextField(labelWithString: ""); field.lineBreakMode = .byTruncatingMiddle
+            let field = NSTextField(labelWithString: ""); field.lineBreakMode = .byTruncatingMiddle; field.font = fileListFont ?? .systemFont(ofSize: NSFont.systemFontSize)
             switch tableColumn?.identifier.rawValue {
             case "ext": field.stringValue = StatusListClipboard.fileExtension(row.path)
             case "size": field.stringValue = row.size.map { ByteCountFormatter.string(fromByteCount: $0, countStyle: .file) } ?? "–"
             case "date": field.stringValue = row.modified.map { $0.formatted(date: .numeric, time: .shortened) } ?? "–"
             default:
                 field.stringValue = row.path; field.textColor = NSColor(row.state.textColor)
-                let cell = NSTableCellView(frame: NSRect(x: 0, y: 0, width: tableColumn?.width ?? 440, height: 22)); cell.imageView = NSImageView(); cell.imageView?.image = row.state.icon.image(); cell.textField = field
-                if let image = cell.imageView { image.frame = NSRect(x: 2, y: 3, width: 16, height: 16); cell.addSubview(image) }
-                if model.restoreCopies[row.path] != nil { let overlay = NSImageView(frame: NSRect(x: 2, y: 3, width: 16, height: 16)); overlay.identifier = NSUserInterfaceItemIdentifier("restore-overlay"); overlay.image = MenuIcon.restoreOverlay.image(); cell.addSubview(overlay) }
-                field.frame = NSRect(x: 23, y: 2, width: max(0, (tableColumn?.width ?? 440) - 26), height: 18); field.autoresizingMask = [.width]; cell.addSubview(field); cell.toolTip = row.path; return cell
+                let cell = NSTableCellView(frame: NSRect(x: 0, y: 0, width: tableColumn?.width ?? 440, height: table.rowHeight)); cell.imageView = NSImageView(); cell.imageView?.image = row.state.icon.image(); cell.textField = field
+                if let image = cell.imageView { image.frame = NSRect(x: 2, y: (table.rowHeight - 16) / 2, width: 16, height: 16); cell.addSubview(image) }
+                if model.restoreCopies[row.path] != nil { let overlay = NSImageView(frame: NSRect(x: 2, y: (table.rowHeight - 16) / 2, width: 16, height: 16)); overlay.identifier = NSUserInterfaceItemIdentifier("restore-overlay"); overlay.image = MenuIcon.restoreOverlay.image(); cell.addSubview(overlay) }
+                field.frame = NSRect(x: 23, y: 2, width: max(0, (tableColumn?.width ?? 440) - 26), height: table.rowHeight - 4); field.autoresizingMask = [.width]; cell.addSubview(field); cell.toolTip = row.path; return cell
             }
             return field
         }

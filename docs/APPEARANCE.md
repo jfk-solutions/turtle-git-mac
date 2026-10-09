@@ -159,3 +159,10 @@ separate compatibility edge API and does not replace painted lane snapshots.
 Changing label visibility with forced states reloads the projection in complete
 view. Actual action/detail parents remain untouched. Search/path revision-walk
 metadata and physical graph pixels still require separate acceptance.
+
+
+Status/file tables now honor LogFontForFileListCtrl, independently of the
+revision-table font flag. The shared log font resolver, live SwiftUI environment
+and native Add row sizing keep the selected family/size consistent. Shared file
+column autosizing measures that font. Native Log/Commit/Add acceptance and
+remaining scope are recorded in [list preference QA](qa/log-list-preferences-2026-10-09.json).
