@@ -1702,3 +1702,11 @@ Line counts follow the row action instead of a fixed blue. Selected text stays
 semantic primary across all text columns. See [Appearance](APPEARANCE.md) and
 [status color QA](qa/status-colors-2026-10-09.json); current pixel/contrast and
 custom status color settings remain unverified or pending.
+
+## Message caret indicator
+
+The native AppKit Message status label now follows `CommitDlg::OnScnUpdateUI`: one-based logical line/column (`1/1` initially) below the editor at the right, replacing the port's unrelated character count. The Changes group caption includes the existing F5 refresh shortcut. Logical columns count Unicode scalars, not Swift grapheme clusters or UTF-16 code units, and use Scintilla's default eight-column tabs; CR, LF and CRLF line handling follows the pinned Document code. AppKit paragraph tab intervals follow eight base-font space advances and update with font settings. Canonically equivalent spelling changes are applied byte-exactly to the editor and styling cache.
+
+Selection and text notifications update a coalesced native indicator without publishing inside a SwiftUI view transaction. Ordinary forward/backward extension keeps a tracked anchor; unrelated programmatic ranges establish a start anchor/end caret. [Apple's selection affinity documentation](https://developer.apple.com/documentation/appkit/nstextview/selectionaffinity) describes wrapped-line placement, not a public active-selection endpoint, so the implementation does not infer endpoint direction from affinity. Physical mouse/word/multiple selection, wrapping/IME, glyph-layout equivalence and signed execution still need broader checks.
+
+The compiled-source oracle `scripts/test-message-caret-oracle.py` compares 3,646 scalar-boundary positions against unchanged pinned Scintilla Document/CellBuffer code. Platform diagnostic functions alone are supplied by the runner; assertions abort. This proves logical coordinate math for those cases, not physical Windows/AppKit rendering or selection tracking. See `docs/qa/commit-caret-2026-10-09.json` for native/build evidence and limits. Full Commit/app parity remains incomplete.

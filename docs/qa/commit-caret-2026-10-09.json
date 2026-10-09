@@ -1,0 +1,75 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "da3531a",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/CommitDlg.cpp": "3f4f032637786bef7e5943d0e7ea0bd4ea701de3",
+    "src/Utils/MiscUI/SciEdit.cpp": "5d221b688a02e72bf8b5ef0a9e260f9aa2a3fc7e",
+    "ext/scintilla/src/Document.cxx": "83dc651a31cc427b32362b9bf5c4bbf9343095e6"
+  },
+  "scope": "Commit source-style message caret indicator; whole port incomplete",
+  "verification": {
+    "core": "Two focused tests pass for line endings, eight-column tabs, Unicode scalar columns, bounds and ordinary selection-anchor extension.",
+    "oracle": "3646 scalar-boundary positions match unchanged pinned Scintilla Document/CellBuffer and supporting sources. Compile diagnostics only supplied by runner; assertions abort. Default Unicode line-end mode checked. No Windows physical rendering or invalid UTF-8 guarantee.",
+    "debug": "Final AppKit-label unsigned Debug build and bundle audit pass.",
+    "native": "Final AppKit-label receiver passes both Git engines: actual hidden editor caret/forward-backward selection notifications update displayed NSTextField and accessibility value; eight-space font-dependent paragraph tabs, NFC/NFD byte spelling replacement and scalar columns checked. Existing live font, Unicode draft, selection, undo and bold styling checks pass. No publishing-during-view-update warning in log. No physical pointer/IME/full Commit layout proof.",
+    "store": "Final AppKit-label unsigned AppStore build and required bundle audit pass, including universal Git 2.55.0/Git LFS 3.8.0 runtimes. Signed sandbox/App Store acceptance unverified.",
+    "native_initial": "Extended hidden message-font receiver passes both Git engines with actual editor caret/selection updates, eight-space paragraph tab interval, byte-distinct NFC/NFD text replacement, and preserved earlier font/undo/styling checks. Final AppKit label receiver pending.",
+    "notice": "Both bundled NOTICE bytes match source, including Scintilla permission/copyright text.",
+    "inventory": "Three partial mappings updated; inventory pin check passes.",
+    "site": "Local site generator passes; no physical screenshot/deployment claim."
+  },
+  "limitations": [
+    "NSTextView public selection affinity describes wrap placement rather than an active endpoint. Ordinary tracked anchor and arbitrary-range fallback tested; physical mouse/word/multiple selection, IME, wrapping/glyph layout equivalence remain unverified.",
+    "No physical full-Commit layout/screenshot/default-button or signed sandbox/App Store acceptance claim.",
+    "Other dialogs/Finder, full app parity, screenshots/site deployment and hosted CI remain incomplete."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "removed_empty_owned_domains": [
+      "TurtleGit.MessageFont.QA.DE3DE786-06EF-4807-85EA-5A2D3B44B344"
+    ],
+    "legacy_private_QA_domain": {
+      "domain": "TurtleGit.MessageFont.QA.A8A4954B-AF08-43FC-90A0-04F304411D62",
+      "verified_values": {
+        "LogFontSize": 17,
+        "LogFontName": "Monaco"
+      },
+      "provenance": "Predates this checkpoint; exact private MessageFont QA prefix and Monaco/17 values written by the repository receiver. No live receiver remains. Removed separately from current empty QA preferences."
+    },
+    "remaining_processes": [],
+    "remaining_fixtures": [],
+    "remaining_preferences": [],
+    "windows": "All owned hidden Commit/Merge windows closed; no user repo mutation or main app launch. Oracle binaries/source copies removed by private temporary context."
+  },
+  "sources_manifest_sha256": "a657e822fd2e91fe320de8c344cbfa3852089fbf7d887c19bf404a06f7e2542c",
+  "changed_files_sha256": {
+    "NOTICE": "534f74baf7139319d344de902f6541aa7bd2902c2854e611cc0681ba6923f0f4",
+    "Sources/TurtleGitCore/MessageCaretPosition.swift": "fd4d8af37142be856bc6c8ec483642f47d0732f3155361d7b7bea1bdca4a13ed",
+    "Sources/TurtleGitMac/CommitMessageEditor.swift": "fb697a14c68d4b3dfe563966e38e87c464ce6de61d8d09f14d342946e7262692",
+    "Sources/TurtleGitMac/CommitWindow.swift": "3c56dd396370c1c5b04c45bad59f4edb62f050dcb0d919f90db3a8924a21418d",
+    "Tests/TurtleGitCoreTests/MessageCaretPositionTests.swift": "922a07f7a0ccc779c4aa86e395f8c5541058c2b8179a6db8bc90f415a753c6cf",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "6c4882e665c51bb962f56220c1f8b08564bf4b572edd240f36cc9cdac68f8260",
+    "docs/COMMIT-PARITY.md": "4632380834f037ab50d9df4531b651da475d925920bd49a36df482b91c0c25e4",
+    "docs/TESTING.md": "8eefd12ef575aa3239a73ad62c4f26d568c59badd2f686dc2d5cea8edee15da2",
+    "docs/qa/message-font-native-2026-10-08.swift": "5991d16fe2b33d2169848eb4be7f0048518c2d8e27141676f35f91803a1d0c39",
+    "docs/upstream-files.csv": "7976df4bc13cb42a991d897a823915d265356787b96d09b3c54335789c7e6141",
+    "scripts/test-message-caret-oracle.py": "509ae966fa9a7e7c69a75872700616be506d48d1e4ffde1e8dbfc9df75260abf"
+  },
+  "local_log_sha256": {
+    "build/qa/commit-caret-2026-10-09/cleanup.json": "78c6f48aed79d2f4120d4447dcd379089a0053e083637915678d06385a449d3c",
+    "build/qa/commit-caret-2026-10-09/core.log": "16f20491377b1dd43295d3f9d073009d7c091a91eb8551aa7ed52a9eba9b606b",
+    "build/qa/commit-caret-2026-10-09/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/commit-caret-2026-10-09/debug-native-label-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/commit-caret-2026-10-09/debug-native-label.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/commit-caret-2026-10-09/debug.log": "3ee5b1a04382fcb0af0e17021d3d1fed067ecad087b28ed41099edcdec35eed7",
+    "build/qa/commit-caret-2026-10-09/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/commit-caret-2026-10-09/native-label.log": "12ecf8df4451145728411811f5cd2ff92c914d1d6b8f8f0948315fe299b47fd2",
+    "build/qa/commit-caret-2026-10-09/native.log": "c00d4be2307e189b8fe1d5a412cfa3367d6b54bce80d16be3c5ed9070931e760",
+    "build/qa/commit-caret-2026-10-09/oracle.log": "f7f6888ad61f5f5f275c3e090f722f4bae6e09318a091d4f73a53880805bcc0a",
+    "build/qa/commit-caret-2026-10-09/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/commit-caret-2026-10-09/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/commit-caret-2026-10-09/store.log": "8638fa05fe76cc62b3a922d7fe2c61614e50a81179a915db4fbdc37bb7522b6f",
+    "build/qa/commit-caret-2026-10-09/xcodegen.log": "747909a44a9dc6f2c4861b91f09bc1d70097cf9053754a85a84fa1f2b7e93566"
+  }
+}

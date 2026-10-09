@@ -390,6 +390,7 @@ import UniformTypeIdentifiers
     private var amendMessage = ""
     var amendToParent: Bool { amend && !amendDiffToLastCommit }
     @Published var setAuthorDate = false
+    @Published var messageCaretPosition = MessageCaretPosition.at("", utf16Offset: 0)
     @Published var authorDate = Date()
     @Published var resetAuthorDate = false
     @Published var messageOnly = false
@@ -1200,10 +1201,11 @@ struct CommitDialog: View {
 GroupBox("Message:") {
                 VStack(alignment: .leading, spacing: 8) {
                     CommitMessageEditor(model: model).frame(minHeight: 100, maxHeight: .infinity).border(Color.secondary.opacity(0.3))
+                    HStack { Spacer(); CommitMessagePositionIndicator(model: model) }
                     HStack {
                         Toggle("Amend Last Commit", isOn: $model.amend).toggleStyle(.checkbox).disabled(!model.hasHead || model.operation != nil || model.replaySplit != nil).onChange(of: model.amend) { _ in model.amendChanged() }
                         if model.amend { Toggle("Show diff to last commit", isOn: $model.amendDiffToLastCommit).toggleStyle(.checkbox).disabled(!model.hasParent || model.replaySplit != nil) }
-                        Spacer(); Text("\(model.message.count) characters").font(.caption).foregroundStyle(.secondary)
+                        Spacer()
                     }
                     HStack {
                         Toggle("Set author date", isOn: $model.setAuthorDate).toggleStyle(.checkbox).frame(width: 170, alignment: .leading)
@@ -1223,7 +1225,7 @@ GroupBox("Message:") {
             }
     }
     private var changesSection: some View {
-GroupBox("Changes made (double-click on file for diff):") {
+GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                     VStack(alignment: .leading, spacing: 6) {
                         HStack(spacing: 10) {
                             Text("Check:")

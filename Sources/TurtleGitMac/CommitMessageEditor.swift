@@ -27,19 +27,36 @@ struct CommitMessageEditor: NSViewRepresentable {
         guard let editor = scroll.documentView as? MessageTextView else { return }
         editor.isEditable = enabled; editor.model = model
         model.prepareMessageCompletions()
-        if editor.string != model.message {
+        if !editor.string.utf8.elementsEqual(model.message.utf8) {
             let range = editor.selectedRange()
             editor.string = model.message
             editor.setSelectedRange(NSRange(location: min(range.location, (model.message as NSString).length), length: 0))
         }
         editor.applyIssueStyles(model.issueMessageStyles, base: MessageEditorFont.resolve(name: fontName, size: fontSize))
+        context.coordinator.updatePosition(editor)
     }
     func makeCoordinator() -> Coordinator { Coordinator(model) }
     final class Coordinator: NSObject, NSTextViewDelegate {
         let model: CommitWindowModel
+        private var selectionCaret = MessageSelectionCaret()
+        private var positionGeneration = 0
         init(_ model: CommitWindowModel) { self.model = model }
         func textDidChange(_ notification: Notification) {
-            if let editor = notification.object as? NSTextView { model.message = editor.string }
+            if let editor = notification.object as? NSTextView { model.message = editor.string; updatePosition(editor) }
+        }
+        func textViewDidChangeSelection(_ notification: Notification) {
+            if let editor = notification.object as? NSTextView { updatePosition(editor) }
+        }
+        func updatePosition(_ editor: NSTextView) {
+            let caret = selectionCaret.observe(editor.selectedRange())
+            let value = MessageCaretPosition.at(editor.string, utf16Offset: caret)
+            positionGeneration += 1; let request = positionGeneration
+            // AppKit also notifies during representable/style updates. Coalesce
+            // these notifications outside SwiftUI's view update transaction.
+            DispatchQueue.main.async { [weak self] in
+                guard let self, request == self.positionGeneration, self.model.messageCaretPosition != value else { return }
+                self.model.messageCaretPosition = value
+            }
         }
         func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {
             guard let value = link as? String, let url = URL(string: value) else { return true }
@@ -106,7 +123,7 @@ private final class MessageTextView: NSTextView {
     private var styledText = ""
     private var styledBaseFont: NSFont?
     func applyIssueStyles(_ styles: [IssueMessageStyle], base: NSFont) {
-        guard styles != appliedStyles || string != styledText || styledBaseFont != base, let storage = textStorage else { return }
+        guard styles != appliedStyles || !string.utf8.elementsEqual(styledText.utf8) || styledBaseFont != base, let storage = textStorage else { return }
         appliedStyles = styles; styledText = string; styledBaseFont = base
         let selection = selectedRanges
         let undoEnabled = undoManager?.isUndoRegistrationEnabled == true
@@ -114,7 +131,8 @@ private final class MessageTextView: NSTextView {
         storage.beginEditing()
         let whole = NSRange(location: 0, length: storage.length)
         for key in [NSAttributedString.Key.link, .toolTip, .underlineStyle] { storage.removeAttribute(key, range: whole) }
-        storage.addAttributes([.font: base, .foregroundColor: NSColor.textColor], range: whole)
+        let paragraph = NSMutableParagraphStyle(); paragraph.tabStops = []; paragraph.defaultTabInterval = (" " as NSString).size(withAttributes: [.font: base]).width * 8
+        storage.addAttributes([.font: base, .foregroundColor: NSColor.textColor, .paragraphStyle: paragraph], range: whole)
         for style in styles where style.range.location >= 0 && style.range.location <= storage.length && style.range.length <= storage.length - style.range.location {
             var styledFont = base
             if [.context, .identifier, .bold].contains(style.kind) { styledFont = NSFontManager.shared.convert(styledFont, toHaveTrait: .boldFontMask) }
@@ -128,7 +146,7 @@ private final class MessageTextView: NSTextView {
         storage.endEditing()
         if undoEnabled { undoManager?.enableUndoRegistration() }
         selectedRanges = selection
-        typingAttributes = [.font: base, .foregroundColor: NSColor.textColor]
+        typingAttributes = [.font: base, .foregroundColor: NSColor.textColor, .paragraphStyle: paragraph]
     }
     override func menu(for event: NSEvent) -> NSMenu? {
         guard let menu = super.menu(for: event), isEditable else { return super.menu(for: event) }
@@ -297,5 +315,22 @@ private struct CommitHistoryList: NSViewRepresentable {
             if (event.keyCode == 51 || event.keyCode == 117), selectedRow >= 0 { deleteRow(selectedRow) }
             else { super.keyDown(with: event) }
         }
+    }
+}
+
+struct CommitMessagePositionIndicator: NSViewRepresentable {
+    @ObservedObject var model: CommitWindowModel
+    func makeNSView(context: Context) -> NSTextField {
+        let field = NSTextField(labelWithString: model.messageCaretPosition.text)
+        field.font = .monospacedDigitSystemFont(ofSize: NSFont.smallSystemFontSize, weight: .regular)
+        field.textColor = .secondaryLabelColor; field.alignment = .right; field.toolTip = "Line/column"
+        field.setAccessibilityLabel("Message line and column")
+        field.setContentHuggingPriority(.required, for: .horizontal)
+        field.setContentCompressionResistancePriority(.required, for: .horizontal)
+        return field
+    }
+    func updateNSView(_ field: NSTextField, context: Context) {
+        field.stringValue = model.messageCaretPosition.text
+        field.setAccessibilityValue(model.messageCaretPosition.text)
     }
 }
