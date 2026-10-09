@@ -202,7 +202,7 @@ final class MessageLineOffscreenWindow: NSWindow {
                 precondition(marker.location != NSNotFound)
                 precondition((value.attribute(.attachment, at: marker.location, effectiveRange: nil) as? NSTextAttachment)?.image != nil)
             } else { precondition(text.range(of: "origin/main").location != NSNotFound) }
-            precondition(model.visibleReferenceLabels(for: entries[0]).map { $0.reference.name } == entries[0].references.map(\.name))
+            precondition(model.visibleReferenceLabels(for: entries[0]).map { $0.reference.name }.sorted() == entries[0].references.map(\.name).sorted())
             prefs.set(!right, forKey: "DrawTagsBranchesOnRightSide"); prefs.set(!symbolize, forKey: "SymbolizeRefNames")
             precondition(model.drawTagsBranchesOnRightSide == right && model.symbolizeRefNames == symbolize)
         }
@@ -214,6 +214,8 @@ final class MessageLineOffscreenWindow: NSWindow {
         model.showWorkingTree = false; model.search = "body"; model.searchFields = .messages; model.searchRegex = false; model.reload()
         for _ in 0..<1500 { if !model.busy { break }; try await Task.sleep(nanoseconds: 10_000_000) }
         precondition(!model.busy && model.error == nil)
+        // Isolate the existing branch-only repaint fixture from mandatory stash/bisect labels.
+        model.entries = model.entries.map { var row = $0; row.references = row.references.filter { $0.name.hasPrefix("refs/heads/") || $0.name.hasPrefix("refs/remotes/") }; return row }
         let window = host(RevisionTable(model: model, savesColumnLayout: false).defaultAppStorage(prefs), ordered: false)
         defer { window.close(); model.invalidate() }
         try await settle(window.contentView!)
@@ -249,6 +251,36 @@ final class MessageLineOffscreenWindow: NSWindow {
             precondition(!prefs.bool(forKey: key) && button.state == .off)
         }
     }
+    @MainActor static func checkReferenceKinds(repo: GitRepository, prefs: UserDefaults) async throws {
+        let entries = try await repo.history(), entry = entries[0]
+        let model = LogWindowModel(repository: repo, access: nil, labelDefaults: prefs)
+        model.busy = true; model.entries = entries; model.graph = CommitGraph.layout(entries)
+        for row in entries { model.revisionActions[row.hash] = [] }
+        let window = host(RevisionTable(model: model, savesColumnLayout: false).defaultAppStorage(prefs), ordered: false)
+        defer { window.close(); model.invalidate() }
+        try await settle(window.contentView!)
+        let labels = model.visibleReferenceLabels(for: entry), text = message(window).attributedStringValue
+        for (name, alias, kind, role) in [
+            ("refs/stash", "stash", HistoryReferenceKind.stash, LogColorRole.stash),
+            ("refs/bisect/old-a", "old", .bisectGood, .bisectGood),
+            ("refs/bisect/new", "new", .bisectBad, .bisectBad),
+            ("refs/bisect/unrecognized", "unrecognized", .unknown, .otherRef),
+            ("refs/notes/custom", "custom", .notes, .noteNode),
+            ("refs/custom/extra", "custom/extra", .unknown, .otherRef),
+            ("refs/tags/annotated", "annotated", .annotatedTag, .tag),
+            ("refs/tags/light", "light", .tag, .tag)
+        ] {
+            let label = labels.first { $0.reference.name == name }!
+            precondition(label.text == alias && label.kind == kind)
+            precondition(LogColorRole.reference(label.reference) == role)
+            let range = (text.string as NSString).range(of: " " + alias + " ")
+            precondition(range.location != NSNotFound && text.attribute(.backgroundColor, at: range.location, effectiveRange: nil) is NSColor)
+        }
+        let context = HistoryReferenceContext()
+        precondition(context.labels(entry.references, visibility: .bisect).map(\.text).sorted() == ["new", "old"])
+        precondition(Set(context.labels(entry.references, visibility: .otherRefs).map(\.text)) == ["unrecognized", "custom", "custom/extra"])
+        precondition(entry.references.first { $0.name == "refs/tags/annotated" }?.kind == .annotatedTag)
+    }
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
         let suite = "TurtleGit.MessageLine.Native.QA." + UUID().uuidString, prefs = UserDefaults(suiteName: suite)!
@@ -262,15 +294,20 @@ final class MessageLineOffscreenWindow: NSWindow {
         _ = try await repo.run(["config", "branch.main.remote", "origin"])
         _ = try await repo.run(["config", "branch.main.merge", "refs/heads/main"])
         _ = try await repo.run(["update-ref", "refs/remotes/origin/main", "HEAD"])
+        for name in ["refs/stash", "refs/bisect/old-a", "refs/bisect/new", "refs/bisect/unrecognized", "refs/notes/custom", "refs/custom/extra"] { _ = try await repo.run(["update-ref", name, "HEAD"]) }
+        _ = try await repo.run(["-c", "tag.gpgsign=false", "tag", "-a", "annotated", "-m", "fixture tag"])
+        _ = try await repo.run(["tag", "light"])
+        try Data("new\nold\n".utf8).write(to: repo.root.appendingPathComponent(".git/BISECT_TERMS"))
         let entries = try await repo.history()
         var options = RebaseOptions(); options.upstream = "HEAD^"; options.force = true
         let plan = try await repo.rebasePlan(options); precondition(plan.entries.count == 1)
-        let paths = [".git/HEAD", ".git/index", ".git/config", ".git/refs/heads/main", ".git/refs/remotes/origin/main", "file.txt"], before = try paths.map { try Data(contentsOf: repo.root.appendingPathComponent($0)) }
+        let paths = [".git/HEAD", ".git/index", ".git/config", ".git/refs/heads/main", ".git/refs/remotes/origin/main", ".git/BISECT_TERMS", ".git/refs/tags/annotated", ".git/refs/bisect/old-a", "file.txt"], before = try paths.map { try Data(contentsOf: repo.root.appendingPathComponent($0)) }
         for enabled in [nil, false, true] as [Bool?] { try await check(enabled, repo: repo, entries: entries, plan: plan, prefs: prefs) }
         try await checkHighlights(repo: repo, prefs: prefs)
         try await checkHighlightColumns(repo: repo, prefs: prefs)
         try await checkReferenceLayout(repo: repo, prefs: prefs)
         try await checkDialogPreferenceControls(prefs: prefs)
+        try await checkReferenceKinds(repo: repo, prefs: prefs)
         let after = try paths.map { try Data(contentsOf: repo.root.appendingPathComponent($0)) }; precondition(before == after)
         if CommandLine.arguments.contains("--log-blame-only") {
             print("PASS (focused): actual hidden Log/Blame message cells, unset/false/true captured preferences, folding/label styling/one-line cells/selection/metadata preserved, actual Subjects/Messages menu actions match source formatting on private pasteboard, real reload literal/regex highlight cells and reference/full-message gates verified, left/right label order and symbolization attachments/captured choices and label-mask highlight redraw verified; Rebase model preference and read-only plan/selection/action checked, rendered Rebase text UNVERIFIED; unchanged repository bytes, all owned windows closed, no main app or replay operation")

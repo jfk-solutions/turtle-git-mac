@@ -983,3 +983,8 @@ DrawTagsBranchesOnRightSide placement and DrawUpstream mark geometry adapt the
 pinned shared list source. SetDialogs exposes all three native Log choices:
 SymbolizeRefNames, DrawTagsBranchesOnRightSide and FullCommitMessageOnLogLine.
 Canonical refs remain separate from shortened display names.
+
+Reference names/kinds now adapt CGit::GetShortName's prefix/peeled suffix rules
+and sequential bisect term classification, with bounded GetBisectTerms file
+parsing at the pinned revision above. Annotated-tag kind comes from the peeled
+ref object while canonical operation names remain unchanged.

@@ -1893,10 +1893,35 @@ restoring a label restores the foreground. Compressed/labeled and rolled graphs
 keep their existing reload behavior.
 
 [Reference-label QA](qa/log-reference-labels-2026-10-09.json) records focused
-scope. Complete GetShortName handling for stash/bisect/notes/unknown and peeled-tag
-labels remains a separate source gap; this checkpoint covers branch/upstream
-projection. Exact tracking rounded/double-border joins, annotated-tag polygon shape,
+scope. The subsequent reference-kind checkpoint below adds nonbranch names and
+annotated-tag metadata. Exact tracking rounded/double-border joins, annotated-tag polygon shape,
 label hit rectangles and upstream context interactions, remaining Settings
 property-sheet lifecycle, all shared-list consumers, physical clipping/Retina/
 selected-row contrast and signed acceptance remain pending. The native marker
 adapts source geometry; no raster-equivalence screenshot is claimed.
+
+
+Reference kinds and bisect labels (2026-10-09)
+------------------------------------------------
+
+History labels now apply the pinned CGit::GetShortName prefix and terminal
+peeled-suffix rules for branches, tags, stash, bisect, notes and unknown refs.
+Canonical names and commit targets remain separate from display names. The loader
+marks annotated tags from peeled reference metadata. Recognized bisect refs use
+the configured good/bad terms, with sequential good/bad/skip classification;
+unrecognized bisect refs use the Other refs visibility and color roles.
+
+The history-specific terms reader resolves BISECT_TERMS through Git (including
+worktree paths) and reproduces two bounded 259-byte reads, LF removal and NUL
+termination. Missing files use good/bad defaults; opened empty files yield empty
+terms. It reads fresh for history rather than adopting the source's static
+five-second cache. Windows file-opening, read-error and invalid UTF-8 decoding
+equivalence remain unverified. The existing active-bisect state reader is separate.
+
+[Reference-kind QA](qa/log-reference-kinds-2026-10-09.json) records focused Core
+and hidden native checks. This is name/classification metadata parity; annotated
+tag polygons, tracking joins, physical screenshots, full Rebase rendered-text
+acceptance and signed distribution remain pending. No compiled Windows oracle
+is claimed for this checkpoint. Atypical refs/stash-prefixed names are classified
+as stash, while the existing color selector still recognizes exact refs/stash;
+that broad-prefix color edge remains pending.

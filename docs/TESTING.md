@@ -197,3 +197,5 @@ AppKit preference checkbox actions on the owned Dialogs page and verifies their
 private UserDefaults values in both directions. Private repository bytes
 remain unchanged after setup. See
 [reference-label QA](qa/log-reference-labels-2026-10-09.json).
+
+Reference-name/classification checks, including annotated tags and configured bisect terms, are recorded in [reference-kind QA](qa/log-reference-kinds-2026-10-09.json). Physical rendering and full dialog parity remain unverified.

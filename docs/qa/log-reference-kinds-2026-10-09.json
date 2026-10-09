@@ -1,0 +1,67 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "7b5889f",
+  "scope": "Log reference kinds, source short-name rules, custom bisect terms and annotated-tag metadata; whole port incomplete",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/Git/Git.cpp": "43dee91dbf94e46564b4cc1a139717fcbd8f6803",
+    "src/Git/Git.h": "493a1e5511c8a4e874caa887d1361a6af9088fe6",
+    "src/TortoiseProc/GitLogListBase.cpp": "19518f37689e19b7e913c9ff8cc9d65ec223c187"
+  },
+  "verification": {
+    "core": "63 focused tests pass: 7 HistoryReferenceLabelTests, 48 CommitHistoryTests, 5 BisectTests, 3 LogMessageLineTests. Covers prefix boundaries, peeled suffixes, custom/sequential terms, bounded LF/CRLF/NUL/Unicode/long-line parsing, real annotated/lightweight tags, visibility and canonical name preservation.",
+    "debug": "Unsigned Debug build and bundle audit pass.",
+    "native": "Final focused hidden AppKit receiver passes both Apple and bundled Git. Loaded labels/kinds/colors/background badges checked for stash, custom good/bad terms, unknown bisect, notes, other refs and annotated/lightweight tags; explicit mask projections checked. Existing label order/symbolization, branch-only live repaint, actual preference checkboxes, message/copy/highlight checks pass. Read-only bytes retained after fixture setup; no main app. Rebase rendered text remains UNVERIFIED.",
+    "store": "Unsigned AppStore build and required universal Git/Git LFS bundle audit pass after all Core/Debug/native handles terminated. Signed sandbox and App Store acceptance not claimed.",
+    "inventory": "Three partial mappings updated; pin check passes.",
+    "notice": "Current NOTICE matches packaged NOTICE in both Debug and AppStore bundles.",
+    "site": "Local site generator checked separately; no screenshots or deployment claimed."
+  },
+  "iterations": [
+    "Initial native receiver compilation failed because referenceVisibility is private(set). Test corrected to isolate branch-only repaint refs through mutable entry fixtures and use context projection for explicit bisect/other masks; production visibility remains unchanged."
+  ],
+  "limitations": [
+    "No compiled Windows GetShortName oracle. Windows fopen/read-error behavior, decoder and static five-second cache equivalence are unverified; history reads fresh terms.",
+    "Name and kind metadata do not establish annotated-tag polygon/tracking-join/hit-rectangle/context interaction parity.",
+    "Focused Log/Blame acceptance does not verify Rebase rendered text. Physical screenshots, full all-dialog/Finder/signed distribution/App Store acceptance, publishing and hosted CI remain incomplete.",
+    "Atypical refs/stash-prefixed names classify as stash but existing color selection still uses exact refs/stash; broad-prefix color parity remains pending."
+  ],
+  "wrong_chat_request": "Protected-block Compare checkbox excluded after user correction.",
+  "cleanup": {
+    "main_app_launches": 0,
+    "removed_domains": [
+      "TurtleGit.MessageLine.Native.QA.27699FA8-1745-4E3D-9A60-7784F7E728A3",
+      "TurtleGit.MessageLine.Native.QA.4855583F-F03F-40DA-91C6-DF184D9CBAE5"
+    ],
+    "remaining_preferences": [],
+    "remaining_fixtures": [],
+    "remaining_processes": [],
+    "windows": "Passing owned hidden windows closed and invalidated; private pasteboards released. No main app launch."
+  },
+  "sources_manifest_sha256": "6ff1ab5bef567b176a0a84c2957a3584de0bfc3e2ad3f6413a18450e5b27dd57",
+  "changed_files_sha256": {
+    "NOTICE": "ccf28a7eebd2f7a454c7d5f6af848aa91e25b784dcb1f389d2a546744585acc0",
+    "Sources/TurtleGitCore/CommitHistory.swift": "00135f0b4f1aa0967a84e39d1bf9371977d20c94d0329aedc83f016385260776",
+    "Sources/TurtleGitCore/HistoryReferenceLabels.swift": "7de8a86d6a1c06f4bf0ed53141af14cc0c6a8f5a5b8a5bb70818f6c1ac478cf7",
+    "Sources/TurtleGitMac/LogAppearance.swift": "c56fd1bf3b5a11607879bdf0886b7f4272ecd5e493a8636df81b13b6b1f5b673",
+    "Sources/TurtleGitMac/LogWindow.swift": "ea9718eb6403e39bcbf0cd7ced8baac3fc5e62bd9e18e3b572ead3851a939431",
+    "Tests/TurtleGitCoreTests/HistoryReferenceLabelTests.swift": "39bb541823324cf172e5b5b6d1c866d397415175128d83c865a459abb85d7166",
+    "docs/APPEARANCE.md": "22ca4a3fa5167eefea262fbc0aa01ff02d6e09717a9494d702d5912c6262e519",
+    "docs/LOG-PARITY.md": "7366b5495ec8c8b6f41e74e94c714aae160777cd713229d58884ceb49e3520bf",
+    "docs/TESTING.md": "473f6b21c3afcfb8f706710366ae118823138a86c329e5d7335c9a2801c720e9",
+    "docs/qa/log-message-line-native-2026-10-09.swift": "702f1eec0140a719c718e1b5f7cb2638e2ac55b33747583022ac420915cf7195",
+    "docs/upstream-files.csv": "aacfa5847765abb3fd1e910ab77726acbb581ecac357fd14590e111fba49528b"
+  },
+  "local_log_sha256": {
+    "build/qa/log-reference-kinds-2026-10-09/cleanup.json": "4193351366b62a9dcf9b61f0ab81e6ec7a0c0a7cc53f6a8737a6cce70fbbef6d",
+    "build/qa/log-reference-kinds-2026-10-09/core.log": "026ed297d9c194238116b768a36d950c587eb1550400e61f92f46a09966146e0",
+    "build/qa/log-reference-kinds-2026-10-09/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/log-reference-kinds-2026-10-09/debug.log": "323e81860f030bbdfcd2111f1dd95ce5693b68720b3fbc20add2ea489daa63ef",
+    "build/qa/log-reference-kinds-2026-10-09/native-final.log": "eb557ab598c0c16f7bede2ea2aa1aa151808732ca4090838c941dbc48f8a7d4d",
+    "build/qa/log-reference-kinds-2026-10-09/native.log": "d4e9e326693676e5bdef568e8623d8fdbb351eeb08b8ec066ae54714fdd201d3",
+    "build/qa/log-reference-kinds-2026-10-09/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/log-reference-kinds-2026-10-09/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-reference-kinds-2026-10-09/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/log-reference-kinds-2026-10-09/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca"
+  }
+}

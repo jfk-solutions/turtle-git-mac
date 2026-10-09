@@ -3,6 +3,9 @@ import Foundation
 public struct RevisionReference: Hashable, Sendable {
     public let name: String
     public var isCurrent = false
+    public var kind: HistoryReferenceKind?
+    public var displayName: String?
+    public init(name: String, isCurrent: Bool = false, kind: HistoryReferenceKind? = nil, displayName: String? = nil) { self.name = name; self.isCurrent = isCurrent; self.kind = kind; self.displayName = displayName }
     public var label: String {
         for prefix in ["refs/heads/", "refs/remotes/", "refs/tags/"] where name.hasPrefix(prefix) {
             return String(name.dropFirst(prefix.count))
@@ -35,12 +38,14 @@ public struct HistoryReferenceVisibility: OptionSet, Sendable {
     public static let otherRefs = Self(rawValue: 0x20)
     public static let all: Self = [.localBranches, .remoteBranches, .tags, .stash, .bisect, .otherRefs]
     private func category(_ reference: RevisionReference) -> Self {
-        if reference.name.hasPrefix("refs/heads/") { return .localBranches }
-        if reference.name.hasPrefix("refs/remotes/") { return .remoteBranches }
-        if reference.name.hasPrefix("refs/tags/") { return .tags }
-        if reference.name.hasPrefix("refs/stash") { return .stash }
-        if reference.name.hasPrefix("refs/bisect/") { return .bisect }
-        return .otherRefs
+        switch reference.kind ?? HistoryReferenceLabel.shortName(reference.name).kind {
+        case .localBranch: return .localBranches
+        case .remoteBranch: return .remoteBranches
+        case .tag, .annotatedTag: return .tags
+        case .stash: return .stash
+        case .bisectGood, .bisectBad, .bisectSkip: return .bisect
+        case .notes, .unknown: return .otherRefs
+        }
     }
     public func shows(_ reference: RevisionReference) -> Bool { contains(category(reference)) }
     /// ShouldShowRefsFilter retains only these five kinds; Other refs paints labels only.
@@ -975,6 +980,8 @@ extension GitRepository {
                 guard batch.allSatisfy({ actualParents[$0] != nil }) else { throw RevisionComparisonFailure.range }
             }
         }
+        let hasBisectRefs = references.values.contains { $0.contains { $0.name.hasPrefix("refs/bisect/") } }
+        let bisectTerms = hasBisectRefs ? try historyBisectTerms(cancellation: cancellation) : HistoryBisectTerms()
         var entries: [LogEntry] = []
         var regexTexts: [String] = []
         var record = 0
@@ -1030,7 +1037,11 @@ extension GitRepository {
         let currentRef = try? historyRun(["symbolic-ref", "--quiet", "HEAD"]).text.trimmingCharacters(in: .newlines)
         for index in entries.indices {
             entries[index].references = (references[entries[index].hash] ?? []).map { value in
-                var reference = value; reference.isCurrent = value.name == currentRef; return reference
+                var reference = value; reference.isCurrent = value.name == currentRef
+                let short = HistoryReferenceLabel.shortName(value.name, terms: bisectTerms)
+                reference.kind = short.kind; reference.displayName = short.text
+                if value.name.hasPrefix("refs/tags/"), (peeledReferenceNames[entries[index].hash] ?? []).contains(value.name + "^{}") { reference.kind = .annotatedTag }
+                return reference
             }
             entries[index].isHead = entries[index].hash == head
         }

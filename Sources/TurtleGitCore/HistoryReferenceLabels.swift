@@ -2,6 +2,29 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import Foundation
 
+public enum HistoryReferenceKind: String, Sendable {
+    case unknown, localBranch, remoteBranch, tag, annotatedTag, stash, bisectGood, bisectBad, bisectSkip, notes
+}
+public struct HistoryBisectTerms: Equatable, Sendable {
+    public let good: String, bad: String
+    public init(good: String = "good", bad: String = "bad") { self.good = good; self.bad = bad }
+    /// GetBisectTerms' two bounded fgets(260) reads, LF removal and NUL termination.
+    public static func parse(_ data: Data?) -> Self {
+        guard let data else { return Self() }
+        let bytes = Array(data.prefix(518)); var position = 0
+        func line() -> String {
+            let start = position
+            while position < bytes.count && position - start < 259 {
+                let byte = bytes[position]; position += 1; if byte == 10 { break }
+            }
+            var value = Array(bytes[start..<position])
+            if let nul = value.firstIndex(of: 0) { value = Array(value[..<nul]) }
+            if value.last == 10 { value.removeLast() }
+            return String(decoding: value, as: UTF8.self)
+        }
+        let bad = line(), good = line(); return Self(good: good, bad: bad)
+    }
+}
 public struct HistoryBranchTracking: Equatable, Sendable {
     public let remote: String, branch: String
     public init(remote: String, branch: String) { self.remote = remote; self.branch = branch }
@@ -9,25 +32,55 @@ public struct HistoryBranchTracking: Equatable, Sendable {
 public struct HistoryReferenceLabel: Equatable, Sendable {
     public let reference: RevisionReference
     public var text: String
+    public let kind: HistoryReferenceKind
     public var hasTracking = false, singleRemote = false, sameName = false
-    public init(reference: RevisionReference) { self.reference = reference; self.text = reference.label }
+    public init(reference: RevisionReference, terms: HistoryBisectTerms = HistoryBisectTerms()) {
+        self.reference = reference
+        let short = Self.shortName(reference.name, terms: terms)
+        self.text = reference.displayName ?? short.text; self.kind = reference.kind ?? short.kind
+    }
+    /// CGit::GetShortName, preserving canonical ref names separately from display text.
+    public static func shortName(_ name: String, terms: HistoryBisectTerms = HistoryBisectTerms()) -> (text: String, kind: HistoryReferenceKind) {
+        func strip(_ prefix: String) -> String? {
+            guard name.hasPrefix(prefix) else { return nil }
+            var text = String(name.dropFirst(prefix.count))
+            if text.hasSuffix("^{}") { text = String(text.dropLast(3)) }
+            return text
+        }
+        if let text = strip("refs/heads/") { return (text, .localBranch) }
+        if let text = strip("refs/remotes/") { return (text, .remoteBranch) }
+        if let text = strip("refs/tags/") { return (text, name.hasSuffix("^{}") ? .annotatedTag : .tag) }
+        if strip("refs/stash") != nil { return ("stash", .stash) }
+        if var text = strip("refs/bisect/") {
+            var kind = HistoryReferenceKind.unknown
+            func matches(_ term: String) -> Bool { text == term || text.hasPrefix(term + "-") }
+            // Upstream tests sequentially against the possibly already shortened name.
+            if matches(terms.good) { text = terms.good; kind = .bisectGood }
+            if matches(terms.bad) { text = terms.bad; kind = .bisectBad }
+            if matches("skip") { text = "skip"; kind = .bisectSkip }
+            return (text, kind)
+        }
+        if let text = strip("refs/notes/") { return (text, .notes) }
+        if let text = strip("refs/") { return (text, .unknown) }
+        return (name, .unknown)
+    }
 }
 public struct HistoryReferenceContext: Equatable, Sendable {
     public var remotes: [String], tracking: [String: HistoryBranchTracking]
     public init(remotes: [String] = [], tracking: [String: HistoryBranchTracking] = [:]) { self.remotes = remotes; self.tracking = tracking }
-    public func labels(_ references: [RevisionReference], visibility: HistoryReferenceVisibility = .all, symbolize: Bool = false) -> [HistoryReferenceLabel] {
+    public func labels(_ references: [RevisionReference], visibility: HistoryReferenceVisibility = .all, symbolize: Bool = false, terms: HistoryBisectTerms = HistoryBisectTerms()) -> [HistoryReferenceLabel] {
         let singleRemote = remotes.count == 1 ? remotes[0] : nil
         var result: [HistoryReferenceLabel] = [], consumed = Set<String>()
         for (index, reference) in references.enumerated() where visibility.shows(reference) {
-            var label = HistoryReferenceLabel(reference: reference)
-            if reference.name.hasPrefix("refs/heads/"), let upstream = tracking[reference.label], !upstream.remote.isEmpty, !upstream.branch.isEmpty {
+            var label = HistoryReferenceLabel(reference: reference, terms: terms)
+            if reference.name.hasPrefix("refs/heads/"), let upstream = tracking[label.text], !upstream.remote.isEmpty, !upstream.branch.isEmpty {
                 label.hasTracking = true
                 let fullName = "refs/remotes/" + upstream.remote + "/" + upstream.branch
                 if visibility.contains(.remoteBranches), let remote = references.dropFirst(index + 1).first(where: { $0.name == fullName }) {
                     result.append(label)
-                    var paired = HistoryReferenceLabel(reference: remote); paired.hasTracking = true
+                    var paired = HistoryReferenceLabel(reference: remote, terms: terms); paired.hasTracking = true
                     if symbolize {
-                        paired.sameName = upstream.branch == reference.label
+                        paired.sameName = upstream.branch == label.text
                         if singleRemote == upstream.remote {
                             paired.text = "/" + (paired.sameName ? "≡" : upstream.branch); paired.singleRemote = true
                         } else if paired.sameName { paired.text = upstream.remote + "/≡" }
@@ -36,8 +89,8 @@ public struct HistoryReferenceContext: Equatable, Sendable {
                 }
             } else if reference.name.hasPrefix("refs/remotes/") {
                 if consumed.contains(reference.name) { continue }
-                if symbolize, let singleRemote, reference.label.hasPrefix(singleRemote + "/") {
-                    label.text = "/" + String(reference.label.dropFirst(singleRemote.count + 1)); label.singleRemote = true
+                if symbolize, let singleRemote, label.text.hasPrefix(singleRemote + "/") {
+                    label.text = "/" + String(label.text.dropFirst(singleRemote.count + 1)); label.singleRemote = true
                 }
             }
             result.append(label)
@@ -46,6 +99,16 @@ public struct HistoryReferenceContext: Equatable, Sendable {
     }
 }
 extension GitRepository {
+    public func historyBisectTerms(cancellation: OperationCancellation? = nil) throws -> HistoryBisectTerms {
+        var bytes = try run(["rev-parse", "--git-path", "BISECT_TERMS"], cancellation: cancellation).stdout
+        if bytes.last == 10 { bytes.removeLast() }
+        let path = String(decoding: bytes, as: UTF8.self)
+        let url = path.hasPrefix("/") ? URL(fileURLWithPath: path) : root.appendingPathComponent(path)
+        try cancellation?.check()
+        guard let file = try? FileHandle(forReadingFrom: url) else { return HistoryBisectTerms() }
+        defer { try? file.close() }
+        return HistoryBisectTerms.parse(try file.read(upToCount: 518))
+    }
     /// Read configuration rather than resolved upstream refs: absent/diverged refs still track.
     public func historyReferenceContext(cancellation: OperationCancellation? = nil) throws -> HistoryReferenceContext {
         let remotes = try run(["remote"], cancellation: cancellation).text.split(separator: "\n").map(String.init)

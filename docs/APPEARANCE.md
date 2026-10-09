@@ -199,3 +199,5 @@ symbolization, including a drawn upstream attachment. Settings → Dialogs expos
 these choices and the full-message checkbox found in upstream SetDialogs.
 See [reference labels](LOG-PARITY.md#reference-placement-and-symbolization) for
 metadata, source gates and remaining border/shape/physical acceptance scope.
+
+Reference-name/classification checks, including annotated tags and configured bisect terms, are recorded in [reference-kind QA](qa/log-reference-kinds-2026-10-09.json). Physical rendering and full dialog parity remain unverified.

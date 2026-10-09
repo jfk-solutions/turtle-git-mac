@@ -579,7 +579,7 @@ struct LogCommandRequest: Identifiable {
     private let includeBoundaryCommits: Bool
     private let labelDefaults: UserDefaults
     private var labelDefaultsKey: String { "LogDialog.ReferenceVisibility." + repository.root.standardizedFileURL.path }
-    func visibleReferenceLabels(for entry: LogEntry) -> [HistoryReferenceLabel] { referenceContext.labels(entry.references, visibility: referenceVisibility, symbolize: symbolizeRefNames) }
+    func visibleReferenceLabels(for entry: LogEntry) -> [HistoryReferenceLabel] { referenceContext.labels(entry.references, visibility: referenceVisibility, symbolize: symbolizeRefNames, terms: HistoryBisectTerms(good: bisectGoodTerm, bad: bisectBadTerm)) }
     func shouldHighlightMessage(_ entry: LogEntry) -> Bool {
         let labels = visibleReferenceLabels(for: entry)
         if !entry.references.isEmpty && labels.isEmpty { return false }
@@ -2335,7 +2335,7 @@ struct RevisionTable: NSViewRepresentable {
         table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("bugs"))?.isHidden = !model.issueProperties.showsBugIDColumn || !LogRevisionColumns.visible("bugs")
         table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("graph"))?.isHidden = !LogRevisionColumns.visible("graph") || model.historyWalk.followRenames
         let graphChanged = coordinator.graph != model.graph; coordinator.graph = model.graph
-        let signature = model.entries.map { $0.hash + $0.references.map(\.name).joined() + String($0.isHead) + model.bisectGoodTerm + model.bisectBadTerm + $0.issueIDs + String(model.revisionActions[$0.hash]?.rawValue ?? -1) + String(model.actionFailures.contains($0.hash)) + String(model.rollupInfo[$0.hash]?.collapsed ?? false) }
+        let signature = model.entries.map { $0.hash + $0.references.map { $0.name + ($0.kind?.rawValue ?? "") + ($0.displayName ?? "") }.joined() + String($0.isHead) + model.bisectGoodTerm + model.bisectBadTerm + $0.issueIDs + String(model.revisionActions[$0.hash]?.rawValue ?? -1) + String(model.actionFailures.contains($0.hash)) + String(model.rollupInfo[$0.hash]?.collapsed ?? false) }
         let labelsChanged = coordinator.referenceVisibility != model.referenceVisibility || coordinator.referenceContext != model.referenceContext
         coordinator.referenceVisibility = model.referenceVisibility
         coordinator.referenceContext = model.referenceContext

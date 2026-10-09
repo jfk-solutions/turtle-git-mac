@@ -52,11 +52,11 @@ enum LogColorRole: String, CaseIterable {
         if name.hasPrefix("refs/remotes/") { return .remoteBranch }
         if name.hasPrefix("refs/tags/") { return .tag }
         if name == "refs/stash" { return .stash }
-        func bisect(_ term: String) -> Bool { name == "refs/bisect/" + term || name.hasPrefix("refs/bisect/" + term + "-") }
-        if bisect(goodTerm) { return .bisectGood }
-        if bisect("skip") { return .bisectSkip }
-        if bisect(badTerm) { return .bisectBad }
-        if name.hasPrefix("refs/notes/") { return .noteNode }
+        let kind = reference.kind ?? HistoryReferenceLabel.shortName(name, terms: HistoryBisectTerms(good: goodTerm, bad: badTerm)).kind
+        if kind == .bisectGood { return .bisectGood }
+        if kind == .bisectSkip { return .bisectSkip }
+        if kind == .bisectBad { return .bisectBad }
+        if kind == .notes { return .noteNode }
         return .otherRef
     }
 }

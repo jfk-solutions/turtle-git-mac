@@ -33,8 +33,57 @@ final class HistoryReferenceLabelTests: XCTestCase {
             XCTAssertFalse(HistoryReferenceContext(tracking: ["main": tracking]).labels(refs)[0].hasTracking)
         }
         let local = HistoryReferenceContext(tracking: ["main": .init(remote: ".", branch: "main")]).labels(refs, symbolize: true)
-        XCTAssertEqual(local.map(\.text), ["main", "refs/notes/commits"]); XCTAssertTrue(local[0].hasTracking)
+        XCTAssertEqual(local.map(\.text), ["main", "commits"]); XCTAssertTrue(local[0].hasTracking)
         XCTAssertTrue(HistoryReferenceContext().labels(refs, visibility: []).isEmpty)
+    }
+    func testAllShortNameKindsBoundariesAndCanonicalIdentity() {
+        for (name, text, kind) in [
+            ("refs/heads/main^{}", "main", HistoryReferenceKind.localBranch),
+            ("refs/remotes/origin/雪^{}", "origin/雪", .remoteBranch),
+            ("refs/tags/v1^{}", "v1", .annotatedTag), ("refs/tags/v2", "v2", .tag),
+            ("refs/stash-extra", "stash", .stash), ("refs/bisect/good-a", "good", .bisectGood),
+            ("refs/bisect/bad", "bad", .bisectBad), ("refs/bisect/skip-a", "skip", .bisectSkip),
+            ("refs/bisect/goodish", "goodish", .unknown), ("refs/notes/commits^{}", "commits", .notes),
+            ("refs/custom/雪^{}", "custom/雪", .unknown), ("HEAD^{}", "HEAD^{}", .unknown)
+        ] {
+            let result = HistoryReferenceLabel.shortName(name)
+            XCTAssertEqual(result.text, text); XCTAssertEqual(result.kind, kind)
+            let reference = RevisionReference(name: name), label = HistoryReferenceLabel(reference: reference)
+            XCTAssertEqual(label.reference.name, name); XCTAssertEqual(label.text, text); XCTAssertEqual(label.kind, kind)
+        }
+        let terms = HistoryBisectTerms(good: "old", bad: "new")
+        XCTAssertEqual(HistoryReferenceLabel.shortName("refs/bisect/old-a", terms: terms).text, "old")
+        XCTAssertEqual(HistoryReferenceLabel.shortName("refs/bisect/good-a", terms: terms).kind, .unknown)
+        let ambiguous = HistoryBisectTerms(good: "skip", bad: "skip")
+        XCTAssertEqual(HistoryReferenceLabel.shortName("refs/bisect/skip-a", terms: ambiguous).kind, .bisectSkip)
+        XCTAssertFalse(HistoryReferenceVisibility.bisect.shows(RevisionReference(name: "refs/bisect/goodish")))
+        XCTAssertTrue(HistoryReferenceVisibility.otherRefs.shows(RevisionReference(name: "refs/bisect/goodish")))
+        XCTAssertFalse(HistoryReferenceVisibility.all.keepsCommit(RevisionReference(name: "refs/bisect/goodish")))
+    }
+    func testBoundedTermFileReadsAndSourceLFHandling() {
+        XCTAssertEqual(HistoryBisectTerms.parse(nil), HistoryBisectTerms())
+        XCTAssertEqual(HistoryBisectTerms.parse(Data()), .init(good: "", bad: ""))
+        XCTAssertEqual(HistoryBisectTerms.parse(Data("new\nold\nignored\n".utf8)), .init(good: "old", bad: "new"))
+        XCTAssertEqual(HistoryBisectTerms.parse(Data("new\r\nold\r\n".utf8)), .init(good: "old\r", bad: "new\r"))
+        XCTAssertEqual(HistoryBisectTerms.parse(Data("bad\0ignored\n雪\n".utf8)), .init(good: "雪", bad: "bad"))
+        XCTAssertEqual(HistoryBisectTerms.parse(Data((String(repeating: "x", count: 260) + "\ngood\n").utf8)), .init(good: "x", bad: String(repeating: "x", count: 259)))
+    }
+    func testRealAnnotatedTagsAndCustomBisectNamesPreserveRefs() async throws {
+        let (root, repo, path) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let hash = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await repo.run(["tag", "-a", "annotated", "-m", "tag message"])
+        _ = try await repo.run(["tag", "light"])
+        for name in ["refs/bisect/old-" + hash, "refs/bisect/new", "refs/bisect/unknown", "refs/notes/custom", "refs/custom/extra"] { _ = try await repo.run(["update-ref", name, hash]) }
+        try Data("new\nold\n".utf8).write(to: root.appendingPathComponent(".git/BISECT_TERMS"))
+        let paths = [".git/HEAD", ".git/index", ".git/config", ".git/BISECT_TERMS", ".git/refs/tags/annotated", path], before = try paths.map { try Data(contentsOf: root.appendingPathComponent($0)) }
+        let entries = try await repo.history(), entry = try XCTUnwrap(entries.first { $0.hash == hash })
+        let refs = Dictionary(uniqueKeysWithValues: entry.references.map { ($0.name, $0) })
+        XCTAssertEqual(refs["refs/tags/annotated"]?.kind, .annotatedTag); XCTAssertEqual(refs["refs/tags/light"]?.kind, .tag)
+        XCTAssertEqual(refs["refs/bisect/old-" + hash]?.kind, .bisectGood); XCTAssertEqual(refs["refs/bisect/new"]?.displayName, "new")
+        XCTAssertEqual(refs["refs/bisect/unknown"]?.kind, .unknown); XCTAssertEqual(refs["refs/notes/custom"]?.displayName, "custom")
+        XCTAssertEqual(refs["refs/custom/extra"]?.displayName, "custom/extra")
+        XCTAssertEqual(HistoryReferenceLabel(reference: refs["refs/bisect/old-" + hash]!).text, "old", "Loaded alias survives consumers with default term state")
+        XCTAssertEqual(try paths.map { try Data(contentsOf: root.appendingPathComponent($0)) }, before)
     }
     func testRealConfigContextReadPreservesRepositoryBytes() async throws {
         let (root, repo, path) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
