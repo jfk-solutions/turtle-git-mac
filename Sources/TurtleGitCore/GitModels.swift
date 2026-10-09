@@ -93,6 +93,18 @@ public struct LogEntry: Identifiable, Sendable {
     public var isBoundary = false
     /// Display-filter result when a history read retains the complete walked batch.
     public var matchesHistoryFilter = true
+    /// GitRev's raw first-LF subject/body split and MessageDisplayStr's line folding.
+    /// Keep raw message and action/clipboard metadata unchanged.
+    public func logLine(fullMessage: Bool = false) -> String {
+        guard !hash.isEmpty, !message.isEmpty else { return subject }
+        let raw = message as NSString
+        let newline = raw.range(of: "\n")
+        guard newline.location != NSNotFound else { return message }
+        let heading = raw.substring(to: newline.location)
+        let body = raw.substring(from: NSMaxRange(newline))
+        guard fullMessage, !body.isEmpty else { return heading }
+        return (heading + " " + body).replacingOccurrences(of: "\n", with: " ").replacingOccurrences(of: "\r", with: " ")
+    }
     public init(hash: String, author: String, date: String, subject: String, parents: [String] = [], email: String = "", message: String = "", committer: String = "", committerEmail: String = "", committerDate: String = "") {
         self.hash = hash; self.author = author; self.date = date; self.subject = subject
         self.parents = parents; self.email = email; self.message = message

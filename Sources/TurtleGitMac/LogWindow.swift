@@ -571,6 +571,7 @@ struct LogCommandRequest: Identifiable {
     }
 
     private let includeWorkingTreeChanges: Bool
+    let fullCommitMessageOnLogLine: Bool
     var canShowWorkingTree: Bool { includeWorkingTreeChanges && !selecting && !bare }
     private let includeBoundaryCommits: Bool
     private let labelDefaults: UserDefaults
@@ -962,6 +963,7 @@ struct LogCommandRequest: Identifiable {
     init(repository: GitRepository, access: RepositoryAccessLease?, selecting: Bool = false, selectingMultiple: Bool = false, labelDefaults: UserDefaults = .standard, gravatar: LogGravatar? = nil, historyRegexExecutable: URL? = nil) {
         let limits = HistoryLimitDefaults.load(defaults: labelDefaults)
         self.historyLimit = HistoryLimitScope(defaults: limits, from: limits.scale == .selectedDate ? HistoryLimitDefaults.savedFrom(root: repository.root, defaults: labelDefaults) : nil)
+        self.fullCommitMessageOnLogLine = labelDefaults.bool(forKey: "FullCommitMessageOnLogLine")
         self.includeWorkingTreeChanges = labelDefaults.object(forKey: "LogIncludeWorkingTreeChanges") == nil || labelDefaults.bool(forKey: "LogIncludeWorkingTreeChanges")
         self.includeBoundaryCommits = labelDefaults.bool(forKey: "LogIncludeBoundaryCommits")
         self.historyRegexExecutable = historyRegexExecutable
@@ -2376,7 +2378,7 @@ struct RevisionTable: NSViewRepresentable {
                     label.append(NSAttributedString(string: " \(reference.label) ", attributes: [.backgroundColor: color, .foregroundColor: foreground, .font: logFont ?? NSFont.systemFont(ofSize: 11, weight: .medium)]))
                     label.append(NSAttributedString(string: " "))
                 }
-                label.append(NSAttributedString(string: entry.subject, attributes: [.font: text.font!]))
+                label.append(NSAttributedString(string: entry.logLine(fullMessage: model.fullCommitMessageOnLogLine), attributes: [.font: text.font!]))
                 text.attributedStringValue = label
             }
             if column?.identifier.rawValue == "date" { text.toolTip = dateSettings.relative ? dateSettings.format(entry.date, absolute: true) : nil }

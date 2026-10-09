@@ -152,3 +152,26 @@ hidden Settings window, actual native Apply/Cancel buttons and real history
 reads. It checks exact repository bytes after reading and closes its window.
 Physical menu/sheet gestures and signed sandbox execution require separate
 acceptance.
+
+
+## Shared Log message-line checks
+
+After the Debug build, run:
+
+```sh
+swift test --filter LogMessageLineTests
+python3 scripts/test-log-message-line.py --log-blame-only --git /usr/bin/git \
+  --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git
+```
+
+The native receiver constructs source-default, disabled and enabled models with
+private preferences. It inspects actual hidden Log/Blame message text and Rebase
+row/selection/action data from real multiline-message history and a read-only
+Rebase plan. The focused flag does not claim Rebase rendered-text acceptance.
+Omit it for the strict three-view check, which currently fails at Rebase text
+observation; the same absence is reproduced by a minimal SwiftUI Table. This
+full UI gate remains pending, rather than being counted as passed. Its temporary Blame source copy only appends a same-file view access
+function; production private table code is unchanged. No main app or replay
+operation runs. Owned windows, temporary fixtures and preference domains close
+and remove on successful exit. As with other native receivers, do not edit
+sources or replace linked Debug products during execution.

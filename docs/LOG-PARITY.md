@@ -205,11 +205,11 @@ can match that empty selected-field text. Search/Return preserves the selected f
 still apply.
 
 Native Log now limits the raw scoped walk, then keeps search-hidden rows for
-graph/rollup state before display filtering. Show next 200 expands that raw batch,
-so its count is no longer a matching-result count. The match-only Core API still
+graph/rollup state before display filtering. Its configured count applies to
+raw records; No limitation removes the count cap. The match-only Core API still
 provides its prior matching-result limit contract. Both reads currently materialize
-their output; incremental filtering and full source count/date controls remain
-unfinished. Returned rows retain committer name/email
+their output; incremental filtering remains unfinished. The source count/date
+controls are covered by the history-limit checkpoint below. Returned rows retain committer name/email
 metadata as well as author identity. The native Search in layout and interaction,
 match highlighting and the complete upstream default field set remain pending. This is partial upstream filter parity; see
 [the verification record](qa/log-search-2026-10-06.json). Subject/case follow-up
@@ -238,8 +238,8 @@ and highlighting remain pending.
 The search field now describes term syntax in its tooltip. Single positive
 message terms use the source matcher in native Log, with the same raw batch as
 compound/inverted and multi-field queries. The match-only Core API retains the
-older Git-grep/matching-result limit contract. Expanding the native raw batch
-can reveal older qualifying commits. Match highlighting, incremental loading and native displayed search acceptance
+older Git-grep/matching-result limit contract. Increasing a configured count or
+choosing No limitation can reveal older qualifying commits. Match highlighting, incremental loading and native displayed search acceptance
 remain unfinished. See [the query record](qa/log-query-2026-10-06.json).
 
 ## Regular-expression search
@@ -1739,3 +1739,49 @@ final build scope. Streaming and
 large-history performance, full Settings property-sheet integration, non-ASCII
 Windows numeric parsing, non-Gregorian user calendars, physical date/menu/sheet
 keyboard/VoiceOver/Retina behavior and signed sandbox acceptance remain pending.
+
+
+## Full commit message on each Log line
+
+The runtime preference FullCommitMessageOnLogLine is now consumed by native Log,
+Blame history and Rebase's commit list, matching their shared upstream
+GitLogListBase constructor. It defaults to false and is captured when each
+model is constructed. Existing windows retain their choice; reopen the window
+after changing the preference. This key is not one of the source's 52 registered
+Advanced Settings entries, so the native catalogue is unchanged.
+
+The display renderer uses GitRev/gitdll's raw first-LF subject/body split. Short
+mode displays that first line. Full mode appends one space and the remaining
+body when present, then replaces every CR and LF with one space. Blank lines,
+CRLF's two characters, tabs and other whitespace are retained rather than
+trimmed or collapsed. This also avoids repeating a continued heading: Git's
+%s summary folds the first paragraph, whereas the source subject is the raw
+first line. Synthetic working-tree rows keep their existing descriptive title.
+
+Reference labels retain their styling, and the message remains a single
+truncated line. Full raw message, subject metadata, clipboard commands, commit
+actions, selection and details are unchanged by this display preference.
+Search/clipboard subject metadata still uses the existing Git summary and needs
+separate source comparison for multiline first paragraphs. Match highlighting,
+all-dialog physical appearance and signed sandbox acceptance remain pending.
+
+For the packaged app, configure the source-equivalent runtime preference with:
+
+```sh
+defaults write org.turtlegit.macos FullCommitMessageOnLogLine -bool true
+```
+
+Delete the override to restore the default, then reopen affected windows:
+
+```sh
+defaults delete org.turtlegit.macos FullCommitMessageOnLogLine
+```
+
+[Message-line QA](qa/log-message-line-2026-10-09.json) records the Core raw-message
+and whitespace fixtures, real Git multiline-heading case and focused native
+Log/Blame acceptance with private preferences. Rebase construction preferences
+and plan/selection/action data are checked, but its rendered text is still
+unverified: both the production row and a minimal SwiftUI Table reproduction
+expose no row text through the in-process accessibility checks in this receiver.
+The strict full receiver retains that failing acceptance gate. No new physical
+screenshot is implied.

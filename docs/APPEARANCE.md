@@ -180,3 +180,10 @@ limitation default, numeric saved-scale menu choice and Configure default.
 The six source defaults share draft native controls between Dialog settings
 and a macOS sheet. Count/date behavior, native controls and remaining physical
 acceptance are described in [Log parity](LOG-PARITY.md#default-history-limits-and-fromto-controls).
+
+
+The runtime FullCommitMessageOnLogLine preference now affects native Log, Blame
+history and Rebase rows. Their shared renderer uses the raw first line for short
+mode and source CR/LF-to-space folding for full mode, preserving original
+reference-label styling and one-line truncation. The setting is captured when
+a window opens. See [message-line parity](LOG-PARITY.md#full-commit-message-on-each-log-line).

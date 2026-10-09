@@ -113,3 +113,13 @@ checked files and highlighted rows. Native Add expands row/text frames and
 centers icons; shared status-list autosizing measures the selected font.
 See [list preference QA](qa/log-list-preferences-2026-10-09.json). Other consumers,
 physical font/raster/keyboard/VoiceOver and full settings acceptance remain pending.
+
+
+## Runtime-only full-message preference
+
+FullCommitMessageOnLogLine is read by GitLogListBase but is absent from the
+pinned 52-entry Advanced Settings catalogue. Native Log, Blame history and
+Rebase now capture its default-false value and share the source line renderer.
+The catalogue is not extended with an extra checkbox. See
+[Log message-line configuration](LOG-PARITY.md#full-commit-message-on-each-log-line)
+for the native defaults command, exact whitespace behavior and remaining scope.

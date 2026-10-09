@@ -958,3 +958,9 @@ positive signed-LONG Apply semantics, and LogDlg's per-repository From date,
 no-limitation/default popup and inclusive local day endpoints at the pinned
 revision above. Native Configure default uses the shared draft control in a
 macOS sheet and the Dialogs settings page.
+
+Log/Blame/Rebase message-line rendering adapts GitLogListBase::MessageDisplayStr
+and GitRev/gitdll's raw first-line subject/body parsing at the pinned revision,
+including FullCommitMessageOnLogLine's captured default-false preference and
+one-space-per-CR/LF folding. Original message text and operation metadata are
+retained separately from this native display adaptation.

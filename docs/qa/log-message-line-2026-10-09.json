@@ -1,0 +1,85 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "a902c4f",
+  "scope": "Captured FullCommitMessageOnLogLine preference and raw first-LF display formatting in Log, Blame history and Rebase; partial checkpoint, whole port remains incomplete",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/GitLogListBase.cpp": "19518f37689e19b7e913c9ff8cc9d65ec223c187",
+    "src/Git/GitRev.cpp": "2d83c9ca0df508c45f11b89014987830af458cf4",
+    "ext/gitdll/gitdll.c": "af75e87317bd5da8bb372d70a64ed464ab6d8b5b",
+    "src/TortoiseGitBlame/GitBlameLogList.h": "a8147cef7cccfdc3cd9308767ffd5ece057853a2",
+    "src/TortoiseProc/RebaseDlg.cpp": "92f8f3d666bcc43a83b311e6e35d84feb895be05"
+  },
+  "sources_manifest_sha256": "b014993bcfd504755ecad8bb2481e513cae106504af247e21253ce90a863072b",
+  "changed_files_sha256": {
+    "NOTICE": "908471ae9318595e65111e0090d37fab40005838556744b02e371fc0808895bd",
+    "Sources/TurtleGitCore/GitModels.swift": "4b29565e24340a84b9a71024913f9975a961da2b085df2fc0c6cb2c2a334eca6",
+    "Sources/TurtleGitMac/BlameWindow.swift": "499da1e91d5e37d2ba3b6aa41213bafb3eb0dd7d95df087c8a268b5047d82613",
+    "Sources/TurtleGitMac/LogWindow.swift": "904bf72df7a98e8db1bd02e53501d82d54c4fb39670db9462a1770cc989b4864",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "0b6e086604c7a11030ba23d8c0dfac9f65814009e1eb826f48cb508460653f13",
+    "Tests/TurtleGitCoreTests/LogMessageLineTests.swift": "f89d8ae8e69eee12acaa84ca4282111056facef2afa50221f050d8247f271116",
+    "docs/ADVANCED-SETTINGS-PARITY.md": "9a677f6bd13b81f5feab8d0ee044140be557071c9c3a4c6d1af7bfe022181413",
+    "docs/APPEARANCE.md": "7b37dc8ac37ae716ebbd4e3560a9983970bd2bc080173ec5b9c6f1101e0d85f5",
+    "docs/LOG-PARITY.md": "dfc618025eda401772b033961ab85b9a5104a860f4b0e9f9c82f335e77760627",
+    "docs/TESTING.md": "bd4452aabf89743ace4c1d46ddfd36ea1c90d9ecc539222524de719cbb4d9a39",
+    "docs/qa/log-message-line-native-2026-10-09.swift": "5fd6cbeeb790d3dc0bac768e141f7b32f7e35e3790e80f4b1f072c9b5e4946ee",
+    "docs/upstream-files.csv": "4de957ce7363c175f1944c6ecba10d66379fd249a94d08084ea71caebf3699f5",
+    "scripts/test-log-message-line.py": "db23eb43818355cc3dad605ec169b97f6642548f98889406a1915915e4405aef"
+  },
+  "git_engines": {
+    "apple": "git version 2.50.1 (Apple Git-155)",
+    "bundled": "git version 2.55.0"
+  },
+  "verification": {
+    "core": "123 focused tests passed: 2 LogMessageLineTests, 48 CommitHistoryTests, 18 GitBlameTests and 55 RebaseTests. Covers raw first LF versus Git folded subject, CR/LF and Unicode spacing, empty/synthetic rows and real read-only history with repository bytes preserved.",
+    "native_focused": "Apple and bundled Git pass with --log-blame-only. Actual hidden Log/Blame message cells cover unset/false/true captured preferences, one-line formatting, ref label styling, selection and original metadata. Rebase captured preference and read-only plan, selection and action data checked; rendered Rebase text UNVERIFIED. Preferences flipped after construction confirm captured state. No main app or replay operation.",
+    "native_strict": "Full receiver remains failing: public AppKit/SwiftUI accessibility and cell inspection do not expose Rebase message row text. A minimal SwiftUI Table reproduces header-only accessibility despite a real row/cell. This is an observability limitation, not evidence of visual parity. Strict assertion is retained.",
+    "debug": "Final unsigned Debug build and bundle audit pass; current NOTICE matches packaged NOTICE.",
+    "store": "Unsigned AppStore build and required Git/Git LFS bundle audit pass; current NOTICE matches packaged NOTICE. All earlier build/test/native/probe handles terminal before Store. No signed execution or App Store acceptance claimed.",
+    "inventory": "Pinned seven-field inventory check passes; five partial source mappings updated.",
+    "site": "Local site generator succeeds; no new screenshots or deployment."
+  },
+  "iterations": [
+    "Initial receiver SDK accessibility cast did not compile; corrected to public accessibility getters.",
+    "Strict Rebase row text remains unobservable after public cell creation, accessibility traversal and framework-only probes; failed logs retained.",
+    "Plain NSWindow offscreen placement was clamped by ordering; subclass constrainFrameRect and explicit origin verified outside screens. One blank probe window could briefly appear before failed placement assertion terminated it.",
+    "Focused mode leaves windows unordered and explicitly excludes strict rendered Rebase assertion; focused pass does not supersede full native failure."
+  ],
+  "limitations": [
+    "Runtime key is absent from upstream 52 Advanced settings; no extra checkbox was added.",
+    "Original Git summary metadata used by search and clipboard remains unchanged; complete raw-subject search/clipboard parity and filter highlighting remain pending.",
+    "Physical layout, gestures, accessibility, Retina, signed sandbox, full dialogs/Finder parity, distribution, documentation screenshots, GitHub push and hosted CI remain incomplete."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "private_preferences_removed": 8,
+    "preference_cleanup_sha256": "dbfe2c551ed712d3091f10e5cd0457eab8d6cf03e5f159d8298edc9235298ab8",
+    "windows": "Owned windows closed; receiver and probe handles terminal; no private fixtures or receiver/app processes remain."
+  },
+  "local_log_sha256": {
+    "build/qa/log-message-line-2026-10-09/cleanup.json": "dbfe2c551ed712d3091f10e5cd0457eab8d6cf03e5f159d8298edc9235298ab8",
+    "build/qa/log-message-line-2026-10-09/core.log": "469d703e248d4253903105cf2de8b88b71df634cb3325234b07807b1f2809c7c",
+    "build/qa/log-message-line-2026-10-09/debug-audit-final.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/log-message-line-2026-10-09/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/log-message-line-2026-10-09/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-message-line-2026-10-09/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-message-line-2026-10-09/frame-probe-fixed.log": "b993167e3766b05d1a4aed175f0d6a81c81a203e12705004012d87f3202e5f4f",
+    "build/qa/log-message-line-2026-10-09/frame-probe.log": "62c8a01071cef0f79c96c020886da9467bdf829f04e95e52863fceeb5830fdbb",
+    "build/qa/log-message-line-2026-10-09/native-accessibility.log": "5c22a434a2d602eb26e962446f95ebfeed0498b91d25fe7ed74606392dd37f1f",
+    "build/qa/log-message-line-2026-10-09/native-cells.log": "fe06095f5383258161efe355770de2ef23d77bab8c196062372be345aac2297a",
+    "build/qa/log-message-line-2026-10-09/native-corrected.log": "8c3df75a98891207251dde96dcbf537895ae8f5916f47644e7d16d62e33d1b23",
+    "build/qa/log-message-line-2026-10-09/native-final.log": "a5e2ad33a5733a999e4df125f127ff9ef3e6adf2b7dd0db25e3ddedaa7374593",
+    "build/qa/log-message-line-2026-10-09/native-focused.log": "4cd801187cb5c4eeade5e82edf8c5754aa898c81f896d6ee9eccadcc866d7a0f",
+    "build/qa/log-message-line-2026-10-09/native-offscreen-fixed.log": "dbf77e1694ff6175b73e50ce326ef75ecf7538fd853451b8655a7abf5bf7eba4",
+    "build/qa/log-message-line-2026-10-09/native-offscreen.log": "80e6a975594aad0de29435ffcc9f8f71c331fe537732fcdc8386d8c892907260",
+    "build/qa/log-message-line-2026-10-09/native.log": "3ddb6656981e5c1586cddc6ec8ada30ba743f04b5b83c55c55e9e7892f9c8c93",
+    "build/qa/log-message-line-2026-10-09/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/log-message-line-2026-10-09/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-message-line-2026-10-09/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/log-message-line-2026-10-09/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca",
+    "build/qa/log-message-line-2026-10-09/table-probe-host.log": "8e3381e13bb89262076c64874519c3b9d634557b7c195a89edf698edfe9ebbd0",
+    "build/qa/log-message-line-2026-10-09/table-probe-launch.log": "73ef2de39174ab486c4266bf62c8db7ed505b31e14e046eafc2f925aff6689eb",
+    "build/qa/log-message-line-2026-10-09/table-probe-rows.log": "9421a437efc8c84280f55917dbfaa73159d934aca498c889097f6e79efce3079",
+    "build/qa/log-message-line-2026-10-09/table-probe.log": "d2a929bd8656d148fb7d99b8607d0a4afbc9974c375b8caea8e2b3b84f27a72a"
+  }
+}

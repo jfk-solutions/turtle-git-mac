@@ -35,6 +35,7 @@ private struct BlameParentMenuTarget {
 
 @MainActor final class BlameWindowModel: ObservableObject {
     let repository: GitRepository, path: String
+    let fullCommitMessageOnLogLine: Bool
     private let access: RepositoryAccessLease?
     private var revision: String
     private var generation = 0
@@ -126,8 +127,9 @@ private struct BlameParentMenuTarget {
         }
         return 0
     }
-    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, revision: String, options: GitBlameOptions = GitBlameOptions()) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, revision: String, options: GitBlameOptions = GitBlameOptions(), labelDefaults: UserDefaults = .standard) {
         self.repository = repository; self.access = access; self.path = path; self.revision = revision
+        self.fullCommitMessageOnLogLine = labelDefaults.bool(forKey: "FullCommitMessageOnLogLine")
         let search = GitBlameFindPreferences.load(); find = search.text; matchCase = search.matchCase
         setControls(options); appliedOptions = options
     }
@@ -568,7 +570,7 @@ private struct BlameHistoryTable: NSViewRepresentable {
             case "hash": text.stringValue = String(entry.hash.prefix(10)); text.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
             case "author": text.stringValue = entry.author
             case "date": text.stringValue = entry.date.replacingOccurrences(of: "T", with: " ").prefix(19).description
-            default: text.stringValue = entry.subject
+            default: text.stringValue = entry.logLine(fullMessage: model.fullCommitMessageOnLogLine)
             }
             text.toolTip = entry.message + "\n" + entry.hash
             let cell = NSTableCellView(); cell.addSubview(text); cell.textField = text; text.translatesAutoresizingMaskIntoConstraints = false

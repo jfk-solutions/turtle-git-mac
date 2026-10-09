@@ -92,6 +92,7 @@ import TurtleGitCore
 }
 @MainActor final class RebaseWindowModel: ObservableObject {
     let repository: GitRepository
+    let fullCommitMessageOnLogLine: Bool
     private let access: RepositoryAccessLease?
     private let messageDefaults: UserDefaults
     var repositoryAccess: RepositoryAccessLease? { access }
@@ -264,7 +265,10 @@ import TurtleGitCore
         default: return "\(plan?.entries.count ?? 0) commits in the \(operationTitle.lowercased()) plan"
         }
     }
-    init(repository: GitRepository, access: RepositoryAccessLease?, messageDefaults: UserDefaults = .standard) { self.repository = repository; self.access = access; self.messageDefaults = messageDefaults }
+    init(repository: GitRepository, access: RepositoryAccessLease?, messageDefaults: UserDefaults = .standard) {
+        self.repository = repository; self.access = access; self.messageDefaults = messageDefaults
+        self.fullCommitMessageOnLogLine = messageDefaults.bool(forKey: "FullCommitMessageOnLogLine")
+    }
     var revisionMenuAvailable: Bool { !busy && !selectingSplit && !pickingCommits && !revisionMenuLog.busy && !revisionMenuLog.loadingNote && !revisionMenuLog.savingNote && !revisionMenuLog.copyingDetails }
     func revisionMenuRows(_ ids: Set<String>) -> [RebaseEntry] { entries.filter { ids.contains($0.id) } }
     @discardableResult func prepareRevisionMenu(_ ids: Set<String>) -> LogWindowModel? {
@@ -685,7 +689,7 @@ struct RebaseDialog: View {
                         TableColumn("REBASE") { entry in RebaseReplayCell(entry: entry) { HStack(spacing: 5) { Image(nsImage: entry.action.icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16); Text(entry.action == .skip ? "Skip" : entry.action.rawValue.capitalized) } } }.width(90)
                         TableColumn("ID") { entry in RebaseReplayCell(entry: entry) { Text(String(model.entryNumber(entry))) } }.width(40)
                         TableColumn("Hash") { entry in RebaseReplayCell(entry: entry) { Text(String(entry.commit.hash.prefix(9))).font(.system(.caption, design: .monospaced)) } }.width(95)
-                        TableColumn("Message") { entry in RebaseReplayCell(entry: entry) { Text(entry.commit.subject) } }
+                        TableColumn("Message") { entry in RebaseReplayCell(entry: entry) { Text(entry.commit.logLine(fullMessage: model.fullCommitMessageOnLogLine)).lineLimit(1) } }
                         TableColumn("Author") { entry in RebaseReplayCell(entry: entry) { Text(entry.commit.author) } }.width(130)
                         TableColumn("Date") { entry in RebaseReplayCell(entry: entry) { Text(HistoryDateSettings.load().format(entry.commit.date)) } }.width(150)
                     }.background(RebaseListInteraction(model: model)).contextMenu(forSelectionType: String.self) { ids in
