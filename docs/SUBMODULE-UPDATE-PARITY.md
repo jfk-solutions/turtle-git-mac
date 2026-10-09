@@ -69,7 +69,7 @@ keeps a successful result with post-actions open; no-errors follows the shared
 source policy. Action-log writes use the existing application-installed store.
 Private preference injection and cancellation fence options discovery on close.
 
-Complete upstream progress geometry/elapsed-time/taskbar and broader controls, large command-list splitting, real transfer/authentication, displayed and
+Complete upstream progress geometry/taskbar and broader controls, large command-list splitting, real transfer/authentication, displayed and
 signed acceptance remain partial. Cancellation retains earlier checkout/config
 effects; it does not promise rollback.
 
@@ -83,6 +83,25 @@ and current work, a progress bar, separate Close/Abort and a native Escape route
 Close remains the Return default, including when Update offers bisect actions.
 [Progress control verification](qa/submodule-progress-controls-2026-10-09.json)
 records hidden native evidence; physical display/keyboard acceptance remains pending.
+
+Completion now replaces the phase label with Success, the Git exit-code result or
+User cancelled and finishes the progress bar. The visible/action-log footer uses
+source completion wording and, by default, elapsed milliseconds plus a localized
+short date/time. The native dialog settings expose Show Git execution timings and
+timestamp; disabling it keeps the completion line without timing. Elapsed time
+uses the monotonic process clock. UseSystemLocaleForDates selects native
+localized short date/time or the source fixed yyyy-MM-dd HH:mm:ss local format. Native validation/launch failures without a Git
+status use Operation failed; forced close still fences late output.
+
+At completion the output styles only exact line-start fatal/error/warning prefixes:
+bold red errors and yellow warnings with source light/dark RGB values. StyleGitOutput
+(default true) gates those prefixes independently of links and terminal color.
+The existing upstream URLFinder port supplies URL/email links; clicks use native
+URL handling, while hidden QA injects a private receiver. Success footers use source
+blue/cyan unless native increased contrast requests system text color; failures
+are red. Stream output stays plain until completion, matching the source callback.
+[Styling verification](qa/submodule-progress-styling-2026-10-09.json) distinguishes
+attributed-text/color-component checks from unverified displayed appearance.
 
 ## Verification
 
@@ -122,3 +141,8 @@ Rebase/error/busy-Quit variants, resize and multi-display frame restoration,
 ordinary-file request scope normalization, full list context commands and
 comparison-window integration remain pending. Separate Add and Sync ports have
 their own partial verification records; they do not complete Update parity. Inventory entries remain partial and this is not App Store approval.
+
+The shared visible output state now enforces the cumulative byte limit across
+streamed batches, rather than allowing a last full batch past the cap. A cut
+does not leave an incomplete valid UTF-8 scalar. The source truncation marker
+and final completion line remain visible; raw Git recovery output is unchanged.

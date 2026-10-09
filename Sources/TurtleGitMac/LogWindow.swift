@@ -2307,6 +2307,7 @@ struct LogDialogSettings: View {
     @AppStorage("ShowBranchRevisionNumber") private var showBranchRevisionNumber = false
     @AppStorage("AutoCloseGitProgress") private var autoCloseGitProgress = 0
     @AppStorage("ConfirmKillProcess") private var confirmKillProcess = false
+    @AppStorage("ShowGitexeTimings") private var showGitexeTimings = true
     @AppStorage("DiffByDoubleClickInLog") private var diffByDoubleClick = false
     @AppStorage("EnableGravatar") private var enableGravatar = false
     @AppStorage("GravatarUrl") private var gravatarURL = LogGravatarRequest.defaultTemplate
@@ -2326,6 +2327,7 @@ struct LogDialogSettings: View {
             }.help("Successful operations close according to this policy. Failed operations stay open.")
             Toggle("Confirm to kill running git process", isOn: $confirmKillProcess)
                 .help("When closing a progress dialog with a running git process, ask for confirmation before killing it")
+            Toggle("Show Git execution timings and timestamp", isOn: $showGitexeTimings)
             Toggle("Display branch revision number", isOn: $showBranchRevisionNumber)
                 .help("Show branch revision number (git rev-list --count --first-parent) in log dialog and after a push to a remote branch; this is not guaranteed to be unique, please see help")
             GroupBox("Log messages") {

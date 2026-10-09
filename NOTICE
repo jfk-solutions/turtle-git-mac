@@ -1134,3 +1134,7 @@ progress, owned cancellation and scoped handoff code are GPL-2.0-or-later.
 Submodule progress output adapts ProgressDlg RichEdit copy commands, original
 copy artwork, current-work/percentage fields and Close/Abort controls to AppKit.
 The native replacement is licensed under GPL-2.0-or-later.
+
+Submodule progress completion styling adapts ProgressDlg.cpp completion/timing,
+AppUtils.cpp FindWarningsErrors/StyleWarningsErrors and existing URLFinder port.
+Native Swift/AppKit replacements are licensed under GPL-2.0-or-later.

@@ -13,7 +13,7 @@ public struct SubmoduleSyncResult: Sendable {
         public let output: String
     }
     public let entries: [Entry]
-    public var exitCode: Int32 { entries.reduce(0) { $0 | $1.exitCode } }
+    public var exitCode: Int32 { entries.isEmpty ? -1 : entries.reduce(0) { $0 | $1.exitCode } }
     public var success: Bool { exitCode == 0 }
 }
 public enum SubmoduleSyncFailure: LocalizedError {

@@ -81,6 +81,7 @@ import Darwin
         manual.model.start(); try await wait("Native selected Update") { !manual.model.busy }
         let childHead = try await child.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines), otherHead = try await other.run(["rev-parse","HEAD"]).stdout
         try require(manual.model.success && results == 1 && childHead == next && otherHead == old && manual.model.postActions.isEmpty,"Update changed another module or repeated result")
+        try require(manual.model.currentWork == "Success" && manual.model.percentage == 100 && manual.model.completionRange != nil && manual.model.output.contains("Success (") && manual.model.output.contains(" ms @ "),"Actual completed progress footer/status missing")
         manual.close()
         let reopen = SubmoduleUpdateWindowModel(repository:repo,access:access,scope:["group"],selected:[],preferences:prefs)
         reopen.onSubmit = { _,_ in }; reopen.load(); try await wait("Options reopen") { !reopen.busy }
@@ -89,9 +90,9 @@ import Darwin
         for policy in [1,2] {
             prefs.set(policy,forKey:"AutoCloseGitProgress")
             let automatic = SubmoduleUpdateProgressWindowModel(repository:repo,access:access,paths:[first],options:noFetch,preferences:prefs); var closes = 0
-            ownedModels.append(automatic); automatic.close = { closes += 1 }; prefs.set(0,forKey:"AutoCloseGitProgress")
+            ownedModels.append(automatic); automatic.close = { closes += 1 }; prefs.set(0,forKey:"AutoCloseGitProgress"); prefs.set(false,forKey:"ShowGitexeTimings")
             automatic.start(); try await wait("Automatic Update") { !automatic.busy }
-            try require(automatic.success && closes == 1,"Update lost captured automatic-close policy"); automatic.invalidate()
+            try require(automatic.success && closes == 1,"Update lost captured automatic-close policy"); try require(automatic.output.hasSuffix("\nSuccess\n"),"Disabled timing footer differs in actual operation"); prefs.removeObject(forKey:"ShowGitexeTimings"); automatic.invalidate()
         }
         let fail = URL(fileURLWithPath:wrapper.path+".fail"); try Data().write(to:fail); prefs.set(16,forKey:"GitOutputLimitinKiB")
         let failure = SubmoduleUpdateProgressWindowModel(repository:repo,access:access,paths:[first],options:noFetch,preferences:prefs); var failedResults = 0
@@ -109,7 +110,7 @@ import Darwin
         cancelled.model.cancel(); let firstAnswer = answer; firstAnswer?(false); firstAnswer?(true)
         try require(cancelled.model.busy && !cancelled.model.cancelling,"No/duplicate cancelled Update")
         cancelled.model.cancel(); answer?(true); answer?(true); try await wait("Canceled Update cleanup") { !cancelled.model.busy }
-        try require(cancelled.model.cancelled && !cancelled.model.success && cancelledResults == 0 && pids.count == 2 && pids.allSatisfy { kill($0,0) != 0 },"Canceled Update leaked result/processes")
+        try require(cancelled.model.cancelled && !cancelled.model.success && cancelled.model.currentWork == "User cancelled" && cancelled.model.percentage == 100 && cancelled.model.completionRange != nil && cancelledResults == 0 && pids.count == 2 && pids.allSatisfy { kill($0,0) != 0 },"Canceled Update leaked result/processes")
         cancelled.close(); try FileManager.default.removeItem(at:marker)
         let forced = SubmoduleUpdateProgressWindowController(repository:repo,access:access,paths:[first],options:noFetch,preferences:prefs); defer { forced.close() }
         var forcedResults = 0; forced.model.onUpdated = { _ in forcedResults += 1 }; ownedModels.append(forced.model); forced.model.start()

@@ -1,0 +1,133 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "2907ba5147b865c0dec6b01b191f47d1a8a64d8b",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Source submodule completion text/timings/locale, warning/error prefix styling and links, dialog timing checkbox, no-command Sync failure and shared cumulative output-cap correction.",
+  "verification": {
+    "source": "Reviewed pinned ProgressDlg OnProgressUpdateUI/OnEnLinkLog, AppUtils FindWarningsErrors/StyleWarningsErrors/StyleURLs, LoglistUtils FormatDateAndTime and SetDialogs2 ShowGitexeTimings default/binding. Exact line-start case-sensitive fatal/error/warning prefixes only are bold red/yellow; links always enabled at completion independently of StyleGitOutput. Source timing defaults true, localized/fixed local-date choice. ProgressDlg empty command list yields -1/failure.",
+    "core_system": "Four SubmoduleSync tests pass, zero failures, 10.131 seconds. New file-only case checks zero launched Sync commands, exit -1/not success, unchanged HEAD/index; existing scoped/literal URL effects, non-recursion, ordinary failure continuation and owned cancellation cases retained.",
+    "core_bundled": "All four explicitly engine-selecting Sync cases pass, zero failures, 11.422 seconds. No new full-suite run is claimed.",
+    "native_output": "Final output receiver passes: actual attributed prefix-only bold/color and case/line-start gates; resolved source light/dark error/warning RGB values; HTTP/email UTF-16 ranges and injected private click target; StyleGitOutput off leaves links and terminal colors; source red/blue-cyan footer (native high-contrast fallback), default/disabled ms/timestamp, fixed-format locale override. Direct shared-state multi-batch overflow, stopping/reset and UTF-8 cut-boundary tests pass. Prior actual menu/icons/private clipboard/selection/tail/escape checks remain passing. No real URL launch or rendered pixel acceptance.",
+    "native_git": "Final Sync/Update receivers pass with system and bundled Git. Actual completion current-work Success, percentage 100, tracked footer range/default timings and disabled-timing suffix checked. Cancellation yields User cancelled and completed bar/range. Native file-only Sync returns -1/failure. Existing selective checkout/config effects, 3000-line bounded failure, auto-close/deferred question, forced-close/Quit/PID and Update bisect cases pass.",
+    "corrections": "An intermediate bundled Update run failed its bounded-output check. Shared presentation appended entire batches before checking total count, allowing cumulative overshoot; it now appends only available bytes and avoids splitting a valid UTF-8 scalar, preserving raw Git recovery output. Both engines passed after fix. Deterministic helper test first failed to compile using internal Emission initializer; changed test to obtain empty emission from public parser API, then final output test passed.",
+    "settings": "Added visible native Show Git execution timings and timestamp toggle with source true default. Binding compiled; physical settings interaction and other progress consumers remain unverified.",
+    "builds": "Final unsigned Debug and AppStore builds pass, new completion helper registered by XcodeGen.",
+    "bundles": "Both audits pass including Finder/helpers/licenses/all 100 original icons; AppStore universal Git/LFS, EditorConfig, IssueRegex and private one-use askpass checks pass. Both embedded NOTICE files equal root.",
+    "inventory_site_workflow": "Pinned inventory regression, local site build and safe workflow YAML parse/existing output CI-step uniqueness pass. Hosted CI/deployment unverified."
+  },
+  "limitations": [
+    "Entire application/dialog/source/menu port remains incomplete; mappings remain partial.",
+    "Physical layouts/keyboard/menu/link/VoiceOver/light-dark/high-contrast acceptance and new screenshots remain unverified. Color-component/attribute checks do not prove displayed appearance.",
+    "Other progress consumers still need timing/styling and fuller runtime acceptance; cumulative cap helper is shared, but every caller was not rerun. Complete animation/Dock/scroll/geometry/sounds/large-command splitting remain partial.",
+    "Existing upstream URLFinder unusual-scheme/platform differences, invalid-encoding output, metadata/launch failures and long-output performance need broader acceptance.",
+    "Completion dates use native localized short date/time or fixed Gregorian local date; source static registry caching is adapted to current native preference reads.",
+    "Forced close fences results; late action-log behavior and all races remain pending. Cancel retains prior effects, not rollback.",
+    "Signed Finder/App Group/security-scope/helper inheritance, App Store runtime/distribution/submission and legal clearance remain pending.",
+    "Actual network transfer/authentication, OpenSSH packaging, Keychain and host-key/password handling remain unverified. Strict Rebase rendered-text gate remains UNVERIFIED.",
+    "No main app launch, general clipboard write, actual URL open, user-key/login-agent query, push, hosted CI/deployment or submission."
+  ],
+  "sha256": {
+    "NOTICE": "310b1c13ff728e6a8aa56f2819f6ff90ecc8134949e30a9f48d694ed67cd60d1",
+    "Sources/TurtleGitCore/SubmoduleSync.swift": "d2ff80c1ac95bf547075c745295a44c96d0f76c794e2b6f7703707e687ba53b8",
+    "Sources/TurtleGitMac/GitProgressOutputState.swift": "2f48aa6d612aba5381d9bd6eac6eb4febf9c7867c638667eef1a1f4ff9312cff",
+    "Sources/TurtleGitMac/LogWindow.swift": "5f4a625ea7bb37989d9606f9953d012e56fe06fcd9421b583d9133c895e570e0",
+    "Sources/TurtleGitMac/SubmoduleProgressCompletion.swift": "ca482ff6aa93ea3383fc75c29f70ea10af527ddf2a8e901aa2daba7b371f5a95",
+    "Sources/TurtleGitMac/SubmoduleProgressOutputView.swift": "c4f8cb4bef6bd74dcefb3edda94e2fdaea8464bea9ec73bef50b0ac1c193df12",
+    "Sources/TurtleGitMac/SubmoduleSyncWindow.swift": "6ab5a336e0be53ee4a5ae9c7100a5add11102e87ce48826178f7cd8149d0c30a",
+    "Sources/TurtleGitMac/SubmoduleUpdateProgressWindow.swift": "ff2d302276705d16041ad7b96758d9764f778412aed2063ed203ab7de31589c8",
+    "Tests/TurtleGitCoreTests/SubmoduleSyncTests.swift": "ff0a06d6dfb487e231b52ada162caa65c14a64779361bdb963fc904396bd1251",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "24e3710eb08850d9e1a28123d30de97f81308a580acc38f2f292aac02ecba940",
+    "docs/SUBMODULE-SYNC-PARITY.md": "961229512eaab7a52e6dfb59291cb6700e0b7bdaecc3e745de79dd7ee636e30a",
+    "docs/SUBMODULE-UPDATE-PARITY.md": "0cb4a2d32882b134f6aea831198018e02560ea081de294cdf62b9eacc33272d1",
+    "docs/qa/submodule-progress-output-native-2026-10-09.swift": "b13700710c4df8e5806692d60d8afbaab04eecd89be623c7f5e45f238a019ec7",
+    "docs/qa/submodule-sync-native-2026-10-09.swift": "6ebd8b11f1ac88a1d9c821980fb755909076df81d54d3f2fef17c8885ea1658c",
+    "docs/qa/submodule-update-progress-native-2026-10-09.swift": "3d7be7388a8f840a7840b416be6826ffb93d7f3eea0b5aaa521a14618305cf13",
+    "docs/upstream-files.csv": "1767a7b9ad29c3ebfa53f45e6624dc231498d2631d78a1d0daec1a9b8a5fc293"
+  },
+  "logs": "build/qa/submodule-progress-styling-2026-10-09",
+  "cleanup": {
+    "all_handles_terminal": true,
+    "main_app_launches": 0,
+    "audit": {
+      "matching_processes": [],
+      "current_fixtures": []
+    },
+    "empty_preferences_removed": [
+      {
+        "domain": "TurtleGit.SubmoduleProgressOutput.QA.9A6C96B4-40EF-487E-9248-D8B9163D13E6",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SubmoduleProgressOutput.QA.B50F5C3A-7C4D-4FF8-8D65-57BE2A4EBAB4",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SubmoduleProgressOutput.QA.BE0C690B-71D8-4E20-8E3D-34224DCB0200",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SubmoduleSync.QA.58DFCF75-A06A-4FAF-9025-4795AFE0B679",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SubmoduleSync.QA.6BFA895D-82DE-42C6-B4B7-27E2472BED54",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SubmoduleSync.QA.67D15800-38C5-40F7-859C-71DEA3FB4F33",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SubmoduleSync.QA.B9ECFE96-532C-441F-8721-812526132089",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SubmoduleSync.QA.C3E63074-9DBF-444D-BF72-BBD525EB7E08",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SubmoduleSync.QA.F92BD7F2-55BF-403A-823C-C04DEFA98DDB",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SubmoduleUpdateProgress.QA.22F4F44F-B7B0-4250-AB98-E92843BB3CE8",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SubmoduleUpdateProgress.QA.7BB94178-8D76-4214-9AC2-3F8D5DBF71DB",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SubmoduleUpdateProgress.QA.E4AE0F31-8E0A-4625-80C9-85E66427E698",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SubmoduleUpdateProgress.QA.EA10A95D-89A9-49EF-9D73-40258E258B2B",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SubmoduleUpdateProgress.QA.7C78B061-8915-4594-8BCF-03287C64DF63",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SubmoduleUpdateProgress.QA.EAF7CC2D-6B64-45A0-9D14-E586904C9ED6",
+        "defaults_delete_exit": 1,
+        "removed": true
+      }
+    ]
+  }
+}

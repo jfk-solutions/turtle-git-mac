@@ -75,6 +75,7 @@
 		52754E5252F132BF5D20794B /* CancellableGitProcess.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1D127EFCF9CEE3CA778CA79 /* CancellableGitProcess.swift */; };
 		53038E31B82C54BE1E17C10A /* ResolveWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D33C40A99A3883800E7C6431 /* ResolveWindow.swift */; };
 		566929EB924A146E09618757 /* StatusListSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48ED07A9B4D7F1E9FB4E87B3 /* StatusListSelection.swift */; };
+		56B94B831C0F93189FCA10AB /* SubmoduleProgressCompletion.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3285697EA8FA321AA94C400 /* SubmoduleProgressCompletion.swift */; };
 		591E7907CB6B5F012E1A8AEB /* PatchPrinting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07308426CB6B06DAFB9B5A89 /* PatchPrinting.swift */; };
 		5AE1A8F789C776583FB32A26 /* RepositoryInitialization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593C3138AD1ABEC07EC9AC6C /* RepositoryInitialization.swift */; };
 		5C7063047C3D6080C0D541A4 /* RemoveWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A35B58726A94B9B4799C06DE /* RemoveWindow.swift */; };
@@ -484,6 +485,7 @@
 		F1AD98D1D708DD20E49D436E /* StatisticsGraphExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsGraphExport.swift; sourceTree = "<group>"; };
 		F283527B86A5347FD06D7472 /* LogReferenceDrawing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogReferenceDrawing.swift; sourceTree = "<group>"; };
 		F2E43773297420C7FDAE9748 /* GitRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitRepository.swift; sourceTree = "<group>"; };
+		F3285697EA8FA321AA94C400 /* SubmoduleProgressCompletion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleProgressCompletion.swift; sourceTree = "<group>"; };
 		F4626C39B694CD13BD1D8FA1 /* CommitCompletionPopup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitCompletionPopup.swift; sourceTree = "<group>"; };
 		F5B1B4492D159F92D3F03BBA /* Bisect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Bisect.swift; sourceTree = "<group>"; };
 		F7809458AF943456197C0AC7 /* MergeWhitespace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeWhitespace.swift; sourceTree = "<group>"; };
@@ -598,6 +600,7 @@
 				C8547B7FA28A893C7D185689 /* SubmoduleAddWindow.swift */,
 				0251BCE766102EE9581146AB /* SubmoduleConflictWindow.swift */,
 				85E2B314A76BA35F97ECD2C7 /* SubmoduleDiffWindow.swift */,
+				F3285697EA8FA321AA94C400 /* SubmoduleProgressCompletion.swift */,
 				74246B3AB7101AD7A469BA2E /* SubmoduleProgressOutputView.swift */,
 				0939C1284CC5B9339D0C0356 /* SubmoduleSyncWindow.swift */,
 				A739DFEF6C8F204FD7139944 /* SubmoduleUpdateProgressWindow.swift */,
@@ -1217,6 +1220,7 @@
 				C7F46AA23DC99E2E4AAFAD5D /* SubmoduleAddWindow.swift in Sources */,
 				E3EE5EB389BF0E9FD8DDD26A /* SubmoduleConflictWindow.swift in Sources */,
 				A6773359488D79CCCCE0C7DE /* SubmoduleDiffWindow.swift in Sources */,
+				56B94B831C0F93189FCA10AB /* SubmoduleProgressCompletion.swift in Sources */,
 				63D02F46529D370BDE7F4F66 /* SubmoduleProgressOutputView.swift in Sources */,
 				1C3518D6A25C8AF5ED0B0B29 /* SubmoduleSyncWindow.swift in Sources */,
 				7164C7C2217E6ABE41A1A1F5 /* SubmoduleUpdateProgressWindow.swift in Sources */,

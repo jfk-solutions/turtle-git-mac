@@ -52,7 +52,12 @@ import Darwin
         let first = try await parent.run(["config","--get","submodule.one.url"]).text.trimmingCharacters(in:.newlines)
         let second = try await parent.run(["config","--get","submodule.two.url"]).text.trimmingCharacters(in:.newlines)
         try require(manual.model.success && results == 1 && first == "ssh://sync-fixture.invalid/one" && second != "ssh://sync-fixture.invalid/two", "Native scoped Sync changed an unselected module or repeated completion")
+        try require(manual.model.currentWork == "Success" && manual.model.percentage == 100 && manual.model.completionRange != nil && manual.model.output.contains("Success (") && manual.model.output.contains(" ms @ "),"Actual completed progress footer/status missing")
         manual.close()
+        let empty = SubmoduleSyncWindowModel(repository:repo,access:access,scope:["file"],preferences:prefs)
+        empty.start(); try await wait("File-only Sync") { !empty.busy }
+        try require(!empty.success && empty.exitCode == -1 && empty.currentWork == "git did not exit cleanly (exit code -1)" && empty.output.contains("git did not exit cleanly (exit code -1)"),"No-command Sync falsely reports success")
+        empty.invalidate()
         let failedFlag = URL(fileURLWithPath:wrapper.path+".fail-first"); try Data().write(to:failedFlag)
         let partial = SubmoduleSyncWindowModel(repository:repo,access:access,scope:["modules/one","modules/two"],preferences:prefs)
         var partialCodes: [Int32] = []; partial.onSynced = { partialCodes = $0.entries.map(\.exitCode) }
@@ -63,9 +68,9 @@ import Darwin
         for policy in [1,2] {
             prefs.set(policy,forKey:"AutoCloseGitProgress")
             let automatic = SubmoduleSyncWindowModel(repository:repo,access:access,scope:[],preferences:prefs); var closes = 0
-            automatic.close = { closes += 1 }; prefs.set(0,forKey:"AutoCloseGitProgress")
+            automatic.close = { closes += 1 }; prefs.set(0,forKey:"AutoCloseGitProgress"); prefs.set(false,forKey:"ShowGitexeTimings")
             automatic.start(); try await wait("Native automatic Sync") { !automatic.busy }
-            try require(automatic.success && closes == 1,"Sync did not capture automatic-close policy"); automatic.invalidate()
+            try require(automatic.success && closes == 1,"Sync did not capture automatic-close policy"); try require(automatic.output.hasSuffix("\nSuccess\n"),"Disabled timing footer differs in actual operation"); prefs.removeObject(forKey:"ShowGitexeTimings"); automatic.invalidate()
         }
         let pause = URL(fileURLWithPath:wrapper.path+".pause"), marker = URL(fileURLWithPath:wrapper.path+".started")
         try Data().write(to:pause); prefs.set(true,forKey:"ConfirmKillProcess")
@@ -78,7 +83,7 @@ import Darwin
         cancelled.model.cancel(); let firstAnswer = answer; firstAnswer?(false); firstAnswer?(true)
         try require(cancelled.model.busy && !cancelled.model.cancelling,"No/duplicate response cancelled Sync")
         cancelled.model.cancel(); answer?(true); answer?(true); try await wait("Sync cancelled cleanup") { !cancelled.model.busy }
-        try require(cancelled.model.cancelled && !cancelled.model.success && cancelledResults == 0 && pids.count == 2 && pids.allSatisfy { kill($0,0) != 0 },"Live Sync cancellation left result/processes")
+        try require(cancelled.model.cancelled && !cancelled.model.success && cancelled.model.currentWork == "User cancelled" && cancelled.model.percentage == 100 && cancelled.model.completionRange != nil && cancelledResults == 0 && pids.count == 2 && pids.allSatisfy { kill($0,0) != 0 },"Live Sync cancellation left result/processes")
         cancelled.close(); try FileManager.default.removeItem(at:marker)
         let forced = SubmoduleSyncWindowController(repository:repo,access:access,scope:["modules/one","modules/two"],preferences:prefs); defer { forced.close() }
         var forcedResults = 0; forced.model.onSynced = { _ in forcedResults += 1 }; forced.model.start()

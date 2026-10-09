@@ -37,6 +37,8 @@ import TurtleGitCore
     private let access: RepositoryAccessLease?, scope: [String], preferences: UserDefaults, autoClosePolicy: GitProgressAutoClose
     private let token = OperationCancellation()
     private var started = false, invalidated = false
+    private var startedAt: TimeInterval = 0
+    @Published private(set) var completionRange: NSRange?
     private var outputState: GitProgressOutputState
     @Published var busy = false
     @Published var confirmingCancellation = false
@@ -61,7 +63,7 @@ import TurtleGitCore
     }
     func invalidate() { invalidated = true; token.cancel() }
     func start() {
-        guard !started, !invalidated, !confirmingQuit else { return }; started = true; busy = true
+        guard !started, !invalidated, !confirmingQuit else { return }; started = true; busy = true; startedAt = ProcessInfo.processInfo.systemUptime
         Task {
             defer { withExtendedLifetime(access) {} }
             do {
@@ -78,14 +80,16 @@ import TurtleGitCore
                 guard !invalidated else { busy = false; return }
                 exitCode = result.exitCode; success = result.success
                 if output.isEmpty { output = "No directories to synchronize." }
-                if !success { output += "\nGit commands failed (\(result.exitCode))." }
                 onSynced(result)
             } catch {
                 guard !invalidated else { busy = false; return }
                 let message = token.isCancelled ? "Submodule synchronization cancelled." : error.localizedDescription
                 output += (output.isEmpty || output.hasSuffix("\n") ? "" : "\n") + message
             }
-            cancelled = token.isCancelled; busy = false; saveActionLog(); finishAutomaticClose()
+            cancelled = token.isCancelled
+            let completion = SubmoduleProgressCompletion(success:success, cancelled:cancelled, exitCode:exitCode, elapsed:ProcessInfo.processInfo.systemUptime - startedAt, preferences:preferences)
+            currentWork = completion.currentWork; percentage = 100; completionRange = completion.append(to:&output)
+            busy = false; saveActionLog(); finishAutomaticClose()
         }
     }
     private func consume(_ emission: GitCliOutputParser.Emission, parser: GitCliOutputParser) {
@@ -116,7 +120,7 @@ private struct SubmoduleSyncDialog: View {
             ProgressView(value: Double(model.busy ? model.percentage ?? 0 : 100), total: 100)
                 .tint(model.busy ? .accentColor : model.success ? .blue : .red)
                 .accessibilityLabel("Git command progress")
-            SubmoduleProgressOutputView(text: model.output).frame(maxWidth: .infinity, maxHeight: .infinity)
+            SubmoduleProgressOutputView(text:model.output, completed:!model.busy, completionRange:model.completionRange, success:model.success).frame(maxWidth: .infinity, maxHeight: .infinity)
             HStack {
                 if model.busy { ProgressView().controlSize(.small) }
                 Text(model.busy ? model.cancelling ? "Cancelling…" : "Synchronizing…" : model.cancelled ? "Cancelled" : model.success ? "Finished" : "Synchronization failed").foregroundStyle(model.busy ? Color.primary : model.success ? Color.green : Color.red)

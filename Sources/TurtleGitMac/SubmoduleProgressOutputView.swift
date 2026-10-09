@@ -12,9 +12,31 @@ import TurtleGitCore
 }
 
 /// Native adaptation of ProgressDlg's read-only RichEdit and icon copy menu.
-@MainActor final class SubmoduleProgressTextView: NSTextView {
+@MainActor final class SubmoduleProgressTextView: NSTextView, NSTextViewDelegate {
     var clipboard: NSPasteboard = .general
     var preferences: UserDefaults = .standard
+    var openLink: (URL) -> Bool = { NSWorkspace.shared.open($0) }
+    private var baseFont: NSFont?
+    private var renderedCompleted = false, renderedSuccess = false, renderedStyle = true
+    private var renderedRange: NSRange?
+    func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {
+        if let url = link as? URL { _ = openLink(url) }
+        else if let string = link as? String, let url = URL(string: string) { _ = openLink(url) }
+        return true
+    }
+    static func color(error: Bool) -> NSColor {
+        NSColor(name: nil) { appearance in
+            let dark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            if error { return NSColor(srgbRed: dark ? 207.0/255 : 1, green: dark ? 47.0/255 : 0, blue: dark ? 47.0/255 : 0, alpha: 1) }
+            return NSColor(srgbRed: dark ? 185.0/255 : 160.0/255, green: dark ? 185.0/255 : 160.0/255, blue: 0, alpha: 1)
+        }
+    }
+    static var successColor: NSColor {
+        NSColor(name: nil) { appearance in
+            let dark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            return NSColor(srgbRed: 0, green: dark ? 178.0/255 : 0, blue: 1, alpha: 1)
+        }
+    }
     override func menu(for event: NSEvent) -> NSMenu? { outputMenu() }
     func outputMenu() -> NSMenu {
         let menu = NSMenu(); menu.autoenablesItems = false
@@ -36,10 +58,34 @@ import TurtleGitCore
         // No temporary selection: keep both the user's selection and viewport.
         clipboard.clearContents(); clipboard.setString(string, forType: .string)
     }
-    func present(_ text: String) {
-        guard string != text else { return }
+    func present(_ text: String, completed: Bool = false, completionRange: NSRange? = nil, success: Bool = false) {
+        let style = (preferences.object(forKey: "StyleGitOutput") as? NSNumber)?.boolValue ?? true
+        guard string != text || renderedCompleted != completed || renderedRange != completionRange || renderedSuccess != success || renderedStyle != style else { return }
+        renderedCompleted = completed; renderedRange = completionRange; renderedSuccess = success; renderedStyle = style
         let ranges = selectedRanges.map(\.rangeValue)
-        string = text
+        let font = baseFont ?? .monospacedSystemFont(ofSize: 12, weight: .regular)
+        let attributed = NSMutableAttributedString(string: text, attributes: [.font:font, .foregroundColor:NSColor.textColor])
+        let value = text as NSString
+        if completed {
+            if style {
+                var offset = 0
+                for line in text.components(separatedBy: "\n") {
+                    for prefix in ["fatal: ", "error: ", "warning: "] where line.hasPrefix(prefix) {
+                        let range = NSRange(location:offset,length:(prefix as NSString).length)
+                        attributed.addAttributes([.font:NSFontManager.shared.convert(font, toHaveTrait:.boldFontMask), .foregroundColor:Self.color(error:prefix != "warning: ")],range:range)
+                    }
+                    offset += (line as NSString).length + 1
+                }
+            }
+            for range in MessageURLFinder.ranges(in:text) {
+                if let url = URL(string:MessageURLFinder.target(for:value.substring(with:range))) { attributed.addAttribute(.link,value:url,range:range) }
+            }
+            if let range = completionRange, range.location <= value.length, range.length <= value.length - range.location {
+                let color = success ? NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast ? NSColor.textColor : Self.successColor : Self.color(error:true)
+                attributed.addAttribute(.foregroundColor,value:color,range:range)
+            }
+        }
+        textStorage?.setAttributedString(attributed)
         let length = (text as NSString).length
         selectedRanges = ranges.map { range in
             let start = min(range.location, length)
@@ -55,9 +101,11 @@ import TurtleGitCore
     static func scrollView(preferences: UserDefaults = .standard, clipboard: NSPasteboard = .general) -> NSScrollView {
         let text = SubmoduleProgressTextView(frame: .zero)
         text.preferences = preferences; text.clipboard = clipboard
-        text.isEditable = false; text.isSelectable = true; text.isRichText = false
+        text.isEditable = false; text.isSelectable = true; text.isRichText = true; text.delegate = text
+        text.linkTextAttributes = [.foregroundColor:NSColor.linkColor, .underlineStyle:NSUnderlineStyle.single.rawValue]
         text.font = MessageEditorFont.resolve(name: preferences.string(forKey: "LogFontName") ?? MessageEditorFont.defaultName,
                                                size: (preferences.object(forKey: "LogFontSize") as? Int) ?? MessageEditorFont.defaultSize)
+        text.baseFont = text.font
         text.textColor = .textColor; text.backgroundColor = .textBackgroundColor
         text.textContainerInset = NSSize(width: 12, height: 12)
         text.minSize = .zero; text.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
@@ -71,6 +119,9 @@ import TurtleGitCore
 
 struct SubmoduleProgressOutputView: NSViewRepresentable {
     let text: String
+    var completed = false
+    var completionRange: NSRange?
+    var success = false
     func makeNSView(context: Context) -> NSScrollView { SubmoduleProgressTextView.scrollView() }
-    func updateNSView(_ nsView: NSScrollView, context: Context) { (nsView.documentView as? SubmoduleProgressTextView)?.present(text) }
+    func updateNSView(_ nsView: NSScrollView, context: Context) { (nsView.documentView as? SubmoduleProgressTextView)?.present(text, completed:completed, completionRange:completionRange, success:success) }
 }

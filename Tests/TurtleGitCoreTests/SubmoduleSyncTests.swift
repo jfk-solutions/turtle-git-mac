@@ -83,6 +83,15 @@ final class SubmoduleSyncTests: XCTestCase {
         XCTAssertEqual(result.entries.map { $0.command.scope },[f.second,f.first])
         XCTAssertEqual(try String(contentsOf:URL(fileURLWithPath:f.wrapper.path+".calls")),"called\ncalled\n")
     }
+    func testFileOnlySyncHasNoCommandsAndSourceFailureStatus() async throws {
+        let f = try await fixture(); defer { try? FileManager.default.removeItem(at:f.root) }
+        let index = try Data(contentsOf:f.repo.root.appendingPathComponent(".git/index")), head = try await f.repo.run(["rev-parse","HEAD"]).stdout
+        let result = try await f.repo.syncSubmodules(scope:["file"])
+        XCTAssertTrue(result.entries.isEmpty); XCTAssertEqual(result.exitCode,-1); XCTAssertFalse(result.success)
+        XCTAssertFalse(FileManager.default.fileExists(atPath:f.wrapper.path+".calls"))
+        XCTAssertEqual(try Data(contentsOf:f.repo.root.appendingPathComponent(".git/index")),index)
+        let after = try await f.repo.run(["rev-parse","HEAD"]).stdout; XCTAssertEqual(after,head)
+    }
     func testLiveCancellationStopsLaterCommandsAndReapsOwnedChildren() async throws {
         let f = try await fixture(); defer { try? FileManager.default.removeItem(at:f.root) }
         let index = try Data(contentsOf:f.repo.root.appendingPathComponent(".git/index")), token = OperationCancellation()
