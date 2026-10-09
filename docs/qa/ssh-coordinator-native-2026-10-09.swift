@@ -79,14 +79,18 @@ private final class NativeIdentityBookmarks: RepositoryBookmarkProvider {
         let script = """
         #!/bin/sh
         operation=
-        for argument in "$@"; do case "$argument" in push|fetch|pull|ls-remote|clone) operation="$argument";; esac; done
+        for argument in "$@"; do case "$argument" in push|fetch|pull|ls-remote|clone|submodule) operation="$argument";; esac; done
         if [ -n "$operation" ]; then
           case "${SSH_AUTH_SOCK:-}" in \(quote(root.path))/tg-agent-*/s) ;; *) exit 74;; esac
           /usr/bin/ssh-add -L > "$0.public" || exit 75
           /usr/bin/grep -q native-coordinator-fixture "$0.public" || exit 76
           printf '%s\\n' "$operation" >> "$0.calls"
+          if [ "$operation" = submodule ] && [ -f "$0.large-failure" ]; then
+            /usr/bin/awk 'BEGIN { for (i=0;i<3000;i++) print "Submodule failure fixture output line" }'
+            exit 1
+          fi
         fi
-        exec \(quote(git.path)) -c \(quote("url." + root.path + ".insteadOf=ssh://clone-fixture.invalid/source")) "$@"
+        exec \(quote(git.path)) -c \(quote("url." + root.path + ".insteadOf=ssh://clone-fixture.invalid/source")) -c protocol.file.allow=always "$@"
         """
         try Data(script.utf8).write(to:wrapper); try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:wrapper.path)
         let transportRepo = GitRepository(root:root,executable:wrapper)
@@ -240,8 +244,54 @@ private final class NativeIdentityBookmarks: RepositoryBookmarkProvider {
         try require(try Data(contentsOf: identities.storageURL) == savedGrants, "Closed Clone saved a late key selection")
         try require(clonedAfterClose == 0 && pendingClone.model.error == nil && !FileManager.default.fileExists(atPath: cancelledDestination.path) && clonePrompt?.finished == true, "Closed Clone allowed late transport/result")
         try require(try String(contentsOf: URL(fileURLWithPath: wrapper.path+".calls")) == logCalls + "clone\nclone\n", "Clone did not stop at key cancellation")
+        let add = SubmoduleAddWindowController(repository: transportRepo, access: RepositoryAccessLease(url: root), preferences: preferences)
+        defer { add.close() }
+        add.model.identities = identities; add.model.makeSSHCoordinator = cloneFactory
+        add.model.source = "ssh://clone-fixture.invalid/source"; add.model.sourceEndedEditing()
+        try require(add.model.path == "source", "Submodule repository end-edit path derivation")
+        add.model.path = "modules/native-child"; add.model.useBranch = true; add.model.branch = "main"
+        add.model.useKey = true; add.model.acceptSelection(encrypted, kind: .key)
+        var added = 0; add.model.onAdded = { _ in added += 1 }
+        let appDelegate = TurtleGitApplicationDelegate()
+        add.model.apply(); add.model.apply()
+        try require(appDelegate.applicationShouldTerminate(NSApplication.shared) == .terminateCancel, "Quit allowed a running Submodule Add")
+        try await wait("Native Submodule Add") { !add.model.busy }
+        try require(add.model.success && add.model.error == nil && added == 1, "Native Submodule Add failed or adopted twice")
+        let child = GitRepository(root: root.appendingPathComponent("modules/native-child"), executable: git)
+        let childSettings = try await child.remoteSettings(name: "origin")
+        let childHead = try await child.run(["rev-parse", "HEAD"]), parentHead = try await repo.run(["rev-parse", "HEAD"])
+        try require(childSettings.sshKeyFile == encrypted.path && childSettings.puttyKeyFile.isEmpty && childHead.text == parentHead.text, "Native child key/HEAD mismatch")
+        let gitlink = try await repo.run(["ls-files", "--stage", "--", "modules/native-child"])
+        try require(gitlink.text.hasPrefix("160000 "), "Submodule Add did not stage gitlink")
+        add.close()
+        let previousLimit = preferences.object(forKey: "GitOutputLimitinKiB")
+        preferences.set(16, forKey: "GitOutputLimitinKiB")
+        let failedAdd = SubmoduleAddWindowModel(repository: transportRepo, access: RepositoryAccessLease(url: root), path: "", preferences: preferences)
+        if let previousLimit { preferences.set(previousLimit, forKey: "GitOutputLimitinKiB") } else { preferences.removeObject(forKey: "GitOutputLimitinKiB") }
+        failedAdd.identities = identities; failedAdd.makeSSHCoordinator = cloneFactory; failedAdd.useKey = true
+        failedAdd.source = "ssh://clone-fixture.invalid/source"; failedAdd.path = "modules/failed-child"; failedAdd.acceptSelection(encrypted, kind: .key)
+        let failureFlag = URL(fileURLWithPath: wrapper.path+".large-failure"); try Data().write(to: failureFlag)
+        var failureCallbacks = 0; failedAdd.onAdded = { _ in failureCallbacks += 1 }; failedAdd.apply()
+        try await wait("Submodule Add bounded failure") { !failedAdd.busy }
+        try require(!failedAdd.success && failedAdd.error == "Git command failed (1)." && failedAdd.output.contains("Output truncated") && failedAdd.output.utf8.count < 32768 && failureCallbacks == 0 && !FileManager.default.fileExists(atPath: root.appendingPathComponent("modules/failed-child").path), "Submodule Add failure replaced bounded output or published success")
+        failedAdd.invalidate(); try FileManager.default.removeItem(at: failureFlag)
+        let pendingAdd = SubmoduleAddWindowController(repository: transportRepo, access: RepositoryAccessLease(url: root), preferences: preferences)
+        defer { pendingAdd.close() }
+        var addPrompt: SSHKeyPassphraseWindowController?, addCoordinator: SSHTransportCoordinator?, addedAfterClose = 0
+        pendingAdd.model.identities = identities; pendingAdd.model.makeSSHCoordinator = { runner in
+            let value = SSHTransportCoordinator(repository: runner, identities: identities, temporaryRoot: root, runtime: { tools })
+            value.present = { addPrompt = $0; return true }; addCoordinator = value; coordinators.append(value); return value
+        }
+        pendingAdd.model.source = "ssh://clone-fixture.invalid/source"; pendingAdd.model.path = "modules/cancelled-child"
+        pendingAdd.model.useKey = true; pendingAdd.model.acceptSelection(encrypted, kind: .key)
+        pendingAdd.model.onAdded = { _ in addedAfterClose += 1 }; pendingAdd.model.apply()
+        try await wait("Submodule Add pending key") { addPrompt != nil }
+        pendingAdd.close(); try await wait("Submodule Add closed cleanup") { addCoordinator?.closed == true && !pendingAdd.model.busy }; addPrompt?.submit()
+        let beforeLateSelection = try Data(contentsOf: identities.storageURL); pendingAdd.model.acceptSelection(crlfKey, kind: .key)
+        try require(try Data(contentsOf: identities.storageURL) == beforeLateSelection && addedAfterClose == 0 && pendingAdd.model.error == nil && !FileManager.default.fileExists(atPath: root.appendingPathComponent("modules/cancelled-child").path), "Closed Submodule Add allowed a late selection/operation/result")
+        try require(try String(contentsOf: URL(fileURLWithPath: wrapper.path+".calls")) == logCalls + "clone\nclone\nsubmodule\nsubmodule\n", "Submodule Add cancellation launched transport")
         try require(coordinators.allSatisfy { $0.closed } && provider.starts == provider.stops,"Finished transport coordinator or file lease remains")
         try require(!NSApplication.shared.windows.contains { $0.isVisible },"Receiver displayed UI")
-        print("PASS native encrypted-key prompt/retry/dedup, Cancel/token/forced-close fences, private agent cleanup; shipping Push/Fetch/Pull/browse auto-load snapshots and local Git effects; CRLF headers, remote tag/browser deletion transports and Log remote deletion and Push/tag/Log/Clone controller close fences; direct and streamed native SSH Clone with remote-key config")
+        print("PASS native encrypted-key prompt/retry/dedup, Cancel/token/forced-close fences, private agent cleanup; shipping Push/Fetch/Pull/browse auto-load snapshots and local Git effects; CRLF headers, remote tag/browser deletion transports and Log remote deletion and Push/tag/Log/Clone controller close fences; direct and streamed native SSH Clone with remote-key config; Submodule Add captured branch/gitlink/child-key, bounded failure, Quit and forced-close fences")
     }
 }

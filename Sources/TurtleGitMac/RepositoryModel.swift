@@ -68,6 +68,7 @@ import TurtleGitCore
     private var submoduleDiffWindows: [String: SubmoduleDiffWindowController] = [:]
     private var revisionComparisonWindows: [String: RevisionComparisonWindowController] = [:]
     private var fileComparisonWindows: [String: FileComparisonWindowController] = [:]
+    private var submoduleAddWindows: [String: SubmoduleAddWindowController] = [:]
     private var submoduleUpdateWindows: [String: SubmoduleUpdateWindowController] = [:]
     private var submoduleConflictWindows: [String: SubmoduleConflictWindowController] = [:]
     private var deleteConflictWindows: [String: DeleteConflictWindowController] = [:]
@@ -295,6 +296,9 @@ import TurtleGitCore
         case .remove, .removeKeep:
             guard let repository else { return }
             showRemove(repository: repository, access: activeAccess, paths: paths.isEmpty ? selectedPaths : paths, keepLocal: action == .removeKeep)
+        case .submoduleAdd:
+            guard let repository else { return }
+            showSubmoduleAdd(repository: repository, access: activeAccess, path: paths.first ?? "")
         case .submoduleUpdate:
             guard let repository else { return }
             showSubmoduleUpdate(repository: repository, access: activeAccess, scope: paths.isEmpty ? selectedPaths : paths)
@@ -861,6 +865,17 @@ import TurtleGitCore
             controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
         }
     }
+    private func showSubmoduleAdd(repository: GitRepository, access: RepositoryAccessLease?, path: String) {
+        let key = repository.root.path
+        let controller = submoduleAddWindows[key] ?? SubmoduleAddWindowController(repository: repository, access: access, path: path)
+        controller.onClosed = { [weak self] in self?.submoduleAddWindows.removeValue(forKey: key) }
+        controller.model.onAdded = { [weak self] output in
+            self?.refreshRepositoryLogs(repository.root)
+            self?.statusWindows[key]?.model.reload(); self?.commitWindows[key]?.model.reload()
+            if let self, self.root == repository.root { self.output = output; Task { await self.refresh() } }
+        }
+        submoduleAddWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
     private func showSubmoduleUpdate(repository: GitRepository, access: RepositoryAccessLease?, scope: [String], selected: [String] = [], completion: (() -> Void)? = nil) {
         let root = repository.root, key = root.path + "\0" + scope.joined(separator: "\0") + "\0" + selected.joined(separator: "\0")
         let controller = submoduleUpdateWindows[key] ?? SubmoduleUpdateWindowController(repository: repository, access: access, scope: scope, selected: selected)
@@ -904,7 +919,7 @@ import TurtleGitCore
                 self.openSession(access, action: action, actionPaths: paths); return
             }
             self.activate(action, paths: paths)
-            if action != .clean && action != .add && action != .diff && action != .submoduleUpdate && action != .commit && action != .revert && action != .log && action != .switchBranch && action != .branch && action != .tag && action != .push && action != .fetch && action != .pull && action != .rebase && action != .merge && action != .mergeAbort && action != .export && action != .bisect && action != .bisectStart && action.bisectOperation == nil && action != .stash && action != .stashApply && action != .stashPop && action != .stashList && action != .reflog && action != .rename && !action.isIgnore && !action.isResolve && action != .reset { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
+            if action != .clean && action != .add && action != .diff && action != .submoduleAdd && action != .submoduleUpdate && action != .commit && action != .revert && action != .log && action != .switchBranch && action != .branch && action != .tag && action != .push && action != .fetch && action != .pull && action != .rebase && action != .merge && action != .mergeAbort && action != .export && action != .bisect && action != .bisectStart && action.bisectOperation == nil && action != .stash && action != .stashApply && action != .stashPop && action != .stashList && action != .reflog && action != .rename && !action.isIgnore && !action.isResolve && action != .reset { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
         }
         controller.model.onChanged = { [weak self] in Task { await self?.refresh() } }
         statusWindows[root.path] = controller

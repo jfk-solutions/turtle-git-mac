@@ -16,7 +16,7 @@ locally; these upstream manuals do not establish signed macOS acceptance.
 `SSHAgentSession` is a preparatory Core transport primitive. Core Fetch/Pull/Push
 now accept awaited preparation and retain a returned agent through transport;
 [transport boundaries](SSH-TRANSPORT-PARITY.md) documents the tested channel.
-Native Clone/Fetch/Pull/Push and configured remote browsing/deletion routes now
+Native Clone/Submodule Add/Fetch/Pull/Push and configured remote browsing/deletion routes now
 supply this callback. Native key selection and file grants are documented in
 [identity selection](SSH-IDENTITY-PARITY.md). The session starts a foreground OpenSSH agent
 in an owned process group, with an atomically-created mode-0700 directory and
@@ -44,7 +44,7 @@ signed sandbox acceptance.
 - Verify signed identity selection, renewal and loading; add permission management. Native mock-scope loading exists and Windows PuTTY configuration is preserved. Conversion or native PPK support remains pending.
 - Verify physical encrypted-key response sheets and add Keychain decisions with owned
   cancellation. Keep private bytes out of command output, Finder and docs.
-- Extend existing auto-load to submodules and Sync, preserving destination
+- Extend existing auto-load to submodule Update and Sync, preserving destination
   and failure ordering.
 - Test actual SSH authentication/host-key handling, saved and expired grants,
   connection errors, both architectures and signed App Store/Finder routes.

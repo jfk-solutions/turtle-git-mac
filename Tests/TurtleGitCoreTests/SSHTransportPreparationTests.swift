@@ -189,6 +189,41 @@ final class SSHTransportPreparationTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: destination.path))
         let after = try await f.source.run(["rev-parse", "HEAD"]).stdout; XCTAssertEqual(after, before)
     }
+    func testSubmoduleAddSelectedAgentStoresChildKeyAndStagesGitlink() async throws {
+        let f = try await fixture(); defer { try? FileManager.default.removeItem(at: f.root) }
+        let script = try String(contentsOf: f.wrapper).replacingOccurrences(of: "|clone)", with: "|clone|submodule)")
+        // Invocation-local file transport permission is confined to this fixture.
+        let command = "exec '" + f.realGit.path.replacingOccurrences(of: "'", with: "'\\''") + "'"
+        try script.replacingOccurrences(of: command, with: command + " -c protocol.file.allow=always").write(to: f.wrapper, atomically: false, encoding: .utf8)
+        var options = SubmoduleAddOptions(); options.source = f.source.root.path; options.path = "modules/quoted ' 雪"; options.branch = "main"; options.sshKey = f.key
+        let before = try await f.source.run(["rev-parse", "HEAD"]).text, events = TransportEvents()
+        _ = try await f.repo.addSubmodule(options, prepareTransport: { names, token in
+            let session = try f.agent(token); await events.record(names, session.directory); return session
+        })
+        let child = GitRepository(root: f.repo.root.appendingPathComponent(options.path), executable: f.realGit)
+        let settings = try await child.remoteSettings(name: "origin")
+        XCTAssertEqual(settings.sshKeyFile, f.key.path); XCTAssertTrue(settings.puttyKeyFile.isEmpty)
+        let head = try await child.run(["rev-parse", "HEAD"]).text; XCTAssertEqual(head, before)
+        let branch = try await child.run(["symbolic-ref", "--short", "HEAD"]).text.trimmingCharacters(in: .newlines); XCTAssertEqual(branch, "main")
+        let staged = try await f.repo.run(["ls-files", "--stage", "--", options.path]).text; XCTAssertTrue(staged.hasPrefix("160000 "))
+        let shell = try await child.run(["config", "--get", "core.sshCommand"], successfulExitCodes: 0...1); XCTAssertEqual(shell.exitCode, 1)
+        let snapshot = await events.snapshot(); XCTAssertEqual(snapshot.0, [[]]); XCTAssertTrue(snapshot.1.allSatisfy { !FileManager.default.fileExists(atPath: $0.path) })
+        options.path = "modules/cancelled"
+        do { _ = try await f.repo.addSubmodule(options, prepareTransport: { _, token in token.cancel(); return nil }); XCTFail("Late cancelled Add ran") } catch OperationCancellationFailure.cancelled {}
+        XCTAssertFalse(FileManager.default.fileExists(atPath: f.repo.root.appendingPathComponent(options.path).path))
+        do { _ = try await f.repo.addSubmodule(options); XCTFail("Missing loader ran Add") } catch CloneFailure.keyRuntime {}
+        XCTAssertEqual(try String(contentsOf: f.log), "submodule\n")
+        let after = try await f.source.run(["rev-parse", "HEAD"]).text; XCTAssertEqual(after, before)
+    }
+    func testSubmoduleAddArgumentsMatchForcePrecedenceAndContainment() throws {
+        let root = URL(fileURLWithPath: "/fixture")
+        var options = SubmoduleAddOptions(); options.source = "ssh://example.invalid/source"; options.path = "/fixture/modules/one"; options.branch = "topic"
+        XCTAssertEqual(try options.arguments(root: root), ["submodule", "add", "-b", "topic", "--", options.source, "modules/one"])
+        options.force = true
+        XCTAssertEqual(try options.arguments(root: root), ["submodule", "add", "--force", "--", options.source, "modules/one"])
+        for path in ["", ".", "../outside", "/fixture-other/one", "modules/.git/one", "modules//one"] { options.path = path; XCTAssertThrowsError(try options.arguments(root: root)) }
+        options.path = "modules/one"; options.branch = ""; XCTAssertThrowsError(try options.arguments(root: root))
+    }
     func testFetchAllPreparesEveryRemoteOnceBeforeTransport() async throws {
         let f = try await fixture(); defer { try? FileManager.default.removeItem(at: f.root) }
         _ = try await f.repo.run(["remote","add","second",f.source.root.path])

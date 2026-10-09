@@ -1112,3 +1112,9 @@ adapt CloneDlg/CloneCommand's Pageant load-before-clone and remote key setting t
 read-only native identity grants and an operation-owned OpenSSH agent. Original
 Swift additions are GPL-2.0-or-later. Windows PuTTY configuration and legacy Core
 sshCommand callers remain separate; real network and signed acceptance pending.
+
+SubmoduleAdd.swift and SubmoduleAddWindow.swift adapt the pinned TortoiseGit
+SubmoduleAddDlg/SubmoduleCommand layout, histories, branch/Force precedence and
+load-before-add/child-remote key behavior to native AppKit/SwiftUI, read-only
+identity grants and an owned private OpenSSH agent. Original Swift additions
+are GPL-2.0-or-later. Full displayed, progress and signed acceptance pending.

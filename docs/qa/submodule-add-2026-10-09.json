@@ -1,0 +1,81 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "7f659fe31bfdf11c1d46d13c098b2d263b6d4c49",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Native Submodule Add source groups, histories/browse, hidden Branch, Force precedence, app/Finder action and icon, contained literal Git Add, explicit SSH private-agent loading/child remote key, captured progress/retry and closure/Quit fences.",
+  "verification": {
+    "source": "Reviewed pinned SubmoduleAddDlg.cpp/.h, IDD_SUBMODULE_ADD, SubmoduleCommand Add branch/header and MenuInfo SubmoduleAdd clause. Force replaces branch args in pinned source. Pageant preparation before Add and native key save on child origin are adapted to read-only grants/private agent. Blank key performs ordinary Add. Clipboard defaults and full source progress remain partial.",
+    "core_system": "22 focused cases pass: SSHTransportPreparation 12, FinderCreationMenu 3, FinderMenuSettings 2 and FinderRepositoryMetadata 5. New real private-agent Add checks branch/custom literal Unicode/quoted path, child HEAD/key, staged 160000 gitlink, independent Windows/shell config, lifetime cleanup, canceled/missing preparation and source HEAD preservation. Pure arguments test covers absolute containment/invalid paths/empty branch/Force precedence. Finder test covers exactly one folder-in-Git clause and Add icon; Add does not require prior .gitmodules.",
+    "core_bundled": "12 SSHTransportPreparation cases pass in bundled-engine run: 11 engine-selecting fixture cases and one pure arguments case. Other 10 Finder cases are not claimed as bundled-engine tests.",
+    "native": "Final expanded hidden receiver passes with system and bundled Git. Actual Add controller/model submits captured branch/path/key, rejects second apply, stages gitlink, matches source HEAD, stores native child key, blocks Quit while busy, releases private agent/mock grants and fences forced close/pending response/late selection/result. Synthetic 3000-line failed transport with 16-KiB display setting retains truncated bounded output, reports exit status, publishes no success and creates no child. Earlier SSH/Clone/remote refs/retry/CRLF cases also pass.",
+    "corrections": "Initial compile rejected multiple @Published bindings in a declaration; fields were split before final successful builds. Review found that native failure replaced bounded progress with full GitFailure text; fixed to retain stream/report exit status and verified the large-output failure with both engines.",
+    "debug": "Final unsigned Debug build passes.",
+    "appstore": "Final unsigned AppStore build passes for both architectures; app automatic SSH loading still unavailable without bundled OpenSSH agent/add.",
+    "bundles": "Both audits pass: Git/LFS where configured, EditorConfig, IssueRegex, askpass private one-use/provenance/linkage, embedded Finder, licenses and all 99 icons. Both embedded NOTICE files equal root; signed acceptance unverified.",
+    "inventory_site_workflow": "Pinned inventory regression and local site build pass. New Add source/header/resource mappings are partial. Safe YAML parse and expanded SSH receiver CI step present once; hosted CI/deployment unverified."
+  },
+  "limitations": [
+    "Entire app/source/dialog/menu parity remains incomplete; Add is another partial source mapping, not full port completion.",
+    "Clipboard URL defaults, physical/displayed picker/history/branch/end-edit/focus/keyboard/light-dark/VoiceOver, exact geometry/layout and new screenshots remain unverified.",
+    "Progress is inside options instead of source separate ProgressDlg; complete automatic-close/kill-confirmation, actual live submodule-transfer cancellation and all failure variants remain pending.",
+    "Actual Finder URL dispatch, signed folder/source/key/helper inheritance and App Store runtime acceptance remain unverified.",
+    "Fixture-only local URL rewrite/file permission proves private agent channel/local Git effects, not real SSH network authentication or global file-transport policy.",
+    "Ignored/Force/reuse/path edge cases and filesystem/config races require broader acceptance. Existing Update and missing Sync are not made complete by Add.",
+    "Bundled OpenSSH, Keychain, PPK, host-key/password handling and distribution clearance remain pending.",
+    "No main app launch, user key/login-agent query, real SSH server, push, hosted CI/deployment or submission."
+  ],
+  "sha256": {
+    "NOTICE": "f66286f6fb095c777416d0c979c0741d2c3ed45fae386f4cf3ef39b15db53aae",
+    "README.md": "d34d62d01d0b9d2e8c2519051573933dba3d536bef2e21c864f92eaac9ba9122",
+    "Sources/TurtleGitCore/FinderCache.swift": "59792b43ed24218fe430f508c7e9828faaab139386291196fca6c472f382fd96",
+    "Sources/TurtleGitCore/MenuIcons.swift": "e3d76bca4ca8ebef7022f1801a79f94565d541338e3401fdd585bc51df873478",
+    "Sources/TurtleGitCore/SubmoduleAdd.swift": "9fecbafd9e2e043404a721ac49365028d5587137ba797e12ee26e6e3123ee541",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "99f81e12028d0f6d0aea40e0e759b65f886a6bc45c169c8b41401b49c59d70ee",
+    "Sources/TurtleGitMac/CloneWindow.swift": "6d61ab2fc7cf5185d87ab3162c22df681336d20052bf197b5f5b2085c1c4b30c",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "1394729fe842a8df6b22707e25d5dc946281825488850c37be861496e8d98509",
+    "Sources/TurtleGitMac/SubmoduleAddWindow.swift": "a4bc8facdb2da6cc3d2b3684ae2e64277136c0ba528691b48dd3b0a8fef09877",
+    "Tests/TurtleGitCoreTests/FinderRepositoryMetadataTests.swift": "376a557395cc77b86e1b018680b059fdc9a4b11c5a20789b33d7082f08b0a5fa",
+    "Tests/TurtleGitCoreTests/SSHTransportPreparationTests.swift": "3cef6e8d5c0203d6952ae2823743fb17202272240531f1d0e3389f0558647e78",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "21a92257e97e1f6650e41342f1767cdf56a39df6d93ab002e62180660d0aa690",
+    "docs/PORTING.md": "2ce13271bbd77e19099ba9ec06912bb1a72458dfc3638dfc225ecf12ebade1f6",
+    "docs/SSH-AGENT-PARITY.md": "fa22c60dc80fd480c26656241465191adb0b1e49f3b7a7ad497b7e33089c035a",
+    "docs/SSH-IDENTITY-PARITY.md": "e0cb389b2fa4616e42fc3a4c168e025526a27b1adf349d2650b6bf466d92ce4c",
+    "docs/SSH-PASSPHRASE-PARITY.md": "8e36ff1ae85c6be02cb5b93302dfa6736df033a048ea99a00c6a2b1641f94523",
+    "docs/SSH-TRANSPORT-PARITY.md": "8224e5a3b8afe9337eec4ce588f7b65483c8ce11cfcd8b900cbddfd8e693e4ef",
+    "docs/SUBMODULE-ADD-PARITY.md": "1a43470eecf2457db711ac71be60b6cd0f128697f0f612cee1687215031217fe",
+    "docs/qa/ssh-coordinator-native-2026-10-09.swift": "69018f6073178da3d2fd2ebb6ad7a1518e37a84353e206a64c071ebe443ba99e",
+    "docs/upstream-dialogs.csv": "edc1d5fdb5c844574e7e35783cfb7d331215de0ef04ed437ea78b7352b6fa27d",
+    "docs/upstream-files.csv": "b50fa6f263927eb7ddc498429dda6ffe1cf59534f497b5626cf74618251a9972"
+  },
+  "logs": "build/qa/submodule-add-2026-10-09",
+  "cleanup": {
+    "all_handles_terminal": true,
+    "main_app_launches": 0,
+    "audit": {
+      "matching_processes": [],
+      "current_fixtures": []
+    },
+    "empty_preferences_removed": [
+      {
+        "domain": "TurtleGit.SSHCoordinator.QA.8E3998B3-A7D9-4AE9-A656-B2C446ED023A",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SSHCoordinator.QA.1A22807B-9F6E-47BD-A8B1-2D7E745D812B",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SSHCoordinator.QA.3881B2B6-F82A-4B1E-A4FA-4AF598F1C6BC",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SSHCoordinator.QA.66D5FB45-3E1D-46CB-B303-AB4AAA6E9EAB",
+        "defaults_delete_exit": 1,
+        "removed": true
+      }
+    ]
+  }
+}

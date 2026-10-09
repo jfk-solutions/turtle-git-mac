@@ -2,6 +2,13 @@ import XCTest
 @testable import TurtleGitCore
 
 final class FinderRepositoryMetadataTests: XCTestCase {
+    func testSubmoduleAddSourceFolderClause() {
+        XCTAssertTrue(FinderShellRules.allows(.submoduleAdd, flags: [.folderInGit, .onlyOne]))
+        for flags: FinderShellFlags in [[], [.folderInGit], [.folder, .onlyOne], [.bare, .onlyOne], [.inGit, .onlyOne]] {
+            XCTAssertFalse(FinderShellRules.allows(.submoduleAdd, flags: flags))
+        }
+        XCTAssertEqual(RepositoryAction.submoduleAdd.icon, .add)
+    }
     func testSnapshotCompatibilityAndRootSelection() throws {
         let info = FinderRepositoryMetadata(bare: true, bisectActive: true, hasStash: true)
         let snapshot = FinderSnapshot(roots: ["/repo", "/repo/nested"], states: ["/repo/file": .modified],
@@ -22,6 +29,7 @@ final class FinderRepositoryMetadataTests: XCTestCase {
     }
     func testRepositoryClauses() {
         let ordinary = FinderRepositoryMetadata()
+        XCTAssertTrue(ordinary.allows(.submoduleAdd), "Add does not require an existing .gitmodules")
         XCTAssertTrue(ordinary.allows(.stash))
         for action in [RepositoryAction.stashApply, .stashPop, .stashList, .submoduleUpdate] { XCTAssertFalse(ordinary.allows(action)) }
         let available = FinderRepositoryMetadata(hasStash: true, hasSubmoduleConfig: true)

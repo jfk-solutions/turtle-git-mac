@@ -97,7 +97,7 @@ extension RepositoryAction {
         switch self {
         case .status: return .status
         case .commit: return .commit
-        case .add: return .add
+        case .add, .submoduleAdd: return .add
         case .revert: return .revert
         case .clean: return .clean
         case .log, .stashList, .reflog: return .log

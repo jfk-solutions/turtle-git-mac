@@ -69,6 +69,7 @@
 		4DADF6934B5B91754BD61031 /* RepositoryBrowser.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B39BEE643082FED0868FD9 /* RepositoryBrowser.swift */; };
 		4DF2969F6AE13B68357E46E5 /* GitPatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0657423D5C68D66703C2BB5C /* GitPatch.swift */; };
 		4E69E4757C052B8B130BCBB3 /* SubmoduleComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6308259E880D7D7EFFC7032A /* SubmoduleComparison.swift */; };
+		4EBF832662E01F9C93325133 /* SubmoduleAdd.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E85FED91C2F9C44EB16228A /* SubmoduleAdd.swift */; };
 		510A90BB7F5A0D39A72C1778 /* RevisionComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = 870D95A7EC384863F1C04342 /* RevisionComparison.swift */; };
 		52754E5252F132BF5D20794B /* CancellableGitProcess.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1D127EFCF9CEE3CA778CA79 /* CancellableGitProcess.swift */; };
 		53038E31B82C54BE1E17C10A /* ResolveWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D33C40A99A3883800E7C6431 /* ResolveWindow.swift */; };
@@ -162,6 +163,7 @@
 		C23CCEFA7DA0A805EFCE94C7 /* GitBlamePreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50C02E4063D7394453CC537A /* GitBlamePreferences.swift */; };
 		C4A8B6E914D346865B81FC58 /* HistoryLanes.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0C826BF8D2B76F52F29C6CD /* HistoryLanes.swift */; };
 		C74FD1797BC0727D5BBFBFA6 /* BlameSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ABE7B92864A28F4229F6063 /* BlameSettings.swift */; };
+		C7F46AA23DC99E2E4AAFAD5D /* SubmoduleAddWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8547B7FA28A893C7D185689 /* SubmoduleAddWindow.swift */; };
 		C8FEE2A6E0B1D5FDE647F228 /* ExportWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26B86A4879EF89058692598F /* ExportWindow.swift */; };
 		CA6AEC3FE2A7F57C339F0ABE /* LFSLocks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 018E0B6FCDC123277FE2DB0C /* LFSLocks.swift */; };
 		CAC5E6527836442CCE843857 /* HistoryHighlights.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2371301238EAD65AEE06ACF5 /* HistoryHighlights.swift */; };
@@ -386,6 +388,7 @@
 		7A118CF3A03416CA1144F4DE /* RequestPull.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RequestPull.swift; sourceTree = "<group>"; };
 		7A48D22D1E6D22153CBA3744 /* Push.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Push.swift; sourceTree = "<group>"; };
 		7A4B370EB64932B2909A8228 /* CloneWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloneWindow.swift; sourceTree = "<group>"; };
+		7E85FED91C2F9C44EB16228A /* SubmoduleAdd.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleAdd.swift; sourceTree = "<group>"; };
 		7E8B2EE97B70CCF7AC78ABAA /* DeleteConflictWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteConflictWindow.swift; sourceTree = "<group>"; };
 		814E543BEB0736B84A50B21B /* SavedData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedData.swift; sourceTree = "<group>"; };
 		81E52787ACF6315F812EA290 /* MessageSnippets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageSnippets.swift; sourceTree = "<group>"; };
@@ -440,6 +443,7 @@
 		C3343365A5D1715F6611CABA /* RemoteSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSettings.swift; sourceTree = "<group>"; };
 		C60249DCAD62F60EB41319E4 /* WorkingFileAdd.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingFileAdd.swift; sourceTree = "<group>"; };
 		C68CE7BDF48C40B9042C9E95 /* SubmoduleUpdate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleUpdate.swift; sourceTree = "<group>"; };
+		C8547B7FA28A893C7D185689 /* SubmoduleAddWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleAddWindow.swift; sourceTree = "<group>"; };
 		C9B39BEE643082FED0868FD9 /* RepositoryBrowser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryBrowser.swift; sourceTree = "<group>"; };
 		CA08DAA6757DBD3FB0045BC5 /* Changelists.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Changelists.swift; sourceTree = "<group>"; };
 		CC73279697B4174BE7ED4D66 /* StashWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StashWindow.swift; sourceTree = "<group>"; };
@@ -583,6 +587,7 @@
 				F014467B16BE2AE672DF757F /* StatisticsMenuCommands.swift */,
 				FBE98FBF5981527BD422EDFB /* StatisticsWindow.swift */,
 				70C7ACC80D04EACA76A42FF8 /* StatusWindow.swift */,
+				C8547B7FA28A893C7D185689 /* SubmoduleAddWindow.swift */,
 				0251BCE766102EE9581146AB /* SubmoduleConflictWindow.swift */,
 				85E2B314A76BA35F97ECD2C7 /* SubmoduleDiffWindow.swift */,
 				B975BF437A681B29D6A21240 /* SubmoduleUpdateWindow.swift */,
@@ -729,6 +734,7 @@
 				29605EFD52B28BA58CD44AA0 /* StatusListClipboard.swift */,
 				DA1D2D9DD08218C53951382F /* StatusListGroups.swift */,
 				48ED07A9B4D7F1E9FB4E87B3 /* StatusListSelection.swift */,
+				7E85FED91C2F9C44EB16228A /* SubmoduleAdd.swift */,
 				6308259E880D7D7EFFC7032A /* SubmoduleComparison.swift */,
 				F925723BED85497207863D60 /* SubmoduleConflict.swift */,
 				C68CE7BDF48C40B9042C9E95 /* SubmoduleUpdate.swift */,
@@ -1085,6 +1091,7 @@
 				B144262A42A7437C5B7EE78F /* StatusListClipboard.swift in Sources */,
 				92F05B4D5521D2D60D90F9E9 /* StatusListGroups.swift in Sources */,
 				566929EB924A146E09618757 /* StatusListSelection.swift in Sources */,
+				4EBF832662E01F9C93325133 /* SubmoduleAdd.swift in Sources */,
 				4E69E4757C052B8B130BCBB3 /* SubmoduleComparison.swift in Sources */,
 				DD54AAAEE6EEE0B9B1245370 /* SubmoduleConflict.swift in Sources */,
 				61C0650766BA9D30246B2FB6 /* SubmoduleUpdate.swift in Sources */,
@@ -1194,6 +1201,7 @@
 				3A784328FF03E7DD69994DA7 /* StatisticsMenuCommands.swift in Sources */,
 				BA385183E9E7CF4B38B22FDD /* StatisticsWindow.swift in Sources */,
 				2F880914CC17252579DC49AD /* StatusWindow.swift in Sources */,
+				C7F46AA23DC99E2E4AAFAD5D /* SubmoduleAddWindow.swift in Sources */,
 				E3EE5EB389BF0E9FD8DDD26A /* SubmoduleConflictWindow.swift in Sources */,
 				A6773359488D79CCCCE0C7DE /* SubmoduleDiffWindow.swift in Sources */,
 				6B9238091F271707632595BC /* SubmoduleUpdateWindow.swift in Sources */,

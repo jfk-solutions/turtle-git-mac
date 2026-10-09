@@ -311,10 +311,11 @@ struct CloneDialog: View {
     }
 }
 
-private struct CloneHistoryCombo: NSViewRepresentable {
+struct CloneHistoryCombo: NSViewRepresentable {
     @Binding var value: String
     let choices: [String]
     let label: String
+    var onEndEditing: () -> Void = {}
     @Environment(\.isEnabled) private var enabled
     func makeCoordinator() -> Coordinator { Coordinator() }
     func makeNSView(context: Context) -> NSComboBox {
@@ -323,12 +324,14 @@ private struct CloneHistoryCombo: NSViewRepresentable {
     }
     func updateNSView(_ combo: NSComboBox, context: Context) {
         let coordinator = context.coordinator; coordinator.updating = true; defer { coordinator.updating = false }
-        coordinator.change = { value = $0 }
+        coordinator.change = { value = $0 }; coordinator.endEditing = onEndEditing
         if coordinator.choices != choices { combo.removeAllItems(); combo.addItems(withObjectValues: choices); coordinator.choices = choices }
         if combo.stringValue != value { combo.stringValue = value }
         combo.isEnabled = enabled; combo.setAccessibilityLabel(label)
     }
     final class Coordinator: NSObject, NSComboBoxDelegate {
+        var endEditing: () -> Void = {}
+        func controlTextDidEndEditing(_ notification: Notification) { guard !updating else { return }; endEditing() }
         var choices: [String] = []; var updating = false; var change: (String) -> Void = { _ in }
         func controlTextDidChange(_ notification: Notification) { guard !updating, let combo = notification.object as? NSComboBox else { return }; change(combo.stringValue) }
         func comboBoxSelectionDidChange(_ notification: Notification) { guard !updating, let combo = notification.object as? NSComboBox, choices.indices.contains(combo.indexOfSelectedItem) else { return }; change(choices[combo.indexOfSelectedItem]) }

@@ -134,7 +134,7 @@ The existing source All-label behavior remains: reported remote/stash errors can
 continue, ordinary/local-tracking errors stop, and Cancel stops the sequence.
 Signed access, physical sheet interactions and all races remain unverified.
 
-Remaining: other SSH consumers (submodules and Sync), bundled
+Remaining: other SSH consumers (submodule Update and Sync), bundled
 OpenSSH, Keychain, host-key/password prompts, physical UI/sheet acceptance,
 signed App Store/Finder and real network authentication. Concurrent config/ref changes across suspended preparation
 and complete source failure equivalence remain unverified.
@@ -163,3 +163,8 @@ closure during an encrypted-key response, no late adoption/error/permission chan
 and private agent/grant cleanup. Actual server, modal picker ownership, displayed
 sheets, recursive SSH/SVN, signed scope and post-clone metadata cancellation remain
 unverified. See CLONE-PARITY.md and qa/ssh-clone-2026-10-09.json.
+
+Submodule Add now shares explicit-key preparation before a child remote exists,
+then saves the native origin key on the added child. Its captured native owner
+holds grants and fences closure/late results. See [Add parity](SUBMODULE-ADD-PARITY.md)
+for source Force precedence, verification and remaining progress/signed limits.

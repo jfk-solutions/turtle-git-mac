@@ -53,7 +53,8 @@ unverified.
 
 See [SSH agent](SSH-AGENT-PARITY.md) and [encrypted response](SSH-PASSPHRASE-PARITY.md).
 
-Clone now remembers the selected key through this same read-only store and writes
-the native remote setting after success. Old cloned-repository key bookmarks remain
+Clone and Submodule Add now remember the selected key through this same read-only store and write
+the native remote setting after success (Add writes it on the child origin).
+Old cloned-repository key bookmarks remain
 legacy compatibility paths; new native clones do not send those to repository
 adoption. See [Clone parity](CLONE-PARITY.md) for verification and remaining work.
