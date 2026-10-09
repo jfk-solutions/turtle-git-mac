@@ -1061,3 +1061,13 @@ ReferenceDescriptionWindowController in ReferenceBrowserWindow.swift and the
 branch-description config adapter in ReferenceCreation.swift adapt BrowseRefsDlg,
 InputDlg and CAppUtils::UpdateBranchDescription from the same pinned TortoiseGit
 source under its GPL-2.0-or-later notices above.
+
+RemoteSettings.swift and RemoteSettingsWindow.swift adapt CSettingGitRemote
+and IDD_SETTINREMOTE from the pinned TortoiseGit source. Copyright (C)
+2008-2021, 2023-2026 TortoiseGit, licensed GPL-2.0-or-later.
+SSHAgentSession.swift is original Swift transport infrastructure for the
+CAppUtils::LaunchPAgent workflow. AppUtils.cpp: Copyright (C) 2008-2026
+TortoiseGit and 2003-2011, 2013-2014 TortoiseSVN, GPL-2.0-or-later.
+No Pageant or OpenSSH source/binary is included by that implementation.
+Development currently invokes macOS OpenSSH tools; packaged agent helpers
+and native encrypted-key authentication remain unfinished.

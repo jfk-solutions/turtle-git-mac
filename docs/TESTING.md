@@ -484,3 +484,13 @@ Fetch-offer callback, actual Browse References ownership, native alert defaults,
 Close/Quit and late confirmations. Live helper/child process groups are forced
 closed during config reads, remote add, rename and removal. Native physical focus,
 all presentation/error races, OpenSSH identity and signed acceptance remain pending.
+
+### Private SSH agent primitive
+
+Run `swift test --filter SSHAgentSessionTests`. Tests use macOS OpenSSH, private
+fixture keys and a private foreground agent. They verify two identities, literal
+punctuation paths, encrypted-key failure without prompting, earlier-key retention,
+pre-cancellation, startup failure, release/deinit cleanup and live key-loader
+helper/child termination during forced close. No login agent or SSH server is
+used. App wiring, encrypted-key UI and bundled/signed helpers remain pending; see
+[SSH agent parity](SSH-AGENT-PARITY.md).

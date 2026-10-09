@@ -61,7 +61,10 @@ complete enclosing Settings tree and native OpenSSH identity are not yet ported.
 not make PuTTY keys usable by OpenSSH. A native identity picker requires real
 per-remote transport support, conversion/format decisions, security-scoped file
 access and signed App Store verification. A global SSH command cannot implement
-different identities for different remotes in Fetch All.
+different identities for different remotes in Fetch All. The source actually loads
+keys into Pageant; the preparatory owned OpenSSH agent primitive is documented in
+[SSH agent parity](SSH-AGENT-PARITY.md). It is not yet wired into this page or Git
+transport.
 
 Physical layout, light/dark, keyboard, accessibility, signed Finder/App Store,
 authentication, live forced-process cancellation timing and broad config races

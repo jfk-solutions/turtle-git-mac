@@ -1,0 +1,43 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "9622307d22123c19e31c7b6917db3cb12d221799",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Preparatory owned OpenSSH agent primitive for source Pageant loading semantics; application SSH integration remains incomplete.",
+  "verification": {
+    "source": "Reviewed LaunchPAgent and selected/all-remote callers: source loads configured keys into Pageant, not per-remote core.sshCommand. OpenSSH foreground/socket/identity and add semantics checked against primary manual pages.",
+    "core": "Final 4 SSHAgentSessionTests plus 4 RemoteSettingsTests pass (8 total). Actual system agent with two private fixture identities, literal punctuation path, encrypted-key headless failure retaining earlier addition, pre-cancellation, startup failure, release/deinit cleanup and private mode-0700 directory. Recorded live slow-add helper/child PIDs are present before close and gone after; close waits for active loader and agent before cleanup.",
+    "debug": "Final unsigned Debug build and bundle audit pass.",
+    "corrections": "Initial tests/build pass. Replaced truncated UUID directory allocation with atomic mkdtemp and kept its C pointer use inside buffer lifetime; rebuilt and reran final tests. Worker holds separate state so session deinit can reap it; startup failures before worker launch do not block.",
+    "inventory": "AppUtils source remains partial-native; agent scope note added. Pin regression passes.",
+    "appstore": "Unsigned AppStore build and --require-git audit pass. Existing Git/LFS/helper/Finder/licenses/99 original artwork audit passes; no OpenSSH helpers are packaged by this checkpoint. Both embedded NOTICE files match source.",
+    "site": "Local website build passes; hosted deployment remains unverified."
+  },
+  "limitations": [
+    "No Fetch/Push/Pull/Clone/submodule/remote deletion application wiring or key-picker functionality added in this checkpoint.",
+    "Native encrypted-key prompts, Keychain, PPK conversion, key bookmarks and scope renewal remain pending. Headless loader uses a failing askpass command to reject interaction.",
+    "OpenSSH helper packaging, architecture/dependency/licensing audits, bundled askpass and signed App Store inheritance remain pending. App Store runtime resolver rejects absent bundled agent/add helpers.",
+    "All key types/certificates/hardware keys, socket-path extremes, concurrent-close races, live startup/caller-cancellation timings and supported OS/architecture combinations are not exhaustively exercised.",
+    "No main app launch, user login-agent query/modification, SSH server/network authentication, Finder/clipboard access, push, hosted CI or deployment."
+  ],
+  "sha256": {
+    "NOTICE": "b9eec7262f059f81877c5ab3bc266fa6ba0e6da0ee82f2ed9411239a90eb81a2",
+    "Sources/TurtleGitCore/SSHAgentSession.swift": "888e93d63763516ce4ad935e7a0579cf905aeef74457c1e3c82e210d02f20f9e",
+    "Tests/TurtleGitCoreTests/SSHAgentSessionTests.swift": "3710f96d82c42c77743fe815eb0f8ddf8d971f677d9ceaaacc12f898ef4efd64",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "ac843715d2452206ce5048fdb19dd29cd4cc1bf182d0a2f71780124d7b67e645",
+    "docs/SSH-AGENT-PARITY.md": "390f8be026a8b0bc21eee9e7513e3964f93df826cedac681213eb2e76e341639",
+    "docs/REMOTE-SETTINGS-PARITY.md": "d2224ef59c65613bf5ebb2713f4d1916d08f372877a9affcbcd571d711b01eb0",
+    "docs/README.md": "22dd42fb5c603bcb79b3ffea66eeabd855e8739f4b0aa024568b526d7010c384",
+    "docs/TESTING.md": "34e3e8018aa3f0a06d9db474810841212ddc5dc8378790cf60b5b510e0b1a289",
+    "docs/upstream-files.csv": "31f627fa65bdb763d4c5384a07a70a65bafc50ac5dbe5564017daa1179b4b315"
+  },
+  "logs": "build/qa/ssh-agent-2026-10-09",
+  "cleanup": {
+    "all_handles_terminal": true,
+    "main_app_launches": 0,
+    "shared_preference_domains_created": 0,
+    "audit": {
+      "matching_processes": [],
+      "current_fixtures": []
+    }
+  }
+}
