@@ -22,7 +22,7 @@ import TurtleGitCore
         let sourceOrder = try JSONDecoder().decode(SourceOrder.self, from: Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[2])))
         let mapping: [RepositoryAction: String] = [
             .add: "Add", .clone: "Clone", .pull: "Pull", .fetch: "Fetch", .push: "Push", .commit: "Commit",
-            .diff: "Diff", .diffLater: "DiffLater", .log: "Log", .reflog: "RefLog", .repositoryBrowser: "RepoBrowse",
+            .diff: "Diff", .diffLater: "DiffLater", .log: "Log", .reflog: "RefLog", .referenceBrowser: "RefBrowser", .repositoryBrowser: "RepoBrowse",
             .bisectStart: "BisectStart", .bisectGood: "BisectGood", .bisectBad: "BisectBad", .bisectSkip: "BisectSkip", .bisectReset: "BisectReset",
             .status: "ShowChanged", .rebase: "Rebase", .stash: "StashSave", .stashApply: "StashApply",
             .stashPop: "StashPop", .stashList: "StashList", .resolve: "Resolve", .mergeAbort: "MergeAbort", .rename: "Rename",
@@ -233,7 +233,7 @@ import TurtleGitCore
         precondition(!trackedActions.contains(.export) && !multiple.contains(.export))
         let bareMenu = metadataMenu(FinderRepositoryMetadata(bare: true))
         verifyOrder(bareMenu)
-        precondition(rootActions(bareMenu) == [.fetch, .push, .log, .reflog, .repositoryBrowser, .export, .worktreeList])
+        precondition(rootActions(bareMenu) == [.fetch, .push, .log, .reflog, .referenceBrowser, .repositoryBrowser, .export, .worktreeList])
         print("Actual metadata menu receiver: absent/present stash and .gitmodules, merge/bisect exclusions and seven bare-root commands follow source repository clauses while preserving groups. Cached facts only; fresh signed handoff remains pending.")
         let unrelated = outside.appendingPathComponent("plain.txt"); try Data().write(to: unrelated)
         let outsideFileMenu = FinderMenuBuilder.make(paths: [unrelated], snapshot: nil, settings: FinderMenuSettings(),

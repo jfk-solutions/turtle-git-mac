@@ -100,7 +100,7 @@ struct RepositoryWindow: View {
                 HSplitView {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("TurtleGit").font(.headline).padding(.bottom, 8)
-                        ForEach([RepositoryAction.status, .commit, .log, .repositoryBrowser, .export, .bisect, .formatPatch, .importPatch, .requestPull]) { action in
+                        ForEach([RepositoryAction.status, .commit, .log, .referenceBrowser, .repositoryBrowser, .export, .bisect, .formatPatch, .importPatch, .requestPull]) { action in
                             Button { model.activate(action) } label: {
                                 CommandLabel(title: action.title, icon: action.icon).frame(maxWidth: .infinity, alignment: .leading).padding(6)
                                     .background(model.section == action ? Color.accentColor.opacity(0.14) : .clear)

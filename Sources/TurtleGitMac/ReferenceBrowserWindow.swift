@@ -26,8 +26,8 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     var presentDescription: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
     var presentReflog: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
     private var completion: ((String?) -> Void)?
-    init(repository: GitRepository, access: RepositoryAccessLease?, initial: String, preferences: UserDefaults = .standard, scope: ReferenceBrowserScope = .all, onChoose: @escaping (String?) -> Void) {
-        model = ReferenceBrowserWindowModel(repository: repository, access: access, initial: initial, preferences: preferences, scope: scope); completion = onChoose
+    init(repository: GitRepository, access: RepositoryAccessLease?, initial: String, preferences: UserDefaults = .standard, scope: ReferenceBrowserScope = .all, picking: Bool = true, onChoose: @escaping (String?) -> Void) {
+        model = ReferenceBrowserWindowModel(repository: repository, access: access, initial: initial, preferences: preferences, scope: scope, picking: picking); completion = onChoose
         let window = ReferenceBrowserNativeWindow(contentRect: .init(x: 0, y: 0, width: 1130, height: 660), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Browse references – TurtleGit"; window.isReleasedWhenClosed = false; window.contentMinSize = .init(width: 940, height: 450)
         window.contentViewController = NSHostingController(rootView: ReferenceBrowserDialog(model: model).defaultAppStorage(preferences))
@@ -93,7 +93,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
             self.trackingRequest = nil
             if let upstream, GitReferenceName.removingPrefix("refs/remotes/", from: upstream) != nil { self.model.changeTracking(reference, upstream: GitReferenceName(upstream)) }
         }
-        child.model.onLog = model.onLog; child.model.onBrowse = model.onBrowse; child.model.onCompare = model.onCompare; child.model.configureSwitch = model.configureSwitch; child.model.configureMerge = model.configureMerge; child.model.configureBranch = model.configureBranch; child.model.configureFetch = model.configureFetch
+        child.model.onLogRange = model.onLogRange; child.model.onLog = model.onLog; child.model.onBrowse = model.onBrowse; child.model.onCompare = model.onCompare; child.model.configureSwitch = model.configureSwitch; child.model.configureMerge = model.configureMerge; child.model.configureBranch = model.configureBranch; child.model.configureFetch = model.configureFetch
         trackingPicker = child; configureTrackingPicker(child)
         child.onClosed = { [weak self, weak child] in
             guard let self, let child, self.trackingPicker === child else { return }
@@ -170,6 +170,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     let preferences: UserDefaults
     private let initial: String
     let scope: ReferenceBrowserScope
+    let picking: Bool
     private var token: OperationCancellation?
     private var invalidated = false
     private(set) var deletingReference = false
@@ -186,7 +187,27 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     @Published private(set) var busy = false
     @Published var error: String?
     @Published var folder: GitReferenceName = "refs"
-    @Published var selected: GitReferenceName?
+    @Published private(set) var selection: Set<GitReferenceName> = []
+    @Published private(set) var lastSelected: GitReferenceName?
+    var selected: GitReferenceName? {
+        get { selection.count == 1 ? selection.first : lastSelected }
+        set { selection = newValue.map { [$0] } ?? []; lastSelected = newValue }
+    }
+    func select(_ references: Set<GitReferenceName>, last: GitReferenceName?) {
+        guard !invalidated, !busy, !hasChild, renameReference == nil, !picking || references.count <= 1 else { return }
+        selection = references
+        lastSelected = last.flatMap { selection.contains($0) ? $0 : nil } ?? rows.last(where: { selection.contains($0.reference.name) })?.reference.name
+    }
+    var selectedRows: [ReferenceBrowserRow] { rows.filter { selection.contains($0.reference.name) } }
+    var range: ReferenceBrowserRange? { ReferenceBrowserRange(references: selectedRows.map { $0.reference.name }, lastSelected: lastSelected) }
+    var copyReferences: (String) -> Void = { text in NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string) }
+    func copySelection() { guard !invalidated, !busy, !hasChild, renameReference == nil else { return }; copyReferences(selectedRows.map { $0.reference.name.rawValue }.joined(separator: "\n")) }
+    func logRange(symmetric: Bool) { guard !invalidated, !busy, !hasChild, renameReference == nil, let range else { return }; onLogRange?(range.history(symmetric: symmetric)) }
+    func activateSelection() {
+        if picking { accept(); return }
+        guard !invalidated, !busy, !hasChild, renameReference == nil, let reference = selectedRows.first?.reference else { return }
+        if reference.objectType == "tree" { onBrowse?(reference.name.rawValue) } else { onLog?(reference.name.rawValue) }
+    }
     @Published var query = ""
     static let allFields: HistorySearchFields = [.referenceNames, .subject, .authors, .revisions]
     @Published var fields: HistorySearchFields = allFields
@@ -253,11 +274,13 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     }
     var onEditDescription: (() -> Void)?
     var canEditDescription: Bool { canAccept && chosen?.objectType == "commit" && chosen.flatMap { GitReferenceName.removingPrefix("refs/heads/", from: $0.name.rawValue) } != nil }
+    var onLogRange: ((HistoryRevisionRange) -> Void)?
     var onLog: ((String) -> Void)?
     var onReflog: ((String) -> Void)?
     var onBrowse: ((String) -> Void)?
     var onCompare: ((String) -> Void)?
-    init(repository: GitRepository, access: RepositoryAccessLease?, initial: String, preferences: UserDefaults = .standard, scope: ReferenceBrowserScope = .all) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, initial: String, preferences: UserDefaults = .standard, scope: ReferenceBrowserScope = .all, picking: Bool = true) {
+        self.picking = picking
         self.repository = repository; self.access = access; self.initial = initial; self.preferences = preferences; self.scope = scope
         nested = preferences.object(forKey: "RefBrowserIncludeNestedRefs") as? Bool ?? true
     }
@@ -274,8 +297,9 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
             return descending ? comparison == .orderedDescending : comparison == .orderedAscending
         }
     }
-    var chosen: BrowserReference? { guard let selected else { return nil }; return rows.first { $0.reference.name == selected }?.reference }
+    var chosen: BrowserReference? { guard selection.count == 1, let selected else { return nil }; return rows.first { $0.reference.name == selected }?.reference }
     var canAccept: Bool { !busy && !hasChild && !invalidated && renameReference == nil && chosen != nil }
+    var canFinish: Bool { picking ? canAccept : !busy && !hasChild && !invalidated && renameReference == nil }
     var canRename: Bool { canAccept && chosen.flatMap { GitReferenceName.removingPrefix("refs/heads/", from: $0.name.rawValue) } != nil }
     func beginRename() -> String? {
         guard canRename, let chosen, let row = rows.first(where: { $0.reference.name == chosen.name }) else { return nil }
@@ -332,7 +356,10 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     }
     func invalidate() { invalidated = true; deletingReference = false; changingTracking = false; resolvingCurrentBranch = false; renameReference = nil; renameFolder = nil; initialFocusPending = false; token?.cancel(); token = nil; busy = false }
     func setFolder(_ folder: GitReferenceName) { guard !busy, !hasChild, renameReference == nil, folders.contains(folder) else { return }; self.folder = folder; selected = nil }
-    func refilter() { if let selected, !rows.contains(where: { $0.reference.name == selected }) { self.selected = nil } }
+    func refilter() {
+        selection.formIntersection(Set(rows.map { $0.reference.name }))
+        if let lastSelected, !selection.contains(lastSelected) { self.lastSelected = selectedRows.last?.reference.name }
+    }
     func nestedChanged() { preferences.set(nested, forKey: "RefBrowserIncludeNestedRefs"); load() }
     var canChooseCurrentBranch: Bool { !invalidated && !busy && !hasChild && renameReference == nil }
     func currentBranch() {
@@ -351,7 +378,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
             }
         }
     }
-    func accept() { guard canAccept, let chosen else { return }; finish(chosen.name.rawValue) }
+    func accept() { guard canFinish else { return }; finish(picking ? chosen?.name.rawValue : nil) }
     func cancel() { finish(nil) }
     func focusIfReady(_ table: NSTableView) {
         guard initialFocusPending, !invalidated, !busy, !hasChild, snapshot != nil, let window = table.window, window.attachedSheet == nil else { return }
@@ -375,10 +402,10 @@ struct ReferenceBrowserDialog: View {
             ReferenceBrowserNativeView(model: model).frame(maxWidth: .infinity, maxHeight: .infinity)
             HStack {
                 Toggle("Show nested refs", isOn: $model.nested).onChange(of: model.nested) { _ in model.nestedChanged() }.disabled(model.busy || model.renameReference != nil)
-                Text("Showing \(model.rows.count) ref(s), \(model.chosen == nil ? 0 : 1) ref(s) selected").font(.system(size: 11)).foregroundStyle(.secondary)
+                Text("Showing \(model.rows.count) ref(s), \(model.selectedRows.count) ref(s) selected").font(.system(size: 11)).foregroundStyle(.secondary)
                 if model.busy { ProgressView().controlSize(.small) }; Spacer()
                 Button("Current Branch") { model.currentBranch() }.disabled(!model.canChooseCurrentBranch)
-                Button("OK") { model.accept() }.keyboardShortcut(.defaultAction).disabled(!model.canAccept)
+                Button("OK") { model.accept() }.keyboardShortcut(.defaultAction).disabled(!model.canFinish)
                 Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(model.busy || model.renameReference != nil)
                 Button { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-browse-ref.html")!) } label: { CommandLabel(title: "Help", icon: .help) }
             }
@@ -409,12 +436,12 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
         let split = NSSplitView(); split.delegate = context.coordinator; split.isVertical = true; split.dividerStyle = .thin
         let tree = NSOutlineView(); tree.headerView = nil; tree.setAccessibilityLabel("Reference namespaces")
         let folder = NSTableColumn(identifier: .init("folder")); folder.width = 185; tree.addTableColumn(folder); tree.outlineTableColumn = folder; tree.rowHeight = 22
-        let table = ReferenceBrowserRenameTable(); table.rename = { [weak coordinator = context.coordinator] in coordinator?.beginRename() }; table.rowHeight = 23; table.allowsMultipleSelection = false; table.setAccessibilityLabel("References")
+        let table = ReferenceBrowserRenameTable(); table.rename = { [weak coordinator = context.coordinator] in coordinator?.beginRename() }; table.rowHeight = 23; table.allowsMultipleSelection = !model.picking; table.setAccessibilityLabel("References")
         for (id, title, width) in [("name", "Branch Name", 210.0), ("upstream", "Tracked branch", 150), ("authorDate", "Last Author Date", 140), ("subject", "Last Commit", 280), ("author", "Last Author", 130), ("committerDate", "Date Last Commit", 140), ("committer", "Last Committer", 130), ("hash", "SHA-1", 170), ("description", "Description", 180)] {
             let column = NSTableColumn(identifier: .init(id)); column.title = title; column.width = width; column.minWidth = 70; table.addTableColumn(column)
         }
         tree.delegate = context.coordinator; tree.dataSource = context.coordinator; table.delegate = context.coordinator; table.dataSource = context.coordinator
-        table.target = context.coordinator; table.doubleAction = #selector(Coordinator.accept)
+        table.target = context.coordinator; table.doubleAction = #selector(Coordinator.activateSelection)
         let menu = NSMenu(); menu.delegate = context.coordinator; table.menu = menu
         for view in [tree, table] { let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true; scroll.borderType = .bezelBorder; scroll.documentView = view; split.addArrangedSubview(scroll) }
         context.coordinator.tree = tree; context.coordinator.table = table
@@ -458,9 +485,9 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
                 let row = tree.row(forItem: chosen); if row >= 0 { tree.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false) }
             }
             visible = model.rows; table.reloadData()
-            let selected = visible.firstIndex { $0.reference.name == model.selected }
-            table.selectRowIndexes(selected.map { IndexSet(integer: $0) } ?? [], byExtendingSelection: false)
-            if let selected { table.scrollRowToVisible(selected) }
+            let selected = IndexSet(visible.indices.filter { model.selection.contains(visible[$0].reference.name) })
+            table.selectRowIndexes(selected, byExtendingSelection: false)
+            if let row = selected.first { table.scrollRowToVisible(row) }
             let heads = model.folder == "refs/heads" || GitReferenceName.removingPrefix("refs/heads/", from: model.folder.rawValue) != nil
             for id in ["upstream", "description"] { table.tableColumn(withIdentifier: .init(id))?.isHidden = !heads }
             tree.isEnabled = !model.busy && !model.hasChild; table.isEnabled = !model.busy && !model.hasChild
@@ -515,16 +542,24 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
         }
         func selectionShouldChange(in tableView: NSTableView) -> Bool { !model.busy && !model.hasChild && model.renameReference == nil }
         func outlineView(_ outlineView: NSOutlineView, shouldSelectItem item: Any) -> Bool { !model.busy && !model.hasChild && model.renameReference == nil }
-        func tableViewSelectionDidChange(_ notification: Notification) { guard !updating, model.renameReference == nil, let table else { return }; model.selected = visible.indices.contains(table.selectedRow) ? visible[table.selectedRow].reference.name : nil }
+        func tableViewSelectionDidChange(_ notification: Notification) { guard !updating, model.renameReference == nil, let table else { return }; let names = Set(table.selectedRowIndexes.compactMap { visible.indices.contains($0) ? visible[$0].reference.name : nil })
+            let added = table.selectedRowIndexes.last(where: { visible.indices.contains($0) && !model.selection.contains(visible[$0].reference.name) }).map { visible[$0].reference.name }
+            model.select(names, last: added ?? model.lastSelected) }
         func tableView(_ tableView: NSTableView, didClick tableColumn: NSTableColumn) { guard model.renameReference == nil, !model.busy else { return }; let id = tableColumn.identifier.rawValue; if model.sortColumn == id { model.descending.toggle() } else { model.sortColumn = id; model.descending = false } }
+        @objc func activateSelection() { model.activateSelection() }
         @objc func accept() { model.accept() }
         func menuNeedsUpdate(_ menu: NSMenu) {
             menu.removeAllItems(); guard !model.busy, !model.hasChild, model.renameReference == nil, let table else { return }
-            if visible.indices.contains(table.clickedRow), table.selectedRow != table.clickedRow { table.selectRowIndexes(IndexSet(integer: table.clickedRow), byExtendingSelection: false) }
-            guard model.chosen != nil else { return }; menu.autoenablesItems = false
+            if visible.indices.contains(table.clickedRow), !table.selectedRowIndexes.contains(table.clickedRow) { table.selectRowIndexes(IndexSet(integer: table.clickedRow), byExtendingSelection: false) }
+            guard !model.selectedRows.isEmpty else { return }; menu.autoenablesItems = false
             func item(_ title: String, _ action: Selector, _ icon: MenuIcon, _ enabled: Bool) { let entry = NSMenuItem(title: title, action: action, keyEquivalent: ""); entry.target = self; entry.image = icon.contextImage(defaults: model.preferences); entry.isEnabled = enabled; menu.addItem(entry) }
-            item("Select", #selector(accept), .checkout, model.canAccept); menu.addItem(.separator())
-            let chosen = model.chosen!
+            if let range = model.range {
+                item("Show log of " + range.label(), #selector(logRange), .log, model.onLogRange != nil)
+                item("Show log of " + range.label(symmetric: true), #selector(logSymmetricRange), .log, model.onLogRange != nil)
+                menu.addItem(.separator()); item("Copy reference names", #selector(copyName), .copy, true); return
+            }
+            guard let chosen = model.chosen else { item("Copy reference names", #selector(copyName), .copy, true); return }
+            if model.picking { item("Select", #selector(accept), .checkout, model.canAccept); menu.addItem(.separator()) }
             if chosen.objectType == "commit" { item("Show log", #selector(log), .log, model.onLog != nil) }
             item("Browse repository", #selector(browse), .repositoryBrowser, model.onBrowse != nil)
             let branch = GitReferenceName.removingPrefix("refs/heads/", from: chosen.name.rawValue) != nil || GitReferenceName.removingPrefix("refs/remotes/", from: chosen.name.rawValue) != nil
@@ -546,6 +581,8 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
             menu.addItem(.separator()); item("Copy reference name", #selector(copyName), .copy, true)
         }
         @objc func deleteReference() { model.deleteChosen() }
+        @objc func logRange() { model.logRange(symmetric: false) }
+        @objc func logSymmetricRange() { model.logRange(symmetric: true) }
         @objc func fetch() { if model.canFetch { model.onFetch?() } }
         @objc func createBranch() { if model.canCreateBranch { model.onCreateBranch?() } }
         @objc func mergeRevision() { if model.canMerge { model.onMerge?() } }
@@ -558,7 +595,7 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
         @objc func reflog() { if let chosen = model.chosen { model.onReflog?(chosen.name.rawValue) } }
         @objc func browse() { if let chosen = model.chosen { model.onBrowse?(chosen.name.rawValue) } }
         @objc func compare() { if let chosen = model.chosen { model.onCompare?(chosen.name.rawValue) } }
-        @objc func copyName() { if let chosen = model.chosen { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(chosen.name.rawValue, forType: .string) } }
+        @objc func copyName() { model.copySelection() }
     }
 }
 

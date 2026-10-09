@@ -73,7 +73,7 @@ enum FinderShellMenuLayout {
         [.clone, .pull, .fetch, .push],
         [.commit],
         [.diff, .diffLater],
-        [.log, .reflog, .repositoryBrowser, .status, .rebase, .stash, .stashApply, .stashPop, .stashList],
+        [.log, .reflog, .referenceBrowser, .repositoryBrowser, .status, .rebase, .stash, .stashApply, .stashPop, .stashList],
         [.bisectStart, .bisectGood, .bisectBad, .bisectSkip, .bisectReset],
         [.resolve, .mergeAbort, .rename, .remove, .removeKeep, .revert, .clean],
         [.switchBranch, .merge, .branch, .tag, .export],

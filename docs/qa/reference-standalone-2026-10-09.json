@@ -1,0 +1,73 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "b210037b0c41786607e71f7af25d7188558a527d",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Standalone app/Finder Browse References route, native multiple selection, last-selected typed range Log, copied names and existing picker retention. Full standalone/browser/application parity incomplete.",
+  "verification": {
+    "source": "RefBrowseCommand accepts working tree/bare and creates non-picker/multiple-selection BrowseRefs. MenuInfo RefBrowser uses IDI_REPOBROWSE after Reflog, folder-in-Git+only-one or bare flag. Source double-click opens Log except tree Repo-browser. GetTwoSelectedRefs puts last selected on right and strips namespaces for labels.",
+    "core": "34 ReferenceBrowser/Finder request/shell-rule/repository-metadata tests pass both Git engines on final code. Added original action/title/icon/URL/bare/selection rule checks and typed difference/reverse history ranges with real parsed backend results; byte-distinct canonical-equivalent selection names retained.",
+    "native": "Final both-engine hidden shipping-controller receiver verifies actual table multi-selection, last-selected direction, .. and ... callback kinds/canonical expressions, actual history backend query, intercepted displayed-order names copy, sorting/filter selection, standalone tree/other double-click without close, empty/duplicate close, owned-child gates and unchanged single-picker policy. HEAD/index/config/worktree unchanged.",
+    "finder": "Actual FinderMenuBuilder receiver passes source projection/order/groups for all 42 implemented entries, six-case visible projections, icon on/off/request routing, bare menu with Browse References, collected cache and real conflict/Abort Merge state. No extension controller activation.",
+    "regressions": "Existing browser/Reset chooser and deletion receivers pass both engines after shared selection changes. Finder and both regressions precede isolated typed-range callback correction; their single-ref behavior/conditions were unchanged. Final standalone and Core receivers cover final code.",
+    "routing": "Application menu/sidebar action and RepositoryModel activation create one non-picker controller per root, share existing interactions and release by identity. Range callback passes HistoryRevisionRange to existing showLog revisionRange argument; raw range expressions are not sent to single-revision endRevision. Production wiring inspected without constructing RepositoryModel/shared Finder cache writer.",
+    "builds": "Final unsigned Debug/AppStore builds and both bundle audits pass. Both embedded NOTICE files byte-equal source. Universal Git 2.55.0/LFS 3.8.0, EditorConfig/IssueRegex helpers, Finder extension and all 99 icons audited.",
+    "cycles": "Zero AttributeGraph cycles in final standalone and browser/deletion/Finder logs.",
+    "inventory": "Source pin check passes; RefBrowseCommand/BrowseRefs notes updated and remain partial. Source shell fixture gains exact RefBrowser clauses.",
+    "docs": "README, getting-started, browser/Finder parity and testing updated. Local Pages builds pass; no refreshed physical screenshot/deployment.",
+    "ci": "Ruby safe YAML parse and exactly one new standalone receiver step pass. Hosted CI unverified.",
+    "correction": "Source review identified Log endRevision rejects ranges. Added typed range callback/helper/shared factory handoff and verified actual history backend instead of only raw git log. All initial handles were terminal before source/test/receiver edit; rebuilt and reran final core/standalone checks."
+  },
+  "limitations": [
+    "Two-reference Compare/Unified Diff, multi-selection/batch deletion and namespace folder menus remain unimplemented. Complete source menu/dialog/whole-app parity is not established.",
+    "No installed app/Finder activation, actual RepositoryModel registry execution, displayed range Log window, physical pointer/keyboard/focus/light-dark/VoiceOver or refreshed captures. Hidden callbacks and routing inspection do not establish those.",
+    "Every metadata/forced-close timing, Unicode Git range lookup/precomposition case, external config/ref race and linked-worktree route not individually checked here.",
+    "Signed repository scope/Finder/App Store, real authentication/network and distribution acceptance remain incomplete. No GitHub push, hosted CI or deployment claimed."
+  ],
+  "cleanup": {
+    "all_handles_terminal": true,
+    "main_app_launches": 0,
+    "remaining_processes": [],
+    "current_temporary_directories": [],
+    "current_preference_domains": [],
+    "removed": [
+      {
+        "domain": "TurtleGit.ReferenceBrowser.QA.5249E4FC-EDEF-4922-AF1E-376927849D9C",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "remaining": false
+      },
+      {
+        "domain": "TurtleGit.ReferenceBrowser.QA.F04CE545-2E95-4164-8E5A-33A4C9A6553B",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "remaining": false
+      }
+    ],
+    "preserved": []
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "38d368347a9684cdfaa1b523319ae7caa86242176383ea4576ed48f2a9da348b",
+    "FinderSync/FinderSync.swift": "6497344d6456ecba317102d91e4e66027ebff8977b1a9532301407f42f5475ca",
+    "README.md": "4e0965737db4edc6570ef325a6b184a2557fdb563caecae4aa131b18f2847e51",
+    "Sources/TurtleGitCore/FinderCache.swift": "a334f09e9dbd7a4c698b5b98374eba7957e125e61f3275f9ebdfa65f7f33b234",
+    "Sources/TurtleGitCore/MenuIcons.swift": "e860a744c8456621e0849d1a64dc4af303284b41a933e604316614771f73d35f",
+    "Sources/TurtleGitCore/ReferenceBrowser.swift": "308e80e82877a1667f440fb687e33a513c7daa9e6bb02f8554e1790753e64b39",
+    "Sources/TurtleGitMac/ReferenceBrowserWindow.swift": "10db157077724514ee114b35b98bc88db6edc9d2838d91d5da556c4b3ae5f029",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "75b64d56d815113964acdd274c24bf77b3a43badb3e0a9a7af95a20885e7c967",
+    "Sources/TurtleGitMac/TurtleGitMacApp.swift": "613da6f3ae876dfbe8ef4fd8ca1271319003b0c277e02e1f410015ac053c516e",
+    "Tests/TurtleGitCoreTests/FinderRepositoryMetadataTests.swift": "685f71961f3a1719f0668fa5a2b67305478d5a4a3d523088c7128ae366731d00",
+    "Tests/TurtleGitCoreTests/FinderRequestTests.swift": "9bf4e777c7e73abbc66c5275c587d5a9e3740d2f1d70cbd696256ca0c706536f",
+    "Tests/TurtleGitCoreTests/FinderShellRulesTests.swift": "86975ea5b4fc1f5c477dd81139822e166df8543894fa03cf03dd9cfc4582eeb4",
+    "Tests/TurtleGitCoreTests/ReferenceBrowserTests.swift": "7c05484e88ff910570b022451b02a6864565d4b12f738f421b5ec0ae754f1723",
+    "docs/FINDER-MENU-LAYOUT-PARITY.md": "0587638fce32097da314242ec63669e9cd0928d869a5d765f3b84059df652adb",
+    "docs/GETTING-STARTED.md": "73d4df52bfcabdac599c52cc5e94c3dc35c7e7e4c04bbf6dfe9dffa475604fc2",
+    "docs/REFERENCE-BROWSER-PARITY.md": "5a38a5aa846ff08c82a73715cae2a6a0b61382a07001c3da00762ada02a4c924",
+    "docs/TESTING.md": "663f73af2d0aef4a888bd187d2538d39fc25cf3b54fe54e055a03b9964cc4add",
+    "docs/upstream-files.csv": "260ad40447f83225758155b4ee20ce8c9681952e5f7f30d0acb062bf33334906",
+    "docs/upstream-shell-menu-conditions.json": "177169edf3e86f47d5f54cdb157088220a042748f0c952ba467a2935e517b888",
+    "scripts/test-finder-menu.py": "7afe83616638c1e028b79d69d7a24228ac993434828921d03e2e7e4cd020d848",
+    "scripts/test-reference-standalone.py": "bc9b797a33c8a033ca752a08c7b6085d2e74caac5d2819c75e281d811796515f",
+    "docs/qa/reference-standalone-native-2026-10-09.swift": "f82b707beec05fe18da77dbbf661d9d97f86dcbb5cf3ab1789dbaa6f04a987de"
+  },
+  "log_directory": "build/qa/reference-standalone-2026-10-09"
+}

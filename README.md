@@ -17,7 +17,7 @@ macOS 13.
 | Area | Native implementation | Remaining acceptance work |
 | --- | --- | --- |
 | Commit | Checked-file commits, optional staging, right-hand partial-staging window, amend, author/date controls, Commit / ReCommit / Commit & Push | Complete upstream controls, hook/editor/signing interactions and physical UI acceptance across all routes |
-| History | Log with revision graph before the list, revision/file menus, Blame, Reflog, notes and statistics | Complete upstream views, menus and behavior; see individual parity documents |
+| History | Log with revision graph before the list, revision/file menus, Blame, Reflog, Browse References, notes and statistics | Complete upstream views, menus and behavior; see individual parity documents |
 | Repository workflows | Clone/Create Repository, status, branch/tag, Switch, Fetch/Pull/Push, merge, Rebase, Stash, reset, patches, export, submodules and worktrees | Each workflow has remaining source/UI/sandbox checks; a working Git operation alone does not establish parity |
 | Comparison | Colored unified diff, two-file comparison and three-pane text conflict editor | Full upstream formats, encodings, commands and layout parity |
 | Appearance and icons | Light/dark palettes, original upstream artwork in native menus and status lists | All-dialog visual comparison and signed Finder rendering |

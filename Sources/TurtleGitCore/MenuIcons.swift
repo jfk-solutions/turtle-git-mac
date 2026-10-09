@@ -101,7 +101,7 @@ extension RepositoryAction {
         case .revert: return .revert
         case .clean: return .clean
         case .log, .stashList, .reflog: return .log
-        case .repositoryBrowser: return .repositoryBrowser
+        case .referenceBrowser, .repositoryBrowser: return .repositoryBrowser
         case .bisect, .bisectStart, .bisectSkip: return .bisect
         case .bisectGood: return .bisectGood
         case .bisectBad: return .bisectBad

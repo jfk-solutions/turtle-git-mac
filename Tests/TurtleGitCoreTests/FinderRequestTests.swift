@@ -136,3 +136,18 @@ final class FinderRequestTests: XCTestCase {
         XCTAssertEqual(scopedDiff.components(separatedBy: "diff --git").count - 1, 1)
     }
 }
+
+
+extension FinderRequestTests {
+    func testReferenceBrowserRequestUsesOriginalIconAndRepositoryScope() throws {
+        let path = URL(fileURLWithPath: "/repository 雪\n.git")
+        let decoded = try XCTUnwrap(FinderRequest(url: XCTUnwrap(FinderRequest(action: .referenceBrowser, paths: [path]).url)))
+        XCTAssertEqual(decoded.action, .referenceBrowser); XCTAssertEqual(decoded.paths, [path])
+        XCTAssertEqual(decoded.action.title, "Browse References"); XCTAssertEqual(decoded.action.icon, .repositoryBrowser)
+        XCTAssertFalse(decoded.action.requiresWorkingTree); XCTAssertNil(decoded.action.arguments(value: ""))
+        XCTAssertTrue(FinderShellRules.allows(.referenceBrowser, flags: [.folderInGit, .onlyOne]))
+        XCTAssertTrue(FinderShellRules.allows(.referenceBrowser, flags: [.bare]))
+        XCTAssertFalse(FinderShellRules.allows(.referenceBrowser, flags: [.inGit, .onlyOne]))
+        XCTAssertFalse(FinderShellRules.allows(.referenceBrowser, flags: [.folderInGit, .two]))
+    }
+}

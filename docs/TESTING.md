@@ -391,3 +391,17 @@ leader-helper termination. HEAD/index/worktree remain unchanged. Core
 packed canonical-equivalent refs and cancellation. Run existing browser and
 tracking receivers as regressions. These checks do not establish physical sheets,
 batch commands, real authentication or signed acceptance.
+
+
+### Standalone reference browser
+
+After a Debug build run `python3 scripts/test-reference-standalone.py --git /usr/bin/git
+--git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git`.
+The private hidden receiver checks actual multi-selection table/menu actions,
+last-selected `..`/`...` Log direction, real Git range query, intercepted clipboard
+text, sorting/filter selection, tree/other double-click, empty/duplicate close and
+owned-child gates. Existing picker mode stays single-selection. Keep
+`test-reference-browser.py`, `test-reference-delete.py` and
+`test-finder-menu.py` as regressions. Finder requests and all 42 implemented source
+command rules are covered by Core tests. No installed main app/Finder or
+physical input is activated; complete standalone/batch menus remain pending.

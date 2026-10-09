@@ -72,3 +72,17 @@ previous development checkpoints. Updated screenshots and the remaining manual
 chapters still need work; see the [manual plan](MANUAL-PLAN.md).
 
 Return to the [documentation index](README.md) for other workflows.
+
+
+## Browse references
+
+Choose **Browse References** in the TurtleGit menu or sidebar to inspect branches,
+tags and other reference namespaces. The standalone window supports multiple
+selection. Select two references and use their context menu to open a Log range;
+the last selected reference is the right endpoint. Double-click opens Log, or
+Repo-browser for a tree object. Copy reference names copies selected canonical
+names in displayed order. Revision pickers in other dialogs remain single-selection.
+
+Single-reference menus include Fetch, Merge, Switch, creation, rename, tracking and
+deletion where applicable. Some standalone and batch menus remain unfinished; see
+[reference-browser parity](REFERENCE-BROWSER-PARITY.md) for the current limits.

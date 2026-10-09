@@ -317,3 +317,25 @@ extension ReferenceBrowserTests {
         let after = try await repo.run(["show-ref"]).stdout; XCTAssertEqual(before, after)
     }
 }
+
+
+extension ReferenceBrowserTests {
+    func testTwoReferenceRangesRetainLastSelectedDirectionAndByteNames() async throws {
+        let first: GitReferenceName = "refs/heads/left", second: GitReferenceName = "refs/tags/right"
+        let forward = try XCTUnwrap(ReferenceBrowserRange(references: [first, second], lastSelected: second))
+        XCTAssertEqual(forward.revision(), "refs/heads/left..refs/tags/right"); XCTAssertEqual(forward.label(symmetric: true), "left...tags/right")
+        let reverse = try XCTUnwrap(ReferenceBrowserRange(references: [first, second], lastSelected: first))
+        XCTAssertEqual(reverse.revision(symmetric: true), "refs/tags/right...refs/heads/left")
+        XCTAssertNil(ReferenceBrowserRange(references: [first, first], lastSelected: first))
+        let composed = GitReferenceName("refs/heads/Caf\u{e9}"), decomposed = GitReferenceName("refs/heads/Cafe\u{301}")
+        XCTAssertNotNil(ReferenceBrowserRange(references: [composed, decomposed], lastSelected: decomposed))
+        let (root, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        _ = try await repo.run(["branch", "left"]); _ = try await repo.run(["commit", "--allow-empty", "-m", "right"]); _ = try await repo.run(["tag", "right"])
+        let range = try await repo.run(["log", "--format=%s", forward.revision()]).text
+        let empty = try await repo.run(["log", "--format=%s", reverse.revision()]).text
+        XCTAssertEqual(range, "right\n"); XCTAssertEqual(empty, "")
+        var options = HistoryOptions(); options.revisionRange = forward.history()
+        let parsed = try await repo.history(options: options); XCTAssertEqual(parsed.map(\.subject), ["right"])
+        options.revisionRange = reverse.history(); let reversed = try await repo.history(options: options); XCTAssertTrue(reversed.isEmpty)
+    }
+}

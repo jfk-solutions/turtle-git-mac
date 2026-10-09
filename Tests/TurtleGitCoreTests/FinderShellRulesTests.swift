@@ -18,7 +18,7 @@ final class FinderShellRulesTests: XCTestCase {
             "ITEMIS_INVERSIONEDFOLDER": .inVersionedFolder, "ITEMIS_SUBMODULE": .submodule,
             "ITEMIS_PATCHFILE": .patchFile, "ITEMIS_DELETED": .deleted, "ITEMIS_STASH": .stash, "ITEMIS_SUBMODULECONTAINER": .submoduleContainer
         ]
-        XCTAssertEqual(fixture.rules.count, 41)
+        XCTAssertEqual(fixture.rules.count, 42)
         XCTAssertEqual(Set(fixture.rules.keys), Set(FinderShellRules.conditions.keys.map(\.rawValue)))
         func mask(_ names: [String]) throws -> FinderShellFlags {
             try names.reduce(into: FinderShellFlags()) { $0.formUnion(try XCTUnwrap(tokens[$1], $1)) }
@@ -41,7 +41,7 @@ final class FinderShellRulesTests: XCTestCase {
         let file: FinderShellFlags = [.inGit, .inVersionedFolder, .onlyOne, .normal]
         XCTAssertTrue(FinderShellRules.allows(.log, flags: file))
         XCTAssertFalse(FinderShellRules.allows(.log, flags: file.union(.added)))
-        for action in [RepositoryAction.pull, .fetch, .reflog, .repositoryBrowser, .branch, .tag, .switchBranch, .formatPatch, .importPatch] {
+        for action in [RepositoryAction.pull, .fetch, .reflog, .referenceBrowser, .repositoryBrowser, .branch, .tag, .switchBranch, .formatPatch, .importPatch] {
             XCTAssertFalse(FinderShellRules.allows(action, flags: file), action.rawValue)
         }
         XCTAssertTrue(FinderShellRules.allows(.importPatch, flags: file.union(.patchFile)))

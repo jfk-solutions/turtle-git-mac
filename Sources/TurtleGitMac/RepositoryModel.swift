@@ -31,6 +31,7 @@ import TurtleGitCore
     private var repository: GitRepository?
     private var commitWindows: [String: CommitWindowController] = [:]
     private var logWindows: [String: LogWindowController] = [:]
+    private var referenceBrowserWindows: [String: ReferenceBrowserWindowController] = [:]
     private var browserWindows: [String: RepositoryBrowserWindowController] = [:]
     private var worktreeListWindows: [String: WorktreeListWindowController] = [:]
     private var worktreeCreateWindows: [String: WorktreeCreateWindowController] = [:]
@@ -312,6 +313,9 @@ import TurtleGitCore
         case .commit:
             guard let repository else { return }
             showCommitDialog(repository: repository, access: activeAccess, paths: paths)
+        case .referenceBrowser:
+            guard let repository else { return }
+            showReferenceBrowser(repository: repository, access: activeAccess)
         case .repositoryBrowser:
             guard let repository else { return }
             showRepositoryBrowser(repository: repository, access: activeAccess)
@@ -1527,7 +1531,20 @@ import TurtleGitCore
         case .retry, .switchWithMerge: break
         }
     }
+    private func showReferenceBrowser(repository: GitRepository, access: RepositoryAccessLease?) {
+        let key = repository.root.path
+        if let existing = referenceBrowserWindows[key] { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
+        let controller = ReferenceBrowserWindowController(repository: repository, access: access, initial: "HEAD", picking: false) { _ in }
+        configureReferenceBrowser(controller.model, repository: repository, access: access)
+        controller.onClosed = { [weak self, weak controller] in
+            guard let self, let controller, self.referenceBrowserWindows[key] === controller else { return }
+            self.referenceBrowserWindows.removeValue(forKey: key)
+        }
+        referenceBrowserWindows[key] = controller
+        controller.model.load(); controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
     func configureReferenceBrowser(_ model: ReferenceBrowserWindowModel, repository: GitRepository, access: RepositoryAccessLease?) {
+        model.onLogRange = { [weak self] range in self?.showLog(repository: repository, access: access, paths: [], revisionRange: range) }
         model.onLog = { [weak self] name in self?.showLog(repository: repository, access: access, paths: [], endRevision: name) }
         model.onBrowse = { [weak self] name in self?.showRepositoryBrowser(repository: repository, access: access, revision: name) }
         model.onCompare = { [weak self] name in self?.showRevisionComparison(repository: repository, access: access, from: .revision(name), to: .workingTree) }

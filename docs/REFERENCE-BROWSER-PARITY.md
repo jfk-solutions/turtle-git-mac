@@ -8,7 +8,8 @@ This is a partial port. It is not full BrowseRefs or whole-app acceptance.
 ## Tree, list and selection
 
 The left outline contains namespace directories, starting at `refs`; references
-are leaves in the right single-selection table. Selecting an initial reference
+are leaves in the right table. Revision pickers remain single-selection; the
+standalone browser allows multiple selections. Selecting an initial reference
 opens its containing directory and selects its row. The list has Branch Name,
 Tracked branch, Last Author Date, Last Commit, Last Author, Date Last Commit,
 Last Committer, SHA-1 and Description columns. Tracking and description columns
@@ -411,3 +412,39 @@ Multi-selection/batch deletion, physical Yes/No/default/Escape/error sheets, eve
 validation timing, real remote authentication/progress, linked-worktree deletion
 failures and signed sandbox/Finder acceptance still need work. Full browser and
 application parity remain incomplete.
+
+
+## Standalone Browse References and range Log
+
+**Browse References** is now a repository action in the application menu/sidebar
+and Finder menu projection, using source `IDI_REPOBROWSE` artwork and placement
+after Reflog. Source `RefBrowseCommand` accepts working-tree and bare repositories.
+Its shell clauses require one folder-in-Git selection, or a bare repository flag.
+The native action/request, metadata gate and menu builder follow those clauses.
+Application routing retains one standalone controller per repository, shares the
+existing interaction factory, and releases it by controller identity on close.
+
+Standalone mode allows multiple table selections. The picker-only Select menu
+is omitted. Double-click opens Log for the first selected reference, or the
+repository browser for a tree object, without closing this browser. OK closes
+with zero, one or multiple selections; chooser mode still returns exactly one
+canonical name. Busy/owned-child/rename gates remain shared.
+
+Two selected references now offer source `..` and `...` Log ranges. The last newly
+selected reference is the right endpoint, independently of displayed sorting.
+Labels strip source namespaces; callbacks pass canonical typed HistoryRevisionRange
+values through the shared Log factory to avoid branch/tag ambiguity and the
+single-revision field rejecting range expressions. Copy reference names exports all selected canonical names in displayed
+order using native LF. Filtering discards hidden selections and keeps visible
+ones. Single-reference actions remain available only with one selected row.
+
+`test-reference-standalone.py` checks hidden actual table/menu actions, last-selected
+range direction, real Log query, copy interception, sort/filter, standalone
+double-click and close, owned-child gates and unchanged chooser selection policy.
+The existing browser, deletion and actual Finder menu receivers are regressions.
+See `qa/reference-standalone-2026-10-09.json` for results and remaining limits.
+
+Two-reference Compare/Unified Diff, multi-selection/batch deletion and folder
+context menus remain pending. This checkpoint does not establish complete
+standalone menus, physical app/Finder activation, range Log window rendering,
+screenshots, signed sandbox or full application parity.

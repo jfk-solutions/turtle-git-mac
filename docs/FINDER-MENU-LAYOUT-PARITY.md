@@ -58,3 +58,10 @@ metadata serialized through the cache, nonmutation during menu construction, and
 removal after abort/refresh. See [the QA record](qa/merge-abort-menu-2026-10-08.json).
 This remains headless builder evidence; activated Finder and signed handoff remain
 pending.
+
+
+Browse References is now included after Reflog with upstream Repo-browser artwork,
+original folder-in-Git/one-selection and bare clauses, request URL and application
+standalone-browser route. The actual builder/order/routing receiver and Core
+condition/request/metadata tests cover this projection. Signed Finder activation
+and complete menu coverage remain pending. See [reference browser](REFERENCE-BROWSER-PARITY.md).

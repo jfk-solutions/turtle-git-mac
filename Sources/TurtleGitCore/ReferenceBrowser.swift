@@ -268,3 +268,22 @@ extension GitRepository {
         }
     }
 }
+
+/// BrowseRefsDlg puts the last selected reference on the right of Log ranges.
+public struct ReferenceBrowserRange: Sendable {
+    public let from: GitReferenceName
+    public let to: GitReferenceName
+    public init?(references: [GitReferenceName], lastSelected: GitReferenceName?) {
+        guard references.count == 2, references[0] != references[1] else { return nil }
+        if lastSelected == references[0] { from = references[1]; to = references[0] }
+        else { from = references[0]; to = references[1] }
+    }
+    public func history(symmetric: Bool = false) -> HistoryRevisionRange { HistoryRevisionRange(from: from.rawValue, to: to.rawValue, kind: symmetric ? .symmetricDifference : .difference) }
+    public func revision(symmetric: Bool = false) -> String { from.rawValue + (symmetric ? "..." : "..") + to.rawValue }
+    public func label(symmetric: Bool = false) -> String {
+        func short(_ name: GitReferenceName) -> String {
+            GitReferenceName.removingPrefix("refs/heads/", from: name.rawValue) ?? GitReferenceName.removingPrefix("refs/", from: name.rawValue) ?? name.rawValue
+        }
+        return short(from) + (symmetric ? "..." : "..") + short(to)
+    }
+}
