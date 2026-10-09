@@ -2,6 +2,23 @@ import XCTest
 @testable import TurtleGitCore
 
 final class MergeTests: XCTestCase {
+    func testCancelledMetadataAndMergeLeaveRepositoryUnchanged() async throws {
+        let (root, repo, path) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let files = [".git/HEAD", ".git/index", ".git/config", path]
+        let before = try files.map { try Data(contentsOf: root.appendingPathComponent($0)) }
+        let token = OperationCancellation(); token.cancel()
+        do { _ = try await repo.mergeMessageCount(cancellation: token); XCTFail("Cancelled count returned a default") } catch OperationCancellationFailure.cancelled {}
+        do { _ = try await repo.pushDefaults(source: "HEAD", cancellation: token); XCTFail("Cancelled defaults returned") } catch OperationCancellationFailure.cancelled {}
+        do { _ = try await repo.merge(options(), cancellation: token); XCTFail("Cancelled merge ran") } catch OperationCancellationFailure.cancelled {}
+        XCTAssertEqual(before, try files.map { try Data(contentsOf: root.appendingPathComponent($0)) })
+        _ = try await repo.run(["config", "merge.log", "7"])
+        let count = try await repo.mergeMessageCount(cancellation: OperationCancellation())
+        XCTAssertEqual(count, 7)
+        let defaults = try await repo.pushDefaults(source: "HEAD", cancellation: OperationCancellation())
+        let ordinary = try await repo.pushDefaults(source: "HEAD")
+        XCTAssertEqual(defaults.remote, ordinary.remote); XCTAssertEqual(defaults.destination, ordinary.destination)
+    }
+
     func testUnrelatedHistoryRetryRequiresExplicitFlagAndCreatesTwoParents() async throws {
         let (root, repo, _) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
         let left = try await repo.run(["rev-parse", "HEAD"]).stdout

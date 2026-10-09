@@ -1,0 +1,76 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "33b180e",
+  "scope": "Merge owned lifetime cleanup; full app parity remains incomplete",
+  "verification": {
+    "core": "21 Merge/Push tests passed with Apple and bundled Git, including cancellation propagation and unchanged repository bytes.",
+    "native_cleanup": "Seven live stages per engine: remote/config metadata, revision validation, merge, failure status inspection, dismissal status, branch deletion. Recorded leader/helper termination, frozen closed results, late Cancel answer rejection, pre-merge HEAD preservation, no rollback of completed merge and retained branch after cancelled deletion.",
+    "regressions": "Merge/Fetch streaming and reference-browser Merge receivers passed both engines; zero AttributeGraph cycles in all three native logs.",
+    "builds": "Unsigned Debug/AppStore builds and standalone bundle audits passed; both NOTICE files byte-equal source.",
+    "packaging": "Universal Git 2.55.0, LFS 3.8.0, EditorConfig/IssueRegex helpers, embedded Finder extension and all 99 upstream icons audited.",
+    "workflow": "Cleanup receiver added once; Ruby safe YAML parse/count passed. Hosted CI unverified.",
+    "inventory_site": "Pinned inventory checks and local Pages rebuild passed; no deployment or refreshed physical screenshots."
+  },
+  "limitations": [
+    "Physical sheet/focus/keyboard/light-dark/VoiceOver acceptance, signed Finder/App Store distribution and full dialog/menu/source parity remain incomplete.",
+    "Per-key slow push defaults/merge.log, post-failure rev-parse/merge-base, pending conflict-hint/deletion answers and all external ref races are not individually covered by the new receiver.",
+    "Native standalone Progress closure and initial Merge owner closure are covered; forced parent closure with active attached physical sheets remains unverified."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "remaining_owned_processes": [],
+    "all_handles_terminal": true,
+    "private_preference_cleanup": [
+      {
+        "path": "/Users/jkuehner/Library/Preferences/TurtleGit.MergeStream.QA.968E5969-AE18-46B0-93DC-0C06119A117E.plist",
+        "empty": true,
+        "defaults_delete_exit": 1,
+        "remaining": false
+      },
+      {
+        "path": "/Users/jkuehner/Library/Preferences/TurtleGit.MergeStream.QA.7BCB2CD9-27A3-4E87-9EFF-403BE49BD71F.plist",
+        "empty": true,
+        "defaults_delete_exit": 1,
+        "remaining": false
+      },
+      {
+        "path": "/Users/jkuehner/Library/Preferences/TurtleGit.ReferenceMerge.QA.55783223-7A0E-4F88-B2B0-000ED3C1E587.plist",
+        "empty": true,
+        "defaults_delete_exit": 1,
+        "remaining": false
+      },
+      {
+        "path": "/Users/jkuehner/Library/Preferences/TurtleGit.MergeCleanup.QA.7101328C-E737-4807-B02E-9BAF6EA89E54.plist",
+        "empty": true,
+        "defaults_delete_exit": 1,
+        "remaining": false
+      },
+      {
+        "path": "/Users/jkuehner/Library/Preferences/TurtleGit.ReferenceMerge.QA.AE3A54F3-BD54-4AD9-BE02-8B08579062A0.plist",
+        "empty": true,
+        "defaults_delete_exit": 1,
+        "remaining": false
+      },
+      {
+        "path": "/Users/jkuehner/Library/Preferences/TurtleGit.MergeCleanup.QA.7B9D234D-10D7-45F4-B696-F48D89A0FE04.plist",
+        "empty": true,
+        "defaults_delete_exit": 1,
+        "remaining": false
+      }
+    ],
+    "fixtures": "Native script TemporaryDirectory contexts completed successfully.",
+    "older_preferences": "Preserved; only six current empty QA domains removed."
+  },
+  "local_logs": "build/qa/merge-cleanup-2026-10-09",
+  "sha256": {
+    ".github/workflows/macos.yml": "078ec48655fd3d8e2985c3d71e45ab1424305da9862362b9b2fd5a6ea01b6f34",
+    "Sources/TurtleGitCore/Merge.swift": "0c2e3c328a81ae3991df95d34b0b2bf4d4e1ddea6b034344090d1f55ceb56e62",
+    "Sources/TurtleGitCore/Push.swift": "955ae8a66ca7704be28d336126e85663076329d97b5fb9117f42f6dab425d787",
+    "Sources/TurtleGitMac/MergeWindow.swift": "8424e34b30ecbf509706970271b6e57565ab360eef19fc969646d45c4a9e19d0",
+    "Tests/TurtleGitCoreTests/MergeTests.swift": "91861262fb52d32a932d41f3c3ebe79cd6134a3f91cff9200bb1f4058c777d8e",
+    "docs/MERGE-PARITY.md": "26b921d819d06b740fd2f245d6c153f995e0a0046544660f571cf0ddb03360a0",
+    "docs/TESTING.md": "4a39a4c410c13a3b7d9bef6b5f7729ae231043484d33cb54b68a237cc309863c",
+    "docs/qa/merge-cleanup-native-2026-10-09.swift": "2a34450d7c83361f3f6d565a6c8f43b087030ed396ab8c501dee4833475411b4",
+    "scripts/test-merge-cleanup.py": "f3a8ddedffcdfb887d307391cdcfce25609582ef09bad128e159141d52bf7f7f"
+  }
+}

@@ -30,7 +30,12 @@ public enum MergeFailure: LocalizedError {
 }
 extension GitRepository {
     public func mergeMessageCount() -> Int {
-        let value = (try? run(["config", "--get", "merge.log"]).text.trimmingCharacters(in: .newlines)) ?? ""
+        (try? mergeMessageCount(cancellation: OperationCancellation())) ?? 20
+    }
+    public func mergeMessageCount(cancellation: OperationCancellation) throws -> Int {
+        let value: String
+        do { value = try run(["config", "--get", "merge.log"], successfulExitCodes: 0...1, cancellation: cancellation).text.trimmingCharacters(in: .newlines) }
+        catch { try cancellation.check(); return 20 }
         return Int(value).flatMap { $0 > 0 ? $0 : nil } ?? 20
     }
     public func merge(_ options: MergeOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
@@ -39,8 +44,9 @@ extension GitRepository {
         if let count = options.logCount, count < 0 { throw MergeFailure.logCount }
         guard options.strategy.isEmpty || MergeOptions.strategies.contains(options.strategy),
               options.strategyOption.isEmpty || MergeOptions.strategyOptions.contains(options.strategyOption) else { throw MergeFailure.strategy }
-        guard !options.revision.isEmpty, !options.revision.contains("\0"),
-              (try? run(["rev-parse", "--verify", "--end-of-options", options.revision + "^{commit}"])) != nil else { throw MergeFailure.revision }
+        guard !options.revision.isEmpty, !options.revision.contains("\0") else { throw MergeFailure.revision }
+        do { _ = try run(["rev-parse", "--verify", "--end-of-options", options.revision + "^{commit}"], cancellation: cancellation) }
+        catch { try cancellation?.check(); throw MergeFailure.revision }
         var args = ["merge", "--no-edit"]
         if options.noFastForward { args.append("--no-ff") }
         if options.fastForwardOnly { args.append("--ff-only") }

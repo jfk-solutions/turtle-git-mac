@@ -301,3 +301,22 @@ Import Patch and Revision Graph, still need integration. The native font control
 No complete typography or visible appearance
 parity is claimed. Headless checks are recorded in
 [message font QA](qa/message-font-2026-10-08.json).
+
+## Owned lifetime cleanup
+
+Merge metadata reads now share the owner's cancellation token, including push
+settings and `merge.log`. Revision validation uses the operation token and retains
+cancellation errors instead of translating them into an invalid revision.
+Forced owner/progress closure invalidates the model, terminates owned work and
+fences late output, recovery reads, dismissal checks, deletion results and pending
+confirmation answers. Normal Cancel uses a fresh recovery-inspection token so
+conflict recovery remains available. A completed merge is not rolled back by
+closing its result window. Acknowledged post-actions retain their normal handoff.
+
+The hidden native cleanup receiver covers live remote/config metadata, revision
+validation, merge execution, failure status inspection, dismissal status and
+branch deletion. It checks recorded process/helper termination, frozen closed
+progress state, rejected late confirmation/post-actions, unchanged pre-merge HEAD
+and retained completed merge HEAD. This is scoped lifetime verification; physical
+sheet/focus behavior, every metadata/error variant and full Merge parity remain
+pending. See `scripts/test-merge-cleanup.py` and the dated QA record.

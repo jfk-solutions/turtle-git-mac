@@ -62,20 +62,27 @@ extension GitRepository {
         if pushURL.isEmpty { if !pushConfig("remote." + name + ".pushurl").isEmpty { _ = try run(["config", "--local", "--unset-all", "remote." + name + ".pushurl"]) } }
         else { _ = try run(["config", "--local", "remote." + name + ".pushurl", pushURL]) }
     }
-    public func remoteNames() throws -> [String] { try run(["remote"]).text.split(separator: "\n").map(String.init) }
+    public func remoteNames(cancellation: OperationCancellation? = nil) throws -> [String] { try run(["remote"], cancellation: cancellation).text.split(separator: "\n").map(String.init) }
     private func pushConfig(_ key: String) -> String { ((try? run(["config", "--get", key]).text) ?? "").trimmingCharacters(in: .newlines) }
-    public func pushDefaults(source: String) throws -> PushDefaults {
-        let names = try remoteNames()
-        let symbolic = ((try? run(["rev-parse", "--symbolic-full-name", "--verify", "--end-of-options", source]).text) ?? "").trimmingCharacters(in: .newlines)
+    public func pushDefaults(source: String, cancellation: OperationCancellation? = nil) throws -> PushDefaults {
+        func optionalRead(_ arguments: [String]) throws -> GitResult? {
+            do { return try run(arguments, cancellation: cancellation) }
+            catch { try cancellation?.check(); return nil }
+        }
+        func configuration(_ key: String) throws -> String {
+            try optionalRead(["config", "--get", key])?.text.trimmingCharacters(in: .newlines) ?? ""
+        }
+        let names = try remoteNames(cancellation: cancellation)
+        let symbolic = try optionalRead(["rev-parse", "--symbolic-full-name", "--verify", "--end-of-options", source])?.text.trimmingCharacters(in: .newlines) ?? ""
         let candidate: String? = source.hasPrefix("refs/heads/") ? String(source.dropFirst(11)) : (!source.hasPrefix("refs/") && !source.hasPrefix("remotes/") ? source : nil)
-        let exactBranch = candidate.flatMap { name in (try? run(["show-ref", "--verify", "--quiet", "--", "refs/heads/" + name])) != nil ? name : nil }
+        let exactBranch = try candidate.flatMap { name in try optionalRead(["show-ref", "--verify", "--quiet", "--", "refs/heads/" + name]) != nil ? name : nil }
         let branch = exactBranch ?? (symbolic.hasPrefix("refs/heads/") ? String(symbolic.dropFirst(11)) : nil)
-        var remote = branch.map { pushConfig("branch." + $0 + ".pushRemote") } ?? ""
-        if remote.isEmpty { remote = pushConfig("remote.pushDefault") }
-        if remote.isEmpty, let branch { remote = pushConfig("branch." + branch + ".remote") }
+        var remote = try branch.map { try configuration("branch." + $0 + ".pushRemote") } ?? ""
+        if remote.isEmpty { remote = try configuration("remote.pushDefault") }
+        if remote.isEmpty, let branch { remote = try configuration("branch." + branch + ".remote") }
         if !names.contains(remote) { remote = names.count == 1 ? names[0] : "" }
-        let destination = branch.map { pushConfig("branch." + $0 + ".pushbranch") } ?? ""
-        var merge = branch.map { pushConfig("branch." + $0 + ".merge") } ?? ""
+        let destination = try branch.map { try configuration("branch." + $0 + ".pushbranch") } ?? ""
+        var merge = try branch.map { try configuration("branch." + $0 + ".merge") } ?? ""
         if merge.hasPrefix("refs/heads/") { merge = String(merge.dropFirst(11)) }
         else if merge.hasPrefix("refs/") { merge = String(merge.dropFirst(5)) }
         return PushDefaults(remote: remote, destination: destination.isEmpty ? merge : destination,

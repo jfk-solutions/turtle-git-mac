@@ -316,3 +316,14 @@ a real fast-forward merge/progress acknowledgement. Private preferences are pass
 through Merge hosting/history/progress; all windows remain unordered. Production
 RepositoryModel configuration is inspected without constructing its shared-Finder
 settings writer. Full source preflight, picker/physical/signed parity remain pending.
+
+### Merge forced lifetime cleanup
+
+After a Debug build, run `python3 scripts/test-merge-cleanup.py --git /usr/bin/git
+--git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git`.
+The receiver uses hidden shipping controllers, private repositories/preferences
+and recorded owned process IDs. It verifies closure during metadata, validation,
+execution, failure inspection, dismissal and branch deletion, including late
+confirmation answers and frozen result state. It does not launch the main app or
+establish physical/signed UI acceptance. Keep the existing Merge stream and
+reference-browser Merge receivers as regression gates for normal completion.
