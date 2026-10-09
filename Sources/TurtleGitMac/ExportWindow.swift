@@ -58,7 +58,7 @@ import TurtleGitCore
     }
     var activeOperation: Bool { model.busy || model.progress != nil || window?.attachedSheet != nil }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !activeOperation }
-    func windowWillClose(_ notification: Notification) { picker?.close(); picker = nil; onClosed() }
+    func windowWillClose(_ notification: Notification) { picker?.close(); picker = nil; model.invalidate(); progressController?.window?.close(); progressController = nil; onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
@@ -82,12 +82,14 @@ import TurtleGitCore
     @Published var exported: URL?
     @Published var browseReferences = false
     private let preferences: UserDefaults
+    private var invalidated = false
+    func invalidate() { invalidated = true; cancellation?.cancel(); progress?.invalidate() }
     @Published private(set) var progress: ExportProgressWindowModel?
     var onProgress: ((ExportProgressWindowModel) -> Void)?
     func finish(_ result: ExportProgressWindowModel) {
         guard progress === result, !result.busy, !result.confirmingCancellation else { return }
         progress = nil; result.invalidate(); busy = false; output = result.output; error = nil
-        if result.success { destination = result.destination.path; exported = result.destination; close() }
+        if result.success && !invalidated { destination = result.destination.path; exported = result.destination; close() }
     }
     private var cancellation: OperationCancellation?
     var close: () -> Void = {}
@@ -109,7 +111,7 @@ import TurtleGitCore
         self.repository = repository; self.access = access; self.directory = directory; self.preferences = preferences; wholeProject = directory.isEmpty
     }
     func load(revision preset: String) {
-        guard !busy, progress == nil else { return }; busy = true
+        guard !invalidated, !busy, progress == nil else { return }; busy = true
         Task {
             defer { busy = false }
             do {
@@ -123,7 +125,7 @@ import TurtleGitCore
         }
     }
     func export() {
-        guard !busy, progress == nil, !browseReferences, !destination.isEmpty, !revision.isEmpty else { return }
+        guard !invalidated, !busy, progress == nil, !browseReferences, !destination.isEmpty, !revision.isEmpty else { return }
         var url = URL(fileURLWithPath: destination)
         if url.pathExtension.isEmpty { url.appendPathExtension("zip") }
         if GitRuntime.isAppStoreBuild {
@@ -140,10 +142,11 @@ import TurtleGitCore
                     if isDirectory.boolValue { self.error = "You selected a folder.\nExports are only possible to a (zip) file."; return }
                     guard await confirmOverwrite(url.path) else { return }
                 }
-                guard !token.isCancelled else { return }
+                guard !invalidated, !token.isCancelled else { return }
                 if let onProgress {
                     let result = ExportProgressWindowModel(repository: repository, access: access, outputAccess: outputAccess, revision: chosen, directory: scope, destination: url, preferences: preferences)
                     result.close = { [weak self, weak result] in guard let result else { return }; self?.finish(result) }
+                    result.onAbandonedCompletion = { [weak self, weak result] in guard let result else { return }; self?.finish(result) }
                     progress = result; onProgress(result); result.start(); return
                 }
                 output = try await repository.archiveRevision(chosen, directory: scope, to: url, cancellation: token)
@@ -204,6 +207,10 @@ struct ExportDialog: View {
     private let preferences: UserDefaults
     private let autoClosePolicy: GitProgressAutoClose
     private let cancellation = OperationCancellation()
+    private var outputState: GitProgressOutputState
+    private let startedAt = ProcessInfo.processInfo.systemUptime
+    var actionLogEligible: Bool { !busy && !invalidated }
+    var onAbandonedCompletion: () -> Void = {}
     private var started = false, invalidated = false, dispatched = false, abandoned = false
     @Published private(set) var busy = true
     @Published private(set) var success = false
@@ -211,23 +218,61 @@ struct ExportDialog: View {
     @Published private(set) var cancelling = false
     @Published private(set) var confirmingCancellation = false
     @Published private(set) var output = ""
+    @Published private(set) var currentWork = ""
+    @Published private(set) var percentage: Int?
+    @Published private(set) var completionRange: NSRange?
     var close: () -> Void = {}
     var showInFinder: (URL) -> Void = { NSWorkspace.shared.activateFileViewerSelecting([$0]) }
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
     var canCancel: Bool { busy && !cancelling && !confirmingCancellation && !invalidated }
     init(repository: GitRepository, access: RepositoryAccessLease?, outputAccess: RepositoryAccessLease?, revision: String, directory: String, destination: URL, preferences: UserDefaults = .standard) {
-        self.repository = repository; self.access = access; self.outputAccess = outputAccess; self.revision = revision; self.directory = directory; self.destination = destination; self.preferences = preferences; autoClosePolicy = GitProgressAutoClose(preferences: preferences)
+        self.repository = repository; self.access = access; self.outputAccess = outputAccess; self.revision = revision; self.directory = directory; self.destination = destination; self.preferences = preferences; autoClosePolicy = GitProgressAutoClose(preferences: preferences); outputState = GitProgressOutputState(preferences: preferences)
     }
-    func invalidate() { invalidated = true }
+    func invalidate() {
+        guard !invalidated else { return }; invalidated = true; confirmingCancellation = false
+        if busy { cancellation.cancel() }; close = {}
+    }
     func abandonPresentation() { abandoned = true; cancellation.cancel() }
     func start() { Task { await run() } }
     func run() async {
-        guard !started, !invalidated else { return }; started = true
+        guard !started else { return }; started = true
+        var exitCode: Int32?
         do {
+            if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
             if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true || outputAccess?.hasSecurityScope != true || outputAccess?.url.standardizedFileURL != destination.standardizedFileURL) { throw RepositoryAccessFailure.securityScopeUnavailable }
-            output = try await repository.archiveRevision(revision, directory: directory, to: destination, cancellation: cancellation); success = true
-        } catch { output = error.localizedDescription; cancelled = cancellation.isCancelled }
-        busy = false; cancelling = false; finishAutomatically()
+            let parser = GitCliOutputParser(limit: outputState.limit)
+            let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
+            let operation = Task {
+                defer { continuation.finish() }
+                return try await repository.archiveRevision(revision, directory: directory, to: destination, cancellation: cancellation, onOutput: { chunk in
+                    parser.appendChunk(chunk.data); continuation.yield(())
+                })
+            }
+            for await _ in updates { consume(parser.processPending(), parser: parser) }
+            consume(parser.processPending(), parser: parser); consume(parser.finish(), parser: parser)
+            _ = try await operation.value; success = true; exitCode = 0
+        } catch {
+            // A failed archive's stdout/stderr has already been drained. Keep
+            // non-command errors (validation, destination rename) as diagnostics.
+            let alreadyStreamed = outputState.hasOutput && (error as? GitFailure)?.arguments.contains("--verbose") == true
+            if !invalidated && !alreadyStreamed {
+                let parser = GitCliOutputParser(limit: outputState.limit)
+                parser.appendChunk(Data(((output.isEmpty || output.hasSuffix("\n") ? "" : "\n") + error.localizedDescription).utf8))
+                consume(parser.processPending(), parser: parser); consume(parser.finish(), parser: parser)
+            }
+            cancelled = cancellation.isCancelled; exitCode = (error as? GitFailure)?.code
+        }
+        busy = false; cancelling = false
+        if invalidated { onAbandonedCompletion(); onAbandonedCompletion = {}; return }
+        let completion = SubmoduleProgressCompletion(success: success, cancelled: cancelled, exitCode: exitCode,
+            elapsed: ProcessInfo.processInfo.systemUptime - startedAt, preferences: preferences)
+        currentWork = completion.currentWork; percentage = 100; completionRange = completion.append(to: &output)
+        finishAutomatically()
+    }
+    private func consume(_ emission: GitCliOutputParser.Emission, parser: GitCliOutputParser) {
+        guard !invalidated else { return }
+        outputState.consume(emission, parser: parser); output = outputState.output
+        currentWork = outputState.currentWork; percentage = outputState.percentage
     }
     private func finishAutomatically() { if !busy, !confirmingCancellation, !invalidated, abandoned || autoClosePolicy.shouldClose(success: success, postActionCount: success ? 1 : 0) { close() } }
     func cancel() {
@@ -251,12 +296,14 @@ struct ExportDialog: View {
     var onClosed: () -> Void = {}
     init(model: ExportProgressWindowModel) {
         self.model = model
-        let window = NSWindow(contentRect: NSRect(x:0,y:0,width:760,height:430), styleMask:[.titled,.closable,.resizable], backing:.buffered, defer:false)
+        let window = SubmoduleProgressNativeWindow(contentRect: NSRect(x:0,y:0,width:760,height:430), styleMask:[.titled,.closable,.resizable], backing:.buffered, defer:false)
         window.title = "Export – \(model.repository.root.lastPathComponent) – TurtleGit"; window.minSize = NSSize(width:650,height:320); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView:ExportProgressDialog(model:model)); super.init(window:window); window.delegate = self
         model.close = { [weak self] in guard let self, !self.model.busy, !self.model.confirmingCancellation, self.window?.attachedSheet == nil else { return }; if let window = self.window { window.sheetParent?.endSheet(window); window.close() } }
+        window.escapeAction = { [weak model] in guard let model else { return }; if model.busy { model.cancel() } else { model.close() } }
         model.confirmCancellation = { [weak window] choose in
             guard let window, window.attachedSheet == nil else { choose(false); return }
+            window.makeFirstResponder(nil)
             let alert = NSAlert(); alert.alertStyle = .informational; alert.messageText = "The process is still running."; alert.informativeText = "Are you sure to abort?"
             let yes = alert.addButton(withTitle:"Yes"); alert.addButton(withTitle:"No"); yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
             alert.beginSheetModal(for:window) { choose($0 == .alertFirstButtonReturn) }
@@ -272,13 +319,19 @@ struct ExportProgressDialog: View {
     @ObservedObject var model: ExportProgressWindowModel
     var body: some View {
         VStack(alignment:.leading,spacing:12) {
-            ScrollView { Text(model.output).font(.system(.body,design:.monospaced)).textSelection(.enabled).frame(maxWidth:.infinity,alignment:.leading) }.frame(maxWidth:.infinity,maxHeight:.infinity).padding(8).background(Color(nsColor:.textBackgroundColor))
+            Text(model.repository.root.path).font(.caption).textSelection(.enabled)
+            Text(model.currentWork.isEmpty ? " " : model.currentWork).font(.caption).lineLimit(1).help(model.currentWork)
+            ProgressView(value: Double(model.busy ? model.percentage ?? 0 : 100), total: 100)
+                .tint(model.busy ? .accentColor : model.success ? .blue : .red).accessibilityLabel("Git command progress")
+            SubmoduleProgressOutputView(text: model.output, completed: !model.busy, completionRange: model.completionRange, success: model.success)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             HStack { if model.busy { ProgressView().controlSize(.small) }; Text(model.busy ? model.cancelling ? "Cancelling…" : "Exporting…" : model.cancelled ? "Cancelled" : model.success ? "Finished" : "Export failed").foregroundStyle(model.busy ? Color.primary : model.success ? Color.green : Color.red); Spacer() }
             HStack {
                 if model.success { Button { model.explore() } label: { CommandLabel(title:"Show in Finder",icon:.explore) }; Menu { Button { model.explore() } label: { CommandLabel(title:"Show in Finder",icon:.explore) } } label: { Image(systemName:"chevron.down").accessibilityLabel("Export post-actions") }.menuStyle(.borderlessButton).fixedSize() }
                 Spacer()
-                if model.busy { Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(!model.canCancel) }
-                else { Button("Close") { model.close() }.keyboardShortcut(.defaultAction) }
+                Button("Close") { model.close() }.keyboardShortcut(.defaultAction).disabled(model.busy || model.confirmingCancellation)
+                Button("Abort") { if model.busy { model.cancel() } else { model.close() } }.keyboardShortcut(.cancelAction)
+                    .disabled(model.success || model.confirmingCancellation || model.busy && !model.canCancel)
             }.disabled(model.confirmingCancellation)
         }.padding(12)
     }

@@ -116,6 +116,8 @@ jobs:
         run: python3 scripts/test-creation-pickers.py
       - name: Native Export progress and ZIP cancellation
         run: python3 scripts/test-export-progress.py
+      - name: Export live output and abandoned window cleanup
+        run: python3 scripts/test-export-progress.py --receiver docs/qa/export-progress-native-2026-10-10.swift
       - name: Native Format Patch progress policies and cancellation
         run: python3 scripts/test-format-patch-progress.py
       - name: Native Stash Apply and Pop result handoffs

@@ -19,7 +19,7 @@ extension GitRepository {
     /// attributes, executable modes and symlink handling. The native caller owns
     /// destination access and overwrite confirmation. Failure or cancellation
     /// leaves an existing destination intact; no index or working files change.
-    @discardableResult public func archiveRevision(_ revision: String = "HEAD", directory: String = "", to destination: URL, cancellation: OperationCancellation? = nil) throws -> String {
+    @discardableResult public func archiveRevision(_ revision: String = "HEAD", directory: String = "", to destination: URL, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
         try cancellation?.check()
         guard !revision.isEmpty, !revision.utf8.contains(0) else { throw RevisionArchiveFailure.revision }
         let object: String
@@ -61,7 +61,7 @@ extension GitRepository {
         }
         let temporary = parent.appendingPathComponent(".TurtleGitArchive-" + UUID().uuidString + ".zip")
         defer { try? manager.removeItem(at: temporary) }
-        let result = try run(arguments + ["archive", "--format=zip", "--output=" + temporary.path, "--verbose", "--end-of-options", object], cancellation: cancellation)
+        let result = try run(arguments + ["archive", "--format=zip", "--output=" + temporary.path, "--verbose", "--end-of-options", object], cancellation: cancellation, onOutput: onOutput)
         try cancellation?.check()
         guard Darwin.rename(temporary.path, target.path) == 0 else {
             throw GitFailure(arguments: ["archive", revision], code: 1, message: String(cString: strerror(errno)))

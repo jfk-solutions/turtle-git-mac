@@ -1,6 +1,13 @@
 import XCTest
 @testable import TurtleGitCore
 
+private final class ArchiveOutputCapture: @unchecked Sendable {
+    private let lock = NSLock()
+    private var bytes = Data()
+    func append(_ chunk: GitOutputChunk) { lock.lock(); defer { lock.unlock() }; bytes.append(chunk.data) }
+    var text: String { lock.lock(); defer { lock.unlock() }; return String(decoding: bytes, as: UTF8.self) }
+}
+
 final class RevisionArchiveTests: XCTestCase {
     private func unzip(_ archive: URL, _ arguments: [String]) throws -> Data {
         let process = Process(); process.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
@@ -40,7 +47,12 @@ final class RevisionArchiveTests: XCTestCase {
         XCTAssertEqual(try FileManager.default.destinationOfSymbolicLink(atPath: extract.appendingPathComponent("link").path), "binary")
         XCTAssertEqual((try FileManager.default.attributesOfItem(atPath: extract.appendingPathComponent("run.sh").path)[.posixPermissions] as? NSNumber)?.intValue, 0o755)
         let whole = root.appendingPathComponent("whole.zip")
-        _ = try await repo.archiveRevision(to: whole)
+        let capture = ArchiveOutputCapture()
+        let verbose = try await repo.archiveRevision(to: whole, onOutput: { capture.append($0) })
+        XCTAssertEqual(capture.text, verbose)
+        XCTAssertTrue(capture.text.contains("/binary"))
+        XCTAssertFalse(capture.text.contains(head), "Internal revision/metadata commands do not enter the progress output")
+        XCTAssertFalse(capture.text.hasPrefix("PK"), "ZIP payload is written to disk, not streamed as progress")
         let listing = String(decoding: try unzip(whole, ["-Z1"]), as: UTF8.self)
         XCTAssertTrue(listing.contains("nested ")); XCTAssertTrue(listing.contains("/binary"))
         XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)

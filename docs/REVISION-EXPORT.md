@@ -28,9 +28,15 @@ this command does not recursively archive checked-out submodule repositories.
 An existing file requires Replace confirmation. The archive is produced in a
 unique temporary file and only replaces the destination after Git succeeds.
 Failures and cancellation preserve an existing archive; temporary files are
-removed. Cancel export terminates the owned Git operation. Completion keeps the
-window open with **Show in Finder** and Done. This adapts upstream's separate
-progress window and Explore completion action to one native window.
+removed. Export owns a separate native progress sheet with live verbose output,
+source completion colors and **Close** / **Abort** controls. Abort cancels the
+owned Git process; Close is disabled until completion. Success offers **Show in
+Finder** with the original Explorer icon and split menu. Captured auto-close
+preferences govern acknowledgement without automatically invoking Finder.
+Failed acknowledgement restores the options for another reviewed export.
+Forced closure cancels and reaps the operation before releasing the owner; a
+late overwrite answer cannot start an archive after the options owner closes.
+See [Export parity](EXPORT-PARITY.md) for progress and cancellation evidence.
 
 The destination picker retains its security-scoped lease for the operation.
 The AppStore configuration requires a grant for the exact chosen output file

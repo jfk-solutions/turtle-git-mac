@@ -1,0 +1,160 @@
+{
+  "checked_at": "2026-10-09T23:21:45.185316+00:00",
+  "parent_commit": "5647710e290610309a7f31ebb88e66e94177d90b",
+  "scope": "Export live source-style progress and abandoned options/result ownership",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blob_sha256": {
+    "src/TortoiseProc/AppUtils.cpp": "24ef31bb7de6a43d4b971c48164e63ce70cf5fc336e65ac2910a14a299790c29",
+    "src/TortoiseProc/ExportDlg.cpp": "f2d1ecf3a485995986365b350f7ce7a6b8cbdfd2f910f5fe4cd844c82c057f04",
+    "src/TortoiseProc/ProgressDlg.cpp": "22a84c656904f19d5f39c0f4348ed56be483a2165c34938b43c39f8688162a67",
+    "src/Resources/TortoiseProcENG.rc": "619b0334a49f8b6065e04020ebb4c9ab82ed7375ca48a9494f6bb47f69ff5917"
+  },
+  "checks": {
+    "core_exit": 0,
+    "core_tests": 2,
+    "core_cases": "Existing ZIP attributes/modes/committed bytes/scope/bare/destination preservation plus verbose callback equality, no internal metadata or binary payload",
+    "native_streaming": {
+      "system_git_exit": 0,
+      "packaged_git_exit": 0,
+      "cases": [
+        "Real verbose archive and captured completion timing preference",
+        "Non-default completion color attributes under aqua/darkAqua; private Copy all",
+        "Validation failure and actual exit-17 command failure with diagnostic once",
+        "Output/current work/42-percent parser before slow archive exits",
+        "Forced native result close, old ZIP preservation, wrapper/child reaping and temporary cleanup",
+        "Pending confirmation invalidation and late Yes/No fencing",
+        "Owner close during overwrite prevents late acceptance/repeated export",
+        "Pre-start abandonment completes owner callback once without spawning Git",
+        "HEAD/index preserved"
+      ]
+    },
+    "native_regression": {
+      "system_git_exit": 0,
+      "packaged_git_exit": 0,
+      "cases": "Real whole/scoped ZIP across policies, immutable owner destination/scope, once-only Explore, overwrite No/cancellation, errors/options recovery, cancellation/old ZIP/temp cleanup and deferred confirmation"
+    },
+    "debug_build_exit": 0,
+    "debug_bundle_audit_exit": 0,
+    "appstore_unsigned_build_exit": 0,
+    "appstore_bundle_audit_exit": 0,
+    "bundled_icons": 100,
+    "python_compile_exit": 0,
+    "preferences_cleanup": {
+      "removed": [
+        {
+          "domain": "TurtleGit.ExportProgress.QA.2223F8D4-A688-4371-B5EE-7B514EAA554B",
+          "defaults_delete_exit": 1,
+          "verified_empty": true,
+          "file_absent": true
+        },
+        {
+          "domain": "TurtleGit.ExportProgress.QA.6FC37585-A6AA-482A-B715-9BEB3C672CD4",
+          "defaults_delete_exit": 1,
+          "verified_empty": true,
+          "file_absent": true
+        },
+        {
+          "domain": "TurtleGit.ExportStreaming.QA.075C4690-703C-4396-BD2E-9FBF131941D8",
+          "defaults_delete_exit": 1,
+          "verified_empty": true,
+          "file_absent": true
+        },
+        {
+          "domain": "TurtleGit.ExportStreaming.QA.5AB2E22A-7F14-4E7F-8EEA-228C06B368C5",
+          "defaults_delete_exit": 1,
+          "verified_empty": true,
+          "file_absent": true
+        },
+        {
+          "domain": "TurtleGit.ExportStreaming.QA.51F59D7D-90B3-47DA-BB8D-2733D1C718E2",
+          "defaults_delete_exit": 1,
+          "verified_empty": true,
+          "file_absent": true
+        },
+        {
+          "domain": "TurtleGit.ExportProgress.QA.874C1277-FA3E-472D-B749-8D3C0DB6A8DC",
+          "defaults_delete_exit": 1,
+          "verified_empty": true,
+          "file_absent": true
+        },
+        {
+          "domain": "TurtleGit.ExportStreaming.QA.239C7944-D1E8-484E-B59B-075432E72CD8",
+          "defaults_delete_exit": 1,
+          "verified_empty": true,
+          "file_absent": true
+        },
+        {
+          "domain": "TurtleGit.ExportStreaming.QA.F208584B-5746-4543-BCED-DA12F347ADF7",
+          "defaults_delete_exit": 1,
+          "verified_empty": true,
+          "file_absent": true
+        },
+        {
+          "domain": "TurtleGit.ExportStreaming.QA.4A7F8D7F-C1E2-4A2D-BCC8-5EA306AA47E9",
+          "defaults_delete_exit": 1,
+          "verified_empty": true,
+          "file_absent": true
+        },
+        {
+          "domain": "TurtleGit.ExportProgress.QA.A9FEAFF5-6CA7-484D-900B-6290C7F2A5D1",
+          "defaults_delete_exit": 1,
+          "verified_empty": true,
+          "file_absent": true
+        },
+        {
+          "domain": "TurtleGit.ExportStreaming.QA.3F44B973-D8C5-48F0-9372-91C6A9363AAC",
+          "defaults_delete_exit": 1,
+          "verified_empty": true,
+          "file_absent": true
+        },
+        {
+          "domain": "TurtleGit.ExportStreaming.QA.70453353-3314-4BDF-8AD7-E16C2A6800F4",
+          "defaults_delete_exit": 1,
+          "verified_empty": true,
+          "file_absent": true
+        },
+        {
+          "domain": "TurtleGit.ExportStreaming.QA.4D399424-21A9-4F5F-AFD3-9C072DE96C72",
+          "defaults_delete_exit": 1,
+          "verified_empty": true,
+          "file_absent": true
+        },
+        {
+          "domain": "TurtleGit.ExportStreaming.QA.4F1ECF0D-2C6B-4068-90D8-2B10863CC84F",
+          "defaults_delete_exit": 1,
+          "verified_empty": true,
+          "file_absent": true
+        }
+      ],
+      "preserved_nonempty": []
+    },
+    "final_audit": {
+      "matching_processes": [],
+      "current_fixtures": []
+    }
+  },
+  "source_sha256": {
+    ".github/workflows/macos.yml": "482a127a6b917a5412fa3d4550ebe9499cbd5a2aa965627f4109423f1909c36a",
+    "Sources/TurtleGitCore/RevisionArchive.swift": "07f69c745ad28dbeec5c9d06497b8152bc52f22cfdb8a66265f8418d210bb318",
+    "Sources/TurtleGitMac/ExportWindow.swift": "9e33ab4aa11a869112d422bb84faa99f39c951d406f1f601d81f19fbcd66bc7e",
+    "Tests/TurtleGitCoreTests/RevisionArchiveTests.swift": "86d1b19bb0193e1a2d712d0145908dc2818776c7a1d1c4f726554712adbee85b",
+    "scripts/test-export-progress.py": "01d053c21dee626dd372bbad918e1d4aca0e45da5a4d3c97522943def0edb49e",
+    "docs/qa/export-progress-native-2026-10-10.swift": "258f04779f554a845cb66c7abb289eb3ba4e66f461bb63448e0a11a80e074956",
+    "docs/EXPORT-PARITY.md": "8f752d8b2e70bc74551cb16cd10e93d1c704168c76473b71157d19f86c9de340",
+    "docs/REVISION-EXPORT.md": "e192246a606a82deacf35097dfaf06b194d78daedcd188e3330c7c6a44202bca",
+    "docs/PORTING.md": "c12bae5596bc6fa4f5f706bd0a23ff6f4bcedaccc61e0b324b7ee78bdef11155"
+  },
+  "binary_sha256": {
+    "Debug_app": "ae0fc297ae892ad6d53e5bfb2e3aee3218b8dda08c01e7e3c33faa88de63b8d1",
+    "Debug_core": "9943c72e3bbaa19f41010c42a3a51ee3120858f82e3c229f74f0c1aa2f985e9d",
+    "AppStore_app": "fb967be1d867ec24b9126237c96a319ae483bcc52db72ba44826546e89e916fc",
+    "AppStore_core": "2ebd0f5193c3d79124a7d4df5a5b13d813ad7605753138210d471415fba4c7ed"
+  },
+  "limitations": [
+    "Hidden unordered native windows; no physical screenshot/theme, keyboard/default button, VoiceOver, live Finder reveal or full Quit acceptance",
+    "Unsigned AppStore build; actual signed security-scoped adjacent archive creation and Finder/sandbox acceptance pending",
+    "No hosted GitHub CI verification; test workflow updated locally",
+    "Export and the whole TortoiseGit port remain partial"
+  ],
+  "logs": "build/qa/export-progress-2026-10-10/ (ignored local logs)"
+}
