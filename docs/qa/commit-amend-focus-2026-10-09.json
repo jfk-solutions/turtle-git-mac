@@ -1,0 +1,63 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "b96ff40",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/CommitDlg.cpp": "3f4f032637786bef7e5943d0e7ea0bd4ea701de3"
+  },
+  "scope": "Commit Amend returns native focus to Message once after defaults/refresh; whole port incomplete.",
+  "verification": {
+    "source": "OnBnClickedCommitAmend calls IDC_LOGMESSAGE SetFocus after author/date handlers and before Refresh.",
+    "native": "Final focus receiver passes Apple Git and bundled AppStore Git: actual hidden full Commit dialogs focus message after on/off defaults/refresh, ordinary updates preserve another field focus/message selection/existing Undo, Quit gate leaves request unacknowledged and resumes after clearing; removed editor does not regain focus, consumed requests do not replay in recreated editors, and the real controller rejects late focus after close. HEAD/config unchanged after setup.",
+    "sheet_guard": "Injected attachedSheet in test NSWindow blocks handoff. Clearing ownership and posting real didEndSheet notification resumes once without unrelated model change; duplicate notification after acknowledgement does not steal focus. No actual sheet presented; physical transitions remain unverified.",
+    "error_and_model_ownership": "Editor-only hosts avoid the full dialog alert. Outstanding error blocks focus until cleared; current initial-Amend read failure issues a pending handoff which completes after manual error acknowledgement. Host replacement with a different editor model follows the new model's error/request state; coordinator identity reuse was not explicitly asserted. Actual error-alert presentation is not tested.",
+    "font_caret_regression": "Existing hidden Commit/Merge font and Commit caret receiver passes both engines: live fonts, styling, Unicode/LF/tab caret label and accessibility, selection/Undo retention and fixed-font fallback remain correct.",
+    "debug": "Final unsigned Debug build and bundle audit pass.",
+    "store": "Final unsigned AppStore build and required bundle audit pass; universal Git 2.55.0/Git LFS 3.8.0, parser/matcher and embedded Finder/original icons verified.",
+    "notice": "Both bundled NOTICE files byte-match source.",
+    "inventory": "CommitDlg.cpp remains partial-native-replacement; isolated inventory pin/idempotence checker passes.",
+    "site": "Local generator passes; no new physical screenshots/site deployment claim.",
+    "initial_failures": "Initial Debug failed three actor-isolation reads; updateFocus now explicitly MainActor and final build passes. Initial native test expected disabled author field to remain first responder. Final diagnostic shows AppKit naturally returns focus to SheetGuardWindow, message is not focused/editable and request/applied are 3/2; corrected gate assertion checks actual deferred handoff instead of stable disabled-field focus. Both final engines pass."
+  },
+  "limitations": [
+    "Injected sheet ownership/notification and editor-only error acknowledgement do not establish physical sheet/alert transitions, checkbox/key/IME navigation or full default-button behavior.",
+    "General Git process cancellation, moving HEAD/concurrent writers and full operation/replay lifetime behavior remain incomplete.",
+    "Source message replacement/selection/Undo equivalence across changed drafts requires broader Scintilla/AppKit comparison; focus-only ordinary updates checked here.",
+    "Unsigned builds do not prove signed sandbox/App Store acceptance; full application/Finder parity, new screenshots/deployment and hosted CI remain incomplete."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "removed_empty_private_domains": [
+      "TurtleGit.MessageFont.QA.4C401E14-088A-4594-8231-DB260A012F26",
+      "TurtleGit.MessageFont.QA.7664E66A-131B-4ED2-B608-3502E6B4A8D4"
+    ],
+    "remaining_preferences": [],
+    "remaining_fixtures": [],
+    "remaining_processes": [],
+    "windows": "All owned windows unordered with activation prohibited; no physical sheet/alert shown. Throwing and normal exits unwind private window/default cleanup.",
+    "repositories": "No Commit after fixture setup; focus receiver verifies HEAD/config unchanged. User repositories are not test fixtures."
+  },
+  "changed_files_sha256": {
+    "Sources/TurtleGitMac/CommitWindow.swift": "bf8561093cd0d8c7e657fbd37e886550416d16f2a6c72eb376d981b92b6f0a65",
+    "Sources/TurtleGitMac/CommitMessageEditor.swift": "3f21de2734f130c65d52eaf77282cb576a755abc826906b6f6bf2a2bfdad8acc",
+    "docs/COMMIT-PARITY.md": "2d723757fb6dcd39ed514ccc64acec32c3ac24bbee41b88830cce8d68766b6d1",
+    "docs/TESTING.md": "100546a07c3b20a7dc59517db7a823801e435f9e8c74d27b2fe181bdeed8f0e1",
+    "docs/upstream-files.csv": "60637479ce8af0b0be7df715072dcbb5218bc2673c9071bce5dc3a00622792c7",
+    "docs/qa/commit-amend-focus-native-2026-10-09.swift": "8bd0c3430313100ddaf0f26ee53fa8232707d9741927476b5aa6b3e4e19132e5",
+    "scripts/test-commit-amend-focus.py": "529c094f8fa3487fb69a6b71c13f6c97c9f7cbd6c54cb7f43720deffea9ed3d7"
+  },
+  "local_log_sha256": {
+    "build/qa/commit-amend-focus-2026-10-09/cleanup.json": "0ec9fa2dc44c3f6a561c84ec5ed0d98ad66b39c3d933e9bae57e10d9e5fc51aa",
+    "build/qa/commit-amend-focus-2026-10-09/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/commit-amend-focus-2026-10-09/debug-initial.log": "32e4422c7f9dabd69cd8153368b30c92ff8605c3922dba0f125522383580828d",
+    "build/qa/commit-amend-focus-2026-10-09/debug.log": "650a74ea62bc0b9b8af3904f277c6eacdb86066a2f6278a1e0eb8055caea6bfa",
+    "build/qa/commit-amend-focus-2026-10-09/font-regression.log": "de8622503191e2bf2b78acc3ef3cb69549bde011c81dc11e4fae7c792fa43898",
+    "build/qa/commit-amend-focus-2026-10-09/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/commit-amend-focus-2026-10-09/native-initial.log": "dba31afaea74aea1b152aee5e627dfe9e0cbf2599518b8fad9c612841ef61ae8",
+    "build/qa/commit-amend-focus-2026-10-09/native.log": "9fb23ec1e33cf2861d04e0b7b1370f53e0bbc13c2630fb2d7e0fce379a22f46a",
+    "build/qa/commit-amend-focus-2026-10-09/removed-preferences.json": "7357481074998c8d90ab428807005ae886c6fd7c5e93d626369a0ff4bf56f96e",
+    "build/qa/commit-amend-focus-2026-10-09/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/commit-amend-focus-2026-10-09/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/commit-amend-focus-2026-10-09/store.log": "9cb624a36a2072b6302defa877265a43f4ee189e19e03dec4c180a27fe990b9d"
+  }
+}

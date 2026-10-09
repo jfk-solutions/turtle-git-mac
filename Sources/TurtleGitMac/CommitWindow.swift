@@ -163,7 +163,7 @@ import UniformTypeIdentifiers
         DialogGeometry.attach(window, identifier: "CommitWindowController")
     }
     func setQuitConfirmation(_ pending: Bool) { model.confirmingQuit = pending; partial?.model.confirmingQuit = pending }
-    func windowWillClose(_ notification: Notification) { closingCommit = true; logPicker?.close(); logPicker = nil; partial?.close(); partial = nil; model.unifiedWindow?.close(); onClosed() }
+    func windowWillClose(_ notification: Notification) { closingCommit = true; model.invalidateMessageFocus(); logPicker?.close(); logPicker = nil; partial?.close(); partial = nil; model.unifiedWindow?.close(); onClosed() }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         guard partial?.model.busy != true, partial?.window?.attachedSheet == nil, !model.unifiedViewerBusy else { return false }
         model.cancel(); return false
@@ -401,6 +401,9 @@ import UniformTypeIdentifiers
     @Published private(set) var loadingAuthorIdentity = false
     @Published private(set) var loadingAuthorDate = false
     @Published private(set) var loadingAmendMessage = false
+    @Published private(set) var messageFocusRequest = 0
+    private(set) var appliedMessageFocusRequest = 0
+    private(set) var messageFocusAvailable = true
     private var authorGeneration = 0
     private var dateGeneration = 0
     private var amendGeneration = 0
@@ -740,6 +743,7 @@ import UniformTypeIdentifiers
     }
     func loadReplaySplit(_ split: RebaseSplitState, message: String) {
         invalidateMetadataLoads()
+        appliedMessageFocusRequest = messageFocusRequest
         replaySplit = split; amend = split.conflictRecovery == true || split.parts == 0; amendDiffToLastCommit = split.conflictRecovery == true
         self.message = split.conflictRecovery == true || split.parts == 0 ? message : ""
         if split.parts == 0, let date = split.squashDate {
@@ -878,12 +882,12 @@ import UniformTypeIdentifiers
                     let previous = try await queryAmendMessage()
                     guard generation == amendGeneration, amend else { return }
                     finishAmendMessage(message.utf8.elementsEqual(draft.utf8) ? previous ?? "" : message)
-                } catch { if generation == amendGeneration, amend { self.error = error.localizedDescription } }
+                } catch { if generation == amendGeneration, amend { self.error = error.localizedDescription; requestMessageFocus() } }
             }
         } else {
             if !wasLoading { amendMessage = message }
             message = nonAmendMessage
-            dateChanged(); authorChanged(); comparisonChanged()
+            dateChanged(); authorChanged(); requestMessageFocus(); comparisonChanged()
         }
     }
     private func invalidateMetadataLoads() {
@@ -893,7 +897,18 @@ import UniformTypeIdentifiers
     }
     private func finishAmendMessage(_ value: String) {
         message = value; originalAmendMessage = value; loadingAmendMessage = false
-        dateChanged(); authorChanged(); comparisonChanged()
+        dateChanged(); authorChanged(); requestMessageFocus(); comparisonChanged()
+    }
+    private func requestMessageFocus() {
+        guard messageFocusAvailable else { return }
+        messageFocusRequest += 1
+    }
+    func invalidateMessageFocus() {
+        messageFocusAvailable = false; messageFocusRequest = 0; appliedMessageFocusRequest = 0
+    }
+    func acknowledgeMessageFocus(_ request: Int) {
+        guard messageFocusAvailable, request == messageFocusRequest else { return }
+        appliedMessageFocusRequest = request
     }
     func comparisonChanged() {
         hasLoaded = false

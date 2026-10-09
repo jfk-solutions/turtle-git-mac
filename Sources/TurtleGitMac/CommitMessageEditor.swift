@@ -20,11 +20,16 @@ struct CommitMessageEditor: NSViewRepresentable {
         editor.autoresizingMask = [.width]; editor.textContainer?.widthTracksTextView = true
         editor.setAccessibilityLabel("Commit message")
         editor.delegate = context.coordinator; editor.model = model
+        editor.onAttachmentChange = { [weak editor, weak coordinator = context.coordinator] in
+            guard let editor, let coordinator else { return }
+            coordinator.updateFocus(editor)
+        }
         scroll.documentView = editor
         return scroll
     }
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let editor = scroll.documentView as? MessageTextView else { return }
+        context.coordinator.updateModel(model)
         editor.isEditable = enabled && !model.loadingAmendMessage; editor.model = model
         model.prepareMessageCompletions()
         if !editor.string.utf8.elementsEqual(model.message.utf8) {
@@ -34,13 +39,66 @@ struct CommitMessageEditor: NSViewRepresentable {
         }
         editor.applyIssueStyles(model.issueMessageStyles, base: MessageEditorFont.resolve(name: fontName, size: fontSize))
         context.coordinator.updatePosition(editor)
+        context.coordinator.updateFocus(editor)
+    }
+    static func dismantleNSView(_ scroll: NSScrollView, coordinator: Coordinator) {
+        coordinator.invalidate()
+        if let editor = scroll.documentView as? MessageTextView {
+            editor.delegate = nil; editor.model = nil; editor.onAttachmentChange = nil
+        }
     }
     func makeCoordinator() -> Coordinator { Coordinator(model) }
     final class Coordinator: NSObject, NSTextViewDelegate {
-        let model: CommitWindowModel
+        private(set) var model: CommitWindowModel
         private var selectionCaret = MessageSelectionCaret()
         private var positionGeneration = 0
+        private var focusQueued = false
+        private var invalidated = false
+        private weak var observedWindow: NSWindow?
+        private var sheetObserver: NSObjectProtocol?
         init(_ model: CommitWindowModel) { self.model = model }
+        deinit { if let sheetObserver { NotificationCenter.default.removeObserver(sheetObserver) } }
+        func updateModel(_ value: CommitWindowModel) {
+            guard model !== value else { return }
+            stopObservingSheet(); positionGeneration += 1
+            selectionCaret = MessageSelectionCaret(); model = value
+        }
+        func invalidate() { invalidated = true; positionGeneration += 1; stopObservingSheet() }
+        private func stopObservingSheet() {
+            if let sheetObserver { NotificationCenter.default.removeObserver(sheetObserver) }
+            sheetObserver = nil; observedWindow = nil
+        }
+        @MainActor func updateFocus(_ editor: NSTextView) {
+            guard !invalidated, model.messageFocusAvailable, model.messageFocusRequest > 0,
+                  model.messageFocusRequest != model.appliedMessageFocusRequest else { stopObservingSheet(); return }
+            guard let owner = editor.window else { stopObservingSheet(); return }
+            if observedWindow !== owner {
+                stopObservingSheet(); observedWindow = owner
+                sheetObserver = NotificationCenter.default.addObserver(forName: NSWindow.didEndSheetNotification, object: owner, queue: nil) { [weak self, weak editor] _ in
+                    MainActor.assumeIsolated { if let self, let editor { self.updateFocus(editor) } }
+                }
+            }
+            guard !focusQueued else { return }; focusQueued = true
+            // Focus only after the representable update and asynchronous Git
+            // defaults/refresh finish. Use the latest request, once per toggle.
+            DispatchQueue.main.async { [weak self, weak editor] in
+                guard let self else { return }; self.focusQueued = false
+                guard let editor, !self.invalidated, self.model.messageFocusAvailable,
+                      self.model.messageFocusRequest > 0,
+                      self.model.messageFocusRequest != self.model.appliedMessageFocusRequest,
+                      (editor as? MessageTextView)?.model === self.model,
+                      let owner = editor.window, owner.attachedSheet == nil,
+                      editor.isEditable, !self.model.busy, !self.model.confirmingQuit,
+                      self.model.error == nil,
+                      !self.model.loadingAuthorIdentity, !self.model.loadingAuthorDate,
+                      !self.model.loadingAmendMessage else { return }
+                let request = self.model.messageFocusRequest
+                if owner.makeFirstResponder(editor) {
+                    self.model.acknowledgeMessageFocus(request)
+                    self.stopObservingSheet()
+                }
+            }
+        }
         func textDidChange(_ notification: Notification) {
             if let editor = notification.object as? NSTextView { model.message = editor.string; updatePosition(editor) }
         }
@@ -54,7 +112,7 @@ struct CommitMessageEditor: NSViewRepresentable {
             // AppKit also notifies during representable/style updates. Coalesce
             // these notifications outside SwiftUI's view update transaction.
             DispatchQueue.main.async { [weak self] in
-                guard let self, request == self.positionGeneration, self.model.messageCaretPosition != value else { return }
+                guard let self, !self.invalidated, request == self.positionGeneration, self.model.messageCaretPosition != value else { return }
                 self.model.messageCaretPosition = value
             }
         }
@@ -68,6 +126,8 @@ struct CommitMessageEditor: NSViewRepresentable {
 
 private final class MessageTextView: NSTextView {
     weak var model: CommitWindowModel?
+    var onAttachmentChange: (@MainActor () -> Void)?
+    override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); onAttachmentChange?() }
     private let completionPopup = CommitCompletionPopup()
     private var completionRange: NSRange?
     private var processingTypedKey = false
