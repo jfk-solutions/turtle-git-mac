@@ -91,10 +91,10 @@ extension GitRepository {
         var remaining = changed
         if changed.contains(.name) {
             guard !settings.url.isEmpty else { throw RemoteSettingsFailure.url }
-            _ = try run(["remote", "add", "--", settings.name, settings.url], cancellation: token)
+            _ = try run(["remote", "add", "--", trimmedName, settings.url], cancellation: token)
             remaining.remove(.url)
         }
-        let prefix = "remote." + settings.name + "."
+        let prefix = "remote." + trimmedName + "."
         if remaining.contains(.url) { try saveRemoteSetting(prefix + "url", value: settings.url.replacingOccurrences(of: "\\", with: "/"), token: token) }
         if remaining.contains(.puttyKeyFile) { try saveRemoteSetting(prefix + "puttykeyfile", value: settings.puttyKeyFile, token: token) }
         if remaining.contains(.tags) { try saveRemoteSetting(prefix + "tagopt", value: settings.tags.rawValue, token: token) }

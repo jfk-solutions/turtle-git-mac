@@ -470,6 +470,17 @@ Private fixtures exercise raw versus alias-expanded URLs, changed-field isolatio
 slash names, tri-state/tag clearing, legacy key preservation, inherited-value
 failure after partial writes, multivalued config refusal, unrelated Push Default,
 own/boundary/SVN/Unicode collision checks, explicit overwrite, rename tracking/ref
-updates, removal and pre-cancellation. This is backend evidence only; the complete
-native Manage Remotes page and OpenSSH identity transport remain pending. See
+updates, removal and pre-cancellation. This is backend evidence only; native
+OpenSSH identity transport remains pending. See
 [Manage Remotes parity](REMOTE-SETTINGS-PARITY.md).
+
+### Native Manage Remotes
+
+After a Debug build run `python3 scripts/test-remote-settings.py --git /usr/bin/git
+--git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git`.
+The hidden shipping page receiver exercises fields/options, three-state Prune,
+origin prefill, Save/Rename, dirty Save/Discard, overwrite No/Yes, captured Remove,
+Fetch-offer callback, actual Browse References ownership, native alert defaults,
+Close/Quit and late confirmations. Live helper/child process groups are forced
+closed during config reads, remote add, rename and removal. Native physical focus,
+all presentation/error races, OpenSSH identity and signed acceptance remain pending.

@@ -78,6 +78,7 @@ for baseline and update rules.
 - [Fetch dialog parity](FETCH-PARITY.md)
 - [Pull dialog parity](PULL-PARITY.md)
 - [Push dialog parity](PUSH-PARITY.md)
+- [Manage Remotes parity](REMOTE-SETTINGS-PARITY.md)
 - [Merge dialog parity](MERGE-PARITY.md)
 - [Stash Save parity](STASH-PARITY.md)
 - [Reset parity](RESET-PARITY.md)

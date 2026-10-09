@@ -82,6 +82,8 @@ import TurtleGitCore
 @MainActor final class PushWindowModel: ObservableObject {
     let repository: GitRepository
     private let access: RepositoryAccessLease?
+    var repositoryAccess: RepositoryAccessLease? { access }
+    var settingsPreferences: UserDefaults { preferences }
     private let preferences: UserDefaults
     @Published var options = PushOptions()
     @Published var remotes: [String] = []
@@ -403,58 +405,6 @@ struct PushDestinationRadio: NSViewRepresentable {
     func makeNSView(context: Context) -> NSButton { NSButton(radioButtonWithTitle: title, target: context.coordinator, action: #selector(Coordinator.clicked(_:))) }
     func updateNSView(_ button: NSButton, context: Context) { button.state = selected ? .on : .off; button.isEnabled = enabled; context.coordinator.select = select }
     final class Coordinator: NSObject { var select: () -> Void = {}; @objc func clicked(_ sender: NSButton) { select() } }
-}
-
-struct PushRemoteSettings: View {
-    var onClose: (() -> Void)? = nil
-    @ObservedObject var model: PushWindowModel
-    @State private var selection: String?
-    @State private var name = ""
-    @State private var fetchURL = ""
-    @State private var pushURL = ""
-    @State private var busy = false
-    @State private var error: String?
-    @State private var confirmRemove = false
-    func load(_ selected: String?) {
-        name = selected ?? ""; fetchURL = ""; pushURL = ""
-        guard let selected else { return }; busy = true
-        Task {
-            defer { busy = false }
-            do { let urls = try await model.repository.remoteURLs(name: selected); fetchURL = urls.fetch; pushURL = urls.push }
-            catch { self.error = error.localizedDescription }
-        }
-    }
-    func save(removing: Bool = false) {
-        busy = true
-        Task {
-            defer { busy = false }
-            do {
-                if removing, let selection { _ = try await model.repository.run(["remote", "remove", "--", selection]) }
-                else { try await model.repository.saveRemote(name: name, fetchURL: fetchURL, pushURL: pushURL, existing: selection != nil) }
-                model.remotes = try await model.repository.remoteNames(); model.references = try await model.repository.checkoutReferences()
-                if !model.remotes.contains(model.options.remote) { model.options.remote = model.remotes.first ?? "" }
-                selection = nil; load(nil)
-            } catch { self.error = error.localizedDescription }
-        }
-    }
-    var body: some View { VStack(alignment: .leading, spacing: 12) {
-        Text("Remote settings").font(.headline)
-        HStack { List(model.remotes, id: \.self, selection: $selection) { Text($0) }.frame(width: 160)
-            VStack(alignment: .leading) {
-                TextField("Remote name", text: $name).disabled(selection != nil)
-                Text("Fetch URL"); TextField("Fetch URL", text: $fetchURL)
-                Text("Push URL (empty uses fetch URL)"); TextField("Push URL", text: $pushURL)
-                Spacer()
-                HStack { Button("New") { selection = nil; load(nil) }; Button("Save") { save() }.disabled(name.isEmpty || fetchURL.isEmpty)
-                    Button("Remove") { confirmRemove = true }.disabled(selection == nil) }
-            }
-        }
-        HStack { if busy { ProgressView().controlSize(.small) }; Spacer(); Button("Close") { if let onClose { onClose() } else { model.managingRemotes = false } }.keyboardShortcut(.cancelAction) }
-    }.padding(16).frame(width: 700, height: 320).disabled(busy)
-        .onChange(of: selection) { load($0) }
-        .alert("Remote settings failed", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) { Button("OK") { error = nil } } message: { Text(error ?? "") }
-        .alert("Remove remote?", isPresented: $confirmRemove) { Button("Remove", role: .destructive) { save(removing: true) }; Button("Cancel", role: .cancel) {} } message: { Text("Remove this remote's configuration and local remote-tracking references? The remote repository remains available.") }
-    }
 }
 
 struct PushRefCombo: NSViewRepresentable {

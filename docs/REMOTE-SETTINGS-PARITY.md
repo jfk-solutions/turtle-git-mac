@@ -3,10 +3,12 @@
 Reference: pinned `CSettingGitRemote` and `IDD_SETTINREMOTE`, upstream
 `7338078f8ddd924b8cddee35f512f2286072136d`.
 
-The Core configuration backend is preparatory work for the native page. The
-existing Push/Fetch remote form still only edits names and fetch/push URLs; it
-does not yet use this backend or provide the complete source page. Manage Remotes
-in Browse References remains pending.
+The native page now replaces the Push/Fetch remote form and is available from
+Browse References remote folders with the original Settings icon. The source
+list/field/button order, URL/Push URL, legacy key, tag combo, Push Default and
+three-state Prune are mapped to native AppKit controls. Apply/OK/Cancel/Help adapt
+the enclosing Windows property sheet. The port remains partial until native
+identity transport and physical/signed acceptance are verified.
 
 ## Configuration behavior
 
@@ -36,14 +38,24 @@ destination substring with an end-or-slash boundary. A collision is advisory,
 not a hard validation gate. Exact libgit2 include/regex edge equivalence remains
 unverified.
 
-## Remaining native and transport work
+## Native behavior and remaining transport work
 
-Implement the source list/fields/Rename/Add New-Save/Remove layout, tags combo,
-tri-state Prune and Push Default, dirty selection Save/Discard, no-tags warning
-and suppression preference, overwrite/removal confirmations, origin prefill,
-new-remote Fetch offer, Apply/Cancel, help/tooltips and owned process lifecycle.
-Exercise the actual application and Browse References routes before recording
-native parity. Sync URL history cleanup is not yet ported.
+Rename is separate from Add New/Save. Native Save/Discard and overwrite/removal
+questions use source messages; overwrite defaults to No. New remotes offer the
+no-tags warning with a saved Yes/No suppression choice and a Fetch offer. The
+Browse References page owns the resulting shared Fetch controller; Push/Fetch
+embedded pages suppress that offer, matching the source default-page settings
+route. URL entry in an empty list prefills origin. Field edits retain a source
+changed mask, and failed saves during a dirty selection change still report the
+error and proceed to the selected remote, as source selection handling does.
+
+All Git reads/writes, collision checks, rename/removal and reference reloads are
+owned and fenced against close and late confirmation callbacks. Parent close and
+Quit are blocked during busy requests/attached children. Closing a page forcibly
+cancels its requests. Cancel discards unsaved fields; earlier Apply/Save operations
+remain. Errors appear in the native footer; the key tooltip identifies the Windows
+interop limitation. Sync URL history cleanup, the timed origin hint balloon,
+complete enclosing Settings tree and native OpenSSH identity are not yet ported.
 
 `puttyKeyFile` preserves Windows configuration for interoperability only. It does
 not make PuTTY keys usable by OpenSSH. A native identity picker requires real

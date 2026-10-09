@@ -1,0 +1,58 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "32d17854e8dda75b35d3cc828f2cb4e5fba5dce8",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Native Manage Remotes page/configuration prompts and Push/Fetch/Browse References wiring. Native identity transport and full application parity remain incomplete.",
+  "verification": {
+    "source": "18 IDD_SETTINREMOTE controls mapped to AppKit in source order. Source changed mask, separate Rename, Add New/Save overwrite No, dirty Save/Discard, tag suppression, Push Default, literal tri-state Prune, selected-name removal, raw URLs, CString Trim during Apply and new-remote Fetch offer reviewed.",
+    "core": "38 RemoteSettingsTests/PushTests/ReferenceBrowserTests pass with each Git engine on final Core code. Dedicated 4 RemoteSettingsTests additionally pass both engines.",
+    "native": "Final hidden shipping receiver passes system and bundled Git: original Settings icon/actual remote-folder command, native fields/options and origin prefill, separate Rename, Save/Discard, No/Yes overwrite, captured removal, alert defaults/suppression control, busy/child/Close/Quit and late-answer guards. Actual owned Fetch offer opens the shared configured controller with selected remote, disables parent edits/close and releases child. Config/add/rename/rm live helper/child PIDs verified before forced close and gone afterwards; pending mutations do not execute.",
+    "regression": "Existing remote-tag receiver passes both engines on final shipping code. Folder commands/icons, actual folder Fetch, tag controls/progress/cancellation and local state preservation exercised.",
+    "debug": "Unsigned final Debug build and bundle audit pass.",
+    "cycles": "Zero AttributeGraph cycles in final settings and remote-tag native logs.",
+    "inventory_workflow": "18 controls and one dialog mapped but partial; two remote-setting source rows remain partial-native. Inventory pin check and workflow YAML/exact new native step pass.",
+    "corrections": "Initial Debug/Core compile caught ambiguous reference-name initializer; both terminal before fixing. Initial receiver compile omitted required browser arguments; terminal before correction. First runtime lacked a remote folder in an empty-reference fixture; added a real stale remote ref while keeping configured remotes empty. Tightened owned Fetch child guards and access checking, rebuilt and reran final tests. Prior failure logs retained.",
+    "appstore": "Unsigned AppStore build and --require-git audit pass. Universal Git/LFS/helpers/Finder extension/licenses/99 original icons audited; both embedded NOTICE files byte-equal source.",
+    "site": "Local GitHub Pages site build passes; hosted deployment unverified and screenshots remain previous actual native captures.",
+    "manual": "Official Remote settings documentation inspected at https://tortoisegit.org/docs/tortoisegit/tgit-dug-settings.html; Help anchor also confirmed in pinned dug_settings_git.xml."
+  },
+  "limitations": [
+    "Native per-remote OpenSSH identity/PPK conversion, file scope and signed App Store/Finder acceptance remain pending. Legacy key is Windows configuration interoperability only.",
+    "Push/Fetch embedded pages share the native page factory and private parent preferences with Fetch offer suppressed; actual physical sheet interactions and all embedded close/error timings are not independently exercised here.",
+    "Timed origin hint balloon, Sync URL history cleanup and full enclosing Settings navigation remain pending. Error display uses a native footer.",
+    "Physical layout/resize, focus/keyboard/Escape, light-dark, accessibility, file picker/help, failed dirty selection, suppression persistence, all Git failure/presentation races and whitespace/include edge equivalence remain unverified.",
+    "No main application launch, real authentication, external Git network, shared clipboard/Finder writer, push, hosted CI or deployment claimed. Screenshots remain earlier native captures."
+  ],
+  "logs": "build/qa/remote-settings-native-2026-10-09",
+  "sha256": {
+    "README.md": "c2f2de3826120eb13de8a599c58279c5d9f70ba6304298b9d48da28623299467",
+    ".github/workflows/macos.yml": "158c576d5649c903070bf3cd406af45422fac8540b95a175e5a56ac9b2f43d94",
+    "Sources/TurtleGitCore/RemoteSettings.swift": "56af2c97b4f8caa73947fabce159be4cb5a37913423530d48921b60c5e544eb5",
+    "Sources/TurtleGitMac/RemoteSettingsWindow.swift": "72b05deb3aaf8117b79389889f168421b2a406119e6305d996300026775dbeab",
+    "Sources/TurtleGitMac/PushWindow.swift": "36b296f6ffa4d2edfd4a07a30b3cf50d3b4dcd6e21179d53cbe259c202e74ead",
+    "Sources/TurtleGitMac/ReferenceBrowserWindow.swift": "49ee1f7e14648ecba1c768e6bf8444241f4ea724d7e08d915d9fab9380baa327",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "21d671eb23638af1418348242a9932955024aef5b094ff1a0f274fb2297f957d",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "b6af6eee29823c812b7656cb28bab12e67fea86f1bf9b79d81081e4ecbf39684",
+    "docs/README.md": "24bcbe2734a3bcdd426ee7edfdf6a85423ded9129c3380d7ee4ee920323f27ba",
+    "docs/TESTING.md": "7a1fa87bd8b1475b663a0c10f704152ee52f90b211b3315eca7334098220d88f",
+    "docs/UI-PARITY.md": "ed9c3bd779995b00d5676d1cacc087cebcabaa8fd5425497628c3d25bd152420",
+    "docs/REFERENCE-BROWSER-PARITY.md": "8666b615ecb397b9090f6f735b523331a21b288d10cfef72dac060631e176669",
+    "docs/REMOTE-SETTINGS-PARITY.md": "f242a4121d2a79c6a1c856318dd1a5598c0f7a9e2839a5092d1830af974724ca",
+    "docs/upstream-files.csv": "2860cc11691f35f2345b298e64def0121b7e47a4f9e74235e0ce324f0781e7cc",
+    "docs/upstream-dialogs.csv": "3c33849ac9ffd3d66ee57a398c1df403e686af8778b17a4f23884c5d7529c9ff",
+    "docs/upstream-controls.csv": "481eafcceb3143801820a861ecf7d9b99812382bf6372fb28f20cf48332c96a0",
+    "docs/qa/remote-settings-native-2026-10-09.swift": "49888779733833d54ec8a7f9f93472c282d8f1437e8619b7da58f03f7ebbc411",
+    "scripts/test-remote-settings.py": "0fd1d4f77eb1627e167dd9ebdfbc69f77b0ba691e28ed049de88e8cc0ac8ecfc"
+  },
+  "cleanup": {
+    "all_handles_terminal": true,
+    "main_app_launches": 0,
+    "audit": {
+      "matching_processes": [],
+      "current_named_fixtures": [],
+      "current_preference_files": []
+    },
+    "preference_cleanup": [],
+    "older_unrelated_preference_domains": "untouched"
+  }
+}

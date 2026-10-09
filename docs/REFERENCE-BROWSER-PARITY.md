@@ -566,5 +566,8 @@ refreshing the catalog. Folder Fetch uses the existing owned preset/progress/Ref
 path. The bare metadata read now also receives the browser's request token.
 
 See [remote tag parity](REMOTE-TAGS-PARITY.md) and
-`qa/remote-tags-2026-10-09.json` for checks and limits. Manage Remotes remains
-unimplemented here. Physical/signed/full browser and application parity is incomplete.
+`qa/remote-tags-2026-10-09.json` for checks and limits. Manage Remotes now has a
+native AppKit page on remote folders, with the original Settings icon and shared
+owned Fetch offer. See [remote settings parity](REMOTE-SETTINGS-PARITY.md).
+Per-remote native SSH identity and physical/signed acceptance remain
+pending. Physical/signed/full browser and application parity is incomplete.

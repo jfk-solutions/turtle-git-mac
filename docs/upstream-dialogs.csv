@@ -83,7 +83,7 @@ src/Resources/TortoiseProcENG.rc,IDD_RESOLVE_CONFLICT,Conflict,partial
 src/Resources/TortoiseProcENG.rc,IDD_REFLOG,RefLog,partial
 src/Resources/TortoiseProcENG.rc,IDD_SUBMODULE_ADD,Submodule Add,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGIT_CONFIG,Git,pending-review
-src/Resources/TortoiseProcENG.rc,IDD_SETTINREMOTE,Remote,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SETTINREMOTE,Remote,partial
 src/Resources/TortoiseProcENG.rc,IDD_SENDMAIL,Send Patch,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_SYNC,Git Synchronization,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_CLEAN,Clean,partial-native-replacement
