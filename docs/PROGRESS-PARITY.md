@@ -107,3 +107,12 @@ Dock progress, full options and physical/signed acceptance remain pending for
 Abort Merge. The hidden inactive native bar renders gray even though its tint is
 set for failure; source-equivalent red error-bar appearance is not proven.
 See [Merge parity](MERGE-PARITY.md#abort-merge-progress-output-october-11).
+
+## Abort Merge completion adoption, October 11
+
+The source-style completion helper now also serves Abort Merge: Success or the
+Git exit-code status, a single colored footer, optional milliseconds/finish date,
+and terminal100. Cancellation uses User cancelled; forced invalidation publishes
+no footer. The reset finish timestamp is captured before later metadata reads.
+This advances the earlier footer gap; animation, Dock progress and the other
+remaining requirements still apply. See the latest Merge completion follow-up.

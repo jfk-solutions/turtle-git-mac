@@ -61,7 +61,8 @@ Hidden controller and key-equivalent checks pass with system and packaged Git;
 inspected light/dark content captures are on the website. Physical input, full
 progress options and signed acceptance remain pending. Reset output now streams
 through the shared bounded parser; the native selectable output adds original-icon
-Copy/Copy All, error and link styling, and current-work/percentage presentation. See
+Copy/Copy All, error and link styling, current-work/percentage presentation and
+a source-style completion footer with optional elapsed time. See
 [the Merge follow-up](MERGE-PARITY.md#abort-merge-ownership-follow-up-october-10).
 
 ## Audited baseline

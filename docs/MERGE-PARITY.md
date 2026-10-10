@@ -501,3 +501,27 @@ Final checks pass with both system and packaged Git, and the shared output-contr
 regression passes. Four inspected native content captures were refreshed on the
 website. See [the output record](qa/merge-abort-output-2026-10-11.json) for exact
 source/capture hashes and verification scope.
+
+## Abort Merge completion footer, October 11
+
+The reset progress consumer now appends the shared source-style completion footer:
+Success, the Git exit-code failure status, or User cancelled. The current-work
+label uses that status and the model's terminal percentage is 100. The existing
+ShowGitexeTimings preference controls elapsed milliseconds and the finish time;
+UseSystemLocaleForDates controls native locale versus the explicit timestamp
+format. Elapsed time uses the monotonic clock and is captured when reset finishes,
+before optional post-reset metadata inspection. Raw repository-refresh output is
+kept separately from this presentation footer.
+
+The footer has an explicit range for the shared native control's blue success or
+red failure styling. Retry resets this range; invalidated owners cannot publish a
+footer. This advances the completion timing/footer gap recorded above, while
+animation, Dock progress, native error-bar appearance, full options and physical/
+signed acceptance remain pending.
+
+Final two-engine native checks verify timing on/off, source completion statuses,
+terminal100 and the actual success/error output footer colors resolved in Aqua and
+darkAqua. The first color assertion compared distinct dynamic NSColor objects;
+the corrected receiver compares resolved sRGB values. Inspected progress captures
+were refreshed with the real Git exit-code status and timed failure footer. See
+[the completion record](qa/merge-abort-footer-2026-10-11.json).

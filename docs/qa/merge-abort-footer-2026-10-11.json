@@ -1,0 +1,77 @@
+{
+  "date": "2026-10-11",
+  "checkpoint": "97758f41e017a47fef2af390442836ff3ee39f90",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "status": "partial-native",
+  "implemented": [
+    "Source completion status text and terminal100.",
+    "Ranged footer with optional elapsed milliseconds and localized finish time, using existing shared preferences/helper.",
+    "Monotonic reset elapsed captured before optional post-reset reads.",
+    "Native output styles successful footer blue and failed/cancelled footer red; retry clears range and invalidated owners reject footer.",
+    "Raw repository-refresh output remains separate."
+  ],
+  "verification": {
+    "native_exit": 0,
+    "engines": 2,
+    "completion_markers": 2,
+    "unsigned_debug_exit": 0,
+    "cases": [
+      "Success with timing enabled; failure with timing disabled; cancellation footer and terminal state.",
+      "Actual success/failure NSTextView footer attributes resolved to expected Aqua/darkAqua colors.",
+      "Existing lifecycle/retry/confirmation/forced-close/stream/menu/clipboard/real reset cases retained."
+    ],
+    "scope": "Hidden native receivers with private fixtures/preferences/clipboard. Core and shared formatter unchanged; no fresh full-suite claim.",
+    "unsigned_appstore_exit": 0,
+    "debug_bundle_audit_exit": 0,
+    "appstore_require_git_bundle_audit_exit": 0,
+    "original_icons": 120,
+    "inventory_pin_exit": 0,
+    "site_exit": 0,
+    "cleanup": "All local build/native/audit sessions terminal; no app, receiver, compiler or owned helper remains."
+  },
+  "earlier_failure": "First receiver directly compared separately created dynamic NSColor instances, failing on error footer. Revised receiver compares resolved sRGB values in both appearances, including successful footer. Production rendering unchanged by test correction. Both engines pass final receiver.",
+  "captures": [
+    {
+      "source": "build/qa/merge-abort-footer-captures-final-2026-10-11/merge-abort-reset-failed-light.png",
+      "asset": "docs/site/assets/merge-abort-reset-failed-light.png",
+      "pixels": [
+        1520,
+        840
+      ],
+      "sha256": "400493e116a260cba4cbc22eb4132a3ae7d2574187decffe4d35ed59c2487af3",
+      "inspected": true
+    },
+    {
+      "source": "build/qa/merge-abort-footer-captures-final-2026-10-11/merge-abort-reset-failed-dark.png",
+      "asset": "docs/site/assets/merge-abort-reset-failed-dark.png",
+      "pixels": [
+        1520,
+        840
+      ],
+      "sha256": "6b576edda8b6519ed74cae42b8ca854da44afbdbfb76a1bfb5fa624ffaf1564d",
+      "inspected": true
+    }
+  ],
+  "capture_scope": "Unedited actual hidden native content cacheDisplay; real system Git index-lock failure128; excludes window chrome, physical input and signed acceptance. Options images unchanged from preceding checkpoint.",
+  "remaining": [
+    "Animation, Dock progress and source red error-bar appearance.",
+    "Full options, factory/submodule handoffs and physical/VoiceOver acceptance.",
+    "Signed sandbox/Finder/App Store and complete application parity."
+  ],
+  "sources_sha256": {
+    "Sources/TurtleGitMac/MergeWindow.swift": "58ed4e87499b2d37781b56ae27b4860b2ebeb5f77e4263bdd76dcedfdb634c23",
+    "Sources/TurtleGitMac/SubmoduleProgressCompletion.swift": "ca482ff6aa93ea3383fc75c29f70ea10af527ddf2a8e901aa2daba7b371f5a95",
+    "docs/qa/merge-abort-dialog-native-2026-10-08.swift": "dc9519756e7def3210217b3f36dc45435829bab91c8bf0d10d9728d880af3890"
+  },
+  "logs_sha256": {
+    "build/qa/merge-abort-footer-debug-2026-10-11.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/merge-abort-footer-native-2026-10-11.log": "dc21beec0e5aefa4b7c559444538116e2960e48f7bcfb5f036303fa567c66783",
+    "build/qa/merge-abort-footer-native-final-2026-10-11.log": "4ef850c5f2c45c24ce8eb80c5c3889b9fd6c688145f3ef2457b1592cfeeb8b85",
+    "build/qa/merge-abort-footer-store-2026-10-11.log": "8b7e42e41011f64b89af2a34249c0e6a736fce554184bf57a0f657922d209930",
+    "build/qa/merge-abort-footer-debug-audit-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/merge-abort-footer-store-audit-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/merge-abort-footer-inventory-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/merge-abort-footer-site-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/merge-abort-footer-processes-2026-10-11.json": "248afd97220ee28ab828cf639eef0e36889f6bbccb13dfab15fa5489fb249d4c"
+  }
+}
