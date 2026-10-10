@@ -5,7 +5,7 @@ import SwiftUI
 import TurtleGitCore
 
 struct SendPatchRow: Identifiable, Equatable { let id = UUID(); let file: URL }
-struct SendPatchRequest {
+struct SendPatchRequest: Sendable {
     let files: [URL]
     let options: PatchMailOptions
     let messages: [PatchMailMessage]
@@ -264,6 +264,71 @@ struct SendPatchAddressField: NSViewRepresentable {
             let suffix = String(string[end...]), trimmed = suffix.trimmingCharacters(in: .whitespaces)
             guard !trimmed.isEmpty, let match = choices.first(where: { $0.lowercased().hasPrefix(trimmed.lowercased()) }) else { return nil }
             return String(string[..<end]) + String(suffix.prefix { $0 == " " || $0 == "\t" }) + match
+        }
+    }
+}
+
+/// Configured-server orchestration only. Captured delivery and message bytes
+/// come from Send; preferences, files and credentials are never reread on retry.
+enum SendPatchSMTPDelivery {
+    typealias SenderSource = @Sendable (OperationCancellation) async throws -> PatchMailSender
+    typealias Transport = @Sendable ([PatchMailMessage], PatchMailSender, SMTPServer, SMTPAuthentication?, OperationCancellation, @escaping @Sendable (SMTPSeriesProgress) -> Void) async throws -> [SMTPReceipt]
+    @MainActor static func send(_ request: SendPatchRequest, repository: GitRepository, access: RepositoryAccessLease?,
+                               credentials: any SMTPTransportCredentialSource = SMTPKeychainStore(),
+                               cancellation: OperationCancellation,
+                               onProgress: @escaping @Sendable (SMTPSeriesProgress) -> Void) async throws -> [SMTPReceipt] {
+        if GitRuntime.isAppStoreBuild {
+            guard access?.hasSecurityScope == true, access?.contains(repository.root) == true else { throw RepositoryAccessFailure.securityScopeUnavailable }
+        }
+        defer { withExtendedLifetime(access) {} }
+        return try await send(request, credentials: credentials, cancellation: cancellation, onProgress: onProgress,
+                              sender: { try await repository.patchMailSender(cancellation: $0) },
+                              transport: { messages, sender, server, authentication, token, progress in
+            try await PatchMailSMTP.sendSeries(messages: messages, sender: sender, server: server,
+                                               authentication: authentication, cancellation: token, onProgress: progress)
+        })
+    }
+    static func send(_ request: SendPatchRequest, credentials: any SMTPTransportCredentialSource,
+                     cancellation: OperationCancellation, onProgress: @escaping @Sendable (SMTPSeriesProgress) -> Void,
+                     sender: SenderSource, transport: Transport) async throws -> [SMTPReceipt] {
+        return try await withTaskCancellationHandler(operation: {
+            func check() throws {
+                if cancellation.isCancelled || Task.isCancelled { throw OperationCancellationFailure.cancelled }
+            }
+            try check()
+            guard request.delivery.delivery == .configured else { throw SendPatchSMTPDeliveryFailure.delivery }
+            var server = SMTPServer(host: request.delivery.server, port: Int(request.delivery.port),
+                                    encryption: SMTPEncryption(rawValue: Int32(request.delivery.encryption.rawValue)) ?? .none)
+            // Credentials are fetched only after server, sender and all messages
+            // validate; retries retain this one atomic pair.
+            server.trustedCertificates = nil
+            try PatchMailSMTP.validate(server: server)
+            guard !request.messages.isEmpty else { return [] }
+            let identity = try await sender(cancellation); try check()
+            for message in request.messages {
+                guard !(message.to + message.cc).isEmpty else { throw SMTPFailure.recipients }
+                _ = try (message.to + message.cc).map { try PatchMailMIME.envelopeAddress($0) }
+                _ = try PatchMailMIME.data(message: message, sender: identity)
+                try check()
+            }
+            let authentication: SMTPAuthentication?
+            if request.delivery.authenticate {
+                guard let pair = try await credentials.credentials() else { throw SendPatchSMTPDeliveryFailure.credentials }
+                try check()
+                authentication = SMTPAuthentication(login: pair.login, password: pair.password)
+                try PatchMailSMTP.validate(server: server, authentication: authentication)
+            } else { authentication = nil }
+            try check()
+            return try await transport(request.messages, identity, server, authentication, cancellation, onProgress)
+        }, onCancel: { cancellation.cancel() })
+    }
+}
+enum SendPatchSMTPDeliveryFailure: LocalizedError {
+    case delivery, credentials
+    var errorDescription: String? {
+        switch self {
+        case .delivery: return "This operation requires configured SMTP delivery."
+        case .credentials: return "Store SMTP credentials in Email settings before sending with authentication."
         }
     }
 }

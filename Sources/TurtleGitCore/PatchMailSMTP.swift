@@ -69,10 +69,8 @@ public enum PatchMailSMTP {
             }.value
         }, onCancel: { token.cancel() })
     }
-    private static func submit(message: PatchMailMessage, sender: PatchMailSender, server: SMTPServer,
-                               authentication: SMTPAuthentication?, bodyCharset: PatchMailBodyCharset,
-                               date: Date, identifier: UUID, token: OperationCancellation, progress: (@Sendable (SMTPUploadProgress) -> Void)?) throws -> SMTPReceipt {
-        try token.check()
+    /// Validates configuration without opening a connection or querying credentials.
+    public static func validate(server: SMTPServer, authentication: SMTPAuthentication? = nil) throws {
         let host = server.host
         let domain = !host.isEmpty && host.utf8.allSatisfy { (65...90).contains($0) || (97...122).contains($0) || (48...57).contains($0) || [45, 46, 95].contains($0) }
         let ipv6 = host.contains(":") && host.utf8.allSatisfy { (48...57).contains($0) || (65...70).contains($0) || (97...102).contains($0) || $0 == 58 }
@@ -83,6 +81,13 @@ public enum PatchMailSMTP {
         if let authentication {
             guard !authentication.login.isEmpty, !authentication.login.utf8.contains(0), !authentication.password.utf8.contains(0) else { throw SMTPFailure.authentication }
         }
+    }
+    private static func submit(message: PatchMailMessage, sender: PatchMailSender, server: SMTPServer,
+                               authentication: SMTPAuthentication?, bodyCharset: PatchMailBodyCharset,
+                               date: Date, identifier: UUID, token: OperationCancellation, progress: (@Sendable (SMTPUploadProgress) -> Void)?) throws -> SMTPReceipt {
+        try token.check()
+        try validate(server: server, authentication: authentication)
+        let host = server.host, ipv6 = host.contains(":")
         let recipients = try (message.to + message.cc).map { try PatchMailMIME.envelopeAddress($0) }
         guard !recipients.isEmpty else { throw SMTPFailure.recipients }
         let bytes = try PatchMailMIME.data(message: message, sender: sender, date: date, identifier: identifier, bodyCharset: bodyCharset)

@@ -8,6 +8,38 @@ private actor PrivateSMTPStore: SMTPCredentialStore {
     func store(login: String, password: String) async throws { }
     func clear() async throws { }
 }
+private actor DeliveryCredentials: SMTPTransportCredentialSource {
+    var reads = 0
+    var missing = false
+    var delayed = false
+    func configure(missing: Bool = false, delayed: Bool = false) { self.missing = missing; self.delayed = delayed }
+    func count() -> Int { reads }
+    func credentials() async throws -> SMTPLoginSecret? {
+        reads += 1
+        if delayed { try await Task.sleep(nanoseconds: 150_000_000) }
+        return missing ? nil : SMTPLoginSecret(login: "fixture-login", password: "fixture-secret")
+    }
+}
+private actor DeliveryProbe {
+    let expected: [PatchMailMessage]
+    init(expected: [PatchMailMessage]) { self.expected = expected }
+    var calls = 0
+    var authenticated = false
+    func submit(_ messages: [PatchMailMessage], _ sender: PatchMailSender, _ server: SMTPServer, _ authentication: SMTPAuthentication?) throws -> [SMTPReceipt] {
+        guard messages == expected, messages.count == 2, sender == PatchMailSender(name: "Captured", email: "sender@example.invalid"),
+              server.host == "fixture.invalid", server.port == 2525, server.encryption == .startTLS,
+              messages.allSatisfy({ $0.to == ["to@example.invalid"] && $0.cc == ["cc@example.invalid"] }) else {
+            throw VerificationFailure(description: "Delivery capture changed")
+        }
+        if let authentication {
+            guard authentication.login == "fixture-login", authentication.password == "fixture-secret" else {
+                throw VerificationFailure(description: "Atomic credential pair changed")
+            }
+        }
+        calls += 1; authenticated = authentication != nil; return []
+    }
+    func state() -> (Int, Bool) { (calls, authenticated) }
+}
 @main struct SendPatchVerification {
     @MainActor static func require(_ condition: @autoclosure () -> Bool, _ message: String) throws {
         if !condition() { throw VerificationFailure(description: message) }
@@ -234,7 +266,86 @@ private actor PrivateSMTPStore: SMTPCredentialStore {
             settings.window?.performClose(nil)
         }
         try require(settingsClosed == 2 && EmailSettingsWindowController.current == nil, "Private settings close; global production settings not opened")
-        print("Send Patch: source options/checked-highlighted subject states, four captured modes, duplicate ordering, private shared history, To/CC, client/SMTP recipient gates, retry, late close fencing, native checkbox/Space interactions, hidden light/dark layout. No mail client, main app or delivery.")
+        do {
+        // Configured delivery orchestration uses captured values only. Neither
+        // this injected transport nor credential source sends mail/uses Keychain.
+        var mailOptions = PatchMailOptions(); mailOptions.to = "to@example.invalid"; mailOptions.cc = "cc@example.invalid"
+        let prepared = try PatchMailPreparation.messages(files: [first, second], options: mailOptions)
+        var captureConfiguration = EmailConfiguration(preferences: prefs); captureConfiguration.delivery = .configured
+        captureConfiguration.server = "fixture.invalid"; captureConfiguration.port = 2525; captureConfiguration.encryption = .startTLS; captureConfiguration.authenticate = true
+        let captured = SendPatchRequest(files: [first, second], options: mailOptions, messages: prepared, delivery: captureConfiguration)
+        let credentialSource = DeliveryCredentials(), probe = DeliveryProbe(expected: prepared)
+        let senderSource: SendPatchSMTPDelivery.SenderSource = { token in
+            if token.isCancelled { throw OperationCancellationFailure.cancelled }
+            return PatchMailSender(name: "Captured", email: "sender@example.invalid")
+        }
+        let submit: SendPatchSMTPDelivery.Transport = { messages, sender, server, authentication, _, _ in
+            try await probe.submit(messages, sender, server, authentication)
+        }
+        // Change preferences and selected files after capturing the request.
+        prefs.set("changed.invalid", forKey: "SendMail.Address")
+        prefs.set(false, forKey: "SendMail.AuthenticationRequired")
+        try Data("replaced after capture".utf8).write(to: first)
+        _ = try await SendPatchSMTPDelivery.send(captured, credentials: credentialSource, cancellation: OperationCancellation(), onProgress: { _ in }, sender: senderSource, transport: submit)
+        let capturedState = await probe.state(), reads = await credentialSource.count()
+        try require(capturedState.0 == 1 && capturedState.1 && reads == 1, "One captured authenticated submission")
+        captureConfiguration.authenticate = false
+        let unauthenticated = SendPatchRequest(files: captured.files, options: captured.options, messages: captured.messages, delivery: captureConfiguration)
+        _ = try await SendPatchSMTPDelivery.send(unauthenticated, credentials: credentialSource, cancellation: OperationCancellation(), onProgress: { _ in }, sender: senderSource, transport: submit)
+        let unauthenticatedState = await probe.state(), unauthenticatedReads = await credentialSource.count()
+        try require(unauthenticatedState.0 == 2 && !unauthenticatedState.1 && unauthenticatedReads == 1, "No credential query when authentication disabled")
+        await credentialSource.configure(missing: true)
+        do {
+            _ = try await SendPatchSMTPDelivery.send(captured, credentials: credentialSource, cancellation: OperationCancellation(), onProgress: { _ in }, sender: senderSource, transport: submit)
+            throw VerificationFailure(description: "Missing authenticated credentials accepted")
+        } catch SendPatchSMTPDeliveryFailure.credentials { }
+        await credentialSource.configure(delayed: true)
+        let cancelledToken = OperationCancellation()
+        let cancelledDelivery = Task {
+            try await SendPatchSMTPDelivery.send(captured, credentials: credentialSource, cancellation: cancelledToken, onProgress: { _ in }, sender: senderSource, transport: submit)
+        }
+        try await Task.sleep(nanoseconds: 40_000_000); cancelledToken.cancel()
+        do { _ = try await cancelledDelivery.value; throw VerificationFailure(description: "Cancelled credential capture submitted") }
+        catch is OperationCancellationFailure { }
+        captureConfiguration.port = 70_000
+        let invalidServer = SendPatchRequest(files: captured.files, options: captured.options, messages: captured.messages, delivery: captureConfiguration)
+        let beforeInvalid = await credentialSource.count()
+        do {
+            _ = try await SendPatchSMTPDelivery.send(invalidServer, credentials: credentialSource, cancellation: OperationCancellation(), onProgress: { _ in }, sender: senderSource, transport: submit)
+            throw VerificationFailure(description: "Invalid port accepted")
+        } catch SMTPFailure.configuration { }
+        captureConfiguration.port = 2525; captureConfiguration.delivery = .mailClient
+        let wrongDelivery = SendPatchRequest(files: captured.files, options: captured.options, messages: captured.messages, delivery: captureConfiguration)
+        do {
+            _ = try await SendPatchSMTPDelivery.send(wrongDelivery, credentials: credentialSource, cancellation: OperationCancellation(), onProgress: { _ in }, sender: senderSource, transport: submit)
+            throw VerificationFailure(description: "Mail client routed through SMTP")
+        } catch SendPatchSMTPDeliveryFailure.delivery { }
+        do {
+            _ = try await SendPatchSMTPDelivery.send(captured, credentials: credentialSource, cancellation: OperationCancellation(), onProgress: { _ in }, sender: { _ in PatchMailSender(name: "invalid\r\nheader", email: "sender@example.invalid") }, transport: submit)
+            throw VerificationFailure(description: "Invalid sender queried credentials")
+        } catch is PatchMailMIMEFailure { }
+        let afterInvalid = await credentialSource.count(), finalState = await probe.state()
+        try require(beforeInvalid == afterInvalid && finalState.0 == 2, "Invalid/cancelled/missing credential requests must never reach transport")
+        guard CommandLine.arguments.count == 3, let port = Int(CommandLine.arguments[2]) else { throw VerificationFailure(description: "Missing private SMTP port") }
+        let repository = GitRepository(root: root)
+        _ = try await repository.run(["init", "--quiet"])
+        _ = try await repository.run(["config", "--local", "user.name", "Captured"])
+        _ = try await repository.run(["config", "--local", "user.email", "sender@example.invalid"])
+        var liveOptions = mailOptions; liveOptions.combine = true; liveOptions.attachment = true; liveOptions.subject = "Captured series"
+        let liveMessages = try PatchMailPreparation.messages(files: [second, second], options: liveOptions)
+        var loopback = EmailConfiguration(preferences: prefs); loopback.delivery = .configured
+        loopback.server = "localhost"; loopback.port = UInt32(port); loopback.encryption = .none; loopback.authenticate = false
+        let liveRequest = SendPatchRequest(files: [second, second], options: liveOptions, messages: liveMessages, delivery: loopback)
+        try liveMessages[0].body.write(to: root.appendingPathComponent("expected-body"))
+        try liveMessages[0].attachments[0].bytes.write(to: root.appendingPathComponent("expected-attachment"))
+        let liveReceipts = try await SendPatchSMTPDelivery.send(liveRequest, repository: repository, access: nil, credentials: credentialSource, cancellation: OperationCancellation(), onProgress: { _ in })
+        try require(liveReceipts.count == 1 && liveReceipts[0].response == 250, "Actual Git sender/SDK SMTP orchestration submission")
+        let afterLoopback = await credentialSource.count()
+        try require(afterLoopback == afterInvalid, "Production unauthenticated entry queried credentials")
+        print("Actual configured submission captured private Git sender and submitted combined MIME/To/CC to owned loopback server with SDK frameworks; no user Keychain or real mail service.")
+        print("Configured SMTP orchestration: immutable request/sender/server/To/CC/bytes, atomic credential capture only when required, missing/invalid/cancelled gates passed with injected transport; no real Keychain or delivery.")
+        }
+        print("Send Patch: source options/checked-highlighted subject states, four captured modes, duplicate ordering, private shared history, To/CC, client/SMTP recipient gates, retry, late close fencing, native checkbox/Space interactions, hidden light/dark layout. Private loopback SMTP only; no mail client, main app or real mail service.")
         print("Private suite cleaned: " + suite)
     }
     @MainActor static func main() async {

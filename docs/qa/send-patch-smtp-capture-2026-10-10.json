@@ -1,0 +1,70 @@
+{
+  "checked_at": "2026-10-10T02:32:04.026405+00:00",
+  "parent_commit": "e3e259c9e8b4b05ceaa63bd225b8c7c158eae46b",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Configured delivery orchestration connects captured requests to Git sender, atomic app-private credential source and ordered SMTP; native production caller/progress window still pending",
+  "upstream_blob_sha256": {
+    "src/TortoiseProc/SendMail.cpp": "d8f6135a262c4f8b67f8d3bf93dcd482d180362e3c756018e97f3f737f090a25"
+  },
+  "checks": {
+    "system_git_tests": 22,
+    "packaged_git_tests": 22,
+    "system_tests_exit": 0,
+    "packaged_tests_exit": 0,
+    "hidden_send_patch_receiver_exit": 0,
+    "debug_build_exit": 0,
+    "unsigned_appstore_build_exit": 0,
+    "debug_bundle_audit_exit": 0,
+    "appstore_bundle_audit_exit": 0,
+    "inventory_pin_exit": 0,
+    "bundled_icons": 100,
+    "cases": [
+      "Captured request server/port/TLS/messages/To/CC/attachment bytes remain exact after preference and file changes",
+      "One atomic credential capture when authentication required; zero queries when disabled",
+      "Missing credential pair, invalid port/sender, wrong delivery and cancellation after delayed capture never reach injected transport",
+      "Actual production configured entry captures sender from isolated private Git config and submits combined body/two attachments via built SDK Core/SMTP queue to owned loopback SMTP",
+      "Independent Python MIME decoding compares body, filenames, ordered attachment bytes and separate To/CC envelope",
+      "Existing hidden options/list/settings/capture/theme/close tests retained; existing Core MIME/queue/TLS/auth/cancel tests retained"
+    ],
+    "test_source_corrections": "Duplicate local test names corrected by isolating new orchestration checks in their own scope; initial compile attempts failed before receiver/SMTP fixture launch. Final native receiver passed.",
+    "preferences": [
+      {
+        "suite": "TurtleGit.SendPatch.QA.C7E2A448-8695-44F6-9EEE-D0859BC86751",
+        "verified_empty": true,
+        "defaults_delete_exit": 1,
+        "removed": true,
+        "empty_plist_removed": true
+      }
+    ],
+    "final_audit": {
+      "matching_processes": [],
+      "current_fixtures": []
+    },
+    "side_effects": "Private repository with isolated Git config, injected credential actor and owned 127.0.0.1 SMTP only; no main app, displayed window, real mail service, live user Keychain or certificate-store mutation. Verified empty exact private preference plist removed after defaults retained it."
+  },
+  "source_sha256": {
+    "Sources/TurtleGitCore/PatchMailSMTP.swift": "fcc0e193ba3ebb7d5e56c2adab4d55a9103e067546d159b63b730167af464187",
+    "Sources/TurtleGitMac/SendPatchWindow.swift": "8ecd781783ce6abd344240081d2bd807e6962885591a95771df9dcf040170265",
+    "docs/PORTING.md": "7b59599d0d5fc6364b1ee8682389ec0f8d44f7a50f5d6ffbd6b086b757c89142",
+    "docs/SEND-PATCH-PARITY.md": "d839f53fac961361de29f6bb20b7c47734a6f05b70bd610d18309d7ae9b11db0",
+    "docs/qa/send-patch-dialog-native-2026-10-10.swift": "a012b71ca6007ec4eac181ae147c6087396a175025832271625749c9e7675539",
+    "docs/upstream-files.csv": "d2b39997f3a9da1b4d0d398be2db67e9e296b0591825b3b61ddba14558949c35",
+    "scripts/test-send-patch-dialog.py": "e3bfe7f898450ddc44551164b667f50e740f0e5ce1da7edc48b297c34feaf8c0"
+  },
+  "binary_sha256": {
+    "Debug_app": "ae0fc297ae892ad6d53e5bfb2e3aee3218b8dda08c01e7e3c33faa88de63b8d1",
+    "Debug_core": "49e506806174ba00c8e252e54c1c07e417c981ebcd972c36056b0c7a45a5c57b",
+    "Debug_smtp": "f41d314777122b4e4f4bb47922ae13dba21a1879949b1c94fc5019a23bf147fe",
+    "AppStore_app": "9063ee68832b09b31fe9028d979edd2293b6aca63deeb29d4456fbc5f70fd8bd",
+    "AppStore_core": "19f12571ac5be6a2c45ff6ea8e11bca90147367b63595a9c42649f1e1b7ba33e",
+    "AppStore_smtp": "99c922bcd4ff4092d5d3b67d1c2ed741368afe84d72a943bada5aafc4108b3d6"
+  },
+  "limitations": [
+    "Configured orchestration has actual private-loopback acceptance but is not yet invoked from native production Format Patch/Import Patch UI; native progress/caller lifecycle pending",
+    "Actual authenticated Keychain/transport integration uses injected credentials here; signed user Keychain and authentication acceptance remain pending",
+    "Direct MX, Mail client, full dialog parity/localization and physical UI acceptance pending",
+    "Signed Finder/sandbox/private grants, older OS runtime, notarization and App Store distribution acceptance pending",
+    "Hosted GitHub CI remains unverified"
+  ],
+  "logs": "build/qa/send-patch-smtp-capture-*.log and build/qa/send-patch-smtp-capture-2026-10-10/ (ignored)"
+}

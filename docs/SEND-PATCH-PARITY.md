@@ -393,3 +393,38 @@ loopback series submission after rejecting malformed later input.
 Production sender/credential capture, native progress and caller routing are
 still pending; the series API alone does not establish that user flow.
 See [ordered SMTP QA](qa/send-patch-smtp-series-2026-10-10.json).
+
+## Configured delivery capture orchestration
+
+`SendPatchSMTPDelivery` now connects the captured SendPatchRequest to Git sender
+capture, the app-private atomic credential source and ordered Core SMTP. Its
+production entry retains the repository access lease and checks App Store scope
+before reading Git identity. It consumes the request's delivery/server/port/TLS,
+messages and immutable attachment bytes without rereading preferences or patch
+files. Git identity and, when required, one credential pair are captured once
+before the queue; retries retain those values. Empty prepared input makes no
+credential query or connection.
+
+Configuration and every message's sender/header/address/body validation precede
+Keychain access. Missing required credentials fails with an Email settings
+instruction. Authentication disabled never queries credentials. Cancellation is
+checked before and after each asynchronous capture; cancellation while reading
+credentials cannot start transport afterward. The shared token and progress
+callback pass through to the queue, including its accepted-prefix failures.
+Mail-client/direct delivery is rejected by this configured-only entry rather
+than silently substituting SMTP.
+
+Expanded hidden native checks use an injected sender, credential actor and
+transport to verify captured server/TLS/To/CC/messages after preference/file
+changes, authenticated versus unauthenticated credential counts, missing pair,
+invalid port/sender, wrong delivery and late cancellation gates. They do not
+touch real Keychain or send mail. See
+[capture QA](qa/send-patch-smtp-capture-2026-10-10.json).
+The same receiver also exercises the production configured entry with a private
+Git repository, isolated Git configuration and a loopback SMTP server. Actual
+Git sender capture and the built SDK Core/SMTP queue submit a combined message
+with two captured attachments; the server independently decodes and compares
+the body and attachment bytes and checks distinct To/CC envelope recipients.
+This private local submission touches no real mail service or user Keychain.
+The native progress window and production Format Patch/Import Patch caller
+connection remain pending; this orchestration is not yet the complete UI flow.
