@@ -1,0 +1,98 @@
+{
+  "date": "2026-10-11",
+  "checkpoint": "21db63914ea421b694058d6ab26342af982d92c0",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_branch_combox_blob": "9d3608114618fcb9db4b7948509727923110f2ab",
+  "status": "partial-native",
+  "implemented": [
+    "Retained app-menu Synchronization window; captured repository and access lease.",
+    "Pull-tracking branch defaults, source StripRefName rules and exact Unicode selector identity.",
+    "Force and outgoing projection; native graph-first history table and changed-file table with original status artwork/colors.",
+    "Pinned compare/unified-diff action handlers and captured-repository Show Log/Commit routing.",
+    "Reload cancellation and identity fences, close/dirty/active-child guards and propagated Quit confirmation."
+  ],
+  "verification": {
+    "core": [
+      {
+        "git": "/usr/bin/git",
+        "version": "git version 2.50.1 (Apple Git-155)",
+        "tests": 6,
+        "failures": 0,
+        "log": "build/qa/synchronization-branches-system-final-2026-10-11.log"
+      },
+      {
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/replay-test-git/2.39.5/bin/git",
+        "version": "git version 2.39.5",
+        "tests": 6,
+        "failures": 0,
+        "log": "build/qa/synchronization-branches-old-final-2026-10-11.log"
+      },
+      {
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "version": "git version 2.55.0",
+        "tests": 6,
+        "failures": 0,
+        "log": "build/qa/synchronization-branches-packaged-final-2026-10-11.log"
+      }
+    ],
+    "native": {
+      "engines": [
+        "system",
+        "packaged"
+      ],
+      "exit": 0,
+      "scope": "Actual hidden controller/table/data source and graph cell; changes snapshot, exact Unicode remote choices, divergence/Force, unknown URL/branch states, Quit propagation to an owned viewer, invalidation and covered refs/raw-index preservation.",
+      "downstream_comparison_receivers": "Handlers compiled/wired; actual compare/unified/Log/Commit receiver invocation is not covered by this fixture.",
+      "appearance": "Aqua and Dark Aqua layout exercised; no rendered-pixel, physical-input or signed accessibility acceptance.",
+      "log": "build/qa/synchronization-window-native-verified-2026-10-11.log"
+    },
+    "unsigned_debug_exit": 0,
+    "unsigned_appstore_exit": 0,
+    "debug_bundle_audit_exit": 0,
+    "appstore_require_git_audit_exit": 0,
+    "upstream_icons": 120,
+    "inventory_pin_exit": 0,
+    "site_exit": 0,
+    "full_suite": "Not rerun; six Synchronization tests per engine only.",
+    "cleanup": "build/qa/synchronization-window-processes-2026-10-11.json"
+  },
+  "inventory": {
+    "partial_dialogs": 49,
+    "pending_dialogs": 81,
+    "certified_dialogs": 0,
+    "total_dialogs": 130
+  },
+  "fixture_correction": "Creating both normalized Unicode branch spellings as loose refs collided on APFS. Final fixture constructs valid sorted packed refs, following existing reference tests; both exact names are then read from real Git. Earlier failed fixture logs are not current verification.",
+  "remaining": [
+    "Transport/split/post actions, incoming/conflict/reference/result tabs and live progress.",
+    "Branch choosers, Manage/SSH controls, full column/ref/context/menu/history parity and receiver acceptance.",
+    "Bare-repository app entry, external writers, full rendered light/dark and physical/accessibility acceptance.",
+    "Finder routing/activation and signed sandbox/App Store/distribution acceptance.",
+    "Complete whole-application port."
+  ],
+  "sources_sha256": {
+    "Sources/TurtleGitCore/Synchronization.swift": "3f534052ca36fc4582fd677e0b8137e65f94186421bdcda02153889f193afce5",
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "da687b15ce84a36f23cdcf5d2c5591fb13657103869fabcb3a92883dca3d31ee",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "cd9ffd6f4296e1fb54e12e0409fae05c910270775269a940241781aeb1e59364",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "151f521250f820e6a7def104226bdf239bd0530338f48195941f696f73741319",
+    "Sources/TurtleGitMac/TurtleGitMacApp.swift": "e4614d1cd7f8df80a87af6ce16547b6d92600019827c9c1e5c1bf02f869b18d4",
+    "Tests/TurtleGitCoreTests/SynchronizationTests.swift": "6e49782ef455fea644b755647a26c4fd2b20ecdcbf4141cea8bcdf375fd3d8e1",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "a03da5ba10ec499346b42562fc8e52068adb4de46b0a832b3e8027ac6027a4ad",
+    "docs/qa/synchronization-native-2026-10-11.swift": "390f17dcc3115219c73b70d4c445ded30507410f7118e81054124bc1325b6ef4",
+    "scripts/test-synchronization-dialog.py": "b6702a89fd88fc3f0f388bce39577de592f3ed2c022706e258bcdae291aa5c0f",
+    ".github/workflows/macos.yml": "7e1d7996632b53c014586ac730a70eeada2871894c25db6d700d164e5bc9381a"
+  },
+  "logs_sha256": {
+    "build/qa/synchronization-branches-system-final-2026-10-11.log": "79a5022a89e4f8a644c11210e5d629152f07f211905d1cc3e575abecf2232580",
+    "build/qa/synchronization-branches-old-final-2026-10-11.log": "409575e5fe48c5a0ce09c485fb812b6455c6d41d80ba8957212435b7bf35eeb8",
+    "build/qa/synchronization-branches-packaged-final-2026-10-11.log": "8227dc7d81abc7be8d3d61d6578b35772af7e09c00bc80bced9d9d5f43dc24dd",
+    "build/qa/synchronization-window-debug-verified-2026-10-11.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/synchronization-window-store-verified-2026-10-11.log": "8b7e42e41011f64b89af2a34249c0e6a736fce554184bf57a0f657922d209930",
+    "build/qa/synchronization-window-native-verified-2026-10-11.log": "abe2816285065d341e29c6a8cb7a5e4e11de2b8924745d08438a57323ed8016b",
+    "build/qa/synchronization-window-debug-audit-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/synchronization-window-store-audit-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/synchronization-window-inventory-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/synchronization-window-site-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/synchronization-window-processes-2026-10-11.json": "19400bed873412c45e6740dd181e2096ae4c1bc7930d8a55c144c0adb0ef7e88"
+  }
+}

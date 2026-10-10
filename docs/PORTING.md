@@ -46,8 +46,12 @@ reference dialog with containment filtering, original branch/tag artwork, one/tw
 many selection menus, comparisons and owned Browse References/Log/Reflog pickers.
 Targeted Core and hidden native checks pass; light/dark content captures are on
 the website. Abort Merge progress now also has reviewed native control mappings.
+Synchronization now has a partial native outgoing window with pull-tracking
+branch defaults, Force, a colored graph-first table and pinned change comparisons.
+Transport and incoming/results tabs still await porting. See
+[SYNCHRONIZATION-PARITY.md](SYNCHRONIZATION-PARITY.md).
 Across the 130 inventoried dialogs:
-48 dialogs are now partial and 82 await review. No dialog is certified complete.
+49 dialogs are now partial and 81 await review. No dialog is certified complete.
 See [the reference dialog audit](COMMIT-CONTAINING-REFS-PARITY.md).
 
 Log commit ordering now has the source’s four-choice native sheet, deferred
@@ -67,8 +71,8 @@ a source-style completion footer with optional elapsed time. See
 
 Git Synchronization now has a pinned read-only outgoing/incoming comparison
 backend matching fast-forward/Force, merge-base, copy and working-copy-sentinel
-rules. Five new tests pass with three Git engines; native Sync UI and command
-integration remain pending. See [Synchronization parity](SYNCHRONIZATION-PARITY.md).
+rules. The native outgoing projection and app entry are now partially implemented;
+transport commands, incoming/result tabs and full native integration remain pending. See [Synchronization parity](SYNCHRONIZATION-PARITY.md).
 
 ## Audited baseline
 

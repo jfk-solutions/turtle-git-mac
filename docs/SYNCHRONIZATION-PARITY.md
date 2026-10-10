@@ -2,9 +2,9 @@
 
 Baseline: `7338078f8ddd924b8cddee35f512f2286072136d`, `SyncDlg.cpp`
 (`FetchOutList`, `ShowInCommits`), its inline `AddDiffFileList` in `SyncDlg.h`,
-and `Git.cpp::IsFastForward/GetCommitDiffList`. The native synchronization window
-and its command integration are not implemented yet. This is a backend port,
-not a completed dialog.
+and `Git.cpp::IsFastForward/GetCommitDiffList`, plus `BranchCombox.h`.
+A partial native window now exposes the outgoing projection. This is not a
+completed Synchronization dialog.
 
 ## Comparison backend
 
@@ -34,29 +34,57 @@ Resolving hashes uses stdout independently of diagnostic output. Input NULs and
 pre-cancelled operations are rejected; the token is forwarded through Git reads.
 The snapshots do not authorize transport operations.
 
+## Native outgoing window
+
+The TurtleGit menu opens a retained per-repository Git Synchronization window.
+Local Branch, editable Remote Branch and Remote URL, Force, Outgoing Commits and
+Outgoing Changes follow the source group order. Branch defaults use pull tracking
+configuration independently of pushRemote/pushDefault/pushbranch. Selecting a
+local branch reloads its tracking defaults. A detached HEAD still exposes the
+local branch catalog so the user can select a branch. The local selector and
+remote choices retain byte-distinct Unicode names rather than normalizing them.
+
+The outgoing native table draws the existing colored graph before hash/message/
+author/date columns. The changed-files tab shows Path, Extension, Status, Added
+and Deleted, using original status artwork and appearance-aware status colors,
+with original-icon comparison and unified-diff actions against the
+pinned snapshot. Show Log and Commit use the captured repository and access
+lease. Refresh replaces the outgoing snapshot and clears obsolete selection.
+
+Each reload cancels its predecessor and checks identity before publishing. Close
+invalidates owned reads; active comparison children and dirty editors guard
+ordinary close. App Store reads require the retained repository grant. Quit
+confirmation fences controls and comparison requests. Physical interaction,
+complete source columns/context menus and displayed theme acceptance are pending.
+
 ## Verification scope
 
 Five real-Git tests cover equal/ahead/missing/URL states, incoming and unchanged
 results, pinned snapshots after a tracking reference moves, divergence/Force,
 merge-base file scope, the unrelated working-copy fallback, copy identity,
 205 outgoing commits, cancellation and invalid inputs. Staged/unstaged contents,
-raw index and refs are preserved by the covered comparison cases.
+raw index and refs are preserved by the covered comparison cases. A sixth test
+covers pull tracking versus push overrides, source ref-name stripping, missing
+tracking configuration, detached HEAD, cancellation and byte-distinct packed refs.
 
 The existing 15 revision-comparison regressions run alongside the new tests to
 check the shared options change. Their fixtures use system Git; the five new tests
-explicitly select the requested Git executable. No full-suite, native Sync-window,
-transport, physical-input or signed-runtime acceptance claim follows from them.
+explicitly select the requested Git executable. No full-suite, transport, physical-input or signed-runtime acceptance claim
+follows from them. The separate native verification covers only the outgoing
+window controls/table/snapshot lifecycle; see the
+[native QA record](qa/synchronization-window-2026-10-11.json).
 
 ## Remaining full port
 
-- Native source layout: local/remote branch controls and owned choosers, editable
-  remote URL/history, Manage, Force, SSH-key controls, tabs and status/progress.
-- Outgoing/incoming Log graphs, change lists, reference changes, conflict lists,
-  native context menus, persistence, icons and light/dark acceptance.
+- Remaining source layout: owned branch choosers, remote history saving/deletion,
+  Manage, SSH-key controls, full tab control and status/progress.
+- Incoming Log/changes, reference changes and conflict lists; complete outgoing
+  columns/refs/sorting and context menus, persistence and light/dark acceptance.
 - Pull/Fetch/Rebase/Fetch All/Remote Update/Prune/Compare Tags, Push/Tags/Notes,
   Submodule and Stash split actions, Apply/Email Patch, Show Log and Commit.
 - Operation snapshots, live progress, cancellation, hooks, authentication,
   retained results, refresh, owner lifetimes and factory/app/Finder routing.
 - Configured similarity thresholds beyond the pinned default, libgit2 route
   equivalence, external writers, physical accessibility and signed sandbox grants.
-- Signed Finder/App Store/distribution acceptance and complete application parity.
+- Bare-repository app entry (currently disabled), signed Finder/App Store/distribution
+  acceptance and complete application parity.
