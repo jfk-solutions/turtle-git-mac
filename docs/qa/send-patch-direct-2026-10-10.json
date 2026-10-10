@@ -1,0 +1,115 @@
+{
+  "checked_at": "2026-10-10T04:20:27.216920+00:00",
+  "parent_commit": "215dc643d3f015d1493264d0a25630a36e308a92",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Direct SMTP domain queue, MX exchange failover, immutable MIME/per-domain envelopes, accepted-domain retry tracking and native Format/Import routing; partial port.",
+  "upstream_evidence": {
+    "path": "src/Utils/HwSMTP.cpp",
+    "sha256": "bacdc3f7bb59e0b5f195d4e976628bfa4c59f777cf548a25e3ba56e4fd78db90",
+    "behavior": "SendSpeedEmail groups To/CC in sorted map order, resolves MX, tries returned records on port 25. Upstream proceeds to later domains after failure; current attempt stops first, a recorded remaining parity gap."
+  },
+  "checks": {
+    "mail_system": {
+      "session": 77988,
+      "exit_code": 0,
+      "tests": 27,
+      "command": "swift test --filter PatchMail"
+    },
+    "mail_packaged": {
+      "session": 79407,
+      "exit_code": 0,
+      "tests": 27,
+      "command": "TURTLEGIT_SEND_PATCH_TEST_GIT=\"$PWD/build/git-runtime/Git/bin/git\" swift test --filter PatchMail"
+    },
+    "first_core_compile_failure": {
+      "session": 78415,
+      "exit_code": 1,
+      "finding": "Test helper needed private access because its probe type is private; repaired before both final runs. Log retained."
+    },
+    "Debug": {
+      "session": 68527,
+      "exit_code": 0
+    },
+    "native_dialog": {
+      "exit_code": 0,
+      "command": "python3 scripts/test-send-patch-dialog.py",
+      "coverage": "Actual production Git sender with injected direct submission; no configured credentials/server validation; actual Format/Import direct options/Cancel; partial-domain cancellation classified as failure; existing viewer/review/apply/configured loopback/notification/clipboard/lifetime checks passed. Hidden windows only."
+    },
+    "SDK_native": {
+      "session": 9477,
+      "exit_code": 0,
+      "command": "python3 scripts/test-configured-smtp.py",
+      "coverage": "Actual built Core direct queue with injected localhost MX/owned port and real SDK SMTP submission; exact MIME comparison, distinct To/CC, two binary attachments, no authentication. System DNS decoder used for injected record; no public DNS or mail."
+    },
+    "Debug_bundle_audit": {
+      "session": 91855,
+      "exit_code": 0
+    },
+    "AppStore_unsigned": {
+      "session": 27459,
+      "exit_code": 0
+    },
+    "AppStore_bundle_audit": {
+      "session": 63091,
+      "exit_code": 0,
+      "flags": "--require-git"
+    },
+    "inventory": {
+      "exit_code": 0,
+      "command": "python3 scripts/check-inventory-pin.py"
+    },
+    "cleanup": {
+      "matching_processes": [],
+      "current_fixtures": []
+    },
+    "preferences": {
+      "TurtleGit.SendPatch.QA.94AA81E9-23B7-4A10-82D6-D70FE9F5490D": "verified empty private suite removed",
+      "TurtleGit.SendPatch.QA.D4239193-F2B3-462B-9E95-CEB2D13C96E2": "verified empty private suite removed"
+    }
+  },
+  "source_sha256": {
+    "NOTICE": "124de7aed2f3416d9dd8da69d1920e01163e46daf7bcfd1b016c4949b7b6ae09",
+    "Sources/TurtleGitCore/PatchMailSMTP.swift": "c617a6785f048a6daca128ef3d6b16d403f69a500caf715c2c0751097d4cb992",
+    "Sources/TurtleGitMac/FormatPatchWindow.swift": "5567338b87c91edfd86a99dcaeb2787cbe0eb700fcfef6ffd1d48e7b453ea227",
+    "Sources/TurtleGitMac/ImportPatchWindow.swift": "858b9f02fe8881c2917f202017a081f0fb3bdcae292e66e17956af0d81c3f3b8",
+    "Sources/TurtleGitMac/SendPatchWindow.swift": "633568158dc64301093ab68d270cab3368e4f5b9a0ae5301a4aa0e4e579bf2d6",
+    "Tests/TurtleGitCoreTests/PatchMailSMTPTests.swift": "d1e3ac3ce06d3670252e75923cc707a3100bb8ee268fd7f937149767a8e0441d",
+    "docs/PORTING.md": "0e1cc8af88532844aab789b6be6dcc98d1ef8d1cd860ed96018bb9af1b41de72",
+    "docs/SEND-PATCH-PARITY.md": "987fdb5a79f5a9306a99dff8c50b527e9872ebb54ef00ce2c18311bccd114af4",
+    "docs/qa/send-patch-dialog-native-2026-10-10.swift": "98602bb997accbb1bf2bf68ce3663d4ce6e4c18f22dc38fd54b8e6a922ccdd6a",
+    "docs/qa/send-patch-smtp-native-2026-10-10.swift": "72ecbca14e2397845801805e0fc4973d3dcc7ed62c5c584aee3dd20e3b93efdc",
+    "docs/upstream-files.csv": "c843a551edea8561b13bc16eecd9796e4f4104be85bed1d5c0a857bbb92ad610",
+    "Tests/TurtleGitCoreTests/PatchMailDirectTests.swift": "83df2008313bf61a22fa4cfd2c732d756dedb5bf487e56dabefd9ee834b44ca1",
+    "Sources/TurtleGitSMTP/SMTP.c": "890246a6140c396569ac6e86b88eeb3a39e709d8466cf50f1c52ef46002897b9",
+    "Sources/TurtleGitSMTP/include/TurtleGitSMTP.h": "4aae0738204830708fd25586a154e679d7f0fa0a6174052b450d1e5978aeefac",
+    "Tests/TurtleGitCoreTests/SMTPMXTests.swift": "7e183a5ba2a543ad009fcf767534420109164afbc287f34c161be770f8e37d9e",
+    "scripts/test-send-patch-dialog.py": "e3bfe7f898450ddc44551164b667f50e740f0e5ce1da7edc48b297c34feaf8c0",
+    "scripts/test-configured-smtp.py": "4d0fde2f95fb670516eeebae343e56ff790e744f52dda98f9d87b550b46c1bcf"
+  },
+  "binary_sha256": {
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/MacOS/TurtleGitMac": "ae0fc297ae892ad6d53e5bfb2e3aee3218b8dda08c01e7e3c33faa88de63b8d1",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": "7ddcf7fdbefbef4ccdc234759c76c448085b2ce75b3730a4dbd5e81a264b5f9b",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": "4fe130d88732811cb2135fd976f7b9579c0ae3d38211d79ae7708e6973b5955c",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/MacOS/TurtleGitMac": "6caf4d2b5066b067a9f835ec1450d5edebda8c5368b411a36bbb48857c48592e",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": "fadada52ad765767bed25571b9319192d5a46fd2adcbe30bca3acb10b195135f",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": "dc44e47efa6b867ca364f3b9a0bb2f34586e324eb30730045ce6f909abf6318e"
+  },
+  "log_sha256": {
+    "build/qa/send-patch-direct-core-compile-failure-2026-10-10.log": "a70235005b736772f4761b34e453fb9c1e7957cd36500c42202c0ca06813811a",
+    "build/qa/send-patch-direct-core-packaged-2026-10-10.log": "5878e01d55793379e61f686221220aa67013dd9ffd2d0611a9935aa75ea89667",
+    "build/qa/send-patch-direct-core-system-2026-10-10.log": "c79a9c0faab46959b413e47c6e6e49cc509b0e541db904fd1b44a7fe84c9c640",
+    "build/qa/send-patch-direct-debug-2026-10-10.log": "d08e427d93f1d28d24ba82044c67faeee2fdc54406994bbb782d97ab85a05039",
+    "build/qa/send-patch-direct-debug-audit-2026-10-10.log": "03677d8f0b0860f94e07ef3ce34215ec26f981c604c6ceccc75e2bdae288a638",
+    "build/qa/send-patch-direct-inventory-2026-10-10.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/send-patch-direct-native-2026-10-10.log": "f5d22b016e77dd5877cde1105d53f2a512b0add27a6dbbbfecf3d28efe1645a9",
+    "build/qa/send-patch-direct-sdk-native-2026-10-10.log": "6b8b14e3eade418788695e69c041ebf83f9a4a0d6606790455a8997ca78b3e73",
+    "build/qa/send-patch-direct-store-2026-10-10.log": "b74a73f8796b12aa35fa570e6594a2a6056217b10a225c9c0e7c2efcb5dc7a15",
+    "build/qa/send-patch-direct-store-audit-2026-10-10.log": "bf54b9dab37973005d43104fc27d3e9cd6a4920930af487e3e44c48332f3afc1"
+  },
+  "limitations": [
+    "Later-domain continuation after failure differs from upstream; dedicated alignment remains pending.",
+    "No public MX SMTP, mail-client full port, other caller integration or physical visual acceptance.",
+    "Unsigned build/audit does not prove signed sandbox/Finder/App Store acceptance or distribution legality.",
+    "Focused current tests do not revalidate the historical full 866-test run or current hosted CI."
+  ]
+}

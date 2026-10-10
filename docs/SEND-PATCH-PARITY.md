@@ -568,3 +568,42 @@ the read-only query and passed the existing private loopback MIME check. See
 envelopes, MX failover, partial acceptance/retry handling and application entry
 routing still need implementation before direct delivery is functional. Full
 mail-client delivery and signed/physical/application parity remain unfinished.
+
+## Direct SMTP queue and application routes
+
+Direct delivery now captures the Git sender and immutable messages, groups the
+validated To/CC envelope recipients by domain, and queries each domain's system
+MX records. The transport tries returned exchanges in response order on port 25,
+using the existing optional STARTTLS behavior without configured-server
+credentials. Each domain receives only its own envelope recipients; MIME To/CC,
+attachments, Date and Message-ID stay unchanged across exchanges and retries.
+The whole series is validated before any DNS query or submission.
+
+The queue remembers accepted domains within each message. Its three-attempt
+retry resumes remaining domains instead of resending an accepted domain. An
+ambiguous upload stops failover and retry; failure reports accepted domains as
+well as the whole-message accepted prefix. Cancellation after partial-domain
+acceptance remains a delivery failure in the native progress window. A null MX
+is a permanent failure. Empty exchanges and transient query/transfer failures
+follow the bounded retry policy.
+
+Format Patch and Import Patch now route direct delivery through the same retained
+native options/progress workflow as configured SMTP. Direct capture bypasses
+configured server validation and credential reads. Hidden native checks verify
+real Git sender capture, immutable messages, both callers' options/Cancel
+lifetimes and partial-domain failure classification. Twenty-seven focused mail
+tests passed with system and packaged Git, covering grouping, failover,
+accepted-domain retry fencing, uncertainty, cancellation, null/empty MX and full
+MIME headers with a reduced envelope. The actual Debug frameworks also exercised
+the direct queue and transport against an owned loopback SMTP server, with exact
+MIME byte comparison and independent attachment decoding. No public mail or
+user Keychain access was used. See [direct delivery QA](qa/send-patch-direct-2026-10-10.json).
+
+This remains a partial port. Unlike upstream's loop that proceeds to later
+domains after a failed domain, the current queue stops that attempt at the first
+failed domain and resumes through its retry policy. That continuation behavior
+still requires alignment and dedicated verification. Full mail-client delivery,
+other entry points, actual public MX submission, displayed/physical UI and signed
+sandbox/Finder/App Store acceptance remain pending. Earlier sections describe
+historical checkpoints, whose pending direct work is superseded only within the
+scope above.

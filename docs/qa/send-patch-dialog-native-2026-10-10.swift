@@ -41,6 +41,18 @@ private actor DeliveryProbe {
     }
     func state() -> (Int, Bool) { (calls, authenticated) }
 }
+private actor DirectEntryProbe {
+    let expected: [PatchMailMessage]
+    var calls = 0
+    init(_ expected: [PatchMailMessage]) { self.expected = expected }
+    func submit(_ messages: [PatchMailMessage], _ sender: PatchMailSender) throws -> [SMTPReceipt] {
+        guard messages == expected, sender == PatchMailSender(name: "Captured", email: "sender@example.invalid") else {
+            throw VerificationFailure(description: "Direct sender/message capture changed")
+        }
+        calls += 1; return messages.map { _ in SMTPReceipt(response: 250) }
+    }
+    func count() -> Int { calls }
+}
 @main struct SendPatchVerification {
     @MainActor static func require(_ condition: @autoclosure () -> Bool, _ message: String) throws {
         if !condition() { throw VerificationFailure(description: message) }
@@ -462,6 +474,47 @@ private actor DeliveryProbe {
         let liveRequest = SendPatchRequest(files: [second, second], options: liveOptions, messages: liveMessages, delivery: loopback)
         try liveMessages[0].body.write(to: root.appendingPathComponent("expected-body"))
         try liveMessages[0].attachments[0].bytes.write(to: root.appendingPathComponent("expected-attachment"))
+        var directConfiguration = loopback; directConfiguration.delivery = .direct
+        directConfiguration.server = "invalid/path"; directConfiguration.port = 0; directConfiguration.authenticate = true
+        let directRequest = SendPatchRequest(files: liveRequest.files, options: liveRequest.options, messages: liveRequest.messages, delivery: directConfiguration)
+        let directProbe = DirectEntryProbe(liveMessages), credentialReads = await credentialSource.count()
+        let directReceipts = try await SendPatchSMTPDelivery.send(directRequest, repository: repository, access: nil, credentials: credentialSource,
+            directSubmission: { messages, sender, _, _ in try await directProbe.submit(messages, sender) },
+            cancellation: OperationCancellation(), onProgress: { _ in })
+        let directCalls = await directProbe.count(), afterDirectCredentials = await credentialSource.count()
+        try require(directReceipts.count == 1 && directCalls == 1 && credentialReads == afterDirectCredentials,
+                    "Production direct entry captures Git sender and messages without configured server validation or credential access")
+        directConfiguration.save(prefs)
+        var directOptions: SendPatchWindowController?
+        let directFormat = FormatPatchWindowController(repository: repository, access: nil, preferences: prefs,
+            mailPresentation: { directOptions = $0 as? SendPatchWindowController })
+        let directLoadDeadline = Date().addingTimeInterval(10)
+        while directFormat.model.busy && Date() < directLoadDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        directFormat.model.composeMail([second])
+        guard let directOptions else { throw VerificationFailure(description: "Direct Format mail did not enter SMTP options") }
+        try require(directFormat.model.composingMail && directOptions.model.delivery == .smtp && directOptions.window?.isVisible == false,
+                    "Actual direct Format factory uses retained hidden SMTP options")
+        directOptions.model.cancel()
+        try require(!directFormat.model.composingMail, "Direct options Cancel releases parent")
+        var directImportOptions: SendPatchWindowController?
+        let directImporter = ImportPatchWindowController(repository: repository, access: nil, preferences: prefs,
+            mailPresentation: { directImportOptions = $0 as? SendPatchWindowController })
+        directImporter.model.add([second]); directImporter.model.sendMail(Set(directImporter.model.items.map(\.id)))
+        guard let directImportOptions else { throw VerificationFailure(description: "Direct Import mail did not enter SMTP options") }
+        try require(directImporter.model.composingMail && directImportOptions.model.delivery == .smtp, "Direct Import factory uses retained SMTP options")
+        directImportOptions.model.cancel(); try require(!directImporter.model.composingMail, "Direct Import options Cancel unlocks parent")
+        directImporter.window?.performClose(nil)
+        let directPartial = SendPatchProgressModel(request: directRequest, repository: repository, access: nil, preferences: prefs, submission: { token, _ in
+            token.cancel()
+            throw SMTPSeriesFailure(index: 0, attempts: 1, accepted: [],
+                cause: SMTPDirectFailure(domain: "z.invalid", acceptedDomains: ["a.invalid"], cause: OperationCancellationFailure.cancelled))
+        })
+        directPartial.start()
+        let directFailureDeadline = Date().addingTimeInterval(10)
+        while directPartial.busy && Date() < directFailureDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        try require(!directPartial.busy && !directPartial.success && !directPartial.cancelled && directPartial.error?.contains("Already accepted by: a.invalid") == true,
+                    "Partial-domain cancellation stays visible as delivery failure")
+        print("Native direct route: real Git sender capture, immutable messages, no configured credential/server use, actual Format SMTP options/Cancel, and partial-domain cancellation classification passed with injected submission; no public mail.")
         loopback.save(prefs); prefs.set(0, forKey: "AutoCloseGitProgress")
         var shownOptions: SendPatchWindowController?, shownProgress: SendPatchProgressWindowController?, formatCloses = 0
         let format = FormatPatchWindowController(repository: repository, access: nil, preferences: prefs, mailPresentation: { controller in

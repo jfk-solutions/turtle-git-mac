@@ -90,6 +90,20 @@ final class PatchMailSMTPTests: XCTestCase {
             let state = try await self.result(root); XCTAssertEqual(state["accepted"] as? Int, 0); XCTAssertEqual(state["auth"] as? Int, 0)
         }
     }
+    func testEnvelopeSubsetPreservesFullMIMEHeadersOnPrivateServer() async throws {
+        try await withServer("normal") { root, server in
+            let source = try self.message
+            let message = PatchMailMessage(to: source.to, cc: ["review@other.invalid"], subject: source.subject, body: source.body, attachments: source.attachments)
+            let stamp = Date(timeIntervalSince1970: 1_600_000_000), identifier = UUID()
+            _ = try await PatchMailSMTP.send(message: message, sender: self.sender, server: server, date: stamp, identifier: identifier,
+                                            envelopeRecipients: ["to@example.invalid"])
+            let state = try await self.result(root)
+            XCTAssertEqual(state["recipients"] as? [String], ["RCPT TO:<to@example.invalid>"])
+            let actual = try Data(contentsOf: root.appendingPathComponent("message.eml"))
+            XCTAssertEqual(actual, try PatchMailMIME.data(message: message, sender: self.sender, date: stamp, identifier: identifier))
+            XCTAssertTrue(String(decoding: actual, as: UTF8.self).contains("Cc: review@other.invalid"))
+        }
+    }
     func testRecipientAuthTLSRejectionsAndLostFinalReplyNeverAutoRetry() async throws {
         for mode in ["reject", "auth-reject", "no-starttls", "implicit-auth", "drop-final"] {
             let encryption: SMTPEncryption = mode == "implicit-auth" ? .tls : mode == "no-starttls" ? .startTLS : .none

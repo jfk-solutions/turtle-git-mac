@@ -8,7 +8,7 @@ import TurtleGitCore
     private var picker: LogWindowController?
     private var patch: PatchWindowController?
     private var mail: NSSharingService?
-    private var sendPatch: ConfiguredSendPatchWorkflow?
+    private var sendPatch: SMTPSendPatchWorkflow?
     private let mailPreferences: UserDefaults
     private let mailPresentation: ((NSWindowController) -> Void)?
     var activeOperation: Bool { model.busy || model.progress || model.confirmingCancellation || model.finishScheduled || model.composingMail || model.openingViewer }
@@ -95,10 +95,10 @@ import TurtleGitCore
     }
     private func composeMail(_ files: [URL]) {
         guard !files.isEmpty else { model.error = "No patches were created to attach."; return }
-        if EmailConfiguration(preferences: mailPreferences, missingDelivery: .mailClient).delivery == .configured {
+        if EmailConfiguration(preferences: mailPreferences, missingDelivery: .mailClient).delivery != .mailClient {
             model.composingMail = true
             let leases = [model.access, model.outputAccess].compactMap { $0 }
-            let workflow = ConfiguredSendPatchWorkflow(files: files, repository: model.repository, access: model.access,
+            let workflow = SMTPSendPatchWorkflow(files: files, repository: model.repository, access: model.access,
                 fileAccess: leases, preferences: mailPreferences, presentation: mailPresentation) { [weak self] _ in
                 guard let self else { return }; self.sendPatch = nil; self.model.composingMail = false
                 // Format Patch reports export success independently of mail outcome.

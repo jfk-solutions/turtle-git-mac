@@ -1247,3 +1247,10 @@ dependency used by CHwSMTP::SendSpeedEmail. It uses the system DNS-SD API,
 standalone MX RDATA decoding, an owned service reference and cooperative
 cancellation. The DNS query layer performs no mail delivery; direct-domain
 submission orchestration remains a separate porting requirement.
+
+PatchMailSMTP.swift additionally adapts CHwSMTP::SendSpeedEmail's direct mail
+recipient-domain grouping and exchange failover to the macOS MX/SMTP backends
+under GPL-2.0-or-later. MIME headers remain independent of per-domain envelopes.
+Accepted domains are retained across retries, and ambiguous submissions stop
+failover to avoid duplicate delivery. Source-style native SMTP options/progress
+routing now supports both configured-server and direct delivery.

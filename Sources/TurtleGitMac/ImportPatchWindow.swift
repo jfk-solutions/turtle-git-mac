@@ -12,7 +12,7 @@ import TurtleGitCore
     private var patch: PatchWindowController?
     private var review: WorkingTreePatchWindowController?
     private var mail: NSSharingService?
-    private var sendPatch: ConfiguredSendPatchWorkflow?
+    private var sendPatch: SMTPSendPatchWorkflow?
     private var mailCompletion: ((String?) -> Void)?
     var activeOperation: Bool { model.confirmingQuit || model.receivingDrop || model.busy || model.closing || model.openingViewer || model.composingMail || window?.attachedSheet != nil || patch?.model.busy == true || patch?.window?.attachedSheet != nil || review?.activeOperation == true }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, mailPresentation: ((NSWindowController) -> Void)? = nil) {
@@ -47,9 +47,9 @@ import TurtleGitCore
         }
         model.composeMail = { [weak self] files, completion in
             guard let self else { completion("The patch window was closed."); return }
-            if EmailConfiguration(preferences: preferences, missingDelivery: .mailClient).delivery == .configured {
+            if EmailConfiguration(preferences: preferences, missingDelivery: .mailClient).delivery != .mailClient {
                 let leases = self.model.items.filter { files.contains($0.file) }.map(\.access) + [access].compactMap { $0 }
-                let workflow = ConfiguredSendPatchWorkflow(files: files, repository: repository, access: access,
+                let workflow = SMTPSendPatchWorkflow(files: files, repository: repository, access: access,
                     fileAccess: leases, preferences: preferences, presentation: mailPresentation) { [weak self] _ in
                     self?.sendPatch = nil; completion(nil)
                 }

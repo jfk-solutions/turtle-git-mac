@@ -1,5 +1,5 @@
 import Foundation
-import TurtleGitCore
+@testable import TurtleGitCore
 @main struct ConfiguredSMTPVerification {
     static func main() async {
         do {
@@ -27,9 +27,20 @@ import TurtleGitCore
             try expected.write(to: root.appendingPathComponent("expected.eml"))
             var server = SMTPServer(host: "localhost", port: port, encryption: .none)
             server.connectTimeoutMilliseconds = 2000; server.timeoutMilliseconds = 5000
-            let receipt = try await PatchMailSMTP.send(message: message, sender: sender, server: server, date: date, identifier: identifier)
+            let receipts = try await PatchMailSMTP.sendDirectSeries(messages: [message], sender: sender, cancellation: OperationCancellation(),
+                resolver: { domain, _ in
+                    guard domain == "example.invalid" else { throw SMTPMXFailure.domain }
+                    return [try SMTPMXRecord.decode(Data([0, 0, 9] + Array("localhost".utf8) + [0]))]
+                }, transport: { captured, sender, mxServer, envelope, stamp, identity, token, progress in
+                    guard mxServer.port == 25, mxServer.host == "localhost" else { throw SMTPFailure.configuration }
+                    var loopback = mxServer; loopback.port = port
+                    try PatchMailMIME.data(message: captured, sender: sender, date: stamp, identifier: identity).write(to: root.appendingPathComponent("expected.eml"))
+                    return try await PatchMailSMTP.send(message: captured, sender: sender, server: loopback, date: stamp, identifier: identity,
+                        cancellation: token, envelopeRecipients: envelope, onProgress: progress)
+                }, wait: { _ in })
+            guard let receipt = receipts.first, receipts.count == 1 else { throw SMTPFailure.configuration }
             guard receipt.response == 250 else { throw SMTPFailure.transfer(code: 0, response: receipt.response, possiblySubmitted: true) }
-            print("Actual Debug Core/SMTP frameworks submitted one private loopback MIME message with two captured attachments and distinct To/CC. No app window, Keychain or real delivery.")
+            print("Actual Debug Core/SMTP direct queue and envelope transport submitted one private loopback MIME message with two captured attachments and distinct To/CC. No app window, Keychain or real delivery.")
         } catch { fputs("Configured SMTP framework QA failed: \(error)\n", stderr); exit(1) }
     }
 }

@@ -377,13 +377,17 @@ struct SendPatchAddressField: NSViewRepresentable {
     }
 }
 
-/// Configured-server orchestration only. Captured delivery and message bytes
+/// SMTP orchestration for configured-server and direct MX delivery. Captured delivery and message bytes
 /// come from Send; preferences, files and credentials are never reread on retry.
 enum SendPatchSMTPDelivery {
+    typealias DirectSubmission = @Sendable ([PatchMailMessage], PatchMailSender, OperationCancellation, @escaping @Sendable (SMTPSeriesProgress) -> Void) async throws -> [SMTPReceipt]
     typealias SenderSource = @Sendable (OperationCancellation) async throws -> PatchMailSender
     typealias Transport = @Sendable ([PatchMailMessage], PatchMailSender, SMTPServer, SMTPAuthentication?, OperationCancellation, @escaping @Sendable (SMTPSeriesProgress) -> Void) async throws -> [SMTPReceipt]
     @MainActor static func send(_ request: SendPatchRequest, repository: GitRepository, access: RepositoryAccessLease?,
                                credentials: any SMTPTransportCredentialSource = SMTPKeychainStore(),
+                               directSubmission: @escaping DirectSubmission = { messages, sender, token, progress in
+                                   try await PatchMailSMTP.sendDirectSeries(messages: messages, sender: sender, cancellation: token, onProgress: progress)
+                               },
                                cancellation: OperationCancellation,
                                onProgress: @escaping @Sendable (SMTPSeriesProgress) -> Void) async throws -> [SMTPReceipt] {
         if GitRuntime.isAppStoreBuild {
@@ -391,7 +395,7 @@ enum SendPatchSMTPDelivery {
         }
         defer { withExtendedLifetime(access) {} }
         return try await send(request, credentials: credentials, cancellation: cancellation, onProgress: onProgress,
-                              sender: { try await repository.patchMailSender(cancellation: $0) },
+                              sender: { try await repository.patchMailSender(cancellation: $0) }, direct: directSubmission,
                               transport: { messages, sender, server, authentication, token, progress in
             try await PatchMailSMTP.sendSeries(messages: messages, sender: sender, server: server,
                                                authentication: authentication, cancellation: token, onProgress: progress)
@@ -399,12 +403,19 @@ enum SendPatchSMTPDelivery {
     }
     static func send(_ request: SendPatchRequest, credentials: any SMTPTransportCredentialSource,
                      cancellation: OperationCancellation, onProgress: @escaping @Sendable (SMTPSeriesProgress) -> Void,
-                     sender: SenderSource, transport: Transport) async throws -> [SMTPReceipt] {
+                     sender: SenderSource, direct: DirectSubmission? = nil, transport: Transport) async throws -> [SMTPReceipt] {
         return try await withTaskCancellationHandler(operation: {
             func check() throws {
                 if cancellation.isCancelled || Task.isCancelled { throw OperationCancellationFailure.cancelled }
             }
             try check()
+            if request.delivery.delivery == .direct {
+                guard let direct else { throw SendPatchSMTPDeliveryFailure.delivery }
+                guard !request.messages.isEmpty else { return [] }
+                let identity = try await sender(cancellation); try check()
+                for message in request.messages { _ = try PatchMailMIME.data(message: message, sender: identity); try check() }
+                return try await direct(request.messages, identity, cancellation, onProgress)
+            }
             guard request.delivery.delivery == .configured else { throw SendPatchSMTPDeliveryFailure.delivery }
             var server = SMTPServer(host: request.delivery.server, port: Int(request.delivery.port),
                                     encryption: SMTPEncryption(rawValue: Int32(request.delivery.encryption.rawValue)) ?? .none)
@@ -436,7 +447,7 @@ enum SendPatchSMTPDeliveryFailure: LocalizedError {
     case delivery, credentials
     var errorDescription: String? {
         switch self {
-        case .delivery: return "This operation requires configured SMTP delivery."
+        case .delivery: return "This operation requires a supported SMTP delivery route."
         case .credentials: return "Store SMTP credentials in Email settings before sending with authentication."
         }
     }
@@ -493,7 +504,7 @@ private final class SendPatchProgressMailbox: @unchecked Sendable {
         }
     }
     func start() {
-        guard !started, !invalidated else { return }; started = true; busy = true; currentWork = "Capturing sender and credentials…"
+        guard !started, !invalidated else { return }; started = true; busy = true; currentWork = "Preparing mail…"
         notify(action: "Command", path: "Send Email", kind: .command)
         let began = ProcessInfo.processInfo.systemUptime, mailbox = SendPatchProgressMailbox()
         let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
@@ -516,6 +527,9 @@ private final class SendPatchProgressMailbox: @unchecked Sendable {
                 self.error = error.localizedDescription
                 var uncertain = false
                 if let failure = error as? SMTPSeriesFailure, case SMTPFailure.transfer(_, _, true) = failure.cause { uncertain = true }
+                if let failure = error as? SMTPSeriesFailure, let direct = failure.cause as? SMTPDirectFailure {
+                    uncertain = direct.hasDelivery
+                }
                 cancelled = token.isCancelled && !uncertain
                 append((cancelled ? "warning: " : "error: ") + error.localizedDescription)
                 notify(action: "Error", path: error.localizedDescription, kind: .error)
@@ -626,8 +640,8 @@ private struct SendPatchProgressDialog: View {
 }
 
 /// Retains options, progress and access until the final user close. Configured
-/// routing is introduced first; other delivery modes retain their existing path.
-@MainActor final class ConfiguredSendPatchWorkflow {
+/// routing handles configured servers and direct MX; mail-client routing is separate.
+@MainActor final class SMTPSendPatchWorkflow {
     private var options: SendPatchWindowController?, progress: SendPatchProgressWindowController?
     private var finished = false
     private let completion: (String?) -> Void

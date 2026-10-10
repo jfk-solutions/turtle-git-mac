@@ -60,12 +60,13 @@ public enum PatchMailSMTP {
                             authentication: SMTPAuthentication? = nil, bodyCharset: PatchMailBodyCharset = .utf8,
                             date: Date = Date(), identifier: UUID = UUID(),
                             cancellation: OperationCancellation? = nil,
+                            envelopeRecipients: [String]? = nil,
                             onProgress: (@Sendable (SMTPUploadProgress) -> Void)? = nil) async throws -> SMTPReceipt {
         let token = cancellation ?? OperationCancellation()
         return try await withTaskCancellationHandler(operation: {
             try await Task.detached {
                 try submit(message: message, sender: sender, server: server, authentication: authentication,
-                           bodyCharset: bodyCharset, date: date, identifier: identifier, token: token, progress: onProgress)
+                           bodyCharset: bodyCharset, date: date, identifier: identifier, envelopeRecipients: envelopeRecipients, token: token, progress: onProgress)
             }.value
         }, onCancel: { token.cancel() })
     }
@@ -84,12 +85,13 @@ public enum PatchMailSMTP {
     }
     private static func submit(message: PatchMailMessage, sender: PatchMailSender, server: SMTPServer,
                                authentication: SMTPAuthentication?, bodyCharset: PatchMailBodyCharset,
-                               date: Date, identifier: UUID, token: OperationCancellation, progress: (@Sendable (SMTPUploadProgress) -> Void)?) throws -> SMTPReceipt {
+                               date: Date, identifier: UUID, envelopeRecipients: [String]?, token: OperationCancellation, progress: (@Sendable (SMTPUploadProgress) -> Void)?) throws -> SMTPReceipt {
         try token.check()
         try validate(server: server, authentication: authentication)
         let host = server.host, ipv6 = host.contains(":")
-        let recipients = try (message.to + message.cc).map { try PatchMailMIME.envelopeAddress($0) }
-        guard !recipients.isEmpty else { throw SMTPFailure.recipients }
+        let originalRecipients = try (message.to + message.cc).map { try PatchMailMIME.envelopeAddress($0) }
+        let recipients = try envelopeRecipients?.map { try PatchMailMIME.envelopeAddress($0) } ?? originalRecipients
+        guard !recipients.isEmpty, recipients.allSatisfy({ originalRecipients.contains($0) }) else { throw SMTPFailure.recipients }
         let bytes = try PatchMailMIME.data(message: message, sender: sender, date: date, identifier: identifier, bodyCharset: bodyCharset)
         // MIME validation enforces a bare sender address; don't infer it from a
         // patch author or render display-name header words into the envelope.
@@ -188,6 +190,8 @@ extension PatchMailSMTP {
                     let retry: Bool
                     if case SMTPFailure.transfer(_, _, let uncertain) = error {
                         retry = !uncertain && !cancellation.isCancelled && !Task.isCancelled && attempt < 3
+                    } else if let direct = error as? SMTPDirectFailure {
+                        retry = direct.retryable && !cancellation.isCancelled && !Task.isCancelled && attempt < 3
                     } else { retry = false }
                     guard retry else { throw SMTPSeriesFailure(index: index, attempts: attempt, accepted: accepted, cause: error) }
                     onProgress?(.retry(index: index, nextAttempt: attempt + 1))
@@ -261,5 +265,132 @@ public enum SMTPMXResolver {
                 return records.prefix(count).map(SMTPMXRecord.result)
             }.value
         }, onCancel: { token.cancel() })
+    }
+}
+
+
+public struct SMTPRecipientDomain: Equatable, Sendable {
+    public let domain: String
+    public let recipients: [String]
+}
+public enum SMTPDirectRouteFailure: LocalizedError {
+    case noMX(String), nullMX(String)
+    public var errorDescription: String? {
+        switch self {
+        case .noMX(let domain): return "No usable MX exchange was returned for " + domain + "."
+        case .nullMX(let domain): return "The domain " + domain + " publishes a null MX and does not accept mail."
+        }
+    }
+}
+/// Tracks accepted recipient domains inside a failed message, in addition to the
+/// whole-message prefix in SMTPSeriesFailure. An ambiguous upload never fails over.
+public struct SMTPDirectFailure: LocalizedError {
+    public let domain: String
+    public let acceptedDomains: [String]
+    public let cause: Error
+    public var hasDelivery: Bool {
+        if !acceptedDomains.isEmpty { return true }
+        if case SMTPFailure.transfer(_, _, true) = cause { return true }
+        return false
+    }
+    fileprivate var retryable: Bool {
+        if case SMTPFailure.transfer(_, _, let uncertain) = cause { return !uncertain }
+        if case SMTPMXFailure.query = cause { return true }
+        if case SMTPDirectRouteFailure.noMX = cause { return true }
+        return false
+    }
+    public var errorDescription: String? {
+        let partial = acceptedDomains.isEmpty ? "" : " Already accepted by: " + acceptedDomains.joined(separator: ", ") + "."
+        return "Direct delivery to " + domain + " failed: " + cause.localizedDescription + partial
+    }
+}
+extension PatchMailSMTP {
+    typealias MXLookup = @Sendable (String, OperationCancellation) async throws -> [SMTPMXRecord]
+    typealias DirectTransport = @Sendable (PatchMailMessage, PatchMailSender, SMTPServer, [String], Date, UUID, OperationCancellation, @escaping @Sendable (SMTPUploadProgress) -> Void) async throws -> SMTPReceipt
+    public static func recipientDomains(for message: PatchMailMessage) throws -> [SMTPRecipientDomain] {
+        var groups: [String: [String]] = [:]
+        for value in message.to + message.cc {
+            let recipient = try PatchMailMIME.envelopeAddress(value)
+            guard let separator = recipient.lastIndex(of: "@") else { throw PatchMailMIMEFailure.mailbox }
+            let domain = String(recipient[recipient.index(after: separator)...])
+            groups[domain, default: []].append(recipient)
+        }
+        guard !groups.isEmpty else { throw SMTPFailure.recipients }
+        return groups.keys.sorted().map { SMTPRecipientDomain(domain: $0, recipients: groups[$0]!) }
+    }
+    public static func sendDirectSeries(messages: [PatchMailMessage], sender: PatchMailSender,
+                                        cancellation: OperationCancellation? = nil,
+                                        onProgress: (@Sendable (SMTPSeriesProgress) -> Void)? = nil) async throws -> [SMTPReceipt] {
+        try await sendDirectSeries(messages: messages, sender: sender, cancellation: cancellation ?? OperationCancellation(),
+            onProgress: onProgress, resolver: { try await SMTPMXResolver.lookup(domain: $0, cancellation: $1) },
+            transport: { message, sender, server, recipients, date, identifier, token, progress in
+                try await send(message: message, sender: sender, server: server, date: date, identifier: identifier,
+                               cancellation: token, envelopeRecipients: recipients, onProgress: progress)
+            }, wait: { token in
+                for _ in 0..<100 { try token.check(); try await Task.sleep(nanoseconds: 20_000_000) }
+            })
+    }
+    static func sendDirectSeries(messages: [PatchMailMessage], sender: PatchMailSender, cancellation: OperationCancellation,
+                                 onProgress: (@Sendable (SMTPSeriesProgress) -> Void)? = nil, resolver: @escaping MXLookup,
+                                 transport: @escaping DirectTransport, wait: @escaping @Sendable (OperationCancellation) async throws -> Void) async throws -> [SMTPReceipt] {
+        try await withTaskCancellationHandler(operation: {
+            try cancellation.check(); try Task.checkCancellation()
+            let stamps = messages.map { _ in (Date(), UUID()) }
+            var plans: [[SMTPRecipientDomain]] = []
+            // Capture/validate the entire series before the first lookup/submission.
+            for (index, message) in messages.enumerated() {
+                try cancellation.check()
+                plans.append(try recipientDomains(for: message))
+                _ = try PatchMailMIME.data(message: message, sender: sender, date: stamps[index].0, identifier: stamps[index].1)
+            }
+            let state = DirectSMTPState(messages: messages, sender: sender, plans: plans, stamps: stamps,
+                                        token: cancellation, resolver: resolver, transport: transport)
+            return try await runSeries(count: messages.count, cancellation: cancellation, onProgress: onProgress,
+                                       wait: { try await wait(cancellation) }, submit: { try await state.submit($0, progress: $1) })
+        }, onCancel: { cancellation.cancel() })
+    }
+}
+private actor DirectSMTPState {
+    let messages: [PatchMailMessage], sender: PatchMailSender, plans: [[SMTPRecipientDomain]], stamps: [(Date, UUID)]
+    let token: OperationCancellation, resolver: PatchMailSMTP.MXLookup, transport: PatchMailSMTP.DirectTransport
+    var completed: [[String]], responses: [Int]
+    init(messages: [PatchMailMessage], sender: PatchMailSender, plans: [[SMTPRecipientDomain]], stamps: [(Date, UUID)],
+         token: OperationCancellation, resolver: @escaping PatchMailSMTP.MXLookup, transport: @escaping PatchMailSMTP.DirectTransport) {
+        self.messages = messages; self.sender = sender; self.plans = plans; self.stamps = stamps; self.token = token
+        self.resolver = resolver; self.transport = transport
+        completed = Array(repeating: [], count: messages.count); responses = Array(repeating: 250, count: messages.count)
+    }
+    func submit(_ index: Int, progress: @escaping @Sendable (SMTPUploadProgress) -> Void) async throws -> SMTPReceipt {
+        for group in plans[index] where !completed[index].contains(group.domain) {
+            do {
+                try token.check(); try Task.checkCancellation()
+                let records = try await resolver(group.domain, token)
+                try token.check(); try Task.checkCancellation()
+                let hosts = records.filter { !$0.isNull }
+                if hosts.isEmpty {
+                    if records.contains(where: \.isNull) { throw SMTPDirectRouteFailure.nullMX(group.domain) }
+                    throw SMTPDirectRouteFailure.noMX(group.domain)
+                }
+                var receipt: SMTPReceipt?, lastError: Error = SMTPDirectRouteFailure.noMX(group.domain)
+                for record in hosts {
+                    try token.check(); try Task.checkCancellation()
+                    do {
+                        let server = SMTPServer(host: record.hostname, port: 25, encryption: .none)
+                        try PatchMailSMTP.validate(server: server)
+                        receipt = try await transport(messages[index], sender, server, group.recipients,
+                                                      stamps[index].0, stamps[index].1, token, progress)
+                        break
+                    } catch {
+                        if case SMTPFailure.transfer(_, _, let uncertain) = error {
+                            if uncertain { throw error }
+                            lastError = error
+                        } else { throw error }
+                    }
+                }
+                guard let receipt else { throw lastError }
+                completed[index].append(group.domain); responses[index] = receipt.response
+            } catch { throw SMTPDirectFailure(domain: group.domain, acceptedDomains: completed[index], cause: error) }
+        }
+        return SMTPReceipt(response: responses[index])
     }
 }

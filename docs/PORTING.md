@@ -19,13 +19,16 @@ read-only native unified-diff viewer, preserving its original bytes independentl
 of the Send checkbox. Shift uses the alternate viewer setting; owned reads,
 missing-file recovery and close fencing have hidden native verification. Review and Apply now open independent native patch-review/serial-import tools
 with inherited file grants; real working-tree application and two-commit import
-have hidden native checks. Other delivery modes, physical UI and signed grants
+have hidden native checks. Mail-client delivery, physical UI and signed grants
 remain pending. See [Send Patch parity](SEND-PATCH-PARITY.md).
 
-Direct mail's macOS MX lookup dependency now uses system DNS-SD with bounded
-waiting and cancellation. Decoder/input/live read-only query checks and repeated
-query cleanup passed; this does not yet provide direct delivery. Domain routing,
-MX failover and accepted-prefix handling remain pending. See
+Direct mail now groups To/CC recipients by domain, resolves system MX exchanges,
+and submits domain-specific envelopes while preserving full MIME headers. Retries
+skip domains that already accepted the message; ambiguous uploads stop failover.
+Format and Import use the native Send Mail options/progress route for direct as
+well as configured SMTP. Focused core tests, hidden native route checks and the
+built SDK framework's private loopback queue passed. Public mail delivery,
+mail-client parity and signed/physical acceptance remain unverified. See
 [Send Patch parity](SEND-PATCH-PARITY.md).
 
 ## Audited baseline
