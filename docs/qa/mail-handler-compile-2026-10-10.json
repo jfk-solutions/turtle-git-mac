@@ -1,0 +1,44 @@
+{
+  "checked_at": "2026-10-10T05:25:00.285238+00:00",
+  "parent_commit": "826bd54423379f83a129652269981b616868d8a1",
+  "scope": "Compile exact production Mail handler; never execute it. Native regression suite uses local handler/injected composer and private SMTP server.",
+  "checks": {
+    "native": {
+      "session": 72672,
+      "exit_code": 0,
+      "command": "python3 scripts/test-send-patch-dialog.py",
+      "production_handler": "NSAppleScript.compileAndReturnError against installed Mail dictionary passed",
+      "typed_events": "Independent local composeDraft receiver; production Mail handler not executed",
+      "cleanup": {
+        "matching_processes": [],
+        "current_fixtures": []
+      },
+      "preferences": "Exact empty private suite C3397E90-E80B-4650-BFD3-65A2AE3E2668 removed; defaults domain already absent"
+    }
+  },
+  "environment": {
+    "macOS": "26.5.1",
+    "macOS_build": "25F80",
+    "Mail_version": "16.0",
+    "Mail_build": "3864.600.51.1.1",
+    "dictionary_sha256": "111b9291c502354106a320f6ba0a7e38ed29f09e443404679fb57778708b0722"
+  },
+  "source_sha256": {
+    "Sources/TurtleGitMac/SendPatchWindow.swift": "5cd3b7513eff3ac1e698e09a75f34786fb295389d0df9a66b63acce93de2e4eb",
+    "docs/qa/send-patch-dialog-native-2026-10-10.swift": "ff6fb4c8d65bd3e155ac36353d1f41213e13eeefb3d3bf5c89c3bcd1477bbe03",
+    "scripts/test-send-patch-dialog.py": "e3bfe7f898450ddc44551164b667f50e740f0e5ce1da7edc48b297c34feaf8c0",
+    "docs/SEND-PATCH-PARITY.md": "3270bc48880fd943381d5c21383c81ff69d4930b84d65f3fa5c51a15c680cc74"
+  },
+  "binary_sha256": {
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": "a1076ff8c04824ccdff8f8e6d9d61038b8ca3d2251c35961656fd3ac43200984",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": "4fe130d88732811cb2135fd976f7b9579c0ae3d38211d79ae7708e6973b5955c"
+  },
+  "log_sha256": {
+    "build/qa/mail-handler-compile-native-2026-10-10.log": "5d9ecb3db00eaa04c9608f44fe904c5f9a6e8f511da7460a089f3acdfe78cc89"
+  },
+  "limitations": [
+    "Production Mail handler was compiled but never executed. Account selection, displayed fields, actual draft/attachment lifecycle and signed Automation permission are unverified.",
+    "Only installed macOS/Mail dictionary covered. Other supported versions remain unverified.",
+    "No production source changes; no new full-suite, app build or hosted CI claim. Full application/dialog parity remains incomplete."
+  ]
+}

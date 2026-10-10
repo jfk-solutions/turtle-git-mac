@@ -569,6 +569,16 @@ private actor MailDraftProbe {
         let text = "quotes \" and \\ Unicode 雪\nend tell\ndo shell script \"never\""
         let descriptorDraft = MailClientDraft(sender: "sender@example.invalid", subject: "Custom \" subject", body: text,
             to: [try PatchMailMIME.mailboxComponents("To 雪 <to@example.invalid>")], cc: [try PatchMailMIME.mailboxComponents(#""Copy \"Name\"" <cc@example.invalid>"#)], attachments: [first])
+        // Compile the exact production handler against the installed Mail
+        // dictionary. Never execute it: the receiver below handles the event
+        // locally, so this test does not create drafts or request Automation.
+        guard let productionScript = NSAppleScript(source: MailClientDraftAutomation.source) else {
+            throw VerificationFailure(description: "Production Mail handler unavailable")
+        }
+        var compileError: NSDictionary?
+        let compiled = productionScript.compileAndReturnError(&compileError)
+        try require(compiled && compileError == nil,
+                    "Production Mail handler compile: \(compileError?.description ?? "unknown error")")
         let localScript = NSAppleScript(source: """
         on composeDraft(a,b,c,d,e,f)
             return {a,b,c,d,e,f}

@@ -716,6 +716,24 @@ system/packaged Git, including Unicode/quoted mailbox components and attachment
 last-wins/same-basename/UTF-16 sorting. Native checks inspect actual staged files
 and nested Apple Event name/address records through an injected composer/local
 handler. Earlier pending display-name/map notes describe previous checkpoints.
-Actual Apple Mail compilation/execution, sender account behavior, permission and
+Actual Apple Mail execution, sender account behavior, permission and
 attachment lifecycle, general client discovery, unconfigured Git identity fallback,
 modal MAPI completion/retry and physical/signed/App Store acceptance remain open.
+
+## Production Mail handler compilation
+
+The native Send Patch receiver now compiles `MailClientDraftAutomation.source`
+itself with `NSAppleScript.compileAndReturnError`, against the installed Mail
+scripting dictionary. This checks the production program's syntax and dictionary
+terms, including outgoing-message, recipient name/address and attachment creation.
+The check never executes that program. Its typed-event test continues to invoke
+an independent local handler, and delivery tests use an injected draft composer
+or the private SMTP server.
+
+[Compilation QA](qa/mail-handler-compile-2026-10-10.json) records successful
+compilation and the native suite on macOS 26.5.1 with Mail 16.0. Earlier checkpoint
+notes that listed compilation as pending are superseded for this installed
+version. Compilation cannot prove that Mail creates the intended draft, selects
+an account, displays recipients correctly or imports attachments. Other supported
+macOS/Mail versions, signed sandbox/TCC permission, runtime draft behavior and
+full upstream mail-client lifecycle remain unverified.
