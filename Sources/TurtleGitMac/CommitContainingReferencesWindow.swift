@@ -46,7 +46,7 @@ private final class CommitReferencesWindow: NSWindow {
     private var lastSelected: GitReferenceName?
     private var previousSelection = IndexSet()
     private var unifiedViewer: PatchWindowController?
-    private var canAct: Bool { !closed && !busy && picker == nil && window?.attachedSheet == nil }
+    private var canAct: Bool { !closed && !busy && picker == nil && window?.attachedSheet == nil && window?.parent?.attachedSheet == nil }
 
     init(repository: GitRepository, access: RepositoryAccessLease?, revision: String, preferences: UserDefaults = .standard) {
         self.repository = repository; self.access = access; self.preferences = preferences

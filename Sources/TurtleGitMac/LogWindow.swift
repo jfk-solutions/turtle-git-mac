@@ -100,6 +100,7 @@ final class LogHistoryWindow: NSWindow {
     private let findPreferences: UserDefaults
     private var findAvailability: AnyCancellable?
     private(set) var find: RevisionGraphFindController?
+    private(set) var ordering: LogOrderingWindowController?
     private(set) var containingReferences: [UUID: CommitContainingReferencesWindowController] = [:]
     private(set) var patchPreviewWindow: PatchWindowController?
     private var previousPatchParentFrame: NSRect?
@@ -117,12 +118,13 @@ final class LogHistoryWindow: NSWindow {
         window.title = "\(repository.root.lastPathComponent) – Log Messages – TurtleGit"
         window.minSize = NSSize(width: 1080, height: 700)
         window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: LogDialog(model: model, savesColumnLayout: savesColumnLayout).disabled(model.findBlocked).defaultAppStorage(labelDefaults))
+        window.contentViewController = NSHostingController(rootView: LogDialog(model: model, savesColumnLayout: savesColumnLayout).disabled(model.findBlocked || model.orderingBlocked).defaultAppStorage(labelDefaults))
         super.init(window: window)
         model.window = window
         window.find = { [weak self] in self?.showFind() }
-        window.blocksInteraction = { [weak model] in model?.findBlocked == true }
+        window.blocksInteraction = { [weak model] in model?.findBlocked == true || model?.orderingBlocked == true }
         findAvailability = model.$busy.sink { [weak self] _ in DispatchQueue.main.async { self?.find?.updateAvailability() } }
+        model.onShowOrdering = { [weak self] in self?.showOrdering() }
         model.onShowContainingReferences = { [weak self] hash in self?.showContainingReferences(hash) }
         model.onFindReferenceRefresh = { [weak self] in self?.find?.loadReferences() }
         model.onPatchPreviewVisibility = { [weak self] visible in self?.setPatchPreviewVisible(visible) }
@@ -339,7 +341,7 @@ final class LogHistoryWindow: NSWindow {
         completion(revisions)
     }
     private var canFind: Bool {
-        !model.isInvalidated && !model.busy && !model.jumping && !model.loadingNote && !model.savingNote && model.noteRequest == nil && !model.copyingDetails && !model.unifiedViewerBusy && !model.findBlocked && window?.attachedSheet == nil
+        !model.isInvalidated && !model.busy && !model.jumping && !model.loadingNote && !model.savingNote && model.noteRequest == nil && !model.copyingDetails && !model.unifiedViewerBusy && !model.findBlocked && !model.orderingBlocked && window?.attachedSheet == nil
     }
     func showFind(regexExecutable: URL? = nil) {
         guard canFind, let parent = window else { return }
@@ -374,13 +376,26 @@ final class LogHistoryWindow: NSWindow {
         }
         child.updateAvailability(); child.loadReferences()
     }
+    func showOrdering() {
+        guard canFind, !hasBlockingReferenceChild, ordering == nil, let parent = window else { return }
+        let child = LogOrderingWindowController(preferences: findPreferences)
+        ordering = child; model.orderingBlocked = true
+        child.window?.alphaValue = parent.alphaValue; child.window?.appearance = parent.appearance
+        child.completion = { [weak self] value in
+            guard let self else { return }
+            self.ordering = nil; self.model.orderingBlocked = false
+            if value != nil, !self.model.isInvalidated { self.model.reload() }
+        }
+        parent.makeFirstResponder(nil)
+        if let sheet = child.window { parent.beginSheet(sheet); sheet.makeFirstResponder(child.ordering) }
+    }
     func showContainingReferences(_ hash: String) {
         guard canFind, !hash.isEmpty, let parent = window else { return }
         let id = UUID(), child = CommitContainingReferencesWindowController(repository: model.repository, access: findAccess, revision: hash, preferences: findPreferences)
         child.onLog = { [weak model] name, select, range in model?.onContainingLog?(name, select, range) }
         child.onBrowse = model.onBrowseRepository; child.onCompare = model.onCompare; child.onUnified = model.onUnifiedDiff
         child.onNavigate = { [weak model] hash, select in
-            guard let model, !model.isInvalidated, !model.busy else { return }
+            guard let model, !model.isInvalidated, !model.busy, !model.orderingBlocked else { return }
             if model.entries.contains(where: { $0.hash == hash }) {
                 if select { model.select([hash]) } else { model.highlightedRevision = hash }
                 model.scrollRevision = hash; model.scrollRequest += 1
@@ -396,10 +411,11 @@ final class LogHistoryWindow: NSWindow {
     }
     var hasBlockingReferenceChild: Bool { containingReferences.values.contains { $0.hasBlockingChild } }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard (!model.busy || model.loadingHistory), !model.unifiedViewerBusy, !model.findBlocked, !hasBlockingReferenceChild, sender.attachedSheet == nil else { return false }
+        guard (!model.busy || model.loadingHistory), !model.unifiedViewerBusy, !model.findBlocked, !model.orderingBlocked, !hasBlockingReferenceChild, sender.attachedSheet == nil else { return false }
         if model.selecting { finishSelection(nil); return false }; return true
     }
     func windowWillClose(_ notification: Notification) {
+        let ordered = ordering; ordering = nil; ordered?.completion = { _ in }; ordered?.close(); model.orderingBlocked = false
         let references = Array(containingReferences.values); containingReferences.removeAll(); references.forEach { $0.close() }
         find?.close(); find = nil; model.findBlocked = false
         let completion = selectionCompletion; selectionCompletion = nil
@@ -519,6 +535,7 @@ struct LogCommandRequest: Identifiable {
     var findSearchIndex = 0
     var onFindReferenceRefresh: (() -> Void)?
     @Published var findBlocked = false
+    @Published var orderingBlocked = false
     @Published var entries: [LogEntry] = []
     @Published var revisionActions: [String: LogRevisionActions] = [:]
     @Published var actionFailures = Set<String>()
@@ -1058,6 +1075,7 @@ struct LogCommandRequest: Identifiable {
 
     var onCherryPick: (([String]) -> Void)?
     var onBrowseRepository: ((String) -> Void)?
+    var onShowOrdering: (() -> Void)?
     var onShowContainingReferences: ((String) -> Void)?
     var onContainingLog: ((String?, Bool, HistoryRevisionRange?) -> Void)?
     var onFormatPatch: ((FormatPatchPreset) -> Void)?
@@ -1229,6 +1247,7 @@ struct LogCommandRequest: Identifiable {
         cancelClipboardRead()
         generation += 1; let request = generation
         var options = HistoryOptions(); options.endRevision = endRevision; options.revisionRange = revisionRange; options.allBranches = allBranches; options.search = search; options.searchFields = searchFields; options.searchCaseSensitive = searchCaseSensitive; options.searchRegex = searchRegex
+        options.ordering = HistoryOrdering.load(defaults: labelDefaults)
         options.walk = historyWalk; options.regexExecutable = historyRegexExecutable
         options.includeBoundaryCommits = includeBoundaryCommits
         options.retainFilteredRows = true
@@ -2617,6 +2636,13 @@ struct RevisionTable: NSViewRepresentable {
         var scrollRequest = 0
         var colorRevision = -1
         init(model: LogWindowModel) { self.model = model }
+        func tableView(_ tableView: NSTableView, didClick tableColumn: NSTableColumn) {
+            guard !model.busy, !model.isInvalidated, !model.findBlocked, !model.orderingBlocked else { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(10)) { [weak self] in
+                guard let self, !self.model.busy, !self.model.isInvalidated else { return }
+                self.model.onShowOrdering?()
+            }
+        }
         func numberOfRows(in tableView: NSTableView) -> Int { model.entries.count }
         func tableView(_ tableView: NSTableView, viewFor column: NSTableColumn?, row: Int) -> NSView? {
             let entry = model.entries[row]

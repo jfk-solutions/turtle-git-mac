@@ -1460,3 +1460,8 @@ The References commit is on workflow adapts CommitIsOnRefsDlg.cpp/.h and
 CGit::GetRefsCommitIsOn from the pinned upstream GPL-2.0-or-later source.
 Its Show branches menu icon is the unmodified src/Resources/showbranches.ico;
 its hash and source are recorded in the icon provenance manifest.
+
+Log commit ordering adapts TortoiseProc/LogOrdering.cpp/.h, IDD_LOGORDERING,
+LogDlg's deferred header-click route and CGit::GetLogCmd's four order choices
+from the pinned upstream GPL-2.0-or-later source. Native sheets retain draft
+OK/Cancel persistence and choose Git walk order rather than sorting projected rows.

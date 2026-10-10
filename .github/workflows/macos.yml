@@ -260,6 +260,8 @@ jobs:
         run: python3 scripts/test-log-find.py
       - name: Native commit-containing reference dialog and owned Log/picker routes
         run: python3 scripts/test-commit-containing-refs.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
+      - name: Native Log commit ordering and owned header dialog
+        run: python3 scripts/test-log-ordering.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Log compressed graph rollup receiver
         run: python3 scripts/test-log-rollup.py
       - name: Native Log Gravatar mock transport receiver

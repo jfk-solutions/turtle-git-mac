@@ -484,6 +484,7 @@ public struct HistoryLimitScope: Equatable, Sendable {
 }
 
 public struct HistoryOptions: Sendable {
+    public var ordering: HistoryOrdering = .topological
     public var walk = HistoryWalkOptions()
     public var allBranches = false
     public var includeBoundaryCommits = false
@@ -914,7 +915,7 @@ extension GitRepository {
         let query = HistoryTextQuery(options.search, caseSensitive: options.searchCaseSensitive)
         // Git fixed-string grep is equivalent only for one positive message term.
         let filterInMemory = filtering && (options.retainFilteredRows || options.searchRegex || options.searchFields != .messages || query.simpleLiteral == nil)
-        var args = ["log", "--encoding=UTF-8", "--topo-order", "--no-notes", "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00%cn%x00%ce%x00%cI%x00%m%x00"]
+        var args = ["log", "--encoding=UTF-8"] + options.ordering.arguments + ["--no-notes", "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00%cn%x00%ce%x00%cI%x00%m%x00"]
         // Match GetLogCmd: parent rewriting for normal walks, raw full history.
         let rewritesParents = !options.walk.fullHistory
         if options.includeBoundaryCommits { args += ["--left-right", "--boundary"] }
