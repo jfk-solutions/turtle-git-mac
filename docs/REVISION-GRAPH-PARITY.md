@@ -75,8 +75,9 @@ colored branch/tag rows and clipped arrow paths, and supplies scrolling, zoom,
 fit height/width/graph, overview navigation, tooltips and two-node selection.
 The app and Finder action route to a reusable controller per repository and Git
 executable. Original `menurevisiongraph.ico` is packaged with its provenance.
-Node commands route to existing Log, repository browser, comparison, checkout,
-branch/tag and reset workflows. Unified diff resolves selected references before
+Node commands route to existing Log, repository browser, comparison, local branch
+switch and remote/tag checkout workflows. Reference deletion reuses the shared
+CAppUtils::DeleteRef adaptation with fresh object checks. Unified diff resolves selected references before
 reading a patch. The native exporter now supports SVG, Graphviz, PNG, JPEG, BMP, GIF and PDF; PDF replaces Windows enhanced metafiles.
 
 `RevisionGraphFilter.swift` provides From/To fields, owned reference browsers,
@@ -89,8 +90,8 @@ Remaining requirements include:
 - Verify the native window and owned reference-browser handoffs against upstream.
 - Verify full save-panel interactions, arbitrary-extension fallback and signed file grants. Windows enhanced-metafile encoding is replaced by native PDF.
 - Verify rendering, zoom, overview dragging, pointer labels and hover date formatting.
-- Complete node context menus and File/View/Git/Help menus, original icons,
-  two-node selection, comparisons, unified diff and Show Log routing.
+- Physical and signed node-menu/File/View/Git/Help acceptance, alternative-tool
+  modifier routing, and complete external handoffs.
 - App and Finder launch routing, native screenshots, physical keyboard/mouse,
   accessibility, signed sandbox and distribution verification.
 - Configured Log ordering beyond the current default topo order, superproject
@@ -183,3 +184,43 @@ Both native Git-engine runs passed the encoding, format-control and view-state
 checks. Unsigned Debug/AppStore builds and bundle audits passed. Actual exported
 PNG and native Quick Look SVG rendering were inspected; external Graphviz
 rendering and signed save-panel grants remain unproven.
+
+## Reference menus and deletion
+
+The native node menu follows `RevisionGraphWnd.cpp::OnContextMenu`: Show Log,
+Browse, branch-specific Switch or remote/tag Switch/Checkout, Copy ref names,
+reference-specific Delete/All, HEAD/unified/working-tree comparisons. Two-node
+menus contain Show Log, Compare revisions and Unified diff. Original icons
+remain attached to native menu items. Single-reference choices stay direct;
+multiple local branches and deletable references form submenus. Extra generic
+Create branch/tag, Reset and Copy hash items have been removed from this graph
+menu to retain the source hierarchy.
+
+The exclusion follows `GetFriendRefNames`' current short-name comparison for
+all reference kinds, including a same-named tag. Annotated tags retain `^{}` in
+copied names, friendly revision values and delete-menu labels, while the native
+Git reference model keeps normalized names for mutation. Copy on a node with no
+refs returns the full hash. Show Log uses raw hashes and the ordered first-to-
+second difference range from `LogCommand.cpp`.
+
+Typed menu payloads retain the node hash and reference identities. A retained
+menu cannot act on another node. Deletion resolves the current commit before
+showing confirmation; the shared deletion API rechecks its object/stash snapshot
+after confirmation. All presents each reference separately and stops on Abort.
+Remote/stash choices and failure reporting retain the shared source behavior.
+Security scope, cancellation and a private SSH coordinator cover repository
+operations; actual remote-network deletion remains unverified.
+
+NSAlert clears customized button equivalents during presentation. The native
+controller sets the Abort Return shortcut and default cell after beginning the
+sheet; the real Return event was checked without activating the app. Owned
+sheets block parent close and Quit. Repository refresh requests defer while the
+graph is busy, filtering, exporting or presenting a sheet, then run when ready.
+Physical branch checkout, remote/stash confirmation variants, alternative tools,
+VoiceOver, unusual-reference ordering and signed Finder acceptance remain pending.
+
+The [menu checkpoint](qa/revision-graph-menus-2026-10-10.json) records both native
+engine runs, 17 focused core tests per engine, unsigned builds and bundle audits.
+The deletion checks use disposable repositories only and keep ordinary read-only
+invariants separate from intentionally destructive fixture actions. Current
+hosted CI, physical gestures, signed activation and complete parity remain open.

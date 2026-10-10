@@ -1418,3 +1418,12 @@ PDF replaces enhanced Windows metafiles; ImageIO retains the raster encodings.
 SVG and Graphviz serialization preserve geometry/topology and colored reference
 rows with XML escaping and full-hash Graphviz IDs. Existing GPL-2.0-or-later
 terms and source attribution apply.
+
+Revision Graph node context menus and ranged Show Log adapt RevisionGraphWnd.cpp
+OnContextMenu/DoShowLog/DoCopyRefs and RevisionGraphDlgFunc.cpp
+GetFriendRefNames at the existing pinned TortoiseGit commit. Native typed menu
+payloads retain original icons, current-short-name exclusion and ordered
+reference choices. Deletion reuses the existing GPL native adaptation of
+CAppUtils::DeleteRef with owned macOS confirmation/error sheets, per-reference
+All sequencing, fresh object checks, private SSH coordination and cancellation.
+Existing TortoiseGit copyrights and GPL-2.0-or-later terms apply.

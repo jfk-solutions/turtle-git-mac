@@ -13,8 +13,20 @@ for its full hash, author, author date and message.
 Click a node to select it. Command-click or Control-click another node to select
 a second revision. The first selection has an I marker and becomes the Base
 when two nodes are selected; the second has a red II marker. Right-click a node
-for Log, repository browsing, comparison and revision commands. Some upstream
-context commands are still missing; see the parity record below.
+for Log, repository browsing, comparison and reference commands. A single
+selection offers Switch actions for other local branches; several branches form
+a submenu. If there are no other local branches, remote branches and tags can
+open Switch/Checkout. Current-branch references are excluded from deletion.
+Delete offers each eligible reference and, for multiple references, All. All
+confirms each reference separately; Abort stops the sequence. Return chooses
+Abort in the confirmation. Remote branches offer remote-and-local or local-only
+deletion; a stash offers all-stash or single-stash choices.
+
+Copy ref names uses complete reference names, including upstream's `^{}`
+notation for annotated tags; an unlabeled node copies its full hash. Show Log
+uses the selected node's hash, or the first-to-second revision range when two
+nodes are selected. See the parity record for remaining physical and signed
+interaction checks.
 
 Use the toolbar or **View** menu to zoom, return to 100%, fit width or height,
 or fit the whole graph. **Show Overview** displays a miniature graph; click or

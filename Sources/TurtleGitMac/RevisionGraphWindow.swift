@@ -59,15 +59,20 @@ final class RevisionGraphSurface: NSView {
     var changed: () -> Void = {}
     var becameIdle: () -> Void = {}
     var onLog: (String) -> Void = { _ in }
+    var onLogRange: (HistoryRevisionRange) -> Void = { _ in }
+    var onSwitchBranch: (String) -> Void = { _ in }
+    let sshSettings: SSHTransportSettings
+    var confirmReferenceDeletion: (HistoryReferenceDeletion) async -> HistoryReferenceDeleteChoice = { _ in .abort }
+    var acknowledgeReferenceDeletionFailure: (String) async -> Void = { _ in }
+    var copyReferences: (String) -> Void = { text in NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string) }
+    private(set) var bare = false
     var onBrowse: (String) -> Void = { _ in }
     var onCompare: (ComparisonRevision, ComparisonRevision) -> Void = { _, _ in }
-    var onCreateReference: (Bool, String) -> Void = { _, _ in }
     var onCheckout: (String) -> Void = { _ in }
-    var onReset: (String) -> Void = { _ in }
     var onUnified: (Data) -> Void = { _ in }
     static let font = NSFont.systemFont(ofSize: 12)
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, layoutExecutable: URL? = nil) {
-        self.repository = repository; self.access = access; self.preferences = preferences; self.layoutExecutable = layoutExecutable
+        self.repository = repository; self.access = access; self.preferences = preferences; self.layoutExecutable = layoutExecutable; sshSettings = SSHTransportSettings(repository: repository)
     }
     deinit { cancellation?.cancel(); worker?.cancel() }
     func lines(_ node: RevisionGraphNode, pointers: Set<String>? = nil) -> [(String, LogColorRole?)] {
@@ -89,6 +94,7 @@ final class RevisionGraphSurface: NSView {
             }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let isBare = try await repository.isBare(cancellation: token)
                 let graph = try await repository.revisionGraph(options: options, cancellation: token)
                 guard !closed, !token.isCancelled, request == generation else { return }
                 let sizes = graph.nodes.map { node -> CGSize in
@@ -101,7 +107,7 @@ final class RevisionGraphSurface: NSView {
                     try RevisionGraphLayoutRuntime.layout(nodes: graph.nodes, sizes: sizes, executable: executable, cancellation: token)
                 }.value
                 guard !closed, !token.isCancelled, request == generation else { return }
-                nodes = graph.nodes; pointers = graph.superprojectHashes; geometry = layout
+                bare = isBare; nodes = graph.nodes; pointers = graph.superprojectHashes; geometry = layout
                 selection = selection.filter { hash in self.nodes.contains { $0.hash == hash } }
             } catch { if !closed, !token.isCancelled, request == generation { self.error = error.localizedDescription } }
         }
@@ -117,10 +123,72 @@ final class RevisionGraphSurface: NSView {
         } else { selection = [hash] }
         changed()
     }
-    func friendName(_ hash: String) -> String { nodes.first { $0.hash == hash }?.references.first?.name ?? hash }
+    static func fullReferenceName(_ ref: RevisionReference) -> String { ref.kind == .annotatedTag ? ref.name + "^{}" : ref.name }
+    func friendName(_ hash: String) -> String { nodes.first { $0.hash == hash }?.references.first.map(Self.fullReferenceName) ?? hash }
     func compare(head: Bool = false, working: Bool = false) {
-        guard !busy, !closed, let first = selection.first, (head || working) ? selection.count == 1 : selection.count == 2 else { return }
+        guard !busy, !closed, let first = selection.first, (head || working) ? selection.count == 1 : selection.count == 2, !working || !bare else { return }
         onCompare(.revision(friendName(first)), working ? .workingTree : .revision(head ? "HEAD" : friendName(selection[1])))
+    }
+    var selectedNode: RevisionGraphNode? { selection.count == 1 ? nodes.first { $0.hash == selection[0] } : nil }
+    var deletableReferences: [RevisionReference] {
+        // GetFriendRefNames excludes the current branch's short name for every
+        // reference kind, including a same-named tag; retain its ordinal check.
+        let current = nodes.lazy.flatMap(\.references).first { $0.isCurrent }?.label
+        return selectedNode?.references.filter { ref in !ref.isCurrent && (current.map { !GitReferenceName.equal(ref.label, $0) } ?? true) } ?? []
+    }
+    var switchBranches: [RevisionReference] { deletableReferences.filter { $0.name.utf8.starts(with: "refs/heads/".utf8) } }
+    var checkoutReference: RevisionReference? {
+        guard switchBranches.isEmpty else { return nil }
+        let refs = deletableReferences
+        return refs.first { $0.name.utf8.starts(with: "refs/remotes/".utf8) }
+            ?? refs.first { $0.name.utf8.starts(with: "refs/tags/".utf8) && $0.kind != .annotatedTag }
+            ?? refs.first { $0.name.utf8.starts(with: "refs/tags/".utf8) }
+    }
+    func showLog() {
+        guard !busy, !closed, let first = selection.first else { return }
+        if selection.count == 2 { onLogRange(HistoryRevisionRange(from: first, to: selection[1])) }
+        else { onLog(first) }
+    }
+    func copyRefNames() {
+        guard !busy, !closed, let node = selectedNode else { return }
+        copyReferences(node.references.isEmpty ? node.hash : node.references.map(Self.fullReferenceName).joined(separator: "\n"))
+    }
+    func deleteReferences(_ names: [String], hash: String) {
+        guard !busy, !closed, selectedNode?.hash == hash, !names.isEmpty,
+              names.allSatisfy({ name in deletableReferences.contains { GitReferenceName.equal($0.name, name) } }) else { return }
+        let token = OperationCancellation(), request = UUID(), factory = sshSettings.capture()
+        busy = true; error = nil; cancellation = token; generation = request; changed()
+        worker = Task { [weak self] in
+            guard let self else { return }
+            let coordinator = factory?(); var refresh = false
+            defer {
+                coordinator?.close()
+                if generation == request {
+                    busy = false; cancellation = nil; worker = nil; changed(); becameIdle()
+                    if refresh, !closed { load() }
+                }
+                withExtendedLifetime(access) {}
+            }
+            for name in names {
+                guard !closed, generation == request, !token.isCancelled, selectedNode?.hash == hash else { break }
+                var choice = HistoryReferenceDeleteChoice.abort
+                do {
+                    if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                    let snapshot = try await repository.prepareHistoryReferenceDeletion(name, cancellation: token)
+                    let resolved = try await repository.run(["rev-parse", "--verify", "--end-of-options", snapshot.name + "^{commit}"], cancellation: token).text.trimmingCharacters(in: .newlines)
+                    guard resolved == hash else { throw HistoryReferenceDeletionFailure.changed }
+                    choice = await confirmReferenceDeletion(snapshot)
+                    guard choice != .abort, !closed, !token.isCancelled, generation == request else { break }
+                    _ = try await repository.deleteHistoryReference(snapshot, choice: choice, cancellation: token, prepareTransport: coordinator?.preparation)
+                    refresh = true
+                } catch {
+                    guard !closed, !token.isCancelled else { break }
+                    self.error = error.localizedDescription
+                    await acknowledgeReferenceDeletionFailure(error.localizedDescription)
+                    if [.remoteAndLocal, .stashAll, .stashOne].contains(choice) { refresh = true } else { break }
+                }
+            }
+        }
     }
     func unified(head: Bool) {
         guard !busy, !closed, let first = selection.first, head ? selection.count == 1 : selection.count == 2 else { return }
@@ -153,6 +221,10 @@ final class RevisionGraphNativeWindow: NSWindow {
     }
 }
 
+enum RevisionGraphReferenceCommand {
+    case switchBranch(String, hash: String), checkout(String, hash: String), delete([String], hash: String)
+}
+
 @MainActor final class RevisionGraphWindowController: NSWindowController, NSWindowDelegate, NSMenuItemValidation {
     let model: RevisionGraphWindowModel
     let canvas: RevisionGraphCanvas
@@ -163,6 +235,7 @@ final class RevisionGraphNativeWindow: NSWindow {
     private var filter: RevisionGraphFilterController?
     private var closing = false
     private var exporting = false
+    private var pendingRepositoryRefresh = false
     private var unifiedViewer: PatchWindowController?
     var onClosed: () -> Void = {}
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, layoutExecutable: URL? = nil, automaticallyLoad: Bool = true) {
@@ -190,6 +263,7 @@ final class RevisionGraphNativeWindow: NSWindow {
         overview.frame = CGRect(x: 800, y: 350, width: 150, height: 200); overview.autoresizingMask = [.minXMargin, .minYMargin]; overview.scroll = scroll; host.addSubview(overview)
         scroll.contentView.postsBoundsChangedNotifications = true
         NotificationCenter.default.addObserver(self, selector: #selector(scrolled), name: NSView.boundsDidChangeNotification, object: scroll.contentView)
+        NotificationCenter.default.addObserver(self, selector: #selector(sheetEnded), name: NSWindow.didEndSheetNotification, object: window)
         let footer = NSStackView(views: [status, cancelButton]); footer.orientation = .horizontal; footer.distribution = .fill; footer.spacing = 12
         cancelButton.target = self; cancelButton.action = #selector(cancelGraphOperation)
         let stack = NSStackView(views: [bar, host, footer]); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 8
@@ -201,6 +275,36 @@ final class RevisionGraphNativeWindow: NSWindow {
         model.changed = { [weak self] in self?.update() }
         model.becameIdle = { [weak self] in if self?.closing == true { self?.window?.close() } }
         model.onUnified = { [weak self] bytes in guard let self else { return }; self.unifiedViewer = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: self.unifiedViewer, title: "Revision Graph changes", onClosed: { [weak self] in self?.unifiedViewer = nil }) }
+        model.confirmReferenceDeletion = { [weak window] request in
+            guard let window, window.attachedSheet == nil else { return .abort }
+            return await withCheckedContinuation { continuation in
+                let alert = NSAlert(); alert.alertStyle = .warning; alert.messageText = request.message
+                for option in request.choices { alert.addButton(withTitle: option.title).keyEquivalent = "" }
+                let abort = alert.buttons.last!; abort.keyEquivalent = "\r"; window.makeFirstResponder(nil)
+                alert.window.defaultButtonCell = abort.cell as? NSButtonCell; abort.keyEquivalent = "\r"
+                alert.window.alphaValue = window.alphaValue
+                alert.beginSheetModal(for: window) { response in
+                    let index = response.rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
+                    continuation.resume(returning: request.choices.indices.contains(index) ? request.choices[index].choice : .abort)
+                }
+                // NSAlert layout clears custom equivalents during presentation.
+                for button in alert.buttons { button.keyEquivalent = ""; button.keyEquivalentModifierMask = [] }
+                abort.keyEquivalent = "\r"; alert.window.defaultButtonCell = abort.cell as? NSButtonCell
+            }
+        }
+        model.acknowledgeReferenceDeletionFailure = { [weak window] message in
+            guard let window, window.attachedSheet == nil else { return }
+            await withCheckedContinuation { continuation in
+                let alert = NSAlert(); alert.alertStyle = .critical; alert.messageText = "Could not delete reference."; alert.informativeText = message
+                alert.addButton(withTitle: "OK"); alert.window.alphaValue = window.alphaValue
+                alert.beginSheetModal(for: window) { _ in continuation.resume() }
+            }
+        }
+        model.sshSettings.load(preferences, key: "Graph.AutoLoadSSHKey")
+        model.sshSettings.present = { [weak window] prompt in
+            guard let window, window.attachedSheet == nil, let child = prompt.window else { return false }
+            child.alphaValue = window.alphaValue; window.beginSheet(child); return true
+        }
         window.command = { [weak self] in self?.perform($0) }; update(); window.center()
         DialogGeometry.attach(window, identifier: "RevisionGraph")
         if automaticallyLoad { model.load() }
@@ -210,35 +314,76 @@ final class RevisionGraphNativeWindow: NSWindow {
         let item = NSMenuItem(title: title, action: #selector(menuCommand(_:)), keyEquivalent: ""); item.target = self; item.representedObject = command
         item.image = icon?.contextImage(defaults: model.preferences); return item
     }
+    private func referenceItem(_ title: String, command: RevisionGraphReferenceCommand, icon: MenuIcon) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: #selector(menuCommand(_:)), keyEquivalent: "")
+        item.target = self; item.representedObject = command; item.image = icon.contextImage(defaults: model.preferences); return item
+    }
     func nodeMenu() -> NSMenu {
-        let menu = NSMenu(); guard !model.selection.isEmpty else { return menu }
+        let menu = NSMenu(); guard !model.busy, window?.attachedSheet == nil, !model.selection.isEmpty else { return menu }
         menu.addItem(menuItem("Show Log", command: "log", icon: .log))
-        if model.selection.count == 1 {
-            for (title, command, icon) in [("Browse repository", "browse", MenuIcon.repositoryBrowser), ("Switch/Checkout…", "checkout", .checkout), ("Create branch…", "branch", .branch), ("Create tag…", "tag", .tag), ("Reset…", "reset", .reset)] { menu.addItem(menuItem(title, command: command, icon: icon)) }
-            menu.addItem(.separator())
-            menu.addItem(menuItem("Compare with HEAD", command: "compareHead", icon: .compare)); menu.addItem(menuItem("Compare with working tree", command: "compareWorking", icon: .compare))
+        if let node = model.selectedNode {
+            menu.addItem(menuItem("Browse repository", command: "browse", icon: .repositoryBrowser))
+            let branches = model.switchBranches
+            if branches.count == 1 {
+                menu.addItem(referenceItem("Switch to branch \"" + branches[0].label + "\"", command: .switchBranch(branches[0].name, hash: node.hash), icon: .checkout))
+            } else if branches.count > 1 {
+                let parent = menuItem("Switch to branch", command: "referenceSubmenu", icon: .checkout), child = NSMenu()
+                for ref in branches { child.addItem(referenceItem(ref.label, command: .switchBranch(ref.name, hash: node.hash), icon: .checkout)) }
+                parent.submenu = child; menu.addItem(parent)
+            } else if let ref = model.checkoutReference {
+                menu.addItem(referenceItem("Switch/Checkout to this…", command: .checkout(ref.name, hash: node.hash), icon: .checkout))
+            }
+            menu.addItem(menuItem("Copy ref names", command: "copyRefs", icon: .copy))
+            let refs = model.deletableReferences
+            if refs.count == 1 { menu.addItem(referenceItem("Delete " + RevisionGraphWindowModel.fullReferenceName(refs[0]), command: .delete([refs[0].name], hash: node.hash), icon: .remove)) }
+            else if refs.count > 1 {
+                let parent = menuItem("Delete branch/tag", command: "referenceSubmenu", icon: .remove), child = NSMenu()
+                for ref in refs { child.addItem(referenceItem(RevisionGraphWindowModel.fullReferenceName(ref), command: .delete([ref.name], hash: node.hash), icon: .remove)) }
+                child.addItem(referenceItem("All", command: .delete(refs.map(\.name), hash: node.hash), icon: .remove))
+                parent.submenu = child; menu.addItem(parent)
+            }
+            menu.addItem(menuItem("Compare with HEAD", command: "compareHead", icon: .compare))
             menu.addItem(menuItem("Unified diff with HEAD", command: "unifiedHead", icon: .unifiedDiff))
+            menu.addItem(menuItem("Compare with working tree", command: "compareWorking", icon: .compare))
         } else {
-            menu.addItem(menuItem("Compare revisions", command: "compare", icon: .compare)); menu.addItem(menuItem("Unified diff", command: "unified", icon: .unifiedDiff))
+            menu.addItem(menuItem("Compare revisions", command: "compare", icon: .compare))
+            menu.addItem(menuItem("Unified diff", command: "unified", icon: .unifiedDiff))
         }
-        menu.addItem(.separator()); menu.addItem(menuItem("Copy ref names", command: "copyRefs")); menu.addItem(menuItem("Copy hash", command: "copyHash"))
         return menu
     }
-    @objc private func menuCommand(_ sender: NSMenuItem) { if let command = sender.representedObject as? String { perform(command) } }
+    @objc private func menuCommand(_ sender: NSMenuItem) {
+        if let command = sender.representedObject as? String { perform(command); return }
+        guard validateMenuItem(sender), let command = sender.representedObject as? RevisionGraphReferenceCommand else { return }
+        switch command {
+        case .switchBranch(let name, _): model.onSwitchBranch(name)
+        case .checkout(let name, _): model.onCheckout(name)
+        case .delete(let names, let hash): model.deleteReferences(names, hash: hash)
+        }
+    }
     @objc private func clicked(_ sender: NSButton) { if let command = sender.identifier?.rawValue { perform(command) } }
     @objc private func cancelGraphOperation() { model.cancel() }
     @objc private func scrolled() { overview.needsDisplay = true }
+    @objc private func sheetEnded() { update() }
+    func requestRepositoryRefresh() { guard !model.closed else { return }; pendingRepositoryRefresh = true; update() }
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        if let target = item.representedObject as? RevisionGraphReferenceCommand {
+            guard !model.busy, !model.closed, filter == nil, !exporting, window?.attachedSheet == nil, let node = model.selectedNode else { return false }
+            switch target {
+            case .switchBranch(let name, let hash): return !model.bare && node.hash == hash && model.switchBranches.contains { GitReferenceName.equal($0.name, name) }
+            case .checkout(let name, let hash): return !model.bare && node.hash == hash && model.checkoutReference.map { GitReferenceName.equal($0.name, name) } == true
+            case .delete(let names, let hash): return node.hash == hash && !names.isEmpty && names.allSatisfy { name in model.deletableReferences.contains { GitReferenceName.equal($0.name, name) } }
+            }
+        }
         guard let command = item.representedObject as? String else { return true }
         item.state = ((command == "overview" && model.showOverview) || (command == "branchings" && model.options.showBranchingsAndMerges) || (command == "tags" && model.options.showAllTags) || (command == "arrows" && model.arrowsTowardMerges)) ? .on : .off
-        if model.busy || filter != nil || exporting { return command == "close" }
+        if model.busy || model.closed || filter != nil || exporting || window?.attachedSheet != nil { return command == "close" }
         if ["compare", "unified"].contains(command) { return model.selection.count == 2 }
-        if ["compareHead", "compareWorking", "unifiedHead", "log", "browse", "checkout", "branch", "tag", "reset", "copyRefs", "copyHash"].contains(command) { return model.selection.count == 1 || command == "log" || command == "copyHash" }
+        if ["compareHead", "compareWorking", "unifiedHead", "log", "browse", "copyRefs"].contains(command) { return command == "log" ? !model.selection.isEmpty : model.selection.count == 1 && (command != "compareWorking" || !model.bare) }
         return true
     }
     func perform(_ command: String) {
         if command == "close" { window?.performClose(nil); return }
-        guard !model.busy, !model.closed, filter == nil, !exporting else { return }
+        guard !model.busy, !model.closed, filter == nil, !exporting, window?.attachedSheet == nil else { return }
         switch command {
         case "refresh": model.load()
         case "zoomIn": model.zoom = min(2, model.zoom / 0.9)
@@ -258,14 +403,9 @@ final class RevisionGraphNativeWindow: NSWindow {
         case "compareHead": model.compare(head: true)
         case "compareWorking": model.compare(working: true)
         case "unified", "unifiedHead": model.unified(head: command == "unifiedHead")
-        case "log", "browse", "checkout", "branch", "tag", "reset":
-            if let hash = model.selection.first {
-                let ref = model.friendName(hash)
-                switch command { case "log": model.onLog(ref); case "browse": model.onBrowse(ref); case "checkout": model.onCheckout(ref); case "branch", "tag": model.onCreateReference(command == "tag", ref); default: model.onReset(ref) }
-            }
-        case "copyHash", "copyRefs":
-            let text = command == "copyHash" ? model.selection.joined(separator: "\n") : model.nodes.filter { model.selection.contains($0.hash) }.flatMap { $0.references.map(\.name) }.joined(separator: "\n")
-            NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
+        case "log": model.showLog()
+        case "browse": if let hash = model.selectedNode?.hash { model.onBrowse(model.friendName(hash)) }
+        case "copyRefs": model.copyRefNames()
         case "save": saveGraph()
         case "help": NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-revgraph.html")!)
         default: break
@@ -277,12 +417,16 @@ final class RevisionGraphNativeWindow: NSWindow {
         overview.isHidden = !model.showOverview || model.busy || model.nodes.isEmpty || model.nodes.count > 10_000
         status.stringValue = model.error ?? (model.busy ? "Loading…" : "\(model.nodes.count) revisions • \(Int((model.zoom * 100).rounded()))%")
         cancelButton.isEnabled = model.busy
+        if pendingRepositoryRefresh, !model.closed, !model.busy, !closing, filter == nil, !exporting, window?.attachedSheet == nil {
+            pendingRepositoryRefresh = false; model.load()
+        }
     }
     func showFilter() {
         guard let window, window.attachedSheet == nil else { return }
         let filter = RevisionGraphFilterController(model: model) { [weak self] options in
             guard let self else { return }; self.filter = nil
-            if let options { self.model.options = options; self.model.load() }
+            if let options { self.pendingRepositoryRefresh = false; self.model.options = options; self.model.load() }
+            self.update()
         }
         self.filter = filter; if let child = filter.window { child.alphaValue = window.alphaValue; window.beginSheet(child) }
     }

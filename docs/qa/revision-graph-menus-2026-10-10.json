@@ -1,0 +1,76 @@
+{
+  "checked_at": "2026-10-10T14:31:29.668137+00:00",
+  "parent_commit": "1fe062c4c5e7bd58a475c5aeb5e3db539036666f",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Native Revision Graph reference-menu hierarchy and owned per-reference deletion. Complete app parity and distribution remain unproven.",
+  "implementation": [
+    "source single/multi-branch Switch and remote/tag checkout hierarchy",
+    "current short-name exclusion across ref kinds with ordinal identity",
+    "source Copy ref names, annotated ^{} notation and full-hash fallback",
+    "ordered hash-to-hash Show Log range",
+    "typed node/ref menu payloads with stale-node rejection",
+    "fresh commit check before confirmation and shared deletion snapshot validation after confirmation",
+    "source per-reference All/Abort sequencing, remote/stash choices and failure acknowledgement",
+    "owned confirmation/error/SSH sheets, post-presentation Abort Return shortcut",
+    "deferred repository refresh across busy tasks and owned filter/export/operation sheets"
+  ],
+  "verification": {
+    "system_core": {
+      "exit_code": 0,
+      "tests": 17,
+      "failures": 0
+    },
+    "bundled_core": {
+      "exit_code": 0,
+      "tests": 17,
+      "failures": 0
+    },
+    "native_system_git": {
+      "exit_code": 0,
+      "markers": [
+        "PASS: Revision Graph source node menus",
+        "PASS: Revision Graph SVG/Graphviz/PDF/PNG/JPEG/BMP/GIF",
+        "PASS: Native Revision Graph"
+      ]
+    },
+    "native_bundled_git": {
+      "exit_code": 0,
+      "markers": [
+        "PASS: Revision Graph source node menus",
+        "PASS: Revision Graph SVG/Graphviz/PDF/PNG/JPEG/BMP/GIF",
+        "PASS: Native Revision Graph"
+      ]
+    },
+    "native_cases": [
+      "actual typed Switch/Checkout menu dispatch callbacks",
+      "three-branch submenu and stale-menu rejection",
+      "current branch and same-named tag exclusion from Delete",
+      "original icons and source two-node menu order",
+      "ranged Log callback and literal copy output",
+      "annotated-tag deletion and copied/deleted ^{} labels",
+      "actual Return Abort with unchanged annotated ref and busy Quit/parent-close gate",
+      "All deletes local remote-tracking ref then stops on next Abort",
+      "ref moved before invocation survives",
+      "ref moved during confirmation survives",
+      "unlabelled node copies full hash",
+      "repository refresh deferred until Filter Cancel",
+      "prior graph/filter/export/close checks retained"
+    ],
+    "unsigned_debug_build": 0,
+    "unsigned_appstore_build": 0,
+    "debug_bundle_audit": 0,
+    "appstore_bundle_audit": 0,
+    "upstream_icons": 117,
+    "local_pages_build": 0
+  },
+  "mutation_scope": "All Git writes and deletion actions occurred only in disposable native/Core fixtures. Ordinary graph/read/export checks still verify unchanged repository state before destructive tests.",
+  "pending": [
+    "actual switch-progress/checkout child handoff from graph",
+    "remote-and-local network deletion and stash UI variants",
+    "alternative-tool modifier dispatch",
+    "unusual Unicode/reference ordering",
+    "physical menu/keyboard gestures and VoiceOver",
+    "source persistence, signed Finder/sandbox and full app port",
+    "current hosted CI and publication"
+  ]
+}
