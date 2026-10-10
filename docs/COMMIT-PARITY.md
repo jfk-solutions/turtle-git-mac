@@ -1822,3 +1822,22 @@ task: initial/status refresh, other file operations, history/restore/changelist
 work and broader forced-close handling still need a lifetime audit. Physical
 keyboard/sheet behavior, concurrent HEAD changes, signed execution and full
 Commit/application parity remain incomplete.
+
+## Refreshed displayed Commit captures
+
+The light/dark captures at `site/assets/commit-light.png` and `commit-dark.png`
+were refreshed on 10 October using the current displayed native Commit dialog.
+They show a message above the checked file list, Amend/author/date options,
+category links, staging/unversioned/submodule/whole-project/message-only controls,
+and original colored icons for Modified, Added, Deleted and Untracked paths.
+The displayed split-button menu was inspected for Commit, ReCommit and Commit &
+Push without invoking those actions. Comparisons used the pinned upstream Commit
+image, the official manual and the user's supplied control/action screenshots.
+
+Only one isolated documentation-preview process ran at a time; every owned
+process was closed before the next started. Appearance-menu automation failed,
+so the dark capture used the preview helper's preset. The fixture HEAD, status
+and index bytes were unchanged during these UI captures. Earlier screenshots
+remain historical checkpoints. See [capture QA](qa/dialog-captures-2026-10-10.json);
+these inspected states do not prove all option combinations, mutation behavior,
+other macOS/locales, accessibility or signed/App Store/full-application parity.

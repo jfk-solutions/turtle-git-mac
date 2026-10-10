@@ -1,0 +1,138 @@
+{
+  "checked_at": "2026-10-10T06:07:23.392911+00:00",
+  "parent_commit": "b34f52f54c841c5676e57d1b4f5f5ef0edecb9cb",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Actual current-process native Commit light/dark and Log light documentation captures. Only production change is intrinsic horizontal sizing for both Log date pickers. Commit captures preceded this Log-only correction; the final Log capture used the rebuilt Debug binary.",
+  "references": [
+    "https://tortoisegit.org/docs/tortoisegit/tgit-dug-commit.html",
+    "https://tortoisegit.org/docs/tortoisegit/tgit-dug-showlog.html",
+    ".upstream/TortoiseGit/doc/images/en/Commit.png",
+    ".upstream/TortoiseGit/doc/images/en/LogMessages.png"
+  ],
+  "checks": {
+    "native_commit": "Inspected displayed message above checked files, metadata/amend/author-date/sign-off controls, category selectors, staging support, unversioned/submodule/whole-project/message-only options and original colored status icons. Opened and dismissed split menu showing Commit, ReCommit and Commit & Push; no commit action invoked.",
+    "native_log": "Inspected compact two-lane graph before revision list, colored main/tag/feature labels, working-tree row, real selected merge metadata/message and changed files grouped by merge parent. To label wrapped before correction and stayed on one line after rebuild at the default 1120-point window width.",
+    "external_accessibility": "External UI automation tree discovered child graph images under native table cells, including Working tree, Merge commit, Commit, Branch point and Root commit labels in this fixture. No VoiceOver speech/navigation acceptance claimed.",
+    "fixture": "Disposable Harbor repository with real merge and added/deleted/modified/untracked paths; two paths checked. Staging support off. Git global/system config disabled for fixture generation.",
+    "preservation": {
+      "head": true,
+      "status": true,
+      "index_sha256": true
+    },
+    "fixture_head": "e38dc56c5eedff2d93aaadabc77b192122664c9a",
+    "fixture_index_sha256": "74df82a4278917edd0052d7bbe145cbab6571fec8883c42f1de5775de9744b4b",
+    "debug_build": {
+      "exit_code": 0,
+      "session": 69113
+    },
+    "debug_bundle_audit": {
+      "exit_code": 0,
+      "session": 8684
+    },
+    "unsigned_store_build": {
+      "exit_code": 0,
+      "session": 77408
+    },
+    "store_bundle_audit_require_git": {
+      "exit_code": 0,
+      "session": 15260
+    },
+    "inventory_pin": "Passed after notes update; LogDlg.cpp remains partial.",
+    "site": "Generator passed. Local browser introduction and refreshed Log section visually inspected; hero reduced to three useful links and Log moved before unified diff. Lazy Commit images below the inspected viewport were not claimed loaded by the browser check; their native PNGs were independently inspected.",
+    "cleanup": {
+      "closed_preview_pids": [
+        77920,
+        78532,
+        78710,
+        79389
+      ],
+      "private_domains_and_stores_removed": [
+        "org.turtlegit.macos.documentation-preview.capture-a21eceb59b5042698172fc169318033b",
+        "org.turtlegit.macos.documentation-preview.capture-a21eceb59b5042698172fc169318033b-dark",
+        "org.turtlegit.macos.documentation-preview.capture-a21eceb59b5042698172fc169318033b-log",
+        "org.turtlegit.macos.documentation-preview.capture-a21eceb59b5042698172fc169318033b-log-fixed"
+      ],
+      "owned_fixture_and_app_copies_removed": true,
+      "remaining_preview_processes": []
+    },
+    "local_preview_cleanup": "Owned browser tab closed. Exact HTTP server PID 80414 terminated; original exec session 97916 returned exit 143. Attempt to start an extra listener failed address-in-use before creating a process.",
+    "final_cleanup_audit": {
+      "matching_processes": [],
+      "current_fixtures": []
+    },
+    "tool_recovery": "Native Appearance menu automation actions failed with stale/invalid element errors. The next isolated preview used the dark preset. Each owned preview terminated before the next opened. Stale browser tab was replaced using the existing browser binding."
+  },
+  "preview_binary_sha256": {
+    "app": "a25797f1d61b3c067eb300ac5ccc0a6636ce821850615a8e2e6decbc77dba7a0",
+    "dark_app": "35102db477cf9ec055566d120184f4a17bc132ce70c288dadc4d1992aac9f43c",
+    "log_app": "2ae428fc1a752dd7d98d934bb49084f036dcc89a6a4e490dfd7fc626d4ede1e4",
+    "fixed_log_app": "3f1b2895be4494008df2f6539cd5cf95e79b7dc68ecd2c99dafba7d5ca3e5301"
+  },
+  "source_sha256": {
+    "README.md": "608fc4f0672ade8d8e30a778adbf824eb1a15764016c3f5d940ab4bd57069bd4",
+    "Sources/TurtleGitMac/LogWindow.swift": "5e766e5ec640193897a69298d7ce80b0b3b2161e6e12749b31450abcfb71fd5a",
+    "Sources/TurtleGitMac/CommitWindow.swift": "1615860277ec5e79c0554f330c3e15d883e041a2041055e4c91bbe3d4f04df18",
+    "Sources/TurtleGitMac/DocumentationCapture.swift": "031b71f69d8fbbb92712ff9c54db69eeea8c2d42da6bb938577a3d9a933a8010",
+    "docs/COMMIT-PARITY.md": "285fc0bd6fae802392188b5137ec5bf030c0d99523b360fb06e1cdfaed6e0d98",
+    "docs/LOG-PARITY.md": "7a43a68a705f43dee0895e93c1e9d36015293d9cc382f27f0c5095df0da7a96f",
+    "docs/WEBSITE.md": "99135db8c96ebefe3972f0e9861ac44d5252a4375842358d5fb13048f7498df0",
+    "docs/site/index.html": "69763c3aebc8056df8f231584c99700b6371d868cbd3f0d6b084a67c59c5b830",
+    "docs/site/style.css": "97cd40047f02e2f4470a95f870c8caf7e11f163bf3df1499c33e61bce9c6b8af",
+    "docs/upstream-files.csv": "e7827053268ab96159b95ab977430a6d38b345b39b4afc28f58898df6b6dd8eb",
+    "scripts/create-demo-repository.py": "e046ab86afc8dcff6ca522c517137a101313c27551054fe5b3d51e038ccbcd43",
+    "scripts/create-preview-app.py": "ba3a9537f621f0a0b7ce544506e4b6481b0080b58913c86e9a3369514740d229",
+    "scripts/build-site.py": "46f34f53e6df6866e982b88ff5e5d9d595b7df06d0b04c3c8d90625291c43d31",
+    "NOTICE": "f79e01c67e4ba9540d4eadaa5e31f2de28e406c277891333942970c839468f24"
+  },
+  "binary_sha256": {
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/MacOS/TurtleGitMac": "ae0fc297ae892ad6d53e5bfb2e3aee3218b8dda08c01e7e3c33faa88de63b8d1",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": "a1076ff8c04824ccdff8f8e6d9d61038b8ca3d2251c35961656fd3ac43200984",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": "4fe130d88732811cb2135fd976f7b9579c0ae3d38211d79ae7708e6973b5955c",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/MacOS/TurtleGitMac": "5080946903dbbb7dfc2f0c10b52cec49b6245d8e3b625b206b3ce292a41667c2",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": "2b609fb60ced73311abc9f3de4f24edf1a01b20abd659cc48934498950afd957",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": "dc44e47efa6b867ca364f3b9a0bb2f34586e324eb30730045ce6f909abf6318e"
+  },
+  "resource_sha256": {
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/NOTICE": "f79e01c67e4ba9540d4eadaa5e31f2de28e406c277891333942970c839468f24",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Resources/NOTICE": "f79e01c67e4ba9540d4eadaa5e31f2de28e406c277891333942970c839468f24"
+  },
+  "screenshots": {
+    "docs/site/assets/commit-light.png": {
+      "sha256": "71c7c03183683a9a5f67104ada7da4135b4782836e274939aad6599b452ec537",
+      "width": 2000,
+      "height": 1584,
+      "unaltered_capture": "build/qa/current-commit-light-2026-10-10.png"
+    },
+    "docs/site/assets/commit-dark.png": {
+      "sha256": "d2a1b35201cc19d14c2631894a7628f322a8cbfc677a9d6d4596fcb63f025beb",
+      "width": 2000,
+      "height": 1584,
+      "unaltered_capture": "build/qa/current-commit-dark-2026-10-10.png"
+    },
+    "docs/site/assets/log-messages.png": {
+      "sha256": "63182616b850efd970260cee017a82f918df8767c2a1f11311c2b712799852e0",
+      "width": 2240,
+      "height": 1624,
+      "unaltered_capture": "build/qa/current-log-light-2026-10-10.png"
+    }
+  },
+  "before_filter_capture_sha256": "da312fff5cb93d5e199352465f6efd7964d37ce2e6269444cef5d7d4dbba6a71",
+  "log_sha256": {
+    "build/qa/documentation-capture-cleanup-2026-10-10.log": "693fa2bca24cbfc45a23756e4f0a95dc75a088dc5f75977d8a59a96ce2f23355",
+    "build/qa/documentation-capture-debug-2026-10-10.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/documentation-capture-debug-audit-2026-10-10.log": "03677d8f0b0860f94e07ef3ce34215ec26f981c604c6ceccc75e2bdae288a638",
+    "build/qa/documentation-capture-inventory-2026-10-10.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/documentation-capture-site-2026-10-10.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/documentation-capture-store-2026-10-10.log": "b74a73f8796b12aa35fa570e6594a2a6056217b10a225c9c0e7c2efcb5dc7a15",
+    "build/qa/documentation-capture-store-audit-2026-10-10.log": "bf54b9dab37973005d43104fc27d3e9cd6a4920930af487e3e44c48332f3afc1"
+  },
+  "limitations": [
+    "Full TortoiseGit application/dialog functionality and visual parity remains incomplete.",
+    "No full Core suite rerun for this small reversible layout change; previous full-suite evidence does not verify the current revision.",
+    "Other locales, minimum sizes, date-edit interactions, dark Log and full gallery/responsive layouts remain unverified by this checkpoint.",
+    "Unsigned build/audit success does not verify signed sandbox/Finder activation, notarization or App Store distribution.",
+    "Screenshots are unedited Debug captures with native macOS capture indicator in the title bar; they are not signed release screenshots.",
+    "Hosted CI and Pages publication were not verified.",
+    "Broader Commit action combinations, staging and VoiceOver acceptance are outside this capture check."
+  ]
+}

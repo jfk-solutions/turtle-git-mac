@@ -2058,3 +2058,21 @@ that an external accessibility client discovers the complete table hierarchy or
 that VoiceOver announces/navigates it correctly. Physical VoiceOver, keyboard
 menu interaction, localization and complete Log/application acceptance remain
 open.
+
+## Displayed Log filter row and graph discovery
+
+The 10 October documentation capture exposed a wrapped To date-picker label at
+the default window width. Both native date pickers now retain their intrinsic
+horizontal sizes, letting the search field absorb compression. The rebuilt
+displayed Log has a single-line From/To filter row. The inspected capture also
+shows the graph ahead of the revision list, colored refs, a complete selected
+merge message and changed files grouped by parent. Other locales, minimum sizes
+and date editing still need broader acceptance.
+
+The external native UI automation tree discovers the graph cells as images under
+revision-table rows, with working-tree, merge, ordinary, branch-point and root
+descriptions. This improves the earlier getter-only evidence for this installed
+macOS/sample, while physical VoiceOver speech/navigation and the complete
+accessibility hierarchy remain unverified. See
+[displayed capture QA](qa/dialog-captures-2026-10-10.json) and the refreshed
+`site/assets/log-messages.png`. Full Log/application parity remains incomplete.

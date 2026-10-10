@@ -107,12 +107,13 @@ work that remains.
 
 ![Native Log Messages window with revision graph](docs/site/assets/log-messages.png)
 
-[Commit controls](docs/site/assets/commit-controls.png),
-[light appearance](docs/site/assets/commit-light.png),
-[dark appearance](docs/site/assets/commit-dark.png) and
-[partial staging](docs/site/assets/partial-staging.png) show real native windows
-using disposable sample data. They record earlier development checkpoints and
-may predate subsequent changes; they are not evidence for every current dialog.
+The Log and Commit [light](docs/site/assets/commit-light.png) /
+[dark](docs/site/assets/commit-dark.png) captures were refreshed on 10 October
+2026 using disposable sample data. See the
+[capture record](docs/qa/dialog-captures-2026-10-10.json) for scope and limitations.
+[Earlier Commit controls](docs/site/assets/commit-controls.png) and
+[partial staging](docs/site/assets/partial-staging.png) document previous
+checkpoints. Screenshots do not establish parity for every dialog.
 
 The static site source is `docs/site`; `python3 scripts/build-site.py` builds
 `build/site`. See [website and screenshot maintenance](docs/WEBSITE.md).

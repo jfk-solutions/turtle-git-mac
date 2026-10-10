@@ -2053,8 +2053,8 @@ struct LogDialog: View {
                     Divider()
                     Button("Configure default") { model.configureHistoryDefaults = true }
                 }.disabled(model.busy)
-                DatePicker("From:", selection: Binding(get: { model.from }, set: { model.changeHistoryFrom($0) }), displayedComponents: .date).labelsHidden().disabled(model.busy)
-                DatePicker("To:", selection: Binding(get: { model.to }, set: { model.changeHistoryTo($0) }), displayedComponents: .date).disabled(model.busy)
+                DatePicker("From:", selection: Binding(get: { model.from }, set: { model.changeHistoryFrom($0) }), displayedComponents: .date).labelsHidden().fixedSize(horizontal: true, vertical: false).disabled(model.busy)
+                DatePicker("To:", selection: Binding(get: { model.to }, set: { model.changeHistoryTo($0) }), displayedComponents: .date).fixedSize(horizontal: true, vertical: false).disabled(model.busy)
                 Menu {
                     ForEach([("Subject", HistorySearchFields.subject), ("Messages", .messages), ("Paths", .paths), ("Authors", .authors), ("Emails", .emails), ("Revisions", .revisions), ("Refname", .referenceNames), ("Tag Info", .tagInfo), ("Notes", .notes)], id: \.0) { title, field in
                         Toggle(title, isOn: Binding(get: { model.searchFields.contains(field) }, set: { enabled in

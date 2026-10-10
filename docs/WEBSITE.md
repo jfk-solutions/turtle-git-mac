@@ -93,3 +93,39 @@ selective result and idle dark plan were visually inspected before copying.
 Native checks verified scope/selection/Cancel, selective Init/No fetch and saved
 options. A capture during F5 refresh was replaced with the idle dark window.
 Each sequential test process exited before the next opened.
+
+## Commit and Log capture refresh, 10 October 2026
+
+The light/dark Commit pair and Log Messages gallery now use inspected current
+native captures. Commit shows Modified, Added, Deleted and Untracked paths with
+original colored status icons, the metadata and staging checkboxes, and a message
+above the file list. The displayed action menu was inspected for Commit, ReCommit
+and Commit & Push. Log shows the graph before revisions, colored references, the
+full selected merge message and files grouped by parent. The external UI
+automation tree also exposes graph image descriptions in its native table rows.
+
+Comparisons used the pinned `doc/images/en/Commit.png` and `LogMessages.png` plus
+the official [Commit](https://tortoisegit.org/docs/tortoisegit/tgit-dug-commit.html)
+and [Log](https://tortoisegit.org/docs/tortoisegit/tgit-dug-showlog.html) manuals.
+The capture exposed a vertically wrapped To label; keeping both native date
+pickers at their intrinsic horizontal sizes corrected the default-size filter
+row before the new Log screenshot was copied. Other locales, minimum sizes and
+date editing still need broader layout acceptance.
+
+Only one isolated preview process ran at a time. The Appearance menu could be
+read but its automation actions failed, so the next preview used the helper's
+dark preset. Each exact owned process was terminated and verified absent before
+the next opened. No Commit action was invoked. The fixture's HEAD, status and
+index bytes were preserved during capture. All PNGs were copied unchanged from
+the Debug current-process screenshot helper; the native macOS capture indicator
+is part of the window decoration. Earlier historical captures remain in the
+asset directory. See [capture QA](qa/dialog-captures-2026-10-10.json); a local site
+build does not verify publication or full application/VoiceOver/signed acceptance.
+
+The opening section now offers Source, Native windows and Port progress. Detailed
+audit links remain in Project documentation. Log is the first image below its
+heading, and the screenshot note distinguishes the refreshed pair from historical
+captures. The generated local page's introduction and Log section were inspected
+in the in-app browser; the preview tab and exact owned HTTP server were closed.
+The complete gallery, responsive layouts and hosted publication were not verified
+in this capture refresh.
