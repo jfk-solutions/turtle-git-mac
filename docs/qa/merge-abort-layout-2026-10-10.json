@@ -1,0 +1,112 @@
+{
+  "date": "2026-10-10",
+  "checkpoint": "40adef43b7612f6e477efb7b5a77e71baa18afa7",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "status": "partial-native",
+  "source": "IDD_MERGEABORT retains reminder, Reset Type/three radios, full-width modified-files action and OK/Cancel/Help. IDD_GITPROGRESS disables default Close while running; ProgressDlg converts Escape to Return for enabled terminal Close.",
+  "implemented": [
+    "Explicit native Return/keypad Enter and Escape routing, respecting attached comparison sheet and active progress.",
+    "Options fixed660x265 points and minimum; progress starts760x420 with600x300 minimum; original nine roles readable.",
+    "Full-width modified-files button availability follows observable busy/child state, instead of reading a nonpublished callback at initial render.",
+    "Comparison and progress windows inherit parent appearance; post-action split menu has one chevron.",
+    "Optional capture directory in native runner; exact fixture process cleanup retained and exercised on successful final runner."
+  ],
+  "verification": {
+    "native": {
+      "command": "python3 scripts/test-merge-abort-dialog.py --git /usr/bin/git --git build/git-runtime/Git/bin/git --capture-dir build/qa/merge-abort-layout-captures-enabled-2026-10-10",
+      "exit": 0,
+      "engines": 2,
+      "keyboard_markers": 2,
+      "previous_ownership_lifecycle_streaming_model_markers_each": 2,
+      "checks": [
+        "Return opens distinct progress; keypad Enter closes a terminal result.",
+        "Return while busy leaves command running; Escape cancels busy progress and closes terminal progress/options.",
+        "Parent Return/Escape cannot activate options while owned comparison sheet attached.",
+        "Options/progress content size assertions; inherited appearance and existing reset/ownership/retry/process cancellation checks retained."
+      ]
+    },
+    "builds": {
+      "unsigned_debug": 0,
+      "unsigned_appstore": 0,
+      "debug_bundle_audit": 0,
+      "appstore_require_git_bundle_audit": 0,
+      "original_icons": 120
+    },
+    "core_scope": "No Core code/tests changed from streaming checkpoint1f89a7f; existing four-test three-engine results remain historical evidence, not a new full suite.",
+    "inventory_exit": 0,
+    "site_exit": 0,
+    "final_cleanup": "All local sessions terminal; hidden owned windows closed; temporary receiver directories removed; final app/receiver/compiler/owned shell-helper audit empty."
+  },
+  "captures": {
+    "source": "Actual NSWindow contentView cacheDisplay from hidden alpha-zero inactive windows, private preferences and disposable Git repository. All four inspected, copied byte-for-byte, unedited; excludes native window chrome.",
+    "options": "Read-only initial native options with enabled comparison action.",
+    "progress": "Real system Git reset --merge index.lock failure128, not synthetic helper output.",
+    "images": {
+      "docs/site/assets/merge-abort-options-light.png": {
+        "dimensions": [
+          1320,
+          530
+        ],
+        "sha256": "bce2f5948ed088a109b9e80561d03144d3c5935424045d6edd2861b342c7e922",
+        "inspected": true
+      },
+      "docs/site/assets/merge-abort-options-dark.png": {
+        "dimensions": [
+          1320,
+          530
+        ],
+        "sha256": "b870c3b9b122716f8ca52d6b80232e0a78a9c23c5e21f4345ce798938bd729c9",
+        "inspected": true
+      },
+      "docs/site/assets/merge-abort-reset-failed-light.png": {
+        "dimensions": [
+          1520,
+          840
+        ],
+        "sha256": "456f800cd9968ad171eb591aba4d5e9257101f1e0b2968435b5c1bf03131cae6",
+        "inspected": true
+      },
+      "docs/site/assets/merge-abort-reset-failed-dark.png": {
+        "dimensions": [
+          1520,
+          840
+        ],
+        "sha256": "1d5610c71769b2af4b6c3d1076bdb7fe1071da4657977931ead535deecf68816",
+        "inspected": true
+      }
+    }
+  },
+  "earlier_capture_findings": [
+    "First flexible-hosting draft collapsed options to172x382 pixels and clipped source controls; explicit fixed/minimum size corrected it.",
+    "Next draft showed disabled modified-files action due to initial nil nonpublished callback; observable availability corrected, final captures show enabled action.",
+    "Early split menu showed duplicate arrows; menu indicator hidden, final captures show one.",
+    "None of the clipped/disabled or synthetic-output draft captures was added to website assets."
+  ],
+  "remaining": [
+    "Physical keyboard/pointer/VoiceOver and full layout combinations.",
+    "Full progress menus/options and source animation/progress roles.",
+    "Factory/menu entry, submodule post-action and post-reset metadata cancellation acceptance.",
+    "Signed sandbox/installed Finder and App Store release acceptance.",
+    "Full app/dialog/control port; no dialog certified complete."
+  ],
+  "sources_sha256": {
+    "Sources/TurtleGitMac/MergeWindow.swift": "43c0030e44c481bb32a4f70b2ace5e533639f1f8a9925a39b1baea147894615b",
+    "docs/qa/merge-abort-dialog-native-2026-10-08.swift": "353bb1474744cc4e3900625d23005635f296c06fe81990aa83db763c42286a62",
+    "scripts/test-merge-abort-dialog.py": "fa0e10da3d4b17f3291085044f3fe0161d1c3ee0386ca4a823a32081b00c0feb",
+    "scripts/build-site.py": "f2f9c502ee650b217d401ed07bde2e7c1c9d9060f16208b78d4dbdbdc9413ea3"
+  },
+  "logs_sha256": {
+    "build/qa/merge-abort-layout-debug-2026-10-10.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/merge-abort-layout-debug-final-2026-10-10.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/merge-abort-layout-debug-enabled-2026-10-10.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/merge-abort-layout-native-2026-10-10.log": "61f65c928b6b0bd61e2a1bd2571a855a44ead6ca1cfa297250f005391fef88fb",
+    "build/qa/merge-abort-layout-native-final-2026-10-10.log": "61f65c928b6b0bd61e2a1bd2571a855a44ead6ca1cfa297250f005391fef88fb",
+    "build/qa/merge-abort-layout-native-enabled-2026-10-10.log": "61f65c928b6b0bd61e2a1bd2571a855a44ead6ca1cfa297250f005391fef88fb",
+    "build/qa/merge-abort-layout-store-2026-10-10.log": "8b7e42e41011f64b89af2a34249c0e6a736fce554184bf57a0f657922d209930",
+    "build/qa/merge-abort-layout-debug-audit-2026-10-10.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/merge-abort-layout-store-audit-2026-10-10.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/merge-abort-layout-processes-2026-10-10.json": "10598bfff825f5f0cf1ebb38bdc1f0371e23da81e6eb6e443e4ec26dfbb669aa",
+    "build/qa/merge-abort-layout-inventory-2026-10-10.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/merge-abort-layout-site-2026-10-10.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

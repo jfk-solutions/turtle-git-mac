@@ -416,3 +416,31 @@ its cleanup function was separately checked with owned and unrelated groups.
 See [the streaming record](qa/merge-abort-stream-2026-10-10.json).
 Physical keyboard/layout/appearance captures, the full progress menu/options,
 factory/submodule acceptance and signed sandbox acceptance remain pending.
+
+## Abort Merge keyboard and layout follow-up, October 10
+
+At `40adef4`, options Return opens the separate progress window; Escape closes
+options. Progress Return/keypad Enter closes a terminal result and leaves active
+work running; Escape cancels active work and closes a terminal result. Native
+window routing rejects parent Return/Escape while the comparison sheet is
+attached. The hidden receiver exercises these key equivalents with system and
+packaged Git alongside ownership, streaming, cancellation and all three retry
+modes. These are AppKit event-routing checks, not physical keyboard acceptance.
+
+Visual inspection caught two actual layout/availability defects before
+publication: flexible hosting collapsed options to a narrow window, and a
+nonpublished callback made Show modified files appear disabled at initial render.
+The fixed options now keep 660×265 points with all nine source roles readable;
+progress starts at 760×420 with a 600×300 minimum. The comparison button fills the
+options width and uses busy/child state for availability. Child windows inherit
+the parent appearance. The post-action menu has one arrow.
+
+Four unedited native content captures are published on the website: options in
+light/dark (1320×530 pixels) and a real Git index-lock failure in light/dark
+(1520×840). They were rendered from hidden, inactive AppKit windows with private
+preferences and a disposable repository. Window chrome is excluded. All four
+were inspected; the clipped/disabled drafts and synthetic-output captures were
+not published. See [the layout record](qa/merge-abort-layout-2026-10-10.json).
+Physical keyboard/pointer/VoiceOver, full progress menus/options, factory/menu
+entry, submodule post-actions and signed sandbox/Finder acceptance remain pending.
+The dialog stays partial; no full-app completion claim is made.

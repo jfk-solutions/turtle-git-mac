@@ -56,9 +56,10 @@ and owned sibling/modal close behavior. See [the ordering audit](LOG-ORDERING-PA
 
 Abort Merge now owns its Changed Files sheet and opens a separate Reset progress
 window, with mode-specific retry and cancellation through all owned reads.
-Hidden controller checks pass with system and packaged Git. Physical layout,
-keyboard, full progress options and signed acceptance remain pending. Reset
-output now streams through the shared bounded parser. See
+Hidden controller and key-equivalent checks pass with system and packaged Git;
+inspected light/dark content captures are on the website. Physical input, full
+progress options and signed acceptance remain pending. Reset output now streams
+through the shared bounded parser. See
 [the Merge follow-up](MERGE-PARITY.md#abort-merge-ownership-follow-up-october-10).
 
 ## Audited baseline
