@@ -1348,3 +1348,12 @@ panes retain the original fit/original/zoom/info/vertical artwork, with new
 repository-stage and working-file validation and macOS-owned confirmation.
 Existing TortoiseGit/TortoiseSVN copyright and GPL version 2 or later terms
 above apply. Remaining image controls and signed acceptance are incomplete.
+
+Image frame/page/ICO navigation and playback adapt TortoiseGitIDiff
+PicWindow.cpp PrevImage/NextImage, linked player controls, animation timer and
+overlay stop behavior, plus Utils/MiscUI/Picture.cpp active-image metadata at
+pinned commit 7338078f8ddd924b8cddee35f512f2286072136d. Original player_rew,
+player_fwd, player_start and player_stop ICO resources are bundled unchanged
+with source SHA256 provenance under the existing GPL resource choice. Native
+ImageIO uses zero-based indexes behind one-based counters; owned macOS tasks
+retain per-image timing and stop on scene/window retirement.

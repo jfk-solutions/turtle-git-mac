@@ -66,7 +66,7 @@ import TurtleGitCore
         }
     }
     func windowWillClose(_ notification: Notification) {
-        if let window = window as? FileComparisonNativeWindow { window.imageKeysRetired = true; window.imageKeyModel = nil; window.imageKeyOwner = nil }
+        if let window = window as? FileComparisonNativeWindow { window.imageKeyModel?.stopAllPlayback(); window.imageKeysRetired = true; window.imageKeyModel = nil; window.imageKeyOwner = nil }
         model.resetHistory(); onClosed()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }

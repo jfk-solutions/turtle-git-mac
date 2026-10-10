@@ -562,6 +562,26 @@
       "asset": "fitheights.ico",
       "source": "src/TortoiseIDiff/resources/fitheights.ico",
       "sha256": "45832d76aae72c9e51e788594c917b79a262ef2e3acd9cc75ccc76ad093f9158"
+    },
+    {
+      "asset": "player_rew.ico",
+      "source": "src/TortoiseIDiff/resources/player_rew.ico",
+      "sha256": "3da309ef9653b95da28490dd01fee890f0afb6e12b7bdc429929db2f1f283446"
+    },
+    {
+      "asset": "player_fwd.ico",
+      "source": "src/TortoiseIDiff/resources/player_fwd.ico",
+      "sha256": "682478820ec22fe9f870b68b380f21dee8e354da63e14729a3d990460efdebf3"
+    },
+    {
+      "asset": "player_start.ico",
+      "source": "src/TortoiseIDiff/resources/player_start.ico",
+      "sha256": "182a678660cbeaa5cdcbe61deb4b1bd76eda438ed945068351a916465d727df5"
+    },
+    {
+      "asset": "player_stop.ico",
+      "source": "src/TortoiseIDiff/resources/player_stop.ico",
+      "sha256": "14cb098de131a78689cab30d08936ba1536d1f786fe242b5f134b8bba356fa82"
     }
   ]
 }

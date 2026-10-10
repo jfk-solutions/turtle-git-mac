@@ -4,21 +4,53 @@ import CoreGraphics
 
 /// Decode the original Git/file bytes; no temporary previews or file mutations.
 public struct ComparisonImage {
+    public let id: UUID
     public let pixels: CGImage
     public let dpiX: Double?
     public let dpiY: Double?
     public let frameCount: Int
+    public let frameIndex: Int
+    public let animationDelay: TimeInterval
+    public let isIconVariants: Bool
+    private let source: CGImageSource
+    public var canAnimate: Bool { frameCount > 1 && !isIconVariants }
     public var size: CGSize { CGSize(width: pixels.width, height: pixels.height) }
     public init?(bytes: Data) {
-        guard let source = CGImageSourceCreateWithData(bytes as CFData, nil),
-              let pixels = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return nil }
-        self.pixels = pixels
-        let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
+        guard let source = CGImageSourceCreateWithData(bytes as CFData, nil) else { return nil }
+        self.init(source: source, index: 0, id: UUID())
+    }
+    private init?(source: CGImageSource, index: Int, id: UUID) {
+        let count = CGImageSourceGetCount(source)
+        guard (0..<count).contains(index), let pixels = CGImageSourceCreateImageAtIndex(source, index, nil) else { return nil }
+        self.id = id; self.source = source; self.pixels = pixels; frameCount = count; frameIndex = index
+        isIconVariants = (CGImageSourceGetType(source) as String?) == "com.microsoft.ico"
+        let properties = CGImageSourceCopyPropertiesAtIndex(source, index, nil) as? [CFString: Any]
         dpiX = (properties?[kCGImagePropertyDPIWidth] as? NSNumber)?.doubleValue
         dpiY = (properties?[kCGImagePropertyDPIHeight] as? NSNumber)?.doubleValue
-        frameCount = CGImageSourceGetCount(source)
+        let gif = properties?[kCGImagePropertyGIFDictionary] as? [CFString: Any]
+        let png = properties?[kCGImagePropertyPNGDictionary] as? [CFString: Any]
+        let delay = (gif?[kCGImagePropertyGIFUnclampedDelayTime] as? NSNumber)?.doubleValue ??
+            (gif?[kCGImagePropertyGIFDelayTime] as? NSNumber)?.doubleValue ??
+            (png?[kCGImagePropertyAPNGUnclampedDelayTime] as? NSNumber)?.doubleValue ??
+            (png?[kCGImagePropertyAPNGDelayTime] as? NSNumber)?.doubleValue ?? 0
+        animationDelay = ImageComparisonFrames.delay(delay)
+    }
+    /// Decode only the requested frame/page/ICO representation, retaining source bytes.
+    public func frame(at index: Int) -> ComparisonImage? { Self(source: source, index: index, id: id) }
+}
+public enum ImageComparisonFrames {
+    public static func next(_ current: Int, count: Int, forward: Bool, wrapping: Bool = false) -> Int {
+        guard count > 0 else { return 0 }
+        let bounded = min(count - 1, max(0, current))
+        if forward { return bounded == count - 1 ? (wrapping ? 0 : bounded) : bounded + 1 }
+        return bounded == 0 ? (wrapping ? count - 1 : 0) : bounded - 1
+    }
+    public static func delay(_ seconds: TimeInterval) -> TimeInterval {
+        guard seconds.isFinite else { return 0.1 }
+        return min(2_147_483.647, max(0.1, seconds))
     }
 }
+
 public struct ImageComparisonDocument {
     public let id = UUID()
     public let base: ComparisonImage?
@@ -99,6 +131,13 @@ public struct ImageComparisonSizing {
     public private(set) var heights = false
     public var overlay = false
     public init(base: CGSize, destination: CGSize) { self.base = Pane(pixels: base); self.destination = Pane(pixels: destination) }
+    /// Frame/ICO dimensions change without resetting zoom or linked extents.
+    public mutating func replacePixels(base: CGSize, destination: CGSize) {
+        func replacing(_ old: Pane, pixels: CGSize) -> Pane {
+            var next = Pane(pixels: pixels); next.percent = old.percent; next.width = old.width; next.height = old.height; return next
+        }
+        self.base = replacing(self.base, pixels: base); self.destination = replacing(self.destination, pixels: destination)
+    }
     public func pane(base: Bool) -> Pane { base ? self.base : destination }
     private mutating func assign(_ pane: Pane, base: Bool) { if base { self.base = pane } else { destination = pane } }
     public mutating func setZoom(_ percent: Int, base: Bool, linked: Bool = false) {

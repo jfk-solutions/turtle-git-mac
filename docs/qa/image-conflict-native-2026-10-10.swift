@@ -7,9 +7,9 @@ import Darwin
     struct Failure: Error { let line: UInt }
     static func require(_ value: @autoclosure () -> Bool, line: UInt = #line) throws { if !value() { throw Failure(line: line) } }
     @MainActor static func settle() async throws { for _ in 0..<20 { try await Task.sleep(nanoseconds: 10_000_000) } }
-    @MainActor static func wait(_ ready: () -> Bool) async throws {
+    @MainActor static func wait(_ ready: () -> Bool, line: UInt = #line) async throws {
         for _ in 0..<500 { if ready() { return }; try await Task.sleep(nanoseconds: 10_000_000) }
-        throw Failure(line: #line)
+        throw Failure(line: line)
     }
     static func png(_ color: NSColor) -> Data {
         let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 80, pixelsHigh: 60, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
@@ -74,8 +74,16 @@ import Darwin
         try key("f",3); try require(controller.model.panes.values.allSatisfy { $0.fit })
         try key("v",9,flags: .command); try await settle()
         func button(_ index: Int) -> NSButton { descendants(host).compactMap { $0 as? NSButton }.filter { $0.title == "Select" }[index] }
-        func answer(_ title: String) async throws {
-            try await wait { window.attachedSheet != nil }
+        func click(_ index: Int, line: UInt = #line) async throws {
+            // Published operation completion precedes SwiftUI applying the
+            // enabled environment to its native buttons. Wait for the actual
+            // control, then exercise its target/action without bypassing it.
+            try await wait({ button(index).isEnabled }, line: line)
+            button(index).performClick(nil)
+            try require(controller.model.busy, line: line)
+        }
+        func answer(_ title: String, line: UInt = #line) async throws {
+            try await wait({ window.attachedSheet != nil }, line: line)
             let sheet = window.attachedSheet!
             try require(controller.model.busy && !controller.windowShouldClose(window))
             try require(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel)
@@ -86,7 +94,7 @@ import Darwin
             try await wait { !controller.model.busy }
         }
         var closed = 0; controller.onClosed = { closed += 1 }
-        button(1).performClick(nil)
+        try await click(1)
         try await wait { window.attachedSheet != nil }
         let baseWorking = try Data(contentsOf: file), baseIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
         try require(baseWorking == base && baseIndex == beforeIndex)
@@ -102,17 +110,17 @@ import Darwin
             }
             controller.model.showInfo = false; window.appearance = NSAppearance(named: .aqua)
         }
-        button(0).performClick(nil); try await answer("No")
+        try await click(0); try await answer("No")
         let mineWorking = try Data(contentsOf: file), mineIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
         try require(mineWorking == mine && mineIndex == beforeIndex)
         // Change bytes while the confirmation is pending: Yes must not stage them.
-        button(2).performClick(nil); try await wait { window.attachedSheet != nil }
+        try await click(2); try await wait { window.attachedSheet != nil }
         try base.write(to: file); try await answer("Yes")
         try require(controller.model.error != nil && closed == 0)
         let rejectedIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
         try require(rejectedIndex == beforeIndex)
         controller.model.reload(); try await wait { !controller.model.busy }; try require(controller.model.error == nil)
-        button(2).performClick(nil); try await answer("Yes")
+        try await click(2); try await answer("Yes")
         try require(closed == 1 && controller.model.retired && controller.model.error == nil)
         let remaining = try await repo.conflicts(), staged = try await repo.run(["show",":" + path]).stdout
         try require(remaining.isEmpty && staged == theirs)

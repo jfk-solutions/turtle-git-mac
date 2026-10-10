@@ -39,8 +39,16 @@ The arrow keys set alpha to zero (Up), one (Down), or half (Left/Right).
 The image comparison is read-only. It does not stage, save or resolve files.
 The viewer follows the app’s light/dark appearance.
 
-This portion of the port is still being completed. Animation currently displays
-its first frame, and broader image controls still need porting. See [image comparison parity](IMAGE-COMPARISON-PARITY.md) for
+Multi-image files have Previous/Next buttons and an image counter beneath the
+pane header. Navigation stops at the first or last image. GIF frames and TIFF
+pages offer Play/Stop; ICO variants offer navigation only. Linked panes receive
+the same player commands, while each file uses its own playback timing. Turn
+linking off to operate panes independently. Turning overlay on stops playback.
+Conflict panes have independent player controls; Select copies the complete
+original file, including all frames. See [frame/page parity](IMAGE-FRAMES-PARITY.md).
+
+This portion of the port is still being completed. Broader image controls and
+format-specific behavior still need porting. See [image comparison parity](IMAGE-COMPARISON-PARITY.md) for
 the source comparison and verification scope.
 
 For an image conflict, **Edit conflicts** opens Mine, Base and Theirs. Each pane

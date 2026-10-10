@@ -1,0 +1,151 @@
+{
+  "checked_at": "2026-10-10T09:42:23.167140+00:00",
+  "parent_commit": "1f9346641ce199f70f7468759bffcb507f1dcd6d",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Partial native image frame/page/ICO controls and playback within the continuing complete TortoiseGit macOS port.",
+  "checks": {
+    "core": {
+      "session": 2667,
+      "exit_code": 0,
+      "tests": 42,
+      "failures": 0,
+      "scope": [
+        "GIF frame identity, pixels, delays and bounds",
+        "TIFF pages and ICO dimensions/no playback",
+        "Frame change retains zoom and linked extents",
+        "Manual clamp/playback wrap and timer floor",
+        "Existing image, blend, XOR, icon, file-comparison and image/text-conflict regressions"
+      ]
+    },
+    "native_frames": {
+      "session": 28152,
+      "exit_code": 0,
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "scope": [
+        "Actual per-pane Previous/Next/Play/Stop native buttons",
+        "Unequal GIF frame counts, independent/linked commands and wrapping",
+        "Actual rendered GIF/TIFF frame colors and dimensions",
+        "ICO variants with no Play",
+        "Overlay, source replacement and window-close cancellation",
+        "Comparison preserves HEAD/raw index/original encoded bytes",
+        "Real GIF conflict: independent Mine controls, full original three-frame selection on No, unmerged stages retained and close retirement"
+      ],
+      "display": "Private prohibited-activation receivers, transparent/offscreen owned windows; sheets and parents ordered out; no physical gestures or VoiceOver acceptance."
+    },
+    "native_comparison_regression": {
+      "session": 48303,
+      "comparison_subcommand_exit_code": 0,
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "note": "Comparison subcommand passed before original conflict subcommand timed out. Conflict was diagnosed and rerun separately."
+    },
+    "native_conflict_regression": {
+      "session": 24047,
+      "exit_code": 0,
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "scope": "Actual Select/No/Yes, stale working-byte rejection, Reload, close/quit fencing and unchanged HEAD. Receiver waits for native button enablement after published completion."
+    },
+    "debug_build_and_audit": {
+      "session": 77696,
+      "exit_code": 0,
+      "unsigned": true,
+      "icons": 116
+    },
+    "store_build_and_audit": {
+      "session": 15772,
+      "exit_code": 0,
+      "unsigned": true,
+      "icons": 116,
+      "requires_bundled_git": true
+    },
+    "inventory_and_local_site": {
+      "session": 64412,
+      "exit_code": 0,
+      "scope": "Pinned inventory integrity and local gallery generation. No hosted publication claim."
+    },
+    "cleanup": {
+      "matching_processes": [],
+      "current_fixtures": []
+    }
+  },
+  "source_sha256": {
+    "NOTICE": "1819ceb29e755b218f58df78bb3319c42e321eb1e222dfc822d31cbe833e25f6",
+    "README.md": "1b1c968307c3c0f40ba7885e69a39370b7db01126b8347d6d33f7885b21726b7",
+    "Sources/TurtleGitCore/ImageComparison.swift": "db2af78833562d9e3374c1815f0884cee990bf2111c99bf11c1753d39dd15ed5",
+    "Sources/TurtleGitCore/MenuIcons.swift": "afc967ffe79b82d65f19110d882603ad2ba0a2cafbb2ad69a1e3a1f6df71bd39",
+    "Sources/TurtleGitCore/Resources/Icons/player_fwd.ico": "682478820ec22fe9f870b68b380f21dee8e354da63e14729a3d990460efdebf3",
+    "Sources/TurtleGitCore/Resources/Icons/player_rew.ico": "3da309ef9653b95da28490dd01fee890f0afb6e12b7bdc429929db2f1f283446",
+    "Sources/TurtleGitCore/Resources/Icons/player_start.ico": "182a678660cbeaa5cdcbe61deb4b1bd76eda438ed945068351a916465d727df5",
+    "Sources/TurtleGitCore/Resources/Icons/player_stop.ico": "14cb098de131a78689cab30d08936ba1536d1f786fe242b5f134b8bba356fa82",
+    "Sources/TurtleGitCore/Resources/Icons/provenance.json": "d8293fc60f963c5543d297492eabe4d2c515bab91845d75a4d35e8b2894a5563",
+    "Sources/TurtleGitMac/FileComparisonWindow.swift": "6f120670117736430ea5516833ffa18edc27af8155efd4f3c54d47c1f9424e33",
+    "Sources/TurtleGitMac/ImageComparisonWindow.swift": "de22a1b8bc151a79c05b3fac74fb7547beac44ef85500350aa5c69917539e967",
+    "Sources/TurtleGitMac/ImageConflictWindow.swift": "5733e2ce0bb69fa21562360f5a6296fac1ad88d0d87238427a90d886e775adf8",
+    "Tests/TurtleGitCoreTests/ImageFrameTests.swift": "9154a5bae813b1f752def06c660a352bc2bde3f6445705c2e3b1836a99b254a2",
+    "docs/IMAGE-COMPARISON-PARITY.md": "4bc510015695bfffbfece31eb9bebb9e622e8307eb907581c0ddd15f5f926d66",
+    "docs/IMAGE-COMPARISON.md": "4c84d1332bc820aa8142b33fc14be122b2317ce91c69408944988f1eefae4adb",
+    "docs/IMAGE-CONFLICT-PARITY.md": "a43f001d37bfe9e9c79a31d96e9a4721fcdfde772f5429e55e487e6a6de401a0",
+    "docs/IMAGE-FRAMES-PARITY.md": "6180aeb212bba8de18ce49cdb3e93d4e8e6ce9467d227eca13301ca6330d851e",
+    "docs/README.md": "c6ba356498ef4e1e1463661fa276561edfacca588d6d9dac6a4f6000e1b3261a",
+    "docs/TESTING.md": "92bf9b56bd1523fc0a141fdbe43e649bf30b9d0c95d10453b8a82c7aa78386a9",
+    "docs/UI-PARITY.md": "d3129d71ade33c45f20b32c1fcd8f80b30ae4011fc8863adcc82b585abb623ab",
+    "docs/qa/image-conflict-native-2026-10-10.swift": "28d2d8023c0e1db722bf571ed3947bf3432d51b29b5e76db1c0eff09267783dd",
+    "docs/qa/image-frames-native-2026-10-10.swift": "1cd6c53e669f7ac15468b58fc186459044ca64a712837d4124aef333ffb5c389",
+    "docs/site/assets/image-frames-dark.png": "934da991699d2e1651b64da3647f0a5801a04ce71a80cc5272380c00f6ce3017",
+    "docs/site/assets/image-frames-light.png": "05e1cb6dc46642f5953525a1ca0a702c17c94c5d48a6ce1e4df23457eea4535e",
+    "docs/site/index.html": "5efbe3981894f96cc3d2a831643e341debbeee3167bc1b9e822be7ec4a46ea80",
+    "docs/upstream-files.csv": "b566f14bdc8237db90ef95a12f3804cb10a98758d1885230912cf41252475775",
+    "scripts/build-site.py": "15c0c0ef629c866887fbedb0ffdd9f66310731dddf09013ac8353af83a55aec1",
+    "scripts/test-image-frames.py": "84e7c76b794dff1433118a7bb44bdef84c41e90220a4e0b35f6b48d4d36e1c50"
+  },
+  "binary_sha256": {
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": "de42ba2a51e151741a1fa8cb6fc74c30731d7601ef7b759e899707ddb333aa61",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": "dc44e47efa6b867ca364f3b9a0bb2f34586e324eb30730045ce6f909abf6318e",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/MacOS/TurtleGitMac": "e9513895bcc7eb5aa32e05fe299ca68c1ddcc1e94029d1bd0f6b4eb5a3561cba",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": "49a060b4a47a2162997842ca254ad4c848dd13bd70e0c53fa3dc89d7151d3704",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": "4fe130d88732811cb2135fd976f7b9579c0ae3d38211d79ae7708e6973b5955c",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/MacOS/TurtleGitMac": "ae0fc297ae892ad6d53e5bfb2e3aee3218b8dda08c01e7e3c33faa88de63b8d1"
+  },
+  "resource_sha256": {
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Resources/NOTICE": "1819ceb29e755b218f58df78bb3319c42e321eb1e222dfc822d31cbe833e25f6",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/NOTICE": "1819ceb29e755b218f58df78bb3319c42e321eb1e222dfc822d31cbe833e25f6"
+  },
+  "git_engine_sha256": {
+    "/usr/bin/git": "179301dcb41ea78accc3fa0048a7e6f6710d891945a751a34addd622020c1818",
+    "build/git-runtime/Git/bin/git": "33a006b36637e018a94234c90cd25fe739c75a1644bdf6aeb73ddd31987b9a92"
+  },
+  "log_sha256": {
+    "build/qa/image-frames-cleanup-2026-10-10.log": "693fa2bca24cbfc45a23756e4f0a95dc75a088dc5f75977d8a59a96ce2f23355",
+    "build/qa/image-frames-comparison-regression-2026-10-10.log": "60174ef740a12f85d0402d5b72aa791b5a34264658a3982c9b53a1e75698f5da",
+    "build/qa/image-frames-conflict-diagnostic-2026-10-10.log": "8024c8531ca633f28bfff17f1837cba8a49f30a6cddc851450aa85b9f221bdf2",
+    "build/qa/image-frames-conflict-regression-2026-10-10.log": "4363345f950ed1d56f611e9c78f350b1dd8c4238b412ae24e147be6c992384c5",
+    "build/qa/image-frames-core-2026-10-10.log": "508f6a08a2edf393cd4825522aabec75e56356133daecf517ef01320e60289d0",
+    "build/qa/image-frames-debug-2026-10-10.log": "d8dacc4856c6255f4cc6c4d6aafec46d204584c8a5985d51bce890deeb5fc3a8",
+    "build/qa/image-frames-debug-audit-2026-10-10.log": "cdeaff9df09b2d3352cce83b62503b07e0e9bb7909accdb3b95f9decbe376ec4",
+    "build/qa/image-frames-inventory-2026-10-10.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/image-frames-native-2026-10-10.log": "06a0bf4a710f4eee00f6cb3e6f1d8ee66d6fefbeec482d370c80c2f737edad61",
+    "build/qa/image-frames-project-2026-10-10.log": "747909a44a9dc6f2c4861b91f09bc1d70097cf9053754a85a84fa1f2b7e93566",
+    "build/qa/image-frames-site-2026-10-10.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/image-frames-store-2026-10-10.log": "b74a73f8796b12aa35fa570e6594a2a6056217b10a225c9c0e7c2efcb5dc7a15",
+    "build/qa/image-frames-store-audit-2026-10-10.log": "b1c954ae1e9a5fc2a5d6416be100ef853bfb32fd82cbd6494843f0d1d5710619"
+  },
+  "capture_sha256": {
+    "build/qa/image-frames/image-frames-native-dark-2026-10-10.png": "934da991699d2e1651b64da3647f0a5801a04ce71a80cc5272380c00f6ce3017",
+    "build/qa/image-frames/image-frames-native-light-2026-10-10.png": "05e1cb6dc46642f5953525a1ca0a702c17c94c5d48a6ce1e4df23457eea4535e"
+  },
+  "limitations": [
+    "GDI/ImageIO format/provider/disposal/frame-index/color-profile/DPI parity remains incomplete",
+    "Physical gestures, VoiceOver, standalone load/background preferences and signed runtime acceptance remain pending",
+    "Unsigned AppStore compilation/audit does not prove sandbox/App Review/license clearance",
+    "Full application dialog/menu/settings/Finder parity is incomplete",
+    "Latest local changes have not been published or verified by hosted CI"
+  ]
+}

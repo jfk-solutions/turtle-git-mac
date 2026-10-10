@@ -621,3 +621,23 @@ HEAD/index contents are checked. AppKit can order a sheet parent, so the receive
 keeps its window transparent and offscreen, then hides the sheet and parent.
 All owned windows, executable and fixtures are removed. This does not establish
 physical gestures, VoiceOver, signed sandbox or Finder activation acceptance.
+
+## Image frame/page controls and playback
+
+After building the Debug app and Core framework, run:
+
+```sh
+python3 scripts/test-image-frames.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
+```
+
+The private native receiver exercises actual Previous/Next and Play/Stop buttons
+with unequal GIF frame counts, linked and independent navigation, wrapping,
+rendered frame colors, TIFF page dimensions and ICO variants without Play.
+It checks timer cancellation on overlay, source replacement and window close,
+and verifies unchanged HEAD, index and original encoded image bytes. A real
+multi-frame conflict exercises independent Mine controls and the actual Select
+and No sheet buttons: selecting at a later visible frame copies the original
+whole GIF and leaves unmerged stages intact; closing cancels the pane's player. Its windows
+stay transparent/offscreen and its temporary receiver and fixtures are removed.
+This does not establish physical gesture, VoiceOver, all-format or signed Finder
+acceptance. See [frame parity](IMAGE-FRAMES-PARITY.md).

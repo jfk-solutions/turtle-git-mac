@@ -73,14 +73,14 @@ import TurtleGitCore
         let decoded = Dictionary(uniqueKeysWithValues: ImageConflictSide.allCases.compactMap { side in document.image(side).map { (side,$0) } })
         images = decoded
         panes = Dictionary(uniqueKeysWithValues: ImageConflictSide.allCases.map { side in
-            let pane = ImageComparisonViewModel(); pane.configure(base: decoded[side]?.size ?? .zero, destination: .zero)
+            let pane = ImageComparisonViewModel(); pane.configureImages(base: decoded[side], destination: nil)
             return (side,pane)
         })
     }
     func fitImages() { for pane in panes.values { pane.fit = true } }
     func originalSize() { for pane in panes.values { pane.originalSize() } }
     func zoom(_ zoomIn: Bool) { for pane in panes.values { pane.changeZoom(zoomIn: zoomIn) } }
-    func retire() { retired = true; cancellation?.cancel(); task?.cancel(); task = nil }
+    func retire() { for pane in panes.values { pane.stopAllPlayback() }; retired = true; cancellation?.cancel(); task?.cancel(); task = nil }
     func reload() {
         guard !busy, !retired else { return }; busy = true; error = nil
         let token = OperationCancellation(); cancellation = token
@@ -91,7 +91,7 @@ import TurtleGitCore
                 guard !retired else { return }
                 document = next
                 images = Dictionary(uniqueKeysWithValues: ImageConflictSide.allCases.compactMap { side in next.image(side).map { (side,$0) } })
-                for side in ImageConflictSide.allCases { panes[side]?.configure(base: images[side]?.size ?? .zero, destination: .zero) }
+                for side in ImageConflictSide.allCases { panes[side]?.configureImages(base: images[side], destination: nil) }
                 fitImages()
             } catch { if !retired { self.error = error.localizedDescription } }
         }
@@ -166,12 +166,14 @@ private struct ImageConflictPane: View {
     let info: Bool
     let select: () -> Void
     var body: some View {
+        let current = model.currentImage(base: true)
         VStack(spacing: 0) {
             Text(title).font(.caption).padding(7).frame(maxWidth: .infinity).background(Color(nsColor: .controlBackgroundColor))
+            ImageFrameControls(model: model, base: true, label: side.rawValue)
             ZStack(alignment: .bottomLeading) {
-                ImageComparisonScroll(model: model, image: image, second: nil, base: true)
+                ImageComparisonScroll(model: model, image: current, second: nil, base: true)
                 if image == nil { Text("No image on this side").foregroundStyle(.secondary) }
-                if info, let image {
+                if info, let image = current {
                     VStack(alignment: .leading) {
                         Text("File size: \(bytes) bytes")
                         Text("Width: \(image.pixels.width) pixels")

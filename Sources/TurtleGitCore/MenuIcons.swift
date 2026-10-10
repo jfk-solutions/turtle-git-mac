@@ -12,6 +12,7 @@ public enum MenuPresentationSettings {
 /// cherry-pick glyphs use template tinting to remain visible in both appearances.
 public enum MenuIcon: String, CaseIterable {
     case imageFitWidths = "fitwidths", imageFitHeights = "fitheights"
+    case imagePrevious = "player_rew", imageNext = "player_fwd", imagePlay = "player_start", imageStop = "player_stop"
     case imageBlend = "blend"
     case imageOverlay = "overlap", imageLink = "link", imageFit = "fitinwindow", imageOriginal = "origsize"
     case imageZoomIn = "zoomin", imageZoomOut = "zoomout", imageInfo = "imginfo", imageVertical = "vertical", imageAlphaToggle = "alphatoggle"

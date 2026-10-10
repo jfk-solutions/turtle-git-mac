@@ -30,6 +30,7 @@ for baseline and update rules.
 - [UI comparison requirements](UI-PARITY.md)
 - [Comparing images](IMAGE-COMPARISON.md)
 - [Image comparison parity](IMAGE-COMPARISON-PARITY.md)
+- [Image frame/page and animation parity](IMAGE-FRAMES-PARITY.md)
 - [Image conflict selection parity](IMAGE-CONFLICT-PARITY.md)
 - [Historical implementation notes](IMPLEMENTATION-NOTES.md)
 

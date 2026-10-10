@@ -17,7 +17,7 @@ original pixel size and zoom. Overlay forces linked positions and disables
 vertical arrangement and the link toggle, matching the upstream command gates.
 A left-hand vertical slider controls alpha and the original alpha-toggle icon
 switches between endpoints. Image information includes byte size, pixel size,
-available DPI, decoded depth and a first-frame notice for multiframe images.
+available DPI, decoded depth and a selected-image counter for multi-image files.
 Toolbar artwork is copied byte-for-byte from the pinned TortoiseIDiff resources;
 its hashes and source paths are included in the shared icon provenance manifest.
 Native colors follow the application appearance.
@@ -25,8 +25,8 @@ Native colors follow the application appearance.
 ## Remaining requirements
 
 This is a partial native replacement. Configurable transparent color, standalone-open/background/dark keyboard
-commands, timed animation and
-frame/page controls, broader conflict selection acceptance, standalone Load Images,
+commands, broader animation/frame/provider behavior and
+conflict selection acceptance, standalone Load Images,
 image title tooltips, retained layout/preferences and full resizing/physical
 interaction/VoiceOver/signed sandbox acceptance remain incomplete. No complete
 TortoiseIDiff parity or App Store acceptance is claimed.
@@ -150,3 +150,10 @@ Three-pane regular image conflict selection is now implemented with a separate
 source selection-mode toolbar and copy-then-resolve confirmation. See
 [image conflict parity](IMAGE-CONFLICT-PARITY.md) for its distinct workflow and
 verification scope.
+
+
+Native frame/page navigation and owned playback are now implemented for both
+comparison and conflict panes. Manual controls clamp, playback wraps with source
+delay limits, linked commands propagate, and overlay/scene/window retirement
+stops timers. See [frame/page parity](IMAGE-FRAMES-PARITY.md) for source details,
+format differences and verification scope.
