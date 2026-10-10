@@ -163,7 +163,7 @@ import UniformTypeIdentifiers
         DialogGeometry.attach(window, identifier: "CommitWindowController")
     }
     func setQuitConfirmation(_ pending: Bool) { model.confirmingQuit = pending; partial?.model.confirmingQuit = pending }
-    func windowWillClose(_ notification: Notification) { closingCommit = true; model.invalidateMessageFocus(); logPicker?.close(); logPicker = nil; partial?.close(); partial = nil; model.unifiedWindow?.close(); onClosed() }
+    func windowWillClose(_ notification: Notification) { closingCommit = true; model.invalidateForClose(); logPicker?.close(); logPicker = nil; partial?.close(); partial = nil; model.unifiedWindow?.close(); onClosed() }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         guard partial?.model.busy != true, partial?.window?.attachedSheet == nil, !model.unifiedViewerBusy else { return false }
         model.cancel(); return false
@@ -299,7 +299,7 @@ import UniformTypeIdentifiers
     private var completionSources: [MessageCodeScanner.Source] = []
     private var completionOptions: MessageCodeScanner.Options?
     private var completionEnabled: Bool?
-    deinit { completionTask?.cancel(); issueStyleTask?.cancel() }
+    deinit { completionTask?.cancel(); issueStyleTask?.cancel(); authorCancellation?.cancel(); dateCancellation?.cancel(); amendCancellation?.cancel() }
     func prepareMessageCompletions(force: Bool = false) {
         var options = MessageCodeScanner.Options()
         let defaults = UserDefaults.standard
@@ -409,9 +409,12 @@ import UniformTypeIdentifiers
     private var amendGeneration = 0
     private var replayAuthorPreset: (enabled: Bool, value: String)?
     private var replayDatePreset: (enabled: Bool, value: Date, reset: Bool)?
-    var queryCommitAuthor: (Bool) async throws -> String?
-    var queryCommitAuthorDate: () async throws -> Date?
-    var queryAmendMessage: () async throws -> String?
+    private var authorCancellation: OperationCancellation?
+    private var dateCancellation: OperationCancellation?
+    private var amendCancellation: OperationCancellation?
+    var queryCommitAuthor: (Bool, OperationCancellation) async throws -> String?
+    var queryCommitAuthorDate: (OperationCancellation) async throws -> Date?
+    var queryAmendMessage: (OperationCancellation) async throws -> String?
     @Published var showUnversioned = true
     private let unversionedDefaults: UserDefaults
     private let dialogDefaults: UserDefaults
@@ -451,23 +454,23 @@ import UniformTypeIdentifiers
         self.repository = repository; self.access = access; self.unversionedDefaults = unversionedDefaults
         self.dialogDefaults = dialogDefaults
         queryLFSOwners = { try await repository.lfsLocks(cancellation: $0) }
-        queryCommitAuthor = { amend in
+        queryCommitAuthor = { amend, cancellation in
             if amend {
                 var options = HistoryOptions(); options.limit = 1
-                guard let previous = try await repository.history(options: options).first else { return nil }
+                guard let previous = try await repository.history(options: options, cancellation: cancellation).first else { return nil }
                 return "\(previous.author) <\(previous.email)>"
             }
-            let name = try await repository.run(["config", "user.name"]).text.trimmingCharacters(in: .newlines)
-            let email = try await repository.run(["config", "user.email"]).text.trimmingCharacters(in: .newlines)
+            let name = try await repository.run(["config", "user.name"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+            let email = try await repository.run(["config", "user.email"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
             return "\(name) <\(email)>"
         }
-        queryCommitAuthorDate = {
-            let value = try await repository.run(["show", "-s", "--format=%at", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        queryCommitAuthorDate = { cancellation in
+            let value = try await repository.run(["show", "-s", "--format=%at", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
             return TimeInterval(value).map { Date(timeIntervalSince1970: $0) }
         }
-        queryAmendMessage = {
+        queryAmendMessage = { cancellation in
             var options = HistoryOptions(); options.limit = 1
-            return try await repository.history(options: options).first?.message
+            return try await repository.history(options: options, cancellation: cancellation).first?.message
         }
         fileColumns = .load(from: dialogDefaults)
         completionAction = CompletionAction(sourceIndex: dialogDefaults.integer(forKey: "CommitLastAction"))
@@ -736,7 +739,7 @@ import UniformTypeIdentifiers
         return changelists.assignments[entry.path].map { origin + "\nChangelist: " + $0 } ?? origin
     }
     var checkedPathsForCommit: Set<String> { Set(visibleEntries.filter { checked.contains($0.id) }.map(\.path)) }
-    var canCommit: Bool { !busy && !confirmingQuit && !loadingAuthorIdentity && !loadingAuthorDate && !loadingAmendMessage && loadedMessage && changelistsLoaded && (messageOnly || (stagingEnabled ? entries.contains(where: \.staged) || operation == .merge || amend : !checkedPathsForCommit.isEmpty || operation == .merge || (amend && amendDiffToLastCommit))) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (!createBranch || !newBranch.isEmpty) && (!setAuthor || !author.isEmpty) }
+    var canCommit: Bool { messageFocusAvailable && !busy && !confirmingQuit && !loadingAuthorIdentity && !loadingAuthorDate && !loadingAmendMessage && loadedMessage && changelistsLoaded && (messageOnly || (stagingEnabled ? entries.contains(where: \.staged) || operation == .merge || amend : !checkedPathsForCommit.isEmpty || operation == .merge || (amend && amendDiffToLastCommit))) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (!createBranch || !newBranch.isEmpty) && (!setAuthor || !author.isEmpty) }
     func didRename(_ source: String, to destination: String) {
         func moved(_ path: String) -> String { path == source ? destination : path.hasPrefix(source + "/") ? destination + path.dropFirst(source.count) : path }
         checked = Set(checked.map(moved)); selection = Set(selection.map(moved)); scopePaths = scopePaths.map(moved); reload()
@@ -868,6 +871,7 @@ import UniformTypeIdentifiers
         else { checked.subtract(visibleEntries.map(\.id)) }
     }
     func amendChanged() {
+        guard messageFocusAvailable else { return }
         if replaySplit != nil { comparisonChanged(); return }
         let wasLoading = loadingAmendMessage
         invalidateMetadataLoads()
@@ -875,11 +879,14 @@ import UniformTypeIdentifiers
             nonAmendMessage = message
             if !amendMessage.isEmpty { finishAmendMessage(amendMessage); return }
             loadingAmendMessage = true
-            let generation = amendGeneration, draft = message
+            let generation = amendGeneration, draft = message, token = OperationCancellation()
+            amendCancellation = token
             Task {
-                defer { if generation == amendGeneration { loadingAmendMessage = false } }
+                defer { if generation == amendGeneration { loadingAmendMessage = false; amendCancellation = nil } }
                 do {
-                    let previous = try await queryAmendMessage()
+                    if token.isCancelled { throw OperationCancellationFailure.cancelled }
+                    let previous = try await queryAmendMessage(token)
+                    if token.isCancelled { throw OperationCancellationFailure.cancelled }
                     guard generation == amendGeneration, amend else { return }
                     finishAmendMessage(message.utf8.elementsEqual(draft.utf8) ? previous ?? "" : message)
                 } catch { if generation == amendGeneration, amend { self.error = error.localizedDescription; requestMessageFocus() } }
@@ -891,6 +898,8 @@ import UniformTypeIdentifiers
         }
     }
     private func invalidateMetadataLoads() {
+        authorCancellation?.cancel(); dateCancellation?.cancel(); amendCancellation?.cancel()
+        authorCancellation = nil; dateCancellation = nil; amendCancellation = nil
         authorGeneration += 1; dateGeneration += 1; amendGeneration += 1
         loadingAuthorIdentity = false; loadingAuthorDate = false; loadingAmendMessage = false
         replayAuthorPreset = nil; replayDatePreset = nil
@@ -906,6 +915,11 @@ import UniformTypeIdentifiers
     func invalidateMessageFocus() {
         messageFocusAvailable = false; messageFocusRequest = 0; appliedMessageFocusRequest = 0
     }
+    func invalidateForClose() {
+        invalidateMessageFocus()
+        invalidateMetadataLoads()
+        completionTask?.cancel(); issueStyleTask?.cancel()
+    }
     func acknowledgeMessageFocus(_ request: Int) {
         guard messageFocusAvailable, request == messageFocusRequest else { return }
         appliedMessageFocusRequest = request
@@ -915,6 +929,8 @@ import UniformTypeIdentifiers
         reload(paths: scopePaths.isEmpty ? ["."] : scopePaths)
     }
     func authorChanged() {
+        guard messageFocusAvailable else { return }
+        authorCancellation?.cancel(); authorCancellation = nil
         authorGeneration += 1
         loadingAuthorIdentity = false
         if let preset = replayAuthorPreset {
@@ -922,11 +938,14 @@ import UniformTypeIdentifiers
             if setAuthor == preset.enabled, author.utf8.elementsEqual(preset.value.utf8) { return }
         }
         let generation = authorGeneration, wasAmend = amend, wasSetAuthor = setAuthor, draft = author
+        let token = OperationCancellation(); authorCancellation = token
         loadingAuthorIdentity = true
         Task {
-            defer { if generation == authorGeneration { loadingAuthorIdentity = false } }
+            defer { if generation == authorGeneration { loadingAuthorIdentity = false; authorCancellation = nil } }
             do {
-                let value = try await queryCommitAuthor(wasAmend)
+                if token.isCancelled { throw OperationCancellationFailure.cancelled }
+                let value = try await queryCommitAuthor(wasAmend, token)
+                if token.isCancelled { throw OperationCancellationFailure.cancelled }
                 guard generation == authorGeneration, amend == wasAmend, setAuthor == wasSetAuthor,
                       author.utf8.elementsEqual(draft.utf8), let value else { return }
                 author = value
@@ -934,6 +953,8 @@ import UniformTypeIdentifiers
         }
     }
     func dateChanged() {
+        guard messageFocusAvailable else { return }
+        dateCancellation?.cancel(); dateCancellation = nil
         dateGeneration += 1
         loadingAuthorDate = false
         if let preset = replayDatePreset {
@@ -944,11 +965,14 @@ import UniformTypeIdentifiers
         guard setAuthorDate else { return }
         if !amend { authorDate = Date(); return }
         let generation = dateGeneration, draft = authorDate
+        let token = OperationCancellation(); dateCancellation = token
         loadingAuthorDate = true
         Task {
-            defer { if generation == dateGeneration { loadingAuthorDate = false } }
+            defer { if generation == dateGeneration { loadingAuthorDate = false; dateCancellation = nil } }
             do {
-                let value = try await queryCommitAuthorDate()
+                if token.isCancelled { throw OperationCancellationFailure.cancelled }
+                let value = try await queryCommitAuthorDate(token)
+                if token.isCancelled { throw OperationCancellationFailure.cancelled }
                 guard generation == dateGeneration, amend, setAuthorDate, authorDate == draft, let value else { return }
                 authorDate = value
             } catch { if generation == dateGeneration, amend, setAuthorDate { self.error = error.localizedDescription } }

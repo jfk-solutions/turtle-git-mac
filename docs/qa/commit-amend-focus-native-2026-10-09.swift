@@ -119,7 +119,7 @@ import Darwin
         errorModel.reload(); try await wait(host) { ready(errorModel) && errorModel.canCommit }
         guard let errorEditor = find(NSTextView.self, in: host, label: "Commit message") else { throw Failure(description: "Error-path editor missing") }
         window.makeFirstResponder(nil)
-        errorModel.queryAmendMessage = { throw Failure(description: "Owned Amend read error") }
+        errorModel.queryAmendMessage = { _ in throw Failure(description: "Owned Amend read error") }
         errorModel.amend = true; errorModel.amendChanged()
         try await wait(host) { ready(errorModel) && errorModel.error != nil }; try await settle(host)
         try require(errorModel.messageFocusRequest > errorModel.appliedMessageFocusRequest && window.firstResponder !== errorEditor)
@@ -138,13 +138,14 @@ import Darwin
         guard let closingMessage = find(NSTextView.self, in: closingHost, label: "Commit message"), let closingAuthor = find(NSTextField.self, in: closingHost, label: "Author identity") else { throw Failure(description: "Closing controls missing") }
         closingAuthor.selectText(nil)
         var reply: CheckedContinuation<String?, Error>?
-        closing.queryAmendMessage = { try await withCheckedThrowingContinuation { reply = $0 } }
+        var closingToken: OperationCancellation?
+        closing.queryAmendMessage = { token in closingToken = token; return try await withCheckedThrowingContinuation { reply = $0 } }
         closing.amend = true; try await wait(closingHost) { reply != nil }
         controller.close()
-        try require(!closing.messageFocusAvailable && closing.messageFocusRequest == 0)
+        try require(!closing.messageFocusAvailable && closing.messageFocusRequest == 0 && closingToken?.isCancelled == true && !closing.canCommit)
         reply!.resume(returning: "Late HEAD draft"); reply = nil
         try await wait(closingHost) { ready(closing) }; try await settle(closingHost)
-        try require(closing.messageFocusRequest == 0 && closingWindow.firstResponder !== closingMessage)
+        try require(closing.messageFocusRequest == 0 && closingWindow.firstResponder !== closingMessage && closing.message == "Closing draft")
         let headAfter = try await repo.run(["rev-parse", "HEAD"]).text
         let configAfter = try Data(contentsOf: root.appendingPathComponent(".git/config"))
         try require(headAfter == head && configAfter == config)

@@ -83,8 +83,10 @@ import Darwin
         try await wait(host) { ready(model) && model.authorDate == headDate }
         guard let author = find(NSTextField.self, in: host, label: "Author identity") else { throw Failure(description: "Author field missing") }
         let authors = Replies<String>()
-        model.queryCommitAuthor = { amend in
+        var authorTokens: [OperationCancellation] = []
+        model.queryCommitAuthor = { amend, token in
             try require(amend)
+            authorTokens.append(token)
             return try await authors.next()
         }
         model.authorChanged(); try await wait(host) { authors.count == 1 }; try await settle(host)
@@ -94,6 +96,7 @@ import Darwin
         try require(readonly.writeSelection(to: clipboard, types: readonly.writablePasteboardTypes))
         try require(clipboard.string(forType: .string) == model.author)
         model.authorChanged(); try await wait(host) { authors.count == 2 }
+        try require(authorTokens[0].isCancelled && !authorTokens[1].isCancelled)
         try authors.resolve(1, "Latest Author <latest@example.test>")
         try await wait(host) { !model.loadingAuthorIdentity && model.author == "Latest Author <latest@example.test>" }
         try authors.resolve(0, "Old Author <old@example.test>"); try await settle(host)
@@ -110,12 +113,14 @@ import Darwin
         try authors.resolve(4, "Would replace draft <overwrite@example.test>"); try await settle(host)
         try require(model.author.utf8.elementsEqual("cafe\u{301} <unicode@example.test>".utf8) && !model.loadingAuthorIdentity)
         let dates = Replies<Date>()
-        model.queryCommitAuthorDate = { try await dates.next() }
+        var dateTokens: [OperationCancellation] = []
+        model.queryCommitAuthorDate = { token in dateTokens.append(token); return try await dates.next() }
         model.dateChanged(); try await wait(host) { dates.count == 1 }; try await settle(host)
         try require(model.loadingAuthorDate && !model.canCommit)
         guard let picker = find(NSDatePicker.self, in: host) else { throw Failure(description: "Author date picker missing") }
         try require(!picker.isEnabled)
         model.dateChanged(); try await wait(host) { dates.count == 2 }
+        try require(dateTokens[0].isCancelled && !dateTokens[1].isCancelled)
         try dates.resolve(0, .distantPast); try await settle(host)
         try require(model.loadingAuthorDate && model.authorDate == headDate && !model.canCommit)
         let latestDate = Date(timeIntervalSince1970: 1600000000)
@@ -136,11 +141,13 @@ import Darwin
         freshWindow.isReleasedWhenClosed = false; freshWindow.contentView = freshHost; defer { freshWindow.close() }
         fresh.reload(); try await wait(freshHost) { ready(fresh) && fresh.canCommit }
         let messages = Replies<String>()
-        fresh.queryAmendMessage = { try await messages.next() }
+        var messageTokens: [OperationCancellation] = []
+        fresh.queryAmendMessage = { token in messageTokens.append(token); return try await messages.next() }
         fresh.amend = true; try await wait(freshHost) { messages.count == 1 }; try await settle(freshHost)
         guard let messageEditor = find(NSTextView.self, in: freshHost, label: "Commit message") else { throw Failure(description: "Message editor missing") }
         try require(fresh.loadingAmendMessage && !fresh.canCommit && !messageEditor.isEditable)
         fresh.amend = false; try await settle(freshHost)
+        try require(messageTokens[0].isCancelled)
         try await wait(freshHost) { ready(fresh) && fresh.canCommit }
         try require(fresh.message == "Fresh normal draft")
         fresh.amend = true; try await wait(freshHost) { messages.count == 2 }
@@ -195,10 +202,58 @@ import Darwin
         fresh.setAuthorDate = true; try await settle(freshHost)
         try await wait(freshHost) { ready(fresh) && fresh.authorDate == headDate }
         try require(fresh.author == "HEAD Author <head@example.test>" && fresh.message == "Fresh replay supplied draft")
+        // The production controller closes with all three default reads pending.
+        // Injected reads deliberately ignore cancellation to prove late replies
+        // cannot mutate the retained model after close.
+        let closing = CommitWindowController(repository: repo, access: nil, defaults: prefs)
+        let closedModel = closing.model
+        guard let closedWindow = closing.window, let closedHost = closedWindow.contentView else { throw Failure(description: "Closing host missing") }
+        defer { closing.close() }
+        closedModel.message = "Retained closing draft"; closedModel.messageOnly = true
+        closedModel.reload(); try await wait(closedHost) { ready(closedModel) && closedModel.canCommit }
+        closedModel.setAuthor = true; closedModel.setAuthorDate = true
+        try await settle(closedHost); try await wait(closedHost) { ready(closedModel) }
+        let closingAuthors = Replies<String>(), closingDates = Replies<Date>(), closingMessages = Replies<String>()
+        var closingTokens: [OperationCancellation] = []
+        closedModel.queryCommitAuthor = { _, token in closingTokens.append(token); return try await closingAuthors.next() }
+        closedModel.queryCommitAuthorDate = { token in closingTokens.append(token); return try await closingDates.next() }
+        closedModel.queryAmendMessage = { token in closingTokens.append(token); return try await closingMessages.next() }
+        closedModel.amend = true; try await wait(closedHost) { closingMessages.count == 1 }
+        closedModel.authorChanged(); closedModel.dateChanged()
+        try await wait(closedHost) { closingAuthors.count == 1 && closingDates.count == 1 }
+        let retainedAuthor = closedModel.author, retainedDate = closedModel.authorDate
+        closing.close()
+        try require(closingTokens.count == 3 && closingTokens.allSatisfy(\.isCancelled) && ready(closedModel) && !closedModel.canCommit)
+        try closingAuthors.resolve(0, "Late author <late@example.test>")
+        try closingDates.fail(0); try closingMessages.resolve(0, "Late amended message")
+        try await settle(closedHost)
+        closedModel.authorChanged(); closedModel.dateChanged(); closedModel.amendChanged()
+        try await settle(closedHost)
+        try require(closedModel.author == retainedAuthor && closedModel.authorDate == retainedDate && closedModel.message == "Retained closing draft")
+        try require(closedModel.error == nil && closedModel.messageFocusRequest == 0 && !closedModel.messageFocusAvailable)
+        try require(closingTokens.count == 3 && closingAuthors.pending.isEmpty && closingDates.pending.isEmpty && closingMessages.pending.isEmpty)
+        // A real blocking child exercises the production default-author query's
+        // Git cancellation plumbing, not just injected continuation tokens.
+        let wrapper = root.appendingPathComponent("blocked-metadata-git"), marker = root.appendingPathComponent("metadata-child.pid")
+        func quote(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'" }
+        let program = "#!/bin/sh\ncase \"$*\" in *'config user.name'*) printf '%s\\n' \"$$\" > " + quote(marker.path) + "; exec /bin/sleep 120 ;; esac\nexec " + quote(repo.executable.path) + " \"$@\"\n"
+        try Data(program.utf8).write(to: wrapper); try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: wrapper.path)
+        let blockedRepo = GitRepository(root: root, executable: wrapper)
+        let blocked = CommitWindowController(repository: blockedRepo, access: nil, defaults: prefs)
+        guard let blockedHost = blocked.window?.contentView else { throw Failure(description: "Blocked host missing") }
+        defer { blocked.model.invalidateForClose(); blocked.close() }
+        blocked.model.authorChanged()
+        try await wait(blockedHost) { FileManager.default.fileExists(atPath: marker.path) }
+        let child = Int32(try String(contentsOf: marker, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines))!
+        try require(kill(child, 0) == 0 && blocked.model.loadingAuthorIdentity)
+        blocked.close()
+        try await wait(blockedHost) { kill(child, 0) == -1 && errno == ESRCH }
+        try await settle(blockedHost)
+        try require(!blocked.model.loadingAuthorIdentity && blocked.model.error == nil && blocked.model.author.isEmpty)
         let headAfter = try await repo.run(["rev-parse", "HEAD"]).text
         let configAfter = try Data(contentsOf: root.appendingPathComponent(".git/config"))
         try require(headAfter == head && configAfter == config)
         try require(!window.isVisible && !freshWindow.isVisible && NSApplication.shared.activationPolicy() == .prohibited)
-        print("PASS: actual hidden Commit Amend/default author/date transitions, current date on unamend, generation-guarded author/date/message replies and obsolete errors, byte-distinct draft preservation, pending Commit/editor/picker gates, read-only copy and cached amend drafts; supplied Replay Split control-state preserves first author/date against old ordinary replies; HEAD/config unchanged; no main app")
+        print("PASS: actual hidden Commit metadata transitions, superseded default-read token cancellation, closed controller cancels all three reads/rejects late values/errors and new queries; production author query terminates its real blocking child; existing draft/date/Replay/editor gates pass; HEAD/config unchanged; no main app")
     }
 }

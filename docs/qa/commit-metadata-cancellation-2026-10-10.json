@@ -1,0 +1,98 @@
+{
+  "checked_at": "2026-10-10T05:35:13.659912+00:00",
+  "parent_commit": "7198461d9d66034dc9a87cf2513839f0da9347f0",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Cancel obsolete Commit author/date/initial-Amend metadata queries, propagate cancellation into production Git calls, and retire default reads on real controller close. Full Commit/application parity remains partial.",
+  "checks": {
+    "native": {
+      "session": 73269,
+      "exit_code": 0,
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "coverage": "Real hidden native metadata/date/draft/Replay/read-only/pending-control regressions; replacing author/date reads or toggling Amend cancels superseded tokens. Real Commit controller closes while all three injected reads are pending: all tokens cancel; late values/error cannot mutate drafts/focus; closed model cannot Commit or start new default reads. Production configured-author query through an owned blocking executable child terminates/reaps child on controller close. HEAD/config unchanged."
+    },
+    "focus": {
+      "session": 45730,
+      "exit_code": 0,
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "coverage": "Existing full focus regression, plus closing controller cancels initial-Amend token, keeps draft and disables Commit after late reply."
+    },
+    "Debug": {
+      "session": 15646,
+      "exit_code": 0
+    },
+    "Debug_audit": {
+      "session": 40570,
+      "exit_code": 0
+    },
+    "AppStore_unsigned": {
+      "session": 13618,
+      "exit_code": 0
+    },
+    "AppStore_audit": {
+      "session": 18793,
+      "exit_code": 0,
+      "flags": "--require-git"
+    },
+    "inventory": {
+      "exit_code": 0,
+      "classification": "CommitDlg.cpp remains partial-native-replacement"
+    },
+    "cleanup": {
+      "matching_processes": [],
+      "current_fixtures": []
+    },
+    "current_private_preferences": [],
+    "bundled_notices": "Both bundles byte-match current root NOTICE"
+  },
+  "repair": {
+    "initial_native_compile_session": 35266,
+    "exit_code": 1,
+    "reason": "OperationCancellation.check is internal to Core. Replaced calls with public isCancelled and OperationCancellationFailure; no Core API change. Both final receivers and both builds pass."
+  },
+  "source_sha256": {
+    "Sources/TurtleGitMac/CommitWindow.swift": "1615860277ec5e79c0554f330c3e15d883e041a2041055e4c91bbe3d4f04df18",
+    "docs/qa/commit-metadata-native-2026-10-09.swift": "dd4767d0c1c3695d7e92cf1f66faacd6aa79218e88766b19325d6f82a84651f4",
+    "docs/qa/commit-amend-focus-native-2026-10-09.swift": "0860fa9aeb2943fec60d6d09977438dee91db7d56efd1ffbcfb48819aa54478e",
+    "scripts/test-commit-metadata.py": "09ba8f7f19a1ef7a98e95a9da8cde679603755ec56b09fd0fc338089cd1b3bbc",
+    "scripts/test-commit-amend-focus.py": "529c094f8fa3487fb69a6b71c13f6c97c9f7cbd6c54cb7f43720deffea9ed3d7",
+    "docs/COMMIT-PARITY.md": "f096499645e4e986d5e5d3dc27792506cd66bb5b8152ad0943bb5e0a273f1f76",
+    "docs/upstream-files.csv": "6f7a7b518d67e3ea611e706fbc9e05c91a118d555142f3e3155bac2911215a1c",
+    "Sources/TurtleGitCore/GitRepository.swift": "c230a74080e4f66fdf8d881da79502163b6d045551f1885b9758afa1d9651c1a",
+    "Sources/TurtleGitCore/OperationCancellation.swift": "c45af4fbac065bd871a9ff6b5667b1d275277ac1c20d8e7383bb7c957b4f7738",
+    "Sources/TurtleGitCore/CommitHistory.swift": "d80e13fe0177975f1d9a76b1896613ab5254537ba913c016ecf8a94be5dba3e3"
+  },
+  "binary_sha256": {
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/MacOS/TurtleGitMac": "ae0fc297ae892ad6d53e5bfb2e3aee3218b8dda08c01e7e3c33faa88de63b8d1",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": "a1076ff8c04824ccdff8f8e6d9d61038b8ca3d2251c35961656fd3ac43200984",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": "4fe130d88732811cb2135fd976f7b9579c0ae3d38211d79ae7708e6973b5955c",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/MacOS/TurtleGitMac": "d533c7fd0da858852c959d229eed2997d4efb8e1463a0eccbc011b438d64061c",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": "2b609fb60ced73311abc9f3de4f24edf1a01b20abd659cc48934498950afd957",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": "dc44e47efa6b867ca364f3b9a0bb2f34586e324eb30730045ce6f909abf6318e"
+  },
+  "resource_sha256": {
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/NOTICE": "f79e01c67e4ba9540d4eadaa5e31f2de28e406c277891333942970c839468f24",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Resources/NOTICE": "f79e01c67e4ba9540d4eadaa5e31f2de28e406c277891333942970c839468f24"
+  },
+  "log_sha256": {
+    "build/qa/commit-metadata-cancellation-debug-2026-10-10.log": "3d26efe06670ffcb088129d129f156113cbd488bda80209709278f52c5410381",
+    "build/qa/commit-metadata-cancellation-debug-audit-2026-10-10.log": "03677d8f0b0860f94e07ef3ce34215ec26f981c604c6ceccc75e2bdae288a638",
+    "build/qa/commit-metadata-cancellation-focus-2026-10-10.log": "62db121ce46053e170bf74c63dab264a520247d5754aba356bd08c4626de8179",
+    "build/qa/commit-metadata-cancellation-inventory-2026-10-10.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/commit-metadata-cancellation-native-2026-10-10.log": "0e6d2de7ddb9d7486d743ab23ef8b35746547b90606686c968fe14664b64d17c",
+    "build/qa/commit-metadata-cancellation-native-final-2026-10-10.log": "a8b00a24bbff1a30c25b8ed876ce20eb635e83d1f08c5ca55619fb03dfb44249",
+    "build/qa/commit-metadata-cancellation-store-2026-10-10.log": "b74a73f8796b12aa35fa570e6594a2a6056217b10a225c9c0e7c2efcb5dc7a15",
+    "build/qa/commit-metadata-cancellation-store-audit-2026-10-10.log": "bf54b9dab37973005d43104fc27d3e9cd6a4920930af487e3e44c48332f3afc1"
+  },
+  "limitations": [
+    "This cancels three metadata read families, not every Commit task. Initial/status refresh, file operations, history/restore/changelist tasks and broader forced-close handling still require audit.",
+    "Real blocking child covers production configured-author query; cancelled date/history transitions additionally use injected token/late-reply checks. All command variants and concurrent HEAD changes remain unverified.",
+    "Native windows are unordered with activation prohibited. Physical sheets/keyboard/IME/VoiceOver acceptance remains incomplete.",
+    "Unsigned builds/audits do not prove signed sandbox/TCC/Finder/App Store/distribution acceptance. No current full-suite or hosted CI claim."
+  ]
+}

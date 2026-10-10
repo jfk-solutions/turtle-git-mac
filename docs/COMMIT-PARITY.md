@@ -1798,3 +1798,27 @@ must show both while still busy before No/Yes cancellation. Hook output appears
 once. A separate running-hook controller is forcibly closed and must cancel,
 release its owner without success callbacks, retain HEAD and expose no late
 footer/post-actions. These checks do not complete full Commit or app parity.
+
+## Cancelling obsolete author/date/message reads
+
+The author, author-date and initial Amend-message reads now each own an
+`OperationCancellation` token. Replacing a read, switching Amend direction or
+installing Replay Split presets cancels obsolete tokens as well as advancing the
+existing generations. The production queries pass these tokens through every Git
+config/history/show call. Checks before and after the asynchronous query reject
+cancelled work even if an injected reader ignores cancellation.
+
+The real Commit controller invalidates these reads on window close. Closing
+clears their loading flags, retires message focus, cancels completion/styling
+tasks and prevents fresh default-read requests or Commit from the retained
+model. Late metadata values/errors cannot replace the closed dialog's drafts.
+This is a macOS lifetime adaptation: the pinned Windows checkbox handlers read
+their defaults synchronously. Ordinary metadata reseeding, cached drafts and
+Replay preset rules remain as documented above.
+
+[Cancellation QA](qa/commit-metadata-cancellation-2026-10-10.json) records the
+native transition checks and limits. This change does not cancel every Commit
+task: initial/status refresh, other file operations, history/restore/changelist
+work and broader forced-close handling still need a lifetime audit. Physical
+keyboard/sheet behavior, concurrent HEAD changes, signed execution and full
+Commit/application parity remain incomplete.
