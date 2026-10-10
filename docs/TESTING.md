@@ -35,6 +35,19 @@ completed its 925-test suite with five failures in the two nested-tag cases and
 the legacy rebase expectation. That run predates these fixes; passing local
 checks do not establish a passing hosted run.
 
+For a bounded reproduction of intermittent Graph receiver failures, use:
+
+```sh
+python3 scripts/test-revision-graph-window.py \
+  --git /usr/bin/git --git build/git-runtime/Git/bin/git --repeat 3
+```
+
+The runner compiles once and runs fresh fixtures sequentially, stopping at the
+first failure. `--repeat` accepts 1–10; the default remains one run per engine.
+Three runs per engine passed locally with 30 validated deletion-menu activations.
+This did not reproduce or explain the earlier failure. See
+[the repeat record](qa/graph-menu-repeat-2026-10-10.json).
+
 ## Previous full-suite checkpoint
 
 At Core source checkpoint `c4bd370`, a fresh local `swift test` passed **921 tests,

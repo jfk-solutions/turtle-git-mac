@@ -10,7 +10,10 @@ import tempfile
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git', type=Path, action='append')
 parser.add_argument('--capture-dir', type=Path)
+parser.add_argument('--repeat', type=int, default=1, help='Sequential runs per Git engine, reusing one compiled receiver (1–10).')
 args = parser.parse_args()
+if not 1 <= args.repeat <= 10:
+    parser.error('--repeat must be between 1 and 10.')
 if args.capture_dir:
     args.capture_dir.mkdir(parents=True, exist_ok=True)
 root = Path(__file__).resolve().parent.parent
@@ -29,14 +32,15 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-revision-graph-native-') as t
     subprocess.run(['xcrun', 'swiftc', '-parse-as-library', '-swift-version', '5', '-target', platform.machine() + '-apple-macos13.0', '-I', str(products), '-F', str(products), *sources, str(copy), str(root / 'docs/qa/revision-graph-window-native-2026-10-10.swift'), '-framework', 'TurtleGitCore', '-o', str(executable)], cwd=root, check=True)
     environment = os.environ.copy()
     environment['DYLD_FRAMEWORK_PATH'] = str(products)
-    for index, git in enumerate(engines):
-        fixture = directory / ('fixture-' + str(index)); fixture.mkdir()
-        print('Checking ' + str(git), flush=True)
-        command = [str(executable), str(fixture), str(git.resolve()), str(root / 'build/graph-layout-runtime/GraphLayout/graph-layout')]
-        if index == 0 and args.capture_dir:
-            command.append(str(args.capture_dir.resolve()))
-        result = subprocess.run(command, cwd=root, env=environment, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-        print(result.stdout, end='', flush=True)
-        result.check_returncode()
-        if 'PASS: Native Revision Graph' not in result.stdout:
-            raise RuntimeError('Native receiver exited without completing its acceptance checks.')
+    for iteration in range(args.repeat):
+        for index, git in enumerate(engines):
+            fixture = directory / ('fixture-' + str(iteration) + '-' + str(index)); fixture.mkdir()
+            print('Checking ' + str(git) + ' (run ' + str(iteration + 1) + '/' + str(args.repeat) + ')', flush=True)
+            command = [str(executable), str(fixture), str(git.resolve()), str(root / 'build/graph-layout-runtime/GraphLayout/graph-layout')]
+            if iteration == 0 and index == 0 and args.capture_dir:
+                command.append(str(args.capture_dir.resolve()))
+            result = subprocess.run(command, cwd=root, env=environment, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            print(result.stdout, end='', flush=True)
+            result.check_returncode()
+            if 'PASS: Native Revision Graph' not in result.stdout:
+                raise RuntimeError('Native receiver exited without completing its acceptance checks.')

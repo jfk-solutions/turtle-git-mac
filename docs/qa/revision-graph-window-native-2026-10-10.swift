@@ -528,8 +528,13 @@ import Darwin
         func invoke(_ item: NSMenuItem) throws {
             let valid = controller.validateMenuItem(item)
             print("Invoking Graph menu: \(item.title); valid=\(valid); busy=\(model.busy); selection=\(model.selection); sheet=\(window.attachedSheet != nil)")
+            if !valid {
+                print("Graph menu rejection: command=\(String(describing: item.representedObject)); closed=\(model.closed); filter=\(controller.filter != nil); selected refs=\(model.selectedNode?.references.map(\.name) ?? [])")
+            }
             try require(valid)
-            try require(NSApp.sendAction(item.action!, to: item.target, from: item))
+            let delivered = NSApp.sendAction(item.action!, to: item.target, from: item)
+            if !delivered { print("Graph menu action delivery failed: \(item.title)") }
+            try require(delivered)
         }
         func sheetButton(_ title: String) async throws {
             try await wait { window.attachedSheet != nil }

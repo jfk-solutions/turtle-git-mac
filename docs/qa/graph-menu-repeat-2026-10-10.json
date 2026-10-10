@@ -1,0 +1,35 @@
+{
+  "date": "2026-10-10",
+  "base_checkpoint": "f9521c9a280ffc806a03aca2c71e49ef4d484d7b",
+  "upstream_checkpoint": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Reproduce the unexplained initial Graph receiver menu activation failure from ci-compatibility-2026-10-10.json without changing production behavior or weakening assertions.",
+  "changes": [
+    "Add --repeat 1\u201310 to native Graph runner; compile once, run fresh isolated fixtures sequentially, stop on first failure and require each completion marker. Default CI behavior remains one run per Git engine.",
+    "Split validation and action delivery assertions, retaining rejection/action details and selected refs on failure."
+  ],
+  "verification": {
+    "command": "python3 scripts/test-revision-graph-window.py --git /usr/bin/git --git build/git-runtime/Git/bin/git --repeat 3",
+    "exit": 0,
+    "fresh_receiver_processes": 6,
+    "system_git_runs": 3,
+    "packaged_git_runs": 3,
+    "final_markers": 6,
+    "menu_invocations": 30,
+    "validation_rejections": 0,
+    "action_delivery_failures": 0
+  },
+  "production_changes": false,
+  "limitations": [
+    "Initial failure was not reproduced. These runs do not establish its cause, a production fix or absence of intermittent failures.",
+    "Native receiver uses activation prohibited, transparent owned windows and private fixtures/preferences; no installed Finder, physical gestures or signed acceptance.",
+    "The full 925-test and bundle build/audit results at c5dac22 remain the production checkpoint; this change affects only diagnostic tooling/receiver."
+  ],
+  "sha256": {
+    "scripts/test-revision-graph-window.py": "8e144c620f94cd8de747711f6c91a412689a936ddbe26eec7490eb4537a25d55",
+    "docs/qa/revision-graph-window-native-2026-10-10.swift": "772f196eed04c0b85dfce39924d4b0fe10130dcb1a36af12dd488dd64447b0a6",
+    "Sources/TurtleGitMac/RevisionGraphWindow.swift": "6a629f86216d35b3ff3fedab1a87991e976c9424132c7053a5dc7a5ab8e7a3a8",
+    "Sources/TurtleGitCore/RevisionGraph.swift": "215cb34bfd87b2717f26f42ee1c2f3b6b9a81928d18d56f8add3164619c90ce7",
+    "Sources/TurtleGitCore/CommitHistory.swift": "3a6390e5ddeed7a276e65bb16b1799df2119f1ed543269a364c448982e3500b0",
+    "build/qa/graph-menu-repeat-2026-10-10.log": "83cd4a657a1e41c1954f3ab247bbd9594eeb1a9ea008ca01830e479efb42b8a0"
+  }
+}
