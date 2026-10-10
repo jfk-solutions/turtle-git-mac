@@ -242,3 +242,8 @@ Packaged Git now prefers bundled OpenSSH for ordinary SSH lookup; explicit
 SSH commands retain precedence. AppStore runtime resolution requires the
 executable client. Signed parent invocation, real authentication and complete
 SSH behavior remain release gates.
+
+The direct-mail MX dependency uses macOS DNS-SD through SDK libSystem, with no
+bundled resolver or external process. Local read-only query/cancellation checks
+and unsigned builds do not prove signed sandbox permission behavior. Direct-mail
+submission/routing remains incomplete; see [Send Patch parity](SEND-PATCH-PARITY.md).

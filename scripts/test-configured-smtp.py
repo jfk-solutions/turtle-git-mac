@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise actual built Core/SMTP frameworks; private loopback server only."""
+"""Exercise actual built Core/SMTP frameworks; private loopback SMTP, plus optional read-only DNS probe."""
 from pathlib import Path
 import base64
 import json

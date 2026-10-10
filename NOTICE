@@ -1240,3 +1240,10 @@ also follows Colors.cpp (Copyright (C) 2003-2007 TortoiseSVN; (C) 2009-2013,
 2016-2019 TortoiseGit) and LoglistUtils.cpp (Copyright (C) 2008-2012, 2014,
 2016-2017, 2019 TortoiseGit; (C) 2003-2008 TortoiseSVN). AppKit virtual rows,
 clipboard, dynamic appearance and native path display replace Windows APIs.
+
+The direct-mail MX lookup API in PatchMailSMTP.swift and TurtleGitSMTP/SMTP.c
+is a GPL-2.0-or-later native macOS implementation replacing the Windows DnsQuery
+dependency used by CHwSMTP::SendSpeedEmail. It uses the system DNS-SD API,
+standalone MX RDATA decoding, an owned service reference and cooperative
+cancellation. The DNS query layer performs no mail delivery; direct-domain
+submission orchestration remains a separate porting requirement.

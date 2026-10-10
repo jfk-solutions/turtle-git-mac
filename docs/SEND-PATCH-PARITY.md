@@ -543,3 +543,28 @@ The configured Format workflow's callback installation is also checked. See
 [command handoff QA](qa/send-patch-tools-2026-10-10.json). These checks do not prove
 physical gestures, signed access, external merge-tool selection, all error/draft
 flows or complete mail-client/direct delivery and application parity.
+
+## Direct delivery MX dependency
+
+`SMTPMXResolver` now replaces the Windows `DnsQuery` dependency used by
+`CHwSMTP::SendSpeedEmail` with macOS's system DNS-SD service. It returns MX
+preference/hostname records in response order and identifies the root exchange
+as a null MX. The C decoder bounds each standalone RDATA record, validates label
+lengths and ASCII hostname bytes, and rejects compression pointers, truncation,
+trailing bytes and hostnames beyond the DNS limit. The Swift entry validates
+domains/timeouts and runs the lookup off the UI thread.
+
+The lookup owns its DNSServiceRef and releases it on completion, error, timeout
+or cooperative cancellation. A monotonic deadline and short poll intervals bound
+waiting. No credentials are requested and this API performs no SMTP submission.
+It uses the DNS-SD symbols re-exported by SDK libSystem; no external DNS library
+or helper process is bundled.
+
+Five tests cover wire records/null MX/boundaries, rejected inputs, pre-cancel,
+an opt-in read-only system query, and 32 post-open cancellations that leave the
+process descriptor count unchanged. The built Debug frameworks also performed
+the read-only query and passed the existing private loopback MIME check. See
+[MX dependency QA](qa/send-patch-mx-2026-10-10.json). Domain grouping, per-domain
+envelopes, MX failover, partial acceptance/retry handling and application entry
+routing still need implementation before direct delivery is functional. Full
+mail-client delivery and signed/physical/application parity remain unfinished.

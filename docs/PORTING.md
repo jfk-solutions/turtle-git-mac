@@ -22,6 +22,12 @@ with inherited file grants; real working-tree application and two-commit import
 have hidden native checks. Other delivery modes, physical UI and signed grants
 remain pending. See [Send Patch parity](SEND-PATCH-PARITY.md).
 
+Direct mail's macOS MX lookup dependency now uses system DNS-SD with bounded
+waiting and cancellation. Decoder/input/live read-only query checks and repeated
+query cleanup passed; this does not yet provide direct delivery. Domain routing,
+MX failover and accepted-prefix handling remain pending. See
+[Send Patch parity](SEND-PATCH-PARITY.md).
+
 ## Audited baseline
 
 Worktree creation, listing, locking, unlocking, removal and pruning now have a

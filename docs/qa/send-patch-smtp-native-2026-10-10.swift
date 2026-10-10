@@ -3,6 +3,16 @@ import TurtleGitCore
 @main struct ConfiguredSMTPVerification {
     static func main() async {
         do {
+            let cancelled = OperationCancellation(); cancelled.cancel()
+            do {
+                _ = try await SMTPMXResolver.lookup(domain: "example.invalid", cancellation: cancelled)
+                throw SMTPMXFailure.query(-70001)
+            } catch is OperationCancellationFailure { }
+            if ProcessInfo.processInfo.environment["TURTLEGIT_MX_DNS_PROBE"] == "1" {
+                let records = try await SMTPMXResolver.lookup(domain: "gmail.com", timeoutMilliseconds: 10_000)
+                guard !records.isEmpty else { throw SMTPMXFailure.query(-70001) }
+                print("Actual Debug Core/SMTP framework read-only system MX query returned \(records.count) records; no direct SMTP submission.")
+            }
             guard CommandLine.arguments.count == 3, let port = Int(CommandLine.arguments[2]) else { throw SMTPFailure.configuration }
             let root = URL(fileURLWithPath: CommandLine.arguments[1])
             var raw = Data("Subject: First 雪\n\nbinary\n".utf8); raw.append(contentsOf: [0, 255, 128])

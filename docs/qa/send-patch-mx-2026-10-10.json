@@ -1,0 +1,98 @@
+{
+  "checked_at": "2026-10-10T03:59:17.935459+00:00",
+  "parent_commit": "0e14805df52674e022c53ba231539dd49c16a372",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Native macOS direct-mail MX lookup dependency only; owned DNS-SD service, bounded waits, cancellation and standalone record decoding. No direct SMTP submission or application routing.",
+  "upstream_evidence": {
+    "path": "src/Utils/HwSMTP.cpp",
+    "sha256": "bacdc3f7bb59e0b5f195d4e976628bfa4c59f777cf548a25e3ba56e4fd78db90",
+    "behavior": "SendSpeedEmail groups To/CC by mail domain, calls DnsQuery(MX), and tries returned exchanges on port 25. This checkpoint replaces the DNS dependency, preserving returned record order."
+  },
+  "checks": {
+    "MX": {
+      "final_session": 58963,
+      "exit_code": 0,
+      "tests": 5,
+      "flags": "TURTLEGIT_MX_DNS_PROBE=1 swift test --filter SMTPMXTests",
+      "coverage": "Big-endian preference, hostname/null MX, malformed/truncated/compressed/trailing/embedded NUL/label-length records, valid 253 and rejected 254 hostname lengths, invalid domains/timeouts, pre-cancel; actual system read-only Gmail MX query, 32 post-open cancellations with unchanged descriptor count."
+    },
+    "first_link_failure": {
+      "session": 18014,
+      "exit_code": 1,
+      "finding": "SDK has no standalone libdns_sd. DNS-SD is re-exported by libSystem, confirmed from the local SDK .tbd. Extra linker dependency removed from package/project and regenerated project; those files match parent. First failure log preserved."
+    },
+    "mail_system": {
+      "session": 68545,
+      "exit_code": 0,
+      "tests": 22
+    },
+    "mail_packaged": {
+      "session": 5578,
+      "exit_code": 0,
+      "tests": 22
+    },
+    "Debug": {
+      "session": 73654,
+      "exit_code": 0
+    },
+    "Debug_bundle_audit": {
+      "session": 44222,
+      "exit_code": 0
+    },
+    "SDK_native": {
+      "exit_code": 0,
+      "flags": "TURTLEGIT_MX_DNS_PROBE=1 python3 scripts/test-configured-smtp.py",
+      "coverage": "Actual built Core/SMTP frameworks pre-cancel and read-only system MX query returned five records; existing owned loopback SMTP exact MIME, distinct To/CC and binary attachment decoder checks passed. No SMTP connection to queried domain."
+    },
+    "AppStore_unsigned": {
+      "session": 11127,
+      "exit_code": 0
+    },
+    "AppStore_bundle_audit": {
+      "session": 90277,
+      "exit_code": 0,
+      "flags": "--require-git"
+    },
+    "inventory": "Pinned inventory regression passed; HwSMTP rows remain partial with explicit direct-submission backlog.",
+    "cleanup": "No matching app/test/compiler/SMTP/helper processes or current fixtures. DNS service references are freed by lookup; live cancellation test checked descriptor count across 32 opened/cancelled services. No user credentials/preferences were read or written by the DNS probe."
+  },
+  "source_sha256": {
+    "NOTICE": "92d7c76140a7fdcada31a41e5e0a85d77bfba6faa8e661f9698f75f2f1f1bc14",
+    "Sources/TurtleGitCore/PatchMailSMTP.swift": "4fc38ec0cb9226cf0f03aaf88e367b2225b0c4f45b91f647b0f6ff192d608b97",
+    "Sources/TurtleGitSMTP/SMTP.c": "890246a6140c396569ac6e86b88eeb3a39e709d8466cf50f1c52ef46002897b9",
+    "Sources/TurtleGitSMTP/include/TurtleGitSMTP.h": "4aae0738204830708fd25586a154e679d7f0fa0a6174052b450d1e5978aeefac",
+    "Tests/TurtleGitCoreTests/SMTPMXTests.swift": "7e183a5ba2a543ad009fcf767534420109164afbc287f34c161be770f8e37d9e",
+    "docs/SEND-PATCH-PARITY.md": "e8f223ff8bae867e32eae17acf6151bd20a462ca7e8ff66f2cc6bddeaa384939",
+    "docs/TESTING.md": "4a000932306058ad18c4d88a8ef7300d279171e784f1c1d432ab1e571aaddbf5",
+    "docs/DISTRIBUTION.md": "1f781beb14382e76849e69fabddc4c10c1b3402739c9dd205ac4c01db42e5eb7",
+    "docs/PORTING.md": "962bcb364f9084c201b00f536b8c7ec4f367375d45826bba5bb50fe207de11c6",
+    "docs/upstream-files.csv": "a5ece741a72726afcdd54460fd88774516b6981ee7d3168d40f2e23f3b986cf3",
+    "docs/qa/send-patch-smtp-native-2026-10-10.swift": "bc42ed0c6d7f0e0a315bdb00941fc1a9bd7b9dacc8fe3eb2c3d552da4a2ef05f",
+    "scripts/test-configured-smtp.py": "4d0fde2f95fb670516eeebae343e56ff790e744f52dda98f9d87b550b46c1bcf",
+    "Package.swift": "2e4f4e8e902801fcede908bbdd88a9b12f25b4fcf40a8d7da383662da234b4d0",
+    "project.yml": "861db855f39903cf753b8121081f7788bd210e2167053c464314379492267de2",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "9377067e666db5cd06169f820f9d4751e9526262372d9182b5bf26556e7ab781"
+  },
+  "binary_sha256": {
+    "Debug_app": "ae0fc297ae892ad6d53e5bfb2e3aee3218b8dda08c01e7e3c33faa88de63b8d1",
+    "Debug_core": "8fe71ab6795b2700fd909155b4ca6982c28c3d8dbb5f3c96815278f5c5f7e21d",
+    "Debug_smtp": "4fe130d88732811cb2135fd976f7b9579c0ae3d38211d79ae7708e6973b5955c",
+    "AppStore_app": "a4f10694e711637869ad2e758879f31b040e564406a274a9bda408fd00598f6d",
+    "AppStore_core": "b79644b4025c46f2cec466f76ac8b0074014a0b9604218aa8f162ca55c574de8",
+    "AppStore_smtp": "dc44e47efa6b867ca364f3b9a0bb2f34586e324eb30730045ce6f909abf6318e"
+  },
+  "logs": {
+    "build/qa/send-patch-mx-core-link-failure-2026-10-10.log": "d4155def170790631ca9a5e5a82a73cd6f8b7c08364cd8c9e99bc924e6d97550",
+    "build/qa/send-patch-mx-core-2026-10-10.log": "239c355b35e2e97469db85c0530c29b1b03bc2ed640c464cf217158778ffb2cb",
+    "build/qa/send-patch-mx-mail-system-2026-10-10.log": "7d068f1dd335a3210ae7171217503316c64bcf6009451a79d722e93b1aa09c0b",
+    "build/qa/send-patch-mx-mail-packaged-2026-10-10.log": "6ebd24e3b658afdfa7d5f3465e3d4015342c5f84ae8fe4045b334d1e5553bdb6",
+    "build/qa/send-patch-mx-debug-2026-10-10.log": "d08e427d93f1d28d24ba82044c67faeee2fdc54406994bbb782d97ab85a05039",
+    "build/qa/send-patch-mx-sdk-2026-10-10.log": "9ff6870c30e281ec922f7932b23ac9507b554f4bc62e850e21c95b7f45403f46",
+    "build/qa/send-patch-mx-debug-audit-2026-10-10.log": "03677d8f0b0860f94e07ef3ce34215ec26f981c604c6ceccc75e2bdae288a638",
+    "build/qa/send-patch-mx-store-2026-10-10.log": "b74a73f8796b12aa35fa570e6594a2a6056217b10a225c9c0e7c2efcb5dc7a15",
+    "build/qa/send-patch-mx-store-audit-2026-10-10.log": "bf54b9dab37973005d43104fc27d3e9cd6a4920930af487e3e44c48332f3afc1",
+    "build/qa/send-patch-mx-inventory-2026-10-10.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/send-patch-mx-cleanup-2026-10-10.json": "693fa2bca24cbfc45a23756e4f0a95dc75a088dc5f75977d8a59a96ce2f23355"
+  },
+  "limitations": "The complete SwiftPM suite was not rerun after this Core change; 27 focused cases passed, with the 22 mail cases repeated for both Git runtimes. Public DNS results are observed responses, not fixed future assertions; default CI skips the opt-in public query. No direct-delivery grouping/envelope/MX-failover/partial-acceptance queue or app route exists yet. No actual direct mail, Keychain, main app, displayed UI, signed sandbox/Finder or distribution verification. The full port remains unfinished."
+}

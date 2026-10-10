@@ -90,3 +90,88 @@ finish:
     return (int)result;
 #undef SET
 }
+
+/* Direct mail's MX dependency, replacing Windows DnsQuery. */
+#include <dns_sd.h>
+#include <poll.h>
+#include <time.h>
+#include <errno.h>
+
+int tg_smtp_decode_mx(const unsigned char *bytes, size_t length, TGSMTPMXRecord *record) {
+    if (!bytes || !record || length < 3) return -70001;
+    TGSMTPMXRecord decoded = {0};
+    decoded.preference = (uint16_t)(((uint16_t)bytes[0] << 8) | bytes[1]);
+    size_t offset = 2, output = 0;
+    while (offset < length) {
+        unsigned size = bytes[offset++];
+        if (!size) {
+            if (offset != length || (output && output - 1 > 253)) return -70001;
+            if (!output) decoded.hostname[output++] = '.';
+            else --output; /* Remove the final label separator. */
+            decoded.hostname[output] = 0; *record = decoded; return 0;
+        }
+        /* DNS-SD supplies standalone RDATA: compressed pointers have no packet
+         * base here and cannot be followed. Never guess or read past this record. */
+        if (size > 63 || size > length - offset || output + size + 1 >= sizeof(decoded.hostname)) return -70001;
+        for (unsigned i = 0; i < size; ++i) {
+            unsigned c = bytes[offset++];
+            if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '_')) return -70001;
+            decoded.hostname[output++] = (char)c;
+        }
+        decoded.hostname[output++] = '.';
+    }
+    return -70001;
+}
+struct MXQuery { TGSMTPMXRecord *records; size_t capacity, count; int result, done; };
+static void mx_reply(DNSServiceRef service, DNSServiceFlags flags, uint32_t interface_index,
+                     DNSServiceErrorType error, const char *name, uint16_t type, uint16_t class_value,
+                     uint16_t length, const void *data, uint32_t ttl, void *opaque) {
+    (void)service; (void)interface_index; (void)name; (void)ttl;
+    struct MXQuery *query = opaque;
+    if (error) { query->result = error; query->done = 1; return; }
+    if (type == kDNSServiceType_MX && class_value == kDNSServiceClass_IN && (flags & kDNSServiceFlagsAdd)) {
+        TGSMTPMXRecord record;
+        int code = tg_smtp_decode_mx(data, length, &record);
+        if (code) { query->result = code; query->done = 1; return; }
+        if (query->count == query->capacity) { query->result = -70004; query->done = 1; return; }
+        query->records[query->count++] = record;
+    }
+    if (!(flags & kDNSServiceFlagsMoreComing)) query->done = 1;
+}
+static int64_t mx_milliseconds(void) {
+    struct timespec time_value;
+    if (clock_gettime(CLOCK_MONOTONIC, &time_value)) return -1;
+    return (int64_t)time_value.tv_sec * 1000 + time_value.tv_nsec / 1000000;
+}
+int tg_smtp_lookup_mx(const char *domain, long timeout_ms, TGSMTPProgress cancelled,
+                      void *context, TGSMTPMXRecord *records, size_t capacity, size_t *count) {
+    if (count) *count = 0;
+    if (!domain || !*domain || timeout_ms <= 0 || !records || !capacity || !count) return -70001;
+    if (cancelled && cancelled(context, 0, 0)) return -70003;
+    int64_t started = mx_milliseconds();
+    if (started < 0) return -70001;
+    struct MXQuery query = {records, capacity, 0, 0, 0};
+    DNSServiceRef service = NULL;
+    int code = DNSServiceQueryRecord(&service, kDNSServiceFlagsTimeout, kDNSServiceInterfaceIndexAny,
+                                     domain, kDNSServiceType_MX, kDNSServiceClass_IN, mx_reply, &query);
+    if (code) return code;
+    int descriptor = DNSServiceRefSockFD(service);
+    if (descriptor < 0) { DNSServiceRefDeallocate(service); return -70001; }
+    while (!query.done) {
+        if (cancelled && cancelled(context, 0, 0)) { query.result = -70003; break; }
+        int64_t now = mx_milliseconds(), remaining = timeout_ms - (now - started);
+        if (now < 0) { query.result = -70001; break; }
+        if (remaining <= 0) { query.result = -70002; break; }
+        struct pollfd descriptor_state = {descriptor, POLLIN, 0};
+        int ready = poll(&descriptor_state, 1, (int)(remaining < 50 ? remaining : 50));
+        if (ready < 0) { if (errno == EINTR) continue; query.result = -70001; break; }
+        if (ready && (descriptor_state.revents & POLLIN)) {
+            code = DNSServiceProcessResult(service);
+            if (code) { query.result = code; break; }
+        } else if (ready && descriptor_state.revents) { query.result = -70001; break; }
+    }
+    DNSServiceRefDeallocate(service);
+    if (cancelled && cancelled(context, 0, 0)) query.result = -70003;
+    if (!query.result) *count = query.count;
+    return query.result;
+}

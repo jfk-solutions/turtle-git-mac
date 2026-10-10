@@ -199,3 +199,67 @@ extension PatchMailSMTP {
         return accepted
     }
 }
+
+/// System DNS-SD MX records for direct delivery. Response order is preserved;
+/// a root exchange is an explicit null MX, never a usable SMTP hostname.
+public struct SMTPMXRecord: Equatable, Sendable {
+    public let preference: UInt16
+    public let hostname: String
+    public var isNull: Bool { hostname == "." }
+    private init(_ record: TGSMTPMXRecord) {
+        preference = record.preference
+        hostname = withUnsafeBytes(of: record.hostname) { String(cString: $0.baseAddress!.assumingMemoryBound(to: CChar.self)) }
+    }
+    static func decode(_ data: Data) throws -> Self {
+        var record = TGSMTPMXRecord()
+        let code = data.withUnsafeBytes { tg_smtp_decode_mx($0.bindMemory(to: UInt8.self).baseAddress, $0.count, &record) }
+        guard code == 0 else { throw SMTPMXFailure.query(code) }
+        return Self(record)
+    }
+    fileprivate static func result(_ record: TGSMTPMXRecord) -> Self { Self(record) }
+}
+public enum SMTPMXFailure: LocalizedError {
+    case domain, query(Int32)
+    public var errorDescription: String? {
+        switch self {
+        case .domain: return "Use a valid ASCII mail domain and a positive MX lookup timeout."
+        case .query(let code): return code == -70002 ? "The mail-domain MX lookup timed out." : "The mail-domain MX lookup failed (\(code))."
+        }
+    }
+}
+private final class MXCancellationContext {
+    let token: OperationCancellation
+    init(_ token: OperationCancellation) { self.token = token }
+}
+private let mxCancellation: @convention(c) (UnsafeMutableRawPointer?, UInt64, UInt64) -> Int32 = { opaque, _, _ in
+    guard let opaque else { return 1 }
+    return Unmanaged<MXCancellationContext>.fromOpaque(opaque).takeUnretainedValue().token.isCancelled ? 1 : 0
+}
+public enum SMTPMXResolver {
+    /// Read-only DNS query on a worker. The owned DNSServiceRef is deallocated
+    /// on completion, error, timeout or cancellation; no credential lookup/send.
+    public static func lookup(domain: String, timeoutMilliseconds: Int = 30_000,
+                              cancellation: OperationCancellation? = nil) async throws -> [SMTPMXRecord] {
+        let token = cancellation ?? OperationCancellation()
+        return try await withTaskCancellationHandler(operation: {
+            try token.check(); try Task.checkCancellation()
+            let labels = domain.split(separator: ".", omittingEmptySubsequences: false)
+            guard !domain.isEmpty, domain.utf8.count <= 253, !labels.isEmpty,
+                  labels.allSatisfy({ !$0.isEmpty && $0.utf8.count <= 63 && $0.utf8.allSatisfy {
+                      (65...90).contains($0) || (97...122).contains($0) || (48...57).contains($0) || $0 == 45 || $0 == 95
+                  }}), (1...Int(Int32.max)).contains(timeoutMilliseconds) else { throw SMTPMXFailure.domain }
+            return try await Task.detached {
+                try token.check()
+                let context = MXCancellationContext(token)
+                var records = Array(repeating: TGSMTPMXRecord(), count: 128), count = 0
+                let code = withExtendedLifetime(context) { domain.withCString { name in records.withUnsafeMutableBufferPointer {
+                    tg_smtp_lookup_mx(name, timeoutMilliseconds, mxCancellation,
+                        Unmanaged.passUnretained(context).toOpaque(), $0.baseAddress, $0.count, &count)
+                } } }
+                try token.check()
+                guard code == 0 else { throw SMTPMXFailure.query(code) }
+                return records.prefix(count).map(SMTPMXRecord.result)
+            }.value
+        }, onCancel: { token.cancel() })
+    }
+}

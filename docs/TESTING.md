@@ -550,3 +550,20 @@ encrypted keys and owned agents. It checks prompt retry/cancellation, changed-ke
 reload, CRLF headers, shipping Fetch/Pull/Push/browse auto-load and forced Push
 controller closure. It executes local Git effects; it does not prove network SSH,
 physical sheet interaction or signed security-scoped bookmark acceptance.
+
+## Read-only MX probe
+
+The SMTP MX decoder/input/pre-cancel tests run with `swift test --filter SMTPMXTests`.
+The system query test is skipped unless explicitly enabled:
+
+```sh
+TURTLEGIT_MX_DNS_PROBE=1 swift test --filter SMTPMXTests
+TURTLEGIT_MX_DNS_PROBE=1 python3 scripts/test-configured-smtp.py
+```
+
+The first command reads public MX records and checks repeated post-open query
+cancellation/descriptor cleanup. The second requires the current Debug frameworks;
+it reads the same records and submits only to its owned loopback SMTP fixture.
+Neither command sends mail to the queried domain or reads user credentials.
+Default CI does not enable the public DNS probe. Its observed results and limits
+are recorded in [MX QA](qa/send-patch-mx-2026-10-10.json).
