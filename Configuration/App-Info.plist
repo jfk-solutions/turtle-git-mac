@@ -37,5 +37,7 @@
 	<string>13.0</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>TurtleGit prepares drafts in Apple Mail with your selected recipients, message and attachments. You review and send them in Mail.</string>
 </dict>
 </plist>

@@ -5,15 +5,13 @@ import Combine
 import UniformTypeIdentifiers
 import TurtleGitCore
 
-@MainActor final class ImportPatchWindowController: NSWindowController, NSWindowDelegate, NSSharingServiceDelegate {
+@MainActor final class ImportPatchWindowController: NSWindowController, NSWindowDelegate {
     let model: ImportPatchWindowModel
     var onClosed: () -> Void = {}
     private var approvedClose = false
     private var patch: PatchWindowController?
     private var review: WorkingTreePatchWindowController?
-    private var mail: NSSharingService?
-    private var sendPatch: SMTPSendPatchWorkflow?
-    private var mailCompletion: ((String?) -> Void)?
+    private var sendPatch: SendMailWorkflow?
     var activeOperation: Bool { model.confirmingQuit || model.receivingDrop || model.busy || model.closing || model.openingViewer || model.composingMail || window?.attachedSheet != nil || patch?.model.busy == true || patch?.window?.attachedSheet != nil || review?.activeOperation == true }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, mailPresentation: ((NSWindowController) -> Void)? = nil) {
         model = ImportPatchWindowModel(repository: repository, access: access, preferences: preferences)
@@ -47,19 +45,15 @@ import TurtleGitCore
         }
         model.composeMail = { [weak self] files, completion in
             guard let self else { completion("The patch window was closed."); return }
-            if EmailConfiguration(preferences: preferences, missingDelivery: .mailClient).delivery != .mailClient {
+            do {
                 let leases = self.model.items.filter { files.contains($0.file) }.map(\.access) + [access].compactMap { $0 }
-                let workflow = SMTPSendPatchWorkflow(files: files, repository: repository, access: access,
+                let workflow = SendMailWorkflow(files: files, repository: repository, access: access,
                     fileAccess: leases, preferences: preferences, presentation: mailPresentation) { [weak self] _ in
                     self?.sendPatch = nil; completion(nil)
                 }
                 self.sendPatch = workflow; workflow.start(); return
             }
-            guard let service = NSSharingService(named: .composeEmail), service.canPerform(withItems: files) else {
-                completion("No mail composition service is available."); return
-            }
-            self.mail = service; self.mailCompletion = completion
-            service.delegate = self; service.subject = "Patch series"; service.perform(withItems: files)
+
         }
         model.configureIdentity = { [weak self] in
             guard let self else { return false }
@@ -134,9 +128,6 @@ import TurtleGitCore
     func setQuitConfirmation(_ value: Bool) {
         model.confirmingQuit = value; review?.setQuitConfirmation(value)
     }
-    func sharingService(_ sharingService: NSSharingService, didShareItems items: [Any]) { finishMail(nil) }
-    func sharingService(_ sharingService: NSSharingService, didFailToShareItems items: [Any], error: Error) { finishMail(error.localizedDescription) }
-    private func finishMail(_ error: String?) { let completion = mailCompletion; mailCompletion = nil; mail = nil; completion?(error) }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 

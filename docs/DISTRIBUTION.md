@@ -247,3 +247,14 @@ The direct-mail MX dependency uses macOS DNS-SD through SDK libSystem, with no
 bundled resolver or external process. Local read-only query/cancellation checks
 and unsigned builds do not prove signed sandbox permission behavior. Direct-mail
 submission/routing remains incomplete; see [Send Patch parity](SEND-PATCH-PARITY.md).
+
+## Apple Mail draft permission
+
+Mail-client delivery now has a compose-only Apple Mail adapter. AppStore.entitlements
+requests `com.apple.mail.compose` through scripting-targets, plus the automation
+permission; App-Info.plist explains that TurtleGit prepares drafts for review.
+There is no temporary Apple Events exception or inbox access group. Signed TCC
+permission, attachment access/import, account selection and Mac App Store review
+remain required acceptance work. Unsigned packaging/audit results prove only the
+configured metadata, not these runtime or distribution requirements. See
+[SEND-PATCH-PARITY.md](SEND-PATCH-PARITY.md).

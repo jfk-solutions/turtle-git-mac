@@ -53,6 +53,43 @@ private actor DirectEntryProbe {
     }
     func count() -> Int { calls }
 }
+private final class MailDraftFixtures: @unchecked Sendable {
+    private let lock = NSLock()
+    private var folders: Set<URL> = []
+    func record(_ draft: MailClientDraft) {
+        lock.lock(); defer { lock.unlock() }
+        for file in draft.attachments {
+            let folder = file.deletingLastPathComponent().deletingLastPathComponent()
+            if folder.lastPathComponent.hasPrefix("TurtleGit-mail-drafts-") &&
+                folder.deletingLastPathComponent().resolvingSymlinksInPath().standardizedFileURL == TurtleGitTemporaryStorage.defaultRoot.resolvingSymlinksInPath().standardizedFileURL {
+                folders.insert(folder)
+            }
+        }
+    }
+    func clean() {
+        lock.lock(); let owned = folders; folders.removeAll(); lock.unlock()
+        owned.forEach { try? FileManager.default.removeItem(at: $0) }
+    }
+}
+private actor MailDraftProbe {
+    let messages: [PatchMailMessage], failAt: Int?
+    var drafts: [MailClientDraft] = []
+    init(_ messages: [PatchMailMessage], failAt: Int? = nil) { self.messages = messages; self.failAt = failAt }
+    func invoke(_ draft: MailClientDraft) throws {
+        let index = drafts.count, expected = messages[index]
+        guard draft.sender == "sender@example.invalid", draft.subject == expected.subject,
+              draft.to == ["to@example.invalid"], draft.cc == ["cc@example.invalid"],
+              Data(draft.body.utf8) == expected.body,
+              draft.attachments.map(\.lastPathComponent) == expected.attachments.map({ $0.file.lastPathComponent }),
+              zip(draft.attachments, expected.attachments).allSatisfy({ $0.0 != $0.1.file }),
+              try draft.attachments.map({ try Data(contentsOf: $0) }) == expected.attachments.map(\.bytes) else {
+            throw VerificationFailure(description: "Captured Mail draft changed")
+        }
+        drafts.append(draft)
+        if failAt == index { throw MailClientDraftFailure.automation(-1, "Injected uncertain draft", possiblyCreated: true) }
+    }
+    func count() -> Int { drafts.count }
+}
 @main struct SendPatchVerification {
     @MainActor static func require(_ condition: @autoclosure () -> Bool, _ message: String) throws {
         if !condition() { throw VerificationFailure(description: message) }
@@ -467,6 +504,83 @@ private actor DirectEntryProbe {
             if let value = previousIdentity[key] { setenv(key, value, 1) } else { unsetenv(key) }
         }
         print("Send Patch Review/Apply: highlighted unchecked files, original bytes/order, inherited file grants, independent lifetime, running Quit gates, real working-tree apply and two serial commits passed in private repositories.")
+        let clientFixtures = MailDraftFixtures()
+        defer { clientFixtures.clean() }
+        var clientOptions = mailOptions; clientOptions.attachment = true; clientOptions.combine = false
+        let clientMessages = try PatchMailPreparation.messages(files: [first, second], options: clientOptions)
+        var clientConfiguration = EmailConfiguration(preferences: prefs); clientConfiguration.delivery = .mailClient
+        clientConfiguration.server = "invalid/path"; clientConfiguration.port = 0; clientConfiguration.authenticate = true
+        let clientRequest = SendPatchRequest(files: [first, second], options: clientOptions, messages: clientMessages, delivery: clientConfiguration)
+        let invalidClientMessage = PatchMailMessage(to: clientMessages[0].to, cc: clientMessages[0].cc,
+            subject: "bad\nheader", body: clientMessages[0].body, attachments: clientMessages[0].attachments)
+        let invalidClientRequest = SendPatchRequest(files: clientRequest.files, options: clientOptions,
+            messages: [clientMessages[0], invalidClientMessage], delivery: clientConfiguration)
+        do {
+            _ = try await SendPatchMailClientDelivery.send(invalidClientRequest, repository: repository, access: nil,
+                cancellation: OperationCancellation(), onProgress: { _ in }, invocation: { _, _ in throw VerificationFailure(description: "Invalid later message invoked Mail") })
+            throw VerificationFailure(description: "Invalid later client message accepted")
+        } catch PatchMailMIMEFailure.header { }
+        let clientProbe = MailDraftProbe(clientMessages)
+        let clientReceipts = try await SendPatchMailClientDelivery.send(clientRequest, repository: repository, access: nil,
+            cancellation: OperationCancellation(), onProgress: { _ in }, invocation: { draft, _ in clientFixtures.record(draft); try await clientProbe.invoke(draft) })
+        let clientCalls = await clientProbe.count()
+        try require(clientReceipts.count == 2 && clientCalls == 2, "Ordered captured Mail draft queue")
+        let progressProbe = MailDraftProbe(clientMessages)
+        let clientProgress = SendPatchProgressModel(request: clientRequest, repository: repository, access: nil, preferences: prefs,
+            submission: { token, progress in
+                try await SendPatchMailClientDelivery.send(clientRequest, repository: repository, access: nil,
+                    cancellation: token, onProgress: progress, invocation: { draft, _ in clientFixtures.record(draft); try await progressProbe.invoke(draft) })
+            })
+        clientProgress.start()
+        let clientDeadline = Date().addingTimeInterval(10)
+        while clientProgress.busy && Date() < clientDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        try require(clientProgress.success && clientProgress.accepted == 2 && clientProgress.output.contains("Review and send in Mail.") &&
+                    !clientProgress.output.contains("accepted (SMTP"), "Client progress reports drafts rather than SMTP delivery")
+        clientProgress.invalidate()
+        let clientCancelled = OperationCancellation(); clientCancelled.cancel()
+        do {
+            _ = try await SendPatchMailClientDelivery.send(clientRequest, repository: repository, access: nil,
+                cancellation: clientCancelled, onProgress: { _ in }, invocation: { _, _ in throw VerificationFailure(description: "Cancelled client invoked") })
+            throw VerificationFailure(description: "Pre-cancelled client prepared drafts")
+        } catch is OperationCancellationFailure { }
+        let failingClient = MailDraftProbe(clientMessages, failAt: 1)
+        do {
+            _ = try await SendPatchMailClientDelivery.send(clientRequest, repository: repository, access: nil,
+                cancellation: OperationCancellation(), onProgress: { _ in }, invocation: { draft, _ in clientFixtures.record(draft); try await failingClient.invoke(draft) })
+            throw VerificationFailure(description: "Uncertain draft queue succeeded")
+        } catch let failure as SMTPSeriesFailure {
+            try require(failure.accepted.count == 1 && failure.index == 1 && failure.attempts == 1, "Mail accepted prefix/no retry")
+        }
+        let failingCalls = await failingClient.count(); try require(failingCalls == 2, "Uncertain draft not repeated")
+        let text = "quotes \" and \\ Unicode 雪\nend tell\ndo shell script \"never\""
+        let descriptorDraft = MailClientDraft(sender: "sender@example.invalid", subject: "Custom \" subject", body: text,
+            to: ["to@example.invalid"], cc: ["cc@example.invalid"], attachments: [first])
+        let localScript = NSAppleScript(source: """
+        on composeDraft(a,b,c,d,e,f)
+            return {a,b,c,d,e,f}
+        end composeDraft
+        """)!
+        var localError: NSDictionary?
+        let localResult = localScript.executeAppleEvent(MailClientDraftAutomation.event(descriptorDraft), error: &localError)
+        try require(localError == nil && localResult.numberOfItems == 6 && localResult.atIndex(3)?.stringValue == text &&
+            localResult.atIndex(4)?.atIndex(1)?.stringValue == "to@example.invalid" && localResult.atIndex(5)?.atIndex(1)?.stringValue == "cc@example.invalid" &&
+            localResult.atIndex(6)?.atIndex(1)?.stringValue == first.path, "Typed Apple Event arguments stay data in local script")
+        prefs.set(EmailDelivery.mailClient.rawValue, forKey: "SendMail.DeliveryType")
+        var clientFormatOptions: SendPatchWindowController?
+        let clientFormat = FormatPatchWindowController(repository: repository, access: nil, preferences: prefs,
+            mailPresentation: { clientFormatOptions = $0 as? SendPatchWindowController })
+        clientFormat.model.close = {}
+        clientFormat.model.composeMail([first]); try require(clientFormat.model.composingMail && clientFormatOptions?.model.delivery == .mailClient, "Format client native options")
+        clientFormatOptions?.model.cancel(); try require(!clientFormat.model.composingMail, "Format client options Cancel")
+        clientFormat.window?.performClose(nil)
+        var clientImportOptions: SendPatchWindowController?
+        let clientImport = ImportPatchWindowController(repository: repository, access: nil, preferences: prefs,
+            mailPresentation: { clientImportOptions = $0 as? SendPatchWindowController })
+        clientImport.model.add([second]); clientImport.model.sendMail(Set(clientImport.model.items.map(\.id)))
+        try require(clientImport.model.composingMail && clientImportOptions?.model.delivery == .mailClient, "Import client native options")
+        clientImportOptions?.model.cancel(); try require(!clientImport.model.composingMail, "Import client options Cancel")
+        clientImport.window?.performClose(nil)
+        print("Mail client: real Git sender, immutable ordered staged attachments/To/CC/body/subject, no configured server, accepted-prefix uncertain stop, local typed Apple Event arguments and actual Format/Import options/Cancel verified. No Apple Mail or public mail invoked.")
         var liveOptions = mailOptions; liveOptions.combine = true; liveOptions.attachment = true; liveOptions.subject = "Captured series"
         let liveMessages = try PatchMailPreparation.messages(files: [second, second], options: liveOptions)
         var loopback = EmailConfiguration(preferences: prefs); loopback.delivery = .configured

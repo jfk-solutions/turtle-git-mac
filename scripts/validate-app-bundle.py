@@ -14,6 +14,13 @@ app = args.app
 root = pathlib.Path(__file__).resolve().parent.parent
 with (app / 'Contents/Info.plist').open('rb') as stream:
     info = plistlib.load(stream)
+assert isinstance(info.get('NSAppleEventsUsageDescription'), str) and info['NSAppleEventsUsageDescription'].strip()
+for name in ['App.entitlements', 'AppStore.entitlements']:
+    with (root / 'Configuration' / name).open('rb') as stream:
+        entitlements = plistlib.load(stream)
+    assert entitlements['com.apple.security.automation.apple-events'] is True
+    assert entitlements['com.apple.security.scripting-targets'] == {'com.apple.mail': ['com.apple.mail.compose']}
+    assert not any(key.startswith('com.apple.security.temporary-exception.apple-events') for key in entitlements)
 assert info['CFBundleIdentifier'] == 'org.turtlegit.macos'
 assert (app / 'Contents/MacOS' / info['CFBundleExecutable']).is_file()
 resources = app / 'Contents/Resources'

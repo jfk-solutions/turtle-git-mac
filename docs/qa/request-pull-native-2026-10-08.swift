@@ -52,7 +52,7 @@ import TurtleGitCore
         model.openDocument(); precondition(handoffs.count == 2 && !handoffs[1].1)
         reopened.deleteURL(at:0); precondition(reopened.urls.isEmpty && prefs.stringArray(forKey:RequestPullWindowModel.urlHistoryKey)?.isEmpty == true)
         model.end = "main"; model.start = "missing"; model.create(); try await wait { !model.busy }; precondition(model.error?.hasPrefix("Failed to create pull-request.") == true && handoffs.count == 2)
-        for delivery in [EmailDelivery.configured, .direct] {
+        for delivery in [EmailDelivery.configured, .direct, .mailClient] {
             prefs.set(delivery.rawValue, forKey: "SendMail.DeliveryType")
             var shown: SendPatchWindowController?, closed = 0
             let controller = RequestPullWindowController(repository: repo, access: nil, end: "main", repositoryURL: destination.path,
@@ -63,7 +63,7 @@ import TurtleGitCore
             try await wait { !controller.model.busy && shown != nil }
             precondition(controller.model.composingMail && !controller.windowShouldClose(controller.window!))
             let options = shown!, file = controller.model.document!
-            precondition(options.model.customSubject && options.model.delivery == .smtp && options.window?.title == "Send Mail – TurtleGit")
+            precondition(options.model.customSubject && options.model.delivery == (delivery == .mailClient ? .mailClient : .smtp) && options.window?.title == "Send Mail – TurtleGit")
             precondition(options.model.rows.map(\.file) == [file] && !options.model.previewBusy)
             options.model.combine = false; options.model.attachment = false; options.model.combinedSubject = "Request custom 雪"
             options.model.setHighlighted([]); options.model.combineChanged()

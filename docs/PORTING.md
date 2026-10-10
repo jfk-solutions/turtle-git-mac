@@ -34,6 +34,12 @@ built SDK framework's private loopback queue passed. Public mail delivery,
 mail-client parity and signed/physical acceptance remain unverified. See
 [Send Patch parity](SEND-PATCH-PARITY.md).
 
+Mail-client mode now shares native Send Mail options for Format/Import/Request
+Pull and has a captured Apple Mail visible-draft adapter with separate To/CC and
+immutable attachments. Progress distinguishes draft preparation from actual mail
+delivery. Actual Apple Mail, signed automation and full mail-client lifecycle
+acceptance remain unverified. See [Send Patch parity](SEND-PATCH-PARITY.md).
+
 ## Audited baseline
 
 Worktree creation, listing, locking, unlocking, removal and pruning now have a

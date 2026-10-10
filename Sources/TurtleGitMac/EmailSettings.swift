@@ -11,7 +11,7 @@ enum EmailDelivery: Int, CaseIterable, Sendable {
     var title: String {
         switch self {
         case .direct: return "SMTP, directly to destination server"
-        case .mailClient: return "Mail client"
+        case .mailClient: return "Apple Mail drafts"
         case .configured: return "Use configured server"
         }
     }

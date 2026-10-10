@@ -1,0 +1,147 @@
+{
+  "checked_at": "2026-10-10T05:06:22.416567+00:00",
+  "parent_commit": "6a9e75f509caf40ca6aa99909535e264e4656205",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Native all-mode Send Mail options for Format/Import/Request Pull and Apple Mail visible-draft adapter; real Apple Mail execution and full MAPI parity remain unverified.",
+  "upstream_evidence": {
+    "src/TortoiseProc/SendMail.cpp": "d8f6135a262c4f8b67f8d3bf93dcd482d180362e3c756018e97f3f737f090a25",
+    "src/TortoiseProc/AppUtils.cpp": "1d62caaa21dfb3fbc8d107d0e08df5c50ac56dea11af2622b96b4b85cb8f552d",
+    "src/Utils/MailMsg.cpp": "b323c4fa38d31039315afaf6e2c92c226b1760caf8f069e57d0fac24d5b6e8f0",
+    "src/Utils/MailMsg.h": "f913b94f9e4a444ab09f3df4443969f01378e810610703b34525d167cfcd1df7"
+  },
+  "platform_evidence": {
+    "mail_sdef": {
+      "path": "/System/Applications/Mail.app/Contents/Resources/Mail.sdef",
+      "sha256": "111b9291c502354106a320f6ba0a7e38ed29f09e443404679fb57778708b0722",
+      "scope": "Outgoing message, rich-text attachment, To/CC and compose access group only. Not runtime acceptance."
+    },
+    "references": [
+      "https://developer.apple.com/library/archive/documentation/Miscellaneous/Reference/EntitlementKeyReference/Chapters/AppSandboxTemporaryExceptionEntitlements.html",
+      "https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.security.automation.apple-events",
+      "https://developer.apple.com/documentation/foundation/nsapplescript",
+      "https://developer.apple.com/forums/thread/759287"
+    ]
+  },
+  "checks": {
+    "mail_system": {
+      "session": 34557,
+      "exit_code": 0,
+      "tests": 29,
+      "command": "swift test --filter PatchMail"
+    },
+    "mail_packaged": {
+      "session": 42975,
+      "exit_code": 0,
+      "tests": 29,
+      "command": "TURTLEGIT_SEND_PATCH_TEST_GIT=\"$PWD/build/git-runtime/Git/bin/git\" swift test --filter PatchMail"
+    },
+    "Debug": {
+      "session": 68409,
+      "exit_code": 0
+    },
+    "initial_compile_failures": {
+      "sessions": [
+        69974,
+        46673,
+        32476
+      ],
+      "exit_code": 65,
+      "findings": "App module cannot call Core internal token check or synthesized receipt/series-failure initializers. Added local cancellation check and public result constructors; three first failure logs retained. Final builds passed."
+    },
+    "native_mail": {
+      "session": 26181,
+      "exit_code": 0,
+      "command": "python3 scripts/test-send-patch-dialog.py",
+      "coverage": "Actual Git identity and mail-client adapter with injected invocation; staged paths differ from original files and retain original bytes/basenames/order/To/CC/body/subject; configured server ignored; all-series malformed-header preflight and pre-cancel; prepared-prefix uncertain failure with no retry; progress distinguishes drafts from SMTP acceptance. Local NSAppleScript handler receives six typed arguments, including quotes/backslashes/Unicode and separate recipient lists, without Mail. Actual Format/Import client options/Cancel. Existing real configured SDK loopback, direct injected caller, patch tools, notifications/private clipboard/hidden appearance/lifetime regressions passed. Exact invocation-captured fixture directories cleaned."
+    },
+    "RequestPull_native": {
+      "session": 92238,
+      "exit_code": 0,
+      "command": "python3 scripts/test-request-pull.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "coverage": "All three configured/direct/client modes through actual Request Pull factories and options capture; independent custom subject/full generated text/To/CC/Cancel/parent lifetime; system and packaged Git generation/cancellation and state preservation. Tested unchanged factory/option-capture paths before later backend-only worker/cancellation refinements; no real client or SMTP in this receiver."
+    },
+    "Debug_bundle_audit": {
+      "session": 45374,
+      "exit_code": 0
+    },
+    "AppStore_unsigned": {
+      "session": 80124,
+      "exit_code": 0
+    },
+    "AppStore_bundle_audit": {
+      "session": 79101,
+      "exit_code": 0,
+      "flags": "--require-git",
+      "coverage": "Existing universal runtime/icon/license/linkage checks plus usage description and exact compose-only scripting-target configuration/no temporary Apple Events exception. Unsigned metadata checks only."
+    },
+    "inventory": {
+      "exit_code": 0,
+      "command": "python3 scripts/check-inventory-pin.py"
+    },
+    "cleanup": {
+      "matching_processes": [],
+      "current_fixtures": []
+    },
+    "preferences": {
+      "TurtleGit.SendPatch.QA.8E116F51-A073-4A0D-972E-122DF60BAC69": "verified empty private suite removed",
+      "TurtleGit.SendPatch.QA.5C3B636F-BA71-4791-801B-E19FE7087190": "verified empty private suite removed",
+      "TurtleGit.SendPatch.QA.77443AD8-825E-46AE-BDA3-ACEC19061887": "verified empty private suite removed",
+      "TurtleGit.SendPatch.QA.EA61C99D-90AB-4560-BAF6-B6D01A04E286": "verified empty private suite removed",
+      "TurtleGit.RequestPull.QA.E2CFE012-0AA9-4AC9-A870-415B98A56C81": "verified empty private suite removed",
+      "TurtleGit.RequestPull.QA.A950C7D3-066B-4272-8FF6-C6862E63327C": "verified empty private suite removed"
+    }
+  },
+  "source_sha256": {
+    "Configuration/App-Info.plist": "7cda4ed8d245ab06d42eca328a71911820328a6ae42a9cb16c62f3988f675c2e",
+    "Configuration/App.entitlements": "6230861cce06d065b598769328407d4fd8c21846df1099b1313b20aad38ba3b0",
+    "Configuration/AppStore.entitlements": "991261471ad80b0dea2cc2cb75a0118592801f4a3a3ccb29830348f50584bee9",
+    "NOTICE": "cf6d1221d65954277e060a22a2df7da380db558ad38e254bb129cc998b6b643e",
+    "Sources/TurtleGitCore/PatchMailSMTP.swift": "07afaa506b0d68ce7bfdde13c381c4844aa97089881b340400b7a785687a19df",
+    "Sources/TurtleGitMac/EmailSettings.swift": "0003fed1a430edec0e3b86bad6c96d84aee735a299c2c1d03971ff8e5270c2f8",
+    "Sources/TurtleGitMac/FormatPatchWindow.swift": "650c2ec02e77df1996df0241a2d8e2cd33c5b3dcb14c788d35a282855a0b9887",
+    "Sources/TurtleGitMac/ImportPatchWindow.swift": "af9e2a4d9c312b0de48bb5efc798e04abcbaf460072ddefbfb68c2b4443a0aaa",
+    "Sources/TurtleGitMac/RequestPullWindow.swift": "c2ec9e340fc94da29cc752ca3f08fc5ea9f9f97a981f0a74fa56b3ddc8083bbf",
+    "Sources/TurtleGitMac/SendPatchWindow.swift": "670c73db515ec6ee64404cda3b362771d481d1952dec38ab428d1b43b84df51a",
+    "docs/DISTRIBUTION.md": "5a95517547e5a3f3e7f2e445706959acfd192488ac5426ea44184f054613dfaf",
+    "docs/PORTING.md": "46d676a7b17a57059192f35c0f4542e3b48f07d52f387d44f209fec20764f460",
+    "docs/REQUEST-PULL-PARITY.md": "95dd45510d07ef6f9ace02843724f08cd169bb5ea95c27ea5d8850d8dc448094",
+    "docs/SEND-PATCH-PARITY.md": "bda74efe7e17dae01ab739e8a6d623140f5b85e0a7008154ec826fa84fb5e301",
+    "docs/qa/request-pull-native-2026-10-08.swift": "5bf99e99edae093654c2ebe9ab76528ce45f3e626a165c56c8640863efc112ff",
+    "docs/qa/send-patch-dialog-native-2026-10-10.swift": "cdf1538bb1e4ed738e8c7fc8a88a631653584e763f3efc2d4c6219d141db5468",
+    "docs/upstream-files.csv": "80a2718d4e19337a27e8580cffdf8596613beec8de413c806d294b523e6d5875",
+    "scripts/validate-app-bundle.py": "44b7a2e913f60ba001d19294b048230ef25f6e689c90dfeb735f3c49b44aa16c",
+    "Sources/TurtleGitCore/PatchMailPreparation.swift": "57bb99384a2ed9703099bc082fbb36213814afa034a854fa5b189fa855974d6d",
+    "Sources/TurtleGitCore/PatchMailMIME.swift": "d8b61be475fea97c0a925afd07a52842ecc603dbc4484ec3f51d4ab1188a6546",
+    "Sources/TurtleGitCore/TemporaryFiles.swift": "24ad28a5488f24a3b96136dc44cb3632da019327d29d0bdee2ecfe69871ed106",
+    "scripts/test-send-patch-dialog.py": "e3bfe7f898450ddc44551164b667f50e740f0e5ce1da7edc48b297c34feaf8c0",
+    "scripts/test-request-pull.py": "d68d6be19a8837ea297688371e4e965f6b6c41f60b3d177e186a8987d3cacb58"
+  },
+  "binary_sha256": {
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/MacOS/TurtleGitMac": "ae0fc297ae892ad6d53e5bfb2e3aee3218b8dda08c01e7e3c33faa88de63b8d1",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": "fc7514baf686a9599fd19f0f8c37160e9a33ba309c9e2878f12cdec45c2f3024",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": "4fe130d88732811cb2135fd976f7b9579c0ae3d38211d79ae7708e6973b5955c",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/MacOS/TurtleGitMac": "b03dfc0e2e6a51c604cb545fe348cb9b2de08ee35d5da2ad7b3a04da930946f2",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": "077c0c82e4bbbb5bb8c0a8dae10fc22f9047fb178c7abf185e19abf70ef5678e",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": "dc44e47efa6b867ca364f3b9a0bb2f34586e324eb30730045ce6f909abf6318e"
+  },
+  "log_sha256": {
+    "build/qa/mail-client-core-packaged-2026-10-10.log": "9adf3142323de9fbd3971db02a8ed589866bd433dcc5a351bd11fdf366918af6",
+    "build/qa/mail-client-core-system-2026-10-10.log": "5f9faaefcd7816918ceead732bb8cea8f901f1ded2b3c84478b0e65c00dcb84c",
+    "build/qa/mail-client-debug-2026-10-10.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/mail-client-debug-audit-2026-10-10.log": "03677d8f0b0860f94e07ef3ce34215ec26f981c604c6ceccc75e2bdae288a638",
+    "build/qa/mail-client-first-debug-compile-failure-2026-10-10.log": "cccad3a604ed4bac79ff88ea383306704f023e8726ccb49730a835dd936a5af7",
+    "build/qa/mail-client-inventory-2026-10-10.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/mail-client-native-2026-10-10.log": "7d621ac89e127ee98eff6a615c62ccd19a1204520d1690e8a4021415f0818a4f",
+    "build/qa/mail-client-request-pull-native-2026-10-10.log": "7dec4c008d269c8a5cdb489e8e9699e6f2c91366d21d4ddd52c4db4319e9d338",
+    "build/qa/mail-client-second-debug-compile-failure-2026-10-10.log": "d5fbbb01ffb585615ffa9659412d8fcd0636eabaed259f8b2e3b8e574af7a631",
+    "build/qa/mail-client-store-2026-10-10.log": "b74a73f8796b12aa35fa570e6594a2a6056217b10a225c9c0e7c2efcb5dc7a15",
+    "build/qa/mail-client-store-audit-2026-10-10.log": "bf54b9dab37973005d43104fc27d3e9cd6a4920930af487e3e44c48332f3afc1",
+    "build/qa/mail-client-third-debug-compile-failure-2026-10-10.log": "51a3a26dd97d948f69ba0273ae086012364c5af71c39b23b86ee0867db723275"
+  },
+  "limitations": [
+    "Actual Apple Mail handler compilation/execution, account sender selection, permission denial, attachment import/retention and draft editing/sending not exercised.",
+    "Current adapter uses Apple Mail, mailbox addresses and captured attachment order/duplicates; MAPI display names, default-client discovery, attachment-map semantics, unconfigured Git identity fallback and modal completion/retry remain to align.",
+    "App Store repository lease guard and compose-only declarations compile but signed sandbox/TCC execution and App Store/legal distribution acceptance remain unproven.",
+    "Focused checks do not validate full application/dialog parity, historical full-suite or current hosted CI."
+  ]
+}

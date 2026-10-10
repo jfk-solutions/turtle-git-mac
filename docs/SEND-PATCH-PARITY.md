@@ -638,3 +638,58 @@ rows. Existing Format/Import callers retain patch mode. See
 [Request Pull parity](REQUEST-PULL-PARITY.md) and
 [mail QA](qa/request-pull-mail-2026-10-10.json). Mail-client mode and complete
 physical/signed/application parity remain pending.
+
+## Mail-client options and Apple Mail drafts
+
+Format Patch, Import Patch and Request Pull now open the same retained native Send
+Mail options for every delivery mode, including the absent-preference mail-client
+default. Patch callers keep their patch subjects/four preparation modes; Request
+Pull keeps generic full-document/custom-subject behavior. The old file-only
+NSSharingService bypass is removed. Apple Mail is the explicit macOS client
+adapter; Email settings labels it Apple Mail drafts.
+
+The client adapter captures the Git sender, validates the entire prepared series,
+and stages each immutable attachment in its own private subdirectory, retaining
+its original basename and duplicate order. It passes sender, subject, complete
+UTF-8 body, separate To/CC addresses and staged paths as typed Apple Event
+arguments to a static compose-only handler. User text is never interpolated into
+the program. Mail receives visible drafts for review; the handler contains no
+send command. Progress says drafts were prepared and directs the user to review
+and send in Mail, rather than claiming SMTP acceptance.
+
+Capture and attachment staging run outside the UI actor. AppleScript runs on one
+serialized worker queue, with cancellation checked before compilation and again
+before invoking its handler. Cancellation gates capture/staging and subsequent drafts. A confirmed earlier
+draft remains part of the prepared prefix; ambiguous automation failures stop
+without automatic retry and tell the user to inspect Mail. Attachment files are
+retained for Mail until Saved Data cleanup rather than removed when our window
+closes. Failures before any invocation remove their private staging directory.
+Mail may finish an already issued Apple Event before cancellation can stop the
+remaining queue; external draft editing/sending belongs to Mail.
+
+The App Store sandbox target is restricted to `com.apple.mail.compose`, using
+Apple's documented scripting-targets entitlement, automation permission and a
+specific usage description. No temporary Apple Events exception or inbox-reading
+access group is requested. Bundle auditing checks the configuration; unsigned
+builds cannot prove that the signed sandbox or TCC accepts it.
+
+[Client QA](qa/mail-client-2026-10-10.json) records injected draft capture and
+native caller checks. Actual Apple Mail handler compilation/execution, attachment
+import/retention, configured-account sender selection, permission denial, external
+draft lifecycle, displayed UI and signed App Store acceptance remain unverified.
+The adapter does not yet support other mail applications or upstream's modal
+MAPI completion/retry lifecycle. Full mail/client/application parity remains open.
+
+Platform references:
+[Apple scripting-targets example](https://developer.apple.com/library/archive/documentation/Miscellaneous/Reference/EntitlementKeyReference/Chapters/AppSandboxTemporaryExceptionEntitlements.html),
+[automation entitlement](https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.security.automation.apple-events),
+[Apple DTS worker-thread guidance](https://developer.apple.com/forums/thread/759287).
+The installed macOS Mail.sdef provides the outgoing-message and recipient schema;
+its compose access group is inspected as source evidence, not runtime acceptance.
+
+The MailMsg.cpp/.h contract review found additional differences: MAPI keeps
+recipient/sender display names and stores attachments in a path-keyed sorted map
+that deduplicates paths. The current Mail adapter passes mailbox addresses and
+retains captured attachment order/duplicates. Those semantics, default-client
+discovery, unconfigured Git identity fallback and modal completion/retry still
+require alignment. The BSD CrashRpt Windows helper implementation is not copied.

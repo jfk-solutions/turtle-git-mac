@@ -388,8 +388,140 @@ struct SendPatchAddressField: NSViewRepresentable {
     }
 }
 
-/// SMTP orchestration for configured-server and direct MX delivery. Captured delivery and message bytes
-/// come from Send; preferences, files and credentials are never reread on retry.
+/// Immutable parameters for a visible Apple Mail draft.
+struct MailClientDraft: Sendable {
+    let sender: String, subject: String, body: String
+    let to: [String], cc: [String], attachments: [URL]
+}
+enum MailClientDraftFailure: LocalizedError {
+    case automation(Int, String, possiblyCreated: Bool)
+    var possiblyCreated: Bool { switch self { case .automation(_, _, let value): return value } }
+    var errorDescription: String? {
+        switch self { case .automation(let code, let detail, let uncertain):
+            return "Could not prepare an Apple Mail draft (\(code)): " + detail + (uncertain ? " A draft may already exist; check Mail before trying again." : "")
+        }
+    }
+}
+enum SendPatchMailClientDelivery {
+    private static func check(_ token: OperationCancellation) throws {
+        if token.isCancelled || Task.isCancelled { throw OperationCancellationFailure.cancelled }
+    }
+    typealias Invocation = @Sendable (MailClientDraft, OperationCancellation) async throws -> Void
+    static func send(_ request: SendPatchRequest, repository: GitRepository, access: RepositoryAccessLease?,
+                     cancellation: OperationCancellation, onProgress: @escaping @Sendable (SMTPSeriesProgress) -> Void,
+                     invocation: @escaping Invocation = { try await MailClientDraftAutomation.compose($0, cancellation: $1) }) async throws -> [SMTPReceipt] {
+        if GitRuntime.isAppStoreBuild {
+            guard let access, access.hasSecurityScope, access.contains(repository.root) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+        }
+        defer { withExtendedLifetime(access) {} }
+        guard request.delivery.delivery == .mailClient else { throw SendPatchSMTPDeliveryFailure.delivery }
+        return try await withTaskCancellationHandler(operation: {
+            try check(cancellation); try Task.checkCancellation()
+            if request.messages.isEmpty { return [] }
+            let sender = try await repository.patchMailSender(cancellation: cancellation)
+            // Validate every message before creating any external draft.
+            for message in request.messages { _ = try PatchMailMIME.data(message: message, sender: sender); try check(cancellation) }
+            let folder = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGit-mail-drafts-" + UUID().uuidString)
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+            var invoked = false
+            defer { if !invoked { try? FileManager.default.removeItem(at: folder) } }
+            var drafts: [MailClientDraft] = []
+            for (index, message) in request.messages.enumerated() {
+                try check(cancellation); try Task.checkCancellation()
+                var attachments: [URL] = []
+                for (number, attachment) in message.attachments.enumerated() {
+                    try check(cancellation)
+                    let directory = folder.appendingPathComponent("\(index)-\(number)", isDirectory: true)
+                    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+                    let name = attachment.file.lastPathComponent
+                    let file = directory.appendingPathComponent(name.isEmpty ? "attachment" : name)
+                    try attachment.bytes.write(to: file, options: .atomic); attachments.append(file)
+                }
+                guard let body = String(data: message.body, encoding: .utf8) else { throw PatchMailMIMEFailure.charset }
+                drafts.append(MailClientDraft(sender: sender.email, subject: message.subject, body: body,
+                    to: try message.to.map(PatchMailMIME.envelopeAddress), cc: try message.cc.map(PatchMailMIME.envelopeAddress), attachments: attachments))
+            }
+            var prepared: [SMTPReceipt] = []
+            for (index, draft) in drafts.enumerated() {
+                do {
+                    try check(cancellation); try Task.checkCancellation()
+                    onProgress(.sending(index: index, total: drafts.count, attempt: 1)); invoked = true
+                    try await invocation(draft, cancellation)
+                    prepared.append(SMTPReceipt(response: 0)); onProgress(.accepted(index: index, response: 0))
+                } catch { throw SMTPSeriesFailure(index: index, attempts: 1, accepted: prepared, cause: error) }
+            }
+            // Mail owns the visible drafts. Keep captured files until Saved Data
+            // cleanup; do not invalidate attachments when our result window closes.
+            return prepared
+        }, onCancel: { cancellation.cancel() })
+    }
+}
+enum MailClientDraftAutomation {
+    private static let queue = DispatchQueue(label: "org.turtlegit.mail-drafts", autoreleaseFrequency: .workItem)
+    // No dynamic text is inserted into this program. All user data travels in
+    // typed Apple Event arguments. The handler only creates a visible draft.
+    static let source = """
+    on composeDraft(fromAddress, subjectText, bodyText, toAddresses, ccAddresses, attachmentPaths)
+        tell application id "com.apple.mail"
+            set draftMessage to make new outgoing message with properties {sender:fromAddress, subject:subjectText, content:bodyText, visible:false}
+            tell draftMessage
+                repeat with recipientAddress in toAddresses
+                    make new to recipient at end of to recipients with properties {address:(contents of recipientAddress)}
+                end repeat
+                repeat with recipientAddress in ccAddresses
+                    make new cc recipient at end of cc recipients with properties {address:(contents of recipientAddress)}
+                end repeat
+                repeat with attachmentPath in attachmentPaths
+                    make new attachment at after the last paragraph of content with properties {file name:(POSIX file (contents of attachmentPath))}
+                end repeat
+                set visible to true
+            end tell
+        end tell
+    end composeDraft
+    """
+    static func event(_ draft: MailClientDraft) -> NSAppleEventDescriptor {
+        let arguments = NSAppleEventDescriptor.list()
+        for (index, value) in [draft.sender, draft.subject, draft.body].enumerated() {
+            arguments.insert(NSAppleEventDescriptor(string: value), at: index + 1)
+        }
+        for (index, values) in [draft.to, draft.cc, draft.attachments.map(\.path)].enumerated() {
+            let list = NSAppleEventDescriptor.list()
+            for (offset, value) in values.enumerated() { list.insert(NSAppleEventDescriptor(string: value), at: offset + 1) }
+            arguments.insert(list, at: index + 4)
+        }
+        let event = NSAppleEventDescriptor(eventClass: 0x61736372, eventID: 0x70736272, targetDescriptor: nil, returnID: -1, transactionID: 0)
+        event.setParam(NSAppleEventDescriptor(string: "composedraft"), forKeyword: 0x736e616d)
+        event.setParam(arguments, forKeyword: 0x2d2d2d2d)
+        return event
+    }
+    static func compose(_ draft: MailClientDraft, cancellation: OperationCancellation) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            queue.async {
+                do {
+                    if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
+                    guard let script = NSAppleScript(source: source) else {
+                        throw MailClientDraftFailure.automation(-1, "AppleScript is unavailable.", possiblyCreated: false)
+                    }
+                    var details: NSDictionary?
+                    guard script.compileAndReturnError(&details) else {
+                        throw MailClientDraftFailure.automation((details?[NSAppleScript.errorNumber] as? Int) ?? -1,
+                            (details?[NSAppleScript.errorMessage] as? String) ?? "Could not compile the Mail compose handler.", possiblyCreated: false)
+                    }
+                    if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
+                    let result = script.executeAppleEvent(event(draft), error: &details) as NSAppleEventDescriptor?
+                    if result == nil || details != nil {
+                        let code = (details?[NSAppleScript.errorNumber] as? Int) ?? -1
+                        throw MailClientDraftFailure.automation(code,
+                            (details?[NSAppleScript.errorMessage] as? String) ?? "Mail did not confirm draft creation.", possiblyCreated: code != -1743)
+                    }
+                    continuation.resume()
+                } catch { continuation.resume(throwing: error) }
+            }
+        }
+    }
+}
+
+/// Captured configured-server/direct SMTP orchestration; retries do not reread files or preferences.
 enum SendPatchSMTPDelivery {
     typealias DirectSubmission = @Sendable ([PatchMailMessage], PatchMailSender, OperationCancellation, @escaping @Sendable (SMTPSeriesProgress) -> Void) async throws -> [SMTPReceipt]
     typealias SenderSource = @Sendable (OperationCancellation) async throws -> PatchMailSender
@@ -481,7 +613,7 @@ private final class SendPatchProgressMailbox: @unchecked Sendable {
     typealias Submission = @MainActor (OperationCancellation, @escaping @Sendable (SMTPSeriesProgress) -> Void) async throws -> [SMTPReceipt]
     let repository: GitRepository
     let total: Int
-    private let files: [URL], combined: Bool
+    private let files: [URL], combined: Bool, mailClient: Bool
     @Published private(set) var notifications: [SendPatchNotification] = []
     var notificationPreferences: UserDefaults { preferences }
     private let submission: Submission, preferences: UserDefaults, policy: GitProgressAutoClose
@@ -508,10 +640,13 @@ private final class SendPatchProgressMailbox: @unchecked Sendable {
     var actionLogEligible: Bool { started && !busy && !invalidated }
     init(request: SendPatchRequest, repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, submission: Submission? = nil) {
         self.repository = repository; total = request.messages.count; self.preferences = preferences
-        files = request.files; combined = request.options.combine
+        files = request.files; combined = request.options.combine; mailClient = request.delivery.delivery == .mailClient
         policy = GitProgressAutoClose(preferences: preferences); logLimit = GitProgressOutputState(preferences: preferences).limit
         self.submission = submission ?? { token, progress in
-            try await SendPatchSMTPDelivery.send(request, repository: repository, access: access, cancellation: token, onProgress: progress)
+            if request.delivery.delivery == .mailClient {
+                return try await SendPatchMailClientDelivery.send(request, repository: repository, access: access, cancellation: token, onProgress: progress)
+            }
+            return try await SendPatchSMTPDelivery.send(request, repository: repository, access: access, cancellation: token, onProgress: progress)
         }
     }
     func start() {
@@ -541,11 +676,12 @@ private final class SendPatchProgressMailbox: @unchecked Sendable {
                 if let failure = error as? SMTPSeriesFailure, let direct = failure.cause as? SMTPDirectFailure {
                     uncertain = direct.hasDelivery
                 }
+                if let failure = error as? SMTPSeriesFailure, let client = failure.cause as? MailClientDraftFailure { uncertain = client.possiblyCreated }
                 cancelled = token.isCancelled && !uncertain
                 append((cancelled ? "warning: " : "error: ") + error.localizedDescription)
                 notify(action: "Error", path: error.localizedDescription, kind: .error)
             }
-            append("Accepted \(accepted) of \(total) messages.")
+            append(mailClient ? "Prepared \(accepted) of \(total) Apple Mail drafts. Review and send in Mail." : "Accepted \(accepted) of \(total) messages.")
             let completion = SubmoduleProgressCompletion(success: success, cancelled: cancelled, exitCode: nil,
                 elapsed: ProcessInfo.processInfo.systemUptime - began, preferences: preferences)
             currentWork = completion.currentWork; completionRange = completion.append(to: &output)
@@ -575,14 +711,14 @@ private final class SendPatchProgressMailbox: @unchecked Sendable {
     private func consume(_ event: SMTPSeriesProgress) {
         switch event {
         case let .sending(index, count, attempt):
-            currentIndex = index; currentWork = "Sending message \(index + 1) of \(count) (attempt \(attempt))"
+            currentIndex = index; currentWork = mailClient ? "Preparing Mail draft \(index + 1) of \(count)" : "Sending message \(index + 1) of \(count) (attempt \(attempt))"
             append(currentWork)
             notify(action: "Sending...", path: !combined && files.indices.contains(index) ? files[index].path : "", kind: .sending)
         case let .retry(index, next):
             notify(action: "Notice", path: "Retrying in 2 seconds...", kind: .notice)
             append("Retrying message \(index + 1) (attempt \(next))…")
         case let .accepted(index, response):
-            accepted = max(accepted, index + 1); append("Message \(index + 1) accepted (SMTP \(response)).")
+            accepted = max(accepted, index + 1); append(mailClient ? "Draft \(index + 1) prepared in Apple Mail." : "Message \(index + 1) accepted (SMTP \(response)).")
             percentage = total == 0 ? 0 : Int(Double(accepted) / Double(total) * 100)
         case let .upload(index, progress):
             guard index == currentIndex, index >= accepted, total > 0, progress.total > 0 else { return }
@@ -650,9 +786,8 @@ private struct SendPatchProgressDialog: View {
     }
 }
 
-/// Retains options, progress and access until the final user close. Configured
-/// routing handles configured servers and direct MX; mail-client routing is separate.
-@MainActor final class SMTPSendPatchWorkflow {
+/// Retains options, progress and access for every delivery mode until final close.
+@MainActor final class SendMailWorkflow {
     private var options: SendPatchWindowController?, progress: SendPatchProgressWindowController?
     private var finished = false
     private let completion: (String?) -> Void

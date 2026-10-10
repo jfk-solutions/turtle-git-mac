@@ -1259,3 +1259,7 @@ Request Pull SMTP routing and ordinary-document preparation adapt AppUtils.cpp
 RequestPull, SendMailDlg's custom subject and CSendMailCombineable in SendMail.cpp
 at the recorded upstream pin, under GPL-2.0-or-later. Full document text replaces
 patch-header stripping; original attachment bytes and selected order are retained.
+
+Mail-client options routing and captured Apple Mail draft composition adapt
+SendMail.cpp's MAPI compose path under GPL-2.0-or-later. macOS Mail scripting
+replaces MAPI; only visible draft creation is requested, never automatic sending.

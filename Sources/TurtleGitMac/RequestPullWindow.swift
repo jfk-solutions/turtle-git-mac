@@ -2,12 +2,11 @@ import AppKit
 import SwiftUI
 import TurtleGitCore
 
-@MainActor final class RequestPullWindowController: NSWindowController, NSWindowDelegate, NSSharingServiceDelegate {
+@MainActor final class RequestPullWindowController: NSWindowController, NSWindowDelegate {
     let model: RequestPullWindowModel
     var onClosed: () -> Void = {}
     private var picker: LogWindowController?
-    private var mail: NSSharingService?
-    private var sendPatch: SMTPSendPatchWorkflow?
+    private var sendPatch: SendMailWorkflow?
     private let mailPreferences: UserDefaults
     private let mailPresentation: ((NSWindowController) -> Void)?
     init(repository: GitRepository, access: RepositoryAccessLease?, end: String? = nil, repositoryURL: String? = nil, preferences: UserDefaults = .standard, mailPresentation: ((NSWindowController) -> Void)? = nil) {
@@ -35,10 +34,10 @@ import TurtleGitCore
     }
     private func present(_ file: URL, sendMail: Bool) {
         if sendMail {
-            if EmailConfiguration(preferences: mailPreferences, missingDelivery: .mailClient).delivery != .mailClient {
+            do {
                 guard !model.composingMail else { return }
                 model.composingMail = true
-                let workflow = SMTPSendPatchWorkflow(files: [file], repository: model.repository, access: model.access,
+                let workflow = SendMailWorkflow(files: [file], repository: model.repository, access: model.access,
                     fileAccess: [], preferences: mailPreferences, presentation: mailPresentation,
                     customSubject: true, appOwnedFiles: [file]) { [weak self] _ in
                     guard let self else { return }; self.sendPatch = nil; self.model.composingMail = false
@@ -46,13 +45,10 @@ import TurtleGitCore
                 }
                 sendPatch = workflow; workflow.start(); return
             }
-            guard let service = NSSharingService(named: .composeEmail), service.canPerform(withItems: [file]) else { model.error = "No mail composition service is available. The request is available using Open request."; return }
-            mail = service; model.composingMail = true; service.delegate = self; service.subject = "Request pull"; service.perform(withItems: [file])
+
         } else if NSWorkspace.shared.open(file) { model.close() }
         else { model.error = "Could not open the generated request. Use Open request to try again." }
     }
-    func sharingService(_ sharingService: NSSharingService, didShareItems items: [Any]) { mail = nil; model.composingMail = false; model.close() }
-    func sharingService(_ sharingService: NSSharingService, didFailToShareItems items: [Any], error: Error) { mail = nil; model.composingMail = false; model.error = error.localizedDescription }
     func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; return !model.composingMail && sender.attachedSheet == nil }
     func windowWillClose(_ notification: Notification) { model.invalidate(); if let child = picker?.window { child.sheetParent?.endSheet(child); child.close() }; picker = nil; onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }

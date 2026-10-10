@@ -2,13 +2,12 @@ import AppKit
 import SwiftUI
 import TurtleGitCore
 
-@MainActor final class FormatPatchWindowController: NSWindowController, NSWindowDelegate, NSSharingServiceDelegate {
+@MainActor final class FormatPatchWindowController: NSWindowController, NSWindowDelegate {
     let model: FormatPatchWindowModel
     var onClosed: () -> Void = {}
     private var picker: LogWindowController?
     private var patch: PatchWindowController?
-    private var mail: NSSharingService?
-    private var sendPatch: SMTPSendPatchWorkflow?
+    private var sendPatch: SendMailWorkflow?
     private let mailPreferences: UserDefaults
     private let mailPresentation: ((NSWindowController) -> Void)?
     var activeOperation: Bool { model.busy || model.progress || model.confirmingCancellation || model.finishScheduled || model.composingMail || model.openingViewer }
@@ -95,10 +94,10 @@ import TurtleGitCore
     }
     private func composeMail(_ files: [URL]) {
         guard !files.isEmpty else { model.error = "No patches were created to attach."; return }
-        if EmailConfiguration(preferences: mailPreferences, missingDelivery: .mailClient).delivery != .mailClient {
+        do {
             model.composingMail = true
             let leases = [model.access, model.outputAccess].compactMap { $0 }
-            let workflow = SMTPSendPatchWorkflow(files: files, repository: model.repository, access: model.access,
+            let workflow = SendMailWorkflow(files: files, repository: model.repository, access: model.access,
                 fileAccess: leases, preferences: mailPreferences, presentation: mailPresentation) { [weak self] _ in
                 guard let self else { return }; self.sendPatch = nil; self.model.composingMail = false
                 // Format Patch reports export success independently of mail outcome.
@@ -107,12 +106,8 @@ import TurtleGitCore
             }
             sendPatch = workflow; workflow.start(); return
         }
-        guard let service = NSSharingService(named: .composeEmail), service.canPerform(withItems: files) else { model.error = "No mail composition service is available. The patches were saved to the output directory."; return }
-        mail = service; model.composingMail = true; service.delegate = self; service.subject = "Patch series"
-        service.perform(withItems: files)
+
     }
-    func sharingService(_ sharingService: NSSharingService, didShareItems items: [Any]) { mail = nil; model.composingMail = false; model.close() }
-    func sharingService(_ sharingService: NSSharingService, didFailToShareItems items: [Any], error: Error) { mail = nil; model.composingMail = false; model.error = error.localizedDescription }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 

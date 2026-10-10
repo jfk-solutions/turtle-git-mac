@@ -27,6 +27,7 @@ public struct SMTPUploadProgress: Sendable {
 }
 public struct SMTPReceipt: Sendable {
     public let response: Int
+    public init(response: Int) { self.response = response }
 }
 public enum SMTPFailure: LocalizedError {
     case configuration, recipients, authentication
@@ -139,6 +140,9 @@ public struct SMTPSeriesFailure: LocalizedError {
     public let attempts: Int
     public let accepted: [SMTPReceipt]
     public let cause: Error
+    public init(index: Int, attempts: Int, accepted: [SMTPReceipt], cause: Error) {
+        self.index = index; self.attempts = attempts; self.accepted = accepted; self.cause = cause
+    }
     public var errorDescription: String? { cause.localizedDescription }
 }
 extension PatchMailSMTP {
