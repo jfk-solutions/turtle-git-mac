@@ -26,6 +26,22 @@ import TurtleGitCore
         }
         window.appearance = NSAppearance(named: .aqua)
     }
+    @MainActor static func verifyFooter(_ controller: MergeAbortWindowController) async throws {
+        func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap { descendants($0) } }
+        var text: SubmoduleProgressTextView?
+        let range = controller.model.completionRange!
+        try await waitUntil {
+            text = descendants(controller.progress!.window!.contentView!).compactMap { $0 as? SubmoduleProgressTextView }.first
+            return text?.string == controller.model.output && text!.textStorage!.length >= NSMaxRange(range)
+        }
+        let color = text!.textStorage!.attribute(.foregroundColor, at: range.location, effectiveRange: nil) as! NSColor
+        for appearance in [NSAppearance.Name.aqua, .darkAqua] {
+            NSAppearance(named: appearance)!.performAsCurrentDrawingAppearance {
+                let expected = controller.model.success ? NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast ? NSColor.textColor : SubmoduleProgressTextView.successColor : SubmoduleProgressTextView.color(error: true)
+                precondition(color.usingColorSpace(.sRGB) == expected.usingColorSpace(.sRGB), "Completion color mismatch in \(appearance)")
+            }
+        }
+    }
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
         let root = URL(fileURLWithPath: CommandLine.arguments[1]), git = URL(fileURLWithPath: CommandLine.arguments[2]), repo = GitRepository(root: root, executable: git)
@@ -183,6 +199,7 @@ import TurtleGitCore
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: streamHelper.path)
         preferences.set(16, forKey: "GitOutputLimitinKiB")
         for behavior in ["success", "failure", "cancel", "forced", "limit", "percent"] {
+            preferences.set(behavior != "failure", forKey: "ShowGitexeTimings")
             try? FileManager.default.removeItem(at: streamReady); try? FileManager.default.removeItem(at: release)
             try Data(behavior.utf8).write(to: behaviorFile)
             let streamRepo = GitRepository(root: root, executable: streamHelper)
@@ -208,6 +225,12 @@ import TurtleGitCore
             else if behavior == "cancel" { controller.model.cancel() }
             else { try Data().write(to: release) }
             try await waitUntil { !controller.model.busy && kill(pid, 0) == -1 }
+            if behavior != "forced" {
+                let completion = controller.model.completionRange!
+                let footer = (controller.model.output as NSString).substring(with: completion)
+                precondition(controller.model.percentage == 100 && controller.model.currentWork == (behavior == "failure" ? "git did not exit cleanly (exit code 7)" : behavior == "cancel" ? "User cancelled" : "Success"))
+                precondition(footer.contains(controller.model.currentWork) && footer.contains(" ms @ ") == (behavior != "failure"))
+            }
             if behavior == "forced" {
                 precondition(callbacks == 0 && controller.model.output == before && controller.model.postActions.isEmpty)
             } else {
@@ -236,13 +259,15 @@ import TurtleGitCore
                     let fatalRange = value.range(of: "fatal: "), urlRange = value.range(of: "https://example.invalid/reset")
                     precondition((text.textStorage!.attribute(.font, at: fatalRange.location, effectiveRange: nil) as? NSFont)?.fontDescriptor.symbolicTraits.contains(.bold) == true)
                     precondition(text.textStorage!.attribute(.link, at: urlRange.location, effectiveRange: nil) != nil)
+                    try await verifyFooter(controller)
                     preferences.set(false, forKey: "ShowAppContextMenuIcons")
                     precondition(text.outputMenu().items.filter { !$0.isSeparatorItem }.allSatisfy { $0.image == nil })
                     preferences.removeObject(forKey: "ShowAppContextMenuIcons")
 
                 } else {
                     precondition(controller.model.success && !controller.model.cancelled)
-                    if behavior == "percent" { precondition(controller.model.percentage == 100 && controller.model.currentWork == "Resetting") }
+                    if behavior == "success" { try await verifyFooter(controller) }
+                    if behavior == "percent" { precondition(controller.model.percentage == 100 && controller.model.currentWork == "Success") }
                     precondition(controller.model.output.components(separatedBy: "Resetting α").count == 2, "Streamed output must not be repeated at completion")
                 }
                 if behavior == "cancel" { precondition(controller.progress == nil, "Accepted cancellation retires progress after process unwind") }
@@ -251,6 +276,8 @@ import TurtleGitCore
             }
             precondition(controller.progress == nil && !controller.window!.isVisible)
         }
+        preferences.removeObject(forKey: "ShowGitexeTimings")
+        print("Abort completion: source success/error/cancel status, terminal100, one ranged footer, timing enabled/disabled, success/failure resolved light/dark colors on actual output; invalidated owner receives no footer.")
         print("Abort native output control: read-only selection, original-icon Copy/Copy All menu dispatch into private clipboard, Unicode, unchanged selection/viewport, menu icon preference, completed fatal prefix and URL styling; live25/terminal100 percent and current-work presentation.")
         preferences.set(true, forKey: "ConfirmKillProcess")
         for scenario in ["decline", "accept", "finished-no", "finished-yes", "forced", "stale"] {

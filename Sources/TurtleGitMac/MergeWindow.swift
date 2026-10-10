@@ -589,6 +589,7 @@ enum MergeAbortPostAction: String, CaseIterable, Hashable {
     @Published private(set) var output = ""
     @Published private(set) var percentage: Int?
     @Published private(set) var currentWork = ""
+    @Published private(set) var completionRange: NSRange?
     var outputPreferences: UserDefaults { preferences }
     var outputClipboard: NSPasteboard = .general
     @Published private(set) var postActions: [MergeAbortPostAction] = []
@@ -626,15 +627,18 @@ enum MergeAbortPostAction: String, CaseIterable, Hashable {
     private func start() {
         ProgressActionLog.nextAttempt(self, savePrevious: !output.isEmpty)
         autoClosePolicy = GitProgressAutoClose(preferences: preferences)
-        busy = true; success = false; cancelled = false; cancelling = false; closeAfterCancellation = false; outputState.reset(); output = ""; percentage = nil; currentWork = ""; rawOutput = ""; postActions = []; cancellation = OperationCancellation()
+        busy = true; success = false; cancelled = false; cancelling = false; closeAfterCancellation = false; outputState.reset(); output = ""; percentage = nil; currentWork = ""; completionRange = nil; rawOutput = ""; postActions = []; cancellation = OperationCancellation()
         let token = cancellation, selectedMode = operationMode
+        let started = ProcessInfo.processInfo.systemUptime
         worker = Task {
             // Keep the operation active until the owned process has actually unwound.
             var result = "", actions: [MergeAbortPostAction] = []
             var succeeded = false, diagnostic = ""
+            var exitCode: Int32?, elapsed: TimeInterval = 0, finished = Date()
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 result = try await streamReset(mode: selectedMode, token: token)
+                elapsed = ProcessInfo.processInfo.systemUptime - started; finished = Date()
                 succeeded = true
                 if selectedMode != .merge {
                     if selectedMode == .hard, (try? await repository.submoduleUpdatePaths(cancellation: token).isEmpty) == false { actions.append(.submoduleUpdate) }
@@ -645,6 +649,8 @@ enum MergeAbortPostAction: String, CaseIterable, Hashable {
                     if selectedMode == .hard { actions.append(.clean) }
                 }
             } catch {
+                elapsed = ProcessInfo.processInfo.systemUptime - started; finished = Date()
+                exitCode = (error as? GitFailure)?.code
                 if let failure = error as? GitCommandCancellationFailure { result = failure.result.text + "\n" + failure.localizedDescription }
                 else { result = error.localizedDescription }
                 if let failure = error as? GitFailure, outputState.hasOutput { diagnostic = "Git command failed (\(failure.code))." }
@@ -657,6 +663,8 @@ enum MergeAbortPostAction: String, CaseIterable, Hashable {
             if !outputState.hasOutput { output = result }
             else if !diagnostic.isEmpty { output += (output.hasSuffix("\n") ? "" : "\n") + diagnostic }
             success = succeeded; cancelled = !succeeded && token.isCancelled; postActions = actions
+            let completion = SubmoduleProgressCompletion(success: success, cancelled: cancelled, exitCode: exitCode, elapsed: elapsed, finished: finished, preferences: preferences)
+            currentWork = completion.currentWork; percentage = 100; completionRange = completion.append(to: &output)
             onChanged(rawOutput)
             guard !invalidated else { return }
             finishResult()
@@ -816,10 +824,10 @@ private struct MergeAbortDialog: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if model.showingProgress {
-                HStack { Text(model.busy ? model.currentWork.isEmpty ? "Resetting HEAD…" : model.currentWork : model.cancelled ? "Cancelled" : model.success ? "Finished" : "Reset failed").foregroundStyle(model.busy ? Color.primary : model.success ? Color.green : Color.red); Spacer() }
+                HStack { Text(model.currentWork.isEmpty ? "Resetting HEAD…" : model.currentWork).foregroundStyle(model.busy ? Color.primary : model.success ? Color.green : Color.red); Spacer() }
                 if model.busy && model.percentage == nil { ProgressView().progressViewStyle(.linear) }
                 else { ProgressView(value: Double(model.busy ? model.percentage ?? 0 : 100), total: 100).tint(model.busy || model.success ? Color.accentColor : Color.red) }
-                SubmoduleProgressOutputView(text: model.output, completed: !model.busy, success: model.success, preferences: model.outputPreferences, clipboard: model.outputClipboard).frame(maxWidth: .infinity, maxHeight: .infinity)
+                SubmoduleProgressOutputView(text: model.output, completed: !model.busy, completionRange: model.completionRange, success: model.success, preferences: model.outputPreferences, clipboard: model.outputClipboard).frame(maxWidth: .infinity, maxHeight: .infinity)
                 HStack {
                     if let first = model.postActions.first {
                         Button { model.perform(first) } label: { CommandLabel(title: first.title, icon: first.icon) }
