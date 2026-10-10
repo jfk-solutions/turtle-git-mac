@@ -133,6 +133,7 @@ final class RevisionGraphTests: XCTestCase {
         let index = try Data(contentsOf: parent.appendingPathComponent(".git/index"))
         let graph = try await child.revisionGraph(options: options)
         XCTAssertEqual(graph.superprojectHashes, [h["a"]!])
+        XCTAssertEqual(graph.superprojectLabels, [h["a"]!: ["super-project-pointer"]])
         XCTAssertTrue(graph.nodes.contains { $0.hash == h["a"] })
         XCTAssertEqual(try Data(contentsOf: parent.appendingPathComponent(".git/index")), index)
         options.showSuperprojectPointers = false
@@ -149,8 +150,19 @@ final class RevisionGraphTests: XCTestCase {
         let conflictIndex = try Data(contentsOf: parent.appendingPathComponent(".git/index"))
         let conflict = try await child.revisionGraph(options: options)
         XCTAssertEqual(conflict.superprojectHashes, Set([h["a"]!, h["b"]!]))
+        XCTAssertEqual(conflict.superprojectLabels, [h["a"]!: ["super-project-head"], h["b"]!: ["super-project-merge-head"]])
         XCTAssertTrue(conflict.nodes.contains { $0.hash == h["a"] })
         XCTAssertEqual(try Data(contentsOf: parent.appendingPathComponent(".git/index")), conflictIndex)
+        for name in ["rebase-apply", "rebase-merge", "tgitrebase.active"] {
+            let path = try await superproject.run(["rev-parse", "--git-path", name]).text.trimmingCharacters(in: .newlines)
+            let directory = path.hasPrefix("/") ? URL(fileURLWithPath: path) : parent.appendingPathComponent(path)
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let rebasing = try await child.revisionGraph(options: options)
+            XCTAssertEqual(rebasing.superprojectLabels, [h["a"]!: ["super-project-rebase-head"], h["b"]!: ["super-project-head"]])
+            XCTAssertEqual(try Data(contentsOf: parent.appendingPathComponent(".git/index")), conflictIndex)
+            try FileManager.default.removeItem(at: directory)
+        }
+
     }
 
     func testBareGraphHasNoSuperprojectAndMatchesWorkingRepository() async throws {

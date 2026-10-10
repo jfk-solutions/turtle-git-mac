@@ -7,6 +7,14 @@ available; signed activation and complete Finder acceptance remain pending.
 
 Each node contains colored reference rows. Current branches, other local
 branches, remote branches and tags retain distinct TortoiseGit color roles.
+For a submodule, pink rows identify the recorded parent-index revision
+(`super-project-pointer`). During a parent merge conflict, the two sides are
+`super-project-head` and `super-project-merge-head`. During a parent rebase they
+become `super-project-rebase-head` and `super-project-head`. The ancestor index
+entry does not get a pointer row. These reads do not stage or resolve the parent
+conflict. The Advanced setting `LogShowSuperProjectSubmodulePointer`
+(default on) controls these rows when a new graph window opens.
+
 Nodes without references display an abbreviated commit hash. Hover over a node
 for its full hash, author, author date and message.
 

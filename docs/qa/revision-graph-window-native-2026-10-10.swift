@@ -54,7 +54,6 @@ import Darwin
         try require(model.error == nil && model.nodes.count == 3 && model.geometry?.nodes.count == 3)
         window.contentView!.layoutSubtreeIfNeeded(); controller.update()
         try require(controller.scroll.contentSize.width > 600 && controller.scroll.contentSize.height > 300)
-        let geometry = model.geometry!.nodes
         NSAppearance(named: .aqua)!.performAsCurrentDrawingAppearance {
             let green = RevisionGraphPalette.background(.localBranch, pointer: false, preferences: prefs).usingColorSpace(.sRGB)!
             assert(abs(green.greenComponent - 195.0/255) < 0.001 && green.redComponent == 0)
@@ -95,6 +94,14 @@ import Darwin
         try require(!model.showOverview && !model.arrowsTowardMerges && !model.options.showBranchingsAndMerges && model.options.showAllTags)
         try require(!prefs.bool(forKey: keys[0]) && !prefs.bool(forKey: keys[1]) && !prefs.bool(forKey: keys[2]) && prefs.bool(forKey: keys[3]))
         print("PASS: Revision Graph display preferences, source defaults, menu dispatch/checkmarks, reopen and busy/closed guards")
+        let geometry = model.geometry!.nodes // Preference toggles reload layout; use current geometry.
+        let pointerNode = model.nodes.first { $0.hash == geometry[0].hash }!
+        let pointerRows = model.lines(pointerNode, pointers: [pointerNode.hash: ["super-project-rebase-head", "super-project-head"]])
+        try require(Array(pointerRows.prefix(2)).map { $0.0 } == ["super-project-rebase-head", "super-project-head"])
+        try require(pointerRows.prefix(2).allSatisfy { $0.2 } && pointerRows.dropFirst(2).allSatisfy { !$0.2 })
+        let pointerColor = RevisionGraphPalette.background(.otherRef, pointer: true, preferences: prefs)
+        try require(pointerColor != RevisionGraphPalette.background(.otherRef, pointer: false, preferences: prefs))
+        print("PASS: Revision Graph distinct submodule pointer label rows and pointer color identity")
         func click(_ index: Int, modifiers: NSEvent.ModifierFlags = []) {
             let rect = geometry[index].rect
             let point = NSPoint(x: rect.midX * model.zoom + 10, y: rect.midY * model.zoom + 10)
@@ -348,6 +355,47 @@ import Darwin
         model.select(unlabelled.hash, extending: false); controller.perform("copyRefs")
         try require(copied == unlabelled.hash)
         print("PASS: Revision Graph source node menus, branch/tag routing, range Log, copy refs, annotated deletion, Abort/All, moved-ref and confirmation-race guards")
+        let parentRoot = root.deletingLastPathComponent().appendingPathComponent(root.lastPathComponent + "-superproject")
+        try FileManager.default.createDirectory(at: parentRoot, withIntermediateDirectories: true)
+        let parentRepo = GitRepository(root: parentRoot, executable: URL(fileURLWithPath: CommandLine.arguments[2]))
+        _ = try await parentRepo.run(["init", "-b", "main"])
+        _ = try await parentRepo.run(["-c", "protocol.file.allow=always", "submodule", "add", "--", root.path, "child"])
+        var pointerTrees: [String] = []
+        for hash in [rootNode.hash, main.hash, feature.hash] {
+            _ = try await parentRepo.run(["update-index", "--cacheinfo", "160000," + hash + ",child"])
+            pointerTrees.append(try await parentRepo.run(["write-tree"]).text.trimmingCharacters(in: .newlines))
+        }
+        _ = try await parentRepo.run(["read-tree", pointerTrees[1]])
+        _ = try await parentRepo.run(["read-tree", "-m"] + pointerTrees)
+        let parentIndex = try Data(contentsOf: parentRoot.appendingPathComponent(".git/index"))
+        let childRepo = GitRepository(root: parentRoot.appendingPathComponent("child"), executable: URL(fileURLWithPath: CommandLine.arguments[2]))
+        let childGraph = RevisionGraphWindowController(repository: childRepo, access: nil, preferences: prefs, layoutExecutable: helper, automaticallyLoad: false)
+        childGraph.window!.alphaValue = 0; childGraph.window!.orderFront(nil)
+        childGraph.model.load(); try await wait { !childGraph.model.busy }
+        try require(childGraph.model.error == nil)
+        try require(childGraph.model.pointers[main.hash] == ["super-project-head"] && childGraph.model.pointers[feature.hash] == ["super-project-merge-head"])
+        for (hash, label) in [(main.hash, "super-project-head"), (feature.hash, "super-project-merge-head")] {
+            let node = childGraph.model.nodes.first { $0.hash == hash }!
+            let rows = childGraph.model.lines(node)
+            try require(rows.first!.0 == label && rows.first!.2)
+            let geometry = childGraph.model.geometry!.nodes.first { $0.hash == hash }!
+            try require(geometry.rect.height >= CGFloat(rows.count) * (ceil(RevisionGraphWindowModel.font.ascender - RevisionGraphWindowModel.font.descender) + 10))
+        }
+        let pointerSVG = try RevisionGraphExport.data(canvas: childGraph.canvas, viewport: childGraph.scroll.contentSize, format: .svg, appearance: NSAppearance(named: .aqua)!)
+        let svgText = String(decoding: pointerSVG, as: UTF8.self)
+        try require(svgText.contains("super-project-head") && svgText.contains("super-project-merge-head") && svgText.contains("#f699fd"))
+        let parentAfter = try Data(contentsOf: parentRoot.appendingPathComponent(".git/index"))
+        try require(parentAfter == parentIndex)
+        childGraph.window!.close(); try require(childGraph.model.closed)
+        prefs.set(false, forKey: "LogShowSuperProjectSubmodulePointer")
+        let hiddenChild = RevisionGraphWindowController(repository: childRepo, access: nil, preferences: prefs, layoutExecutable: helper, automaticallyLoad: false)
+        hiddenChild.window!.alphaValue = 0
+        hiddenChild.model.load(); try await wait { !hiddenChild.model.busy }
+        try require(hiddenChild.model.error == nil && hiddenChild.model.pointers.isEmpty && !hiddenChild.model.options.showSuperprojectPointers)
+        hiddenChild.window!.close(); prefs.removeObject(forKey: "LogShowSuperProjectSubmodulePointer")
+        let afterHidden = try Data(contentsOf: parentRoot.appendingPathComponent(".git/index"))
+        try require(afterHidden == parentIndex)
+        print("PASS: Native conflicted submodule graph pointer labels, measured rows, SVG pointer color Advanced setting and unchanged parent index")
         model.load(); try require(model.busy)
         var closed = false; controller.onClosed = { closed = true }
         window.performClose(nil); try await wait { closed }

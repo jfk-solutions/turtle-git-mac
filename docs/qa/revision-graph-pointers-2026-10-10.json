@@ -1,0 +1,59 @@
+{
+  "checked_at": "2026-10-10T15:12:23.506992+00:00",
+  "parent_commit": "1874c3344dcd53d5d464366c848a5b994771609e",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "Git.cpp CGit::GetSubmodulePointer",
+    "TGitPath.cpp CTGitPath::IsRebaseActive",
+    "RevisionGraphDlgDraw.cpp DrawTexts and SetNodeRect"
+  ],
+  "scope": "Revision Graph parent-index submodule pointer labels and native row/export identity; full parity and distribution remain incomplete.",
+  "implementation": [
+    "stage-zero recorded pointer label",
+    "stage-two/three merge labels with ancestor stage excluded",
+    "parent rebase-apply/tgitrebase.active wording, plus native rebase-merge detection",
+    "worktree-local admin paths resolved with cancellation and optional locks suppressed",
+    "ordered labels per hash; computed hash set retained for graph reduction",
+    "explicit pointer color identity across measurement, canvas, overview, SVG and Graphviz",
+    "existing Advanced LogShowSuperProjectSubmodulePointer setting honored with true default",
+    "native QA reads current layout after settings-triggered reloads"
+  ],
+  "verification": {
+    "system_core_tests": 5,
+    "system_core_failures": 0,
+    "bundled_core_tests": 5,
+    "bundled_core_failures": 0,
+    "native_system_git_exit": 0,
+    "native_bundled_git_exit": 0,
+    "core_cases": [
+      "recorded stage-zero label and pointer retention",
+      "distinct stage-two/three merge labels",
+      "rebase-apply, rebase-merge and tgitrebase.active wording",
+      "unchanged parent index bytes across each query",
+      "existing graph reduction/scope/bare checks"
+    ],
+    "native_cases": [
+      "multiple labels on a single hash retain separate pointer rows",
+      "pointer color identity differs from ordinary other-reference rows",
+      "real disposable conflicted submodule graph loads both distinct pointer labels",
+      "layout includes measured pointer rows",
+      "SVG contains both labels and source pink pointer fill",
+      "Advanced preference off suppresses pointer rows",
+      "parent index unchanged after normal and suppressed graph loads",
+      "all prior graph preference/overview/navigation/filter/menu/deletion/export/cancellation checks retained"
+    ],
+    "unsigned_debug_build_exit": 0,
+    "unsigned_appstore_build_exit": 0,
+    "debug_bundle_audit_exit": 0,
+    "appstore_bundle_audit_exit": 0,
+    "upstream_icons": 117
+  },
+  "mutation_scope": "Git writes only in disposable fixtures; graph queries verify unchanged parent index. Private preference domains are removed by receiver exit.",
+  "pending": [
+    "native actual rebase workflow screenshots/physical acceptance",
+    "linked-worktree/symlink/unusual submodule layouts",
+    "signed parent security-scope acceptance and Finder activation",
+    "current hosted CI and publication",
+    "complete TortoiseGit port"
+  ]
+}

@@ -37,7 +37,8 @@ public struct RevisionGraphNode: Identifiable, Sendable {
 public struct RevisionGraphData: Sendable {
     public let nodes: [RevisionGraphNode]
     public let head: String?
-    public let superprojectHashes: Set<String>
+    public let superprojectLabels: [String: [String]]
+    public var superprojectHashes: Set<String> { Set(superprojectLabels.keys) }
 
     /// Port the source's ordered child-map rewrite. A node immediately before a
     /// merge is deliberately retained, even when it has only one child.
@@ -111,7 +112,7 @@ extension GitRepository {
         // Upstream gives Only Local Branches precedence if both flags are set.
         if options.onlyLocalBranches { arguments.append("--branches") }
         else if options.onlyCurrentBranch {
-            guard let head else { return RevisionGraphData(nodes: [], head: nil, superprojectHashes: []) }
+            guard let head else { return RevisionGraphData(nodes: [], head: nil, superprojectLabels: [:]) }
             arguments.append(head)
         } else if !tokens(options.to).isEmpty {
             arguments += try tokens(options.to).map { try resolve($0) }
@@ -129,7 +130,7 @@ extension GitRepository {
             nodes.append(RevisionGraphNode(hash: hash, parents: parents, references: refs[hash] ?? [], isHead: hash == head, author: fields[record + 2], authorDate: fields[record + 3], message: fields[record + 4]))
             record += 5
         }
-        var pointers = Set<String>()
+        var pointerLabels: [String: [String]] = [:]
         if options.showSuperprojectPointers {
             let parent = try read(["rev-parse", "--show-superproject-working-tree"]).text.trimmingCharacters(in: .newlines)
             if !parent.isEmpty {
@@ -139,17 +140,39 @@ extension GitRepository {
                     let path = String(root.path.dropFirst(prefix.count))
                     let superproject = GitRepository(root: parentURL, executable: executable)
                     let entries = try await superproject.run(["ls-files", "--stage", "-z", "--", path], environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation).stdout
+                    var stages: [(String, String)] = []
                     for record in entries.split(separator: 0) {
                         let header = record.split(separator: 9, maxSplits: 1).first?.split(separator: 32) ?? []
                         guard header.count == 3, header[0] == Data("160000".utf8) else { continue }
-                        // Source keeps stage zero, or Mine/Theirs in a conflict;
-                        // the common ancestor (stage one) is not a pointer label.
-                        if header[2] != Data("1".utf8) { pointers.insert(String(decoding: header[1], as: UTF8.self)) }
+                        stages.append((String(decoding: header[2], as: UTF8.self), String(decoding: header[1], as: UTF8.self)))
+                    }
+                    var rebasing = false
+                    if stages.contains(where: { $0.0 == "2" || $0.0 == "3" }) {
+                        // Native Git also uses rebase-merge; resolve worktree-local
+                        // admin paths rather than inspecting the submodule's state.
+                        for name in ["rebase-apply", "rebase-merge", "tgitrebase.active"] {
+                            var bytes = try await superproject.run(["rev-parse", "--git-path", name], environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation).stdout
+                            if bytes.last == 10 { bytes.removeLast() }
+                            let path = String(decoding: bytes, as: UTF8.self)
+                            let url = path.hasPrefix("/") ? URL(fileURLWithPath: path) : parentURL.appendingPathComponent(path)
+                            var directory: ObjCBool = false
+                            if FileManager.default.fileExists(atPath: url.path, isDirectory: &directory), directory.boolValue { rebasing = true; break }
+                        }
+                    }
+                    for (stage, hash) in stages {
+                        let label: String
+                        switch stage {
+                        case "0": label = "super-project-pointer"
+                        case "2": label = rebasing ? "super-project-rebase-head" : "super-project-head"
+                        case "3": label = rebasing ? "super-project-head" : "super-project-merge-head"
+                        default: continue // The ancestor (stage one) is not a pointer.
+                        }
+                        pointerLabels[hash, default: []].append(label)
                     }
                 }
             }
         }
-        nodes = try RevisionGraphData.simplify(nodes, showAllTags: options.showAllTags, showBranchingsAndMerges: options.showBranchingsAndMerges, protectedHashes: pointers, cancellation: cancellation)
+        nodes = try RevisionGraphData.simplify(nodes, showAllTags: options.showAllTags, showBranchingsAndMerges: options.showBranchingsAndMerges, protectedHashes: Set(pointerLabels.keys), cancellation: cancellation)
         // FetchRevisionData appends missing parents after rewriting. Its cache has
         // cleared parent lists for these placeholders, so they are terminal nodes.
         var known = Set(nodes.map(\.hash))
@@ -159,6 +182,6 @@ extension GitRepository {
                 nodes.append(RevisionGraphNode(hash: parent, references: refs[parent] ?? [], isHead: parent == head, isBoundary: true))
             }
         }
-        return RevisionGraphData(nodes: nodes, head: head, superprojectHashes: pointers)
+        return RevisionGraphData(nodes: nodes, head: head, superprojectLabels: pointerLabels)
     }
 }

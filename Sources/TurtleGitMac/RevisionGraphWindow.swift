@@ -55,7 +55,7 @@ final class RevisionGraphSurface: NSView {
     private var generation = UUID()
     private var cancellation: OperationCancellation?
     private var worker: Task<Void, Never>?
-    private(set) var pointers = Set<String>()
+    private(set) var pointers: [String: [String]] = [:]
     var changed: () -> Void = {}
     var becameIdle: () -> Void = {}
     var onLog: (String) -> Void = { _ in }
@@ -79,12 +79,13 @@ final class RevisionGraphSurface: NSView {
         arrowsTowardMerges = preferences.bool(forKey: "ArrowPointToMerges")
         options.showBranchingsAndMerges = preferences.bool(forKey: "ShowRevGraphBranchesMerges")
         options.showAllTags = preferences.object(forKey: "ShowRevGraphAllTags") == nil ? true : preferences.bool(forKey: "ShowRevGraphAllTags")
+        options.showSuperprojectPointers = preferences.object(forKey: "LogShowSuperProjectSubmodulePointer") == nil ? true : preferences.bool(forKey: "LogShowSuperProjectSubmodulePointer")
     }
     deinit { cancellation?.cancel(); worker?.cancel() }
-    func lines(_ node: RevisionGraphNode, pointers: Set<String>? = nil) -> [(String, LogColorRole?)] {
-        var result: [(String, LogColorRole?)] = []
-        if (pointers ?? self.pointers).contains(node.hash) { result.append(("super-project-pointer", .otherRef)) }
-        result += node.references.isEmpty ? [(String(node.hash.prefix(8)), nil)] : node.references.map { ($0.label, LogColorRole.reference($0)) }
+    func lines(_ node: RevisionGraphNode, pointers: [String: [String]]? = nil) -> [(String, LogColorRole?, Bool)] {
+        var result: [(String, LogColorRole?, Bool)] = []
+        for label in (pointers ?? self.pointers)[node.hash] ?? [] { result.append((label, .otherRef, true)) }
+        result += node.references.isEmpty ? [(String(node.hash.prefix(8)), nil, false)] : node.references.map { ($0.label, LogColorRole.reference($0), false) }
         return result
     }
     func load() {
@@ -104,7 +105,7 @@ final class RevisionGraphSurface: NSView {
                 let graph = try await repository.revisionGraph(options: options, cancellation: token)
                 guard !closed, !token.isCancelled, request == generation else { return }
                 let sizes = graph.nodes.map { node -> CGSize in
-                    let labels = self.lines(node, pointers: graph.superprojectHashes)
+                    let labels = self.lines(node, pointers: graph.superprojectLabels)
                     let widths = labels.map { ($0.0 as NSString).size(withAttributes: [.font: Self.font]).width }
                     return CGSize(width: ceil(max(widths.max() ?? 0, ("88888888" as NSString).size(withAttributes: [.font: Self.font]).width)) + 40, height: CGFloat(labels.count) * (ceil(Self.font.ascender - Self.font.descender) + 10))
                 }
@@ -113,7 +114,7 @@ final class RevisionGraphSurface: NSView {
                     try RevisionGraphLayoutRuntime.layout(nodes: graph.nodes, sizes: sizes, executable: executable, cancellation: token)
                 }.value
                 guard !closed, !token.isCancelled, request == generation else { return }
-                bare = isBare; nodes = graph.nodes; pointers = graph.superprojectHashes; geometry = layout
+                bare = isBare; nodes = graph.nodes; pointers = graph.superprojectLabels; geometry = layout
                 selection = selection.filter { hash in self.nodes.contains { $0.hash == hash } }
             } catch { if !closed, !token.isCancelled, request == generation { self.error = error.localizedDescription } }
         }
@@ -520,7 +521,7 @@ enum RevisionGraphReferenceCommand {
             let labels = model.lines(node), height = rect.height / CGFloat(labels.count)
             for (index, label) in labels.enumerated() {
                 let row = CGRect(x: rect.minX, y: rect.minY + CGFloat(index) * height, width: rect.width, height: height)
-                let background = RevisionGraphPalette.background(label.1, pointer: label.0 == "super-project-pointer", preferences: model.preferences)
+                let background = RevisionGraphPalette.background(label.1, pointer: label.2, preferences: model.preferences)
                 background.setFill(); row.fill()
                 if text {
                     let attributes: [NSAttributedString.Key: Any] = [.font: RevisionGraphWindowModel.font, .foregroundColor: RevisionGraphPalette.foreground(background)]

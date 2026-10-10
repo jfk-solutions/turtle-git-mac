@@ -104,7 +104,7 @@ enum RevisionGraphExportFailure: LocalizedError {
             let shape = "x=\"\(number(rect.minX))\" y=\"\(number(rect.minY))\" width=\"\(number(rect.width))\" height=\"\(number(rect.height))\" rx=\"6\""
             parts.append("<defs><clipPath id=\"node\(index)\"><rect \(shape)/></clipPath></defs><g clip-path=\"url(#node\(index))\">")
             for (line, label) in labels.enumerated() {
-                let background = RevisionGraphPalette.background(label.1, pointer: label.0 == "super-project-pointer", preferences: model.preferences)
+                let background = RevisionGraphPalette.background(label.1, pointer: label.2, preferences: model.preferences)
                 let y = rect.minY + CGFloat(line) * height
                 parts.append("<rect x=\"\(number(rect.minX))\" y=\"\(number(y))\" width=\"\(number(rect.width))\" height=\"\(number(height))\" fill=\"\(color(background))\"/>")
                 parts.append("<text x=\"\(number(rect.minX + 20))\" y=\"\(number(y + 5 + 12))\" font-family=\"\(xml(fontName))\" font-size=\"12\" fill=\"\(color(RevisionGraphPalette.foreground(background)))\">\(xml(label.0))</text>")
@@ -126,7 +126,7 @@ enum RevisionGraphExportFailure: LocalizedError {
         for node in model.nodes {
             parts.append("g\(node.hash) [color=transparent, label=<<table border=\"0\" cellborder=\"0\" cellpadding=\"5\">")
             for (index, label) in model.lines(node).enumerated() {
-                let background = RevisionGraphPalette.background(label.1, pointer: label.0 == "super-project-pointer", preferences: model.preferences)
+                let background = RevisionGraphPalette.background(label.1, pointer: label.2, preferences: model.preferences)
                 parts.append("<tr><td port=\"f\(index)\" bgcolor=\"\(color(background))\"><font color=\"\(color(RevisionGraphPalette.foreground(background)))\">\(xml(label.0))</font></td></tr>")
             }
             parts.append("</table>>];")

@@ -95,7 +95,7 @@ Remaining requirements include:
 - App and Finder launch routing, native screenshots, physical keyboard/mouse,
   accessibility, signed sandbox and distribution verification.
 - Configured Log ordering beyond the current default topo order, superproject
-  pointer labels/rebase wording, unusual nested tags, shallow/missing objects,
+  pointer signed/worktree acceptance, unusual nested tags, shallow/missing objects,
   large-repository responsiveness and source-state persistence.
 
 ## Verification
@@ -301,3 +301,35 @@ busy/closed write guards passed with system and bundled Git. Unsigned
 Debug/Store builds and both packaging audits passed. See
 [preference evidence](qa/revision-graph-preferences-2026-10-10.json). Physical
 app relaunch and cross-window acceptance remain pending.
+
+
+## Submodule pointer identities
+
+`RevisionGraphData` now retains labels per hash as well as the computed pointer
+hash set used by graph reduction. This ports `CGit::GetSubmodulePointer` and
+`DrawTexts` labels: stage zero is `super-project-pointer`; conflict stage two is
+`super-project-head` and stage three is `super-project-merge-head`. With an active
+parent rebase, stage two becomes `super-project-rebase-head` and stage three
+becomes `super-project-head`. Stage one remains excluded from retention and rows.
+
+Rebase detection resolves the parent's worktree-local admin paths. It recognizes
+source `rebase-apply` and `tgitrebase.active` directories plus native Git's
+`rebase-merge` backend. It does not use the child's rebase state. Every command
+uses optional-lock suppression and the caller's cancellation token. Rendering
+measures each pointer row and carries explicit pointer color identity through
+the canvas, overview, SVG and Graphviz exporters. A reference with the same text
+cannot accidentally acquire pointer color. Multiple pointer labels on the same
+hash retain separate rows. The existing Advanced setting
+`LogShowSuperProjectSubmodulePointer` is now read with its source true default
+before a new graph query; disabling it omits parent pointer reads and rows.
+
+Core fixture checks cover stage-zero, merge and all three rebase-directory
+variants with unchanged parent index bytes. Native checks cover label-row/color
+identity and a real disposable conflicted submodule graph, measured rows and
+SVG output. Physical conflict/rebase gestures, signed parent grants, unusual
+submodule layouts and full parity remain pending.
+
+Five Core graph tests and the native receiver passed with each Git engine.
+Unsigned Debug/Store builds and both bundle audits passed; see
+[pointer-label evidence](qa/revision-graph-pointers-2026-10-10.json). The native
+conflict case is a private repository fixture, not signed/physical acceptance.
