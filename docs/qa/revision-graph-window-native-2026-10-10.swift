@@ -47,6 +47,14 @@ import Darwin
         window.contentView!.layoutSubtreeIfNeeded(); controller.update()
         try require(controller.scroll.contentSize.width > 600 && controller.scroll.contentSize.height > 300)
         let geometry = model.geometry!.nodes
+        NSAppearance(named: .aqua)!.performAsCurrentDrawingAppearance {
+            let green = RevisionGraphPalette.background(.localBranch, pointer: false, preferences: prefs).usingColorSpace(.sRGB)!
+            assert(abs(green.greenComponent - 195.0/255) < 0.001 && green.redComponent == 0)
+            assert(RevisionGraphPalette.foreground(green) == NSColor.white)
+            prefs.set(true, forKey: "Graph.RevGraphUseLocalForCur")
+            assert(RevisionGraphPalette.background(.currentBranch, pointer: false, preferences: prefs).usingColorSpace(.sRGB)! == green)
+            prefs.removeObject(forKey: "Graph.RevGraphUseLocalForCur")
+        }
         func click(_ index: Int, modifiers: NSEvent.ModifierFlags = []) {
             let rect = geometry[index].rect
             let point = NSPoint(x: rect.midX * model.zoom + 10, y: rect.midY * model.zoom + 10)
@@ -67,8 +75,25 @@ import Darwin
         controller.perform("compare"); try require(compared)
         controller.perform("zoomOut"); try require(abs(model.zoom - 0.9) < 0.0001)
         controller.perform("zoom100"); controller.perform("overview"); try require(model.zoom == 1 && model.showOverview)
+        func capture(_ target: NSWindow, prefix: String) async throws {
+            guard CommandLine.arguments.count > 4 else { return }
+            let directory = URL(fileURLWithPath: CommandLine.arguments[4])
+            target.orderOut(nil); target.alphaValue = 1
+            defer { target.alphaValue = 0; target.orderFront(nil) }
+            for (name, appearance) in [("light", NSAppearance.Name.aqua), ("dark", NSAppearance.Name.darkAqua)] {
+                target.appearance = NSAppearance(named: appearance); target.makeFirstResponder(nil)
+                target.contentView!.layoutSubtreeIfNeeded(); target.contentView!.needsDisplay = true
+                try await Task.sleep(nanoseconds: 200_000_000)
+                let view = target.contentView!, bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds)!
+                target.effectiveAppearance.performAsCurrentDrawingAppearance { view.cacheDisplay(in: view.bounds, to: bitmap) }
+                try bitmap.representation(using: .png, properties: [:])!.write(to: directory.appendingPathComponent(prefix + "-" + name + ".png"))
+            }
+            target.appearance = NSAppearance(named: .aqua)
+        }
+        try await capture(window, prefix: "revision-graph")
         controller.showFilter(); try await wait { window.attachedSheet != nil }
-        let child = window.attachedSheet!; child.alphaValue = 0
+        let child = window.attachedSheet!; try require(child.alphaValue == 0)
+        try await capture(child, prefix: "revision-graph-filter")
         let buttons = views(child.contentView!).compactMap { $0 as? NSButton }
         let current = buttons.first { $0.title == "Only Current Branch" }!, local = buttons.first { $0.title == "Only Local Branches" }!
         let to = views(child.contentView!).compactMap { $0 as? NSTextField }.first { $0.accessibilityLabel() == "To revision" }!

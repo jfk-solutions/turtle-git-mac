@@ -9,7 +9,10 @@ import tempfile
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git', type=Path, action='append')
+parser.add_argument('--capture-dir', type=Path)
 args = parser.parse_args()
+if args.capture_dir:
+    args.capture_dir.mkdir(parents=True, exist_ok=True)
 root = Path(__file__).resolve().parent.parent
 products = root / 'build/Build/Products/Debug'
 engines = [git.resolve() for git in (args.git or [Path('/usr/bin/git')])]
@@ -30,6 +33,8 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-revision-graph-native-') as t
         fixture = directory / ('fixture-' + str(index)); fixture.mkdir()
         print('Checking ' + str(git), flush=True)
         command = [str(executable), str(fixture), str(git.resolve()), str(root / 'build/graph-layout-runtime/GraphLayout/graph-layout')]
+        if index == 0 and args.capture_dir:
+            command.append(str(args.capture_dir.resolve()))
         result = subprocess.run(command, cwd=root, env=environment, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         print(result.stdout, end='', flush=True)
         result.check_returncode()

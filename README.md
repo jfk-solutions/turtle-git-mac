@@ -127,3 +127,8 @@ issue-matching, OGDF graph-layout and OpenSSH helpers. Development builds can us
 configuration embeds its pinned Git runtime. Bundled dependencies and original
 artwork are documented in NOTICE and the bundle's license resources.
 Distribution clearance remains incomplete; see [distribution requirements](docs/DISTRIBUTION.md).
+
+The native [Revision Graph](docs/REVISION-GRAPH.md) now has a separate colored
+reference-box canvas and source-style Filter sheet. See the
+[light/dark graph and filter captures](docs/site/index.html) and
+[remaining parity work](docs/REVISION-GRAPH-PARITY.md).

@@ -128,3 +128,28 @@ route callbacks, tooltip metadata, zoom, scope enablement, Cancel, Reset, busy
 close cancellation and unchanged repository state. Both focused 25-test runs,
 unsigned Debug/AppStore builds and bundle audits passed locally. Full visual,
 signed and hosted-CI acceptance remain pending.
+
+## Reference-box rendering
+
+The native graph uses `RevisionGraphDlgDraw.cpp`'s solid `COLORLINE` fills rather
+than a gradient. Labels use the source's 20-point horizontal and 5-point vertical
+margins, a native 12-point font, and an eight-character minimum hash width.
+Text contrast uses the graph's linear sRGB luminance threshold of 0.5 rather
+than the separate Log-label formula. Bisect Skip deliberately shares Bisect Bad's
+color in this graph, matching upstream. `Graph.RevGraphUseLocalForCur` selects the
+local-branch color for the current branch. A superproject pointer uses the source
+pink RGB 246/153/253; native dark/high-contrast conversion follows the shared
+macOS palette. Unlabelled nodes use the source's red-tinted window background.
+
+Selection marks distinguish the first node with the native highlight and an I
+marker, and the second node with source RGB 136/0/21 and an II marker. With two
+nodes selected, the first also receives `(Base)`. Native accessibility and
+physical gesture acceptance remain outstanding.
+
+Actual native content-view captures are available in the [local site gallery](site/index.html)
+and the [rendering checkpoint](qa/revision-graph-rendering-2026-10-10.json).
+Both native engine runs and unsigned Debug/AppStore builds and bundle audits
+passed. Capture mode takes the window out of the visible ordering before using
+alpha one to render native controls, then restores alpha zero. All owned windows
+and fixtures are closed/removed. These captures do not prove physical input,
+VoiceOver, signed activation or publication.

@@ -1403,3 +1403,9 @@ and owned-sheet lifecycle are macOS implementations. The original
 menurevisiongraph.ico is bundled unchanged with SHA256 provenance under the
 existing icon license choice. Full menu/export/persistence and signed Finder
 acceptance remain incomplete; existing upstream copyright and GPL terms apply.
+
+Revision Graph solid reference colors, graph-specific sRGB contrast, label
+margins, minimum hash width and I/II selection markers adapt
+RevisionGraphDlgDraw.cpp SetupColorsAndBrushes, DrawNode, SetNodeRect and
+DrawMarker at the existing pinned TortoiseGit commit. Native theme backgrounds
+and macOS appearance adaptation retain the existing upstream GPL terms.

@@ -168,3 +168,6 @@ are not recursively audited.
 - [Image transparent colors and local appearance](IMAGE-COLORS-PARITY.md)
 
 - [Load Images and standalone viewing](IMAGE-OPEN-PARITY.md)
+
+- [Revision Graph guide](REVISION-GRAPH.md): selection, comparison, zoom, overview
+  and range filtering; [source parity](REVISION-GRAPH-PARITY.md) and remaining work.

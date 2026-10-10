@@ -30,7 +30,7 @@ import TurtleGitCore
         let buttons = NSStackView(views: [ok, cancel, reset]); buttons.orientation = .horizontal; buttons.spacing = 8
         let stack = NSStackView(views: [NSTextField(labelWithString: "Include only the following revision range:"), grid, scopes, buttons]); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 14
         stack.edgeInsets = NSEdgeInsets(top: 12, left: 12, bottom: 12, right: 12); stack.translatesAutoresizingMaskIntoConstraints = false
-        let content = NSView(); content.addSubview(stack); window.contentView = content
+        let content = RevisionGraphSurface(); content.addSubview(stack); window.contentView = content
         NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: content.leadingAnchor), stack.trailingAnchor.constraint(equalTo: content.trailingAnchor), stack.topAnchor.constraint(equalTo: content.topAnchor), stack.bottomAnchor.constraint(equalTo: content.bottomAnchor)])
         for button in [current, local] { button.target = self; button.action = #selector(scopeChanged(_:)) }
         fromBrowse.target = self; fromBrowse.action = #selector(browseFrom); toBrowse.target = self; toBrowse.action = #selector(browseTo)

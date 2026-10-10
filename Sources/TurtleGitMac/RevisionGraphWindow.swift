@@ -5,6 +5,38 @@ import Combine
 import TurtleGitCore
 import UniformTypeIdentifiers
 
+final class RevisionGraphSurface: NSView {
+    override var isOpaque: Bool { true }
+    override func draw(_ dirtyRect: NSRect) { NSColor.windowBackgroundColor.setFill(); dirtyRect.fill() }
+    override func viewDidChangeEffectiveAppearance() { super.viewDidChangeEffectiveAppearance(); needsDisplay = true }
+}
+
+// RevisionGraphDlgDraw uses solid COLORLINE fills and sRGB luminance,
+// independently of GitLogListBase's contrast threshold.
+@MainActor enum RevisionGraphPalette {
+    static func background(_ role: LogColorRole?, pointer: Bool, preferences: UserDefaults) -> NSColor {
+        if pointer {
+            let traits = StatusTextPalette.appearanceTraits(NSAppearance.current)
+            let rgb = StatusTextPalette.transform([246, 153, 253], dark: traits.dark, highContrast: traits.highContrast)
+            return NSColor(srgbRed: CGFloat(rgb[0])/255, green: CGFloat(rgb[1])/255, blue: CGFloat(rgb[2])/255, alpha: 1)
+        }
+        if var role {
+            if role == .bisectSkip { role = .bisectBad }
+            if role == .currentBranch, preferences.bool(forKey: "Graph.RevGraphUseLocalForCur") { role = .localBranch }
+            return LogPalette.native(role, preferences: preferences)
+        }
+        // LimitedScaleColor(window, red, .9): the upstream unlabelled commit tint.
+        let window = NSColor.textBackgroundColor.usingColorSpace(.sRGB)!
+        return NSColor(srgbRed: 0.1 + window.redComponent * 0.9, green: window.greenComponent * 0.9, blue: window.blueComponent * 0.9, alpha: 1)
+    }
+    static func foreground(_ background: NSColor) -> NSColor {
+        let rgb = background.usingColorSpace(.sRGB)!
+        func linear(_ value: CGFloat) -> CGFloat { value <= 0.03928 ? value / 12.92 : pow((value + 0.055) / 1.055, 2.4) }
+        let luminance = 0.2126 * linear(rgb.redComponent) + 0.7152 * linear(rgb.greenComponent) + 0.0722 * linear(rgb.blueComponent)
+        return luminance > 0.5 ? .black : .white
+    }
+}
+
 @MainActor final class RevisionGraphWindowModel: ObservableObject {
     let repository: GitRepository
     let access: RepositoryAccessLease?
@@ -33,7 +65,7 @@ import UniformTypeIdentifiers
     var onCheckout: (String) -> Void = { _ in }
     var onReset: (String) -> Void = { _ in }
     var onUnified: (Data) -> Void = { _ in }
-    static let font = NSFont.systemFont(ofSize: 11)
+    static let font = NSFont.systemFont(ofSize: 12)
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, layoutExecutable: URL? = nil) {
         self.repository = repository; self.access = access; self.preferences = preferences; self.layoutExecutable = layoutExecutable
     }
@@ -62,7 +94,7 @@ import UniformTypeIdentifiers
                 let sizes = graph.nodes.map { node -> CGSize in
                     let labels = self.lines(node, pointers: graph.superprojectHashes)
                     let widths = labels.map { ($0.0 as NSString).size(withAttributes: [.font: Self.font]).width }
-                    return CGSize(width: ceil(widths.max() ?? 0) + 40, height: CGFloat(labels.count) * (ceil(Self.font.ascender - Self.font.descender) + 10))
+                    return CGSize(width: ceil(max(widths.max() ?? 0, ("88888888" as NSString).size(withAttributes: [.font: Self.font]).width)) + 40, height: CGFloat(labels.count) * (ceil(Self.font.ascender - Self.font.descender) + 10))
                 }
                 let executable = layoutExecutable
                 let layout = try await Task.detached {
@@ -162,7 +194,7 @@ final class RevisionGraphNativeWindow: NSWindow {
         cancelButton.target = self; cancelButton.action = #selector(cancelGraphOperation)
         let stack = NSStackView(views: [bar, host, footer]); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 8
         stack.edgeInsets = NSEdgeInsets(top: 8, left: 8, bottom: 8, right: 8); stack.translatesAutoresizingMaskIntoConstraints = false
-        let content = NSView(); content.addSubview(stack); window.contentView = content
+        let content = RevisionGraphSurface(); content.addSubview(stack); window.contentView = content
         NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: content.leadingAnchor), stack.trailingAnchor.constraint(equalTo: content.trailingAnchor), stack.topAnchor.constraint(equalTo: content.topAnchor), stack.bottomAnchor.constraint(equalTo: content.bottomAnchor), host.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -16), host.heightAnchor.constraint(greaterThanOrEqualToConstant: 300)])
         host.setContentHuggingPriority(.defaultLow, for: .vertical); host.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
         canvas.contextMenu = { [weak self] in self?.nodeMenu() ?? NSMenu() }
@@ -322,17 +354,29 @@ final class RevisionGraphNativeWindow: NSWindow {
             let labels = model.lines(node), height = rect.height / CGFloat(labels.count)
             for (index, label) in labels.enumerated() {
                 let row = CGRect(x: rect.minX, y: rect.minY + CGFloat(index) * height, width: rect.width, height: height)
-                let background = label.1.map { LogPalette.native($0, preferences: model.preferences) } ?? NSColor.textBackgroundColor
-                let bright = background.blended(withFraction: 0.5, of: .textBackgroundColor) ?? background
-                NSGradient(starting: bright, ending: background)?.draw(in: row, angle: 90)
+                let background = RevisionGraphPalette.background(label.1, pointer: label.0 == "super-project-pointer", preferences: model.preferences)
+                background.setFill(); row.fill()
                 if text {
-                    let attributes: [NSAttributedString.Key: Any] = [.font: RevisionGraphWindowModel.font, .foregroundColor: LogPalette.foreground(background: background)]
+                    let attributes: [NSAttributedString.Key: Any] = [.font: RevisionGraphWindowModel.font, .foregroundColor: RevisionGraphPalette.foreground(background)]
                     let size = (label.0 as NSString).size(withAttributes: attributes)
-                    (label.0 as NSString).draw(at: CGPoint(x: rect.midX - size.width / 2, y: row.midY - size.height / 2), withAttributes: attributes)
+                    (label.0 as NSString).draw(at: CGPoint(x: rect.minX + 20, y: row.midY - size.height / 2), withAttributes: attributes)
                 }
             }
             NSGraphicsContext.restoreGraphicsState()
-            (model.selection.contains(node.hash) ? NSColor.selectedControlColor : NSColor.labelColor).setStroke(); path.lineWidth = model.selection.contains(node.hash) ? 3 : 1; path.stroke()
+            if let index = model.selection.firstIndex(of: node.hash) {
+                let color = index == 0 ? NSColor.selectedControlColor : NSColor(srgbRed: 136.0/255, green: 0, blue: 21.0/255, alpha: 1)
+                color.setStroke(); path.lineWidth = max(4, 1 / model.zoom); path.stroke()
+                if text {
+                    let marker = NSBezierPath(); marker.lineWidth = path.lineWidth
+                    for x in (index == 0 ? [CGFloat(10)] : [CGFloat(5), CGFloat(15)]) {
+                        marker.move(to: CGPoint(x: rect.minX + x, y: rect.minY - 25)); marker.line(to: CGPoint(x: rect.minX + x, y: rect.minY - 5))
+                    }
+                    marker.stroke()
+                    if index == 0, model.selection.count == 2 {
+                        ("(Base)" as NSString).draw(at: CGPoint(x: rect.minX + 14, y: rect.minY - 25), withAttributes: [.font: RevisionGraphWindowModel.font, .foregroundColor: color])
+                    }
+                }
+            }
         }
     }
     func hit(_ point: CGPoint) -> String? {

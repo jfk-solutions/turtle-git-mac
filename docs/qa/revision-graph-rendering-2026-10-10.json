@@ -1,0 +1,70 @@
+{
+  "checked_at": "2026-10-10T13:50:52.655519+00:00",
+  "parent_commit": "53055431f803673f94021ae404dbcdcc228a76e1",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Revision Graph source rendering correction and native light/dark documentation captures, not complete parity.",
+  "source_changes": [
+    "solid COLORLINE reference fills",
+    "graph-specific sRGB contrast threshold 0.5",
+    "source horizontal label padding and 12-point native font",
+    "minimum eight-hash-character node width",
+    "current/local color preference and Bisect Skip source color",
+    "source pink superproject pointer color",
+    "I/Base and red II selection markers",
+    "opaque native content surface"
+  ],
+  "checks": {
+    "native_receiver_system_git": {
+      "exit_code": 0,
+      "marker": "PASS: Native Revision Graph"
+    },
+    "native_receiver_bundled_git": {
+      "exit_code": 0,
+      "marker": "PASS: Native Revision Graph"
+    },
+    "unsigned_debug_build": 0,
+    "unsigned_appstore_build": 0,
+    "debug_bundle_audit": 0,
+    "appstore_bundle_audit": 0,
+    "local_pages_build": 0,
+    "owned_windows": "Activation prohibited; alpha-zero windows, hidden alpha-one capture scope, all closed and fixtures removed."
+  },
+  "screenshots": [
+    {
+      "path": "docs/site/assets/revision-graph-light.png",
+      "sha256": "97f4c93eb92839626d0a2e8b933efacbd456484708d8a6e679c05c28d8ae9ce3",
+      "width": 1960,
+      "height": 1340,
+      "inspection": "Actual NSView capture inspected: readable native controls, colors and complete content bounds."
+    },
+    {
+      "path": "docs/site/assets/revision-graph-dark.png",
+      "sha256": "f24246e9f5230235ef2be47b9ced2ca5272a706e5d33207c0fd3410afd1891ef",
+      "width": 1960,
+      "height": 1340,
+      "inspection": "Actual NSView capture inspected: readable native controls, colors and complete content bounds."
+    },
+    {
+      "path": "docs/site/assets/revision-graph-filter-light.png",
+      "sha256": "ae60f5358580ab81324e1aca10ce8a671382de26b55ebd34f8af010910eec93f",
+      "width": 1020,
+      "height": 380,
+      "inspection": "Actual NSView capture inspected: readable native controls, colors and complete content bounds."
+    },
+    {
+      "path": "docs/site/assets/revision-graph-filter-dark.png",
+      "sha256": "2a67bc0af6ebe994c3c622b042249b36ee3d5dfcfa3c90c0bb1b7f87df5e4e33",
+      "width": 1020,
+      "height": 380,
+      "inspection": "Actual NSView capture inspected: readable native controls, colors and complete content bounds."
+    }
+  ],
+  "pending": [
+    "complete node menus and export formats",
+    "reference-browser native handoff acceptance",
+    "keyboard/VoiceOver/physical gestures",
+    "large graph responsiveness and state persistence",
+    "signed Finder and App Store acceptance",
+    "hosted publication and current GitHub CI"
+  ]
+}
