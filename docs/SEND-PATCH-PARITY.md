@@ -459,3 +459,32 @@ selected-mail/cancel parent lifetime, partial acceptance/ambiguity, retry/footer
 Abort No/Yes and unordered light/dark layout. An injected presentation hook keeps
 all test windows hidden. No real mail service or user Keychain is touched. See
 [native progress QA](qa/send-patch-native-progress-2026-10-10.json).
+
+## Send Mail notification list
+
+The configured progress window now uses native Action/Path report columns,
+matching `IDD_SVNPROGRESS`/`CGitProgressList` rather than the CLI RichEdit dialog.
+The table leads the layout; the progress label/bar sits below it while running.
+Command uses the source gray Cmd color, Sending uses Modified, errors use
+Conflict, Notice is neutral, and Finished! is blue/red with an elapsed-time and
+locale-aware date string. The fixed date preference is respected. Sending keeps
+the selected native path (blank for combined mail); filenames with CR/LF use
+visible glyphs in cells while retaining the original value for copying.
+
+Header sorting is disabled while running. Completed sorting affects only
+contiguous Sending blocks, keeping Command/Notice/Error/Finished rows in place.
+The notification list retains all control rows independently of the CLI text
+output byte limit, including the final result. Selection identities survive appended notifications; the view follows new rows
+only when the user is already near the bottom. Initial content sizing covers the
+first 30 notifications, and viewport layout preserves user column widths.
+
+Base Send Mail notifications have no source file menu or double-click action.
+Their completed context menu contains only Copy to clipboard, with the original
+Copy icon and icon preference; it copies Path values. Cmd-A selects all and
+Cmd-C works while running, copying Action/Path with the source's empty third
+column spacing and CRLF. Native checks use a private pasteboard and exercise
+columns, row kinds/colors, busy gates, copy distinctions, sorting boundaries,
+selection retention and width retention alongside real loopback delivery. See
+[notification QA](qa/send-patch-notifications-2026-10-10.json).
+Other GitProgressList consumers, full shared progress UI, displayed/signed
+acceptance and complete mail-client/direct delivery remain pending.

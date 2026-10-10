@@ -350,6 +350,9 @@ private final class SendPatchProgressMailbox: @unchecked Sendable {
     typealias Submission = @MainActor (OperationCancellation, @escaping @Sendable (SMTPSeriesProgress) -> Void) async throws -> [SMTPReceipt]
     let repository: GitRepository
     let total: Int
+    private let files: [URL], combined: Bool
+    @Published private(set) var notifications: [SendPatchNotification] = []
+    var notificationPreferences: UserDefaults { preferences }
     private let submission: Submission, preferences: UserDefaults, policy: GitProgressAutoClose
     private let token = OperationCancellation()
     private var started = false, invalidated = false, logBytes = 0
@@ -374,6 +377,7 @@ private final class SendPatchProgressMailbox: @unchecked Sendable {
     var actionLogEligible: Bool { started && !busy && !invalidated }
     init(request: SendPatchRequest, repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, submission: Submission? = nil) {
         self.repository = repository; total = request.messages.count; self.preferences = preferences
+        files = request.files; combined = request.options.combine
         policy = GitProgressAutoClose(preferences: preferences); logLimit = GitProgressOutputState(preferences: preferences).limit
         self.submission = submission ?? { token, progress in
             try await SendPatchSMTPDelivery.send(request, repository: repository, access: access, cancellation: token, onProgress: progress)
@@ -381,6 +385,7 @@ private final class SendPatchProgressMailbox: @unchecked Sendable {
     }
     func start() {
         guard !started, !invalidated else { return }; started = true; busy = true; currentWork = "Capturing sender and credentials…"
+        notify(action: "Command", path: "Send Email", kind: .command)
         let began = ProcessInfo.processInfo.systemUptime, mailbox = SendPatchProgressMailbox()
         let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
         Task {
@@ -394,7 +399,8 @@ private final class SendPatchProgressMailbox: @unchecked Sendable {
                 let receipts = try await work.value
                 guard !invalidated else { busy = false; return }
                 accepted = receipts.count; success = receipts.count == total
-                if !success { error = "The transport returned an incomplete acceptance result."; append("error: " + error!) }
+                if !success { error = "The transport returned an incomplete acceptance result."; append("error: " + error!)
+                    notify(action: "Error", path: error!, kind: .error) }
             } catch {
                 guard !invalidated else { busy = false; return }
                 if let failure = error as? SMTPSeriesFailure { accepted = failure.accepted.count; currentIndex = failure.index }
@@ -403,13 +409,27 @@ private final class SendPatchProgressMailbox: @unchecked Sendable {
                 if let failure = error as? SMTPSeriesFailure, case SMTPFailure.transfer(_, _, true) = failure.cause { uncertain = true }
                 cancelled = token.isCancelled && !uncertain
                 append((cancelled ? "warning: " : "error: ") + error.localizedDescription)
+                notify(action: "Error", path: error.localizedDescription, kind: .error)
             }
             append("Accepted \(accepted) of \(total) messages.")
             let completion = SubmoduleProgressCompletion(success: success, cancelled: cancelled, exitCode: nil,
                 elapsed: ProcessInfo.processInfo.systemUptime - began, preferences: preferences)
             currentWork = completion.currentWork; completionRange = completion.append(to: &output)
+            let formatter = DateFormatter(); formatter.dateStyle = .short; formatter.timeStyle = .medium
+            if (preferences.object(forKey: "UseSystemLocaleForDates") as? NSNumber)?.boolValue == false {
+                formatter.locale = Locale(identifier: "en_US_POSIX"); formatter.calendar = Calendar(identifier: .gregorian); formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+            }
+            let elapsed = ProcessInfo.processInfo.systemUptime - began
+            let milliseconds = Int64(max(0, min(elapsed.isFinite ? elapsed : 0, Double(Int64.max / 2000))) * 1000)
+            notify(action: "Finished!", path: "\(success ? "Success" : "Fail") (\(milliseconds) ms @ \(formatter.string(from: Date())))", kind: success ? .finishedSuccess : .finishedFailure)
             percentage = success ? 100 : total == 0 ? 0 : Int(Double(accepted) / Double(total) * 100)
             busy = false; saveActionLog(); finishAutomaticClose()
+        }
+    }
+    private func notify(action: String, path: String, kind: SendPatchNotification.Kind) {
+        let lines = kind == .sending ? [path] : path.components(separatedBy: "\n").map { $0.trimmingCharacters(in: .newlines) }.filter { !$0.isEmpty }
+        for value in lines {
+            notifications.append(SendPatchNotification(action: action, path: value, kind: kind))
         }
     }
     private func append(_ line: String) {
@@ -423,7 +443,10 @@ private final class SendPatchProgressMailbox: @unchecked Sendable {
         case let .sending(index, count, attempt):
             currentIndex = index; currentWork = "Sending message \(index + 1) of \(count) (attempt \(attempt))"
             append(currentWork)
-        case let .retry(index, next): append("Retrying message \(index + 1) (attempt \(next))…")
+            notify(action: "Sending...", path: !combined && files.indices.contains(index) ? files[index].path : "", kind: .sending)
+        case let .retry(index, next):
+            notify(action: "Notice", path: "Retrying in 2 seconds...", kind: .notice)
+            append("Retrying message \(index + 1) (attempt \(next))…")
         case let .accepted(index, response):
             accepted = max(accepted, index + 1); append("Message \(index + 1) accepted (SMTP \(response)).")
             percentage = total == 0 ? 0 : Int(Double(accepted) / Double(total) * 100)
@@ -453,7 +476,7 @@ private final class SendPatchProgressMailbox: @unchecked Sendable {
     init(model: SendPatchProgressModel) {
         self.model = model
         let window = SubmoduleProgressNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 430), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "Send Patch – TurtleGit"; window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 600, height: 320)
+        window.title = "\(model.repository.root.lastPathComponent) – Send Email – TurtleGit"; window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 600, height: 320)
         window.contentViewController = NSHostingController(rootView: SendPatchProgressDialog(model: model))
         super.init(window: window); window.delegate = self; window.center()
         model.close = { [weak self] in guard let self, !self.model.activeOperation, self.window?.attachedSheet == nil else { return }; self.window?.close() }
@@ -474,11 +497,14 @@ private struct SendPatchProgressDialog: View {
     @ObservedObject var model: SendPatchProgressModel
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack { if let image = MenuIcon.sendMail.image() { Image(nsImage: image) }; Text("Sending patches").font(.headline) }
-            Text(model.repository.root.path).font(.caption).textSelection(.enabled)
-            Text(model.currentWork.isEmpty ? " " : model.currentWork).font(.caption)
-            ProgressView(value: Double(model.percentage), total: 100).tint(model.busy ? .accentColor : model.success ? .blue : .red)
-            SubmoduleProgressOutputView(text: model.output, completed: !model.busy, completionRange: model.completionRange, success: model.success).frame(maxWidth: .infinity, maxHeight: .infinity)
+            SendPatchNotificationList(model: model).frame(maxWidth: .infinity, maxHeight: .infinity)
+            if model.busy {
+                HStack {
+                    Text(model.currentWork.isEmpty ? " " : model.currentWork).font(.caption)
+                    Spacer()
+                    ProgressView(value: Double(model.percentage), total: 100).frame(width: 240)
+                }
+            }
             HStack {
                 Text("Accepted \(model.accepted) of \(model.total)").foregroundStyle(model.success ? Color.green : model.busy ? Color.primary : Color.red)
                 if model.busy { ProgressView().controlSize(.small) }

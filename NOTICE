@@ -1230,3 +1230,13 @@ under GPL-2.0-or-later. SendMailProgressCommand.cpp Copyright (C) 2013-2014,
 Native retained options/result lifetime, cancellation, coalesced byte progress
 and configured Format/Import dispatch replace MFC progress ownership. Full
 notification-table, other delivery modes and signed acceptance remain pending.
+
+SendPatchList.swift's native Send Mail notification table adapts Action/Path,
+auxiliary-boundary sorting, context/keyboard copying and color semantics from
+GitProgressList.cpp/.h under GPL-2.0-or-later. GitProgressList.cpp Copyright
+(C) 2008-2026 TortoiseGit and (C) 2003-2008 TortoiseSVN; its header Copyright
+(C) 2008-2023, 2025 TortoiseGit and (C) 2003-2008 TortoiseSVN. Color/date behavior
+also follows Colors.cpp (Copyright (C) 2003-2007 TortoiseSVN; (C) 2009-2013,
+2016-2019 TortoiseGit) and LoglistUtils.cpp (Copyright (C) 2008-2012, 2014,
+2016-2017, 2019 TortoiseGit; (C) 2003-2008 TortoiseSVN). AppKit virtual rows,
+clipboard, dynamic appearance and native path display replace Windows APIs.

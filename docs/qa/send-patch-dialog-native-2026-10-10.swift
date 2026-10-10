@@ -376,8 +376,11 @@ private actor DeliveryProbe {
             notify(.sending(index: 1, total: 2, attempt: 1)); notify(.retry(index: 1, nextAttempt: 2))
             throw SMTPSeriesFailure(index: 1, attempts: 1, accepted: [receipt], cause: SMTPFailure.transfer(code: 55, response: 0, possiblySubmitted: true))
         })
+        prefs.set(false, forKey: "UseSystemLocaleForDates"); prefs.set(false, forKey: "ShowGitexeTimings")
         failed.start(); failed.start()
         while failed.busy { try await Task.sleep(nanoseconds: 10_000_000) }
+        try require(failed.notifications.last?.path.contains(" ms @ ") == true && failed.notifications.last?.path.range(of: #"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}"#, options: .regularExpression) != nil, "List finish row always has timings and respects fixed-date preference")
+        prefs.removeObject(forKey: "UseSystemLocaleForDates"); prefs.removeObject(forKey: "ShowGitexeTimings")
         try require(!failed.success && !failed.cancelled && failed.accepted == 1 && failed.percentage == 50, "Partial acceptance and uncertain delivery remain failures")
         try require(failed.output.contains("Retrying message 2") && failed.output.contains("verify before retrying") && failed.completionRange != nil, "Retry/error/uncertainty/footer retained")
         let stopped = SendPatchProgressModel(request: captured, repository: repository, access: nil, preferences: prefs, submission: { token, notify in
@@ -402,6 +405,55 @@ private actor DeliveryProbe {
             try require(hidden.window?.isVisible == false && (hidden.window?.contentView?.fittingSize.height ?? 0) < 430, "Hidden progress layout fits light/dark")
             hidden.window?.performClose(nil)
         }
+        try require(progress.model.notifications.map(\.action) == ["Command", "Sending...", "Finished!"], "Source-style combined notifications without invented file actions")
+        try require(failed.notifications.contains { $0.action == "Notice" && $0.path == "Retrying in 2 seconds..." } && failed.notifications.last?.kind == .finishedFailure, "Retry notice and failure finish row")
+        let rows = [SendPatchNotification(action: "Command", path: "Send Email", kind: .command),
+            SendPatchNotification(action: "Sending...", path: "/b.patch", kind: .sending),
+            SendPatchNotification(action: "Sending...", path: "/A.patch", kind: .sending),
+            SendPatchNotification(action: "Notice", path: "boundary", kind: .notice),
+            SendPatchNotification(action: "Sending...", path: "/d.patch", kind: .sending),
+            SendPatchNotification(action: "Sending...", path: "/C.patch", kind: .sending),
+            SendPatchNotification(action: "Finished!", path: "Success", kind: .finishedSuccess)]
+        let table = SendPatchNotificationTable(); table.preferences = prefs
+        let clipboard = NSPasteboard(name: NSPasteboard.Name("TurtleGit.Progress.QA." + UUID().uuidString)); table.clipboard = clipboard
+        defer { clipboard.releaseGlobally() }
+        table.configure(rows, running: true); table.selectRowIndexes(IndexSet([0, 1]), byExtendingSelection: false)
+        try require(table.tableColumns.map(\.title) == ["Action", "Path"] && table.contextMenuForSelection() == nil, "Source columns and no running context menu")
+        table.tableView(table, didClick: table.tableColumns[1]); try require(table.rows == rows, "Running header sort ignored")
+        guard let copyKey = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .command, timestamp: 0, windowNumber: 0, context: nil, characters: "c", charactersIgnoringModifiers: "c", isARepeat: false, keyCode: 8) else { throw VerificationFailure(description: "No synthetic Copy key") }
+        try require(table.performKeyEquivalent(with: copyKey), "Native keyboard Copy during send")
+        try require(clipboard.string(forType: .string) == "Command: Send Email  \r\nSending...: /b.patch  \r\n", "Keyboard includes Action/Path and source empty third column spacing")
+        table.configure(rows, running: false); table.tableView(table, didClick: table.tableColumns[1])
+        try require(table.rows.map(\.path) == ["Send Email", "/A.patch", "/b.patch", "boundary", "/C.patch", "/d.patch", "Success"], "Sort each action block without moving auxiliary boundaries")
+        table.selectRowIndexes(IndexSet([0, 2]), byExtendingSelection: false); prefs.set(true, forKey: "ShowAppContextMenuIcons")
+        try require(table.contextMenuForSelection()?.items.map(\.title) == ["Copy to clipboard"] && table.contextMenuForSelection()?.items.first?.image != nil, "Completed base notification Copy menu and original icon only")
+        table.tableColumns[0].width = 213; table.fitViewport(NSSize(width: 700, height: 200))
+        try require(table.tableColumns[0].width == 213, "Manual column width survives viewport layout")
+        table.copyPaths(nil); try require(clipboard.string(forType: .string) == "Send Email\r\n/b.patch", "Context Copy contains only Path column")
+        prefs.set(false, forKey: "ShowAppContextMenuIcons"); try require(table.contextMenuForSelection()?.items.first?.image == nil, "Copy menu obeys icon preference"); prefs.removeObject(forKey: "ShowAppContextMenuIcons")
+        table.configure(rows + [SendPatchNotification(action: "Notice", path: "appended", kind: .notice)], running: false)
+        try require(table.selectedRowIndexes == IndexSet([0, 2]), "Selected row identities survive append/sort")
+        table.deselectAll(nil)
+        let hitPoint = table.convert(NSPoint(x: 10, y: table.rect(ofRow: 1).midY), to: nil)
+        guard let rightClick = NSEvent.mouseEvent(with: .rightMouseDown, location: hitPoint, modifierFlags: [], timestamp: 0, windowNumber: 0, context: nil, eventNumber: 0, clickCount: 1, pressure: 0) else { throw VerificationFailure(description: "No synthetic context click") }
+        try require(table.menu(for: rightClick)?.items.count == 1 && table.selectedRowIndexes == IndexSet(integer: 1), "First context click selects the clicked completed row")
+        for appearance in [NSAppearance.Name.aqua, .darkAqua] {
+            var color: NSColor?
+            NSAppearance(named: appearance)?.performAsCurrentDrawingAppearance { color = rows[1].color(preferences: prefs).usingColorSpace(.sRGB) }
+            try require(color != nil && color!.blueComponent > color!.redComponent, "Modified row remains colorful in both appearances")
+        }
+        prefs.set(16, forKey: "GitOutputLimitinKiB")
+        let bulkNotificationModel = SendPatchProgressModel(request: captured, repository: repository, access: nil, preferences: prefs, submission: { _, notify in
+            for _ in 0..<1000 { notify(.sending(index: 0, total: 2, attempt: 1)) }
+            return []
+        })
+        bulkNotificationModel.start()
+        let bulkDeadline = Date().addingTimeInterval(10)
+        while bulkNotificationModel.busy && Date() < bulkDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        try require(!bulkNotificationModel.busy && bulkNotificationModel.notifications.count == 1003 && bulkNotificationModel.notifications.last?.kind == .finishedFailure, "Notification list keeps all rows independently of CLI log limits")
+        try require(bulkNotificationModel.notifications.filter { $0.kind == .sending }.allSatisfy { $0.path == first.path }, "Newline filename remains one complete Sending path")
+        prefs.removeObject(forKey: "GitOutputLimitinKiB")
+        print("Send notification table: Action/Path, source row kinds/colors, base Copy-only context/icon gates, running keyboard copy, completed block sorting and selection preservation passed with private clipboard.")
         print("Native configured progress and Format/Import routes: retained hidden options/result, real loopback success, accepted-prefix uncertainty, retry/footer, Abort confirmation/No/Yes and light/dark checks passed.")
         let afterLoopback = await credentialSource.count()
         try require(afterLoopback == afterInvalid, "Production unauthenticated entry queried credentials")

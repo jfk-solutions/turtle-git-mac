@@ -1,0 +1,87 @@
+{
+  "checked_at": "2026-10-10T03:07:12.890665+00:00",
+  "parent_commit": "8da7e3a63c8b946f1dd5c0fe88bf7970420a3f4e",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Native configured Send Mail Action/Path notification table and source-specific copy/sort/color semantics; shared progress/full port incomplete",
+  "upstream_blob_sha256": {
+    "src/TortoiseProc/GitProgressList.cpp": "ffba91389cea5668cf88ced557608e3543e9086c9b44a5e9f176949bbe2bc5d4",
+    "src/TortoiseProc/GitProgressList.h": "46fac0d512a24efe14c8c08ec16c7e0d48426bc6a4df13c882814b882894dbed",
+    "src/TortoiseProc/Colors.cpp": "af17d2495493ace08a60c2483c36eaac781bad8e16bcd77335c671581daf4d53",
+    "src/TortoiseProc/LoglistUtils.cpp": "1b5afef99e8fe97fd9ad2cc5db5c576206bbbc3a6248e6327a2c0e20b2fbb098",
+    "src/Resources/TortoiseProcENG.rc": "148a0b3e3165254286c088296a8dc7c9d2df3bbca5546c259929506bfb81bed6",
+    "src/Git/TGitPath.cpp": "0c9361caf2709679010b903b5dce519ffffafd0a441f1a7d46d8ad5a88c30eb2"
+  },
+  "checks": {
+    "native_receiver_exit": 0,
+    "debug_build_exit": 0,
+    "unsigned_appstore_build_exit": 0,
+    "debug_bundle_audit_exit": 0,
+    "appstore_bundle_audit_exit": 0,
+    "inventory_pin_exit": 0,
+    "bundled_icons": 100,
+    "core_tests_rerun": false,
+    "core_evidence": "Core/SMTP binaries match parent checkpoint and the inherited 22 mail tests with both Git runtimes",
+    "cases": [
+      "Actual hidden Format options/progress/private Git/SDK SMTP loopback and independent MIME decoder retained",
+      "Combined notifications are Command/Sending/Finished without invented file actions; sending uses Modified and failed finish red",
+      "Retry Notice and error/finish rows retained; fixed-date preference plus timings independent of CLI timing flag",
+      "Action/Path columns; running sort/context menu blocked; keyboard Cmd-C allowed during running with source third-column empty spacing and CRLF",
+      "Completed Path-only Copy menu uses original icon and icon preference; first right-click selects clicked row",
+      "Case-insensitive path sorting stays inside contiguous non-auxiliary blocks; selection IDs survive append/sort",
+      "Manual Action width retained through viewport layout; Modified color remains colorful under aqua/darkAqua",
+      "1000 notification events retained independently of 16 KiB CLI log limit; final failure row preserved; newline filenames stay complete single Sending paths",
+      "Existing partial acceptance, Abort No/Yes, parent lifetime, sender/credentials gates and hidden themes retained"
+    ],
+    "source_correction": "Initial Debug build exposed actor isolation on shared AppKit color helpers; color resolution moved to MainActor before final passing builds. Viewport sizing restricted to changed values/content arrival; notification rows decoupled from CLI log truncation.",
+    "preferences": [
+      {
+        "suite": "TurtleGit.SendPatch.QA.B49AA07F-9F4F-4544-BC2F-676CB8314878",
+        "verified_empty": true,
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "suite": "TurtleGit.SendPatch.QA.8FEA4C9D-B607-460F-A6DF-5E65B5D2629E",
+        "verified_empty": true,
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "suite": "TurtleGit.SendPatch.QA.7B20EACE-2EDF-44FB-962E-5D9ECD51045B",
+        "verified_empty": true,
+        "defaults_delete_exit": 1,
+        "removed": true
+      }
+    ],
+    "final_audit": {
+      "matching_processes": [],
+      "current_fixtures": []
+    },
+    "side_effects": "Injected unordered windows, private repository/config, named private pasteboards released by receivers and owned loopback SMTP only. No main app, real mail service, user Keychain or general clipboard; three exact empty owned preference domains and all fixtures/processes cleaned."
+  },
+  "source_sha256": {
+    "NOTICE": "cda0459a3e91489c0058cc07eedaf2449fc7a968158748c1133c15f4f70c2014",
+    "Sources/TurtleGitMac/SendPatchList.swift": "2b149e825494f3617caec1661464a41a0d6be608dd0bb2765c3358e040b8251e",
+    "Sources/TurtleGitMac/SendPatchWindow.swift": "d27c83522e04e31cbd09115fe1c1491dfaab1e37fccb2e09679c8293d11b5142",
+    "docs/PORTING.md": "954125aa67d4e4103e951b10e88dacac14f6aadc81e0249cc67519c8ee024629",
+    "docs/SEND-PATCH-PARITY.md": "b796a8f348ec71006e98164a830b9558663714917181fabb681cfda084856136",
+    "docs/qa/send-patch-dialog-native-2026-10-10.swift": "8ab9c832e0709e7af6772768fc172fea0bdca3b14dd5485e4349d690f9a52fef",
+    "docs/upstream-files.csv": "07244c6e9f721fd7052d9395eb3100dca0881d23cb859d7d12e3e137b9bc61cb"
+  },
+  "binary_sha256": {
+    "Debug_app": "ae0fc297ae892ad6d53e5bfb2e3aee3218b8dda08c01e7e3c33faa88de63b8d1",
+    "Debug_core": "49e506806174ba00c8e252e54c1c07e417c981ebcd972c36056b0c7a45a5c57b",
+    "Debug_smtp": "f41d314777122b4e4f4bb47922ae13dba21a1879949b1c94fc5019a23bf147fe",
+    "AppStore_app": "02b95538991d0232dc1c844c79d4888bf32f3b65f059419d8c15c0367863cd24",
+    "AppStore_core": "19f12571ac5be6a2c45ff6ea8e11bca90147367b63595a9c42649f1e1b7ba33e",
+    "AppStore_smtp": "99c922bcd4ff4092d5d3b67d1c2ed741368afe84d72a943bada5aafc4108b3d6"
+  },
+  "limitations": [
+    "Shared GitProgressList consumers and remaining global progress preferences/menus/sounds, full column persistence and physical visual/gesture/VoiceOver acceptance pending",
+    "Native path display retains original macOS path values for copy rather than Windows path compaction; full unusual path/layout variants pending",
+    "Direct and Mail-client full options/delivery remain pending",
+    "Signed sandbox/Keychain/Finder, older OS runtime, notarization and App Store distribution acceptance pending",
+    "Full port/localization and hosted CI remain incomplete/unverified"
+  ],
+  "logs": "build/qa/send-patch-notifications-*.log and build/qa/send-patch-notifications-2026-10-10/ (ignored)"
+}
