@@ -516,7 +516,7 @@ import UniformTypeIdentifiers
         showUnversioned = unversionedDefaults.object(forKey: "AddBeforeCommit") == nil || unversionedDefaults.bool(forKey: "AddBeforeCommit")
     }
     func setShowUnversioned(_ enabled: Bool) {
-        guard !busy, !confirmingQuit else { return }
+        guard messageFocusAvailable, !busy, !confirmingQuit else { return }
         showUnversioned = enabled
         unversionedDefaults.set(enabled, forKey: "AddBeforeCommit")
     }
@@ -532,33 +532,33 @@ import UniformTypeIdentifiers
             .sorted(using: comparator).compactMap(\.entry)
     }
     @discardableResult func saveFileColumnLayout(order: [StatusListColumn], widths: [StatusListColumn: Double]) -> Bool {
-        guard !busy, !confirmingQuit else { return false }
+        guard messageFocusAvailable, !busy, !confirmingQuit else { return false }
         let next = StatusListColumnSettings(visible: fileColumns.visible, order: order, widths: widths)
         if fileColumns != next { fileColumns = next; fileColumns.save(to: dialogDefaults) }
         return true
     }
     func setFileColumn(_ column: StatusListColumn, visible: Bool) {
-        guard column != .path, availableFileColumns.contains(column), !busy, !confirmingQuit else { return }
+        guard messageFocusAvailable, column != .path, availableFileColumns.contains(column), !busy, !confirmingQuit else { return }
         if visible { fileColumns.visible.insert(column) } else { fileColumns.visible.remove(column) }
         fileColumns.save(to: dialogDefaults)
         if column == .lfsOwner { if visible { reload() } else { lfsOwners = [:]; lfsLockedPaths = []; lfsOwnershipKnown = false } }
     }
     @discardableResult func resetFileColumns() -> Bool {
-        guard !busy, !confirmingQuit else { return false }
+        guard messageFocusAvailable, !busy, !confirmingQuit else { return false }
         fileColumns = StatusListColumnSettings(); fileColumns.save(to: dialogDefaults); return true
     }
     func requestResetFileColumns(choose: @escaping () async -> Bool, onAccepted: @escaping () -> Void) {
-        guard !busy, !confirmingQuit else { return }
+        guard messageFocusAvailable, !busy, !confirmingQuit else { return }
         busy = true
         Task {
             defer { busy = false }
-            guard await choose(), !confirmingQuit else { return }
+            guard await choose(), messageFocusAvailable, !confirmingQuit else { return }
             fileColumns = StatusListColumnSettings(); fileColumns.save(to: dialogDefaults)
             onAccepted()
         }
     }
     func setFileSortOrder(_ order: [CommitFileSort]) {
-        guard !busy, !confirmingQuit else { return }
+        guard messageFocusAvailable, !busy, !confirmingQuit else { return }
         // The source retains one column, with its path tie-break, rather than
         // accumulating old columns as additional sorting priorities.
         fileSortOrder = Array(order.prefix(1))

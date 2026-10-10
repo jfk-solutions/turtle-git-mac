@@ -199,6 +199,37 @@ import TurtleGitCore
         let finalHead = try await repo.run(["rev-parse", "HEAD"]).stdout; precondition(finalHead == head)
         let finalIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")); precondition(finalIndex == index)
         let after = try protected.map { try Data(contentsOf: root.appendingPathComponent($0)) }; precondition(before == after)
+        // Close the real controller while an injected column-reset answer is pending.
+        let owner = CommitWindowController(repository: repo, access: nil, defaults: defaults)
+        owner.window!.contentViewController = NSHostingController(rootView: CommitDialog(model: owner.model).defaultAppStorage(defaults))
+        owner.window!.alphaValue = 0; owner.window!.orderFront(nil)
+        owner.model.setFileColumn(.fileSize, visible: true)
+        let oldColumns = owner.model.fileColumns, oldSort = owner.model.fileSortOrder
+        var reply: CheckedContinuation<Bool, Never>?, answered = false, accepted = 0, prompts = 0
+        owner.model.requestResetFileColumns(choose: {
+            prompts += 1
+            let result = await withCheckedContinuation { reply = $0 }
+            answered = true; return result
+        }, onAccepted: { accepted += 1 })
+        try await settle { reply != nil && owner.model.busy }
+        owner.model.requestResetFileColumns(choose: { prompts += 1; return true }, onAccepted: { accepted += 1 })
+        precondition(prompts == 1)
+        owner.window!.close()
+        precondition(!owner.model.messageFocusAvailable && !owner.model.busy)
+        let replacement = CommitWindowModel(repository: repo, access: nil, unversionedDefaults: defaults, dialogDefaults: defaults)
+        replacement.setFileColumn(.fileName, visible: true)
+        let freshColumns = replacement.fileColumns
+        precondition(freshColumns != StatusListColumnSettings())
+        reply!.resume(returning: true); reply = nil
+        try await settle { answered }
+        owner.model.setFileColumn(.fileSize, visible: false)
+        owner.model.setFileSortOrder([CommitFileSort(column: .status)])
+        owner.model.setShowUnversioned(!owner.model.showUnversioned)
+        precondition(!owner.model.saveFileColumnLayout(order: [.path], widths: [.path: 999]) && !owner.model.resetFileColumns())
+        owner.model.requestResetFileColumns(choose: { prompts += 1; return true }, onAccepted: { accepted += 1 })
+        precondition(prompts == 1 && accepted == 0 && owner.model.fileColumns == oldColumns && owner.model.fileSortOrder == oldSort)
+        precondition(StatusListColumnSettings.load(from: defaults) == freshColumns && !owner.window!.isVisible)
+        print("PASS Commit column lifecycle: actual controller forced close invalidates pending reset; delayed Yes cannot persist or call accepted; duplicate/closed settings actions refused; replacement preferences preserved. Private defaults, hidden windows.")
         window.close()
         print("PASS: native Commit eight sortable header prototypes, default optional hiding, header visibility dispatch, saved choices/reopen, injected reset No/Yes and owner operation locks, native moved-column identity, saved adjusted width/order, actual table reopening and visible clipboard order, width retention/reset, automatic header/content fitting, content-only adjusted fitting and default restoration, offscreen content width changes/manual retention, divider geometry and fit locks, visible-only metadata clipboard and actual data source binding dispatch; numeric/path ascending+descending, source path tie, fixed group order, checked/highlighted/focus identity; busy/Quit refusal, one-column policy, staged/unstaged statistics and reload retention; repository HEAD/raw index/worktree/changelists retained. Owned hidden window closed; no synthetic events or physical header acceptance.")
     }
