@@ -66,7 +66,7 @@ import TurtleGitCore
         }
     }
     func windowWillClose(_ notification: Notification) {
-        if let window = window as? FileComparisonNativeWindow { window.imageKeyModel?.stopAllPlayback(); window.imageKeysRetired = true; window.imageKeyModel = nil; window.imageKeyOwner = nil }
+        if let window = window as? FileComparisonNativeWindow { window.imageKeyModel?.presentation.retire(); window.imageKeyModel?.stopAllPlayback(); window.imageKeysRetired = true; window.imageKeyModel = nil; window.imageKeyOwner = nil }
         model.resetHistory(); onClosed()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
@@ -79,6 +79,7 @@ import TurtleGitCore
     private let access: RepositoryAccessLease?
     let snapshot: RevisionComparisonSnapshot
     let path: String
+    let imagePresentation = ImageWindowPresentation()
     @Published var imageComparison: ImageComparisonDocument?
     @Published var document: FileComparisonDocument?
     @Published var alignment: FileComparisonAlignment?
@@ -519,7 +520,7 @@ private struct FileComparisonDialog: View {
     var body: some View {
         Group {
             if let images = model.imageComparison, let document = model.document {
-                ImageComparisonDialog(images: images, document: document).id(images.id)
+                ImageComparisonDialog(images: images, document: document, model: ImageComparisonViewModel(presentation: model.imagePresentation)).id(images.id)
             } else { textBody }
         }.onAppear { model.load() }
         .onReceive(NotificationCenter.default.publisher(for: .mergeEditorPreferencesChanged)) { _ in model.refreshPreferences() }

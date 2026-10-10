@@ -1357,3 +1357,10 @@ player_fwd, player_start and player_stop ICO resources are bundled unchanged
 with source SHA256 provenance under the existing GPL resource choice. Native
 ImageIO uses zero-based indexes behind one-based counters; owned macOS tasks
 retain per-image timing and stop on scene/window retirement.
+
+Image-window transparent background selection and local Dark Mode adapt
+TortoiseIDiff/MainWindow.cpp ID_VIEW_TRANSPARENTCOLOR and SetTheme,
+PicWindow.cpp GetTransparentThemedColor and Utils/Theme.cpp color conversion
+at pinned commit 7338078f8ddd924b8cddee35f512f2286072136d. Native AppKit
+color sheets preserve OK/Cancel and shared-pane semantics; window appearance
+uses macOS colors while custom RGB colors use the existing CTheme adaptation.

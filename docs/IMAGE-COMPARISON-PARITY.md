@@ -24,8 +24,7 @@ Native colors follow the application appearance.
 
 ## Remaining requirements
 
-This is a partial native replacement. Configurable transparent color, standalone-open/background/dark keyboard
-commands, broader animation/frame/provider behavior and
+This is a partial native replacement. Standalone image-open commands, broader animation/frame/provider behavior and
 conflict selection acceptance, standalone Load Images,
 image title tooltips, retained layout/preferences and full resizing/physical
 interaction/VoiceOver/signed sandbox acceptance remain incomplete. No complete
@@ -157,3 +156,11 @@ comparison and conflict panes. Manual controls clamp, playback wraps with source
 delay limits, linked commands propagate, and overlay/scene/window retirement
 stops timers. See [frame/page parity](IMAGE-FRAMES-PARITY.md) for source details,
 format differences and verification scope.
+
+## Transparent color and per-window Dark Mode
+
+The View menu now includes native transparency color selection and Dark Mode,
+with scoped D keyboard routing. Comparison and conflict panes share the chosen
+RGB color per window, including alpha/XOR composition. Switching appearance
+resets it to the native theme default, matching upstream SetTheme. See
+[color parity](IMAGE-COLORS-PARITY.md) for source behavior and verification limits.

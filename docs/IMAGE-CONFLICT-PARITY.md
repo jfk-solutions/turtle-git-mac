@@ -46,7 +46,7 @@ metadata and Select controls. The receiver keeps sheet parents transparent and
 offscreen and then orders them out; all owned windows and fixtures are removed.
 Unsigned Debug and App Store builds and bundle audits passed, including
 the Finder extension and all 112 original icon resources. See the [QA record](qa/image-conflict-2026-10-10.json). This is a partial native replacement. Broader multiframe/provider
-behavior, background color, full format/DPI/border behavior, retained
+behavior, full format/DPI/border behavior, retained
 splitter preferences, physical keyboard/mouse/VoiceOver acceptance and signed
 sandbox/Finder/App Store acceptance remain open. The complete TortoiseGit port
 is not finished.
@@ -56,3 +56,7 @@ Multi-image conflict panes now share native frame/page controls and independent
 playback with the comparison viewer. Select still copies the complete original
 stage bytes, regardless of the currently previewed frame. See
 [frame/page parity](IMAGE-FRAMES-PARITY.md).
+
+All three conflict panes share a transparency color chooser and local Dark Mode,
+including the D key. Their navigation/zoom models remain independent. See
+[color parity](IMAGE-COLORS-PARITY.md).

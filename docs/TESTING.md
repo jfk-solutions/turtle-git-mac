@@ -641,3 +641,23 @@ whole GIF and leaves unmerged stages intact; closing cancels the pane's player. 
 stay transparent/offscreen and its temporary receiver and fixtures are removed.
 This does not establish physical gesture, VoiceOver, all-format or signed Finder
 acceptance. See [frame parity](IMAGE-FRAMES-PARITY.md).
+
+## Image transparent colors and local appearance
+
+After the Debug build, run:
+
+```sh
+python3 scripts/test-image-colors.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
+```
+
+The private native receiver exercises actual color wells and OK/Cancel sheet
+buttons, rendered transparent pixels in both comparison panes and all three
+conflict panes, alpha/XOR background composition, native-window D key routing,
+appearance reset and independence from other windows and NSApp. It checks
+close/Quit fencing, pending-sheet retirement, chooser survival across native
+view updates and retention of the selected color across source reload. Color checks
+use same-window native reference swatches to account for the display profile.
+It verifies unchanged comparison HEAD/index/image bytes and unchanged conflict
+index/working bytes. Owned windows remain transparent/offscreen and are closed;
+temporary receivers and fixtures are removed. Physical color-picker gestures,
+VoiceOver, high contrast and signed acceptance remain pending.

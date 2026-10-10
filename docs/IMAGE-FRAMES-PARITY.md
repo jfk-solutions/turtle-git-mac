@@ -50,6 +50,8 @@ Both final unsigned Debug and AppStore builds and bundle audits passed with
 checks do not prove signing, sandbox runtime acceptance or App Review eligibility.
 See the [QA record](qa/image-frames-2026-10-10.json). Exact GDI/ImageIO disposal, frame-index/provider,
 color-profile and DPI behavior across all image formats remains incomplete.
-Physical player/keyboard gestures, screen-reader announcements, background
-color, standalone image loading, retained preferences and signed distribution
+Physical player/keyboard gestures, screen-reader announcements, standalone image loading, retained preferences and signed distribution
 acceptance remain open. This is part of the continuing full application port.
+
+Shared transparency backgrounds and per-window Dark Mode are now implemented;
+see [color parity](IMAGE-COLORS-PARITY.md).

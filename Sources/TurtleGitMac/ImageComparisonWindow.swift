@@ -1,8 +1,15 @@
 import AppKit
 import SwiftUI
+import Combine
 import TurtleGitCore
 
 @MainActor final class ImageComparisonViewModel: ObservableObject {
+    let presentation: ImageWindowPresentation
+    private var presentationObserver: AnyCancellable?
+    init(presentation: ImageWindowPresentation? = nil) {
+        self.presentation = presentation ?? ImageWindowPresentation()
+        presentationObserver = self.presentation.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
+    }
     @Published var overlay = false { didSet { if overlay { stopAllPlayback(); linked = true; alpha = 0.5 } } }
     @Published var blendAlpha = true
     @Published var vertical = false
@@ -122,6 +129,7 @@ import TurtleGitCore
         default: break
         }
         switch key {
+        case "d": presentation.toggleDarkMode()
         case "o": overlay.toggle()
         case "f": fit = true
         case "s": originalSize()
@@ -207,10 +215,15 @@ import TurtleGitCore
                     Toggle(isOn: Binding(get: { model.fitHeights }, set: { _ in model.toggleHeights() })) { CommandLabel(title: "Fit image heights", icon: .imageFitHeights) }
                     Button { model.fit = true } label: { CommandLabel(title: "Fit images in window", icon: .imageFit) }
                     Button { model.originalSize() } label: { CommandLabel(title: "Original size", icon: .imageOriginal) }
-                    Button { model.changeZoom(zoomIn: true) } label: { CommandLabel(title: "Zoom in", icon: .imageZoomIn) }
+                    Button("Transparent color…") { model.presentation.chooseTransparentColor() }
+                    Divider()
                     Button { model.changeZoom(zoomIn: false) } label: { CommandLabel(title: "Zoom out", icon: .imageZoomOut) }
+                    Button { model.changeZoom(zoomIn: true) } label: { CommandLabel(title: "Zoom in", icon: .imageZoomIn) }
+                    Divider()
                     Toggle(isOn: $model.showInfo) { CommandLabel(title: "Image info", icon: .imageInfo) }
                     Toggle(isOn: $model.vertical) { CommandLabel(title: "Arrange vertical", icon: .imageVertical) }.disabled(model.overlay)
+                    Divider()
+                    ImageAppearanceMenu(presentation: model.presentation)
                 }
             }.padding(8)
             Divider()
@@ -273,6 +286,7 @@ struct ImageComparisonScroll: NSViewRepresentable {
         return scroll
     }
     func updateNSView(_ scroll: ImageComparisonScrollView, context: Context) {
+        scroll.transparentColor = model.presentation.transparentColor
         scroll.image = image; scroll.second = second; scroll.alpha = model.alpha; scroll.overlay = model.overlay; scroll.blendAlpha = model.blendAlpha
         let side = base
         scroll.recordViewport = { [weak model] size in model?.recordViewport(size, base: side) }
@@ -296,6 +310,7 @@ struct ImageComparisonScroll: NSViewRepresentable {
 }
 
 final class ImageComparisonScrollView: NSScrollView {
+    var transparentColor: NSColor?
     var image: ComparisonImage?
     var second: ComparisonImage?
     var alpha: Double = 0.5
@@ -312,12 +327,16 @@ final class ImageComparisonScrollView: NSScrollView {
         recordViewport?(viewport)
         let (firstSize, secondSize) = displayedSizes?() ?? (.zero, .zero)
         let extent = NSSize(width: max(viewport.width, firstSize.width, secondSize.width), height: max(viewport.height, firstSize.height, secondSize.height))
+        canvas.transparentColor = transparentColor
+        backgroundColor = ImageWindowPresentation.background(transparentColor, appearance: effectiveAppearance)
         canvas.image = image; canvas.second = second; canvas.imageSize = firstSize; canvas.secondSize = secondSize; canvas.alpha = alpha; canvas.overlay = overlay; canvas.blendAlpha = blendAlpha
         if canvas.frame.size != extent { canvas.setFrameSize(extent) }
         canvas.needsDisplay = true
     }
 }
 private final class ImageComparisonCanvas: NSView {
+    var transparentColor: NSColor?
+    private var imageBackground: NSColor { ImageWindowPresentation.background(transparentColor, appearance: effectiveAppearance) }
     var image: ComparisonImage?
     var second: ComparisonImage?
     var imageSize = CGSize.zero
@@ -329,7 +348,7 @@ private final class ImageComparisonCanvas: NSView {
     private var dragOrigin = NSPoint.zero
     override var isFlipped: Bool { true }
     override func draw(_ dirtyRect: NSRect) {
-        NSColor.textBackgroundColor.setFill(); dirtyRect.fill()
+        imageBackground.setFill(); dirtyRect.fill()
         let combined = CGSize(width: max(imageSize.width, secondSize.width), height: max(imageSize.height, secondSize.height))
         let origin = CGPoint(x: (bounds.width - combined.width) / 2, y: (bounds.height - combined.height) / 2)
         func paint(_ source: ComparisonImage?, size: CGSize, fraction: Double) {
@@ -351,7 +370,7 @@ private final class ImageComparisonCanvas: NSView {
             }
             if let result = ImageComparisonXOR.render(base: image?.pixels, destination: second?.pixels,
                                                      width: width, height: height, baseRect: rect(imageSize),
-                                                     destinationRect: rect(secondSize), background: NSColor.textBackgroundColor.cgColor) {
+                                                     destinationRect: rect(secondSize), background: imageBackground.cgColor) {
                 NSImage(cgImage: result, size: tile.size).draw(in: tile, from: .zero, operation: .copy,
                     fraction: 1, respectFlipped: true, hints: [.interpolation: NSImageInterpolation.none])
             } else {
@@ -362,7 +381,7 @@ private final class ImageComparisonCanvas: NSView {
         paint(image, size: imageSize, fraction: 1)
         if overlay, alpha > 0 {
             let layer = NSImage(size: bounds.size, flipped: true) { [self] rect in
-                NSColor.textBackgroundColor.setFill(); rect.fill()
+                imageBackground.setFill(); rect.fill()
                 paint(second, size: secondSize, fraction: 1)
                 return true
             }
@@ -399,12 +418,15 @@ private final class ImageComparisonKeyView: NSView {
     private let keyOwnerID = UUID()
     override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); install() }
     func install() {
+        guard let target = window as? ImageComparisonKeyRouting, !target.imageKeysRetired else { retire(); return }
+        // Updates such as playback ticks must not retire an owned color sheet.
+        if target.imageKeyOwner == keyOwnerID, target.imageKeyModel === model { return }
         retire()
-        guard let target = window as? ImageComparisonKeyRouting, !target.imageKeysRetired else { return }
         target.imageKeyOwner = keyOwnerID; target.imageKeyModel = model; owner = target
+        if let window { model?.presentation.attach(window) }
     }
     func retire() {
-        if owner?.imageKeyOwner == keyOwnerID { owner?.imageKeyModel = nil; owner?.imageKeyOwner = nil }
+        if owner?.imageKeyOwner == keyOwnerID { model?.presentation.retire(); owner?.imageKeyModel = nil; owner?.imageKeyOwner = nil }
         owner = nil
     }
 }

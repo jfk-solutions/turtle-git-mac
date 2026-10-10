@@ -161,3 +161,5 @@ and regenerate controls with `python3 scripts/inventory-dialog-controls.py`.
 Changed blobs, dialog resources and control declarations require renewed review.
 External libraries and gitlinks are inventoried, but their nested repositories
 are not recursively audited.
+
+- [Image transparent colors and local appearance](IMAGE-COLORS-PARITY.md)

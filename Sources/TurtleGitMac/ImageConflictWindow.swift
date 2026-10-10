@@ -18,6 +18,7 @@ import TurtleGitCore
         case "+", "=": imageModel.zoom(true)
         case "-": imageModel.zoom(false)
         case "i": imageModel.showInfo.toggle()
+        case "d": imageModel.presentation.toggleDarkMode()
         default: return super.performKeyEquivalent(with: event)
         }
         return true
@@ -32,7 +33,7 @@ import TurtleGitCore
         window.isReleasedWhenClosed = false; window.title = document.entry.path + " — TurtleGitIDiff"
         window.contentView = NSHostingView(rootView: ImageConflictDialog(model: model))
         window.minSize = NSSize(width: 800,height: 400)
-        super.init(window: window); window.delegate = self; window.imageModel = model; window.center()
+        super.init(window: window); model.presentation.attach(window); window.delegate = self; window.imageModel = model; window.center()
         model.close = { [weak window] in window?.close() }
         model.askMarkResolved = { [weak window] path in
             guard let window else { return false }
@@ -66,21 +67,23 @@ import TurtleGitCore
     var onChanged: (String) -> Void = { _ in }
     var close: () -> Void = {}
     var askMarkResolved: (String) async -> Bool = { _ in false }
+    let presentation = ImageWindowPresentation()
     let panes: [ImageConflictSide: ImageComparisonViewModel]
     private(set) var images: [ImageConflictSide: ComparisonImage]
     init(repository: GitRepository, access: RepositoryAccessLease?, document: ImageConflictDocument) {
         self.repository = repository; self.access = access; self.document = document
         let decoded = Dictionary(uniqueKeysWithValues: ImageConflictSide.allCases.compactMap { side in document.image(side).map { (side,$0) } })
         images = decoded
+        let presentation = self.presentation
         panes = Dictionary(uniqueKeysWithValues: ImageConflictSide.allCases.map { side in
-            let pane = ImageComparisonViewModel(); pane.configureImages(base: decoded[side], destination: nil)
+            let pane = ImageComparisonViewModel(presentation: presentation); pane.configureImages(base: decoded[side], destination: nil)
             return (side,pane)
         })
     }
     func fitImages() { for pane in panes.values { pane.fit = true } }
     func originalSize() { for pane in panes.values { pane.originalSize() } }
     func zoom(_ zoomIn: Bool) { for pane in panes.values { pane.changeZoom(zoomIn: zoomIn) } }
-    func retire() { for pane in panes.values { pane.stopAllPlayback() }; retired = true; cancellation?.cancel(); task?.cancel(); task = nil }
+    func retire() { presentation.retire(); for pane in panes.values { pane.stopAllPlayback() }; retired = true; cancellation?.cancel(); task?.cancel(); task = nil }
     func reload() {
         guard !busy, !retired else { return }; busy = true; error = nil
         let token = OperationCancellation(); cancellation = token
@@ -133,11 +136,16 @@ struct ImageConflictDialog: View {
                 Menu("View") {
                     Button { model.fitImages() } label: { CommandLabel(title: "Fit images in window", icon: .imageFit) }
                     Button { model.originalSize() } label: { CommandLabel(title: "Original size", icon: .imageOriginal) }
-                    Button { model.zoom(true) } label: { CommandLabel(title: "Zoom in", icon: .imageZoomIn) }
+                    Button("Transparent color…") { model.presentation.chooseTransparentColor() }
+                    Divider()
                     Button { model.zoom(false) } label: { CommandLabel(title: "Zoom out", icon: .imageZoomOut) }
+                    Button { model.zoom(true) } label: { CommandLabel(title: "Zoom in", icon: .imageZoomIn) }
+                    Divider()
                     Divider()
                     Toggle(isOn: $model.showInfo) { CommandLabel(title: "Image info", icon: .imageInfo) }
                     Toggle(isOn: $model.vertical) { CommandLabel(title: "Arrange vertical", icon: .imageVertical) }
+                    Divider()
+                    ImageAppearanceMenu(presentation: model.presentation)
                 }.fixedSize()
                 Button("Reload") { model.reload() }
             }.padding(8)

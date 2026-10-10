@@ -58,3 +58,8 @@ unmerged stages, so you can inspect or select another side. **Yes** stages the
 chosen image and closes the viewer. It does not commit or continue a rebase.
 For add/add conflicts, Base is empty and cannot be selected. Rebase pane titles
 identify which branch each side represents. See [image conflict parity](IMAGE-CONFLICT-PARITY.md).
+
+Use **View → Transparent color…** to choose a background behind transparent
+pixels. OK applies the chosen color to every pane in that window; Cancel keeps
+the current choice. **View → Dark Mode** (D) switches that image window's
+appearance and resets the transparency background to the theme default.
