@@ -77,10 +77,15 @@
     "correction": "Earlier capture exposed incorrect Show log horizontal placement and transparent root surface. Production horizontal stack fill and opaque native background corrected; latest captures show readable text/buttons and preserved original colored icons."
   },
   "full_local_suite": {
-    "status": "running",
-    "session_id": 37213,
+    "status": "completed",
+    "exit": 0,
+    "tests": 928,
+    "skipped": 1,
+    "failures": 0,
+    "unexpected": 0,
+    "seconds": 526.67,
     "log": "build/qa/commit-containing-refs-full-suite-2026-10-10.log",
-    "result_claim": "No terminal result yet; targeted checks do not establish full-suite success."
+    "source_checkpoint": "1769e2c738e9b078e6c377205f5124b23bd010db"
   },
   "ci_receiver_fix": {
     "checkpoint": "880860b",
@@ -125,6 +130,26 @@
     "build/qa/commit-containing-refs-store-layout-audit-2026-10-10.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
     "build/qa/ci-browser-smtp-module-current-2026-10-10.log": "71b597790ea07c904f139de233af3aa03bb63992bd469f1a8a64b4e965a1d6ec",
     "build/qa/commit-containing-refs-inventory-2026-10-10.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
-    "build/qa/commit-containing-refs-site-2026-10-10.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
-  }
+    "build/qa/commit-containing-refs-site-2026-10-10.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/commit-containing-refs-full-suite-2026-10-10.log": "e21135df9523527b165b094facd210f35f3601e746f66da60414282d33e69b54"
+  },
+  "published_checkpoint": "a806f22ffc26b9de85b0c11b38658a420b56fac9",
+  "hosted_snapshot": [
+    {
+      "id": 38084063632,
+      "name": "macOS",
+      "head_sha": "a806f22ffc26b9de85b0c11b38658a420b56fac9",
+      "status": "in_progress",
+      "conclusion": null,
+      "html_url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38084063632"
+    },
+    {
+      "id": 38084063735,
+      "name": "GitHub Pages",
+      "head_sha": "a806f22ffc26b9de85b0c11b38658a420b56fac9",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38084063735"
+    }
+  ]
 }

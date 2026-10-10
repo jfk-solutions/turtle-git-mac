@@ -76,7 +76,9 @@ The receiver owns hidden windows, private preferences and disposable repositorie
 and cleans up after terminal completion. Actual native content captures were
 inspected in light and dark mode and included on the Pages site. Physical input,
 VoiceOver, installed Finder and signed sandbox acceptance remain pending. The
-whole local suite is being rerun; targeted passes do not establish its result.
+complete local suite passed **928 tests, one skipped, zero failures** in
+526.670 seconds. The process exited normally; this result does not establish
+the new hosted CI result.
 See [the verification record](qa/commit-containing-refs-2026-10-10.json).
 
 ## Previous full-suite checkpoint
