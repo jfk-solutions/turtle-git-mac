@@ -1449,3 +1449,9 @@ message boxes to AppKit, retaining root/child modal ownership and OK semantics.
 Find reference initialization adapts synchronous CFindDlg::RefreshList to an
 owned cancellable native load; search is unavailable until the initial list
 read completes, preventing overlap with source-equivalent initialization errors.
+
+Log Find additionally adapts GitLogListBase::OnFindDialogMessage,
+LogDlgFilter::operator() with LOGFILTER_ALL, and GitRevLoglist::SafeGetSimpleList.
+The native port retains the shared Find layout and uses read-only all-parent
+Git path queries, cached rename pairs and the existing working-tree history reader.
+Copyright/licensing remains covered by the upstream GPL-2.0-or-later source notices.

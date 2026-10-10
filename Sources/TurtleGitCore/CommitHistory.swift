@@ -1144,6 +1144,68 @@ extension GitRepository {
         try cancellation?.check()
         return actions
     }
+    /// Stop at the first result in source Find order. In particular, do not
+    /// fetch paths from later rows merely to find a match in the first row.
+    public func findNextHistoryMatch(in entries: [LogEntry], after previous: Int?, query: String,
+                                     regex: Bool = false, caseSensitive: Bool = false,
+                                     cachedFiles: [String: [CommitFile]] = [:], dateSettings: HistoryDateSettings = .load(),
+                                     regexExecutable: URL? = nil, cancellation: OperationCancellation? = nil) throws -> (index: Int, wrapped: Bool)? {
+        try cancellation?.check()
+        guard !entries.isEmpty else { return nil }
+        let previous = previous.flatMap { entries.indices.contains($0) ? $0 : nil }
+        let start = previous.map { $0 + 1 } ?? 0
+        let count = entries.count - (previous == nil ? 0 : 1)
+        for offset in 0..<count {
+            try cancellation?.check()
+            let position = start + offset, index = position % entries.count
+            let matches = try findHistoryMatches(in: [entries[index]], query: query, regex: regex, caseSensitive: caseSensitive,
+                                                 cachedFiles: cachedFiles, dateSettings: dateSettings, regexExecutable: regexExecutable, cancellation: cancellation)
+            if matches.first == true { return (index, position >= entries.count) }
+        }
+        return nil
+    }
+
+    /// GitLogListBase::OnFindDialogMessage searches LOGFILTER_ALL in the displayed
+    /// batch, independently of the Log filter and without re-walking history.
+    /// Cached files retain source rename pairs; uncached rows use the simple
+    /// all-parent path list, including root commits. An empty hash is the working row.
+    public func findHistoryMatches(in entries: [LogEntry], query: String, regex: Bool = false,
+                                  caseSensitive: Bool = false, cachedFiles: [String: [CommitFile]] = [:],
+                                  dateSettings: HistoryDateSettings = .load(), regexExecutable: URL? = nil,
+                                  cancellation: OperationCancellation? = nil) throws -> [Bool] {
+        try cancellation?.check()
+        guard entries.allSatisfy({ entry in
+            entry.hash.isEmpty || ((entry.hash.count == 40 || entry.hash.count == 64) && entry.hash.allSatisfy { $0.isASCII && $0.isHexDigit })
+        }) else { throw RevisionComparisonFailure.range }
+        let filter = HistoryTextQuery(query, caseSensitive: caseSensitive)
+        if !regex && !filter.isActive { return entries.map { _ in true } }
+        var texts: [String] = []
+        for entry in entries {
+            try cancellation?.check()
+            let message = LogEntry.splitHistoryMessage(entry.message.isEmpty ? entry.subject : entry.message)
+            var fields = [message.subject, message.body, entry.issueIDs, entry.author, entry.committer,
+                          entry.email, entry.committerEmail, entry.hash, entry.notes]
+            fields += entry.references.map { $0.name + ($0.kind == .annotatedTag ? "^{}" : "") }
+            if !entry.references.isEmpty { fields.append(dateSettings.tagInfo(entry.tagInfo)) }
+            if let cached = cachedFiles[entry.hash] {
+                fields += cached.map { $0.path + "|" + ($0.oldPath ?? "") }
+            } else if entry.hash.isEmpty {
+                let working = try workingTreeHistory(cancellation: cancellation)
+                fields += (working?.files ?? []).map { $0.path + "|" + ($0.oldPath ?? "") }
+            } else {
+                // --no-renames matches SafeGetSimpleList's tree diff: a rename
+                // contributes both its deleted old path and added new path.
+                let paths = try run(["diff-tree", "--root", "-m", "--no-commit-id", "--name-only", "-z", "-r", "--no-renames", "--no-ext-diff", "--no-textconv", "--no-color", entry.hash, "--"],
+                                    environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation).stdout
+                fields += paths.split(separator: 0).map { String(decoding: $0, as: UTF8.self) }
+            }
+            try cancellation?.check()
+            texts.append(fields.joined(separator: "\n") + "\n")
+        }
+        if regex { return try IssueRegexRuntime.logMatches(texts, pattern: query, caseSensitive: caseSensitive, executable: regexExecutable, cancellation: cancellation) }
+        return try texts.map { text in try cancellation?.check(); return filter.matches(text) }
+    }
+
     public func files(in entry: LogEntry, cancellation: OperationCancellation? = nil) throws -> [CommitFile] {
         try cancellation?.check()
         var args = ["diff-tree", "--root", "--no-commit-id", "-r", "-M", "--no-ext-diff", "--no-color"]

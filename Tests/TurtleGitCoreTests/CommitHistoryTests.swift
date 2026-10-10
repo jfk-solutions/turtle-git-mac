@@ -2,6 +2,95 @@ import XCTest
 @testable import TurtleGitCore
 
 final class CommitHistoryTests: XCTestCase {
+    func testFindHistoryNextStopsBeforeUnreadableLaterRowAndBoundsWrap() async throws {
+        let (root, fixtureRepo, path) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repo = GitRepository(root: root, executable: ProcessInfo.processInfo.environment["TURTLEGIT_GROUP_TEST_GIT"].map { URL(fileURLWithPath: $0) } ?? fixtureRepo.executable)
+        let firstHistory = try await repo.history(); let first = try XCTUnwrap(firstHistory.first)
+        let missing = LogEntry(hash: String(repeating: "a", count: 40), author: "", date: "", subject: "later")
+        let helper = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("build/issue-regex-runtime/IssueRegex/issue-regex")
+        for regex in [false, true] {
+            let found = try await repo.findNextHistoryMatch(in: [first, missing], after: nil, query: regex ? "b.se" : "base", regex: regex, regexExecutable: helper)
+            XCTAssertEqual(found?.index, 0); XCTAssertEqual(found?.wrapped, false)
+        }
+        try Data("next".utf8).write(to: root.appendingPathComponent(path))
+        try await repo.stage([path]); _ = try await repo.commit(message: "NextNeedle")
+        let entries = try await repo.history()
+        let wrapped = try await repo.findNextHistoryMatch(in: entries, after: 1, query: "NextNeedle")
+        let excluded = try await repo.findNextHistoryMatch(in: entries, after: 1, query: "base")
+        let noMatch = try await repo.findNextHistoryMatch(in: entries, after: nil, query: "absent")
+        XCTAssertEqual(wrapped?.index, 0); XCTAssertEqual(wrapped?.wrapped, true)
+        XCTAssertNil(excluded); XCTAssertNil(noMatch)
+    }
+
+    func testFindHistoryAllSourceFieldsAndRenamePathsPreserveRepository() async throws {
+        let (root, fixtureRepo, path) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repo = GitRepository(root: root, executable: ProcessInfo.processInfo.environment["TURTLEGIT_GROUP_TEST_GIT"].map { URL(fileURLWithPath: $0) } ?? fixtureRepo.executable)
+        let destination = "renamed find 雪\n.txt"
+        _ = try await repo.run(["mv", "--", path, destination])
+        _ = try await repo.run(["commit", "-m", "ScopeSubject\n\nBodyNeedle"], environmentOverrides: ["GIT_AUTHOR_NAME": "AuthName", "GIT_AUTHOR_EMAIL": "author-find@example.invalid", "GIT_COMMITTER_NAME": "CommitName", "GIT_COMMITTER_EMAIL": "committer-find@example.invalid"])
+        _ = try await repo.run(["notes", "add", "-m", "SecretNote"])
+        _ = try await repo.run(["tag", "-a", "FindTag", "-m", "AnnotationNeedle"])
+        let loaded = try await repo.history(); var entry = try XCTUnwrap(loaded.first)
+        entry.issueIDs = "IssueOnlyNeedle"
+        let tracked = [".git/HEAD", ".git/index", ".git/config", destination, ".git/refs/tags/FindTag", ".git/refs/notes/commits"]
+        let before = try tracked.map { try Data(contentsOf: root.appendingPathComponent($0)) }
+        for query in ["ScopeSubject", "BodyNeedle", "AuthName", "CommitName", "author-find@example.invalid", "committer-find@example.invalid", entry.hash, "SecretNote", "IssueOnlyNeedle", "refs/heads/main", "refs/tags/FindTag^{}", "AnnotationNeedle", path, destination] {
+            let matches = try await repo.findHistoryMatches(in: [entry], query: query, caseSensitive: true)
+            XCTAssertEqual(matches, [true], query)
+        }
+        let insensitive = try await repo.findHistoryMatches(in: [entry], query: "secretNOTE")
+        let sensitive = try await repo.findHistoryMatches(in: [entry], query: "secretNOTE", caseSensitive: true)
+        let excluded = try await repo.findHistoryMatches(in: [entry], query: "ScopeSubject -SecretNote")
+        let helper = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("build/issue-regex-runtime/IssueRegex/issue-regex")
+        let regex = try await repo.findHistoryMatches(in: [entry], query: "SecretN.te|NoSuchName", regex: true, regexExecutable: helper)
+        XCTAssertEqual(insensitive, [true]); XCTAssertEqual(sensitive, [false]); XCTAssertEqual(excluded, [false]); XCTAssertEqual(regex, [true])
+        XCTAssertEqual(try tracked.map { try Data(contentsOf: root.appendingPathComponent($0)) }, before)
+    }
+    func testFindHistoryRootAllMergeParentsAndCachedRenameCorpus() async throws {
+        let (root, fixtureRepo, path) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repo = GitRepository(root: root, executable: ProcessInfo.processInfo.environment["TURTLEGIT_GROUP_TEST_GIT"].map { URL(fileURLWithPath: $0) } ?? fixtureRepo.executable)
+        let loaded = try await repo.history(); let initial = try XCTUnwrap(loaded.first)
+        _ = try await repo.run(["switch", "-c", "side"])
+        try Data("side".utf8).write(to: root.appendingPathComponent("side-only.txt"))
+        try await repo.stage(["side-only.txt"]); _ = try await repo.commit(message: "side")
+        _ = try await repo.run(["switch", "main"])
+        try Data("main".utf8).write(to: root.appendingPathComponent("main-only.txt"))
+        try await repo.stage(["main-only.txt"]); _ = try await repo.commit(message: "main")
+        _ = try await repo.run(["merge", "--no-ff", "side", "-m", "merge"])
+        let merged = try await repo.history(); var merge = try XCTUnwrap(merged.first)
+        XCTAssertEqual(merge.parents.count, 2)
+        merge.parents = [] // The simple list comes from the commit, not cached parents.
+        let side = try await repo.findHistoryMatches(in: [merge, initial], query: "side-only.txt")
+        let main = try await repo.findHistoryMatches(in: [merge, initial], query: "main-only.txt")
+        let original = try await repo.findHistoryMatches(in: [merge, initial], query: path)
+        XCTAssertEqual(side, [true, false]); XCTAssertEqual(main, [true, false]); XCTAssertEqual(original, [false, true])
+        let cached = CommitFile(path: "new-cached", oldPath: "old-cached", action: "R", added: nil, removed: nil, hasStatistics: false, isSubmodule: false)
+        let cachedMatch = try await repo.findHistoryMatches(in: [merge], query: "new-cached|old-cached", cachedFiles: [merge.hash: [cached]])
+        let uncachedMatch = try await repo.findHistoryMatches(in: [merge], query: "new-cached|old-cached")
+        XCTAssertEqual(cachedMatch, [true]); XCTAssertEqual(uncachedMatch, [false])
+    }
+    func testFindHistoryWorkingRowCancellationInvalidHashAndEmptyBatch() async throws {
+        let (root, fixtureRepo, path) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repo = GitRepository(root: root, executable: ProcessInfo.processInfo.environment["TURTLEGIT_GROUP_TEST_GIT"].map { URL(fileURLWithPath: $0) } ?? fixtureRepo.executable)
+        try Data("working-find".utf8).write(to: root.appendingPathComponent(path))
+        let snapshot = try await repo.workingTreeHistory(); let working = try XCTUnwrap(snapshot)
+        let before = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let matches = try await repo.findHistoryMatches(in: [working.entry], query: path)
+        let empty = try await repo.findHistoryMatches(in: [], query: "no-match")
+        XCTAssertEqual(matches, [true]); XCTAssertTrue(empty.isEmpty)
+        let cancelled = OperationCancellation(); cancelled.cancel()
+        do { _ = try await repo.findHistoryMatches(in: [working.entry], query: path, cancellation: cancelled); XCTFail("Cancelled search must stop") }
+        catch { XCTAssertEqual(error as? OperationCancellationFailure, .cancelled) }
+        let invalid = LogEntry(hash: "--output=bad", author: "", date: "", subject: "")
+        do { _ = try await repo.findHistoryMatches(in: [working.entry, invalid], query: path); XCTFail("Validate the complete batch before reading paths") }
+        catch { XCTAssertEqual(error as? RevisionComparisonFailure, .range) }
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), before)
+    }
+
     func testRawHistorySearchPreservesHiddenLanesRollupAndRawBatchLimit() async throws {
         let (root, fixtureRepo, path) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

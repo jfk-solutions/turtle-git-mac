@@ -232,6 +232,8 @@ jobs:
         run: python3 scripts/test-commit-dirty-submodule.py
       - name: Native Log double-click preference receiver
         run: python3 scripts/test-log-double-click.py
+      - name: Native Log modeless Find and shared reference navigation
+        run: python3 scripts/test-log-find.py
       - name: Native Log compressed graph rollup receiver
         run: python3 scripts/test-log-rollup.py
       - name: Native Log Gravatar mock transport receiver

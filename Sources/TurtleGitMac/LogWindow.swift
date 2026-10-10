@@ -78,25 +78,49 @@ private enum LogSubmoduleHistoryFailure: LocalizedError {
     static func discardAll() { for preview in previews.values { preview.discard() }; previews.removeAll() }
 }
 
+/// Route the source Ctrl-F gesture as native Command-F, including table focus.
+final class LogHistoryWindow: NSWindow {
+    var find: () -> Void = {}
+    var blocksInteraction: () -> Bool = { false }
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if blocksInteraction() { return true }
+        if event.type == .keyDown, event.charactersIgnoringModifiers?.lowercased() == "f",
+           event.modifierFlags.intersection([.command, .option, .control, .shift]) == .command { find(); return true }
+        return super.performKeyEquivalent(with: event)
+    }
+    override func sendEvent(_ event: NSEvent) {
+        if blocksInteraction(), [.keyDown, .keyUp, .leftMouseDown, .leftMouseUp, .rightMouseDown, .rightMouseUp, .scrollWheel].contains(event.type) { return }
+        super.sendEvent(event)
+    }
+}
+
 @MainActor final class LogWindowController: NSWindowController, NSWindowDelegate {
     let model: LogWindowModel
+    private let findAccess: RepositoryAccessLease?
+    private let findPreferences: UserDefaults
+    private var findAvailability: AnyCancellable?
+    private(set) var find: RevisionGraphFindController?
     private(set) var patchPreviewWindow: PatchWindowController?
     private var previousPatchParentFrame: NSRect?
     private var positioningPatch = false
     var onClosed: () -> Void = {}
     private var selectionCompletion: ((LogEntry?) -> Void)?
     private var multipleSelectionCompletion: (([LogEntry]?) -> Void)?
-    init(repository: GitRepository, access: RepositoryAccessLease?, onChooseMultiple: (([LogEntry]?) -> Void)? = nil, onChoose: ((LogEntry?) -> Void)? = nil, labelDefaults: UserDefaults = .standard, savesColumnLayout: Bool = true) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, onChooseMultiple: (([LogEntry]?) -> Void)? = nil, onChoose: ((LogEntry?) -> Void)? = nil, labelDefaults: UserDefaults = .standard, savesColumnLayout: Bool = true, savesGeometry: Bool = true) {
+        findAccess = access; findPreferences = labelDefaults
         model = LogWindowModel(repository: repository, access: access, selecting: onChoose != nil || onChooseMultiple != nil, selectingMultiple: onChooseMultiple != nil, labelDefaults: labelDefaults)
         selectionCompletion = onChoose; multipleSelectionCompletion = onChooseMultiple
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 780),
+        let window = LogHistoryWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 780),
             styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Log Messages – TurtleGit"
         window.minSize = NSSize(width: 1080, height: 700)
         window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: LogDialog(model: model, savesColumnLayout: savesColumnLayout).defaultAppStorage(labelDefaults))
+        window.contentViewController = NSHostingController(rootView: LogDialog(model: model, savesColumnLayout: savesColumnLayout).disabled(model.findBlocked).defaultAppStorage(labelDefaults))
         super.init(window: window)
         model.window = window
+        window.find = { [weak self] in self?.showFind() }
+        window.blocksInteraction = { [weak model] in model?.findBlocked == true }
+        findAvailability = model.$busy.sink { [weak self] _ in DispatchQueue.main.async { self?.find?.updateAvailability() } }
         model.onPatchPreviewVisibility = { [weak self] visible in self?.setPatchPreviewVisible(visible) }
         model.onPatchPreviewContent = { [weak self] bytes in self?.patchPreviewWindow?.model.setReadOnlyDiff(bytes) }
         model.confirmWorkingFlags = { action in confirmIndexFlags(action) }
@@ -197,7 +221,7 @@ private enum LogSubmoduleHistoryFailure: LocalizedError {
         }
         model.reload()
 
-        DialogGeometry.attach(window, identifier: "LogWindowController")
+        if savesGeometry { DialogGeometry.attach(window, identifier: "LogWindowController") }
     }
     private func chooseHistoricalExport(revision: String, files: [CommitFile]) {
         guard let window, window.attachedSheet == nil else { return }
@@ -310,11 +334,46 @@ private enum LogSubmoduleHistoryFailure: LocalizedError {
         if let window { window.sheetParent?.endSheet(window); window.close() }
         completion(revisions)
     }
+    private var canFind: Bool {
+        !model.isInvalidated && !model.busy && !model.jumping && !model.loadingNote && !model.savingNote && model.noteRequest == nil && !model.copyingDetails && !model.unifiedViewerBusy && !model.findBlocked && window?.attachedSheet == nil
+    }
+    func showFind(regexExecutable: URL? = nil) {
+        guard canFind, let parent = window else { return }
+        if let find { find.window?.makeKey(); return }
+        let child = RevisionGraphFindController(repository: model.repository, access: findAccess, preferences: findPreferences, regexExecutable: regexExecutable)
+        find = child
+        child.logSnapshot = { [weak model] in model?.entries ?? [] }
+        child.logFiles = { [weak model] in
+            guard let model, let hash = model.selectedWorkingTree ? "" : model.revision?.hash else { return [:] }
+            return model.files.isEmpty ? [:] : [hash: model.files]
+        }
+        child.logDateSettings = .load(defaults: findPreferences)
+        child.canSearch = { [weak self] in self?.canFind == true }
+        child.navigate = { [weak model] hash, select in
+            guard let model, !model.isInvalidated, model.entries.contains(where: { $0.hash == hash }) else { return }
+            if select { model.select([hash]) }
+            model.scrollRevision = hash; model.scrollRequest += 1
+        }
+        child.modalChanged = { [weak model, weak child] in
+            model?.findBlocked = child?.acknowledgingFailure == true || child?.window?.attachedSheet != nil
+            child?.updateAvailability()
+        }
+        child.onClosed = { [weak self, weak parent] in
+            if let window = self?.find?.window { parent?.removeChildWindow(window) }
+            self?.find = nil; self?.model.findBlocked = false
+        }
+        if let window = child.window {
+            window.alphaValue = parent.alphaValue; window.appearance = parent.appearance
+            parent.addChildWindow(window, ordered: .above); window.center(); window.orderFront(nil); window.makeFirstResponder(child.searchBox)
+        }
+        child.updateAvailability(); child.loadReferences()
+    }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard (!model.busy || model.loadingHistory), !model.unifiedViewerBusy, sender.attachedSheet == nil else { return false }
+        guard (!model.busy || model.loadingHistory), !model.unifiedViewerBusy, !model.findBlocked, sender.attachedSheet == nil else { return false }
         if model.selecting { finishSelection(nil); return false }; return true
     }
     func windowWillClose(_ notification: Notification) {
+        find?.close(); find = nil; model.findBlocked = false
         let completion = selectionCompletion; selectionCompletion = nil
         let multiple = multipleSelectionCompletion; multipleSelectionCompletion = nil
         model.unifiedWindow?.close(); model.invalidate()
@@ -428,6 +487,7 @@ struct LogCommandRequest: Identifiable {
     // Keep the security-scoped grant alive if the main repository window changes.
     private let access: RepositoryAccessLease?
     private var statisticsWindow: StatisticsWindowController?
+    @Published var findBlocked = false
     @Published var entries: [LogEntry] = []
     @Published var revisionActions: [String: LogRevisionActions] = [:]
     @Published var actionFailures = Set<String>()
