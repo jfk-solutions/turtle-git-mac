@@ -662,6 +662,22 @@ enum MergeAbortPostAction: String, CaseIterable, Hashable {
         } else if let onPostAction { close(); onPostAction(action) }
     }
 }
+private final class MergeAbortNativeWindow: NSWindow {
+    var primary: () -> Void = {}
+    var cancelAction: () -> Void = {}
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        guard event.modifierFlags.intersection([.command, .control, .option, .shift]).isEmpty else { return super.performKeyEquivalent(with: event) }
+        switch event.keyCode {
+        case 36, 76:
+            if attachedSheet == nil { primary() }
+            return true
+        case 53:
+            if attachedSheet == nil { cancelAction() }
+            return true
+        default: return super.performKeyEquivalent(with: event)
+        }
+    }
+}
 @MainActor final class MergeAbortWindowController: NSWindowController, NSWindowDelegate {
     let model: MergeAbortWindowModel
     var onClosed: () -> Void = {}
@@ -669,12 +685,15 @@ enum MergeAbortPostAction: String, CaseIterable, Hashable {
     private(set) var progress: MergeAbortProgressWindowController?
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
         model = MergeAbortWindowModel(repository: repository, access: access, preferences: preferences)
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 660, height: 265), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        let window = MergeAbortNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 660, height: 265), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Abort Merge – TurtleGit"; window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: MergeAbortDialog(model: model))
-        super.init(window: window); window.delegate = self; window.center()
+        window.contentMinSize = NSSize(width: 660, height: 265)
+        window.contentViewController = NSHostingController(rootView: MergeAbortDialog(model: model).frame(width: 660, height: 265))
+        super.init(window: window); window.delegate = self; window.setContentSize(NSSize(width: 660, height: 265)); window.center()
         model.close = { [weak self] in guard let self, !self.model.busy, !self.model.hasChild, self.window?.attachedSheet == nil, self.progress?.window?.attachedSheet == nil else { return }; self.window?.close() }
         model.onResize = { [weak self] showing in self?.showProgress(showing) }
+        window.primary = { [weak model] in model?.abort() }
+        window.cancelAction = { [weak model] in guard let model, !model.hasChild else { return }; model.close() }
 
         model.onShowModified = { [weak self] in self?.showModifiedFiles(access: access) }
         DialogGeometry.attach(window, identifier: "MergeAbortWindowController")
@@ -687,6 +706,7 @@ enum MergeAbortPostAction: String, CaseIterable, Hashable {
             progress = controller
             controller.onClosed = { [weak self] in self?.progress = nil; self?.window?.close() }
             controller.window?.alphaValue = window.alphaValue
+            controller.window?.appearance = window.appearance
             controller.window?.setFrameOrigin(window.frame.origin)
             window.orderOut(nil)
             controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
@@ -706,7 +726,7 @@ enum MergeAbortPostAction: String, CaseIterable, Hashable {
             if let sheet, let parent = sheet.sheetParent { parent.endSheet(sheet) }
             self?.modifiedFiles = nil; self?.model.hasChild = false
         }
-        sheet.alphaValue = window.alphaValue
+        sheet.alphaValue = window.alphaValue; sheet.appearance = window.appearance
         window.beginSheet(sheet); child.model.load()
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; return !model.hasChild && sender.attachedSheet == nil }
@@ -723,11 +743,13 @@ enum MergeAbortPostAction: String, CaseIterable, Hashable {
     var onClosed: () -> Void = {}
     init(model: MergeAbortWindowModel) {
         self.model = model
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 420), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        let window = MergeAbortNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 420), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "\(model.repository.root.lastPathComponent) – Reset – TurtleGit"; window.isReleasedWhenClosed = false
         window.contentMinSize = NSSize(width: 600, height: 300)
-        window.contentViewController = NSHostingController(rootView: MergeAbortDialog(model: model))
-        super.init(window: window); window.delegate = self
+        window.contentViewController = NSHostingController(rootView: MergeAbortDialog(model: model).frame(minWidth: 600, minHeight: 300))
+        super.init(window: window); window.delegate = self; window.setContentSize(NSSize(width: 760, height: 420))
+        window.primary = { [weak model] in guard let model, !model.busy else { return }; model.close() }
+        window.cancelAction = { [weak model] in guard let model else { return }; if model.busy { model.cancel() } else { model.close() } }
         DialogGeometry.attach(window, identifier: "MergeAbortProgressWindowController")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
@@ -747,7 +769,7 @@ private struct MergeAbortDialog: View {
                 HStack {
                     if let first = model.postActions.first {
                         Button { model.perform(first) } label: { CommandLabel(title: first.title, icon: first.icon) }
-                        Menu { ForEach(model.postActions, id: \.self) { action in Button { model.perform(action) } label: { CommandLabel(title: action.title, icon: action.icon) } } } label: { Image(systemName: "chevron.down").accessibilityLabel("Reset post-actions") }.menuStyle(.borderlessButton).fixedSize()
+                        Menu { ForEach(model.postActions, id: \.self) { action in Button { model.perform(action) } label: { CommandLabel(title: action.title, icon: action.icon) } } } label: { Image(systemName: "chevron.down").accessibilityLabel("Reset post-actions") }.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
                     }
                     Spacer()
                     if model.busy { Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction) }
@@ -762,9 +784,9 @@ private struct MergeAbortDialog: View {
                         Text("Hard: Reset working tree and index (discard all local changes)").tag(MergeAbortMode.hard)
                     }.pickerStyle(.radioGroup).labelsHidden().padding(8).frame(maxWidth: .infinity, alignment: .leading)
                 }
-                Button { model.showModified() } label: { CommandLabel(title: "Show modified files in working tree", icon: .compare) }.frame(maxWidth: .infinity).disabled(model.onShowModified == nil)
+                Button { model.showModified() } label: { CommandLabel(title: "Show modified files in working tree", icon: .compare).frame(maxWidth: .infinity) }.disabled(model.hasChild || model.busy)
                 HStack { Spacer(); Button("OK") { model.abort() }.keyboardShortcut(.defaultAction); Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction); Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-merge.html")!) } }
             }
-        }.padding(16)
+        }.padding(16).frame(maxWidth: .infinity, maxHeight: .infinity).background(Color(nsColor: .windowBackgroundColor))
     }
 }

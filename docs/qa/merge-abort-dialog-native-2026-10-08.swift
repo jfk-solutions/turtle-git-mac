@@ -7,6 +7,24 @@ import TurtleGitCore
         while !predicate() && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
         precondition(predicate(), "Native Abort timed out at receiver line \(line)")
     }
+    @MainActor static func key(_ window: NSWindow, _ code: UInt16, _ text: String) {
+        let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber, context: nil, characters: text, charactersIgnoringModifiers: text, isARepeat: false, keyCode: code)!
+        precondition(window.performKeyEquivalent(with: event), "Abort key was not handled")
+    }
+    @MainActor static func capture(_ window: NSWindow, name: String) async throws {
+        guard CommandLine.arguments.count > 3 else { return }
+        let directory = URL(fileURLWithPath: CommandLine.arguments[3])
+        for (suffix, appearance) in [("light", NSAppearance.Name.aqua), ("dark", NSAppearance.Name.darkAqua)] {
+            window.appearance = NSAppearance(named: appearance)
+            try await Task.sleep(nanoseconds: 150_000_000)
+            let content = window.contentView!
+            content.layoutSubtreeIfNeeded()
+            let bitmap = content.bitmapImageRepForCachingDisplay(in: content.bounds)!
+            window.effectiveAppearance.performAsCurrentDrawingAppearance { content.cacheDisplay(in: content.bounds, to: bitmap) }
+            try bitmap.representation(using: .png, properties: [:])!.write(to: directory.appendingPathComponent(name + "-" + suffix + ".png"))
+        }
+        window.appearance = NSAppearance(named: .aqua)
+    }
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
         let root = URL(fileURLWithPath: CommandLine.arguments[1]), git = URL(fileURLWithPath: CommandLine.arguments[2]), repo = GitRepository(root: root, executable: git)
@@ -35,11 +53,14 @@ import TurtleGitCore
         let owner = MergeAbortWindowController(repository: repo, access: nil, preferences: preferences)
         let parent = owner.window!; parent.alphaValue = 0; parent.orderFront(nil)
         var ownerClosed = 0; owner.onClosed = { ownerClosed += 1 }
+        precondition(parent.contentView!.bounds.width >= 660 && parent.contentView!.bounds.height >= 265, "Options controls must retain usable width/height")
+        try await capture(parent, name: "merge-abort-options")
         owner.model.showModified()
         let comparison = owner.modifiedFiles!, sheet = comparison.window!; sheet.alphaValue = 0
         precondition(parent.attachedSheet === sheet && sheet.sheetParent === parent && owner.model.hasChild)
         try await waitUntil { !comparison.model.busy }
         precondition(comparison.model.from == "HEAD" && comparison.model.to == ComparisonRevision.workingTree.label)
+        key(parent, 36, "\r"); key(parent, 53, "\u{1b}")
         owner.model.abort(); owner.model.close(); owner.model.showModified()
         precondition(!owner.model.showingProgress && owner.modifiedFiles === comparison && ownerClosed == 0)
         precondition(!owner.windowShouldClose(parent))
@@ -96,10 +117,11 @@ import TurtleGitCore
         try await waitUntil { ((try? String(contentsOf: ready)) ?? "").split(separator: "\n").count == 2 }
         let ordinaryPids = try String(contentsOf: ready).split(separator: "\n").compactMap { Int32($0) }
         let ordinaryProgress = ordinary.progress!, ordinaryWindow = ordinaryProgress.window!
-        precondition(!ordinaryProgress.windowShouldClose(ordinaryWindow) && ordinaryWindow.isVisible && ordinary.model.busy)
+        key(ordinaryWindow, 36, "\r"); precondition(ordinary.model.busy && ordinaryWindow.isVisible)
+        key(ordinaryWindow, 53, "\u{1b}"); precondition(ordinaryWindow.isVisible && ordinary.model.busy)
         try await waitUntil { !ordinary.model.busy && ordinaryPids.allSatisfy { kill($0, 0) == -1 } }
         precondition(ordinary.model.cancelled && !ordinary.model.success && ordinary.model.postActions == [.retry])
-        ordinaryWindow.close()
+        key(ordinaryWindow, 53, "\u{1b}")
         precondition(ordinary.progress == nil && !ordinaryWindow.isVisible && !ordinary.window!.isVisible)
         print("Abort ownership: hidden HEAD/working sheet, duplicate/OK/Close/Quit gates, child close and forced parent teardown; active HEAD-preflight forced-close cancellation reaps leader/child and rejects result callbacks. Private preferences only.")
         for mode in MergeAbortMode.allCases {
@@ -107,11 +129,13 @@ import TurtleGitCore
             let optionsWindow = controller.window!; optionsWindow.alphaValue = 0; optionsWindow.orderFront(nil)
             controller.model.mode = mode
             let lock = root.appendingPathComponent(".git/index.lock"); try Data().write(to: lock)
-            controller.model.abort()
+            key(optionsWindow, 36, "\r")
             let firstProgress = controller.progress!, firstWindow = firstProgress.window!
             precondition(firstWindow !== optionsWindow && firstWindow.isVisible && !optionsWindow.isVisible)
             try await waitUntil { !controller.model.busy }
             precondition(!controller.model.success && controller.model.postActions == [.retry])
+            precondition(firstWindow.contentView!.bounds.width >= 600 && firstWindow.contentView!.bounds.height >= 300)
+            if mode == .merge { try await capture(firstWindow, name: "merge-abort-reset-failed") }
             try FileManager.default.removeItem(at: lock)
             controller.model.perform(.retry)
             if mode == .merge {
@@ -122,7 +146,7 @@ import TurtleGitCore
             try await waitUntil { !controller.model.busy }
             precondition(controller.model.success)
             let finalWindow = controller.progress!.window!
-            finalWindow.close()
+            key(finalWindow, 76, "\r")
             precondition(controller.progress == nil && !optionsWindow.isVisible && !finalWindow.isVisible)
         }
         print("Abort native lifecycle: separate hidden options/reset-progress windows; Merge failure retry reopens options/new progress; Mixed/Hard retry keeps progress; final close retires owner.")
@@ -167,6 +191,7 @@ import TurtleGitCore
                 try await waitUntil { controller.model.output.contains("Output truncated") }
                 precondition(controller.model.busy && controller.model.output.utf8.count < 17000)
             }
+            if behavior == "failure" { try await capture(controller.progress!.window!, name: "merge-abort-running") }
             let before = controller.model.output
             if behavior == "forced" { controller.window!.close() }
             else if behavior == "cancel" { controller.model.cancel() }
@@ -179,6 +204,7 @@ import TurtleGitCore
                 if behavior == "cancel" { precondition(controller.model.cancelled && !controller.model.success && controller.model.output.contains("tracked paths")) }
                 else if behavior == "failure" {
                     precondition(!controller.model.success && !controller.model.cancelled && controller.model.output.contains("reset refused") && controller.model.output.contains("Git command failed (7)."))
+                    try await capture(controller.progress!.window!, name: "merge-abort-stream-failed")
                 } else {
                     precondition(controller.model.success && !controller.model.cancelled)
                     precondition(controller.model.output.components(separatedBy: "Resetting α").count == 2, "Streamed output must not be repeated at completion")
@@ -189,6 +215,11 @@ import TurtleGitCore
         }
         preferences.removeObject(forKey: "GitOutputLimitinKiB")
         print("Abort live output: stdout/stderr before completion, UTF-8, failure status without duplicate output, ordinary cancel retention, forced-close late-output fencing, 16KiB display limit; all hidden windows closed.")
+        let keyboardCancel = MergeAbortWindowController(repository: repo, access: nil, preferences: preferences)
+        keyboardCancel.window!.alphaValue = 0; keyboardCancel.window!.orderFront(nil)
+        key(keyboardCancel.window!, 53, "\u{1b}")
+        precondition(!keyboardCancel.window!.isVisible && !keyboardCancel.model.showingProgress)
+        print("Abort native keyboard: Return opens separate progress; keypad Enter closes terminal progress; Return while busy does not close; Escape cancels active reset, closes terminal progress/options; parent Return/Escape fenced while comparison sheet attached.")
         var closes = 0, aborts = 0
         let progress = MergeProgressWindowModel(repository: repo, access: nil, options: options, target: .branch, showStashPop: false)
         progress.close = { closes += 1 }; progress.onAbortRequested = { aborts += 1 }

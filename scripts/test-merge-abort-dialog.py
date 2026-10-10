@@ -40,7 +40,10 @@ def stop_fixture_groups(fixture):
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git', type=Path, action='append')
+parser.add_argument('--capture-dir', type=Path)
 args = parser.parse_args()
+if args.capture_dir:
+    args.capture_dir.mkdir(parents=True, exist_ok=True)
 root = Path(__file__).resolve().parent.parent
 products = root / 'build/Build/Products/Debug'
 with tempfile.TemporaryDirectory(prefix='turtlegit-merge-abort-dialog-native-') as temporary:
@@ -58,7 +61,7 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-merge-abort-dialog-native-') 
         print('Checking ' + str(git), flush=True)
         passed = False
         try:
-            subprocess.run([str(executable), str(fixture), str(git.resolve())], cwd=root, env=environment, check=True)
+            subprocess.run([str(executable), str(fixture), str(git.resolve()), *([str(args.capture_dir.resolve())] if args.capture_dir and index == 0 else [])], cwd=root, env=environment, check=True)
             passed = True
         finally:
             stopped = stop_fixture_groups(fixture)
