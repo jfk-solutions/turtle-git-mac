@@ -1,0 +1,87 @@
+{
+  "checked_at": "2026-10-10T05:44:02.778063+00:00",
+  "parent_commit": "aeed2b4aaf6293c631444d43a9fc86520fdf598d",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "GraphCell AppKit image accessibility element and computed node/boundary/actual-parent/lane/collapsed-state label; nil graph is omitted. Full Log/application/VoiceOver parity remains incomplete.",
+  "platform_reference": "https://developer.apple.com/documentation/appkit/nsaccessibilityprotocol",
+  "checks": {
+    "native": {
+      "session": 48937,
+      "exit_code": 0,
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "coverage": "Actual native table cells advertise image role and ordinary/root labels. Real full-view Collapse/Expand updates their accessible state. Actual boundary metadata and representative Core-projected merge/fork, working-tree flag and nil-graph native cells describe/clear state. Existing source-ordered menus, full/compressed rollup, label masks, inactive/active/invalid search rules, hidden-row graph refresh, boundary preference and Follow graph hide/restore pass. Private repository index/config/HEAD/file bytes preserved."
+    },
+    "Debug": {
+      "session": 89262,
+      "exit_code": 0
+    },
+    "Debug_audit": {
+      "session": 13583,
+      "exit_code": 0
+    },
+    "AppStore_unsigned": {
+      "session": 86378,
+      "exit_code": 0
+    },
+    "AppStore_audit": {
+      "session": 57946,
+      "exit_code": 0,
+      "flags": "--require-git"
+    },
+    "inventory": {
+      "exit_code": 0,
+      "classification": "GitLogListBase.cpp remains partial-native-replacement"
+    },
+    "cleanup": {
+      "matching_processes": [],
+      "current_fixtures": []
+    },
+    "preferences": {
+      "verified_empty_suites_removed": [
+        "TurtleGit.Rollup.QA.CB273290-1D11-4E72-ACC3-22E7E74B2A29",
+        "TurtleGit.Rollup.QA.C913FB35-DE80-403F-83E9-895965E961B3"
+      ]
+    },
+    "bundled_notices": "Both bundle NOTICE resources byte-match root NOTICE"
+  },
+  "source_sha256": {
+    "Sources/TurtleGitMac/LogWindow.swift": "11c9d8ace150f8d137f1a77893dc65ec6194d08760ea41ebdb760a2ef5e46b70",
+    "Sources/TurtleGitMac/LogGraphDrawing.swift": "e1922880abfafe4a2f348edda98818e2a0efd18dcc016f69009ac4e34678a34a",
+    "Sources/TurtleGitCore/CommitHistory.swift": "d80e13fe0177975f1d9a76b1896613ab5254537ba913c016ecf8a94be5dba3e3",
+    "Sources/TurtleGitCore/HistoryLanes.swift": "7a22efb01d785be29124a2375759791c7de81a7fa4f7363007bda831804db448",
+    "Sources/TurtleGitCore/GitModels.swift": "adb7c62abb1b08f6d21211664b032dc723cdb4025fbd3f0f4d3f5665d513c795",
+    "docs/qa/log-rollup-native-2026-10-07.swift": "2680f05db90a65a2e13af30de3f9c3299802a7f06bbbae9794b7553a1c7c0a2d",
+    "scripts/test-log-rollup.py": "5a9aefdd38ebd93b7123611e3363c21a78b76ec41e7ba4af4f854fa7323fa976",
+    "docs/LOG-PARITY.md": "a0bc6026b999f00564cffe74b18939dcc1af7929bd8cee8f64e9c1c3237c4eb6",
+    "docs/upstream-files.csv": "7b5f16997550f1d964f4ef85c79ac1429183f50cd1964be56d4902f917e4680c"
+  },
+  "binary_sha256": {
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/MacOS/TurtleGitMac": "ae0fc297ae892ad6d53e5bfb2e3aee3218b8dda08c01e7e3c33faa88de63b8d1",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": "a1076ff8c04824ccdff8f8e6d9d61038b8ca3d2251c35961656fd3ac43200984",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": "4fe130d88732811cb2135fd976f7b9579c0ae3d38211d79ae7708e6973b5955c",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/MacOS/TurtleGitMac": "95c1df1ade0f7abd721fc878ad9bb1cd5167fce61f2a14c8510c282be2b2e483",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": "2b609fb60ced73311abc9f3de4f24edf1a01b20abd659cc48934498950afd957",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": "dc44e47efa6b867ca364f3b9a0bb2f34586e324eb30730045ce6f909abf6318e"
+  },
+  "resource_sha256": {
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/NOTICE": "f79e01c67e4ba9540d4eadaa5e31f2de28e406c277891333942970c839468f24",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Resources/NOTICE": "f79e01c67e4ba9540d4eadaa5e31f2de28e406c277891333942970c839468f24"
+  },
+  "log_sha256": {
+    "build/qa/log-graph-accessibility-debug-2026-10-10.log": "50df820232804a366f67a3b67817707da890574c54feef402a75d6ee67f5f25f",
+    "build/qa/log-graph-accessibility-debug-audit-2026-10-10.log": "03677d8f0b0860f94e07ef3ce34215ec26f981c604c6ceccc75e2bdae288a638",
+    "build/qa/log-graph-accessibility-inventory-2026-10-10.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/log-graph-accessibility-native-2026-10-10.log": "37049711236c374ec9437b54c0fab3e3e566a3477d4bbe76b3aed9aea6e73a40",
+    "build/qa/log-graph-accessibility-store-2026-10-10.log": "b74a73f8796b12aa35fa570e6594a2a6056217b10a225c9c0e7c2efcb5dc7a15",
+    "build/qa/log-graph-accessibility-store-audit-2026-10-10.log": "bf54b9dab37973005d43104fc27d3e9cd6a4920930af487e3e44c48332f3afc1"
+  },
+  "limitations": [
+    "Native getter checks use unordered windows with activation prohibited; external accessibility-client table hierarchy discovery and physical VoiceOver speech/navigation remain unverified.",
+    "Merge/fork/working/cleared label checks use representative cells; actual ordinary/root/collapse/expand tests use native table views and actual boundary metadata is from Git. Full topology/graph painting correctness is outside this checkpoint.",
+    "Keyboard/menu gestures, accessibility notifications/cache behavior, localization and displayed light/dark acceptance remain incomplete.",
+    "Unsigned builds/audits do not prove signed sandbox/Finder/App Store/distribution acceptance. No current full-suite or hosted CI claim. Whole port remains incomplete."
+  ]
+}

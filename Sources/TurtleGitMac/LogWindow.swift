@@ -2512,7 +2512,7 @@ struct RevisionTable: NSViewRepresentable {
         func tableView(_ tableView: NSTableView, viewFor column: NSTableColumn?, row: Int) -> NSView? {
             let entry = model.entries[row]
             if column?.identifier.rawValue == "graph" {
-                let view = GraphCell(); view.graph = model.graph[row]; view.preferences = model.colorPreferences; view.setAccessibilityLabel("\(entry.parents.count) parents, graph lane \(model.graph[row].column + 1)")
+                let view = GraphCell(); view.parentCount = entry.parents.count; view.workingTree = entry.hash.isEmpty; view.graph = model.graph[row]; view.preferences = model.colorPreferences
                 return view
             }
             if column?.identifier.rawValue == "actions" {
@@ -2865,13 +2865,23 @@ final class HistoryTableView: NSTableView {
     }
 }
 
-final class GraphCell: NSView {
+final class GraphCell: NSView, NSAccessibilityImage {
     private var colorUpdates: AnyCancellable?
     override init(frame frameRect: NSRect) { super.init(frame: frameRect); observeColors() }
     required init?(coder: NSCoder) { super.init(coder: coder); observeColors() }
     private func observeColors() { colorUpdates = StatusColorUpdates.shared.$revision.sink { [weak self] _ in self?.needsDisplay = true } }
     var graph: CommitGraphRow? { didSet { needsDisplay = true } }
+    var parentCount = 0
+    var workingTree = false
     var preferences: UserDefaults = .standard { didSet { needsDisplay = true } }
+    override func isAccessibilityElement() -> Bool { graph != nil }
+    override func accessibilityRole() -> NSAccessibility.Role? { .image }
+    override func accessibilityLabel() -> String? {
+        guard let graph else { return nil }
+        let node = workingTree ? "Working tree" : parentCount > 1 ? "Merge commit" : graph.junction ? "Branch point" : parentCount == 0 ? "Root commit" : "Commit"
+        let boundary = graph.lanes.contains(where: \.isBoundary) ? ", boundary" : ""
+        return "\(node)\(boundary), \(parentCount) \(parentCount == 1 ? "parent" : "parents"), graph lane \(graph.column + 1), \(graph.collapsed ? "collapsed" : "expanded")"
+    }
     override var isFlipped: Bool { true }
     override func draw(_ dirtyRect: NSRect) {
         guard let graph, let context = NSGraphicsContext.current?.cgContext else { return }

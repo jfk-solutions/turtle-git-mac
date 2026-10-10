@@ -2040,3 +2040,21 @@ stash/reflog helpers and suspended prompts. Forced Log closure dismisses sheets
 and rejects late acknowledgement/reload; earlier completed changes remain.
 A tracking snapshot changed during key preparation is rechecked before Push.
 This does not prove remote race protection, signed scope or physical prompt parity.
+
+## Native graph accessibility
+
+The custom graph view now adopts AppKit's image accessibility role and exposes
+itself as an accessibility element when it has a graph row. Its computed label
+describes ordinary/root/merge/branch-point/working-tree nodes, boundary status,
+actual parent count, one-based lane and collapsed/expanded state. Clearing a
+reused cell's graph clears the label and removes it as an accessibility element.
+The revision table supplies actual parents independently of rewritten graph
+parents. Rendering, selection and Expand/Collapse menu behavior are unchanged.
+
+This follows [AppKit's role-based custom-control interface](https://developer.apple.com/documentation/appkit/nsaccessibilityprotocol).
+[Graph accessibility QA](qa/log-graph-accessibility-2026-10-10.json) records native
+cell metadata and rollup regressions. Hidden native property checks do not prove
+that an external accessibility client discovers the complete table hierarchy or
+that VoiceOver announces/navigates it correctly. Physical VoiceOver, keyboard
+menu interaction, localization and complete Log/application acceptance remain
+open.

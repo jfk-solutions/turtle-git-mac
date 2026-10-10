@@ -3,6 +3,16 @@ import SwiftUI
 import TurtleGitCore
 
 @main struct RollupVerification {
+    struct Failure: Error { let description: String }
+    @MainActor static func graphCell(_ table: NSTableView, row: Int) async throws -> GraphCell {
+        for _ in 0..<20 { table.window?.contentView?.layoutSubtreeIfNeeded(); try await Task.sleep(nanoseconds: 10_000_000) }
+        guard let column = table.tableColumns.firstIndex(where: { $0.identifier.rawValue == "graph" }),
+              let cell = table.view(atColumn: column, row: row, makeIfNecessary: true) as? GraphCell else {
+            throw Failure(description: "Native graph cell missing")
+        }
+        guard cell.isAccessibilityElement(), cell.accessibilityRole() == .image else { throw Failure(description: "Graph is not exposed as an accessible image") }
+        return cell
+    }
     @MainActor static func wait(_ model: LogWindowModel) async throws {
         let deadline = Date().addingTimeInterval(30)
         while model.busy && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
@@ -43,9 +53,15 @@ import TurtleGitCore
         window.isReleasedWhenClosed = false; defer { window.close() }
         window.contentViewController = NSHostingController(rootView: LogDialog(model: model)); window.contentView?.layoutSubtreeIfNeeded()
         guard let table = table(in: window.contentView!), let menu = table.menu else { preconditionFailure("Native revision menu missing") }
+        let initialCell = try await graphCell(table, row: 0)
+        precondition(initialCell.accessibilityLabel() == "Commit, 1 parent, graph lane 1, expanded")
+        let rootCell = try await graphCell(table, row: 5)
+        precondition(rootCell.accessibilityLabel() == "Root commit, 0 parents, graph lane 1, expanded")
         menu.delegate?.menuNeedsUpdate?(menu)
         let fullCollapse = menu.indexOfItem(withTitle: "Collapse"); precondition(fullCollapse >= 0)
         menu.performActionForItem(at: fullCollapse); try await wait(model)
+        let collapsedCell = try await graphCell(table, row: 0)
+        precondition(collapsedCell.accessibilityLabel() == "Commit, 1 parent, graph lane 1, collapsed")
         precondition(model.entries.map(\.hash) == [hashes[5],hashes[2],hashes[1],hashes[0]], "Full-view Collapse must preserve labels and show regular rows after an expanded label boundary")
         model.toggleHistoryLabel(.tags); try await wait(model)
         precondition(model.entries.map(\.hash) == [hashes[5]], "Full-view label changes with forced states must reload the projection")
@@ -53,6 +69,8 @@ import TurtleGitCore
         precondition(model.entries.map(\.hash) == [hashes[5],hashes[2],hashes[1],hashes[0]])
         model.select([hashes[5]]); menu.delegate?.menuNeedsUpdate?(menu)
         menu.performActionForItem(at: menu.indexOfItem(withTitle: "Expand")); try await wait(model)
+        let expandedCell = try await graphCell(table, row: 0)
+        precondition(expandedCell.accessibilityLabel() == "Commit, 1 parent, graph lane 1, expanded")
         precondition(model.entries.count == 6 && !model.graph[0].collapsed)
         model.toggleHistoryWalk(.compressed); try await wait(model)
         precondition(model.entries.map(\.hash) == [hashes[5],hashes[2],hashes[0]] && model.rollupTitle == "Expand")
@@ -88,6 +106,23 @@ import TurtleGitCore
         precondition(boundaries.entries.map(\.hash) == [hashes[5],hashes[4],hashes[3]])
         precondition(boundaries.entries.map(\.isBoundary) == [false,false,true])
         precondition(boundaries.entries.last?.parents == [hashes[2]] && boundaries.graph.last!.lanes.contains { $0.isBoundary })
+        let boundaryCell = GraphCell(); boundaryCell.parentCount = boundaries.entries.last!.parents.count; boundaryCell.graph = boundaries.graph.last!
+        precondition(boundaryCell.accessibilityLabel()?.contains("boundary, 1 parent") == true)
+        // Representative native cells use Core-projected merge/fork metadata;
+        // this checks accessibility descriptions, not additional topology math.
+        let kindEntries = [LogEntry(hash: "merge", author: "", date: "", subject: "", parents: ["a", "b"]),
+                           LogEntry(hash: "a", author: "", date: "", subject: "", parents: ["root"]),
+                           LogEntry(hash: "b", author: "", date: "", subject: "", parents: ["root"]),
+                           LogEntry(hash: "root", author: "", date: "", subject: "")]
+        let kindGraph = CommitGraph.layout(kindEntries)
+        let kindCell = GraphCell(); kindCell.parentCount = 2; kindCell.graph = kindGraph[0]
+        precondition(kindCell.accessibilityLabel() == "Merge commit, 2 parents, graph lane 1, expanded")
+        kindCell.parentCount = 0; kindCell.graph = kindGraph[3]
+        precondition(kindCell.accessibilityLabel()?.hasPrefix("Branch point, 0 parents") == true)
+        kindCell.workingTree = true
+        precondition(kindCell.accessibilityLabel()?.hasPrefix("Working tree,") == true)
+        kindCell.graph = nil
+        precondition(!kindCell.isAccessibilityElement() && kindCell.accessibilityLabel() == nil)
         defaults.set(false, forKey: "LogIncludeBoundaryCommits")
         let ordinary = LogWindowModel(repository: repo, access: nil, labelDefaults: defaults, historyRegexExecutable: helper)
         defer { ordinary.invalidate() }
@@ -134,6 +169,6 @@ import TurtleGitCore
         precondition(graphColumn.isHidden == originalHidden)
         print("Native search retains hidden lanes and rollup inheritance, literal/regex/invalid activity guards, same-identity graph refresh and Follow graph hide/restore; parent and repository preservation passed")
         let after = try paths.map { try Data(contentsOf: root.appendingPathComponent($0)) }; precondition(before == after)
-        print("Native boundary setting and graph metadata, rollup: actual full-view Collapse/Expand and forced label-mask reload, plus compressed Expand/Collapse menu routing, linear label boundaries, mid-segment forced collapse, hollow state, parent preservation, multiple/busy/closed/search guards and invalid regex passed; repository unchanged")
+        print("Native graph accessibility: real table cells expose image role, ordinary/root parent/lane metadata and collapsed/expanded transitions; actual boundary and representative merge/fork/working/cleared cells describe state. Existing rollup menus, masks, searches, graph refresh and parent preservation passed; repository unchanged. No physical VoiceOver or external AX-client acceptance claimed.")
     }
 }
