@@ -93,7 +93,7 @@ checkbox semantics. Staged files remain visible outside Finder-requested scope.
 - Full issue controls and message-history behavior; native root/merge/
   rename amend QA and broader date/author combinations. Native new branch,
   submodule toggle and broader Commit action combinations remain.
-- Message-history native workflow QA, template native workflow QA and other text encodings,
+- Broader physical message-history acceptance, template native workflow QA and other text encodings,
   completion, spelling, issue IDs and tracker plugins.
 - Broader grouped-list selection and conditional workflows, displayed dirty-submodule prompt acceptance, broader binary/ignored preview acceptance,
   file counts for untracked paths, staged/unstaged rename interactions.
@@ -1891,3 +1891,38 @@ blocked in a child, with refresh queued behind it, was cancelled and reaped in
 both Git versions before the controller closed. Other windows' read owners,
 attached patch-view lifetimes and full multi-window liveness remain separate
 acceptance work. No cancels no metadata reads.
+
+## Recent messages sheet ownership
+
+`CommitDlg.cpp`'s `OnBnClickedHistory` and `HistoryDlg.cpp` remain the behavior
+reference: a selected message replaces an untouched template, otherwise inserts
+at the caret with a newline when needed; an existing prefix is not inserted
+again. The native history list flattens CR/LF only for display, retains full
+Unicode messages, joins multiple selected entries with two newlines in displayed
+order, and saves single-row Delete immediately even if the picker is cancelled.
+
+The Commit controller now owns the history sheet through parent teardown.
+History and Log pickers reject competing sheets and busy/quit transitions. Parent
+close requests leave an active sheet alone; forced parent closure retires it and
+later requests cannot reopen it. Completion checks the identity of the owned
+sheet before inserting into the editor. These ownership changes do not alter the
+upstream message selection and deletion rules.
+
+`scripts/test-commit-history.py` exercises the actual Commit editor context-menu
+action, native sheet/table and Return/Escape/Delete keys, template and caret insertion,
+prefix suppression, focus return, persisted history, modal fences and repository
+invariants. Physical mouse/key entry, VoiceOver, issue-ID extraction in this
+workflow, geometry across displays and signed sandbox acceptance remain open.
+
+The integrated receiver passed with system and bundled Git. Both runs required
+the final completion marker and verified exact HEAD, raw index, config and
+working-file bytes. It keeps windows transparent, preserves real AppKit sheet
+ownership, and explicitly chooses the intended text selection after querying the
+menu because native context-menu construction can select the clicked word.
+Direct accessibility-button gestures and physical right-click selection are not
+covered. See [the QA record](qa/commit-history-2026-10-10.json).
+
+Unsigned Debug and AppStore builds and bundle audits passed for this change,
+including all 116 original icon resources and the required AppStore Git runtime.
+Owned receiver processes and temporary fixtures were absent after verification.
+These checks do not establish signing, physical UI acceptance or full Commit parity.

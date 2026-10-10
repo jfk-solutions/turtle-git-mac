@@ -1,0 +1,71 @@
+{
+  "checked_at": "2026-10-10T11:40:16.674273+00:00",
+  "parent_commit": "fd63e12dbc6c304f5157e171171562a71d781909",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Integrated Commit Recent messages workflow and owned native picker/parent/Quit lifecycle. Full port and App Store distribution remain incomplete.",
+  "checks": {
+    "native_history": {
+      "session": 85022,
+      "exit_code": 0,
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "scope": [
+        "Actual editor context-menu target/action and upstream icons",
+        "Native History sheet, flattened Unicode list and horizontal scrollbar, initial table focus",
+        "Multi-selection in displayed order with blank-line joining; unchanged-template replacement",
+        "Existing prefix suppression; explicit caret insertion and restored editor focus",
+        "Actual Return/Escape actions and table Delete key; persisted single-row removal with next selection, Cancel retains deletion",
+        "Competing History/Log and busy guards; actual close/Quit fences; forced-parent sheet retirement and post-close guards",
+        "Exact HEAD, raw index, repository config and working bytes unchanged"
+      ],
+      "receiver": "Real AppKit event loop, activation prohibited and transparent owned windows. Querying the text menu can select the clicked word; the receiver explicitly restores its intended selection before invoking the menu action. Return/Escape invoke native default/cancel controls. No physical mouse/key entry or direct accessibility-button claim. Completion sentinel required.",
+      "rejected_runs": "Initial receiver compile/template expectation failures were corrected. Ordering the parent out detached its sheet; receiver now preserves the real modal relationship. NSButton/accessibility/offscreen assumptions were rejected and replaced with native keyboard dispatch. The preserved-modal run exposed a genuine missing Commit Quit fence, now fixed."
+    },
+    "unsigned_builds_and_bundle_audits": {
+      "session": 70821,
+      "exit_code": 0,
+      "configurations": [
+        "Debug",
+        "AppStore"
+      ],
+      "icons": 116,
+      "appstore_requires_git": true
+    },
+    "cleanup": {
+      "matching_processes": [],
+      "current_fixtures": []
+    }
+  },
+  "source_sha256": {
+    "Sources/TurtleGitMac/CommitWindow.swift": "8f892c73b686f3bce735a46826fc08a0aed97acc7a5ed8ac02085585cc1b2830",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "a1d0683e9caf9e2a71be1e926f30fb3e1dccd867c0fac8b171ca3b641598881d",
+    "docs/qa/commit-history-native-2026-10-10.swift": "d850e53ae1a47257544b8b25629b426628a186595a2951a72516e4c8cc70f509",
+    "scripts/test-commit-history.py": "943a57a9b4a74aef798240d4b141f57453f1a5f9884c638397043904efd4e013",
+    "docs/COMMIT-PARITY.md": "e6114f93810d28cd866ed259f1dc02210af09d6899b964191a479fc9788f9a36",
+    "docs/TESTING.md": "f9e7c5f4fccec865c6a1ad178242281974b5d228ec9f5ec04fc98cbae2a49df3"
+  },
+  "binary_sha256": {
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": "8441f4a302b71398d189edfaf1a393f0b85b90ef479a21949c0405ece32991e1",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": "dc44e47efa6b867ca364f3b9a0bb2f34586e324eb30730045ce6f909abf6318e",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/MacOS/TurtleGitMac": "0673178af3fc815d9ddd059d75323cee2574823be4f6d9a0af398e0fbb80ce5c",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": "d518cf7695102d90dd1eed3b22400afafd87294fcc3f9c34844f0d5b6ecc43c7",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": "4fe130d88732811cb2135fd976f7b9579c0ae3d38211d79ae7708e6973b5955c",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/MacOS/TurtleGitMac": "ae0fc297ae892ad6d53e5bfb2e3aee3218b8dda08c01e7e3c33faa88de63b8d1"
+  },
+  "log_sha256": {
+    "build/qa/commit-history-cleanup-2026-10-10.log": "693fa2bca24cbfc45a23756e4f0a95dc75a088dc5f75977d8a59a96ce2f23355",
+    "build/qa/commit-history-debug-2026-10-10.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/commit-history-debug-audit-2026-10-10.log": "cdeaff9df09b2d3352cce83b62503b07e0e9bb7909accdb3b95f9decbe376ec4",
+    "build/qa/commit-history-native-2026-10-10.log": "404b88f5185eba869ae4e2f6e35d47d94340fc093e62456b26cc29826c5f9f25",
+    "build/qa/commit-history-store-2026-10-10.log": "b74a73f8796b12aa35fa570e6594a2a6056217b10a225c9c0e7c2efcb5dc7a15",
+    "build/qa/commit-history-store-audit-2026-10-10.log": "b1c954ae1e9a5fc2a5d6416be100ef853bfb32fd82cbd6494843f0d1d5710619"
+  },
+  "limitations": [
+    "Physical right-click selection, pointer/button gestures, VoiceOver and signed sandbox acceptance remain unverified",
+    "Issue-ID extraction through this picker, broader message history/templates/encodings and multi-display geometry remain incomplete",
+    "Full dialog/menu/Finder parity and App Store distribution remain incomplete",
+    "Local verification/commits; no hosted CI or Pages publication claim"
+  ]
+}

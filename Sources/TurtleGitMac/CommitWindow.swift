@@ -19,7 +19,11 @@ import UniformTypeIdentifiers
     private var partial: PatchWindowController?
     private var closingCommit = false
     private var historyWindow: NSWindow?
+    var makeHistoryWindow: () -> NSWindow = {
+        NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 320), styleMask: [.titled, .resizable], backing: .buffered, defer: false)
+    }
     private var logPicker: LogWindowController?
+    var hasMessagePicker: Bool { historyWindow != nil || logPicker != nil }
     private var progressController: CommitProgressWindowController?
     var onPullAfterLFSLock: () -> Void = {}
     private var lfsOperation: LFSFileOperationController?
@@ -163,24 +167,33 @@ import UniformTypeIdentifiers
         DialogGeometry.attach(window, identifier: "CommitWindowController")
     }
     func setQuitConfirmation(_ pending: Bool) { model.confirmingQuit = pending; partial?.model.confirmingQuit = pending }
-    func windowWillClose(_ notification: Notification) { closingCommit = true; model.invalidateForClose(); logPicker?.close(); logPicker = nil; partial?.close(); partial = nil; model.unifiedWindow?.close(); onClosed() }
+    func windowWillClose(_ notification: Notification) {
+        closingCommit = true; model.invalidateForClose()
+        if let child = historyWindow {
+            historyWindow = nil; window?.endSheet(child); child.orderOut(nil); child.close()
+        }
+        logPicker?.close(); logPicker = nil; partial?.close(); partial = nil; model.unifiedWindow?.close(); onClosed()
+    }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard partial?.model.busy != true, partial?.window?.attachedSheet == nil, !model.unifiedViewerBusy else { return false }
+        guard sender.attachedSheet == nil, !hasMessagePicker, partial?.model.busy != true, partial?.window?.attachedSheet == nil, !model.unifiedViewerBusy else { return false }
         model.cancel(); return false
     }
     private func showHistory(insert: @escaping (String) -> Void) {
-        guard let window, let history = model.messageHistory, historyWindow == nil else { return }
-        let child = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 320), styleMask: [.titled, .resizable], backing: .buffered, defer: false)
+        guard !closingCommit, !model.inputsBlocked, let window, window.attachedSheet == nil,
+              logPicker == nil, let history = model.messageHistory, historyWindow == nil else { return }
+        let child = makeHistoryWindow(); child.isReleasedWhenClosed = false
         child.title = "Log History – TurtleGit"; child.minSize = NSSize(width: 400, height: 260)
         child.contentViewController = NSHostingController(rootView: CommitMessageHistoryDialog(history: history) { [weak self, weak window, weak child] text in
-            guard let child else { return }; window?.endSheet(child); child.orderOut(nil); self?.historyWindow = nil
+            guard let self, !self.closingCommit, let child, self.historyWindow === child else { return }
+            self.historyWindow = nil; window?.endSheet(child); child.orderOut(nil); child.close()
             if let text { insert(text) }
         })
         DialogGeometry.attach(child, identifier: "HistoryDlg")
         historyWindow = child; window.beginSheet(child)
     }
     private func showRevisionPicker(message: Bool, insert: @escaping (String) -> Void) {
-        guard let window, logPicker == nil else { return }
+        guard !closingCommit, !model.inputsBlocked, let window, window.attachedSheet == nil,
+              historyWindow == nil, logPicker == nil else { return }
         let picker = LogWindowController(repository: model.repository, access: model.access, onChoose: { [weak self] revision in
             if let revision { insert(message ? revision.message : revision.hash) }
             if let self, !self.closingCommit { self.model.reload() }

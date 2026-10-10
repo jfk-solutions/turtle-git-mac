@@ -679,3 +679,14 @@ checks standalone acceptance and retained/released lease ownership; it does not
 prove signed OS grant acceptance. Picker factories keep owned
 native windows transparent/offscreen; fixtures and receivers are removed.
 Physical file-selection/text-entry gestures and signed grants remain pending.
+
+Run `python3 scripts/test-commit-history.py --git /usr/bin/git --git
+build/git-runtime/Git/bin/git` after a Debug build for the integrated Commit
+Recent Messages workflow. The receiver uses an actual AppKit event loop with
+activation prohibited, transparent private windows and the production editor,
+context-menu target/action, sheet, table and native Return/Escape/Delete actions. It checks Cancel, multiple
+selection/template replacement, prefix suppression, caret insertion/focus,
+Delete persistence, modal ownership and forced-parent cleanup without committing
+or changing working files. A final completion marker is mandatory for each Git
+engine. This is native programmatic acceptance, not physical-input, VoiceOver or
+signed sandbox acceptance.
