@@ -42,6 +42,8 @@ final class RevisionGraphSurface: NSView {
     let access: RepositoryAccessLease?
     let preferences: UserDefaults
     let layoutExecutable: URL?
+    // Upstream CRevisionGraphDlg owns this numeric position, independent of Find lifetime.
+    var findSearchIndex = 0
     var options = RevisionGraphOptions()
     @Published private(set) var nodes: [RevisionGraphNode] = []
     @Published private(set) var geometry: RevisionGraphLayout?
@@ -536,6 +538,8 @@ enum RevisionGraphReferenceCommand {
         let child = RevisionGraphFindController(repository: model.repository, access: model.access, preferences: model.preferences, regexExecutable: regexExecutable)
         find = child
         child.snapshot = { [weak model] in model?.nodes ?? [] }
+        child.searchIndex = { [weak model] in model?.findSearchIndex ?? 0 }
+        child.didFindIndex = { [weak model] in model?.findSearchIndex = $0 }
         child.canSearch = { [weak self] in guard let self else { return false }; return !self.model.closed && !self.model.busy && self.filter == nil && !self.exporting && self.window?.attachedSheet == nil && !self.hasFindError }
         child.navigate = { [weak self] hash, select in
             guard let self, let rect = self.model.geometry?.nodes.first(where: { $0.hash == hash })?.rect else { return }
@@ -779,7 +783,8 @@ final class RevisionGraphFindWindow: NSWindow {
     private(set) var busy = false
     private(set) var loadingReferences = false
     private(set) var closed = false
-    private var cursor: String?
+    var searchIndex: () -> Int = { 0 }
+    var didFindIndex: (Int) -> Void = { _ in }
     private var request = UUID()
     private var token: OperationCancellation?
     private var worker: Task<Void, Never>?
@@ -908,7 +913,9 @@ final class RevisionGraphFindWindow: NSWindow {
             var history = preferences.stringArray(forKey: "History.Find.Search") ?? []; history.removeAll { $0 == query }; history.insert(query, at: 0); history = Array(history.prefix(25))
             preferences.set(history, forKey: "History.Find.Search"); searchBox.removeAllItems(); searchBox.addItems(withObjectValues: history); searchBox.stringValue = query
         }
-        let previous = cursor.flatMap { hashes.firstIndex(of: $0) }, repo = repository, helper = regexExecutable
+        let index = searchIndex()
+        let previous: Int? = hashes.indices.contains(index) ? index : nil
+        let repo = repository, helper = regexExecutable
         let cancellation = OperationCancellation(), generation = UUID(); token = cancellation; request = generation; busy = true; status.stringValue = "Searching…"; updateAvailability()
         worker = Task { [weak self, access] in
             _ = access
@@ -932,7 +939,7 @@ final class RevisionGraphFindWindow: NSWindow {
             guard self.canSearch(), (self.logSnapshot?().map(\.hash) ?? self.snapshot().map(\.hash)) == hashes else { self.status.stringValue = "The \(self.searchScope) changed. Search again."; return }
             switch result {
             case .success(let found):
-                if let (hash, wrapped) = found { self.cursor = hash; self.navigate(hash, select); self.status.stringValue = wrapped ? "Search continued from the beginning." : "" }
+                if let (hash, wrapped) = found, let index = hashes.firstIndex(of: hash) { self.didFindIndex(index); self.navigate(hash, select); self.status.stringValue = wrapped ? "Search continued from the beginning." : "" }
                 else { self.status.stringValue = "No further match in the displayed \(self.searchScope)." }
             case .failure(let error): self.presentFailure(reference.map { "Could not get hash of ref \"" + $0 + "^{}\"." } ?? "Could not search the \(self.searchScope).", detail: error.localizedDescription)
             }

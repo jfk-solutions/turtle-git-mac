@@ -343,6 +343,8 @@ final class LogHistoryWindow: NSWindow {
         let child = RevisionGraphFindController(repository: model.repository, access: findAccess, preferences: findPreferences, regexExecutable: regexExecutable)
         find = child
         child.logSnapshot = { [weak model] in model?.entries ?? [] }
+        child.searchIndex = { [weak model] in model?.findSearchIndex ?? 0 }
+        child.didFindIndex = { [weak model] in model?.findSearchIndex = $0 }
         child.logFiles = { [weak model] in
             guard let model, let hash = model.selectedWorkingTree ? "" : model.revision?.hash else { return [:] }
             return model.files.isEmpty ? [:] : [hash: model.files]
@@ -487,6 +489,8 @@ struct LogCommandRequest: Identifiable {
     // Keep the security-scoped grant alive if the main repository window changes.
     private let access: RepositoryAccessLease?
     private var statisticsWindow: StatisticsWindowController?
+    // Upstream CGitLogListBase retains the index across Find close/reopen and reload.
+    var findSearchIndex = 0
     @Published var findBlocked = false
     @Published var entries: [LogEntry] = []
     @Published var revisionActions: [String: LogRevisionActions] = [:]
@@ -2705,6 +2709,9 @@ struct RevisionTable: NSViewRepresentable {
                     menu.addItem(item)
                 }
                 return
+            }
+            if let table, model.entries.indices.contains(table.selectedRow) {
+                model.findSearchIndex = table.selectedRow
             }
             @discardableResult func item(_ title: String, _ selector: Selector, icon: MenuIcon, enabled: Bool = true) -> NSMenuItem {
                 let item = NSMenuItem(title: title, action: selector, keyEquivalent: ""); item.image = icon.contextImage(); item.target = self; item.isEnabled = enabled; menu.addItem(item)

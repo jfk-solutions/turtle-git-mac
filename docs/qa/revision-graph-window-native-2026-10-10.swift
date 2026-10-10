@@ -329,6 +329,13 @@ import Darwin
             try require(find.busy && !find.findButton.isEnabled && !find.table.isEnabled)
             try await wait { !find.busy }
         }
+        try require(find.searchIndex() == 0)
+        try await findText(model.nodes[0].hash)
+        try require(find.status.stringValue.contains("No further match") && model.findSearchIndex == 0)
+        // The feature commit is row zero in this fixture: source Find excludes
+        // the initial retained row until another match/reference advances it.
+        find.searchReference("refs/tags/release-v1"); try await wait { !find.busy }
+        try require(model.selection == [rootNode.hash])
         try await findText("Tooltip body 🐢"); try require(model.selection == [feature.hash])
         try await findText("TOOLTIP", sensitive: true); try require(model.selection == [feature.hash] && find.status.stringValue.contains("No further match"))
         try await findText("graph@example.invalid", regex: true); try require(model.selection.count == 1 && model.selection != [feature.hash])
@@ -389,13 +396,22 @@ import Darwin
         try require(prefs.stringArray(forKey: "History.Find.Search")?.first == "Tooltip body")
         find.searchBox.stringValue = "Body"; find.regex.state = .on; find.matchCase.state = .on; find.updateAvailability()
         try await capture(findWindow, prefix: "revision-graph-find")
+        let retainedFindIndex = model.findSearchIndex
         model.load(); try require(!find.findButton.isEnabled); find.findNext(); try require(!find.busy)
         try await wait { !model.busy }; try require(find.findButton.isEnabled)
+        try require(model.findSearchIndex == retainedFindIndex && find.searchIndex() == retainedFindIndex)
         find.findNext(); try require(find.busy); find.close()
         try await wait { controller.find == nil }; try require(find.closed && window.childWindows?.contains(findWindow) != true)
         find.findNext(); try require(find.closed)
         controller.showFind(regexExecutable: regexHelper)
         let reopenedFind = controller.find!; try require(reopenedFind.searchBox.stringValue == "Body" && reopenedFind.regex.state == .on && reopenedFind.matchCase.state == .on)
+        try await wait { !reopenedFind.loadingReferences }
+        try require(reopenedFind.searchIndex() == retainedFindIndex)
+        reopenedFind.regex.state = .off; reopenedFind.matchCase.state = .off
+        reopenedFind.searchBox.stringValue = model.nodes[retainedFindIndex].hash
+        reopenedFind.findNext(); try await wait { !reopenedFind.busy }
+        try require(reopenedFind.status.stringValue.contains("No further match"))
+        print("PASS: Source-owned numeric Find position starts after row zero and persists across Graph reload and reopen")
         let missingRepository = GitRepository(root: root.appendingPathComponent("missing-find-repository"), executable: repo.executable)
         let missingFind = RevisionGraphFindController(repository: missingRepository, access: nil, preferences: prefs)
         missingFind.canSearch = { true }; missingFind.window!.alphaValue = 0; missingFind.window!.orderFront(nil); missingFind.loadReferences()

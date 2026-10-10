@@ -8,6 +8,7 @@ import Darwin
     @MainActor static func wait(_ ready: () -> Bool, line: UInt = #line) async throws {
         for _ in 0..<1500 { if ready() { return }; try await Task.sleep(nanoseconds: 10_000_000) }; throw Failure(line: line)
     }
+    @MainActor static func views(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(views) }
     @MainActor static func key(_ window: NSWindow, text: String, modifiers: NSEvent.ModifierFlags = [], code: UInt16 = 36) -> NSEvent {
         NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: modifiers, timestamp: 0, windowNumber: window.windowNumber, context: nil, characters: text, charactersIgnoringModifiers: text, isARepeat: false, keyCode: code)!
     }
@@ -47,6 +48,7 @@ import Darwin
         controller.model.select([headHash])
         try require(window.performKeyEquivalent(with: key(window, text: "f", modifiers: .command, code: 3)))
         let find = controller.find!, child = find.window!
+        try require(find.searchIndex() == 0)
         try require(find.loadingReferences && !find.searchBox.isEnabled && child.parent == window && child.alphaValue == 0)
         find.searchBox.stringValue = "OnlyRootNote"; find.findNext()
         try require(!find.busy && controller.model.selected == [headHash])
@@ -81,9 +83,32 @@ import Darwin
         try require(controller.model.selected == [headHash])
         find.cancelButton.performClick(nil); try await wait { controller.find == nil }
         try require(find.closed && child.parent == nil)
-        controller.showFind(); try require(controller.find != nil)
+        let retainedIndex = controller.model.findSearchIndex
+        try require(controller.model.entries[retainedIndex].hash == headHash)
+        // Ordinary selection does not reset the source-owned Find position.
+        controller.model.select([rootHash])
+        controller.showFind(); let reopened = controller.find!
+        try await wait { !reopened.loadingReferences }
+        try require(reopened.searchIndex() == retainedIndex)
+        reopened.searchBox.stringValue = "HeadMarker"; reopened.findNext(); try await wait { !reopened.busy }
+        try require(reopened.status.stringValue.contains("No further match") && controller.model.selected == [rootHash])
+        reopened.searchBox.stringValue = "OnlyRootNote"; reopened.findNext(); try await wait { !reopened.busy }
+        try require(controller.model.selected == [rootHash] && controller.model.entries[controller.model.findSearchIndex].hash == rootHash)
+        let beforeReloadIndex = controller.model.findSearchIndex
+        controller.model.reload(); try await wait { !controller.model.busy }
+        try require(reopened.searchIndex() == beforeReloadIndex)
+        // A shorter history must still terminate when the retained index is stale.
+        controller.model.findSearchIndex = controller.model.entries.count + 10
+        reopened.searchBox.stringValue = "no-such-cursor-match"; reopened.findNext(); try await wait { !reopened.busy }
+        try require(reopened.status.stringValue.contains("No further match"))
+        let historyTable = views(window.contentView!).compactMap { $0 as? HistoryTableView }.first!
+        let headIndex = controller.model.entries.firstIndex { $0.hash == headHash }!
+        historyTable.selectRowIndexes(IndexSet(integer: headIndex), byExtendingSelection: false)
+        let menu = historyTable.menu!
+        menu.delegate?.menuNeedsUpdate?(menu)
+        try require(reopened.searchIndex() == headIndex)
         window.close(); try await wait { controller.find == nil && controller.model.isInvalidated }
         let after = try tracked.map { try Data(contentsOf: root.appendingPathComponent($0)) }; try require(after == before)
-        print("PASS: Native Log Find Command-F reuse, initialization exclusion, full-text notes/paths, wrap, reference navigation, Shift/plain Return, critical Return recovery, Cancel and parent-close cleanup; repository bytes unchanged. No installed Finder, physical gestures or signed acceptance.")
+        print("PASS: Native Log Find Command-F reuse, initialization exclusion, full-text notes/paths, wrap, reference navigation, Shift/plain Return, critical Return recovery, Cancel, parent-owned numeric cursor across reopen/reload, stale-index termination and Log context-menu positioning and parent-close cleanup; repository bytes unchanged. No installed Finder, physical gestures or signed acceptance.")
     }
 }
