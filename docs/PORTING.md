@@ -54,7 +54,7 @@ Upstream: https://github.com/TortoiseGit/TortoiseGit
 
 Commit: `7338078f8ddd924b8cddee35f512f2286072136d`.
 
-The checked-in inventory covers 3,277 tracked entries and 129 dialog resources.
+The checked-in inventory covers 3,277 tracked entries and 130 dialog resources.
 `upstream-files.csv` maps paths, blob hashes, review status, replacement and notes.
 `upstream-dialogs.csv` lists dialog resources and captions, including the settings
 pages and helper applications. Gitlinks must be recursively audited before using
@@ -77,7 +77,7 @@ App Store readiness.
 | Upstream component | macOS replacement | Current state |
 | --- | --- | --- |
 | TortoiseProc / MFC | SwiftUI windows, AppKit text views and file dialogs | First status, commit, log and operation views |
-| Revision Graph | Separate decoration-simplified query, pinned universal OGDF layout adapter and native AppKit canvas/Filter | Repository scopes, reduction, boundary nodes, pointer retention, colored boxes, selection, zoom/overview and Filter lifecycle implemented with focused native checks and light/dark captures. SVG/Graphviz and native raster/PDF exports implemented. Complete menus, export-panel grants, persistence and signed Finder acceptance pending. See REVISION-GRAPH-PARITY.md and GRAPH-LAYOUT-RUNTIME.md |
+| Revision Graph | Separate decoration-simplified query, pinned universal OGDF layout adapter and native AppKit canvas/Filter/Find | Repository scopes, reduction, boundary nodes, pointer retention, colored boxes, selection, zoom/overview and Filter lifecycle implemented with focused native checks and light/dark captures. SVG/Graphviz and native raster/PDF exports implemented. Complete menus, export-panel grants, persistence and signed Finder acceptance pending. See REVISION-GRAPH-PARITY.md and GRAPH-LAYOUT-RUNTIME.md |
 | src/Git | TurtleGitCore repository actor and installed Git | Basic status, mutation and patch operations |
 | TortoiseShell / COM | Finder Sync extension and URL routing | Compiles; signed end-to-end behavior unverified |
 | TGitCache | App Group snapshot, directory badge aggregation | Active repository polling; independent daemon pending |

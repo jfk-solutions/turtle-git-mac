@@ -1434,3 +1434,9 @@ Revision Graph toolbar retains src/Resources/revgraphbar.bmp unchanged under the
 upstream GPL resource alternative. Its 20-pixel glyph tiles, exact first-pixel
 RGB transparency mask and command ordering adapt IDR_REVGRAPHBAR and the
 RevisionGraphDlg.cpp toolbar setup to native AppKit controls.
+
+Revision Graph Find adapts TortoiseProc/FindDlg.cpp, LogDlgFilter.cpp and the
+TortoiseLoglistCommon.rc2 IDD_FIND resource, plus RevisionGraphDlg.cpp search
+and RevisionGraphWnd.cpp ScrollTo behavior. Native matching reuses the ported
+FilterHelper query and bundled ECMAScript UTF-16 runtime; copyright/licensing
+remains covered by the upstream GPL-2.0-or-later source notices.

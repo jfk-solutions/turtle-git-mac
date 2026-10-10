@@ -231,6 +231,7 @@ final class RevisionGraphNativeWindow: NSWindow {
         if event.modifierFlags.contains(.command), let key = event.charactersIgnoringModifiers {
             if key == "+" || key == "=" { command("zoomIn"); return true }
             if key == "-" { command("zoomOut"); return true }
+            if key == "f" { command("find"); return true }
         }
         return super.performKeyEquivalent(with: event)
     }
@@ -251,6 +252,7 @@ enum RevisionGraphReferenceCommand {
     private var toolbarButtons: [NSButton] = []
     private let overview: RevisionGraphOverview
     private(set) var filter: RevisionGraphFilterController?
+    private(set) var find: RevisionGraphFindController?
     private var closing = false
     private var exporting = false
     private var pendingRepositoryRefresh = false
@@ -265,7 +267,7 @@ enum RevisionGraphReferenceCommand {
         super.init(window: window); window.delegate = self
         let bar = NSStackView(); bar.orientation = .horizontal; bar.spacing = 8
         for (title, commands) in [("File", [("Save graph as…", "save"), ("Exit", "close")]),
-                                 ("View", [("Zoom in", "zoomIn"), ("Zoom out", "zoomOut"), ("Zoom to 100%", "zoom100"), ("Fit height", "fitHeight"), ("Fit width", "fitWidth"), ("Fit graph", "fit"), ("Filter…", "filter"), ("Show Overview", "overview"), ("Show branchings and merges", "branchings"), ("Show all tags", "tags"), ("Arrows point towards merges", "arrows")]),
+                                 ("View", [("Zoom in", "zoomIn"), ("Zoom out", "zoomOut"), ("Zoom to 100%", "zoom100"), ("Fit height", "fitHeight"), ("Fit width", "fitWidth"), ("Fit graph", "fit"), ("Filter…", "filter"), ("Find…", "find"), ("Show Overview", "overview"), ("Show branchings and merges", "branchings"), ("Show all tags", "tags"), ("Arrows point towards merges", "arrows")]),
                                  ("Git", [("Compare revisions", "compare"), ("Compare HEAD revisions", "compareHead"), ("Unified diff", "unified"), ("Unified diff of HEAD revisions", "unifiedHead")]), ("Help", [("Help", "help")])] {
             let popup = NSPopUpButton(frame: .zero, pullsDown: true); popup.addItem(withTitle: title)
             for (label, command) in commands { popup.menu?.addItem(menuItem(label, command: command)) }
@@ -299,6 +301,7 @@ enum RevisionGraphReferenceCommand {
         zoomBox.widthAnchor.constraint(equalToConstant: 82).isActive = true; toolbar.addArrangedSubview(zoomBox)
         separator(); addButton("Filter", "filter", RevisionGraphToolbarIcon.filter.image())
         separator(); addButton("Show Overview", "overview", RevisionGraphToolbarIcon.overview.image())
+        separator(); addButton("Find", "find", RevisionGraphToolbarIcon.find.image())
         separator(); addButton("Refresh", "refresh", MenuIcon.refresh.image(size: 20))
         let host = NSView(frame: CGRect(x: 0, y: 0, width: 960, height: 560)); host.translatesAutoresizingMaskIntoConstraints = false
         scroll.hasHorizontalScroller = true; scroll.hasVerticalScroller = true; scroll.autohidesScrollers = true; scroll.documentView = canvas
@@ -468,6 +471,7 @@ enum RevisionGraphReferenceCommand {
         case "branchings": model.options.showBranchingsAndMerges.toggle(); model.preferences.set(model.options.showBranchingsAndMerges, forKey: "ShowRevGraphBranchesMerges"); model.load()
         case "tags": model.options.showAllTags.toggle(); model.preferences.set(model.options.showAllTags, forKey: "ShowRevGraphAllTags"); model.load()
         case "filter": showFilter()
+        case "find": showFind()
         case "compare": model.compare()
         case "compareHead": model.compare(head: true)
         case "compareWorking": model.compare(working: true)
@@ -483,6 +487,7 @@ enum RevisionGraphReferenceCommand {
     }
     func update() {
         synchronizeZoom()
+        find?.updateAvailability()
         zoomBox.isEnabled = !model.busy && !model.closed && filter == nil && !exporting && window?.attachedSheet == nil
         for button in toolbarButtons {
             button.isEnabled = zoomBox.isEnabled
@@ -522,13 +527,34 @@ enum RevisionGraphReferenceCommand {
         }
     }
 
+    func showFind(regexExecutable: URL? = nil) {
+        guard !model.closed, !model.busy, filter == nil, !exporting, let parent = window, parent.attachedSheet == nil else { return }
+        if let find { find.window?.makeKey(); return }
+        let child = RevisionGraphFindController(repository: model.repository, access: model.access, preferences: model.preferences, regexExecutable: regexExecutable)
+        find = child
+        child.snapshot = { [weak model] in model?.nodes ?? [] }
+        child.canSearch = { [weak self] in guard let self else { return false }; return !self.model.closed && !self.model.busy && self.filter == nil && !self.exporting && self.window?.attachedSheet == nil }
+        child.navigate = { [weak self] hash, select in
+            guard let self, let rect = self.model.geometry?.nodes.first(where: { $0.hash == hash })?.rect else { return }
+            if select { self.model.select(hash, extending: false) }
+            let point = NSPoint(x: rect.minX * self.model.zoom + 10, y: max(0, rect.minY * self.model.zoom + 10 - max(1, 25 * self.model.zoom)))
+            self.scroll.contentView.scroll(to: self.scroll.contentView.constrainBoundsRect(NSRect(origin: point, size: self.scroll.contentView.bounds.size)).origin)
+            self.scroll.reflectScrolledClipView(self.scroll.contentView); self.overview.needsDisplay = true
+        }
+        child.onClosed = { [weak self, weak parent] in
+            if let window = self?.find?.window { parent?.removeChildWindow(window) }; self?.find = nil
+        }
+        if let window = child.window { window.alphaValue = parent.alphaValue; window.appearance = parent.appearance; parent.addChildWindow(window, ordered: .above); window.center(); window.orderFront(nil); window.makeFirstResponder(child.searchBox) }
+        child.updateAvailability(); child.loadReferences()
+    }
+
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         guard sender.attachedSheet == nil, filter == nil, !exporting, unifiedViewer?.model.busy != true, unifiedViewer?.window?.attachedSheet == nil else { return false }
         if model.busy { closing = true; model.cancel(); return false }; return true
     }
     func windowWillClose(_ notification: Notification) {
         NotificationCenter.default.removeObserver(self); model.invalidate(); unifiedViewer?.close(); unifiedViewer = nil
-        filter?.close(); filter = nil; onClosed()
+        filter?.close(); filter = nil; find?.close(); find = nil; onClosed()
     }
 }
 
@@ -702,5 +728,183 @@ enum RevisionGraphReferenceCommand {
         guard bounds.contains(point) else { return }
         let origin = CGPoint(x: max(0, (point.x - 4) / scale * model.zoom - scroll.contentSize.width / 2), y: max(0, (point.y - 4) / scale * model.zoom - scroll.contentSize.height / 2))
         scroll.contentView.scroll(to: scroll.contentView.constrainBoundsRect(NSRect(origin: origin, size: scroll.contentView.bounds.size)).origin); scroll.reflectScrolledClipView(scroll.contentView); needsDisplay = true
+    }
+}
+
+/// Modeless owned replacement of CFindDlg / TortoiseLoglistCommon IDD_FIND.
+@MainActor final class RevisionGraphFindController: NSWindowController, NSWindowDelegate, NSTableViewDataSource, NSTableViewDelegate, NSComboBoxDelegate, NSTextFieldDelegate {
+    let searchBox = NSComboBox()
+    let matchCase = NSButton(checkboxWithTitle: "Match case", target: nil, action: nil)
+    let regex = NSButton(checkboxWithTitle: "Regular Expression", target: nil, action: nil)
+    let findButton = NSButton(title: "Find", target: nil, action: nil)
+    let cancelButton = NSButton(title: "Cancel", target: nil, action: nil)
+    let table = NSTableView()
+    let referenceFilter = NSTextField()
+    let status = NSTextField(labelWithString: "")
+    private let repository: GitRepository
+    private let access: RepositoryAccessLease?
+    private let preferences: UserDefaults
+    private let regexExecutable: URL?
+    var snapshot: () -> [RevisionGraphNode] = { [] }
+    var canSearch: () -> Bool = { false }
+    var navigate: (String, Bool) -> Void = { _, _ in }
+    var onClosed: () -> Void = {}
+    private(set) var references: [String] = []
+    private(set) var visibleReferences: [String] = []
+    private(set) var busy = false
+    private(set) var closed = false
+    private var cursor: String?
+    private var request = UUID()
+    private var token: OperationCancellation?
+    private var worker: Task<Void, Never>?
+    private var refToken = OperationCancellation()
+    private var refWorker: Task<Void, Never>?
+    private var filterWorker: Task<Void, Never>?
+    init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults, regexExecutable: URL? = nil) {
+        self.repository = repository; self.access = access; self.preferences = preferences; self.regexExecutable = regexExecutable
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 575, height: 400), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        window.title = "Find – TurtleGit"; window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 500, height: 400)
+        super.init(window: window); window.delegate = self
+        matchCase.state = preferences.bool(forKey: "LogDialog.FindMatchCase") ? .on : .off
+        regex.state = preferences.bool(forKey: "LogDialog.FindRegex") ? .on : .off
+        searchBox.isEditable = true; searchBox.completes = false; searchBox.delegate = self
+        let history = preferences.stringArray(forKey: "History.Find.Search") ?? []
+        searchBox.addItems(withObjectValues: history); searchBox.stringValue = history.first ?? ""
+        searchBox.setAccessibilityLabel("Search for"); searchBox.widthAnchor.constraint(greaterThanOrEqualToConstant: 270).isActive = true
+        searchBox.target = self; searchBox.action = #selector(findNext)
+        findButton.target = self; findButton.action = #selector(findNext); findButton.keyEquivalent = "\r"
+        cancelButton.target = self; cancelButton.action = #selector(cancelFind); cancelButton.keyEquivalent = "\u{1b}"
+        let queryRow = NSStackView(views: [NSTextField(labelWithString: "Search for:"), searchBox]); queryRow.spacing = 8
+        let flags = NSStackView(views: [matchCase, regex]); flags.spacing = 16
+        let left = NSStackView(views: [queryRow, flags]); left.orientation = .vertical; left.alignment = .leading; left.spacing = 8
+        let actions = NSStackView(views: [findButton, cancelButton]); actions.orientation = .vertical; actions.spacing = 8
+        let full = NSStackView(views: [left, actions]); full.spacing = 8
+        full.distribution = .fill; full.alignment = .centerY
+        actions.widthAnchor.constraint(equalToConstant: 76).isActive = true
+        left.widthAnchor.constraint(equalTo: full.widthAnchor, constant: -84).isActive = true
+        queryRow.widthAnchor.constraint(equalTo: left.widthAnchor).isActive = true
+        findButton.widthAnchor.constraint(equalTo: actions.widthAnchor).isActive = true
+        cancelButton.widthAnchor.constraint(equalTo: actions.widthAnchor).isActive = true
+        searchBox.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        func group(_ title: String, contents: NSView) -> NSBox {
+            let box = NSBox(); box.title = title
+            let container = NSView(); box.contentView = container
+            contents.translatesAutoresizingMaskIntoConstraints = false; container.addSubview(contents)
+            NSLayoutConstraint.activate([contents.leadingAnchor.constraint(equalTo: container.leadingAnchor), contents.trailingAnchor.constraint(equalTo: container.trailingAnchor), contents.topAnchor.constraint(equalTo: container.topAnchor), contents.bottomAnchor.constraint(equalTo: container.bottomAnchor)])
+            return box
+        }
+        let textGroup = group("Full text search", contents: full)
+        textGroup.heightAnchor.constraint(equalToConstant: 105).isActive = true
+        let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("Ref")); column.title = "Ref"; column.width = 520; table.addTableColumn(column)
+        table.headerView = nil; table.rowHeight = 22; table.delegate = self; table.dataSource = self
+        table.target = self; table.action = #selector(referenceClicked); table.allowsMultipleSelection = false
+        table.setAccessibilityLabel("References; click to go to revision")
+        let scroller = NSScrollView(); scroller.hasVerticalScroller = true; scroller.documentView = table
+        scroller.heightAnchor.constraint(greaterThanOrEqualToConstant: 160).isActive = true
+        referenceFilter.delegate = self; referenceFilter.setAccessibilityLabel("Reference filter")
+        let filterRow = NSStackView(views: [NSTextField(labelWithString: "Filter:"), referenceFilter]); filterRow.spacing = 8
+        let refContents = NSStackView(views: [scroller, filterRow]); refContents.orientation = .vertical; refContents.alignment = .leading; refContents.spacing = 8
+        scroller.widthAnchor.constraint(equalTo: refContents.widthAnchor).isActive = true
+        filterRow.widthAnchor.constraint(equalTo: refContents.widthAnchor).isActive = true
+        let refGroup = group("Ref (Click it then go to)", contents: refContents)
+        refGroup.heightAnchor.constraint(greaterThanOrEqualToConstant: 230).isActive = true
+        let stack = NSStackView(views: [textGroup, refGroup, status]); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 8
+        stack.edgeInsets = NSEdgeInsets(top: 10, left: 10, bottom: 10, right: 10); stack.translatesAutoresizingMaskIntoConstraints = false
+        let content = RevisionGraphSurface(); content.addSubview(stack); window.contentView = content
+        NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: content.leadingAnchor), stack.trailingAnchor.constraint(equalTo: content.trailingAnchor), stack.topAnchor.constraint(equalTo: content.topAnchor), stack.bottomAnchor.constraint(equalTo: content.bottomAnchor), textGroup.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -20), refGroup.widthAnchor.constraint(equalTo: textGroup.widthAnchor)])
+        refGroup.setContentHuggingPriority(.defaultLow, for: .vertical)
+        refGroup.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
+        DialogGeometry.attach(window, identifier: "FindDlg")
+        updateAvailability()
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    func loadReferences() {
+        guard !closed, refWorker == nil else { return }
+        let repo = repository, cancellation = refToken
+        refWorker = Task { [weak self, access] in
+            _ = access
+            let result = await Task.detached { () -> Result<[String], Error> in
+                do { return .success(String(decoding: try await repo.run(["for-each-ref", "--format=%(refname)"], environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation).stdout, as: UTF8.self).split(separator: "\n").map(String.init)) } catch { return .failure(error) }
+            }.value
+            guard let self, !self.closed, !cancellation.isCancelled else { return }
+            self.refWorker = nil
+            switch result { case .success(let refs): self.references = refs; self.applyReferenceFilter()
+            case .failure(let error): self.status.stringValue = error.localizedDescription }
+        }
+    }
+    func updateAvailability() {
+        let enabled = !closed && !busy && canSearch()
+        findButton.isEnabled = enabled && !searchBox.stringValue.isEmpty
+        searchBox.isEnabled = enabled; matchCase.isEnabled = enabled; regex.isEnabled = enabled
+        table.isEnabled = enabled; referenceFilter.isEnabled = !closed
+    }
+    func controlTextDidChange(_ notification: Notification) {
+        if notification.object as? NSTextField === referenceFilter {
+            filterWorker?.cancel(); filterWorker = Task { [weak self] in
+                do { try await Task.sleep(nanoseconds: 1_000_000_000) } catch { return }
+                self?.applyReferenceFilter()
+            }
+        } else { updateAvailability() }
+    }
+    func comboBoxSelectionDidChange(_ notification: Notification) { updateAvailability() }
+    func applyReferenceFilter() {
+        guard !closed else { return }
+        visibleReferences = references.filter { referenceFilter.stringValue.isEmpty || $0.contains(referenceFilter.stringValue) }
+        table.deselectAll(nil); table.reloadData()
+    }
+    func numberOfRows(in tableView: NSTableView) -> Int { visibleReferences.count }
+    func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
+        guard visibleReferences.indices.contains(row) else { return nil }
+        let name = visibleReferences[row]
+        let icon: MenuIcon? = name.hasPrefix("refs/tags/") ? .tag : name.hasPrefix("refs/heads/") ? .branch : name.hasPrefix("refs/remotes/") ? .fetch : nil
+        let image = NSImageView(); image.image = icon?.image()
+        image.widthAnchor.constraint(equalToConstant: 16).isActive = true
+        let label = NSTextField(labelWithString: name); label.lineBreakMode = .byTruncatingTail
+        let row = NSStackView(views: [image, label]); row.spacing = 5; return row
+    }
+    @objc func referenceClicked() {
+        guard visibleReferences.indices.contains(table.selectedRow) else { return }
+        searchReference(visibleReferences[table.selectedRow], select: !(NSApp.currentEvent?.modifierFlags.contains(.shift) ?? false))
+    }
+    func searchReference(_ reference: String, select: Bool = true) { beginSearch(reference: reference, select: select) }
+    @objc func findNext() { beginSearch(reference: nil, select: !(NSApp.currentEvent?.modifierFlags.contains(.shift) ?? false)) }
+    private func beginSearch(reference: String?, select: Bool) {
+        guard !closed, !busy, canSearch(), reference != nil || !searchBox.stringValue.isEmpty else { return }
+        window?.makeFirstResponder(nil)
+        let nodes = snapshot(), query = searchBox.stringValue, useRegex = regex.state == .on, sensitive = matchCase.state == .on
+        if reference == nil {
+            preferences.set(sensitive, forKey: "LogDialog.FindMatchCase"); preferences.set(useRegex, forKey: "LogDialog.FindRegex")
+            var history = preferences.stringArray(forKey: "History.Find.Search") ?? []; history.removeAll { $0 == query }; history.insert(query, at: 0); history = Array(history.prefix(25))
+            preferences.set(history, forKey: "History.Find.Search"); searchBox.removeAllItems(); searchBox.addItems(withObjectValues: history); searchBox.stringValue = query
+        }
+        let previous = cursor.flatMap { hash in nodes.firstIndex { $0.hash == hash } }, repo = repository, helper = regexExecutable
+        let cancellation = OperationCancellation(), generation = UUID(); token = cancellation; request = generation; busy = true; status.stringValue = "Searching…"; updateAvailability()
+        worker = Task { [weak self, access] in
+            _ = access
+            let result = await Task.detached { () -> Result<(String, Bool)?, Error> in
+                do {
+                    if let reference {
+                        let hash = String(decoding: try await repo.run(["rev-parse", "--verify", "--end-of-options", reference + "^{}"], environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation).stdout, as: UTF8.self).trimmingCharacters(in: .newlines)
+                        return .success(nodes.contains { $0.hash == hash } ? (hash, false) : nil)
+                    }
+                    let matches = try RevisionGraphSearch.matches(nodes, query: query, regex: useRegex, caseSensitive: sensitive, regexExecutable: helper, cancellation: cancellation)
+                    guard let found = RevisionGraphSearch.next(matches, after: previous) else { return .success(nil) }
+                    return .success((nodes[found.index].hash, found.wrapped))
+                } catch { return .failure(error) }
+            }.value
+            guard let self, !self.closed, self.request == generation, !cancellation.isCancelled else { return }
+            self.busy = false; self.worker = nil; self.token = nil; self.updateAvailability()
+            guard self.canSearch(), self.snapshot().map(\.hash) == nodes.map(\.hash) else { self.status.stringValue = "The graph changed. Search again."; return }
+            switch result {
+            case .success(let found):
+                if let (hash, wrapped) = found { self.cursor = hash; self.navigate(hash, select); self.status.stringValue = wrapped ? "Search continued from the beginning." : "" }
+                else { self.status.stringValue = "No further match in the displayed graph." }
+            case .failure(let error): self.status.stringValue = error.localizedDescription
+            }
+        }
+    }
+    @objc private func cancelFind() { close() }
+    func windowWillClose(_ notification: Notification) {
+        guard !closed else { return }; closed = true; request = UUID(); token?.cancel(); worker?.cancel(); refToken.cancel(); refWorker?.cancel(); filterWorker?.cancel(); updateAvailability(); onClosed()
     }
 }

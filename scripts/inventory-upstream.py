@@ -62,7 +62,7 @@ def main():
             previous_dialogs = {(r["resource"], r["id"]): r for r in csv.DictReader(stream)}
     dialogs = []
     for row in rows:
-        if not row['path'].endswith('.rc'):
+        if not row['path'].endswith(('.rc', '.rc2')):
             continue
         data = git('show', commit + ':' + row['path'])
         text = data.decode('utf-16' if data[:2] in (b'\xff\xfe', b'\xfe\xff') else 'utf-8', errors='replace')

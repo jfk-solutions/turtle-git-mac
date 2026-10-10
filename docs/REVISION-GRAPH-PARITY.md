@@ -417,9 +417,8 @@ The menu row and toolbar occupy separate native rows. Six zoom buttons precede
 the editable percentage, then Filter and Overview, with source separator groups.
 Refresh is a native additional button for the existing F5 command. Toolbar
 actions are disabled during loading and owned modal interactions; Overview
-reflects its current state. The original Find tile is decoded but not exposed
-yet: the source Find dialog, text/regex/reference search and scrolling behavior
-still require a complete port. This checkpoint does not certify full toolbar,
+reflects its current state. At this toolbar checkpoint the original Find tile was decoded but not exposed;
+the subsequent Find implementation is mapped below. This checkpoint does not certify full toolbar,
 physical input, accessibility or signed execution parity.
 
 Pixel checks compare every decoded tile with the pinned BGR resource, including
@@ -434,3 +433,58 @@ verified 118 unchanged upstream icon resources, including the new graph strip;
 the local Pages build passed. This is local unsigned evidence, not hosted CI,
 publication, signed Finder or App Store approval. All owned native QA receivers
 exited and no app/test/compiler instances remained at the checkpoint.
+
+## Find dialog and search
+
+The modeless owned AppKit Find window adapts `TortoiseProc/FindDlg.cpp` and
+`TortoiseLoglistCommon.rc2::IDD_FIND`: Full text search with a history combo,
+Match case, Regular Expression and right-hand Find/Cancel, plus the full-name
+reference list and its case-sensitive, one-second delayed Filter. The toolbar
+uses the original Find tile and Command-F opens or focuses the existing window.
+
+Graph metadata now includes author email, committer name and committer email.
+Readable excluded-parent nodes load that metadata without expanding ancestry.
+Search uses `LogDlgFilter` fields and the existing FilterHelper/ECMAScript UTF-16
+port, including inactive-invalid-expression and negation behavior. Search starts
+after its last result, wraps once and excludes that previous result. A bounded
+loop fixes the upstream first-search/no-match loop without changing the result
+order. Reference clicks resolve canonical names with `^{}` and navigate only if
+the peeled hash is displayed. Shift preserves graph selection; normal results
+replace it and clear the second selection.
+
+Find does not own a modal sheet. The parent retains its child, which inherits
+the parent's visibility for private QA. Repository reads and regex matching
+run asynchronously with cancellation, captured access leases and stale-result
+guards. Parent loading/modal operations disable Find; closing Find or its
+parent cancels owned work. Explicit status text replaces source window flashing
+and beeps for wraps/no-match. Search history and case/regex preferences are
+saved on Find dispatch. Reference rows currently reuse original branch/tag/fetch
+menu icons; the exact small reference-type strip, physical focus/keyboard,
+accessibility, localization, larger graphs and signed sandbox behavior remain
+under review. Full Find/application parity is not certified.
+
+The upstream inventory now includes shared `.rc2` resources. This adds the
+previously omitted common Find dialog and its eleven controls: 130 dialogs
+and 1,659 static controls at the same source pin. The inventory-pin regression
+also checks shared-resource discovery and ignores dirty `.rc2` working copies.
+All Find controls are marked partial; dynamic behavior and shared Log consumers
+still require their own review. Historical 129-dialog checkpoints are unchanged.
+
+Seven focused Core graph tests passed with each Git engine. Native receivers
+passed with both engines for modeless single-window ownership, searchable body/
+case/email/ECMAScript fields, annotated reference peeling, selection-preserving
+navigation, actual reference-table action dispatch, actual field-editor delayed
+filter input, saved history/options, loading/modal locks and close cancellation.
+Closing the parent closed its Find child. Control-frame checks and light/dark
+right-button alignment checks passed; the inspected final captures were added
+to the local gallery. The initial action-only run exposed a collapsed group
+layout during capture inspection; constraints and independent frame checks
+were repaired before the final acceptance run. Physical Shift/focus/keyboard
+and signed execution remain pending. See
+[Find evidence](qa/revision-graph-find-2026-10-10.json).
+
+The final unsigned Debug and App Store configuration builds passed, as did
+both bundle audits (118 upstream icon resources) and the local Pages build.
+All owned receivers exited; no app/test/compiler processes remained. The
+App Store/sandbox/Finder signing and current hosted CI/publication gates remain
+open. The checked-in Find evidence is a feature checkpoint, not full parity.

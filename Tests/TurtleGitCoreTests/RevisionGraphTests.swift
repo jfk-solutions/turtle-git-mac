@@ -2,6 +2,27 @@ import XCTest
 @testable import TurtleGitCore
 
 final class RevisionGraphTests: XCTestCase {
+    func testFindSearchesSourceFieldsAndWrapsWithoutRepeatingPreviousResult() throws {
+        let helper = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("build/issue-regex-runtime/IssueRegex/issue-regex")
+        let nodes = [RevisionGraphNode(hash: "abc123", references: [RevisionReference(name: "refs/tags/Release", kind: .annotatedTag)], author: "Author", message: "Subject\n\nBody 🐢", authorEmail: "author@sample.test", committer: "Integrator", committerEmail: "committer@sample.test"), RevisionGraphNode(hash: "def456", message: "other")]
+        for query in ["Subject", "Body", "Author", "author@sample.test", "Integrator", "committer@sample.test", "abc123", "refs/tags/Release^{}", "🐢", "Subject Body -missing"] {
+            XCTAssertEqual(try RevisionGraphSearch.matches(nodes, query: query, regex: false, caseSensitive: true), [true, false], query)
+        }
+        XCTAssertEqual(try RevisionGraphSearch.matches(nodes, query: "release", regex: false, caseSensitive: true), [false, false])
+        XCTAssertEqual(try RevisionGraphSearch.matches(nodes, query: "release", regex: false, caseSensitive: false), [true, false])
+        XCTAssertEqual(try RevisionGraphSearch.matches(nodes, query: "committer@.*\\.test", regex: true, caseSensitive: true, regexExecutable: helper), [true, false])
+        XCTAssertEqual(try RevisionGraphSearch.matches(nodes, query: "(?<=Body)", regex: true, caseSensitive: true, regexExecutable: helper), [true, true], "Unsupported ECMAScript syntax follows inactive source filter")
+        XCTAssertEqual(RevisionGraphSearch.next([false, true, false], after: nil)?.index, 1)
+        XCTAssertEqual(RevisionGraphSearch.next([true, false, true], after: 2)?.index, 0)
+        XCTAssertEqual(RevisionGraphSearch.next([true, false, true], after: 2)?.wrapped, true)
+        XCTAssertNil(RevisionGraphSearch.next([false, true, false], after: 1))
+        XCTAssertNil(RevisionGraphSearch.next([false, false], after: nil))
+        XCTAssertNil(RevisionGraphSearch.next([], after: nil))
+        XCTAssertNil(RevisionGraphSearch.next([true], after: 0))
+        let cancellation = OperationCancellation(); cancellation.cancel()
+        XCTAssertThrowsError(try RevisionGraphSearch.matches(nodes, query: "Body", regex: false, caseSensitive: true, cancellation: cancellation))
+    }
+
     func repositoryFixture() async throws -> (URL, GitRepository) {
         let (root, original) = try await CommitSelectionTests().fixture()
         let executable = ProcessInfo.processInfo.environment["TURTLEGIT_GROUP_TEST_GIT"].map { URL(fileURLWithPath: $0) } ?? original.executable
@@ -62,6 +83,7 @@ final class RevisionGraphTests: XCTestCase {
         let config = try Data(contentsOf: root.appendingPathComponent(".git/config"))
         let refs = try await repo.run(["show-ref"]).stdout
         let all = try await repo.revisionGraph()
+        XCTAssertTrue(all.nodes.allSatisfy { !$0.authorEmail.isEmpty && !$0.committer.isEmpty && !$0.committerEmail.isEmpty })
         XCTAssertTrue(all.nodes.allSatisfy { !$0.author.isEmpty && !$0.authorDate.isEmpty && !$0.message.isEmpty })
         XCTAssertEqual(all.head, h["merge"])
         XCTAssertTrue(all.nodes.contains { $0.hash == h["remote"] })

@@ -96,7 +96,19 @@ END
         final = {p: p.read_bytes() for p in [files, dialogs, controls]}
         inventory('inventory-upstream.py'); inventory('inventory-dialog-controls.py')
         assert all(p.read_bytes() == expected for p, expected in final.items())
-    print('Pinned inventory: dirty checkout, advanced HEAD, explicit repin, review invalidation, unchanged mapping and idempotence passed.')
+        # Shared .rc2 resources are executable UI specifications too.
+        shared = upstream / 'src/Shared.rc2'
+        shared.write_text(old.replace('IDD_FIXTURE', 'IDD_SHARED').replace('Pinned caption', 'Shared Find'))
+        git('add', 'src/Shared.rc2'); git('commit', '-m', 'shared resource')
+        inventory('inventory-upstream.py', '--ref', git('rev-parse', 'HEAD'))
+        inventory('inventory-dialog-controls.py')
+        assert len(rows(dialogs)) == 2 and any(r['id'] == 'IDD_SHARED' and r['caption'] == 'Shared Find' for r in rows(dialogs))
+        assert len([r for r in rows(controls) if r['dialog'] == 'IDD_SHARED']) == 2
+        shared_snapshot = {p: p.read_bytes() for p in [files, dialogs, controls]}
+        shared.write_text(old.replace('IDD_FIXTURE', 'IDD_DIRTY_SHARED'))
+        inventory('inventory-upstream.py'); inventory('inventory-dialog-controls.py')
+        assert all(p.read_bytes() == expected for p, expected in shared_snapshot.items())
+    print('Pinned inventory: dirty checkout, advanced HEAD, explicit repin, review invalidation, unchanged mapping, idempotence and shared .rc2 coverage passed.')
 
 
 if __name__ == '__main__':

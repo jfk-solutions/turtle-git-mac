@@ -26,11 +26,15 @@ public struct RevisionGraphNode: Identifiable, Sendable {
     public var isBoundary: Bool
     public let author: String
     public let authorDate: String
+    public let authorEmail: String
+    public let committer: String
+    public let committerEmail: String
     public let message: String
-    public init(hash: String, parents: [String] = [], references: [RevisionReference] = [], isHead: Bool = false, isBoundary: Bool = false, author: String = "", authorDate: String = "", message: String = "") {
+    public init(hash: String, parents: [String] = [], references: [RevisionReference] = [], isHead: Bool = false, isBoundary: Bool = false, author: String = "", authorDate: String = "", message: String = "", authorEmail: String = "", committer: String = "", committerEmail: String = "") {
         self.hash = hash; self.parents = parents; self.references = references
         self.isHead = isHead; self.isBoundary = isBoundary
         self.author = author; self.authorDate = authorDate; self.message = message
+        self.authorEmail = authorEmail; self.committer = committer; self.committerEmail = committerEmail
     }
 }
 
@@ -112,7 +116,7 @@ extension GitRepository {
             refs[hash, default: []].append(RevisionReference(name: name, isCurrent: currentBranch.map { GitReferenceName.equal($0, name) } ?? false, kind: kind))
             i += 3
         }
-        var arguments = ["log", "--encoding=UTF-8", "--format=%H%x00%P%x00%an%x00%aI%x00%B%x00", "--topo-order", "--parents", "--simplify-by-decoration"]
+        var arguments = ["log", "--encoding=UTF-8", "--format=%H%x00%P%x00%an%x00%aI%x00%B%x00%ae%x00%cn%x00%ce%x00", "--topo-order", "--parents", "--simplify-by-decoration"]
         if options.showBranchingsAndMerges { arguments.append("--sparse") }
         // Upstream gives Only Local Branches precedence if both flags are set.
         if options.onlyLocalBranches { arguments.append("--branches") }
@@ -128,12 +132,12 @@ extension GitRepository {
         var nodes: [RevisionGraphNode] = []
         let fields = logOutput.components(separatedBy: "\0")
         var record = 0
-        while record + 4 < fields.count {
+        while record + 7 < fields.count {
             try cancellation?.check()
             let hash = fields[record].trimmingCharacters(in: .newlines)
             let parents = fields[record + 1].split(separator: " ").map(String.init)
-            nodes.append(RevisionGraphNode(hash: hash, parents: parents, references: refs[hash] ?? [], isHead: hash == head, author: fields[record + 2], authorDate: fields[record + 3], message: fields[record + 4]))
-            record += 5
+            nodes.append(RevisionGraphNode(hash: hash, parents: parents, references: refs[hash] ?? [], isHead: hash == head, author: fields[record + 2], authorDate: fields[record + 3], message: fields[record + 4], authorEmail: fields[record + 5], committer: fields[record + 6], committerEmail: fields[record + 7]))
+            record += 8
         }
         var pointerLabels: [String: [String]] = [:]
         if options.showSuperprojectPointers {
@@ -184,9 +188,42 @@ extension GitRepository {
         for node in nodes {
             for parent in node.parents where known.insert(parent).inserted {
                 try cancellation?.check()
-                nodes.append(RevisionGraphNode(hash: parent, references: refs[parent] ?? [], isHead: parent == head, isBoundary: true))
+                let metadata = (try? output(["show", "--no-patch", "--encoding=UTF-8", "--format=%an%x00%aI%x00%B%x00%ae%x00%cn%x00%ce%x00", parent, "--"]))?.components(separatedBy: "\0") ?? []
+                try cancellation?.check()
+                nodes.append(RevisionGraphNode(hash: parent, references: refs[parent] ?? [], isHead: parent == head, isBoundary: true,
+                    author: metadata.count >= 6 ? metadata[0] : "", authorDate: metadata.count >= 6 ? metadata[1] : "", message: metadata.count >= 6 ? metadata[2] : "",
+                    authorEmail: metadata.count >= 6 ? metadata[3] : "", committer: metadata.count >= 6 ? metadata[4] : "", committerEmail: metadata.count >= 6 ? metadata[5] : ""))
             }
         }
         return RevisionGraphData(nodes: nodes, head: head, superprojectLabels: pointerLabels)
+    }
+}
+
+/// RevisionGraphDlg::OnFindDialogMessage uses the same FilterHelper predicate as Log.
+public enum RevisionGraphSearch {
+    public static func matches(_ nodes: [RevisionGraphNode], query: String, regex: Bool, caseSensitive: Bool, regexExecutable: URL? = nil, cancellation: OperationCancellation? = nil) throws -> [Bool] {
+        let texts = try nodes.map { node in
+            try cancellation?.check()
+            let parts = LogEntry.splitHistoryMessage(node.message)
+            return ([parts.subject, parts.body, node.author, node.committer, node.authorEmail, node.committerEmail, node.hash] + node.references.map { ref in
+                ref.name + (ref.kind == .annotatedTag ? "^{}" : "")
+            }).joined(separator: "\n") + "\n"
+        }
+        if regex { return try IssueRegexRuntime.logMatches(texts, pattern: query, caseSensitive: caseSensitive, executable: regexExecutable, cancellation: cancellation) }
+        let filter = HistoryTextQuery(query, caseSensitive: caseSensitive)
+        return try texts.map { text in try cancellation?.check(); return filter.matches(text) }
+    }
+    /// Search after the previous result, wrapping once and excluding that result.
+    /// Bound the source loop so a first search with no match cannot run forever.
+    public static func next(_ matches: [Bool], after previous: Int?) -> (index: Int, wrapped: Bool)? {
+        guard !matches.isEmpty else { return nil }
+        let previous = previous.flatMap { matches.indices.contains($0) ? $0 : nil }
+        let start = previous.map { $0 + 1 } ?? 0
+        let count = matches.count - (previous == nil ? 0 : 1)
+        for offset in 0..<count {
+            let position = start + offset, index = position % matches.count
+            if matches[index] { return (index, position >= matches.count) }
+        }
+        return nil
     }
 }

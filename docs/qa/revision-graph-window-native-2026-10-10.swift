@@ -193,8 +193,8 @@ import Darwin
         controller.perform("zoom100"); controller.perform("overview"); try require(model.zoom == 1 && model.showOverview)
         let toolbar = try XCToolbar(window)
         let toolbarControls = toolbar.arrangedSubviews.compactMap { $0 as? NSButton }
-        try require(toolbarControls.map { $0.identifier!.rawValue } == ["zoomIn", "zoomOut", "zoom100", "fitHeight", "fitWidth", "fit", "filter", "overview", "refresh"])
-        let glyphs: [RevisionGraphToolbarIcon] = [.zoomIn, .zoomOut, .zoom100, .fitHeight, .fitWidth, .fitGraph, .filter, .overview]
+        try require(toolbarControls.map { $0.identifier!.rawValue } == ["zoomIn", "zoomOut", "zoom100", "fitHeight", "fitWidth", "fit", "filter", "overview", "find", "refresh"])
+        let glyphs: [RevisionGraphToolbarIcon] = [.zoomIn, .zoomOut, .zoom100, .fitHeight, .fitWidth, .fitGraph, .filter, .overview, .find]
         for (button, glyph) in zip(toolbarControls, glyphs) {
             let actual = (button.image!.representations.first as! NSBitmapImageRep).representation(using: .png, properties: [:])
             let expected = (glyph.image()!.representations.first as! NSBitmapImageRep).representation(using: .png, properties: [:])
@@ -283,6 +283,11 @@ import Darwin
             for (name, appearance) in [("light", NSAppearance.Name.aqua), ("dark", NSAppearance.Name.darkAqua)] {
                 target.appearance = NSAppearance(named: appearance); target.makeFirstResponder(nil)
                 target.contentView!.layoutSubtreeIfNeeded(); target.contentView!.needsDisplay = true
+                if prefix == "revision-graph-find" {
+                    let findButton = views(target.contentView!).compactMap { $0 as? NSButton }.first { $0.title == "Find" }!
+                    let frame = findButton.convert(findButton.bounds, to: target.contentView!)
+                    try require(target.contentView!.bounds.maxX - frame.maxX < 30 && target.contentView!.bounds.contains(frame))
+                }
                 try await Task.sleep(nanoseconds: 200_000_000)
                 let view = target.contentView!, bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds)!
                 target.effectiveAppearance.performAsCurrentDrawingAppearance { view.cacheDisplay(in: view.bounds, to: bitmap) }
@@ -291,8 +296,60 @@ import Darwin
             target.appearance = NSAppearance(named: .aqua)
         }
         try await capture(window, prefix: "revision-graph")
+        let regexHelper = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/IssueRegex/issue-regex")
+        controller.showFind(regexExecutable: regexHelper)
+        let find = controller.find!, findWindow = find.window!
+        try await wait { !find.references.isEmpty }
+        try require(findWindow.alphaValue == 0 && window.childWindows?.contains(findWindow) == true && window.attachedSheet == nil)
+        controller.showFind(); try require(controller.find === find)
+        findWindow.contentView!.layoutSubtreeIfNeeded()
+        try require(find.searchBox.frame.width >= 270 && find.searchBox.frame.height >= 20 && find.findButton.frame.width >= 40)
+        try require(find.table.enclosingScrollView!.frame.height >= 160 && find.table.enclosingScrollView!.frame.width > 400 && find.referenceFilter.frame.width > 300)
+        let queryFrame = find.searchBox.convert(find.searchBox.bounds, to: findWindow.contentView!), refsFrame = find.table.enclosingScrollView!.convert(find.table.enclosingScrollView!.bounds, to: findWindow.contentView!)
+        try require(queryFrame.minY > refsFrame.maxY && findWindow.contentView!.bounds.contains(queryFrame) && findWindow.contentView!.bounds.contains(refsFrame))
+        try require(find.references.contains("refs/tags/release-v1") && find.references.contains("refs/heads/main") && find.references.contains("refs/remotes/origin/main"))
+        func findText(_ query: String, regex: Bool = false, sensitive: Bool = false) async throws {
+            find.searchBox.stringValue = query; find.regex.state = regex ? .on : .off; find.matchCase.state = sensitive ? .on : .off; find.updateAvailability()
+            try require(find.findButton.isEnabled && NSApp.sendAction(find.findButton.action!, to: find.findButton.target, from: find.findButton))
+            try require(find.busy && !find.findButton.isEnabled && !find.table.isEnabled)
+            try await wait { !find.busy }
+        }
+        try await findText("Tooltip body 🐢"); try require(model.selection == [feature.hash])
+        try await findText("TOOLTIP", sensitive: true); try require(model.selection == [feature.hash] && find.status.stringValue.contains("No further match"))
+        try await findText("graph@example.invalid", regex: true); try require(model.selection.count == 1 && model.selection != [feature.hash])
+        let beforeNoMatch = model.selection
+        try await findText("no-such-message"); try require(model.selection == beforeNoMatch && find.status.stringValue.contains("No further match"))
+        find.searchReference("refs/tags/release-v1"); try await wait { !find.busy }; try require(model.selection == [rootNode.hash])
+        find.searchReference("refs/heads/feature/native-graph", select: false); try await wait { !find.busy }; try require(model.selection == [rootNode.hash])
+        find.referenceFilter.stringValue = "refs/heads/feature/"; find.applyReferenceFilter()
+        try require(find.visibleReferences.count == 3)
+        find.referenceFilter.stringValue = "REFS/HEADS"; find.applyReferenceFilter(); try require(find.visibleReferences.isEmpty)
+        find.referenceFilter.stringValue = ""; find.applyReferenceFilter()
+        findWindow.makeFirstResponder(find.referenceFilter)
+        let referenceEditor = find.referenceFilter.currentEditor() as! NSTextView
+        referenceEditor.selectAll(nil); referenceEditor.insertText("refs/tags/", replacementRange: referenceEditor.selectedRange())
+        try await wait { find.visibleReferences.count == 4 && find.visibleReferences.allSatisfy { $0.hasPrefix("refs/tags/") } }
+        findWindow.makeFirstResponder(nil); find.referenceFilter.stringValue = ""; find.applyReferenceFilter()
+        let refRow = find.visibleReferences.firstIndex(of: "refs/remotes/origin/main")!
+        find.table.selectRowIndexes(IndexSet(integer: refRow), byExtendingSelection: false)
+        try require(NSApp.sendAction(find.table.action!, to: find.table.target, from: find.table))
+        try await wait { !find.busy }; try require(model.selection == [main.hash])
+        try require(prefs.stringArray(forKey: "History.Find.Search")?.first == "no-such-message")
+        find.searchBox.stringValue = "Body"; find.regex.state = .on; find.matchCase.state = .on; find.updateAvailability()
+        try await capture(findWindow, prefix: "revision-graph-find")
+        model.load(); try require(!find.findButton.isEnabled); find.findNext(); try require(!find.busy)
+        try await wait { !model.busy }; try require(find.findButton.isEnabled)
+        find.findNext(); try require(find.busy); find.close()
+        try await wait { controller.find == nil }; try require(find.closed && window.childWindows?.contains(findWindow) != true)
+        find.findNext(); try require(find.closed)
+        controller.showFind(regexExecutable: regexHelper)
+        let reopenedFind = controller.find!; try require(reopenedFind.searchBox.stringValue == "Body" && reopenedFind.regex.state == .on && reopenedFind.matchCase.state == .on)
+        model.selection = selectedPair; controller.update()
+        print("PASS: Revision Graph modeless Find ownership, text/case/ECMAScript/email/ref search, shift navigation, filter/history, busy locks and cancellation")
         controller.showFilter(); try await wait { window.attachedSheet != nil }
         let child = window.attachedSheet!; try require(child.alphaValue == 0 && !zoomBox.isEnabled)
+        try require(!reopenedFind.findButton.isEnabled); reopenedFind.findNext(); try require(!reopenedFind.busy)
+        reopenedFind.close(); try await wait { controller.find == nil }
         try zoomText("75%"); try require(model.zoom == 1 && zoomBox.stringValue == "100%")
         try await capture(child, prefix: "revision-graph-filter")
         controller.requestRepositoryRefresh(); try require(!model.busy)
@@ -485,10 +542,12 @@ import Darwin
         let afterHidden = try Data(contentsOf: parentRoot.appendingPathComponent(".git/index"))
         try require(afterHidden == parentIndex)
         print("PASS: Native conflicted submodule graph pointer labels, measured rows, SVG pointer color Advanced setting and unchanged parent index")
+        controller.showFind(regexExecutable: regexHelper)
+        let finalFind = controller.find!
         model.load(); try require(model.busy)
         var closed = false; controller.onClosed = { closed = true }
         window.performClose(nil); try await wait { closed }
-        try require(model.closed && !model.busy)
+        try require(model.closed && !model.busy && finalFind.closed && controller.find == nil)
         model.load(); try require(!model.busy)
         print("PASS: Native Revision Graph selection, routing, zoom, tooltip, filter scopes, Reset, cancellation and repository invariants")
     }

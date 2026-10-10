@@ -1,0 +1,102 @@
+{
+  "checked_at": "2026-10-10T16:25:00.470748+00:00",
+  "parent_commit": "b654e5916210ecf69b9614003610ad56b0d380db",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Revision Graph modeless Find, metadata and source search; shared resource inventory coverage. Full Find/shared Log/application/signed parity remains open.",
+  "source": [
+    "src/TortoiseProc/FindDlg.cpp and FindDlg.h",
+    "src/TortoiseProc/LogDlgFilter.cpp",
+    "src/Resources/TortoiseLoglistCommon.rc2 IDD_FIND",
+    "RevisionGraphDlg.cpp OnFindDialogMessage",
+    "RevisionGraphWnd.cpp ScrollTo"
+  ],
+  "implementation": [
+    "Full text search/history, Match case, Regular Expression, Find/Cancel and reference-list/Filter native layout",
+    "original toolbar Find icon; Command-F opens/focuses one owned modeless child",
+    "author email and committer name/email added to graph protocol, including readable boundary commits",
+    "source Log fields and FilterHelper/ECMAScript UTF-16 predicate reused",
+    "bounded next-match order with one wrap and previous-result exclusion",
+    "full canonical reference names peeled with ^{}; navigation preserves selection when requested",
+    "one-second case-sensitive reference filter; source matching options and query history saved on dispatch",
+    "asynchronous reads/matching, captured access lease, cancellation and stale graph/closed-result guards",
+    "parent loading/modal locks; closing parent closes owned Find",
+    "shared .rc2 resources included in pinned inventory regeneration; Find and eleven controls mapped as partial"
+  ],
+  "verification": {
+    "system_git_focused_core_tests": 7,
+    "bundled_git_focused_core_tests": 7,
+    "focused_core_failures": 0,
+    "native_system_git_exit": 0,
+    "native_bundled_git_exit": 0,
+    "native_cases": [
+      "modeless child visibility/ownership and single-window reopening",
+      "search body/case/email/ECMAScript fields and no-match preservation",
+      "annotated tag peeling and selection-preserving navigation",
+      "reference table action dispatch",
+      "case-sensitive filter and actual field-editor one-second debounce",
+      "history/options reopening",
+      "loading and Filter modal disablement",
+      "search/close cancellation and closed dispatch rejection",
+      "parent closing closes Find",
+      "independent control-frame extents and light/dark right-button alignment",
+      "all retained graph preferences/mouse/zoom/overview/Filter/picker/export/menu/deletion/pointer/repository invariant checks"
+    ],
+    "inventory_pin_regression_exit": 0,
+    "inventory_dialogs": 130,
+    "inventory_static_controls": 1659,
+    "unsigned_debug_build_exit": 0,
+    "unsigned_appstore_build_exit": 0,
+    "debug_bundle_audit_exit": 0,
+    "appstore_bundle_audit_exit": 0,
+    "upstream_icon_resources": 118,
+    "local_pages_build_exit": 0
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/revision-graph-light.png",
+      "sha256": "4996ce8c53e00664f17310c539fc787e53619b77b34c56d85891c6eaed1a64ac",
+      "pixels": [
+        1960,
+        1340
+      ],
+      "kind": "actual native content capture from hidden owned fixture; manually inspected"
+    },
+    {
+      "path": "docs/site/assets/revision-graph-dark.png",
+      "sha256": "88562886dbe2e968663b2d865f12a4946323862c299256ccd88f958ecc36d469",
+      "pixels": [
+        1960,
+        1340
+      ],
+      "kind": "actual native content capture from hidden owned fixture; manually inspected"
+    },
+    {
+      "path": "docs/site/assets/revision-graph-find-light.png",
+      "sha256": "4f4bf85c99bf73b514c1b75d852a5d3cfdcf9e4ceb7f0ddd48fb948e64426c3c",
+      "pixels": [
+        1150,
+        800
+      ],
+      "kind": "actual native content capture from hidden owned fixture; manually inspected"
+    },
+    {
+      "path": "docs/site/assets/revision-graph-find-dark.png",
+      "sha256": "cc0aeafbc7bb2cbf517dedfc31ce60955fd65e0d683eea44e5301ff6b8d33deb",
+      "pixels": [
+        1150,
+        800
+      ],
+      "kind": "actual native content capture from hidden owned fixture; manually inspected"
+    }
+  ],
+  "repair_evidence": "Initial action-only acceptance exposed collapsed NSBox content during capture inspection. Content constraints, minimum size and right-button alignment were repaired; independent frame checks were added and final native acceptance/captures rerun with both engines.",
+  "mutation_scope": "Only disposable Git fixtures and private preferences; no global DialogGeometry installation or visible activation. Receivers exited, fixtures removed and no app/test/compiler processes remained at checkpoint.",
+  "pending": [
+    "exact reftype.bmp small reference artwork and complete shared Log Find consumer",
+    "physical Command-F/Return/Shift/focus, popup and accessibility/localization acceptance",
+    "error acknowledgment dialogs and larger/missing-object graph variants",
+    "signed sandbox/App Store/Finder integration",
+    "current hosted CI and publication",
+    "complete TortoiseGit port"
+  ]
+}

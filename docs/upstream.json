@@ -2,6 +2,6 @@
   "repository": "https://github.com/TortoiseGit/TortoiseGit",
   "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
   "tracked_entries": 3277,
-  "dialog_resources": 129,
+  "dialog_resources": 130,
   "note": "Inventory coverage is not implementation coverage. Every file and dialog requires review."
 }

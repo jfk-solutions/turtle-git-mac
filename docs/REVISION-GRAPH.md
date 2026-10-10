@@ -49,6 +49,22 @@ its size follows the graph and viewport, and the shaded rectangle shows the
 visible area. Click or drag within it to navigate. The overview is suppressed above 10,000 displayed
 nodes. **Refresh** or F5 reads the repository again.
 
+**Find** in the toolbar, **View → Find…** or Command-F opens a modeless Find
+window. Full text search offers a history box, **Match case** and
+**Regular Expression**. It searches commit subjects/bodies, author and committer
+names/emails, full hashes and full reference names using the same query matcher
+as Log. Find advances after the previous result and wraps once; a status message
+reports a wrap or no further match. Hold Shift when finding to navigate without
+replacing the graph selection.
+
+The lower reference list shows complete names. Click a reference to go to its
+peeled commit, including annotated tags. Its case-sensitive Filter updates
+after a one-second pause. References outside the currently displayed graph do
+not change selection. Search history and the two matching options are saved
+when Find is pressed; closing the window cancels its pending work. The graph
+can remain interactive while Find is open; loading or owned sheets disable
+search. Closing the graph closes its Find window.
+
 **View → Filter…** opens a revision range sheet. **From** excludes history
 reachable from the entered revision; **To** restricts the included history.
 Both fields accept whitespace-separated revisions. **RefBrowser** opens the

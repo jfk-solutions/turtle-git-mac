@@ -7,6 +7,7 @@ ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc,IDD_SOLUTIONDLG,@Title,pending-r
 ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc,IDD_SENDASSERTREPORTDLG,@Title,pending-review
 src/Resources/TortoiseGitBlameENG.rc,IDD_ABOUTBOX,About TortoiseGitBlame,pending-review
 src/Resources/TortoiseGitBlameENG.rc,IDD_GOTODLG,Go to line,partial
+src/Resources/TortoiseLoglistCommon.rc2,IDD_FIND,Find,partial-native-replacement
 src/Resources/TortoiseMergeENG.rc,IDD_ABOUT,About TortoiseGitMerge,pending-review
 src/Resources/TortoiseMergeENG.rc,IDD_DIFFLOCATOR,,pending-review
 src/Resources/TortoiseMergeENG.rc,IDD_LINEDIFF,,pending-review
