@@ -268,7 +268,7 @@ enum RevisionGraphReferenceCommand {
         let host = NSView(frame: CGRect(x: 0, y: 0, width: 960, height: 560)); host.translatesAutoresizingMaskIntoConstraints = false
         scroll.hasHorizontalScroller = true; scroll.hasVerticalScroller = true; scroll.autohidesScrollers = true; scroll.documentView = canvas
         scroll.frame = CGRect(x: 0, y: 0, width: 960, height: 560); scroll.autoresizingMask = [.width, .height]; host.addSubview(scroll)
-        overview.frame = CGRect(x: 800, y: 350, width: 150, height: 200); overview.autoresizingMask = [.minXMargin, .minYMargin]; overview.scroll = scroll; host.addSubview(overview)
+        overview.scroll = scroll; host.addSubview(overview)
         scroll.contentView.postsBoundsChangedNotifications = true
         NotificationCenter.default.addObserver(self, selector: #selector(scrolled), name: NSView.boundsDidChangeNotification, object: scroll.contentView)
         NotificationCenter.default.addObserver(self, selector: #selector(sheetEnded), name: NSWindow.didEndSheetNotification, object: window)
@@ -371,6 +371,7 @@ enum RevisionGraphReferenceCommand {
     @objc private func clicked(_ sender: NSButton) { if let command = sender.identifier?.rawValue { perform(command) } }
     @objc private func cancelGraphOperation() { model.cancel() }
     @objc private func scrolled() { overview.needsDisplay = true }
+    func windowDidResize(_ notification: Notification) { update() }
     @objc private func sheetEnded() { update() }
     func requestRepositoryRefresh() { guard !model.closed else { return }; pendingRepositoryRefresh = true; update() }
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
@@ -421,7 +422,7 @@ enum RevisionGraphReferenceCommand {
         update()
     }
     func update() {
-        canvas.resize(to: scroll.contentSize); canvas.needsDisplay = true; overview.needsDisplay = true
+        canvas.resize(to: scroll.contentSize); canvas.needsDisplay = true; overview.updateFrame(); overview.needsDisplay = true
         overview.isHidden = !model.showOverview || model.busy || model.nodes.isEmpty || model.nodes.count > 10_000
         status.stringValue = model.error ?? (model.busy ? "Loading…" : "\(model.nodes.count) revisions • \(Int((model.zoom * 100).rounded()))%")
         cancelButton.isEnabled = model.busy
@@ -592,20 +593,46 @@ enum RevisionGraphReferenceCommand {
     override var isFlipped: Bool { true }
     init(model: RevisionGraphWindowModel) { self.model = model; super.init(frame: .zero); setAccessibilityLabel("Graph overview") }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
-    var scale: CGFloat { guard let size = model.geometry?.size, size.width > 0, size.height > 0 else { return 1 }; return min((bounds.width - 8) / size.width, (bounds.height - 8) / size.height) }
+    private(set) var scale: CGFloat = 1
+    // BuildPreview uses a quarter of the viewport, at least 100 × 200,
+    // caps preview zoom at 100%, and keeps each resulting dimension >= 30.
+    // Four-point native drawing insets keep strokes inside the border.
+    static func layout(graph: CGSize, viewport: CGSize) -> (size: CGSize, scale: CGFloat) {
+        guard graph.width > 0, graph.height > 0, viewport.width > 0, viewport.height > 0 else { return (.zero, 1) }
+        let limit = CGSize(width: min(viewport.width, max(100, viewport.width / 4)), height: min(viewport.height, max(200, viewport.height / 4)))
+        let scale = max(0.000001, min(1, (limit.width - 8) / graph.width, (limit.height - 8) / graph.height))
+        return (CGSize(width: min(limit.width, max(30, graph.width * scale + 8)), height: min(limit.height, max(30, graph.height * scale + 8))), scale)
+    }
+    func updateFrame() {
+        guard let scroll, let host = superview else { return }
+        let layout = Self.layout(graph: model.geometry?.size ?? .zero, viewport: scroll.contentSize)
+        scale = layout.scale
+        let viewport = scroll.contentView.convert(scroll.contentView.bounds, to: host)
+        // Upstream DrawGraph positions the preview at width-previewWidth,
+        // height-previewHeight: the lower right, despite its top-right comment.
+        frame = CGRect(x: viewport.maxX - layout.size.width, y: host.isFlipped ? viewport.maxY - layout.size.height : viewport.minY, width: layout.size.width, height: layout.size.height)
+    }
+    var viewportRect: CGRect {
+        guard let scroll else { return .zero }
+        let visible = scroll.documentVisibleRect
+        return CGRect(x: (visible.minX - 10) / model.zoom * scale + 4, y: (visible.minY - 10) / model.zoom * scale + 4, width: visible.width / model.zoom * scale, height: visible.height / model.zoom * scale).intersection(bounds)
+    }
     override func draw(_ dirtyRect: NSRect) {
         NSColor.windowBackgroundColor.setFill(); bounds.fill()
         NSGraphicsContext.saveGraphicsState(); let transform = NSAffineTransform(); transform.translateX(by: 4, yBy: 4); transform.scale(by: scale); transform.concat()
-        (scroll?.documentView as? RevisionGraphCanvas)?.drawGraph(text: false); NSGraphicsContext.restoreGraphicsState()
-        if let visible = scroll?.documentVisibleRect {
-            let rect = CGRect(x: (visible.minX - 10) / model.zoom * scale + 4, y: (visible.minY - 10) / model.zoom * scale + 4, width: visible.width / model.zoom * scale, height: visible.height / model.zoom * scale)
-            NSColor.selectedControlColor.setStroke(); let path = NSBezierPath(rect: rect.intersection(bounds)); path.lineWidth = 2; path.stroke()
+        (scroll?.documentView as? RevisionGraphCanvas)?.drawGraph(text: true, renderingZoom: scale); NSGraphicsContext.restoreGraphicsState()
+        NSColor.separatorColor.setStroke(); let border = NSBezierPath(rect: bounds.insetBy(dx: 0.5, dy: 0.5)); border.lineWidth = 1; border.stroke()
+        let rect = viewportRect
+        if !rect.isNull, !rect.isEmpty {
+            NSColor.black.withAlphaComponent(0.25).setFill(); rect.fill()
+            NSColor.selectedControlColor.setStroke(); let path = NSBezierPath(rect: rect); path.lineWidth = 2; path.stroke()
         }
     }
     override func mouseDown(with event: NSEvent) { navigate(event) }
     override func mouseDragged(with event: NSEvent) { navigate(event) }
     private func navigate(_ event: NSEvent) {
         guard !model.busy, !model.closed, let scroll else { return }; let point = convert(event.locationInWindow, from: nil)
+        guard bounds.contains(point) else { return }
         let origin = CGPoint(x: max(0, (point.x - 4) / scale * model.zoom - scroll.contentSize.width / 2), y: max(0, (point.y - 4) / scale * model.zoom - scroll.contentSize.height / 2))
         scroll.contentView.scroll(to: scroll.contentView.constrainBoundsRect(NSRect(origin: origin, size: scroll.contentView.bounds.size)).origin); scroll.reflectScrolledClipView(scroll.contentView); needsDisplay = true
     }

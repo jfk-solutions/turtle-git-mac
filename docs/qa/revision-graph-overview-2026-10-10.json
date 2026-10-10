@@ -1,0 +1,65 @@
+{
+  "checked_at": "2026-10-10T14:53:45.893325+00:00",
+  "parent_commit": "f8636576b56149dd59d24f4ccdea1e3353e03900",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "RevisionGraphDlgFunc.cpp BuildPreview",
+    "RevisionGraphDlgDraw.cpp DrawGraph preview and viewport",
+    "RevisionGraphWnd.cpp OnMouseMove overview hit guard"
+  ],
+  "scope": "Adaptive Revision Graph overview layout, viewport and navigation; full application and distribution parity remain open.",
+  "implementation": [
+    "graph/viewport fitted preview, 100x200 minimum maximum bounds or viewport quarter",
+    "preview scale capped at 1, dimensions at least 30, native 4-point stroke inset",
+    "lower-right clip-viewport placement and window resize updates",
+    "scaled graph labels and selection markers",
+    "shaded and clipped visible-area marker",
+    "in-bounds click/drag navigation without changing selected pair"
+  ],
+  "verification": {
+    "native_system_git_exit": 0,
+    "native_bundled_git_exit": 0,
+    "cases": [
+      "tall/wide/tiny graph dimension and scale cases",
+      "actual lower-right frame placement before/after native window resizing",
+      "overview click centers viewport",
+      "overview drag to origin and outside-bounds rejection",
+      "viewport clipping and unchanged ordered selection",
+      "retained mouse selection, pan, zoom, filter, menus, deletion, exports and repository invariants"
+    ],
+    "unsigned_debug_build_exit": 0,
+    "unsigned_appstore_build_exit": 0,
+    "debug_bundle_audit_exit": 0,
+    "appstore_bundle_audit_exit": 0,
+    "upstream_icons": 117,
+    "local_pages_build_exit": 0
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/revision-graph-light.png",
+      "sha256": "a968de4a19ee7dd3d944434417969631756918c8487cd57d196f8fa34863f031",
+      "pixels": [
+        1960,
+        1340
+      ],
+      "kind": "native content-view capture from owned hidden fixture, manually inspected"
+    },
+    {
+      "path": "docs/site/assets/revision-graph-dark.png",
+      "sha256": "f0e04d34506b414ce2f7a8f21ac03fcb58339f7db252133c878aa8362cef5788",
+      "pixels": [
+        1960,
+        1340
+      ],
+      "kind": "native content-view capture from owned hidden fixture, manually inspected"
+    }
+  ],
+  "pending": [
+    "physical pointer/trackpad acceptance",
+    "very large graph responsiveness",
+    "VoiceOver and persisted source state",
+    "signed Finder and sandbox acceptance",
+    "current hosted CI and website publication",
+    "complete TortoiseGit application parity"
+  ]
+}

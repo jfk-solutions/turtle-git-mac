@@ -248,3 +248,28 @@ Focused synthetic navigation checks and the retained native graph suite passed
 with system and bundled Git. Unsigned Debug/Store builds and both packaging
 audits passed; see [navigation evidence](qa/revision-graph-navigation-2026-10-10.json).
 This does not certify physical gestures or complete upstream parity.
+
+
+## Adaptive overview
+
+`BuildPreview` in the pinned `RevisionGraphDlgFunc.cpp` uses maximum bounds
+of at least 100 × 200 or a quarter of the viewport, whichever is larger. It
+fits the graph without magnifying above 100% and keeps each result dimension
+at least 30. The native overview now follows these rules with a four-point
+stroke inset. `DrawGraph` positions it at the lower right despite the source
+comment saying top right. Native placement uses the clip viewport so the
+miniature does not cover the scrollbars, and updates after window resizing.
+
+The miniature reuses the graph labels and selection markers at preview scale.
+A shaded viewport rectangle and border replace the old outline-only marker.
+The marker is clipped to the miniature. Overview clicks/drags navigate without
+changing the selected node pair; drags outside its bounds do not navigate,
+matching upstream's overview hit guard. Clip constraints retain valid scroll
+origins. Native content captures are refreshed with this layout. Physical
+pointer/trackpad gestures, large-repository performance and signed execution
+remain pending.
+
+Both Git engines passed the focused native receiver. Unsigned Debug/Store
+builds, both packaging audits and the local Pages build passed. Refreshed
+light/dark captures were inspected; see [overview evidence](qa/revision-graph-overview-2026-10-10.json).
+Earlier rendering records describe their original checkpoint captures.

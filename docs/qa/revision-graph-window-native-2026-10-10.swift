@@ -148,6 +148,42 @@ import Darwin
         try require(controller.nodeMenu().items.map(\.title) == ["Show Log", "Compare revisions", "Unified diff"])
         controller.perform("zoomOut"); try require(abs(model.zoom - 0.9) < 0.0001)
         controller.perform("zoom100"); controller.perform("overview"); try require(model.zoom == 1 && model.showOverview)
+        let overview = views(window.contentView!).compactMap { $0 as? RevisionGraphOverview }.first!
+        let tall = RevisionGraphOverview.layout(graph: CGSize(width: 4000, height: 8000), viewport: CGSize(width: 960, height: 560))
+        try require(abs(tall.size.width - 104) < 0.01 && abs(tall.size.height - 200) < 0.01 && abs(tall.scale - 0.024) < 0.0001)
+        let tiny = RevisionGraphOverview.layout(graph: CGSize(width: 2, height: 3), viewport: CGSize(width: 960, height: 560))
+        try require(tiny.size == CGSize(width: 30, height: 30) && tiny.scale == 1)
+        let wide = RevisionGraphOverview.layout(graph: CGSize(width: 8000, height: 1000), viewport: CGSize(width: 1600, height: 1000))
+        try require(abs(wide.size.width - 400) < 0.01 && abs(wide.size.height - 57) < 0.01)
+        let viewport = scroll.contentView.convert(scroll.contentView.bounds, to: overview.superview!)
+        try require(abs(overview.frame.maxX - viewport.maxX) < 1 && abs(overview.frame.minY - viewport.minY) < 1)
+        try require(overview.frame.width <= max(100, scroll.contentSize.width / 4) && overview.frame.height <= max(200, scroll.contentSize.height / 4))
+        let originalWindowFrame = window.frame
+        window.setFrame(NSRect(origin: window.frame.origin, size: CGSize(width: 1400, height: 900)), display: false)
+        window.contentView!.layoutSubtreeIfNeeded(); controller.update()
+        let resizedViewport = scroll.contentView.convert(scroll.contentView.bounds, to: overview.superview!)
+        try require(abs(overview.frame.maxX - resizedViewport.maxX) < 1 && abs(overview.frame.minY - resizedViewport.minY) < 1)
+        try require(overview.frame.width > 0 && overview.scale <= 1)
+        window.setFrame(originalWindowFrame, display: false); window.contentView!.layoutSubtreeIfNeeded(); controller.update()
+        model.zoom = 2; controller.update()
+        controller.canvas.setFrameSize(CGSize(width: 3000, height: 3000))
+        clip.scroll(to: NSPoint(x: 100, y: 100)); scroll.reflectScrolledClipView(clip)
+        let selectedPair = model.selection
+        func overviewEvent(_ type: NSEvent.EventType, _ point: NSPoint) -> NSEvent {
+            NSEvent.mouseEvent(with: type, location: overview.convert(point, to: nil), modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber, context: nil, eventNumber: 1, clickCount: 1, pressure: 0)!
+        }
+        let edge = NSPoint(x: overview.bounds.maxX - 1, y: overview.bounds.maxY - 1)
+        let expectedOrigin = NSPoint(x: max(0, (edge.x - 4) / overview.scale * model.zoom - scroll.contentSize.width / 2), y: max(0, (edge.y - 4) / overview.scale * model.zoom - scroll.contentSize.height / 2))
+        overview.mouseDown(with: overviewEvent(.leftMouseDown, edge))
+        try require(abs(clip.bounds.minX - expectedOrigin.x) < 1 && abs(clip.bounds.minY - expectedOrigin.y) < 1)
+        try require(model.selection == selectedPair && overview.bounds.contains(overview.viewportRect))
+        let lastOrigin = clip.bounds.origin
+        overview.mouseDragged(with: overviewEvent(.leftMouseDragged, NSPoint(x: -20, y: -20)))
+        try require(clip.bounds.origin == lastOrigin) // Outside the overview does not navigate.
+        overview.mouseDragged(with: overviewEvent(.leftMouseDragged, NSPoint(x: 1, y: 1)))
+        try require(clip.bounds.origin == .zero && model.selection == selectedPair)
+        model.zoom = 1; controller.update(); clip.scroll(to: .zero); scroll.reflectScrolledClipView(clip)
+        print("PASS: Revision Graph adaptive overview dimensions, bottom-right placement, resize, viewport and drag routing")
         func capture(_ target: NSWindow, prefix: String) async throws {
             guard CommandLine.arguments.count > 4 else { return }
             let directory = URL(fileURLWithPath: CommandLine.arguments[4])

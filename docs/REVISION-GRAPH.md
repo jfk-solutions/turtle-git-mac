@@ -10,8 +10,9 @@ branches, remote branches and tags retain distinct TortoiseGit color roles.
 Nodes without references display an abbreviated commit hash. Hover over a node
 for its full hash, author, author date and message.
 
-Click a node to select it. Command-click or Control-click another node to select
-a second revision. The first selection has an I marker and becomes the Base
+Click a node to select it; clicking the first selected node again clears the
+selection. Command-click or Control-click another node to select a second
+revision, or click a selected node with that modifier to remove it. The first selection has an I marker and becomes the Base
 when two nodes are selected; the second has a red II marker. Right-click a node
 for Log, repository browsing, comparison and reference commands. A single
 selection offers Switch actions for other local branches; several branches form
@@ -29,8 +30,10 @@ nodes are selected. See the parity record for remaining physical and signed
 interaction checks.
 
 Use the toolbar or **View** menu to zoom, return to 100%, fit width or height,
-or fit the whole graph. **Show Overview** displays a miniature graph; click or
-drag within it to navigate. The overview is suppressed above 10,000 displayed
+or fit the whole graph. Command/Control-wheel also zooms. Drag blank space to
+pan the canvas. **Show Overview** displays a miniature graph in the lower right;
+its size follows the graph and viewport, and the shaded rectangle shows the
+visible area. Click or drag within it to navigate. The overview is suppressed above 10,000 displayed
 nodes. **Refresh** or F5 reads the repository again.
 
 **View → Filter…** opens a revision range sheet. **From** excludes history
