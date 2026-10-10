@@ -1,5 +1,35 @@
 import Foundation
 
+/// Original tag objects and recursively peeled targets are distinct metadata.
+struct HistoryReferenceObject: Sendable {
+    let name: String
+    let object: String
+    let peeled: String?
+    var target: String { peeled ?? object }
+}
+
+extension GitRepository {
+    /// GetMapHashToFriendName's CLI route uses show-ref -d. Unlike older Git's
+    /// for-each-ref *objectname, this peels nested tags all the way to the target.
+    func historyReferenceObjects(cancellation: OperationCancellation?) throws -> [HistoryReferenceObject] {
+        let arguments = ["show-ref", "--dereference"]
+        let result = try run(arguments, environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], successfulExitCodes: 0...1, cancellation: cancellation)
+        var objects: [(String, String)] = []
+        var peeled: [GitReferenceName: String] = [:]
+        for line in String(decoding: result.stdout, as: UTF8.self).split(separator: "\n") {
+            try cancellation?.check()
+            guard let space = line.firstIndex(of: " ") else { throw GitFailure(arguments: arguments, code: -1, message: "Malformed reference output.") }
+            let hash = String(line[..<space]), name = String(line[line.index(after: space)...])
+            guard (hash.count == 40 || hash.count == 64), hash.allSatisfy({ $0.isASCII && $0.isHexDigit }), name.hasPrefix("refs/") else {
+                throw GitFailure(arguments: arguments, code: -1, message: "Malformed reference output.")
+            }
+            if let plain = GitReferenceName.removingSuffix("^{}", from: name) { peeled[GitReferenceName(plain)] = hash }
+            else { objects.append((name, hash)) }
+        }
+        return objects.map { HistoryReferenceObject(name: $0.0, object: $0.1, peeled: peeled[GitReferenceName($0.0)]) }
+    }
+}
+
 public struct RevisionReference: Hashable, Sendable {
     public let name: String
     public var isCurrent = false
@@ -912,21 +942,17 @@ extension GitRepository {
         args.append("--")
         if let path = options.path, !path.isEmpty { args.append(path) }
         args += options.paths
-        let refs = try historyRun(["for-each-ref", "--format=%(objectname)%00%(*objectname)%00%(refname)%00"]).stdout
-        let fields = String(decoding: refs, as: UTF8.self).components(separatedBy: "\0")
+        let refObjects = try historyReferenceObjects(cancellation: cancellation)
         var references: [String: [RevisionReference]] = [:]
         var peeledReferenceNames: [String: [String]] = [:]
         var annotatedObjects: [String: [String]] = [:]
-        var i = 0
-        while i + 2 < fields.count {
+        for reference in refObjects {
             try cancellation?.check()
-            let hash = (fields[i + 1].isEmpty ? fields[i] : fields[i + 1]).trimmingCharacters(in: .whitespacesAndNewlines)
-            references[hash, default: []].append(RevisionReference(name: fields[i + 2]))
-            if !fields[i + 1].isEmpty {
-                peeledReferenceNames[hash, default: []].append(fields[i + 2] + "^{}")
-                if fields[i + 2].hasPrefix("refs/tags/") { annotatedObjects[hash, default: []].append(fields[i].trimmingCharacters(in: .whitespacesAndNewlines)) }
+            references[reference.target, default: []].append(RevisionReference(name: reference.name))
+            if reference.peeled != nil {
+                peeledReferenceNames[reference.target, default: []].append(reference.name + "^{}")
+                if reference.name.hasPrefix("refs/tags/") { annotatedObjects[reference.target, default: []].append(reference.object) }
             }
-            i += 3
         }
         // Notes are separate payloads: their text can contain NUL bytes, unlike
         // the fields in the commit record. Avoid per-commit work in repositories
@@ -1099,17 +1125,11 @@ extension GitRepository {
         if !text.hasSuffix("\n") { text += "\n" }
         let notes = try clipboardRun(["show", "--encoding=UTF-8", "-s", "--format=%N", hash, "--"]).text.trimmingCharacters(in: .newlines)
         if !notes.isEmpty { text += "----\nNotes:\n\(notes)\n" }
-        let refs = try clipboardRun(["for-each-ref", "--format=%(objectname)%00%(*objectname)%00%(refname)%00", "refs/tags/"]).text.components(separatedBy: "\0")
-        var index = 0
-        while index + 2 < refs.count {
+        for reference in try historyReferenceObjects(cancellation: cancellation) where reference.name.hasPrefix("refs/tags/") && reference.peeled == hash {
             try cancellation?.check()
-            let object = refs[index].trimmingCharacters(in: .newlines), peeled = refs[index + 1], name = refs[index + 2]
-            if peeled == hash {
-                let tag = try clipboardRun(["cat-file", "tag", object]).text
-                text += "----\nTag info: \(name)\n\(dateSettings.tagInfo(tag))"
-                if !text.hasSuffix("\n") { text += "\n" }
-            }
-            index += 3
+            let tag = try clipboardRun(["cat-file", "tag", reference.object]).text
+            text += "----\nTag info: \(reference.name)\n\(dateSettings.tagInfo(tag))"
+            if !text.hasSuffix("\n") { text += "\n" }
         }
         try cancellation?.check()
         guard includePaths else { return text + "\n" }

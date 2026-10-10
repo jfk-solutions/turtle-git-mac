@@ -4,7 +4,9 @@ import XCTest
 final class RebaseTests: XCTestCase {
     var editor: URL { URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent(".build/debug/TurtleGitMac") }
     func fixture(conflict: Bool = false) async throws -> (URL, GitRepository, String) {
-        let (root, repo, path) = try await GitPatchTests().fixture()
+        let (root, original, path) = try await GitPatchTests().fixture()
+        let git = URL(fileURLWithPath: ProcessInfo.processInfo.environment["TURTLEGIT_GROUP_TEST_GIT"] ?? original.executable.path)
+        let repo = GitRepository(root: root, executable: git)
         let base = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
         _ = try await repo.run(["checkout", "-b", "upstream"])
         try Data("upstream\n".utf8).write(to: root.appendingPathComponent(conflict ? path : "upstream.txt"))
@@ -36,7 +38,18 @@ final class RebaseTests: XCTestCase {
         var edit = options(); edit.force = true
         var plan = try await repo.rebasePlan(edit); plan.entries[1].action = .edit
         let stopped = try await repo.startRebase(plan, editorExecutable: editor)
-        XCTAssertTrue(stopped.state.isEditPause); XCTAssertEqual(stopped.state.message, "café original\n")
+        XCTAssertTrue(stopped.state.isEditPause)
+        let messagePath = try await repo.run(["rev-parse", "--git-path", "rebase-merge/message"]).text.trimmingCharacters(in: .newlines)
+        let messageURL = messagePath.hasPrefix("/") ? URL(fileURLWithPath: messagePath) : root.appendingPathComponent(messagePath)
+        let rawMessage = try Data(contentsOf: messageURL)
+        // Git versions add different trailing blank lines to the edit file.
+        // Verify the complete decoded bytes, not a fixed sequencer LF count.
+        XCTAssertTrue(stopped.state.message.hasPrefix("café original\n"))
+        let trailing = stopped.state.message.dropFirst("café original".count)
+        XCTAssertFalse(trailing.isEmpty); XCTAssertTrue(trailing.allSatisfy { $0 == "\n" })
+        let utf8 = Data(stopped.state.message.utf8)
+        let legacy = try XCTUnwrap(stopped.state.message.data(using: .windowsCP1252))
+        XCTAssertTrue(rawMessage == utf8 || rawMessage == legacy, "Decoding must preserve every message byte, including Git's trailing blank lines.")
         let result = try await repo.continueRebase(editMessage: "café edited\n"); XCTAssertFalse(result.state.active)
         let object = try await repo.run(["cat-file", "commit", "HEAD"]).stdout
         XCTAssertTrue(object.suffix(12).elementsEqual(Data([0x63,0x61,0x66,0xe9,0x20,0x65,0x64,0x69,0x74,0x65,0x64,0x0a])))

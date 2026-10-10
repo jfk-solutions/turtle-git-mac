@@ -9,8 +9,16 @@ import socket
 import ssl
 import sys
 root, mode = Path(sys.argv[1]), sys.argv[2]
+
+def publish_json(name, value):
+    # Readers use existence as readiness: expose only complete JSON files.
+    destination = root / name
+    temporary = destination.with_name(destination.name + '.tmp')
+    temporary.write_text(json.dumps(value), encoding='utf-8')
+    temporary.replace(destination)
+
 server = socket.socket(); server.bind(('127.0.0.1', 0)); server.listen(1); server.settimeout(15)
-(root / 'ready.json').write_text(json.dumps({'port': server.getsockname()[1]}))
+publish_json('ready.json', {'port': server.getsockname()[1]})
 state = {'mail': [], 'recipients': [], 'data': 0, 'accepted': 0, 'auth': 0, 'tls': False, 'ehlo': 0}
 connection = None
 try:
@@ -84,4 +92,4 @@ except (OSError, ssl.SSLError, EOFError) as error:
     state['error_type'] = type(error).__name__
 finally:
     if connection is not None: connection.close()
-    server.close(); (root / 'result.json').write_text(json.dumps(state))
+    server.close(); publish_json('result.json', state)

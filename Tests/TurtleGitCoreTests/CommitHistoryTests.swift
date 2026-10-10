@@ -821,7 +821,8 @@ final class CommitHistoryTests: XCTestCase {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }
-        let repo = GitRepository(root: root)
+        let git = URL(fileURLWithPath: ProcessInfo.processInfo.environment["TURTLEGIT_GROUP_TEST_GIT"] ?? "/usr/bin/git")
+        let repo = GitRepository(root: root, executable: git)
         _ = try await repo.run(["init", "-b", "main"])
         _ = try await repo.run(["config", "user.name", "Ref Tests"])
         _ = try await repo.run(["config", "user.email", "refs@example.invalid"])
@@ -842,6 +843,11 @@ final class CommitHistoryTests: XCTestCase {
             XCTAssertEqual(found.map(\.hash), [old.hash], name)
             XCTAssertTrue(found.first?.references.contains { $0.name.hasSuffix(name) } == true)
         }
+        let graph = try await repo.revisionGraph()
+        XCTAssertTrue(graph.nodes.first { $0.hash == old.hash }?.references.contains { $0.name == "refs/tags/nested-tag" && $0.kind == .annotatedTag } == true)
+        let clipboard = try await repo.commitLogText(revision: old.hash, includePaths: false)
+        XCTAssertTrue(clipboard.contains("Tag info: refs/tags/nested-tag"))
+        XCTAssertTrue(clipboard.contains("nested annotation"))
         options.search = "annotated-needle^{}"
         let peeled = try await repo.history(options: options); XCTAssertEqual(peeled.map(\.hash), [old.hash])
         options.search = "light-needle^{}"; let notPeeled = try await repo.history(options: options); XCTAssertTrue(notPeeled.isEmpty)
@@ -905,7 +911,8 @@ final class CommitHistoryTests: XCTestCase {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }
-        let repo = GitRepository(root: root)
+        let git = URL(fileURLWithPath: ProcessInfo.processInfo.environment["TURTLEGIT_GROUP_TEST_GIT"] ?? "/usr/bin/git")
+        let repo = GitRepository(root: root, executable: git)
         _ = try await repo.run(["init", "-b", "main"])
         _ = try await repo.run(["config", "user.name", "Tagger Person"])
         _ = try await repo.run(["config", "user.email", "tagger@example.invalid"])

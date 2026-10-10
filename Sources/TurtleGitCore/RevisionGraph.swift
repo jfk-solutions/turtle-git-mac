@@ -105,16 +105,12 @@ extension GitRepository {
         let head = headResult.exitCode == 0 ? String(decoding: headResult.stdout, as: UTF8.self).trimmingCharacters(in: .newlines) : nil
         let branchResult = try read(["symbolic-ref", "--quiet", "HEAD"], codes: 0...1)
         let currentBranch = branchResult.exitCode == 0 ? String(decoding: branchResult.stdout, as: UTF8.self).trimmingCharacters(in: .newlines) : nil
-        let rawRefs = try output(["for-each-ref", "--format=%(objectname)%00%(*objectname)%00%(refname)%00"]).components(separatedBy: "\0")
         var refs: [String: [RevisionReference]] = [:]
-        var i = 0
-        while i + 2 < rawRefs.count {
+        for reference in try historyReferenceObjects(cancellation: cancellation) {
             try cancellation?.check()
-            let hash = (rawRefs[i + 1].isEmpty ? rawRefs[i] : rawRefs[i + 1]).trimmingCharacters(in: .newlines)
-            let name = rawRefs[i + 2]
-            let kind: HistoryReferenceKind = name.hasPrefix("refs/tags/") && !rawRefs[i + 1].isEmpty ? .annotatedTag : HistoryReferenceLabel.shortName(name).kind
-            refs[hash, default: []].append(RevisionReference(name: name, isCurrent: currentBranch.map { GitReferenceName.equal($0, name) } ?? false, kind: kind))
-            i += 3
+            let name = reference.name
+            let kind: HistoryReferenceKind = name.hasPrefix("refs/tags/") && reference.peeled != nil ? .annotatedTag : HistoryReferenceLabel.shortName(name).kind
+            refs[reference.target, default: []].append(RevisionReference(name: name, isCurrent: currentBranch.map { GitReferenceName.equal($0, name) } ?? false, kind: kind))
         }
         var arguments = ["log", "--encoding=UTF-8", "--format=%H%x00%P%x00%an%x00%aI%x00%B%x00%ae%x00%cn%x00%ce%x00", "--topo-order", "--parents", "--simplify-by-decoration"]
         if options.showBranchingsAndMerges { arguments.append("--sparse") }
