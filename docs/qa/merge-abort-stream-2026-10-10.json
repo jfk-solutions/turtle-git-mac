@@ -1,0 +1,86 @@
+{
+  "date": "2026-10-10",
+  "checkpoint": "1f89a7ff36dd0ad721a5142acd1f47eb2129e0e4",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implemented": [
+    "Optional reset onOutput API streams only the reset command, with cancellable preflight reads retained.",
+    "Native stream uses shared byte parser, coalesced notifications and configured bounded output state; updates before completion.",
+    "Success retains streamed display without duplication. Failure keeps diagnostics plus concise exit status. Raw result is separate from limited UI output.",
+    "Ordinary Cancel retains output; forced close rejects late output and repository-refresh callbacks, while awaiting owned process unwind.",
+    "Cancellation after completed reset does not relabel successful mutation cancelled.",
+    "Native runner finally cleans only exact-fixture-owned process groups and fails success-with-leftovers."
+  ],
+  "verification": {
+    "core": {
+      "filter": "MergeAbortResetTests",
+      "system_git_2_50_1": {
+        "tests": 4,
+        "failures": 0,
+        "exit": 0
+      },
+      "git_2_39_5": {
+        "tests": 4,
+        "failures": 0,
+        "exit": 0
+      },
+      "packaged_git_2_55_0": {
+        "tests": 4,
+        "failures": 0,
+        "exit": 0
+      }
+    },
+    "native": {
+      "command": "python3 scripts/test-merge-abort-dialog.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "exit": 0,
+      "engines": 2,
+      "live_output_markers": 2,
+      "checks": [
+        "Real streamed stdout/stderr and UTF-8 while helper remains gated and model busy.",
+        "Success without duplicated display, failed exit7 retained diagnostics and concise status.",
+        "Ordinary cancellation retains received output and reaps helper; forced close retains prior display but rejects later publication/callbacks.",
+        "Five 4KiB lines hit 16KiB display limit before helper completion.",
+        "Previous actual controller ownership/separate-window/mode-specific retry and real Git model reset checks retained."
+      ],
+      "runner_scope": "Final successful native run preceded the finally-cleanup wrapper addition; native Sources and receiver are identical. Cleanup function separately verified using actual isolated processes."
+    },
+    "runner_cleanup": "AST-extracted production function stopped/reaped one exact owned fixture process group; unrelated fixture group survived; repeat cleanup empty. Unrelated test group explicitly stopped/reaped afterward.",
+    "builds": {
+      "unsigned_debug": 0,
+      "unsigned_appstore": 0,
+      "debug_bundle_audit": 0,
+      "appstore_require_git_bundle_audit": 0,
+      "original_icons": 120
+    },
+    "inventory_exit": 0,
+    "site_exit": 0,
+    "final_cleanup": "All local sessions terminal, temporary receiver directories removed, hidden windows closed; final app/receiver/compiler and fixture shell-helper process audit empty."
+  },
+  "earlier_failure": "First native limit fixture timed out: one 20KiB line was capped by existing 8KiB per-line parser behavior. Fixture changed to five 4KiB lines; both engines then passed. Exact orphan helper process group2818 was explicitly terminated and missing on follow-up ps. Caller-line timeout diagnostics added.",
+  "remaining": [
+    "Physical keyboard/layout/appearance captures.",
+    "Full progress menus/options, factory and submodule acceptance.",
+    "Post-reset metadata cancellation scenario has implementation but no dedicated native acceptance case yet.",
+    "Signed sandbox and installed Finder acceptance, release signing and App Store distribution.",
+    "Full app port: no dialog certified complete."
+  ],
+  "sources_sha256": {
+    "Sources/TurtleGitCore/Reset.swift": "aa6b637a0cf4ef4b80f3e224fe5e1c63fd1f2d95262c78d75c99947fc5a0583e",
+    "Sources/TurtleGitMac/MergeWindow.swift": "82e223dd6f29032e0d352f27236d70dc8726c8619dddf65d82c3da116f01e6cd",
+    "docs/qa/merge-abort-dialog-native-2026-10-08.swift": "9d564fbbca601615bed64e0f8530476e9a3174b9af702745ee5d9e20f9468241",
+    "scripts/test-merge-abort-dialog.py": "550706761044ac9505ee61846669ed955736adcb97cbd1be3d798e43bc715a3b"
+  },
+  "logs_sha256": {
+    "build/qa/merge-abort-stream-core-2026-10-10.log": "d85ebd270ae6e4e85bc6f15540e7c87d0878f52522a7235322cd2b5bb7c361b1",
+    "build/qa/merge-abort-stream-core-old-2026-10-10.log": "79aae61b4fc8b86b6c6ea0dc42d2e423c658870d77264fc1eb7bf0270a4749a0",
+    "build/qa/merge-abort-stream-core-packaged-2026-10-10.log": "5e91184d9e6f194a4bf305a80b792c777c9fbe6bf8dc9e0ae9b0412fa5144955",
+    "build/qa/merge-abort-stream-native-2026-10-10.log": "07294b97a0355c4008b7d8908615fc04e23127d378a1b3f40f0520af221eb2a9",
+    "build/qa/merge-abort-stream-native-final-2026-10-10.log": "230ec3df67564c0ae209b41c13eb320c006ae09941fca85d39e82d58bb7b2ff4",
+    "build/qa/merge-abort-stream-debug-2026-10-10.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/merge-abort-stream-store-2026-10-10.log": "8b7e42e41011f64b89af2a34249c0e6a736fce554184bf57a0f657922d209930",
+    "build/qa/merge-abort-stream-debug-audit-2026-10-10.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/merge-abort-stream-store-audit-2026-10-10.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/merge-abort-stream-processes-2026-10-10.json": "458ce6f0a48275ea0a92784693cd9491e2e5c474a6f8013e593b254a9eb38c3b",
+    "build/qa/merge-abort-stream-inventory-2026-10-10.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/merge-abort-stream-site-2026-10-10.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

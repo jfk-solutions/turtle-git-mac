@@ -391,3 +391,28 @@ The earlier [audit](qa/merge-abort-owner-audit-2026-10-10.json) records the gaps
 before this change. Live progress streaming, physical keyboard/layout and light/
 dark captures, factory entry end-to-end, submodule action acceptance and signed
 sandbox acceptance remain pending. This dialog remains partial.
+
+## Abort Merge live output follow-up, October 10
+
+At `1f89a7f`, reset stdout/stderr feeds the shared byte-oriented progress parser
+while Git is running. The native window updates before completion and honors the
+configured display limit. Final success retains the parsed display without
+repeating the raw result; failure retains streamed diagnostics and adds a concise
+exit status. Cancellation retains received output. Forced close rejects all later
+output and repository-refresh callbacks. Raw terminal output remains available to
+the repository-refresh callback independently of the limited progress display.
+A completed reset is not relabeled cancelled when its post-action inspection is
+cancelled afterward.
+
+The hidden native receiver exercises successful, failed, cancelled, forced-close
+and limited-output reset helpers, then retains the existing real Git reset and
+ownership checks, with system and packaged Git. Core reset tests also pass on
+system, Git 2.39.5 and packaged Git. The first limit fixture used one long line,
+which hit the parser's existing 8 KiB per-line cap; the corrected fixture uses
+several lines to exercise the distinct 16 KiB display cap. The failed receiver's
+helper was explicitly stopped. The runner now cleans exact-fixture process groups
+in a finally block and rejects leftover helpers even after reported success;
+its cleanup function was separately checked with owned and unrelated groups.
+See [the streaming record](qa/merge-abort-stream-2026-10-10.json).
+Physical keyboard/layout/appearance captures, the full progress menu/options,
+factory/submodule acceptance and signed sandbox acceptance remain pending.
