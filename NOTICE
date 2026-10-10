@@ -1332,3 +1332,10 @@ ShowPicWithBorder, Zoom and FitImageInWindow behavior. Original fitwidths.ico
 and fitheights.ico resources are retained unchanged with GPL provenance.
 Native layout, integer rounding, physical input and all remaining controls
 continue to require broader acceptance.
+
+Image comparison input controls adapt TortoiseGitIDiff MainWindow.cpp,
+PicWindow.cpp/.h, NiceTrackbar.cpp/.h and TortoiseIDiff.rc at pinned commit
+7338078f8ddd924b8cddee35f512f2286072136d: 17-position top-to-bottom alpha,
+endpoint toggle, Control-Shift wheel and image keyboard commands. Native
+AppKit controls and per-window event routing are new macOS implementations.
+The upstream source copyright and GPL terms described above apply.

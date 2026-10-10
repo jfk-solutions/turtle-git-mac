@@ -145,3 +145,12 @@ public struct ImageComparisonSizing {
         return pane.displayed
     }
 }
+
+public enum ImageComparisonBlend {
+    public static func sliderValue(_ value: Double) -> Double {
+        guard value.isFinite else { return 0.5 }
+        return (min(1, max(0, value)) * 16).rounded() / 16
+    }
+    public static func toggled(_ value: Double) -> Double { value == 0 ? 1 : 0 }
+    public static func wheel(_ value: Double, steps: Double) -> Double { min(1, max(0, value - steps / 4)) }
+}

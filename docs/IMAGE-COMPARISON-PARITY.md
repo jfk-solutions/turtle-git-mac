@@ -24,8 +24,8 @@ Native colors follow the application appearance.
 
 ## Remaining requirements
 
-This is a partial native replacement. Configurable transparent color, blend preset markers,
-Ctrl+Shift-wheel alpha, toolbar/menu keyboard equivalents, timed animation and
+This is a partial native replacement. Configurable transparent color, standalone-open/background/dark keyboard
+commands, timed animation and
 frame/page controls, three-way conflict selection, standalone Load Images,
 image title tooltips, retained layout/preferences and full resizing/physical
 interaction/VoiceOver/signed sandbox acceptance remain incomplete. No complete
@@ -104,7 +104,7 @@ receiver additionally measures actual colored pixel extents for unequal images,
 both constraints, stepped zoom and Original size. Native resize/gesture behavior,
 Windows integer/border rounding, frame controls and signed acceptance remain open.
 
-The current sizing checkpoint passed 19 focused Core/icon/file-comparison tests.
+The sizing checkpoint (`2d8e313`) passed 19 focused Core/icon/file-comparison tests.
 The native receiver passed with system and bundled Git, measuring actual colored
 pixel extents for unequal aspect ratios, both matching controls, source stepped
 zoom and Original Size; existing pane/alpha/XOR and Git-byte preservation checks
@@ -112,3 +112,35 @@ also passed. Both unsigned Debug/App Store builds and bundle audits passed with
 all 112 original icon resources. See the [sizing QA record](qa/image-sizing-2026-10-10.json).
 These checks do not establish physical input, signed Finder/sandbox acceptance,
 all controls or full application parity.
+
+## Alpha input and scoped keyboard commands
+
+Pinned `NiceTrackbar::SetThumb` tracks clicks and drags immediately, rounding
+positions in the 0–16 range from the top of a vertical channel. Native alpha
+uses an inverted AppKit knob value and reports the actual alpha percentage to
+accessibility. `CPicWindow::ToggleAlpha` changes every nonzero value to zero,
+then zero to one. Overlay activation resets alpha to half and enables linked
+positions. The manual describes movable blend preset markers, but these are
+absent from the pinned NiceTrackbar implementation; they are not a missing
+control in this source mapping.
+
+`PicWindow::OnMouseWheel` applies Control-Shift-wheel in quarter-alpha steps,
+including while XOR is selected. Native coarse wheel events use notch units;
+precise trackpad deltas are normalized by 120. AppKit converts Shift-wheel
+to the horizontal axis; the handler accepts that mapped axis. Physical device sensitivity still
+requires acceptance. MainWindow arrow/Space commands and RC O/F/S/W/H/I,
+zoom, vertical arrangement and Escape accelerators use the actual comparison
+window. The Windows Control-V accelerator becomes Command-V on macOS.
+The bridge is owned by the displayed image view and retires on removal or
+window close; text field editing and attached sheets retain their own keys.
+No application-wide event monitor is installed.
+
+The focused Core/icon/file-comparison suite passed 21 tests. The final native
+receiver passed with system and bundled Git, including actual slider click,
+drag and release, knob direction, accessibility value/increment/decrement,
+Control-Shift wheel in Alpha and XOR, actual-window image accelerators and
+retirement on close. HEAD, raw index and working bytes remained unchanged.
+Native light/dark offscreen pane captures were visually inspected. Physical
+gestures, VoiceOver, full accelerator coverage and signed acceptance remain
+open. Unsigned Debug/App Store builds and bundle audits passed with all
+112 original icons. See the [input QA record](qa/image-input-2026-10-10.json).

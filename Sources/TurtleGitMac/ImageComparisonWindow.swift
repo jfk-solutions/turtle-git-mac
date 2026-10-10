@@ -3,7 +3,7 @@ import SwiftUI
 import TurtleGitCore
 
 @MainActor final class ImageComparisonViewModel: ObservableObject {
-    @Published var overlay = false { didSet { if overlay { linked = true } } }
+    @Published var overlay = false { didSet { if overlay { linked = true; alpha = 0.5 } } }
     @Published var blendAlpha = true
     @Published var vertical = false
     @Published var linked = true
@@ -39,6 +39,40 @@ import TurtleGitCore
     func changeZoom(zoomIn: Bool) { freezeFit(); sizing.zoom(zoomIn: zoomIn) }
     func toggleWidths() { freezeFit(); sizing.toggleWidths() }
     func toggleHeights() { freezeFit(); sizing.toggleHeights() }
+    func toggleAlpha() { alpha = ImageComparisonBlend.toggled(alpha) }
+    func alphaWheel(_ event: NSEvent) -> Bool {
+        guard overlay, event.modifierFlags.contains([.control, .shift]) else { return false }
+        // AppKit maps a Shift-modified vertical wheel into the horizontal axis.
+        let delta = event.scrollingDeltaY != 0 ? event.scrollingDeltaY : event.scrollingDeltaX
+        let steps = event.hasPreciseScrollingDeltas ? delta / 120 : delta
+        alpha = ImageComparisonBlend.wheel(alpha, steps: Double(steps)); return true
+    }
+    func performKey(_ event: NSEvent, window: NSWindow) -> Bool {
+        let flags = event.modifierFlags.intersection([.command,.control,.option,.shift])
+        let key = event.charactersIgnoringModifiers?.lowercased() ?? ""
+        if flags == .command, key == "v" { vertical.toggle(); return true }
+        guard flags.isEmpty || flags == .shift else { return false }
+        switch event.keyCode {
+        case 126: alpha = 0; return true
+        case 125: alpha = 1; return true
+        case 123,124: alpha = 0.5; return true
+        case 49: toggleAlpha(); return true
+        case 53: window.performClose(nil); return true
+        default: break
+        }
+        switch key {
+        case "o": overlay.toggle()
+        case "f": fit = true
+        case "s": originalSize()
+        case "w": toggleWidths()
+        case "h": toggleHeights()
+        case "i": showInfo.toggle()
+        case "+", "=": changeZoom(zoomIn: true)
+        case "-": changeZoom(zoomIn: false)
+        default: return false
+        }
+        return true
+    }
     func register(_ scroll: NSScrollView, base: Bool) { scrolls[base] = scroll }
     func unregister(_ scroll: NSScrollView, base: Bool) { if scrolls[base] === scroll { scrolls.removeValue(forKey: base) } }
     func didScroll(_ source: NSScrollView, base: Bool) {
@@ -121,7 +155,7 @@ import TurtleGitCore
             if model.overlay {
                 HStack(spacing: 0) {
                     if model.blendAlpha { VStack {
-                        tool("Toggle blend", .imageAlphaToggle) { model.alpha = model.alpha > 0.5 ? 0 : 1 }
+                        tool("Toggle blend", .imageAlphaToggle) { model.toggleAlpha() }
                         ImageAlphaSlider(value: $model.alpha).frame(width: 28, height: 180)
                         Text("\(Int(model.alpha * 100))%").font(.caption)
                         Spacer()
@@ -133,6 +167,7 @@ import TurtleGitCore
             Divider()
             HStack { Text(model.fit ? "Fit in window" : "Zoom: \(Int(model.zoom * 100))%"); Spacer(); Text("Read-only image comparison") }.font(.caption).padding(8)
         }.background(Color(nsColor: .windowBackgroundColor))
+        .background(ImageComparisonKeyBridge(model: model).frame(width: 0,height: 0))
     }
 }
 
@@ -140,15 +175,17 @@ private struct ImageAlphaSlider: NSViewRepresentable {
     @Binding var value: Double
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     func makeNSView(context: Context) -> NSSlider {
-        let slider = NSSlider(value: value, minValue: 0, maxValue: 1, target: context.coordinator, action: #selector(Coordinator.changed(_:)))
+        let slider = ImageComparisonAlphaSlider(value: 1 - value, minValue: 0, maxValue: 1, target: context.coordinator, action: #selector(Coordinator.changed(_:)))
+        (slider.cell as? NSSliderCell)?.isVertical = true
+        slider.numberOfTickMarks = 17; slider.allowsTickMarkValuesOnly = true
         slider.setAccessibilityLabel("Image blend alpha"); slider.isContinuous = true
         return slider
     }
-    func updateNSView(_ slider: NSSlider, context: Context) { context.coordinator.parent = self; slider.doubleValue = value }
+    func updateNSView(_ slider: NSSlider, context: Context) { context.coordinator.parent = self; slider.doubleValue = 1 - value }
     final class Coordinator: NSObject {
         var parent: ImageAlphaSlider
         init(_ parent: ImageAlphaSlider) { self.parent = parent }
-        @objc func changed(_ slider: NSSlider) { parent.value = slider.doubleValue }
+        @objc func changed(_ slider: NSSlider) { parent.value = ImageComparisonBlend.sliderValue(1 - slider.doubleValue) }
     }
 }
 
@@ -176,6 +213,7 @@ private struct ImageComparisonScroll: NSViewRepresentable {
         scroll.image = image; scroll.second = second; scroll.alpha = model.alpha; scroll.overlay = model.overlay; scroll.blendAlpha = model.blendAlpha
         let side = base
         scroll.recordViewport = { [weak model] size in model?.recordViewport(size, base: side) }
+        scroll.alphaWheel = { [weak model] event in model?.alphaWheel(event) ?? false }
         scroll.displayedSizes = { [weak model] in
             guard let model else { return (.zero, .zero) }
             let state = model.displaySizing
@@ -200,6 +238,8 @@ private final class ImageComparisonScrollView: NSScrollView {
     var alpha: Double = 0.5
     var overlay = false
     var blendAlpha = true
+    var alphaWheel: ((NSEvent) -> Bool)?
+    override func scrollWheel(with event: NSEvent) { if alphaWheel?(event) != true { super.scrollWheel(with: event) } }
     var recordViewport: ((CGSize) -> Void)?
     var displayedSizes: (() -> (CGSize, CGSize))?
     override func layout() { super.layout(); updateCanvas() }
@@ -277,4 +317,60 @@ private final class ImageComparisonCanvas: NSView {
         scroll.reflectScrolledClipView(scroll.contentView)
     }
     override func mouseUp(with event: NSEvent) { dragPoint = nil }
+}
+
+@MainActor protocol ImageComparisonKeyRouting: AnyObject {
+    var imageKeyModel: ImageComparisonViewModel? { get set }
+    var imageKeyOwner: UUID? { get set }
+    var imageKeysRetired: Bool { get }
+}
+private struct ImageComparisonKeyBridge: NSViewRepresentable {
+    let model: ImageComparisonViewModel
+    func makeNSView(context: Context) -> ImageComparisonKeyView { let view = ImageComparisonKeyView(); view.model = model; return view }
+    func updateNSView(_ view: ImageComparisonKeyView, context: Context) { view.model = model; view.install() }
+    static func dismantleNSView(_ view: ImageComparisonKeyView, coordinator: ()) { view.retire() }
+}
+private final class ImageComparisonKeyView: NSView {
+    weak var model: ImageComparisonViewModel?
+    private weak var owner: ImageComparisonKeyRouting?
+    private let keyOwnerID = UUID()
+    override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); install() }
+    func install() {
+        retire()
+        guard let target = window as? ImageComparisonKeyRouting, !target.imageKeysRetired else { return }
+        target.imageKeyOwner = keyOwnerID; target.imageKeyModel = model; owner = target
+    }
+    func retire() {
+        if owner?.imageKeyOwner == keyOwnerID { owner?.imageKeyModel = nil; owner?.imageKeyOwner = nil }
+        owner = nil
+    }
+}
+/// Native vertical slider with source direction (zero at top), immediate click
+/// tracking and 17 positions. Accessibility reports alpha rather than its
+/// internally inverted AppKit knob value.
+final class ImageComparisonAlphaSlider: NSSlider {
+    private func track(_ event: NSEvent) {
+        guard isEnabled, let cell = cell as? NSSliderCell else { return }
+        let bar = cell.barRect(flipped: isFlipped), point = convert(event.locationInWindow, from: nil)
+        guard bar.height > 0 else { return }
+        let distanceFromTop = isFlipped ? point.y - bar.minY : bar.maxY - point.y
+        let alpha = ImageComparisonBlend.sliderValue(Double(distanceFromTop / bar.height))
+        doubleValue = 1 - alpha; sendAction(action, to: target)
+    }
+    override func mouseDown(with event: NSEvent) { track(event) }
+    override func mouseDragged(with event: NSEvent) { track(event) }
+    override func mouseUp(with event: NSEvent) { track(event) }
+    override func accessibilityValue() -> Any? { NSNumber(value: (1 - doubleValue) * 100) }
+    override func accessibilityMinValue() -> Any? { NSNumber(value: 0) }
+    override func accessibilityMaxValue() -> Any? { NSNumber(value: 100) }
+    override func setAccessibilityValue(_ value: Any?) {
+        guard let number = value as? NSNumber else { return }
+        doubleValue = 1 - ImageComparisonBlend.sliderValue(number.doubleValue / 100); sendAction(action, to: target)
+    }
+    override func accessibilityPerformIncrement() -> Bool {
+        guard isEnabled else { return false }; doubleValue = max(0, doubleValue - 1.0 / 16); sendAction(action, to: target); return true
+    }
+    override func accessibilityPerformDecrement() -> Bool {
+        guard isEnabled else { return false }; doubleValue = min(1, doubleValue + 1.0 / 16); sendAction(action, to: target); return true
+    }
 }

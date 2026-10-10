@@ -22,11 +22,19 @@ these same controls:
 - **Image info** shows byte size, pixel dimensions, available resolution and
   decoded color depth.
 - **Overlay images** puts both versions in one pane. Move the vertical slider
-  on the left to blend between them; the button above it switches endpoints.
+  on the left to blend between them in 17 positions: top shows the first
+  image, bottom the second. The button above it changes a nonzero blend to
+  zero, then switches back to one. Control-Shift-wheel adjusts the blend.
   Overlay keeps image positions linked. Turn it off to return to two panes.
 - With overlay enabled, turn **Blend alpha** off for XOR comparison. Identical
   areas appear white and changed pixels appear in color. Turn it back on to
   restore the alpha slider.
+
+Keyboard commands follow the source image viewer: **O** toggles overlay,
+**F** fits, **S** restores original size, **W/H** match widths/heights,
+**I** toggles information, **+/−** zoom, and **Command-V** switches arrangement.
+The arrow keys set alpha to zero (Up), one (Down), or half (Left/Right).
+**Space** toggles alpha endpoints and **Escape** closes the comparison.
 
 The image comparison is read-only. It does not stage, save or resolve files.
 The viewer follows the app’s light/dark appearance.

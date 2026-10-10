@@ -2,9 +2,17 @@ import AppKit
 import SwiftUI
 import TurtleGitCore
 
-@MainActor private final class FileComparisonNativeWindow: NSWindow {
+@MainActor private final class FileComparisonNativeWindow: NSWindow, ImageComparisonKeyRouting {
+    weak var imageKeyModel: ImageComparisonViewModel?
+    var imageKeyOwner: UUID?
+    var imageKeysRetired = false
     weak var model: FileComparisonWindowModel?
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if let imageKeyModel, !imageKeysRetired {
+            if attachedSheet == nil, (firstResponder as? NSTextView)?.isFieldEditor != true,
+               imageKeyModel.performKey(event, window: self) { return true }
+            return super.performKeyEquivalent(with: event)
+        }
         let flags = event.modifierFlags.intersection([.command, .shift, .option, .control])
         if flags == .command || flags == [.command, .shift], event.charactersIgnoringModifiers?.lowercased() == "z", (firstResponder as? NSTextView)?.isFieldEditor != true {
             if flags.contains(.shift) { model?.redo() } else { model?.undo() }; return true
@@ -57,7 +65,10 @@ import TurtleGitCore
         default: return false
         }
     }
-    func windowWillClose(_ notification: Notification) { model.resetHistory(); onClosed() }
+    func windowWillClose(_ notification: Notification) {
+        if let window = window as? FileComparisonNativeWindow { window.imageKeysRetired = true; window.imageKeyModel = nil; window.imageKeyOwner = nil }
+        model.resetHistory(); onClosed()
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class FileComparisonWindowModel: ObservableObject {

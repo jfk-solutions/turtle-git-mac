@@ -595,7 +595,10 @@ raster colors, fit/manual zoom, linked/unlinked scrolling, vertical/overlay
 transitions, alpha endpoints/midpoint, XOR changed/unchanged pixels and switching
 back to alpha. Unequal-image checks measure actual colored pixel extents for
 linked widths/heights/both, source stepped zoom and Original Size, including
-retained per-picture zoom. It compares HEAD, raw index and file
+retained per-picture zoom. Input checks exercise native slider click/drag/release,
+knob direction, accessibility actions, Control-Shift wheel in Alpha/XOR and
+the real comparison window’s keyboard bridge and close retirement.
+It compares HEAD, raw index and file
 bytes before and after. Each engine runs serially; the runner removes its
 private executable and repository. This does not exercise physical mouse or
 keyboard gestures, signed Finder activation or App Store distribution.

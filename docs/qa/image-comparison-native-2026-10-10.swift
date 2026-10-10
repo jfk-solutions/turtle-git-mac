@@ -93,6 +93,38 @@ import Darwin
         try require(panes[1].contentView.bounds.origin != panes[0].contentView.bounds.origin)
         model.vertical = true; model.fit = true; try await settle(); try require(scrolls().count == 2)
         model.overlay = true; try await settle(); try require(model.linked && scrolls().count == 1)
+        guard let slider = descendants(host).compactMap({ $0 as? ImageComparisonAlphaSlider }).first,
+              let sliderCell = slider.cell as? NSSliderCell else { throw Failure(line: #line) }
+        try require(slider.numberOfTickMarks == 17 && slider.allowsTickMarkValuesOnly)
+        let bar = sliderCell.barRect(flipped: slider.isFlipped)
+        try require(bar.height > 0)
+        for (fraction, type) in [(0.0, NSEvent.EventType.leftMouseDown), (0.5, .leftMouseDragged), (1.0, .leftMouseUp)] {
+            let y = slider.isFlipped ? bar.minY + bar.height * fraction : bar.maxY - bar.height * fraction
+            let point = slider.convert(NSPoint(x: bar.midX,y: y), to: nil)
+            let event = NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber, context: nil, eventNumber: 1, clickCount: 1, pressure: 1)!
+            switch type { case .leftMouseDown: slider.mouseDown(with: event); case .leftMouseDragged: slider.mouseDragged(with: event); default: slider.mouseUp(with: event) }
+            try require(abs(model.alpha - fraction) < 0.001)
+            try require(abs((slider.accessibilityValue() as! NSNumber).doubleValue - fraction * 100) < 0.001)
+        }
+        slider.doubleValue = 1
+        let topKnob = sliderCell.knobRect(flipped: slider.isFlipped).midY
+        slider.doubleValue = 0
+        let bottomKnob = sliderCell.knobRect(flipped: slider.isFlipped).midY
+        try require(slider.isFlipped ? topKnob < bottomKnob : topKnob > bottomKnob)
+        slider.setAccessibilityValue(NSNumber(value: 50))
+        try require(model.alpha == 0.5)
+        try require(slider.accessibilityPerformIncrement() && model.alpha == 9.0 / 16)
+        try require(slider.accessibilityPerformDecrement() && model.alpha == 0.5)
+        let cgWheel = CGEvent(scrollWheelEvent2Source: nil, units: .line, wheelCount: 1, wheel1: 1, wheel2: 0, wheel3: 0)!
+        cgWheel.flags = [.maskControl, .maskShift]
+        let wheel = NSEvent(cgEvent: cgWheel)!
+        try require(!wheel.hasPreciseScrollingDeltas && wheel.scrollingDeltaY == 0 && wheel.scrollingDeltaX == 1)
+        scrolls()[0].scrollWheel(with: wheel)
+        try require(model.alpha == 0.25)
+        model.blendAlpha = false
+        scrolls()[0].scrollWheel(with: wheel)
+        try require(model.alpha == 0 && !model.blendAlpha)
+        model.blendAlpha = true
         model.alpha = 0; try await settle(); let red = try pixel(scrolls()[0].documentView!)
         model.alpha = 1; try await settle(); let blue = try pixel(scrolls()[0].documentView!)
         model.alpha = 0.5; try await settle(); let blend = try pixel(scrolls()[0].documentView!)
@@ -151,10 +183,39 @@ import Darwin
         sizedModel.toggleWidths(); try await settle(); try sizes([CGSize(width: 80,height: 10),CGSize(width: 80,height: 10)])
         sizedModel.changeZoom(zoomIn: true); try await settle(); try sizes([CGSize(width: 96,height: 72),CGSize(width: 96,height: 72)])
         sizedModel.originalSize(); try await settle(); try sizes([CGSize(width: 160,height: 20),CGSize(width: 160,height: 20)])
+        // Exercise the real comparison window's scoped key bridge, rather than
+        // calling the model directly or installing a global event monitor.
+        let routedWindow = controller.window!
+        routedWindow.contentView?.layoutSubtreeIfNeeded()
+        try await wait { (routedWindow as? ImageComparisonKeyRouting)?.imageKeyModel != nil }
+        let route = routedWindow as! ImageComparisonKeyRouting
+        let routedModel = route.imageKeyModel!
+        func key(_ characters: String, _ code: UInt16, flags: NSEvent.ModifierFlags = []) throws {
+            let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: flags, timestamp: 0, windowNumber: routedWindow.windowNumber, context: nil, characters: characters, charactersIgnoringModifiers: characters, isARepeat: false, keyCode: code)!
+            try require(routedWindow.performKeyEquivalent(with: event))
+        }
+        try key("o",31); try require(routedModel.overlay && routedModel.alpha == 0.5)
+        try key("",126); try require(routedModel.alpha == 0)
+        try key("",125); try require(routedModel.alpha == 1)
+        try key("",123); try require(routedModel.alpha == 0.5)
+        try key(" ",49); try require(routedModel.alpha == 0)
+        try key(" ",49); try require(routedModel.alpha == 1)
+        try key("v",9,flags: .command); try require(routedModel.vertical)
+        try key("o",31); try require(!routedModel.overlay)
+        try key("s",1); try require(!routedModel.fit && routedModel.zoom == 1)
+        try key("+",24,flags: .shift); try require(abs(routedModel.zoom - 1.2) < 0.001)
+        try key("-",27); try require(routedModel.zoom == 1)
+        try key("w",13); try require(routedModel.fitWidths)
+        try key("h",4); try require(routedModel.fitHeights)
+        try key("i",34); try require(routedModel.showInfo)
+        try key("f",3); try require(routedModel.fit)
+        try require(!model.fitWidths && !model.fitHeights && !model.showInfo)
+        routedWindow.close()
+        try require(route.imageKeysRetired && route.imageKeyModel == nil && route.imageKeyOwner == nil)
         let afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout
         let afterIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
         let afterBytes = try Data(contentsOf: file)
         try require(afterHead == head && afterIndex == index && afterBytes == bytes)
-        print("PASS: Actual Git image routing without image extension, native pane raster colors, fit/manual zoom, linked/unlinked scrolling, vertical/overlay transitions, alpha endpoints/midpoint, XOR changed/unchanged pixels and slider removal/restoration, linked width/height/both native pixel extents with unequal aspect ratios, source stepped zoom, no enlargement on fit, and unchanged HEAD/index/file bytes.")
+        print("PASS: Actual Git image routing without image extension, native pane raster colors, fit/manual zoom, linked/unlinked scrolling, vertical/overlay transitions, alpha endpoints/midpoint, XOR changed/unchanged pixels and slider removal/restoration, linked width/height/both native pixel extents with unequal aspect ratios, source stepped zoom, no enlargement on fit, 17-position native slider click/drag/release and accessibility actions, Control-Shift wheel in Alpha/XOR, real-window keyboard routing/retirement, and unchanged HEAD/index/file bytes.")
     }
 }
