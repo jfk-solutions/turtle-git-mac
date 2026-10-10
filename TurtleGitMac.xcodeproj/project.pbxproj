@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A39F01E117C945ACB8258003 /* SynchronizationWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A39F01E117C945ACB8258004 /* SynchronizationWindow.swift */; };
 		003A4001BFAED871A45BC255 /* HistoryReferenceDeletion.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFDFF34043A119AA7ED83853 /* HistoryReferenceDeletion.swift */; };
 		00EAAAB986D762F4A6B93DBE /* MenuIcons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FC03184E38E2D4ACB2908F5 /* MenuIcons.swift */; };
 		018CF5C4CDB7B942B4775411 /* RemoteTagWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = E64D6C9E84E73A820367C405 /* RemoteTagWindow.swift */; };
@@ -327,6 +328,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		A39F01E117C945ACB8258004 /* SynchronizationWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SynchronizationWindow.swift; sourceTree = "<group>"; };
 		0116DCC8551A2AEF10D0BFB8 /* LogStatistics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogStatistics.swift; sourceTree = "<group>"; };
 		018E0B6FCDC123277FE2DB0C /* LFSLocks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LFSLocks.swift; sourceTree = "<group>"; };
 		022B0A05DF90D278FC860589 /* CreateRepositoryWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateRepositoryWindow.swift; sourceTree = "<group>"; };
@@ -688,6 +690,7 @@
 				1171B2BA353FE1424EB5B04F /* RevertProgressWindow.swift */,
 				E1EF55D94A0594780EEB80F2 /* RevertWindow.swift */,
 				D1C08CE65957F3F0D4164400 /* RevisionComparisonWindow.swift */,
+				A39F01E117C945ACB8258004 /* SynchronizationWindow.swift */,
 				48954A9E7997F1172496470B /* RevisionGraphExport.swift */,
 				AED856C37545053179A74184 /* RevisionGraphFilter.swift */,
 				E36D548C3CA5F137ED0667D9 /* RevisionGraphWindow.swift */,
@@ -1452,6 +1455,7 @@
 				885DFCA3F39F7130AADDB93E /* RevertProgressWindow.swift in Sources */,
 				E0EF101FE5499CD99CF132F1 /* RevertWindow.swift in Sources */,
 				7CBA6AA078D63A8935313B51 /* RevisionComparisonWindow.swift in Sources */,
+				A39F01E117C945ACB8258003 /* SynchronizationWindow.swift in Sources */,
 				662196E53839BE65FDD9777B /* RevisionGraphExport.swift in Sources */,
 				7987241DFAF00D07FFA1D8DE /* RevisionGraphFilter.swift in Sources */,
 				DB7AFE73DFDDD57C00B36DA3 /* RevisionGraphWindow.swift in Sources */,

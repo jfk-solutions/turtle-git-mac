@@ -6,6 +6,7 @@ import AppKit
     var replyToTermination: (NSApplication, Bool) -> Void = { $0.reply(toApplicationShouldTerminate: $1) }
     func applicationWillTerminate(_ notification: Notification) { HistoricalPreviewFiles.discardAll(); RepositoryBrowserExportFiles.discardAll(); UnifiedDiffPreviewFiles.discardAll() }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        if sender.windows.compactMap({ $0.delegate as? SynchronizationWindowController }).contains(where: { $0.model.busy || $0.model.hasBlockingChild || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? RevisionGraphWindowController }).contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? MergeAbortWindowController }).contains(where: { $0.model.busy || $0.model.hasChild || $0.model.confirmingCancellation || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? MergeAbortProgressWindowController }).contains(where: { $0.model.busy || $0.model.confirmingCancellation || $0.window?.attachedSheet != nil }) { return .terminateCancel }
@@ -54,6 +55,7 @@ import AppKit
         let addProgress = sender.windows.compactMap { $0.delegate as? AddProgressWindowController }
         let reverts = sender.windows.compactMap { $0.delegate as? RevertWindowController }
         let browsers = sender.windows.compactMap { $0.delegate as? RepositoryBrowserWindowController }
+        let synchronizations = sender.windows.compactMap { $0.delegate as? SynchronizationWindowController }
         let submoduleSyncs = sender.windows.compactMap { $0.delegate as? SubmoduleSyncWindowController }
         if submoduleSyncs.contains(where: { $0.model.activeOperation || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         let submoduleAdds = sender.windows.compactMap { $0.delegate as? SubmoduleAddWindowController }
@@ -84,6 +86,7 @@ import AppKit
         for add in submoduleAdds { add.model.confirmingQuit = true }
         for add in submoduleAddProgress { add.model.confirmingQuit = true }
         for sync in submoduleSyncs { sync.model.confirmingQuit = true }
+        for sync in synchronizations { sync.model.confirmingQuit = true }
         for add in adds { add.model.confirmingQuit = true }; for add in addProgress { add.model.confirmingQuit = true }
         for revert in reverts { revert.model.confirmingQuit = true }
         for commit in commits { commit.setQuitConfirmation(true) }
@@ -145,6 +148,7 @@ import AppKit
             for add in submoduleAdds { add.model.confirmingQuit = false }
             for add in submoduleAddProgress { add.model.confirmingQuit = false }
             for sync in submoduleSyncs { sync.model.confirmingQuit = false }
+            for sync in synchronizations { sync.model.confirmingQuit = false }
             for add in adds { add.model.confirmingQuit = false }; for add in addProgress { add.model.confirmingQuit = false }
             for revert in reverts { revert.model.confirmingQuit = false }
             for commit in commits { commit.setQuitConfirmation(false) }

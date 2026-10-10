@@ -18,6 +18,34 @@ final class SynchronizationTests: XCTestCase {
     private func hash(_ repo: GitRepository) async throws -> String {
         String(decoding: try await repo.run(["rev-parse", "HEAD"]).stdout, as: UTF8.self).trimmingCharacters(in: .newlines)
     }
+    func testBranchControlsUsePullTrackingRatherThanPushOverrides() async throws {
+        let (root, repo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        for name in ["origin", "publish"] { _ = try await repo.run(["remote", "add", name, "/tmp/" + name]) }
+        for (key, value) in [("branch.main.remote", "origin"), ("branch.main.merge", "refs/heads/review/雪"), ("branch.main.pushRemote", "publish"), ("branch.main.pushbranch", "release"), ("remote.pushDefault", "publish")] { _ = try await repo.run(["config", key, value]) }
+        _ = try await repo.run(["branch", "other"])
+        _ = try await repo.run(["config", "branch.other.merge", "refs/tags/release \t"])
+        // Packed refs can represent both spellings on normalization-insensitive APFS.
+        let oid = try await hash(repo)
+        let names = ["refs/heads/café", "refs/heads/cafe\u{301}"].sorted { $0.utf8.lexicographicallyPrecedes($1.utf8) }
+        try Data(("# pack-refs with: sorted\n" + names.map { oid + " " + $0 + "\n" }.joined()).utf8).write(to: root.appendingPathComponent(".git/packed-refs"))
+        let config = try Data(contentsOf: root.appendingPathComponent(".git/config"))
+        let catalog = try await repo.synchronizationBranches()
+        XCTAssertEqual(catalog.currentBranch, "main"); XCTAssertEqual(catalog.localBranches.count, 4)
+        for spelling in ["café", "cafe\u{301}", "main", "other"] { XCTAssertTrue(catalog.localBranches.contains { GitReferenceName.equal($0, spelling) }) }
+        XCTAssertEqual(catalog.remotes, ["origin", "publish"])
+        XCTAssertEqual(catalog.trackedRemote, "origin"); XCTAssertEqual(catalog.trackedBranch, "review/雪")
+        let other = try await repo.synchronizationBranches(localBranch: "other")
+        XCTAssertEqual(other.trackedRemote, ""); XCTAssertEqual(other.trackedBranch, "tags/release")
+        let untracked = try await repo.synchronizationBranches(localBranch: "absent")
+        XCTAssertEqual(untracked.trackedRemote, ""); XCTAssertEqual(untracked.trackedBranch, "")
+        _ = try await repo.run(["switch", "--detach"])
+        let detached = try await repo.synchronizationBranches()
+        XCTAssertEqual(detached.currentBranch, ""); XCTAssertEqual(detached.trackedRemote, "")
+        let token = OperationCancellation(); token.cancel()
+        do { _ = try await repo.synchronizationBranches(cancellation: token); XCTFail("cancelled catalog read ran") } catch is OperationCancellationFailure {}
+        do { _ = try await repo.synchronizationBranches(localBranch: "main\0bad"); XCTFail("NUL accepted") } catch SynchronizationFailure.invalidInput {}
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/config")), config)
+    }
     func testAheadEqualMissingAndIncomingUsePinnedRevisions() async throws {
         let (root, repo, base) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
         let equal = try await repo.synchronizationOutgoing(localBranch: "main", remote: "origin", remoteBranch: "main")

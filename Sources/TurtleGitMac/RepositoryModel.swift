@@ -57,6 +57,7 @@ import TurtleGitCore
     private var rebaseWindows: [String: RebaseWindowController] = [:]
     private var fetchWindows: [String: FetchWindowController] = [:]
     private var pushWindows: [String: PushWindowController] = [:]
+    private var synchronizationWindows: [String: SynchronizationWindowController] = [:]
     private var referenceWindows: [String: BranchTagWindowController] = [:]
     private var switchProgressWindows: [UUID: SwitchProgressWindowController] = [:]
     private var switchWindows: [String: SwitchWindowController] = [:]
@@ -710,6 +711,18 @@ import TurtleGitCore
         controller.onClosed = { [weak self] in self?.lfsLocksWindows.removeValue(forKey: key) }
         lfsLocksWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
         Task { await controller.model.refresh() }
+    }
+
+    func showSynchronization() {
+        guard !busy, !confirmingQuit, !bare, let repository else { return }
+        let key = repository.root.path, access = activeAccess
+        if let existing = synchronizationWindows[key] { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
+        let controller = SynchronizationWindowController(repository: repository, access: access)
+        configureRevisionComparisonInteractions(controller.model.comparison, repository: repository, access: access)
+        controller.model.onLog = { [weak self] revision in self?.showLog(repository: repository, access: access, paths: [], endRevision: revision) }
+        controller.model.onCommit = { [weak self] in self?.showCommitDialog(repository: repository, access: access, paths: []) }
+        controller.onClosed = { [weak self] in self?.synchronizationWindows.removeValue(forKey: key) }
+        synchronizationWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
 
     private func showAddProgress(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], mode: WorkingFileAddMode = .normal) {

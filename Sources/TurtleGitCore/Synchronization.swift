@@ -1,6 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import Foundation
 
+/// BranchCombox uses the pull tracking configuration, independently of Push's
+/// pushRemote/pushDefault/pushbranch preferences.
+public struct SynchronizationBranches: Sendable {
+    public let localBranches: [String]
+    public let currentBranch: String
+    public let remotes: [String]
+    public let trackedRemote: String
+    public let trackedBranch: String
+}
+
 public enum SynchronizationDisposition: Equatable, Sendable {
     case unknownURL, unknownRemoteBranch, upToDate, needsForce, outgoing
 }
@@ -29,6 +39,30 @@ public enum SynchronizationFailure: LocalizedError {
 }
 
 extension GitRepository {
+    public func synchronizationBranches(localBranch: String? = nil, cancellation: OperationCancellation? = nil) throws -> SynchronizationBranches {
+        try cancellation?.check()
+        guard localBranch?.contains("\0") != true else { throw SynchronizationFailure.invalidInput }
+        let refs = try checkoutReferences(cancellation: cancellation)
+        let locals = refs.compactMap { GitReferenceName.removingPrefix("refs/heads/", from: $0.name) }
+        let current = try branch(cancellation: cancellation)
+        let selected = localBranch ?? current
+        func configuration(_ key: String) throws -> String {
+            let result = try run(["config", "--get", key], successfulExitCodes: 0...1, cancellation: cancellation)
+            return result.exitCode == 0 ? String(decoding: result.stdout, as: UTF8.self).trimmingCharacters(in: .newlines) : ""
+        }
+        let remote = selected.isEmpty ? "" : try configuration("branch." + selected + ".remote")
+        var tracked = selected.isEmpty ? "" : try configuration("branch." + selected + ".merge")
+        // CGit::StripRefName strips heads specially, otherwise only refs/.
+        if let short = GitReferenceName.removingPrefix("refs/heads/", from: tracked) { tracked = short }
+        else if let short = GitReferenceName.removingPrefix("refs/", from: tracked) { tracked = short }
+        while tracked.last?.isWhitespace == true { tracked.removeLast() }
+        let remotes = try run(["remote"], cancellation: cancellation).stdout
+        try cancellation?.check()
+        return SynchronizationBranches(localBranches: locals, currentBranch: current,
+            remotes: String(decoding: remotes, as: UTF8.self).split(separator: "\n").map(String.init),
+            trackedRemote: remote, trackedBranch: tracked)
+    }
+
     public func synchronizationOutgoing(localBranch: String, remote: String, remoteBranch: String, force: Bool = false, cancellation: OperationCancellation? = nil) throws -> SynchronizationOutgoing {
         let token = cancellation ?? OperationCancellation()
         try token.check()
