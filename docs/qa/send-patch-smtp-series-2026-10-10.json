@@ -1,0 +1,59 @@
+{
+  "checked_at": "2026-10-10T02:20:18.292256+00:00",
+  "parent_commit": "0ad929cf81d8471996d8142b46c7fc424a9a41af",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Source-style ordered configured SMTP series, bounded retry, cooperative delay cancellation and partial acceptance reporting; production native workflow incomplete",
+  "upstream_blob_sha256": {
+    "src/TortoiseProc/SendMail.cpp": "d8f6135a262c4f8b67f8d3bf93dcd482d180362e3c756018e97f3f737f090a25"
+  },
+  "checks": {
+    "system_git_tests": 22,
+    "packaged_git_tests": 22,
+    "system_test_exit": 0,
+    "packaged_test_exit": 0,
+    "debug_build_exit": 0,
+    "unsigned_appstore_build_exit": 0,
+    "sdk_framework_loopback_receiver_exit": 0,
+    "debug_bundle_audit_exit": 0,
+    "appstore_bundle_audit_exit": 0,
+    "inventory_pin_exit": 0,
+    "bundled_icons": 100,
+    "cases": [
+      "Ordered delivery with two recoverable failures followed by acceptance, at most three attempts",
+      "Exhaustion retains already accepted prefix and never starts later message",
+      "Uncertain final acknowledgement stops immediately without retry or delay",
+      "Cancellation during retry delay and after acceptance stops next submission",
+      "Malformed later message rejected before any connection; real loopback series API still succeeds afterward",
+      "Existing MIME/preparation/sender and real TLS/authentication/rejection/cancellation tests retained"
+    ],
+    "retry_delay_evidence": "Production two-second cooperative delay inspected in source; deterministic lifecycle tests inject delay to exercise cancellation and retry without sleeping",
+    "harness_correction": "Initial run stalled in Foundation Process.waitUntilExit after fixture exited. Sample captured thread migration; owned worker terminated and exact verified leftover fixture removed. Fixture launch/reaping now isolated to MainActor; both subsequent full focused runs passed.",
+    "final_audit": {
+      "matching_processes": [],
+      "current_fixtures": []
+    },
+    "side_effects": "Owned loopback SMTP/private certificates only; no main app, visible window, real mail service, live Keychain or certificate-store writes. No test preferences used in this checkpoint."
+  },
+  "source_sha256": {
+    "Sources/TurtleGitCore/PatchMailSMTP.swift": "426574b7cdb97d8fbf083af3e4c2622c192c40ce035744826ef8a09b57a2ab56",
+    "Tests/TurtleGitCoreTests/PatchMailSMTPTests.swift": "d1f1d3f3b7888365bed8af02109ba3f63f9b2ce39417eda7c2750006f080e7e1",
+    "docs/PORTING.md": "a6c99cfcb11162fe1f172d98cb4dd5f4b6c93d847c6d2004a4f8efe6fdf158ba",
+    "docs/SEND-PATCH-PARITY.md": "8270c86c4ea8eaa75eaf21f4083b415621c7191840a84cc733cbf873d5c5c146",
+    "docs/upstream-files.csv": "597a6bc1ed0e217471bd65d7cbbf198cd3c419a066968d55aa90bc9a34042037"
+  },
+  "binary_sha256": {
+    "Debug_app": "ae0fc297ae892ad6d53e5bfb2e3aee3218b8dda08c01e7e3c33faa88de63b8d1",
+    "Debug_core": "95c8bac76b73e93ac02e58c03d9ee3a68742c5c62ba8761b626b26d4a2cddf40",
+    "Debug_smtp": "f41d314777122b4e4f4bb47922ae13dba21a1879949b1c94fc5019a23bf147fe",
+    "AppStore_app": "9063ee68832b09b31fe9028d979edd2293b6aca63deeb29d4456fbc5f70fd8bd",
+    "AppStore_core": "fec0f43552d8856a2fe02b8721b731cccea068a39c79f8307663a29fd91a0895",
+    "AppStore_smtp": "99c922bcd4ff4092d5d3b67d1c2ed741368afe84d72a943bada5aafc4108b3d6"
+  },
+  "limitations": [
+    "Core queue remains unwired to production native Send Patch callers; sender/credential orchestration and native progress pending",
+    "Direct MX, Mail-client composition, explicit native recovery and complete UI parity pending",
+    "Signed sandbox/Keychain/Finder, older supported OS runtime and App Store distribution acceptance pending",
+    "Hosted GitHub CI unverified"
+  ],
+  "logs": "build/qa/send-patch-smtp-series-*.log and build/qa/send-patch-smtp-series-2026-10-10/ (ignored)"
+}

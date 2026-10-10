@@ -365,7 +365,31 @@ unsigned App Store build includes both Intel and Apple Silicon SMTP slices.
 
 This is a working configured-server Core transport, still unwired to native Send
 Patch production callers. Sender/Keychain capture orchestration, ordered message
-progress/explicit retry, direct-to-MX delivery, Mail-client composition, broader
+native progress/explicit recovery, direct-to-MX delivery, Mail-client composition, broader
 SASL/OAuth/encoding acceptance, signed Keychain/file grants and full physical UI
 acceptance remain pending. Optional private CA grants, older system-libcurl
 variants and cancellation after upload require distribution acceptance.
+
+## Ordered configured-server submission
+
+`PatchMailSMTP.sendSeries` submits prepared messages in order and reports the
+current item, attempt, upload bytes, retry and acceptance. Like upstream
+`CSendMail::SendMail`, each failed message gets at most three attempts with a
+two-second delay. The shared cancellation token interrupts both submission and
+the delay; cancellation stops before the next item. A lost final acknowledgement
+stops immediately with possible delivery, rather than risking a duplicate.
+This is a macOS adaptation of the source's unconditional retry behavior.
+
+The series captures one date and Message-ID per message before its first
+attempt, retaining those values across retries. All message headers, recipients
+and bodies are validated before the first submission, so an invalid later
+message cannot leave an earlier partial delivery. On transport failure the
+result identifies the failed item, attempts and already accepted prefix;
+consumers must not restart that accepted prefix silently. Queue tests exercise
+successful retry order, exhaustion, partial acceptance, ambiguous delivery,
+cancellation during delay and immediately after acceptance, plus a real
+loopback series submission after rejecting malformed later input.
+
+Production sender/credential capture, native progress and caller routing are
+still pending; the series API alone does not establish that user flow.
+See [ordered SMTP QA](qa/send-patch-smtp-series-2026-10-10.json).

@@ -10,7 +10,9 @@ final class PatchMailSMTPTests: XCTestCase {
             return try XCTUnwrap(PatchMailPreparation.messages(patches: [patch], options: options).first)
         }
     }
-    private func withServer(_ mode: String, encryption: SMTPEncryption = .none,
+    // Foundation Process launch/reaping must stay on one executor: an async
+    // body can otherwise resume on a different worker and miss its exit wakeup.
+    @MainActor private func withServer(_ mode: String, encryption: SMTPEncryption = .none,
                             _ body: (URL, SMTPServer) async throws -> Void) async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitSMTP-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
@@ -116,6 +118,87 @@ final class PatchMailSMTPTests: XCTestCase {
             try await Task.sleep(nanoseconds: 150_000_000); task.cancel()
             do { _ = try await task.value; XCTFail("Stalled send not cancelled") } catch is OperationCancellationFailure { }
             let state = try await self.result(root); XCTAssertEqual(state["data"] as? Int, 0)
+        }
+    }
+}
+
+private actor SeriesFixture {
+    var calls: [Int] = []
+    var waits = 0
+    let failIndex: Int, failures: Int, uncertain: Bool
+    init(failIndex: Int, failures: Int, uncertain: Bool = false) { self.failIndex = failIndex; self.failures = failures; self.uncertain = uncertain }
+    func submit(_ index: Int) throws -> SMTPReceipt {
+        calls.append(index)
+        if index == failIndex && calls.filter({ $0 == index }).count <= failures {
+            throw SMTPFailure.transfer(code: 55, response: 0, possiblySubmitted: uncertain)
+        }
+        return SMTPReceipt(response: 250)
+    }
+    func wait() { waits += 1 }
+    func snapshot() -> ([Int], Int) { (calls, waits) }
+}
+extension PatchMailSMTPTests {
+    func testSeriesOrdersRetriesAndStopsWithAcceptedPrefix() async throws {
+        let fixture = SeriesFixture(failIndex: 1, failures: 2)
+        let receipts = try await PatchMailSMTP.runSeries(count: 3, cancellation: OperationCancellation(), onProgress: nil,
+            wait: { await fixture.wait() }, submit: { index, progress in
+                progress(SMTPUploadProgress(uploaded: 10, total: 10)); return try await fixture.submit(index)
+            })
+        XCTAssertEqual(receipts.map(\.response), [250, 250, 250])
+        let success = await fixture.snapshot(); XCTAssertEqual(success.0, [0, 1, 1, 1, 2]); XCTAssertEqual(success.1, 2)
+        let failed = SeriesFixture(failIndex: 1, failures: 10)
+        do {
+            _ = try await PatchMailSMTP.runSeries(count: 3, cancellation: OperationCancellation(), onProgress: nil,
+                wait: { await failed.wait() }, submit: { index, _ in try await failed.submit(index) })
+            XCTFail("Series continued past failure")
+        } catch let failure as SMTPSeriesFailure {
+            XCTAssertEqual(failure.index, 1); XCTAssertEqual(failure.attempts, 3); XCTAssertEqual(failure.accepted.map(\.response), [250])
+        }
+        let failure = await failed.snapshot(); XCTAssertEqual(failure.0, [0, 1, 1, 1]); XCTAssertEqual(failure.1, 2)
+    }
+    func testSeriesUncertainReplyAndRetryDelayCancellationDoNotResend() async throws {
+        let uncertain = SeriesFixture(failIndex: 1, failures: 10, uncertain: true)
+        do {
+            _ = try await PatchMailSMTP.runSeries(count: 3, cancellation: OperationCancellation(), onProgress: nil,
+                wait: { await uncertain.wait() }, submit: { index, _ in try await uncertain.submit(index) })
+            XCTFail("Uncertain message resent")
+        } catch let failure as SMTPSeriesFailure {
+            XCTAssertEqual(failure.index, 1); XCTAssertEqual(failure.attempts, 1); XCTAssertEqual(failure.accepted.count, 1)
+            guard case SMTPFailure.transfer(_, _, true) = failure.cause else { return XCTFail("Uncertainty lost") }
+        }
+        let state = await uncertain.snapshot(); XCTAssertEqual(state.0, [0, 1]); XCTAssertEqual(state.1, 0)
+        let fixture = SeriesFixture(failIndex: 0, failures: 10), token = OperationCancellation()
+        do {
+            _ = try await PatchMailSMTP.runSeries(count: 2, cancellation: token, onProgress: nil,
+                wait: { token.cancel() }, submit: { index, _ in try await fixture.submit(index) })
+            XCTFail("Cancelled retry continued")
+        } catch let failure as SMTPSeriesFailure {
+            XCTAssertEqual(failure.accepted.count, 0); XCTAssertTrue(failure.cause is OperationCancellationFailure)
+        }
+        let cancelled = await fixture.snapshot(); XCTAssertEqual(cancelled.0, [0])
+        let afterAcceptance = SeriesFixture(failIndex: -1, failures: 0), acceptedToken = OperationCancellation()
+        do {
+            _ = try await PatchMailSMTP.runSeries(count: 2, cancellation: acceptedToken, onProgress: { event in
+                if case .accepted = event { acceptedToken.cancel() }
+            }, wait: {}, submit: { index, _ in try await afterAcceptance.submit(index) })
+            XCTFail("Next message submitted after cancellation")
+        } catch let failure as SMTPSeriesFailure {
+            XCTAssertEqual(failure.index, 1); XCTAssertEqual(failure.accepted.count, 1)
+        }
+        let accepted = await afterAcceptance.snapshot(); XCTAssertEqual(accepted.0, [0])
+    }
+    func testSeriesValidatesLaterMessageBeforeFirstDeliveryAndRealSDKSubmission() async throws {
+        let invalid = PatchMailMessage(to: ["bad\r\naddress"], cc: [], subject: "later", body: Data(), attachments: [])
+        try await withServer("normal") { root, server in
+            do {
+                _ = try await PatchMailSMTP.sendSeries(messages: [try self.message, invalid], sender: self.sender, server: server)
+                XCTFail("Invalid later header submitted")
+            } catch is PatchMailMIMEFailure { }
+            // The server remains waiting: validation made no connection. A real
+            // series submission can still use its single owned session.
+            let receipt = try await PatchMailSMTP.sendSeries(messages: [try self.message], sender: self.sender, server: server)
+            XCTAssertEqual(receipt.map(\.response), [250])
+            let state = try await self.result(root); XCTAssertEqual(state["accepted"] as? Int, 1)
         }
     }
 }

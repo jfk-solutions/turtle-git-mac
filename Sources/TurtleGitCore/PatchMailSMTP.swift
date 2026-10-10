@@ -118,3 +118,79 @@ public enum PatchMailSMTP {
         throw SMTPFailure.transfer(code: code, response: response, possiblySubmitted: possiblySubmitted != 0)
     }
 }
+
+public enum SMTPSeriesProgress: Sendable {
+    case sending(index: Int, total: Int, attempt: Int)
+    case upload(index: Int, progress: SMTPUploadProgress)
+    case retry(index: Int, nextAttempt: Int)
+    case accepted(index: Int, response: Int)
+}
+/// Retains acceptance before the failed item, so a UI can report partial delivery
+/// without silently resending already accepted messages.
+public struct SMTPSeriesFailure: LocalizedError {
+    public let index: Int
+    public let attempts: Int
+    public let accepted: [SMTPReceipt]
+    public let cause: Error
+    public var errorDescription: String? { cause.localizedDescription }
+}
+extension PatchMailSMTP {
+    /// Source-style ordered submission: up to three attempts per message, with
+    /// two seconds between failures. A lost final acknowledgement never retries:
+    /// the server may already have accepted that message.
+    public static func sendSeries(messages: [PatchMailMessage], sender: PatchMailSender, server: SMTPServer,
+                                  authentication: SMTPAuthentication? = nil, bodyCharset: PatchMailBodyCharset = .utf8,
+                                  cancellation: OperationCancellation? = nil,
+                                  onProgress: (@Sendable (SMTPSeriesProgress) -> Void)? = nil) async throws -> [SMTPReceipt] {
+        let token = cancellation ?? OperationCancellation()
+        return try await withTaskCancellationHandler(operation: {
+            try token.check()
+            let stamps = messages.map { _ in (Date(), UUID()) }
+            // Reject malformed later messages before any earlier message leaves.
+            for (index, message) in messages.enumerated() {
+                try token.check()
+                guard !(message.to + message.cc).isEmpty else { throw SMTPFailure.recipients }
+                _ = try (message.to + message.cc).map { try PatchMailMIME.envelopeAddress($0) }
+                _ = try PatchMailMIME.data(message: message, sender: sender, date: stamps[index].0,
+                                           identifier: stamps[index].1, bodyCharset: bodyCharset)
+            }
+            return try await runSeries(count: messages.count, cancellation: token, onProgress: onProgress, wait: {
+                // Cooperative token cancellation also interrupts retry delay.
+                for _ in 0..<100 { try token.check(); try await Task.sleep(nanoseconds: 20_000_000) }
+                try token.check()
+            }, submit: { index, progress in
+                try await send(message: messages[index], sender: sender, server: server, authentication: authentication,
+                               bodyCharset: bodyCharset, date: stamps[index].0, identifier: stamps[index].1,
+                               cancellation: token, onProgress: progress)
+            })
+        }, onCancel: { token.cancel() })
+    }
+    static func runSeries(count: Int, cancellation: OperationCancellation,
+                          onProgress: (@Sendable (SMTPSeriesProgress) -> Void)?,
+                          wait: @Sendable () async throws -> Void,
+                          submit: @Sendable (Int, @escaping @Sendable (SMTPUploadProgress) -> Void) async throws -> SMTPReceipt) async throws -> [SMTPReceipt] {
+        var accepted: [SMTPReceipt] = []
+        for index in 0..<count {
+            for attempt in 1...3 {
+                do {
+                    try cancellation.check(); try Task.checkCancellation()
+                    onProgress?(.sending(index: index, total: count, attempt: attempt))
+                    let receipt = try await submit(index, { onProgress?(.upload(index: index, progress: $0)) })
+                    accepted.append(receipt)
+                    onProgress?(.accepted(index: index, response: receipt.response))
+                    break
+                } catch {
+                    let retry: Bool
+                    if case SMTPFailure.transfer(_, _, let uncertain) = error {
+                        retry = !uncertain && !cancellation.isCancelled && !Task.isCancelled && attempt < 3
+                    } else { retry = false }
+                    guard retry else { throw SMTPSeriesFailure(index: index, attempts: attempt, accepted: accepted, cause: error) }
+                    onProgress?(.retry(index: index, nextAttempt: attempt + 1))
+                    do { try await wait(); try cancellation.check(); try Task.checkCancellation() }
+                    catch { throw SMTPSeriesFailure(index: index, attempts: attempt, accepted: accepted, cause: error) }
+                }
+            }
+        }
+        return accepted
+    }
+}
