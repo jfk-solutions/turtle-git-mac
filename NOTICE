@@ -1429,3 +1429,8 @@ reference choices. Deletion reuses the existing GPL native adaptation of
 CAppUtils::DeleteRef with owned macOS confirmation/error sheets, per-reference
 All sequencing, fresh object checks, private SSH coordination and cancellation.
 Existing TortoiseGit copyrights and GPL-2.0-or-later terms apply.
+
+Revision Graph toolbar retains src/Resources/revgraphbar.bmp unchanged under the
+upstream GPL resource alternative. Its 20-pixel glyph tiles, exact first-pixel
+RGB transparency mask and command ordering adapt IDR_REVGRAPHBAR and the
+RevisionGraphDlg.cpp toolbar setup to native AppKit controls.

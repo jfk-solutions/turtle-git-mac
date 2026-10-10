@@ -248,6 +248,7 @@ enum RevisionGraphReferenceCommand {
     let zoomBox = NSComboBox()
     private var displayedZoom: CGFloat?
     let cancelButton = NSButton(title: "Cancel", target: nil, action: nil)
+    private var toolbarButtons: [NSButton] = []
     private let overview: RevisionGraphOverview
     private(set) var filter: RevisionGraphFilterController?
     private var closing = false
@@ -270,16 +271,35 @@ enum RevisionGraphReferenceCommand {
             for (label, command) in commands { popup.menu?.addItem(menuItem(label, command: command)) }
             bar.addArrangedSubview(popup)
         }
-        for (title, command, icon) in [("Refresh", "refresh", MenuIcon.refresh), ("Filter", "filter", .repositoryBrowser), ("Zoom in", "zoomIn", .imageZoomIn), ("Zoom out", "zoomOut", .imageZoomOut), ("Fit graph", "fit", .imageFit)] {
-            let button = NSButton(image: icon.image() ?? NSImage(), target: self, action: #selector(clicked(_:)))
-            button.identifier = NSUserInterfaceItemIdentifier(command); button.toolTip = title; button.setAccessibilityLabel(title); bar.addArrangedSubview(button)
+        let toolbar = NSStackView(); toolbar.orientation = .horizontal; toolbar.spacing = 2
+        toolbar.identifier = NSUserInterfaceItemIdentifier("RevisionGraphToolbar")
+        func addButton(_ title: String, _ command: String, _ image: NSImage?) {
+            let button = NSButton(image: image ?? NSImage(), target: self, action: #selector(clicked(_:)))
+            button.bezelStyle = .regularSquare; button.isBordered = false
+            button.identifier = NSUserInterfaceItemIdentifier(command); button.toolTip = title; button.setAccessibilityLabel(title)
+            button.widthAnchor.constraint(equalToConstant: 27).isActive = true
+            button.heightAnchor.constraint(equalToConstant: 26).isActive = true
+            toolbarButtons.append(button); toolbar.addArrangedSubview(button)
         }
+        func separator() {
+            let line = NSBox(); line.boxType = .separator
+            line.widthAnchor.constraint(equalToConstant: 1).isActive = true
+            line.heightAnchor.constraint(equalToConstant: 22).isActive = true
+            toolbar.addArrangedSubview(line)
+        }
+        for (title, command, icon) in [("Zoom in", "zoomIn", RevisionGraphToolbarIcon.zoomIn), ("Zoom out", "zoomOut", .zoomOut), ("Zoom to 100%", "zoom100", .zoom100), ("Fit height", "fitHeight", .fitHeight), ("Fit width", "fitWidth", .fitWidth), ("Fit graph", "fit", .fitGraph)] {
+            addButton(title, command, icon.image())
+        }
+        separator()
         // Upstream inserts each preset at index zero, producing descending order.
         zoomBox.addItems(withObjectValues: ["200%", "100%", "75%", "50%", "40%", "20%", "10%", "5%"])
         zoomBox.isEditable = true; zoomBox.completes = false; zoomBox.alignment = .right
         zoomBox.delegate = self; zoomBox.target = self; zoomBox.action = #selector(commitZoom(_:))
         zoomBox.setAccessibilityLabel("Zoom percentage"); zoomBox.toolTip = "Zoom percentage"
-        zoomBox.widthAnchor.constraint(equalToConstant: 82).isActive = true; bar.addArrangedSubview(zoomBox)
+        zoomBox.widthAnchor.constraint(equalToConstant: 82).isActive = true; toolbar.addArrangedSubview(zoomBox)
+        separator(); addButton("Filter", "filter", RevisionGraphToolbarIcon.filter.image())
+        separator(); addButton("Show Overview", "overview", RevisionGraphToolbarIcon.overview.image())
+        separator(); addButton("Refresh", "refresh", MenuIcon.refresh.image(size: 20))
         let host = NSView(frame: CGRect(x: 0, y: 0, width: 960, height: 560)); host.translatesAutoresizingMaskIntoConstraints = false
         scroll.hasHorizontalScroller = true; scroll.hasVerticalScroller = true; scroll.autohidesScrollers = true; scroll.documentView = canvas
         scroll.frame = CGRect(x: 0, y: 0, width: 960, height: 560); scroll.autoresizingMask = [.width, .height]; host.addSubview(scroll)
@@ -289,7 +309,7 @@ enum RevisionGraphReferenceCommand {
         NotificationCenter.default.addObserver(self, selector: #selector(sheetEnded), name: NSWindow.didEndSheetNotification, object: window)
         let footer = NSStackView(views: [status, cancelButton]); footer.orientation = .horizontal; footer.distribution = .fill; footer.spacing = 12
         cancelButton.target = self; cancelButton.action = #selector(cancelGraphOperation)
-        let stack = NSStackView(views: [bar, host, footer]); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 8
+        let stack = NSStackView(views: [bar, toolbar, host, footer]); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 8
         stack.edgeInsets = NSEdgeInsets(top: 8, left: 8, bottom: 8, right: 8); stack.translatesAutoresizingMaskIntoConstraints = false
         let content = RevisionGraphSurface(); content.addSubview(stack); window.contentView = content
         NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: content.leadingAnchor), stack.trailingAnchor.constraint(equalTo: content.trailingAnchor), stack.topAnchor.constraint(equalTo: content.topAnchor), stack.bottomAnchor.constraint(equalTo: content.bottomAnchor), host.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -16), host.heightAnchor.constraint(greaterThanOrEqualToConstant: 300)])
@@ -464,6 +484,10 @@ enum RevisionGraphReferenceCommand {
     func update() {
         synchronizeZoom()
         zoomBox.isEnabled = !model.busy && !model.closed && filter == nil && !exporting && window?.attachedSheet == nil
+        for button in toolbarButtons {
+            button.isEnabled = zoomBox.isEnabled
+            button.state = button.identifier?.rawValue == "overview" && model.showOverview ? .on : .off
+        }
         canvas.resize(to: scroll.contentSize); canvas.needsDisplay = true; overview.updateFrame(); overview.needsDisplay = true
         overview.isHidden = !model.showOverview || model.busy || model.nodes.isEmpty || model.nodes.count > 10_000
         status.stringValue = model.error ?? (model.busy ? "Loading…" : "\(model.nodes.count) revisions • \(Int((model.zoom * 100).rounded()))%")

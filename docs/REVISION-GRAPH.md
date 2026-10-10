@@ -38,7 +38,8 @@ nodes are selected. See the parity record for remaining physical and signed
 interaction checks.
 
 Use the toolbar or **View** menu to zoom, return to 100%, fit width or height,
-or fit the whole graph. The toolbar percentage box offers 5%, 10%, 20%, 40%,
+or fit the whole graph. The toolbar uses the original TortoiseGit zoom, Filter
+and Overview icons. The toolbar percentage box offers 5%, 10%, 20%, 40%,
 50%, 75%, 100% and 200%. Choose a preset or type a positive percentage and
 press Return; custom percentages may exceed 200%. Invalid values restore the
 current percentage. Button, wheel and fit changes update the box.

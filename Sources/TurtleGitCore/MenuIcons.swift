@@ -96,6 +96,47 @@ public enum MenuIcon: String, CaseIterable {
         return image
     }
 }
+/// Tiles in the original IDR_REVGRAPHBAR resource, in toolbar command order.
+/// The unused zoom-combo placeholder occupies tile 6 in the upstream strip.
+public enum RevisionGraphToolbarIcon: Int, CaseIterable {
+    case zoomIn = 0, zoomOut, zoom100, fitHeight, fitWidth, fitGraph
+    case filter = 7, overview, find
+
+    public func image() -> NSImage? {
+        #if SWIFT_PACKAGE
+        let bundle = Bundle.main.resourceURL.flatMap { Bundle(url: $0.appendingPathComponent("TurtleGitMac_TurtleGitCore.bundle")) } ?? Bundle.module
+        #else
+        let bundle = Bundle(for: IconResourceBundle.self)
+        #endif
+        guard let url = bundle.url(forResource: "revgraphbar", withExtension: "bmp", subdirectory: "Icons"),
+              let data = try? Data(contentsOf: url), data.count >= 54, data[0] == 0x42, data[1] == 0x4d else { return nil }
+        func u32(_ offset: Int) -> UInt32 {
+            (0..<4).reduce(0) { $0 | (UInt32(data[offset + $1]) << ($1 * 8)) }
+        }
+        let width = Int(Int32(bitPattern: u32(18))), signedHeight = Int(Int32(bitPattern: u32(22)))
+        guard u32(14) >= 40, width > 0, width <= 4096, signedHeight == 20,
+              data[26] == 1, data[27] == 0, data[28] == 24, data[29] == 0, u32(30) == 0,
+              (rawValue + 1) * 20 <= width else { return nil }
+        let offset = Int(u32(10)), stride = (width * 3 + 3) & ~3
+        guard offset >= 54, offset <= data.count, stride * 20 <= data.count - offset,
+              let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 20, pixelsHigh: 20, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bitmapFormat: .alphaNonpremultiplied, bytesPerRow: 80, bitsPerPixel: 32),
+              let pixels = bitmap.bitmapData else { return nil }
+        // CImageList::Add uses the first BMP pixel as its exact RGB color key.
+        let mask = Array(data[offset..<offset + 3])
+        for y in 0..<20 {
+            for x in 0..<20 {
+                let source = offset + (19 - y) * stride + (rawValue * 20 + x) * 3
+                let target = y * 80 + x * 4
+                pixels[target] = data[source + 2]; pixels[target + 1] = data[source + 1]; pixels[target + 2] = data[source]
+                pixels[target + 3] = data[source] == mask[0] && data[source + 1] == mask[1] && data[source + 2] == mask[2] ? 0 : 255
+            }
+        }
+        let image = NSImage(size: NSSize(width: 20, height: 20)); image.addRepresentation(bitmap)
+        image.isTemplate = false
+        return image
+    }
+}
+
 private final class IconResourceBundle: NSObject {}
 
 extension RepositoryAction {

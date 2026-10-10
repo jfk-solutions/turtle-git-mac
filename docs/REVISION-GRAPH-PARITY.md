@@ -393,12 +393,44 @@ source `_wtof` zero/overflow values to AppKit. Busy, closed, Filter/export and
 owned-sheet guards reject edits. The combo box is disabled during loading and owned modal interactions.
 Native QA exercises preset notification dispatch, typed action dispatch,
 Return through the actual field editor, custom fractional and above-200% scales,
-invalid values and loading/Filter locks. Exact toolbar artwork and other
-source toolbar buttons, physical popup/Tab/localized-decimal behavior, signed
-and accessibility acceptance remain pending.
+invalid values and loading/Filter locks. Physical popup/Tab/localized-decimal
+behavior, signed and accessibility acceptance remain pending. See the original
+toolbar mapping below for the subsequent artwork port.
 
 The native graph receiver passed with each Git engine, including actual Return
 input and modal/loading guards. Unsigned Debug/Store builds, both packaging
 audits and local Pages build passed. Refreshed light/dark captures were inspected;
 see [zoom-control evidence](qa/revision-graph-zoom-2026-10-10.json). Earlier
 screenshot records remain scoped to their original commits.
+
+## Original toolbar artwork and command order
+
+The native toolbar now uses unchanged `src/Resources/revgraphbar.bmp` from the
+pinned source. Tiles 0–5 are Zoom in, Zoom out, 100%, Fit height, Fit width and
+Fit graph; tile 6 is the upstream combo placeholder; tiles 7 and 8 are Filter
+and Overview. The loader crops each 20×20 glyph from the bottom-up BGR strip
+and uses the first source pixel as the exact RGB transparency key, matching
+`CImageList::Add`. Glyphs retain their original colors in both appearances.
+Resource provenance records the original strip hash; bundle audits include it.
+
+The menu row and toolbar occupy separate native rows. Six zoom buttons precede
+the editable percentage, then Filter and Overview, with source separator groups.
+Refresh is a native additional button for the existing F5 command. Toolbar
+actions are disabled during loading and owned modal interactions; Overview
+reflects its current state. The original Find tile is decoded but not exposed
+yet: the source Find dialog, text/regex/reference search and scrolling behavior
+still require a complete port. This checkpoint does not certify full toolbar,
+physical input, accessibility or signed execution parity.
+
+Pixel checks compare every decoded tile with the pinned BGR resource, including
+the transparency mask. Native checks passed with system and bundled Git for
+button order/artwork, all six zoom actions, Overview state and loading locks,
+plus retained graph/filter/export/reference tests. Light/dark content captures
+were inspected and refreshed in the local gallery. See
+[toolbar evidence](qa/revision-graph-toolbar-2026-10-10.json).
+
+Unsigned Debug and App Store configuration builds passed. Both bundle audits
+verified 118 unchanged upstream icon resources, including the new graph strip;
+the local Pages build passed. This is local unsigned evidence, not hosted CI,
+publication, signed Finder or App Store approval. All owned native QA receivers
+exited and no app/test/compiler instances remained at the checkpoint.

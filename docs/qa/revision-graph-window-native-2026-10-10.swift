@@ -11,6 +11,10 @@ import Darwin
         for _ in 0..<1000 { if ready() { return }; try await Task.sleep(nanoseconds: 10_000_000) }; throw Failure(line: line)
     }
     @MainActor static func views(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(views) }
+    @MainActor static func XCToolbar(_ window: NSWindow) throws -> NSStackView {
+        guard let toolbar = views(window.contentView!).first(where: { $0.identifier?.rawValue == "RevisionGraphToolbar" }) as? NSStackView else { throw Failure(line: #line) }
+        return toolbar
+    }
     @MainActor static func main() {
         NSApplication.shared.setActivationPolicy(.prohibited)
         Task { @MainActor in
@@ -187,6 +191,26 @@ import Darwin
         try require(controller.nodeMenu().items.map(\.title) == ["Show Log", "Compare revisions", "Unified diff"])
         controller.perform("zoomOut"); try require(abs(model.zoom - 0.9) < 0.0001)
         controller.perform("zoom100"); controller.perform("overview"); try require(model.zoom == 1 && model.showOverview)
+        let toolbar = try XCToolbar(window)
+        let toolbarControls = toolbar.arrangedSubviews.compactMap { $0 as? NSButton }
+        try require(toolbarControls.map { $0.identifier!.rawValue } == ["zoomIn", "zoomOut", "zoom100", "fitHeight", "fitWidth", "fit", "filter", "overview", "refresh"])
+        let glyphs: [RevisionGraphToolbarIcon] = [.zoomIn, .zoomOut, .zoom100, .fitHeight, .fitWidth, .fitGraph, .filter, .overview]
+        for (button, glyph) in zip(toolbarControls, glyphs) {
+            let actual = (button.image!.representations.first as! NSBitmapImageRep).representation(using: .png, properties: [:])
+            let expected = (glyph.image()!.representations.first as! NSBitmapImageRep).representation(using: .png, properties: [:])
+            try require(actual == expected && button.isEnabled && !button.isBordered)
+        }
+        func press(_ command: String) throws {
+            let button = toolbarControls.first { $0.identifier?.rawValue == command }!
+            try require(NSApp.sendAction(button.action!, to: button.target, from: button))
+        }
+        try press("zoomOut"); try require(abs(model.zoom - 0.9) < 0.0001)
+        try press("zoomIn"); try require(abs(model.zoom - 1) < 0.0001)
+        for command in ["fitHeight", "fitWidth", "fit"] { try press(command); try require(model.zoom > 0 && model.zoom <= 2) }
+        try press("zoom100"); try require(model.zoom == 1)
+        try press("overview"); try require(!model.showOverview && toolbarControls[7].state == .off)
+        try press("overview"); try require(model.showOverview && toolbarControls[7].state == .on)
+        print("PASS: Revision Graph original toolbar pixels, command order, six zoom actions and Overview state")
         let zoomBox = controller.zoomBox
         try require(zoomBox.objectValues as? [String] == ["200%", "100%", "75%", "50%", "40%", "20%", "10%", "5%"] && zoomBox.stringValue == "100%" && zoomBox.isEnabled)
         func zoomText(_ value: String) throws {
@@ -211,7 +235,7 @@ import Darwin
         window.sendEvent(zoomReturn)
         try await wait { abs(model.zoom - 1.5) < 0.0001 }
         window.makeFirstResponder(nil); controller.perform("zoom100")
-        model.load(); try require(!zoomBox.isEnabled)
+        model.load(); try require(!zoomBox.isEnabled && toolbarControls.allSatisfy { !$0.isEnabled })
         try zoomText("75%"); try require(model.zoom == 1 && zoomBox.stringValue == "100%")
         try await wait { !model.busy }; try require(zoomBox.isEnabled)
         print("PASS: Revision Graph editable zoom presets, custom percentages, native Return, synchronized display and invalid/busy guards")

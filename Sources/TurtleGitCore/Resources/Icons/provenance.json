@@ -587,6 +587,11 @@
       "asset": "menurevisiongraph.ico",
       "source": "src/Resources/menurevisiongraph.ico",
       "sha256": "95e686d185abcbdf9dfe9b8bc8c48fdb10326b6bd1e70ce0263ef14a4000dbe5"
+    },
+    {
+      "asset": "revgraphbar.bmp",
+      "source": "src/Resources/revgraphbar.bmp",
+      "sha256": "eba95a7e7addd6caa214a71c164126aa08e144674bf9850803da56ea308039a7"
     }
   ]
 }

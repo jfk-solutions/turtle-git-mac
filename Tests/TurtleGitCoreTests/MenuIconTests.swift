@@ -3,6 +3,32 @@ import AppKit
 @testable import TurtleGitCore
 
 final class MenuIconTests: XCTestCase {
+    func testRevisionGraphToolbarPreservesSourceTilesAndColorKey() throws {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let data = try Data(contentsOf: root.appendingPathComponent("Sources/TurtleGitCore/Resources/Icons/revgraphbar.bmp"))
+        // Independent oracle for the pinned resource: 460x20 BGR, bottom-up,
+        // 1380-byte rows, pixel offset 54, gray RGB(192,192,192) color key.
+        let tiles: [(RevisionGraphToolbarIcon, Int)] = [(.zoomIn, 0), (.zoomOut, 1), (.zoom100, 2), (.fitHeight, 3), (.fitWidth, 4), (.fitGraph, 5), (.filter, 7), (.overview, 8), (.find, 9)]
+        XCTAssertEqual(data.count, 27654)
+        for (icon, tile) in tiles {
+            let image = try XCTUnwrap(icon.image())
+            XCTAssertEqual(image.size, NSSize(width: 20, height: 20)); XCTAssertFalse(image.isTemplate)
+            let bitmap = try XCTUnwrap(image.representations.first as? NSBitmapImageRep)
+            let pixels = try XCTUnwrap(bitmap.bitmapData)
+            var opaque = 0, transparent = 0
+            for y in 0..<20 {
+                for x in 0..<20 {
+                    let source = 54 + (19 - y) * 1380 + (tile * 20 + x) * 3
+                    let target = y * bitmap.bytesPerRow + x * 4
+                    XCTAssertEqual(pixels[target], data[source + 2]); XCTAssertEqual(pixels[target + 1], data[source + 1]); XCTAssertEqual(pixels[target + 2], data[source])
+                    let masked = data[source] == 192 && data[source + 1] == 192 && data[source + 2] == 192
+                    XCTAssertEqual(pixels[target + 3], masked ? 0 : 255)
+                    if masked { transparent += 1 } else { opaque += 1 }
+                }
+            }
+            XCTAssertGreaterThan(transparent, 0); XCTAssertGreaterThan(opaque, 0)
+        }
+    }
     func testAllBundledUpstreamIconsDecodeAtMenuAndRetinaSizes() throws {
         for icon in MenuIcon.allCases {
             guard let image = icon.image() else { XCTFail("Missing or unreadable icon: \(icon.rawValue)"); continue }

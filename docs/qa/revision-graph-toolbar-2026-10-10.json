@@ -1,0 +1,67 @@
+{
+  "checked_at": "2026-10-10T16:01:31.741096+00:00",
+  "parent_commit": "6a9531b615d9b6814dd6e8a4ef6ac37fd0d408d7",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "src/Resources/revgraphbar.bmp",
+    "src/Resources/TortoiseProcENG.rc IDR_REVGRAPHBAR",
+    "src/TortoiseProc/RevisionGraph/RevisionGraphDlg.cpp toolbar setup"
+  ],
+  "scope": "Original Revision Graph toolbar glyphs and zoom/Filter/Overview arrangement. Full toolbar, app parity and signed execution remain open.",
+  "implementation": [
+    "unchanged pinned 460x20 BGR bitmap strip and SHA-256 provenance",
+    "20x20 glyph crops with exact first-pixel RGB transparency key",
+    "native separate menu and toolbar rows; six source-order zoom commands, editable percentage, Filter and Overview with separator groups",
+    "original colors retained for light and dark appearances",
+    "native Refresh button retains existing F5 behavior",
+    "toolbar buttons disabled during loading/owned modal operations; Overview state synchronized"
+  ],
+  "verification": {
+    "menu_icon_tests": 2,
+    "menu_icon_failures": 0,
+    "pixel_oracle": "All nine decoded tiles compared byte-for-byte against independently specified source dimensions/stride/mask, with nonempty opaque and transparent pixels. Find tile decoded but not exposed.",
+    "native_system_git_exit": 0,
+    "native_bundled_git_exit": 0,
+    "native_cases": [
+      "original toolbar image equality and command order",
+      "six actual button action dispatches",
+      "Overview button state toggles",
+      "loading disables all toolbar actions",
+      "all retained graph preferences, selection, mouse/pan/wheel, Filter/picker, export, node menu/deletion, submodule pointer, cancellation and repository invariant checks"
+    ],
+    "unsigned_debug_build_exit": 0,
+    "unsigned_appstore_build_exit": 0,
+    "debug_bundle_audit_exit": 0,
+    "appstore_bundle_audit_exit": 0,
+    "upstream_icon_resources": 118,
+    "local_pages_build_exit": 0
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/revision-graph-light.png",
+      "sha256": "9b2805dc71afc63bef4660422481e6261135128e2d7e66733488740606d0cb82",
+      "pixels": [
+        1960,
+        1340
+      ],
+      "kind": "actual native content capture from hidden owned fixture; manually inspected"
+    },
+    {
+      "path": "docs/site/assets/revision-graph-dark.png",
+      "sha256": "e5fc9332db3279a692ab9d12827f6d6014a45122d41c02e4cb907a8f9ce3a6d8",
+      "pixels": [
+        1960,
+        1340
+      ],
+      "kind": "actual native content capture from hidden owned fixture; manually inspected"
+    }
+  ],
+  "mutation_scope": "Disposable repositories and private preferences only; no global geometry installation. Owned capture windows ordered out before alpha change. Receivers exited and no app/test/compiler processes remained at checkpoint.",
+  "pending": [
+    "source Find dialog, text/regex/reference search and scroll behavior",
+    "precise upstream fit formulas and physical toolbar/keyboard/accessibility acceptance",
+    "signed App Store/sandbox/Finder integration",
+    "current hosted CI/publication",
+    "complete TortoiseGit port"
+  ]
+}
