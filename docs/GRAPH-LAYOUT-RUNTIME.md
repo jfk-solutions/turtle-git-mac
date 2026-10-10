@@ -94,3 +94,24 @@ The current checkpoint's actual test/build and cleanup results are recorded in
 `docs/qa/graph-layout-runtime-2026-10-10.json`. Native canvas, overview,
 interaction, export and physical/signed acceptance remain separate work tracked
 in [Revision Graph parity](REVISION-GRAPH-PARITY.md).
+
+## Hosted build cache
+
+The macOS workflow restores only the finished unsigned
+`build/graph-layout-runtime/GraphLayout` package. Its exact key includes the
+Xcode, SDK build, Clang and CMake fingerprint plus all six reconstruction inputs
+recorded by the package provenance: the project license, runtime configuration,
+adapter, builder, validator and embedder. There are no fallback restore keys.
+
+The normal builder runs on a cache miss. The validator runs on both hits and
+misses before embedding; it still checks source/archive/license and binary
+hashes, both architectures, deployment targets, system linkage and actual host
+geometry. A separate [cache save action](https://github.com/actions/cache) saves
+only after validation, so later unrelated test failures do not prevent saving a
+valid package. Signing modifies staged copies, preserving the cached package.
+
+At `8da3f2f`, local validation passed for the normal and privately relocated
+packages. Appending bytes to the copied binary caused digest rejection before
+execution. This proves the local validation path; a hosted save and subsequent
+exact-key hit remain unverified. See
+[the dated CI evidence](qa/ci-log-typecheck-2026-10-10.json).

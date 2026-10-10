@@ -27,8 +27,20 @@ Cleanup error-description expressions. `a0c630e` replaces their long chained
 expressions with equivalent sequential string construction. All 25 focused
 Cleanup tests pass locally on Swift 6.3.3. The
 [hosted retry](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38072143453)
-was still building the graph helper at the latest inspection; its compiler/test
-result remains unverified. See [the diagnosis](qa/ci-clean-typecheck-2026-10-10.json).
+completed with the Cleanup expressions compiling, then failed on two further
+Log expressions. The [subsequent Log Find run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38073496620)
+confirmed those same failures in `RepositoryModel.showLog` and the revision-table
+signature. No integration tests executed in that step. See
+[the Cleanup diagnosis](qa/ci-clean-typecheck-2026-10-10.json).
+
+At `8da3f2f`, both Log expressions use equivalent sequential string construction.
+Local SwiftPM and unsigned Debug/Store builds, both bundle audits and the native
+Log Find receiver with system and packaged Git pass. The hosted graph runtime
+now uses an exact source/toolchain cache key, validates every restored package,
+and saves only a validated finished package. A relocated package passed locally;
+a modified copy was rejected by its binary digest. Hosted compiler success and
+cache save/hit behavior still require a new run. See
+[the Log compiler/cache evidence](qa/ci-log-typecheck-2026-10-10.json).
 
 The subsequent Log Find implementation has four focused Core tests and a native
 receiver, both passing with system and packaged Git. Its unsigned Debug/Store

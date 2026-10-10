@@ -1,0 +1,65 @@
+{
+  "date": "2026-10-10",
+  "source_checkpoint": "8da3f2f2952f1e4a665f9c446b6b26cf2fa13045",
+  "hosted_failures": [
+    {
+      "run": 38072143453,
+      "checkpoint": "a0c630e",
+      "errors": [
+        "RepositoryModel.swift:1182",
+        "LogWindow.swift:2464"
+      ]
+    },
+    {
+      "run": 38073496620,
+      "checkpoint": "f173e55",
+      "errors": [
+        "RepositoryModel.swift:1182",
+        "LogWindow.swift:2524"
+      ]
+    }
+  ],
+  "hosted_toolchain": "Xcode 16.4 / Apple Swift 6.1.2",
+  "failure_step": "Git integration tests; compiler type-check timeouts before tests executed",
+  "changes": [
+    "Preserve Log window reuse-key string semantics with sequential construction.",
+    "Preserve revision-table signature bytes with explicitly typed sequential construction.",
+    "Cache only the validated finished graph runtime using exact source/toolchain keys; always validate before reuse and explicitly save after validation."
+  ],
+  "local_toolchain": "Apple Swift 6.3.3",
+  "local_verification": {
+    "swift_build": 0,
+    "unsigned_debug_build": 0,
+    "unsigned_store_build": 0,
+    "debug_bundle_audit": 0,
+    "store_bundle_audit_require_git": 0,
+    "native_log_find": {
+      "system_git": 0,
+      "packaged_git": 0
+    },
+    "workflow_yaml": "parsed",
+    "cache_inputs": "all six source_sha256 inputs match workflow hashFiles inputs",
+    "graph_package_validation": "normal and relocated packages passed; modified copied binary rejected by digest before execution"
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "8a55265c75da223dd7ed4113524ec7ad0cc8cb7da4145524408567eac7a65fac",
+    "Sources/TurtleGitMac/LogWindow.swift": "0dac23eb6d5d677e60661cc38cb5bc99b4855cd71ad74dae45370a6cf56e88de",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "bc31583b69ce506adcc2e31e03633ad9a342ff02fa4a26e2716bdc4bf40e6526",
+    "build/qa/ci-clean-retry-hosted-2026-10-10.log": "96fb8cecf47f7d76162a72dcf388298e13877016f88c8ac478f632e1c8e3da2c",
+    "build/qa/ci-graph-cache-rejected-2026-10-10.log": "8e634e2fe1d33db88f322a4a0cbe2e6aa49ebd7ad4c4e8e08051543b073e96d2",
+    "build/qa/ci-graph-cache-relocated-2026-10-10.log": "5fb3451772e49faa15489f1ff1d10aa8be3b018995522025a0185cd8102bea54",
+    "build/qa/ci-graph-cache-validation-2026-10-10.log": "5fb3451772e49faa15489f1ff1d10aa8be3b018995522025a0185cd8102bea54",
+    "build/qa/ci-log-find-hosted-2026-10-10.log": "dba40399274d83379eb2685cc9264711ff2001c8373fae556ff9ebee671d003f",
+    "build/qa/ci-log-typecheck-build-2026-10-10.log": "f0b4f8443fc76ad168ee71c5966fd1a4f0c0ee955ab940ae221a8f7900c505d0",
+    "build/qa/ci-log-typecheck-debug-2026-10-10.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/ci-log-typecheck-debug-audit-2026-10-10.log": "6c4a0639ae077d8a06ed7c1a450f328df6eb54f179d36af72fcbaca3cf48b1a9",
+    "build/qa/ci-log-typecheck-native-2026-10-10.log": "e3d7c6eb61727250b9cb1cc53ba0bfa501c75dd03534e5f9e37f01be6850af1d",
+    "build/qa/ci-log-typecheck-store-2026-10-10.log": "8b7e42e41011f64b89af2a34249c0e6a736fce554184bf57a0f657922d209930",
+    "build/qa/ci-log-typecheck-store-audit-2026-10-10.log": "ac6ee8a83e94cebfcd5300d885738875ea3ca79702538dd4b4523ab268676878"
+  },
+  "limitations": [
+    "Hosted Swift 6.1.2 success and cache save/hit remain unverified until a new run.",
+    "No new full Core suite run; last full result is 921 tests at c4bd370.",
+    "No full dialog parity, installed signed Finder, signed sandbox or App Store acceptance."
+  ]
+}
