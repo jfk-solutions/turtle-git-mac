@@ -789,6 +789,7 @@ final class RevisionGraphFindWindow: NSWindow {
     private var token: OperationCancellation?
     private var worker: Task<Void, Never>?
     private var refToken = OperationCancellation()
+    private var pendingReferenceRefresh = false
     private var refWorker: Task<Void, Never>?
     private var filterWorker: Task<Void, Never>?
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults, regexExecutable: URL? = nil) {
@@ -851,14 +852,31 @@ final class RevisionGraphFindWindow: NSWindow {
         updateAvailability()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    /// Native shell ordering replaces GetRefList's StrCmpLogicalW default.
+    /// Locale/punctuation ties follow Finder rather than a fixed Windows release.
+    nonisolated static func orderedReferences(_ references: [String]) -> [String] {
+        references.sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+    }
     func loadReferences() {
-        guard !closed, !busy, !loadingReferences, !acknowledgingFailure, refWorker == nil else { return }
+        guard !closed else { return }
+        guard !acknowledgingFailure, window?.attachedSheet == nil else { pendingReferenceRefresh = true; return }
+        pendingReferenceRefresh = false
+        // Log Refresh replaces the source list. Cancel any older read/search so
+        // its delayed reply cannot publish against the new parent history.
+        token?.cancel(); worker?.cancel(); token = nil; worker = nil; request = UUID(); busy = false
+        refToken.cancel(); refWorker?.cancel(); refToken = OperationCancellation()
+        filterWorker?.cancel(); filterWorker = nil
+        references = []; visibleReferences = []; table.deselectAll(nil); table.reloadData()
         loadingReferences = true; status.stringValue = "Loading references…"; updateAvailability()
         let repo = repository, cancellation = refToken
         refWorker = Task { [weak self, access] in
             _ = access
             let result = await Task.detached { () -> Result<[String], Error> in
-                do { return .success(String(decoding: try await repo.run(["for-each-ref", "--format=%(refname)"], environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation).stdout, as: UTF8.self).split(separator: "\n").map(String.init)) } catch { return .failure(error) }
+                do {
+                    let output = try await repo.run(["for-each-ref", "--format=%(refname)"], environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation)
+                    let names = String(decoding: output.stdout, as: UTF8.self).split(separator: "\n").map(String.init)
+                    return .success(Self.orderedReferences(names))
+                } catch { return .failure(error) }
             }.value
             guard let self, !self.closed, !cancellation.isCancelled else { return }
             self.refWorker = nil; self.loadingReferences = false; self.status.stringValue = ""
@@ -883,7 +901,9 @@ final class RevisionGraphFindWindow: NSWindow {
     func comboBoxSelectionDidChange(_ notification: Notification) { updateAvailability() }
     func applyReferenceFilter() {
         guard !closed else { return }
-        visibleReferences = references.filter { referenceFilter.stringValue.isEmpty || $0.contains(referenceFilter.stringValue) }
+        let filter = referenceFilter.stringValue
+        // CString::Find compares UTF-16 literally, without canonical folding.
+        visibleReferences = references.filter { filter.isEmpty || ($0 as NSString).range(of: filter, options: .literal).location != NSNotFound }
         table.deselectAll(nil); table.reloadData()
     }
     func numberOfRows(in tableView: NSTableView) -> Int { visibleReferences.count }
@@ -953,7 +973,9 @@ final class RevisionGraphFindWindow: NSWindow {
     private func showNextFailure() {
         guard !closed, let window, errorAlert == nil, window.attachedSheet == nil else { return }
         guard !failures.isEmpty else {
-            acknowledgingFailure = false; updateAvailability(); modalChanged(); window.makeFirstResponder(searchBox); return
+            acknowledgingFailure = false; updateAvailability(); modalChanged(); window.makeFirstResponder(searchBox)
+            if pendingReferenceRefresh { loadReferences() }
+            return
         }
         let (title, detail) = failures.removeFirst()
         let alert = NSAlert(); errorAlert = alert; alert.alertStyle = .critical
@@ -969,7 +991,7 @@ final class RevisionGraphFindWindow: NSWindow {
     @objc private func cancelFind() { window?.performClose(nil) }
     func windowWillClose(_ notification: Notification) {
         guard !closed else { return }; closed = true; request = UUID()
-        NotificationCenter.default.removeObserver(self); failures.removeAll(); acknowledgingFailure = false; loadingReferences = false
+        NotificationCenter.default.removeObserver(self); failures.removeAll(); acknowledgingFailure = false; loadingReferences = false; pendingReferenceRefresh = false
         if let sheet = window?.attachedSheet { window?.endSheet(sheet, returnCode: .abort); sheet.close() }
         errorAlert = nil; token?.cancel(); worker?.cancel(); refToken.cancel(); refWorker?.cancel(); filterWorker?.cancel(); updateAvailability(); onClosed()
     }

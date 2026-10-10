@@ -95,7 +95,7 @@ import Darwin
         reopened.searchBox.stringValue = "OnlyRootNote"; reopened.findNext(); try await wait { !reopened.busy }
         try require(controller.model.selected == [rootHash] && controller.model.entries[controller.model.findSearchIndex].hash == rootHash)
         let beforeReloadIndex = controller.model.findSearchIndex
-        controller.model.reload(); try await wait { !controller.model.busy }
+        controller.model.reload(); try await wait { !controller.model.busy && !reopened.loadingReferences }
         try require(reopened.searchIndex() == beforeReloadIndex)
         // A shorter history must still terminate when the retained index is stale.
         controller.model.findSearchIndex = controller.model.entries.count + 10
@@ -107,8 +107,63 @@ import Darwin
         let menu = historyTable.menu!
         menu.delegate?.menuNeedsUpdate?(menu)
         try require(reopened.searchIndex() == headIndex)
+        // Source Log Refresh also rebuilds an already-open Find reference list.
+        reopened.referenceFilter.stringValue = "refs/tags/refresh-"; reopened.applyReferenceFilter()
+        _ = try await repo.run(["tag", "refresh-first", rootHash])
+        _ = try await repo.run(["tag", "refresh-10", rootHash])
+        _ = try await repo.run(["tag", "refresh-2", rootHash])
+        reopened.searchBox.stringValue = "OnlyRootNote"; reopened.findNext(); try require(reopened.busy)
+        let retainedBeforeRefresh = controller.model.findSearchIndex
+        controller.model.reload()
+        try require(reopened.loadingReferences && !reopened.busy && reopened.references.isEmpty && !reopened.findButton.isEnabled)
+        try await wait { !controller.model.busy && !reopened.loadingReferences }
+        try require(reopened.visibleReferences == ["refs/tags/refresh-2", "refs/tags/refresh-10", "refs/tags/refresh-first"] && reopened.searchIndex() == retainedBeforeRefresh)
+        _ = try await repo.run(["tag", "-d", "refresh-2", "refresh-10"])
+        _ = try await repo.run(["tag", "refresh-literal-café", rootHash])
+        controller.model.reload(); try await wait { !controller.model.busy && !reopened.loadingReferences }
+        let literalRef = reopened.references.first { $0.hasPrefix("refs/tags/refresh-literal-caf") }!
+        let composed = (literalRef as NSString).precomposedStringWithCanonicalMapping
+        let decomposed = (literalRef as NSString).decomposedStringWithCanonicalMapping
+        let otherSpelling = Array(literalRef.utf16) == Array(composed.utf16) ? decomposed : composed
+        try require(Array(literalRef.utf16) != Array(otherSpelling.utf16))
+        reopened.referenceFilter.stringValue = otherSpelling; reopened.applyReferenceFilter()
+        try require(reopened.visibleReferences.isEmpty)
+        reopened.referenceFilter.stringValue = literalRef; reopened.applyReferenceFilter()
+        try require(reopened.visibleReferences == [literalRef])
+        reopened.referenceFilter.stringValue = literalRef.uppercased(); reopened.applyReferenceFilter()
+        try require(reopened.visibleReferences.isEmpty)
+        _ = try await repo.run(["tag", "-d", String(literalRef.dropFirst("refs/tags/".count))])
+        reopened.referenceFilter.stringValue = "refs/tags/refresh-"; reopened.applyReferenceFilter()
+        try require(reopened.referenceFilter.stringValue == "refs/tags/refresh-" && reopened.searchBox.stringValue == "OnlyRootNote")
+        // A newer refresh supersedes an in-flight read; only its list may publish.
+        reopened.loadReferences(); try require(reopened.loadingReferences)
+        _ = try await repo.run(["tag", "-d", "refresh-first"])
+        _ = try await repo.run(["tag", "refresh-latest", rootHash])
+        controller.model.reload(); controller.model.reload()
+        try await wait { !controller.model.busy && !reopened.loadingReferences }
+        try require(reopened.visibleReferences == ["refs/tags/refresh-latest"] && !reopened.references.contains("refs/tags/refresh-first"))
+        reopened.searchReference("refs/tags/refresh-latest"); try await wait { !reopened.busy }
+        try require(controller.model.selected == [rootHash])
+        var deletionFailure: String?
+        controller.model.confirmReferenceDeletion = { request in request.name == "refs/tags/refresh-latest" ? .delete : .abort }
+        controller.model.acknowledgeReferenceDeletionFailure = { deletionFailure = $0 }
+        controller.model.deleteReferences([LogReferenceMenuTarget(hash: rootHash, name: "refs/tags/refresh-latest")])
+        try require(controller.model.busy)
+        try await wait { !controller.model.busy && !reopened.loadingReferences }
+        try require(deletionFailure == nil && reopened.visibleReferences.isEmpty && !reopened.references.contains("refs/tags/refresh-latest"))
+        reopened.searchReference("refs/tags/refresh-latest"); try await wait { reopened.window?.attachedSheet != nil }
+        // A Log refresh during acknowledgment waits for the critical sheet.
+        _ = try await repo.run(["tag", "refresh-after-error", rootHash])
+        controller.model.reload(); try require(reopened.acknowledgingFailure && !reopened.loadingReferences)
+        let refreshSheet = reopened.window!.attachedSheet!
+        refreshSheet.sendEvent(key(refreshSheet, text: "\r"))
+        try await wait { !reopened.acknowledgingFailure && !reopened.loadingReferences && !controller.model.busy }
+        try require(reopened.visibleReferences == ["refs/tags/refresh-after-error"])
+        _ = try await repo.run(["tag", "-d", "refresh-after-error"])
+        // Closing cancels a pending reference read and rejects its late reply.
+        reopened.loadReferences(); try require(reopened.loadingReferences)
         window.close(); try await wait { controller.find == nil && controller.model.isInvalidated }
         let after = try tracked.map { try Data(contentsOf: root.appendingPathComponent($0)) }; try require(after == before)
-        print("PASS: Native Log Find Command-F reuse, initialization exclusion, full-text notes/paths, wrap, reference navigation, Shift/plain Return, critical Return recovery, Cancel, parent-owned numeric cursor across reopen/reload, stale-index termination and Log context-menu positioning and parent-close cleanup; repository bytes unchanged. No installed Finder, physical gestures or signed acceptance.")
+        print("PASS: Native Log Find Command-F reuse, initialization exclusion, full-text notes/paths, wrap, reference navigation, Shift/plain Return, critical Return recovery, Cancel, parent-owned numeric cursor across reopen/reload, stale-index termination and Log context-menu positioning and parent-close cleanup; Log refresh replaces naturally sorted refs with literal UTF-16/case-sensitive filtering, supersedes reads/searches, follows actual Log tag deletion, defers behind critical sheets and cancels on close; listed repository bytes unchanged (owned error tags removed). No installed Finder, physical gestures or signed acceptance.")
     }
 }

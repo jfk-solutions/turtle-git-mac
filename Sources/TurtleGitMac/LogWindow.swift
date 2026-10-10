@@ -121,6 +121,7 @@ final class LogHistoryWindow: NSWindow {
         window.find = { [weak self] in self?.showFind() }
         window.blocksInteraction = { [weak model] in model?.findBlocked == true }
         findAvailability = model.$busy.sink { [weak self] _ in DispatchQueue.main.async { self?.find?.updateAvailability() } }
+        model.onFindReferenceRefresh = { [weak self] in self?.find?.loadReferences() }
         model.onPatchPreviewVisibility = { [weak self] visible in self?.setPatchPreviewVisible(visible) }
         model.onPatchPreviewContent = { [weak self] bytes in self?.patchPreviewWindow?.model.setReadOnlyDiff(bytes) }
         model.confirmWorkingFlags = { action in confirmIndexFlags(action) }
@@ -491,6 +492,7 @@ struct LogCommandRequest: Identifiable {
     private var statisticsWindow: StatisticsWindowController?
     // Upstream CGitLogListBase retains the index across Find close/reopen and reload.
     var findSearchIndex = 0
+    var onFindReferenceRefresh: (() -> Void)?
     @Published var findBlocked = false
     @Published var entries: [LogEntry] = []
     @Published var revisionActions: [String: LogRevisionActions] = [:]
@@ -1183,6 +1185,7 @@ struct LogCommandRequest: Identifiable {
     }
     func reload() {
         guard !busy || loadingHistory else { return }
+        onFindReferenceRefresh?()
         cancelPatchPreview()
         cancelRepositoryRefresh()
         isInvalidated = false
