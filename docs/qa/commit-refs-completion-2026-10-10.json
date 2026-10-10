@@ -1,0 +1,90 @@
+{
+  "date": "2026-10-10",
+  "core_checkpoint": "9400d1d191bf52eef187db78dd1ee54e77bdd690",
+  "native_checkpoint": "dc2d8d5c71a860b798bcb84a41ef6a2c239048cc",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_behavior": "CommitIsOnRefsDlg::GetRefsThread loads completion if m_bRefsLoaded is false before testing the revision; ignores GetRefList status and sets the flag. PreTranslateMessage F5 clears that flag. Ordinary queries reuse completion.",
+  "implemented": [
+    "Separate read-only completion API supports unborn/empty/invalid initial UI entry independently of commit resolution.",
+    "Native caches successful or empty/failed completion per dialog, queries containment without rereading completion, and invalidates on F5.",
+    "F5 preserves entered revision; adding a reference updates containment but does not change completion until explicit refresh.",
+    "Completion failure does not block resolving a typed commit; F5 retries the completion read.",
+    "Owned cancellation/generation guards reject cancellation-ignoring completion replies after replacement or forced close."
+  ],
+  "core": {
+    "system": {
+      "tests": 4,
+      "failures": 0,
+      "exit": 0
+    },
+    "git_2_39_5": {
+      "tests": 4,
+      "failures": 0,
+      "exit": 0
+    },
+    "packaged": {
+      "tests": 4,
+      "failures": 0,
+      "exit": 0
+    },
+    "new_coverage": [
+      "Independent completion with non-commit notes/blob refs",
+      "Optional omitted completion with identical containment",
+      "Unborn completion without a commit",
+      "Pre-cancelled completion rejection"
+    ]
+  },
+  "native": {
+    "command": "python3 scripts/test-commit-containing-refs.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+    "engines": 2,
+    "exit": 0,
+    "completion_markers": 2,
+    "new_checks": [
+      "Empty and invalid initial entries still populate completion.",
+      "Real fixture reference appears in containment while existing completion is unchanged.",
+      "Read counter verifies ordinary query reuse and F5 rereads.",
+      "F5 entry preservation and fixture reference deletion/restored raw refs.",
+      "Injected completion error caches empty names without blocking the typed valid commit; another query does not retry, F5 does.",
+      "Controlled completion reply ignoring cancellation is discarded after a newer read or forced close."
+    ],
+    "regression": "Existing real menus, comparison/ranges/unified output, pickers, invalid/bare/filter states, stale commit read and parent Log close still pass.",
+    "error_scope": "The error is injected at the asynchronous completion-reader boundary; it does not certify all real corrupt-repository or filesystem failure variants."
+  },
+  "builds": {
+    "unsigned_debug_exit": 0,
+    "unsigned_store_exit": 0,
+    "debug_audit_exit": 0,
+    "store_requires_git_audit_exit": 0,
+    "original_icon_count": 120
+  },
+  "inventory": {
+    "dialogs": 130,
+    "partial": 47,
+    "pending_review": 83,
+    "certified_complete": 0,
+    "scope": "Abort Merge nine-role audit maps an existing implementation from pending review to partial; no new completed dialog claim."
+  },
+  "full_suite": "The previous full 928-test pass is at the earlier containment checkpoint. Current new 932-test suite is not established by targeted completion checks. Hosted ordering run predates this follow-up.",
+  "related_audit": "merge-abort-owner-audit-2026-10-10.json",
+  "remaining": [
+    "Physical completion popup/keyboard and all locale/logical sort policies, VoiceOver, signed scope and installed Finder.",
+    "Complete all app dialogs, separate Abort Merge lifecycle/cancellation fixes, release signing and App Store acceptance."
+  ],
+  "sha256": {
+    "Sources/TurtleGitCore/CommitContainingReferences.swift": "ffe91c6f6990352165e25c55b6365b1e8afa26483ed9af9a592bc593cdb13eac",
+    "Sources/TurtleGitMac/CommitContainingReferencesWindow.swift": "c1f3818e34067da49801b67f3fbee1e67fe93325e465e292047c718a2da1353d",
+    "Tests/TurtleGitCoreTests/CommitContainingReferencesTests.swift": "a5ad7a10a4ed6b8d22f0f4ef3a165b63c9c4ffa6582d57607a3440e55fa29216",
+    "docs/qa/commit-containing-refs-native-2026-10-10.swift": "ecebd82ff06a2c507fc77d7e930052f28906408db2be5443e608dcb242f71040",
+    "scripts/test-commit-containing-refs.py": "360e488baff345a15d3a3147fe2e9d0dfbd714bb7784eb0a43b36a4f1b765365",
+    "build/qa/commit-refs-completion-core-system-final-2026-10-10.log": "cb5beec435aa40d97d6858418c1b0e9e21e4c5296c47f3b81c65eddbccb4a267",
+    "build/qa/commit-refs-completion-core-old-final-2026-10-10.log": "b21b77f3fecd357baf8043a3bef9fd7b4d8ce2dcb398f333c0f1f89e5adc4d37",
+    "build/qa/commit-refs-completion-core-packaged-final-2026-10-10.log": "3a1926a72fad962b77086c5c672e9e4e105152df502506d017e2c7de9673d3bb",
+    "build/qa/commit-refs-completion-debug-errors-2026-10-10.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/commit-refs-completion-store-errors-2026-10-10.log": "8b7e42e41011f64b89af2a34249c0e6a736fce554184bf57a0f657922d209930",
+    "build/qa/commit-refs-completion-native-errors-2026-10-10.log": "c2b7593d0c0bc450365c4578b8c8934b352cad241caa9e94ecb23a5b21cab59a",
+    "build/qa/commit-refs-completion-debug-errors-audit-2026-10-10.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/commit-refs-completion-store-errors-audit-2026-10-10.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/commit-refs-completion-final-inventory-2026-10-10.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/commit-refs-completion-final-site-2026-10-10.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

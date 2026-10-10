@@ -90,9 +90,9 @@ It routes all one/two/many selection menus, range direction, comparisons, unifie
 diff, copy and the three owned pickers through native controllers. Plain parent
 navigation selects; Shift highlights. Reads, deferred edits and late replies are
 owned by the child; forced parent closure cancels the child, while active picker
-sheets fence ordinary close and Quit. Completion is refreshed with each query;
-the source's initialization-only completion cache and every locale/keyboard route
-have not been certified.
+sheets fence ordinary close and Quit. The original checkpoint refreshed completion with each query. A follow-up now
+loads it independently of commit validity, caches it for the dialog lifetime and
+reloads it on F5. Every locale/keyboard route has not been certified.
 
 `CommitContainingReferencesTests` uses real repositories for descendant vs tip
 containment, nested tags, symbolic remote HEAD, blob-tag exclusion, mailmap,
@@ -107,3 +107,29 @@ Actual native content captures were inspected in light and dark appearances.
 They show the corrected right-aligned Show log row and original colored icons;
 window chrome is excluded. These checks do not establish physical input, VoiceOver,
 installed Finder or signed sandbox acceptance.
+
+## Completion cache follow-up
+
+The source’s `m_bRefsLoaded` check runs before it validates the revision. Native
+initial empty/invalid entries now also initialize completion. Ordinary revision
+queries update containment without rereading all reference names; F5 invalidates
+completion and reloads it while preserving the entered revision. Forced close and
+superseded queries reject stale completion publication as well as commit results.
+
+Four Core tests pass with system, isolated old and packaged Git. The added test
+covers independent completion in an unborn repository, non-commit namespaces,
+cancellation and omitted repeated completion reads. The native receiver passes with system and packaged Git for initial empty/invalid
+completion, new references appearing in containment while completion stays cached,
+F5 refreshing completion without changing the entered revision, and restoration
+after deleting the fixture reference. Existing picker/menu/stale-result/close
+checks still pass. Source checkpoint: `9400d1d191bf52eef187db78dd1ee54e77bdd690`.
+See [the follow-up verification](qa/commit-refs-completion-2026-10-10.json).
+
+Completion-read failure follows the source’s ignored `GetRefList` status: cache an
+empty list, continue resolving a typed revision, and retry completion only on F5.
+The completion phase uses the same generation/cancellation checks as commit reads.
+Controlled completion failures and cancellation-ignoring completion replies now
+pass native checks with both engines: failed completion is cached without blocking
+a valid typed commit; F5 retries; replacement and close reject an obsolete reply.
+The completion-read counter stays unchanged for ordinary queries. Final native
+checkpoint: `dc2d8d5c71a860b798bcb84a41ef6a2c239048cc`.

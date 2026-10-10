@@ -106,7 +106,7 @@ src/Resources/TortoiseProcENG.rc,IDD_REVISIONGRAPH,Revision Graph,partial
 src/Resources/TortoiseProcENG.rc,IDD_USER_PASSWD,Password,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_LOGORDERING,Log commit ordering,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSCREDENTIAL,Credential,pending-review
-src/Resources/TortoiseProcENG.rc,IDD_MERGEABORT,Abort Merge,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_MERGEABORT,Abort Merge,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSDIALOGS3,Dialogs 3,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_BUGTRAQREGEXTESTER,Bugtraq Regex Tester - TortoiseGit,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_CERTCHECK,TortoiseGit,pending-review

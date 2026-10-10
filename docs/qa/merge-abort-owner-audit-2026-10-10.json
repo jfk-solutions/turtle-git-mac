@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-10",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "native_checkpoint": "9400d1d191bf52eef187db78dd1ee54e77bdd690",
+  "dialog": "IDD_MERGEABORT",
+  "controls": 9,
+  "status": "audited-partial-native-with-owner-gaps",
+  "upstream_blobs": {
+    "src/TortoiseProc/MergeAbortDlg.cpp": "82f9ab5eb47252802236ca2203f408f2dae8a239",
+    "src/TortoiseProc/MergeAbortDlg.h": "499da16eb5c2962f5995d0d6eee9f5fcedde194a",
+    "src/TortoiseProc/AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f"
+  },
+  "source": [
+    "Reminder, Reset Type group, Merge-default/Mixed/Hard radios, Show modified files, OK/Cancel/Help.",
+    "Modified files opens CFileDiffDlg modal from HEAD to working copy.",
+    "OK closes options, then CAppUtils::MergeAbort opens separate Reset progress; Merge maps to reset type 3 / git reset --merge, Mixed/Hard reset HEAD.",
+    "Merge failure Retry reopens Abort options; Mixed/Hard Retry directly retries the selected reset."
+  ],
+  "existing_native": [
+    "Nine visible roles already implemented in MergeAbortDialog; exact modes and reminder, original comparison icon.",
+    "Core Merge/Mixed/Hard modes and actual-model retry/post-actions have earlier verification in merge-abort-dialog-2026-10-08.json.",
+    "Repository factory currently overrides onShowModified with app-global modeless showRevisionComparison."
+  ],
+  "gaps": [
+    {
+      "area": "Comparison ownership",
+      "evidence": "RepositoryModel.showMergeAbort opens global comparison rather than an owned modal sheet. Abort options can remain usable and close independently.",
+      "required": "Owned Changed Files sheet with HEAD/working endpoints, inherited lease/appearance, child gates and exact parent/child close verification."
+    },
+    {
+      "area": "Quit",
+      "evidence": "ApplicationDelegate has no MergeAbortWindowController busy/attached-sheet gate. Other merge controllers are distinct types.",
+      "required": "Fence Quit during active abort/reset and owned comparison/progress sheets."
+    },
+    {
+      "area": "Forced close",
+      "evidence": "MergeAbortWindowModel.invalidate sets invalidated only; running Task is not cancelled and result publication/onChanged lacks an invalidated guard.",
+      "required": "Cancel/reap owned reset on forced close and reject late publication/callbacks. Keep ordinary titlebar Cancel behavior."
+    },
+    {
+      "area": "Dialog lifecycle/layout",
+      "evidence": "Native options are replaced by progress in one resized window; source closes options and opens separate progress.",
+      "required": "Audit/port distinct options/progress windows and mode-specific retry ownership, plus native layouts and live command output."
+    },
+    {
+      "area": "Preflight cancellation",
+      "evidence": "GitRepository.abortMerge passes its token to reset but calls isBare and rev-parse HEAD without that token.",
+      "required": "Pass cancellation through every owned preflight read and verify interruption/reaping and no subsequent reset."
+    }
+  ],
+  "remaining": "No physical/controller/factory or signed acceptance is established by this audit. Current model tests do not prove the missing ownership behavior. Full app port remains incomplete."
+}

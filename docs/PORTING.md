@@ -46,7 +46,7 @@ reference dialog with containment filtering, original branch/tag artwork, one/tw
 many selection menus, comparisons and owned Browse References/Log/Reflog pickers.
 Targeted Core and hidden native checks pass; light/dark content captures are on
 the website. This advances one of the 130 dialogs to partial implementation:
-46 dialogs are now partial and 84 await review. No dialog is certified complete.
+47 dialogs are now partial and 83 await review. No dialog is certified complete.
 See [the reference dialog audit](COMMIT-CONTAINING-REFS-PARITY.md).
 
 Log commit ordering now has the source’s four-choice native sheet, deferred
@@ -313,3 +313,9 @@ Advanced Settings now has a native Name/Value editor for all 52 registered
 source settings, with source defaults, deferred Apply and blank-value reset.
 Most setting consumers, the complete settings host and native/signed acceptance
 remain pending. See [ADVANCED-SETTINGS-PARITY.md](ADVANCED-SETTINGS-PARITY.md).
+
+The October 10 Abort Merge control audit maps its nine already-implemented native
+roles from pending review to partial. This is an inventory correction, not a new
+completed dialog: modal comparison, Quit/forced-close cancellation and separate
+options/progress windows still need work. See
+[the owner audit](qa/merge-abort-owner-audit-2026-10-10.json).

@@ -350,3 +350,19 @@ HEAD/tree/config. The application termination guard now includes Merge pickers,
 progress and pending confirmations. These checks do not establish physical sheets, real key/mouse
 input, displayed appearance or signed scope acceptance. Full Merge parity,
 including user-data/rebase preflight, remains pending.
+
+## Abort Merge ownership audit, October 10
+
+A source/control audit at `9400d1d` confirms that the nine Abort Merge resource
+roles exist in the native dialog, but controller/factory ownership remains
+incomplete. Upstream Show modified files is a modal HEAD-to-working-copy child;
+the native factory opens an independent app-level comparison. The application
+Quit handler does not gate this controller’s active reset, and forced close only
+sets a model invalidation flag without cancelling the owned reset or rejecting
+its late callback. Options and progress also share one resized native window,
+where the source closes options and opens a separate progress dialog.
+
+These are implementation gaps to fix and verify, not parity-complete behavior.
+See [the owner audit](qa/merge-abort-owner-audit-2026-10-10.json). Existing
+model/Git tests remain useful for reset effects and retry/post-actions but do not
+establish native modal ownership or physical/signed acceptance.

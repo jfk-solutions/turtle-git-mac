@@ -105,6 +105,23 @@ change; these targeted results do not establish a full 931-test run. Physical,
 VoiceOver, localization, installed Finder and signed sandbox acceptance remain
 pending. See [the ordering record](qa/log-ordering-2026-10-10.json).
 
+## Commit-reference completion cache follow-up
+
+At Core checkpoint `9400d1d`, four containment/completion tests pass on system,
+Git 2.39.5 and packaged Git. Native checkpoint `dc2d8d5` passes the extended
+receiver on both engines: initial empty/invalid completion; real new references
+in containment while completion stays cached; F5 reload preserving entered text;
+read counters; simulated nonfatal completion failure and retry; controlled late
+completion replies after supersession and close. Existing menu/picker/stale
+commit-data/parent close routes still pass. Builds and package audits are recorded
+in [the follow-up evidence](qa/commit-refs-completion-2026-10-10.json).
+
+These focused checks do not establish the full new 932-test suite, physical input,
+installed Finder, localization or signed sandbox acceptance. The Abort Merge
+owner audit maps nine existing controls and records missing modal comparison,
+separate progress, Quit and forced-close/preflight cancellation behavior; see
+[the audit](qa/merge-abort-owner-audit-2026-10-10.json).
+
 ## Previous full-suite checkpoint
 
 At Core source checkpoint `c4bd370`, a fresh local `swift test` passed **921 tests,
