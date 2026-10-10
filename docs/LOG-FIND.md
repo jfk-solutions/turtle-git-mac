@@ -35,10 +35,32 @@ preferences are shared with Revision Graph Find.
 ## Reference navigation
 
 The reference list uses full reference names and the original colored tag,
-local-branch and remote-branch icons. Enter a literal, case-sensitive name fragment
+local-branch and remote-branch icons. It uses native Finder-style natural ordering,
+so `branch2` precedes `branch10`. Upstream `CGit::GetRefList` sorts with
+`LogicalComparePredicate` / `StrCmpLogicalW` by default. The macOS replacement is
+[Foundation's localized standard comparison](https://developer.apple.com/documentation/foundation/nsstring/localizedstandardcompare%28_%3A%29),
+which follows Finder and the current locale. Both native shell comparators can
+vary by OS/locale; [Microsoft documents that limitation](https://learn.microsoft.com/en-us/windows/win32/api/shlwapi/nf-shlwapi-strcmplogicalw)
+for its API too. Names and the case-sensitive filter retain their exact spelling;
+Windows-specific punctuation ties and its `NoStrCmpLogical` system policy are not
+certified on macOS. Enter a literal, case-sensitive name fragment
 in **Filter** to narrow the list. The filter applies after a short typing pause.
+The filter compares literal UTF-16 text, following `CString::Find`: it is
+case-sensitive and does not merge composed and decomposed Unicode spellings.
+The native search uses [Foundation's literal comparison option](https://developer.apple.com/documentation/foundation/nsstring/compareoptions/literal).
+
 Click a reference to resolve its peeled commit and navigate to that displayed
 row. References outside the displayed history produce a no-match status.
+
+Refreshing Log also rebuilds an open Find reference list, following
+`CGitLogListBase::Refresh` and `CFindDlg::RefreshList`. The name filter, query and
+parent search position are retained while the old rows and reference selection
+are cleared. Loading disables Find until the new list is ready. A refresh
+supersedes any older reference read or active Find search, so its delayed reply
+cannot navigate or replace the new list. If a critical Find error is awaiting
+acknowledgment, refresh waits until that sheet is dismissed. Closing either
+window cancels the owned reads.
+
 
 Find waits for its initial reference read before enabling search. A failed read
 or resolution opens a critical sheet. Acknowledge it with **OK** or Return before
@@ -55,7 +77,7 @@ artwork. See [Revision Graph parity](REVISION-GRAPH-PARITY.md) for those source
 controls and the [Log parity audit](LOG-PARITY.md) for remaining Log work.
 
 Physical keyboard/mouse, accessibility, localization, very large histories,
-reference-list refresh after all Log mutation commands, metadata changes during
+individual Log mutation-to-refresh routes, metadata changes during
 a search and signed sandbox acceptance still require verification. This does not
 certify complete Log dialog parity.
 
@@ -70,3 +92,7 @@ instead of entering the source's potentially unbounded wrap loop.
 
 The added cursor lifecycle and context-menu checks are recorded in
 [Find position evidence](qa/find-position-2026-10-10.json).
+
+The accepted Log reload route and reference-read replacement checks are recorded
+in [reference refresh evidence](qa/log-find-refresh-2026-10-10.json). Graph keeps
+its source initialization-only reference refresh route.

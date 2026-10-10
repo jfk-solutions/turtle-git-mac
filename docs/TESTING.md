@@ -56,6 +56,14 @@ validator passes and saving is skipped on the hit. It was building OpenSSH helpe
 at inspection and precedes the DNS fixture correction; complete hosted success
 remains unverified.
 
+The subsequent [run at `4e2bb70`](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38075922507)
+resolved those compiler errors and executed **925 tests, one skipped, seven
+failures (two unexpected)** in 741.8 seconds. Four cases failed: nested-tag
+reference/tag-info searches, an empty SMTP fixture readiness file and extra
+trailing blank lines in a legacy-encoded rebase edit message. These failures are
+unresolved; native and package steps after the integration gate did not run.
+See [the observed regressions and next checks](qa/ci-core-regression-2026-10-10.json).
+
 The subsequent Log Find implementation has four focused Core tests and a native
 receiver, both passing with system and packaged Git. Its unsigned Debug/Store
 builds, package audits, inventory regression and local website generation pass.
@@ -71,6 +79,19 @@ fixture's older first-query assumption was corrected against the pinned source.
 The Log reload check emitted SwiftUI AttributeGraph cycle warnings; its assertions
 passed, but physical rendering remains unverified. See
 [Find position evidence](qa/find-position-2026-10-10.json).
+
+The subsequent open-Find reference refresh maps pinned Log `Refresh` and
+`CFindDlg::RefreshList`: accepted Log reloads replace the reference read, preserve
+filter/query/index and cancel older searches/reads. Critical-sheet acknowledgment
+drains a queued refresh. Natural reference ordering follows native Finder
+collation, and the name filter now compares literal UTF-16 rather than merging
+canonically equivalent Unicode spellings. Native Log checks with both Git engines
+verify real numeric tag ordering, NFC/NFD and case-sensitive filtering, rapid
+reloads, an actual Log tag-deletion completion, deferred-error refresh and parent
+close. Both full native Graph receivers also pass with the shared implementation.
+The existing Log SwiftUI reload cycle warnings remain; these hidden checks do not
+prove physical rendering or full dialog parity. See
+[reference refresh evidence](qa/log-find-refresh-2026-10-10.json).
 
 ## Core and native receivers
 

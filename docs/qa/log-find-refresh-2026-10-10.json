@@ -1,0 +1,84 @@
+{
+  "date": "2026-10-10",
+  "source_checkpoint": "bd04d95b9bfd83ab4571505117d9583b5bff6c2e",
+  "upstream_checkpoint": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/GitLogListBase.cpp": "19518f37689e19b7e913c9ff8cc9d65ec223c187",
+    "src/TortoiseProc/FindDlg.cpp": "3fbec5076d27c7935592e9ae94e02e5c89fe1a77",
+    "src/Git/Git.cpp": "43dee91dbf94e46564b4cc1a139717fcbd8f6803"
+  },
+  "source_behavior": [
+    "CGitLogListBase::Refresh reloads its reference map and calls the open CFindDlg::RefreshList.",
+    "RefreshList clears the reference vector and AddToList clears list rows/selection while preserving filter text.",
+    "CGit::GetRefList uses LogicalComparePredicate, normally StrCmpLogicalW; its ordering is numeric and case-insensitive.",
+    "AddToList uses CString::Find for literal case-sensitive UTF-16 substring filtering."
+  ],
+  "native_changes": [
+    "Accepted Log reloads invoke the owned Find reference refresh.",
+    "Replace and cancel older reference reads/searches; old cancellation tokens and request IDs reject late publication.",
+    "Preserve filter/query/index while clearing old rows/selection, locking controls during loading and deferring refresh behind critical acknowledgment.",
+    "Use native Finder collation for natural reference display; preserve exact names.",
+    "Use NSString literal substring matching to preserve distinct composed/decomposed Unicode filter spellings."
+  ],
+  "platform_adaptation": {
+    "sorting": "localizedStandardCompare follows native Finder/current locale. Windows-specific punctuation ties and NoStrCmpLogical policy are not certified.",
+    "sources": [
+      "https://developer.apple.com/documentation/foundation/nsstring/localizedstandardcompare%28_%3A%29",
+      "https://learn.microsoft.com/en-us/windows/win32/api/shlwapi/nf-shlwapi-strcmplogicalw",
+      "https://developer.apple.com/documentation/foundation/nsstring/compareoptions/literal"
+    ]
+  },
+  "local_verification": {
+    "swift_build": 0,
+    "unsigned_debug_build": 0,
+    "unsigned_store_build": 0,
+    "debug_bundle_audit": 0,
+    "store_bundle_audit_require_git": 0,
+    "native_log_system_git": 0,
+    "native_log_packaged_git": 0,
+    "native_graph_system_git": 0,
+    "native_graph_packaged_git": 0,
+    "inventory_pin_regression": 0,
+    "site_generation": 0
+  },
+  "native_assertions": [
+    "Initial loading exclusion and all prior Log Find lifecycle/corpus/keyboard/error/index checks.",
+    "Real Git refs refresh-2 and refresh-10 display in numeric order.",
+    "An actual returned accented reference matches its exact UTF-16 spelling, rejects the canonically equivalent opposite NFC/NFD query and rejects changed case.",
+    "Accepted Log reload cancels an active Find search and preserves filter/query/index.",
+    "Rapid accepted reloads replace reads and publish the latest filtered reference list.",
+    "Actual Log model tag deletion, with captured confirmation, refreshes the open Find list without an explicit test reload.",
+    "Refresh behind a critical reference-resolution error starts after acknowledgment.",
+    "Parent close cancels its pending reference read.",
+    "Existing full native Graph interaction/filter/reference/Find/error/export/regression receivers pass with the shared code."
+  ],
+  "repository_scope": "Private disposable fixtures only. Listed HEAD/index/config/worktree/branch/note-ref bytes remain unchanged; fixture-owned tags are intentionally created/deleted for ordering, refresh and error cases. No remote mutation or installed Finder activation.",
+  "known_warnings": [
+    "Existing SwiftUI AttributeGraph cycle warnings occurred during hidden Log reloads. Assertions passed; physical rendering remains unverified.",
+    "Existing Swift sendability/deprecation warnings remain."
+  ],
+  "sha256": {
+    "Sources/TurtleGitMac/LogWindow.swift": "a04d413439fcee68dd3b3953dd1ab4e188b4f953ddfb089208de1c7ff6495d07",
+    "Sources/TurtleGitMac/RevisionGraphWindow.swift": "6a629f86216d35b3ff3fedab1a87991e976c9424132c7053a5dc7a5ab8e7a3a8",
+    "build/qa/log-find-refresh-build-2026-10-10.log": "e18bd0ab2336ebb58e61ca71d434b51a5b12d2626ff66bfaf0b11e39c81a1745",
+    "build/qa/log-find-refresh-debug-2026-10-10.log": "70a4cf764a15fdcae798a09308e06ef666fdc60e9849043adf77249ecddeac25",
+    "build/qa/log-find-refresh-debug-audit-2026-10-10.log": "6c4a0639ae077d8a06ed7c1a450f328df6eb54f179d36af72fcbaca3cf48b1a9",
+    "build/qa/log-find-refresh-graph-native-2026-10-10.log": "fde066bf3722bdde38649f3841428ee3f4369a2f06ae81c6cd56b5b0a2987410",
+    "build/qa/log-find-refresh-inventory-2026-10-10.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/log-find-refresh-native-2026-10-10.log": "fc98b9b9da352e865422e32a7ed963ed4898b18af2f0f21da96ea5b8cbc627d7",
+    "build/qa/log-find-refresh-store-2026-10-10.log": "8b7e42e41011f64b89af2a34249c0e6a736fce554184bf57a0f657922d209930",
+    "build/qa/log-find-refresh-store-audit-2026-10-10.log": "ac6ee8a83e94cebfcd5300d885738875ea3ca79702538dd4b4523ab268676878",
+    "docs/qa/log-find-native-2026-10-10.swift": "50d671a8387e7d26b2efae4f810ac6314807534706732e25acf5b17f45fa3957"
+  },
+  "limitations": [
+    "No new full Core suite: Core sources/tests unchanged this turn. Last complete local checkpoint remains 921 tests at c4bd370.",
+    "Hosted acceptance of this source still requires publication and a new run. The preceding 4e2bb70 job was executing integration tests at inspection.",
+    "Individual mutation routes other than tested tag deletion, physical input/rendering, accessibility, localization, large-history performance, metadata changes during searches, signed Finder/sandbox/App Store acceptance and full dialog parity remain incomplete."
+  ],
+  "preceding_hosted_followup": {
+    "run": 38075922507,
+    "checkpoint": "4e2bb70",
+    "conclusion": "failure",
+    "scope": "Complete 925-test suite executed with seven failures across four cases; see ci-core-regression-2026-10-10.json. This job predates the new Find refresh source."
+  }
+}

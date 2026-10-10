@@ -586,3 +586,23 @@ This retains the intended usable search after reload rather than copying the
 source's unbounded wrap when its retained index no longer belongs to the list.
 Physical keyboard/mouse, metadata changes during search, large histories and
 signed acceptance remain pending. See [the dated position checks](qa/find-position-2026-10-10.json).
+
+## Shared Find reference ordering and Log refresh
+
+The shared native Find list now uses Finder-style natural comparison, replacing
+its former Git lexical order. This maps the default natural/case-insensitive
+behavior of pinned `CGit::GetRefList` / `LogicalComparePredicate`; for example,
+`branch2` precedes `branch10`. Exact names, source substring filtering and original
+reference-type icons remain intact. Reference filtering now uses literal
+UTF-16 substring matching, so canonically equivalent Unicode spellings do not
+silently match each other, following source `CString::Find`. Native collation
+follows the macOS locale;
+Windows punctuation ties and the Windows `NoStrCmpLogical` policy are not
+certified. See [Find ordering notes and primary API references](LOG-FIND.md).
+
+Pinned Log `CGitLogListBase::Refresh` also calls `CFindDlg::RefreshList`. The
+native Log's accepted reload now replaces the open child's reference read,
+preserving filter/query/index and clearing its old list/selection. Reads and
+searches superseded by refresh cannot publish late results. Refresh requested
+behind a critical Find error waits for acknowledgment. Graph keeps its source
+initialization-only refresh route. See [the dated shared checks](qa/log-find-refresh-2026-10-10.json).

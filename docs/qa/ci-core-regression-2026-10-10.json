@@ -1,0 +1,44 @@
+{
+  "date": "2026-10-10",
+  "checkpoint": "4e2bb70268d925bb6713dc9943f57ce96357ac8a",
+  "run": 38075922507,
+  "job": 114282732079,
+  "conclusion": "failure",
+  "step": "Git integration tests",
+  "hosted_toolchain": "Xcode 16.4 / Apple Swift 6.1.2; default repository test executable /usr/bin/git (Apple Git 2.39.5)",
+  "full_suite": {
+    "tests": 925,
+    "skipped": 1,
+    "failures": 7,
+    "unexpected": 2,
+    "seconds": 741.845
+  },
+  "compiler_scope": "Earlier Cleanup, Log and SMTP wire-fixture type-check failures are resolved; this run executed the complete test suite.",
+  "failing_cases": [
+    {
+      "test": "CommitHistoryTests.testReferenceSearchFindsBranchesRemoteAndPeeledTagsBeforeLimit",
+      "observed": "nested-tag search returned no commit/reference match."
+    },
+    {
+      "test": "CommitHistoryTests.testAnnotatedTagInfoSearchUsesTagObjectsAndExcludesLightweightRefs",
+      "observed": "Nested annotation search returned no commit and its tagInfo was missing."
+    },
+    {
+      "test": "PatchMailSMTPTests.testRecipientAuthTLSRejectionsAndLostFinalReplyNeverAutoRetry",
+      "observed": "Fixture ready.json existed with empty contents when read; JSON decoding threw at withServer line 42."
+    },
+    {
+      "test": "RebaseTests.testLegacyEncodedEditAndSquashMessagesDecodeAndContinue",
+      "observed": "Decoded text preserved caf\u00e9 original but had extra trailing blank lines compared with the fixture expectation."
+    }
+  ],
+  "next_work": [
+    "Reproduce older-Git nested-tag peeling and fix all affected reference consumers without weakening nested-tag expectations.",
+    "Make private SMTP fixture readiness/results atomically published and verify failure/retry cases.",
+    "Audit legacy rebase message bytes against raw Git state and pinned source before changing implementation or version-dependent assertions."
+  ],
+  "limitations": "These are observations, not fully verified root causes or fixes. Hosted native/bundled/build/audit steps after the integration gate did not run. Full parity and signed distribution remain incomplete.",
+  "sha256": {
+    "build/qa/ci-mx-hosted-retry-2026-10-10.log": "4d9cfff88dd795041f5b1bf939a41fb89867e9d9a00af40e2ff1e0f2190df102"
+  }
+}
