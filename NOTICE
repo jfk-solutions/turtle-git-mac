@@ -1318,3 +1318,10 @@ unchanged with recorded source paths and SHA256 provenance. Their existing
 upstream resource license notice is retained under the GPL choice. Native
 ImageIO/AppKit rendering is a partial replacement; XOR, animation, three-way
 selection and full upstream controls remain pending.
+
+The image viewer's Blend alpha/XOR controls adapt TortoiseGitIDiff
+MainWindow.cpp and PicWindow.cpp at the same pinned commit. Native XOR
+comparison renders opaque viewport panes at backing resolution, applies
+bytewise RGB XOR and inversion (SRCINVERT/InvertRect behavior), and retains
+the original blend.ico artwork with GPL provenance. This is not full
+TortoiseIDiff or signed distribution acceptance.

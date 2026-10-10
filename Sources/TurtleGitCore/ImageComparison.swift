@@ -42,3 +42,33 @@ public enum ImageComparisonGeometry {
                 y: min(max(0, origin.y), max(0, content.height - viewport.height)))
     }
 }
+
+/// TortoiseIDiff's SRCINVERT followed by InvertRect: bytewise complement of
+/// the XOR of two opaque rendered RGB panes. A difference blend is not equivalent.
+public enum ImageComparisonXOR {
+    public static func render(base: CGImage?, destination: CGImage?, width: Int, height: Int,
+                              baseRect: CGRect, destinationRect: CGRect, background: CGColor) -> CGImage? {
+        guard width > 0, height > 0, width <= Int.max / 4,
+              height <= Int.max / (width * 4),
+              [baseRect, destinationRect].allSatisfy({ [$0.minX, $0.minY, $0.width, $0.height].allSatisfy(\.isFinite) }),
+              let space = CGColorSpace(name: CGColorSpace.sRGB) else { return nil }
+        let rowBytes = width * 4
+        func pane(_ image: CGImage?, _ rect: CGRect) -> CGContext? {
+            guard let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8,
+                                          bytesPerRow: rowBytes, space: space,
+                                          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue) else { return nil }
+            context.setFillColor(background); context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+            context.interpolationQuality = .none
+            if let image { context.draw(image, in: CGRect(x: rect.minX, y: CGFloat(height) - rect.maxY, width: rect.width, height: rect.height)) }
+            return context
+        }
+        guard let a = pane(base, baseRect), let b = pane(destination, destinationRect),
+              let left = a.data?.assumingMemoryBound(to: UInt8.self),
+              let right = b.data?.assumingMemoryBound(to: UInt8.self) else { return nil }
+        for offset in stride(from: 0, to: rowBytes * height, by: 4) {
+            for channel in 0..<3 { left[offset + channel] = ~(left[offset + channel] ^ right[offset + channel]) }
+            left[offset + 3] = 255
+        }
+        return a.makeImage()
+    }
+}

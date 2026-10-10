@@ -105,10 +105,23 @@ import Darwin
             try require(abs(actual.blueComponent - expected.blueComponent) < 0.04)
         }
         try require(blend.redComponent > 0.35 && blend.redComponent < 0.65 && blend.blueComponent > 0.35 && blend.blueComponent < 0.65)
+        model.blendAlpha = false; try await settle()
+        let xor = try pixel(scrolls()[0].documentView!)
+        try require(xor.greenComponent > xor.redComponent + 0.3 && xor.greenComponent > xor.blueComponent + 0.3)
+        try require(!descendants(host).contains { ($0 as? NSSlider)?.accessibilityLabel() == "Image blend alpha" })
+        let equal = try WorkingFileComparison(base: file, destination: file).read()
+        host.rootView = ImageComparisonDialog(images: ImageComparisonDocument(equal)!, document: equal, model: model)
+        try await settle()
+        let unchanged = try pixel(scrolls()[0].documentView!)
+        try require(unchanged.redComponent > 0.95 && unchanged.greenComponent > 0.95 && unchanged.blueComponent > 0.95)
+        host.rootView = ImageComparisonDialog(images: images, document: document, model: model)
+        model.blendAlpha = true; model.alpha = 1; try await settle()
+        let restored = try pixel(scrolls()[0].documentView!)
+        try require(abs(restored.blueComponent - blue.blueComponent) < 0.04)
         let afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout
         let afterIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
         let afterBytes = try Data(contentsOf: file)
         try require(afterHead == head && afterIndex == index && afterBytes == bytes)
-        print("PASS: Actual Git image routing without image extension, native pane raster colors, fit/manual zoom, linked/unlinked scrolling, vertical/overlay transitions, alpha endpoints/midpoint and unchanged HEAD/index/file bytes.")
+        print("PASS: Actual Git image routing without image extension, native pane raster colors, fit/manual zoom, linked/unlinked scrolling, vertical/overlay transitions, alpha endpoints/midpoint, XOR changed/unchanged pixels and slider removal/restoration, and unchanged HEAD/index/file bytes.")
     }
 }

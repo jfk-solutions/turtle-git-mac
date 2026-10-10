@@ -547,6 +547,11 @@
       "asset": "alphatoggle.ico",
       "source": "src/TortoiseIDiff/resources/alphatoggle.ico",
       "sha256": "8c1e5acf60e04161c8b05d78ce66509ce1eebaef1a1e69f12227dcd139b0153e"
+    },
+    {
+      "asset": "blend.ico",
+      "source": "src/TortoiseIDiff/resources/blend.ico",
+      "sha256": "5d6d0b7408fe81abc8466e247809b335028ab4872cea589616989ddaf7ee031b"
     }
   ]
 }

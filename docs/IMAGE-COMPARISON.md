@@ -19,11 +19,13 @@ these same controls:
 - **Overlay images** puts both versions in one pane. Move the vertical slider
   on the left to blend between them; the button above it switches endpoints.
   Overlay keeps image positions linked. Turn it off to return to two panes.
+- With overlay enabled, turn **Blend alpha** off for XOR comparison. Identical
+  areas appear white and changed pixels appear in color. Turn it back on to
+  restore the alpha slider.
 
 The image comparison is read-only. It does not stage, save or resolve files.
 The viewer follows the app’s light/dark appearance.
 
 This portion of the port is still being completed. Animation currently displays
-its first frame, and XOR comparison and three-way image-conflict selection are
-not yet available. See [image comparison parity](IMAGE-COMPARISON-PARITY.md) for
+its first frame, and three-way image-conflict selection is not yet available. See [image comparison parity](IMAGE-COMPARISON-PARITY.md) for
 the source comparison and verification scope.

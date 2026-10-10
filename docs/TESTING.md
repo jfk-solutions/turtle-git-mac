@@ -592,7 +592,8 @@ The receiver compiles current application sources into a private headless
 executable, uses a disposable repository and hidden native hosting windows,
 and checks image routing without an image filename extension, actual pane
 raster colors, fit/manual zoom, linked/unlinked scrolling, vertical/overlay
-transitions and alpha endpoints/midpoint. It compares HEAD, raw index and file
+transitions, alpha endpoints/midpoint, XOR changed/unchanged pixels and switching
+back to alpha. It compares HEAD, raw index and file
 bytes before and after. Each engine runs serially; the runner removes its
 private executable and repository. This does not exercise physical mouse or
 keyboard gestures, signed Finder activation or App Store distribution.
