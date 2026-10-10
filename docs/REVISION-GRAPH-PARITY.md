@@ -333,3 +333,44 @@ Five Core graph tests and the native receiver passed with each Git engine.
 Unsigned Debug/Store builds and both bundle audits passed; see
 [pointer-label evidence](qa/revision-graph-pointers-2026-10-10.json). The native
 conflict case is a private repository fixture, not signed/physical acceptance.
+
+
+## Filter reference picking and scope behavior
+
+`RevGraphFilterDlg` invokes `PickRef(false, "", gPickRef_All, true, false)`.
+The native Filter now opens the all-reference chooser at HEAD with multiple
+selection enabled and no range-choice prompt. The shared browser retains its
+single-selection default for all other callers. A single selection returns its
+canonical full name; several return displayed-order browser short names joined
+by spaces, matching `GetSelectedRef` (local branches omit `refs/heads/`, other
+references omit `refs/`). From/To already accept whitespace-separated revisions.
+
+The native chooser is owned by the Filter sheet, inherits its visibility, and
+blocks Filter Cancel/Reset/close plus graph close until it finishes. Parent input
+focus is released before presentation and restored to the target field after
+selection or cancellation. A request identity and the finished flag reject
+late callbacks after forced close. Cancelling leaves the field unchanged.
+
+Scope behavior now matches `OnBnClickedCurrentBranch` and
+`OnBnClickedLocalBranches`: the active scope disables the other, clears To,
+and disables To and its browser. Unchecking re-enables them. Reset still clears
+both scopes and revision fields and immediately applies the cleared filter.
+Native QA covers actual nested sheets, table multi-selection, chooser callbacks,
+field focus, cancellation, scope controls and applying the returned multi-ref
+text. Physical/VoiceOver/signed acceptance and all browser command parity remain
+pending.
+
+
+The multi-reference handoff exposed successful Git warning output contaminating
+resolved hashes for a same-named branch/tag. Graph protocol parsing now reads
+stdout only for hashes, branches, references, history and parent paths. Git
+failures retain their diagnostics. A Core regression compares the picker-style
+short multi-ref range against explicit canonical refs and checks unchanged
+index/config/reference bytes with both engines.
+
+Six Core graph tests, the full native graph receiver and the shared
+reference-browser/Reset receiver passed with each Git engine. Unsigned
+Debug/Store builds and both packaging audits passed; see
+[Filter-picker evidence](qa/revision-graph-filter-picker-2026-10-10.json).
+The graph receiver uses actual private nested sheets; the shared-browser
+receiver uses injected presentation. Neither proves signed or physical acceptance.

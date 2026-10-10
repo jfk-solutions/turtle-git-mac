@@ -36,8 +36,8 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     var presentDescription: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
     var presentReflog: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
     private var completion: ((String?) -> Void)?
-    init(repository: GitRepository, access: RepositoryAccessLease?, initial: String, preferences: UserDefaults = .standard, scope: ReferenceBrowserScope = .all, picking: Bool = true, onChoose: @escaping (String?) -> Void) {
-        model = ReferenceBrowserWindowModel(repository: repository, access: access, initial: initial, preferences: preferences, scope: scope, picking: picking); completion = onChoose
+    init(repository: GitRepository, access: RepositoryAccessLease?, initial: String, preferences: UserDefaults = .standard, scope: ReferenceBrowserScope = .all, picking: Bool = true, pickMultiple: Bool = false, onChoose: @escaping (String?) -> Void) {
+        model = ReferenceBrowserWindowModel(repository: repository, access: access, initial: initial, preferences: preferences, scope: scope, picking: picking, pickMultiple: pickMultiple); completion = onChoose
         let window = ReferenceBrowserNativeWindow(contentRect: .init(x: 0, y: 0, width: 1130, height: 660), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Browse references – TurtleGit"; window.isReleasedWhenClosed = false; window.contentMinSize = .init(width: 940, height: 450)
         window.contentViewController = NSHostingController(rootView: ReferenceBrowserDialog(model: model).defaultAppStorage(preferences))
@@ -253,6 +253,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     private let initial: String
     let scope: ReferenceBrowserScope
     let picking: Bool
+    let pickMultiple: Bool
     private var token: OperationCancellation?
     private var invalidated = false
     private(set) var deletingReference = false
@@ -277,7 +278,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         set { selection = newValue.map { [$0] } ?? []; lastSelected = newValue }
     }
     func select(_ references: Set<GitReferenceName>, last: GitReferenceName?) {
-        guard !invalidated, !busy, !hasChild, renameReference == nil, !picking || references.count <= 1 else { return }
+        guard !invalidated, !busy, !hasChild, renameReference == nil, !picking || pickMultiple || references.count <= 1 else { return }
         selection = references
         lastSelected = last.flatMap { selection.contains($0) ? $0 : nil } ?? rows.last(where: { selection.contains($0.reference.name) })?.reference.name
     }
@@ -408,8 +409,8 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     var onReflog: ((String) -> Void)?
     var onBrowse: ((String) -> Void)?
     var onCompare: ((String) -> Void)?
-    init(repository: GitRepository, access: RepositoryAccessLease?, initial: String, preferences: UserDefaults = .standard, scope: ReferenceBrowserScope = .all, picking: Bool = true) {
-        self.picking = picking; sshSettings = SSHTransportSettings(repository: repository); sshSettings.enabled = sshSettings.available
+    init(repository: GitRepository, access: RepositoryAccessLease?, initial: String, preferences: UserDefaults = .standard, scope: ReferenceBrowserScope = .all, picking: Bool = true, pickMultiple: Bool = false) {
+        self.picking = picking; self.pickMultiple = pickMultiple; sshSettings = SSHTransportSettings(repository: repository); sshSettings.enabled = sshSettings.available
         self.repository = repository; self.access = access; self.initial = initial; self.preferences = preferences; self.scope = scope
         nested = preferences.object(forKey: "RefBrowserIncludeNestedRefs") as? Bool ?? true
     }
@@ -427,7 +428,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         }
     }
     var chosen: BrowserReference? { guard selection.count == 1, let selected else { return nil }; return rows.first { $0.reference.name == selected }?.reference }
-    var canAccept: Bool { !busy && !hasChild && !invalidated && renameReference == nil && chosen != nil }
+    var canAccept: Bool { !busy && !hasChild && !invalidated && renameReference == nil && (pickMultiple ? !selectedRows.isEmpty && selectedRows.count == selection.count : chosen != nil) }
     var canFinish: Bool { picking ? canAccept : !busy && !hasChild && !invalidated && renameReference == nil }
     var canRename: Bool { canAccept && chosen.flatMap { GitReferenceName.removingPrefix("refs/heads/", from: $0.name.rawValue) } != nil }
     func beginRename() -> String? {
@@ -507,7 +508,14 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
             }
         }
     }
-    func accept() { guard canFinish else { return }; finish(picking ? chosen?.name.rawValue : nil) }
+    func accept() {
+        guard canFinish else { return }
+        guard picking else { finish(nil); return }
+        // GetSelectedRef returns the canonical name for one selection, and
+        // space-separated browser short names for multiple selections.
+        let selected = selectedRows
+        finish(selected.count == 1 ? selected[0].reference.name.rawValue : selected.map { $0.reference.name.browserShortName }.joined(separator: " "))
+    }
     func cancel() { finish(nil) }
     func focusIfReady(_ table: NSTableView) {
         guard initialFocusPending, !invalidated, !busy, !hasChild, snapshot != nil, let window = table.window, window.attachedSheet == nil else { return }
@@ -565,7 +573,7 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
         let split = NSSplitView(); split.delegate = context.coordinator; split.isVertical = true; split.dividerStyle = .thin
         let tree = NSOutlineView(); tree.headerView = nil; tree.setAccessibilityLabel("Reference namespaces")
         let folder = NSTableColumn(identifier: .init("folder")); folder.width = 185; tree.addTableColumn(folder); tree.outlineTableColumn = folder; tree.rowHeight = 22
-        let table = ReferenceBrowserRenameTable(); table.rename = { [weak coordinator = context.coordinator] in coordinator?.beginRename() }; table.rowHeight = 23; table.allowsMultipleSelection = !model.picking; table.setAccessibilityLabel("References")
+        let table = ReferenceBrowserRenameTable(); table.rename = { [weak coordinator = context.coordinator] in coordinator?.beginRename() }; table.rowHeight = 23; table.allowsMultipleSelection = !model.picking || model.pickMultiple; table.setAccessibilityLabel("References")
         for (id, title, width) in [("name", "Branch Name", 210.0), ("upstream", "Tracked branch", 150), ("authorDate", "Last Author Date", 140), ("subject", "Last Commit", 280), ("author", "Last Author", 130), ("committerDate", "Date Last Commit", 140), ("committer", "Last Committer", 130), ("hash", "SHA-1", 170), ("description", "Description", 180)] {
             let column = NSTableColumn(identifier: .init(id)); column.title = title; column.width = width; column.minWidth = 70; table.addTableColumn(column)
         }

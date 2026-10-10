@@ -165,6 +165,25 @@ final class RevisionGraphTests: XCTestCase {
 
     }
 
+    func testShortReferenceWarningsDoNotContaminateMultiReferenceRange() async throws {
+        let (root, repo, hashes) = try await fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        _ = try await repo.run(["tag", "main", hashes["merge"]!])
+        let resolved = try await repo.run(["rev-parse", "--verify", "--end-of-options", "main^{commit}"])
+        XCTAssertTrue(String(decoding: resolved.stderr, as: UTF8.self).contains("ambiguous"))
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index")), config = try Data(contentsOf: root.appendingPathComponent(".git/config"))
+        let refs = try await repo.run(["show-ref"]).stdout
+        var short = RevisionGraphOptions(); short.to = "main tags/release"
+        var canonical = short; canonical.to = "refs/tags/main refs/tags/release"
+        let actual = try await repo.revisionGraph(options: short), expected = try await repo.revisionGraph(options: canonical)
+        XCTAssertEqual(actual.nodes.map(\.hash), expected.nodes.map(\.hash))
+        XCTAssertEqual(actual.nodes.map(\.parents), expected.nodes.map(\.parents))
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/config")), config)
+        let refsAfter = try await repo.run(["show-ref"]).stdout
+        XCTAssertEqual(refsAfter, refs)
+    }
+
     func testBareGraphHasNoSuperprojectAndMatchesWorkingRepository() async throws {
         let (root, repo, _) = try await fixture()
         defer { try? FileManager.default.removeItem(at: root) }

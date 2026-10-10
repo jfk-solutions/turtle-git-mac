@@ -14,8 +14,10 @@ import TurtleGitCore
     let cancel = NSButton(title: "Cancel", target: nil, action: nil)
     let reset = NSButton(title: "Reset filter", target: nil, action: nil)
     private var completion: ((RevisionGraphOptions?) -> Void)?
-    private var picker: ReferenceBrowserWindowController?
+    private(set) var picker: ReferenceBrowserWindowController?
     private var finished = false
+    private var pickerRequest: UUID?
+    private weak var pendingFocus: NSTextField?
     init(model: RevisionGraphWindowModel, completion: @escaping (RevisionGraphOptions?) -> Void) {
         self.model = model; self.completion = completion
         let window = NSWindow(contentRect: CGRect(x: 0, y: 0, width: 510, height: 190), styleMask: [.titled, .closable], backing: .buffered, defer: false)
@@ -37,13 +39,17 @@ import TurtleGitCore
         ok.target = self; ok.action = #selector(accept); ok.keyEquivalent = "\r"; window.defaultButtonCell = ok.cell as? NSButtonCell
         cancel.target = self; cancel.action = #selector(abort); cancel.keyEquivalent = "\u{1b}"
         reset.target = self; reset.action = #selector(resetFilter)
+        NotificationCenter.default.addObserver(self, selector: #selector(sheetEnded), name: NSWindow.didEndSheetNotification, object: window)
         scopeChanged(nil)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     @objc func scopeChanged(_ sender: NSButton?) {
-        if sender === current, current.state == .on { local.state = .off }
-        if sender === local, local.state == .on { current.state = .off }
+        guard !finished, picker == nil, window?.attachedSheet == nil else { return }
+        if current.state == .on { local.state = .off }
+        else if local.state == .on { current.state = .off }
+        current.isEnabled = local.state == .off; local.isEnabled = current.state == .off
         toField.isEnabled = current.state == .off && local.state == .off; toBrowse.isEnabled = toField.isEnabled
+        if !toField.isEnabled { toField.stringValue = "" }
     }
     @objc func accept() {
         guard !finished, picker == nil, window?.attachedSheet == nil else { return }
@@ -66,16 +72,27 @@ import TurtleGitCore
     @objc private func browseTo() { guard toField.isEnabled else { return }; browse(toField) }
     private func browse(_ field: NSTextField) {
         guard !finished, picker == nil, let window, window.attachedSheet == nil else { return }
-        let picker = ReferenceBrowserWindowController(repository: model.repository, access: model.access, initial: field.stringValue, preferences: model.preferences) { [weak self, weak field] value in
-            guard let self else { return }; self.picker = nil
-            if !self.finished, let value, !value.isEmpty { field?.stringValue = value }
+        window.makeFirstResponder(nil)
+        let request = UUID(); pickerRequest = request
+        let picker = ReferenceBrowserWindowController(repository: model.repository, access: model.access, initial: "HEAD", preferences: model.preferences, pickMultiple: true) { [weak self, weak field] value in
+            guard let self, !self.finished, self.pickerRequest == request else { return }
+            self.pickerRequest = nil; self.picker = nil
+            if let value, !value.isEmpty { field?.stringValue = value }
+            self.pendingFocus = field; self.restoreInputFocus()
         }
         self.picker = picker; if let child = picker.window { child.alphaValue = window.alphaValue; window.beginSheet(child) }
         picker.model.load()
     }
+    @objc private func sheetEnded() { restoreInputFocus() }
+    private func restoreInputFocus() {
+        guard !finished, picker == nil, let window, window.attachedSheet == nil, let field = pendingFocus else { return }
+        pendingFocus = nil; window.makeFirstResponder(field)
+    }
+
     func windowShouldClose(_ sender: NSWindow) -> Bool { guard picker == nil, sender.attachedSheet == nil else { return false }; finish(nil); return false }
     func windowWillClose(_ notification: Notification) {
-        picker?.abandonPresentation(); picker = nil
+        NotificationCenter.default.removeObserver(self)
+        pickerRequest = nil; pendingFocus = nil; picker?.abandonPresentation(); picker = nil
         if !finished { finished = true; let callback = completion; completion = nil; callback?(nil) }
     }
 }

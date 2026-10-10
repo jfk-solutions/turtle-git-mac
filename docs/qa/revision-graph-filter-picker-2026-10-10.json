@@ -1,0 +1,55 @@
+{
+  "checked_at": "2026-10-10T15:32:32.923249+00:00",
+  "parent_commit": "82b9942c286c17a55a43d8151be0fccc41d6b3a2",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "RevGraphFilterDlg.cpp scope handlers and reference picker calls",
+    "BrowseRefsDlg.cpp PickRef/GetSelectedRef"
+  ],
+  "scope": "Revision Graph Filter multi-reference selection, nested native picker ownership/focus, source scope gates and successful-warning-safe graph protocol parsing. Complete app parity remains open.",
+  "implementation": [
+    "Filter invokes all-reference picker at HEAD, with multi-selection and no range popup",
+    "single reference canonical return; multiple selected refs return displayed-order space-separated browser short names",
+    "shared browser defaults remain single-selection for other picker consumers",
+    "active branch scope clears/disables To and disables the opposite scope",
+    "owned nested picker inherits parent visibility and blocks Filter/graph close and Cancel/Reset",
+    "target field focus released before presentation and restored after chosen/cancelled callback",
+    "request identity rejects callbacks after forced Filter close",
+    "graph protocol parsing uses stdout only so successful ambiguity warnings do not enter resolved revision hashes"
+  ],
+  "verification": {
+    "system_core_tests": 6,
+    "system_core_failures": 0,
+    "bundled_core_tests": 6,
+    "bundled_core_failures": 0,
+    "graph_native_system_git_exit": 0,
+    "graph_native_bundled_git_exit": 0,
+    "browser_reset_native_system_git_exit": 0,
+    "browser_reset_native_bundled_git_exit": 0,
+    "graph_native_cases": [
+      "actual nested chooser sheet ownership and inherited zero alpha",
+      "actual table multi-selection enabled and two different namespaces selected",
+      "multiple references returned to From with field editing focus",
+      "To chooser cancellation retains original text and restores its focus",
+      "Filter Abort/Reset and parent close blocked while picker owns sheet",
+      "current/local scope clears To, disables opposite scope, unchecking restores controls",
+      "picked short multi-ref text applied to actual graph query",
+      "existing graph preference/navigation/overview/pointer/export/menu/deletion/Reset/cancellation invariants retained"
+    ],
+    "core_regression": "Same-named main branch/tag produces successful rev-parse warning. Short multi-ref graph output equals explicit canonical-ref graph; index/config/refs unchanged.",
+    "browser_reset_regression": "Default single-select tree/table, sorting/filtering/namespaces/icons/callbacks, owned Reflog and Reset handoff/focus/cancel/stale/close/Quit guards remain passing. This receiver uses injected presentation, not actual sheets.",
+    "unsigned_debug_build_exit": 0,
+    "unsigned_appstore_build_exit": 0,
+    "debug_bundle_audit_exit": 0,
+    "appstore_bundle_audit_exit": 0,
+    "upstream_icons": 117
+  },
+  "mutation_scope": "Only disposable Git fixtures and private preference suites; app activation prohibited, hidden owned graph/picker windows closed and receivers exit. No global DialogGeometry installation.",
+  "pending": [
+    "physical picker/keyboard/VoiceOver acceptance",
+    "forced graph-Filter close callback races with busy browser or nested browser operations",
+    "signed repository grants/Finder integration",
+    "current hosted CI and publication",
+    "complete TortoiseGit port"
+  ]
+}

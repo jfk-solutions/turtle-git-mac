@@ -47,8 +47,11 @@ nodes. **Refresh** or F5 reads the repository again.
 **View → Filter…** opens a revision range sheet. **From** excludes history
 reachable from the entered revision; **To** restricts the included history.
 Both fields accept whitespace-separated revisions. **RefBrowser** opens the
-native reference chooser. **Only Current Branch** and **Only Local Branches**
-are mutually exclusive and disable To and its reference browser. **Cancel**
+native reference chooser. Select one reference for its complete name or several
+for a space-separated list, matching TortoiseGit. Cancel preserves the field.
+**Only Current Branch** and **Only Local Branches** are mutually exclusive:
+checking one disables the other, clears To, and disables To and its browser.
+Uncheck the active scope to re-enable the other controls. **Cancel**
 discards the sheet's changes. **Reset filter** clears the range and branch
 scopes and immediately refreshes the graph.
 

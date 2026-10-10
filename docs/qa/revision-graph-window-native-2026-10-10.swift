@@ -246,12 +246,48 @@ import Darwin
         let buttons = views(child.contentView!).compactMap { $0 as? NSButton }
         let current = buttons.first { $0.title == "Only Current Branch" }!, local = buttons.first { $0.title == "Only Local Branches" }!
         let to = views(child.contentView!).compactMap { $0 as? NSTextField }.first { $0.accessibilityLabel() == "To revision" }!
-        current.performClick(nil); try require(current.state == .on && local.state == .off && !to.isEnabled)
-        local.performClick(nil); try require(current.state == .off && local.state == .on && !to.isEnabled)
-        local.performClick(nil); try require(to.isEnabled)
+        let filter = controller.filter!, from = filter.fromField
+        to.stringValue = "original-to"; child.makeFirstResponder(from)
+        filter.fromBrowse.performClick(nil)
+        try await wait { filter.picker != nil && filter.picker?.model.busy == false }
+        let referencePicker = filter.picker!, browserWindow = referencePicker.window!
+        try require(browserWindow.sheetParent === child && browserWindow.alphaValue == 0 && referencePicker.model.pickMultiple)
+        try require(!filter.windowShouldClose(child) && !controller.windowShouldClose(window))
+        filter.abort(); filter.resetFilter(); try require(controller.filter === filter)
+        referencePicker.model.setFolder("refs")
+        try await wait { views(browserWindow.contentView!).contains { ($0 as? NSTableView)?.numberOfRows == referencePicker.model.rows.count } }
+        let referenceTable = views(browserWindow.contentView!).compactMap { $0 as? NSTableView }.first { $0.accessibilityLabel() == "References" }!
+        try require(referenceTable.allowsMultipleSelection)
+        let names: Set<GitReferenceName> = ["refs/heads/main", "refs/tags/v1.0"]
+        let indices = IndexSet(referencePicker.model.rows.indices.filter { names.contains(referencePicker.model.rows[$0].reference.name) })
+        try require(indices.count == 2)
+        referenceTable.selectRowIndexes(indices, byExtendingSelection: false)
+        try await wait { referencePicker.model.selection == names }
+        let chosenRefs = referencePicker.model.selectedRows.map { $0.reference.name.browserShortName }.joined(separator: " ")
+        referencePicker.model.accept()
+        try await wait { child.attachedSheet == nil && filter.picker == nil && from.currentEditor() != nil }
+        try require(from.stringValue == chosenRefs && referencePicker.model.closed)
+        child.makeFirstResponder(to); filter.toBrowse.performClick(nil)
+        try await wait { filter.picker != nil && filter.picker?.model.busy == false }
+        let cancelledPicker = filter.picker!
+        cancelledPicker.model.finish(nil)
+        try await wait { child.attachedSheet == nil && filter.picker == nil && to.currentEditor() != nil }
+        try require(to.stringValue == "original-to" && cancelledPicker.model.closed)
+        current.performClick(nil); try require(current.state == .on && local.state == .off && !local.isEnabled && !to.isEnabled && to.stringValue.isEmpty)
+        current.performClick(nil); try require(local.isEnabled && to.isEnabled)
+        to.stringValue = "discarded-to"; local.performClick(nil)
+        try require(current.state == .off && local.state == .on && !current.isEnabled && !to.isEnabled && to.stringValue.isEmpty)
+        local.performClick(nil); try require(current.isEnabled && to.isEnabled)
+        print("PASS: Revision Graph Filter multi-reference picker, nested ownership, selection/cancel focus and source scope gates")
         try require(!controller.windowShouldClose(window))
         buttons.first { $0.title == "Cancel" }!.performClick(nil); try await wait { window.attachedSheet == nil && !model.busy }
         try require(!model.options.onlyCurrentBranch && !model.options.onlyLocalBranches)
+        controller.showFilter(); try await wait { window.attachedSheet != nil }
+        controller.filter!.window!.makeFirstResponder(nil)
+        controller.filter!.fromField.stringValue = ""; controller.filter!.toField.stringValue = chosenRefs
+        controller.filter!.ok.performClick(nil); try await wait { window.attachedSheet == nil && !model.busy }
+        if model.error != nil || model.options.to != chosenRefs || model.nodes.isEmpty { print("Filter apply diagnostic:", model.options.from, model.options.to, chosenRefs, model.error ?? "no error", model.nodes.count) }
+        try require(model.error == nil && model.options.to == chosenRefs && !model.nodes.isEmpty)
         model.options.from = "v1.0"; model.options.onlyCurrentBranch = true
         controller.showFilter(); try await wait { window.attachedSheet != nil }
         let resetSheet = window.attachedSheet!; resetSheet.alphaValue = 0

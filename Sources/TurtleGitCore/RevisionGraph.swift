@@ -85,18 +85,23 @@ extension GitRepository {
         func read(_ arguments: [String], codes: ClosedRange<Int32> = 0...0) throws -> GitResult {
             try run(arguments, environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], successfulExitCodes: codes, cancellation: cancellation)
         }
+        func output(_ arguments: [String]) throws -> String {
+            // Protocol data must exclude stderr, including successful warnings
+            // about short names shared by a branch and a tag.
+            String(decoding: try read(arguments).stdout, as: UTF8.self)
+        }
         func tokens(_ text: String) -> [String] {
             text.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
         }
         func resolve(_ text: String) throws -> String {
-            try read(["rev-parse", "--verify", "--end-of-options", text + "^{commit}"]).text.trimmingCharacters(in: .newlines)
+            try output(["rev-parse", "--verify", "--end-of-options", text + "^{commit}"]).trimmingCharacters(in: .newlines)
         }
         try cancellation?.check()
         let headResult = try read(["rev-parse", "--verify", "--quiet", "HEAD"], codes: 0...1)
-        let head = headResult.exitCode == 0 ? headResult.text.trimmingCharacters(in: .newlines) : nil
+        let head = headResult.exitCode == 0 ? String(decoding: headResult.stdout, as: UTF8.self).trimmingCharacters(in: .newlines) : nil
         let branchResult = try read(["symbolic-ref", "--quiet", "HEAD"], codes: 0...1)
-        let currentBranch = branchResult.exitCode == 0 ? branchResult.text.trimmingCharacters(in: .newlines) : nil
-        let rawRefs = try read(["for-each-ref", "--format=%(objectname)%00%(*objectname)%00%(refname)%00"]).text.components(separatedBy: "\0")
+        let currentBranch = branchResult.exitCode == 0 ? String(decoding: branchResult.stdout, as: UTF8.self).trimmingCharacters(in: .newlines) : nil
+        let rawRefs = try output(["for-each-ref", "--format=%(objectname)%00%(*objectname)%00%(refname)%00"]).components(separatedBy: "\0")
         var refs: [String: [RevisionReference]] = [:]
         var i = 0
         while i + 2 < rawRefs.count {
@@ -119,9 +124,9 @@ extension GitRepository {
         } else { arguments.append("--all") }
         arguments += try tokens(options.from).map { "^" + (try resolve($0)) }
         arguments.append("--")
-        let output = try read(arguments).text
+        let logOutput = try output(arguments)
         var nodes: [RevisionGraphNode] = []
-        let fields = output.components(separatedBy: "\0")
+        let fields = logOutput.components(separatedBy: "\0")
         var record = 0
         while record + 4 < fields.count {
             try cancellation?.check()
@@ -132,7 +137,7 @@ extension GitRepository {
         }
         var pointerLabels: [String: [String]] = [:]
         if options.showSuperprojectPointers {
-            let parent = try read(["rev-parse", "--show-superproject-working-tree"]).text.trimmingCharacters(in: .newlines)
+            let parent = try output(["rev-parse", "--show-superproject-working-tree"]).trimmingCharacters(in: .newlines)
             if !parent.isEmpty {
                 let parentURL = URL(fileURLWithPath: parent).standardizedFileURL
                 let prefix = parentURL.path + "/"

@@ -247,7 +247,7 @@ enum RevisionGraphReferenceCommand {
     let status = NSTextField(labelWithString: "")
     let cancelButton = NSButton(title: "Cancel", target: nil, action: nil)
     private let overview: RevisionGraphOverview
-    private var filter: RevisionGraphFilterController?
+    private(set) var filter: RevisionGraphFilterController?
     private var closing = false
     private var exporting = false
     private var pendingRepositoryRefresh = false
