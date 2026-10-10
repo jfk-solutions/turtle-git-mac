@@ -8,19 +8,43 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Report toolchain and system Git used by integration tests
+        id: toolchain
         run: |
           swift --version
           xcodebuild -version
           /usr/bin/git --version
           git --version
+          {
+            xcodebuild -version
+            xcrun --show-sdk-build-version
+            xcrun clang++ --version
+            cmake --version
+          } > "$RUNNER_TEMP/turtlegit-toolchain.txt"
+          turtlegit_toolchain_fingerprint=$(shasum -a 256 "$RUNNER_TEMP/turtlegit-toolchain.txt" | awk '{print $1}')
+          echo "fingerprint=$turtlegit_toolchain_fingerprint" >> "$GITHUB_OUTPUT"
       - name: Pinned inventory regression
         run: python3 scripts/check-inventory-pin.py
       - name: Build and verify pinned universal EditorConfig parser
         run: python3 scripts/build-editorconfig-runtime.py
       - name: Build and verify universal C++ issue matcher
         run: python3 scripts/build-issue-regex-runtime.py
+      - name: Restore exact graph runtime package
+        id: graph-layout-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: build/graph-layout-runtime/GraphLayout
+          key: graph-layout-v1-${{ runner.os }}-${{ steps.toolchain.outputs.fingerprint }}-${{ hashFiles('LICENSE', 'Configuration/GraphLayoutRuntime.json', 'Sources/TurtleGitGraphLayout/main.cpp', 'scripts/build-graph-layout-runtime.py', 'scripts/validate-graph-layout-runtime.py', 'scripts/embed-graph-layout-runtime.py') }}
       - name: Build and verify pinned universal Revision Graph layout engine
+        if: steps.graph-layout-cache.outputs.cache-hit != 'true'
         run: python3 scripts/build-graph-layout-runtime.py
+      - name: Validate graph runtime package before reuse or caching
+        run: python3 scripts/validate-graph-layout-runtime.py build/graph-layout-runtime/GraphLayout
+      - name: Save verified graph runtime package
+        if: steps.graph-layout-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: build/graph-layout-runtime/GraphLayout
+          key: ${{ steps.graph-layout-cache.outputs.cache-primary-key }}
       - name: Verify Revision Graph helper embedding and ad-hoc signing branches
         run: python3 scripts/test-graph-layout-embedding.py
       - name: Build and verify pinned universal OpenSSH helpers

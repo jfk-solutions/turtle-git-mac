@@ -2521,7 +2521,22 @@ struct RevisionTable: NSViewRepresentable {
         table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("bugs"))?.isHidden = !model.issueProperties.showsBugIDColumn || !LogRevisionColumns.visible("bugs")
         table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("graph"))?.isHidden = !LogRevisionColumns.visible("graph") || model.historyWalk.followRenames
         let graphChanged = coordinator.graph != model.graph; coordinator.graph = model.graph
-        let signature = model.entries.map { $0.hash + $0.references.map { $0.name + ($0.kind?.rawValue ?? "") + ($0.displayName ?? "") }.joined() + String($0.isHead) + model.bisectGoodTerm + model.bisectBadTerm + $0.issueIDs + String(model.revisionActions[$0.hash]?.rawValue ?? -1) + String(model.actionFailures.contains($0.hash)) + String(model.rollupInfo[$0.hash]?.collapsed ?? false) }.map { Data($0.utf8) }
+        let signature: [Data] = model.entries.map { entry in
+            var value = entry.hash
+            for reference in entry.references {
+                value += reference.name
+                value += reference.kind?.rawValue ?? ""
+                value += reference.displayName ?? ""
+            }
+            value += String(entry.isHead)
+            value += model.bisectGoodTerm
+            value += model.bisectBadTerm
+            value += entry.issueIDs
+            value += String(model.revisionActions[entry.hash]?.rawValue ?? -1)
+            value += String(model.actionFailures.contains(entry.hash))
+            value += String(model.rollupInfo[entry.hash]?.collapsed ?? false)
+            return Data(value.utf8)
+        }
         let labelsChanged = coordinator.referenceVisibility != model.referenceVisibility || coordinator.referenceContext != model.referenceContext
         coordinator.referenceVisibility = model.referenceVisibility
         coordinator.referenceContext = model.referenceContext

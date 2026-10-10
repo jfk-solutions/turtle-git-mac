@@ -1179,7 +1179,10 @@ import TurtleGitCore
     }
     private func showLog(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], endRevision: String? = nil, selectedRevision: String? = nil, revisionRange: HistoryRevisionRange? = nil) {
         let root = repository.root
-        let baseKey = root.path + (revisionRange.map { "\0range\0" + $0.expression } ?? endRevision.map { "\0" + $0 } ?? "") + (paths.isEmpty ? "" : "\0paths\0" + paths.sorted().joined(separator: "\0"))
+        var baseKey = root.path
+        if let revisionRange { baseKey += "\0range\0" + revisionRange.expression }
+        else if let endRevision { baseKey += "\0" + endRevision }
+        if !paths.isEmpty { baseKey += "\0paths\0" + paths.sorted().joined(separator: "\0") }
         let reusable: (key: String, value: LogWindowController)?
         if let revisionRange {
             reusable = logWindows.first { _, controller in
