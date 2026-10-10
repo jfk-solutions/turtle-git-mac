@@ -224,3 +224,27 @@ engine runs, 17 focused core tests per engine, unsigned builds and bundle audits
 The deletion checks use disposable repositories only and keep ordinary read-only
 invariants separate from intentionally destructive fixture actions. Current
 hosted CI, physical gestures, signed activation and complete parity remain open.
+
+
+## Mouse navigation implementation
+
+The canvas now separates explicit selection used by command routing from user
+clicks. Plain clicks toggle the first selected node and clear the second;
+Command/Control clicks toggle nodes, promote the second when the first is
+removed, and replace the second when a third is added. Modifier clicks on blank
+space preserve the selected pair. Context clicks on a third node reject the
+menu while keeping the pair, matching `UpdateSelectedEntry` upstream.
+
+Dragging blank space pans the native clip view using successive pointer deltas.
+Mouse-up ends the gesture. Clip bounds constrain both panning and overview
+navigation. Command/Control-wheel zoom uses the source 0.9 step and 0.01–2
+limits. Ordinary scrolling keeps AppKit's native behavior; Shift-wheel swaps
+axes for discrete wheel events, while precise trackpad events retain AppKit's
+phase and acceleration handling. Closed or loading graph models reject these
+interactions. The native receiver covers synthetic event dispatch; physical
+mouse/trackpad acceptance, accessibility and signed execution remain pending.
+
+Focused synthetic navigation checks and the retained native graph suite passed
+with system and bundled Git. Unsigned Debug/Store builds and both packaging
+audits passed; see [navigation evidence](qa/revision-graph-navigation-2026-10-10.json).
+This does not certify physical gestures or complete upstream parity.

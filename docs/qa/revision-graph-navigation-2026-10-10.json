@@ -1,0 +1,51 @@
+{
+  "checked_at": "2026-10-10T14:45:13.917402+00:00",
+  "parent_commit": "a8d520623af7853ddfeeccf1b2bca8b80c83a350",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Revision Graph native mouse selection and navigation; focused synthetic events, not full port acceptance.",
+  "implementation": [
+    "plain click toggles first selection and clears second",
+    "Command/Control click toggles/promotes/replaces nodes and preserves selection on blank space",
+    "context menu on a third node rejected while a pair is selected",
+    "successive pointer delta pan with mouse-up termination",
+    "Command/Control wheel source zoom step and bounds",
+    "native scrolling with discrete Shift-axis swap",
+    "clip bounds constrained for pan and overview; busy/closed guards"
+  ],
+  "verification": {
+    "native_system_git_exit": 0,
+    "native_bundled_git_exit": 0,
+    "native_cases": [
+      "plain selected-node toggle",
+      "Control first-node removal promotes second",
+      "Command third-node replacement",
+      "third-node context rejection with unchanged ordered selection",
+      "Control blank selection preservation and plain blank clearing",
+      "actual mouse-down/drag/up with clip origin assertions",
+      "drag after mouse-up leaves origin unchanged",
+      "Control zoom-out and Command zoom-in dispatch",
+      "retained filter/export/menu/deletion/cancellation and repository invariant checks"
+    ],
+    "unsigned_debug_build_exit": 0,
+    "unsigned_appstore_build_exit": 0,
+    "debug_bundle_audit_exit": 0,
+    "appstore_bundle_audit_exit": 0,
+    "upstream_icons": 117
+  },
+  "pending": [
+    "physical mouse and trackpad phases/acceleration",
+    "discrete Shift-axis and zoom-limit/overview-edge native event cases",
+    "upstream mouse-up rubber-band legacy edge behavior",
+    "VoiceOver and persistence",
+    "signed Finder and sandbox activation",
+    "current hosted CI and publication",
+    "complete TortoiseGit application port"
+  ],
+  "logs": [
+    "build/qa/revision-graph-navigation-native-2026-10-10.log",
+    "build/qa/revision-graph-navigation-debug-2026-10-10.log",
+    "build/qa/revision-graph-navigation-store-2026-10-10.log",
+    "build/qa/revision-graph-navigation-debug-audit-2026-10-10.log",
+    "build/qa/revision-graph-navigation-store-audit-2026-10-10.log"
+  ]
+}

@@ -123,6 +123,14 @@ final class RevisionGraphSurface: NSView {
         } else { selection = [hash] }
         changed()
     }
+    // Mouse selection toggles the first node; programmatic routing keeps select
+    // idempotent so opening a menu or restoring a selection cannot clear it.
+    func clickSelection(_ hash: String?, extending: Bool) {
+        guard !busy, !closed else { return }
+        if extending, hash == nil { return }
+        if !extending, hash == selection.first { select(nil, extending: false) }
+        else { select(hash, extending: extending) }
+    }
     static func fullReferenceName(_ ref: RevisionReference) -> String { ref.kind == .annotatedTag ? ref.name + "^{}" : ref.name }
     func friendName(_ hash: String) -> String { nodes.first { $0.hash == hash }?.references.first.map(Self.fullReferenceName) ?? hash }
     func compare(head: Bool = false, working: Bool = false) {
@@ -459,6 +467,7 @@ enum RevisionGraphReferenceCommand {
 @MainActor final class RevisionGraphCanvas: NSView, NSViewToolTipOwner {
     let model: RevisionGraphWindowModel
     var contextMenu: () -> NSMenu = { NSMenu() }
+    private var panPoint: NSPoint?
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { true }
     init(model: RevisionGraphWindowModel) { self.model = model; super.init(frame: CGRect(x: 0, y: 0, width: 900, height: 550)); setAccessibilityRole(.group); setAccessibilityLabel("Revision Graph") }
@@ -534,12 +543,46 @@ enum RevisionGraphReferenceCommand {
         return model.geometry?.nodes.first { $0.rect.contains(p) }?.hash
     }
     override func mouseDown(with event: NSEvent) {
+        panPoint = nil
+        guard !model.busy, !model.closed else { return }
         window?.makeFirstResponder(self)
-        model.select(hit(convert(event.locationInWindow, from: nil)), extending: event.modifierFlags.intersection([.command, .control]).isEmpty == false)
+        let hash = hit(convert(event.locationInWindow, from: nil))
+        let extending = !event.modifierFlags.intersection([.command, .control]).isEmpty
+        model.clickSelection(hash, extending: extending)
+        if hash == nil, !extending { panPoint = event.locationInWindow }
+    }
+    override func mouseDragged(with event: NSEvent) {
+        guard !model.busy, !model.closed, let previous = panPoint, let scroll = enclosingScrollView else { panPoint = nil; return }
+        let clip = scroll.contentView
+        let before = clip.convert(previous, from: nil), after = clip.convert(event.locationInWindow, from: nil)
+        self.scroll(to: NSPoint(x: clip.bounds.minX - (after.x - before.x), y: clip.bounds.minY - (after.y - before.y)))
+        panPoint = event.locationInWindow
+    }
+    override func mouseUp(with event: NSEvent) { panPoint = nil }
+    private func scroll(to origin: NSPoint) {
+        guard let scroll = enclosingScrollView else { return }
+        let clip = scroll.contentView
+        clip.scroll(to: clip.constrainBoundsRect(NSRect(origin: origin, size: clip.bounds.size)).origin)
+        scroll.reflectScrolledClipView(clip)
+    }
+    override func scrollWheel(with event: NSEvent) {
+        guard !model.busy, !model.closed else { return }
+        if !event.modifierFlags.intersection([.command, .control]).isEmpty {
+            guard event.scrollingDeltaY != 0 else { return }
+            model.zoom = max(0.01, min(2, model.zoom * (event.scrollingDeltaY < 0 ? 0.9 : 1 / 0.9)))
+            model.changed()
+        } else if event.modifierFlags.contains(.shift), let clip = enclosingScrollView?.contentView {
+            // Precise trackpad events retain AppKit's acceleration and phases.
+            if event.hasPreciseScrollingDeltas { super.scrollWheel(with: event); return }
+            scroll(to: NSPoint(x: clip.bounds.minX - event.scrollingDeltaY, y: clip.bounds.minY - event.scrollingDeltaX))
+        } else { super.scrollWheel(with: event) }
     }
     override func menu(for event: NSEvent) -> NSMenu? {
-        guard !model.busy, let hash = hit(convert(event.locationInWindow, from: nil)) else { return nil }
-        if !model.selection.contains(hash) { model.select(hash, extending: false) }; return contextMenu()
+        guard !model.busy, !model.closed, let hash = hit(convert(event.locationInWindow, from: nil)) else { return nil }
+        // Upstream preserves a selected pair and rejects menus on a third node.
+        if model.selection.count == 2, !model.selection.contains(hash) { return nil }
+        if !model.selection.contains(hash) { model.select(hash, extending: false) }
+        return contextMenu()
     }
 }
 
@@ -562,8 +605,8 @@ enum RevisionGraphReferenceCommand {
     override func mouseDown(with event: NSEvent) { navigate(event) }
     override func mouseDragged(with event: NSEvent) { navigate(event) }
     private func navigate(_ event: NSEvent) {
-        guard let scroll else { return }; let point = convert(event.locationInWindow, from: nil)
+        guard !model.busy, !model.closed, let scroll else { return }; let point = convert(event.locationInWindow, from: nil)
         let origin = CGPoint(x: max(0, (point.x - 4) / scale * model.zoom - scroll.contentSize.width / 2), y: max(0, (point.y - 4) / scale * model.zoom - scroll.contentSize.height / 2))
-        scroll.contentView.scroll(to: origin); scroll.reflectScrolledClipView(scroll.contentView); needsDisplay = true
+        scroll.contentView.scroll(to: scroll.contentView.constrainBoundsRect(NSRect(origin: origin, size: scroll.contentView.bounds.size)).origin); scroll.reflectScrolledClipView(scroll.contentView); needsDisplay = true
     }
 }

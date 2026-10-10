@@ -70,6 +70,46 @@ import Darwin
             controller.canvas.mouseDown(with: event)
         }
         click(0); try require(model.selection == [geometry[0].hash])
+        click(0); try require(model.selection.isEmpty) // Plain click toggles the first node.
+        click(0); click(1, modifiers: .control)
+        click(0, modifiers: .control); try require(model.selection == [geometry[1].hash])
+        click(2, modifiers: .command); click(0, modifiers: .command)
+        try require(model.selection == [geometry[1].hash, geometry[0].hash])
+        func mouse(_ type: NSEvent.EventType, _ point: NSPoint, modifiers: NSEvent.ModifierFlags = []) -> NSEvent {
+            NSEvent.mouseEvent(with: type, location: controller.canvas.convert(point, to: nil), modifierFlags: modifiers, timestamp: 0, windowNumber: window.windowNumber, context: nil, eventNumber: 1, clickCount: 1, pressure: 0)!
+        }
+        let third = NSPoint(x: geometry[2].rect.midX + 10, y: geometry[2].rect.midY + 10)
+        try require(controller.canvas.menu(for: mouse(.rightMouseDown, third)) == nil)
+        try require(model.selection == [geometry[1].hash, geometry[0].hash])
+        let blank = NSPoint(x: 1, y: 1)
+        controller.canvas.mouseDown(with: mouse(.leftMouseDown, blank, modifiers: .control))
+        try require(model.selection.count == 2)
+        controller.canvas.mouseDown(with: mouse(.leftMouseDown, blank))
+        try require(model.selection.isEmpty)
+        controller.canvas.mouseUp(with: mouse(.leftMouseUp, blank))
+        let scroll = controller.canvas.enclosingScrollView!, clip = scroll.contentView
+        let originalSize = controller.canvas.frame.size
+        let down = mouse(.leftMouseDown, blank)
+        controller.canvas.mouseDown(with: down)
+        // Selection redraw restores the real graph size. Enlarge only after
+        // mouse-down to provide scrollable space for this small graph fixture.
+        controller.canvas.setFrameSize(NSSize(width: originalSize.width + 1000, height: originalSize.height + 1000))
+        clip.scroll(to: NSPoint(x: 100, y: 100)); scroll.reflectScrolledClipView(clip)
+        let drag = NSEvent.mouseEvent(with: .leftMouseDragged, location: NSPoint(x: down.locationInWindow.x - 30, y: down.locationInWindow.y + 40), modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber, context: nil, eventNumber: 1, clickCount: 1, pressure: 0)!
+        controller.canvas.mouseDragged(with: drag)
+        try require(abs(clip.bounds.minX - 130) < 1 && abs(clip.bounds.minY - 140) < 1)
+        controller.canvas.mouseUp(with: drag)
+        controller.canvas.mouseDragged(with: down); try require(abs(clip.bounds.minX - 130) < 1)
+        controller.canvas.setFrameSize(originalSize); clip.scroll(to: .zero); scroll.reflectScrolledClipView(clip)
+        func wheel(_ delta: Int32, flags: CGEventFlags) -> NSEvent {
+            let cg = CGEvent(scrollWheelEvent2Source: nil, units: .line, wheelCount: 1, wheel1: delta, wheel2: 0, wheel3: 0)!
+            cg.flags = flags; return NSEvent(cgEvent: cg)!
+        }
+        controller.canvas.scrollWheel(with: wheel(-1, flags: .maskControl)); try require(abs(model.zoom - 0.9) < 0.0001)
+        controller.canvas.scrollWheel(with: wheel(1, flags: .maskCommand)); try require(abs(model.zoom - 1) < 0.0001)
+        print("PASS: Revision Graph mouse selection, pair menu rejection, drag pan and modifier-wheel zoom")
+        model.select(nil, extending: false)
+
         // Menus derive reference-specific actions from the selected graph node.
         let feature = model.nodes.first { $0.references.contains { $0.name == "refs/heads/feature/native-graph" } }!
         model.select(feature.hash, extending: false)
@@ -91,7 +131,7 @@ import Darwin
         try require(!controller.nodeMenu().items.contains { $0.title == "Reset…" || $0.title == "Create branch…" || $0.title == "Copy hash" })
         var copied = ""; model.copyReferences = { copied = $0 }; controller.perform("copyRefs")
         try require(copied == main.references.map(\.name).joined(separator: "\n"))
-        click(0)
+        model.select(nil, extending: false); click(0)
         let menu = controller.nodeMenu()
         try require(menu.items.first { $0.title == "Show Log" }?.image != nil)
         var routed = false; model.onLog = { _ in routed = true }; controller.perform("log"); try require(routed)
