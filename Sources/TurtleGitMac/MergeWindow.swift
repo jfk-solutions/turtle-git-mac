@@ -571,6 +571,8 @@ enum MergeAbortPostAction: String, CaseIterable, Hashable {
     private var invalidated = false
     private var cancellation = OperationCancellation()
     private var operationMode = MergeAbortMode.merge
+    private var worker: Task<Void, Never>?
+    @Published var hasChild = false
     @Published var mode = MergeAbortMode.merge
     @Published private(set) var busy = false
     @Published private(set) var showingProgress = false
@@ -586,37 +588,45 @@ enum MergeAbortPostAction: String, CaseIterable, Hashable {
     private var autoClosePolicy = GitProgressAutoClose.manual
     var close: () -> Void = {}
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.preferences = preferences }
-    func invalidate() { invalidated = true }
-    func showModified() { guard !invalidated, !busy, !showingProgress else { return }; onShowModified?() }
+    func invalidate() { invalidated = true; cancellation.cancel(); worker?.cancel() }
+    func showModified() { guard !invalidated, !busy, !hasChild, !showingProgress else { return }; onShowModified?() }
     func abort() {
-        guard !invalidated, !busy, !showingProgress else { return }
+        guard !invalidated, !busy, !hasChild, !showingProgress else { return }
         operationMode = mode; showingProgress = true; onResize(true); start()
     }
     private func start() {
         ProgressActionLog.nextAttempt(self, savePrevious: !output.isEmpty)
         autoClosePolicy = GitProgressAutoClose(preferences: preferences)
         busy = true; success = false; cancelled = false; output = ""; postActions = []; cancellation = OperationCancellation()
-        Task {
+        let token = cancellation, selectedMode = operationMode
+        worker = Task {
+            // Keep the operation active until the owned process has actually unwound.
+            var result = "", actions: [MergeAbortPostAction] = []
+            var succeeded = false
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                output = try await repository.abortMerge(mode: operationMode, cancellation: cancellation)
-                success = true
-                if operationMode != .merge {
-                    if operationMode == .hard, (try? await repository.submoduleUpdatePaths().isEmpty) == false { postActions.append(.submoduleUpdate) }
-                    if let path = try? await repository.run(["rev-parse", "--git-path", "BISECT_START"]).text.trimmingCharacters(in: .newlines) {
+                result = try await repository.abortMerge(mode: selectedMode, cancellation: token)
+                succeeded = true
+                if selectedMode != .merge {
+                    if selectedMode == .hard, (try? await repository.submoduleUpdatePaths(cancellation: token).isEmpty) == false { actions.append(.submoduleUpdate) }
+                    if let path = try? await repository.run(["rev-parse", "--git-path", "BISECT_START"], cancellation: token).text.trimmingCharacters(in: .newlines) {
                         let url = path.hasPrefix("/") ? URL(fileURLWithPath: path) : repository.root.appendingPathComponent(path)
-                        if FileManager.default.fileExists(atPath: url.path) { postActions += [.good, .bad, .skip, .reset] }
+                        if FileManager.default.fileExists(atPath: url.path) { actions += [.good, .bad, .skip, .reset] }
                     }
-                    if operationMode == .hard { postActions.append(.clean) }
+                    if selectedMode == .hard { actions.append(.clean) }
                 }
-            } catch { output = error.localizedDescription; cancelled = cancellation.isCancelled; postActions = [.retry] }
-            busy = false; onChanged(output)
+            } catch { result = error.localizedDescription; actions = [.retry] }
+            busy = false; worker = nil
+            guard !invalidated else { return }
+            output = result; success = succeeded; cancelled = token.isCancelled; postActions = actions
+            onChanged(output)
+            guard !invalidated else { return }
             if autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { close() }
         }
     }
     func cancel() { guard busy else { return }; cancellation.cancel() }
     func perform(_ action: MergeAbortPostAction) {
-        guard !invalidated, !busy, postActions.contains(action) else { return }
+        guard !invalidated, !busy, !hasChild, postActions.contains(action) else { return }
         if action == .retry {
             saveActionLog();
             if operationMode == .merge { mode = .merge; showingProgress = false; onResize(false) }
@@ -627,19 +637,76 @@ enum MergeAbortPostAction: String, CaseIterable, Hashable {
 @MainActor final class MergeAbortWindowController: NSWindowController, NSWindowDelegate {
     let model: MergeAbortWindowModel
     var onClosed: () -> Void = {}
-    init(repository: GitRepository, access: RepositoryAccessLease?) {
-        model = MergeAbortWindowModel(repository: repository, access: access)
+    private(set) var modifiedFiles: RevisionComparisonWindowController?
+    private(set) var progress: MergeAbortProgressWindowController?
+    init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
+        model = MergeAbortWindowModel(repository: repository, access: access, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 660, height: 265), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Abort Merge – TurtleGit"; window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: MergeAbortDialog(model: model))
         super.init(window: window); window.delegate = self; window.center()
-        model.close = { [weak self] in guard let self, !self.model.busy, self.window?.attachedSheet == nil else { return }; self.window?.close() }
-        model.onResize = { [weak window] progress in window?.setContentSize(progress ? NSSize(width: 760, height: 420) : NSSize(width: 660, height: 265)) }
+        model.close = { [weak self] in guard let self, !self.model.busy, !self.model.hasChild, self.window?.attachedSheet == nil, self.progress?.window?.attachedSheet == nil else { return }; self.window?.close() }
+        model.onResize = { [weak self] showing in self?.showProgress(showing) }
 
+        model.onShowModified = { [weak self] in self?.showModifiedFiles(access: access) }
         DialogGeometry.attach(window, identifier: "MergeAbortWindowController")
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; return sender.attachedSheet == nil }
-    func windowWillClose(_ notification: Notification) { model.saveActionLog(); model.invalidate(); onClosed() }
+    private func showProgress(_ showing: Bool) {
+        guard let window else { return }
+        if showing {
+            guard progress == nil else { return }
+            let controller = MergeAbortProgressWindowController(model: model)
+            progress = controller
+            controller.onClosed = { [weak self] in self?.progress = nil; self?.window?.close() }
+            controller.window?.alphaValue = window.alphaValue
+            controller.window?.setFrameOrigin(window.frame.origin)
+            window.orderOut(nil)
+            controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        } else {
+            // Upstream Merge retry returns to the options dialog; Mixed/Hard
+            // retry remains in the existing progress window.
+            progress?.onClosed = {}; progress?.close(); progress = nil
+            window.makeKeyAndOrderFront(nil)
+        }
+    }
+    private func showModifiedFiles(access: RepositoryAccessLease?) {
+        guard let window, !model.busy, !model.hasChild, !model.showingProgress, window.attachedSheet == nil else { return }
+        let child = RevisionComparisonWindowController(repository: model.repository, access: access, from: .revision("HEAD"), to: .workingTree)
+        guard let sheet = child.window else { return }
+        modifiedFiles = child; model.hasChild = true
+        child.onClosed = { [weak self, weak sheet] in
+            if let sheet, let parent = sheet.sheetParent { parent.endSheet(sheet) }
+            self?.modifiedFiles = nil; self?.model.hasChild = false
+        }
+        sheet.alphaValue = window.alphaValue
+        window.beginSheet(sheet); child.model.load()
+    }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; return !model.hasChild && sender.attachedSheet == nil }
+    func windowWillClose(_ notification: Notification) {
+        model.saveActionLog(); model.invalidate()
+        progress?.onClosed = {}; progress?.close(); progress = nil
+        if let child = modifiedFiles { child.close() }
+        modifiedFiles = nil; model.hasChild = false; onClosed()
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+}
+@MainActor final class MergeAbortProgressWindowController: NSWindowController, NSWindowDelegate {
+    let model: MergeAbortWindowModel
+    var onClosed: () -> Void = {}
+    init(model: MergeAbortWindowModel) {
+        self.model = model
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 420), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        window.title = "\(model.repository.root.lastPathComponent) – Reset – TurtleGit"; window.isReleasedWhenClosed = false
+        window.contentMinSize = NSSize(width: 600, height: 300)
+        window.contentViewController = NSHostingController(rootView: MergeAbortDialog(model: model))
+        super.init(window: window); window.delegate = self
+        DialogGeometry.attach(window, identifier: "MergeAbortProgressWindowController")
+    }
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if model.busy { model.cancel(); return false }
+        return sender.attachedSheet == nil
+    }
+    func windowWillClose(_ notification: Notification) { onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 private struct MergeAbortDialog: View {

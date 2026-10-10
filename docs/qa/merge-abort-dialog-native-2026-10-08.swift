@@ -20,7 +20,10 @@ import TurtleGitCore
         try Data("ours\n".utf8).write(to: root.appendingPathComponent("file")); try await repo.stage(["file"]); _ = try await repo.commit(message: "ours")
         let head = try await repo.run(["rev-parse", "HEAD"]).stdout
         var options = MergeOptions(); options.revision = "refs/heads/feature"
-        let idle = MergeAbortWindowModel(repository: repo, access: nil)
+        let suite = "TurtleGit.Abort.QA." + UUID().uuidString
+        let preferences = UserDefaults(suiteName: suite)!
+        defer { preferences.removePersistentDomain(forName: suite) }
+        let idle = MergeAbortWindowModel(repository: repo, access: nil, preferences: preferences)
         var comparisons = 0, idleClosed = 0
         idle.onShowModified = { comparisons += 1 }; idle.close = { idleClosed += 1 }
         let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
@@ -28,6 +31,89 @@ import TurtleGitCore
         idle.showModified(); idle.close(); idle.invalidate(); idle.showModified(); idle.abort()
         precondition(comparisons == 1 && idleClosed == 1 && !idle.showingProgress)
         let idleIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")); precondition(idleIndex == index)
+        DialogGeometry.install(preferences: preferences)
+        let owner = MergeAbortWindowController(repository: repo, access: nil, preferences: preferences)
+        let parent = owner.window!; parent.alphaValue = 0; parent.orderFront(nil)
+        var ownerClosed = 0; owner.onClosed = { ownerClosed += 1 }
+        owner.model.showModified()
+        let comparison = owner.modifiedFiles!, sheet = comparison.window!; sheet.alphaValue = 0
+        precondition(parent.attachedSheet === sheet && sheet.sheetParent === parent && owner.model.hasChild)
+        try await waitUntil { !comparison.model.busy }
+        precondition(comparison.model.from == "HEAD" && comparison.model.to == ComparisonRevision.workingTree.label)
+        owner.model.abort(); owner.model.close(); owner.model.showModified()
+        precondition(!owner.model.showingProgress && owner.modifiedFiles === comparison && ownerClosed == 0)
+        precondition(!owner.windowShouldClose(parent))
+        let delegate = TurtleGitApplicationDelegate()
+        precondition(delegate.applicationShouldTerminate(NSApplication.shared) == .terminateCancel)
+        sheet.close()
+        try await waitUntil { parent.attachedSheet == nil && !owner.model.hasChild }
+        owner.model.showModified()
+        let forcedChild = owner.modifiedFiles!, forcedSheet = forcedChild.window!
+        forcedSheet.alphaValue = 0
+        parent.close()
+        try await waitUntil { forcedSheet.sheetParent == nil && owner.modifiedFiles == nil }
+        precondition(ownerClosed == 1 && !forcedSheet.isVisible)
+        owner.model.abort(); precondition(!owner.model.showingProgress)
+
+        // Force-close while HEAD preflight is running: retain busy until reaped,
+        // and never publish the cancelled result to the repository factory.
+        let helper = root.appendingPathComponent("abort-slow-git"), ready = root.appendingPathComponent("abort-ready")
+        func quote(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'" }
+        let script = """
+        #!/bin/sh
+        for arg in "$@"; do
+          if [ "$arg" = 'HEAD^{commit}' ]; then
+            /bin/sleep 30 &
+            child=$!
+            /usr/bin/printf '%s\\n%s\\n' "$$" "$child" > \(quote(ready.path))
+            wait "$child"
+          fi
+        done
+        exec \(quote(git.path)) "$@"
+        """
+        try Data(script.utf8).write(to: helper)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
+        let slow = GitRepository(root: root, executable: helper)
+        let running = MergeAbortWindowController(repository: slow, access: nil, preferences: preferences)
+        let runningWindow = running.window!; runningWindow.alphaValue = 0; runningWindow.orderFront(nil)
+        var published = 0; running.model.onChanged = { _ in published += 1 }
+        running.model.abort()
+        try await waitUntil { ((try? String(contentsOf: ready)) ?? "").split(separator: "\n").count == 2 }
+        let pids = try String(contentsOf: ready).split(separator: "\n").compactMap { Int32($0) }
+        precondition(delegate.applicationShouldTerminate(NSApplication.shared) == .terminateCancel)
+        let separateProgress = running.progress!, progressWindow = separateProgress.window!
+        precondition(progressWindow !== runningWindow && progressWindow.isVisible && !runningWindow.isVisible)
+        precondition(!separateProgress.windowShouldClose(progressWindow))
+        runningWindow.close()
+        precondition(running.model.busy, "Cancellation is a request, not process completion")
+        try await waitUntil { !running.model.busy && pids.allSatisfy { kill($0, 0) == -1 } }
+        precondition(published == 0 && running.model.output.isEmpty && running.model.postActions.isEmpty && !running.model.success)
+        let afterForcedIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")); precondition(afterForcedIndex == index)
+        print("Abort ownership: hidden HEAD/working sheet, duplicate/OK/Close/Quit gates, child close and forced parent teardown; active HEAD-preflight forced-close cancellation reaps leader/child and rejects result callbacks. Private preferences only.")
+        for mode in MergeAbortMode.allCases {
+            let controller = MergeAbortWindowController(repository: repo, access: nil, preferences: preferences)
+            let optionsWindow = controller.window!; optionsWindow.alphaValue = 0; optionsWindow.orderFront(nil)
+            controller.model.mode = mode
+            let lock = root.appendingPathComponent(".git/index.lock"); try Data().write(to: lock)
+            controller.model.abort()
+            let firstProgress = controller.progress!, firstWindow = firstProgress.window!
+            precondition(firstWindow !== optionsWindow && firstWindow.isVisible && !optionsWindow.isVisible)
+            try await waitUntil { !controller.model.busy }
+            precondition(!controller.model.success && controller.model.postActions == [.retry])
+            try FileManager.default.removeItem(at: lock)
+            controller.model.perform(.retry)
+            if mode == .merge {
+                precondition(controller.progress == nil && optionsWindow.isVisible && !firstWindow.isVisible)
+                controller.model.abort()
+                precondition(controller.progress !== firstProgress && !optionsWindow.isVisible)
+            } else { precondition(controller.progress === firstProgress && !optionsWindow.isVisible) }
+            try await waitUntil { !controller.model.busy }
+            precondition(controller.model.success)
+            let finalWindow = controller.progress!.window!
+            finalWindow.close()
+            precondition(controller.progress == nil && !optionsWindow.isVisible && !finalWindow.isVisible)
+        }
+        print("Abort native lifecycle: separate hidden options/reset-progress windows; Merge failure retry reopens options/new progress; Mixed/Hard retry keeps progress; final close retires owner.")
         var closes = 0, aborts = 0
         let progress = MergeProgressWindowModel(repository: repo, access: nil, options: options, target: .branch, showStashPop: false)
         progress.close = { closes += 1 }; progress.onAbortRequested = { aborts += 1 }
@@ -46,7 +132,7 @@ import TurtleGitCore
             do { _ = try await repo.merge(options); preconditionFailure("Expected conflict") } catch is GitFailure {}
             let before = try Data(contentsOf: root.appendingPathComponent("file"))
             try Data("untracked\n".utf8).write(to: root.appendingPathComponent("untracked"))
-            let model = MergeAbortWindowModel(repository: repo, access: nil)
+            let model = MergeAbortWindowModel(repository: repo, access: nil, preferences: preferences)
             model.mode = mode; var changed = 0, resize: [Bool] = [], action: MergeAbortPostAction?
             model.onChanged = { _ in changed += 1 }; model.onResize = { resize.append($0) }; model.onPostAction = { action = $0 }
             model.abort(); model.mode = mode == .mixed ? .hard : .mixed; model.abort(); model.showModified()
@@ -63,7 +149,7 @@ import TurtleGitCore
         for mode in MergeAbortMode.allCases {
             let lock = root.appendingPathComponent(".git/index.lock")
             try Data().write(to: lock)
-            let model = MergeAbortWindowModel(repository: repo, access: nil); model.mode = mode; model.abort()
+            let model = MergeAbortWindowModel(repository: repo, access: nil, preferences: preferences); model.mode = mode; model.abort()
             try await waitUntil { !model.busy }
             precondition(!model.success && model.postActions == [.retry])
             try FileManager.default.removeItem(at: lock)
@@ -76,10 +162,10 @@ import TurtleGitCore
         }
         // Source mixed/hard reset success adds all four Bisect actions when active.
         _ = try await repo.run(["bisect", "start"])
-        let mixed = MergeAbortWindowModel(repository: repo, access: nil); mixed.mode = .mixed; mixed.abort()
+        let mixed = MergeAbortWindowModel(repository: repo, access: nil, preferences: preferences); mixed.mode = .mixed; mixed.abort()
         try await waitUntil { !mixed.busy }; precondition(mixed.success && mixed.postActions == [.good, .bad, .skip, .reset])
         _ = try await repo.run(["bisect", "reset"])
         precondition(MergeAbortPostAction.good.bisectOperation == .good && MergeAbortPostAction.retry.bisectOperation == nil)
-        print("Abort Merge: defaults/comparison/idle nonmutation/invalidation; Cancel vs Close, duplicate dismissal and fresh conflict resolution; all three real reset modes and captured selection; untracked/HEAD preservation; lock failures and mode-specific Retry; active Bisect post-actions. No windows, standard preferences or clipboard writes.")
+        print("Abort Merge: defaults/comparison/idle nonmutation/invalidation; Cancel vs Close, duplicate dismissal and fresh conflict resolution; all three real reset modes and captured selection; untracked/HEAD preservation; lock failures and mode-specific Retry; active Bisect post-actions. Hidden controller windows closed; private preferences; no clipboard writes.")
     }
 }

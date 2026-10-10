@@ -1317,7 +1317,6 @@ import TurtleGitCore
         let id = UUID(), root = repository.root
         let controller = MergeAbortWindowController(repository: repository, access: access)
         controller.onClosed = { [weak self] in self?.mergeAbortWindows.removeValue(forKey: id) }
-        controller.model.onShowModified = { [weak self] in self?.showRevisionComparison(repository: repository, access: access, from: .revision("HEAD"), to: .workingTree) }
         controller.model.onChanged = { [weak self] output in
             self?.referenceLogWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.statusWindows[root.path]?.model.reload()
             self?.refreshRepositoryLogs(root)
