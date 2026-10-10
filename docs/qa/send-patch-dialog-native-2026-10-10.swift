@@ -1,6 +1,6 @@
 import AppKit
 import SwiftUI
-import TurtleGitCore
+@testable import TurtleGitCore
 
 private struct VerificationFailure: Error, CustomStringConvertible { let description: String }
 private actor PrivateSMTPStore: SMTPCredentialStore {
@@ -338,8 +338,71 @@ private actor DeliveryProbe {
         let liveRequest = SendPatchRequest(files: [second, second], options: liveOptions, messages: liveMessages, delivery: loopback)
         try liveMessages[0].body.write(to: root.appendingPathComponent("expected-body"))
         try liveMessages[0].attachments[0].bytes.write(to: root.appendingPathComponent("expected-attachment"))
-        let liveReceipts = try await SendPatchSMTPDelivery.send(liveRequest, repository: repository, access: nil, credentials: credentialSource, cancellation: OperationCancellation(), onProgress: { _ in })
-        try require(liveReceipts.count == 1 && liveReceipts[0].response == 250, "Actual Git sender/SDK SMTP orchestration submission")
+        loopback.save(prefs); prefs.set(0, forKey: "AutoCloseGitProgress")
+        var shownOptions: SendPatchWindowController?, shownProgress: SendPatchProgressWindowController?, formatCloses = 0
+        let format = FormatPatchWindowController(repository: repository, access: nil, preferences: prefs, mailPresentation: { controller in
+            if let options = controller as? SendPatchWindowController { shownOptions = options }
+            if let progress = controller as? SendPatchProgressWindowController { shownProgress = progress }
+        })
+        format.onClosed = { formatCloses += 1 }
+        let loadDeadline = Date().addingTimeInterval(10)
+        while format.model.busy && Date() < loadDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        try require(!format.model.busy, "Format parent load")
+        format.model.composeMail([second, second])
+        guard let options = shownOptions else { throw VerificationFailure(description: "Format configured mail options not presented") }
+        try require(format.model.composingMail && options.window?.isVisible == false, "Retained hidden options and Format close fence")
+        options.model.to = liveOptions.to; options.model.cc = liveOptions.cc; options.model.combine = true
+        options.model.attachment = true; options.model.combinedSubject = liveOptions.subject
+        options.model.submit(); try await settle(options.model)
+        guard let progress = shownProgress else { throw VerificationFailure(description: "Configured progress not presented") }
+        let deliveryDeadline = Date().addingTimeInterval(15)
+        while progress.model.busy && Date() < deliveryDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        try require(!progress.model.busy && progress.model.success && progress.model.accepted == 1 && progress.model.percentage == 100, "Actual Format options/progress/Git sender/SDK SMTP submission")
+        try require(progress.window?.isVisible == false && format.model.composingMail, "Progress retained until user close without ordered windows")
+        progress.window?.performClose(nil)
+        try require(!format.model.composingMail && formatCloses == 1, "Final close releases Format parent once")
+        var importOptions: SendPatchWindowController?
+        let importer = ImportPatchWindowController(repository: repository, access: nil, preferences: prefs, mailPresentation: { importOptions = $0 as? SendPatchWindowController })
+        importer.model.add([second]); importer.model.sendMail(Set(importer.model.items.map(\.id)))
+        try require(importer.model.composingMail && importOptions != nil, "Import selected mail configured route")
+        importOptions?.model.cancel()
+        try require(!importer.model.composingMail && importer.model.error == nil, "Cancelling Import mail options unlocks parent")
+        importer.window?.performClose(nil)
+
+        // Hidden progress checks inject outcomes; no repeated network sends.
+        let receipt = SMTPReceipt(response: 250)
+        let failed = SendPatchProgressModel(request: captured, repository: repository, access: nil, preferences: prefs, submission: { _, notify in
+            notify(.sending(index: 0, total: 2, attempt: 1)); notify(.accepted(index: 0, response: 250))
+            notify(.sending(index: 1, total: 2, attempt: 1)); notify(.retry(index: 1, nextAttempt: 2))
+            throw SMTPSeriesFailure(index: 1, attempts: 1, accepted: [receipt], cause: SMTPFailure.transfer(code: 55, response: 0, possiblySubmitted: true))
+        })
+        failed.start(); failed.start()
+        while failed.busy { try await Task.sleep(nanoseconds: 10_000_000) }
+        try require(!failed.success && !failed.cancelled && failed.accepted == 1 && failed.percentage == 50, "Partial acceptance and uncertain delivery remain failures")
+        try require(failed.output.contains("Retrying message 2") && failed.output.contains("verify before retrying") && failed.completionRange != nil, "Retry/error/uncertainty/footer retained")
+        let stopped = SendPatchProgressModel(request: captured, repository: repository, access: nil, preferences: prefs, submission: { token, notify in
+            notify(.sending(index: 0, total: 2, attempt: 1))
+            while !token.isCancelled { try await Task.sleep(nanoseconds: 10_000_000) }
+            throw OperationCancellationFailure.cancelled
+        })
+        let stoppedController = SendPatchProgressWindowController(model: stopped)
+        var confirm: ((Bool) -> Void)?
+        stopped.confirmCancellation = { confirm = $0 }; prefs.set(true, forKey: "ConfirmKillProcess")
+        stopped.start(); stoppedController.window?.performClose(nil)
+        try require(stopped.busy && stopped.confirmingCancellation, "User close requests Abort confirmation without closing")
+        confirm?(false); try require(stopped.busy && !stopped.cancelling, "No leaves send running")
+        stopped.cancel(); confirm?(true); confirm?(true)
+        let stopDeadline = Date().addingTimeInterval(10)
+        while stopped.busy && Date() < stopDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        try require(!stopped.busy && stopped.cancelled && !stopped.success && stopped.accepted == 0, "Confirmed Abort cancels owned operation")
+        stoppedController.window?.performClose(nil); prefs.set(false, forKey: "ConfirmKillProcess")
+        for appearance in [NSAppearance.Name.aqua, .darkAqua] {
+            let hidden = SendPatchProgressWindowController(model: failed)
+            hidden.window?.appearance = NSAppearance(named: appearance); hidden.window?.contentView?.layoutSubtreeIfNeeded()
+            try require(hidden.window?.isVisible == false && (hidden.window?.contentView?.fittingSize.height ?? 0) < 430, "Hidden progress layout fits light/dark")
+            hidden.window?.performClose(nil)
+        }
+        print("Native configured progress and Format/Import routes: retained hidden options/result, real loopback success, accepted-prefix uncertainty, retry/footer, Abort confirmation/No/Yes and light/dark checks passed.")
         let afterLoopback = await credentialSource.count()
         try require(afterLoopback == afterInvalid, "Production unauthenticated entry queried credentials")
         print("Actual configured submission captured private Git sender and submitted combined MIME/To/CC to owned loopback server with SDK frameworks; no user Keychain or real mail service.")

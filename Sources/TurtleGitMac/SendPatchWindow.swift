@@ -332,3 +332,190 @@ enum SendPatchSMTPDeliveryFailure: LocalizedError {
         }
     }
 }
+
+/// Preserve notification order while coalescing frequent byte progress updates.
+private final class SendPatchProgressMailbox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var events: [SMTPSeriesProgress] = [], upload: SMTPSeriesProgress?
+    func append(_ event: SMTPSeriesProgress) {
+        lock.lock(); defer { lock.unlock() }
+        if case .upload = event { upload = event } else { events.append(event) }
+    }
+    func drain() -> [SMTPSeriesProgress] {
+        lock.lock(); defer { lock.unlock() }
+        let result = events + (upload.map { [$0] } ?? []); events.removeAll(); upload = nil; return result
+    }
+}
+@MainActor final class SendPatchProgressModel: ObservableObject, ActionLogProgress {
+    typealias Submission = @MainActor (OperationCancellation, @escaping @Sendable (SMTPSeriesProgress) -> Void) async throws -> [SMTPReceipt]
+    let repository: GitRepository
+    let total: Int
+    private let submission: Submission, preferences: UserDefaults, policy: GitProgressAutoClose
+    private let token = OperationCancellation()
+    private var started = false, invalidated = false, logBytes = 0
+    private let logLimit: Int
+    @Published private(set) var busy = false
+    @Published private(set) var success = false
+    @Published private(set) var cancelled = false
+    @Published private(set) var cancelling = false
+    @Published private(set) var accepted = 0
+    @Published private(set) var currentIndex = 0
+    @Published private(set) var percentage = 0
+    @Published private(set) var currentWork = ""
+    @Published private(set) var output = ""
+    @Published private(set) var error: String?
+    @Published private(set) var completionRange: NSRange?
+    @Published private(set) var confirmingCancellation = false
+    var close: () -> Void = {}
+    var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
+    var activeOperation: Bool { busy || confirmingCancellation }
+    var actionLogRepository: URL { repository.root }
+    var actionLogCancelled: Bool { cancelled }
+    var actionLogEligible: Bool { started && !busy && !invalidated }
+    init(request: SendPatchRequest, repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, submission: Submission? = nil) {
+        self.repository = repository; total = request.messages.count; self.preferences = preferences
+        policy = GitProgressAutoClose(preferences: preferences); logLimit = GitProgressOutputState(preferences: preferences).limit
+        self.submission = submission ?? { token, progress in
+            try await SendPatchSMTPDelivery.send(request, repository: repository, access: access, cancellation: token, onProgress: progress)
+        }
+    }
+    func start() {
+        guard !started, !invalidated else { return }; started = true; busy = true; currentWork = "Capturing sender and credentials…"
+        let began = ProcessInfo.processInfo.systemUptime, mailbox = SendPatchProgressMailbox()
+        let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
+        Task {
+            let work = Task {
+                defer { continuation.finish() }
+                return try await submission(token, { event in mailbox.append(event); continuation.yield(()) })
+            }
+            for await _ in updates { if !invalidated { mailbox.drain().forEach(consume) } }
+            if !invalidated { mailbox.drain().forEach(consume) }
+            do {
+                let receipts = try await work.value
+                guard !invalidated else { busy = false; return }
+                accepted = receipts.count; success = receipts.count == total
+                if !success { error = "The transport returned an incomplete acceptance result."; append("error: " + error!) }
+            } catch {
+                guard !invalidated else { busy = false; return }
+                if let failure = error as? SMTPSeriesFailure { accepted = failure.accepted.count; currentIndex = failure.index }
+                self.error = error.localizedDescription
+                var uncertain = false
+                if let failure = error as? SMTPSeriesFailure, case SMTPFailure.transfer(_, _, true) = failure.cause { uncertain = true }
+                cancelled = token.isCancelled && !uncertain
+                append((cancelled ? "warning: " : "error: ") + error.localizedDescription)
+            }
+            append("Accepted \(accepted) of \(total) messages.")
+            let completion = SubmoduleProgressCompletion(success: success, cancelled: cancelled, exitCode: nil,
+                elapsed: ProcessInfo.processInfo.systemUptime - began, preferences: preferences)
+            currentWork = completion.currentWork; completionRange = completion.append(to: &output)
+            percentage = success ? 100 : total == 0 ? 0 : Int(Double(accepted) / Double(total) * 100)
+            busy = false; saveActionLog(); finishAutomaticClose()
+        }
+    }
+    private func append(_ line: String) {
+        let value = line + "\n"
+        guard logBytes < logLimit else { return }
+        if value.utf8.count > logLimit - logBytes { output += "[Output truncated]\n"; logBytes = logLimit }
+        else { output += value; logBytes += value.utf8.count }
+    }
+    private func consume(_ event: SMTPSeriesProgress) {
+        switch event {
+        case let .sending(index, count, attempt):
+            currentIndex = index; currentWork = "Sending message \(index + 1) of \(count) (attempt \(attempt))"
+            append(currentWork)
+        case let .retry(index, next): append("Retrying message \(index + 1) (attempt \(next))…")
+        case let .accepted(index, response):
+            accepted = max(accepted, index + 1); append("Message \(index + 1) accepted (SMTP \(response)).")
+            percentage = total == 0 ? 0 : Int(Double(accepted) / Double(total) * 100)
+        case let .upload(index, progress):
+            guard index == currentIndex, index >= accepted, total > 0, progress.total > 0 else { return }
+            percentage = min(99, Int((Double(index) + min(1, Double(progress.uploaded) / Double(progress.total))) / Double(total) * 100))
+        }
+    }
+    func cancel() {
+        guard busy, !invalidated, !cancelling, !confirmingCancellation else { return }
+        if preferences.bool(forKey: "ConfirmKillProcess") {
+            confirmingCancellation = true; var answered = false
+            confirmCancellation { [weak self] accepted in
+                guard !answered, let self, !self.invalidated else { return }; answered = true; self.confirmingCancellation = false
+                if self.busy && accepted { self.cancelling = true; self.currentWork = "Cancelling…"; self.token.cancel() }
+                self.finishAutomaticClose()
+            }
+        } else { cancelling = true; currentWork = "Cancelling…"; token.cancel() }
+    }
+    func invalidate() { invalidated = true; token.cancel() }
+    private func finishAutomaticClose() { if !activeOperation, !invalidated, policy.shouldClose(success: success, postActionCount: 0) { close() } }
+}
+
+@MainActor final class SendPatchProgressWindowController: NSWindowController, NSWindowDelegate {
+    let model: SendPatchProgressModel
+    var onClosed: () -> Void = {}
+    init(model: SendPatchProgressModel) {
+        self.model = model
+        let window = SubmoduleProgressNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 430), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        window.title = "Send Patch – TurtleGit"; window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 600, height: 320)
+        window.contentViewController = NSHostingController(rootView: SendPatchProgressDialog(model: model))
+        super.init(window: window); window.delegate = self; window.center()
+        model.close = { [weak self] in guard let self, !self.model.activeOperation, self.window?.attachedSheet == nil else { return }; self.window?.close() }
+        window.escapeAction = { [weak model] in if model?.busy == true { model?.cancel() } else { model?.close() } }
+        model.confirmCancellation = { [weak window] choose in
+            guard let window, window.attachedSheet == nil else { choose(false); return }
+            let alert = NSAlert(); alert.messageText = "The process is still running."; alert.informativeText = "Are you sure to abort?"
+            alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No")
+            alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn) }
+        }
+        DialogGeometry.attach(window, identifier: "ProgressDlg")
+    }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; return !model.activeOperation && sender.attachedSheet == nil }
+    func windowWillClose(_ notification: Notification) { model.saveActionLog(); model.invalidate(); onClosed() }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+}
+private struct SendPatchProgressDialog: View {
+    @ObservedObject var model: SendPatchProgressModel
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack { if let image = MenuIcon.sendMail.image() { Image(nsImage: image) }; Text("Sending patches").font(.headline) }
+            Text(model.repository.root.path).font(.caption).textSelection(.enabled)
+            Text(model.currentWork.isEmpty ? " " : model.currentWork).font(.caption)
+            ProgressView(value: Double(model.percentage), total: 100).tint(model.busy ? .accentColor : model.success ? .blue : .red)
+            SubmoduleProgressOutputView(text: model.output, completed: !model.busy, completionRange: model.completionRange, success: model.success).frame(maxWidth: .infinity, maxHeight: .infinity)
+            HStack {
+                Text("Accepted \(model.accepted) of \(model.total)").foregroundStyle(model.success ? Color.green : model.busy ? Color.primary : Color.red)
+                if model.busy { ProgressView().controlSize(.small) }
+                Spacer()
+                Button("Close") { model.close() }.keyboardShortcut(.defaultAction).disabled(model.activeOperation)
+                Button("Abort") { if model.busy { model.cancel() } else { model.close() } }.keyboardShortcut(.cancelAction).disabled(model.success || model.confirmingCancellation || model.busy && model.cancelling)
+            }
+        }.padding(12)
+    }
+}
+
+/// Retains options, progress and access until the final user close. Configured
+/// routing is introduced first; other delivery modes retain their existing path.
+@MainActor final class ConfiguredSendPatchWorkflow {
+    private var options: SendPatchWindowController?, progress: SendPatchProgressWindowController?
+    private var finished = false
+    private let completion: (String?) -> Void
+    private let present: (NSWindowController) -> Void
+    init(files: [URL], repository: GitRepository, access: RepositoryAccessLease?, fileAccess: [RepositoryAccessLease], preferences: UserDefaults, presentation: ((NSWindowController) -> Void)? = nil, completion: @escaping (String?) -> Void) {
+        self.completion = completion
+        present = presentation ?? { $0.showWindow(nil); $0.window?.makeKeyAndOrderFront(nil) }
+        let controller = SendPatchWindowController(files: files, access: fileAccess, preferences: preferences)
+        options = controller
+        controller.model.onSubmit = { [weak self] request in
+            guard let self, !self.finished, self.progress == nil else { return }
+            let model = SendPatchProgressModel(request: request, repository: repository, access: access, preferences: preferences)
+            let progress = SendPatchProgressWindowController(model: model); self.progress = progress
+            progress.onClosed = { [weak self, weak model] in self?.finish(model?.success == true ? nil : model?.error) }
+            self.present(progress); model.start()
+        }
+        controller.onClosed = { [weak self] in
+            guard let self else { return }; self.options = nil
+            if self.progress == nil { self.finish(nil) }
+        }
+    }
+    func start() { if let options { present(options) } }
+    private func finish(_ error: String?) {
+        guard !finished else { return }; finished = true; options = nil; progress = nil; completion(error)
+    }
+}

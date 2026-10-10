@@ -1,0 +1,79 @@
+{
+  "checked_at": "2026-10-10T02:46:31.663627+00:00",
+  "parent_commit": "257fe9792dd9ce8a2b565614078865c3581efb32",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Native configured SMTP options/progress and Format/Import caller route; notification-table/full delivery/UI/signed parity incomplete",
+  "upstream_blob_sha256": {
+    "src/TortoiseProc/AppUtils.cpp": "1d62caaa21dfb3fbc8d107d0e08df5c50ac56dea11af2622b96b4b85cb8f552d",
+    "src/TortoiseProc/Commands/FormatPatchCommand.cpp": "fe996e617242d0b014556e357d573eddc44f038c57696a4bfc58905c6192d832",
+    "src/TortoiseProc/ProgressCommands/SendMailProgressCommand.cpp": "944ed60681fc16626e1125db58aac4877eb42453efe9de6488458de03434248f",
+    "src/TortoiseProc/ProgressCommands/SendMailProgressCommand.h": "32a5850263bdfdef143c4d10cd9b85e9d0e20c0bd90cba1470bcf9e01dcd8412"
+  },
+  "checks": {
+    "native_receiver_exit": 0,
+    "debug_build_exit": 0,
+    "unsigned_appstore_build_exit": 0,
+    "debug_bundle_audit_exit": 0,
+    "appstore_bundle_audit_exit": 0,
+    "inventory_pin_exit": 0,
+    "bundled_icons": 100,
+    "core_tests_rerun": false,
+    "core_test_evidence": "Unchanged Core/SMTP binaries match parent capture checkpoint with 22 focused tests passing under system and packaged Git",
+    "cases": [
+      "Actual configured Format controller mail callback presents hidden retained options, then progress with actual private Git sender and SDK SMTP loopback",
+      "Independent MIME decoder checks combined body, two ordered duplicate attachments and distinct To/CC envelope",
+      "Format parent stays composing until final result close; closes once after successful progress",
+      "Import selected Send Mail creates configured options; Cancel releases parent without sending",
+      "Injected partial accepted prefix/ambiguous failure remains unsuccessful, preserves retry/error/footer and 50 percent accepted progress",
+      "Busy user window close requests confirmation; No continues; Yes cancels owned submission; duplicate confirmation fenced",
+      "Repeated progress start fenced; hidden light/dark hosting layout fits default window",
+      "Prior options/list/settings/capture gates and credential cases retained"
+    ],
+    "source_corrections": "Initial Debug compile rejected multiple variables under one Published wrapper; declarations split before final passing build. Format/Import close outcomes aligned with reviewed source independent of mail failure.",
+    "preferences": [
+      {
+        "suite": "TurtleGit.SendPatch.QA.4C35373B-F58F-4468-ACBB-5F3468C5FDCD",
+        "verified_empty": true,
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "suite": "TurtleGit.SendPatch.QA.1DC4DB3A-6A12-4D99-B95B-120F5D7D87F6",
+        "verified_empty": true,
+        "defaults_delete_exit": 1,
+        "removed": true
+      }
+    ],
+    "final_audit": {
+      "matching_processes": [],
+      "current_fixtures": []
+    },
+    "side_effects": "Unordered windows through injected presentation, private Git/config and owned loopback SMTP only. No main app instance, real mail service, user Keychain or certificate-store mutation; owned processes/fixtures and both exact empty preference domains cleaned."
+  },
+  "source_sha256": {
+    "NOTICE": "66d621f4e4cf6d46a1ded3c6a508d7b97760b930e80efc4b09bccbb2224fab36",
+    "Sources/TurtleGitMac/FormatPatchWindow.swift": "216209ab0fb9527d6a50aad706e3ad0900f95205a999bb0ae5d1e5a7d0e9256e",
+    "Sources/TurtleGitMac/ImportPatchWindow.swift": "0fb41211808a21499ef5a5502ae109f3c297192e77b0d420943a06ccf0ae0848",
+    "Sources/TurtleGitMac/SendPatchWindow.swift": "175a2d1d1fdf2cad4fd7bd1fb556d973b03decb1bdec8ab56ccb25050abc588e",
+    "docs/PORTING.md": "eb2eed5d3bf3c5e97476498eece81fe004cc7ac66b45cf96eede6debe4ef7e68",
+    "docs/SEND-PATCH-PARITY.md": "b51bae0e2b3c342cb6b21f464e98a9c2e9eacdc4d380565d0374a5a1d828ab75",
+    "docs/qa/send-patch-dialog-native-2026-10-10.swift": "6aab2ba0c48416c027002c05cecbd47160b89c8d4b81ac52adfb407c125fef5f",
+    "docs/upstream-files.csv": "dbea1f9b18c3483e5b0b43aa42802a0c199a761811a45e4eed4b6e2b9838be5a"
+  },
+  "binary_sha256": {
+    "Debug_app": "ae0fc297ae892ad6d53e5bfb2e3aee3218b8dda08c01e7e3c33faa88de63b8d1",
+    "Debug_core": "49e506806174ba00c8e252e54c1c07e417c981ebcd972c36056b0c7a45a5c57b",
+    "Debug_smtp": "f41d314777122b4e4f4bb47922ae13dba21a1879949b1c94fc5019a23bf147fe",
+    "AppStore_app": "408c3c60d747e9ce857dd2d9908d173ae37ccfa64895a9202f5d82d1d9248cb7",
+    "AppStore_core": "19f12571ac5be6a2c45ff6ea8e11bca90147367b63595a9c42649f1e1b7ba33e",
+    "AppStore_smtp": "99c922bcd4ff4092d5d3b67d1c2ed741368afe84d72a943bada5aafc4108b3d6"
+  },
+  "limitations": [
+    "Configured branch connected; direct/Mail-client branches retain existing composition path and full four-mode options/delivery remain pending",
+    "Upstream notification-table/all progress menus and complete patch-list viewer/review/apply routing remain pending",
+    "Current receiver exercises the controller mail callback; complete export-to-finish user gesture and displayed window/keyboard/VoiceOver acceptance pending",
+    "Actual signed Keychain/file grants/Finder, older OS runtime, notarization and App Store distribution acceptance pending",
+    "Hidden layout checks do not prove full visual parity; full port/localization and hosted CI remain incomplete/unverified"
+  ],
+  "logs": "build/qa/send-patch-native-progress-*.log and build/qa/send-patch-native-progress-2026-10-10/ (ignored)"
+}

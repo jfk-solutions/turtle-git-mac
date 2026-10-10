@@ -12,9 +12,10 @@ import TurtleGitCore
     private var patch: PatchWindowController?
     private var review: WorkingTreePatchWindowController?
     private var mail: NSSharingService?
+    private var sendPatch: ConfiguredSendPatchWorkflow?
     private var mailCompletion: ((String?) -> Void)?
     var activeOperation: Bool { model.confirmingQuit || model.receivingDrop || model.busy || model.closing || model.openingViewer || model.composingMail || window?.attachedSheet != nil || patch?.model.busy == true || patch?.window?.attachedSheet != nil || review?.activeOperation == true }
-    init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, mailPresentation: ((NSWindowController) -> Void)? = nil) {
         model = ImportPatchWindowModel(repository: repository, access: access, preferences: preferences)
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 800, height: 620), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Apply Patch Serial – TurtleGit"
@@ -46,6 +47,14 @@ import TurtleGitCore
         }
         model.composeMail = { [weak self] files, completion in
             guard let self else { completion("The patch window was closed."); return }
+            if EmailConfiguration(preferences: preferences, missingDelivery: .mailClient).delivery == .configured {
+                let leases = self.model.items.filter { files.contains($0.file) }.map(\.access) + [access].compactMap { $0 }
+                let workflow = ConfiguredSendPatchWorkflow(files: files, repository: repository, access: access,
+                    fileAccess: leases, preferences: preferences, presentation: mailPresentation) { [weak self] _ in
+                    self?.sendPatch = nil; completion(nil)
+                }
+                self.sendPatch = workflow; workflow.start(); return
+            }
             guard let service = NSSharingService(named: .composeEmail), service.canPerform(withItems: files) else {
                 completion("No mail composition service is available."); return
             }

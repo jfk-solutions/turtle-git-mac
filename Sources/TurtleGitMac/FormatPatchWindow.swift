@@ -8,8 +8,12 @@ import TurtleGitCore
     private var picker: LogWindowController?
     private var patch: PatchWindowController?
     private var mail: NSSharingService?
+    private var sendPatch: ConfiguredSendPatchWorkflow?
+    private let mailPreferences: UserDefaults
+    private let mailPresentation: ((NSWindowController) -> Void)?
     var activeOperation: Bool { model.busy || model.progress || model.confirmingCancellation || model.finishScheduled || model.composingMail || model.openingViewer }
-    init(repository: GitRepository, access: RepositoryAccessLease?, preset: FormatPatchPreset? = nil, sendMail: Bool = false, preferences: UserDefaults = .standard) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, preset: FormatPatchPreset? = nil, sendMail: Bool = false, preferences: UserDefaults = .standard, mailPresentation: ((NSWindowController) -> Void)? = nil) {
+        mailPreferences = preferences; self.mailPresentation = mailPresentation
         model = FormatPatchWindowModel(repository: repository, access: access, preferences: preferences)
         model.apply(preset)
         if sendMail { model.sendMail = true }
@@ -91,6 +95,18 @@ import TurtleGitCore
     }
     private func composeMail(_ files: [URL]) {
         guard !files.isEmpty else { model.error = "No patches were created to attach."; return }
+        if EmailConfiguration(preferences: mailPreferences, missingDelivery: .mailClient).delivery == .configured {
+            model.composingMail = true
+            let leases = [model.access, model.outputAccess].compactMap { $0 }
+            let workflow = ConfiguredSendPatchWorkflow(files: files, repository: model.repository, access: model.access,
+                fileAccess: leases, preferences: mailPreferences, presentation: mailPresentation) { [weak self] _ in
+                guard let self else { return }; self.sendPatch = nil; self.model.composingMail = false
+                // Format Patch reports export success independently of mail outcome.
+                // The retained mail result has already been reviewed before close.
+                self.model.close()
+            }
+            sendPatch = workflow; workflow.start(); return
+        }
         guard let service = NSSharingService(named: .composeEmail), service.canPerform(withItems: files) else { model.error = "No mail composition service is available. The patches were saved to the output directory."; return }
         mail = service; model.composingMail = true; service.delegate = self; service.subject = "Patch series"
         service.perform(withItems: files)

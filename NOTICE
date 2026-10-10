@@ -1222,3 +1222,11 @@ The Windows socket, Schannel/SSPI and NOTE_SpeedPostMail implementation is not
 copied into this adapter. SDK libcurl remains an operating-system dependency;
 no libcurl source or binary is bundled. API references and remaining direct-MX,
 caller, signed and distribution gates are recorded in SEND-PATCH-PARITY.md.
+
+SendPatchWindow.swift's configured workflow/progress additionally adapts
+AppUtils::SendPatchMail and ProgressCommands/SendMailProgressCommand.cpp/.h,
+under GPL-2.0-or-later. SendMailProgressCommand.cpp Copyright (C) 2013-2014,
+2025 TortoiseGit; its header Copyright (C) 2014, 2023 TortoiseGit.
+Native retained options/result lifetime, cancellation, coalesced byte progress
+and configured Format/Import dispatch replace MFC progress ownership. Full
+notification-table, other delivery modes and signed acceptance remain pending.

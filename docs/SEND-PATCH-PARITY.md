@@ -426,5 +426,36 @@ Git sender capture and the built SDK Core/SMTP queue submit a combined message
 with two captured attachments; the server independently decodes and compares
 the body and attachment bytes and checks distinct To/CC envelope recipients.
 This private local submission touches no real mail service or user Keychain.
-The native progress window and production Format Patch/Import Patch caller
-connection remain pending; this orchestration is not yet the complete UI flow.
+Native configured progress and Format Patch/Import Patch routing are described
+below; full direct/Mail-client options and delivery remain pending.
+
+## Native configured SMTP progress and callers
+
+Configured SMTP now routes Format Patch's mail handoff and Apply Patch Serial's
+selected Send Mail action through retained native Send Patch options, then a
+separate progress/result window. Exported or selected file grants stay retained
+through preparation, and the repository grant stays retained through sender
+capture and transport. Parents stay busy until options cancellation or final
+result close. Format Patch's export outcome remains independent of mail outcome;
+Apply Patch Serial unlocks after the mail result is dismissed, matching source
+command behavior. Mail-client/direct preferences retain their existing composition
+path; full options/delivery support for those modes remains pending. Changing to
+those modes in open configured options produces an explicit unsupported-route
+result rather than substituting a transport.
+
+The progress model reports current item/attempt, coalesced upload percentage,
+ordered retry/acceptance notifications, accepted-prefix failures and a completion
+footer. It supports read-only output/copy icons, original Mail artwork, shared
+output limits/action logs, Close/Abort, Escape, optional Abort confirmation and
+successful auto-close. Failure and ambiguous delivery remain visible until close;
+ambiguous delivery cannot be reported as a simple cancellation. Window close
+requests cancellation while busy, and repeated start/confirmation callbacks are
+fenced. This output adaptation does not complete upstream's notification-table,
+all progress menus or physical/signed acceptance.
+
+Hidden native checks now exercise the actual configured Format controller route,
+options, progress and real private Git/loopback SMTP. They also cover Import's
+selected-mail/cancel parent lifetime, partial acceptance/ambiguity, retry/footer,
+Abort No/Yes and unordered light/dark layout. An injected presentation hook keeps
+all test windows hidden. No real mail service or user Keychain is touched. See
+[native progress QA](qa/send-patch-native-progress-2026-10-10.json).
