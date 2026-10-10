@@ -240,11 +240,13 @@ enum RevisionGraphReferenceCommand {
     case switchBranch(String, hash: String), checkout(String, hash: String), delete([String], hash: String)
 }
 
-@MainActor final class RevisionGraphWindowController: NSWindowController, NSWindowDelegate, NSMenuItemValidation {
+@MainActor final class RevisionGraphWindowController: NSWindowController, NSWindowDelegate, NSMenuItemValidation, NSComboBoxDelegate {
     let model: RevisionGraphWindowModel
     let canvas: RevisionGraphCanvas
     let scroll = NSScrollView()
     let status = NSTextField(labelWithString: "")
+    let zoomBox = NSComboBox()
+    private var displayedZoom: CGFloat?
     let cancelButton = NSButton(title: "Cancel", target: nil, action: nil)
     private let overview: RevisionGraphOverview
     private(set) var filter: RevisionGraphFilterController?
@@ -272,6 +274,12 @@ enum RevisionGraphReferenceCommand {
             let button = NSButton(image: icon.image() ?? NSImage(), target: self, action: #selector(clicked(_:)))
             button.identifier = NSUserInterfaceItemIdentifier(command); button.toolTip = title; button.setAccessibilityLabel(title); bar.addArrangedSubview(button)
         }
+        // Upstream inserts each preset at index zero, producing descending order.
+        zoomBox.addItems(withObjectValues: ["200%", "100%", "75%", "50%", "40%", "20%", "10%", "5%"])
+        zoomBox.isEditable = true; zoomBox.completes = false; zoomBox.alignment = .right
+        zoomBox.delegate = self; zoomBox.target = self; zoomBox.action = #selector(commitZoom(_:))
+        zoomBox.setAccessibilityLabel("Zoom percentage"); zoomBox.toolTip = "Zoom percentage"
+        zoomBox.widthAnchor.constraint(equalToConstant: 82).isActive = true; bar.addArrangedSubview(zoomBox)
         let host = NSView(frame: CGRect(x: 0, y: 0, width: 960, height: 560)); host.translatesAutoresizingMaskIntoConstraints = false
         scroll.hasHorizontalScroller = true; scroll.hasVerticalScroller = true; scroll.autohidesScrollers = true; scroll.documentView = canvas
         scroll.frame = CGRect(x: 0, y: 0, width: 960, height: 560); scroll.autoresizingMask = [.width, .height]; host.addSubview(scroll)
@@ -376,6 +384,31 @@ enum RevisionGraphReferenceCommand {
         }
     }
     @objc private func clicked(_ sender: NSButton) { if let command = sender.identifier?.rawValue { perform(command) } }
+    @objc private func commitZoom(_ sender: Any?) {
+        guard !model.busy, !model.closed, filter == nil, !exporting, window?.attachedSheet == nil else { synchronizeZoom(force: true); return }
+        let scanner = Scanner(string: zoomBox.stringValue); scanner.locale = Locale(identifier: "en_US_POSIX")
+        guard let percent = scanner.scanDouble() else { synchronizeZoom(force: true); return }
+        _ = scanner.scanString("%")
+        let zoom = CGFloat(percent / 100)
+        let size = model.geometry?.size ?? CGSize(width: 1, height: 1)
+        // Unlike the fixed zoom buttons, upstream accepts custom scales above
+        // 200%. Reject values that cannot form finite native view geometry.
+        guard scanner.isAtEnd, percent.isFinite, percent > 0, percent <= Double(Int32.max), zoom > 0, (1 / zoom).isFinite,
+              size.width * zoom + 20 <= CGFloat(Int32.max), size.height * zoom + 20 <= CGFloat(Int32.max) else { synchronizeZoom(force: true); return }
+        model.zoom = zoom; model.changed()
+    }
+    func comboBoxSelectionDidChange(_ notification: Notification) {
+        guard notification.object as? NSComboBox === zoomBox, zoomBox.indexOfSelectedItem >= 0 else { return }
+        zoomBox.stringValue = zoomBox.itemObjectValue(at: zoomBox.indexOfSelectedItem) as? String ?? zoomBox.stringValue
+        commitZoom(zoomBox)
+    }
+    func controlTextDidEndEditing(_ notification: Notification) {
+        if notification.object as? NSComboBox === zoomBox { commitZoom(zoomBox) }
+    }
+    private func synchronizeZoom(force: Bool = false) {
+        guard force || displayedZoom != model.zoom else { return }
+        displayedZoom = model.zoom; zoomBox.stringValue = String(format: "%.0f%%", model.zoom * 100)
+    }
     @objc private func cancelGraphOperation() { model.cancel() }
     @objc private func scrolled() { overview.needsDisplay = true }
     func windowDidResize(_ notification: Notification) { update() }
@@ -429,6 +462,8 @@ enum RevisionGraphReferenceCommand {
         update()
     }
     func update() {
+        synchronizeZoom()
+        zoomBox.isEnabled = !model.busy && !model.closed && filter == nil && !exporting && window?.attachedSheet == nil
         canvas.resize(to: scroll.contentSize); canvas.needsDisplay = true; overview.updateFrame(); overview.needsDisplay = true
         overview.isHidden = !model.showOverview || model.busy || model.nodes.isEmpty || model.nodes.count > 10_000
         status.stringValue = model.error ?? (model.busy ? "Loading…" : "\(model.nodes.count) revisions • \(Int((model.zoom * 100).rounded()))%")
@@ -445,6 +480,7 @@ enum RevisionGraphReferenceCommand {
             self.update()
         }
         self.filter = filter; if let child = filter.window { child.alphaValue = window.alphaValue; window.beginSheet(child) }
+        update()
     }
     private func saveGraph() {
         guard let window, window.attachedSheet == nil, model.geometry != nil else { return }

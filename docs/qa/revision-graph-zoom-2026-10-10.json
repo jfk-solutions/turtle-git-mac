@@ -1,0 +1,69 @@
+{
+  "checked_at": "2026-10-10T15:46:54.071482+00:00",
+  "parent_commit": "ec237ad63c5cc43330d3e8542ad2f95ce9c0cbd3",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "RevisionGraphDlg.cpp combo setup, OnChangeZoom and UpdateZoomBox",
+    "RevisionGraphDlgFunc.cpp DoZoom"
+  ],
+  "scope": "Editable Revision Graph zoom percentage and native control synchronization; full toolbar/application/signed acceptance remains open.",
+  "implementation": [
+    "native editable percentage combo with source eight presets in descending insertion order",
+    "preset selection, Return and editing completion commit typed percentage",
+    "source-style whole-percent display synchronized on scale change; unchanged redraw preserves draft",
+    "valid custom scales above 200% accepted, independent from normal button limits",
+    "malformed/zero/negative/non-finite/unrepresentable geometry inputs restore last valid scale",
+    "loading/closed/Filter/export/owned-sheet guards reject input",
+    "combo disabled during loading and owned Filter/modal interactions",
+    "new light/dark graph captures in local site gallery"
+  ],
+  "verification": {
+    "native_system_git_exit": 0,
+    "native_bundled_git_exit": 0,
+    "native_cases": [
+      "source preset values/order and initial 100% display",
+      "typed 125%, fractional 12.5% and above-button-limit 250% action dispatch",
+      "empty/zero/negative/junk/NaN/overflow/underflow input rejection",
+      "75% preset selection notification",
+      "zoom-button display synchronization",
+      "actual native field-editor Return applies 150%",
+      "loading disables control and rejects forced action",
+      "owned Filter disables control and rejects forced action",
+      "all retained graph preference/navigation/overview/filter/reference-picker/pointer/export/menu/deletion/cancellation/repository invariant checks"
+    ],
+    "unsigned_debug_build_exit": 0,
+    "unsigned_appstore_build_exit": 0,
+    "debug_bundle_audit_exit": 0,
+    "appstore_bundle_audit_exit": 0,
+    "upstream_icons": 117,
+    "local_pages_build_exit": 0
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/revision-graph-light.png",
+      "sha256": "eb573f17ddff7808d9e39edc8eb86afa6a2b7a1e2b8de4342cc0b9d6ca85aa1f",
+      "pixels": [
+        1960,
+        1340
+      ],
+      "kind": "actual native content capture from hidden owned fixture; manually inspected"
+    },
+    {
+      "path": "docs/site/assets/revision-graph-dark.png",
+      "sha256": "47e161f4d1ab4521618679d695516f12133d313cacfc38146ec7e5aced354d20",
+      "pixels": [
+        1960,
+        1340
+      ],
+      "kind": "actual native content capture from hidden owned fixture; manually inspected"
+    }
+  ],
+  "mutation_scope": "Git mutations only in disposable fixtures, private preferences removed by receiver exit, no global DialogGeometry installation. Native capture temporarily raises alpha only for owned ordered-out windows; no visible app activation.",
+  "pending": [
+    "exact upstream toolbar bitmap and remaining toolbar buttons",
+    "physical popup/Tab/localized-decimal input and VoiceOver acceptance",
+    "signed sandbox/Finder integration",
+    "current hosted CI and publication",
+    "complete TortoiseGit port"
+  ]
+}

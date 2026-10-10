@@ -374,3 +374,31 @@ Debug/Store builds and both packaging audits passed; see
 [Filter-picker evidence](qa/revision-graph-filter-picker-2026-10-10.json).
 The graph receiver uses actual private nested sheets; the shared-browser
 receiver uses injected presentation. Neither proves signed or physical acceptance.
+
+
+## Editable zoom control
+
+The native toolbar now includes an editable percentage combo box adapting
+`OnChangeZoom`/`UpdateZoomBox`. It offers the eight source percentages, in the
+descending order produced by upstream's repeated insertion at index zero.
+Preset selection, Return and native editing completion apply a percentage;
+buttons, wheel and fit changes synchronize the display with source-style
+integer percentage formatting. A layout/redraw with unchanged zoom does not
+replace an in-progress text draft.
+
+Custom positive scales are not capped at the 200% button limit. Native input
+validation rejects malformed, zero/negative, non-finite and unrepresentable
+geometry values, restoring the last valid display rather than forwarding
+source `_wtof` zero/overflow values to AppKit. Busy, closed, Filter/export and
+owned-sheet guards reject edits. The combo box is disabled during loading and owned modal interactions.
+Native QA exercises preset notification dispatch, typed action dispatch,
+Return through the actual field editor, custom fractional and above-200% scales,
+invalid values and loading/Filter locks. Exact toolbar artwork and other
+source toolbar buttons, physical popup/Tab/localized-decimal behavior, signed
+and accessibility acceptance remain pending.
+
+The native graph receiver passed with each Git engine, including actual Return
+input and modal/loading guards. Unsigned Debug/Store builds, both packaging
+audits and local Pages build passed. Refreshed light/dark captures were inspected;
+see [zoom-control evidence](qa/revision-graph-zoom-2026-10-10.json). Earlier
+screenshot records remain scoped to their original commits.

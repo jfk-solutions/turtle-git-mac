@@ -38,7 +38,11 @@ nodes are selected. See the parity record for remaining physical and signed
 interaction checks.
 
 Use the toolbar or **View** menu to zoom, return to 100%, fit width or height,
-or fit the whole graph. Command/Control-wheel also zooms. Drag blank space to
+or fit the whole graph. The toolbar percentage box offers 5%, 10%, 20%, 40%,
+50%, 75%, 100% and 200%. Choose a preset or type a positive percentage and
+press Return; custom percentages may exceed 200%. Invalid values restore the
+current percentage. Button, wheel and fit changes update the box.
+Command/Control-wheel also zooms. Drag blank space to
 pan the canvas. **Show Overview** displays a miniature graph in the lower right;
 its size follows the graph and viewport, and the shaded rectangle shows the
 visible area. Click or drag within it to navigate. The overview is suppressed above 10,000 displayed

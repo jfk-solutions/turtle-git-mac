@@ -187,6 +187,34 @@ import Darwin
         try require(controller.nodeMenu().items.map(\.title) == ["Show Log", "Compare revisions", "Unified diff"])
         controller.perform("zoomOut"); try require(abs(model.zoom - 0.9) < 0.0001)
         controller.perform("zoom100"); controller.perform("overview"); try require(model.zoom == 1 && model.showOverview)
+        let zoomBox = controller.zoomBox
+        try require(zoomBox.objectValues as? [String] == ["200%", "100%", "75%", "50%", "40%", "20%", "10%", "5%"] && zoomBox.stringValue == "100%" && zoomBox.isEnabled)
+        func zoomText(_ value: String) throws {
+            window.makeFirstResponder(nil); zoomBox.stringValue = value
+            try require(NSApp.sendAction(zoomBox.action!, to: zoomBox.target, from: zoomBox))
+        }
+        try zoomText("125%"); try require(abs(model.zoom - 1.25) < 0.0001 && zoomBox.stringValue == "125%")
+        try zoomText("12.5"); try require(abs(model.zoom - 0.125) < 0.0001)
+        try zoomText("250%"); try require(abs(model.zoom - 2.5) < 0.0001 && zoomBox.stringValue == "250%")
+        for invalid in ["", "0%", "-25%", "nonsense", "25% junk", "NaN", "1e300%", "1e-320%"] {
+            try zoomText(invalid); try require(model.zoom == 2.5 && zoomBox.stringValue == "250%")
+        }
+        zoomBox.selectItem(at: 2)
+        NotificationCenter.default.post(name: NSComboBox.selectionDidChangeNotification, object: zoomBox)
+        try require(model.zoom == 0.75 && zoomBox.stringValue == "75%")
+        controller.perform("zoomOut"); try require(abs(model.zoom - 0.675) < 0.0001 && zoomBox.stringValue == String(format: "%.0f%%", model.zoom * 100))
+        controller.perform("zoom100")
+        window.makeFirstResponder(zoomBox)
+        let editor = zoomBox.currentEditor() as! NSTextView
+        editor.selectAll(nil); editor.insertText("150%", replacementRange: editor.selectedRange())
+        let zoomReturn = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber, context: nil, characters: "\r", charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36)!
+        window.sendEvent(zoomReturn)
+        try await wait { abs(model.zoom - 1.5) < 0.0001 }
+        window.makeFirstResponder(nil); controller.perform("zoom100")
+        model.load(); try require(!zoomBox.isEnabled)
+        try zoomText("75%"); try require(model.zoom == 1 && zoomBox.stringValue == "100%")
+        try await wait { !model.busy }; try require(zoomBox.isEnabled)
+        print("PASS: Revision Graph editable zoom presets, custom percentages, native Return, synchronized display and invalid/busy guards")
         let overview = views(window.contentView!).compactMap { $0 as? RevisionGraphOverview }.first!
         let tall = RevisionGraphOverview.layout(graph: CGSize(width: 4000, height: 8000), viewport: CGSize(width: 960, height: 560))
         try require(abs(tall.size.width - 104) < 0.01 && abs(tall.size.height - 200) < 0.01 && abs(tall.scale - 0.024) < 0.0001)
@@ -240,7 +268,8 @@ import Darwin
         }
         try await capture(window, prefix: "revision-graph")
         controller.showFilter(); try await wait { window.attachedSheet != nil }
-        let child = window.attachedSheet!; try require(child.alphaValue == 0)
+        let child = window.attachedSheet!; try require(child.alphaValue == 0 && !zoomBox.isEnabled)
+        try zoomText("75%"); try require(model.zoom == 1 && zoomBox.stringValue == "100%")
         try await capture(child, prefix: "revision-graph-filter")
         controller.requestRepositoryRefresh(); try require(!model.busy)
         let buttons = views(child.contentView!).compactMap { $0 as? NSButton }
