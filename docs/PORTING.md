@@ -28,7 +28,8 @@ skip domains that already accepted the message; definite failures still permit
 later domains to receive mail, while ambiguous uploads stop failover. Cancelling
 a retry wait retains partial-domain acceptance.
 Format and Import use the native Send Mail options/progress route for direct as
-well as configured SMTP. Focused core tests, hidden native route checks and the
+well as configured SMTP. Request Pull now uses that route with full ordinary
+document text and a custom subject independent of Combine One Mail. Focused core tests, hidden native route checks and the
 built SDK framework's private loopback queue passed. Public mail delivery,
 mail-client parity and signed/physical acceptance remain unverified. See
 [Send Patch parity](SEND-PATCH-PARITY.md).

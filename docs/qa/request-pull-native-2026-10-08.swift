@@ -52,6 +52,47 @@ import TurtleGitCore
         model.openDocument(); precondition(handoffs.count == 2 && !handoffs[1].1)
         reopened.deleteURL(at:0); precondition(reopened.urls.isEmpty && prefs.stringArray(forKey:RequestPullWindowModel.urlHistoryKey)?.isEmpty == true)
         model.end = "main"; model.start = "missing"; model.create(); try await wait { !model.busy }; precondition(model.error?.hasPrefix("Failed to create pull-request.") == true && handoffs.count == 2)
+        for delivery in [EmailDelivery.configured, .direct] {
+            prefs.set(delivery.rawValue, forKey: "SendMail.DeliveryType")
+            var shown: SendPatchWindowController?, closed = 0
+            let controller = RequestPullWindowController(repository: repo, access: nil, end: "main", repositoryURL: destination.path,
+                preferences: prefs, mailPresentation: { shown = $0 as? SendPatchWindowController })
+            controller.onClosed = { closed += 1 }
+            try await wait { !controller.model.busy }
+            controller.model.start = base; controller.model.sendMail = true; controller.model.create()
+            try await wait { !controller.model.busy && shown != nil }
+            precondition(controller.model.composingMail && !controller.windowShouldClose(controller.window!))
+            let options = shown!, file = controller.model.document!
+            precondition(options.model.customSubject && options.model.delivery == .smtp && options.window?.title == "Send Mail – TurtleGit")
+            precondition(options.model.rows.map(\.file) == [file] && !options.model.previewBusy)
+            options.model.combine = false; options.model.attachment = false; options.model.combinedSubject = "Request custom 雪"
+            options.model.setHighlighted([]); options.model.combineChanged()
+            precondition(options.model.subject == "Request custom 雪" && !options.model.previewBusy)
+            var captured: SendPatchRequest?
+            // Capture the real options preparation boundary without connecting to mail.
+            options.model.onSubmit = { captured = $0 }
+            options.model.to = "review@example.invalid"; options.model.cc = "copy@example.invalid"
+            options.model.submit(); try await wait { options.model.pendingLoads == 0 && captured != nil }
+            precondition(captured!.delivery.delivery == delivery && captured!.messages.count == 1)
+            let message = captured!.messages[0], text = String(data: try Data(contentsOf: file), encoding: .utf8)!
+            var lines = text.replacingOccurrences(of: "\r\n", with: "\n").components(separatedBy: "\n")
+            if lines.last == "" { lines.removeLast() }
+            precondition(message.subject == "Request custom 雪" && message.body == Data(lines.map { $0 + "\r\n" }.joined().utf8))
+            precondition(message.to == ["review@example.invalid"] && message.cc == ["copy@example.invalid"] && message.attachments.isEmpty)
+            try await wait { !controller.model.composingMail && closed == 1 }
+            try FileManager.default.removeItem(at: file.deletingLastPathComponent())
+            controller.model.invalidate(); options.model.invalidate()
+            var cancelOptions: SendPatchWindowController?, cancelClosed = 0
+            let cancelController = RequestPullWindowController(repository: repo, access: nil, preferences: prefs,
+                mailPresentation: { cancelOptions = $0 as? SendPatchWindowController })
+            cancelController.onClosed = { cancelClosed += 1 }
+            try await wait { !cancelController.model.busy }
+            cancelController.model.presentDocument(handoffs[0].0, true)
+            precondition(cancelController.model.composingMail && cancelOptions != nil)
+            cancelOptions!.model.cancel()
+            try await wait { !cancelController.model.composingMail && cancelClosed == 1 }
+            cancelController.model.invalidate()
+        }
         try FileManager.default.removeItem(at:handoffs[0].0.deletingLastPathComponent())
         let helper = root.appendingPathComponent("slow-git"), marker = URL(fileURLWithPath:helper.path + ".started"), release = URL(fileURLWithPath:helper.path + ".release")
         let script = """
@@ -77,6 +118,7 @@ import TurtleGitCore
         let afterIndex = try await repo.run(["diff","--cached","--binary"]).stdout, afterWorking = try await repo.run(["diff","--binary"]).stdout, afterHead = try await repo.run(["rev-parse","HEAD"]).stdout, afterRefs = try await remote.run(["show-ref"]).stdout
         precondition(index == afterIndex && working == afterWorking && head == afterHead && refs == afterRefs)
         let host = NSHostingView(rootView:RequestPullDialog(model:model)); host.frame = NSRect(x:0,y:0,width:680,height:210); host.layoutSubtreeIfNeeded(); precondition(host.fittingSize.width > 0 && host.fittingSize.height > 0)
+        print("Request Pull SMTP: actual configured/direct callers, retained hidden custom-subject options, non-combined editable subject, full original request body, To/CC and options Cancel/parent close verified at capture boundary; no SMTP or mail client launched. Private suite: \(suite)")
         log.invalidate(); model.invalidate(); reopened.invalidate(); other.invalidate(); cancellable.invalidate()
         print("Request Pull: native defaults/scoped fields/global case-sensitive history/pre-validation saves, Send Mail persistence gate, source-prefilled overrides, source Log selection/cancel, actual published request UTF-8 bytes and remotes/ start normalization, captured mail/text/duplicate gate, output fallback, real owned cancellation/retry and unchanged HEAD/index/working tree/remote refs. No displayed windows, editor, mail, standard preferences or clipboard writes.")
     }

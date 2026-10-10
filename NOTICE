@@ -1254,3 +1254,8 @@ under GPL-2.0-or-later. MIME headers remain independent of per-domain envelopes.
 Accepted domains are retained across retries, and ambiguous submissions stop
 failover to avoid duplicate delivery. Source-style native SMTP options/progress
 routing now supports both configured-server and direct delivery.
+
+Request Pull SMTP routing and ordinary-document preparation adapt AppUtils.cpp
+RequestPull, SendMailDlg's custom subject and CSendMailCombineable in SendMail.cpp
+at the recorded upstream pin, under GPL-2.0-or-later. Full document text replaces
+patch-header stripping; original attachment bytes and selected order are retained.

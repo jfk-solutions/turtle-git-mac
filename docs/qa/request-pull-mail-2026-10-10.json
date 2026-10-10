@@ -1,0 +1,115 @@
+{
+  "checked_at": "2026-10-10T04:37:54.137955+00:00",
+  "parent_commit": "03732ce8babfa7c9cff42bfe1218a31218e0b987",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Request Pull native configured/direct SMTP handoff with generic document preparation and custom subject; full port remains partial.",
+  "upstream_evidence": {
+    "src/TortoiseProc/AppUtils.cpp": "1d62caaa21dfb3fbc8d107d0e08df5c50ac56dea11af2622b96b4b85cb8f552d",
+    "src/TortoiseProc/SendMail.cpp": "d8f6135a262c4f8b67f8d3bf93dcd482d180362e3c756018e97f3f737f090a25",
+    "src/TortoiseProc/SendMailDlg.cpp": "bdc85d9bbc50a21f326f383572ece6f840c729d69afbbe4d59bbefc31e289517"
+  },
+  "behavior": "AppUtils RequestPull selects custom-subject SendMailDlg and CSendMailCombineable. Generic single inline messages include complete line-read text; combined inline includes full filenames/text, attachment modes empty body/original bytes. Native subject editable independently of combine/highlight.",
+  "checks": {
+    "mail_system": {
+      "session": 52190,
+      "exit_code": 0,
+      "tests": 29,
+      "command": "swift test --filter PatchMail"
+    },
+    "mail_packaged": {
+      "session": 45602,
+      "exit_code": 0,
+      "tests": 29,
+      "command": "TURTLEGIT_SEND_PATCH_TEST_GIT=\"$PWD/build/git-runtime/Git/bin/git\" swift test --filter PatchMail"
+    },
+    "new_core_coverage": "All four ordinary-document modes; full text before/after blank lines and Subject-looking text; custom subject; duplicate order/recipients; LF/CRLF/final line; immutable original/binary attachments; empty text; rejected non-UTF-8 inline, header injection and directory.",
+    "Debug": {
+      "session": 7934,
+      "exit_code": 0
+    },
+    "RequestPull_native": {
+      "session": 84839,
+      "exit_code": 0,
+      "command": "python3 scripts/test-request-pull.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "coverage": "Actual RequestPull generation/owned cancellation/unchanged Git state with both engines. Actual configured/direct factories, hidden custom-subject options with combine off/highlight changes, complete request body/To/CC captured by overriding submit at preparation boundary. Options and parent close/Cancel lifetimes verified. No SMTP, editor or mail client in this receiver."
+    },
+    "SendPatch_native_regression": {
+      "session": 54407,
+      "exit_code": 0,
+      "command": "python3 scripts/test-send-patch-dialog.py",
+      "coverage": "Existing patch modes/subjects, actual configured SDK loopback submission and MIME decoder, Format/Import routes, direct injected entry, independent patch tools, private clipboard/history, notification/progress/cancellation and hidden light/dark checks."
+    },
+    "Debug_bundle_audit": {
+      "session": 72472,
+      "exit_code": 0
+    },
+    "AppStore_unsigned": {
+      "session": 80587,
+      "exit_code": 0
+    },
+    "AppStore_bundle_audit": {
+      "session": 64225,
+      "exit_code": 0,
+      "flags": "--require-git"
+    },
+    "inventory": {
+      "exit_code": 0,
+      "command": "python3 scripts/check-inventory-pin.py"
+    },
+    "cleanup": {
+      "matching_processes": [],
+      "current_fixtures": []
+    },
+    "cleanup_instrumentation": "Initial audit matched its own prefix-containing helper-generation shell. Standalone rerun passed; no fixture/process cleanup was needed.",
+    "preferences": {
+      "TurtleGit.RequestPull.QA.24757D8B-8D3C-414A-A414-97ED14E5840C": "verified empty private suite removed",
+      "TurtleGit.RequestPull.QA.8B81B7C1-B5F9-4405-95DA-73E29D8F147D": "verified empty private suite removed",
+      "TurtleGit.SendPatch.QA.1EC9026E-EC87-43C1-A210-DC52FEDA1A3E": "verified empty private suite removed"
+    }
+  },
+  "source_sha256": {
+    "NOTICE": "7ede75b10a661b4fb28c375714b6deb2cdb2862393b51f170d7323250e620127",
+    "Sources/TurtleGitCore/PatchMailPreparation.swift": "57bb99384a2ed9703099bc082fbb36213814afa034a854fa5b189fa855974d6d",
+    "Sources/TurtleGitMac/RequestPullWindow.swift": "fb8bd40b18b8d6608ea390e2aea49940ae4f706950dc9269f29399cb2d3f85ea",
+    "Sources/TurtleGitMac/SendPatchWindow.swift": "ca2a86a14482dbc67104ecf9b3b38b74b95f11ab933b1aed8d34d84a875f1010",
+    "Tests/TurtleGitCoreTests/PatchMailPreparationTests.swift": "9f03fb55552b50325c1928f440cf5a636184a44c26505dd3d546468640c41fa1",
+    "docs/PORTING.md": "4953d87847232053601a290cbe1a39a2f6edb05451047be3a689922424a390b5",
+    "docs/REQUEST-PULL-PARITY.md": "480f9e7edc321bf1c7b8966bdc15c35d8399825426e3ff750a412d957e8aef27",
+    "docs/SEND-PATCH-PARITY.md": "6dff6792830698e6bd96f7a978abb6dbd884b9c71c9119c9c292d75cd04a584e",
+    "docs/qa/request-pull-native-2026-10-08.swift": "e09683ad9a0e48aed4e4c4964e806237e8ef8293b00c48a591c9224f0cc9473f",
+    "docs/upstream-files.csv": "1e766ec0a102dec95dc009c5c781694c26a85a4af0e705f1c90bc9946698b362",
+    "Sources/TurtleGitCore/PatchMailSMTP.swift": "5b5dce375a5284a24b3434955217d814d219c6d6f90100077591ea38aaf1254b",
+    "Sources/TurtleGitCore/PatchMailMIME.swift": "d8b61be475fea97c0a925afd07a52842ecc603dbc4484ec3f51d4ab1188a6546",
+    "Sources/TurtleGitCore/TemporaryFiles.swift": "24ad28a5488f24a3b96136dc44cb3632da019327d29d0bdee2ecfe69871ed106",
+    "Sources/TurtleGitMac/FormatPatchWindow.swift": "5567338b87c91edfd86a99dcaeb2787cbe0eb700fcfef6ffd1d48e7b453ea227",
+    "Sources/TurtleGitMac/ImportPatchWindow.swift": "858b9f02fe8881c2917f202017a081f0fb3bdcae292e66e17956af0d81c3f3b8",
+    "docs/qa/send-patch-dialog-native-2026-10-10.swift": "98602bb997accbb1bf2bf68ce3663d4ce6e4c18f22dc38fd54b8e6a922ccdd6a",
+    "scripts/test-request-pull.py": "d68d6be19a8837ea297688371e4e965f6b6c41f60b3d177e186a8987d3cacb58",
+    "scripts/test-send-patch-dialog.py": "e3bfe7f898450ddc44551164b667f50e740f0e5ce1da7edc48b297c34feaf8c0"
+  },
+  "binary_sha256": {
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/MacOS/TurtleGitMac": "ae0fc297ae892ad6d53e5bfb2e3aee3218b8dda08c01e7e3c33faa88de63b8d1",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": "e61647e50235b4297dd9ba5463cd2a124e8d1d3705b8d5d28195fa9320926938",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": "4fe130d88732811cb2135fd976f7b9579c0ae3d38211d79ae7708e6973b5955c",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/MacOS/TurtleGitMac": "091cefe7e4576f206fbdd45b1aaeac958dfd112c6d6d81c4c48c46f765ee7598",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": "f8434e3dbbea1eba325ba783831bac290da7e455d2c9ba2f5c4bd4e419d6b59e",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": "dc44e47efa6b867ca364f3b9a0bb2f34586e324eb30730045ce6f909abf6318e"
+  },
+  "log_sha256": {
+    "build/qa/request-pull-mail-core-packaged-2026-10-10.log": "947e802be7f5a5122b4a5e0fac720ef8f989de8f58d040b2967e2a7b45c59a9f",
+    "build/qa/request-pull-mail-core-system-2026-10-10.log": "e0dc5b775c241ce3c5bc604888cc32c2796b6e57d8583e0fff5c74f088392bad",
+    "build/qa/request-pull-mail-debug-2026-10-10.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/request-pull-mail-debug-audit-2026-10-10.log": "03677d8f0b0860f94e07ef3ce34215ec26f981c604c6ceccc75e2bdae288a638",
+    "build/qa/request-pull-mail-inventory-2026-10-10.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/request-pull-mail-native-2026-10-10.log": "801180a77dac4b9f1b3e2e1399528d821e6ce053f999a4c955dbb78ad2c789b8",
+    "build/qa/request-pull-mail-send-regression-2026-10-10.log": "46ac566ad1968f83f267b4c0fe6fabe5e33657fbffba17524f9a06aa81b23933",
+    "build/qa/request-pull-mail-store-2026-10-10.log": "b74a73f8796b12aa35fa570e6594a2a6056217b10a225c9c0e7c2efcb5dc7a15",
+    "build/qa/request-pull-mail-store-audit-2026-10-10.log": "bf54b9dab37973005d43104fc27d3e9cd6a4920930af487e3e44c48332f3afc1"
+  },
+  "limitations": [
+    "RequestPull submission captured at real preparation boundary; its full real SMTP progress invocation was not exercised. Shared production transport independently verified by SendPatch regression.",
+    "Full mail-client native options/lifecycle, legacy document encodings and physical UI remain pending.",
+    "Unsigned builds do not prove signed app-owned file sandbox access, Finder activation or App Store/legal distribution acceptance.",
+    "Historical full-suite/hosted CI results do not validate every current change."
+  ]
+}

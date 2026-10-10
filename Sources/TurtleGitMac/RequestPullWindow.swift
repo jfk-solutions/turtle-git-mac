@@ -7,8 +7,12 @@ import TurtleGitCore
     var onClosed: () -> Void = {}
     private var picker: LogWindowController?
     private var mail: NSSharingService?
-    init(repository: GitRepository, access: RepositoryAccessLease?, end: String? = nil, repositoryURL: String? = nil) {
-        model = RequestPullWindowModel(repository: repository, access: access, end: end, repositoryURL: repositoryURL)
+    private var sendPatch: SMTPSendPatchWorkflow?
+    private let mailPreferences: UserDefaults
+    private let mailPresentation: ((NSWindowController) -> Void)?
+    init(repository: GitRepository, access: RepositoryAccessLease?, end: String? = nil, repositoryURL: String? = nil, preferences: UserDefaults = .standard, mailPresentation: ((NSWindowController) -> Void)? = nil) {
+        self.mailPreferences = preferences; self.mailPresentation = mailPresentation
+        model = RequestPullWindowModel(repository: repository, access: access, preferences: preferences, end: end, repositoryURL: repositoryURL)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 680, height: 210), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Request pull – TurtleGit"; window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: RequestPullDialog(model: model))
@@ -31,6 +35,17 @@ import TurtleGitCore
     }
     private func present(_ file: URL, sendMail: Bool) {
         if sendMail {
+            if EmailConfiguration(preferences: mailPreferences, missingDelivery: .mailClient).delivery != .mailClient {
+                guard !model.composingMail else { return }
+                model.composingMail = true
+                let workflow = SMTPSendPatchWorkflow(files: [file], repository: model.repository, access: model.access,
+                    fileAccess: [], preferences: mailPreferences, presentation: mailPresentation,
+                    customSubject: true, appOwnedFiles: [file]) { [weak self] _ in
+                    guard let self else { return }; self.sendPatch = nil; self.model.composingMail = false
+                    self.model.close()
+                }
+                sendPatch = workflow; workflow.start(); return
+            }
             guard let service = NSSharingService(named: .composeEmail), service.canPerform(withItems: [file]) else { model.error = "No mail composition service is available. The request is available using Open request."; return }
             mail = service; model.composingMail = true; service.delegate = self; service.subject = "Request pull"; service.perform(withItems: [file])
         } else if NSWorkspace.shared.open(file) { model.close() }

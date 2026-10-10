@@ -38,6 +38,49 @@ public enum PatchMailPreparationFailure: LocalizedError {
 
 /// Message preparation only: no mail client, SMTP, network or sending occurs.
 public enum PatchMailPreparation {
+    /// CSendMailCombineable sends ordinary documents, preserving their complete
+    /// text rather than treating a blank line as a format-patch header boundary.
+    public static func messages(documents files: [URL], options: PatchMailOptions) throws -> [PatchMailMessage] {
+        guard !files.isEmpty else { throw PatchMailPreparationFailure.noPatches }
+        guard [options.to, options.cc, options.subject].allSatisfy({ field in
+            field.utf8.allSatisfy { $0 != 13 && $0 != 10 && $0 != 0 }
+        }) else { throw PatchMailPreparationFailure.header }
+        let captures = try files.map { file -> PatchMailAttachment in
+            guard file.isFileURL, !file.path.contains("\0"),
+                  let values = try? file.resolvingSymlinksInPath().resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey]),
+                  values.isRegularFile == true, let size = values.fileSize, size < Int(Int32.max),
+                  let bytes = try? Data(contentsOf: file), bytes.count < Int(Int32.max) else { throw SerialPatchFailure.file(file) }
+            return PatchMailAttachment(file: file, bytes: bytes)
+        }
+        func text(_ capture: PatchMailAttachment) throws -> Data {
+            guard let value = String(data: capture.bytes, encoding: .utf8) else { throw PatchMailMIMEFailure.charset }
+            let normalized = value.replacingOccurrences(of: "\r\n", with: "\n")
+            var lines = normalized.components(separatedBy: "\n")
+            if lines.last == "" { lines.removeLast() }
+            return Data(lines.map { $0 + "\r\n" }.joined().utf8)
+        }
+        func addresses(_ value: String) -> [String] {
+            value.split(separator: ";").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        }
+        let to = addresses(options.to), cc = addresses(options.cc)
+        if options.combine {
+            var body = Data()
+            if !options.attachment {
+                for capture in captures {
+                    body.append(Data((capture.file.path + ":\n").utf8))
+                    body.append(try text(capture)); body.append(10)
+                }
+            }
+            return [PatchMailMessage(to: to, cc: cc, subject: options.subject, body: body,
+                                     attachments: options.attachment ? captures : [])]
+        }
+        return try captures.map {
+            PatchMailMessage(to: to, cc: cc, subject: options.subject,
+                             body: options.attachment ? Data() : try text($0),
+                             attachments: options.attachment ? [$0] : [])
+        }
+    }
+
     public static func messages(files: [URL], options: PatchMailOptions) throws -> [PatchMailMessage] {
         guard !files.isEmpty else { throw PatchMailPreparationFailure.noPatches }
         return try messages(patches: files.map { try SerialPatch(file: $0) }, options: options)

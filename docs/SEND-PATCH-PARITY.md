@@ -627,3 +627,14 @@ wait cancellation retaining later domains. See
 [continuation QA](qa/send-patch-domain-continuation-2026-10-10.json). Full
 mail-client/public delivery, other entry points, physical dialogs and signed
 sandbox/Finder/App Store acceptance remain pending.
+
+## Request Pull ordinary-document mode
+
+Request Pull now uses the shared native configured/direct SMTP workflow with
+SendMailDlg's custom subject. Generic document preparation retains full text
+rather than stripping mail-patch headers; attachment bytes are captured exactly.
+The subject stays editable independently of Combine One Mail and highlighted
+rows. Existing Format/Import callers retain patch mode. See
+[Request Pull parity](REQUEST-PULL-PARITY.md) and
+[mail QA](qa/request-pull-mail-2026-10-10.json). Mail-client mode and complete
+physical/signed/application parity remain pending.

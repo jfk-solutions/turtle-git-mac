@@ -2,6 +2,46 @@ import XCTest
 @testable import TurtleGitCore
 
 final class PatchMailPreparationTests: XCTestCase {
+    func testOrdinaryDocumentModesPreserveFullTextCustomSubjectOrderAndAttachmentBytes() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitDocumentMail-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let first = root.appendingPathComponent("request 雪.txt"), second = root.appendingPathComponent("other.txt")
+        let firstBytes = Data("intro\n\nSubject: text in document\nlast 雪".utf8), secondBytes = Data("second\r\n".utf8)
+        try firstBytes.write(to: first); try secondBytes.write(to: second)
+        for combine in [false, true] {
+            for attachment in [false, true] {
+                var options = PatchMailOptions(); options.to = " to@example.invalid ;"; options.cc = "review@example.invalid"
+                options.subject = "Custom request"; options.combine = combine; options.attachment = attachment
+                let files = [second, first, second]
+                let messages = try PatchMailPreparation.messages(documents: files, options: options)
+                XCTAssertEqual(messages.count, combine ? 1 : 3)
+                XCTAssertTrue(messages.allSatisfy { $0.subject == options.subject && $0.to == ["to@example.invalid"] && $0.cc == ["review@example.invalid"] })
+                let bodies = ["second\r\n", "intro\r\n\r\nSubject: text in document\r\nlast 雪\r\n", "second\r\n"]
+                if attachment {
+                    XCTAssertTrue(messages.allSatisfy { $0.body.isEmpty })
+                    XCTAssertEqual(messages.flatMap(\.attachments).map(\.file), files)
+                    XCTAssertEqual(messages.flatMap(\.attachments).map(\.bytes), [secondBytes, firstBytes, secondBytes])
+                } else if combine {
+                    let expected = zip(files, bodies).map { $0.0.path + ":\n" + $0.1 + "\n" }.joined()
+                    XCTAssertEqual(messages[0].body, Data(expected.utf8)); XCTAssertTrue(messages[0].attachments.isEmpty)
+                } else { XCTAssertEqual(messages.map(\.body), bodies.map { Data($0.utf8) }) }
+            }
+        }
+        var options = PatchMailOptions(); options.attachment = true
+        let captured = try PatchMailPreparation.messages(documents: [first], options: options)
+        try Data("changed".utf8).write(to: first)
+        XCTAssertEqual(captured[0].attachments[0].bytes, firstBytes)
+        try Data([0, 255, 128]).write(to: second)
+        XCTAssertEqual(try PatchMailPreparation.messages(documents: [second], options: options)[0].attachments[0].bytes, Data([0,255,128]))
+        options.attachment = false
+        XCTAssertThrowsError(try PatchMailPreparation.messages(documents: [second], options: options))
+        try Data().write(to: second)
+        XCTAssertEqual(try PatchMailPreparation.messages(documents: [second], options: options)[0].body, Data())
+        options.subject = "bad\nheader"
+        XCTAssertThrowsError(try PatchMailPreparation.messages(documents: [second], options: options))
+        XCTAssertThrowsError(try PatchMailPreparation.messages(documents: [root], options: PatchMailOptions()))
+    }
     private func location(_ name: String = "patch") -> URL { URL(fileURLWithPath: "/fixture/" + name) }
     func testHeadersFoldingAndLFCRLFBodyBoundaries() throws {
         for ending in ["\n", "\r\n"] {

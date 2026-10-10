@@ -28,6 +28,8 @@ struct SendPatchRequest: Sendable {
     @Published private(set) var openingViewer = false
     @Published private(set) var pendingLoads = 0
     @Published var error: String?
+    let customSubject: Bool
+    private let appOwnedFiles: Set<URL>
     private let deliveryOverride: Delivery?
     var delivery: Delivery { capturedDelivery().delivery == .mailClient ? .mailClient : .smtp }
     private let preferences: UserDefaults
@@ -49,13 +51,14 @@ struct SendPatchRequest: Sendable {
     @Published var applyPatches: (([URL]) -> Void)?
     @Published var showSettings: (() -> Void)?
     var addresses: [String] { preferences.stringArray(forKey: "SendMail.Addresses") ?? [] }
-    var subject: String { combine ? combinedSubject : previewSubject }
+    var subject: String { combine || customSubject ? combinedSubject : previewSubject }
     var canSubmit: Bool { canInteract && onSubmit != nil }
     var canInteract: Bool { !invalidated && !submitted && !busy && !openingViewer && !childActive() }
 
-    init(files: [URL], delivery: Delivery? = nil, access: [RepositoryAccessLease] = [], preferences: UserDefaults = .standard) {
+    init(files: [URL], delivery: Delivery? = nil, access: [RepositoryAccessLease] = [], preferences: UserDefaults = .standard, customSubject: Bool = false, appOwnedFiles: [URL] = []) {
         let initial = files.map { SendPatchRow(file: $0) }
         rows = initial; checked = Set(initial.map(\.id)); highlighted = initial.count == 1 ? Set(initial.map(\.id)) : []
+        self.customSubject = customSubject; self.appOwnedFiles = Set(appOwnedFiles.map { $0.resolvingSymlinksInPath().standardizedFileURL })
         self.deliveryOverride = delivery; self.access = access; self.preferences = preferences
         attachment = preferences.bool(forKey: "SendMail.Attach"); combine = preferences.bool(forKey: "SendMail.Combine")
     }
@@ -75,14 +78,18 @@ struct SendPatchRequest: Sendable {
     }
     func combineChanged() { guard canInteract else { return }; refreshPreview() }
     private func checkAccess(_ files: [URL]) throws {
-        if GitRuntime.isAppStoreBuild && !files.allSatisfy({ file in access.contains { $0.hasSecurityScope && $0.contains(file) } }) {
+        if GitRuntime.isAppStoreBuild && !files.allSatisfy({ file in
+            let resolved = file.resolvingSymlinksInPath().standardizedFileURL
+            let privateRoot = TurtleGitTemporaryStorage.defaultRoot.resolvingSymlinksInPath().standardizedFileURL.path + "/"
+            return (appOwnedFiles.contains(resolved) && resolved.path.hasPrefix(privateRoot)) || access.contains { $0.hasSecurityScope && $0.contains(file) }
+        }) {
             throw RepositoryAccessFailure.securityScopeUnavailable
         }
     }
     func refreshPreview() {
         guard canInteract else { return }
         previewWork?.cancel(); previewGeneration = UUID(); previewBusy = false
-        guard !combine, highlighted.count == 1, let row = rows.first(where: { highlighted.contains($0.id) }) else { previewSubject = ""; return }
+        guard !customSubject, !combine, highlighted.count == 1, let row = rows.first(where: { highlighted.contains($0.id) }) else { previewSubject = ""; return }
         if let cached = previews[row.id] { previewSubject = cached; return }
         do { try checkAccess([row.file]) } catch { previewSubject = ""; self.error = error.localizedDescription; return }
         previewSubject = ""; previewBusy = true; pendingLoads += 1
@@ -115,15 +122,19 @@ struct SendPatchRequest: Sendable {
                 error = "Enter at least one To or CC address."; return
             }
         } catch { self.error = error.localizedDescription; return }
-        let headerFields = [options.to, options.cc] + (options.combine ? [options.subject] : [])
+        let headerFields = [options.to, options.cc] + (options.combine || customSubject ? [options.subject] : [])
         guard headerFields.allSatisfy({ $0.utf8.allSatisfy { $0 != 13 && $0 != 10 && $0 != 0 } }) else {
             error = PatchMailPreparationFailure.header.localizedDescription; return
         }
         remember(options)
         if files.isEmpty { submitted = true; close(); return }
         busy = true; error = nil; pendingLoads += 1
-        let snapshot = options
+        let snapshot = options, documents = customSubject
         let work = Task.detached {
+            if documents {
+                let messages = try PatchMailPreparation.messages(documents: files, options: snapshot)
+                try Task.checkCancellation(); return messages
+            }
             var patches: [SerialPatch] = []
             for file in files { try Task.checkCancellation(); patches.append(try SerialPatch(file: file)) }
             let messages = try PatchMailPreparation.messages(patches: patches, options: snapshot)
@@ -228,10 +239,10 @@ struct SendPatchRequest: Sendable {
     private var patch: PatchWindowController?
     init(files: [URL], delivery: SendPatchWindowModel.Delivery? = nil, access: [RepositoryAccessLease] = [], preferences: UserDefaults = .standard,
          settingsPresenter: ((UserDefaults) -> Void)? = nil, repository: GitRepository? = nil, repositoryAccess: RepositoryAccessLease? = nil,
-         presentation: ((NSWindowController) -> Void)? = nil) {
-        model = SendPatchWindowModel(files: files, delivery: delivery, access: access, preferences: preferences)
+         presentation: ((NSWindowController) -> Void)? = nil, customSubject: Bool = false, appOwnedFiles: [URL] = []) {
+        model = SendPatchWindowModel(files: files, delivery: delivery, access: access, preferences: preferences, customSubject: customSubject, appOwnedFiles: appOwnedFiles)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 480), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "Send Patch – TurtleGit"; window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 620, height: 380)
+        window.title = customSubject ? "Send Mail – TurtleGit" : "Send Patch – TurtleGit"; window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 620, height: 380)
         window.contentViewController = NSHostingController(rootView: SendPatchDialog(model: model))
         super.init(window: window); window.delegate = self; window.center()
         model.close = { [weak window] in window?.close() }; model.endEditing = { [weak window] in window?.makeFirstResponder(nil) }; model.refreshPreview()
@@ -325,7 +336,7 @@ struct SendPatchDialog: View {
                     HStack { Text("To:").frame(width: 60, alignment: .leading); SendPatchAddressField(value: $model.to, choices: model.addresses, label: "To addresses") }
                     HStack { Text("CC:").frame(width: 60, alignment: .leading); SendPatchAddressField(value: $model.cc, choices: model.addresses, label: "CC addresses") }
                     HStack { Text("Subject:").frame(width: 60, alignment: .leading)
-                        TextField("", text: Binding(get: { model.subject }, set: { if model.combine { model.combinedSubject = $0 } })).disabled(!model.combine)
+                        TextField("", text: Binding(get: { model.subject }, set: { if model.combine || model.customSubject { model.combinedSubject = $0 } })).disabled(!model.combine && !model.customSubject)
                     }
                 }.padding(8)
             }.disabled(!model.canInteract)
@@ -646,10 +657,10 @@ private struct SendPatchProgressDialog: View {
     private var finished = false
     private let completion: (String?) -> Void
     private let present: (NSWindowController) -> Void
-    init(files: [URL], repository: GitRepository, access: RepositoryAccessLease?, fileAccess: [RepositoryAccessLease], preferences: UserDefaults, presentation: ((NSWindowController) -> Void)? = nil, completion: @escaping (String?) -> Void) {
+    init(files: [URL], repository: GitRepository, access: RepositoryAccessLease?, fileAccess: [RepositoryAccessLease], preferences: UserDefaults, presentation: ((NSWindowController) -> Void)? = nil, customSubject: Bool = false, appOwnedFiles: [URL] = [], completion: @escaping (String?) -> Void) {
         self.completion = completion
         present = presentation ?? { $0.showWindow(nil); $0.window?.makeKeyAndOrderFront(nil) }
-        let controller = SendPatchWindowController(files: files, access: fileAccess, preferences: preferences, repository: repository, repositoryAccess: access, presentation: presentation)
+        let controller = SendPatchWindowController(files: files, access: fileAccess, preferences: preferences, repository: repository, repositoryAccess: access, presentation: presentation, customSubject: customSubject, appOwnedFiles: appOwnedFiles)
         options = controller
         controller.model.onSubmit = { [weak self] request in
             guard let self, !self.finished, self.progress == nil else { return }

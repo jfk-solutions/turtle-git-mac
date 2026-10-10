@@ -28,9 +28,10 @@ Git runs `request-pull -- <start> <url> <end>` with argument arrays, retains raw
 stdout bytes as pullrequest.txt in a private temporary directory, and checks the
 advertised URL rather than publishing refs. A transport/generation failure retains
 inputs and reports the source Failed to create pull-request message. macOS opens
-the result in the associated text editor, or starts the system mail composer when
-Send Mail is selected. The Git operation sends no message. Mail recipients and
-sending are controlled in the composer. If editor/mail handoff fails, Open request
+the result in the associated text editor, or opens native Send Mail options for
+configured/direct SMTP when Send Mail is selected. Mail-client mode currently
+starts the system mail composer. The Git operation sends no message. Mail recipients and
+sending are controlled in the selected native options or mail composer. If editor/mail handoff fails, Open request
 retains access to the generated document. Successful documents remain available
 for the external editor/composer, as upstream keeps its temporary document.
 
@@ -51,7 +52,8 @@ callbacks: tests do not launch an editor or compose/send mail.
 
 Physical fields/popup/Shift+Delete/Log sheet/Cancel/Escape/resize/default/button
 behavior, appearance/accessibility, editor/mail composer invocation and lifecycle,
-mail To/CC/subject/attachment/combine/SMTP controls, network credential access,
+full mail-client To/CC/subject/attachment/combine controls, actual remote SMTP
+credential access,
 command-line endrev/url presets, physical Push follow-up window handoff, signed sandbox and
 App Store acceptance remain pending. Branch-name validation uses Git CLI plus
 source exclusions rather than libgit2; complete Unicode/pathological name
@@ -61,3 +63,32 @@ new window. This is a partial native replacement, not full dialog/application or
 distribution parity.
 
 Push success now routes the captured destination into this dialog; see [Push parity](PUSH-PARITY.md).
+
+## Native SMTP document handoff
+
+Configured and direct SMTP now open the shared Send Mail options/progress
+workflow from Request Pull. Like AppUtils.cpp, this uses the generic
+CSendMailCombineable document mode and `m_bCustomSubject`, rather than parsing the
+request as a format-patch file. Subject remains editable with Combine One Mail
+off and does not change when highlighting rows. Ordinary single messages retain
+all document lines; combined inline messages add each full filename and its text.
+The text path adapts source line-reading to UTF-8 and CRLF; attachments preserve
+original bytes, including non-text content. Original selected order and duplicate
+rows are retained across preparation.
+
+The Request Pull owner retains repository access and the options/progress
+workflow, blocks resubmission/close during mail, and releases its mail state after
+options Cancel or result close. As upstream, successful request generation is
+independent of the eventual SMTP result. Failed delivery remains visible in the
+shared progress window. Generated documents remain in the application's private
+temporary storage for fallback/external use. The Send model accepts only the
+explicitly supplied generated file within that private root without an external
+security-scope grant; external dropped files still require their normal grants.
+
+Core tests cover all four generic document modes, full text before/after blank
+lines, custom subjects, duplicate order, line endings, empty text, exact binary
+attachment capture, UTF-8 rejection and header/directory guards. Hidden native
+verification and bundle checks are recorded in
+[Request Pull mail QA](qa/request-pull-mail-2026-10-10.json). Full mail-client
+options/lifecycle, legacy document encodings, physical UI/SMTP invocation and
+signed sandbox/App Store acceptance remain pending.
