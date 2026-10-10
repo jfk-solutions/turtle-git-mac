@@ -74,7 +74,8 @@ final class ResetTests: XCTestCase {
 
 final class MergeAbortResetTests: XCTestCase {
     func fixture() async throws -> (URL, GitRepository, String) {
-        let (root, repo, path) = try await GitPatchTests().fixture()
+        let (root, original, path) = try await GitPatchTests().fixture()
+        let repo = GitRepository(root: root, executable: ProcessInfo.processInfo.environment["TURTLEGIT_GROUP_TEST_GIT"].map { URL(fileURLWithPath: $0) } ?? original.executable)
         try Data("notes\n".utf8).write(to: root.appendingPathComponent("notes")); try await repo.stage(["notes"]); _ = try await repo.commit(message: "notes")
         _ = try await repo.run(["switch", "-c", "feature"])
         try Data("theirs\n".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path]); _ = try await repo.commit(message: "theirs")
@@ -163,7 +164,8 @@ final class MergeAbortResetTests: XCTestCase {
     }
 
     func testPreCancelledResetPreservesHeadIndexAndWorkingTree() async throws {
-        let (root, repo, path) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let (root, original, path) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let repo = GitRepository(root: root, executable: ProcessInfo.processInfo.environment["TURTLEGIT_GROUP_TEST_GIT"].map { URL(fileURLWithPath: $0) } ?? original.executable)
         _ = try await repo.run(["commit", "--allow-empty", "-m", "next"])
         try Data("staged\n".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path]); try Data("working\n".utf8).write(to: root.appendingPathComponent(path))
         let plan = try await repo.prepareReset(to: "HEAD^", mode: .hard)
