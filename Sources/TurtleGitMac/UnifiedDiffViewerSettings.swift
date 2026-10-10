@@ -25,8 +25,8 @@ import TurtleGitCore
         return controller
     }
     /// Returns false when the caller should use its built-in viewer.
-    static func openExternal(_ bytes: Data, alternate: Bool) async throws -> Bool {
-        let preferences = UnifiedDiffViewerPreferences.load()
+    static func openExternal(_ bytes: Data, alternate: Bool, preferences defaults: UserDefaults = .standard) async throws -> Bool {
+        let preferences = UnifiedDiffViewerPreferences.load(from: defaults)
         guard case .external(let application) = try preferences.choice(alternate: alternate) else { return false }
         let preview = try UnifiedDiffPreview.create(bytes)
         UnifiedDiffPreviewFiles.retain(preview)

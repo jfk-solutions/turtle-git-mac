@@ -35,10 +35,12 @@ import UniformTypeIdentifiers
     let model: PatchWindowModel
     var onClosed: () -> Void = {}
     var onMoved: () -> Void = {}
+    private let preferences: UserDefaults
     func windowDidMove(_ notification: Notification) { onMoved() }
-    init(repository: GitRepository, access: RepositoryAccessLease?) {
-        model = PatchWindowModel(repository: repository, access: access)
-        let savedWidth = UserDefaults.standard.double(forKey: "PartialPatchWindowWidth")
+    init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
+        self.preferences = preferences
+        model = PatchWindowModel(repository: repository, access: access, appearancePreferences: preferences)
+        let savedWidth = preferences.double(forKey: "PartialPatchWindowWidth")
         let width = savedWidth >= 460 && savedWidth <= 4000 ? savedWidth : 600
         let window = PatchNSWindow(contentRect: NSRect(x: 0, y: 0, width: width, height: 760),
                               styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
@@ -55,7 +57,7 @@ import UniformTypeIdentifiers
         DialogGeometry.attach(window, identifier: "PatchWindowController")
     }
     func windowWillClose(_ notification: Notification) {
-        if let window { UserDefaults.standard.set(window.frame.width, forKey: "PartialPatchWindowWidth") }
+        if let window { preferences.set(window.frame.width, forKey: "PartialPatchWindowWidth") }
         onClosed()
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && !model.confirmingQuit && sender.attachedSheet == nil }

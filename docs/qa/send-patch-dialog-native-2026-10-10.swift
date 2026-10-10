@@ -331,6 +331,48 @@ private actor DeliveryProbe {
         _ = try await repository.run(["init", "--quiet"])
         _ = try await repository.run(["config", "--local", "user.name", "Captured"])
         _ = try await repository.run(["config", "--local", "user.email", "sender@example.invalid"])
+        let firstViewBytes = try Data(contentsOf: first), secondViewBytes = try Data(contentsOf: second)
+        var patchPresentations: [PatchWindowController] = []
+        let viewOptions = SendPatchWindowController(files: [first, second], preferences: prefs, repository: repository, presentation: { child in
+            if let patch = child as? PatchWindowController { patchPresentations.append(patch) }
+        })
+        viewOptions.model.onSubmit = { _ in }
+        viewOptions.model.setChecked([])
+        let firstViewID = viewOptions.model.rows[0].id
+        viewOptions.model.setHighlighted([firstViewID])
+        try await settle(viewOptions.model)
+        try require(viewOptions.model.showPatch != nil && viewOptions.model.showAlternatePatch != nil, "Production View Patch callbacks installed")
+        viewOptions.model.openPatch(firstViewID)
+        try require(viewOptions.model.openingViewer && !viewOptions.model.canSubmit, "Viewer read blocks Send")
+        viewOptions.model.openPatch(viewOptions.model.rows[1].id)
+        try await settle(viewOptions.model)
+        guard let viewed = patchPresentations.first else { throw VerificationFailure(description: "Native patch viewer missing") }
+        try require(patchPresentations.count == 1 && viewed.window?.isVisible == false && viewed.model.readOnly,
+                    "Hidden single viewer, duplicate opening fenced")
+        try require(viewed.model.exportDocument.bytes == firstViewBytes && viewed.model.comparisonTitle == first.lastPathComponent,
+                    "Highlighted unchecked newline path exports original bytes")
+        try require(viewOptions.model.checked.isEmpty && viewOptions.model.canSubmit && !viewed.model.refreshAvailable,
+                    "Viewer preserves checked files and enables Send after loading")
+        viewOptions.model.openPatch(viewOptions.model.rows[1].id, alternate: true); try await settle(viewOptions.model)
+        try require(patchPresentations.count == 2 && patchPresentations[1] === viewed && viewed.model.exportDocument.bytes == secondViewBytes,
+                    "Shift builtin fallback reuses viewer with exact selected bytes")
+        prefs.set("/nonexistent-turtlegit-viewer.app", forKey: "TurtleGit.UnifiedDiffViewer.Application")
+        viewOptions.model.openPatch(firstViewID, alternate: true); try await settle(viewOptions.model)
+        try require(viewOptions.model.error != nil && patchPresentations.count == 2 && viewOptions.model.canSubmit,
+                    "Invalid Shift external route reports error without launching or replacing viewer")
+        prefs.removeObject(forKey: "TurtleGit.UnifiedDiffViewer.Application")
+        viewed.model.busy = true
+        try require(!viewOptions.model.canSubmit && !viewOptions.windowShouldClose(viewOptions.window!), "Busy patch guards Send and parent close")
+        viewed.model.busy = false
+        viewOptions.model.loadPatch(root.appendingPathComponent("missing.patch")) { _ in throw VerificationFailure(description: "Missing file reached viewer") }
+        try await settle(viewOptions.model)
+        try require(viewOptions.model.error != nil && patchPresentations.count == 2 && viewOptions.model.canSubmit, "Missing file releases opening gate")
+        viewOptions.model.openPatch(firstViewID); viewOptions.window?.performClose(nil); try await settle(viewOptions.model)
+        try require(!viewOptions.model.canInteract && !viewOptions.model.openingViewer && patchPresentations.count == 2,
+                    "Close cancels pending read without late child presentation")
+        try require(prefs.double(forKey: "PartialPatchWindowWidth") > 0, "Patch width saved into private preferences")
+        patchPresentations.removeAll()
+        print("Send Patch native viewer: exact unchecked highlighted bytes, newline path, Shift builtin/invalid external route, reused child, busy close gates, missing file and pending-close fencing passed with private preferences.")
         var liveOptions = mailOptions; liveOptions.combine = true; liveOptions.attachment = true; liveOptions.subject = "Captured series"
         let liveMessages = try PatchMailPreparation.messages(files: [second, second], options: liveOptions)
         var loopback = EmailConfiguration(preferences: prefs); loopback.delivery = .configured
@@ -351,6 +393,7 @@ private actor DeliveryProbe {
         format.model.composeMail([second, second])
         guard let options = shownOptions else { throw VerificationFailure(description: "Format configured mail options not presented") }
         try require(format.model.composingMail && options.window?.isVisible == false, "Retained hidden options and Format close fence")
+        try require(options.model.showPatch != nil && options.model.showAlternatePatch != nil, "Format workflow installs both View Patch routes")
         options.model.to = liveOptions.to; options.model.cc = liveOptions.cc; options.model.combine = true
         options.model.attachment = true; options.model.combinedSubject = liveOptions.subject
         options.model.submit(); try await settle(options.model)

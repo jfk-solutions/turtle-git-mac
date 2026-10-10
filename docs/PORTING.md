@@ -14,6 +14,13 @@ hidden native verification with system and packaged Git; physical UI, full Send
 Mail options and signed sandbox acceptance remain pending. See
 [FORMAT-PATCH-PARITY.md](FORMAT-PATCH-PARITY.md) for the audited controls and scope.
 
+Configured Send Mail's View Patch action now opens the highlighted file in a
+read-only native unified-diff viewer, preserving its original bytes independently
+of the Send checkbox. Shift uses the alternate viewer setting; owned reads,
+missing-file recovery and close fencing have hidden native verification. Review
+and Apply actions, other delivery modes, physical UI and signed grants remain
+pending. See [Send Patch parity](SEND-PATCH-PARITY.md).
+
 ## Audited baseline
 
 Worktree creation, listing, locking, unlocking, removal and pruning now have a

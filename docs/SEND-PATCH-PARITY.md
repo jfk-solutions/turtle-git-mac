@@ -488,3 +488,30 @@ selection retention and width retention alongside real loopback delivery. See
 [notification QA](qa/send-patch-notifications-2026-10-10.json).
 Other GitProgressList consumers, full shared progress UI, displayed/signed
 acceptance and complete mail-client/direct delivery remain pending.
+
+## View Patch from Send Mail
+
+Configured Send Mail options now install the PatchList's View Patch and Shift
+alternate-viewer callbacks. A highlighted file opens independently of its Send
+checkbox. Loading retains the file grants, reads a regular file off the UI
+thread, and preserves the original bytes for the native viewer's Save As. The
+native viewer is read-only, uses the filename as its comparison title, disables
+repository refresh and reuses its owned window on the next view request.
+
+Send and further list actions are guarded while loading. Closing the options
+cancels the owned read and fences late presentation/errors; missing files and
+invalid alternate-viewer settings restore the controls and report an error.
+Busy viewer operations or an attached viewer sheet guard Send and options close.
+The child closes with its options owner. The viewer's appearance/width and
+external selection use the caller's preferences, allowing hidden verification
+with a private defaults suite instead of changing user settings.
+
+The hidden native receiver verifies exact original bytes, an unchecked highlighted
+filename containing a newline, normal/Shift built-in reuse, invalid external
+settings without launching an app, missing-file recovery, duplicate-open guards,
+busy-child close gates and pending-read close fencing. It also verifies the
+actual configured Format workflow installs both callbacks. See
+[viewer QA](qa/send-patch-view-2026-10-10.json). Actual external-app launching,
+physical gestures/rendering and signed sandbox file grants remain unverified.
+Review Patch and Apply Patch callbacks in Send Mail, full mail-client/direct
+routes and complete application parity remain unfinished.

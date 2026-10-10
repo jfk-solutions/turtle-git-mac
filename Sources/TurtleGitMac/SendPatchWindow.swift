@@ -25,6 +25,7 @@ struct SendPatchRequest: Sendable {
     @Published private(set) var previewSubject = ""
     @Published private(set) var previewBusy = false
     @Published private(set) var busy = false
+    @Published private(set) var openingViewer = false
     @Published private(set) var pendingLoads = 0
     @Published var error: String?
     private let deliveryOverride: Delivery?
@@ -35,6 +36,9 @@ struct SendPatchRequest: Sendable {
     private var previewGeneration = UUID()
     private var previewWork: Task<SerialPatch, Error>?
     private var preparationWork: Task<[PatchMailMessage], Error>?
+    private var viewerWork: Task<Data, Error>?
+    private var viewerGeneration = UUID()
+    var childActive: () -> Bool = { false }
     private var previews: [UUID: String] = [:]
     @Published var onSubmit: ((SendPatchRequest) -> Void)?
     var close: () -> Void = {}
@@ -46,8 +50,8 @@ struct SendPatchRequest: Sendable {
     @Published var showSettings: (() -> Void)?
     var addresses: [String] { preferences.stringArray(forKey: "SendMail.Addresses") ?? [] }
     var subject: String { combine ? combinedSubject : previewSubject }
-    var canSubmit: Bool { !invalidated && !submitted && !busy && onSubmit != nil }
-    var canInteract: Bool { !invalidated && !submitted && !busy }
+    var canSubmit: Bool { canInteract && onSubmit != nil }
+    var canInteract: Bool { !invalidated && !submitted && !busy && !openingViewer && !childActive() }
 
     init(files: [URL], delivery: Delivery? = nil, access: [RepositoryAccessLease] = [], preferences: UserDefaults = .standard) {
         let initial = files.map { SendPatchRow(file: $0) }
@@ -179,15 +183,48 @@ struct SendPatchRequest: Sendable {
         guard canInteract, let row = rows.first(where: { $0.id == id }) else { return }
         if alternate, let showAlternatePatch { showAlternatePatch(row.file) } else { showPatch?(row.file) }
     }
-    func cancel() { guard !invalidated && !submitted else { return }; endEditing(); guard !invalidated && !submitted else { return }; invalidate(); close() }
-    func invalidate() { invalidated = true; previewGeneration = UUID(); previewBusy = false; previewWork?.cancel(); preparationWork?.cancel() }
+    func loadPatch(_ file: URL, viewer: @escaping (Data) async throws -> Void) {
+        guard canInteract else { return }
+        do { try checkAccess([file]) } catch { self.error = error.localizedDescription; return }
+        let generation = UUID(); viewerGeneration = generation
+        openingViewer = true; pendingLoads += 1; error = nil
+        let retainedAccess = access
+        let work = Task.detached {
+            defer { _ = retainedAccess }
+            try Task.checkCancellation()
+            guard file.isFileURL, !file.path.contains("\0"),
+                  try file.resolvingSymlinksInPath().resourceValues(forKeys: [.isRegularFileKey]).isRegularFile == true else {
+                throw SerialPatchFailure.file(file)
+            }
+            let bytes = try Data(contentsOf: file)
+            try Task.checkCancellation(); return bytes
+        }
+        viewerWork = work
+        Task {
+            defer {
+                pendingLoads -= 1
+                if viewerGeneration == generation { openingViewer = false; viewerWork = nil }
+            }
+            do {
+                let bytes = try await work.value
+                guard !invalidated, viewerGeneration == generation else { return }
+                try await viewer(bytes)
+            } catch {
+                if !invalidated, viewerGeneration == generation, !(error is CancellationError) { self.error = error.localizedDescription }
+            }
+        }
+    }
+    func cancel() { guard !invalidated && !submitted && !childActive() else { return }; endEditing(); guard !invalidated && !submitted else { return }; invalidate(); close() }
+    func invalidate() { invalidated = true; previewGeneration = UUID(); previewBusy = false; previewWork?.cancel(); preparationWork?.cancel(); viewerGeneration = UUID(); viewerWork?.cancel(); viewerWork = nil; openingViewer = false }
 }
 
 @MainActor final class SendPatchWindowController: NSWindowController, NSWindowDelegate {
     let model: SendPatchWindowModel
     var onClosed: () -> Void = {}
+    private var patch: PatchWindowController?
     init(files: [URL], delivery: SendPatchWindowModel.Delivery? = nil, access: [RepositoryAccessLease] = [], preferences: UserDefaults = .standard,
-         settingsPresenter: ((UserDefaults) -> Void)? = nil) {
+         settingsPresenter: ((UserDefaults) -> Void)? = nil, repository: GitRepository? = nil, repositoryAccess: RepositoryAccessLease? = nil,
+         presentation: ((NSWindowController) -> Void)? = nil) {
         model = SendPatchWindowModel(files: files, delivery: delivery, access: access, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 480), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "Send Patch – TurtleGit"; window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 620, height: 380)
@@ -200,10 +237,30 @@ struct SendPatchRequest: Sendable {
             if let settingsPresenter { settingsPresenter(preferences) }
             else { EmailSettingsWindowController.present(preferences: preferences) }
         }
+        if let repository {
+            model.childActive = { [weak self] in self?.patch?.model.busy == true || self?.patch?.window?.attachedSheet != nil }
+            let open: (URL, Bool) -> Void = { [weak self] file, alternate in
+                guard let self else { return }
+                self.model.loadPatch(file) { [weak self] bytes in
+                    guard let self else { return }
+                    if try await UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: preferences) { return }
+                    let controller = self.patch ?? PatchWindowController(repository: repository, access: repositoryAccess, preferences: preferences)
+                    controller.model.setReadOnlyDiff(bytes); controller.model.refreshAvailable = false
+                    controller.model.customRefresh = nil; controller.model.comparisonTitle = file.lastPathComponent
+                    controller.model.readOnlyInformation = "Read-only patch. Use Save As to export the original bytes."
+                    controller.window?.title = "\(file.lastPathComponent) – Unified Diff – TurtleGit"
+                    controller.onClosed = { [weak self, weak controller] in if self?.patch === controller { self?.patch = nil; self?.model.objectWillChange.send() } }
+                    self.patch = controller
+                    if let presentation { presentation(controller) }
+                    else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
+                }
+            }
+            model.showPatch = { open($0, false) }; model.showAlternatePatch = { open($0, true) }
+        }
         DialogGeometry.attach(window, identifier: "SendPatchDialog", legacyName: "SendPatchDialog")
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { sender.attachedSheet == nil }
-    func windowWillClose(_ notification: Notification) { model.invalidate(); onClosed() }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { sender.attachedSheet == nil && !model.childActive() }
+    func windowWillClose(_ notification: Notification) { model.invalidate(); patch?.close(); patch = nil; onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
@@ -229,7 +286,7 @@ struct SendPatchDialog: View {
             SendPatchList(model: model).disabled(!model.canInteract).frame(maxWidth: .infinity, maxHeight: .infinity)
             if let error = model.error { Text(error).foregroundStyle(.red).frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled) }
             HStack {
-                if model.busy || model.previewBusy { ProgressView().controlSize(.small) }
+                if model.busy || model.previewBusy || model.openingViewer { ProgressView().controlSize(.small) }
                 Spacer()
                 Button("Send") { model.submit() }.keyboardShortcut(.defaultAction).disabled(!model.canSubmit)
                 Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction)
@@ -526,7 +583,7 @@ private struct SendPatchProgressDialog: View {
     init(files: [URL], repository: GitRepository, access: RepositoryAccessLease?, fileAccess: [RepositoryAccessLease], preferences: UserDefaults, presentation: ((NSWindowController) -> Void)? = nil, completion: @escaping (String?) -> Void) {
         self.completion = completion
         present = presentation ?? { $0.showWindow(nil); $0.window?.makeKeyAndOrderFront(nil) }
-        let controller = SendPatchWindowController(files: files, access: fileAccess, preferences: preferences)
+        let controller = SendPatchWindowController(files: files, access: fileAccess, preferences: preferences, repository: repository, repositoryAccess: access, presentation: presentation)
         options = controller
         controller.model.onSubmit = { [weak self] request in
             guard let self, !self.finished, self.progress == nil else { return }
