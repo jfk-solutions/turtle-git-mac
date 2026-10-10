@@ -252,6 +252,7 @@
 		FE0A4FBD4DEB65683A8F6586 /* MergeMessageEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CE3CE517C60F5192533D85D /* MergeMessageEditor.swift */; };
 		FED983DAC1D3DA69EF249094 /* SubmoduleSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6627A941719314D5D2976D6E /* SubmoduleSync.swift */; };
 		FF0E5C4AB3547674CE31C89B /* PatchPageSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A93F4AB3BFC676A7095AACC /* PatchPageSetup.swift */; };
+		A39F01E117C945ACB8258001 /* Synchronization.swift in Sources */ = {isa = PBXBuildFile; fileRef = A39F01E117C945ACB8258002 /* Synchronization.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -569,6 +570,7 @@
 		FD325E61874E68F270271CC9 /* FileComparisonEditing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileComparisonEditing.swift; sourceTree = "<group>"; };
 		FF512B23E2DBAC7E83B73747 /* CommitPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitPreferences.swift; sourceTree = "<group>"; };
 		FFA8ABAE7D9E9C611A3AA3BF /* SSHIdentityAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHIdentityAccess.swift; sourceTree = "<group>"; };
+		A39F01E117C945ACB8258002 /* Synchronization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Synchronization.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -861,6 +863,7 @@
 				C9B39BEE643082FED0868FD9 /* RepositoryBrowser.swift */,
 				593C3138AD1ABEC07EC9AC6C /* RepositoryInitialization.swift */,
 				7A118CF3A03416CA1144F4DE /* RequestPull.swift */,
+				A39F01E117C945ACB8258002 /* Synchronization.swift */,
 				DE3C7BF5278D5807BDDF4B21 /* Reset.swift */,
 				4CFFC2A3D59FEB71D24D009E /* RevertDialogSelection.swift */,
 				366DB6C65F4EF18125B4B7D2 /* RevisionArchive.swift */,
@@ -1325,6 +1328,7 @@
 				4DADF6934B5B91754BD61031 /* RepositoryBrowser.swift in Sources */,
 				5AE1A8F789C776583FB32A26 /* RepositoryInitialization.swift in Sources */,
 				9B2EC959297C2E28D596ACCE /* RequestPull.swift in Sources */,
+				A39F01E117C945ACB8258001 /* Synchronization.swift in Sources */,
 				94D627C3502D8ACE734DD470 /* Reset.swift in Sources */,
 				F366E7B68CC9CA2A7D7171DA /* RevertDialogSelection.swift in Sources */,
 				413428D2C4D300D242747556 /* RevisionArchive.swift in Sources */,

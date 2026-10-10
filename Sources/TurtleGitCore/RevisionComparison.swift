@@ -8,9 +8,10 @@ public enum ComparisonRevision: Hashable, Sendable {
 }
 public struct RevisionDiffOptions: Equatable, Sendable {
     public var ignoreSpaceAtEnd = false, ignoreSpaceChange = false, ignoreAllSpace = false, ignoreBlankLines = false, commonAncestor = false
+    public var detectCopies = false
     public init() {}
     var arguments: [String] {
-        (ignoreSpaceAtEnd ? ["--ignore-space-at-eol"] : []) + (ignoreSpaceChange ? ["-b"] : []) + (ignoreAllSpace ? ["-w"] : []) + (ignoreBlankLines ? ["--ignore-blank-lines"] : [])
+        (detectCopies ? ["-C50%"] : []) + (ignoreSpaceAtEnd ? ["--ignore-space-at-eol"] : []) + (ignoreSpaceChange ? ["-b"] : []) + (ignoreAllSpace ? ["-w"] : []) + (ignoreBlankLines ? ["--ignore-blank-lines"] : [])
     }
 }
 public struct ComparisonRevisionDetails: Sendable {
