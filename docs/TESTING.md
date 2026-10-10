@@ -21,12 +21,20 @@ unchanged after the full-suite checkpoint. See
 [the current integration record](qa/current-full-suite-2026-10-10.json).
 The [previous 866-test record](qa/full-core-2026-10-10.json) remains historical.
 
-The latest run listed on the public Actions page when inspected was
-[macOS #135](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/37274118557),
-which reports Success for `44d3e52` on October 5. It covers that older hosted
-checkpoint; the current local source has not been verified by that run. GitHub
-requires sign-in to read its full logs. Local success does not resolve a failure
-in a different hosted run or prove the remaining native workflow steps.
+The published [macOS run for `23240f5`](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38071049130)
+failed before executing tests: the hosted Swift 6.1.2 compiler timed out on two
+Cleanup error-description expressions. `a0c630e` replaces their long chained
+expressions with equivalent sequential string construction. All 25 focused
+Cleanup tests pass locally on Swift 6.3.3. The
+[hosted retry](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38072143453)
+was still building the graph helper at the latest inspection; its compiler/test
+result remains unverified. See [the diagnosis](qa/ci-clean-typecheck-2026-10-10.json).
+
+The subsequent Log Find implementation has four focused Core tests and a native
+receiver, both passing with system and packaged Git. Its unsigned Debug/Store
+builds, package audits, inventory regression and local website generation pass.
+These results are separate from the last complete 921-test checkpoint above.
+See [Log Find evidence](qa/log-find-2026-10-10.json).
 
 ## Core and native receivers
 
@@ -761,3 +769,24 @@ bytes across history Cancel/replacement. `CommitMessageTests` covers repaired
 UTF-8 template/operation input, output-encoding independence, empty files, actual
 unreadable/missing paths and linked-worktree separation. Every malformed Windows
 subsequence and embedded-NUL UI behavior remain unverified.
+
+## Shared Log Find receiver
+
+After building Debug, run:
+
+```sh
+swift test --filter 'CommitHistoryTests.testFindHistory'
+TURTLEGIT_GROUP_TEST_GIT="$PWD/build/git-runtime/Git/bin/git" \
+  swift test --filter 'CommitHistoryTests.testFindHistory'
+python3 scripts/test-log-find.py \
+  --git /usr/bin/git --git build/git-runtime/Git/bin/git
+```
+
+The four Core tests cover the complete field corpus, all merge parents/root and
+rename paths, working-tree rows, cancellation, invalid hashes, finite wrap and
+first-result termination before an unreadable later row. The hidden native
+receiver checks Command-F reuse, startup exclusion, notes/path searches,
+reference navigation, Shift/plain Return, critical Return recovery, Cancel and
+parent-close cleanup. It uses private preferences, disables saved Log geometry
+and column layout, displays no app windows and cleans up its owned fixtures.
+Physical input, installed Finder and signed sandbox acceptance remain separate.

@@ -1,0 +1,84 @@
+{
+  "date": "2026-10-10",
+  "source_checkpoint": "fef5fb1c50e30507fc7b44b43c0bb66620da06c9",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Shared modeless Log Find window and complete LOGFILTER_ALL search backend, following GitLogListBase/LogDlgFilter/GitRevLoglist and the existing CFindDlg native layout.",
+  "verification": {
+    "core_system": {
+      "command": "swift test --filter 'CommitHistoryTests.testFindHistory'",
+      "exit_code": 0,
+      "tests": 4,
+      "failures": 0
+    },
+    "core_bundled": {
+      "command": "TURTLEGIT_GROUP_TEST_GIT=build/git-runtime/Git/bin/git swift test --filter 'CommitHistoryTests.testFindHistory'",
+      "exit_code": 0,
+      "tests": 4,
+      "failures": 0
+    },
+    "native_log": {
+      "command": "python3 scripts/test-log-find.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "exit_code": 0,
+      "engines": [
+        "Apple Git 2.50.1",
+        "bundled Git 2.55.0"
+      ],
+      "coverage": "Command-F single-window reuse, startup exclusion, full-text notes/paths, finite next/wrap, peeled reference navigation, Shift/plain Return, critical-sheet Return acknowledgment and parent locking, Cancel and parent-close cleanup. HEAD/index/config/worktree/branch/note-ref bytes unchanged; owned tag deletion deliberately exercises stale-ref failure."
+    },
+    "native_graph": {
+      "command": "python3 scripts/test-revision-graph-window.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "exit_code": 0,
+      "engines": 2,
+      "scope": "Shared-controller regression passed before final Log-only early-stop refinement; the Graph search path is unchanged by that refinement."
+    },
+    "debug_build": {
+      "exit_code": 0,
+      "signed": false
+    },
+    "store_build": {
+      "exit_code": 0,
+      "signed": false
+    },
+    "bundle_audits": {
+      "debug_exit_code": 0,
+      "store_exit_code": 0,
+      "store_requires_git": true,
+      "original_icons": 119
+    },
+    "inventory": {
+      "exit_code": 0,
+      "static_controls": 1659,
+      "shared_find_controls": 11
+    },
+    "workflow": "Ruby standard YAML parser accepted workflow; new native Log Find step added. Hosted execution not established by syntax check.",
+    "site": {
+      "exit_code": 0,
+      "scope": "Local website generation and screenshot signatures; source guide/gallery introduction updated, no new screenshots captured."
+    },
+    "cleanup": "All local test/compiler/build/audit sessions completed. Process audit found no TurtleGit, Log/Graph receiver, swift-frontend or xcodebuild instances."
+  },
+  "source_sha256": {
+    "Sources/TurtleGitCore/CommitHistory.swift": "3b7e9a94218e4355461552c31bf20763edf595419f8b3ade9542ef4a90ef205e",
+    "Sources/TurtleGitMac/LogWindow.swift": "1188645467f89bd1df6db71d2e6da149811b12f1d6a5ba9145ce6147176cda0a",
+    "Sources/TurtleGitMac/RevisionGraphWindow.swift": "05b1245c6b53d208d48c7359f8338f484e976130bc833540b8c42d8e2b105b1c",
+    "Tests/TurtleGitCoreTests/CommitHistoryTests.swift": "1d1134107d21f6c646c249be1fc337d06faabc5dae6dc5229e74834a0c5c1876",
+    "docs/qa/log-find-native-2026-10-10.swift": "4a5c0608bc37ece3238f6bef691be583b1ad290166f7f3bab5b82c68fd0bdf0b",
+    "scripts/test-log-find.py": "599b42e9c8bd1686ff340d13541d6151e0ddc438493d8dad899d9ef7efb2acfe",
+    ".github/workflows/macos.yml": "baec16eda9e40f9a7b867442540272ca94e82ba11a5ba2d57bf104052c71c25b",
+    "NOTICE": "af0e56aef7062f312ef18c4ed6116381b8c6f5a5df1c903eeafe376871d0ae6d"
+  },
+  "logs": {
+    "build/qa/log-find-core-next-2026-10-10.log": "742d1106a06ffa66fd5f75a71514e7a7d50486fc15caf01e9fe1837425954d50",
+    "build/qa/log-find-core-next-bundled-2026-10-10.log": "05396759f87f151c23f7eec71529e5edcd8f962211f838f6322e82043386c9ae",
+    "build/qa/log-find-native-next-2026-10-10.log": "e3d7c6eb61727250b9cb1cc53ba0bfa501c75dd03534e5f9e37f01be6850af1d",
+    "build/qa/log-find-graph-regression-2026-10-10.log": "edbeb2996d3c237b6680575f9699918654043d46ee7a2ee11ef3a88174798f26",
+    "build/qa/log-find-next-debug-2026-10-10.log": "191410f8d7293b412454c7935abbf9f4789d8b559614107cbd3f447bcce71220",
+    "build/qa/log-find-store-2026-10-10.log": "8b7e42e41011f64b89af2a34249c0e6a736fce554184bf57a0f657922d209930",
+    "build/qa/log-find-debug-audit-2026-10-10.log": "6c4a0639ae077d8a06ed7c1a450f328df6eb54f179d36af72fcbaca3cf48b1a9",
+    "build/qa/log-find-store-audit-2026-10-10.log": "ac6ee8a83e94cebfcd5300d885738875ea3ca79702538dd4b4523ab268676878",
+    "build/qa/log-find-inventory-2026-10-10.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/log-find-site-final-2026-10-10.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "remaining": "Physical keyboard/mouse and native menu routing, accessibility/localization, large histories and regex performance, source cursor lifetime across close/reload, reference refresh after all Log mutation commands, metadata changes during a search, signed sandbox/installed Finder and complete Log/source parity.",
+  "limitations": "Focused Core/native tests and unsigned bundles do not certify the full port or App Store readiness. Last full SwiftPM suite was 921 tests at c4bd370, before this implementation. Hosted failure at 23240f5 and isolated Cleanup fix a0c630e have separate evidence; hosted retry was still building its graph helper at inspection."
+}

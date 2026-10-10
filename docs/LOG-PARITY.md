@@ -2076,3 +2076,11 @@ macOS/sample, while physical VoiceOver speech/navigation and the complete
 accessibility hierarchy remain unverified. See
 [displayed capture QA](qa/dialog-captures-2026-10-10.json) and the refreshed
 `site/assets/log-messages.png`. Full Log/application parity remains incomplete.
+
+## Shared modeless Find
+
+Command-F opens the same native `IDD_FIND` replacement used by Revision Graph.
+Log search uses the complete `LOGFILTER_ALL` corpus, including notes, configured
+issue IDs, annotated tags and changed paths against every merge parent, together
+with literal/regex history, reference navigation and Shift selection preservation.
+See [Find in Log Messages](LOG-FIND.md) for behavior and remaining acceptance.

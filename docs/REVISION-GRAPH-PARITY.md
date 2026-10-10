@@ -561,3 +561,12 @@ remain current; loading/error-sheet appearance is not newly certified. All
 owned receivers exited, with no remaining app/test/compiler instances.
 Physical input, shared Log Find, signed execution and full port parity remain
 open; local builds do not establish current hosted CI or publication.
+
+## Subsequent shared Log consumer
+
+Log now reuses the native Find window through Command-F, with a separate
+`LOGFILTER_ALL` backend, all-parent/rename paths and first-match termination.
+Both consumers retain the same reference list, history, case/regex controls,
+Shift navigation and owned error acknowledgment. See [Log Find](LOG-FIND.md);
+this replaces the earlier missing-consumer item above while leaving physical,
+accessibility, mutation refresh and signed acceptance open.

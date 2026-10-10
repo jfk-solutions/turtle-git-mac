@@ -64,6 +64,7 @@ for baseline and update rules.
 ## History and repository browsing
 
 - [Log Messages parity](LOG-PARITY.md)
+- [Find in Log Messages](LOG-FIND.md)
 - [Expanding compressed history](LOG-GRAPH.md)
 - [Log Merge and Rebase commands](LOG-MERGE-REBASE.md)
 - [Log Revert parity](LOG-REVERT-PARITY.md)
