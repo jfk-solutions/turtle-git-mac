@@ -41,6 +41,8 @@ import Darwin
         let controller = CommitContainingReferencesWindowController(repository: repo, access: nil, revision: base, preferences: prefs), window = controller.window!
         window.alphaValue = 0; window.orderFront(nil); defer { window.close() }
         var copied = "", logs: [(String?, Bool, HistoryRevisionRange?)] = [], browsed: [String] = [], comparisons: [(ComparisonRevision, ComparisonRevision)] = []
+        var completionReads = 0
+        controller.readCompletion = { token in completionReads += 1; return try await repo.commitContainingReferenceCompletion(cancellation: token) }
         controller.copyText = { copied = $0 }; controller.onLog = { logs.append(($0, $1, $2)) }; controller.onBrowse = { browsed.append($0) }; controller.onCompare = { comparisons.append(($0, $1)) }
         controller.refresh(); try await wait { !controller.busy }
         if controller.snapshot?.hash != base || controller.rows.count != 4 || !controller.showLog.isEnabled { print("Initial refs diagnostic:", controller.snapshot?.hash ?? "nil", base, controller.rows.map(\.rawValue), controller.showLog.isEnabled, controller.status.stringValue) }
@@ -68,13 +70,37 @@ import Darwin
         let cachedNames = controller.revision.objectValues.compactMap { $0 as? String }
         _ = try await repo.run(["branch", "z-completion-later", base])
         controller.revision.stringValue = base; controller.refresh(); try await wait { !controller.busy }
-        try require(controller.rows.contains("refs/heads/z-completion-later") && controller.revision.objectValues.compactMap { $0 as? String } == cachedNames)
+        try require(completionReads == 1 && controller.rows.contains("refs/heads/z-completion-later") && controller.revision.objectValues.compactMap { $0 as? String } == cachedNames)
         let f5 = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [.function], timestamp: 0, windowNumber: window.windowNumber, context: nil, characters: "\u{F708}", charactersIgnoringModifiers: "\u{F708}", isARepeat: false, keyCode: 96)!
         try require(window.performKeyEquivalent(with: f5)); try await wait { !controller.busy }
-        try require(controller.revision.stringValue == base && controller.revision.objectValues.contains { ($0 as? String) == "refs/heads/z-completion-later" })
+        try require(completionReads == 2 && controller.revision.stringValue == base && controller.revision.objectValues.contains { ($0 as? String) == "refs/heads/z-completion-later" })
         _ = try await repo.run(["branch", "-D", "z-completion-later"])
         try require(window.performKeyEquivalent(with: f5)); try await wait { !controller.busy }
-        try require(controller.rows.count == 4 && controller.revision.objectValues.compactMap { $0 as? String } == cachedNames)
+        try require(completionReads == 3 && controller.rows.count == 4 && controller.revision.objectValues.compactMap { $0 as? String } == cachedNames)
+        let failedCompletion = CommitContainingReferencesWindowController(repository: repo, access: nil, revision: base, preferences: prefs)
+        failedCompletion.window!.alphaValue = 0; failedCompletion.window!.orderFront(nil)
+        var failedReads = 0
+        failedCompletion.readCompletion = { _ in failedReads += 1; throw NSError(domain: "PrivateCompletionFailure", code: 1) }
+        failedCompletion.refresh(); try await wait { !failedCompletion.busy }
+        try require(failedCompletion.snapshot?.hash == base && failedCompletion.revision.numberOfItems == 0)
+        failedCompletion.refresh(); try await wait { !failedCompletion.busy }; try require(failedReads == 1 && failedCompletion.snapshot?.hash == base)
+        failedCompletion.readCompletion = nil; failedCompletion.refresh(reloadCompletion: true); try await wait { !failedCompletion.busy }
+        try require(failedCompletion.revision.objectValues.contains { ($0 as? String) == "refs/heads/main" })
+        failedCompletion.close(); try require(failedCompletion.closed)
+        var completionReply: CheckedContinuation<[GitReferenceName], Error>?
+        controller.readCompletion = { _ in try await withCheckedThrowingContinuation { completionReply = $0 } }
+        controller.refresh(reloadCompletion: true); try await wait { completionReply != nil }
+        controller.readCompletion = nil; controller.refresh(); try await wait { !controller.busy }
+        completionReply!.resume(returning: [GitReferenceName("refs/heads/obsolete-completion")]); completionReply = nil
+        try await Task.sleep(nanoseconds: 50_000_000)
+        try require(controller.snapshot?.hash == base && controller.revision.objectValues.compactMap { $0 as? String } == cachedNames)
+        let closingCompletion = CommitContainingReferencesWindowController(repository: repo, access: nil, revision: base, preferences: prefs)
+        closingCompletion.window!.alphaValue = 0; closingCompletion.window!.orderFront(nil)
+        closingCompletion.readCompletion = { _ in try await withCheckedThrowingContinuation { completionReply = $0 } }
+        closingCompletion.refresh(); try await wait { completionReply != nil }; closingCompletion.close()
+        completionReply!.resume(returning: [GitReferenceName("refs/heads/closed-completion")]); completionReply = nil
+        try await Task.sleep(nanoseconds: 50_000_000)
+        try require(closingCompletion.closed && closingCompletion.snapshot == nil && closingCompletion.revision.numberOfItems == 0)
         func menu() -> NSMenu { let menu = controller.table.menu!; controller.menuNeedsUpdate(menu); return menu }
         func action(_ title: String) throws {
             let item = menu().items.first { $0.title == title }!; try require(item.isEnabled && NSApp.sendAction(item.action!, to: item.target, from: item))

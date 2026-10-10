@@ -37,6 +37,7 @@ private final class CommitReferencesWindow: NSWindow {
     var onUnified: ((Data, Bool) async throws -> Void)?
     var onNavigate: (String, Bool) -> Void = { _, _ in }
     var copyText: (String) -> Void = { NSPasteboard.general.clearContents(); NSPasteboard.general.setString($0, forType: .string) }
+    var readCompletion: ((OperationCancellation) async throws -> [GitReferenceName])?
     var read: ((String, OperationCancellation) async throws -> CommitContainingReferences)?
     private var worker: Task<Void, Never>?
     private var token: OperationCancellation?
@@ -96,7 +97,16 @@ private final class CommitReferencesWindow: NSWindow {
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 if completionCache == nil {
-                    let names = try await repository.commitContainingReferenceCompletion(cancellation: cancellation)
+                    let names: [GitReferenceName]
+                    do {
+                        if let readCompletion { names = try await readCompletion(cancellation) }
+                        else { names = try await repository.commitContainingReferenceCompletion(cancellation: cancellation) }
+                    } catch {
+                        // GetRefList's status is ignored upstream: a completion failure
+                        // must not prevent resolving a typed revision. F5 retries it.
+                        guard !closed, request == generation, !cancellation.isCancelled else { return }
+                        names = []
+                    }
                     guard !closed, request == generation, !cancellation.isCancelled else { return }
                     completionCache = names
                     revision.removeAllItems(); revision.addItems(withObjectValues: names.map(\.rawValue)); revision.stringValue = name
