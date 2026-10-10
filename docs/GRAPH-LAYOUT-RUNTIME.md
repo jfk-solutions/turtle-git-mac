@@ -121,3 +121,10 @@ at `152aeb2` has now completed package validation and cache saving successfully.
 It is still executing the Git integration step at this observation; a later
 exact-key hit and complete hosted run remain unverified. The dated CI evidence
 includes this separate follow-up.
+
+The subsequent [run at `afe5691`](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38075760736)
+confirmed exact-key reuse: restore succeeded, the builder was skipped, validation
+passed and save was skipped on the hit. The earlier `152aeb2` run then finished
+with an unrelated DNS test-fixture compiler failure; the cache package had already
+been saved successfully. See [the follow-up evidence](qa/ci-mx-typecheck-2026-10-10.json)
+for both observations. Whole-run success remains separate.

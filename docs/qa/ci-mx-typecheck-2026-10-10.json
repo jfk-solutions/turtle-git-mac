@@ -1,0 +1,48 @@
+{
+  "date": "2026-10-10",
+  "source_checkpoint": "23214def300a5611d188e06b3dca5cc22561e2aa",
+  "hosted_failure": {
+    "checkpoint": "152aeb2e8615b32aa919b312e3733f82ec4d9707",
+    "run": 38074852815,
+    "job": 114279590482,
+    "step": "Git integration tests",
+    "toolchain": "Xcode 16.4 / Apple Swift 6.1.2",
+    "errors": [
+      "SMTPMXTests.swift:13: Swift type-check timeout on chained DNS byte construction.",
+      "SMTPMXTests.swift:28: inferred [Any] cannot convert to [UInt8] in oversized-domain fixture."
+    ],
+    "scope": "Earlier Cleanup/Log compiler errors absent; integration tests did not execute."
+  },
+  "changes": "Construct the same DNS wire bytes sequentially with explicit UInt8 fixture arrays/Data. Preserve all malformed-record, 253/254-character hostname, oversized label/domain and null-MX assertions. No application code changed.",
+  "local_verification": {
+    "command": "swift test --filter SMTPMXTests",
+    "exit_code": 0,
+    "tests": 5,
+    "skipped": 1,
+    "failures": 0,
+    "toolchain": "Apple Swift 6.3.3",
+    "skip": "Existing opt-in read-only DNS probe."
+  },
+  "hosted_cache_followup": {
+    "observed_at": "2026-10-10T18:28:23.904943+00:00",
+    "checkpoint": "afe5691",
+    "run": 38075760736,
+    "job": 114282261965,
+    "restore": "completed success",
+    "builder": "completed skipped by exact cache-hit condition",
+    "validator": "completed success",
+    "save": "completed skipped on hit",
+    "current_step": "OpenSSH helper build in progress",
+    "scope": "Confirms exact-key package reuse and revalidation; this job precedes the new SMTP fixture fix."
+  },
+  "sha256": {
+    "Tests/TurtleGitCoreTests/SMTPMXTests.swift": "986a5edf26ec25e6de01e650ca684e0bf57576e55447265bd963d21da603c1b1",
+    "build/qa/ci-mx-typecheck-2026-10-10.log": "ba74a6c70d4dc1e423ddd0b35ef7b53893d05a36bf4f268d50ddb8365f3bb47f",
+    "build/qa/ci-log-typecheck-hosted-retry-2026-10-10.log": "d2ffde906d6e69f020b8882c0c65a901f1327b9f06a719ac0ad0f138bf9e98f7"
+  },
+  "limitations": [
+    "Hosted Swift 6.1.2 acceptance of the new fixture still requires a new run.",
+    "No new full Core suite; last full result remains 921 tests at c4bd370.",
+    "Full dialog parity, physical acceptance, signed Finder/sandbox and App Store distribution remain incomplete."
+  ]
+}

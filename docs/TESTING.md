@@ -42,9 +42,19 @@ a modified copy was rejected by its binary digest. Hosted compiler success and
 cache save/hit behavior still require a new run. See
 [the Log compiler/cache evidence](qa/ci-log-typecheck-2026-10-10.json).
 The [first cache-enabled hosted run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38074852815)
-subsequently completed graph-package validation and cache saving successfully;
-its Git integration step remains in progress at the latest inspection. A later
-exact-key cache hit and the whole hosted run remain unverified.
+subsequently completed graph-package validation and cache saving successfully.
+The Cleanup/Log compiler failures were resolved; the integration step then failed
+compiling two DNS wire fixtures in `SMTPMXTests.swift`, before executing tests.
+At `23214de`, equivalent sequential construction and explicit byte types preserve
+the fixtures and assertions. All five focused tests pass locally with one existing
+optional DNS probe skipped. Hosted acceptance of that fix still requires a new run.
+See [the DNS fixture diagnosis](qa/ci-mx-typecheck-2026-10-10.json).
+
+The [next hosted run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38075760736)
+at `afe5691` confirms an exact graph-cache hit: the builder is skipped, the package
+validator passes and saving is skipped on the hit. It was building OpenSSH helpers
+at inspection and precedes the DNS fixture correction; complete hosted success
+remains unverified.
 
 The subsequent Log Find implementation has four focused Core tests and a native
 receiver, both passing with system and packaged Git. Its unsigned Debug/Store

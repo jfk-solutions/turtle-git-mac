@@ -71,5 +71,10 @@
     "graph_package_save": "completed success",
     "current_step": "Git integration tests in progress",
     "limitations": "Subsequent exact-key cache hit and complete hosted compiler/test outcome remain unverified."
+  },
+  "hosted_terminal_followup": {
+    "run": 38074852815,
+    "conclusion": "failure",
+    "cause": "Earlier Cleanup/Log expressions compile; the integration step now fails compiling SMTPMXTests.swift DNS fixture expressions before tests execute. See ci-mx-typecheck-2026-10-10.json."
   }
 }
