@@ -1213,3 +1213,12 @@ provides an app-owned independent native settings window and immutable delivery
 and atomic Keychain credential capture. Existing SendMailDlg/SettingSMTP
 attribution applies; native lifecycle and Security API changes remain under
 GPL-2.0-or-later. Production Send callers and transports are still pending.
+
+PatchMailSMTP.swift and Sources/TurtleGitSMTP implement native configured-server
+SMTP under GPL-2.0-or-later, using public macOS SDK libcurl APIs. The envelope,
+configured encryption/authentication choices and final acceptance behavior were
+reviewed against SendMail.cpp and Utils/HwSMTP.cpp/.h at the recorded pin.
+The Windows socket, Schannel/SSPI and NOTE_SpeedPostMail implementation is not
+copied into this adapter. SDK libcurl remains an operating-system dependency;
+no libcurl source or binary is bundled. API references and remaining direct-MX,
+caller, signed and distribution gates are recorded in SEND-PATCH-PARITY.md.

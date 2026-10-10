@@ -25,6 +25,21 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.turtlegit.macos.ssh-askpass
         SKIP_INSTALL: YES
+  TurtleGitSMTP:
+    type: framework
+    platform: macOS
+    sources:
+      - path: Sources/TurtleGitSMTP
+        headerVisibility: public
+    dependencies:
+      - sdk: libcurl.tbd
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.turtlegit.macos.smtp
+        GENERATE_INFOPLIST_FILE: YES
+        DEFINES_MODULE: YES
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SKIP_INSTALL: YES
   TurtleGitCore:
     type: framework
     platform: macOS
@@ -42,6 +57,9 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: org.turtlegit.macos.core
         GENERATE_INFOPLIST_FILE: YES
         SKIP_INSTALL: YES
+    dependencies:
+      - target: TurtleGitSMTP
+        embed: false
   TurtleGitMac:
     type: application
     platform: macOS
@@ -53,6 +71,8 @@ targets:
         buildPhase: resources
     dependencies:
       - target: TurtleGitCore
+        embed: true
+      - target: TurtleGitSMTP
         embed: true
       - target: TurtleGitFinder
         embed: true

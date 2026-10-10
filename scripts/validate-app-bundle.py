@@ -19,6 +19,20 @@ assert (app / 'Contents/MacOS' / info['CFBundleExecutable']).is_file()
 resources = app / 'Contents/Resources'
 assert (resources / 'LICENSE').is_file() and (resources / 'NOTICE').is_file()
 framework = app / 'Contents/Frameworks/TurtleGitCore.framework'
+smtp = app / 'Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP'
+assert smtp.is_file(), 'Configured SMTP framework missing'
+import subprocess
+architectures = subprocess.check_output(['/usr/bin/lipo', '-archs', str(smtp)], text=True).split()
+for architecture in architectures:
+    smtp_links = subprocess.check_output(['/usr/bin/otool', '-arch', architecture, '-L', str(smtp)], text=True).splitlines()[1:]
+    assert any('/usr/lib/libcurl.' in line for line in smtp_links), 'SMTP must use SDK system libcurl in ' + architecture
+    for line in smtp_links:
+        path = line.strip().split(' ', 1)[0]
+        assert path.startswith(('@rpath/TurtleGitSMTP.framework/', '/usr/lib/', '/System/Library/')), path
+    core_links = subprocess.check_output(['/usr/bin/otool', '-arch', architecture, '-L', str(framework / 'TurtleGitCore')], text=True)
+    assert any(line.strip().split(' ', 1)[0].startswith('@rpath/TurtleGitSMTP.framework/') and line.strip().split(' ', 1)[0].endswith('/TurtleGitSMTP') for line in core_links.splitlines()[1:]), architecture
+if args.require_git:
+    assert {'arm64', 'x86_64'} <= set(architectures), architectures
 icons = framework / 'Resources/Icons'
 manifest = json.loads((root / 'Sources/TurtleGitCore/Resources/Icons/provenance.json').read_text())
 for asset in manifest['assets']:

@@ -310,3 +310,62 @@ settings changes, and atomic credential decode using simulated Security APIs.
 The settings presenter is injected to keep all windows unordered; actual user
 opening/reuse, credential sheet gestures and signed Keychain acceptance are not
 proved by these tests. See [routing QA](qa/send-patch-settings-routing-2026-10-10.json).
+
+## Configured SMTP transport
+
+`PatchMailSMTP.send` now performs one configured-server submission using a small
+C adapter and the macOS SDK's system libcurl. It captures the prepared message,
+sender, server, authentication, date/Message-ID and MIME bytes before transport;
+no selected patch file is reread. To/CC headers remain distinct while both lists
+contribute validated bare envelope addresses, preserving recipient order.
+The source None choice attempts optional STARTTLS when available and falls
+back to plaintext when unsupported; the other choices require STARTTLS or use
+implicit TLS. LOGIN authentication matches the source rather than selecting an
+ambient Kerberos identity. STARTTLS requires a successful upgrade; peer and hostname verification
+remain enabled. An optional retained private CA file is supported for trusted
+private servers and isolated QA without changing the user's certificate store.
+References: [SMTP example](https://curl.se/libcurl/c/smtp-tls.html),
+[required TLS](https://curl.se/libcurl/c/CURLOPT_USE_SSL.html),
+[envelope recipients](https://curl.se/libcurl/c/CURLOPT_MAIL_RCPT.html), and
+[cancellable progress](https://curl.se/libcurl/c/CURLOPT_XFERINFOFUNCTION.html).
+
+The worker runs off the main actor, feeds captured MIME in chunks, reports byte
+progress, and aborts through the transfer/read callbacks on owned token or Swift
+task cancellation. Host, TCP port, timeouts, mailbox and credential NUL validation
+precede connection. Ambient proxies/netrc are disabled; transcripts, passwords
+and server reply text are never logged. Numeric transport/SMTP status is returned.
+Once the complete payload has been supplied, a failed final reply is reported as
+possibly accepted rather than promising cancellation or encouraging automatic
+retry. Successful acceptance remains successful if cancellation arrives afterward.
+There is no automatic retry or submission queue in this API.
+
+The SDK C framework is built through SwiftPM/Xcode and embedded beside Core,
+including App Store builds; Finder's existing outer-framework search path resolves
+Core's dependency. Bundle QA now checks its presence, SDK system-only linkage,
+Core linkage, and universal App Store architectures. This compiles with macOS 13
+deployment but runtime transport tests currently cover this host's system library,
+not all supported macOS versions or a signed sandbox.
+
+Four real loopback tests cover all four modes from a two-patch series, exact
+wire MIME and independent Python body/attachment decoding, separate To/CC
+envelopes and negotiated SIZE, optional/required STARTTLS and implicit TLS LOGIN
+authentication with private
+CA trust, hostname mismatch and untrusted certificate rejection, missing STARTTLS,
+recipient/auth rejection before DATA, ambiguous lost final reply, validation,
+pre-cancel and Swift task cancellation while waiting for greeting. Fixtures bind
+only 127.0.0.1, generate private certificates, and touch no real mail service or
+credential store. The existing preparation/MIME/sender tests also run. See
+[SMTP QA](qa/send-patch-smtp-2026-10-10.json).
+
+A separate native receiver links the built Debug Core/SMTP frameworks, submits
+captured binary attachments to the private loopback server, and verifies exact
+wire bytes with an independent MIME decoder. Packaging checks inspect system
+libcurl dependencies and Core linkage separately for each architecture; the
+unsigned App Store build includes both Intel and Apple Silicon SMTP slices.
+
+This is a working configured-server Core transport, still unwired to native Send
+Patch production callers. Sender/Keychain capture orchestration, ordered message
+progress/explicit retry, direct-to-MX delivery, Mail-client composition, broader
+SASL/OAuth/encoding acceptance, signed Keychain/file grants and full physical UI
+acceptance remain pending. Optional private CA grants, older system-libcurl
+variants and cancellation after upload require distribution acceptance.

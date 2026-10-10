@@ -1,0 +1,99 @@
+{
+  "checked_at": "2026-10-10T02:10:16.319239+00:00",
+  "parent_commit": "2ad58480f89d64d6e3afce824762a355673103dc",
+  "scope": "Configured-server Core SMTP transport with original C SDK adapter; native production routing and full application parity remain pending",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blob_sha256": {
+    "src/TortoiseProc/SendMail.cpp": "d8f6135a262c4f8b67f8d3bf93dcd482d180362e3c756018e97f3f737f090a25",
+    "src/TortoiseProc/SendMail.h": "8edafae3d8e94004a3951a93a3e6203d41e8e2d59990827c0cb6d5558bb43875",
+    "src/Utils/HwSMTP.cpp": "bacdc3f7bb59e0b5f195d4e976628bfa4c59f777cf548a25e3ba56e4fd78db90",
+    "src/Utils/HwSMTP.h": "e0c59025414077e50a42646a3e2ba7c98c8bf3e7178329204815ff4cbf0eb3ba"
+  },
+  "checks": {
+    "system_git_patch_mail_tests": 19,
+    "packaged_git_patch_mail_tests": 19,
+    "system_core_exit": 0,
+    "packaged_core_exit": 0,
+    "sdk_framework_smtp_native_exit": 0,
+    "send_patch_native_exit": 0,
+    "email_native_exit": 0,
+    "debug_build_exit": 0,
+    "appstore_unsigned_build_confirmed_exit": 0,
+    "debug_bundle_audit_exit": 0,
+    "appstore_bundle_audit_exit": 0,
+    "inventory_pin_exit": 0,
+    "bundled_icons": 100,
+    "smtp_architectures": [
+      "arm64",
+      "x86_64"
+    ],
+    "cases": [
+      "All four message modes, two-patch separate messages and combined inputs; exact wire MIME and independent decoded ordered body/attachment bytes",
+      "Distinct ordered To/CC envelope, negotiated SIZE, SDK framework binary attachment retention",
+      "Optional STARTTLS, mandatory STARTTLS, implicit TLS and source LOGIN; private CA trust with peer/hostname checks enabled",
+      "Hostname mismatch, untrusted certificate, missing mandatory STARTTLS, recipient and authentication rejection before DATA",
+      "Lost final acknowledgement reports possible submission; no automatic retry",
+      "Pre-cancel and Swift Task cancellation during stalled greeting; validation before connection",
+      "Existing Send Patch and Email hidden native receivers retained; simulated Security API only"
+    ],
+    "initial_qa_corrections": [
+      "Envelope expectation updated to accept negotiated SIZE while checking its exact payload length",
+      "Universal otool dependency audit corrected to inspect each architecture rather than treating a second architecture heading as a dependency"
+    ],
+    "preferences": [
+      {
+        "suite": "TurtleGit.Email.QA.0ADCFC2B-7126-4F69-8D53-EFA61F445F35",
+        "verified_empty": true,
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "suite": "TurtleGit.SendPatch.QA.6F447F98-2E1E-4980-A59D-CA3D46956C0A",
+        "verified_empty": true,
+        "defaults_delete_exit": 1,
+        "removed": true
+      }
+    ],
+    "final_audit": {
+      "matching_processes": [],
+      "current_fixtures": []
+    },
+    "side_effects": "Only owned 127.0.0.1 SMTP sockets/private certificates; no main app, displayed window, real mail service, user Keychain, certificate-store import or ambient credentials. Owned test fixtures/preferences/processes cleaned."
+  },
+  "source_sha256": {
+    ".github/workflows/macos.yml": "d3ba1421c0d70a8f581cf89a7931e190b164cd05fe0e84c9de88ad32881702bc",
+    "NOTICE": "3a2b710f1350d2e45f9d241a6ba96570277528d09be7b123bca1719cad5731f2",
+    "Package.swift": "2e4f4e8e902801fcede908bbdd88a9b12f25b4fcf40a8d7da383662da234b4d0",
+    "Sources/TurtleGitCore/PatchMailMIME.swift": "d8b61be475fea97c0a925afd07a52842ecc603dbc4484ec3f51d4ab1188a6546",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "9377067e666db5cd06169f820f9d4751e9526262372d9182b5bf26556e7ab781",
+    "docs/PORTING.md": "6ff1b419e39d725926eb0933b760e9a7e78787ba0b9463a07f7ace740c278d86",
+    "docs/SEND-PATCH-PARITY.md": "751a9a8e2f70f621dc030e7d236eaf108c027286ba12e72753f09c5779ea04e4",
+    "docs/upstream-files.csv": "d9d7d3bef6657305e1f7ec8af6b3416578afdc1ac900f90356b35f47398ebbed",
+    "project.yml": "861db855f39903cf753b8121081f7788bd210e2167053c464314379492267de2",
+    "scripts/validate-app-bundle.py": "ab3534ae95a2267d5ba31711a02baf5ddaa1f72dc5cb831bf99e24fbb907c7a6",
+    "Sources/TurtleGitSMTP/include/TurtleGitSMTP.h": "6102f8292e0bcee9ece27f4ee41d17ed617aae5f03667f2cc721b4a2abc892a6",
+    "Sources/TurtleGitSMTP/SMTP.c": "99b28ddf323fc2418537a6137d2a32e6493d1df969e27bb4f9b8c815380bd1c2",
+    "Sources/TurtleGitCore/PatchMailSMTP.swift": "03119f72353ce4833834c31452e3958799c85d5b81b1ba97fd71244e3724f7cf",
+    "Tests/TurtleGitCoreTests/Fixtures/smtp_server.py": "1d55c4ee1829395a50b338a2bd088cc292c2c5169ea6cda648c81b59a27fc178",
+    "Tests/TurtleGitCoreTests/PatchMailSMTPTests.swift": "e0983c71f19289a4b38297db927c01911d5a80bfa10dab5ab2d297d9a40405ec",
+    "docs/qa/send-patch-smtp-native-2026-10-10.swift": "e57dbe4cfd849c553d3c5da5b6f83eddd57c56d0827a37132a76790d2bb0085a",
+    "scripts/test-configured-smtp.py": "3ecd1d1fbc1fd5d5a3a0a5e7cfc2f2105e7e5033b595503c07c740d0c12ceec5"
+  },
+  "binary_sha256": {
+    "Debug_app": "ae0fc297ae892ad6d53e5bfb2e3aee3218b8dda08c01e7e3c33faa88de63b8d1",
+    "Debug_core": "098e181cad2d2b3d9d62810a63981a7d3ec7b3d05790c8121e1fcecc6c634f8f",
+    "Debug_smtp": "f41d314777122b4e4f4bb47922ae13dba21a1879949b1c94fc5019a23bf147fe",
+    "AppStore_app": "9063ee68832b09b31fe9028d979edd2293b6aca63deeb29d4456fbc5f70fd8bd",
+    "AppStore_core": "1d58ab5e565337680cf98b083c7e5ffa028c51b22a0db26bfcac5ef1dbad2ef9",
+    "AppStore_smtp": "99c922bcd4ff4092d5d3b67d1c2ed741368afe84d72a943bada5aafc4108b3d6"
+  },
+  "limitations": [
+    "Configured-server Core transport remains unwired to production Send Patch callers; sender/Keychain capture orchestration, ordered queue/progress/explicit retry pending",
+    "Direct MX and Mail-client composition pending",
+    "Actual signed Keychain, sandbox file/private CA grants, Finder, notarization and App Store distribution acceptance pending",
+    "Older supported macOS/system-libcurl runtime variants and cancellation after upload require distribution acceptance",
+    "Hidden native QA does not establish complete physical layout, gesture, keyboard or VoiceOver parity; full port/localization incomplete",
+    "Hosted GitHub CI remains unverified"
+  ],
+  "logs": "build/qa/send-patch-smtp-2026-10-10/ (ignored local logs)"
+}

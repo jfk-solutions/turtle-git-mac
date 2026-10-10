@@ -14,6 +14,7 @@
 		02B318481C48E5ACC8497EF9 /* MessageSnippets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81E52787ACF6315F812EA290 /* MessageSnippets.swift */; };
 		04F91334CABB49482A59CAF5 /* BlameWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 147C1880748CAF195D6A19CA /* BlameWindow.swift */; };
 		05736B77F7D781FD78B2665B /* WorkingFileExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A3F01EAF3038A31D989E002 /* WorkingFileExport.swift */; };
+		05EE53306561CE7F57B6B0E4 /* libcurl.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 2C6981A4005FA865E41C8FBC /* libcurl.tbd */; };
 		08649F1E93CBDC2DE8ADD500 /* FormatPatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0750171C26BC3934BA091775 /* FormatPatch.swift */; };
 		0963B328CDA08FFD1416E9A3 /* ReferenceLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62406E495663E4FBABB4E1A6 /* ReferenceLog.swift */; };
 		0DDC9B58143481D73B56D530 /* IssueTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D07F0B7B2714BF454BD5BD62 /* IssueTracker.swift */; };
@@ -40,6 +41,7 @@
 		20EF27A5F53CDA212F1CD35E /* StashRestoreWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3DED1F87985F333C460E700 /* StashRestoreWindow.swift */; };
 		210F983F8CE785D0282CE58E /* WorkingTreeHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3452891FA131668D74905133 /* WorkingTreeHistory.swift */; };
 		230460E9908BB05D1AD2BD7C /* ApplicationDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A915E0D55658EE40F710D3B /* ApplicationDelegate.swift */; };
+		2315A73DC53BA20B462CE821 /* TurtleGitSMTP.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F81A7BFF0565C5791A405B0 /* TurtleGitSMTP.framework */; };
 		2368F21797097AE66DBADDAE /* LogGraphDrawing.swift in Sources */ = {isa = PBXBuildFile; fileRef = D653B9C802C1DF2EE95F01A9 /* LogGraphDrawing.swift */; };
 		241DD127E807673880A95899 /* PatchWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF9C567B7E6EFBE7EE4F0B69 /* PatchWindow.swift */; };
 		25FA6351F250E4932AC95E73 /* SSHTransportCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF2BD443F2E22C1D673BB60C /* SSHTransportCoordinator.swift */; };
@@ -71,11 +73,15 @@
 		4DF2969F6AE13B68357E46E5 /* GitPatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0657423D5C68D66703C2BB5C /* GitPatch.swift */; };
 		4E69E4757C052B8B130BCBB3 /* SubmoduleComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6308259E880D7D7EFFC7032A /* SubmoduleComparison.swift */; };
 		4EBF832662E01F9C93325133 /* SubmoduleAdd.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E85FED91C2F9C44EB16228A /* SubmoduleAdd.swift */; };
+		4F2CE4365733F943E851877A /* TurtleGitSMTP.h in Headers */ = {isa = PBXBuildFile; fileRef = 4D63D5938D6276B5A071748C /* TurtleGitSMTP.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		4F838A5A9747585DC8B737C1 /* TurtleGitSMTP.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F81A7BFF0565C5791A405B0 /* TurtleGitSMTP.framework */; };
 		510A90BB7F5A0D39A72C1778 /* RevisionComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = 870D95A7EC384863F1C04342 /* RevisionComparison.swift */; };
 		52754E5252F132BF5D20794B /* CancellableGitProcess.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1D127EFCF9CEE3CA778CA79 /* CancellableGitProcess.swift */; };
 		53038E31B82C54BE1E17C10A /* ResolveWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D33C40A99A3883800E7C6431 /* ResolveWindow.swift */; };
+		55B7CD6C3BF86B590E0F64B9 /* TurtleGitSMTP.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1F81A7BFF0565C5791A405B0 /* TurtleGitSMTP.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		566929EB924A146E09618757 /* StatusListSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48ED07A9B4D7F1E9FB4E87B3 /* StatusListSelection.swift */; };
 		56B94B831C0F93189FCA10AB /* SubmoduleProgressCompletion.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3285697EA8FA321AA94C400 /* SubmoduleProgressCompletion.swift */; };
+		57D0F31F4AA8A43D27C48511 /* SMTP.c in Sources */ = {isa = PBXBuildFile; fileRef = 205A616C02EABD9EE7DB57A2 /* SMTP.c */; };
 		591E7907CB6B5F012E1A8AEB /* PatchPrinting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07308426CB6B06DAFB9B5A89 /* PatchPrinting.swift */; };
 		5AE1A8F789C776583FB32A26 /* RepositoryInitialization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593C3138AD1ABEC07EC9AC6C /* RepositoryInitialization.swift */; };
 		5C7063047C3D6080C0D541A4 /* RemoveWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A35B58726A94B9B4799C06DE /* RemoveWindow.swift */; };
@@ -136,6 +142,7 @@
 		A395BF473AA34B992F2BBAB1 /* Removal.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA5AD057FE8CA1C91988DA6E /* Removal.swift */; };
 		A6773359488D79CCCCE0C7DE /* SubmoduleDiffWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85E2B314A76BA35F97ECD2C7 /* SubmoduleDiffWindow.swift */; };
 		A6854C3A5C77FF539D8ACF35 /* PatchMailPreparation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A205E7D7DBC9373D1BF58F65 /* PatchMailPreparation.swift */; };
+		A6B48099B1D35ECDB24B6A1D /* PatchMailSMTP.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42F8407D25DCE9BFAD2E1297 /* PatchMailSMTP.swift */; };
 		A70DDFADDD5CE64F95764E53 /* CleanWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69C742F936FA4A0276A54856 /* CleanWindow.swift */; };
 		A74A3FE8744154EDF768C63C /* SwitchWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 977DAB97DBBB903654C73A78 /* SwitchWindow.swift */; };
 		A7F9B61AFDD2F69ADE7A35C7 /* AddProgressWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F84A36C85062FC9FF018CB1 /* AddProgressWindow.swift */; };
@@ -239,6 +246,13 @@
 			remoteGlobalIDString = FCB8B885505C2D762F814FD1;
 			remoteInfo = TurtleGitFinder;
 		};
+		6B0AD6DA4B066765D27F10AD /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8499389742F1D4CC6667681D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 31D5888CE59D98A76B5D9965;
+			remoteInfo = TurtleGitSMTP;
+		};
 		B11DE1A6AD9CC73741607249 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 8499389742F1D4CC6667681D /* Project object */;
@@ -260,6 +274,13 @@
 			remoteGlobalIDString = 625F34574E04CB0465D145BF;
 			remoteInfo = TurtleGitSSHAskpass;
 		};
+		F559DAF14D8113191DFF4D0A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8499389742F1D4CC6667681D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 31D5888CE59D98A76B5D9965;
+			remoteInfo = TurtleGitSMTP;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -270,6 +291,7 @@
 			dstSubfolderSpec = 10;
 			files = (
 				B9AFF3F19CAB2A9F7313754D /* TurtleGitCore.framework in Embed Frameworks */,
+				55B7CD6C3BF86B590E0F64B9 /* TurtleGitSMTP.framework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -324,6 +346,8 @@
 		1A07E7EBA5F258346A915EEF /* TurtleGitMacApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TurtleGitMacApp.swift; sourceTree = "<group>"; };
 		1AB2F5FDA0673FDECA2C7F25 /* AddFileTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddFileTable.swift; sourceTree = "<group>"; };
 		1BCB9C51D9D69E943E22F2C8 /* TurtleGitCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = TurtleGitCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		1F81A7BFF0565C5791A405B0 /* TurtleGitSMTP.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = TurtleGitSMTP.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		205A616C02EABD9EE7DB57A2 /* SMTP.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = SMTP.c; sourceTree = "<group>"; };
 		22371C45A6813F87FD610EE6 /* MessageCodeSymbols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageCodeSymbols.swift; sourceTree = "<group>"; };
 		2371301238EAD65AEE06ACF5 /* HistoryHighlights.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryHighlights.swift; sourceTree = "<group>"; };
 		244AD68D8412684F520E64AC /* ReferenceCreation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceCreation.swift; sourceTree = "<group>"; };
@@ -332,6 +356,7 @@
 		2889759BB2F79152E342606E /* BisectWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BisectWindow.swift; sourceTree = "<group>"; };
 		28A4137E7CE7A36F8A8E6F58 /* MessageCodeScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageCodeScanner.swift; sourceTree = "<group>"; };
 		29605EFD52B28BA58CD44AA0 /* StatusListClipboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusListClipboard.swift; sourceTree = "<group>"; };
+		2C6981A4005FA865E41C8FBC /* libcurl.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libcurl.tbd; path = usr/lib/libcurl.tbd; sourceTree = SDKROOT; };
 		2DE73255A1E5CE16B62BBCF7 /* ImportPatchWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportPatchWindow.swift; sourceTree = "<group>"; };
 		2ED7A4FB5DF119ED7F648EF4 /* ReferenceLogWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceLogWindow.swift; sourceTree = "<group>"; };
 		2F72591A0815973F2BD6B984 /* MergeLineEndings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeLineEndings.swift; sourceTree = "<group>"; };
@@ -355,10 +380,12 @@
 		3A93F4AB3BFC676A7095AACC /* PatchPageSetup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchPageSetup.swift; sourceTree = "<group>"; };
 		3BE14912ACD87B35508C186F /* GitBlamePresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitBlamePresentation.swift; sourceTree = "<group>"; };
 		3FC03184E38E2D4ACB2908F5 /* MenuIcons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuIcons.swift; sourceTree = "<group>"; };
+		42F8407D25DCE9BFAD2E1297 /* PatchMailSMTP.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchMailSMTP.swift; sourceTree = "<group>"; };
 		48ED07A9B4D7F1E9FB4E87B3 /* StatusListSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusListSelection.swift; sourceTree = "<group>"; };
 		4B4940FBDB475FC25EC9B3EC /* CommitMessageEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitMessageEditor.swift; sourceTree = "<group>"; };
 		4B9BF1860CDA9AD27A0DCE2E /* GitBlame.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitBlame.swift; sourceTree = "<group>"; };
 		4CFFC2A3D59FEB71D24D009E /* RevertDialogSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevertDialogSelection.swift; sourceTree = "<group>"; };
+		4D63D5938D6276B5A071748C /* TurtleGitSMTP.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TurtleGitSMTP.h; sourceTree = "<group>"; };
 		4DC958926DF74FE6A1DB2D05 /* UnifiedDiffAppearanceSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedDiffAppearanceSettings.swift; sourceTree = "<group>"; };
 		4E11987C6F9546E908AD60BA /* FinderSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderSync.swift; sourceTree = "<group>"; };
 		4ED10F9E629EFB06F9F5F264 /* CommitWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitWindow.swift; sourceTree = "<group>"; };
@@ -513,6 +540,14 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		3F338F901A51672571057DAA /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				05EE53306561CE7F57B6B0E4 /* libcurl.tbd in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		6721C110204B56420F637830 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -521,11 +556,20 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		EB2709F3E7C8F19159E3EE98 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2315A73DC53BA20B462CE821 /* TurtleGitSMTP.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		F6F8AC92E0CCCF7FF9CECD59 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				F4D94506F25F14CFDBD68746 /* TurtleGitCore.framework in Frameworks */,
+				4F838A5A9747585DC8B737C1 /* TurtleGitSMTP.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -645,9 +689,18 @@
 				1BCB9C51D9D69E943E22F2C8 /* TurtleGitCore.framework */,
 				79C5573349C11EE01ECA2C1E /* TurtleGitFinder.appex */,
 				6A72CBF70DA62980294AB41A /* TurtleGitMac.app */,
+				1F81A7BFF0565C5791A405B0 /* TurtleGitSMTP.framework */,
 				9144F6030805FB115877C438 /* TurtleGitSSHAskpass */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		41526AFF357D400FE5EBF721 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				2C6981A4005FA865E41C8FBC /* libcurl.tbd */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 		4ADB6A0F6ED8465E04FB8154 /* TurtleGitSSHAskpass */ = {
@@ -669,7 +722,9 @@
 				94C1F64FCC0EAAF58BC807DF /* FinderSync */,
 				9216CD741C27CC93A27DDCBF /* TurtleGitCore */,
 				0B0ED7640D942B979726B592 /* TurtleGitMac */,
+				E6AF3B55001F99AC3C6BBDCA /* TurtleGitSMTP */,
 				4ADB6A0F6ED8465E04FB8154 /* TurtleGitSSHAskpass */,
+				41526AFF357D400FE5EBF721 /* Frameworks */,
 				30663CB5DF2D6EB458048FF9 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -744,6 +799,7 @@
 				3169F8F4F55DC037603B8A0D /* OperationCancellation.swift */,
 				E2D25384D2D6DFB1195D0656 /* PatchMailMIME.swift */,
 				A205E7D7DBC9373D1BF58F65 /* PatchMailPreparation.swift */,
+				42F8407D25DCE9BFAD2E1297 /* PatchMailSMTP.swift */,
 				2FD299C13A57D2632BB2467B /* Pull.swift */,
 				7A48D22D1E6D22153CBA3744 /* Push.swift */,
 				0A8A21C4E5D4C9A48E0B7FE9 /* Rebase.swift */,
@@ -803,19 +859,69 @@
 			path = FinderSync;
 			sourceTree = "<group>";
 		};
+		9AD0B2024CB6D8B39BDED0D7 /* include */ = {
+			isa = PBXGroup;
+			children = (
+				4D63D5938D6276B5A071748C /* TurtleGitSMTP.h */,
+			);
+			path = include;
+			sourceTree = "<group>";
+		};
+		E6AF3B55001F99AC3C6BBDCA /* TurtleGitSMTP */ = {
+			isa = PBXGroup;
+			children = (
+				205A616C02EABD9EE7DB57A2 /* SMTP.c */,
+				9AD0B2024CB6D8B39BDED0D7 /* include */,
+			);
+			name = TurtleGitSMTP;
+			path = Sources/TurtleGitSMTP;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
+/* Begin PBXHeadersBuildPhase section */
+		F462985090C20A3E3E446414 /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4F2CE4365733F943E851877A /* TurtleGitSMTP.h in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
 /* Begin PBXNativeTarget section */
+		31D5888CE59D98A76B5D9965 /* TurtleGitSMTP */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4EF4E28EA94A62DADA2B483F /* Build configuration list for PBXNativeTarget "TurtleGitSMTP" */;
+			buildPhases = (
+				F462985090C20A3E3E446414 /* Headers */,
+				E38F15060AB55199DD60E1CC /* Sources */,
+				3F338F901A51672571057DAA /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = TurtleGitSMTP;
+			packageProductDependencies = (
+			);
+			productName = TurtleGitSMTP;
+			productReference = 1F81A7BFF0565C5791A405B0 /* TurtleGitSMTP.framework */;
+			productType = "com.apple.product-type.framework";
+		};
 		611D1F05CCEE573C536A3781 /* TurtleGitCore */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 4DA540064945957B577FCABB /* Build configuration list for PBXNativeTarget "TurtleGitCore" */;
 			buildPhases = (
 				164C40AA334735FFE5716B63 /* Sources */,
 				5924B0B063D60BBCEDF8C7EF /* Resources */,
+				EB2709F3E7C8F19159E3EE98 /* Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				88F3B075A1C58FF85F998BF0 /* PBXTargetDependency */,
 			);
 			name = TurtleGitCore;
 			packageProductDependencies = (
@@ -860,6 +966,7 @@
 			);
 			dependencies = (
 				2F1A6434A8999A42F189BA78 /* PBXTargetDependency */,
+				CE6AE9B0962E983B94AA7AC9 /* PBXTargetDependency */,
 				9D75796456298CAF2FB23654 /* PBXTargetDependency */,
 				571C4F943393C11C23396667 /* PBXTargetDependency */,
 			);
@@ -898,6 +1005,9 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					31D5888CE59D98A76B5D9965 = {
+						ProvisioningStyle = Automatic;
+					};
 					611D1F05CCEE573C536A3781 = {
 						ProvisioningStyle = Automatic;
 					};
@@ -929,6 +1039,7 @@
 				611D1F05CCEE573C536A3781 /* TurtleGitCore */,
 				FCB8B885505C2D762F814FD1 /* TurtleGitFinder */,
 				D85D48769A26BDEB1B7D6021 /* TurtleGitMac */,
+				31D5888CE59D98A76B5D9965 /* TurtleGitSMTP */,
 				625F34574E04CB0465D145BF /* TurtleGitSSHAskpass */,
 			);
 		};
@@ -1125,6 +1236,7 @@
 				BD7B4EFF6714DB43BFECDB71 /* OperationCancellation.swift in Sources */,
 				95BAD6A5438DD5C71269869B /* PatchMailMIME.swift in Sources */,
 				A6854C3A5C77FF539D8ACF35 /* PatchMailPreparation.swift in Sources */,
+				A6B48099B1D35ECDB24B6A1D /* PatchMailSMTP.swift in Sources */,
 				5F4478C2B26B372096688B52 /* Pull.swift in Sources */,
 				D23A00DDC15A9F767BE97B36 /* Push.swift in Sources */,
 				D20BBF1A1F80FC6A11D4DDAB /* Rebase.swift in Sources */,
@@ -1296,6 +1408,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E38F15060AB55199DD60E1CC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				57D0F31F4AA8A43D27C48511 /* SMTP.c in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -1309,10 +1429,20 @@
 			target = 625F34574E04CB0465D145BF /* TurtleGitSSHAskpass */;
 			targetProxy = EF97D4D412883C2FC2642160 /* PBXContainerItemProxy */;
 		};
+		88F3B075A1C58FF85F998BF0 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 31D5888CE59D98A76B5D9965 /* TurtleGitSMTP */;
+			targetProxy = F559DAF14D8113191DFF4D0A /* PBXContainerItemProxy */;
+		};
 		9D75796456298CAF2FB23654 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = FCB8B885505C2D762F814FD1 /* TurtleGitFinder */;
 			targetProxy = 128EB913D340C55D7AEDB3EB /* PBXContainerItemProxy */;
+		};
+		CE6AE9B0962E983B94AA7AC9 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 31D5888CE59D98A76B5D9965 /* TurtleGitSMTP */;
+			targetProxy = 6B0AD6DA4B066765D27F10AD /* PBXContainerItemProxy */;
 		};
 		FF6CE8251CC97B9545A41E31 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -1533,6 +1663,30 @@
 			};
 			name = AppStore;
 		};
+		53493B78D47CB5331AE0BF7D /* AppStore */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_IDENTITY = "";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.turtlegit.macos.smtp;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = AppStore;
+		};
 		6CAE0EEBC9362CF3E8CE0E57 /* AppStore */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1623,6 +1777,30 @@
 			};
 			name = Debug;
 		};
+		8F3D73089D5D6FFE509327B2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_IDENTITY = "";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.turtlegit.macos.smtp;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Debug;
+		};
 		93120B9272F6F5D4BD0354B8 /* AppStore */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1636,6 +1814,30 @@
 				SKIP_INSTALL = YES;
 			};
 			name = AppStore;
+		};
+		9BECADE64AD30B89D3E5C96E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_IDENTITY = "";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.turtlegit.macos.smtp;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Release;
 		};
 		B256945284D4F6423C6D269D /* Release */ = {
 			isa = XCBuildConfiguration;
@@ -1711,6 +1913,16 @@
 				5163E9FE4FEFD974951F11E1 /* AppStore */,
 				DD28CC0AED1CA6FEF11241C1 /* Debug */,
 				03A9791AE5AFCEBEF5EF9D2B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = AppStore;
+		};
+		4EF4E28EA94A62DADA2B483F /* Build configuration list for PBXNativeTarget "TurtleGitSMTP" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				53493B78D47CB5331AE0BF7D /* AppStore */,
+				8F3D73089D5D6FFE509327B2 /* Debug */,
+				9BECADE64AD30B89D3E5C96E /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = AppStore;

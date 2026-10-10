@@ -5,9 +5,10 @@ let package = Package(
     platforms: [.macOS(.v13)],
     products: [.library(name: "TurtleGitCore", targets: ["TurtleGitCore"]), .executable(name: "TurtleGitMac", targets: ["TurtleGitMac"])],
     targets: [
-        .target(name: "TurtleGitCore", resources: [.copy("Resources/Icons"), .copy("Resources/Completion")]),
+        .target(name: "TurtleGitSMTP", linkerSettings: [.linkedLibrary("curl")]),
+        .target(name: "TurtleGitCore", dependencies: ["TurtleGitSMTP"], resources: [.copy("Resources/Icons"), .copy("Resources/Completion")]),
         .executableTarget(name: "TurtleGitMac", dependencies: ["TurtleGitCore"]),
-        .testTarget(name: "TurtleGitCoreTests", dependencies: ["TurtleGitCore"], resources: [.copy("Fixtures/GitOutput")])
+        .testTarget(name: "TurtleGitCoreTests", dependencies: ["TurtleGitCore"], resources: [.copy("Fixtures/GitOutput"), .copy("Fixtures/smtp_server.py")])
     ],
     swiftLanguageModes: [.v5]
 )

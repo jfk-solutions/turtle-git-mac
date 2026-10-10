@@ -186,6 +186,17 @@ public enum PatchMailMIME {
         return try mailbox(name: "", address: trimmed)
     }
 
+    /// Returns a validated SMTP envelope mailbox, omitting its display name.
+    /// Header To/CC rendering remains independent of the envelope recipients.
+    public static func envelopeAddress(_ value: String) throws -> String {
+        _ = try recipient(value)
+        let trimmed = value.trimmingCharacters(in: .whitespaces)
+        if let open = trimmed.lastIndex(of: "<"), trimmed.hasSuffix(">") {
+            return String(trimmed[trimmed.index(after: open)..<trimmed.index(before: trimmed.endIndex)])
+        }
+        return trimmed
+    }
+
     private static func mailbox(name: String, address: String) throws -> String {
         try singleLine(address)
         // Dot atoms, quoted local parts and ASCII domain literals. No groups,
