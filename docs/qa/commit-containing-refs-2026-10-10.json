@@ -1,0 +1,130 @@
+{
+  "date": "2026-10-10",
+  "source_checkpoint": "1769e2c738e9b078e6c377205f5124b23bd010db",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_audit": "commit-containing-refs-audit-2026-10-10.json",
+  "status": "partial-native",
+  "implemented": [
+    "Log single-real-revision original-icon context menu opens an owned modeless native reference dialog.",
+    "Resolve commit once; mailmapped author and configured abbreviation; ancestor containment includes descendant branches, remote symbolic HEAD and nested tags, with byte-exact reference identities.",
+    "Seven upstream controls mapped; revision and filter debounce, literal case-sensitive filter, source menu order/icons, one/two/many selection and directed Log ranges.",
+    "Native comparison, unified output, Browse References/Log/Reflog pickers, stale cancellation-ignoring reply rejection, bare repository menu gates and parent-child close/quit fences."
+  ],
+  "targeted_core": {
+    "system": {
+      "tests": 6,
+      "failures": 0,
+      "includes": "Three containment tests and three menu-icon tests"
+    },
+    "isolated_git_2_39_5": {
+      "tests": 3,
+      "failures": 0
+    },
+    "packaged_git": {
+      "tests": 3,
+      "failures": 0
+    },
+    "coverage": [
+      "Descendant vs tip containment",
+      "Nested annotated tags and symbolic remote HEAD",
+      "Blob tag exclusion without diagnostic pollution",
+      "Mailmap, configured abbreviation and packed distinct Unicode refs",
+      "Literal case-sensitive and empty filtering",
+      "Detached HEAD and bare repositories",
+      "Invalid/empty inputs and cancellation",
+      "Exact HEAD/index/config/working-byte preservation"
+    ]
+  },
+  "native": {
+    "command": "python3 scripts/test-commit-containing-refs.py --git /usr/bin/git --git build/git-runtime/Git/bin/git --capture-dir build/qa/commit-containing-refs-captures-layout-2026-10-10",
+    "exit": 0,
+    "engines": 2,
+    "completed_markers": 2,
+    "coverage": [
+      "Original menu and row icons",
+      "Show log right-edge layout assertion",
+      "Actual one/two/many NSMenu target/action dispatch",
+      "Comparison endpoint and selected direction assertions",
+      "Unified patch actual changed lines",
+      "One-second filter and Escape clear",
+      "Owned chooser cancel and reference acceptance",
+      "Bare working-tree comparison exclusion",
+      "Stale reply rejection after revision change and forced close",
+      "Actual parent Log context entry and owned child close"
+    ]
+  },
+  "packaging": {
+    "unsigned_debug_build_exit": 0,
+    "unsigned_store_build_exit": 0,
+    "debug_bundle_audit_exit": 0,
+    "store_bundle_audit_exit": 0,
+    "original_icon_count": 120,
+    "store_audit_requires_git": true
+  },
+  "captures": {
+    "source": "Actual AppKit contentView cacheDisplay render with private sample repository, hidden alpha-zero window and private preferences",
+    "appearance": [
+      "light",
+      "dark"
+    ],
+    "inspected": true,
+    "dimensions": [
+      1240,
+      860
+    ],
+    "includes_window_chrome": false,
+    "edits": "None: exact PNG bytes copied into docs/site/assets",
+    "correction": "Earlier capture exposed incorrect Show log horizontal placement and transparent root surface. Production horizontal stack fill and opaque native background corrected; latest captures show readable text/buttons and preserved original colored icons."
+  },
+  "full_local_suite": {
+    "status": "running",
+    "session_id": 37213,
+    "log": "build/qa/commit-containing-refs-full-suite-2026-10-10.log",
+    "result_claim": "No terminal result yet; targeted checks do not establish full-suite success."
+  },
+  "ci_receiver_fix": {
+    "checkpoint": "880860b",
+    "current_local_exit": 0,
+    "record": "ci-browser-smtp-module-2026-10-10.json",
+    "hosted_status": "Pending new pushed run"
+  },
+  "earlier_findings": [
+    "Empty literal filter unexpectedly removed all rows; fixed explicit empty-query behavior and regression.",
+    "Native chooser receiver initially selected the pull-down placeholder by tag zero; corrected exact title dispatch while preserving action assertions.",
+    "The earlier hosted suite passed all 925 tests, then failed standalone receiver compilation due to omitted SMTP transitive module/linkage; repaired separately."
+  ],
+  "remaining": [
+    "Source initialization-only completion cache differs from current refresh-every-query behavior.",
+    "Windows logical-order punctuation/ties, localization, all keyboard/completion routes and every combination remain unverified.",
+    "Physical input, VoiceOver, installed Finder, signed sandbox access, release signing and App Store acceptance.",
+    "Complete app parity: 45 partial dialogs and 85 pending review, no dialog certified complete."
+  ],
+  "sha256": {
+    "Sources/TurtleGitCore/CommitContainingReferences.swift": "7c42f48fe57e57324336ecd6c33714ce4789d682510748d5203186cc0bf62176",
+    "Sources/TurtleGitMac/CommitContainingReferencesWindow.swift": "ad97ba6c0e46d7165738acdec3445b5f8640199e7ae39e448c483531fcfbb279",
+    "Sources/TurtleGitMac/LogWindow.swift": "3d10e8c5677723e162899920dce0e3f907667bf7d0d67a7bf09dec82e0ec2bd0",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "6d2d8506838719d248386fe0edf5bdbea9238d1d99459485744a377f3073fa7e",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "92e80c206f3a7fbed5019c8fa44650d881b506ff27710d99a440796160ace583",
+    "Sources/TurtleGitCore/MenuIcons.swift": "939bd4764b33cd247487e8d84e25437ce3bd6ad5fe3f0dd754a613269dbd963b",
+    "Sources/TurtleGitCore/Resources/Icons/showbranches.ico": "57e5fe5a75af13786c6c98a2e0d12585e65eec3ceba0c7e53216a03e32b08d9d",
+    "Sources/TurtleGitCore/Resources/Icons/provenance.json": "5e4a73727f00efb211ba57329a2d375d9fbbcd92ad7a8a41d195d1df13df2f31",
+    "Tests/TurtleGitCoreTests/CommitContainingReferencesTests.swift": "f527a9fdeb977d1f0035f6f996bf2d62d2509eb4079204f239f50892260a7c50",
+    "scripts/test-commit-containing-refs.py": "360e488baff345a15d3a3147fe2e9d0dfbd714bb7784eb0a43b36a4f1b765365",
+    "docs/qa/commit-containing-refs-native-2026-10-10.swift": "c05aa110432d111284ae44a3a7f7c48fd3c8ec03ae360fb01c574c77eb39f971",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "8ac632f4d4919998c369b4e0841fbf5e9a9f283e693ec46637b066a1219da582",
+    ".github/workflows/macos.yml": "8fbeb285c88a99f8c44f8e853aca7979cd2f91ae84afabf3a8247d481af5a3af",
+    "docs/site/assets/commit-containing-refs-light.png": "72ec5745f9dec02d74c599a42cce597edd41e8dbcf9e8422561ebc5fa08a95fa",
+    "docs/site/assets/commit-containing-refs-dark.png": "0236de7a90c973f6c61ff14194fbd674fb5836ebfafb6f5dbbc71eba763659ab",
+    "build/qa/commit-containing-refs-core-system-complete-2026-10-10.log": "7e2cdad0e1fd4096950910e0b978cd0817a5a631a3ade4976c1be8c6bcac845a",
+    "build/qa/commit-containing-refs-core-old-complete-2026-10-10.log": "39006f660e5397f88cbbe32398fac67121f77fc9366e08031f4fc1d7005751d8",
+    "build/qa/commit-containing-refs-core-packaged-complete-2026-10-10.log": "38cf1ef1721753388571ed5ecfecab98f43dd9c1f1b30e5d6da19d483137f7b7",
+    "build/qa/commit-containing-refs-native-layout-2026-10-10.log": "bf51856c6674a5a6768eb2d5fa3dbf6c489425485f2c74b6c5df387c29798bdd",
+    "build/qa/commit-containing-refs-debug-layout-2026-10-10.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/commit-containing-refs-store-layout-2026-10-10.log": "8b7e42e41011f64b89af2a34249c0e6a736fce554184bf57a0f657922d209930",
+    "build/qa/commit-containing-refs-debug-layout-audit-2026-10-10.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/commit-containing-refs-store-layout-audit-2026-10-10.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/ci-browser-smtp-module-current-2026-10-10.log": "71b597790ea07c904f139de233af3aa03bb63992bd469f1a8a64b4e965a1d6ec",
+    "build/qa/commit-containing-refs-inventory-2026-10-10.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/commit-containing-refs-site-2026-10-10.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

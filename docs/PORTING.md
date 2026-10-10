@@ -41,6 +41,14 @@ MAPI path-map attachment deduplication/UTF-16 ordering. Progress distinguishes d
 delivery. Actual Apple Mail, signed automation and full mail-client lifecycle
 acceptance remain unverified. See [Send Patch parity](SEND-PATCH-PARITY.md).
 
+The Log’s **Show branches this commit is on** action now opens a native modeless
+reference dialog with containment filtering, original branch/tag artwork, one/two/
+many selection menus, comparisons and owned Browse References/Log/Reflog pickers.
+Targeted Core and hidden native checks pass; light/dark content captures are on
+the website. This advances one of the 130 dialogs to partial implementation:
+45 dialogs are now partial and 85 await review. No dialog is certified complete.
+See [the reference dialog audit](COMMIT-CONTAINING-REFS-PARITY.md).
+
 ## Audited baseline
 
 Worktree creation, listing, locking, unlocking, removal and pruning now have a

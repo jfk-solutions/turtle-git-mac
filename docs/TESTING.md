@@ -48,6 +48,37 @@ Three runs per engine passed locally with 30 validated deletion-menu activations
 This did not reproduce or explain the earlier failure. See
 [the repeat record](qa/graph-menu-repeat-2026-10-10.json).
 
+The subsequent [macOS run for `f9521c9`](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38080574877)
+passed **925 Core tests, zero failures**, with one optional skip, on the hosted
+older-Git/Swift toolchain. The job then failed compiling the historical
+item-provider receiver because its standalone build omitted Core's SMTP module.
+The corrected command exposes the generated Clang module map and links the C
+objects with libcurl; the unchanged receiver passes locally. Hosted retry of this
+build fix and the later native/packaging gates remains pending. See
+[the build diagnosis](qa/ci-browser-smtp-module-2026-10-10.json).
+
+## References containing a commit
+
+At source checkpoint `1769e2c738e9b078e6c377205f5124b23bd010db`, the new
+containment reader passes three real-repository tests with system Git, isolated
+Git 2.39.5 and packaged Git. Six system-Git tests including menu-icon checks pass.
+The native receiver passes with system and packaged Git, including menu dispatch,
+comparison direction, filtering, all three picker routes, stale reply rejection,
+bare repositories and the parent Log close route. Latest unsigned Debug/Store
+builds and both package audits pass, with 120 original icons verified.
+
+```sh
+python3 scripts/test-commit-containing-refs.py \
+  --git /usr/bin/git --git build/git-runtime/Git/bin/git
+```
+
+The receiver owns hidden windows, private preferences and disposable repositories,
+and cleans up after terminal completion. Actual native content captures were
+inspected in light and dark mode and included on the Pages site. Physical input,
+VoiceOver, installed Finder and signed sandbox acceptance remain pending. The
+whole local suite is being rerun; targeted passes do not establish its result.
+See [the verification record](qa/commit-containing-refs-2026-10-10.json).
+
 ## Previous full-suite checkpoint
 
 At Core source checkpoint `c4bd370`, a fresh local `swift test` passed **921 tests,

@@ -1,8 +1,10 @@
 # References commit is on
 
-This upstream workflow is missing from the native Log window. The source audit
-below defines the implementation work; it does not establish a completed port.
-The dialog inventory remains `pending-review`.
+A native modeless dialog now opens from Log's **Show branches this commit is on**
+menu entry. Core and native interaction checks pass with system and packaged Git;
+Core checks also pass with isolated Git 2.39.5. The dialog and its seven controls
+are tracked as partial. Physical and signed acceptance and complete source parity
+remain open.
 
 ## Source and entry point
 
@@ -65,3 +67,43 @@ The native workflow must keep its repository permission lease and route comparis
 Log, browser and picker children through existing controllers. Busy and child-sheet
 gates, parent/child close cleanup, read cancellation, unchanged repository bytes,
 physical light/dark layout and signed sandbox acceptance all need direct evidence.
+
+## Native implementation checkpoint
+
+Source: `1769e2c738e9b078e6c377205f5124b23bd010db`.
+See [the native verification record](qa/commit-containing-refs-2026-10-10.json)
+for exact checks, capture provenance and remaining acceptance.
+
+`CommitContainingReferences.swift` pins the requested commit, reads mailmapped
+metadata and Git's configured abbreviation, and queries all containing local/
+remote branches and tags with `for-each-ref --contains`. It reads stdout separately
+from diagnostics, includes symbolic remote HEAD and recursively nested annotations,
+ignores blob tags and other namespaces in containment, and preserves full exact
+reference identities. Reference completion includes the other namespaces too.
+Empty filters retain all rows; other filters use literal case-sensitive UTF-16
+matching. Finder collation supplies natural ordering, with byte ordering for ties.
+This is a native adaptation, not certification of Windows punctuation/policy ties.
+
+`CommitContainingReferencesWindowController` preserves the top revision/chooser,
+subject and Show log row, headerless colored reference list, and bottom Filter.
+It routes all one/two/many selection menus, range direction, comparisons, unified
+diff, copy and the three owned pickers through native controllers. Plain parent
+navigation selects; Shift highlights. Reads, deferred edits and late replies are
+owned by the child; forced parent closure cancels the child, while active picker
+sheets fence ordinary close and Quit. Completion is refreshed with each query;
+the source's initialization-only completion cache and every locale/keyboard route
+have not been certified.
+
+`CommitContainingReferencesTests` uses real repositories for descendant vs tip
+containment, nested tags, symbolic remote HEAD, blob-tag exclusion, mailmap,
+configured abbreviation, packed distinct Unicode refs, literal filtering, detached
+HEAD, bare repositories, invalid inputs, cancellation and byte preservation.
+`scripts/test-commit-containing-refs.py` compiles and runs a real hidden AppKit
+receiver with private preferences and disposable repositories. It checks actual
+menu target/action dispatch, one-second filter, Escape, owned Browse References/
+Log/Reflog picker cancellation and reference acceptance, rejection of an obsolete
+reply ignoring cancellation, and the real parent Log table menu/close route.
+Actual native content captures were inspected in light and dark appearances.
+They show the corrected right-aligned Show log row and original colored icons;
+window chrome is excluded. These checks do not establish physical input, VoiceOver,
+installed Finder or signed sandbox acceptance.

@@ -65,7 +65,7 @@ for baseline and update rules.
 
 - [Log Messages parity](LOG-PARITY.md)
 - [Find in Log Messages](LOG-FIND.md)
-- [References commit is on: source audit and missing workflow](COMMIT-CONTAINING-REFS-PARITY.md)
+- [References commit is on: native workflow and remaining parity](COMMIT-CONTAINING-REFS-PARITY.md)
 - [Expanding compressed history](LOG-GRAPH.md)
 - [Log Merge and Rebase commands](LOG-MERGE-REBASE.md)
 - [Log Revert parity](LOG-REVERT-PARITY.md)
@@ -173,3 +173,5 @@ are not recursively audited.
 
 - [Revision Graph guide](REVISION-GRAPH.md): selection, comparison, zoom, overview
   and range filtering; [source parity](REVISION-GRAPH-PARITY.md) and remaining work.
+
+- [Log commit ordering source audit](LOG-ORDERING-PARITY.md) — missing four-choice dialog and persistent Git walk order.

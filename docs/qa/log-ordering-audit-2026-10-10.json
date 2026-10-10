@@ -1,0 +1,58 @@
+{
+  "date": "2026-10-10",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "native_checkpoint": "1769e2c738e9b078e6c377205f5124b23bd010db",
+  "dialog": "IDD_LOGORDERING",
+  "status": "audited-missing-native-workflow",
+  "upstream_blobs": {
+    "src/TortoiseProc/LogOrdering.cpp": "da8459b5cf6ac8a09849e14830cc3bc26600fc1e",
+    "src/TortoiseProc/LogOrdering.h": "4aef6ebe8ab0ab687445804779f30450a5fbd5ee",
+    "src/TortoiseProc/LogDlg.cpp": "d456ae8d668767195f464ad8d850a15c034127f5",
+    "src/TortoiseProc/LogDlgHelper.h": "b36c3e52ef7763670983f2bfc21bac8165c2e7e8",
+    "src/Git/Git.cpp": "43dee91dbf94e46564b4cc1a139717fcbd8f6803",
+    "src/Git/Git.h": "493a1e5511c8a4e874caa887d1361a6af9088fe6",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f"
+  },
+  "source_controls": 4,
+  "source_behavior": {
+    "entry": "CLogDlg::OnLvnColumnclick, when not filling arrays, schedules LOG_HEADER_ORDER_TIMER at 10 ms; timer opens modal CLogOrdering and Refresh only on IDOK. This applies to column click rather than independent in-memory column sorting.",
+    "choices": [
+      {
+        "title": "Chronological reversed (git default)",
+        "value": 0,
+        "git_option": null
+      },
+      {
+        "title": "--topo-order (TortoiseGit default)",
+        "value": 1,
+        "git_option": "--topo-order"
+      },
+      {
+        "title": "--date-order",
+        "value": 2,
+        "git_option": "--date-order"
+      },
+      {
+        "title": "--author-date-order",
+        "value": 3,
+        "git_option": "--author-date-order"
+      }
+    ],
+    "preference": "Software\\TortoiseGit\\LogOrderBy, default 1; load on initialize, persist selected item data only on OK, Cancel leaves prior preference and Log intact.",
+    "force_topology": "CGit::GetLogCmd topo-order mask can override selected preference; preserve topology-required consumers such as Revision Graph independently."
+  },
+  "current_native_evidence": {
+    "HistoryOptions": "No ordering field exists at this checkpoint.",
+    "GitRepository.history": "CommitHistory.swift hardcodes --topo-order.",
+    "Log_revision_table": "Has header context menu for columns; no didClickTableColumn ordering-dialog callback.",
+    "dialog": "No native ordering controller or source-like four-choice picker."
+  },
+  "required_acceptance": [
+    "Add persistent four-value history ordering using exact Git flags; chronological git-default is not --reverse.",
+    "Native compact dialog with label/combo/OK/Cancel, draft selection and correct Escape/Return, inherited appearance and private preferences.",
+    "Route actual Log header column click through owned controller; busy and child gates; OK reloads, Cancel preserves selection/data/preferences.",
+    "Real DAG with different author/committer dates and sibling topology; compare ordered hashes to direct Git for all four modes under system, old and packaged engines.",
+    "Selection restoration, pagination/filter/path/range and compact graph lanes must follow the chosen walk rather than independently sorting rows.",
+    "Physical layout, VoiceOver, signed sandbox and localization remain separate gates."
+  ]
+}
