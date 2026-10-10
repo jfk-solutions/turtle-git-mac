@@ -10,22 +10,36 @@ private let cancelOpenedMX: @convention(c) (UnsafeMutableRawPointer?, UInt64, UI
 }
 final class SMTPMXTests: XCTestCase {
     func testWirePreferenceHostnameAndNullMX() throws {
-        let bytes = Data([0x12, 0x34, 3] + Array("mx1".utf8) + [7] + Array("example".utf8) + [3] + Array("com".utf8) + [0])
+        var bytes = Data([0x12, 0x34, 3])
+        bytes.append(contentsOf: "mx1".utf8)
+        bytes.append(7); bytes.append(contentsOf: "example".utf8)
+        bytes.append(3); bytes.append(contentsOf: "com".utf8); bytes.append(0)
         let record = try SMTPMXRecord.decode(bytes)
         XCTAssertEqual(record.preference, 0x1234); XCTAssertEqual(record.hostname, "mx1.example.com"); XCTAssertFalse(record.isNull)
         let null = try SMTPMXRecord.decode(Data([0, 0, 0]))
         XCTAssertEqual(null.preference, 0); XCTAssertEqual(null.hostname, "."); XCTAssertTrue(null.isNull)
     }
     func testMalformedWireDataNeverEscapesRecordBounds() throws {
-        for bytes in [[UInt8](), [0], [0, 0], [0, 0, 3, 65], [0, 0, 0, 0], [0, 0, 0xC0, 12], [0, 0, 1, 0, 0], [0, 0, 1, 46, 0], [0, 0, 64] + Array(repeating: 65, count: 64) + [0]] {
+        var oversizedLabel: [UInt8] = [0, 0, 64]
+        oversizedLabel.append(contentsOf: [UInt8](repeating: 65, count: 64)); oversizedLabel.append(0)
+        let malformed: [[UInt8]] = [[], [0], [0, 0], [0, 0, 3, 65], [0, 0, 0, 0], [0, 0, 0xC0, 12], [0, 0, 1, 0, 0], [0, 0, 1, 46, 0], oversizedLabel]
+        for bytes in malformed {
             XCTAssertThrowsError(try SMTPMXRecord.decode(Data(bytes)), "\(bytes)")
         }
-        let threeLabels = Array(repeating: [UInt8(63)] + Array(repeating: UInt8(65), count: 63), count: 3).flatMap { $0 }
-        let maximum = Data([0, 0] + threeLabels + [61] + Array(repeating: UInt8(65), count: 61) + [0])
+        var label: [UInt8] = [63]
+        label.append(contentsOf: [UInt8](repeating: 65, count: 63))
+        var maximum = Data([0, 0])
+        for _ in 0..<3 { maximum.append(contentsOf: label) }
+        maximum.append(61); maximum.append(contentsOf: [UInt8](repeating: 65, count: 61)); maximum.append(0)
         XCTAssertEqual(try SMTPMXRecord.decode(maximum).hostname.count, 253)
-        XCTAssertThrowsError(try SMTPMXRecord.decode(Data([0, 0] + threeLabels + [62] + Array(repeating: UInt8(65), count: 62) + [0])))
-        let tooLong = [UInt8](repeating: 0, count: 2) + Array(repeating: [UInt8(63)] + Array(repeating: UInt8(65), count: 63), count: 5).flatMap { $0 } + [0]
-        XCTAssertThrowsError(try SMTPMXRecord.decode(Data(tooLong)))
+        var overMaximum = Data([0, 0])
+        for _ in 0..<3 { overMaximum.append(contentsOf: label) }
+        overMaximum.append(62); overMaximum.append(contentsOf: [UInt8](repeating: 65, count: 62)); overMaximum.append(0)
+        XCTAssertThrowsError(try SMTPMXRecord.decode(overMaximum))
+        var tooLong = Data([0, 0])
+        for _ in 0..<5 { tooLong.append(contentsOf: label) }
+        tooLong.append(0)
+        XCTAssertThrowsError(try SMTPMXRecord.decode(tooLong))
     }
     func testInvalidDomainsAndTimeoutsDoNotQueryDNS() async throws {
         for name in ["", "a..invalid", "a.invalid.", "https://example.invalid", "a\0.invalid", "a\n.invalid", "雪.invalid", String(repeating: "a", count: 64) + ".invalid"] {
