@@ -253,6 +253,7 @@ enum RevisionGraphReferenceCommand {
     private let overview: RevisionGraphOverview
     private(set) var filter: RevisionGraphFilterController?
     private(set) var find: RevisionGraphFindController?
+    private var hasFindError: Bool { find?.acknowledgingFailure == true || find?.window?.attachedSheet != nil }
     private var closing = false
     private var exporting = false
     private var pendingRepositoryRefresh = false
@@ -317,12 +318,14 @@ enum RevisionGraphReferenceCommand {
         let content = RevisionGraphSurface(); content.addSubview(stack); window.contentView = content
         NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: content.leadingAnchor), stack.trailingAnchor.constraint(equalTo: content.trailingAnchor), stack.topAnchor.constraint(equalTo: content.topAnchor), stack.bottomAnchor.constraint(equalTo: content.bottomAnchor), host.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -16), host.heightAnchor.constraint(greaterThanOrEqualToConstant: 300)])
         host.setContentHuggingPriority(.defaultLow, for: .vertical); host.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
+        canvas.interactionAllowed = { [weak self] in self?.hasFindError == false }
+        overview.interactionAllowed = { [weak self] in self?.hasFindError == false }
         canvas.contextMenu = { [weak self] in self?.nodeMenu() ?? NSMenu() }
         model.changed = { [weak self] in self?.update() }
         model.becameIdle = { [weak self] in if self?.closing == true { self?.window?.close() } }
         model.onUnified = { [weak self] bytes in guard let self else { return }; self.unifiedViewer = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: self.unifiedViewer, title: "Revision Graph changes", onClosed: { [weak self] in self?.unifiedViewer = nil }) }
-        model.confirmReferenceDeletion = { [weak window] request in
-            guard let window, window.attachedSheet == nil else { return .abort }
+        model.confirmReferenceDeletion = { [weak self, weak window] request in
+            guard let self, let window, window.attachedSheet == nil, !self.hasFindError else { return .abort }
             return await withCheckedContinuation { continuation in
                 let alert = NSAlert(); alert.alertStyle = .warning; alert.messageText = request.message
                 for option in request.choices { alert.addButton(withTitle: option.title).keyEquivalent = "" }
@@ -338,8 +341,8 @@ enum RevisionGraphReferenceCommand {
                 abort.keyEquivalent = "\r"; alert.window.defaultButtonCell = abort.cell as? NSButtonCell
             }
         }
-        model.acknowledgeReferenceDeletionFailure = { [weak window] message in
-            guard let window, window.attachedSheet == nil else { return }
+        model.acknowledgeReferenceDeletionFailure = { [weak self, weak window] message in
+            guard let self, let window, window.attachedSheet == nil, !self.hasFindError else { return }
             await withCheckedContinuation { continuation in
                 let alert = NSAlert(); alert.alertStyle = .critical; alert.messageText = "Could not delete reference."; alert.informativeText = message
                 alert.addButton(withTitle: "OK"); alert.window.alphaValue = window.alphaValue
@@ -365,7 +368,7 @@ enum RevisionGraphReferenceCommand {
         item.target = self; item.representedObject = command; item.image = icon.contextImage(defaults: model.preferences); return item
     }
     func nodeMenu() -> NSMenu {
-        let menu = NSMenu(); guard !model.busy, window?.attachedSheet == nil, !model.selection.isEmpty else { return menu }
+        let menu = NSMenu(); guard !model.busy, window?.attachedSheet == nil && !hasFindError, !model.selection.isEmpty else { return menu }
         menu.addItem(menuItem("Show Log", command: "log", icon: .log))
         if let node = model.selectedNode {
             menu.addItem(menuItem("Browse repository", command: "browse", icon: .repositoryBrowser))
@@ -408,7 +411,7 @@ enum RevisionGraphReferenceCommand {
     }
     @objc private func clicked(_ sender: NSButton) { if let command = sender.identifier?.rawValue { perform(command) } }
     @objc private func commitZoom(_ sender: Any?) {
-        guard !model.busy, !model.closed, filter == nil, !exporting, window?.attachedSheet == nil else { synchronizeZoom(force: true); return }
+        guard !model.busy, !model.closed, filter == nil, !exporting, window?.attachedSheet == nil && !hasFindError else { synchronizeZoom(force: true); return }
         let scanner = Scanner(string: zoomBox.stringValue); scanner.locale = Locale(identifier: "en_US_POSIX")
         guard let percent = scanner.scanDouble() else { synchronizeZoom(force: true); return }
         _ = scanner.scanString("%")
@@ -439,7 +442,7 @@ enum RevisionGraphReferenceCommand {
     func requestRepositoryRefresh() { guard !model.closed else { return }; pendingRepositoryRefresh = true; update() }
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
         if let target = item.representedObject as? RevisionGraphReferenceCommand {
-            guard !model.busy, !model.closed, filter == nil, !exporting, window?.attachedSheet == nil, let node = model.selectedNode else { return false }
+            guard !model.busy, !model.closed, filter == nil, !exporting, window?.attachedSheet == nil && !hasFindError, let node = model.selectedNode else { return false }
             switch target {
             case .switchBranch(let name, let hash): return !model.bare && node.hash == hash && model.switchBranches.contains { GitReferenceName.equal($0.name, name) }
             case .checkout(let name, let hash): return !model.bare && node.hash == hash && model.checkoutReference.map { GitReferenceName.equal($0.name, name) } == true
@@ -448,14 +451,14 @@ enum RevisionGraphReferenceCommand {
         }
         guard let command = item.representedObject as? String else { return true }
         item.state = ((command == "overview" && model.showOverview) || (command == "branchings" && model.options.showBranchingsAndMerges) || (command == "tags" && model.options.showAllTags) || (command == "arrows" && model.arrowsTowardMerges)) ? .on : .off
-        if model.busy || model.closed || filter != nil || exporting || window?.attachedSheet != nil { return command == "close" }
+        if model.busy || model.closed || filter != nil || exporting || window?.attachedSheet != nil || hasFindError { return command == "close" }
         if ["compare", "unified"].contains(command) { return model.selection.count == 2 }
         if ["compareHead", "compareWorking", "unifiedHead", "log", "browse", "copyRefs"].contains(command) { return command == "log" ? !model.selection.isEmpty : model.selection.count == 1 && (command != "compareWorking" || !model.bare) }
         return true
     }
     func perform(_ command: String) {
         if command == "close" { window?.performClose(nil); return }
-        guard !model.busy, !model.closed, filter == nil, !exporting, window?.attachedSheet == nil else { return }
+        guard !model.busy, !model.closed, filter == nil, !exporting, window?.attachedSheet == nil && !hasFindError else { return }
         switch command {
         case "refresh": model.load()
         case "zoomIn": model.zoom = min(2, model.zoom / 0.9)
@@ -488,7 +491,7 @@ enum RevisionGraphReferenceCommand {
     func update() {
         synchronizeZoom()
         find?.updateAvailability()
-        zoomBox.isEnabled = !model.busy && !model.closed && filter == nil && !exporting && window?.attachedSheet == nil
+        zoomBox.isEnabled = !model.busy && !model.closed && filter == nil && !exporting && window?.attachedSheet == nil && !hasFindError
         for button in toolbarButtons {
             button.isEnabled = zoomBox.isEnabled
             button.state = button.identifier?.rawValue == "overview" && model.showOverview ? .on : .off
@@ -497,12 +500,12 @@ enum RevisionGraphReferenceCommand {
         overview.isHidden = !model.showOverview || model.busy || model.nodes.isEmpty || model.nodes.count > 10_000
         status.stringValue = model.error ?? (model.busy ? "Loading…" : "\(model.nodes.count) revisions • \(Int((model.zoom * 100).rounded()))%")
         cancelButton.isEnabled = model.busy
-        if pendingRepositoryRefresh, !model.closed, !model.busy, !closing, filter == nil, !exporting, window?.attachedSheet == nil {
+        if pendingRepositoryRefresh, !model.closed, !model.busy, !closing, filter == nil, !exporting, window?.attachedSheet == nil && !hasFindError {
             pendingRepositoryRefresh = false; model.load()
         }
     }
     func showFilter() {
-        guard let window, window.attachedSheet == nil else { return }
+        guard let window, window.attachedSheet == nil, !hasFindError else { return }
         let filter = RevisionGraphFilterController(model: model) { [weak self] options in
             guard let self else { return }; self.filter = nil
             if let options { self.pendingRepositoryRefresh = false; self.model.options = options; self.model.load() }
@@ -528,12 +531,12 @@ enum RevisionGraphReferenceCommand {
     }
 
     func showFind(regexExecutable: URL? = nil) {
-        guard !model.closed, !model.busy, filter == nil, !exporting, let parent = window, parent.attachedSheet == nil else { return }
+        guard !model.closed, !model.busy, filter == nil, !exporting, let parent = window, parent.attachedSheet == nil, !hasFindError else { return }
         if let find { find.window?.makeKey(); return }
         let child = RevisionGraphFindController(repository: model.repository, access: model.access, preferences: model.preferences, regexExecutable: regexExecutable)
         find = child
         child.snapshot = { [weak model] in model?.nodes ?? [] }
-        child.canSearch = { [weak self] in guard let self else { return false }; return !self.model.closed && !self.model.busy && self.filter == nil && !self.exporting && self.window?.attachedSheet == nil }
+        child.canSearch = { [weak self] in guard let self else { return false }; return !self.model.closed && !self.model.busy && self.filter == nil && !self.exporting && self.window?.attachedSheet == nil && !self.hasFindError }
         child.navigate = { [weak self] hash, select in
             guard let self, let rect = self.model.geometry?.nodes.first(where: { $0.hash == hash })?.rect else { return }
             if select { self.model.select(hash, extending: false) }
@@ -541,6 +544,7 @@ enum RevisionGraphReferenceCommand {
             self.scroll.contentView.scroll(to: self.scroll.contentView.constrainBoundsRect(NSRect(origin: point, size: self.scroll.contentView.bounds.size)).origin)
             self.scroll.reflectScrolledClipView(self.scroll.contentView); self.overview.needsDisplay = true
         }
+        child.modalChanged = { [weak self] in self?.update() }
         child.onClosed = { [weak self, weak parent] in
             if let window = self?.find?.window { parent?.removeChildWindow(window) }; self?.find = nil
         }
@@ -549,7 +553,7 @@ enum RevisionGraphReferenceCommand {
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard sender.attachedSheet == nil, filter == nil, !exporting, unifiedViewer?.model.busy != true, unifiedViewer?.window?.attachedSheet == nil else { return false }
+        guard sender.attachedSheet == nil, !hasFindError, filter == nil, !exporting, unifiedViewer?.model.busy != true, unifiedViewer?.window?.attachedSheet == nil else { return false }
         if model.busy { closing = true; model.cancel(); return false }; return true
     }
     func windowWillClose(_ notification: Notification) {
@@ -559,6 +563,7 @@ enum RevisionGraphReferenceCommand {
 }
 
 @MainActor final class RevisionGraphCanvas: NSView, NSViewToolTipOwner {
+    var interactionAllowed: () -> Bool = { true }
     let model: RevisionGraphWindowModel
     var contextMenu: () -> NSMenu = { NSMenu() }
     private var panPoint: NSPoint?
@@ -638,7 +643,7 @@ enum RevisionGraphReferenceCommand {
     }
     override func mouseDown(with event: NSEvent) {
         panPoint = nil
-        guard !model.busy, !model.closed else { return }
+        guard interactionAllowed(), !model.busy, !model.closed else { return }
         window?.makeFirstResponder(self)
         let hash = hit(convert(event.locationInWindow, from: nil))
         let extending = !event.modifierFlags.intersection([.command, .control]).isEmpty
@@ -646,7 +651,7 @@ enum RevisionGraphReferenceCommand {
         if hash == nil, !extending { panPoint = event.locationInWindow }
     }
     override func mouseDragged(with event: NSEvent) {
-        guard !model.busy, !model.closed, let previous = panPoint, let scroll = enclosingScrollView else { panPoint = nil; return }
+        guard interactionAllowed(), !model.busy, !model.closed, let previous = panPoint, let scroll = enclosingScrollView else { panPoint = nil; return }
         let clip = scroll.contentView
         let before = clip.convert(previous, from: nil), after = clip.convert(event.locationInWindow, from: nil)
         self.scroll(to: NSPoint(x: clip.bounds.minX - (after.x - before.x), y: clip.bounds.minY - (after.y - before.y)))
@@ -660,7 +665,7 @@ enum RevisionGraphReferenceCommand {
         scroll.reflectScrolledClipView(clip)
     }
     override func scrollWheel(with event: NSEvent) {
-        guard !model.busy, !model.closed else { return }
+        guard interactionAllowed(), !model.busy, !model.closed else { return }
         if !event.modifierFlags.intersection([.command, .control]).isEmpty {
             guard event.scrollingDeltaY != 0 else { return }
             model.zoom = max(0.01, min(2, model.zoom * (event.scrollingDeltaY < 0 ? 0.9 : 1 / 0.9)))
@@ -672,7 +677,7 @@ enum RevisionGraphReferenceCommand {
         } else { super.scrollWheel(with: event) }
     }
     override func menu(for event: NSEvent) -> NSMenu? {
-        guard !model.busy, !model.closed, let hash = hit(convert(event.locationInWindow, from: nil)) else { return nil }
+        guard interactionAllowed(), !model.busy, !model.closed, let hash = hit(convert(event.locationInWindow, from: nil)) else { return nil }
         // Upstream preserves a selected pair and rejects menus on a third node.
         if model.selection.count == 2, !model.selection.contains(hash) { return nil }
         if !model.selection.contains(hash) { model.select(hash, extending: false) }
@@ -681,6 +686,7 @@ enum RevisionGraphReferenceCommand {
 }
 
 @MainActor final class RevisionGraphOverview: NSView {
+    var interactionAllowed: () -> Bool = { true }
     let model: RevisionGraphWindowModel
     weak var scroll: NSScrollView?
     override var isFlipped: Bool { true }
@@ -724,10 +730,20 @@ enum RevisionGraphReferenceCommand {
     override func mouseDown(with event: NSEvent) { navigate(event) }
     override func mouseDragged(with event: NSEvent) { navigate(event) }
     private func navigate(_ event: NSEvent) {
-        guard !model.busy, !model.closed, let scroll else { return }; let point = convert(event.locationInWindow, from: nil)
+        guard interactionAllowed(), !model.busy, !model.closed, let scroll else { return }; let point = convert(event.locationInWindow, from: nil)
         guard bounds.contains(point) else { return }
         let origin = CGPoint(x: max(0, (point.x - 4) / scale * model.zoom - scroll.contentSize.width / 2), y: max(0, (point.y - 4) / scale * model.zoom - scroll.contentSize.height / 2))
         scroll.contentView.scroll(to: scroll.contentView.constrainBoundsRect(NSRect(origin: origin, size: scroll.contentView.bounds.size)).origin); scroll.reflectScrolledClipView(scroll.contentView); needsDisplay = true
+    }
+}
+
+final class RevisionGraphFindWindow: NSWindow {
+    var findWithoutSelection: () -> Void = {}
+    override func sendEvent(_ event: NSEvent) {
+        if event.type == .keyDown, event.keyCode == 36, event.modifierFlags.intersection([.shift, .command, .control, .option]) == .shift, attachedSheet == nil {
+            findWithoutSelection(); return
+        }
+        super.sendEvent(event)
     }
 }
 
@@ -749,6 +765,10 @@ enum RevisionGraphReferenceCommand {
     var canSearch: () -> Bool = { false }
     var navigate: (String, Bool) -> Void = { _, _ in }
     var onClosed: () -> Void = {}
+    var modalChanged: () -> Void = {}
+    private(set) var acknowledgingFailure = false
+    private var failures: [(String, String)] = []
+    private var errorAlert: NSAlert?
     private(set) var references: [String] = []
     private(set) var visibleReferences: [String] = []
     private(set) var busy = false
@@ -762,9 +782,11 @@ enum RevisionGraphReferenceCommand {
     private var filterWorker: Task<Void, Never>?
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults, regexExecutable: URL? = nil) {
         self.repository = repository; self.access = access; self.preferences = preferences; self.regexExecutable = regexExecutable
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 575, height: 400), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        let window = RevisionGraphFindWindow(contentRect: NSRect(x: 0, y: 0, width: 575, height: 400), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "Find – TurtleGit"; window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 500, height: 400)
         super.init(window: window); window.delegate = self
+        window.findWithoutSelection = { [weak self] in self?.beginSearch(reference: nil, select: false) }
+        NotificationCenter.default.addObserver(self, selector: #selector(errorSheetEnded), name: NSWindow.didEndSheetNotification, object: window)
         matchCase.state = preferences.bool(forKey: "LogDialog.FindMatchCase") ? .on : .off
         regex.state = preferences.bool(forKey: "LogDialog.FindRegex") ? .on : .off
         searchBox.isEditable = true; searchBox.completes = false; searchBox.delegate = self
@@ -829,14 +851,14 @@ enum RevisionGraphReferenceCommand {
             guard let self, !self.closed, !cancellation.isCancelled else { return }
             self.refWorker = nil
             switch result { case .success(let refs): self.references = refs; self.applyReferenceFilter()
-            case .failure(let error): self.status.stringValue = error.localizedDescription }
+            case .failure(let error): self.presentFailure("Could not get all refs.", detail: error.localizedDescription) }
         }
     }
     func updateAvailability() {
-        let enabled = !closed && !busy && canSearch()
+        let enabled = !closed && !busy && !acknowledgingFailure && window?.attachedSheet == nil && canSearch()
         findButton.isEnabled = enabled && !searchBox.stringValue.isEmpty
         searchBox.isEnabled = enabled; matchCase.isEnabled = enabled; regex.isEnabled = enabled
-        table.isEnabled = enabled; referenceFilter.isEnabled = !closed
+        table.isEnabled = enabled; referenceFilter.isEnabled = !closed && !acknowledgingFailure
     }
     func controlTextDidChange(_ notification: Notification) {
         if notification.object as? NSTextField === referenceFilter {
@@ -856,7 +878,7 @@ enum RevisionGraphReferenceCommand {
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         guard visibleReferences.indices.contains(row) else { return nil }
         let name = visibleReferences[row]
-        let icon: MenuIcon? = name.hasPrefix("refs/tags/") ? .tag : name.hasPrefix("refs/heads/") ? .branch : name.hasPrefix("refs/remotes/") ? .fetch : nil
+        let icon = ReferenceTypeIcon(referenceName: name)
         let image = NSImageView(); image.image = icon?.image()
         image.widthAnchor.constraint(equalToConstant: 16).isActive = true
         let label = NSTextField(labelWithString: name); label.lineBreakMode = .byTruncatingTail
@@ -869,7 +891,7 @@ enum RevisionGraphReferenceCommand {
     func searchReference(_ reference: String, select: Bool = true) { beginSearch(reference: reference, select: select) }
     @objc func findNext() { beginSearch(reference: nil, select: !(NSApp.currentEvent?.modifierFlags.contains(.shift) ?? false)) }
     private func beginSearch(reference: String?, select: Bool) {
-        guard !closed, !busy, canSearch(), reference != nil || !searchBox.stringValue.isEmpty else { return }
+        guard !closed, !busy, !acknowledgingFailure, window?.attachedSheet == nil, canSearch(), reference != nil || !searchBox.stringValue.isEmpty else { return }
         window?.makeFirstResponder(nil)
         let nodes = snapshot(), query = searchBox.stringValue, useRegex = regex.state == .on, sensitive = matchCase.state == .on
         if reference == nil {
@@ -899,12 +921,36 @@ enum RevisionGraphReferenceCommand {
             case .success(let found):
                 if let (hash, wrapped) = found { self.cursor = hash; self.navigate(hash, select); self.status.stringValue = wrapped ? "Search continued from the beginning." : "" }
                 else { self.status.stringValue = "No further match in the displayed graph." }
-            case .failure(let error): self.status.stringValue = error.localizedDescription
+            case .failure(let error): self.presentFailure(reference.map { "Could not get hash of ref \"" + $0 + "^{}\"." } ?? "Could not search the graph.", detail: error.localizedDescription)
             }
         }
     }
-    @objc private func cancelFind() { close() }
+    private func presentFailure(_ title: String, detail: String) {
+        guard !closed else { return }
+        status.stringValue = ""; failures.append((title, detail)); acknowledgingFailure = true
+        updateAvailability(); modalChanged(); showNextFailure()
+    }
+    private func showNextFailure() {
+        guard !closed, let window, errorAlert == nil, window.attachedSheet == nil else { return }
+        guard !failures.isEmpty else {
+            acknowledgingFailure = false; updateAvailability(); modalChanged(); window.makeFirstResponder(searchBox); return
+        }
+        let (title, detail) = failures.removeFirst()
+        let alert = NSAlert(); errorAlert = alert; alert.alertStyle = .critical
+        alert.messageText = title; alert.informativeText = detail
+        let ok = alert.addButton(withTitle: "OK"); alert.window.alphaValue = window.alphaValue
+        alert.beginSheetModal(for: window) { [weak self] _ in
+            guard let self, !self.closed else { return }; self.errorAlert = nil; self.showNextFailure()
+        }
+        ok.keyEquivalent = "\r"; alert.window.defaultButtonCell = ok.cell as? NSButtonCell
+    }
+    @objc private func errorSheetEnded() { showNextFailure() }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { sender.attachedSheet == nil && !acknowledgingFailure }
+    @objc private func cancelFind() { window?.performClose(nil) }
     func windowWillClose(_ notification: Notification) {
-        guard !closed else { return }; closed = true; request = UUID(); token?.cancel(); worker?.cancel(); refToken.cancel(); refWorker?.cancel(); filterWorker?.cancel(); updateAvailability(); onClosed()
+        guard !closed else { return }; closed = true; request = UUID()
+        NotificationCenter.default.removeObserver(self); failures.removeAll(); acknowledgingFailure = false
+        if let sheet = window?.attachedSheet { window?.endSheet(sheet, returnCode: .abort); sheet.close() }
+        errorAlert = nil; token?.cancel(); worker?.cancel(); refToken.cancel(); refWorker?.cancel(); filterWorker?.cancel(); updateAvailability(); onClosed()
     }
 }

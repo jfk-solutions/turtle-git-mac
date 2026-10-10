@@ -102,36 +102,53 @@ public enum RevisionGraphToolbarIcon: Int, CaseIterable {
     case zoomIn = 0, zoomOut, zoom100, fitHeight, fitWidth, fitGraph
     case filter = 7, overview, find
 
-    public func image() -> NSImage? {
+    public func image() -> NSImage? { ColorKeyIconStrip.image(resource: "revgraphbar", tile: rawValue, size: 20) }
+}
+
+/// Original IDB_BITMAP_REFTYPE tiles used by CFindDlg, including its white mask.
+public enum ReferenceTypeIcon: Int, CaseIterable {
+    case tag = 0, localBranch, remoteBranch
+    public init?(referenceName: String) {
+        if referenceName.hasPrefix("refs/tags/") { self = .tag }
+        else if referenceName.hasPrefix("refs/heads/") { self = .localBranch }
+        else if referenceName.hasPrefix("refs/remotes/") { self = .remoteBranch }
+        else { return nil }
+    }
+    public func image() -> NSImage? { ColorKeyIconStrip.image(resource: "reftype", tile: rawValue, size: 16, colorKey: [255, 255, 255]) }
+}
+
+private enum ColorKeyIconStrip {
+    static func image(resource: String, tile: Int, size: Int, colorKey: [UInt8]? = nil) -> NSImage? {
         #if SWIFT_PACKAGE
         let bundle = Bundle.main.resourceURL.flatMap { Bundle(url: $0.appendingPathComponent("TurtleGitMac_TurtleGitCore.bundle")) } ?? Bundle.module
         #else
         let bundle = Bundle(for: IconResourceBundle.self)
         #endif
-        guard let url = bundle.url(forResource: "revgraphbar", withExtension: "bmp", subdirectory: "Icons"),
+        guard let url = bundle.url(forResource: resource, withExtension: "bmp", subdirectory: "Icons"),
               let data = try? Data(contentsOf: url), data.count >= 54, data[0] == 0x42, data[1] == 0x4d else { return nil }
         func u32(_ offset: Int) -> UInt32 {
             (0..<4).reduce(0) { $0 | (UInt32(data[offset + $1]) << ($1 * 8)) }
         }
         let width = Int(Int32(bitPattern: u32(18))), signedHeight = Int(Int32(bitPattern: u32(22)))
-        guard u32(14) >= 40, width > 0, width <= 4096, signedHeight == 20,
+        guard u32(14) >= 40, width > 0, width <= 4096, signedHeight == size,
               data[26] == 1, data[27] == 0, data[28] == 24, data[29] == 0, u32(30) == 0,
-              (rawValue + 1) * 20 <= width else { return nil }
+              tile >= 0, (tile + 1) * size <= width else { return nil }
         let offset = Int(u32(10)), stride = (width * 3 + 3) & ~3
-        guard offset >= 54, offset <= data.count, stride * 20 <= data.count - offset,
-              let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 20, pixelsHigh: 20, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bitmapFormat: .alphaNonpremultiplied, bytesPerRow: 80, bitsPerPixel: 32),
+        guard offset >= 54, offset <= data.count, stride * size <= data.count - offset,
+              let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: size, pixelsHigh: size, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bitmapFormat: .alphaNonpremultiplied, bytesPerRow: size * 4, bitsPerPixel: 32),
               let pixels = bitmap.bitmapData else { return nil }
         // CImageList::Add uses the first BMP pixel as its exact RGB color key.
-        let mask = Array(data[offset..<offset + 3])
-        for y in 0..<20 {
-            for x in 0..<20 {
-                let source = offset + (19 - y) * stride + (rawValue * 20 + x) * 3
-                let target = y * 80 + x * 4
+        let mask = colorKey ?? Array(data[offset..<offset + 3])
+        guard mask.count == 3 else { return nil }
+        for y in 0..<size {
+            for x in 0..<size {
+                let source = offset + (size - y - 1) * stride + (tile * size + x) * 3
+                let target = y * size * 4 + x * 4
                 pixels[target] = data[source + 2]; pixels[target + 1] = data[source + 1]; pixels[target + 2] = data[source]
                 pixels[target + 3] = data[source] == mask[0] && data[source + 1] == mask[1] && data[source + 2] == mask[2] ? 0 : 255
             }
         }
-        let image = NSImage(size: NSSize(width: 20, height: 20)); image.addRepresentation(bitmap)
+        let image = NSImage(size: NSSize(width: size, height: size)); image.addRepresentation(bitmap)
         image.isTemplate = false
         return image
     }

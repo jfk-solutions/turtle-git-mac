@@ -54,16 +54,18 @@ window. Full text search offers a history box, **Match case** and
 **Regular Expression**. It searches commit subjects/bodies, author and committer
 names/emails, full hashes and full reference names using the same query matcher
 as Log. Find advances after the previous result and wraps once; a status message
-reports a wrap or no further match. Hold Shift when finding to navigate without
+reports a wrap or no further match. Use Shift-Return, or hold Shift when finding, to navigate without
 replacing the graph selection.
 
-The lower reference list shows complete names. Click a reference to go to its
+The lower reference list shows complete names and the original tag/local/remote type icons. Click a reference to go to its
 peeled commit, including annotated tags. Its case-sensitive Filter updates
 after a one-second pause. References outside the currently displayed graph do
 not change selection. Search history and the two matching options are saved
 when Find is pressed; closing the window cancels its pending work. The graph
 can remain interactive while Find is open; loading or owned sheets disable
-search. Closing the graph closes its Find window.
+search. Closing the graph closes its Find window. A failed reference read or resolution
+opens an owned error sheet; acknowledge it with OK before continuing or closing
+the graph.
 
 **View → Filter…** opens a revision range sheet. **From** excludes history
 reachable from the entered revision; **To** restricts the included history.

@@ -592,6 +592,11 @@
       "asset": "revgraphbar.bmp",
       "source": "src/Resources/revgraphbar.bmp",
       "sha256": "eba95a7e7addd6caa214a71c164126aa08e144674bf9850803da56ea308039a7"
+    },
+    {
+      "asset": "reftype.bmp",
+      "source": "src/Resources/reftype.bmp",
+      "sha256": "b5f60a0ff4a952d62bf72b3ada93ee1064c4b48aa3cf9474a528a6f4c5889cbc"
     }
   ]
 }

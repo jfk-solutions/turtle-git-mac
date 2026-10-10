@@ -1,0 +1,73 @@
+{
+  "checked_at": "2026-10-10T16:38:59.959700+00:00",
+  "parent_commit": "f4779f6652b59eb81cfd4685e225c36c3ade4d5f",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Revision Graph Find original reference-type artwork, critical error ownership and native keyboard routes. Full Find/shared Log/application/signed parity remains open.",
+  "source": [
+    "src/Resources/reftype.bmp",
+    "FindDlg.cpp OnInitDialog/RefreshList and reference type indices",
+    "RevisionGraphDlg.cpp OnFindDialogMessage reference-resolution error and Shift navigation"
+  ],
+  "implementation": [
+    "unchanged 64x16 BGR resource; tag/local/remote tile indices 0/1/2 with fixed white RGB mask",
+    "shared color-key decoder retains existing graph toolbar tiles and masks",
+    "owned critical sheets for reference-list, peeled-reference and matcher failures; source ref failure captions and OK",
+    "root/Find controls, menu/toolbar/zoom, canvas and overview guarded while error acknowledgment pending",
+    "root/child user-close blocked through acknowledgment; forced owner cleanup closes owned sheets and clears pending failures",
+    "Command-F single-window route; guarded Cancel route; Shift-Return commits query without selecting result"
+  ],
+  "verification": {
+    "menu_icon_tests": 3,
+    "menu_icon_failures": 0,
+    "original_blob_equality": true,
+    "pixel_oracle": "Every reference tile pixel checked against independently specified 64x16 BGR layout and white mask, alongside retained original toolbar pixel tests. Unknown namespaces produce no glyph.",
+    "native_system_git_exit": 0,
+    "native_bundled_git_exit": 0,
+    "native_cases": [
+      "reference row glyph equality",
+      "synthetic native Command-F route opens Find and actual Cancel button closes it",
+      "actual field editor input and synthetic Shift-Return preserves selection while navigating/wrapping",
+      "missing reference opens actual child critical sheet with source caption and hidden ownership",
+      "OK acknowledgment restores root/child controls without changing selection",
+      "root/child close, forced search, toolbar/Filter and canvas actions blocked during error",
+      "failed reference-list load opens source-captioned error sheet",
+      "forced controller close ends owned error sheet",
+      "all retained graph/window/Filter/picker/export/deletion/zoom/pointer/repository invariant checks"
+    ],
+    "unsigned_debug_build_exit": 0,
+    "unsigned_appstore_build_exit": 0,
+    "debug_bundle_audit_exit": 0,
+    "appstore_bundle_audit_exit": 0,
+    "upstream_icon_resources": 119,
+    "local_pages_build_exit": 0
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/revision-graph-find-light.png",
+      "sha256": "c60650c2b46f48a97451fdcf5e0604146bbdf31717685071a40c486a1208dadb",
+      "pixels": [
+        1150,
+        800
+      ],
+      "kind": "actual native hidden content capture; manually inspected"
+    },
+    {
+      "path": "docs/site/assets/revision-graph-find-dark.png",
+      "sha256": "892c6100c3f0dd5eb127b68427c0c5fa7e961b193a4a6e53bdd883fe43fa1657",
+      "pixels": [
+        1150,
+        800
+      ],
+      "kind": "actual native hidden content capture; manually inspected"
+    }
+  ],
+  "mutation_scope": "Disposable fixtures and private preferences only. No visible activation/global geometry installation; all receivers exited and no owned app/test/compiler processes remained.",
+  "pending": [
+    "plain Return, physical Shift-click/keyboard/focus and accessibility/localization acceptance",
+    "concurrent reference-load/search completion ordering and large/missing-object graphs",
+    "critical-sheet appearance and Return/Escape acknowledgment variants",
+    "complete shared Log Find consumer parity",
+    "signed App Store/sandbox/Finder integration",
+    "current hosted CI/publication and complete TortoiseGit port"
+  ]
+}

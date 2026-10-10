@@ -458,8 +458,8 @@ run asynchronously with cancellation, captured access leases and stale-result
 guards. Parent loading/modal operations disable Find; closing Find or its
 parent cancels owned work. Explicit status text replaces source window flashing
 and beeps for wraps/no-match. Search history and case/regex preferences are
-saved on Find dispatch. Reference rows currently reuse original branch/tag/fetch
-menu icons; the exact small reference-type strip, physical focus/keyboard,
+saved on Find dispatch. At the initial Find checkpoint reference rows reused branch/tag/fetch menu
+icons; the subsequent original-strip adaptation is mapped below. Physical focus/keyboard,
 accessibility, localization, larger graphs and signed sandbox behavior remain
 under review. Full Find/application parity is not certified.
 
@@ -488,3 +488,45 @@ both bundle audits (118 upstream icon resources) and the local Pages build.
 All owned receivers exited; no app/test/compiler processes remained. The
 App Store/sandbox/Finder signing and current hosted CI/publication gates remain
 open. The checked-in Find evidence is a feature checkpoint, not full parity.
+
+## Find reference artwork, errors and keyboard routes
+
+Find reference rows now use unchanged `src/Resources/reftype.bmp`, retaining
+the source's 16-pixel tag/local/remote tiles and explicit white RGB mask. Unknown
+reference namespaces have no type glyph, matching `nImage = -1`. The original
+strip and SHA-256 provenance are bundled; the existing toolbar and new reference
+strips share a BGR/color-key decoder. Independent pixel checks retain all RGB
+values and verify the exact alpha mask.
+
+Failures reading references or resolving a clicked reference now present a
+critical sheet owned by Find with the source failure caption, Git details and
+OK acknowledgment. Runtime matching failures use the same native error route.
+Concurrent failures queue behind the current sheet. Find, root toolbar/menus,
+canvas selection/pan/wheel and overview navigation are guarded while a Find
+error is pending. Root/child user-close is blocked until acknowledgment; forced
+owner cleanup ends and closes owned sheets, clears queued failures and cancels
+work. Deferred repository refresh remains blocked through acknowledgment.
+
+Command-F retains the single Find-window route, Cancel uses guarded native
+close, and Shift-Return commits the current query and navigates without changing
+selection. The source Shift-on-Find behavior is also retained for ordinary
+button/reference events. Synthetic native key dispatch is a scoped check;
+physical keyboard/mouse, VoiceOver/localization, complete shared Log consumer
+parity and signed App Store/Finder acceptance remain unproven.
+
+All three icon tests passed, including an independent source-pixel oracle for
+the three reference tiles and retained toolbar pixel checks. The native graph
+receiver passed with both Git engines for rendered-row glyph equality, Command-F
+opening/Cancel closing, field-editor Shift-Return navigation, source reference
+failure captions and actual owned-sheet OK acknowledgment. It also checked
+root/child close and toolbar/menu/canvas locks, unchanged selection on failure,
+failed reference-list loading and forced owned-sheet cleanup. Light/dark Find
+captures were inspected and refreshed. See
+[Find details evidence](qa/revision-graph-find-details-2026-10-10.json).
+
+The reference bitmap also matches the pinned Git blob byte-for-byte. Unsigned
+Debug/App Store builds, both bundle audits (119 icon resources) and local Pages
+build passed. Plain Return, physical input/accessibility, concurrent reference-
+load/search completion ordering, error-sheet appearance/key variants and signed
+acceptance remain pending. No owned app/test/compiler processes remained at
+checkpoint. Hosted CI and publication are not established by these local checks.

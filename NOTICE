@@ -1440,3 +1440,8 @@ TortoiseLoglistCommon.rc2 IDD_FIND resource, plus RevisionGraphDlg.cpp search
 and RevisionGraphWnd.cpp ScrollTo behavior. Native matching reuses the ported
 FilterHelper query and bundled ECMAScript UTF-16 runtime; copyright/licensing
 remains covered by the upstream GPL-2.0-or-later source notices.
+
+Find's tag/local/remote reference icons retain src/Resources/reftype.bmp
+unchanged. The native decoder uses CFindDlg's 16-pixel tiles and white RGB mask.
+Owned critical sheets adapt FindDlg and RevisionGraphDlg reference-read error
+message boxes to AppKit, retaining root/child modal ownership and OK semantics.

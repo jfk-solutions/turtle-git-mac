@@ -3,6 +3,27 @@ import AppKit
 @testable import TurtleGitCore
 
 final class MenuIconTests: XCTestCase {
+    func testFindReferenceTilesPreserveOriginalPixelsAndWhiteMask() throws {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let data = try Data(contentsOf: root.appendingPathComponent("Sources/TurtleGitCore/Resources/Icons/reftype.bmp"))
+        XCTAssertEqual(data.count, 3126) // 64x16 BGR, 192-byte bottom-up rows.
+        for (icon, index, name) in [(ReferenceTypeIcon.tag, 0, "refs/tags/v1"), (.localBranch, 1, "refs/heads/main"), (.remoteBranch, 2, "refs/remotes/origin/main")] {
+            XCTAssertEqual(ReferenceTypeIcon(referenceName: name), icon)
+            let image = try XCTUnwrap(icon.image()); XCTAssertFalse(image.isTemplate)
+            XCTAssertEqual(image.size, NSSize(width: 16, height: 16))
+            let bitmap = try XCTUnwrap(image.representations.first as? NSBitmapImageRep), pixels = try XCTUnwrap(bitmap.bitmapData)
+            var opaque = 0, transparent = 0
+            for y in 0..<16 { for x in 0..<16 {
+                let source = 54 + (15 - y) * 192 + (index * 16 + x) * 3, target = y * bitmap.bytesPerRow + x * 4
+                XCTAssertEqual(pixels[target], data[source + 2]); XCTAssertEqual(pixels[target + 1], data[source + 1]); XCTAssertEqual(pixels[target + 2], data[source])
+                let white = data[source] == 255 && data[source + 1] == 255 && data[source + 2] == 255
+                XCTAssertEqual(pixels[target + 3], white ? 0 : 255)
+                if white { transparent += 1 } else { opaque += 1 }
+            } }
+            XCTAssertGreaterThan(opaque, 0); XCTAssertGreaterThan(transparent, 0)
+        }
+        XCTAssertNil(ReferenceTypeIcon(referenceName: "refs/stash")); XCTAssertNil(ReferenceTypeIcon(referenceName: "refs/custom/other"))
+    }
     func testRevisionGraphToolbarPreservesSourceTilesAndColorKey() throws {
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         let data = try Data(contentsOf: root.appendingPathComponent("Sources/TurtleGitCore/Resources/Icons/revgraphbar.bmp"))

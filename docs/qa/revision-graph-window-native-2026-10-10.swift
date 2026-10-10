@@ -297,6 +297,10 @@ import Darwin
         }
         try await capture(window, prefix: "revision-graph")
         let regexHelper = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/IssueRegex/issue-regex")
+        let commandF = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .command, timestamp: 0, windowNumber: window.windowNumber, context: nil, characters: "f", charactersIgnoringModifiers: "f", isARepeat: false, keyCode: 3)!
+        try require(window.performKeyEquivalent(with: commandF) && controller.find != nil)
+        let keyboardFind = controller.find!; keyboardFind.cancelButton.performClick(nil)
+        try await wait { controller.find == nil }; try require(keyboardFind.closed)
         controller.showFind(regexExecutable: regexHelper)
         let find = controller.find!, findWindow = find.window!
         try await wait { !find.references.isEmpty }
@@ -308,6 +312,13 @@ import Darwin
         let queryFrame = find.searchBox.convert(find.searchBox.bounds, to: findWindow.contentView!), refsFrame = find.table.enclosingScrollView!.convert(find.table.enclosingScrollView!.bounds, to: findWindow.contentView!)
         try require(queryFrame.minY > refsFrame.maxY && findWindow.contentView!.bounds.contains(queryFrame) && findWindow.contentView!.bounds.contains(refsFrame))
         try require(find.references.contains("refs/tags/release-v1") && find.references.contains("refs/heads/main") && find.references.contains("refs/remotes/origin/main"))
+        for name in ["refs/tags/release-v1", "refs/heads/main", "refs/remotes/origin/main"] {
+            let index = find.visibleReferences.firstIndex(of: name)!
+            let row = find.tableView(find.table, viewFor: find.table.tableColumns[0], row: index)!
+            let actual = views(row).compactMap { $0 as? NSImageView }.first!.image!
+            let expected = ReferenceTypeIcon(referenceName: name)!.image()!
+            try require((actual.representations[0] as! NSBitmapImageRep).representation(using: .png, properties: [:]) == (expected.representations[0] as! NSBitmapImageRep).representation(using: .png, properties: [:]))
+        }
         func findText(_ query: String, regex: Bool = false, sensitive: Bool = false) async throws {
             find.searchBox.stringValue = query; find.regex.state = regex ? .on : .off; find.matchCase.state = sensitive ? .on : .off; find.updateAvailability()
             try require(find.findButton.isEnabled && NSApp.sendAction(find.findButton.action!, to: find.findButton.target, from: find.findButton))
@@ -321,6 +332,34 @@ import Darwin
         try await findText("no-such-message"); try require(model.selection == beforeNoMatch && find.status.stringValue.contains("No further match"))
         find.searchReference("refs/tags/release-v1"); try await wait { !find.busy }; try require(model.selection == [rootNode.hash])
         find.searchReference("refs/heads/feature/native-graph", select: false); try await wait { !find.busy }; try require(model.selection == [rootNode.hash])
+        // An error is acknowledged in a real child-owned critical sheet.
+        let beforeError = model.selection
+        find.searchReference("refs/heads/no-such-reference")
+        try await wait { findWindow.attachedSheet != nil }
+        let errorSheet = findWindow.attachedSheet!
+        try require(find.acknowledgingFailure && errorSheet.alphaValue == 0 && !find.findButton.isEnabled && !zoomBox.isEnabled)
+        try require(!controller.windowShouldClose(window) && !find.windowShouldClose(findWindow))
+        let messageLabels = views(errorSheet.contentView!).compactMap { $0 as? NSTextField }.map(\.stringValue)
+        try require(messageLabels.contains { $0.contains("Could not get hash of ref") && $0.contains("refs/heads/no-such-reference^{}") })
+        let beforeErrorZoom = model.zoom; controller.perform("zoomOut"); controller.showFilter()
+        try require(model.zoom == beforeErrorZoom && controller.filter == nil && model.selection == beforeError)
+        find.findNext(); try require(!find.busy)
+        click(geometry.firstIndex { !beforeError.contains($0.hash) }!)
+        try require(model.selection == beforeError && controller.nodeMenu().items.isEmpty)
+        find.cancelButton.performClick(nil); try require(!find.closed)
+        let ok = views(errorSheet.contentView!).compactMap { $0 as? NSButton }.first { $0.title == "OK" }!
+        ok.performClick(nil)
+        try await wait { findWindow.attachedSheet == nil && !find.acknowledgingFailure }
+        try require(find.findButton.isEnabled && zoomBox.isEnabled && model.selection == beforeError)
+        // Shift-Return goes to a result while preserving the selected Base.
+        find.searchReference("refs/tags/release-v1"); try await wait { !find.busy }
+        findWindow.makeFirstResponder(find.searchBox)
+        let findEditor = find.searchBox.currentEditor() as! NSTextView
+        findEditor.selectAll(nil); findEditor.insertText("Tooltip body", replacementRange: findEditor.selectedRange())
+        find.regex.state = .off; find.matchCase.state = .off
+        let shiftReturn = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .shift, timestamp: 0, windowNumber: findWindow.windowNumber, context: nil, characters: "\r", charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36)!
+        findWindow.sendEvent(shiftReturn); try await wait { !find.busy }
+        try require(model.selection == [rootNode.hash] && find.status.stringValue.contains("beginning"))
         find.referenceFilter.stringValue = "refs/heads/feature/"; find.applyReferenceFilter()
         try require(find.visibleReferences.count == 3)
         find.referenceFilter.stringValue = "REFS/HEADS"; find.applyReferenceFilter(); try require(find.visibleReferences.isEmpty)
@@ -334,7 +373,7 @@ import Darwin
         find.table.selectRowIndexes(IndexSet(integer: refRow), byExtendingSelection: false)
         try require(NSApp.sendAction(find.table.action!, to: find.table.target, from: find.table))
         try await wait { !find.busy }; try require(model.selection == [main.hash])
-        try require(prefs.stringArray(forKey: "History.Find.Search")?.first == "no-such-message")
+        try require(prefs.stringArray(forKey: "History.Find.Search")?.first == "Tooltip body")
         find.searchBox.stringValue = "Body"; find.regex.state = .on; find.matchCase.state = .on; find.updateAvailability()
         try await capture(findWindow, prefix: "revision-graph-find")
         model.load(); try require(!find.findButton.isEnabled); find.findNext(); try require(!find.busy)
@@ -344,6 +383,15 @@ import Darwin
         find.findNext(); try require(find.closed)
         controller.showFind(regexExecutable: regexHelper)
         let reopenedFind = controller.find!; try require(reopenedFind.searchBox.stringValue == "Body" && reopenedFind.regex.state == .on && reopenedFind.matchCase.state == .on)
+        let missingRepository = GitRepository(root: root.appendingPathComponent("missing-find-repository"), executable: repo.executable)
+        let missingFind = RevisionGraphFindController(repository: missingRepository, access: nil, preferences: prefs)
+        missingFind.canSearch = { true }; missingFind.window!.alphaValue = 0; missingFind.window!.orderFront(nil); missingFind.loadReferences()
+        try await wait { missingFind.window?.attachedSheet != nil }
+        let missingSheet = missingFind.window!.attachedSheet!
+        try require(views(missingSheet.contentView!).compactMap { $0 as? NSTextField }.contains { $0.stringValue == "Could not get all refs." })
+        try require(!missingFind.windowShouldClose(missingFind.window!))
+        missingFind.close(); try require(missingFind.closed && !missingSheet.isVisible)
+        print("PASS: Find original reference-type pixels, Command-F/Cancel and Shift-Return routes, error sheets, root/input locks and forced-owned cleanup")
         model.selection = selectedPair; controller.update()
         print("PASS: Revision Graph modeless Find ownership, text/case/ECMAScript/email/ref search, shift navigation, filter/history, busy locks and cancellation")
         controller.showFilter(); try await wait { window.attachedSheet != nil }
