@@ -1958,3 +1958,21 @@ Integrated native checks passed with system and bundled Git, preserving HEAD,
 raw index, config and working bytes. Unsigned Debug and AppStore builds and
 bundle audits passed with all 116 original icons and required AppStore runtimes.
 See [the issue-update QA record](qa/commit-history-issues-2026-10-10.json).
+
+## Column-menu owner lifetime, October 11
+
+Commit column layout, visibility, sorting, reset and unversioned-display settings
+now refuse commands once the owner is invalidated. A Reset columns request also
+rechecks owner lifetime after its asynchronous confirmation returns. A delayed Yes
+from a closed Commit window therefore cannot save a default layout over a newer
+window's preferences or invoke the old native layout callback.
+
+The focused receiver extends the existing native header/sort/layout checks with an
+actual hidden Commit controller force-close while an injected reset answer is
+pending, a replacement model using the same private preference domain and a late
+Yes. This checks the production window-close invalidation path and model fencing;
+it does not establish physical confirmation-sheet teardown or pointer interaction.
+
+Final two-engine checks pass, including the existing header/sort/fitting/clipboard
+and repository-preservation cases. See [the close-lifetime record](qa/commit-column-close-2026-10-11.json)
+for the source hashes and precise verification scope.

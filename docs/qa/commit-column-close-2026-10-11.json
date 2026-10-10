@@ -1,0 +1,54 @@
+{
+  "date": "2026-10-11",
+  "checkpoint": "5d3ea8bff66961a8d04fa9d1d72a6f068a0f8c42",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "status": "partial-native",
+  "problem": "Pending Reset columns could save preferences and invoke its native callback after the Commit owner closed; late settings commands could mutate the closed model.",
+  "implemented": "Column layout/visibility/sort/reset and unversioned display require a live owner. Reset rechecks lifetime after asynchronous confirmation.",
+  "verification": {
+    "unsigned_debug_exit": 0,
+    "native_exit": 0,
+    "engines": 2,
+    "lifecycle_markers": 2,
+    "scenarios": [
+      "Actual private-default Commit controller closed with injected reset reply pending.",
+      "Duplicate request refused while pending.",
+      "Replacement model writes non-default column choices in same private domain.",
+      "Late old Yes cannot save reset defaults or invoke accepted callback.",
+      "Closed column/display commands refused; replacement persisted layout unchanged.",
+      "Existing actual native header/sort/fitting/order/clipboard/busy/Quit/staging tests retained.",
+      "Repository HEAD/raw index/worktree/changelist byte preservation retained."
+    ],
+    "scope": "Actual hidden controller close notification with injected asynchronous answer; no physical pointer/NSAlert-teardown certification. Core unchanged, no new full-suite claim.",
+    "unsigned_appstore_exit": 0,
+    "debug_bundle_audit_exit": 0,
+    "appstore_require_git_bundle_audit_exit": 0,
+    "original_icons": 120,
+    "inventory_pin_exit": 0,
+    "site_exit": 0,
+    "cleanup": "All local build/native/audit sessions terminal; no app, receiver, compiler or owned fixture helper remains.",
+    "ci": "Added test-commit-column-sorting.py to macOS workflow. New hosted run not yet verified."
+  },
+  "remaining": [
+    "Physical confirmation-sheet teardown and header/pointer/VoiceOver acceptance.",
+    "Broader Commit task ownership and full dialog functionality/layout parity.",
+    "Signed sandbox/Finder/App Store distribution acceptance."
+  ],
+  "sources_sha256": {
+    "Sources/TurtleGitMac/CommitWindow.swift": "ede28f368679b10e1bae02268cce519d3d9904b74fe194c751c809704622c8f9",
+    "Sources/TurtleGitMac/CommitFileInteraction.swift": "d395bedee91431a04b7a42e8488728d158a7f3aa23872ceb0fff2c81f45497e6",
+    "docs/qa/commit-column-sorting-native-2026-10-08.swift": "12296a9ef42346c108eb0846f5a83ede9e5f2a595a328648013575dcd93a9742",
+    "scripts/test-commit-column-sorting.py": "5f2f33cf6616ff9b84ea79b7e91e7f030a4c8b7bf3a020f7c709ebb6a08a86ce",
+    ".github/workflows/macos.yml": "4c5bb1ba506912e4dee8d6392f0f4e625ce61537e55d24c2033ef1f60ecefe26"
+  },
+  "logs_sha256": {
+    "build/qa/commit-column-close-debug-2026-10-11.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/commit-column-close-native-2026-10-11.log": "227c025c22d3a8ba4fa019cf13848b6023f54d517c8e5f1759c2d21fbf1d6c4c",
+    "build/qa/commit-column-close-store-2026-10-11.log": "8b7e42e41011f64b89af2a34249c0e6a736fce554184bf57a0f657922d209930",
+    "build/qa/commit-column-close-debug-audit-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/commit-column-close-store-audit-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/commit-column-close-inventory-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/commit-column-close-site-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/commit-column-close-processes-2026-10-11.json": "248afd97220ee28ab828cf639eef0e36889f6bbccb13dfab15fa5489fb249d4c"
+  }
+}
