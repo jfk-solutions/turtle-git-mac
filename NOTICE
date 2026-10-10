@@ -1409,3 +1409,12 @@ margins, minimum hash width and I/II selection markers adapt
 RevisionGraphDlgDraw.cpp SetupColorsAndBrushes, DrawNode, SetNodeRect and
 DrawMarker at the existing pinned TortoiseGit commit. Native theme backgrounds
 and macOS appearance adaptation retain the existing upstream GPL terms.
+
+Native Revision Graph export adapts RevisionGraphWnd.cpp SaveGraphAs,
+Utils/MiscUI/SVG.cpp/.h (TortoiseSVN 2010-2011/2014 and TortoiseGit
+2023/2025 copyrights), and Utils/Graphviz.cpp/.h (TortoiseGit 2013-2016,
+2018-2019/2026 copyrights) at the existing pinned commit. Native Core Graphics
+PDF replaces enhanced Windows metafiles; ImageIO retains the raster encodings.
+SVG and Graphviz serialization preserve geometry/topology and colored reference
+rows with XML escaping and full-hash Graphviz IDs. Existing GPL-2.0-or-later
+terms and source attribution apply.

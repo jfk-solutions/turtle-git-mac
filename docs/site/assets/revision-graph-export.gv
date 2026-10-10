@@ -1,0 +1,17 @@
+digraph G {
+graph [rankdir=BT];
+node [style="filled, rounded", shape=box, fontname="Helvetica", fontsize=12, height=0.26, penwidth=0];
+gbc1ec0bfd328171ae87d3cd79a9629929f411e7a -> gf870c2c9950aff15b70b4424ae79ce64279172ed;
+gbc1ec0bfd328171ae87d3cd79a9629929f411e7a -> g86f6fc5518de554eecf4d2abaec2a11396ec730b;
+gf870c2c9950aff15b70b4424ae79ce64279172ed [color=transparent, label=<<table border="0" cellborder="0" cellpadding="5">
+<tr><td port="f0" bgcolor="#00c300"><font color="#ffffff">feature/native-graph</font></td></tr>
+</table>>];
+g86f6fc5518de554eecf4d2abaec2a11396ec730b [color=transparent, label=<<table border="0" cellborder="0" cellpadding="5">
+<tr><td port="f0" bgcolor="#c80000"><font color="#ffffff">main</font></td></tr>
+<tr><td port="f1" bgcolor="#ffddaa"><font color="#000000">origin/main</font></td></tr>
+<tr><td port="f2" bgcolor="#ffff00"><font color="#000000">export&lt;&amp;&quot;&apos;&gt;</font></td></tr>
+</table>>];
+gbc1ec0bfd328171ae87d3cd79a9629929f411e7a [color=transparent, label=<<table border="0" cellborder="0" cellpadding="5">
+<tr><td port="f0" bgcolor="#ffff00"><font color="#000000">v1.0</font></td></tr>
+</table>>];
+}

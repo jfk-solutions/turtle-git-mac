@@ -33,9 +33,18 @@ scopes and immediately refreshes the graph.
 merges** are separate View commands. These affect the graph's reduction or arrow
 direction, independently of the range filter.
 
-**File → Save graph as…** currently exports PDF. Other upstream export formats
-remain unimplemented. This is a partial port, not a full parity claim.
+**File → Save graph as…** opens a native format chooser, defaulting to SVG.
+Choose SVG, Graphviz (`.gv`), PNG, JPEG, BMP, GIF or PDF. SVG and PDF export
+at 100% and include at least the graph and viewport extent; raster images export
+the full graph at the current zoom. Graphviz stores topology and colored
+reference rows for an external Graphviz renderer. PDF is the native replacement
+for Windows metafiles. Very large raster exports report an error; reduce the
+zoom or select a vector format. This is a partial port, not a full parity claim.
 
 The [parity record](REVISION-GRAPH-PARITY.md) documents source mappings,
 verification and remaining work. The [upstream manual](https://tortoisegit.org/docs/tortoisegit/tgit-dug-revgraph.html)
 is a reference for the Windows application; platform-specific details can differ.
+
+Example exports from a disposable test repository: [SVG](site/assets/revision-graph-export.svg)
+and [Graphviz](site/assets/revision-graph-export.gv). The fixture includes a tag
+with XML metacharacters to verify that reference text remains readable.

@@ -1,4 +1,6 @@
 import AppKit
+import ImageIO
+import PDFKit
 import TurtleGitCore
 import Darwin
 
@@ -35,6 +37,7 @@ import Darwin
         _ = try await repo.run(["checkout", "main"])
         try Data("main\n".utf8).write(to: file); try await repo.stage(["file.txt"]); _ = try await repo.commit(message: "Main branch")
         _ = try await repo.run(["update-ref", "refs/remotes/origin/main", "HEAD"])
+        _ = try await repo.run(["tag", "export<&\"'>"])
         let head = try await repo.run(["rev-parse", "HEAD"]).stdout
         let refs = try await repo.run(["show-ref"]).stdout
         let index = try Data(contentsOf: root.appendingPathComponent(".git/index")), config = try Data(contentsOf: root.appendingPathComponent(".git/config")), bytes = try Data(contentsOf: file)
@@ -112,6 +115,38 @@ import Darwin
         let afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout, afterRefs = try await repo.run(["show-ref"]).stdout
         let afterIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")), afterConfig = try Data(contentsOf: root.appendingPathComponent(".git/config")), afterBytes = try Data(contentsOf: file)
         try require(head == afterHead && refs == afterRefs && index == afterIndex && config == afterConfig && bytes == afterBytes)
+        // Export actual data in every encoding, with scroll-independent extent.
+        let picker = RevisionGraphSavePanel()
+        try require(picker.format == .svg && picker.panel.nameFieldStringValue.hasSuffix(".svg"))
+        model.zoom = 0.5; controller.update()
+        let selection = model.selection, frame = controller.canvas.frame
+        for (index, format) in RevisionGraphFormat.allCases.enumerated() {
+            picker.formats.selectItem(at: index)
+            try require(NSApp.sendAction(picker.formats.action!, to: picker.formats.target, from: picker.formats))
+            try require(picker.format == format && picker.panel.nameFieldStringValue.hasSuffix("." + format.fileExtension))
+            let data = try RevisionGraphExport.data(canvas: controller.canvas, viewport: controller.scroll.contentSize, format: format, appearance: NSAppearance(named: .aqua)!)
+            let expected = try RevisionGraphExport.size(canvas: controller.canvas, viewport: controller.scroll.contentSize, format: format)
+            if format == .svg {
+                try require(XMLParser(data: data).parse())
+                let text = String(decoding: data, as: UTF8.self)
+                try require(text.contains("font-family=\"Helvetica\"") && text.contains("&lt;&amp;&quot;&apos;&gt;") && text.contains("<polyline") && !text.contains("<image"))
+            } else if format == .graphviz {
+                let text = String(decoding: data, as: UTF8.self)
+                try require(text.contains("rankdir=BT") && text.contains("&lt;&amp;&quot;&apos;&gt;"))
+                for edge in model.geometry!.edges { try require(text.contains("g" + edge.targetHash + " -> g" + edge.sourceHash)) }
+            } else if format == .pdf {
+                let pdf = PDFDocument(data: data)!
+                try require(pdf.pageCount == 1 && abs(pdf.page(at: 0)!.bounds(for: .mediaBox).width - expected.width) < 0.1)
+            } else {
+                guard let source = CGImageSourceCreateWithData(data as CFData, nil), let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { throw Failure(line: #line) }
+                try require(CGImageSourceGetType(source) as String? == format.contentType.identifier)
+                try require(image.width == Int(expected.width) && image.height == Int(expected.height))
+            }
+            try require(model.zoom == 0.5 && model.selection == selection && controller.canvas.frame == frame)
+            if CommandLine.arguments.count > 4 { try data.write(to: URL(fileURLWithPath: CommandLine.arguments[4]).appendingPathComponent("graph-export." + format.fileExtension)) }
+        }
+        try require(RevisionGraphExport.xml("雪<&\"'>") == "雪&lt;&amp;&quot;&apos;&gt;")
+        print("PASS: Revision Graph SVG/Graphviz/PDF/PNG/JPEG/BMP/GIF encodings, escaped refs, native format control, extents and unchanged view state")
         model.load(); try require(model.busy)
         var closed = false; controller.onClosed = { closed = true }
         window.performClose(nil); try await wait { closed }

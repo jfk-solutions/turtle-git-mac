@@ -77,7 +77,7 @@ The app and Finder action route to a reusable controller per repository and Git
 executable. Original `menurevisiongraph.ico` is packaged with its provenance.
 Node commands route to existing Log, repository browser, comparison, checkout,
 branch/tag and reset workflows. Unified diff resolves selected references before
-reading a patch. The current graph export supports PDF only.
+reading a patch. The native exporter now supports SVG, Graphviz, PNG, JPEG, BMP, GIF and PDF; PDF replaces Windows enhanced metafiles.
 
 `RevisionGraphFilter.swift` provides From/To fields, owned reference browsers,
 mutually exclusive current/local branch scopes, OK, Cancel and immediate Reset.
@@ -87,7 +87,7 @@ closed models reject further loads and stale publications.
 Remaining requirements include:
 
 - Verify the native window and owned reference-browser handoffs against upstream.
-- Match source export formats beyond the currently implemented PDF export.
+- Verify full save-panel interactions, arbitrary-extension fallback and signed file grants. Windows enhanced-metafile encoding is replaced by native PDF.
 - Verify rendering, zoom, overview dragging, pointer labels and hover date formatting.
 - Complete node context menus and File/View/Git/Help menus, original icons,
   two-node selection, comparisons, unified diff and Show Log routing.
@@ -153,3 +153,33 @@ passed. Capture mode takes the window out of the visible ordering before using
 alpha one to render native controls, then restores alpha zero. All owned windows
 and fixtures are closed/removed. These captures do not prove physical input,
 VoiceOver, signed activation or publication.
+
+## Export implementation
+
+`RevisionGraphExport.swift` adapts `RevisionGraphWnd.cpp::SaveGraphAs`,
+`Utils/MiscUI/SVG.cpp` and `Utils/Graphviz.cpp`. Native SVG output contains paths,
+reference rows and text, not an embedded bitmap. Graphviz preserves `rankdir=BT`,
+parent-to-child edges and colored HTML table rows. It uses full hash IDs to avoid
+abbreviated-ID collisions and escapes reference labels as XML/HTML. Text uses
+the graph's readable contrast in native vector outputs. AppKit's private system
+font family falls back to portable Helvetica in SVG/Graphviz; using the private
+family name caused a serif fallback in actual Quick Look rendering.
+
+The native format accessory defaults to SVG and updates its extension and allowed
+content type together. SVG/PDF use 100% geometry and union the graph with the
+viewport; raster outputs use the whole graph at the current zoom. The native
+10-point canvas inset is retained in export extents. Export never changes the
+model's zoom, selection or canvas frame. PNG/JPEG/BMP/GIF use ImageIO encoders;
+PDF uses Core Graphics. Oversized raster allocations fail explicitly, while
+vector choices remain available. The save callback writes atomically and leaves
+an encoding or filesystem error visible in the status field.
+
+Upstream's WMF enhanced-metafile output is intentionally replaced by PDF on macOS.
+Arbitrary unsupported-extension JPEG fallback, complete file-panel gestures,
+signed grants, very large graphs and external Graphviz rendering remain pending.
+
+Export acceptance is scoped in [revision-graph-export-2026-10-10.json](qa/revision-graph-export-2026-10-10.json).
+Both native Git-engine runs passed the encoding, format-control and view-state
+checks. Unsigned Debug/AppStore builds and bundle audits passed. Actual exported
+PNG and native Quick Look SVG rendering were inspected; external Graphviz
+rendering and signed save-panel grants remain unproven.

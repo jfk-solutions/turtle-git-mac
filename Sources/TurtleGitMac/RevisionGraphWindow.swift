@@ -288,15 +288,20 @@ final class RevisionGraphNativeWindow: NSWindow {
     }
     private func saveGraph() {
         guard let window, window.attachedSheet == nil, model.geometry != nil else { return }
-        let panel = NSSavePanel(); panel.allowedContentTypes = [.pdf]; panel.nameFieldStringValue = "Revision Graph.pdf"; exporting = true
-        panel.beginSheetModal(for: window) { [weak self] response in
-            guard let self else { return }; self.exporting = false
-            if response == .OK, let url = panel.url {
-                do { let data = self.canvas.dataWithPDF(inside: self.canvas.bounds); try data.write(to: url) }
-                catch { self.status.stringValue = error.localizedDescription }
+        let picker = RevisionGraphSavePanel(); exporting = true
+        picker.panel.beginSheetModal(for: window) { [weak self] response in
+            guard let self else { return }
+            var failure: String?
+            defer { self.exporting = false; self.update(); if let failure { self.status.stringValue = failure } }
+            if response == .OK, let url = picker.panel.url {
+                do {
+                    let data = try RevisionGraphExport.data(canvas: self.canvas, viewport: self.scroll.contentSize, format: picker.format, appearance: window.effectiveAppearance)
+                    try data.write(to: url, options: .atomic)
+                } catch { failure = error.localizedDescription }
             }
         }
     }
+
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         guard sender.attachedSheet == nil, filter == nil, !exporting, unifiedViewer?.model.busy != true, unifiedViewer?.window?.attachedSheet == nil else { return false }
         if model.busy { closing = true; model.cancel(); return false }; return true
@@ -336,7 +341,8 @@ final class RevisionGraphNativeWindow: NSWindow {
         NSGraphicsContext.saveGraphicsState(); let transform = NSAffineTransform(); transform.translateX(by: 10, yBy: 10); transform.scale(by: model.zoom); transform.concat()
         drawGraph(text: true); NSGraphicsContext.restoreGraphicsState()
     }
-    func drawGraph(text: Bool) {
+    func drawGraph(text: Bool, renderingZoom: CGFloat? = nil) {
+        let zoom = renderingZoom ?? model.zoom
         guard let geometry = model.geometry else { return }
         NSColor.labelColor.setStroke()
         for edge in geometry.edges {
@@ -365,7 +371,7 @@ final class RevisionGraphNativeWindow: NSWindow {
             NSGraphicsContext.restoreGraphicsState()
             if let index = model.selection.firstIndex(of: node.hash) {
                 let color = index == 0 ? NSColor.selectedControlColor : NSColor(srgbRed: 136.0/255, green: 0, blue: 21.0/255, alpha: 1)
-                color.setStroke(); path.lineWidth = max(4, 1 / model.zoom); path.stroke()
+                color.setStroke(); path.lineWidth = max(4, 1 / zoom); path.stroke()
                 if text {
                     let marker = NSBezierPath(); marker.lineWidth = path.lineWidth
                     for x in (index == 0 ? [CGFloat(10)] : [CGFloat(5), CGFloat(15)]) {

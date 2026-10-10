@@ -1,0 +1,86 @@
+{
+  "checked_at": "2026-10-10T14:06:13.588307+00:00",
+  "parent_commit": "722add79330fcdac3d3896066a71c5049ab5d984",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Revision Graph native format selection and SVG/Graphviz/PDF/raster export; complete port remains incomplete.",
+  "verification": {
+    "native_system_git": {
+      "exit_code": 0,
+      "export_marker": "PASS: Revision Graph SVG/Graphviz/PDF/PNG/JPEG/BMP/GIF",
+      "workflow_marker": "PASS: Native Revision Graph"
+    },
+    "native_bundled_git": {
+      "exit_code": 0,
+      "export_marker": "PASS: Revision Graph SVG/Graphviz/PDF/PNG/JPEG/BMP/GIF",
+      "workflow_marker": "PASS: Native Revision Graph"
+    },
+    "formats": [
+      "SVG XML parsed, escaped Unicode/metacharacters preserved; no embedded bitmap",
+      "Graphviz structural rankdir/parent-to-child edge checks; no external Graphviz engine available",
+      "PDFDocument decoded one page and checked MediaBox",
+      "PNG/JPEG/BMP/GIF decoded through ImageIO with correct encoding identifiers and dimensions",
+      "native format control changes extension and UTType together",
+      "all exports preserve zoom, selection and canvas frame"
+    ],
+    "svg_render": "Native Quick Look thumbnail rendered and inspected; private AppKit family fallback corrected to portable Helvetica.",
+    "png_render": "Actual exported PNG inspected for whole-graph colors and text.",
+    "unsigned_debug_build": 0,
+    "unsigned_appstore_build": 0,
+    "debug_bundle_audit": 0,
+    "appstore_bundle_audit": 0,
+    "upstream_icons": 117,
+    "local_pages_build": 0
+  },
+  "fixtures": [
+    {
+      "format": "svg",
+      "bytes": 2207,
+      "sha256": "88aceffaaf715ad9a61fe59cfab9179ea12c61c0a02f7f37efa6000a5e0088a0"
+    },
+    {
+      "format": "gv",
+      "bytes": 1155,
+      "sha256": "1e16ee92e1c42c96922d115d5262636e9f73b939f3506aaeae7b8bf2485b4df1"
+    },
+    {
+      "format": "pdf",
+      "bytes": 12367,
+      "sha256": "27f534528d4d1d4bb41f2a415b57d4c1abe44d18a6cebdd5304c8e241b4a75bc"
+    },
+    {
+      "format": "png",
+      "bytes": 4947,
+      "sha256": "1a18e0550ce699927b59c0208b9642cf279232edbe2a4ab1e57578c2e1d003c6"
+    },
+    {
+      "format": "jpg",
+      "bytes": 6230,
+      "sha256": "69f68d8890e3dfc71158ec53baf37051f90549b441485c59d34b04c0a61e2aa6"
+    },
+    {
+      "format": "bmp",
+      "bytes": 75738,
+      "sha256": "8b2f5276a02301621ecb62c44a3bbbbaff66e32ddb3d787ac85b92170682cc7c"
+    },
+    {
+      "format": "gif",
+      "bytes": 2785,
+      "sha256": "745ba5ae8656097f5209356a2a67af017b7697a19ca2388d523ac6145441c372"
+    }
+  ],
+  "adaptations": [
+    "PDF replaces Windows enhanced metafiles",
+    "10-point native canvas inset retained",
+    "full-hash Graphviz IDs and XML/HTML escaping",
+    "portable font fallback and readable native vector text contrast"
+  ],
+  "cleanup": "Native receivers closed owned windows and removed temporary repositories; one private preference domain from an earlier assertion failure was removed.",
+  "pending": [
+    "external Graphviz parse/render",
+    "actual save-panel OK/Cancel and signed file grants",
+    "unsupported arbitrary-extension JPEG fallback",
+    "configured fonts and very large graph acceptance",
+    "remaining menus, persistence, accessibility, Finder activation and full app port",
+    "hosted CI and publication for this checkpoint"
+  ]
+}
