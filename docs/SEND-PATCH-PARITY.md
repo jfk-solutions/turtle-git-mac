@@ -693,3 +693,29 @@ that deduplicates paths. The current Mail adapter passes mailbox addresses and
 retains captured attachment order/duplicates. Those semantics, default-client
 discovery, unconfigured Git identity fallback and modal completion/retry still
 require alignment. The BSD CrashRpt Windows helper implementation is not copied.
+
+## Mail-client display names and attachment-map fields
+
+The native draft plan now retains parsed mailbox display names alongside
+addresses. To and CC travel as separate typed lists of name/address pairs, and
+the static Mail handler supplies both recipient fields. Quoted display-name
+escapes and Unicode remain data, independently of program text. The sender value
+now includes the captured Git name and address; actual Mail account selection
+still requires runtime acceptance.
+
+Client attachments now follow MailMsg's path-keyed map semantics: later duplicate
+paths replace earlier captures, then paths sort by UTF-16 code-unit order.
+Different directories with the same basename remain separate attachments. Only
+the mail-client adapter applies this mapping; prepared SMTP messages retain their
+original attachment sequence. The adapter writes the winning captured bytes,
+rather than rereading original files. The helper's BSD CrashRpt notice is retained
+in NOTICE along with its original credits; Windows MAPI code is not bundled.
+
+[Field QA](qa/mail-client-fields-2026-10-10.json) records 31 focused tests with
+system/packaged Git, including Unicode/quoted mailbox components and attachment
+last-wins/same-basename/UTF-16 sorting. Native checks inspect actual staged files
+and nested Apple Event name/address records through an injected composer/local
+handler. Earlier pending display-name/map notes describe previous checkpoints.
+Actual Apple Mail compilation/execution, sender account behavior, permission and
+attachment lifecycle, general client discovery, unconfigured Git identity fallback,
+modal MAPI completion/retry and physical/signed/App Store acceptance remain open.

@@ -77,18 +77,20 @@ private actor MailDraftProbe {
     init(_ messages: [PatchMailMessage], failAt: Int? = nil) { self.messages = messages; self.failAt = failAt }
     func invoke(_ draft: MailClientDraft) throws {
         let index = drafts.count, expected = messages[index]
-        guard draft.sender == "sender@example.invalid", draft.subject == expected.subject,
-              draft.to == ["to@example.invalid"], draft.cc == ["cc@example.invalid"],
+        let attachments = PatchMailPreparation.mailClientAttachments(expected.attachments)
+        guard draft.sender == "Captured <sender@example.invalid>", draft.subject == expected.subject,
+              draft.to == (try expected.to.map(PatchMailMIME.mailboxComponents)), draft.cc == (try expected.cc.map(PatchMailMIME.mailboxComponents)),
               Data(draft.body.utf8) == expected.body,
-              draft.attachments.map(\.lastPathComponent) == expected.attachments.map({ $0.file.lastPathComponent }),
-              zip(draft.attachments, expected.attachments).allSatisfy({ $0.0 != $0.1.file }),
-              try draft.attachments.map({ try Data(contentsOf: $0) }) == expected.attachments.map(\.bytes) else {
+              draft.attachments.map(\.lastPathComponent) == attachments.map({ $0.file.lastPathComponent }),
+              zip(draft.attachments, attachments).allSatisfy({ $0.0 != $0.1.file }),
+              try draft.attachments.map({ try Data(contentsOf: $0) }) == attachments.map(\.bytes) else {
             throw VerificationFailure(description: "Captured Mail draft changed")
         }
         drafts.append(draft)
         if failAt == index { throw MailClientDraftFailure.automation(-1, "Injected uncertain draft", possiblyCreated: true) }
     }
     func count() -> Int { drafts.count }
+    func snapshot() -> [MailClientDraft] { drafts }
 }
 @main struct SendPatchVerification {
     @MainActor static func require(_ condition: @autoclosure () -> Bool, _ message: String) throws {
@@ -506,7 +508,7 @@ private actor MailDraftProbe {
         print("Send Patch Review/Apply: highlighted unchecked files, original bytes/order, inherited file grants, independent lifetime, running Quit gates, real working-tree apply and two serial commits passed in private repositories.")
         let clientFixtures = MailDraftFixtures()
         defer { clientFixtures.clean() }
-        var clientOptions = mailOptions; clientOptions.attachment = true; clientOptions.combine = false
+        var clientOptions = mailOptions; clientOptions.to = "To Display 雪 <to@example.invalid>"; clientOptions.cc = #""Copy \"Name\"" <cc@example.invalid>"#; clientOptions.attachment = true; clientOptions.combine = false
         let clientMessages = try PatchMailPreparation.messages(files: [first, second], options: clientOptions)
         var clientConfiguration = EmailConfiguration(preferences: prefs); clientConfiguration.delivery = .mailClient
         clientConfiguration.server = "invalid/path"; clientConfiguration.port = 0; clientConfiguration.authenticate = true
@@ -525,6 +527,18 @@ private actor MailDraftProbe {
             cancellation: OperationCancellation(), onProgress: { _ in }, invocation: { draft, _ in clientFixtures.record(draft); try await clientProbe.invoke(draft) })
         let clientCalls = await clientProbe.count()
         try require(clientReceipts.count == 2 && clientCalls == 2, "Ordered captured Mail draft queue")
+        let firstAttachment = clientMessages[0].attachments[0], secondAttachment = clientMessages[1].attachments[0]
+        let replacement = PatchMailAttachment(file: firstAttachment.file, bytes: Data("last captured bytes".utf8))
+        let duplicateMessage = PatchMailMessage(to: clientMessages[0].to, cc: clientMessages[0].cc, subject: "Attachment map", body: Data(),
+            attachments: [secondAttachment, firstAttachment, replacement])
+        let duplicateRequest = SendPatchRequest(files: clientRequest.files, options: clientOptions, messages: [duplicateMessage], delivery: clientConfiguration)
+        let duplicateProbe = MailDraftProbe([duplicateMessage])
+        _ = try await SendPatchMailClientDelivery.send(duplicateRequest, repository: repository, access: nil,
+            cancellation: OperationCancellation(), onProgress: { _ in }, invocation: { draft, _ in clientFixtures.record(draft); try await duplicateProbe.invoke(draft) })
+        let duplicateDrafts = await duplicateProbe.snapshot()
+        try require(duplicateDrafts[0].attachments.count == 2 && duplicateDrafts[0].attachments.map(\.lastPathComponent) == [firstAttachment.file.lastPathComponent, secondAttachment.file.lastPathComponent], "Actual client sorts and deduplicates attachment paths")
+        let duplicateBytes = try duplicateDrafts[0].attachments.map { try Data(contentsOf: $0) }
+        try require(duplicateBytes == [replacement.bytes, secondAttachment.bytes], "Last captured duplicate wins without rereading original files")
         let progressProbe = MailDraftProbe(clientMessages)
         let clientProgress = SendPatchProgressModel(request: clientRequest, repository: repository, access: nil, preferences: prefs,
             submission: { token, progress in
@@ -554,7 +568,7 @@ private actor MailDraftProbe {
         let failingCalls = await failingClient.count(); try require(failingCalls == 2, "Uncertain draft not repeated")
         let text = "quotes \" and \\ Unicode 雪\nend tell\ndo shell script \"never\""
         let descriptorDraft = MailClientDraft(sender: "sender@example.invalid", subject: "Custom \" subject", body: text,
-            to: ["to@example.invalid"], cc: ["cc@example.invalid"], attachments: [first])
+            to: [try PatchMailMIME.mailboxComponents("To 雪 <to@example.invalid>")], cc: [try PatchMailMIME.mailboxComponents(#""Copy \"Name\"" <cc@example.invalid>"#)], attachments: [first])
         let localScript = NSAppleScript(source: """
         on composeDraft(a,b,c,d,e,f)
             return {a,b,c,d,e,f}
@@ -563,8 +577,8 @@ private actor MailDraftProbe {
         var localError: NSDictionary?
         let localResult = localScript.executeAppleEvent(MailClientDraftAutomation.event(descriptorDraft), error: &localError)
         try require(localError == nil && localResult.numberOfItems == 6 && localResult.atIndex(3)?.stringValue == text &&
-            localResult.atIndex(4)?.atIndex(1)?.stringValue == "to@example.invalid" && localResult.atIndex(5)?.atIndex(1)?.stringValue == "cc@example.invalid" &&
-            localResult.atIndex(6)?.atIndex(1)?.stringValue == first.path, "Typed Apple Event arguments stay data in local script")
+            localResult.atIndex(4)?.atIndex(1)?.atIndex(2)?.stringValue == "to@example.invalid" && localResult.atIndex(5)?.atIndex(1)?.atIndex(2)?.stringValue == "cc@example.invalid" &&
+            localResult.atIndex(6)?.atIndex(1)?.stringValue == first.path && localResult.atIndex(4)?.atIndex(1)?.atIndex(1)?.stringValue == "To 雪" && localResult.atIndex(5)?.atIndex(1)?.atIndex(1)?.stringValue == "Copy \"Name\"", "Typed Apple Event arguments stay data in local script")
         prefs.set(EmailDelivery.mailClient.rawValue, forKey: "SendMail.DeliveryType")
         var clientFormatOptions: SendPatchWindowController?
         let clientFormat = FormatPatchWindowController(repository: repository, access: nil, preferences: prefs,

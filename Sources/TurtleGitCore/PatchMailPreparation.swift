@@ -38,6 +38,14 @@ public enum PatchMailPreparationFailure: LocalizedError {
 
 /// Message preparation only: no mail client, SMTP, network or sending occurs.
 public enum PatchMailPreparation {
+    /// MailMsg uses a path-keyed map: later duplicate paths replace earlier
+    /// entries and the client receives UTF-16 lexical path order.
+    public static func mailClientAttachments(_ attachments: [PatchMailAttachment]) -> [PatchMailAttachment] {
+        var paths: [[UInt16]: PatchMailAttachment] = [:]
+        for attachment in attachments { paths[Array(attachment.file.path.utf16)] = attachment }
+        return paths.sorted { $0.key.lexicographicallyPrecedes($1.key) }.map { $0.value }
+    }
+
     /// CSendMailCombineable sends ordinary documents, preserving their complete
     /// text rather than treating a blank line as a format-patch header boundary.
     public static func messages(documents files: [URL], options: PatchMailOptions) throws -> [PatchMailMessage] {

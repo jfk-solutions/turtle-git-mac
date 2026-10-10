@@ -43,6 +43,11 @@ public enum PatchMailBodyCharset: String, Sendable {
     case utf8 = "UTF-8", latin1 = "ISO-8859-1"
 }
 
+public struct PatchMailMailbox: Equatable, Sendable {
+    public let name: String
+    public let address: String
+}
+
 public enum PatchMailMIMEFailure: LocalizedError {
     case header, mailbox, charset, identityConfiguration
     public var errorDescription: String? {
@@ -164,6 +169,12 @@ public enum PatchMailMIME {
     }
 
     private static func recipient(_ value: String) throws -> String {
+        let parsed = try mailboxComponents(value)
+        return try mailbox(name: parsed.name, address: parsed.address)
+    }
+
+    /// Parsed, validated mailbox fields for native client recipient records.
+    public static func mailboxComponents(_ value: String) throws -> PatchMailMailbox {
         try singleLine(value)
         let trimmed = value.trimmingCharacters(in: .whitespaces)
         if let open = trimmed.lastIndex(of: "<"), trimmed.hasSuffix(">") {
@@ -181,20 +192,17 @@ public enum PatchMailMIME {
                 name = decoded
             }
             let address = String(trimmed[trimmed.index(after: open)..<trimmed.index(before: trimmed.endIndex)])
-            return try mailbox(name: name, address: address)
+            _ = try mailbox(name: name, address: address)
+            return PatchMailMailbox(name: name, address: address)
         }
-        return try mailbox(name: "", address: trimmed)
+        _ = try mailbox(name: "", address: trimmed)
+        return PatchMailMailbox(name: "", address: trimmed)
     }
 
     /// Returns a validated SMTP envelope mailbox, omitting its display name.
     /// Header To/CC rendering remains independent of the envelope recipients.
     public static func envelopeAddress(_ value: String) throws -> String {
-        _ = try recipient(value)
-        let trimmed = value.trimmingCharacters(in: .whitespaces)
-        if let open = trimmed.lastIndex(of: "<"), trimmed.hasSuffix(">") {
-            return String(trimmed[trimmed.index(after: open)..<trimmed.index(before: trimmed.endIndex)])
-        }
-        return trimmed
+        try mailboxComponents(value).address
     }
 
     private static func mailbox(name: String, address: String) throws -> String {

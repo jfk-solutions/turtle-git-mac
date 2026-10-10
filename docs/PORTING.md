@@ -36,7 +36,8 @@ mail-client parity and signed/physical acceptance remain unverified. See
 
 Mail-client mode now shares native Send Mail options for Format/Import/Request
 Pull and has a captured Apple Mail visible-draft adapter with separate To/CC and
-immutable attachments. Progress distinguishes draft preparation from actual mail
+immutable attachments. The client now retains recipient display names and applies
+MAPI path-map attachment deduplication/UTF-16 ordering. Progress distinguishes draft preparation from actual mail
 delivery. Actual Apple Mail, signed automation and full mail-client lifecycle
 acceptance remain unverified. See [Send Patch parity](SEND-PATCH-PARITY.md).
 

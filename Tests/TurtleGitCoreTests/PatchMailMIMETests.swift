@@ -2,6 +2,27 @@ import XCTest
 @testable import TurtleGitCore
 
 final class PatchMailMIMETests: XCTestCase {
+    func testMailboxComponentsPreserveUnicodeAndQuotedDisplayNames() throws {
+        let values = [("Bare <bare@example.invalid>", "Bare", "bare@example.invalid"),
+                      (#""Quoted \"Name\" 雪" <quoted@example.invalid>"#, "Quoted \"Name\" 雪", "quoted@example.invalid"),
+                      ("  plain@example.invalid  ", "", "plain@example.invalid")]
+        for (value, name, address) in values {
+            let parsed = try PatchMailMIME.mailboxComponents(value)
+            XCTAssertEqual(parsed.name, name); XCTAssertEqual(parsed.address, address)
+            XCTAssertEqual(try PatchMailMIME.envelopeAddress(value), address)
+        }
+        XCTAssertThrowsError(try PatchMailMIME.mailboxComponents("Bad\nName <bare@example.invalid>"))
+    }
+    func testMailClientAttachmentMapUsesLastDuplicateAndUTF16PathOrder() {
+        let a = PatchMailAttachment(file: URL(fileURLWithPath: "/a/same.patch"), bytes: Data([1]))
+        let b = PatchMailAttachment(file: URL(fileURLWithPath: "/b/same.patch"), bytes: Data([2]))
+        let last = PatchMailAttachment(file: a.file, bytes: Data([3]))
+        let emoji = PatchMailAttachment(file: URL(fileURLWithPath: "/🐢.patch"), bytes: Data([4]))
+        let bmp = PatchMailAttachment(file: URL(fileURLWithPath: "/\u{e000}.patch"), bytes: Data([5]))
+        let result = PatchMailPreparation.mailClientAttachments([bmp, b, a, emoji, last])
+        XCTAssertEqual(result.map(\.file), [a.file, b.file, emoji.file, bmp.file])
+        XCTAssertEqual(result.map(\.bytes), [Data([3]), Data([2]), Data([4]), Data([5])])
+    }
     private let sender = PatchMailSender(name: "Sender 雪", email: "sender@example.invalid")
     private func patch(_ name: String, subject: String, body: Data) throws -> SerialPatch {
         try SerialPatch(file: URL(fileURLWithPath: "/fixture/" + name), bytes: Data(("Subject: " + subject + "\n\n").utf8) + body)

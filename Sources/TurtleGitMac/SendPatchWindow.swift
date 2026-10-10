@@ -391,7 +391,7 @@ struct SendPatchAddressField: NSViewRepresentable {
 /// Immutable parameters for a visible Apple Mail draft.
 struct MailClientDraft: Sendable {
     let sender: String, subject: String, body: String
-    let to: [String], cc: [String], attachments: [URL]
+    let to: [PatchMailMailbox], cc: [PatchMailMailbox], attachments: [URL]
 }
 enum MailClientDraftFailure: LocalizedError {
     case automation(Int, String, possiblyCreated: Bool)
@@ -429,7 +429,7 @@ enum SendPatchMailClientDelivery {
             for (index, message) in request.messages.enumerated() {
                 try check(cancellation); try Task.checkCancellation()
                 var attachments: [URL] = []
-                for (number, attachment) in message.attachments.enumerated() {
+                for (number, attachment) in PatchMailPreparation.mailClientAttachments(message.attachments).enumerated() {
                     try check(cancellation)
                     let directory = folder.appendingPathComponent("\(index)-\(number)", isDirectory: true)
                     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
@@ -438,8 +438,8 @@ enum SendPatchMailClientDelivery {
                     try attachment.bytes.write(to: file, options: .atomic); attachments.append(file)
                 }
                 guard let body = String(data: message.body, encoding: .utf8) else { throw PatchMailMIMEFailure.charset }
-                drafts.append(MailClientDraft(sender: sender.email, subject: message.subject, body: body,
-                    to: try message.to.map(PatchMailMIME.envelopeAddress), cc: try message.cc.map(PatchMailMIME.envelopeAddress), attachments: attachments))
+                drafts.append(MailClientDraft(sender: sender.name + " <" + sender.email + ">", subject: message.subject, body: body,
+                    to: try message.to.map(PatchMailMIME.mailboxComponents), cc: try message.cc.map(PatchMailMIME.mailboxComponents), attachments: attachments))
             }
             var prepared: [SMTPReceipt] = []
             for (index, draft) in drafts.enumerated() {
@@ -466,10 +466,10 @@ enum MailClientDraftAutomation {
             set draftMessage to make new outgoing message with properties {sender:fromAddress, subject:subjectText, content:bodyText, visible:false}
             tell draftMessage
                 repeat with recipientAddress in toAddresses
-                    make new to recipient at end of to recipients with properties {address:(contents of recipientAddress)}
+                    make new to recipient at end of to recipients with properties {name:(item 1 of recipientAddress), address:(item 2 of recipientAddress)}
                 end repeat
                 repeat with recipientAddress in ccAddresses
-                    make new cc recipient at end of cc recipients with properties {address:(contents of recipientAddress)}
+                    make new cc recipient at end of cc recipients with properties {name:(item 1 of recipientAddress), address:(item 2 of recipientAddress)}
                 end repeat
                 repeat with attachmentPath in attachmentPaths
                     make new attachment at after the last paragraph of content with properties {file name:(POSIX file (contents of attachmentPath))}
@@ -484,11 +484,19 @@ enum MailClientDraftAutomation {
         for (index, value) in [draft.sender, draft.subject, draft.body].enumerated() {
             arguments.insert(NSAppleEventDescriptor(string: value), at: index + 1)
         }
-        for (index, values) in [draft.to, draft.cc, draft.attachments.map(\.path)].enumerated() {
+        for (index, recipients) in [draft.to, draft.cc].enumerated() {
             let list = NSAppleEventDescriptor.list()
-            for (offset, value) in values.enumerated() { list.insert(NSAppleEventDescriptor(string: value), at: offset + 1) }
+            for (offset, recipient) in recipients.enumerated() {
+                let fields = NSAppleEventDescriptor.list()
+                fields.insert(NSAppleEventDescriptor(string: recipient.name), at: 1)
+                fields.insert(NSAppleEventDescriptor(string: recipient.address), at: 2)
+                list.insert(fields, at: offset + 1)
+            }
             arguments.insert(list, at: index + 4)
         }
+        let paths = NSAppleEventDescriptor.list()
+        for (index, file) in draft.attachments.enumerated() { paths.insert(NSAppleEventDescriptor(string: file.path), at: index + 1) }
+        arguments.insert(paths, at: 6)
         let event = NSAppleEventDescriptor(eventClass: 0x61736372, eventID: 0x70736272, targetDescriptor: nil, returnID: -1, transactionID: 0)
         event.setParam(NSAppleEventDescriptor(string: "composedraft"), forKeyword: 0x736e616d)
         event.setParam(arguments, forKeyword: 0x2d2d2d2d)
