@@ -151,5 +151,22 @@
       "conclusion": "success",
       "html_url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38084063735"
     }
-  ]
+  ],
+  "pages_publication": {
+    "url": "https://jfk-solutions.github.io/turtle-git-mac/",
+    "contains_new_section": true,
+    "assets": [
+      {
+        "name": "commit-containing-refs-light.png",
+        "remote_sha256": "72ec5745f9dec02d74c599a42cce597edd41e8dbcf9e8422561ebc5fa08a95fa",
+        "exact_local_match": true
+      },
+      {
+        "name": "commit-containing-refs-dark.png",
+        "remote_sha256": "0236de7a90c973f6c61ff14194fbd674fb5836ebfafb6f5dbbc71eba763659ab",
+        "exact_local_match": true
+      }
+    ],
+    "scope": "HTTP content and exact PNG publication; no browser layout or physical native input claim."
+  }
 }

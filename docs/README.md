@@ -174,4 +174,4 @@ are not recursively audited.
 - [Revision Graph guide](REVISION-GRAPH.md): selection, comparison, zoom, overview
   and range filtering; [source parity](REVISION-GRAPH-PARITY.md) and remaining work.
 
-- [Log commit ordering source audit](LOG-ORDERING-PARITY.md) — missing four-choice dialog and persistent Git walk order.
+- [Log commit ordering](LOG-ORDERING-PARITY.md) — native four-choice dialog, persistent Git walk order and remaining parity checks.

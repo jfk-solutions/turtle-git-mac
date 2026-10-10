@@ -19,10 +19,36 @@
     "exit": 0,
     "result": "Native file/folder NSItemProvider receivers read exact pinned binary contents; HEAD/index/working bytes unchanged; owned exports cleaned up."
   },
-  "limitations": "The previous hosted Core regression fixes are verified by the complete hosted suite. The hosted job as a whole failed; subsequent Debug/native/bundled/Store gates did not execute. This receiver build fix has not yet passed on the hosted toolchain.",
+  "limitations": "The receiver build fix now passed the hosted native step. Later native and packaging gates are still running; this is not a passing-job claim.",
   "sha256": {
     "scripts/verify-browser-item-provider.sh": "7433a316b8fc4feb6a7944e956f55d4557bd1fe3f7c35068ba757f0632f60604",
     "build/qa/ci-browser-smtp-module-2026-10-10.log": "ec00d9544c2164951f7f0ad9ac6a0a1e8d8f0d771535b4610b6a2ae023e9267e",
     "build/qa/ci-compatibility-hosted-native-failure-2026-10-10.log": "0cf7eb0889e1b6c5c091d244a6c150c31d5224959a028b0f26659d10ed23e35d"
+  },
+  "hosted_retry": {
+    "run": 38084063632,
+    "job": 114306734228,
+    "checkpoint": "a806f22ffc26b9de85b0c11b38658a420b56fac9",
+    "job_status": "in_progress",
+    "job_conclusion": null,
+    "steps": [
+      {
+        "name": "Git integration tests",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 14,
+        "started_at": "2026-10-10T20:35:08Z",
+        "completed_at": "2026-10-10T20:46:11Z"
+      },
+      {
+        "name": "Native historical file and folder item-provider receivers",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 15,
+        "started_at": "2026-10-10T20:46:11Z",
+        "completed_at": "2026-10-10T20:46:16Z"
+      }
+    ],
+    "scope": "Both steps completed successfully on the hosted toolchain. The whole job is still running; exact full-suite count/output will be read from its terminal log."
   }
 }

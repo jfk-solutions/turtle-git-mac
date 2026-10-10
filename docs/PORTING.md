@@ -46,8 +46,13 @@ reference dialog with containment filtering, original branch/tag artwork, one/tw
 many selection menus, comparisons and owned Browse References/Log/Reflog pickers.
 Targeted Core and hidden native checks pass; light/dark content captures are on
 the website. This advances one of the 130 dialogs to partial implementation:
-45 dialogs are now partial and 85 await review. No dialog is certified complete.
+46 dialogs are now partial and 84 await review. No dialog is certified complete.
 See [the reference dialog audit](COMMIT-CONTAINING-REFS-PARITY.md).
+
+Log commit ordering now has the source’s four-choice native sheet, deferred
+header entry, draft OK/Cancel, Return/Escape and saved Git walk preference.
+Core three-engine and native two-engine checks pass, including retained selection
+and owned sibling/modal close behavior. See [the ordering audit](LOG-ORDERING-PARITY.md).
 
 ## Audited baseline
 

@@ -53,8 +53,9 @@ passed **925 Core tests, zero failures**, with one optional skip, on the hosted
 older-Git/Swift toolchain. The job then failed compiling the historical
 item-provider receiver because its standalone build omitted Core's SMTP module.
 The corrected command exposes the generated Clang module map and links the C
-objects with libcurl; the unchanged receiver passes locally. Hosted retry of this
-build fix and the later native/packaging gates remains pending. See
+objects with libcurl; the unchanged receiver passes locally. The hosted retry for `a806f22` passed both the integration-test and repaired
+item-provider steps in [run 38084063632](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38084063632).
+Later native/packaging gates are still running; the job has not yet passed. See
 [the build diagnosis](qa/ci-browser-smtp-module-2026-10-10.json).
 
 ## References containing a commit
@@ -80,6 +81,29 @@ complete local suite passed **928 tests, one skipped, zero failures** in
 526.670 seconds. The process exited normally; this result does not establish
 the new hosted CI result.
 See [the verification record](qa/commit-containing-refs-2026-10-10.json).
+
+## Log commit ordering
+
+At source checkpoint `900aaf82550e616fa4a79bfd876e2740696f487f`, three ordering
+tests pass with Apple Git 2.50.1, isolated Git 2.39.5 and packaged Git 2.55.0.
+A broader system-Git history/ordering/Revision Graph run passes 62 tests. The
+fixture deliberately skews author/committer dates across a merge, distinguishes
+at least three actual walks and compares all four choices to direct Git. Limits,
+path filtering, search, ranges, graph input and repository bytes are covered.
+
+```sh
+python3 scripts/test-log-ordering.py \
+  --git /usr/bin/git --git build/git-runtime/Git/bin/git
+```
+
+The hidden native receiver passes on both engines: actual header delegate entry,
+four-choice draft, Cancel/OK, Return/Escape, retained selection, busy/close/Quit
+fences, an already-open modeless reference child and forced parent close. Actual
+light/dark content captures were inspected. Latest unsigned Debug/Store builds
+and both package audits pass. The previous full 928-test run predates the ordering
+change; these targeted results do not establish a full 931-test run. Physical,
+VoiceOver, localization, installed Finder and signed sandbox acceptance remain
+pending. See [the ordering record](qa/log-ordering-2026-10-10.json).
 
 ## Previous full-suite checkpoint
 

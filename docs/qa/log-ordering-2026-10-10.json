@@ -1,0 +1,152 @@
+{
+  "date": "2026-10-10",
+  "source_checkpoint": "900aaf82550e616fa4a79bfd876e2740696f487f",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_audit": "log-ordering-audit-2026-10-10.json",
+  "status": "partial-native-replacement",
+  "controls": 4,
+  "implemented": [
+    "Exact four persisted integer values, topology default, draft choice and save only on OK. Native default branding reads TurtleGit rather than TortoiseGit.",
+    "Chronological git-default emits no ordering flag and no --reverse. Topology, committer date and author date choose their exact Git walk arguments.",
+    "Deferred 10 ms revision-header entry opens owned compact native sheet with label/dropdown/OK/Cancel and inherited appearance.",
+    "OK reloads Log using the app preference, preserving selected commit hashes. Separate Revision Graph continues to force topology.",
+    "Return/Escape and Cancel, parent controls/close/Quit fences; forced parent closes without saving or reloading.",
+    "An existing modeless containing-reference child cannot dispatch an already-created menu action while its owner has the ordering sheet; parent navigation also gates ordering."
+  ],
+  "toolchain": {
+    "swift": "Apple Swift 6.3.3",
+    "system_git": "2.50.1 (Apple Git-155)",
+    "isolated_git": "2.39.5",
+    "packaged_git": "2.55.0"
+  },
+  "core_tests": {
+    "system": {
+      "tests": 3,
+      "failures": 0,
+      "exit": 0
+    },
+    "isolated": {
+      "tests": 3,
+      "failures": 0,
+      "exit": 0
+    },
+    "packaged": {
+      "tests": 3,
+      "failures": 0,
+      "exit": 0
+    },
+    "coverage": [
+      "Real merge DAG with skewed author/committer dates; at least three distinguishable orders; all four agree with direct Git.",
+      "Limit/path/search/range scopes, graph projection input and invalid preference fallback.",
+      "Exact HEAD/index/config/working byte preservation."
+    ]
+  },
+  "broader_regression": {
+    "command": "swift test --skip-build --filter 'CommitHistoryTests|HistoryOrderingTests|RevisionGraphTests'",
+    "tests": 62,
+    "failures": 0,
+    "exit": 0,
+    "seconds": 47.166
+  },
+  "native": {
+    "command": "python3 scripts/test-log-ordering.py --git /usr/bin/git --git build/git-runtime/Git/bin/git --capture-dir build/qa/log-ordering-captures-owned-2026-10-10",
+    "engines": 2,
+    "exit": 0,
+    "completion_markers": 2,
+    "checks": [
+      "Actual table-header delegate entry",
+      "Four choices and persisted reload",
+      "Draft Cancel and ordinary Escape cancellation",
+      "Actual Return NSWindow key-event dispatch",
+      "Commit selection retained by hash across all four walks",
+      "Busy, ordinary close and Quit fences",
+      "Modeless reference sibling menu and stale action blocked during owner sheet",
+      "Forced parent closes ordering and reference child without saving",
+      "Exact repository bytes unchanged"
+    ]
+  },
+  "existing_reference_regression": {
+    "command": "python3 scripts/test-commit-containing-refs.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+    "engines": 2,
+    "exit": 0,
+    "completion_markers": 2
+  },
+  "packaging": {
+    "debug_build_exit": 0,
+    "store_build_exit": 0,
+    "debug_audit_exit": 0,
+    "store_audit_exit": 0,
+    "store_requires_git": true,
+    "original_icons": 120,
+    "signed": false
+  },
+  "captures": {
+    "dimensions": [
+      960,
+      200
+    ],
+    "appearance": [
+      "light",
+      "dark"
+    ],
+    "source": "Actual AppKit contentView cacheDisplay in hidden owned native sheet and private sample repository",
+    "inspected": true,
+    "window_chrome": false,
+    "edits": "None; exact PNG bytes copied to website. Latest sibling-guard captures match the inspected bytes exactly."
+  },
+  "earlier_findings": [
+    "Initial test compile used a nonexistent twoDot enum spelling; corrected to the existing difference range kind before executing tests.",
+    "Initial native assertion required the OK explicit Return key string after sheet attachment. A minimal native probe showed AppKit clears that string while retaining its default button cell; hidden performKeyEquivalent did not dispatch Return. The window now routes Return/Escape explicitly and the receiver verifies real key dispatch and default-cell ownership."
+  ],
+  "full_suite_scope": {
+    "previous_full_result": {
+      "source_checkpoint": "1769e2c738e9b078e6c377205f5124b23bd010db",
+      "tests": 928,
+      "skipped": 1,
+      "failures": 0,
+      "exit": 0
+    },
+    "current_full_suite": "Not executed locally after ordering addition; targeted regression does not claim full 931-test coverage. A published CI run will execute the whole suite."
+  },
+  "inventory": {
+    "dialogs": 130,
+    "partial": 46,
+    "pending_review": 84,
+    "parity_complete": 0,
+    "inventory_regression_exit": 0,
+    "site_generation_exit": 0
+  },
+  "remaining": [
+    "Physical column-header/keyboard/popup interaction, VoiceOver, localization, all scope combinations and signed sandbox acceptance.",
+    "Invalid preferences use a native topology fallback; source unknown DWORD values may leave no combo selection. Valid persisted values preserve source behavior.",
+    "Full app, installed Finder, release signing and App Store distribution requirements remain incomplete."
+  ],
+  "sha256": {
+    "Sources/TurtleGitCore/HistoryOrdering.swift": "c4d4dcb7aa9e8a5e3fe6f0ebdeb157aae33d5d8481c8fabb66d748bfbebb49a6",
+    "Sources/TurtleGitCore/CommitHistory.swift": "8ee1c2a95c1b8c61cd8149d620017623fb3b91039e6891791cb69f86b98d44b5",
+    "Sources/TurtleGitMac/LogOrderingWindow.swift": "68fe88edb83e397abdf5345276362c188b19cf5e9f32bb6f88e00e8f1b507cfd",
+    "Sources/TurtleGitMac/LogWindow.swift": "73b32c5c131082d4c98786ffeb89db823cafa21b0a8bbb900a24166d953f1362",
+    "Sources/TurtleGitMac/CommitContainingReferencesWindow.swift": "be9077bcdb08b8f1988540c0949a913388e3c667f200f4bf112e353d842883b3",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "b619394504a21ac1a8452ec13d6eee3a5b9b13732a518ad9456d5f81c361e1f1",
+    "Tests/TurtleGitCoreTests/HistoryOrderingTests.swift": "3efc038a09b91aae1bf25141e166fa3697b19fac7a140e23a4df8ce3191c9c13",
+    "scripts/test-log-ordering.py": "e7ff206f244a6e31d198c13ffa1507a9d2a8c54e2f8348d9c06b9e253ca26014",
+    "docs/qa/log-ordering-native-2026-10-10.swift": "49e0588026b27df6ea22cd127cc1c9f46d40624c856681972e1b3571cfcdbaf9",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "f7516328d02fb8b0d9178e8996aad6d2a7ff091af48046605380a465e9052cd1",
+    ".github/workflows/macos.yml": "57dc8e79cf1d19fa5b5de25e6bd9f1ad517a3f137ce3af0a4df82d830d758bfc",
+    "NOTICE": "87ca6ce2df95405d48eb840119f6c92733e3826086c38c50433664359952b25c",
+    "docs/site/assets/log-ordering-light.png": "b28bb807625f07c0212f4032e96142f5c8156967dd908292a64a06507c1f0be4",
+    "docs/site/assets/log-ordering-dark.png": "a5f58317e224f35641132f76eecd3e43d04b0403e9e7802246e826247531c4fc",
+    "build/qa/log-ordering-core-system-fixed-2026-10-10.log": "7de8931ccb13c47d1d6b3e65efd14ea04db7c7fe72d8a7bc520bf2f3b452a754",
+    "build/qa/log-ordering-core-old-2026-10-10.log": "e0a37c9e6e219c4c410e452fcab6a4cbc7642d2ccb53cf4da06d9daddff14d36",
+    "build/qa/log-ordering-core-packaged-2026-10-10.log": "e14e241a95960045d5447090dd7d7d14549f7323609f0e6e9818f974a6c63f5a",
+    "build/qa/log-ordering-core-history-regression-2026-10-10.log": "9a5cca43a5f65552b7582d41fbc9611dd14556ea99a20e456c39d7ad0f5d9af5",
+    "build/qa/log-ordering-debug-owned-2026-10-10.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-ordering-store-2026-10-10.log": "ec2cfafb319008f5815b3ea47b4a823a3ad48ef594be174c65c41828b6a81a83",
+    "build/qa/log-ordering-debug-audit-2026-10-10.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/log-ordering-store-audit-2026-10-10.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/log-ordering-native-owned-2026-10-10.log": "2cb6df82c42b2f4974b8395d0e1d910ab12d9a53976a68fdd22e329b4e34be84",
+    "build/qa/log-ordering-reference-regression-2026-10-10.log": "a3a40410ca650c9daf5fe55a4f265ed0c8362628b8b822559159bac620c94cab",
+    "build/qa/log-ordering-inventory-2026-10-10.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/log-ordering-site-2026-10-10.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}
