@@ -83,12 +83,24 @@ import TurtleGitCore
         precondition(delegate.applicationShouldTerminate(NSApplication.shared) == .terminateCancel)
         let separateProgress = running.progress!, progressWindow = separateProgress.window!
         precondition(progressWindow !== runningWindow && progressWindow.isVisible && !runningWindow.isVisible)
-        precondition(!separateProgress.windowShouldClose(progressWindow))
         runningWindow.close()
         precondition(running.model.busy, "Cancellation is a request, not process completion")
         try await waitUntil { !running.model.busy && pids.allSatisfy { kill($0, 0) == -1 } }
         precondition(published == 0 && running.model.output.isEmpty && running.model.postActions.isEmpty && !running.model.success)
         let afterForcedIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")); precondition(afterForcedIndex == index)
+        // Ordinary titlebar cancellation is independent of forced-owner close.
+        try FileManager.default.removeItem(at: ready)
+        let ordinary = MergeAbortWindowController(repository: slow, access: nil, preferences: preferences)
+        ordinary.window!.alphaValue = 0; ordinary.window!.orderFront(nil)
+        ordinary.model.abort()
+        try await waitUntil { ((try? String(contentsOf: ready)) ?? "").split(separator: "\n").count == 2 }
+        let ordinaryPids = try String(contentsOf: ready).split(separator: "\n").compactMap { Int32($0) }
+        let ordinaryProgress = ordinary.progress!, ordinaryWindow = ordinaryProgress.window!
+        precondition(!ordinaryProgress.windowShouldClose(ordinaryWindow) && ordinaryWindow.isVisible && ordinary.model.busy)
+        try await waitUntil { !ordinary.model.busy && ordinaryPids.allSatisfy { kill($0, 0) == -1 } }
+        precondition(ordinary.model.cancelled && !ordinary.model.success && ordinary.model.postActions == [.retry])
+        ordinaryWindow.close()
+        precondition(ordinary.progress == nil && !ordinaryWindow.isVisible && !ordinary.window!.isVisible)
         print("Abort ownership: hidden HEAD/working sheet, duplicate/OK/Close/Quit gates, child close and forced parent teardown; active HEAD-preflight forced-close cancellation reaps leader/child and rejects result callbacks. Private preferences only.")
         for mode in MergeAbortMode.allCases {
             let controller = MergeAbortWindowController(repository: repo, access: nil, preferences: preferences)
