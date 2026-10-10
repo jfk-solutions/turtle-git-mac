@@ -77,6 +77,7 @@ import TurtleGitCore
                 AlternativeEditorSettings().tabItem { Label("Alternative Editor", systemImage: "pencil") }
                 UnifiedDiffSettingsPage().tabItem { Label("Unified Diff", systemImage: "doc.text") }
                 SavedDataSettingsPage().tabItem { Label("Saved Data", systemImage: "archivebox") }
+                EmailSettingsPage().tabItem { Label("Email", systemImage: "envelope") }
                 AdvancedSettingsPage().tabItem { Label("Advanced", systemImage: "slider.horizontal.3") }
             }.frame(width: 760, height: 700)
         }

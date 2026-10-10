@@ -157,6 +157,7 @@
 		B46406E18DBC3B1E7292BD5A /* MessageCodeScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28A4137E7CE7A36F8A8E6F58 /* MessageCodeScanner.swift */; };
 		B49B1BCC7E2F02AEC5A83B12 /* DocumentationCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 798E539A3A1B52BFC50781D5 /* DocumentationCapture.swift */; };
 		B5EF4E8582D92A364C726BD5 /* Rename.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA121F2E317F86B146016B4E /* Rename.swift */; };
+		B63213996B268EE2EAC9B0A6 /* EmailSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 809D37BDD2634840B77F0A85 /* EmailSettings.swift */; };
 		B94CDDFE0367B09E5E08A8C5 /* DialogGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61A970E8A247DF0EE306AB7F /* DialogGeometry.swift */; };
 		B96A74776BF83BB313347BBB /* MessageCodeSymbols.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22371C45A6813F87FD610EE6 /* MessageCodeSymbols.swift */; };
 		B9AFF3F19CAB2A9F7313754D /* TurtleGitCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1BCB9C51D9D69E943E22F2C8 /* TurtleGitCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -408,6 +409,7 @@
 		7A4B370EB64932B2909A8228 /* CloneWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloneWindow.swift; sourceTree = "<group>"; };
 		7E85FED91C2F9C44EB16228A /* SubmoduleAdd.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleAdd.swift; sourceTree = "<group>"; };
 		7E8B2EE97B70CCF7AC78ABAA /* DeleteConflictWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteConflictWindow.swift; sourceTree = "<group>"; };
+		809D37BDD2634840B77F0A85 /* EmailSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailSettings.swift; sourceTree = "<group>"; };
 		814E543BEB0736B84A50B21B /* SavedData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedData.swift; sourceTree = "<group>"; };
 		81E52787ACF6315F812EA290 /* MessageSnippets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageSnippets.swift; sourceTree = "<group>"; };
 		83395323FFA0860A52795F9F /* Stash.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stash.swift; sourceTree = "<group>"; };
@@ -558,6 +560,7 @@
 				7E8B2EE97B70CCF7AC78ABAA /* DeleteConflictWindow.swift */,
 				61A970E8A247DF0EE306AB7F /* DialogGeometry.swift */,
 				798E539A3A1B52BFC50781D5 /* DocumentationCapture.swift */,
+				809D37BDD2634840B77F0A85 /* EmailSettings.swift */,
 				26B86A4879EF89058692598F /* ExportWindow.swift */,
 				BA3DD76CCC2D1B2E7E5BEA21 /* FetchWindow.swift */,
 				A142607F55CD34E13938FD40 /* FileComparisonWindow.swift */,
@@ -1208,6 +1211,7 @@
 				1CB7F6B1BB3F2584AD6F9547 /* DeleteConflictWindow.swift in Sources */,
 				B94CDDFE0367B09E5E08A8C5 /* DialogGeometry.swift in Sources */,
 				B49B1BCC7E2F02AEC5A83B12 /* DocumentationCapture.swift in Sources */,
+				B63213996B268EE2EAC9B0A6 /* EmailSettings.swift in Sources */,
 				C8FEE2A6E0B1D5FDE647F228 /* ExportWindow.swift in Sources */,
 				D4DC9BE706E4DFFB73154A96 /* FetchWindow.swift in Sources */,
 				70EA762F97100350401F85ED /* FileComparisonWindow.swift in Sources */,

@@ -1196,3 +1196,13 @@ Git.cpp Copyright (C) 2008-2026 TortoiseGit.
 SendMail.cpp Copyright (C) 2008-2016, 2018-2019, 2023, 2025-2026 TortoiseGit.
 NUL-framed UTF-8 configuration reads, explicit failure and cancellation are
 native adaptations; transport and production capture routing remain pending.
+
+EmailSettings.swift adapts SettingSMTP.cpp/.h, IDD_SETTINGSMTP and the
+UserPassword credential sheet under GPL-2.0-or-later.
+SettingSMTP.cpp Copyright (C) 2009, 2013-2016, 2018-2019 TortoiseGit.
+SettingSMTP.h Copyright (C) 2009, 2013, 2016-2018, 2023, 2025 TortoiseGit.
+UserPassword.cpp Copyright (C) 2013-2016, 2018-2020, 2023-2024 TortoiseGit.
+UserPassword.h Copyright (C) 2013, 2018, 2020, 2023 TortoiseGit.
+App-private Keychain credentials, async control gating and native SwiftUI/AppKit
+settings/sheet controls replace Windows registry and Credential Manager APIs.
+Shared credential consumers, transports and signed acceptance remain pending.

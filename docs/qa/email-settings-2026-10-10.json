@@ -1,0 +1,82 @@
+{
+  "checked_at": "2026-10-10T01:25:25.250362+00:00",
+  "parent_commit": "5abdaa2f1179954318e3488a7aa3e74e22ff7a52",
+  "scope": "Production macOS Email settings page, immediate Keychain Store/Clear adapter, private hidden native verification; transport and signed Keychain acceptance pending",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blob_sha256": {
+    "src/TortoiseProc/Settings/SettingSMTP.cpp": "176a04ce70f8e680b35a713af648239689ad9018f0073b3a68e7d19e2c082e59",
+    "src/TortoiseProc/Settings/SettingSMTP.h": "1a3554ccb2ad1549fbb981cc6f3b7845e14954cb83f96eb4775e8833a134d806",
+    "src/TortoiseProc/UserPassword.cpp": "c8cdddeea68f61de252e1a9886d36b0bb1dcece9e2fcd5f32738e57e1c625518",
+    "src/TortoiseProc/UserPassword.h": "2f715d467ad29649d9fd88587fc5a33f2037a9b140ec57b145f1bb98e1bf7d6e",
+    "src/Resources/TortoiseProcENG.rc": "148a0b3e3165254286c088296a8dc7c9d2df3bbca5546c259929506bfb81bed6",
+    "doc/images/en/SettingsEmail.png": "43f8ff0d1ef5541a89cd618599ab3e39413673e8f2c0cdb545bb63ead8fbaf5b"
+  },
+  "checks": {
+    "native_receiver_exit": 0,
+    "debug_build_exit": 0,
+    "debug_bundle_audit_exit": 0,
+    "appstore_unsigned_build_exit": 0,
+    "appstore_bundle_audit_exit": 0,
+    "inventory_pin_exit": 0,
+    "bundled_icons": 100,
+    "core_tests_rerun": false,
+    "native_cases": [
+      "Source page defaults and enum fallback; configured SMTP/auth gates; Clear independently available for existing credentials",
+      "Draft settings do not persist; exact five-field Apply/Cancel; UInt32 port validation and invalid Apply rejection",
+      "Immediate credential Store/Clear separate from page Apply/Cancel; required login and empty password support; credentials excluded from preferences",
+      "Captured exactly-once async Store and busy gates; failed Clear retains login; invalidation fences late refresh",
+      "Actual read-only selectable AppKit Login field and hidden Aqua/DarkAqua host fitting",
+      "Production Keychain adapter tested via simulated Security APIs: namespace, data-protection/local-only item, update before add only on not-found, exact bytes, metadata-only/noninteractive Login, missing Clear success and explicit access/decode failure"
+    ],
+    "issues_corrected": [
+      "Swift default parameter evaluated outside MainActor; construct StateObject default inside actor-isolated initializer",
+      "Hidden QA window released on close caused autorelease crash; explicitly retain ownership with isReleasedWhenClosed=false",
+      "Replaced deprecated authentication UI flag with LAContext.interactionNotAllowed"
+    ],
+    "preferences": [
+      {
+        "suite": "TurtleGit.Email.QA.2EA750CA-15A6-4239-B90F-B5988DE93590",
+        "verified_fixture_only": false,
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "suite": "TurtleGit.Email.QA.500BD2D8-82B7-476F-A780-D8218AA0B3F4",
+        "verified_fixture_only": true,
+        "defaults_delete_exit": 0,
+        "removed": true
+      }
+    ],
+    "side_effects": "No main app, shown window, live Keychain call, mail client, draft, network or delivery. Private preferences and simulated Security API only. Exact synthetic settings from crashed private suite verified before deletion; other preference domains preserved.",
+    "final_audit": {
+      "matching_processes": [],
+      "current_fixtures": []
+    }
+  },
+  "source_sha256": {
+    ".github/workflows/macos.yml": "6a20b29dca045465d1b903f0c9edd84afbe40cf916ad36820cdf589bf13b026a",
+    "NOTICE": "eb16f282d6cca48599b34575cc3c19e917d831f6e9b8636af85dbe74a0ff02f4",
+    "Sources/TurtleGitMac/EmailSettings.swift": "6301fb31b3651ab1771ab425f9ae4c6d99f8e5e51da21fbb1d4d918624642bd1",
+    "Sources/TurtleGitMac/TurtleGitMacApp.swift": "b5dab1f121d8ffe2d67a9ceff8968508e76066842299b06ca9bb2161c01d8265",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "10509d5a0153bb176585812122886a85af9d34f94777b215c51e58dc4e4e93c9",
+    "docs/PORTING.md": "1743d103b3316bd6f0b46a9fc8771e194ba37af45f05cfd7cac968aba4ab019a",
+    "docs/SEND-PATCH-PARITY.md": "3f95c30d4ade9d0bf270b42ff4512628ad29a8f8be4e4981731ff14560d4f2e8",
+    "docs/upstream-files.csv": "131792247ac56f7e3c5f5d50cd7e2b2dd4dc0647c1aadd25626bbb49fe7ebb6f",
+    "docs/qa/email-settings-native-2026-10-10.swift": "7383cdf1328f69d1e81d6b5c094873844ff3266dfd4eb47f2e6fe43541c21fb3",
+    "scripts/test-email-settings.py": "633fb521a7e50c707f81b30a740afad9097991609fcea79476760cdccf42b99a"
+  },
+  "binary_sha256": {
+    "Debug_app": "ae0fc297ae892ad6d53e5bfb2e3aee3218b8dda08c01e7e3c33faa88de63b8d1",
+    "Debug_core": "3fe217a463f569a327f14da43ef211e6069d19e868414a09548873618388273d",
+    "AppStore_app": "c73d67d584250e2d730fb1e9ad22185b9ded8e8b901cc5bc92edf0b7dac2c125",
+    "AppStore_core": "efb68365054441bf70e7f50d39e641854ff43f113e8bf18d8106c84d8609e7da"
+  },
+  "limitations": [
+    "Send Patch settings link and production sender/credential capture routing remain pending",
+    "SMTP direct/configured transports, Mail client composition, TLS/authentication, progress/retry/cancellation remain pending",
+    "Production Keychain API integration compiled; actual signed Keychain access/password sheet interaction and sandbox/App Store acceptance are not proved by simulation",
+    "Hidden native host is not physical visual/gesture/keyboard/VoiceOver acceptance; settings navigation/localization and full port remain partial",
+    "Hosted GitHub CI remains unverified"
+  ],
+  "logs": "build/qa/email-settings-2026-10-10/ (ignored local logs)"
+}

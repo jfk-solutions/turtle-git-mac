@@ -226,3 +226,50 @@ compose drafts or send mail. Production routing, settings and all delivery gates
 remain pending. Three real-Git sender tests exercise precedence, included config,
 missing values, malformed config, cancellation, unchanged config and MIME header
 rejection. See [sender QA](qa/send-patch-sender-2026-10-10.json).
+
+## Native Email settings
+
+The Email tab in macOS Settings now follows IDD_SETTINGSMTP and the inspected
+SettingsEmail.png: Delivery; SMTP Server and Port on one row; disabled empty
+From; Encryption; authentication checkbox; Credentials group with read-only
+selectable Login, Store credentials and Clear. Original colored Send Mail icon
+and native light/dark colors are retained. Windows MAPI is labeled Mail client
+on macOS. All three source delivery choices and encryption choices are retained;
+this settings page does not yet provide the transports.
+
+Server, Port, Encryption and Authentication are enabled only for configured
+SMTP. Login/Store additionally require authentication. Clear depends on an
+existing login independently of delivery/authentication, matching upstream.
+Encryption changes do not guess a port. Apply saves the five SendMail settings;
+Cancel discards unapplied options. Port entry follows source DWORD validation
+(0 through 4294967295); actual transport must validate its TCP port separately.
+The settings page's missing delivery preference defaults to direct SMTP (0),
+while upstream SendMail's missing preference defaults to MAPI (1). This upstream
+difference is recorded for future entry-point routing rather than silently
+using the page default as the transport default.
+
+Store opens a native username/password sheet. Username is required; empty
+password is permitted by the source. Stored login is prefilled and password
+focus is requested when it exists. Cancel clears the transient password.
+Credential Store/Clear effects are immediate and are not rolled back by the
+page's Cancel, matching upstream. Credentials never enter UserDefaults.
+Security calls are serialized off the main actor; controls are gated while
+work runs, inputs are captured once and invalidated owners ignore late results.
+
+The production adapter uses an app-private, non-synchronizing generic password
+item in the data-protection Keychain. Login refresh requests attributes only,
+with a noninteractive authentication context; Store updates in place and only
+adds on item-not-found; Clear treats item-not-found as success. SDK references:
+[generic password items](https://developer.apple.com/documentation/security/ksecclassgenericpassword),
+[adding items](https://developer.apple.com/documentation/security/secitemadd(_:_:)),
+[updating/deleting](https://developer.apple.com/documentation/security/updating-and-deleting-keychain-items),
+[authentication context](https://developer.apple.com/documentation/security/ksecuseauthenticationcontext),
+and [noninteractive access](https://developer.apple.com/documentation/localauthentication/lacontext/interactionnotallowed).
+
+Hidden native tests exercise the actual model and read-only Login control with
+private preferences and a private credential store. The production adapter's
+branches are tested through simulated Security APIs; tests never touch the user's
+Keychain or send mail. This is not signed Keychain/file-grant, sheet interaction,
+physical visual or transport acceptance. See [Email settings QA](qa/email-settings-2026-10-10.json).
+Native Send Patch settings-link routing and sender/credential transport capture
+remain pending, along with Mail/SMTP delivery and the full port.
