@@ -263,11 +263,13 @@ conditional controls at the bounds and multi-display checks remain pending.
 The native Commit model now reads `commit.template` once when the dialog opens,
 without replacing a draft on Refresh or when changing comparison options. Git
 resolves the configured path, including `~/`; relative paths resolve against the
-repository root. UTF-8 text (with optional BOM) is normalized to LF with one final
-newline, matching the upstream loader's newline treatment. Missing, unreadable or
-invalid UTF-8 templates report the path and error while leaving the dialog usable.
-Sandbox access remains subject to the repository lease and macOS permissions;
-external-template authorization UI and alternate encodings are still pending.
+repository root. UTF-8 uses replacement decoding, retains a leading BOM and
+normalizes CRLF/trailing LF to one final newline, matching the pinned loader.
+Missing/unreadable templates report their path and error while available operation
+messages remain usable. The pinned loader does not auto-detect UTF-16 or use the
+commit-output encoding for these inputs. Sandbox access remains subject to the
+repository lease and macOS permissions; external-template authorization is pending.
+See [the decoding audit](COMMIT-TEMPLATE-DECODING-PARITY.md).
 
 Upstream `CGit::LoadTextFile` appends to the message buffer. The port therefore
 appends `SQUASH_MSG` and then `MERGE_MSG` to the template, rather than replacing

@@ -52,7 +52,10 @@ import Darwin
         _ = try await repo.run(["config", "user.email", "history@example.invalid"])
         _ = try await repo.run(["config", "commit.gpgsign", "false"])
         let file = root.appendingPathComponent("file.txt"), template = root.appendingPathComponent("template.txt")
-        try Data("original\n".utf8).write(to: file); try Data("Template message".utf8).write(to: template)
+        let templateText = "\u{FEFF}Template �message"
+        var templateBytes = Data([0xef,0xbb,0xbf]); templateBytes.append(contentsOf: "Template ".utf8)
+        templateBytes.append(0xff); templateBytes.append(contentsOf: "message\r\n\r\n".utf8)
+        try Data("original\n".utf8).write(to: file); try templateBytes.write(to: template)
         try await repo.stage(["file.txt", "template.txt"]); _ = try await repo.commit(message: "baseline")
         try Data("working edit\n".utf8).write(to: file)
         _ = try await repo.run(["config", "commit.template", template.path])
@@ -75,10 +78,10 @@ import Darwin
         // GetBugIDFromLog trims trailing LF even without an issue match. Keep
         // that source behavior; explicitly restore the raw template to test its
         // equality/replacement branch while the issue field is enabled.
-        try require(model.messageTemplate == "Template message\n" && editor.string == "Template message")
+        try require(model.messageTemplate == templateText + "\n" && editor.string == templateText)
         editor.insertText(model.messageTemplate, replacementRange: NSRange(location: 0, length: (editor.string as NSString).length))
         try await settle()
-        try require(model.messageTemplate == "Template message\n" && editor.string == model.messageTemplate)
+        try require(model.messageTemplate == templateText + "\n" && editor.string == model.messageTemplate)
         let values = ["tail\r\nbody\nRefs: 73,42,73", "middle é\n" + String(repeating: "wide ", count: 60), "first 🐢\nbody"]
         for text in values { history.add(text) }
         let expected = history.entries
@@ -111,7 +114,7 @@ import Darwin
         try require(!controller.windowShouldClose(window) && !cancellationRequested)
         try require(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel)
         try await press("Cancel", in: child); try await wait { window.attachedSheet == nil }
-        try require(model.messageTemplate == "Template message\n" && editor.string == model.messageTemplate)
+        try require(model.messageTemplate == templateText + "\n" && editor.string == model.messageTemplate)
         (child,table) = try await open()
         table.selectRowIndexes([0,2], byExtendingSelection: false); try await settle()
         try await press("OK", in: child); try await wait { window.attachedSheet == nil }; try await settle()
@@ -178,7 +181,8 @@ import Darwin
         try require(window.attachedSheet == nil && !competing)
         let finalWorking = try Data(contentsOf: file), finalIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")), finalConfig = try Data(contentsOf: root.appendingPathComponent(".git/config"))
         try require(finalWorking == working && finalIndex == index && finalConfig == config)
+        let finalTemplate = try Data(contentsOf: template); try require(finalTemplate == templateBytes)
         let finalHead = try await repo.run(["rev-parse", "HEAD"]).stdout; try require(finalHead == head)
-        print("PASS: Native Commit Recent messages menu/icons, actual owned sheet, flattened Unicode rows and horizontal scrolling, table focus, multi-selection OK/template replacement, prefix suppression, caret insertion/editor focus, natural/deduplicated issue IDs and preserved IDs for messages without issues, cancelled/stale ABA/superseded/closed issue extraction, keyboard Delete/persistence/Cancel, competing picker/busy/close/Quit fences and forced-parent retirement; unchanged HEAD/index/config/working bytes. Owned windows closed.")
+        print("PASS: Native Commit Recent messages menu/icons, actual owned sheet, flattened Unicode rows and horizontal scrolling, table focus, UTF-8 template BOM/replacement characters/CRLF normalization and unchanged source bytes, multi-selection OK/template replacement, prefix suppression, caret insertion/editor focus, natural/deduplicated issue IDs and preserved IDs for messages without issues, cancelled/stale ABA/superseded/closed issue extraction, keyboard Delete/persistence/Cancel, competing picker/busy/close/Quit fences and forced-parent retirement; unchanged HEAD/index/config/working bytes. Owned windows closed.")
     }
 }

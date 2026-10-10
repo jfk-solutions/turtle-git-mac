@@ -87,6 +87,35 @@ final class CommitMessageTests: XCTestCase {
         XCTAssertEqual(before.map(\.path), after.map(\.path)); XCTAssertEqual(index, afterIndex); XCTAssertEqual(working, afterWorking)
     }
 
+    func testRepairedUTF8TemplateAndOperationMessagesPreserveAllInputs() async throws {
+        let helper = CommitSelectionTests(), (root, repo) = try await helper.fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        try helper.write(root, "base.txt", "base\n"); try await repo.stage(["base.txt"]); _ = try await repo.commit(message: "base")
+        let template = root.appendingPathComponent("template 雪.txt"), squash = root.appendingPathComponent(".git/SQUASH_MSG"), merge = root.appendingPathComponent(".git/MERGE_MSG")
+        var templateBytes = Data([0xef,0xbb,0xbf]); templateBytes.append(contentsOf: "Subject ".utf8); templateBytes.append(0xff)
+        templateBytes.append(contentsOf: "\r\nBody".utf8); templateBytes.append(contentsOf: [0xe2,0x82]); templateBytes.append(contentsOf: "\r\n\r\n".utf8)
+        var squashBytes = Data("Squash ".utf8); squashBytes.append(contentsOf: [0xc3,0x28]); squashBytes.append(contentsOf: "\r\n".utf8)
+        var mergeBytes = Data([0x80]); mergeBytes.append(contentsOf: "Merge\r\n\r\n".utf8)
+        try templateBytes.write(to: template); try squashBytes.write(to: squash); try mergeBytes.write(to: merge)
+        _ = try await repo.run(["config", "commit.template", template.path])
+        _ = try await repo.run(["config", "i18n.commitencoding", "windows-1252"])
+        let head = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index")), config = try Data(contentsOf: root.appendingPathComponent(".git/config"))
+        let seed = try await repo.commitMessageSeed()
+        XCTAssertEqual(seed.template, "\u{FEFF}Subject �\nBody�\n")
+        XCTAssertEqual(seed.message, "\u{FEFF}Subject �\nBody�\nSquash �(\n�Merge\n")
+        XCTAssertTrue(seed.warnings.isEmpty)
+        let recommit = try await repo.commitMessageSeed(includeOperationMessages: false)
+        XCTAssertEqual(recommit.message, seed.template); XCTAssertTrue(recommit.warnings.isEmpty)
+        XCTAssertEqual(try Data(contentsOf: template), templateBytes); XCTAssertEqual(try Data(contentsOf: squash), squashBytes); XCTAssertEqual(try Data(contentsOf: merge), mergeBytes)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/config")), config)
+        let afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout; XCTAssertEqual(afterHead, head)
+        try Data().write(to: template)
+        let empty = try await repo.commitMessageSeed(includeOperationMessages: false)
+        XCTAssertEqual(empty.template, "\n"); XCTAssertEqual(empty.message, "\n"); XCTAssertTrue(empty.warnings.isEmpty)
+    }
+
     func testAbsentAndUnreadableTemplateKeepOperationMessageAvailable() async throws {
         let helper = CommitSelectionTests(), (root, repo) = try await helper.fixture()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -100,7 +129,13 @@ final class CommitMessageTests: XCTestCase {
         try Data([0xFF, 0xFE, 0xFF]).write(to: root.appendingPathComponent("invalid.txt"))
         _ = try await repo.run(["config", "commit.template", "invalid.txt"])
         let invalid = try await repo.commitMessageSeed()
-        XCTAssertEqual(invalid.message, "Merge draft\n"); XCTAssertTrue(invalid.warnings[0].contains("UTF-8"))
+        XCTAssertEqual(invalid.template, "\u{FFFD}\u{FFFD}\u{FFFD}\n")
+        XCTAssertEqual(invalid.message, "\u{FFFD}\u{FFFD}\u{FFFD}\nMerge draft\n"); XCTAssertTrue(invalid.warnings.isEmpty)
+        try FileManager.default.createDirectory(at: root.appendingPathComponent("template-directory"), withIntermediateDirectories: false)
+        _ = try await repo.run(["config", "commit.template", "template-directory"])
+        let unreadable = try await repo.commitMessageSeed()
+        XCTAssertEqual(unreadable.template, ""); XCTAssertEqual(unreadable.message, "Merge draft\n")
+        XCTAssertEqual(unreadable.warnings.count, 1); XCTAssertTrue(unreadable.warnings[0].contains("template-directory"))
     }
 
     func testLinkedWorktreeReadsOwnMessagesAndAbsoluteTemplate() async throws {
@@ -119,8 +154,8 @@ final class CommitMessageTests: XCTestCase {
         let admin = try await linked.run(["rev-parse", "--path-format=absolute", "--git-path", "MERGE_MSG"]).text
         try Data("Linked tree message\n".utf8).write(to: URL(fileURLWithPath: String(admin.dropLast())))
         let seed = try await linked.commitMessageSeed()
-        XCTAssertEqual(seed.message, "Template\nLinked tree message\n"); XCTAssertTrue(seed.warnings.isEmpty)
+        XCTAssertEqual(seed.message, "\u{FEFF}Template\nLinked tree message\n"); XCTAssertTrue(seed.warnings.isEmpty)
         let mainSeed = try await repo.commitMessageSeed()
-        XCTAssertEqual(mainSeed.message, "Template\nMain tree message\n")
+        XCTAssertEqual(mainSeed.message, "\u{FEFF}Template\nMain tree message\n")
     }
 }

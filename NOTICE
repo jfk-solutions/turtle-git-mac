@@ -392,6 +392,12 @@ MessageContainsConflictHints under the upstream source license. The native
 Commit and Rebase models consume the shared formatter; Git retains its own
 configured final cleanup and commit encoding behavior.
 
+Commit-template and pending operation-message loading adapt CGit::LoadTextFile
+and CUnicodeUtils::GetUnicode/GetUnicodeLength under the upstream source license.
+Native UTF-8 replacement decoding retains BOM content, normalizes CRLF/trailing LF
+and appends SQUASH_MSG/MERGE_MSG without rewriting the original files. Template
+input remains independent of the configured commit-output encoding.
+
 Commit-message encoding aliases and ordered UTF-8 fallback adapt
 UnicodeUtils::GetCPCode/GetMulti under the upstream source license. Native
 CoreFoundation codecs replace Windows conversion APIs. Private encoded message

@@ -93,10 +93,9 @@ extension GitRepository {
 
     private static func readCommitMessage(_ url: URL) throws -> String {
         let data = try Data(contentsOf: url)
-        guard let text = String(data: data, encoding: .utf8) else {
-            throw GitFailure(arguments: [], code: 1, message: "The commit message file is not valid UTF-8.")
-        }
-        return normalizeCommitMessage(text.hasPrefix("\u{FEFF}") ? String(text.dropFirst()) : text)
+        // CGit::LoadTextFile calls GetUnicode with CP_UTF8 and flags zero:
+        // malformed sequences become replacement characters, and BOM is content.
+        return normalizeCommitMessage(String(decoding: data, as: UTF8.self))
     }
 
     private static func normalizeCommitMessage(_ text: String) -> String {

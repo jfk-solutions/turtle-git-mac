@@ -698,3 +698,10 @@ edit-and-restore, superseding requests and parent closure. Run `swift test --fil
 'IssueMessageStyleTests|IssueTrackerTests|IssueRegexTests'` for the matching Core
 checks. The native receiver uses template-based extraction; complete native
 ECMAScript-helper and physical issue-field acceptance remain unverified.
+
+Commit history native fixtures now include a template with UTF-8 BOM, a malformed
+byte and CRLF. The receiver checks the exact loaded editor/model text and source
+bytes across history Cancel/replacement. `CommitMessageTests` covers repaired
+UTF-8 template/operation input, output-encoding independence, empty files, actual
+unreadable/missing paths and linked-worktree separation. Every malformed Windows
+subsequence and embedded-NUL UI behavior remain unverified.

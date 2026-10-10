@@ -1,0 +1,112 @@
+{
+  "checked_at": "2026-10-10T12:15:50.054426+00:00",
+  "parent_commit": "0c5d6adaf3609e479199fc2536d7c8991f4e62dc",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Source UTF-8 replacement/BOM behavior for Commit templates and pending operation-message files. Full port and App Store acceptance remain incomplete.",
+  "references": [
+    "src/Git/Git.cpp::CGit::LoadTextFile",
+    "src/Utils/UnicodeUtils.h::GetUnicode default CP_UTF8",
+    "src/Utils/UnicodeUtils.cpp::GetUnicodeLength flags zero",
+    "https://learn.microsoft.com/en-us/windows/win32/api/stringapiset/nf-stringapiset-multibytetowidechar"
+  ],
+  "checks": {
+    "core": {
+      "session": 22736,
+      "exit_code": 0,
+      "tests": 20,
+      "failures": 0,
+      "suites": [
+        "CommitMessageTests",
+        "IssueMessageStyleTests",
+        "IssueTrackerTests"
+      ],
+      "scope": [
+        "Malformed UTF-8 lead/continuation and incomplete sequences repaired; BOM retained",
+        "CRLF/final LF, SQUASH_MSG/MERGE_MSG append order, template-only seed, empty files",
+        "Template decoding remains UTF-8 despite Windows-1252 output configuration",
+        "Missing/directory path warnings retain available operation messages",
+        "Linked/main worktree separation; exact source bytes and repository invariants"
+      ]
+    },
+    "native_commit": {
+      "session": 19115,
+      "exit_code": 0,
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "scope": [
+        "Actual template fixture contains UTF-8 BOM, malformed FF byte and CRLF",
+        "Exact native editor/model BOM and replacement text; source LF trimming with issue support",
+        "Explicit raw-template restoration followed by history Cancel/equality replacement",
+        "Existing native context-menu, Return/Escape/Delete, focus, issue/cancellation/owned-sheet checks",
+        "Exact template bytes, HEAD, raw index, config and working file unchanged"
+      ],
+      "receiver": "Transparent private windows, activation prohibited, real AppKit event loop; per-engine completion marker mandatory. Programmatic native input, not physical or VoiceOver acceptance."
+    },
+    "initial_debug_build": {
+      "session": 22736,
+      "exit_code": 0,
+      "unsigned": true
+    },
+    "initial_bundle_checks": {
+      "session": 26148,
+      "exit_code": 0,
+      "unsigned": true,
+      "timing": "Before adding the explicit loader attribution to NOTICE"
+    },
+    "final_builds_and_bundle_audits": {
+      "session": 19053,
+      "exit_code": 0,
+      "unsigned": true,
+      "configurations": [
+        "Debug",
+        "AppStore"
+      ],
+      "icons": 116,
+      "appstore_requires_git": true,
+      "notice_matches_source": true
+    },
+    "cleanup": {
+      "matching_processes": [],
+      "current_fixtures": []
+    }
+  },
+  "source_sha256": {
+    "NOTICE": "377cfc3bb201e9a222b12785ad6796117d44210b28ad63af5b3bc7951fc7201f",
+    "Sources/TurtleGitCore/CommitMessage.swift": "05d535b699912b9ffa445775ce361ff75ea115cbc837ca103c256f93a8b19814",
+    "Tests/TurtleGitCoreTests/CommitMessageTests.swift": "f1b8c343c5b6d1866deccc57001871068f42743437f65c73cb088ee37fe98feb",
+    "docs/qa/commit-history-native-2026-10-10.swift": "3f64c50c87bf9bd160a7c0ffdf88fc375b3af8f22ce0f8a748cbce4dac5b4b64",
+    "docs/COMMIT-PARITY.md": "a9551a43b66fb4eb20bb24202eca9a9122a9bc883f24f80f915b05594a706d0b",
+    "docs/COMMIT-TEMPLATE-DECODING-PARITY.md": "eaf572fb4dbb15da6e30c6bce767f1085532828e5a7311eb768c62d244f24f66",
+    "docs/README.md": "a64e22c32e1669ac4b3af4401104302827c9dee0b855f5053ce4978cd94f50cd",
+    "docs/TESTING.md": "64ee36976861e7a32af2b973fde06eb7eeb0bddf533c5335e696639667a1e6dc"
+  },
+  "binary_sha256": {
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": "b5c252764557426ce34a81b729cbc881c01fb3e416922df59ba44ce240745f38",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": "dc44e47efa6b867ca364f3b9a0bb2f34586e324eb30730045ce6f909abf6318e",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/MacOS/TurtleGitMac": "423fdbedcf77109c14c1f2cadcfa6b8ce80410c30f3aa5383f188939c26cda20",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": "3e9fa601af90bf40da28cb1dea402457262a6a1c1fdf4c99455ec8dd52655ba1",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": "4fe130d88732811cb2135fd976f7b9579c0ae3d38211d79ae7708e6973b5955c",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/MacOS/TurtleGitMac": "ae0fc297ae892ad6d53e5bfb2e3aee3218b8dda08c01e7e3c33faa88de63b8d1"
+  },
+  "resource_sha256": {
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/NOTICE": "377cfc3bb201e9a222b12785ad6796117d44210b28ad63af5b3bc7951fc7201f",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Resources/NOTICE": "377cfc3bb201e9a222b12785ad6796117d44210b28ad63af5b3bc7951fc7201f"
+  },
+  "log_sha256": {
+    "build/qa/commit-template-decoding-cleanup-2026-10-10.log": "693fa2bca24cbfc45a23756e4f0a95dc75a088dc5f75977d8a59a96ce2f23355",
+    "build/qa/commit-template-decoding-core-2026-10-10.log": "88e4297afa3878109ceda1b7bcd96171bf747046f7a3cf49fd87b8b03295d1a3",
+    "build/qa/commit-template-decoding-debug-2026-10-10.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/commit-template-decoding-debug-audit-2026-10-10.log": "cdeaff9df09b2d3352cce83b62503b07e0e9bb7909accdb3b95f9decbe376ec4",
+    "build/qa/commit-template-decoding-native-2026-10-10.log": "fa6149718a4f916576f783312a140d8b32a5565115f0af7b50c11982027dcba1",
+    "build/qa/commit-template-decoding-store-2026-10-10.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/commit-template-decoding-store-audit-2026-10-10.log": "b1c954ae1e9a5fc2a5d6416be100ef853bfb32fd82cbd6494843f0d1d5710619"
+  },
+  "limitations": [
+    "Exhaustive malformed-subsequence comparison with Windows and embedded-NUL UI behavior are unverified",
+    "Physical entry, VoiceOver, external-template authorization and signed sandbox acceptance remain incomplete",
+    "Full dialog/menu/Finder parity and App Store distribution remain incomplete",
+    "Local verification and commits; hosted CI and Pages publication are unverified"
+  ]
+}
