@@ -65,6 +65,11 @@ Copy/Copy All, error and link styling, current-work/percentage presentation and
 a source-style completion footer with optional elapsed time. See
 [the Merge follow-up](MERGE-PARITY.md#abort-merge-ownership-follow-up-october-10).
 
+Git Synchronization now has a pinned read-only outgoing/incoming comparison
+backend matching fast-forward/Force, merge-base, copy and working-copy-sentinel
+rules. Five new tests pass with three Git engines; native Sync UI and command
+integration remain pending. See [Synchronization parity](SYNCHRONIZATION-PARITY.md).
+
 ## Audited baseline
 
 Worktree creation, listing, locking, unlocking, removal and pruning now have a

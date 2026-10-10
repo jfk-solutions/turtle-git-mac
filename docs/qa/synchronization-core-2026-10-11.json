@@ -1,0 +1,86 @@
+{
+  "date": "2026-10-11",
+  "checkpoint": "0a6d48a478e8011e1febc1587cc82d728daa7d29",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "SyncDlg.cpp": "17bfe829c486fee35345727136bec8d1adbf21f9",
+    "SyncDlg.h": "d45012f6ae0579ef1b98394f05017b6fa365bac9",
+    "Git.cpp": "43dee91dbf94e46564b4cc1a139717fcbd8f6803"
+  },
+  "status": "partial-backend",
+  "implemented": [
+    "Pinned full outgoing range; up-to-date, unknown URL/tracking branch, fast-forward and Force gating.",
+    "Fast-forward file delta from remote; divergent forced delta from merge base.",
+    "Pinned incoming old..new histories/comparisons after operations.",
+    "Source default copy detection and original path identity.",
+    "Source zero-hash/working-copy fallback for unrelated forced histories, and forced-behind empty outgoing email eligibility.",
+    "Cancellation and argument-array/NUL handling; covered index/refs/worktree preservation."
+  ],
+  "verification": {
+    "engines": [
+      {
+        "git": "/usr/bin/git",
+        "version": "git version 2.50.1 (Apple Git-155)",
+        "exit": 0,
+        "new_synchronization_tests": 5,
+        "existing_comparison_tests": 15,
+        "engine_scope": "Only SynchronizationTests select the requested executable; RevisionComparisonTests fixtures use system Git.",
+        "log": "build/qa/synchronization-core-system-copy-2026-10-11.log"
+      },
+      {
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/replay-test-git/2.39.5/bin/git",
+        "version": "git version 2.39.5",
+        "exit": 0,
+        "new_synchronization_tests": 5,
+        "existing_comparison_tests": 15,
+        "engine_scope": "Only SynchronizationTests select the requested executable; RevisionComparisonTests fixtures use system Git.",
+        "log": "build/qa/synchronization-core-old-final-2026-10-11.log"
+      },
+      {
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "version": "git version 2.55.0",
+        "exit": 0,
+        "new_synchronization_tests": 5,
+        "existing_comparison_tests": 15,
+        "engine_scope": "Only SynchronizationTests select the requested executable; RevisionComparisonTests fixtures use system Git.",
+        "log": "build/qa/synchronization-core-packaged-final-2026-10-11.log"
+      }
+    ],
+    "full_suite": "Not rerun; focused tests only.",
+    "native_sync": "Not implemented; no native dialog or signed acceptance claim.",
+    "unsigned_debug_exit": 0,
+    "unsigned_appstore_exit": 0,
+    "debug_bundle_audit_exit": 0,
+    "appstore_require_git_bundle_audit_exit": 0,
+    "original_icons": 120,
+    "inventory_pin_exit": 0,
+    "site_exit": 0,
+    "cleanup": "All local tests/builds/audits terminal; no app, package-test process or compiler remains."
+  },
+  "audit_correction": "Initial implementation rejected unrelated forced histories. Further SyncDlg.h/Git.cpp/GitRev.h audit proved its zero CGitHash is the working-copy sentinel; final implementation/test preserves that fallback. Initial tests/logs predate the added copy test; only final20-test logs prove current checkpoint.",
+  "remaining": [
+    "Native Sync UI, tab graphs/lists/context menus and layout/appearance.",
+    "All source transport/split/post-operation actions, hooks/authentication/cancellation/results/persistence/factory routing.",
+    "Configured similarity thresholds, libgit2 equivalence, external writers and broader repository modes.",
+    "Physical/accessibility and signed Finder/sandbox/App Store acceptance.",
+    "Complete whole-app port."
+  ],
+  "sources_sha256": {
+    "Sources/TurtleGitCore/Synchronization.swift": "56d275c29aaa42ebe6221c11e057b5f190b18ba7473b7d38b382fbbd2943fb87",
+    "Sources/TurtleGitCore/RevisionComparison.swift": "c056b1665c4931b903a8e699cf8e2788eea797ac6055141c66162ac1f030b594",
+    "Tests/TurtleGitCoreTests/SynchronizationTests.swift": "9bdbd6dba2468bb273a858458346a5db9d8789178c1bcc35b248a2405217c7ef",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "a46025d154a78d9939ea14ea5ada2dba0f2358c4bb472b7267d0d66ecb35d825"
+  },
+  "logs_sha256": {
+    "build/qa/synchronization-core-system-copy-2026-10-11.log": "3eb885ef144aef66ef1786449d5579dc376e8ebcebf9de759cd8ef80f8628b98",
+    "build/qa/synchronization-core-old-final-2026-10-11.log": "ea0bae1d211fdbc51e5525e2099baeb5259556c1b838acf252ffc414a756512e",
+    "build/qa/synchronization-core-packaged-final-2026-10-11.log": "22f318d312ae70dc15bdb7d8e4631e7adbe0deb446eb05d005d8d1589e42e2de",
+    "build/qa/synchronization-debug-2026-10-11.log": "0a6f977ccd5667f8d5a1b0857059e82416034107e24220212f974e75475e3078",
+    "build/qa/synchronization-store-2026-10-11.log": "fc52254f37356cd0466208e1bce85460676b5ea0c36b7c9ef198d079071f7448",
+    "build/qa/synchronization-debug-audit-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/synchronization-store-audit-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/synchronization-inventory-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/synchronization-site-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/synchronization-processes-2026-10-11.json": "248afd97220ee28ab828cf639eef0e36889f6bbccb13dfab15fa5489fb249d4c"
+  }
+}
