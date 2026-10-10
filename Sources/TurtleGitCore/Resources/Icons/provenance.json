@@ -582,6 +582,11 @@
       "asset": "player_stop.ico",
       "source": "src/TortoiseIDiff/resources/player_stop.ico",
       "sha256": "14cb098de131a78689cab30d08936ba1536d1f786fe242b5f134b8bba356fa82"
+    },
+    {
+      "asset": "menurevisiongraph.ico",
+      "source": "src/Resources/menurevisiongraph.ico",
+      "sha256": "95e686d185abcbdf9dfe9b8bc8c48fdb10326b6bd1e70ce0263ef14a4000dbe5"
     }
   ]
 }

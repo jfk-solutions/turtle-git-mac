@@ -1,0 +1,50 @@
+{
+  "checked_at": "2026-10-10T13:41:01.059239+00:00",
+  "parent_commit": "cd99a39bbe3045a8a07a94ca441b7f0288e31d1b",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Partial native Revision Graph window and Filter. Complete TortoiseGit port and App Store readiness remain unproven.",
+  "checks": {
+    "system_focused_core": {
+      "tests": 25,
+      "failures": 0,
+      "exit_code": 0
+    },
+    "bundled_focused_core": {
+      "tests": 25,
+      "failures": 0,
+      "exit_code": 0
+    },
+    "native_receiver": {
+      "system_git": "PASS",
+      "bundled_git": "PASS",
+      "activation": "prohibited",
+      "windows": "owned alpha-zero windows closed; fixtures removed",
+      "covers": [
+        "mouse selection and command extension",
+        "original context icons",
+        "Log and compare callbacks",
+        "zoom",
+        "author/hash tooltip",
+        "mutually exclusive branch scopes and To enablement",
+        "Cancel and immediate Reset",
+        "parent sheet close gate",
+        "busy close cancellation/reaping and closed-model rejection",
+        "unchanged HEAD/ref/index/config/working bytes"
+      ]
+    },
+    "unsigned_debug_build": 0,
+    "unsigned_appstore_build": 0,
+    "debug_bundle_audit": 0,
+    "appstore_bundle_audit": 0,
+    "upstream_icons": 117
+  },
+  "pending": [
+    "actual light/dark rendering comparison and screenshots",
+    "complete graph context menus and source export formats",
+    "owned reference browser acceptance",
+    "keyboard and accessibility parity",
+    "source persistence and large graph responsiveness",
+    "activated Finder and signed sandbox/distribution",
+    "current hosted CI for this checkpoint"
+  ]
+}

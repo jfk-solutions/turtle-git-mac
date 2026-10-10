@@ -1,10 +1,8 @@
 # Revision Graph port
 
-The native Revision Graph window is still missing. The repository data, graph
-reduction and pinned OGDF layout adapter are ported; native rendering and user
-interaction remain outstanding.
-Both `IDD_REVISIONGRAPH` and `IDD_REVGRAPHFILTER` remain pending in the dialog
-inventory. The complete TortoiseGit port and App Store acceptance remain open.
+The repository data, graph reduction and pinned OGDF layout adapter are ported.
+A native AppKit Revision Graph window and Filter sheet are now implemented locally;
+focused native interaction checks passed with system and bundled Git. Neither dialog has complete upstream parity. The complete TortoiseGit port and App Store acceptance remain open.
 
 ## Source baseline
 
@@ -27,8 +25,8 @@ It does not inherit Log's row limit or file filters. The default scope uses
 `--all`; local branches use `--branches`; current branch uses HEAD; explicit To
 and From can contain multiple whitespace-separated revisions. From exclusions
 apply in every scope. Local branches take precedence over current branch if an
-API caller sets both flags, matching upstream; the future filter UI must enforce
-the source's mutually exclusive checkbox behavior.
+API caller sets both flags, matching upstream; the native filter enforces mutually exclusive checkboxes and
+disables the To field and its browser while either branch scope is selected.
 
 Revision text resolves to commit hashes using `--end-of-options`, then enters the
 history command as individual arguments. Text such as `--all` cannot inject a
@@ -70,14 +68,27 @@ adapter reuses these algorithms with caller-supplied dimensions. The native
 canvas must measure its reference labels and use the returned coordinates and
 clipped bend paths rather than substitute Log's lanes for this graph.
 
+## Native implementation
+
+`RevisionGraphWindow.swift` measures reference labels for the OGDF helper, draws
+colored branch/tag rows and clipped arrow paths, and supplies scrolling, zoom,
+fit height/width/graph, overview navigation, tooltips and two-node selection.
+The app and Finder action route to a reusable controller per repository and Git
+executable. Original `menurevisiongraph.ico` is packaged with its provenance.
+Node commands route to existing Log, repository browser, comparison, checkout,
+branch/tag and reset workflows. Unified diff resolves selected references before
+reading a patch. The current graph export supports PDF only.
+
+`RevisionGraphFilter.swift` provides From/To fields, owned reference browsers,
+mutually exclusive current/local branch scopes, OK, Cancel and immediate Reset.
+Owned sheets block parent close. Active graph reads cancel and reap before closing;
+closed models reject further loads and stale publications.
+
 Remaining requirements include:
 
-- Native window integration of the universal OGDF build and cancellation-aware bridge.
-- Native canvas, colored reference boxes, arrows, hit testing, scrolling, zoom,
-  overview dragging and hover author/date/message information.
-- Source-style Filter dialog and its reference-browser handoffs.
-- Refresh, fit height/width/graph, tag and branching toggles, arrow direction,
-  overview and export formats.
+- Verify the native window and owned reference-browser handoffs against upstream.
+- Match source export formats beyond the currently implemented PDF export.
+- Verify rendering, zoom, overview dragging, pointer labels and hover date formatting.
 - Complete node context menus and File/View/Git/Help menus, original icons,
   two-node selection, comparisons, unified diff and Show Log routing.
 - App and Finder launch routing, native screenshots, physical keyboard/mouse,
@@ -108,3 +119,12 @@ Local test/build results are recorded in
 [the checkpoint evidence](qa/revision-graph-data-2026-10-10.json). These checks
 cannot establish native window parity, activated Finder behavior, current
 hosted CI or App Store readiness.
+
+The native-window checkpoint is recorded in
+[revision-graph-window-2026-10-10.json](qa/revision-graph-window-2026-10-10.json).
+`python3 scripts/test-revision-graph-window.py --git /usr/bin/git --git build/git-runtime/Git/bin/git`
+exercises the actual AppKit window without app activation. It verifies selection,
+route callbacks, tooltip metadata, zoom, scope enablement, Cancel, Reset, busy
+close cancellation and unchanged repository state. Both focused 25-test runs,
+unsigned Debug/AppStore builds and bundle audits passed locally. Full visual,
+signed and hosted-CI acceptance remain pending.

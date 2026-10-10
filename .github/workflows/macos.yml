@@ -261,6 +261,8 @@ jobs:
         run: python3 scripts/test-graph-layout-bundles.py
       - name: Revision Graph data and geometry with bundled Git
         run: TURTLEGIT_GROUP_TEST_GIT="$PWD/build/git-runtime/Git/bin/git" swift test --filter 'RevisionGraphLayoutTests|RevisionGraphTests|HistoryRangeTests'
+      - name: Native Revision Graph window and Filter with both Git engines
+        run: python3 scripts/test-revision-graph-window.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native packaged Git SSH client lookup without network
         run: python3 scripts/test-git-ssh-runtime.py
       - name: Native AppStore bundled SSH encrypted-key loading and cleanup

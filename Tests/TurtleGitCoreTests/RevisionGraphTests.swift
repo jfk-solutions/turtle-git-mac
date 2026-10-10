@@ -62,6 +62,7 @@ final class RevisionGraphTests: XCTestCase {
         let config = try Data(contentsOf: root.appendingPathComponent(".git/config"))
         let refs = try await repo.run(["show-ref"]).stdout
         let all = try await repo.revisionGraph()
+        XCTAssertTrue(all.nodes.allSatisfy { !$0.author.isEmpty && !$0.authorDate.isEmpty && !$0.message.isEmpty })
         XCTAssertEqual(all.head, h["merge"])
         XCTAssertTrue(all.nodes.contains { $0.hash == h["remote"] })
         XCTAssertTrue(all.nodes.contains { $0.hash == h["tagOnly"] })

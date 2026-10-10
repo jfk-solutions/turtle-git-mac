@@ -2,6 +2,22 @@ import XCTest
 @testable import TurtleGitCore
 
 final class FinderRequestTests: XCTestCase {
+    func testRevisionGraphRequestPreservesLiteralPathAndUpstreamAvailability() throws {
+        let folder = URL(fileURLWithPath: "/repo 雪/space &?.git", isDirectory: true)
+        let request = FinderRequest(action: .revisionGraph, paths: [folder])
+        let decoded = try XCTUnwrap(FinderRequest(url: XCTUnwrap(request.url)))
+        XCTAssertEqual(decoded.action, .revisionGraph)
+        XCTAssertEqual(decoded.paths.map(\.path), [folder.path])
+        XCTAssertEqual(decoded.action.icon, .revisionGraph)
+        XCTAssertNotNil(decoded.action.icon.image())
+        XCTAssertNil(decoded.action.arguments(value: ""))
+        XCTAssertFalse(decoded.action.requiresWorkingTree)
+        XCTAssertTrue(FinderRepositoryMetadata(bare: true).allows(.revisionGraph))
+        XCTAssertTrue(FinderShellRules.allows(.revisionGraph, flags: [.bare]))
+        XCTAssertTrue(FinderShellRules.allows(.revisionGraph, flags: [.inGit, .onlyOne]))
+        XCTAssertFalse(FinderShellRules.allows(.revisionGraph, flags: [.inGit, .onlyOne, .added]))
+        XCTAssertFalse(FinderShellRules.allows(.revisionGraph, flags: [.inGit, .two]))
+    }
     func testCleanRequestUsesNearestCheckoutAndLiteralSelections() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         let child = root.appendingPathComponent("nested 雪\n&?", isDirectory: true)

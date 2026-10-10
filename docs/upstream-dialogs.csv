@@ -94,14 +94,14 @@ src/Resources/TortoiseProcENG.rc,IDD_CREATEREPO,Git Init,partial-native-replacem
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSPROGSALTERNATIVEEDITOR,Alternative editor,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_BISECTSTART,Bisect start,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_STASH,Stash,partial
-src/Resources/TortoiseProcENG.rc,IDD_REVGRAPHFILTER,Revision Graph Filter,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_REVGRAPHFILTER,Revision Graph Filter,partial
 src/Resources/TortoiseProcENG.rc,IDD_DIFFSUBMODULE,Submodule Diff,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_IGNORE,Ignore,partial
 src/Resources/TortoiseProcENG.rc,IDD_SUBMODULE_UPDATE,Submodule Update,partial
 src/Resources/TortoiseProcENG.rc,IDD_BROWSE_REFS,Browse references,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_ADD_REMOTE,Add Remote,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_DELETEREMOTETAG,Delete remote tag - TortoiseGit,pending-review
-src/Resources/TortoiseProcENG.rc,IDD_REVISIONGRAPH,Revision Graph,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_REVISIONGRAPH,Revision Graph,partial
 src/Resources/TortoiseProcENG.rc,IDD_USER_PASSWD,Password,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_LOGORDERING,Log commit ordering,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSCREDENTIAL,Credential,pending-review

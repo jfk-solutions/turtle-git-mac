@@ -24,9 +24,13 @@ public struct RevisionGraphNode: Identifiable, Sendable {
     public var isHead: Bool
     /// An excluded parent is still drawn, without expanding its own ancestry.
     public var isBoundary: Bool
-    public init(hash: String, parents: [String] = [], references: [RevisionReference] = [], isHead: Bool = false, isBoundary: Bool = false) {
+    public let author: String
+    public let authorDate: String
+    public let message: String
+    public init(hash: String, parents: [String] = [], references: [RevisionReference] = [], isHead: Bool = false, isBoundary: Bool = false, author: String = "", authorDate: String = "", message: String = "") {
         self.hash = hash; self.parents = parents; self.references = references
         self.isHead = isHead; self.isBoundary = isBoundary
+        self.author = author; self.authorDate = authorDate; self.message = message
     }
 }
 
@@ -102,7 +106,7 @@ extension GitRepository {
             refs[hash, default: []].append(RevisionReference(name: name, isCurrent: currentBranch.map { GitReferenceName.equal($0, name) } ?? false, kind: kind))
             i += 3
         }
-        var arguments = ["log", "--encoding=UTF-8", "--format=%H %P", "--topo-order", "--parents", "--simplify-by-decoration"]
+        var arguments = ["log", "--encoding=UTF-8", "--format=%H%x00%P%x00%an%x00%aI%x00%B%x00", "--topo-order", "--parents", "--simplify-by-decoration"]
         if options.showBranchingsAndMerges { arguments.append("--sparse") }
         // Upstream gives Only Local Branches precedence if both flags are set.
         if options.onlyLocalBranches { arguments.append("--branches") }
@@ -116,11 +120,14 @@ extension GitRepository {
         arguments.append("--")
         let output = try read(arguments).text
         var nodes: [RevisionGraphNode] = []
-        for line in output.split(separator: "\n") {
+        let fields = output.components(separatedBy: "\0")
+        var record = 0
+        while record + 4 < fields.count {
             try cancellation?.check()
-            let hashes = line.split(separator: " ").map(String.init)
-            guard let hash = hashes.first else { continue }
-            nodes.append(RevisionGraphNode(hash: hash, parents: Array(hashes.dropFirst()), references: refs[hash] ?? [], isHead: hash == head))
+            let hash = fields[record].trimmingCharacters(in: .newlines)
+            let parents = fields[record + 1].split(separator: " ").map(String.init)
+            nodes.append(RevisionGraphNode(hash: hash, parents: parents, references: refs[hash] ?? [], isHead: hash == head, author: fields[record + 2], authorDate: fields[record + 3], message: fields[record + 4]))
+            record += 5
         }
         var pointers = Set<String>()
         if options.showSuperprojectPointers {

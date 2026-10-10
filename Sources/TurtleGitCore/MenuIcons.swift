@@ -19,6 +19,7 @@ public enum MenuIcon: String, CaseIterable {
     case completionFile = "file", completionSnippet = "snippet", completionCode = "code"
     case turtle = "TortoiseSmall", status = "menushowchanged", commit = "menucommit", log = "menulog"
     case blame = "TortoiseGitBlame"
+    case revisionGraph = "menurevisiongraph"
     case bisect = "menubisect", bisectReset = "menubisectreset", bisectGood = "thumb_up", bisectBad = "thumb_down"
     case patch = "menupatch", sendMail = "menusendmail"
     case repositoryBrowser = "menurepobrowse", executableOverlay = "executableovl", symlinkOverlay = "symlinkovl", externalOverlay = "externalovl"
@@ -106,6 +107,7 @@ extension RepositoryAction {
         case .revert: return .revert
         case .clean: return .clean
         case .log, .stashList, .reflog: return .log
+        case .revisionGraph: return .revisionGraph
         case .referenceBrowser, .repositoryBrowser: return .repositoryBrowser
         case .bisect, .bisectStart, .bisectSkip: return .bisect
         case .bisectGood: return .bisectGood

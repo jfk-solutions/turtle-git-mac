@@ -45,6 +45,7 @@ import TurtleGitCore
     private var repository: GitRepository?
     private var commitWindows: [String: CommitWindowController] = [:]
     private var logWindows: [String: LogWindowController] = [:]
+    private var revisionGraphWindows: [String: RevisionGraphWindowController] = [:]
     private var referenceBrowserWindows: [String: ReferenceBrowserWindowController] = [:]
     private var browserWindows: [String: RepositoryBrowserWindowController] = [:]
     private var worktreeListWindows: [String: WorktreeListWindowController] = [:]
@@ -369,6 +370,9 @@ import TurtleGitCore
         case .log:
             guard let repository else { return }
             showLog(repository: repository, access: activeAccess, paths: paths)
+        case .revisionGraph:
+            guard let repository else { return }
+            showRevisionGraph(repository: repository, access: activeAccess)
 
         case .mergeAbort:
             guard let repository else { return }
@@ -778,6 +782,19 @@ import TurtleGitCore
         revisionComparisonWindows[key] = controller
         controller.model.load()
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
+    private func showRevisionGraph(repository: GitRepository, access: RepositoryAccessLease?) {
+        let key = repository.root.path + "\0" + repository.executable.path
+        if let existing = revisionGraphWindows[key] { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
+        let controller = RevisionGraphWindowController(repository: repository, access: access)
+        controller.onClosed = { [weak self] in self?.revisionGraphWindows.removeValue(forKey: key) }
+        controller.model.onLog = { [weak self] hash in self?.showLog(repository: repository, access: access, paths: [], endRevision: hash, selectedRevision: hash) }
+        controller.model.onBrowse = { [weak self] hash in self?.showRepositoryBrowser(repository: repository, access: access, revision: hash) }
+        controller.model.onCompare = { [weak self] from, to in self?.showRevisionComparison(repository: repository, access: access, from: from, to: to) }
+        controller.model.onCreateReference = { [weak self] tag, hash in self?.showReference(repository: repository, access: access, isTag: tag, revision: hash) }
+        controller.model.onCheckout = { [weak self] hash in self?.showSwitch(repository: repository, access: access, revision: hash) }
+        controller.model.onReset = { [weak self] hash in self?.showReset(repository: repository, access: access, revision: hash) }
+        revisionGraphWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func configureRevisionComparisonInteractions(_ model: RevisionComparisonWindowModel, repository: GitRepository, access: RepositoryAccessLease?) {
         model.onLog = { [weak self] hash in self?.showLog(repository: repository, access: access, paths: [], endRevision: hash) }

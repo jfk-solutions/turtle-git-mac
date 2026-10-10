@@ -6,6 +6,7 @@ import AppKit
     var replyToTermination: (NSApplication, Bool) -> Void = { $0.reply(toApplicationShouldTerminate: $1) }
     func applicationWillTerminate(_ notification: Notification) { HistoricalPreviewFiles.discardAll(); RepositoryBrowserExportFiles.discardAll(); UnifiedDiffPreviewFiles.discardAll() }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        if sender.windows.compactMap({ $0.delegate as? RevisionGraphWindowController }).contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if confirmingQuit { return .terminateLater }
         if sender.windows.compactMap({ $0.delegate as? ImageLoadWindowController }).contains(where: { !$0.retired }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? CommitWindowController }).contains(where: { $0.hasMessagePicker || $0.window?.attachedSheet != nil }) { return .terminateCancel }

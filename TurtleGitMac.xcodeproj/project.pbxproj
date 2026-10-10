@@ -110,6 +110,7 @@
 		7402B84E5CE3702EC56EBAD8 /* FileComparisonEditing.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD325E61874E68F270271CC9 /* FileComparisonEditing.swift */; };
 		768B7B2B700F618CA924EBDA /* SavedData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 814E543BEB0736B84A50B21B /* SavedData.swift */; };
 		78D4BE78EDFB1546367CD8B6 /* MergeEditorSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63BFD8184C87A12A2F48AEA1 /* MergeEditorSettings.swift */; };
+		7987241DFAF00D07FFA1D8DE /* RevisionGraphFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = AED856C37545053179A74184 /* RevisionGraphFilter.swift */; };
 		79FAF64D9B79A6283E286D5A /* LogAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 392877DE7F6A7F5BB1CC3391 /* LogAppearance.swift */; };
 		7C22243E2D3DB838AC0604B3 /* GitReferenceName.swift in Sources */ = {isa = PBXBuildFile; fileRef = B733277271B0769B1CB05397 /* GitReferenceName.swift */; };
 		7C3A58D7BEF989C5FE0D1C4D /* StashWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC73279697B4174BE7ED4D66 /* StashWindow.swift */; };
@@ -206,6 +207,7 @@
 		D7E9B06DF606B6A8A0488AF9 /* UnifiedDiffViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE81F1D25A56C6A243F01F23 /* UnifiedDiffViewer.swift */; };
 		DA6E9DE53700E8DB77468D31 /* SubmoduleAddProgressWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64A97F9362AFC142FEFE5A1A /* SubmoduleAddProgressWindow.swift */; };
 		DB59BAE5F3CCA439B5A6C388 /* CreateRepositoryWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 022B0A05DF90D278FC860589 /* CreateRepositoryWindow.swift */; };
+		DB7AFE73DFDDD57C00B36DA3 /* RevisionGraphWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = E36D548C3CA5F137ED0667D9 /* RevisionGraphWindow.swift */; };
 		DC324EE987ED199805D3DF0B /* ResetWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CFEE049A0098A0212AD01DA /* ResetWindow.swift */; };
 		DD16EA85352150A590AED3FB /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 152D20910797F40A39CBF1A8 /* LICENSE */; };
 		DD54AAAEE6EEE0B9B1245370 /* SubmoduleConflict.swift in Sources */ = {isa = PBXBuildFile; fileRef = F925723BED85497207863D60 /* SubmoduleConflict.swift */; };
@@ -492,6 +494,7 @@
 		AE81F1D25A56C6A243F01F23 /* UnifiedDiffViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedDiffViewer.swift; sourceTree = "<group>"; };
 		AE84FD354494653334022AA8 /* SSHKeyPassphraseWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHKeyPassphraseWindow.swift; sourceTree = "<group>"; };
 		AEC571DB776E587D10F568E9 /* AdvancedSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdvancedSettings.swift; sourceTree = "<group>"; };
+		AED856C37545053179A74184 /* RevisionGraphFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevisionGraphFilter.swift; sourceTree = "<group>"; };
 		B0144901E0020C531A5D86FB /* RepositoryAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryAccess.swift; sourceTree = "<group>"; };
 		B16F443B326FDAB1414D334B /* Appearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Appearance.swift; sourceTree = "<group>"; };
 		B20E461B2D9629D0293A80EB /* WorkingTree.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingTree.swift; sourceTree = "<group>"; };
@@ -534,6 +537,7 @@
 		DF9C567B7E6EFBE7EE4F0B69 /* PatchWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchWindow.swift; sourceTree = "<group>"; };
 		E1EF55D94A0594780EEB80F2 /* RevertWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevertWindow.swift; sourceTree = "<group>"; };
 		E2D25384D2D6DFB1195D0656 /* PatchMailMIME.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchMailMIME.swift; sourceTree = "<group>"; };
+		E36D548C3CA5F137ED0667D9 /* RevisionGraphWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevisionGraphWindow.swift; sourceTree = "<group>"; };
 		E64D6C9E84E73A820367C405 /* RemoteTagWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteTagWindow.swift; sourceTree = "<group>"; };
 		E6D400F85AE92690112D0E35 /* GitProgressOutputState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitProgressOutputState.swift; sourceTree = "<group>"; };
 		E6DEDC3481F79B1185AE15B3 /* GitRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitRuntime.swift; sourceTree = "<group>"; };
@@ -670,6 +674,8 @@
 				1171B2BA353FE1424EB5B04F /* RevertProgressWindow.swift */,
 				E1EF55D94A0594780EEB80F2 /* RevertWindow.swift */,
 				D1C08CE65957F3F0D4164400 /* RevisionComparisonWindow.swift */,
+				AED856C37545053179A74184 /* RevisionGraphFilter.swift */,
+				E36D548C3CA5F137ED0667D9 /* RevisionGraphWindow.swift */,
 				5CC68DDC9F827CA4F3DA9A05 /* SavedDataSettings.swift */,
 				DAD242D45D90F689D7AA5D91 /* SelectionAllCheckbox.swift */,
 				53A34FF11AFBC8CA0823CFB5 /* SendPatchList.swift */,
@@ -1423,6 +1429,8 @@
 				885DFCA3F39F7130AADDB93E /* RevertProgressWindow.swift in Sources */,
 				E0EF101FE5499CD99CF132F1 /* RevertWindow.swift in Sources */,
 				7CBA6AA078D63A8935313B51 /* RevisionComparisonWindow.swift in Sources */,
+				7987241DFAF00D07FFA1D8DE /* RevisionGraphFilter.swift in Sources */,
+				DB7AFE73DFDDD57C00B36DA3 /* RevisionGraphWindow.swift in Sources */,
 				DF0CD2448F2B8812C9593D7E /* SSHKeyPassphraseWindow.swift in Sources */,
 				25FA6351F250E4932AC95E73 /* SSHTransportCoordinator.swift in Sources */,
 				E870F93D67C68E0FCCDDC0F3 /* SavedDataSettings.swift in Sources */,

@@ -1393,3 +1393,13 @@ Native Load Images adapts TortoiseIDiff/MainWindow.cpp OpenDlgProc, AskForFile
 and ID_FILE_OPEN plus TortoiseIDiff.rc IDD_OPEN at pinned commit
 7338078f8ddd924b8cddee35f512f2286072136d. AppKit uses two native path fields,
 per-side Browse, OK/Cancel and security-scoped file grants before reads.
+
+Native Revision Graph window and Filter adapt RevisionGraphWnd.cpp,
+RevisionGraphDlg.cpp/.h, RevisionGraphDlgDraw.cpp and RevGraphFilterDlg.cpp/.h,
+plus IDD_REVISIONGRAPH, IDD_REVGRAPHFILTER and graph menus in TortoiseProcENG.rc
+at pinned commit 7338078f8ddd924b8cddee35f512f2286072136d. Native AppKit
+selection, colored reference boxes, zoom/fit, overview, tooltips, branch scopes
+and owned-sheet lifecycle are macOS implementations. The original
+menurevisiongraph.ico is bundled unchanged with SHA256 provenance under the
+existing icon license choice. Full menu/export/persistence and signed Finder
+acceptance remain incomplete; existing upstream copyright and GPL terms apply.
