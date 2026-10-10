@@ -7,17 +7,50 @@ public struct PatchMailSender: Equatable, Sendable {
     public init(name: String, email: String) { self.name = name; self.email = email }
 }
 
+extension GitRepository {
+    /// Captures CSendMail's GetUserName/GetUserEmail precedence. The sender is
+    /// the current Git author identity, independently of authors in patch files.
+    public func patchMailSender(environmentOverrides: [String: String] = [:],
+                                cancellation: OperationCancellation? = nil) throws -> PatchMailSender {
+        let token = cancellation ?? OperationCancellation()
+        try token.check()
+        var environment = ProcessInfo.processInfo.environment
+        environment.merge(environmentOverrides) { _, override in override }
+        func value(_ key: String) throws -> String {
+            let result = try run(["config", "--includes", "--null", "--get", key],
+                                 environmentOverrides: environmentOverrides,
+                                 successfulExitCodes: 0...1, cancellation: token)
+            if result.exitCode == 1 { return "" }
+            guard result.stdout.last == 0,
+                  let value = String(data: result.stdout.dropLast(), encoding: .utf8) else {
+                throw PatchMailMIMEFailure.identityConfiguration
+            }
+            return value
+        }
+        func identity(_ variable: String, _ author: String, _ user: String) throws -> String {
+            if let supplied = environment[variable], !supplied.isEmpty { return supplied }
+            let configured = try value(author)
+            return configured.isEmpty ? try value(user) : configured
+        }
+        let name = try identity("GIT_AUTHOR_NAME", "author.name", "user.name")
+        let email = try identity("GIT_AUTHOR_EMAIL", "author.email", "user.email")
+        try token.check()
+        return PatchMailSender(name: name, email: email)
+    }
+}
+
 public enum PatchMailBodyCharset: String, Sendable {
     case utf8 = "UTF-8", latin1 = "ISO-8859-1"
 }
 
 public enum PatchMailMIMEFailure: LocalizedError {
-    case header, mailbox, charset
+    case header, mailbox, charset, identityConfiguration
     public var errorDescription: String? {
         switch self {
         case .header: return "A mail header contains invalid characters or is too long."
         case .mailbox: return "Use an email address or Name <email address> for each recipient. International email addresses are not yet supported."
         case .charset: return "The patch body is not UTF-8. Choose its character encoding before composing mail."
+        case .identityConfiguration: return "Git returned invalid sender identity configuration."
         }
     }
 }

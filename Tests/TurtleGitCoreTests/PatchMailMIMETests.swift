@@ -145,3 +145,81 @@ assert msg.get_body(preferencelist=('plain',)).get_payload(decode=True) == b''
         XCTAssertEqual(process.terminationStatus, 0, String(decoding: diagnostics, as: UTF8.self))
     }
 }
+
+final class PatchMailSenderTests: XCTestCase {
+    private func fixture() throws -> (URL, GitRepository, [String: String]) {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitSender-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let repo = GitRepository(root: root, executable: URL(fileURLWithPath:
+            ProcessInfo.processInfo.environment["TURTLEGIT_SEND_PATCH_TEST_GIT"] ?? "/usr/bin/git"))
+        // Isolate Git configuration without changing the process/user environment.
+        let environment = ["GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_SYSTEM": "/dev/null",
+            "GIT_CONFIG_GLOBAL": root.appendingPathComponent("global.config").path,
+            "GIT_CONFIG_COUNT": "0", "GIT_AUTHOR_NAME": "", "GIT_AUTHOR_EMAIL": ""]
+        return (root, repo, environment)
+    }
+    func testSourceSenderPrecedenceIsIndependentForNameAndEmail() async throws {
+        let (root, repo, environment) = try fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        _ = try await repo.run(["init", "-b", "main"], environmentOverrides: environment)
+        for (key, value) in [("user.name", "User 雪"), ("user.email", "user@example.invalid"),
+                             ("author.name", "Author 雪"), ("author.email", "author@example.invalid")] {
+            _ = try await repo.run(["config", "--local", key, value], environmentOverrides: environment)
+        }
+        let config = try Data(contentsOf: root.appendingPathComponent(".git/config"))
+        var actual = try await repo.patchMailSender(environmentOverrides: environment)
+        XCTAssertEqual(actual, PatchMailSender(name: "Author 雪", email: "author@example.invalid"))
+        var overrides = environment
+        overrides["GIT_AUTHOR_NAME"] = "Environment 雪"
+        overrides["GIT_COMMITTER_EMAIL"] = "ignored@example.invalid"
+        overrides["EMAIL"] = "also-ignored@example.invalid"
+        actual = try await repo.patchMailSender(environmentOverrides: overrides)
+        XCTAssertEqual(actual, PatchMailSender(name: "Environment 雪", email: "author@example.invalid"))
+        overrides["GIT_AUTHOR_EMAIL"] = "environment@example.invalid"
+        actual = try await repo.patchMailSender(environmentOverrides: overrides)
+        XCTAssertEqual(actual, PatchMailSender(name: "Environment 雪", email: "environment@example.invalid"))
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/config")), config)
+        _ = try await repo.run(["config", "--local", "author.name", ""], environmentOverrides: environment)
+        _ = try await repo.run(["config", "--local", "--unset", "author.email"], environmentOverrides: environment)
+        actual = try await repo.patchMailSender(environmentOverrides: environment)
+        XCTAssertEqual(actual, PatchMailSender(name: "User 雪", email: "user@example.invalid"))
+    }
+    func testSenderIncludesMissingValuesAndConfigurationErrors() async throws {
+        let (root, repo, environment) = try fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        _ = try await repo.run(["init", "-b", "main"], environmentOverrides: environment)
+        var actual = try await repo.patchMailSender(environmentOverrides: environment)
+        XCTAssertEqual(actual, PatchMailSender(name: "", email: ""), "No host/login identity fallback")
+        let included = root.appendingPathComponent("included 雪.config")
+        try Data("[author]\nname = Included 雪\nemail = included@example.invalid\n".utf8).write(to: included)
+        _ = try await repo.run(["config", "--file", environment["GIT_CONFIG_GLOBAL"]!, "include.path", included.path], environmentOverrides: environment)
+        actual = try await repo.patchMailSender(environmentOverrides: environment)
+        XCTAssertEqual(actual, PatchMailSender(name: "Included 雪", email: "included@example.invalid"))
+        _ = try await repo.run(["config", "--local", "author.email", "local@example.invalid"], environmentOverrides: environment)
+        actual = try await repo.patchMailSender(environmentOverrides: environment)
+        XCTAssertEqual(actual, PatchMailSender(name: "Included 雪", email: "local@example.invalid"))
+        try Data("[malformed\n".utf8).write(to: included)
+        do { _ = try await repo.patchMailSender(environmentOverrides: environment); XCTFail("Malformed config must fail") }
+        catch is GitFailure { }
+        // With both environment fields supplied upstream does not read config.
+        var supplied = environment
+        supplied["GIT_AUTHOR_NAME"] = "Captured"; supplied["GIT_AUTHOR_EMAIL"] = "captured@example.invalid"
+        actual = try await repo.patchMailSender(environmentOverrides: supplied)
+        XCTAssertEqual(actual, PatchMailSender(name: "Captured", email: "captured@example.invalid"))
+    }
+    func testSenderCancellationAndMIMEValidationWithoutCoercingConfiguration() async throws {
+        let (root, repo, environment) = try fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        _ = try await repo.run(["init", "-b", "main"], environmentOverrides: environment)
+        let token = OperationCancellation(); token.cancel()
+        do { _ = try await repo.patchMailSender(environmentOverrides: environment, cancellation: token); XCTFail("Cancelled read must fail") }
+        catch is OperationCancellationFailure { }
+        _ = try await repo.run(["config", "--local", "user.name", "Name\nInjected"], environmentOverrides: environment)
+        _ = try await repo.run(["config", "--local", "user.email", "sender@example.invalid"], environmentOverrides: environment)
+        let sender = try await repo.patchMailSender(environmentOverrides: environment)
+        XCTAssertEqual(sender.name, "Name\nInjected", "NUL framing preserves config; MIME validates headers")
+        let patch = try SerialPatch(file: root.appendingPathComponent("patch"), bytes: Data("Subject: example\n\nbody".utf8))
+        let message = try XCTUnwrap(PatchMailPreparation.messages(patches: [patch], options: PatchMailOptions()).first)
+        XCTAssertThrowsError(try PatchMailMIME.data(message: message, sender: sender))
+    }
+}

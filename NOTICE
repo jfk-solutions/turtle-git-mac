@@ -1189,3 +1189,10 @@ PatchListCtrl.cpp Copyright (C) 2009-2013, 2015-2016, 2018-2019, 2021-2023, 2025
 PatchListCtrl.h Copyright (C) 2009-2011, 2015-2016, 2018, 2020, 2023 TortoiseGit.
 Original upstream context-menu icons are reused as requested; dispatch callbacks
 and production caller routing remain subject to the native acceptance gates.
+
+PatchMailMIME.swift's GitRepository.patchMailSender adapts CSendMail's sender
+capture and Git.cpp GetUserName/GetUserEmail precedence under GPL-2.0-or-later.
+Git.cpp Copyright (C) 2008-2026 TortoiseGit.
+SendMail.cpp Copyright (C) 2008-2016, 2018-2019, 2023, 2025-2026 TortoiseGit.
+NUL-framed UTF-8 configuration reads, explicit failure and cancellation are
+native adaptations; transport and production capture routing remain pending.

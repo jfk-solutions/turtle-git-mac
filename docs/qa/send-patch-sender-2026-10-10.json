@@ -1,0 +1,55 @@
+{
+  "checked_at": "2026-10-10T01:16:50.261239+00:00",
+  "parent_commit": "07ea2b30d55aa181edd2786d3eba3a27140bc86f",
+  "scope": "Source sender identity capture; production transport and native settings remain pending",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blob_sha256": {
+    "src/Git/Git.cpp": "4b0d0830cb066480d6ed76395654dd41ba4673e16124930c5efa342c2b0b7247",
+    "src/TortoiseProc/SendMail.cpp": "d8f6135a262c4f8b67f8d3bf93dcd482d180362e3c756018e97f3f737f090a25"
+  },
+  "checks": {
+    "system_git_core_exit": 0,
+    "packaged_git_core_exit": 0,
+    "core_tests_per_runtime": 15,
+    "new_sender_tests": 3,
+    "cases": [
+      "Independent nonempty environment, author config, then user config precedence; empty overrides fall through; committer and EMAIL ignored",
+      "Included private global config and local precedence; no host/login synthesis for missing values",
+      "Malformed consulted configuration fails; both supplied environment fields bypass config as upstream",
+      "Cancelled identity capture fails before read",
+      "NUL-framed newline identity retained and rejected by MIME header validation",
+      "Read-only capture leaves local config bytes unchanged"
+    ],
+    "debug_build_exit": 0,
+    "debug_bundle_audit_exit": 0,
+    "appstore_unsigned_build_exit": 0,
+    "appstore_bundle_audit_exit": 0,
+    "inventory_pin_exit": 0,
+    "bundled_icons": 100,
+    "side_effects": "No main app/window, preferences, Keychain, mail client, draft, network or delivery; private test configuration and disposable repositories only",
+    "final_audit": {
+      "matching_processes": [],
+      "current_fixtures": []
+    }
+  },
+  "source_sha256": {
+    "NOTICE": "3cdf4bd264af49bb56dfe8272290e87ea2c0dd70eaeab667525d41d702c8792e",
+    "Sources/TurtleGitCore/PatchMailMIME.swift": "04fd251779dca73cc7b4c1a71b4eebf76834518136f76cbe0f1342cf1356c20a",
+    "Tests/TurtleGitCoreTests/PatchMailMIMETests.swift": "201716b6e97e0cc2456670e4f5ea53a6f53836ea01ea7a68f02098077e1edb12",
+    "docs/SEND-PATCH-PARITY.md": "dcc6d636b4afbcad237a7db25476e04b89771f4df1799c2a21ba51ffdc07b81e",
+    "docs/upstream-files.csv": "62197f3a5b23a07f494ff0d937700b4f45cd7a886d5f13968922ecdafa918a2d"
+  },
+  "binary_sha256": {
+    "Debug_app": "ae0fc297ae892ad6d53e5bfb2e3aee3218b8dda08c01e7e3c33faa88de63b8d1",
+    "Debug_core": "3fe217a463f569a327f14da43ef211e6069d19e868414a09548873618388273d",
+    "AppStore_app": "b17d5f3a2069df702288e17e7c1cc833c08b939cb850434abed038e1d8331cb3",
+    "AppStore_core": "efb68365054441bf70e7f50d39e641854ff43f113e8bf18d8106c84d8609e7da"
+  },
+  "limitations": [
+    "API capture not wired to production Send Patch callers",
+    "Mail settings, client/SMTP transport, TLS/authentication/Keychain, progress/retry/cancellation remain pending",
+    "Pre-cancel and MIME rejection are tested; physical UI and actual signed sandbox/Finder/App Store/distribution acceptance remain unverified",
+    "Full TortoiseGit port and hosted GitHub CI acceptance remain incomplete"
+  ],
+  "logs": "build/qa/send-patch-sender-2026-10-10/ (ignored local logs)"
+}

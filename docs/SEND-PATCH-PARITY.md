@@ -62,8 +62,9 @@ all callers.
   snapshot alongside the original URL. Delivery must use that snapshot (or a
   private file made from it), not reread a changed or removed selected file.
 
-This foundation does not read Git sender identity, write mail drafts, invoke a
-mail client or send anything. The native window must
+The preparation foundation does not write mail drafts, invoke a mail client or
+send anything. Sender identity capture is now available separately as described
+below. The native window must
 retain repository/per-file scopes and capture the complete options and ordered
 checked list before dispatching a cancellable delivery. Credentials must stay in
 Keychain, not these options or preferences. Client/SMTP delivery and retries need
@@ -162,7 +163,7 @@ backend, and eMail settings without its settings callback. Existing callers are
 unchanged; this window is not yet exposed as a complete Send command.
 
 Remaining work includes native entry-point routing, patch viewer/settings
-callbacks, production CPatchListCtrl viewer/review/apply routing, sender identity,
+callbacks, production CPatchListCtrl viewer/review/apply routing, sender capture routing,
 transport progress/cancellation/retry, actual Mail/SMTP delivery and signed
 sandbox acceptance. Help currently links to upstream's patch documentation.
 
@@ -205,3 +206,23 @@ unchecked rows, alternate viewer intent, highlighted duplicate ordering for
 Apply, icon preference, disabled/closed guards, append/dedup/directory behavior,
 and native file-URL pasteboard decoding. It opens no viewer, applies no patch,
 and sends no mail. See [list QA](qa/send-patch-list-2026-10-10.json).
+
+## Sender identity capture
+
+`GitRepository.patchMailSender` captures the pinned CSendMail constructor's
+GetUserName/GetUserEmail behavior independently for name and address: nonempty
+GIT_AUTHOR_NAME/GIT_AUTHOR_EMAIL, then nonempty author.name/author.email, then
+user.name/user.email. Empty overrides fall through. Committer identity and EMAIL
+are not fallback inputs. The sender is independent of the patch file's author.
+Git reads effective configuration, including included files and local overrides;
+missing values remain empty rather than synthesizing a login identity. Malformed
+configuration and invalid UTF-8 output fail explicitly. NUL-framed values retain
+embedded newlines so MIME header validation rejects them instead of silently
+changing identity. A shared cancellation token fences reads and returned capture.
+
+The caller can inject environment overrides for private tests and must capture
+this identity before transport submission. This API does not set Git config,
+compose drafts or send mail. Production routing, settings and all delivery gates
+remain pending. Three real-Git sender tests exercise precedence, included config,
+missing values, malformed config, cancellation, unchanged config and MIME header
+rejection. See [sender QA](qa/send-patch-sender-2026-10-10.json).
