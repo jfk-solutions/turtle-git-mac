@@ -1445,3 +1445,7 @@ Find's tag/local/remote reference icons retain src/Resources/reftype.bmp
 unchanged. The native decoder uses CFindDlg's 16-pixel tiles and white RGB mask.
 Owned critical sheets adapt FindDlg and RevisionGraphDlg reference-read error
 message boxes to AppKit, retaining root/child modal ownership and OK semantics.
+
+Find reference initialization adapts synchronous CFindDlg::RefreshList to an
+owned cancellable native load; search is unavailable until the initial list
+read completes, preventing overlap with source-equivalent initialization errors.

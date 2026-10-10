@@ -530,3 +530,34 @@ build passed. Plain Return, physical input/accessibility, concurrent reference-
 load/search completion ordering, error-sheet appearance/key variants and signed
 acceptance remain pending. No owned app/test/compiler processes remained at
 checkpoint. Hosted CI and publication are not established by these local checks.
+
+## Find initialization ordering and Return
+
+The source completes `RefreshList()` inside `OnInitDialog` before the Find
+dialog can accept searches. The native asynchronous adaptation now tracks
+reference loading explicitly: query/options/list/filter controls are disabled
+and forced text/reference dispatch is rejected until the initial read ends.
+The waiting status explains the state; Cancel and parent close can still cancel
+the owned read. Reference-read failure transitions directly into its owned
+critical sheet, without enabling search between loading and acknowledgment.
+This excludes reference-load/search overlap at initialization.
+
+Native QA adds startup control locks and unchanged history/selection assertions,
+cancel-before-load completion, plain Return through the actual combo field
+editor, and Return through the critical sheet's default OK button. Results are
+scoped to native event injection; physical keyboard/focus and complete
+application/signed parity still require acceptance.
+
+The final receiver passed with system and bundled Git for these startup and
+Return paths, plus retained graph/Find/error/filter/export/reference/pointer
+checks. The first startup test caught a missing forced-dispatch guard despite
+disabled controls; the search entry point was repaired before the passing run.
+No Core matcher or artwork changes were required. See
+[startup/Return evidence](qa/revision-graph-find-startup-2026-10-10.json).
+
+Final unsigned Debug/App Store builds and both bundle audits passed (119
+upstream icon resources). Normal gallery captures from the prior checkpoint
+remain current; loading/error-sheet appearance is not newly certified. All
+owned receivers exited, with no remaining app/test/compiler instances.
+Physical input, shared Log Find, signed execution and full port parity remain
+open; local builds do not establish current hosted CI or publication.

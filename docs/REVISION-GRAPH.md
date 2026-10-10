@@ -50,10 +50,11 @@ visible area. Click or drag within it to navigate. The overview is suppressed ab
 nodes. **Refresh** or F5 reads the repository again.
 
 **Find** in the toolbar, **View → Find…** or Command-F opens a modeless Find
-window. Full text search offers a history box, **Match case** and
+window. Search controls remain disabled while its initial reference list loads;
+Cancel can close the window during this read. Full text search offers a history box, **Match case** and
 **Regular Expression**. It searches commit subjects/bodies, author and committer
 names/emails, full hashes and full reference names using the same query matcher
-as Log. Find advances after the previous result and wraps once; a status message
+as Log. Press Return in the search field or click Find. Find advances after the previous result and wraps once; a status message
 reports a wrap or no further match. Use Shift-Return, or hold Shift when finding, to navigate without
 replacing the graph selection.
 

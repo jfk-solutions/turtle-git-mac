@@ -772,6 +772,7 @@ final class RevisionGraphFindWindow: NSWindow {
     private(set) var references: [String] = []
     private(set) var visibleReferences: [String] = []
     private(set) var busy = false
+    private(set) var loadingReferences = false
     private(set) var closed = false
     private var cursor: String?
     private var request = UUID()
@@ -841,7 +842,8 @@ final class RevisionGraphFindWindow: NSWindow {
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     func loadReferences() {
-        guard !closed, refWorker == nil else { return }
+        guard !closed, !busy, !loadingReferences, !acknowledgingFailure, refWorker == nil else { return }
+        loadingReferences = true; status.stringValue = "Loading references…"; updateAvailability()
         let repo = repository, cancellation = refToken
         refWorker = Task { [weak self, access] in
             _ = access
@@ -849,16 +851,16 @@ final class RevisionGraphFindWindow: NSWindow {
                 do { return .success(String(decoding: try await repo.run(["for-each-ref", "--format=%(refname)"], environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation).stdout, as: UTF8.self).split(separator: "\n").map(String.init)) } catch { return .failure(error) }
             }.value
             guard let self, !self.closed, !cancellation.isCancelled else { return }
-            self.refWorker = nil
-            switch result { case .success(let refs): self.references = refs; self.applyReferenceFilter()
+            self.refWorker = nil; self.loadingReferences = false; self.status.stringValue = ""
+            switch result { case .success(let refs): self.references = refs; self.applyReferenceFilter(); self.updateAvailability()
             case .failure(let error): self.presentFailure("Could not get all refs.", detail: error.localizedDescription) }
         }
     }
     func updateAvailability() {
-        let enabled = !closed && !busy && !acknowledgingFailure && window?.attachedSheet == nil && canSearch()
+        let enabled = !closed && !busy && !loadingReferences && !acknowledgingFailure && window?.attachedSheet == nil && canSearch()
         findButton.isEnabled = enabled && !searchBox.stringValue.isEmpty
         searchBox.isEnabled = enabled; matchCase.isEnabled = enabled; regex.isEnabled = enabled
-        table.isEnabled = enabled; referenceFilter.isEnabled = !closed && !acknowledgingFailure
+        table.isEnabled = enabled; referenceFilter.isEnabled = !closed && !loadingReferences && !acknowledgingFailure
     }
     func controlTextDidChange(_ notification: Notification) {
         if notification.object as? NSTextField === referenceFilter {
@@ -891,7 +893,7 @@ final class RevisionGraphFindWindow: NSWindow {
     func searchReference(_ reference: String, select: Bool = true) { beginSearch(reference: reference, select: select) }
     @objc func findNext() { beginSearch(reference: nil, select: !(NSApp.currentEvent?.modifierFlags.contains(.shift) ?? false)) }
     private func beginSearch(reference: String?, select: Bool) {
-        guard !closed, !busy, !acknowledgingFailure, window?.attachedSheet == nil, canSearch(), reference != nil || !searchBox.stringValue.isEmpty else { return }
+        guard !closed, !busy, !loadingReferences, !acknowledgingFailure, window?.attachedSheet == nil, canSearch(), reference != nil || !searchBox.stringValue.isEmpty else { return }
         window?.makeFirstResponder(nil)
         let nodes = snapshot(), query = searchBox.stringValue, useRegex = regex.state == .on, sensitive = matchCase.state == .on
         if reference == nil {
@@ -949,7 +951,7 @@ final class RevisionGraphFindWindow: NSWindow {
     @objc private func cancelFind() { window?.performClose(nil) }
     func windowWillClose(_ notification: Notification) {
         guard !closed else { return }; closed = true; request = UUID()
-        NotificationCenter.default.removeObserver(self); failures.removeAll(); acknowledgingFailure = false
+        NotificationCenter.default.removeObserver(self); failures.removeAll(); acknowledgingFailure = false; loadingReferences = false
         if let sheet = window?.attachedSheet { window?.endSheet(sheet, returnCode: .abort); sheet.close() }
         errorAlert = nil; token?.cancel(); worker?.cancel(); refToken.cancel(); refWorker?.cancel(); filterWorker?.cancel(); updateAvailability(); onClosed()
     }

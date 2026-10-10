@@ -1,0 +1,45 @@
+{
+  "checked_at": "2026-10-10T16:49:45.567728+00:00",
+  "parent_commit": "163e8535e07474cc758e3404182e4b8a785d7d13",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Find initialization exclusion and native Return submission/critical-sheet acknowledgment. Full dialog/application/signed acceptance remains open.",
+  "source": [
+    "FindDlg.cpp OnInitDialog completes RefreshList before user search",
+    "FindDlg.cpp OnOK and IDD_FIND default Find button",
+    "RevisionGraphDlg.cpp reference-error MessageBox acknowledgment"
+  ],
+  "implementation": [
+    "explicit cancellable reference-loading state disables query/options/list/filter controls",
+    "forced text/reference search rejected during initialization before history or Git work",
+    "reference-load completion re-enables search or transitions to critical acknowledgment",
+    "close clears loading state and cancels owned initialization work"
+  ],
+  "verification": {
+    "native_system_git_exit": 0,
+    "native_bundled_git_exit": 0,
+    "native_cases": [
+      "startup control disablement and forced dispatch exclusion",
+      "unchanged selection/history and no error sheet on rejected startup searches",
+      "Cancel before reference load completion leaves closed controller with no stale refs",
+      "actual combo field-editor text entry and plain Return submits query/selects expected result",
+      "actual error-sheet Return chooses default OK and restores root/child controls",
+      "retained Shift-Return/reference icons/error locks/Find/modal/filter/export/graph/deletion/pointer/cancellation checks"
+    ],
+    "unsigned_debug_build_exit": 0,
+    "unsigned_appstore_build_exit": 0,
+    "debug_bundle_audit_exit": 0,
+    "appstore_bundle_audit_exit": 0,
+    "upstream_icon_resources": 119,
+    "static_controls_rows_valid": 1659
+  },
+  "repair_evidence": "Initial native startup assertion detected a missing loading guard at the search entry point despite disabled controls. Guard was repaired and both-engine acceptance rerun successfully.",
+  "captures": "Normal layout/artwork unchanged; inspected captures from the previous Find-details checkpoint remain current. No new appearance claim for transient startup/error sheets.",
+  "mutation_scope": "Disposable fixtures and private preferences; no visible activation or global geometry installation. All receivers exited and no app/test/compiler processes remained.",
+  "pending": [
+    "physical keyboard/focus/Shift-click and accessibility/localization",
+    "later explicit ref reload, large/missing-object and error-sheet appearance/Escape variants",
+    "shared Log Find consumer parity",
+    "signed App Store/sandbox/Finder integration",
+    "current hosted CI/publication and complete TortoiseGit port"
+  ]
+}

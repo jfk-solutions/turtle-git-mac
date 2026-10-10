@@ -299,10 +299,14 @@ import Darwin
         let regexHelper = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/IssueRegex/issue-regex")
         let commandF = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .command, timestamp: 0, windowNumber: window.windowNumber, context: nil, characters: "f", charactersIgnoringModifiers: "f", isARepeat: false, keyCode: 3)!
         try require(window.performKeyEquivalent(with: commandF) && controller.find != nil)
-        let keyboardFind = controller.find!; keyboardFind.cancelButton.performClick(nil)
-        try await wait { controller.find == nil }; try require(keyboardFind.closed)
+        let keyboardFind = controller.find!; try require(keyboardFind.loadingReferences); keyboardFind.cancelButton.performClick(nil)
+        try await wait { controller.find == nil }; try require(keyboardFind.closed && !keyboardFind.loadingReferences && keyboardFind.references.isEmpty)
         controller.showFind(regexExecutable: regexHelper)
         let find = controller.find!, findWindow = find.window!
+        let initialFindHistory = prefs.stringArray(forKey: "History.Find.Search"), initialFindSelection = model.selection
+        try require(find.loadingReferences && !find.findButton.isEnabled && !find.searchBox.isEnabled && !find.table.isEnabled && !find.referenceFilter.isEnabled)
+        find.searchBox.stringValue = "startup must wait"; find.findNext(); find.searchReference("refs/heads/no-such-reference")
+        try require(!find.busy && findWindow.attachedSheet == nil && model.selection == initialFindSelection && prefs.stringArray(forKey: "History.Find.Search") == initialFindHistory)
         try await wait { !find.references.isEmpty }
         try require(findWindow.alphaValue == 0 && window.childWindows?.contains(findWindow) == true && window.attachedSheet == nil)
         controller.showFind(); try require(controller.find === find)
@@ -347,10 +351,19 @@ import Darwin
         click(geometry.firstIndex { !beforeError.contains($0.hash) }!)
         try require(model.selection == beforeError && controller.nodeMenu().items.isEmpty)
         find.cancelButton.performClick(nil); try require(!find.closed)
-        let ok = views(errorSheet.contentView!).compactMap { $0 as? NSButton }.first { $0.title == "OK" }!
-        ok.performClick(nil)
+        let errorReturn = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: errorSheet.windowNumber, context: nil, characters: "\r", charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36)!
+        errorSheet.sendEvent(errorReturn)
         try await wait { findWindow.attachedSheet == nil && !find.acknowledgingFailure }
         try require(find.findButton.isEnabled && zoomBox.isEnabled && model.selection == beforeError)
+        // Plain Return through the native field editor submits the current query.
+        find.searchReference("refs/tags/release-v1"); try await wait { !find.busy }
+        findWindow.makeFirstResponder(find.searchBox)
+        let plainFindEditor = find.searchBox.currentEditor() as! NSTextView
+        plainFindEditor.selectAll(nil); plainFindEditor.insertText("Tooltip body", replacementRange: plainFindEditor.selectedRange())
+        find.regex.state = .off; find.matchCase.state = .off
+        let findReturn = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: findWindow.windowNumber, context: nil, characters: "\r", charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36)!
+        findWindow.sendEvent(findReturn)
+        try await wait { !find.busy && model.selection == [feature.hash] }
         // Shift-Return goes to a result while preserving the selected Base.
         find.searchReference("refs/tags/release-v1"); try await wait { !find.busy }
         findWindow.makeFirstResponder(find.searchBox)
@@ -391,6 +404,7 @@ import Darwin
         try require(views(missingSheet.contentView!).compactMap { $0 as? NSTextField }.contains { $0.stringValue == "Could not get all refs." })
         try require(!missingFind.windowShouldClose(missingFind.window!))
         missingFind.close(); try require(missingFind.closed && !missingSheet.isVisible)
+        print("PASS: Find startup load/search exclusion, plain Return and critical-sheet Return acknowledgment")
         print("PASS: Find original reference-type pixels, Command-F/Cancel and Shift-Return routes, error sheets, root/input locks and forced-owned cleanup")
         model.selection = selectedPair; controller.update()
         print("PASS: Revision Graph modeless Find ownership, text/case/ECMAScript/email/ref search, shift navigation, filter/history, busy locks and cancellation")
