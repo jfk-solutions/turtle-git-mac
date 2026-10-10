@@ -36,6 +36,21 @@ Keep these commands sequential. SwiftPM holds a lock on `.build` during tests;
 the provider script also builds in that directory. A lock-wait message means
 another build or test owns it, and is not evidence that the provider failed.
 
+Revision Graph's separate history query and ordered reduction have a focused
+repository suite. Run it with system and packaged Git sequentially:
+
+```sh
+swift test --filter 'RevisionGraphTests|HistoryRangeTests'
+TURTLEGIT_GROUP_TEST_GIT="$PWD/build/git-runtime/Git/bin/git" \
+  swift test --filter 'RevisionGraphTests|HistoryRangeTests'
+```
+
+These checks cover graph scopes, tag hiding, merge/branch structure, terminal
+excluded parents, unborn/detached/bare repositories and superproject index
+pointers, including conflicts. They check unchanged repository bytes and do not
+launch native windows. See [Revision Graph parity](REVISION-GRAPH-PARITY.md);
+the native graph window and its acceptance checks remain outstanding.
+
 Build Debug before running receivers that link its TurtleGitCore framework:
 
 ```sh

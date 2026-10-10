@@ -2509,7 +2509,7 @@ src/TortoiseProc/RevisionGraph/RevGraphFilterDlg.h,TortoiseProc,blob,cdbebbd115b
 src/TortoiseProc/RevisionGraph/RevisionGraphDlg.cpp,TortoiseProc,blob,15fd37ea3e16c1fdbd3391c7936d0344b47802b9,pending-review,,
 src/TortoiseProc/RevisionGraph/RevisionGraphDlg.h,TortoiseProc,blob,d108cd7b7de3c502eb6c49e13d9f348d19aef552,pending-review,,
 src/TortoiseProc/RevisionGraph/RevisionGraphDlgDraw.cpp,TortoiseProc,blob,05b360e560ae3b424b71606ccfe43be70c7c910a,pending-review,,
-src/TortoiseProc/RevisionGraph/RevisionGraphDlgFunc.cpp,TortoiseProc,blob,0ccab150cce28dbdb3dfdd1cde0e516182609401,pending-review,,
+src/TortoiseProc/RevisionGraph/RevisionGraphDlgFunc.cpp,TortoiseProc,blob,0ccab150cce28dbdb3dfdd1cde0e516182609401,partial,Sources/TurtleGitCore/RevisionGraph.swift,"FetchRevisionData repository scopes, ordered tag/branch/merge reduction, superproject index pointers and terminal missing-parent nodes ported. Native OGDF layout, window/filter/menu/export and remaining functions pending; docs/REVISION-GRAPH-PARITY.md."
 src/TortoiseProc/RevisionGraph/RevisionGraphWnd.cpp,TortoiseProc,blob,f96017678f09cf2942b87d5c98620b228fab34fc,pending-review,,
 src/TortoiseProc/RevisionGraph/RevisionGraphWnd.h,TortoiseProc,blob,85b9361ab85ebc8043f0bda23de06ce2994cfe38,pending-review,,
 src/TortoiseProc/SVNDCommitDlg.cpp,TortoiseProc,blob,0eb8e9f8706fab2fa5eed5ccc28a0ab2cc1ae6e7,pending-review,,

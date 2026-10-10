@@ -77,12 +77,13 @@ App Store readiness.
 | Upstream component | macOS replacement | Current state |
 | --- | --- | --- |
 | TortoiseProc / MFC | SwiftUI windows, AppKit text views and file dialogs | First status, commit, log and operation views |
+| Revision Graph | Separate decoration-simplified graph query; native OGDF canvas planned | Repository scopes, ordered reduction, boundary nodes and superproject pointers implemented; native window/filter/layout/menus/export pending. See REVISION-GRAPH-PARITY.md |
 | src/Git | TurtleGitCore repository actor and installed Git | Basic status, mutation and patch operations |
 | TortoiseShell / COM | Finder Sync extension and URL routing | Compiles; signed end-to-end behavior unverified |
 | TGitCache | App Group snapshot, directory badge aggregation | Active repository polling; independent daemon pending |
 | TortoiseMerge | Native three-pane UTF-8 conflict editor | Partial stage extraction, block choices and guarded saves; full view/menu parity pending. See TEXT-MERGE-PARITY.md |
 | TortoiseGitBlame | Historical annotation reader and native annotated source window | Partial columns, age colors, Find/Go To Line and origin-aware Log; full menus, syntax, encodings and signed acceptance pending. See BLAME-PARITY.md |
-| TortoiseIDiff | Native image comparison window | Pending |
+| TortoiseIDiff | Native image comparison and three-pane conflict selection windows | Partial Load Images, linked sizing, overlay/XOR, transparency colors and frame playback; full source parity and signed acceptance pending. See IMAGE-COMPARISON-PARITY.md |
 | TortoiseUDiff | Native patch window with highlighted text, find, appearance settings and printing | Partial File/View/menu behavior; full parity and signed acceptance pending |
 | SshAskPass / TortoisePlink | Git helpers, Keychain and OpenSSH | Private agent, encrypted response, key/file grants and Clone/Fetch/Pull/Push/browse auto-load; pinned universal OpenSSH embedding and packaged Git client selection; remaining consumers, real authentication and signed acceptance pending |
 | GitWCRev / COM | Portable revision/template CLI and macOS automation | Pending; COM must be replaced |

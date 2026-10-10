@@ -129,6 +129,7 @@
 		9016DF6825447C08B8190B7A /* Add.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04D3808CD4999B158EA66D0B /* Add.swift */; };
 		90A423E07A63281C4163EAD0 /* Merge.swift in Sources */ = {isa = PBXBuildFile; fileRef = D975B1620A435727724213D1 /* Merge.swift */; };
 		90C7E3E08BB57158CF31FB56 /* ImageConflictWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C12C65B53D4E28A9F6C52DF1 /* ImageConflictWindow.swift */; };
+		90DF2B6EC3FCEFBA1DAC56A0 /* RevisionGraph.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CC0645FE46863074D486187 /* RevisionGraph.swift */; };
 		91E94E7DF08198646C691752 /* MessageCompletion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3329485A1DA9D2066A853483 /* MessageCompletion.swift */; };
 		9244E6470414E23A05AC9C78 /* RebaseWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A99F5C3AA9C0220F58B2801A /* RebaseWindow.swift */; };
 		92F05B4D5521D2D60D90F9E9 /* StatusListGroups.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA1D2D9DD08218C53951382F /* StatusListGroups.swift */; };
@@ -364,6 +365,7 @@
 		28A4137E7CE7A36F8A8E6F58 /* MessageCodeScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageCodeScanner.swift; sourceTree = "<group>"; };
 		29605EFD52B28BA58CD44AA0 /* StatusListClipboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusListClipboard.swift; sourceTree = "<group>"; };
 		2C6981A4005FA865E41C8FBC /* libcurl.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libcurl.tbd; path = usr/lib/libcurl.tbd; sourceTree = SDKROOT; };
+		2CC0645FE46863074D486187 /* RevisionGraph.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevisionGraph.swift; sourceTree = "<group>"; };
 		2DE73255A1E5CE16B62BBCF7 /* ImportPatchWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportPatchWindow.swift; sourceTree = "<group>"; };
 		2ED7A4FB5DF119ED7F648EF4 /* ReferenceLogWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceLogWindow.swift; sourceTree = "<group>"; };
 		2F72591A0815973F2BD6B984 /* MergeLineEndings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeLineEndings.swift; sourceTree = "<group>"; };
@@ -840,6 +842,7 @@
 				4CFFC2A3D59FEB71D24D009E /* RevertDialogSelection.swift */,
 				366DB6C65F4EF18125B4B7D2 /* RevisionArchive.swift */,
 				870D95A7EC384863F1C04342 /* RevisionComparison.swift */,
+				2CC0645FE46863074D486187 /* RevisionGraph.swift */,
 				814E543BEB0736B84A50B21B /* SavedData.swift */,
 				B448BFA0806C28AEC8AE9126 /* SerialPatch.swift */,
 				1955B87A0E1325E2162C4C37 /* SSHAgentSession.swift */,
@@ -1280,6 +1283,7 @@
 				F366E7B68CC9CA2A7D7171DA /* RevertDialogSelection.swift in Sources */,
 				413428D2C4D300D242747556 /* RevisionArchive.swift in Sources */,
 				510A90BB7F5A0D39A72C1778 /* RevisionComparison.swift in Sources */,
+				90DF2B6EC3FCEFBA1DAC56A0 /* RevisionGraph.swift in Sources */,
 				FC70E4ECEA3F0C2EFA442E19 /* SSHAgentSession.swift in Sources */,
 				1D5A237BEB1F04360AA51C3B /* SSHIdentityAccess.swift in Sources */,
 				F4564607AA83749B93DC5894 /* SSHTransportPreparation.swift in Sources */,
