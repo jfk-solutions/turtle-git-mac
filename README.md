@@ -37,23 +37,24 @@ physical UI acceptance or passing hosted GitHub CI.
 
 ## Build and run
 
-Requires Xcode with its macOS SDK and command-line tools, Python 3 and Git.
+Requires Xcode with its macOS SDK and command-line tools, Python 3, CMake and Git.
 The generated Xcode project is checked in; XcodeGen is optional unless changing
 `project.yml`.
 
 ```sh
 python3 scripts/build-editorconfig-runtime.py
 python3 scripts/build-issue-regex-runtime.py
+python3 scripts/build-graph-layout-runtime.py
 python3 scripts/build-openssh-runtime.py
 swift test
 ./scripts/build.sh
 open build/Build/Products/Debug/TurtleGitMac.app
 ```
 
-The build script prepares the three helper runtimes before building the unsigned Debug app.
+The build script prepares the four helper runtimes before building the unsigned Debug app.
 The explicit helper commands above prepare them for the preceding tests.
 `swift run TurtleGitMac` is an alternative development launch; it does not embed
-the Finder extension or the EditorConfig, issue-matching and OpenSSH helpers.
+the Finder extension or the EditorConfig, issue-matching, graph-layout and OpenSSH helpers.
 
 See [testing](docs/TESTING.md) for scoped checks, native receivers, compatibility
 coverage and process cleanup. Close app instances after manual testing.
@@ -121,8 +122,8 @@ The static site source is `docs/site`; `python3 scripts/build-site.py` builds
 ## License
 
 GPL v2, matching upstream TortoiseGit; see [LICENSE](LICENSE) and [NOTICE](NOTICE).
-Native builds use Apple's frameworks and embed the pinned EditorConfig and
-issue-matching and OpenSSH helpers. Development builds can use installed Git; the Store
+Native builds use Apple's frameworks and embed the pinned EditorConfig,
+issue-matching, OGDF graph-layout and OpenSSH helpers. Development builds can use installed Git; the Store
 configuration embeds its pinned Git runtime. Bundled dependencies and original
 artwork are documented in NOTICE and the bundle's license resources.
 Distribution clearance remains incomplete; see [distribution requirements](docs/DISTRIBUTION.md).

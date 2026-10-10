@@ -101,6 +101,10 @@ targets:
         script: |
           /usr/bin/python3 "$SRCROOT/scripts/embed-issue-regex-runtime.py" "$SRCROOT/build/issue-regex-runtime/IssueRegex" "$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME"
         basedOnDependencyAnalysis: false
+      - name: Embed pinned Revision Graph layout runtime
+        script: |
+          /usr/bin/python3 "$SRCROOT/scripts/embed-graph-layout-runtime.py" "$SRCROOT/build/graph-layout-runtime/GraphLayout" "$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME"
+        basedOnDependencyAnalysis: false
       - name: Embed pinned EditorConfig runtime
         script: |
           /usr/bin/python3 "$SRCROOT/scripts/embed-editorconfig-runtime.py" "$SRCROOT/build/editorconfig-runtime/EditorConfig" "$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME"

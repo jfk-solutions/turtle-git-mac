@@ -1,0 +1,152 @@
+{
+  "checked_at": "2026-10-10T13:11:57.689376+00:00",
+  "parent_commit": "07f1ef3bba6b5b63f6647d0d81fa51427c35d1d9",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Pinned universal OGDF/COIN layout adapter, Swift decoding/clipping/cancellation bridge and app embedding. The native Revision Graph window and full port remain incomplete.",
+  "dependency": {
+    "pin": {
+      "ogdf": {
+        "commit": "17f045b131851f5d32af184d5a7a864cec2bfc27",
+        "url": "https://codeload.github.com/ogdf/ogdf/tar.gz/17f045b131851f5d32af184d5a7a864cec2bfc27",
+        "sha256": "b4630808808871d137fa172bcffeb4926bc98ad0360df668848132272ff1fdce"
+      },
+      "coin_license": {
+        "url": "https://www.eclipse.org/legal/epl-v10.html",
+        "sha256": "a40741b59364cc49449255e9b9bfe1fcfe6a2e7ab4d37ca89db3bacbfb14e9d2"
+      },
+      "architectures": [
+        "arm64",
+        "x86_64"
+      ],
+      "deployment_target": "13.0"
+    },
+    "source_inventory_entries": 1866,
+    "entire_archive_git_blob_equivalence_checked": true,
+    "individual_semantic_review_complete": false,
+    "reconstruction_material_packaged": true,
+    "independent_reconstruction_executed": false
+  },
+  "checks": {
+    "initial_universal_build": {
+      "session": 66993,
+      "exit_code": 0
+    },
+    "final_universal_build": {
+      "session": 74607,
+      "exit_code": 0
+    },
+    "system_core": {
+      "session": 5344,
+      "exit_code": 0,
+      "tests": 12,
+      "failures": 0
+    },
+    "bundled_core": {
+      "session": 4848,
+      "exit_code": 0,
+      "tests": 12,
+      "failures": 0
+    },
+    "actual_both_architecture_layouts": {
+      "session": 1907,
+      "exit_code": 0,
+      "architectures": [
+        "arm64",
+        "x86_64"
+      ]
+    },
+    "ad_hoc_signing_branches": {
+      "exit_code": 0,
+      "configurations": [
+        "Debug",
+        "AppStore"
+      ],
+      "signed_parent_invocation": false
+    },
+    "final_unsigned_builds_and_bundle_audits": {
+      "session": 64350,
+      "exit_code": 0,
+      "configurations": [
+        "Debug",
+        "AppStore"
+      ],
+      "icons": 116,
+      "appstore_requires_git": true,
+      "notice_matches_source": true,
+      "embedded_runtime_matches_source": true
+    },
+    "built_core_and_embedded_helper_receivers": {
+      "session": 96472,
+      "exit_code": 0,
+      "configurations": [
+        "Debug",
+        "AppStore"
+      ],
+      "pass_markers": 2,
+      "app_windows_launched": false,
+      "loaded_embedded_core_image_checked": true
+    },
+    "cleanup": {
+      "matching_processes": [],
+      "current_private_fixtures": []
+    }
+  },
+  "coverage": [
+    "Actual OGDF empty/single/diamond/long-edge/octopus/disconnected layouts; both architecture slices",
+    "Preserved node sizes and all graph edges; finite non-overlapping coordinates and directed ordering",
+    "Source border clipping with horizontal-first ordering and neighboring-point fallback",
+    "Malformed inputs, cycles, incomplete/non-finite output and missing runtime fail",
+    "Live cancellation reaps only owned worker; private input mode 0600/directory mode 0700 and files removed",
+    "Built Debug/AppStore Core binaries and actual app helper lookup decode/clip geometry",
+    "Ad-hoc signatures, Store inheritance entitlements, provenance updates and original-runtime preservation"
+  ],
+  "source_sha256": {
+    "Configuration/GraphLayoutRuntime.json": "d053eedcaec776be3570fac311b8b87d474cf6ba77fd8f06b63471c4e51e93bb",
+    "Sources/TurtleGitGraphLayout/main.cpp": "63c9e9935548426e8ddd846c28a6e10a4bbedf6639bf1fe78c4e6672ffe14bb3",
+    "Sources/TurtleGitCore/RevisionGraphLayout.swift": "b4b0e1c77a3e5973885074d59ae595c41fb49f15a14e8ced9d29d7934c91c3c8",
+    "Tests/TurtleGitCoreTests/RevisionGraphLayoutTests.swift": "10e9672253f7ec7d524cee00ab3236127d269941391b143dc1eb9034bd8f6f66",
+    "scripts/build-graph-layout-runtime.py": "422d7d76430120c629888e86993b4297035ce7bb5d9dc7cf03634010cd9ed133",
+    "scripts/validate-graph-layout-runtime.py": "9821ca7be196dc8ae1d3a877a39e90d233ef6ee61d781f5708c6988102768354",
+    "scripts/embed-graph-layout-runtime.py": "854441e22a2d9acaa734db81738da8c3ec751a05d6548806e064099c192e51b7",
+    "scripts/test-graph-layout-embedding.py": "a22270b28b173369250b8a641945b3306e3f6083c4962d96c7574c95be7dd57a",
+    "scripts/test-graph-layout-bundles.py": "7e04bc9a16d4160895e7988a081ccaf08e9bfe76b9bb0eac0d211df44f98bf74",
+    "scripts/build.sh": "a5981ce31a24f8faed7f372de3f7e5edbdae5316f12db3018224f7c8661b23c1",
+    "scripts/validate-app-bundle.py": "924ae6ab1f1ed321dfe618a70f44337b4800dbfbdb1c372213291b3ac302197b",
+    "project.yml": "56b05efeb7a0f46b5160b8f2c6e1eb4f53bd68c871270c7ed2d588a7dd95c1a7",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "3097b5b07d7ab8cd7258e67718bd5a78557914f86644e76e7b23649b21876d94",
+    ".github/workflows/macos.yml": "369179305c3a35a0ea8f4163e0c656ffb97a3b2ebd1ccb3d0a9e8d87c2b61e0b",
+    "NOTICE": "67bbd8252aedb3cbc3b0d2e36703c689705bfec27a5b1c480b24eb4dea1b60c7",
+    "README.md": "af5ed86039a75a146cbd6ae55049c8ac4b9a123428693cb75d9f9099c6b58516",
+    "docs/README.md": "102bea0cddbbb828bb6a03af82b0be31310c2a398601a6122bd96578a5929798",
+    "docs/TESTING.md": "f454195c454fb6e28b422fe76d88c5bc5e27c05930b0528e6208f313be77a503",
+    "docs/PORTING.md": "82a46b5449fb2d5591695c944be96840c12fa5a6fe923f628b5aaa9a8cbce1bf",
+    "docs/REVISION-GRAPH-PARITY.md": "4b34e7eb460dcb93c2722e02e511c675e6371d396628e26211afa6348bca706a",
+    "docs/GRAPH-LAYOUT-RUNTIME.md": "59058785c6a11a05eec46c27fb4b05ea8d01dc6977ddb1c6add92e0cb13af099",
+    "docs/ogdf-source-inventory.csv": "dbcb4355500e01789382b22751386107091205d48c4c300d13b91f5b12b44b45",
+    "docs/upstream-files.csv": "258d4e972a80cf793fcf4e9bc149ce3d9a3eda41b6b34082a4e4213d09a7f07f",
+    "docs/qa/graph-layout-built-2026-10-10.swift": "0e2e928aa9cd40d743d5cdacfae87d9cc8cc5f1f589e9c72e9f37b9927f90cbd"
+  },
+  "runtime_manifest_sha256": "c4c34074454f72a1222e3aacd43cb8760dec86d39b655a31668f40c0ede424d5",
+  "log_sha256": {
+    "graph-layout-appstore-2026-10-10.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "graph-layout-appstore-audit-2026-10-10.log": "cb85c83a2a0f8503384accd8425e27a3f8d4ac456ada104dd69a312327f5b601",
+    "graph-layout-build-2026-10-10.log": "d2332bdc7ed6602e23381cbd5c24fdb71d072fc9a71119207d8d570365a37fe9",
+    "graph-layout-bundled-core-2026-10-10.log": "d3bd1fca52d0481869783a1e189ec972b3103111f2d44854f88d3bd6cdff1f1b",
+    "graph-layout-bundles-2026-10-10.log": "71602b57b8dd6cc4482372a6e90e09a37bfe4af997ec9e39f53c5d30626f5972",
+    "graph-layout-core-2026-10-10.log": "8ff90201f2e32e4c2cfba917f938f1a0a93865b87fa818813082a4075936c785",
+    "graph-layout-debug-2026-10-10.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "graph-layout-debug-audit-2026-10-10.log": "c2657f60b81dfad9a65c020a671eae2efb7322e7c84572555851e17f10ef48b9",
+    "graph-layout-final-build-2026-10-10.log": "42ba8f3186433ae07a702861871fffcf5e4885994fe9b4a1880484b1ccd4ec68",
+    "graph-layout-signing-2026-10-10.log": "2261b55ca4a4541b35c510e16b48bc53da088334ef9a8d233f9c176225f5de90",
+    "graph-layout-slices-2026-10-10.log": "5fb3451772e49faa15489f1ff1d10aa8be3b018995522025a0185cd8102bea54"
+  },
+  "limitations": [
+    "No native graph canvas, filter, overview, tooltip, export, icons or app/Finder command routing yet",
+    "Both source dialog inventory entries remain pending",
+    "Inherited sandbox helper geometry executes before signing; metadata validation afterward is not signed native parent acceptance",
+    "Initial ad-hoc Store validation attempted an unsupported unsandboxed launch; corrected to explicit metadata-only signed inheritance verification",
+    "Initial cancellation fixture incorrectly escaped Python paths; corrected atomic marker and path encoding; final runs pass",
+    "Old macOS runtime, physical input, accessibility, large repositories and full distribution acceptance remain unverified",
+    "CI steps added locally; this checkpoint is not published or verified on hosted GitHub Actions"
+  ]
+}

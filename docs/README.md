@@ -48,6 +48,7 @@ for baseline and update rules.
 - [Working Tree dialog parity](STATUS-PARITY.md)
 - [Commit dialog parity](COMMIT-PARITY.md)
 - [Revision Graph data and remaining native window](REVISION-GRAPH-PARITY.md)
+- [Pinned OGDF layout runtime and reconstruction](GRAPH-LAYOUT-RUNTIME.md)
 - [Commit template decoding audit](COMMIT-TEMPLATE-DECODING-PARITY.md)
 - [Commit filename completion audit](COMMIT-COMPLETION-PARITY.md)
 - [Commit code-symbol completion audit](COMMIT-CODE-SYMBOL-PARITY.md)

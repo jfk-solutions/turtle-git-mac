@@ -77,7 +77,7 @@ App Store readiness.
 | Upstream component | macOS replacement | Current state |
 | --- | --- | --- |
 | TortoiseProc / MFC | SwiftUI windows, AppKit text views and file dialogs | First status, commit, log and operation views |
-| Revision Graph | Separate decoration-simplified graph query; native OGDF canvas planned | Repository scopes, ordered reduction, boundary nodes and superproject pointers implemented; native window/filter/layout/menus/export pending. See REVISION-GRAPH-PARITY.md |
+| Revision Graph | Separate decoration-simplified query and pinned universal OGDF layout adapter; native canvas planned | Repository scopes, ordered reduction, boundary nodes, superproject pointers and cancellation-owned layout bridge implemented; native window/filter/canvas/menus/export pending. See REVISION-GRAPH-PARITY.md and GRAPH-LAYOUT-RUNTIME.md |
 | src/Git | TurtleGitCore repository actor and installed Git | Basic status, mutation and patch operations |
 | TortoiseShell / COM | Finder Sync extension and URL routing | Compiles; signed end-to-end behavior unverified |
 | TGitCache | App Group snapshot, directory badge aggregation | Active repository polling; independent daemon pending |

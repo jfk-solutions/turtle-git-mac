@@ -1,7 +1,8 @@
 # Revision Graph port
 
-The native Revision Graph window is still missing. This checkpoint ports its
-repository data and graph reduction, not its rendering or user interaction.
+The native Revision Graph window is still missing. The repository data, graph
+reduction and pinned OGDF layout adapter are ported; native rendering and user
+interaction remain outstanding.
 Both `IDD_REVISIONGRAPH` and `IDD_REVGRAPHFILTER` remain pending in the dialog
 inventory. The complete TortoiseGit port and App Store acceptance remain open.
 
@@ -57,17 +58,21 @@ the ordered graph rewrite.
 The pinned TortoiseGit gitlink selects OGDF commit
 `17f045b131851f5d32af184d5a7a864cec2bfc27`. Its source was fetched and the exact
 pin and clean checkout verified. It offers GPL version 2 or 3 in `LICENSE.txt`.
-It has not yet been built or embedded in TurtleGit; no OGDF distribution claim
-is made at this checkpoint.
+The universal macOS 13 adapter and Swift geometry bridge now reuse this engine,
+including COIN, with corresponding source and license packaging. Build and
+embed verification is scoped separately in
+[the layout runtime record](GRAPH-LAYOUT-RUNTIME.md); signed distribution
+acceptance remains outstanding.
 
 Upstream uses SugiyamaLayout with OptimalRanking, MedianHeuristic and
 FastHierarchyLayout, with layer distance 30 and node distance 25. The native
-port should reuse these algorithms, with measured native label dimensions,
-rather than substitute Log's lanes for the standalone graph.
+adapter reuses these algorithms with caller-supplied dimensions. The native
+canvas must measure its reference labels and use the returned coordinates and
+clipped bend paths rather than substitute Log's lanes for this graph.
 
 Remaining requirements include:
 
-- Universal OGDF build, layout bridge, corresponding source and license packaging.
+- Native window integration of the universal OGDF build and cancellation-aware bridge.
 - Native canvas, colored reference boxes, arrows, hit testing, scrolling, zoom,
   overview dragging and hover author/date/message information.
 - Source-style Filter dialog and its reference-browser handoffs.

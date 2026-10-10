@@ -15,6 +15,17 @@ source: copyright (C) 2003-2011 TortoiseSVN; 2012-2023, 2025-2026 TortoiseGit,
 under GPL version 2 or later. See docs/REVISION-GRAPH-PARITY.md for the source
 pin and outstanding native layout, window, menu and export work.
 
+GraphLayout statically embeds the OGDF source selected by TortoiseGit's gitlink
+17f045b131851f5d32af184d5a7a864cec2bfc27, including its COIN solver sources.
+OGDF offers GPL version 2 or 3 with stated exceptions for COIN and its required
+libraries; this project uses GPL version 2. The original OGDF license/GPL texts,
+the EPL 1.0 text for COIN, exact corresponding source archive and reconstruction
+scripts are included under Contents/Helpers/GraphLayout. Original contributor
+copyright and third-party notices are retained in that archive. The adapter's
+Sugiyama configuration and Swift border clipping adapt CRevisionGraphWnd's
+layout constructor and cutPoint/DrawConnections (TortoiseSVN/TortoiseGit,
+GPL version 2 or later). See docs/GRAPH-LAYOUT-RUNTIME.md.
+
 Command and status icon artwork is copied unchanged from TortoiseGit resources.
 Those icons were derived from the TortoiseSVN project: https://tortoisesvn.net/
 The upstream notice also names https://tortoisesvn.tigris.org/ (historical site).

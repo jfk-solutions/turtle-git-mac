@@ -3,6 +3,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 python3 scripts/build-editorconfig-runtime.py
 python3 scripts/build-issue-regex-runtime.py
+python3 scripts/build-graph-layout-runtime.py
 python3 scripts/build-openssh-runtime.py
 if command -v xcodegen >/dev/null; then xcodegen generate; fi
 xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitMac \

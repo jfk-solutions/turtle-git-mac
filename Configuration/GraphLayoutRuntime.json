@@ -1,0 +1,13 @@
+{
+  "ogdf": {
+    "commit": "17f045b131851f5d32af184d5a7a864cec2bfc27",
+    "url": "https://codeload.github.com/ogdf/ogdf/tar.gz/17f045b131851f5d32af184d5a7a864cec2bfc27",
+    "sha256": "b4630808808871d137fa172bcffeb4926bc98ad0360df668848132272ff1fdce"
+  },
+  "coin_license": {
+    "url": "https://www.eclipse.org/legal/epl-v10.html",
+    "sha256": "a40741b59364cc49449255e9b9bfe1fcfe6a2e7ab4d37ca89db3bacbfb14e9d2"
+  },
+  "architectures": ["arm64", "x86_64"],
+  "deployment_target": "13.0"
+}

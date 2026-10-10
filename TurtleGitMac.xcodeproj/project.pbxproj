@@ -171,6 +171,7 @@
 		B49B1BCC7E2F02AEC5A83B12 /* DocumentationCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 798E539A3A1B52BFC50781D5 /* DocumentationCapture.swift */; };
 		B5EF4E8582D92A364C726BD5 /* Rename.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA121F2E317F86B146016B4E /* Rename.swift */; };
 		B63213996B268EE2EAC9B0A6 /* EmailSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 809D37BDD2634840B77F0A85 /* EmailSettings.swift */; };
+		B8A7AF9FEA0FB08862822AE4 /* RevisionGraphLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD369921B6275ED94AC162A8 /* RevisionGraphLayout.swift */; };
 		B94CDDFE0367B09E5E08A8C5 /* DialogGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61A970E8A247DF0EE306AB7F /* DialogGeometry.swift */; };
 		B96A74776BF83BB313347BBB /* MessageCodeSymbols.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22371C45A6813F87FD610EE6 /* MessageCodeSymbols.swift */; };
 		B9AFF3F19CAB2A9F7313754D /* TurtleGitCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1BCB9C51D9D69E943E22F2C8 /* TurtleGitCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -526,6 +527,7 @@
 		DAD242D45D90F689D7AA5D91 /* SelectionAllCheckbox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionAllCheckbox.swift; sourceTree = "<group>"; };
 		DB379792A0E22924F2C467DF /* PatchMenuCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchMenuCommands.swift; sourceTree = "<group>"; };
 		DCBF9D9C1C9D5D627003C7C5 /* SubmoduleUpdatePathList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleUpdatePathList.swift; sourceTree = "<group>"; };
+		DD369921B6275ED94AC162A8 /* RevisionGraphLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevisionGraphLayout.swift; sourceTree = "<group>"; };
 		DDA6BCF99B24BA72CE43F823 /* ImageConflict.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageConflict.swift; sourceTree = "<group>"; };
 		DE3C7BF5278D5807BDDF4B21 /* Reset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Reset.swift; sourceTree = "<group>"; };
 		DF6352B22FB03878FC59F470 /* CommitHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitHistory.swift; sourceTree = "<group>"; };
@@ -843,6 +845,7 @@
 				366DB6C65F4EF18125B4B7D2 /* RevisionArchive.swift */,
 				870D95A7EC384863F1C04342 /* RevisionComparison.swift */,
 				2CC0645FE46863074D486187 /* RevisionGraph.swift */,
+				DD369921B6275ED94AC162A8 /* RevisionGraphLayout.swift */,
 				814E543BEB0736B84A50B21B /* SavedData.swift */,
 				B448BFA0806C28AEC8AE9126 /* SerialPatch.swift */,
 				1955B87A0E1325E2162C4C37 /* SSHAgentSession.swift */,
@@ -982,6 +985,7 @@
 				C0FA93121C7653B8CED80394 /* Embed Frameworks */,
 				CEE1C93388E81BE0FC471865 /* Embed SSH passphrase helper */,
 				51D7E3DB4C35C2277F3C9C8D /* Embed C++ issue-matching runtime */,
+				0C37184FA8C6B918D948A94E /* Embed pinned Revision Graph layout runtime */,
 				05E9103FE147A460078548D0 /* Embed pinned EditorConfig runtime */,
 				E1188D36737E73638718384D /* Embed pinned OpenSSH runtime */,
 				C45E6CCF59E8F543668B15BE /* Embed pinned Git runtime for App Store */,
@@ -1109,6 +1113,25 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "/usr/bin/python3 \"$SRCROOT/scripts/embed-editorconfig-runtime.py\" \"$SRCROOT/build/editorconfig-runtime/EditorConfig\" \"$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME\"\n";
+		};
+		0C37184FA8C6B918D948A94E /* Embed pinned Revision Graph layout runtime */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Embed pinned Revision Graph layout runtime";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/usr/bin/python3 \"$SRCROOT/scripts/embed-graph-layout-runtime.py\" \"$SRCROOT/build/graph-layout-runtime/GraphLayout\" \"$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME\"\n";
 		};
 		51D7E3DB4C35C2277F3C9C8D /* Embed C++ issue-matching runtime */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -1284,6 +1307,7 @@
 				413428D2C4D300D242747556 /* RevisionArchive.swift in Sources */,
 				510A90BB7F5A0D39A72C1778 /* RevisionComparison.swift in Sources */,
 				90DF2B6EC3FCEFBA1DAC56A0 /* RevisionGraph.swift in Sources */,
+				B8A7AF9FEA0FB08862822AE4 /* RevisionGraphLayout.swift in Sources */,
 				FC70E4ECEA3F0C2EFA442E19 /* SSHAgentSession.swift in Sources */,
 				1D5A237BEB1F04360AA51C3B /* SSHIdentityAccess.swift in Sources */,
 				F4564607AA83749B93DC5894 /* SSHTransportPreparation.swift in Sources */,

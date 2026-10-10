@@ -28,6 +28,7 @@ historical item provider:
 ```sh
 python3 scripts/build-editorconfig-runtime.py
 python3 scripts/build-issue-regex-runtime.py
+python3 scripts/build-graph-layout-runtime.py
 swift test
 scripts/verify-browser-item-provider.sh
 ```
@@ -50,6 +51,28 @@ excluded parents, unborn/detached/bare repositories and superproject index
 pointers, including conflicts. They check unchanged repository bytes and do not
 launch native windows. See [Revision Graph parity](REVISION-GRAPH-PARITY.md);
 the native graph window and its acceptance checks remain outstanding.
+
+The layout bridge's focused suite uses the built OGDF runtime and a private
+cancelled worker:
+
+```sh
+swift test --filter 'RevisionGraphLayoutTests|RevisionGraphTests'
+python3 scripts/validate-graph-layout-runtime.py \
+  build/graph-layout-runtime/GraphLayout --all-architectures
+python3 scripts/test-graph-layout-embedding.py
+python3 scripts/test-graph-layout-bundles.py
+```
+
+The optional all-architectures command requires Rosetta on Apple Silicon. It
+checks actual layouts with both executable slices, not just Mach-O metadata.
+The Swift suite checks clipping, invalid geometry, ownership, cancellation,
+private file permissions and removal after the child is reaped. It launches no
+native app windows. See [layout runtime](GRAPH-LAYOUT-RUNTIME.md).
+The bundle receiver requires completed unsigned Debug and AppStore builds. It
+compiles against their product modules and loads the byte-identical embedded
+Core framework, then locates and executes each app's own layout helper. Ad-hoc
+embedding checks signature/entitlement branches; signed sandbox parent execution
+remains separate acceptance.
 
 Build Debug before running receivers that link its TurtleGitCore framework:
 
