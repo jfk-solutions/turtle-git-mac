@@ -502,6 +502,51 @@
       "asset": "menusync.ico",
       "source": "src/Resources/menusync.ico",
       "sha256": "9c8fedb32ae301f834b5169cca128c7843aaf41b7abb943768e5633752df128f"
+    },
+    {
+      "asset": "overlap.ico",
+      "source": "src/TortoiseIDiff/resources/overlap.ico",
+      "sha256": "891c5e0e4eecf303c3b011f56af648fb03a048b356c9783179c240bfc46fa2b3"
+    },
+    {
+      "asset": "link.ico",
+      "source": "src/TortoiseIDiff/resources/link.ico",
+      "sha256": "4ac4faa534bcf6be8d60ec3b478545052550444d309683c966d19220047689b3"
+    },
+    {
+      "asset": "fitinwindow.ico",
+      "source": "src/TortoiseIDiff/resources/fitinwindow.ico",
+      "sha256": "9f1f14a2758d00b233db166efde5422def9d7861bc3ad420f432278049171703"
+    },
+    {
+      "asset": "origsize.ico",
+      "source": "src/TortoiseIDiff/resources/origsize.ico",
+      "sha256": "1f52603e7e5ce265c7aa7e80a5b5a3b7ba48851663b89dbaaabf5f26af78c1bd"
+    },
+    {
+      "asset": "zoomin.ico",
+      "source": "src/TortoiseIDiff/resources/zoomin.ico",
+      "sha256": "0150c8bd92c62586a86d76337dd0ff79ce993afd50b51ac3811ccbdada7e03f3"
+    },
+    {
+      "asset": "zoomout.ico",
+      "source": "src/TortoiseIDiff/resources/zoomout.ico",
+      "sha256": "b10c3cb44f3bc1be7c52aed5cc55312494ec774da900f8505a6bc9c8878f348f"
+    },
+    {
+      "asset": "imginfo.ico",
+      "source": "src/TortoiseIDiff/resources/imginfo.ico",
+      "sha256": "049db02322b1b1f252fc53d34873aeefa7e2eaa55074ebc0ad232258477a275d"
+    },
+    {
+      "asset": "vertical.ico",
+      "source": "src/TortoiseIDiff/resources/vertical.ico",
+      "sha256": "49dfe6d9b76dbf5a3d668b6a37ea05bd6c39f3eaf9993049983413000258d737"
+    },
+    {
+      "asset": "alphatoggle.ico",
+      "source": "src/TortoiseIDiff/resources/alphatoggle.ico",
+      "sha256": "8c1e5acf60e04161c8b05d78ce66509ce1eebaef1a1e69f12227dcd139b0153e"
     }
   ]
 }

@@ -68,6 +68,7 @@ import TurtleGitCore
     private let access: RepositoryAccessLease?
     let snapshot: RevisionComparisonSnapshot
     let path: String
+    @Published var imageComparison: ImageComparisonDocument?
     @Published var document: FileComparisonDocument?
     @Published var alignment: FileComparisonAlignment?
     @Published var busy = false
@@ -354,12 +355,14 @@ import TurtleGitCore
                     value = try await repository.comparisonFile(snapshot, path: path)
                 } else { throw RevisionComparisonFailure.selection }
                 document = value
-                drafts = FileComparisonDrafts(value)
+                imageComparison = ImageComparisonDocument(value)
+                window?.title = "\(path) – " + (imageComparison == nil ? "TurtleGitMerge" : "TurtleGitIDiff")
+                drafts = imageComparison == nil ? FileComparisonDrafts(value) : nil
                 activeBase = drafts?.preferredBase ?? false
                 selectEditorActions()
                 rebuildAlignment(); resetHistory(); selectionRequest = nil
                 difference = -1
-                reloadEditorConfig()
+                if imageComparison == nil { reloadEditorConfig() }
             } catch { self.error = error.localizedDescription }
         }
     }
@@ -503,6 +506,15 @@ private struct FileComparisonDialog: View {
         }.padding(8).frame(minWidth: 300, maxWidth: .infinity, maxHeight: .infinity)
     }
     var body: some View {
+        Group {
+            if let images = model.imageComparison, let document = model.document {
+                ImageComparisonDialog(images: images, document: document).id(images.id)
+            } else { textBody }
+        }.onAppear { model.load() }
+        .onReceive(NotificationCenter.default.publisher(for: .mergeEditorPreferencesChanged)) { _ in model.refreshPreferences() }
+        .alert("Comparison failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
+    }
+    private var textBody: some View {
         VStack(spacing: 0) {
             HStack {
                 Button { model.save() } label: { CommandLabel(title: "Save", icon: .mergeSave) }.disabled(!model.activeDirty)
@@ -539,9 +551,7 @@ private struct FileComparisonDialog: View {
                 Text(model.alignment.map { "\($0.differences.count) difference(s)" } ?? "").font(.caption)
                 Spacer(); Text(model.dirty ? "Modified · working file not saved" : model.editingEnabled && model.editableBase != nil ? "Editing working file" : "Read-only comparison").font(.caption).foregroundStyle(.secondary)
             }.padding(8)
-        }.onAppear { model.load() }
-        .onReceive(NotificationCenter.default.publisher(for: .mergeEditorPreferencesChanged)) { _ in model.refreshPreferences() }
-        .alert("Comparison failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
+        }
     }
 }
 struct FileComparisonEditor: NSViewRepresentable {

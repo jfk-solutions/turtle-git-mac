@@ -28,6 +28,8 @@ for baseline and update rules.
 - [TurtleGit user manual plan](MANUAL-PLAN.md)
 - [TurtleGit for Mac — full port tracking](PORTING.md)
 - [UI comparison requirements](UI-PARITY.md)
+- [Comparing images](IMAGE-COMPARISON.md)
+- [Image comparison parity](IMAGE-COMPARISON-PARITY.md)
 - [Historical implementation notes](IMPLEMENTATION-NOTES.md)
 
 ## Build, distribution and verification

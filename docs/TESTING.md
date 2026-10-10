@@ -579,3 +579,20 @@ confirmation, reload after declining, and exact HEAD/index/working contents. Thi
 is separate from displayed Cancel/Escape acceptance and signed sandbox testing.
 `CommitReadCancellationTests` also checks that pre-cancelled Core read APIs throw
 cancellation instead of treating it as missing configuration or an unborn HEAD.
+
+### Native image comparison
+
+After a Debug build, run:
+
+```sh
+python3 scripts/test-image-comparison.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
+```
+
+The receiver compiles current application sources into a private headless
+executable, uses a disposable repository and hidden native hosting windows,
+and checks image routing without an image filename extension, actual pane
+raster colors, fit/manual zoom, linked/unlinked scrolling, vertical/overlay
+transitions and alpha endpoints/midpoint. It compares HEAD, raw index and file
+bytes before and after. Each engine runs serially; the runner removes its
+private executable and repository. This does not exercise physical mouse or
+keyboard gestures, signed Finder activation or App Store distribution.

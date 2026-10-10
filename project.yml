@@ -87,6 +87,7 @@ targets:
         CFBundleVersion: '1'
         LSMinimumSystemVersion: '13.0'
         NSHighResolutionCapable: true
+        NSAppleEventsUsageDescription: TurtleGit prepares drafts in Apple Mail with your selected recipients, message and attachments. You review and send them in Mail.
         LSApplicationCategoryType: public.app-category.developer-tools
         CFBundleURLTypes:
           - CFBundleURLName: org.turtlegit.macos.action

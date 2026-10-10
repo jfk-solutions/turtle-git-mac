@@ -20,7 +20,7 @@ macOS 13.
 | History | Log with revision graph before the list, revision/file menus, Blame, Reflog, Browse References, notes and statistics | Complete upstream views, menus and behavior; see individual parity documents |
 | Repository workflows | Clone/Create Repository, status, branch/tag, Switch, Fetch/Pull/Push, merge, Rebase, Stash, reset, patches, export, Submodule Add/Update/Sync and worktrees | Each workflow has remaining source/UI/sandbox checks; a working Git operation alone does not establish parity |
 | Remote settings | Native remote list, URL/Push URL, Rename/Add New-Save/Remove, tag policy, Push Default and three-state Prune; source prompts and Browse References entry | Native key selection and Clone/Fetch/Pull/Push auto-load exist; remaining SSH consumers, bundled OpenSSH, complete settings tree and physical/signed acceptance; legacy PuTTY keys are preserved for Windows interoperability |
-| Comparison | Colored unified diff, two-file comparison and three-pane text conflict editor | Full upstream formats, encodings, commands and layout parity |
+| Comparison | Colored unified diff, two-file text comparison, native image panes with zoom/linked pan/alpha overlay, and three-pane text conflict editor | Full upstream formats, image XOR/animation/three-way controls, encodings, commands and layout parity |
 | Appearance and icons | Light/dark palettes, original upstream artwork in native menus and status lists | All-dialog visual comparison and signed Finder rendering |
 | Finder | Embedded Finder Sync extension, status snapshot/badges and selection-based context-menu routing | Signed end-to-end activation, independent background cache and invalidation |
 
