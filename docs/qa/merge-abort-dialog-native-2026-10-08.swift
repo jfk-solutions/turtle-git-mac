@@ -2,10 +2,10 @@ import AppKit
 import TurtleGitCore
 
 @main struct MergeAbortVerification {
-    @MainActor static func waitUntil(_ predicate: @escaping () -> Bool) async throws {
+    @MainActor static func waitUntil(_ predicate: @escaping () -> Bool, line: UInt = #line) async throws {
         let deadline = Date().addingTimeInterval(30)
         while !predicate() && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
-        precondition(predicate(), "Native Abort timed out")
+        precondition(predicate(), "Native Abort timed out at receiver line \(line)")
     }
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
@@ -126,6 +126,69 @@ import TurtleGitCore
             precondition(controller.progress == nil && !optionsWindow.isVisible && !finalWindow.isVisible)
         }
         print("Abort native lifecycle: separate hidden options/reset-progress windows; Merge failure retry reopens options/new progress; Mixed/Hard retry keeps progress; final close retires owner.")
+        let streamHelper = root.appendingPathComponent("abort-stream-git")
+        let streamReady = root.appendingPathComponent("abort-stream-ready"), release = root.appendingPathComponent("abort-stream-release")
+        let behaviorFile = root.appendingPathComponent("abort-stream-behavior")
+        let streamScript = """
+        #!/bin/sh
+        for arg in "$@"; do
+          if [ "$arg" = reset ]; then
+            /usr/bin/printf 'Resetting α\\n'
+            /usr/bin/printf 'tracked paths\\n' >&2
+            /usr/bin/printf '%s\\n' "$$" > \(quote(streamReady.path))
+            behavior=$(/bin/cat \(quote(behaviorFile.path)))
+            if [ "$behavior" = limit ]; then
+              for batch in 1 2 3 4 5; do
+                /usr/bin/head -c 4000 /dev/zero | /usr/bin/tr '\\000' x
+                /usr/bin/printf '\\n'
+              done
+            fi
+            while [ ! -f \(quote(release.path)) ]; do /bin/sleep 0.05; done
+            if [ "$behavior" = failure ]; then /usr/bin/printf 'reset refused\\n' >&2; exit 7; fi
+          fi
+        done
+        exec \(quote(git.path)) "$@"
+        """
+        try Data(streamScript.utf8).write(to: streamHelper)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: streamHelper.path)
+        preferences.set(16, forKey: "GitOutputLimitinKiB")
+        for behavior in ["success", "failure", "cancel", "forced", "limit"] {
+            try? FileManager.default.removeItem(at: streamReady); try? FileManager.default.removeItem(at: release)
+            try Data(behavior.utf8).write(to: behaviorFile)
+            let streamRepo = GitRepository(root: root, executable: streamHelper)
+            let controller = MergeAbortWindowController(repository: streamRepo, access: nil, preferences: preferences)
+            controller.window!.alphaValue = 0; controller.window!.orderFront(nil)
+            var callbacks = 0; controller.model.onChanged = { _ in callbacks += 1 }
+            controller.model.abort()
+            try await waitUntil { controller.model.output.contains("Resetting α") && controller.model.output.contains("tracked paths") && FileManager.default.fileExists(atPath: streamReady.path) }
+            precondition(controller.model.busy && !controller.model.success && controller.model.postActions.isEmpty)
+            let pid = Int32(try String(contentsOf: streamReady).trimmingCharacters(in: .whitespacesAndNewlines))!
+            if behavior == "limit" {
+                try await waitUntil { controller.model.output.contains("Output truncated") }
+                precondition(controller.model.busy && controller.model.output.utf8.count < 17000)
+            }
+            let before = controller.model.output
+            if behavior == "forced" { controller.window!.close() }
+            else if behavior == "cancel" { controller.model.cancel() }
+            else { try Data().write(to: release) }
+            try await waitUntil { !controller.model.busy && kill(pid, 0) == -1 }
+            if behavior == "forced" {
+                precondition(callbacks == 0 && controller.model.output == before && controller.model.postActions.isEmpty)
+            } else {
+                precondition(callbacks == 1)
+                if behavior == "cancel" { precondition(controller.model.cancelled && !controller.model.success && controller.model.output.contains("tracked paths")) }
+                else if behavior == "failure" {
+                    precondition(!controller.model.success && !controller.model.cancelled && controller.model.output.contains("reset refused") && controller.model.output.contains("Git command failed (7)."))
+                } else {
+                    precondition(controller.model.success && !controller.model.cancelled)
+                    precondition(controller.model.output.components(separatedBy: "Resetting α").count == 2, "Streamed output must not be repeated at completion")
+                }
+                controller.model.close()
+            }
+            precondition(controller.progress == nil && !controller.window!.isVisible)
+        }
+        preferences.removeObject(forKey: "GitOutputLimitinKiB")
+        print("Abort live output: stdout/stderr before completion, UTF-8, failure status without duplicate output, ordinary cancel retention, forced-close late-output fencing, 16KiB display limit; all hidden windows closed.")
         var closes = 0, aborts = 0
         let progress = MergeProgressWindowModel(repository: repo, access: nil, options: options, target: .branch, showStashPop: false)
         progress.close = { closes += 1 }; progress.onAbortRequested = { aborts += 1 }

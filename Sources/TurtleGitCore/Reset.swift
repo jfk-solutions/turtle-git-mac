@@ -57,13 +57,13 @@ public enum MergeAbortFailure: LocalizedError {
     public var errorDescription: String? { "Abort Merge requires a working tree." }
 }
 extension GitRepository {
-    public func abortMerge(mode: MergeAbortMode = .merge, cancellation: OperationCancellation? = nil) throws -> String {
+    public func abortMerge(mode: MergeAbortMode = .merge, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
         try cancellation?.check()
         guard try !isBare(cancellation: cancellation) else { throw MergeAbortFailure.workingTreeRequired }
         _ = try run(["rev-parse", "--verify", "--end-of-options", "HEAD^{commit}"], cancellation: cancellation)
         // Match AppUtils::Reset effects. HEAD is a fixed target, so no option-like
         // revision is accepted. Omit --end-of-options for Git 2.37 compatibility.
         let args = mode == .merge ? ["reset", "--merge"] : ["reset", "--" + mode.rawValue, "HEAD", "--"]
-        return try run(args, cancellation: cancellation).text
+        return try run(args, cancellation: cancellation, onOutput: onOutput).text
     }
 }

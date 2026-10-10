@@ -572,6 +572,8 @@ enum MergeAbortPostAction: String, CaseIterable, Hashable {
     private var cancellation = OperationCancellation()
     private var operationMode = MergeAbortMode.merge
     private var worker: Task<Void, Never>?
+    private var outputState: GitProgressOutputState
+    private var rawOutput = ""
     @Published var hasChild = false
     @Published var mode = MergeAbortMode.merge
     @Published private(set) var busy = false
@@ -587,25 +589,42 @@ enum MergeAbortPostAction: String, CaseIterable, Hashable {
     private let preferences: UserDefaults
     private var autoClosePolicy = GitProgressAutoClose.manual
     var close: () -> Void = {}
-    init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.preferences = preferences }
+    init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.preferences = preferences; outputState = GitProgressOutputState(preferences: preferences) }
     func invalidate() { invalidated = true; cancellation.cancel(); worker?.cancel() }
     func showModified() { guard !invalidated, !busy, !hasChild, !showingProgress else { return }; onShowModified?() }
     func abort() {
         guard !invalidated, !busy, !hasChild, !showingProgress else { return }
         operationMode = mode; showingProgress = true; onResize(true); start()
     }
+    private func streamReset(mode: MergeAbortMode, token: OperationCancellation) async throws -> String {
+        let parser = GitCliOutputParser(limit: outputState.limit)
+        let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
+        let operation = Task {
+            defer { continuation.finish() }
+            return try await repository.abortMerge(mode: mode, cancellation: token, onOutput: { chunk in
+                parser.appendChunk(chunk.data); continuation.yield(())
+            })
+        }
+        func consume(_ emission: GitCliOutputParser.Emission) {
+            guard !invalidated, cancellation === token else { return }
+            outputState.consume(emission, parser: parser); output = outputState.output
+        }
+        for await _ in updates { consume(parser.processPending()) }
+        consume(parser.processPending()); consume(parser.finish())
+        return try await operation.value
+    }
     private func start() {
         ProgressActionLog.nextAttempt(self, savePrevious: !output.isEmpty)
         autoClosePolicy = GitProgressAutoClose(preferences: preferences)
-        busy = true; success = false; cancelled = false; output = ""; postActions = []; cancellation = OperationCancellation()
+        busy = true; success = false; cancelled = false; outputState.reset(); output = ""; rawOutput = ""; postActions = []; cancellation = OperationCancellation()
         let token = cancellation, selectedMode = operationMode
         worker = Task {
             // Keep the operation active until the owned process has actually unwound.
             var result = "", actions: [MergeAbortPostAction] = []
-            var succeeded = false
+            var succeeded = false, diagnostic = ""
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                result = try await repository.abortMerge(mode: selectedMode, cancellation: token)
+                result = try await streamReset(mode: selectedMode, token: token)
                 succeeded = true
                 if selectedMode != .merge {
                     if selectedMode == .hard, (try? await repository.submoduleUpdatePaths(cancellation: token).isEmpty) == false { actions.append(.submoduleUpdate) }
@@ -615,11 +634,20 @@ enum MergeAbortPostAction: String, CaseIterable, Hashable {
                     }
                     if selectedMode == .hard { actions.append(.clean) }
                 }
-            } catch { result = error.localizedDescription; actions = [.retry] }
+            } catch {
+                if let failure = error as? GitCommandCancellationFailure { result = failure.result.text + "\n" + failure.localizedDescription }
+                else { result = error.localizedDescription }
+                if let failure = error as? GitFailure, outputState.hasOutput { diagnostic = "Git command failed (\(failure.code))." }
+                else { diagnostic = error.localizedDescription }
+                actions = [.retry]
+            }
             busy = false; worker = nil
             guard !invalidated else { return }
-            output = result; success = succeeded; cancelled = token.isCancelled; postActions = actions
-            onChanged(output)
+            rawOutput = result
+            if !outputState.hasOutput { output = result }
+            else if !diagnostic.isEmpty { output += (output.hasSuffix("\n") ? "" : "\n") + diagnostic }
+            success = succeeded; cancelled = !succeeded && token.isCancelled; postActions = actions
+            onChanged(rawOutput)
             guard !invalidated else { return }
             if autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { close() }
         }
