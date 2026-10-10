@@ -180,7 +180,7 @@ extension GitRepository {
         }
         return saved
     }
-    private func conflictWorkingSnapshot(_ location: URL) throws -> (Data?, Int?) {
+    func conflictWorkingSnapshot(_ location: URL) throws -> (Data?, Int?) {
         let attributes: [FileAttributeKey: Any]
         do { attributes = try FileManager.default.attributesOfItem(atPath: location.path) }
         catch let error as CocoaError where error.code == .fileNoSuchFile || error.code == .fileReadNoSuchFile { return (nil, nil) }

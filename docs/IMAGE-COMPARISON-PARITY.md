@@ -26,7 +26,7 @@ Native colors follow the application appearance.
 
 This is a partial native replacement. Configurable transparent color, standalone-open/background/dark keyboard
 commands, timed animation and
-frame/page controls, three-way conflict selection, standalone Load Images,
+frame/page controls, broader conflict selection acceptance, standalone Load Images,
 image title tooltips, retained layout/preferences and full resizing/physical
 interaction/VoiceOver/signed sandbox acceptance remain incomplete. No complete
 TortoiseIDiff parity or App Store acceptance is claimed.
@@ -144,3 +144,9 @@ Native light/dark offscreen pane captures were visually inspected. Physical
 gestures, VoiceOver, full accelerator coverage and signed acceptance remain
 open. Unsigned Debug/App Store builds and bundle audits passed with all
 112 original icons. See the [input QA record](qa/image-input-2026-10-10.json).
+
+
+Three-pane regular image conflict selection is now implemented with a separate
+source selection-mode toolbar and copy-then-resolve confirmation. See
+[image conflict parity](IMAGE-CONFLICT-PARITY.md) for its distinct workflow and
+verification scope.

@@ -1339,3 +1339,12 @@ PicWindow.cpp/.h, NiceTrackbar.cpp/.h and TortoiseIDiff.rc at pinned commit
 endpoint toggle, Control-Shift wheel and image keyboard commands. Native
 AppKit controls and per-window event routing are new macOS implementations.
 The upstream source copyright and GPL terms described above apply.
+
+Three-pane native image conflict selection adapts TortoiseGitIDiff
+MainWindow.cpp selection mode and SELECTBUTTON_ID (copy selected bytes, then
+ask whether to mark resolved), PicWindow.cpp Select button and TortoiseIDiff.rc
+at pinned commit 7338078f8ddd924b8cddee35f512f2286072136d. Native ImageIO
+panes retain the original fit/original/zoom/info/vertical artwork, with new
+repository-stage and working-file validation and macOS-owned confirmation.
+Existing TortoiseGit/TortoiseSVN copyright and GPL version 2 or later terms
+above apply. Remaining image controls and signed acceptance are incomplete.

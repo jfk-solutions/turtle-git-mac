@@ -1,0 +1,129 @@
+{
+  "checked_at": "2026-10-10T09:01:11.945699+00:00",
+  "parent_commit": "197a8f3cbe7f9a30bfb5286acbde64fac0306037",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Partial native three-pane image conflict workflow within the continuing full TortoiseGit macOS port.",
+  "checks": {
+    "core": {
+      "session": 41232,
+      "exit_code": 0,
+      "tests": 39,
+      "failures": 0,
+      "scope": [
+        "Six real-Git image conflict tests",
+        "All three exact-byte selections before explicit resolution",
+        "HEAD and unrelated index/working contents preserved",
+        "Changed working bytes/permissions, stale stages and symlink refusal",
+        "Rebase stage inversion, absent Base and cancelled writes",
+        "Mixed image/non-image routing",
+        "Existing text conflict and image/XOR/blend/icon/file-comparison regression suites"
+      ],
+      "source": "Core unchanged afterward; final native refinements covered by native/build checks."
+    },
+    "native": {
+      "session": 71048,
+      "exit_code": 0,
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "scope": [
+        "Actual Mine/Base/Theirs raster colors and pane order",
+        "Independent fit/original/zoom and vertical arrangement",
+        "Actual AppKit Select buttons and production Yes/No sheets",
+        "No retains copied working bytes and unmerged index bytes",
+        "Yes rejects bytes edited during confirmation",
+        "Reload recovers and successful Yes stages/ closes",
+        "Close/Quit fencing and unchanged HEAD"
+      ],
+      "display": "Private prohibited-activation receiver; transparent/offscreen sheet parent, sheet/parent ordered out; no physical interaction acceptance."
+    },
+    "debug_build_and_audit": {
+      "session": 65356,
+      "exit_code": 0,
+      "unsigned": true,
+      "icons": 112
+    },
+    "store_build_and_audit": {
+      "session": 78230,
+      "exit_code": 0,
+      "unsigned": true,
+      "icons": 112,
+      "requires_bundled_git": true
+    },
+    "inventory_and_local_site": {
+      "exit_code": 0,
+      "scope": "Pinned inventory regression and local site generation; new gallery PNG paths, bytes and substituted tokens checked."
+    },
+    "cleanup": {
+      "matching_processes": [],
+      "current_fixtures": []
+    }
+  },
+  "source_sha256": {
+    "NOTICE": "26c6a0863fe08004f75d16498cfd9dca966e80458dbf969364e7986ff61f5729",
+    "README.md": "c9953e39a254a92f1ea9a86379c516c75078fea6ad3e8a100a66e7248107ce9a",
+    "Sources/TurtleGitCore/ImageConflict.swift": "a41f89af710c98889a6ecbb3c58ec5b03a207a4c4f31dd15cda28514f5a8db7b",
+    "Sources/TurtleGitCore/TextConflict.swift": "82c5cc54726d5d3275fe715d769a6bf843b1a9789bb73348b5ca31a9b1cd89bd",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "0702223eb89ef7593f4c7cae04192e55377fb866502cc0210f39641f2623af27",
+    "Sources/TurtleGitMac/ImageComparisonWindow.swift": "5ccca0425161dcac182677f0ad71c789b5a3490aea99b26f9fd9cf108e0dc289",
+    "Sources/TurtleGitMac/ImageConflictWindow.swift": "04a6e1bab5328378c55c141db68ae70e371f7fa53f1f820e1cb1a43474da8936",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "591e82dbbfc3027f251916cd6768166c7e7305235b517360c233d5bb4eca4996",
+    "Tests/TurtleGitCoreTests/ImageConflictTests.swift": "51eca12b797bc3a726ea5be42234c9e90432ecceaa8e060230a9cb61237c2e78",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "30f6f996f2d0b24353d869c2a1797fb43eb80602df6507e8a366154b73e816f8",
+    "docs/IMAGE-COMPARISON-PARITY.md": "e2d208ef4ec936fae986395b025ffd53162024866681e8c2df782ab747784480",
+    "docs/IMAGE-COMPARISON.md": "1d25bb24d4a5a552d7aba33ff67b24f3fd24f8a6545bd92dfc66322c0fbdfee2",
+    "docs/IMAGE-CONFLICT-PARITY.md": "e189e64b3b9ed189d75d636429609135edf564e669f19bf17137efea33416ead",
+    "docs/README.md": "79fbd37a9f63eb337d2d9136094534cd30813f8f2f1b2d7795ebd2ae302eb28d",
+    "docs/TESTING.md": "6975cacbc267998b65b80eda4159d3d793182607f3312d896d311f1adc5831dd",
+    "docs/UI-PARITY.md": "b7b825c1ae1dc95f1dd558e110a07e8f549422aee2b01c112779e24445170bf7",
+    "docs/qa/image-conflict-native-2026-10-10.swift": "a51c0968a0580e81bdf1d7875268eebffd1a7df104f82e47f6ce0b10ceb24f67",
+    "docs/site/assets/image-conflict-dark.png": "40515ee80bb1a09359722e15aac9b354206447e522eb56394e6e156ce3922390",
+    "docs/site/assets/image-conflict-light.png": "8af90f5bbddcc5b62c8c81ba0e3daa3ec3f563611c6bfb0908f0f730f84c07d4",
+    "docs/site/index.html": "8a5d679ea53a26915f7a0f6dcf8b3b1fed7f5e9f0e6e4f28d0001408f8979f88",
+    "docs/upstream-files.csv": "c4d1c5d56623a99f9b4be0aaa844b79179b2843039980f1f81b3ad7ae954ac52",
+    "project.yml": "b25e3803c63b0246bdff72d464d2fc8a2f76f85a91e56a3cef5a4d71c7ac21d6",
+    "scripts/build-site.py": "3b6df5f6455f40e532b8d21eacfb4d727ed26ae21a5116538632cae208094ba8",
+    "scripts/test-image-conflict.py": "d44d0f14ea6552e443aeb5017b3ffcbbb771a11eb6bf741949fbfc9d6cc29484"
+  },
+  "binary_sha256": {
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": "ba61ed280fa8a46dcda58a28a6ed0bc66088bcc9268df905893226f76ad6cb16",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": "dc44e47efa6b867ca364f3b9a0bb2f34586e324eb30730045ce6f909abf6318e",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/MacOS/TurtleGitMac": "3b337087a5c0dc9eec6a43d07a29530a68315478cd7191bdf4f01fe0c7ff0fa7",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": "f40d0dba374fa95b74e0771597790ae277b88b213781ed97a2af5ac1dc22e5c4",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": "4fe130d88732811cb2135fd976f7b9579c0ae3d38211d79ae7708e6973b5955c",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/MacOS/TurtleGitMac": "ae0fc297ae892ad6d53e5bfb2e3aee3218b8dda08c01e7e3c33faa88de63b8d1"
+  },
+  "resource_sha256": {
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Resources/NOTICE": "26c6a0863fe08004f75d16498cfd9dca966e80458dbf969364e7986ff61f5729",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/NOTICE": "26c6a0863fe08004f75d16498cfd9dca966e80458dbf969364e7986ff61f5729"
+  },
+  "git_engine_sha256": {
+    "/usr/bin/git": "179301dcb41ea78accc3fa0048a7e6f6710d891945a751a34addd622020c1818",
+    "build/git-runtime/Git/bin/git": "33a006b36637e018a94234c90cd25fe739c75a1644bdf6aeb73ddd31987b9a92"
+  },
+  "log_sha256": {
+    "build/qa/image-conflict-cleanup-2026-10-10.log": "693fa2bca24cbfc45a23756e4f0a95dc75a088dc5f75977d8a59a96ce2f23355",
+    "build/qa/image-conflict-core-2026-10-10.log": "58e274cef44425144c49a68a1ae7ad8297b52ebf3873358f438ed92b360537f7",
+    "build/qa/image-conflict-debug-2026-10-10.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/image-conflict-debug-audit-2026-10-10.log": "f73ce0d260d36f1aa2b10a881138e5a01f76cb629a1d7aca37eebe30a3c5fd79",
+    "build/qa/image-conflict-inventory-2026-10-10.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/image-conflict-native-2026-10-10.log": "4363345f950ed1d56f611e9c78f350b1dd8c4238b412ae24e147be6c992384c5",
+    "build/qa/image-conflict-project-2026-10-10.log": "747909a44a9dc6f2c4861b91f09bc1d70097cf9053754a85a84fa1f2b7e93566",
+    "build/qa/image-conflict-site-2026-10-10.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/image-conflict-store-2026-10-10.log": "79271c8af5787726621014767f4596eeb9d373dbf6178eeb9aead23ba1edd152",
+    "build/qa/image-conflict-store-audit-2026-10-10.log": "1c33c9f40b1b120466e204cdefffea30a08cbdee3fc290c7562122fcbc45d7ad"
+  },
+  "capture_sha256": {
+    "build/qa/image-conflict/image-conflict-native-dark-2026-10-10.png": "40515ee80bb1a09359722e15aac9b354206447e522eb56394e6e156ce3922390",
+    "build/qa/image-conflict/image-conflict-native-light-2026-10-10.png": "8af90f5bbddcc5b62c8c81ba0e3daa3ec3f563611c6bfb0908f0f730f84c07d4"
+  },
+  "limitations": [
+    "Full app port and all dialog/menu parity remain incomplete.",
+    "Multiframe controls, background color, retained splitters and broader image-format/keyboard behavior remain pending.",
+    "Native offscreen snapshots and programmatic button/sheet checks do not prove physical gestures or VoiceOver.",
+    "Direct production controller checks cover image workflow; broad Finder/main app handoff acceptance remains pending.",
+    "Unsigned build checks do not prove signed sandbox/Finder activation or App Store distribution.",
+    "Current local changes and gallery have not been published or tested by hosted CI."
+  ]
+}

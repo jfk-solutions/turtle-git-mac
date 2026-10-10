@@ -64,6 +64,7 @@ import TurtleGitCore
     private var cloneWindows: [UUID: CloneWindowController] = [:]
     private var createWindows: [String: CreateRepositoryWindowController] = [:]
     private var renameWindows: [String: RenameWindowController] = [:]
+    private var imageConflictWindows: [String: ImageConflictWindowController] = [:]
     private var textConflictWindows: [String: TextConflictWindowController] = [:]
     private var submoduleDiffWindows: [String: SubmoduleDiffWindowController] = [:]
     private var revisionComparisonWindows: [String: RevisionComparisonWindowController] = [:]
@@ -493,6 +494,16 @@ import TurtleGitCore
                 if entry.isDeleteModify { showDeleteConflict(repository: repository, access: access, path: path); return }
                 if !entry.isSubmodule {
                     let root = repository.root, key = root.path + "\0" + path
+                    if let document = try await repository.imageConflictDocument(path: path) {
+                        let controller = imageConflictWindows[key] ?? ImageConflictWindowController(repository: repository, access: access, document: document)
+                        controller.onClosed = { [weak self] in self?.imageConflictWindows.removeValue(forKey: key) }
+                        controller.model.onChanged = { [weak self] output in
+                            self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState(); self?.refreshRepositoryLogs(root)
+                            for resolve in self?.resolveWindows.values ?? Dictionary<String, ResolveWindowController>().values where resolve.model.repository.root == root { resolve.model.load() }
+                            if let self, self.root == root { self.output = output; Task { await self.refresh() } }
+                        }
+                        imageConflictWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); return
+                    }
                     let controller = textConflictWindows[key] ?? TextConflictWindowController(repository: repository, access: access, path: path)
                     controller.onClosed = { [weak self] in self?.textConflictWindows.removeValue(forKey: key) }
                     controller.model.onChanged = { [weak self] output in

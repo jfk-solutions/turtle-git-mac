@@ -40,5 +40,13 @@ The image comparison is read-only. It does not stage, save or resolve files.
 The viewer follows the app’s light/dark appearance.
 
 This portion of the port is still being completed. Animation currently displays
-its first frame, and three-way image-conflict selection is not yet available. See [image comparison parity](IMAGE-COMPARISON-PARITY.md) for
+its first frame, and broader image controls still need porting. See [image comparison parity](IMAGE-COMPARISON-PARITY.md) for
 the source comparison and verification scope.
+
+For an image conflict, **Edit conflicts** opens Mine, Base and Theirs. Each pane
+has **Select** at the bottom right. Select copies that image to the working file,
+then asks whether to mark it resolved. **No** keeps the chosen image and the
+unmerged stages, so you can inspect or select another side. **Yes** stages the
+chosen image and closes the viewer. It does not commit or continue a rebase.
+For add/add conflicts, Base is empty and cannot be selected. Rebase pane titles
+identify which branch each side represents. See [image conflict parity](IMAGE-CONFLICT-PARITY.md).

@@ -602,3 +602,22 @@ It compares HEAD, raw index and file
 bytes before and after. Each engine runs serially; the runner removes its
 private executable and repository. This does not exercise physical mouse or
 keyboard gestures, signed Finder activation or App Store distribution.
+
+### Native image conflict selection
+
+After a Debug build, run:
+
+```sh
+python3 scripts/test-image-conflict.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
+```
+
+The disposable real-Git fixture contains different Mine/Base/Theirs PNG bytes
+under a non-image extension. The private receiver checks actual native pane
+pixels/order, independent fit/zoom, vertical layout, AppKit Select buttons and
+production Yes/No confirmation sheets. No leaves selected working bytes and
+unmerged stages; Yes rejects changes made while confirmation is pending, then
+Reload permits a fresh selection and resolution. Close/Quit fencing and final
+HEAD/index contents are checked. AppKit can order a sheet parent, so the receiver
+keeps its window transparent and offscreen, then hides the sheet and parent.
+All owned windows, executable and fixtures are removed. This does not establish
+physical gestures, VoiceOver, signed sandbox or Finder activation acceptance.

@@ -189,7 +189,7 @@ private struct ImageAlphaSlider: NSViewRepresentable {
     }
 }
 
-private struct ImageComparisonScroll: NSViewRepresentable {
+struct ImageComparisonScroll: NSViewRepresentable {
     @ObservedObject var model: ImageComparisonViewModel
     let image: ComparisonImage?
     let second: ComparisonImage?
@@ -232,7 +232,7 @@ private struct ImageComparisonScroll: NSViewRepresentable {
     }
 }
 
-private final class ImageComparisonScrollView: NSScrollView {
+final class ImageComparisonScrollView: NSScrollView {
     var image: ComparisonImage?
     var second: ComparisonImage?
     var alpha: Double = 0.5
