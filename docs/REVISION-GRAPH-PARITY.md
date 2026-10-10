@@ -4,6 +4,12 @@ The repository data, graph reduction and pinned OGDF layout adapter are ported.
 A native AppKit Revision Graph window and Filter sheet are now implemented locally;
 focused native interaction checks passed with system and bundled Git. Neither dialog has complete upstream parity. The complete TortoiseGit port and App Store acceptance remain open.
 
+Nested annotated tags now use the shared `show-ref --dereference` snapshot,
+so older Git associates the outer tag label with the final commit while retaining
+the original tag object. The regression also checks `.annotatedTag` classification
+through the real Graph data reader. This fixes a metadata loss; it does not certify
+all Graph visuals or interactions. See [the compatibility record](qa/ci-compatibility-2026-10-10.json).
+
 ## Source baseline
 
 TortoiseGit commit `7338078f8ddd924b8cddee35f512f2286072136d`:

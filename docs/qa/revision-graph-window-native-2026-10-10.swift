@@ -525,7 +525,12 @@ import Darwin
             }
             throw Failure(line: #line)
         }
-        func invoke(_ item: NSMenuItem) throws { try require(controller.validateMenuItem(item) && NSApp.sendAction(item.action!, to: item.target, from: item)) }
+        func invoke(_ item: NSMenuItem) throws {
+            let valid = controller.validateMenuItem(item)
+            print("Invoking Graph menu: \(item.title); valid=\(valid); busy=\(model.busy); selection=\(model.selection); sheet=\(window.attachedSheet != nil)")
+            try require(valid)
+            try require(NSApp.sendAction(item.action!, to: item.target, from: item))
+        }
         func sheetButton(_ title: String) async throws {
             try await wait { window.attachedSheet != nil }
             let sheet = window.attachedSheet!; try require(sheet.alphaValue == 0 && !controller.windowShouldClose(window))

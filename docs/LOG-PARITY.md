@@ -158,6 +158,17 @@ provides annotation-text search. Reference mapping is captured once before filte
 and reused for row decorations. Filtering precedes the result limit, with existing
 path and pinned-revision scopes retained. See
 [the reference search record](qa/log-ref-search-2026-10-06.json).
+
+The reference snapshot now uses `show-ref --dereference`, matching the pinned
+`CGit::GetMapHashToFriendName` CLI route. Git 2.39.5 only peels one level through
+`for-each-ref`'s `*objectname`; using that field lost nested tag decorations and
+search results on the hosted runner. The replacement retains the original tag
+object for annotation reads and the fully peeled target for commit association.
+Log filtering, Revision Graph labels and copied commit details share this read.
+Reference keys preserve distinct composed/decomposed names. Existing nested-tag
+assertions are retained, with additional checks for Graph classification and
+copied outer-tag annotation. See [the compatibility record](qa/ci-compatibility-2026-10-10.json).
+
 Notes searches Git's displayed note text, including configured core.notesRef and
 notes.displayRef selections. Returned revisions retain those notes and the native
 message pane appends a Notes section. Message-only Git grep explicitly excludes

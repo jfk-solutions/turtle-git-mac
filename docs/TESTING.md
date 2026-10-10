@@ -5,7 +5,37 @@ Run commands from the repository root. The checked-in
 Local success does not establish that a hosted run passed, that dialogs match
 TortoiseGit visually, or that the app is ready for distribution.
 
-## Current full-suite checkpoint
+## Current compatibility checkpoint
+
+On October 10, 2026, the current compatibility changes passed a complete local
+`swift test`: **925 tests, zero failures**, with one optional system-DNS probe
+skipped. The Apple Git 2.50.1 / Swift 6.3.3 run finished normally in 535.358 seconds.
+The two nested-tag tests also check the real Revision Graph reader and copied
+outer-tag annotation. Eleven focused tests passed with isolated Git 2.39.5 and
+again with packaged Git 2.55.0; 68 broader tests passed with system Git.
+
+These changes repair nested-tag metadata using the pinned upstream
+`show-ref --dereference` CLI route, atomically publish private SMTP fixture JSON,
+and verify legacy rebase messages against exact raw Git state rather than a
+version-specific count of trailing blank lines. Production SMTP and Rebase
+message decoding are unchanged. See [the compatibility record](qa/ci-compatibility-2026-10-10.json)
+for source hashes, engine reproduction and remaining verification.
+
+At source checkpoint `c5dac22`, unsigned Debug/Store builds and both bundle audits
+passed, as did native Log Find with system and packaged Git. The first native
+Graph run passed system Git but failed a menu invocation assertion with packaged
+Git. A diagnostic rerun retained all assertions and passed both engines; the
+initial failure's root cause is unproven. Action diagnostics remain in the
+receiver. Existing SwiftUI cycle warnings during hidden Log reloads also remain.
+Neither receiver establishes physical-input, installed Finder or signed sandbox
+acceptance.
+
+The previous published [macOS run for `110c364`](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38077950409)
+completed its 925-test suite with five failures in the two nested-tag cases and
+the legacy rebase expectation. That run predates these fixes; passing local
+checks do not establish a passing hosted run.
+
+## Previous full-suite checkpoint
 
 At Core source checkpoint `c4bd370`, a fresh local `swift test` passed **921 tests,
 zero failures**, with one optional DNS probe skipped, on October 10, 2026. The run
