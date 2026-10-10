@@ -1,9 +1,10 @@
 # Send Patch parity
 
-The dialog and delivery remain unported. The Core foundation includes source-style
+Native options now have a dialog/model foundation; caller routing and delivery
+remain unported. The Core foundation includes source-style
 message preparation and MIME serialization in TurtleGitCore. Existing Format Patch and Import Patch
 consumers still invoke macOS composition directly; they do not yet expose these
-options. No native Send Patch or SMTP acceptance is claimed.
+options. No end-to-end Send Patch, physical UI or SMTP acceptance is claimed.
 
 Baseline: TortoiseGit `7338078f8ddd924b8cddee35f512f2286072136d`.
 
@@ -13,7 +14,7 @@ Baseline: TortoiseGit `7338078f8ddd924b8cddee35f512f2286072136d`.
 | SendMailPatch.cpp/.h | PatchMailPreparation.swift: separate/combined, inline/attachment messages |
 | SendMail.cpp/.h | Checked-list ordering only; delivery/retry/sender identity remain pending |
 | Utils/HwSMTP.cpp/.h | PatchMailMIME.swift: envelope, body and ordered attachments only; SMTP pending |
-| SendMailDlg.cpp/.h / IDD_SENDMAIL | Controls and defaults reviewed below; native dialog pending |
+| SendMailDlg.cpp/.h / IDD_SENDMAIL | SendPatchWindow.swift / SendPatchList.swift: native options, checked/highlighted state and captured preparation; complete routing/delivery/list menus pending |
 | AppUtils.cpp SendPatchMail / SendMailCommand.cpp | Entry points reviewed; native routing still pending |
 | Settings/SettingSMTP.cpp/.h | SMTP/mail-client settings, Keychain credentials, encryption and delivery remain pending |
 
@@ -61,7 +62,7 @@ settings link require their own native port, along with all callers.
   private file made from it), not reread a changed or removed selected file.
 
 This foundation does not read Git sender identity, write mail drafts, invoke a
-mail client or send anything. The future native window must
+mail client or send anything. The native window must
 retain repository/per-file scopes and capture the complete options and ordered
 checked list before dispatching a cancellable delivery. Credentials must stay in
 Keychain, not these options or preferences. Client/SMTP delivery and retries need
@@ -124,3 +125,50 @@ unique IDs, explicit charset choice and invalid-header/mailbox failures. The
 existing real binary-series test also applies serialized separate inline MIME
 messages with Git am and verifies the resulting tree and unchanged source index
 and HEAD. See [MIME QA](qa/send-patch-mime-2026-10-10.json).
+
+## Native options foundation
+
+`SendPatchWindowController` hosts native macOS fields and a resizable AppKit
+checked list in the source order: Mail To/CC/Subject group, Patch As Attachment,
+Combine One Mail and eMail settings, patch paths, then Send/Cancel/Help. The
+pinned `doc/images/en/SendPatch.png` was inspected alongside `IDD_SENDMAIL` and
+SendMailDlg. Source labels and layout grouping are retained with native macOS
+spacing, original colored patch icons and semantic light/dark colors. Physical
+visual acceptance remains pending; hidden host layout does not prove visual parity.
+
+Every supplied row starts checked; a single row also starts highlighted, while
+multiple rows have no initial highlight. Duplicate paths retain independent row
+IDs. Clicking a checkbox or pressing Space changes checks independently of the
+highlight. One highlight previews that patch's subject even if unchecked;
+multiple/no highlights clear it. Combine enables the separately retained custom
+subject. Preview reads are asynchronous, cached by row identity, and fenced after
+highlight/mode changes or owner invalidation. Submission captures checked paths
+in list order and all options before asynchronous immutable preparation; duplicate
+submission is blocked. Failure remains retryable; closing the owner cancels work
+and suppresses late preview, submission and close callbacks.
+
+To/CC share private-injectable address history and last-token semicolon
+completion. An accepted Send remembers source attachment/combine defaults
+and a deduplicated newest-first history capped at 65535 addresses. Mail-client
+preparation allows empty recipients; SMTP preparation requires at least one
+nonblank To/CC token. With all rows unchecked, Send saves those preferences and closes without
+preparation or backend invocation, matching upstream. Preparation failure or
+subsequent cancellation retains accepted options. Actual delivery validation
+still belongs to the backend.
+AppStore reads require retained security-scoped file/folder leases; signed
+scope acceptance is pending. Send stays disabled without an injected submission
+backend, and eMail settings without its settings callback. Existing callers are
+unchanged; this window is not yet exposed as a complete Send command.
+
+Remaining work includes native entry-point routing, patch viewer/settings
+callbacks, complete CPatchListCtrl add/drop/order/context menus, sender identity,
+transport progress/cancellation/retry, actual Mail/SMTP delivery and signed
+sandbox acceptance. Help currently links to upstream's patch documentation.
+
+The [native dialog QA record](qa/send-patch-dialog-2026-10-10.json) records actual
+model and AppKit control checks, private preference cleanup, Core regression
+results, and unsigned Debug/AppStore compilation/bundle audits. The receiver
+uses a prohibited activation policy and never orders the options window on
+screen. Its light/dark host layout check is distinct from physical visual or
+signed acceptance. Paths remain horizontally scrollable to the last native
+column as the viewport changes. No mail client or delivery is exercised.

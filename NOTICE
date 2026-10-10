@@ -1172,3 +1172,12 @@ reviewed against src/Utils/HwSMTP.cpp/.h in the pinned TortoiseGit source.
 The implementation uses RFC 2045 Base64, RFC 2047 header words and RFC 2231
 filename parameters, retains immutable payload snapshots, and keeps To/CC
 separate. It does not implement SMTP, Schannel/SSPI or mail-client delivery.
+
+SendPatchWindow.swift and SendPatchList.swift adapt SendMailDlg.cpp/.h and
+IDD_SENDMAIL options, subject preview, checked-list submission and address
+history to native AppKit/SwiftUI under GPL-2.0-or-later.
+SendMailDlg.cpp Copyright (C) 2008-2013, 2015-2017, 2022, 2024-2025 TortoiseGit.
+SendMailDlg.h Copyright (C) 2008-2013, 2015-2016, 2023 TortoiseGit.
+Asynchronous snapshot loading, owner cancellation/fencing and duplicate row
+identities are macOS adaptations. Caller routing, complete patch-list menus
+and mail delivery remain pending.

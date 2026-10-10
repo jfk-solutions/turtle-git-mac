@@ -221,4 +221,5 @@ app instance was launched.
 
 [Send Patch preparation](SEND-PATCH-PARITY.md) now provides the source four-mode
 message foundation. The Format Patch composition consumer is not yet routed
-through it; native Send Patch options and delivery remain pending.
+through it; a native Send Patch options foundation now exists, but caller
+routing and delivery remain pending.

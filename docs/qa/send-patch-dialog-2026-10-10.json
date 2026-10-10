@@ -1,0 +1,111 @@
+{
+  "checked_at": "2026-10-10T00:53:02.740773+00:00",
+  "parent_commit": "1636a790e01ea1171670b17d4a11a9bbaad208d1",
+  "scope": "Native Send Patch options/dialog and captured preparation foundation; caller routing and delivery remain pending",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blob_sha256": {
+    "src/TortoiseProc/SendMailDlg.cpp": "bdc85d9bbc50a21f326f383572ece6f840c729d69afbbe4d59bbefc31e289517",
+    "src/TortoiseProc/SendMailDlg.h": "00f3d6f59d81a9f447b50b9a026f8244483efc2736ffa7eb30020b98985fb265",
+    "src/Resources/TortoiseProcENG.rc": "148a0b3e3165254286c088296a8dc7c9d2df3bbca5546c259929506bfb81bed6",
+    "doc/images/en/SendPatch.png": "24352b55df46a868a8769e2386365de5234ef002f4f2016340fcd5b3c883ea1d"
+  },
+  "checks": {
+    "native_receiver_exit": 0,
+    "system_git_core_exit": 0,
+    "core_tests": 12,
+    "native_cases": [
+      "Source attachment/combine defaults; all checked and single-only initial highlight; independent duplicate IDs",
+      "Single highlighted subject even unchecked; multiple/no highlights clear preview; custom combined subject retained across toggles",
+      "All four captured source modes with duplicate checked path ordering, immutable options and separate To/CC",
+      "Exactly-once submission; retry after preparation failure; accepted options persist before file error",
+      "All unchecked saves options and closes without preparation/backend invocation",
+      "Shared private address history; real NSComboBoxDataSource count and last-token semicolon completion callback",
+      "Empty recipients allowed for mail-client preparation; blank SMTP rejected and CC-only accepted",
+      "Invalidation and repeat Cancel fence late preview/submission/close; actual native performClose during pending preparation suppresses backend",
+      "Native checkbox and keyboard Space preserve highlight independently; disabled action ignored",
+      "Hidden Aqua/DarkAqua host fitting; no list header; long paths and resized scroll document checked against actual last-column rect"
+    ],
+    "initial_issues_corrected": [
+      "Space reload cleared highlight; preserve selected rows across reload",
+      "Completion API belongs to NSComboBoxDataSource; wire data source and test protocol callback",
+      "Scroll width omitted native intercell spacing; derive document extent from actual AppKit column rect"
+    ],
+    "debug_build_exit": 0,
+    "debug_bundle_audit_exit": 0,
+    "appstore_unsigned_build_exit": 0,
+    "appstore_bundle_audit_exit": 0,
+    "inventory_pin_exit": 0,
+    "bundled_icons": 100,
+    "preferences": [
+      {
+        "suite": "TurtleGit.SendPatch.QA.215F2662-41D7-4E43-AD56-2DAA0FBF99E7",
+        "verified_empty": true,
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "suite": "TurtleGit.SendPatch.QA.984F27ED-A9C2-4656-A386-F492CBD41CCF",
+        "verified_empty": true,
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "suite": "TurtleGit.SendPatch.QA.7B80335D-D046-4632-9948-855A12AFEE95",
+        "verified_empty": true,
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "suite": "TurtleGit.SendPatch.QA.05AF621A-35EC-49B5-A3B0-B09CAEF5ECD2",
+        "verified_empty": true,
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "suite": "TurtleGit.SendPatch.QA.2B9766B7-BEF0-47C5-9F36-BF619E89E771",
+        "verified_empty": true,
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "suite": "TurtleGit.SendPatch.QA.9FCD6667-B61F-473C-BBDA-BC30F8BA7489",
+        "verified_empty": true,
+        "defaults_delete_exit": 1,
+        "removed": true
+      }
+    ],
+    "side_effects": "No main app, mail client, displayed window, mail draft or delivery; private receiver/fixtures only",
+    "final_audit": {
+      "matching_processes": [],
+      "current_fixtures": []
+    }
+  },
+  "source_sha256": {
+    ".github/workflows/macos.yml": "46da1d3de33d6ffbda82941d96ca0bc249197e0e0d57c4cde43b05cca950fdd6",
+    "NOTICE": "9e1cbefa0c350b3757703ae4384d7211ba827bc9890ea902c63bda8b33a81358",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "0e665010f6ce1a8203a11d46a030bcd3a0546980a1b4e53b963c2f2b8637a90b",
+    "Sources/TurtleGitMac/SendPatchWindow.swift": "d2157cbc77dc1f033c2bd4613df38601bf21ad094cf6b82a2b07eb77761f3204",
+    "Sources/TurtleGitMac/SendPatchList.swift": "405b526591180cec91ba11bbbf3751d526fb6a7ef2e4fad34eef5e2850982b75",
+    "docs/qa/send-patch-dialog-native-2026-10-10.swift": "f29f803b654f39e5503075c13c83ee25083611fc04a8c90bc71137bb2a277e04",
+    "scripts/test-send-patch-dialog.py": "bcef7cc6420976a3b5f1e6369f20c331fcd06521927e5cae5feea746b996e322",
+    "docs/PORTING.md": "926302a6345ca03f66bdaac1d38ec765cff7ac5d08b84504875eaed2a87ccee5",
+    "docs/SEND-PATCH-PARITY.md": "485fa9f1c4cc5d62113680fa22fa5ff42f4117be7113d81862a9b381a789ca6f",
+    "docs/FORMAT-PATCH-PARITY.md": "d42e4dbc124e4e0a68382972ef90c809223715934295565ca082576f3e1fdd69",
+    "docs/upstream-files.csv": "32c7eac626ad6c5d5438689ac120d419ac5a09af02f4f19293b9a1ffad025e46"
+  },
+  "binary_sha256": {
+    "Debug_app": "ae0fc297ae892ad6d53e5bfb2e3aee3218b8dda08c01e7e3c33faa88de63b8d1",
+    "Debug_core": "d96d2ea5d6e79308362d4869f9cee8e1772e90f879dc554f4760f0cc2aba3993",
+    "AppStore_app": "5dea5cd8517079ee8c5ff63cc5062e4e11f402dc6c468378f2d5b8b72108fd6c",
+    "AppStore_core": "00e90ab36c13b4e1aa239b9d90d6117a6838216fb97f3fe30dc2e3b23a2eaed7"
+  },
+  "limitations": [
+    "New controller remains unwired to production callers; Send gated without submission backend and settings link without settings callback",
+    "Patch viewer/settings callbacks and complete CPatchListCtrl add/drop/order/context menus pending",
+    "Git sender identity, Mail/SMTP transport, TLS/auth/Keychain, retries and delivery progress/cancellation pending",
+    "Hidden layout/controls are not physical visual parity or actual signed sandbox/file-grant/Finder/distribution acceptance",
+    "Large-file/encoding/address acceptance and localization pending; hosted GitHub CI unverified",
+    "Whole TortoiseGit port remains incomplete"
+  ],
+  "logs": "build/qa/send-patch-dialog-2026-10-10/ (ignored local logs)"
+}

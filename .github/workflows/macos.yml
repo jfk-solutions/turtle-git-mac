@@ -34,6 +34,8 @@ jobs:
           -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
       - name: Verify app, extension and original icon resources
         run: python3 scripts/validate-app-bundle.py build/Build/Products/Debug/TurtleGitMac.app
+      - name: Native Send Patch options and immutable preparation
+        run: python3 scripts/test-send-patch-dialog.py
       - name: Native bundled SSH encrypted-key loading and process cleanup
         run: python3 scripts/test-bundled-ssh-agent.py --app build/Build/Products/Debug/TurtleGitMac.app
       - name: Native Submodule Update selection gestures without visible windows
