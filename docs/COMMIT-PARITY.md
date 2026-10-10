@@ -1841,3 +1841,53 @@ and index bytes were unchanged during these UI captures. Earlier screenshots
 remain historical checkpoints. See [capture QA](qa/dialog-captures-2026-10-10.json);
 these inspected states do not prove all option combinations, mutation behavior,
 other macOS/locales, accessibility or signed/App Store/full-application parity.
+
+## Owned initial refresh and cancellation
+
+Commit's initial and F5 refresh now own a task and a cancellation token. The token
+reaches status, HEAD/parent/config, comparison/statistics, branch/submodule,
+changelist, operation, LFS and message-seed Git reads. Every asynchronous read
+checks ownership before and after suspension, so a late value or error cannot
+publish after the controller closes. Filesystem-only metadata and snippet loading
+are fenced at their asynchronous boundaries; they are not forcibly interrupted.
+Closing also cancels the current LFS lock read and retires the refresh state.
+
+The Cancel button remains enabled during refresh while other controls stay
+disabled. Cancel uses the existing draft confirmation before stopping the owned refresh,
+then awaits its completion before the history/restore/close flow. Duplicate
+cancellation is refused. Declining confirmation retains the draft and lets the
+current refresh continue; a later refresh remains available. Late confirmation
+responses after closure cannot save history or invoke the close callback. The
+confirmation suppression preference uses the dialog's supplied defaults store.
+
+This adapts `CCommitDlg::OnCancel` and `StopStatusThread`, preserving confirmation
+before worker cancellation. Physical Cancel/Escape/close/quit gestures, all
+refresh phases, active filesystem interruption and signed
+sandbox acceptance remain open. Other Commit asynchronous operations retain their
+separate guards and are not claimed covered by this refresh change.
+
+The hidden [refresh receiver](qa/commit-refresh-native-2026-10-10.swift) passed
+with system and packaged Git. It exercises actual controller-close invalidation
+and the production status query against a live sleeping child, not a stubbed
+process. No leaves the child running; Yes reaps it before close. Successful/throwing late
+status replies, duplicate Cancel, declined confirmation/reload and late approval
+after close are checked. Exact HEAD/index/working contents are preserved. The
+55 selected Core regression tests passed, including pre-cancelled read APIs.
+See [refresh QA](qa/commit-refresh-2026-10-10.json) for the final build records.
+
+Cancellation-pending state is published immediately. The parent controls and
+Commit/Cancel/Refresh gates remain blocked even if loading finishes before the
+confirmation is answered. No restores the controls and leaves the completed or
+running refresh intact. Each response callback accepts one answer, so a stale No
+callback cannot approve a later confirmation. The final receiver checks this
+completed-worker timing case, duplicate responses, and default controller close.
+The suppression checkbox now saves into the same supplied defaults domain read
+by the model; its physical activation and relaunch acceptance remain pending.
+
+Once cancellation is approved, Commit also retires its author/date/amend reads
+before awaiting the refresh. This prevents its own blocked metadata child from
+keeping a refresh queued on the repository actor. A real default author query
+blocked in a child, with refresh queued behind it, was cancelled and reaped in
+both Git versions before the controller closed. Other windows' read owners,
+attached patch-view lifetimes and full multi-window liveness remain separate
+acceptance work. No cancels no metadata reads.

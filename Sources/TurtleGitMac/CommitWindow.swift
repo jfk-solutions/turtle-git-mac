@@ -107,7 +107,7 @@ import UniformTypeIdentifiers
             alert.addButton(withTitle: "No"); alert.addButton(withTitle: "Yes")
             alert.showsSuppressionButton = true
             alert.beginSheetModal(for: window) { response in
-                if alert.suppressionButton?.state == .on { UserDefaults.standard.set(true, forKey: "Commit.SkipCancelConfirmation") }
+                if alert.suppressionButton?.state == .on { defaults.set(true, forKey: "Commit.SkipCancelConfirmation") }
                 choose(response == .alertSecondButtonReturn)
             }
         }
@@ -259,6 +259,10 @@ import UniformTypeIdentifiers
     @Published var partialMode: Bool?
     @Published var stagedDiff = true
     private var hasLoaded = false
+    private var reloadTask: Task<Void, Never>?
+    private var reloadCancellation: OperationCancellation?
+    @Published private var pendingReloadCancel = false
+    var queryCommitStatus: (Bool, OperationCancellation) async throws -> [StatusEntry]
     @Published var statistics: [String: CommitFile] = [:]
     @Published var checked = Set<String>()
     @Published var selection = Set<String>()
@@ -299,7 +303,7 @@ import UniformTypeIdentifiers
     private var completionSources: [MessageCodeScanner.Source] = []
     private var completionOptions: MessageCodeScanner.Options?
     private var completionEnabled: Bool?
-    deinit { completionTask?.cancel(); issueStyleTask?.cancel(); authorCancellation?.cancel(); dateCancellation?.cancel(); amendCancellation?.cancel() }
+    deinit { reloadCancellation?.cancel(); reloadTask?.cancel(); completionTask?.cancel(); issueStyleTask?.cancel(); authorCancellation?.cancel(); dateCancellation?.cancel(); amendCancellation?.cancel() }
     func prepareMessageCompletions(force: Bool = false) {
         var options = MessageCodeScanner.Options()
         let defaults = UserDefaults.standard
@@ -454,6 +458,7 @@ import UniformTypeIdentifiers
         self.repository = repository; self.access = access; self.unversionedDefaults = unversionedDefaults
         self.dialogDefaults = dialogDefaults
         queryLFSOwners = { try await repository.lfsLocks(cancellation: $0) }
+        queryCommitStatus = { try await repository.commitDialogStatus(amendToParent: $0, cancellation: $1) }
         queryCommitAuthor = { amend, cancellation in
             if amend {
                 var options = HistoryOptions(); options.limit = 1
@@ -739,7 +744,7 @@ import UniformTypeIdentifiers
         return changelists.assignments[entry.path].map { origin + "\nChangelist: " + $0 } ?? origin
     }
     var checkedPathsForCommit: Set<String> { Set(visibleEntries.filter { checked.contains($0.id) }.map(\.path)) }
-    var canCommit: Bool { messageFocusAvailable && !busy && !confirmingQuit && !loadingAuthorIdentity && !loadingAuthorDate && !loadingAmendMessage && loadedMessage && changelistsLoaded && (messageOnly || (stagingEnabled ? entries.contains(where: \.staged) || operation == .merge || amend : !checkedPathsForCommit.isEmpty || operation == .merge || (amend && amendDiffToLastCommit))) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (!createBranch || !newBranch.isEmpty) && (!setAuthor || !author.isEmpty) }
+    var canCommit: Bool { messageFocusAvailable && !pendingReloadCancel && !busy && !confirmingQuit && !loadingAuthorIdentity && !loadingAuthorDate && !loadingAmendMessage && loadedMessage && changelistsLoaded && (messageOnly || (stagingEnabled ? entries.contains(where: \.staged) || operation == .merge || amend : !checkedPathsForCommit.isEmpty || operation == .merge || (amend && amendDiffToLastCommit))) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (!createBranch || !newBranch.isEmpty) && (!setAuthor || !author.isEmpty) }
     func didRename(_ source: String, to destination: String) {
         func moved(_ path: String) -> String { path == source ? destination : path.hasPrefix(source + "/") ? destination + path.dropFirst(source.count) : path }
         checked = Set(checked.map(moved)); selection = Set(selection.map(moved)); scopePaths = scopePaths.map(moved); reload()
@@ -761,37 +766,40 @@ import UniformTypeIdentifiers
         reload(paths: ["."])
     }
     func reload(paths: [String]? = nil) {
-        guard !busy else { return }; busy = true
+        guard messageFocusAvailable, !busy, !pendingReloadCancel else { return }; busy = true
+        let token = OperationCancellation(); reloadCancellation = token
         lfsOwners = [:]; lfsLockedPaths = []; lfsOwnershipKnown = false
         let resetChecks = paths != nil && (!hasLoaded || (paths!.contains(".") ? [] : paths!) != scopePaths)
         if let paths { scopePaths = paths.contains(".") ? [] : paths; showWholeProject = scopePaths.isEmpty }
-        Task {
-            defer { busy = false }
+        reloadTask = Task {
+            defer {
+                if reloadCancellation === token { reloadCancellation = nil; reloadTask = nil; busy = false }
+            }
             do {
                 var restorePatch = false
                 if !loadedPreferences {
-                    let preferences = try await repository.commitPreferences()
+                    let preferences = try await readReload(token) { try await repository.commitPreferences(cancellation: token) }
                     persistedStaging = preferences.staging; stagingEnabled = preferences.staging; restorePatch = preferences.showPatch; loadedPreferences = true
                 }
-                operation = try await repository.commitOperation()
+                operation = try await readReload(token) { try await repository.commitOperation(cancellation: token) }
                 if operation != nil { createBranch = false; amend = false }
-                hasHead = (try? await repository.run(["rev-parse", "--verify", "HEAD"])) != nil
-                hasParent = (try? await repository.run(["rev-parse", "--verify", "HEAD^1"])) != nil
+                hasHead = try await readReload(token) { (try? await repository.run(["rev-parse", "--verify", "HEAD"], cancellation: token)) != nil }
+                hasParent = try await readReload(token) { (try? await repository.run(["rev-parse", "--verify", "HEAD^1"], cancellation: token)) != nil }
                 if amend && !hasParent { amendDiffToLastCommit = true }
-                comparisonBase = amendToParent ? try await repository.commitComparisonBase(amendToParent: true) : nil
-                entries = try await repository.commitDialogStatus(amendToParent: amendToParent); submodules = try await repository.submodulePaths(); branch = try await repository.branch()
+                comparisonBase = amendToParent ? try await readReload(token) { try await repository.commitComparisonBase(amendToParent: true, cancellation: token) } : nil
+                entries = try await readReload(token) { try await queryCommitStatus(amendToParent, token) }; submodules = try await readReload(token) { try await repository.submodulePaths(cancellation: token) }; branch = try await readReload(token) { try await repository.branch(cancellation: token) }
                 try validateRestoreAccess()
-                fileMetadata = await repository.statusListMetadata(paths: entries.map(\.path))
-                hasLFS = try await repository.hasLFS()
+                fileMetadata = try await readReload(token) { await repository.statusListMetadata(paths: entries.map(\.path)) }
+                hasLFS = try await readReload(token) { try await repository.hasLFS(cancellation: token) }
                 let snippetURL = RepositoryAccessStore.defaultStorageURL.deletingLastPathComponent().appendingPathComponent("snippet.txt")
-                messageSnippets = await snippetLoader.load(userURL: snippetURL)
+                messageSnippets = try await readReload(token) { await snippetLoader.load(userURL: snippetURL) }
                 changelistsLoaded = false
-                changelists = try await repository.changelists(); changelistsLoaded = true
-                indexFlagFiles = try await repository.workingTreeStatus()
-                conflictRebase = (try await repository.conflictIsRebase())
-                statistics = Dictionary(try await repository.workingTreeFiles(amendToParent: amendToParent).map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
-                stagedStatistics = Dictionary(try await repository.stagingFiles(staged: true, base: comparisonBase).map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
-                unstagedStatistics = Dictionary(try await repository.stagingFiles(staged: false).map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
+                changelists = try await readReload(token) { try await repository.changelists(cancellation: token) }; changelistsLoaded = true
+                indexFlagFiles = try await readReload(token) { try await repository.workingTreeStatus(cancellation: token) }
+                conflictRebase = try await readReload(token) { try await repository.conflictIsRebase(cancellation: token) }
+                statistics = Dictionary(try await readReload(token) { try await repository.workingTreeFiles(amendToParent: amendToParent, cancellation: token) }.map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
+                stagedStatistics = Dictionary(try await readReload(token) { try await repository.stagingFiles(staged: true, base: comparisonBase, cancellation: token) }.map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
+                unstagedStatistics = Dictionary(try await readReload(token) { try await repository.stagingFiles(staged: false, cancellation: token) }.map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
                 if resetChecks {
                     checked = Set(visibleEntries.filter { entry in
                         let inScope = scopePaths.isEmpty || scopePaths.contains { $0 == entry.path || entry.path.hasPrefix($0 + "/") }
@@ -803,17 +811,19 @@ import UniformTypeIdentifiers
                 } else { checked.formIntersection(Set(entries.map(\.id))) }
                 selection.formIntersection(Set(entries.map(\.id)))
                 if !hasLoaded && author.isEmpty {
-                    let name = (try? await repository.run(["config", "user.name"]).text.trimmingCharacters(in: .newlines)) ?? ""
-                    let email = (try? await repository.run(["config", "user.email"]).text.trimmingCharacters(in: .newlines)) ?? ""
-                    author = name.isEmpty ? "" : "\(name) <\(email)>"
+                    author = try await readReload(token) {
+                        let name = (try? await repository.run(["config", "user.name"], cancellation: token).text.trimmingCharacters(in: .newlines)) ?? ""
+                        let email = (try? await repository.run(["config", "user.email"], cancellation: token).text.trimmingCharacters(in: .newlines)) ?? ""
+                        return name.isEmpty ? "" : "\(name) <\(email)>"
+                    }
                 }
                 hasLoaded = true; refreshPartial()
                 if !loadedMessage {
-                    issueProperties = try await repository.issueTrackerProperties()
-                    let identity = try await repository.commitMessageHistoryIdentity()
+                    issueProperties = try await readReload(token) { try await repository.issueTrackerProperties(cancellation: token) }
+                    let identity = try await readReload(token) { try await repository.commitMessageHistoryIdentity(cancellation: token) }
                     let storedLimit = dialogDefaults.object(forKey: "Commit.MaxHistoryItems") as? Int ?? 25
                     messageHistory = CommitMessageHistory(repositoryIdentity: identity, defaults: dialogDefaults, limit: storedLimit)
-                    let seed = try await repository.commitMessageSeed()
+                    let seed = try await readReload(token) { try await repository.commitMessageSeed(cancellation: token) }
                     messageTemplate = seed.template
                     if message.isEmpty && !amend {
                         let separated = issueProperties.separateIssueLine(from: seed.message)
@@ -825,18 +835,26 @@ import UniformTypeIdentifiers
                 prepareMessageCompletions(force: true)
                 if restorePatch { if stagingEnabled { showPartial(false) } else { showViewPatch() } }
                 if visibleFileColumns.contains(.lfsOwner) {
-                    let token = OperationCancellation(); lfsOwnerCancellation = token
-                    defer { lfsOwnerCancellation = nil }
+                    lfsOwnerCancellation = token
+                    defer { if lfsOwnerCancellation === token { lfsOwnerCancellation = nil } }
                     do {
-                        let locks = try await queryLFSOwners(token)
+                        let locks = try await readReload(token) { try await queryLFSOwners(token) }
                         guard !token.isCancelled else { return }
                         lfsOwners = Dictionary(locks.map { ($0.path, $0.owner) }, uniquingKeysWith: { first, _ in first })
                         lfsLockedPaths = Set(locks.map(\.path)); lfsOwnershipKnown = true
-                    } catch { self.error = token.isCancelled ? "Getting LFS locks cancelled." : "Could not get LFS locks: " + error.localizedDescription }
+                    } catch { if messageFocusAvailable, !token.isCancelled { self.error = "Could not get LFS locks: " + error.localizedDescription } }
                 }
 
-            } catch { self.error = error.localizedDescription }
+            } catch { if messageFocusAvailable, !token.isCancelled { self.error = error.localizedDescription } }
         }
+    }
+    /// Check on both sides of every suspension: even an injected read that
+    /// ignores cancellation cannot publish into a closed Commit window.
+    private func readReload<Value>(_ token: OperationCancellation, _ read: () async throws -> Value) async throws -> Value {
+        guard messageFocusAvailable, reloadCancellation === token, !token.isCancelled, !Task.isCancelled else { throw OperationCancellationFailure.cancelled }
+        let value = try await read()
+        guard messageFocusAvailable, reloadCancellation === token, !token.isCancelled, !Task.isCancelled else { throw OperationCancellationFailure.cancelled }
+        return value
     }
     func savePatchPreference(_ visible: Bool) {
         Task { do { try await repository.saveCommitPreferences(showPatch: visible) } catch { self.error = error.localizedDescription } }
@@ -916,6 +934,9 @@ import UniformTypeIdentifiers
         messageFocusAvailable = false; messageFocusRequest = 0; appliedMessageFocusRequest = 0
     }
     func invalidateForClose() {
+        reloadCancellation?.cancel(); reloadTask?.cancel(); lfsOwnerCancellation?.cancel()
+        reloadCancellation = nil; reloadTask = nil; lfsOwnerCancellation = nil
+        pendingReloadCancel = false; busy = false
         invalidateMessageFocus()
         invalidateMetadataLoads()
         completionTask?.cancel(); issueStyleTask?.cancel()
@@ -1158,20 +1179,49 @@ import UniformTypeIdentifiers
             return label.padding(toLength: max(10, label.count), withPad: " ", startingAt: 0) + " " + entry.path + "\n"
         }.joined()
     }
+    var inputsBlocked: Bool { busy || confirmingQuit || pendingReloadCancel }
+    var canCancel: Bool { messageFocusAvailable && !confirmingQuit && !pendingReloadCancel && (!busy || reloadCancellation != nil) }
     func cancel(closeWindow: Bool = true, completion: ((Bool) -> Void)? = nil) {
+        cancel(closeWindow: closeWindow, completion: completion, confirmationAccepted: false)
+    }
+    private func cancel(closeWindow: Bool, completion: ((Bool) -> Void)?, confirmationAccepted: Bool) {
+        guard messageFocusAvailable else { completion?(false); return }
+        if let token = reloadCancellation, let task = reloadTask {
+            guard !pendingReloadCancel, !confirmingQuit || !closeWindow else { completion?(false); return }
+            pendingReloadCancel = true
+            var answered = false
+            let stop: (Bool) -> Void = { [weak self] approved in
+                guard !answered else { return }; answered = true
+                guard let self, self.messageFocusAvailable, self.pendingReloadCancel else { completion?(false); return }
+                if !approved { self.pendingReloadCancel = false; completion?(false); return }
+                self.invalidateMetadataLoads()
+                token.cancel(); task.cancel()
+                Task { [weak self] in
+                    await task.value
+                    guard let self, self.messageFocusAvailable else { completion?(false); return }
+                    self.pendingReloadCancel = false
+                    self.cancel(closeWindow: closeWindow, completion: completion, confirmationAccepted: true)
+                }
+            }
+            let changed = !message.isEmpty && message != (amend ? originalAmendMessage : messageTemplate)
+            if !confirmationAccepted, (changed || !entries.isEmpty), !dialogDefaults.bool(forKey: "Commit.SkipCancelConfirmation") {
+                confirmCancel(stop)
+            } else { stop(true) }
+            return
+        }
         if let token = lfsOwnerCancellation { token.cancel(); completion?(false); return }
         if let commitProgress { commitProgress.cancel(); completion?(false); return }
         guard !busy, !confirmingQuit || !closeWindow else { completion?(false); return }
         let changed = !message.isEmpty && message != (amend ? originalAmendMessage : messageTemplate)
         let finish = { [weak self] in
-            guard let self else { completion?(false); return }
+            guard let self, self.messageFocusAvailable else { completion?(false); return }
             if changed { self.messageHistory?.add(self.message) }
             if self.amend && !self.nonAmendMessage.isEmpty && self.nonAmendMessage != self.messageTemplate { self.messageHistory?.add(self.nonAmendMessage) }
             if closeWindow { self.restoreCopies.removeAll(); self.close() }
             completion?(true)
         }
         let restoreAndFinish = { [weak self] in
-            guard let self else { completion?(false); return }
+            guard let self, self.messageFocusAvailable else { completion?(false); return }
             guard !self.restoreCopies.isEmpty else { finish(); return }
             self.busy = true
             Task {
@@ -1184,7 +1234,7 @@ import UniformTypeIdentifiers
                 self.busy = false; finish()
             }
         }
-        if (changed || !entries.isEmpty) && !UserDefaults.standard.bool(forKey: "Commit.SkipCancelConfirmation") {
+        if !confirmationAccepted, (changed || !entries.isEmpty), !dialogDefaults.bool(forKey: "Commit.SkipCancelConfirmation") {
             confirmCancel { approved in if approved { restoreAndFinish() } else { completion?(false) } }
         } else { restoreAndFinish() }
     }
@@ -1307,54 +1357,56 @@ struct CommitDialog: View {
     @State private var initialIssueFocusApplied = false
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("Commit to:")
-                if model.createBranch { CommitNewBranchField(name: $model.newBranch).frame(width: 250) }
-                else { Text(model.branch.isEmpty ? "Detached / unborn HEAD" : model.branch).foregroundStyle(.blue) }
-                Toggle("new branch", isOn: $model.createBranch).toggleStyle(.checkbox).disabled(model.operation != nil || model.replaySplit != nil)
-                Spacer()
-                if model.issueProperties.showsIssueField {
-                    Text(model.issueProperties.label)
-                    TextField("", text: $model.issueID).textFieldStyle(.roundedBorder).frame(width: 140).accessibilityLabel(model.issueProperties.label).focused($issueFieldFocused)
+            Group {
+                HStack {
+                    Text("Commit to:")
+                    if model.createBranch { CommitNewBranchField(name: $model.newBranch).frame(width: 250) }
+                    else { Text(model.branch.isEmpty ? "Detached / unborn HEAD" : model.branch).foregroundStyle(.blue) }
+                    Toggle("new branch", isOn: $model.createBranch).toggleStyle(.checkbox).disabled(model.operation != nil || model.replaySplit != nil)
+                    Spacer()
+                    if model.issueProperties.showsIssueField {
+                        Text(model.issueProperties.label)
+                        TextField("", text: $model.issueID).textFieldStyle(.roundedBorder).frame(width: 140).accessibilityLabel(model.issueProperties.label).focused($issueFieldFocused)
+                    }
+                    if model.busy { ProgressView().controlSize(.small) }
                 }
-                if model.busy { ProgressView().controlSize(.small) }
-            }
-            if let operation = model.operation {
-                CommandLabel(title: operation.title, icon: operation == .merge ? .merge : operation == .cherryPick ? .cherryPick : .revert).font(.callout).foregroundStyle(.orange)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            GeometryReader { geometry in
-                let maximum = max(245.0, geometry.size.height - 288)
-                let height = min(max(messagePaneHeight, 245), maximum)
-                VStack(spacing: 0) {
-                    messageSection.frame(height: height)
-                    Divider().frame(height: 8).contentShape(Rectangle())
-                        .background(CommitDividerCursor().accessibilityHidden(true))
-                        .gesture(DragGesture(minimumDistance: 0).onChanged { drag in
-                            guard !model.busy else { return }
-                            if dividerStart == nil { dividerStart = height }
-                            messagePaneHeight = min(max((dividerStart ?? height) + drag.translation.height, 245), maximum)
-                        }.onEnded { _ in dividerStart = nil })
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel("Message and changes divider")
-                        .accessibilityValue("\(Int(height)) points")
-                        .accessibilityAdjustableAction { direction in
-                            guard !model.busy else { return }
-                            switch direction {
-                            case .increment: messagePaneHeight = min(height + 20, maximum)
-                            case .decrement: messagePaneHeight = max(height - 20, 245)
-                            @unknown default: break
+                if let operation = model.operation {
+                    CommandLabel(title: operation.title, icon: operation == .merge ? .merge : operation == .cherryPick ? .cherryPick : .revert).font(.callout).foregroundStyle(.orange)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                GeometryReader { geometry in
+                    let maximum = max(245.0, geometry.size.height - 288)
+                    let height = min(max(messagePaneHeight, 245), maximum)
+                    VStack(spacing: 0) {
+                        messageSection.frame(height: height)
+                        Divider().frame(height: 8).contentShape(Rectangle())
+                            .background(CommitDividerCursor().accessibilityHidden(true))
+                            .gesture(DragGesture(minimumDistance: 0).onChanged { drag in
+                                guard !model.busy else { return }
+                                if dividerStart == nil { dividerStart = height }
+                                messagePaneHeight = min(max((dividerStart ?? height) + drag.translation.height, 245), maximum)
+                            }.onEnded { _ in dividerStart = nil })
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel("Message and changes divider")
+                            .accessibilityValue("\(Int(height)) points")
+                            .accessibilityAdjustableAction { direction in
+                                guard !model.busy else { return }
+                                switch direction {
+                                case .increment: messagePaneHeight = min(height + 20, maximum)
+                                case .decrement: messagePaneHeight = max(height - 20, 245)
+                                @unknown default: break
+                                }
                             }
-                        }
-                    changesSection.frame(maxHeight: .infinity)
+                        changesSection.frame(maxHeight: .infinity)
+                    }
                 }
-            }
+            }.disabled(model.inputsBlocked)
             HStack {
                 VStack(alignment: .leading, spacing: 6) {
                     Toggle("Show Whole Project", isOn: $model.showWholeProject).disabled(model.scopePaths.isEmpty)
                     Toggle("Message only", isOn: $model.messageOnly)
-                }.toggleStyle(.checkbox)
-                Button("Refresh") { model.reload() }
+                }.toggleStyle(.checkbox).disabled(model.inputsBlocked)
+                Button("Refresh") { model.reload() }.disabled(model.inputsBlocked)
                 Spacer()
                 HStack(spacing: 0) {
                     Button(model.currentCompletionAction.rawValue) { model.commitCurrentAction() }.keyboardShortcut(.return, modifiers: [.command])
@@ -1363,11 +1415,11 @@ struct CommitDialog: View {
                             Button { model.commit(action) } label: { CommandLabel(title: action.rawValue, icon: action == .push ? .push : .commit) }
                         }
                     } label: { Image(systemName: "chevron.down") }.menuIndicator(.hidden).fixedSize().accessibilityLabel("Commit actions") }
-                }.disabled(!model.canCommit)
-                Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction)
-                Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-commit.html")!) }
+                }.disabled(!model.canCommit || model.inputsBlocked)
+                Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(!model.canCancel)
+                Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-commit.html")!) }.disabled(model.inputsBlocked)
             }
-        }.padding(12).disabled(model.busy || model.confirmingQuit)
+        }.padding(12)
         .onAppear { model.formattingEnabled = styleCommitMessages }
         .onChange(of: styleCommitMessages) { model.formattingEnabled = $0 }
         .onChange(of: model.busy) { loading in

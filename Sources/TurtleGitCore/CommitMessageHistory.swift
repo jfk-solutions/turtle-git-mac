@@ -26,8 +26,9 @@ public final class CommitMessageHistory: MessageHistory {
 }
 
 extension GitRepository {
-    public func commitMessageHistoryIdentity() throws -> String {
-        var bytes = try run(["rev-parse", "--path-format=absolute", "--git-common-dir"]).stdout
+    public func commitMessageHistoryIdentity(cancellation: OperationCancellation? = nil) throws -> String {
+        try cancellation?.check()
+        var bytes = try run(["rev-parse", "--path-format=absolute", "--git-common-dir"], cancellation: cancellation).stdout
         if bytes.last == 10 { bytes.removeLast() }
         return URL(fileURLWithPath: String(decoding: bytes, as: UTF8.self)).resolvingSymlinksInPath().path
     }

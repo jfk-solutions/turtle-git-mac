@@ -60,10 +60,11 @@ extension GitRepository {
         return match.lowerBound > message.startIndex
     }
     /// Mirrors CommitDlg's GetCommitTemplate / LoadTextFile sequence without changing Git state.
-    public func commitMessageSeed(includeOperationMessages: Bool = true) throws -> CommitMessageSeed {
+    public func commitMessageSeed(includeOperationMessages: Bool = true, cancellation: OperationCancellation? = nil) throws -> CommitMessageSeed {
+        try cancellation?.check()
         var template = "", warnings: [String] = []
         let configured: GitResult?
-        do { configured = try run(["config", "--path", "--null", "--get", "commit.template"]) }
+        do { configured = try run(["config", "--path", "--null", "--get", "commit.template"], cancellation: cancellation) }
         catch let failure as GitFailure where failure.code == 1 { configured = nil }
         if let configured {
             var bytes = configured.stdout
@@ -78,7 +79,7 @@ extension GitRepository {
         var message = template
         if includeOperationMessages {
             for name in ["SQUASH_MSG", "MERGE_MSG"] {
-                var bytes = try run(["rev-parse", "--path-format=absolute", "--git-path", name]).stdout
+                var bytes = try run(["rev-parse", "--path-format=absolute", "--git-path", name], cancellation: cancellation).stdout
                 if bytes.last == 10 { bytes.removeLast() }
                 let url = URL(fileURLWithPath: String(decoding: bytes, as: UTF8.self))
                 if FileManager.default.fileExists(atPath: url.path) {

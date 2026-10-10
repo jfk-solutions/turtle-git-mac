@@ -39,11 +39,12 @@ public struct WorkingTreeFilter: Equatable, Sendable {
 }
 
 extension GitRepository {
-    public func workingTreeStatus(refreshIndex: Bool = true) throws -> [WorkingTreeFile] {
-        let changes = try status(refreshIndex: refreshIndex)
+    public func workingTreeStatus(refreshIndex: Bool = true, cancellation: OperationCancellation? = nil) throws -> [WorkingTreeFile] {
+        try cancellation?.check()
+        let changes = try status(refreshIndex: refreshIndex, cancellation: cancellation)
         var entries = Dictionary(changes.map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
         var flags: [String: (Bool, Bool)] = [:]
-        for record in try run(["ls-files", "-v", "-z"]).stdout.split(separator: 0) {
+        for record in try run(["ls-files", "-v", "-z"], cancellation: cancellation).stdout.split(separator: 0) {
             guard record.count >= 3 else { continue }
             let bytes = Array(record), path = String(decoding: bytes.dropFirst(2), as: UTF8.self)
             let code = bytes[0]

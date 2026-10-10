@@ -24,9 +24,10 @@ public enum CommitOperation: String, Sendable {
 }
 
 extension GitRepository {
-    public func commitOperation() throws -> CommitOperation? {
+    public func commitOperation(cancellation: OperationCancellation? = nil) throws -> CommitOperation? {
+        try cancellation?.check()
         for (name, operation) in [("MERGE_HEAD", CommitOperation.merge), ("CHERRY_PICK_HEAD", .cherryPick), ("REVERT_HEAD", .revert)] {
-            let path = try run(["rev-parse", "--git-path", name]).text.trimmingCharacters(in: .newlines)
+            let path = try run(["rev-parse", "--git-path", name], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
             let url = path.hasPrefix("/") ? URL(fileURLWithPath: path) : root.appendingPathComponent(path)
             if FileManager.default.fileExists(atPath: url.path) { return operation }
         }
@@ -175,18 +176,20 @@ extension GitRepository {
             return String(decoding: fields[1], as: UTF8.self)
         })
     }
-    public func stagingFiles(staged: Bool, base: String? = nil) throws -> [CommitFile] {
+    public func stagingFiles(staged: Bool, base: String? = nil, cancellation: OperationCancellation? = nil) throws -> [CommitFile] {
+        try cancellation?.check()
         let args = ["diff", "--no-ext-diff", "--no-color", "-M"] + (staged ? ["--cached"] + (base.map { [$0] } ?? []) : [])
-        return CommitFile.parse(names: try run(args + ["--name-status", "-z", "--"]).stdout,
-                                statistics: try run(args + ["--numstat", "-z", "--"]).stdout)
+        return CommitFile.parse(names: try run(args + ["--name-status", "-z", "--"], cancellation: cancellation).stdout,
+                                statistics: try run(args + ["--numstat", "-z", "--"], cancellation: cancellation).stdout)
     }
 
-    public func workingTreeFiles(amendToParent: Bool = false) throws -> [CommitFile] {
-        let head = (try? run(["rev-parse", "--verify", "HEAD"])) != nil
-        let base = amendToParent ? [try commitComparisonBase(amendToParent: true)] : head ? ["HEAD"] : ["--cached"]
+    public func workingTreeFiles(amendToParent: Bool = false, cancellation: OperationCancellation? = nil) throws -> [CommitFile] {
+        try cancellation?.check()
+        let head = (try? run(["rev-parse", "--verify", "HEAD"], cancellation: cancellation)) != nil
+        let base = amendToParent ? [try commitComparisonBase(amendToParent: true, cancellation: cancellation)] : head ? ["HEAD"] : ["--cached"]
         let args = ["diff", "--no-ext-diff", "--no-color", "-M"] + base
-        return CommitFile.parse(names: try run(args + ["--name-status", "-z", "--"]).stdout,
-                                statistics: try run(args + ["--numstat", "-z", "--"]).stdout)
+        return CommitFile.parse(names: try run(args + ["--name-status", "-z", "--"], cancellation: cancellation).stdout,
+                                statistics: try run(args + ["--numstat", "-z", "--"], cancellation: cancellation).stdout)
     }
 }
 

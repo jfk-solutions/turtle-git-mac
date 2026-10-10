@@ -15,8 +15,9 @@ private struct ChangelistDocument: Codable {
 }
 
 extension GitRepository {
-    public func changelists() throws -> GitChangelists {
-        try readChangelists(at: changelistLocation("turtlegit-changelists.json"))
+    public func changelists(cancellation: OperationCancellation? = nil) throws -> GitChangelists {
+        try cancellation?.check()
+        return try readChangelists(at: changelistLocation("turtlegit-changelists.json", cancellation: cancellation), cancellation: cancellation)
     }
     /// Mutations reload under a worktree-local lock, preserving other processes'
     /// assignments. JSON retains Unicode and literal newline filenames.
@@ -46,8 +47,8 @@ extension GitRepository {
             }
         }
     }
-    private func changelistLocation(_ name: String) throws -> URL {
-        var bytes = try run(["rev-parse", "--git-path", name]).stdout
+    private func changelistLocation(_ name: String, cancellation: OperationCancellation? = nil) throws -> URL {
+        var bytes = try run(["rev-parse", "--git-path", name], cancellation: cancellation).stdout
         if bytes.last == 10 { bytes.removeLast() }
         let path = String(decoding: bytes, as: UTF8.self)
         return path.hasPrefix("/") ? URL(fileURLWithPath: path) : root.appendingPathComponent(path)
@@ -62,13 +63,13 @@ extension GitRepository {
             return try Data(contentsOf: url)
         } catch let error as NSError where error.domain == NSCocoaErrorDomain && (error.code == NSFileNoSuchFileError || error.code == NSFileReadNoSuchFileError) { return nil }
     }
-    private func readChangelists(at url: URL) throws -> GitChangelists {
+    private func readChangelists(at url: URL, cancellation: OperationCancellation? = nil) throws -> GitChangelists {
         let lists: GitChangelists
         if let data = try regularChangelistData(url) {
             let document = try JSONDecoder().decode(ChangelistDocument.self, from: data)
             guard document.version == 1 else { throw GitFailure(arguments: ["changelist"], code: 1, message: "Unsupported changelist file version.") }
             lists = GitChangelists(assignments: document.assignments)
-        } else if let data = try regularChangelistData(changelistLocation("tgitchangelist")) {
+        } else if let data = try regularChangelistData(changelistLocation("tgitchangelist", cancellation: cancellation)) {
             let text: String?
             if data.starts(with: [255, 254]) { text = String(data: data.dropFirst(2), encoding: .utf16LittleEndian) }
             else if data.starts(with: [254, 255]) { text = String(data: data.dropFirst(2), encoding: .utf16BigEndian) }

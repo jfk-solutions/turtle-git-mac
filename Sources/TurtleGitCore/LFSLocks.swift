@@ -44,8 +44,9 @@ public enum LFSLocksFailure: LocalizedError {
     }
 }
 extension GitRepository {
-    public func hasLFS() throws -> Bool {
-        var bytes = try run(["rev-parse", "--git-common-dir"]).stdout
+    public func hasLFS(cancellation: OperationCancellation? = nil) throws -> Bool {
+        try cancellation?.check()
+        var bytes = try run(["rev-parse", "--git-common-dir"], cancellation: cancellation).stdout
         if bytes.last == 10 { bytes.removeLast() }
         let value = String(decoding: bytes, as: UTF8.self)
         let directory = value.hasPrefix("/") ? URL(fileURLWithPath: value) : root.appendingPathComponent(value)

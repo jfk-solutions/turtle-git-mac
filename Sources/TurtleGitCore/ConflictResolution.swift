@@ -84,9 +84,10 @@ extension GitRepository {
         }
         return entries.map { ConflictEntry(path: $0.key, stages: $0.value.sorted { $0.number < $1.number }) }.sorted { $0.path < $1.path }
     }
-    public func conflictIsRebase() throws -> Bool {
+    public func conflictIsRebase(cancellation: OperationCancellation? = nil) throws -> Bool {
+        try cancellation?.check()
         for name in ["rebase-merge", "rebase-apply"] {
-            var bytes = try run(["rev-parse", "--git-path", name]).stdout
+            var bytes = try run(["rev-parse", "--git-path", name], cancellation: cancellation).stdout
             if bytes.last == 10 { bytes.removeLast() }
             let path = String(decoding: bytes, as: UTF8.self)
             let url = path.hasPrefix("/") ? URL(fileURLWithPath: path) : root.appendingPathComponent(path)

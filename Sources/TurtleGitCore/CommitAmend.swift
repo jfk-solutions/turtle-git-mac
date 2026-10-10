@@ -1,25 +1,27 @@
 import Foundation
 
 extension GitRepository {
-    public func commitComparisonBase(amendToParent: Bool) throws -> String {
+    public func commitComparisonBase(amendToParent: Bool, cancellation: OperationCancellation? = nil) throws -> String {
+        try cancellation?.check()
         guard amendToParent else { return "HEAD" }
-        _ = try run(["rev-parse", "--verify", "HEAD"])
-        if let parent = try? run(["rev-parse", "--verify", "HEAD^1^{commit}"]).text {
+        _ = try run(["rev-parse", "--verify", "HEAD"], cancellation: cancellation)
+        if let parent = try? run(["rev-parse", "--verify", "HEAD^1^{commit}"], cancellation: cancellation).text {
             return parent.trimmingCharacters(in: .newlines)
         }
         // Compute the empty tree in the repository's object format (including SHA-256).
-        return try run(["mktree"]).text.trimmingCharacters(in: .newlines)
+        return try run(["mktree"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
     }
 
-    public func commitDialogStatus(amendToParent: Bool) throws -> [StatusEntry] {
-        let current = try status()
+    public func commitDialogStatus(amendToParent: Bool, cancellation: OperationCancellation? = nil) throws -> [StatusEntry] {
+        try cancellation?.check()
+        let current = try status(cancellation: cancellation)
         guard amendToParent else { return current }
-        let base = try commitComparisonBase(amendToParent: true)
-        let indexed = try stagingFiles(staged: true, base: base)
+        let base = try commitComparisonBase(amendToParent: true, cancellation: cancellation)
+        let indexed = try stagingFiles(staged: true, base: base, cancellation: cancellation)
         let indexedByPath = Dictionary(indexed.map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
         let currentByPath = Dictionary(current.map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
         var result = current.filter { $0.state == .untracked || $0.state == .ignored || $0.state == .conflicted }
-        for file in try workingTreeFiles(amendToParent: true) {
+        for file in try workingTreeFiles(amendToParent: true, cancellation: cancellation) {
             if currentByPath[file.path]?.state == .conflicted { continue }
             let staged = indexedByPath[file.path]
             let old = staged?.oldPath ?? file.oldPath

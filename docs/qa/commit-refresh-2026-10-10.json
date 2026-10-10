@@ -1,0 +1,137 @@
+{
+  "checked_at": "2026-10-10T07:02:03.998152+00:00",
+  "parent_commit": "023db80af2669904aab783266ec2733ed81dee6d",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Commit initial/F5 refresh cancellation, asynchronous close fences, confirmation-before-stop behavior and pending-answer input gates; optional cancellation propagation through the associated Core read APIs.",
+  "source_reference": [
+    "src/TortoiseProc/CommitDlg.cpp: CCommitDlg::OnCancel, StopStatusThread, status worker cancellation"
+  ],
+  "checks": {
+    "core": {
+      "exit_code": 0,
+      "session": 91891,
+      "tests": 55,
+      "failures": 0,
+      "suites": [
+        "ChangelistTests",
+        "CommitAmendTests",
+        "CommitMessageHistoryTests",
+        "CommitMessageTests",
+        "CommitPatchTests",
+        "CommitReadCancellationTests",
+        "CommitSelectionTests",
+        "ConflictResolutionTests",
+        "WorkingTreeTests"
+      ],
+      "scope": "Default read/commit/amend/statistics/working-tree/changelist regressions and pre-cancelled read APIs; Core sources unchanged after this run."
+    },
+    "native": {
+      "exit_code": 0,
+      "session": 90444,
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "commit_window_source_sha256": "a2bfe7675fea00febcb5391875f554455d8de349f915be113fbd10e189e309ba",
+      "scope": [
+        "Actual controller close invalidation rejects successful and throwing status replies that deliberately ignore cancellation.",
+        "Default production status child stays live after No and is cancelled/reaped before actual controller close after Yes.",
+        "Duplicate Cancel is refused and pending state immediately publishes a view update.",
+        "A completed refresh stays blocked while its confirmation remains pending; No restores input/Commit/Cancel gates and permits a later refresh.",
+        "A stale declined reply cannot approve the next confirmation; a repeated accepted reply cannot invoke another completion or close.",
+        "Approval cancels the window\u2019s real default author child before awaiting a refresh queued behind it on the repository actor.",
+        "HEAD, raw index and tracked working-file bytes match fixture baselines."
+      ]
+    },
+    "metadata_regression": {
+      "exit_code": 0,
+      "session": 77634,
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "scope": "Existing author/date/amend, stale response, Replay and actual blocked author-child close tests passed before the later refresh confirmation/input-gate refinements. This is not a final-revision full-suite claim."
+    },
+    "final_build_and_audit_pipeline": {
+      "exit_code": 0,
+      "session": 96582,
+      "ordered_steps": [
+        "Unsigned Debug xcodebuild",
+        "Debug validate-app-bundle.py",
+        "Unsigned AppStore xcodebuild",
+        "AppStore validate-app-bundle.py --require-git"
+      ]
+    },
+    "inventory_pin": "Passed; CommitDlg.cpp remains partial-native-replacement.",
+    "cleanup": {
+      "matching_processes": [],
+      "current_fixtures": []
+    },
+    "private_preferences": "No remaining nonempty current-run CommitRefresh/CommitMetadata private preference domains; only owned empty leftovers eligible for removal.",
+    "tool_recovery": [
+      "Initial native preflight used an incorrect packaged-Git path and exited before compilation or fixture creation; corrected to build/git-runtime/Git/bin/git.",
+      "First receiver compilation used an internal StatusEntry initializer; corrected to the public parser.",
+      "Intermediate native checks preceded final confirmation-order, pending-answer and queued-metadata refinements; final native run verifies current application source."
+    ]
+  },
+  "source_sha256": {
+    "Sources/TurtleGitCore/Changelists.swift": "ad3d0920501597ee4e93e34ca3e35732343ecb6e38efeaebd18cdb4912ed1794",
+    "Sources/TurtleGitCore/CommitAmend.swift": "d2162c2b54f3c73a16d7dbb2b48470c38083a2e694f0f8f305f75a09b4dfe24d",
+    "Sources/TurtleGitCore/CommitMessage.swift": "3c0af4a6394d5767277320de993e3bb5e5906246a522480512c213fccd572e61",
+    "Sources/TurtleGitCore/CommitMessageHistory.swift": "855d95e6fae06d4e7e2226466b84a98c7fef9a2abb6d429dfbeb68116a16099b",
+    "Sources/TurtleGitCore/CommitPreferences.swift": "5552f8171a5b8240eb5891ace6990066efd4ef9e3cbeb21f32233c83a8d04354",
+    "Sources/TurtleGitCore/CommitSelection.swift": "ad19ea93e805f748efd1d1b025d5fc42fc8a625fdf751b5128d9b7e3c6759e4f",
+    "Sources/TurtleGitCore/ConflictResolution.swift": "43b96e9943454fe0c97c45ad481e5263918c1a84f6364a136266c47d40c96d1d",
+    "Sources/TurtleGitCore/LFSLocks.swift": "b0411d507f05462ae302e2a354d92d0cbf1bb4dbe2e9a3610c845671f4434e86",
+    "Sources/TurtleGitCore/WorkingTree.swift": "9f2c7827ddbf5df227b8da02b3878575f95888f7572574565a747495864b23da",
+    "Sources/TurtleGitMac/CommitWindow.swift": "a2bfe7675fea00febcb5391875f554455d8de349f915be113fbd10e189e309ba",
+    "docs/COMMIT-PARITY.md": "dd26ea08db5d01e0a12318837ce7801150360409d01a26e830f4796fbaf0e568",
+    "docs/TESTING.md": "c0c4313e9fc1bd3579266dd6220ab2a6e195dcc14cf9af276300d00985303c7a",
+    "docs/upstream-files.csv": "bb7e07831f74d7a8f97492c8bfce23964eacfc06c8c9f5b31c3861aecf29d544",
+    "Tests/TurtleGitCoreTests/CommitReadCancellationTests.swift": "62a0abbad265dcbc5fbd85063fd9fa755b49204715564c985b396e1c9be0ee5a",
+    "docs/qa/commit-refresh-native-2026-10-10.swift": "6fa61d2c64395b9214bfb7977463dfb1acc7e8baa9ec085c48f8be1e1e75e514",
+    "scripts/test-commit-refresh.py": "288e339f90dfc79382253a02f25aca70c772605102b1a9ace60739bfce98b3e5"
+  },
+  "binary_sha256": {
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/MacOS/TurtleGitMac": "ae0fc297ae892ad6d53e5bfb2e3aee3218b8dda08c01e7e3c33faa88de63b8d1",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": "9781245c4d1e2325a00f0e28362b468c08e44cd68d8aaeddb47b782df9d48688",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": "4fe130d88732811cb2135fd976f7b9579c0ae3d38211d79ae7708e6973b5955c",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/MacOS/TurtleGitMac": "e8a9bb618f527ae138ba8c05c79fa3e3102bba3c86d2a0419dc99832b755bba0",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": "d752eda8f1b22dd35b02e24f4a9a80fa17b89f3cc22f38ee3c39d4aa049640cc",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": "dc44e47efa6b867ca364f3b9a0bb2f34586e324eb30730045ce6f909abf6318e"
+  },
+  "resource_sha256": {
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/NOTICE": "f79e01c67e4ba9540d4eadaa5e31f2de28e406c277891333942970c839468f24",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Resources/NOTICE": "f79e01c67e4ba9540d4eadaa5e31f2de28e406c277891333942970c839468f24"
+  },
+  "git_engine_sha256": {
+    "/usr/bin/git": "179301dcb41ea78accc3fa0048a7e6f6710d891945a751a34addd622020c1818",
+    "build/git-runtime/Git/bin/git": "33a006b36637e018a94234c90cd25fe739c75a1644bdf6aeb73ddd31987b9a92"
+  },
+  "log_sha256": {
+    "build/qa/commit-refresh-cleanup-2026-10-10.log": "693fa2bca24cbfc45a23756e4f0a95dc75a088dc5f75977d8a59a96ce2f23355",
+    "build/qa/commit-refresh-core-2026-10-10.log": "37acf99160afd888a0d815f1e743f19ff2755b0b4d17ea090bacb47acc67601e",
+    "build/qa/commit-refresh-debug-2026-10-10.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/commit-refresh-debug-audit-2026-10-10.log": "03677d8f0b0860f94e07ef3ce34215ec26f981c604c6ceccc75e2bdae288a638",
+    "build/qa/commit-refresh-inventory-2026-10-10.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/commit-refresh-metadata-regression-2026-10-10.log": "a8b00a24bbff1a30c25b8ed876ce20eb635e83d1f08c5ca55619fb03dfb44249",
+    "build/qa/commit-refresh-native-2026-10-10.log": "6d01c6d249fcdf5b5818e82852b6cef0a7b1c4b06a4569fa0db2e74260047485",
+    "build/qa/commit-refresh-native-before-confirm-order-2026-10-10.log": "995ed801808eb572f9a465754681beaa06876e353721f98e2c3301a8d69344e9",
+    "build/qa/commit-refresh-native-before-pending-answer-2026-10-10.log": "f8a1c5116398188be42bd78c04cfad929813d6af964904171a3fb90bc55bbd24",
+    "build/qa/commit-refresh-native-before-pending-publish-2026-10-10.log": "995ed801808eb572f9a465754681beaa06876e353721f98e2c3301a8d69344e9",
+    "build/qa/commit-refresh-native-before-queued-metadata-2026-10-10.log": "ee9f630b4a785b91e6e09f9dff2c27e7b119d3c3675a851bfe7151fcab9daa72",
+    "build/qa/commit-refresh-native-compile-failure-2026-10-10.log": "0e6589cc6a38b7c8fcf933b4bd1f33db554856581c1a1e5bddbc16ca3bf1fea0",
+    "build/qa/commit-refresh-native-preflight-2026-10-10.log": "a8295b8231905e478f0aead4a18a15532a44516480f74bcee25244eee3a9fb00",
+    "build/qa/commit-refresh-store-2026-10-10.log": "b74a73f8796b12aa35fa570e6594a2a6056217b10a225c9c0e7c2efcb5dc7a15",
+    "build/qa/commit-refresh-store-audit-2026-10-10.log": "bf54b9dab37973005d43104fc27d3e9cd6a4920930af487e3e44c48332f3afc1"
+  },
+  "limitations": [
+    "Complete TortoiseGit application/dialog functionality and visual parity remains incomplete.",
+    "Native receiver creates hidden windows and invokes model/controller callbacks; physical Cancel/Escape/close/quit gestures, prompt/suppression checkbox rendering/relaunch, light/dark appearance and VoiceOver were not verified.",
+    "Filesystem metadata/snippet work is fenced before and after suspension, not forcibly interrupted.",
+    "All refresh phases, attached patch-view lifetimes, unrelated repository-actor read owners and broader multi-window liveness remain acceptance work.",
+    "Other Commit history, issue-field, restoration and mutation asynchronous tasks retain separate guards and are not all covered by this refresh change.",
+    "No final-revision full Core suite or current hosted CI/Pages verification claimed.",
+    "Unsigned builds/audits do not verify signed sandbox/Finder activation, notarization or App Store distribution."
+  ]
+}

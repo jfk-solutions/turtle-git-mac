@@ -567,3 +567,15 @@ it reads the same records and submits only to its owned loopback SMTP fixture.
 Neither command sends mail to the queried domain or reads user credentials.
 Default CI does not enable the public DNS probe. Its observed results and limits
 are recorded in [MX QA](qa/send-patch-mx-2026-10-10.json).
+
+### Commit refresh cancellation
+
+After a Debug build, run `python3 scripts/test-commit-refresh.py --git /usr/bin/git
+--git build/git-runtime/Git/bin/git` (as one command). The hidden native receiver
+uses private repositories and preferences, controls a status reply that ignores
+cancellation, and blocks the production status query in an owned sleeping child.
+It checks controller-close fencing, cooperative Cancel, duplicate requests, draft
+confirmation, reload after declining, and exact HEAD/index/working contents. This
+is separate from displayed Cancel/Escape acceptance and signed sandbox testing.
+`CommitReadCancellationTests` also checks that pre-cancelled Core read APIs throw
+cancellation instead of treating it as missing configuration or an unborn HEAD.
