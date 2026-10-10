@@ -1911,8 +1911,7 @@ upstream message selection and deletion rules.
 `scripts/test-commit-history.py` exercises the actual Commit editor context-menu
 action, native sheet/table and Return/Escape/Delete keys, template and caret insertion,
 prefix suppression, focus return, persisted history, modal fences and repository
-invariants. Physical mouse/key entry, VoiceOver, issue-ID extraction in this
-workflow, geometry across displays and signed sandbox acceptance remain open.
+invariants. Physical mouse/key entry, VoiceOver, broader issue configuration/regex acceptance and geometry across displays and signed sandbox acceptance remain open.
 
 The integrated receiver passed with system and bundled Git. Both runs required
 the final completion marker and verified exact HEAD, raw index, config and
@@ -1926,3 +1925,34 @@ Unsigned Debug and AppStore builds and bundle audits passed for this change,
 including all 116 original icon resources and the required AppStore Git runtime.
 Owned receiver processes and temporary fixtures were absent after verification.
 These checks do not establish signing, physical UI acceptance or full Commit parity.
+
+## Issue field updates from Recent messages
+
+`CommitDlg.cpp::OnBnClickedHistory` and `ProjectProperties.cpp::FindBugID`
+extract IDs from the selected history text, deduplicate them, use natural sorting
+and update the separate field only when a nonempty ID was found. The native
+workflow keeps those rules. `GetBugIDFromLog` trims trailing LF from the initial
+displayed message even without a matching issue line; the raw template remains
+separate. The history replacement branch still compares against that raw
+template, matching the pinned source.
+
+History extraction now has a cancellable repository call and a window-owned task.
+Every new selection invalidates the previous generation. Message, issue-field or
+property edits cancel the pending result even if a later edit restores the same
+value. Parent teardown retires it. A delayed provider cannot overwrite newer
+input or publish to a closed Commit model. Empty/no-match results retain the
+existing issue field.
+
+The native receiver enables the repository's issue field with its configured
+label and template, restores the raw template explicitly for the equality branch,
+and uses real extraction to check naturally sorted duplicate IDs. Controlled
+queries deliberately ignore cancellation to exercise the separate publication
+fences for edit-and-restore, superseding requests and parent teardown. This does
+not establish physical issue-field entry, direct button accessibility, full
+native ECMAScript configuration acceptance or tracker-plugin parity.
+
+The 16 focused issue tests passed, including repository extraction cancellation.
+Integrated native checks passed with system and bundled Git, preserving HEAD,
+raw index, config and working bytes. Unsigned Debug and AppStore builds and
+bundle audits passed with all 116 original icons and required AppStore runtimes.
+See [the issue-update QA record](qa/commit-history-issues-2026-10-10.json).

@@ -1,0 +1,88 @@
+{
+  "checked_at": "2026-10-10T11:58:39.199119+00:00",
+  "parent_commit": "b3bcb1079dff2bc34067507e7fcd07289aab0f94",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Commit Recent messages issue-ID extraction and cancellation/publication ownership; full application and App Store port remain incomplete.",
+  "checks": {
+    "core": {
+      "session": 88672,
+      "exit_code": 0,
+      "tests": 16,
+      "failures": 0,
+      "suites": [
+        "IssueMessageStyleTests",
+        "IssueTrackerTests",
+        "IssueRegexTests"
+      ],
+      "scope": "New repository history extraction/cancellation test plus existing issue matching/style/config/helper regressions"
+    },
+    "native_history": {
+      "session": 43567,
+      "exit_code": 0,
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "scope": [
+        "Configured issue label/template and initial source trailing-LF behavior",
+        "Raw template explicitly restored before equality/replacement branch",
+        "Real extraction yields 42 73 from 73,42,73; no-issue message preserves the field",
+        "Controlled cancellation-ignoring providers cannot publish after issue/message/properties edit-and-restore",
+        "Superseded identical-input query is discarded; latest result is accepted",
+        "Forced parent closure cancels pending query; delayed result is rejected; closed model cannot start another query",
+        "Existing real editor/menu/sheet/Return/Escape/Delete/focus/persistence/modal checks",
+        "Exact HEAD/raw index/config/working bytes unchanged"
+      ],
+      "receiver": "Actual AppKit loop, prohibited activation and transparent owned windows. Explicit selection after querying the menu accounts for native word selection. Normal extraction uses the real template-based repository API; controlled delayed query providers isolate race rejection. Each engine requires a final completion marker.",
+      "rejected_initial_expectation": "Issue support trims LF from the initial message as GetBugIDFromLog does, while retaining the raw template separately. Receiver now checks that behavior and restores the raw template explicitly to exercise its equality branch."
+    },
+    "debug_build": {
+      "session": 20816,
+      "exit_code": 0,
+      "unsigned": true
+    },
+    "bundle_audits_and_store_build": {
+      "session": 90310,
+      "exit_code": 0,
+      "unsigned": true,
+      "icons": 116,
+      "appstore_requires_git": true
+    },
+    "cleanup": {
+      "matching_processes": [],
+      "current_fixtures": []
+    }
+  },
+  "source_sha256": {
+    "Sources/TurtleGitCore/IssueTracker.swift": "52ab18215c4122e91966ad4dd09cc117a52eaf0b9923e053070503fc9a45d682",
+    "Sources/TurtleGitMac/CommitWindow.swift": "be12624a978c1a866030a8c5b30f51f3f076346532765e258b588b00b09c7315",
+    "Tests/TurtleGitCoreTests/IssueMessageStyleTests.swift": "76a5ce2a6813a9cec4affdf4841a788209882472644d47f62a6cf12de76f6f3b",
+    "docs/qa/commit-history-native-2026-10-10.swift": "0b0963049a679b3b08013d70dcbf67fdcaf21253b05bf75fc6aca630858406a1",
+    "scripts/test-commit-history.py": "943a57a9b4a74aef798240d4b141f57453f1a5f9884c638397043904efd4e013",
+    "docs/COMMIT-PARITY.md": "beff17fcfc5b30904f4d72f42fe77027497860232fce7fb0906389532a924e52",
+    "docs/TESTING.md": "9f1ef1a0ff53df1fd5ae2e3835c45cfdc2700a3ca11784d7f195d534fe65fafa"
+  },
+  "binary_sha256": {
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": "114303beaa2d1dd5d05d4e001361154f203a5f41c0156d74e7d07b48af069d27",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": "dc44e47efa6b867ca364f3b9a0bb2f34586e324eb30730045ce6f909abf6318e",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/MacOS/TurtleGitMac": "423fdbedcf77109c14c1f2cadcfa6b8ce80410c30f3aa5383f188939c26cda20",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": "ffc4b939b1d741b32a127ac917281914f2988e1127b7060b68ea4e20b2ce077c",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": "4fe130d88732811cb2135fd976f7b9579c0ae3d38211d79ae7708e6973b5955c",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/MacOS/TurtleGitMac": "ae0fc297ae892ad6d53e5bfb2e3aee3218b8dda08c01e7e3c33faa88de63b8d1"
+  },
+  "log_sha256": {
+    "build/qa/commit-history-issues-cleanup-2026-10-10.log": "693fa2bca24cbfc45a23756e4f0a95dc75a088dc5f75977d8a59a96ce2f23355",
+    "build/qa/commit-history-issues-core-2026-10-10.log": "49038414a314f30caf43cd8c5715e90b81efce3415d20e5d0571463284814885",
+    "build/qa/commit-history-issues-debug-2026-10-10.log": "311e77ee8acd956c24a110cdd162c50c44e570906c506fb6965aa4a06cbc96f2",
+    "build/qa/commit-history-issues-debug-audit-2026-10-10.log": "cdeaff9df09b2d3352cce83b62503b07e0e9bb7909accdb3b95f9decbe376ec4",
+    "build/qa/commit-history-issues-native-2026-10-10.log": "a11454276f1e4462ec019d2ea966f101b3ff339f5a9990c1c7d7bc71df1324de",
+    "build/qa/commit-history-issues-store-2026-10-10.log": "b74a73f8796b12aa35fa570e6594a2a6056217b10a225c9c0e7c2efcb5dc7a15",
+    "build/qa/commit-history-issues-store-audit-2026-10-10.log": "b1c954ae1e9a5fc2a5d6416be100ef853bfb32fd82cbd6494843f0d1d5710619"
+  },
+  "limitations": [
+    "Issue-field visual/physical entry, direct accessibility-button gestures, VoiceOver and signed sandbox grants remain unverified",
+    "Complete native ECMAScript helper/configuration acceptance, tracker plugins and broader templates/encodings remain incomplete",
+    "Full dialog/menu/Finder parity and App Store distribution remain incomplete",
+    "Local verification and commits; hosted CI and Pages publication are unverified"
+  ]
+}

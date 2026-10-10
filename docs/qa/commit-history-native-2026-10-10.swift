@@ -8,6 +8,18 @@ import Darwin
     @MainActor final class OffscreenHistoryWindow: NSWindow {
         override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
     }
+    @MainActor final class IssueGate {
+        struct Request { let token: OperationCancellation; var continuation: CheckedContinuation<String, Error>? }
+        var requests: [Request] = []
+        func query(_ token: OperationCancellation) async throws -> String {
+            try await withCheckedThrowingContinuation { requests.append(Request(token: token, continuation: $0)) }
+        }
+        func finish(_ index: Int, _ value: String) {
+            let continuation = requests[index].continuation; requests[index].continuation = nil
+            continuation?.resume(returning: value)
+        }
+        func finishAll() { for index in requests.indices { finish(index, "discarded") } }
+    }
     static func require(_ value: @autoclosure () -> Bool, line: UInt = #line) throws { if !value() { throw Failure(line: line) } }
     @MainActor static func views(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(views) }
     @MainActor static func wait(_ ready: () -> Bool, line: UInt = #line) async throws {
@@ -44,6 +56,9 @@ import Darwin
         try await repo.stage(["file.txt", "template.txt"]); _ = try await repo.commit(message: "baseline")
         try Data("working edit\n".utf8).write(to: file)
         _ = try await repo.run(["config", "commit.template", template.path])
+        _ = try await repo.run(["config", "bugtraq.message", "Refs: %BUGID%"] )
+        _ = try await repo.run(["config", "bugtraq.label", "Ticket:"] )
+        _ = try await repo.run(["config", "bugtraq.logregex", ""] )
         let head = try await repo.run(["rev-parse", "HEAD"]).stdout
         let index = try Data(contentsOf: root.appendingPathComponent(".git/index")), config = try Data(contentsOf: root.appendingPathComponent(".git/config")), working = try Data(contentsOf: file)
         let controller = CommitWindowController(repository: repo, access: nil, defaults: prefs)
@@ -57,8 +72,14 @@ import Darwin
         model.reload(); try await wait { !model.busy && !model.loadingAuthorIdentity && model.messageHistory != nil }
         window.contentView!.layoutSubtreeIfNeeded(); try await settle()
         guard let editor = views(window.contentView!).compactMap({ $0 as? NSTextView }).first(where: { $0.accessibilityLabel() == "Commit message" }), let history = model.messageHistory else { throw Failure(line: #line) }
+        // GetBugIDFromLog trims trailing LF even without an issue match. Keep
+        // that source behavior; explicitly restore the raw template to test its
+        // equality/replacement branch while the issue field is enabled.
+        try require(model.messageTemplate == "Template message\n" && editor.string == "Template message")
+        editor.insertText(model.messageTemplate, replacementRange: NSRange(location: 0, length: (editor.string as NSString).length))
+        try await settle()
         try require(model.messageTemplate == "Template message\n" && editor.string == model.messageTemplate)
-        let values = ["tail\r\nbody", "middle é\n" + String(repeating: "wide ", count: 60), "first 🐢\nbody"]
+        let values = ["tail\r\nbody\nRefs: 73,42,73", "middle é\n" + String(repeating: "wide ", count: 60), "first 🐢\nbody"]
         for text in values { history.add(text) }
         let expected = history.entries
         window.orderFront(nil) // Keep native sheet ownership; alpha remains zero offscreen.
@@ -96,6 +117,8 @@ import Darwin
         try await press("OK", in: child); try await wait { window.attachedSheet == nil }; try await settle()
         let joined = expected[0] + "\n\n" + expected[2]
         try require(editor.string == joined && model.message == joined && window.firstResponder === editor)
+        try await wait { model.issueID == "42 73" }
+        try require(model.issueProperties.showsIssueField && model.issueProperties.label == "Ticket:")
         // An existing prefix must not be inserted again, even at another caret.
         editor.setSelectedRange(NSRange(location: (editor.string as NSString).length, length: 0))
         (child,table) = try await open(); table.selectRowIndexes([0], byExtendingSelection: false); try await settle()
@@ -115,14 +138,47 @@ import Darwin
         try require(persisted.entries == history.entries)
         try await press("Cancel", in: child); try await wait { window.attachedSheet == nil }; try require(editor.string == draft)
         model.busy = true; model.showMessageHistory { _ in competing = true }; try require(window.attachedSheet == nil); model.busy = false
+        // Deliberately delayed providers ignore cancellation, so publication guards
+        // must also reject ABA input changes and superseded requests.
+        let gate = IssueGate(); defer { gate.finishAll() }
+        model.queryHistoryIssue = { _, _, token in try await gate.query(token) }
+        @MainActor func pending() async throws -> Int {
+            let index = gate.requests.count
+            model.updateIssueFromHistory("Refs: 42", insertedInto: model.message)
+            try await wait { gate.requests.count == index + 1 }; return index
+        }
+        let stableID = model.issueID, stableMessage = model.message, stableProperties = model.issueProperties
+        try require(stableID == "42 73")
+        var request = try await pending()
+        model.issueID = "manual edit"; model.issueID = stableID
+        try require(gate.requests[request].token.isCancelled)
+        gate.finish(request, "stale field"); try await settle(); try require(model.issueID == stableID)
+        request = try await pending()
+        model.message = "temporary edit"; model.message = stableMessage
+        try require(gate.requests[request].token.isCancelled)
+        gate.finish(request, "stale message"); try await settle(); try require(model.issueID == stableID)
+        request = try await pending()
+        model.issueProperties = IssueTrackerProperties(); model.issueProperties = stableProperties
+        try require(gate.requests[request].token.isCancelled)
+        gate.finish(request, "stale properties"); try await settle(); try require(model.issueID == stableID)
+        let old = try await pending(), latest = try await pending()
+        try require(gate.requests[old].token.isCancelled && !gate.requests[latest].token.isCancelled)
+        gate.finish(old, "old request"); try await settle(); try require(model.issueID == stableID)
+        gate.finish(latest, "latest request"); try await wait { model.issueID == "latest request" }
+        request = try await pending()
         // Forced parent teardown retires its sheet and blocks later requests.
         (child,table) = try await open(); window.close(); try await settle()
         try require(child.sheetParent == nil && !child.isVisible && window.attachedSheet == nil)
+        try require(gate.requests[request].token.isCancelled)
+        gate.finish(request, "closed request"); try await settle(); try require(model.issueID == "latest request")
+        let queryCount = gate.requests.count
+        model.updateIssueFromHistory("Refs: 42", insertedInto: model.message); try await settle()
+        try require(gate.requests.count == queryCount)
         model.showMessageHistory { _ in competing = true }; model.pickRevision(true) { _ in competing = true }
         try require(window.attachedSheet == nil && !competing)
         let finalWorking = try Data(contentsOf: file), finalIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")), finalConfig = try Data(contentsOf: root.appendingPathComponent(".git/config"))
         try require(finalWorking == working && finalIndex == index && finalConfig == config)
         let finalHead = try await repo.run(["rev-parse", "HEAD"]).stdout; try require(finalHead == head)
-        print("PASS: Native Commit Recent messages menu/icons, actual owned sheet, flattened Unicode rows and horizontal scrolling, table focus, multi-selection OK/template replacement, prefix suppression, caret insertion/editor focus, keyboard Delete/persistence/Cancel, competing picker/busy/close/Quit fences and forced-parent retirement; unchanged HEAD/index/config/working bytes. Owned windows closed.")
+        print("PASS: Native Commit Recent messages menu/icons, actual owned sheet, flattened Unicode rows and horizontal scrolling, table focus, multi-selection OK/template replacement, prefix suppression, caret insertion/editor focus, natural/deduplicated issue IDs and preserved IDs for messages without issues, cancelled/stale ABA/superseded/closed issue extraction, keyboard Delete/persistence/Cancel, competing picker/busy/close/Quit fences and forced-parent retirement; unchanged HEAD/index/config/working bytes. Owned windows closed.")
     }
 }

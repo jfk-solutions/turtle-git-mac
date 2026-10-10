@@ -5,6 +5,17 @@ final class IssueMessageStyleTests: XCTestCase {
     private var parser: URL {
         URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("build/issue-regex-runtime/IssueRegex/issue-regex")
     }
+    func testRepositoryHistoryIssueExtractionCancellation() async throws {
+        let repo = GitRepository(root: URL(fileURLWithPath: "/"))
+        let properties = IssueTrackerProperties(values: ["bugtraq.message": "Refs: %BUGID%"])
+        let value = try await repo.issueFieldValue(properties: properties, message: "Body\nRefs: 73,42,73")
+        XCTAssertEqual(value, "42 73")
+        let stopped = OperationCancellation(); stopped.cancel()
+        do {
+            _ = try await repo.issueFieldValue(properties: properties, message: "Body\nRefs: 42", cancellation: stopped)
+            XCTFail("A cancelled extraction must not return an issue ID")
+        } catch { XCTAssertTrue(error is OperationCancellationFailure) }
+    }
     func testUTF8StylingMapsEmojiOffsetsAndStylesOnlyCaptureOne() throws {
         let properties = IssueTrackerProperties(values: ["bugtraq.logregex": "issue #(\\d+)", "bugtraq.url": "https://example.invalid/tickets/%BUGID%"])
         let message = "🦎 issue #42 after"

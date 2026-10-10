@@ -199,8 +199,8 @@ extension GitRepository {
     public func prepareIssueCommit(properties: IssueTrackerProperties, message: String, issueID: String) throws -> IssueCommitPreparation {
         try properties.prepareCommit(message: message, issueID: issueID)
     }
-    public func issueFieldValue(properties: IssueTrackerProperties, message: String) throws -> String {
-        try properties.issueFieldValue(in: message)
+    public func issueFieldValue(properties: IssueTrackerProperties, message: String, cancellation: OperationCancellation? = nil) throws -> String {
+        try properties.issueFieldValue(in: message, cancellation: cancellation)
     }
     public func commitSignOffLine() throws -> String {
         let name = try run(["config", "user.name"]).text.replacingOccurrences(of: "\n", with: "")

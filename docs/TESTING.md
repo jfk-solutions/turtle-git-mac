@@ -690,3 +690,11 @@ Delete persistence, modal ownership and forced-parent cleanup without committing
 or changing working files. A final completion marker is mandatory for each Git
 engine. This is native programmatic acceptance, not physical-input, VoiceOver or
 signed sandbox acceptance.
+
+The Commit history receiver also checks configured issue-label/template behavior,
+real naturally sorted duplicate IDs, no-match preservation and controlled delayed
+queries that ignore cancellation. It verifies rejection after issue/message/config
+edit-and-restore, superseding requests and parent closure. Run `swift test --filter
+'IssueMessageStyleTests|IssueTrackerTests|IssueRegexTests'` for the matching Core
+checks. The native receiver uses template-based extraction; complete native
+ECMAScript-helper and physical issue-field acceptance remain unverified.

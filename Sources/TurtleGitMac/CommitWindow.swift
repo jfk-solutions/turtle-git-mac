@@ -301,11 +301,15 @@ import UniformTypeIdentifiers
     @Published var branch = ""
     @Published var createBranch = false
     @Published var newBranch = ""
-    @Published var message = "" { didSet { if message != oldValue { scheduleIssueStyling() } } }
-    @Published var issueProperties = IssueTrackerProperties() { didSet { if issueProperties != oldValue { scheduleIssueStyling() } } }
+    @Published var message = "" { didSet { if message != oldValue { cancelHistoryIssueUpdate(); scheduleIssueStyling() } } }
+    @Published var issueProperties = IssueTrackerProperties() { didSet { if issueProperties != oldValue { cancelHistoryIssueUpdate(); scheduleIssueStyling() } } }
     @Published private(set) var issueMessageStyles: [IssueMessageStyle] = []
     private let issueStyler = IssueMessageStyler()
     private var issueStyleTask: Task<Void, Never>?
+    private var historyIssueTask: Task<Void, Never>?
+    private var historyIssueCancellation: OperationCancellation?
+    private var historyIssueGeneration = UUID()
+    var queryHistoryIssue: (IssueTrackerProperties, String, OperationCancellation) async throws -> String
     @Published var formattingEnabled = UserDefaults.standard.object(forKey: "StyleCommitMessages") as? Bool ?? true {
         didSet { if formattingEnabled != oldValue { scheduleIssueStyling() } }
     }
@@ -316,7 +320,7 @@ import UniformTypeIdentifiers
     private var completionSources: [MessageCodeScanner.Source] = []
     private var completionOptions: MessageCodeScanner.Options?
     private var completionEnabled: Bool?
-    deinit { reloadCancellation?.cancel(); reloadTask?.cancel(); completionTask?.cancel(); issueStyleTask?.cancel(); authorCancellation?.cancel(); dateCancellation?.cancel(); amendCancellation?.cancel() }
+    deinit { reloadCancellation?.cancel(); reloadTask?.cancel(); completionTask?.cancel(); issueStyleTask?.cancel(); historyIssueTask?.cancel(); historyIssueCancellation?.cancel(); authorCancellation?.cancel(); dateCancellation?.cancel(); amendCancellation?.cancel() }
     func prepareMessageCompletions(force: Bool = false) {
         var options = MessageCodeScanner.Options()
         let defaults = UserDefaults.standard
@@ -349,7 +353,12 @@ import UniformTypeIdentifiers
         }
     }
     private let snippetLoader = MessageSnippetLoader()
-    @Published var issueID = ""
+    @Published var issueID = "" { didSet { if issueID != oldValue { cancelHistoryIssueUpdate() } } }
+    private func cancelHistoryIssueUpdate() {
+        historyIssueGeneration = UUID()
+        historyIssueCancellation?.cancel(); historyIssueTask?.cancel()
+        historyIssueCancellation = nil; historyIssueTask = nil
+    }
     private func scheduleIssueStyling() {
         issueStyleTask?.cancel(); issueMessageStyles = []
         let text = message, properties = issueProperties, worker = issueStyler, formatting = formattingEnabled
@@ -364,11 +373,20 @@ import UniformTypeIdentifiers
         }
     }
     func updateIssueFromHistory(_ selectedMessage: String, insertedInto text: String) {
+        cancelHistoryIssueUpdate()
         let properties = issueProperties, previousID = issueID
-        guard properties.showsIssueField else { return }
-        Task { [weak self, repository] in
-            guard let id = try? await repository.issueFieldValue(properties: properties, message: selectedMessage), !id.isEmpty,
-                  let self, self.message == text, self.issueID == previousID, self.issueProperties == properties else { return }
+        guard messageFocusAvailable, properties.showsIssueField else { return }
+        let generation = historyIssueGeneration, token = OperationCancellation(), query = queryHistoryIssue
+        historyIssueCancellation = token
+        historyIssueTask = Task { [weak self] in
+            defer {
+                if self?.historyIssueGeneration == generation { self?.historyIssueTask = nil; self?.historyIssueCancellation = nil }
+            }
+            guard !Task.isCancelled, !token.isCancelled else { return }
+            guard let id = try? await query(properties, selectedMessage, token), !id.isEmpty,
+                  !Task.isCancelled, !token.isCancelled, let self, self.messageFocusAvailable,
+                  self.historyIssueGeneration == generation,
+                  self.message == text, self.issueID == previousID, self.issueProperties == properties else { return }
             self.issueID = id
         }
     }
@@ -471,6 +489,7 @@ import UniformTypeIdentifiers
         self.repository = repository; self.access = access; self.unversionedDefaults = unversionedDefaults
         self.dialogDefaults = dialogDefaults
         queryLFSOwners = { try await repository.lfsLocks(cancellation: $0) }
+        queryHistoryIssue = { try await repository.issueFieldValue(properties: $0, message: $1, cancellation: $2) }
         queryCommitStatus = { try await repository.commitDialogStatus(amendToParent: $0, cancellation: $1) }
         queryCommitAuthor = { amend, cancellation in
             if amend {
@@ -944,6 +963,7 @@ import UniformTypeIdentifiers
         messageFocusRequest += 1
     }
     func invalidateMessageFocus() {
+        cancelHistoryIssueUpdate()
         messageFocusAvailable = false; messageFocusRequest = 0; appliedMessageFocusRequest = 0
     }
     func invalidateForClose() {
