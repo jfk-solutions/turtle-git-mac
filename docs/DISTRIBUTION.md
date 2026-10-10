@@ -17,6 +17,7 @@ configuration requires a prepared pinned runtime and refuses external fallback.
 ```sh
 python3 scripts/build-editorconfig-runtime.py
 python3 scripts/build-issue-regex-runtime.py
+python3 scripts/build-graph-layout-runtime.py
 python3 scripts/build-openssh-runtime.py
 python3 scripts/build-git-runtime.py
 xcodebuild -project TurtleGitMac.xcodeproj -scheme TurtleGitAppStore \

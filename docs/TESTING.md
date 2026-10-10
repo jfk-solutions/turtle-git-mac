@@ -49,8 +49,18 @@ TURTLEGIT_GROUP_TEST_GIT="$PWD/build/git-runtime/Git/bin/git" \
 These checks cover graph scopes, tag hiding, merge/branch structure, terminal
 excluded parents, unborn/detached/bare repositories and superproject index
 pointers, including conflicts. They check unchanged repository bytes and do not
-launch native windows. See [Revision Graph parity](REVISION-GRAPH-PARITY.md);
-the native graph window and its acceptance checks remain outstanding.
+launch native windows. See [Revision Graph parity](REVISION-GRAPH-PARITY.md)
+for the native window, Filter and modeless Find checks. The workflow runs their headless receiver with
+both system and packaged Git after both app builds:
+
+```sh
+python3 scripts/test-revision-graph-window.py \
+  --git /usr/bin/git --git build/git-runtime/Git/bin/git
+```
+
+That receiver checks native controls, reference navigation, Find initialization,
+Return/Shift-Return routing and owned error-sheet cleanup. It does not establish
+physical mouse/keyboard, accessibility or signed sandbox acceptance.
 
 The layout bridge's focused suite uses the built OGDF runtime and a private
 cancelled worker:

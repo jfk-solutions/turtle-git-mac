@@ -5,7 +5,7 @@ This extends the repository metadata audit with path/status/selection clauses.
 Full Explorer-to-Finder parity remains incomplete.
 
 `FinderShellRules` retains the four alternative required/excluded flag pairs for
-39 implemented root entries from `MenuInfo.cpp` (blob
+45 implemented root entries from `MenuInfo.cpp` (blob
 `aee7f91ad1111fe03ab85b390855885ca940a27f`). An empty pair does not match;
 otherwise all required bits must be present and all excluded bits absent,
 following `ContextMenu.cpp`'s `ShouldEnableMenu`. The independent source fixture is
@@ -44,8 +44,9 @@ extension menu builder receiver verifies exact command sets for unchanged,
 added and two-file targets, worktree-folder creation, mixed administrative
 exclusion, source ordering, captured paths, metadata and icon preferences.
 It constructs no Finder controller or extension and displays no menus/windows.
-The final full core regression passes 474 tests with zero failures; Debug and
-unsigned AppStore builds, both bundle audits and site generation pass.
+The initial checkpoint passed 474 core tests with zero failures, Debug and
+unsigned AppStore builds, both bundle audits and site generation. Those historical
+results do not establish the current complete suite.
 
 These checks do not prove full source classification. Complete submodule-root cache coverage
 (see [refreshed-root progress](FINDER-SUBMODULE-ROOT-PARITY.md)), git-svn, inaccessible paths, background/container bit combinations,
@@ -64,3 +65,13 @@ Clean up requires a folder inside a working tree, matching the pinned Cleanup
 clause. It is absent for file-only selections and bare roots. Its captured request
 passes through the app permission gate to the nearest checkout and native Clean
 options; [Clean parity](CLEAN-PARITY.md) records activation and sandbox gaps.
+
+## Revision Graph fixture correction — October 10, 2026
+
+The independent source fixture now includes Revision Graph’s four clauses from
+the same pinned `MenuInfo.cpp` blob. Its bare-repository expectation also admits
+Revision Graph. Both omissions caused failures in the current complete SwiftPM
+run; production menu rules already matched the pinned source and were unchanged.
+The 21 focused Finder metadata, rule and request tests passed after correction.
+The source fixture compares required and excluded masks independently for all
+45 implemented rules. Signed Finder activation remains unverified.
