@@ -34,6 +34,31 @@ private actor DirectProbe {
     }
     func snapshot() -> ([String], [UUID], [[String]], [String]) { (hosts, ids, recipients, lookups) }
 }
+private actor DomainContinuationProbe {
+    enum Mode { case recover, permanent, uncertain, cancelWait }
+    let mode: Mode
+    var lookups: [String] = [], submitted: [String] = [], firstAttempts = 0
+    init(_ mode: Mode) { self.mode = mode }
+    func resolve(_ domain: String) throws -> [SMTPMXRecord] {
+        lookups.append(domain)
+        if domain == "a.invalid" && mode == .permanent {
+            return [try SMTPMXRecord.decode(Data([0, 0, 0]))]
+        }
+        return [try directMX(domain)]
+    }
+    func submit(_ server: SMTPServer) throws -> SMTPReceipt {
+        submitted.append(server.host)
+        if server.host == "a.invalid" {
+            firstAttempts += 1
+            if mode == .uncertain { throw SMTPFailure.transfer(code: 56, response: 0, possiblySubmitted: true) }
+            if firstAttempts == 1 || mode == .cancelWait {
+                throw SMTPFailure.transfer(code: 7, response: 0, possiblySubmitted: false)
+            }
+        }
+        return SMTPReceipt(response: 250)
+    }
+    func snapshot() -> ([String], [String]) { (lookups, submitted) }
+}
 final class PatchMailDirectTests: XCTestCase {
     let sender = PatchMailSender(name: "Direct 雪", email: "sender@example.invalid")
     func message() throws -> PatchMailMessage {
@@ -79,6 +104,35 @@ final class PatchMailDirectTests: XCTestCase {
             let state = await probe.snapshot()
             XCTAssertEqual(state.0, mode == .uncertain ? ["a-mx", "z-mx1"] : ["a-mx"])
             if mode == .noMX { XCTAssertEqual(state.3.filter { $0 == "z.invalid" }.count, 3) }
+        }
+    }
+    func testDefiniteFailureContinuesToLaterDomainsAndRetrySkipsTheirAcceptance() async throws {
+        for mode in [DomainContinuationProbe.Mode.recover, .permanent, .uncertain, .cancelWait] {
+            let probe = DomainContinuationProbe(mode), token = OperationCancellation()
+            let message = PatchMailMessage(to: ["to@a.invalid", "to@m.invalid"], cc: ["cc@z.invalid"],
+                                           subject: "Continue domains", body: Data("body".utf8), attachments: [])
+            do {
+                let receipts = try await PatchMailSMTP.sendDirectSeries(messages: [message], sender: sender, cancellation: token,
+                    resolver: { domain, _ in try await probe.resolve(domain) },
+                    transport: { _, _, server, _, _, _, _, _ in try await probe.submit(server) },
+                    wait: { token in
+                        if mode == .cancelWait { token.cancel() }
+                        try token.check()
+                    })
+                XCTAssertEqual(mode, .recover); XCTAssertEqual(receipts.count, 1)
+            } catch let series as SMTPSeriesFailure {
+                XCTAssertNotEqual(mode, .recover); XCTAssertEqual(series.attempts, 1)
+                let failure = try XCTUnwrap(series.cause as? SMTPDirectFailure)
+                XCTAssertEqual(failure.domain, "a.invalid")
+                XCTAssertEqual(failure.acceptedDomains, mode == .uncertain ? [] : ["m.invalid", "z.invalid"])
+                XCTAssertTrue(failure.hasDelivery)
+                if mode == .cancelWait { XCTAssertTrue(failure.cause is OperationCancellationFailure) }
+            }
+            let state = await probe.snapshot()
+            let expected = mode == .recover ? ["a.invalid", "m.invalid", "z.invalid", "a.invalid"] :
+                mode == .uncertain ? ["a.invalid"] : ["a.invalid", "m.invalid", "z.invalid"]
+            XCTAssertEqual(state.0, expected)
+            XCTAssertEqual(state.1, mode == .permanent ? ["m.invalid", "z.invalid"] : expected)
         }
     }
     func testInvalidLaterMessagePreventsAllLookupsAndSubmission() async throws {

@@ -24,7 +24,9 @@ remain pending. See [Send Patch parity](SEND-PATCH-PARITY.md).
 
 Direct mail now groups To/CC recipients by domain, resolves system MX exchanges,
 and submits domain-specific envelopes while preserving full MIME headers. Retries
-skip domains that already accepted the message; ambiguous uploads stop failover.
+skip domains that already accepted the message; definite failures still permit
+later domains to receive mail, while ambiguous uploads stop failover. Cancelling
+a retry wait retains partial-domain acceptance.
 Format and Import use the native Send Mail options/progress route for direct as
 well as configured SMTP. Focused core tests, hidden native route checks and the
 built SDK framework's private loopback queue passed. Public mail delivery,

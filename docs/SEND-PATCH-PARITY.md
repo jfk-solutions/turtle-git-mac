@@ -599,11 +599,31 @@ the direct queue and transport against an owned loopback SMTP server, with exact
 MIME byte comparison and independent attachment decoding. No public mail or
 user Keychain access was used. See [direct delivery QA](qa/send-patch-direct-2026-10-10.json).
 
-This remains a partial port. Unlike upstream's loop that proceeds to later
-domains after a failed domain, the current queue stops that attempt at the first
-failed domain and resumes through its retry policy. That continuation behavior
-still requires alignment and dedicated verification. Full mail-client delivery,
+This checkpoint remains a partial port. Its initial attempt stopped at the first
+failed domain; the continuation checkpoint below supersedes that limitation. Full mail-client delivery,
 other entry points, actual public MX submission, displayed/physical UI and signed
 sandbox/Finder/App Store acceptance remain pending. Earlier sections describe
 historical checkpoints, whose pending direct work is superseded only within the
 scope above.
+
+## Later-domain continuation and retry-wait cancellation
+
+The direct queue now matches `SendSpeedEmail` by continuing to later recipient
+domains after a definite lookup or submission failure. It remembers the first
+failure, completes later deliveries, then reports the failure with the complete
+accepted-domain set. A retry skips all accepted domains. Null MX still permits
+later domains to receive mail before returning a permanent failure. Cancellation
+and ambiguous submission stop immediately.
+
+Cancelling during the retry delay now retains the prior direct failure's accepted
+domains while replacing its cause with cancellation. Previously the generic
+series wrapper lost that partial-delivery context at this boundary. The progress
+window can therefore continue to show the existing partial-delivery warning.
+
+The focused mail suite now has 28 tests. The new three-domain scenarios cover
+first-domain transient failure/recovery, later acceptance and retry skipping,
+permanent null MX with later acceptance, uncertain first-domain stop, and retry
+wait cancellation retaining later domains. See
+[continuation QA](qa/send-patch-domain-continuation-2026-10-10.json). Full
+mail-client/public delivery, other entry points, physical dialogs and signed
+sandbox/Finder/App Store acceptance remain pending.

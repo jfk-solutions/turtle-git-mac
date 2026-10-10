@@ -195,8 +195,16 @@ extension PatchMailSMTP {
                     } else { retry = false }
                     guard retry else { throw SMTPSeriesFailure(index: index, attempts: attempt, accepted: accepted, cause: error) }
                     onProgress?(.retry(index: index, nextAttempt: attempt + 1))
+                    let errorBeforeWait = error
                     do { try await wait(); try cancellation.check(); try Task.checkCancellation() }
-                    catch { throw SMTPSeriesFailure(index: index, attempts: attempt, accepted: accepted, cause: error) }
+                    catch {
+                        // A cancelled retry wait must retain any partial direct delivery.
+                        let cause: Error
+                        if let direct = errorBeforeWait as? SMTPDirectFailure {
+                            cause = SMTPDirectFailure(domain: direct.domain, acceptedDomains: direct.acceptedDomains, cause: error)
+                        } else { cause = error }
+                        throw SMTPSeriesFailure(index: index, attempts: attempt, accepted: accepted, cause: cause)
+                    }
                 }
             }
         }
@@ -361,6 +369,7 @@ private actor DirectSMTPState {
         completed = Array(repeating: [], count: messages.count); responses = Array(repeating: 250, count: messages.count)
     }
     func submit(_ index: Int, progress: @escaping @Sendable (SMTPUploadProgress) -> Void) async throws -> SMTPReceipt {
+        var firstFailure: (domain: String, cause: Error)?
         for group in plans[index] where !completed[index].contains(group.domain) {
             do {
                 try token.check(); try Task.checkCancellation()
@@ -389,7 +398,18 @@ private actor DirectSMTPState {
                 }
                 guard let receipt else { throw lastError }
                 completed[index].append(group.domain); responses[index] = receipt.response
-            } catch { throw SMTPDirectFailure(domain: group.domain, acceptedDomains: completed[index], cause: error) }
+            } catch {
+                // Like SendSpeedEmail, a definite failure does not prevent later
+                // domains from receiving this message. Cancellation or uncertain
+                // acknowledgement stops immediately instead of risking duplication.
+                let failure = SMTPDirectFailure(domain: group.domain, acceptedDomains: completed[index], cause: error)
+                if token.isCancelled || Task.isCancelled { throw failure }
+                if case SMTPFailure.transfer(_, _, true) = error { throw failure }
+                if firstFailure == nil { firstFailure = (group.domain, error) }
+            }
+        }
+        if let failure = firstFailure {
+            throw SMTPDirectFailure(domain: failure.domain, acceptedDomains: completed[index], cause: failure.cause)
         }
         return SMTPReceipt(response: responses[index])
     }
