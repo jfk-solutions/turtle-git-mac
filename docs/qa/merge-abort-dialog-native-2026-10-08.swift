@@ -2,9 +2,10 @@ import AppKit
 import TurtleGitCore
 
 @main struct MergeAbortVerification {
-    @MainActor static func waitUntil(_ predicate: @escaping () -> Bool, line: UInt = #line) async throws {
+    @MainActor static func waitUntil(_ predicate: @escaping () -> Bool, line: UInt = #line, diagnostic: () -> String = { "" }) async throws {
         let deadline = Date().addingTimeInterval(30)
         while !predicate() && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        if !predicate() { FileHandle.standardError.write(Data(("Abort wait diagnostic: " + diagnostic() + "\n").utf8)) }
         precondition(predicate(), "Native Abort timed out at receiver line \(line)")
     }
     @MainActor static func key(_ window: NSWindow, _ code: UInt16, _ text: String) {
@@ -121,7 +122,6 @@ import TurtleGitCore
         key(ordinaryWindow, 53, "\u{1b}"); precondition(ordinaryWindow.isVisible && ordinary.model.busy)
         try await waitUntil { !ordinary.model.busy && ordinaryPids.allSatisfy { kill($0, 0) == -1 } }
         precondition(ordinary.model.cancelled && !ordinary.model.success && ordinary.model.postActions == [.retry])
-        key(ordinaryWindow, 53, "\u{1b}")
         precondition(ordinary.progress == nil && !ordinaryWindow.isVisible && !ordinary.window!.isVisible)
         print("Abort ownership: hidden HEAD/working sheet, duplicate/OK/Close/Quit gates, child close and forced parent teardown; active HEAD-preflight forced-close cancellation reaps leader/child and rejects result callbacks. Private preferences only.")
         for mode in MergeAbortMode.allCases {
@@ -209,10 +209,77 @@ import TurtleGitCore
                     precondition(controller.model.success && !controller.model.cancelled)
                     precondition(controller.model.output.components(separatedBy: "Resetting α").count == 2, "Streamed output must not be repeated at completion")
                 }
-                controller.model.close()
+                if behavior == "cancel" { precondition(controller.progress == nil, "Accepted cancellation retires progress after process unwind") }
+                else if behavior == "failure" { key(controller.progress!.window!, 53, "\u{1b}") }
+                else { controller.model.close() }
             }
             precondition(controller.progress == nil && !controller.window!.isVisible)
         }
+        preferences.set(true, forKey: "ConfirmKillProcess")
+        for scenario in ["decline", "accept", "finished-no", "finished-yes", "forced", "stale"] {
+            try? FileManager.default.removeItem(at: streamReady); try? FileManager.default.removeItem(at: release)
+            try Data("success".utf8).write(to: behaviorFile)
+            preferences.set(scenario.hasPrefix("finished") ? GitProgressAutoClose.noErrors.rawValue : GitProgressAutoClose.manual.rawValue, forKey: "AutoCloseGitProgress")
+            let controller = MergeAbortWindowController(repository: GitRepository(root: root, executable: streamHelper), access: nil, preferences: preferences)
+            controller.window!.alphaValue = 0; controller.window!.orderFront(nil)
+            var changes = 0; controller.model.onChanged = { _ in changes += 1 }
+            controller.model.abort()
+            try await waitUntil { controller.model.output.contains("tracked paths") && FileManager.default.fileExists(atPath: streamReady.path) }
+            let pid = Int32(try String(contentsOf: streamReady).trimmingCharacters(in: .whitespacesAndNewlines))!
+            let progress = controller.progress!, progressWindow = progress.window!
+            var delayedReply: ((Bool) -> Void)?
+            if scenario == "stale" { controller.model.confirmCancellation = { delayedReply = $0 } }
+            key(progressWindow, 53, "\u{1b}")
+            precondition(controller.model.confirmingCancellation && controller.model.busy && kill(pid, 0) == 0)
+            let alert = progress.cancellationAlert
+            if scenario != "stale" {
+                precondition(alert?.messageText == "The process is still running." && alert?.informativeText == "Are you sure to abort?")
+                precondition(progressWindow.attachedSheet === alert!.window && alert!.window.sheetParent === progressWindow)
+                precondition(alert!.buttons.map(\.title) == ["Yes", "No"])
+            }
+            controller.model.cancel(); controller.model.close(); key(progressWindow, 36, "\r")
+            precondition(controller.model.confirmingCancellation && controller.progress === progress)
+            precondition(!progress.windowShouldClose(progressWindow) && delegate.applicationShouldTerminate(NSApplication.shared) == .terminateCancel)
+            if scenario.hasPrefix("finished") {
+                try Data().write(to: release)
+                try await waitUntil { !controller.model.busy }
+                precondition(controller.model.success && !controller.model.cancelled && controller.model.confirmingCancellation && progressWindow.isVisible)
+                precondition(delegate.applicationShouldTerminate(NSApplication.shared) == .terminateCancel)
+                alert!.buttons[scenario == "finished-no" ? 1 : 0].performClick(nil)
+                try await waitUntil({ controller.progress == nil }, diagnostic: { "scenario=\(scenario) busy=\(controller.model.busy) confirming=\(controller.model.confirmingCancellation) sheet=\(progressWindow.attachedSheet != nil) policy=\(preferences.integer(forKey: "AutoCloseGitProgress"))" })
+                precondition(controller.model.success && !controller.model.cancelled && changes == 1)
+            } else if scenario == "decline" {
+                alert!.buttons[1].performClick(nil)
+                try await waitUntil { !controller.model.confirmingCancellation && progressWindow.attachedSheet == nil }
+                precondition(controller.model.busy && kill(pid, 0) == 0 && controller.progress === progress)
+                try Data().write(to: release); try await waitUntil { !controller.model.busy }
+                precondition(controller.model.success && !controller.model.cancelled && changes == 1)
+                controller.model.close()
+            } else if scenario == "accept" {
+                alert!.buttons[0].performClick(nil)
+                try await waitUntil { !controller.model.busy && controller.progress == nil && kill(pid, 0) == -1 }
+                precondition(controller.model.cancelled && !controller.model.success && changes == 1)
+            } else {
+                if scenario == "stale" {
+                    let firstReply = delayedReply!
+                    firstReply(false); firstReply(true)
+                    precondition(!controller.model.confirmingCancellation && controller.model.busy && kill(pid, 0) == 0)
+                    controller.model.cancel()
+                    precondition(controller.model.confirmingCancellation)
+                    firstReply(true)
+                    precondition(controller.model.confirmingCancellation && controller.model.busy && kill(pid, 0) == 0)
+                }
+                let before = controller.model.output
+                controller.window!.close()
+                delayedReply?(true); delayedReply?(false)
+                try await waitUntil { !controller.model.busy && kill(pid, 0) == -1 }
+                precondition(!controller.model.confirmingCancellation && changes == 0 && controller.model.output == before && controller.progress == nil)
+                if let alert { precondition(alert.window.sheetParent == nil && !alert.window.isVisible) }
+            }
+            precondition(controller.progress == nil && !progressWindow.isVisible && progressWindow.attachedSheet == nil)
+        }
+        preferences.removeObject(forKey: "ConfirmKillProcess"); preferences.removeObject(forKey: "AutoCloseGitProgress")
+        print("Abort confirmation: actual owned Yes/No sheet; decline preserves active command; accept cancels/reaps and retires progress; duplicate/close/Quit gates; completion while prompt pending delays auto-close and keeps success; forced sheet teardown and late/duplicate replies rejected. Private preferences.")
         preferences.removeObject(forKey: "GitOutputLimitinKiB")
         print("Abort live output: stdout/stderr before completion, UTF-8, failure status without duplicate output, ordinary cancel retention, forced-close late-output fencing, 16KiB display limit; all hidden windows closed.")
         let keyboardCancel = MergeAbortWindowController(repository: repo, access: nil, preferences: preferences)

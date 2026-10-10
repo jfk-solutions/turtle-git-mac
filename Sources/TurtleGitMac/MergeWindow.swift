@@ -574,6 +574,12 @@ enum MergeAbortPostAction: String, CaseIterable, Hashable {
     private var worker: Task<Void, Never>?
     private var outputState: GitProgressOutputState
     private var rawOutput = ""
+    private var closeAfterCancellation = false
+    private var pendingConfirmation: UUID?
+    @Published private(set) var confirmingCancellation = false
+    @Published private(set) var cancelling = false
+    var canCancel: Bool { busy && !invalidated && !confirmingCancellation && !cancelling }
+    var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
     @Published var hasChild = false
     @Published var mode = MergeAbortMode.merge
     @Published private(set) var busy = false
@@ -590,7 +596,7 @@ enum MergeAbortPostAction: String, CaseIterable, Hashable {
     private var autoClosePolicy = GitProgressAutoClose.manual
     var close: () -> Void = {}
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.preferences = preferences; outputState = GitProgressOutputState(preferences: preferences) }
-    func invalidate() { invalidated = true; cancellation.cancel(); worker?.cancel() }
+    func invalidate() { invalidated = true; pendingConfirmation = nil; confirmingCancellation = false; cancellation.cancel(); worker?.cancel() }
     func showModified() { guard !invalidated, !busy, !hasChild, !showingProgress else { return }; onShowModified?() }
     func abort() {
         guard !invalidated, !busy, !hasChild, !showingProgress else { return }
@@ -616,7 +622,7 @@ enum MergeAbortPostAction: String, CaseIterable, Hashable {
     private func start() {
         ProgressActionLog.nextAttempt(self, savePrevious: !output.isEmpty)
         autoClosePolicy = GitProgressAutoClose(preferences: preferences)
-        busy = true; success = false; cancelled = false; outputState.reset(); output = ""; rawOutput = ""; postActions = []; cancellation = OperationCancellation()
+        busy = true; success = false; cancelled = false; cancelling = false; closeAfterCancellation = false; outputState.reset(); output = ""; rawOutput = ""; postActions = []; cancellation = OperationCancellation()
         let token = cancellation, selectedMode = operationMode
         worker = Task {
             // Keep the operation active until the owned process has actually unwound.
@@ -649,12 +655,31 @@ enum MergeAbortPostAction: String, CaseIterable, Hashable {
             success = succeeded; cancelled = !succeeded && token.isCancelled; postActions = actions
             onChanged(rawOutput)
             guard !invalidated else { return }
-            if autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { close() }
+            finishResult()
         }
     }
-    func cancel() { guard busy else { return }; cancellation.cancel() }
+    private func finishResult() {
+        guard !invalidated, !busy, !confirmingCancellation else { return }
+        if closeAfterCancellation || autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { close() }
+    }
+    func cancel() {
+        guard canCancel else { return }
+        let token = cancellation
+        if preferences.bool(forKey: "ConfirmKillProcess") {
+            let request = UUID(); pendingConfirmation = request; confirmingCancellation = true
+            confirmCancellation { [weak self] accepted in
+                guard let self, !self.invalidated, self.pendingConfirmation == request, self.cancellation === token else { return }
+                self.pendingConfirmation = nil; self.confirmingCancellation = false
+                if accepted {
+                    self.closeAfterCancellation = true
+                    if self.busy { self.cancelling = true; token.cancel() }
+                }
+                self.finishResult()
+            }
+        } else { closeAfterCancellation = true; cancelling = true; token.cancel() }
+    }
     func perform(_ action: MergeAbortPostAction) {
-        guard !invalidated, !busy, !hasChild, postActions.contains(action) else { return }
+        guard !invalidated, !busy, !hasChild, !confirmingCancellation, postActions.contains(action) else { return }
         if action == .retry {
             saveActionLog();
             if operationMode == .merge { mode = .merge; showingProgress = false; onResize(false) }
@@ -690,7 +715,7 @@ private final class MergeAbortNativeWindow: NSWindow {
         window.contentMinSize = NSSize(width: 660, height: 265)
         window.contentViewController = NSHostingController(rootView: MergeAbortDialog(model: model).frame(width: 660, height: 265))
         super.init(window: window); window.delegate = self; window.setContentSize(NSSize(width: 660, height: 265)); window.center()
-        model.close = { [weak self] in guard let self, !self.model.busy, !self.model.hasChild, self.window?.attachedSheet == nil, self.progress?.window?.attachedSheet == nil else { return }; self.window?.close() }
+        model.close = { [weak self] in guard let self, !self.model.busy, !self.model.hasChild, !self.model.confirmingCancellation, self.window?.attachedSheet == nil, self.progress?.window?.attachedSheet == nil else { return }; self.window?.close() }
         model.onResize = { [weak self] showing in self?.showProgress(showing) }
         window.primary = { [weak model] in model?.abort() }
         window.cancelAction = { [weak model] in guard let model, !model.hasChild else { return }; model.close() }
@@ -729,7 +754,7 @@ private final class MergeAbortNativeWindow: NSWindow {
         sheet.alphaValue = window.alphaValue; sheet.appearance = window.appearance
         window.beginSheet(sheet); child.model.load()
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; return !model.hasChild && sender.attachedSheet == nil }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { if model.confirmingCancellation { return false }; if model.busy { model.cancel(); return false }; return !model.hasChild && sender.attachedSheet == nil }
     func windowWillClose(_ notification: Notification) {
         model.saveActionLog(); model.invalidate()
         progress?.onClosed = {}; progress?.close(); progress = nil
@@ -741,6 +766,7 @@ private final class MergeAbortNativeWindow: NSWindow {
 @MainActor final class MergeAbortProgressWindowController: NSWindowController, NSWindowDelegate {
     let model: MergeAbortWindowModel
     var onClosed: () -> Void = {}
+    private(set) var cancellationAlert: NSAlert?
     init(model: MergeAbortWindowModel) {
         self.model = model
         let window = MergeAbortNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 420), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
@@ -748,15 +774,37 @@ private final class MergeAbortNativeWindow: NSWindow {
         window.contentMinSize = NSSize(width: 600, height: 300)
         window.contentViewController = NSHostingController(rootView: MergeAbortDialog(model: model).frame(minWidth: 600, minHeight: 300))
         super.init(window: window); window.delegate = self; window.setContentSize(NSSize(width: 760, height: 420))
-        window.primary = { [weak model] in guard let model, !model.busy else { return }; model.close() }
+        window.primary = { [weak model] in guard let model, !model.busy, !model.confirmingCancellation else { return }; model.close() }
         window.cancelAction = { [weak model] in guard let model else { return }; if model.busy { model.cancel() } else { model.close() } }
+        model.confirmCancellation = { [weak self] choose in
+            guard let self, let window = self.window, window.attachedSheet == nil else { choose(false); return }
+            let alert = NSAlert(); alert.alertStyle = .informational
+            alert.messageText = "The process is still running."; alert.informativeText = "Are you sure to abort?"
+            let yes = alert.addButton(withTitle: "Yes"), no = alert.addButton(withTitle: "No")
+            yes.keyEquivalent = "\r"; no.keyEquivalent = "\u{1b}"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
+            alert.window.alphaValue = window.alphaValue; alert.window.appearance = window.appearance
+            self.cancellationAlert = alert
+            alert.beginSheetModal(for: window) { [weak self] response in
+                // NSAlert invokes its reply before AppKit finishes detaching the
+                // sheet. Keep the model gate until a close can actually succeed.
+                DispatchQueue.main.async {
+                    self?.cancellationAlert = nil; choose(response == .alertFirstButtonReturn)
+                }
+            }
+        }
         DialogGeometry.attach(window, identifier: "MergeAbortProgressWindowController")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if model.confirmingCancellation || sender.attachedSheet != nil { return false }
         if model.busy { model.cancel(); return false }
         return sender.attachedSheet == nil
     }
-    func windowWillClose(_ notification: Notification) { onClosed() }
+    func windowWillClose(_ notification: Notification) {
+        let callback = onClosed; onClosed = {}; callback()
+        if let alert = cancellationAlert {
+            window?.endSheet(alert.window, returnCode: .abort); alert.window.close(); cancellationAlert = nil
+        }
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 private struct MergeAbortDialog: View {
@@ -772,8 +820,8 @@ private struct MergeAbortDialog: View {
                         Menu { ForEach(model.postActions, id: \.self) { action in Button { model.perform(action) } label: { CommandLabel(title: action.title, icon: action.icon) } } } label: { Image(systemName: "chevron.down").accessibilityLabel("Reset post-actions") }.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
                     }
                     Spacer()
-                    if model.busy { Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction) }
-                    else { Button("Close") { model.close() }.keyboardShortcut(.defaultAction) }
+                    if model.busy { Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(!model.canCancel) }
+                    else { Button("Close") { model.close() }.keyboardShortcut(.defaultAction).disabled(model.confirmingCancellation) }
                 }
             } else {
                 Text("In order to abort a merge progress a reset (to HEAD) is needed.")
