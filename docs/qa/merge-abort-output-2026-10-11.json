@@ -1,0 +1,103 @@
+{
+  "date": "2026-10-11",
+  "checkpoint": "9bae31c9a2252ae74ffcffe5e9bf875e5fb31833",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "progress_source_blob": "557988a1303dc86b11c9c74d29be4797aa7e6090",
+  "status": "partial-native",
+  "implemented": [
+    "Actual native selectable output with source Copy/separator/Copy All menu, original icons and application icon preference.",
+    "Copy selection and entire Unicode output without changing selection or viewport.",
+    "Completed output font, fatal/error/warning prefixes and links through existing shared native control.",
+    "Current work and progress above output; live percentage and full completion bar."
+  ],
+  "verification": {
+    "native_command": "python3 scripts/test-merge-abort-dialog.py --git /usr/bin/git --git build/git-runtime/Git/bin/git --capture-dir build/qa/merge-abort-output-captures-final-2026-10-11",
+    "native_exit": 0,
+    "engines": 2,
+    "output_markers": 2,
+    "shared_control_regression_exit": 0,
+    "unsigned_debug_exit": 0,
+    "core_scope": "No Core edits; no fresh full-suite claim.",
+    "unsigned_appstore_exit": 0,
+    "debug_bundle_audit_exit": 0,
+    "appstore_require_git_bundle_audit_exit": 0,
+    "original_icons": 120,
+    "final_process_audit": "No app, receiver, compiler or owned helper remains.",
+    "inventory_pin_exit": 0,
+    "site_exit": 0,
+    "inventory_dialogs": {
+      "partial": 48,
+      "pending_review": 82,
+      "certified_complete": 0
+    }
+  },
+  "earlier_failure": "Mixed stdout/stderr progress fixture passed system Git but timed out on bundled Git because diagnostics could arrive after its carriage-return line. Final fixture sends all percentage-case output through ordered stderr. Failure runner cleaned exact owned helper group; final two-engine run passes.",
+  "captures": [
+    {
+      "asset": "docs/site/assets/merge-abort-options-light.png",
+      "source": "build/qa/merge-abort-output-captures-final-2026-10-11/merge-abort-options-light.png",
+      "sha256": "bce2f5948ed088a109b9e80561d03144d3c5935424045d6edd2861b342c7e922",
+      "inspected": true,
+      "pixels": [
+        1320,
+        530
+      ]
+    },
+    {
+      "asset": "docs/site/assets/merge-abort-options-dark.png",
+      "source": "build/qa/merge-abort-output-captures-final-2026-10-11/merge-abort-options-dark.png",
+      "sha256": "b870c3b9b122716f8ca52d6b80232e0a78a9c23c5e21f4345ce798938bd729c9",
+      "inspected": true,
+      "pixels": [
+        1320,
+        530
+      ]
+    },
+    {
+      "asset": "docs/site/assets/merge-abort-reset-failed-light.png",
+      "source": "build/qa/merge-abort-output-captures-final-2026-10-11/merge-abort-reset-failed-light.png",
+      "sha256": "6b1c317b3640aabf7940a79bc9e38ee0b2bcd3e5774445ec8dbeb1d8dd8e0663",
+      "inspected": true,
+      "pixels": [
+        1520,
+        840
+      ]
+    },
+    {
+      "asset": "docs/site/assets/merge-abort-reset-failed-dark.png",
+      "source": "build/qa/merge-abort-output-captures-final-2026-10-11/merge-abort-reset-failed-dark.png",
+      "sha256": "77c9675bc89f42e25fcf79d626aee4ce20ff7f7505188be59429637373de68ca",
+      "inspected": true,
+      "pixels": [
+        1520,
+        840
+      ]
+    }
+  ],
+  "capture_scope": "Actual hidden alpha-zero NSWindow content cacheDisplay, Aqua/darkAqua, private repository/preferences/clipboard. Unedited bytes. Real system Git reset index-lock failure128. No window chrome or physical input claim.",
+  "remaining": [
+    "Animation, completion timing/footer and Dock progress.",
+    "Inactive native bar renders gray; source red error-bar appearance is unproven.",
+    "Full progress options, factory/menu and broader submodule handoffs.",
+    "Physical keyboard/pointer/VoiceOver, signed sandbox/Finder and App Store acceptance.",
+    "Complete whole-application parity; no dialog certified complete."
+  ],
+  "sources_sha256": {
+    "Sources/TurtleGitMac/MergeWindow.swift": "9c524a31667460811f30bc7293808c2a441342a46b23ce9c3c6c3f1c8c9e8beb",
+    "Sources/TurtleGitMac/SubmoduleProgressOutputView.swift": "4bd9fd85e01191dc31c5791514d41dc96a8b9071e2b1e9b7df1f173ce0b77e56",
+    "docs/qa/merge-abort-dialog-native-2026-10-08.swift": "4111be1bdc3f5053a7b8a4d40b8f0db2ddb8f82a3679134e14729c7924c2b0ad",
+    "scripts/test-merge-abort-dialog.py": "fa0e10da3d4b17f3291085044f3fe0161d1c3ee0386ca4a823a32081b00c0feb"
+  },
+  "logs_sha256": {
+    "build/qa/merge-abort-output-native-2026-10-11.log": "15b7926c5f87eabbe846065e4be61bf8246c067f6dd0b9ce2803518dc91afdb3",
+    "build/qa/merge-abort-output-native-final-2026-10-11.log": "c5b692b6d7aec8f999150f4f8e66d793ed6d4fe7edb9c2750a0d7000b59b438a",
+    "build/qa/merge-abort-output-shared-native-2026-10-11.log": "4385ef6f0b9ea008a172a36a12160743dcd9464b240b539dca2f82d4e61f3399",
+    "build/qa/merge-abort-output-debug-final-2026-10-11.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/merge-abort-output-store-2026-10-11.log": "8b7e42e41011f64b89af2a34249c0e6a736fce554184bf57a0f657922d209930",
+    "build/qa/merge-abort-output-debug-audit-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/merge-abort-output-store-audit-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/merge-abort-output-processes-2026-10-11.json": "248afd97220ee28ab828cf639eef0e36889f6bbccb13dfab15fa5489fb249d4c",
+    "build/qa/merge-abort-output-inventory-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/merge-abort-output-site-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

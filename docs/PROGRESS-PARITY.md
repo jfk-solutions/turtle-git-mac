@@ -91,3 +91,19 @@ close and before replacing an attempt, using the source retention/cancellation
 rules. Settings → Saved Data provides the source Action log group. The
 [Action log guide](ACTION-LOG.md) lists coverage and explicit remaining gaps;
 headless QA is recorded in [the checkpoint](qa/action-log-2026-10-08.json).
+
+## Abort Merge output adoption, October 11
+
+Abort Merge adopts the shared native output control already used by submodule
+progress. The actual controller receiver verifies its icon-bearing Copy/Copy All
+menu dispatch, private Unicode clipboard, preserved selection/viewport, completed
+fatal prefix and URL attributes and parsed live current-work/percentage values
+with system and packaged Git. The standalone shared-control regression also
+passes. Current-work and progress appear above the output; the finished bar is
+full. New unedited light/dark captures show a real index-lock failure.
+
+This does not complete `IDD_GITPROGRESS`: animation, completion timing/footer,
+Dock progress, full options and physical/signed acceptance remain pending for
+Abort Merge. The hidden inactive native bar renders gray even though its tint is
+set for failure; source-equivalent red error-bar appearance is not proven.
+See [Merge parity](MERGE-PARITY.md#abort-merge-progress-output-october-11).

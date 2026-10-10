@@ -45,8 +45,9 @@ The Log’s **Show branches this commit is on** action now opens a native modele
 reference dialog with containment filtering, original branch/tag artwork, one/two/
 many selection menus, comparisons and owned Browse References/Log/Reflog pickers.
 Targeted Core and hidden native checks pass; light/dark content captures are on
-the website. This advances one of the 130 dialogs to partial implementation:
-47 dialogs are now partial and 83 await review. No dialog is certified complete.
+the website. Abort Merge progress now also has reviewed native control mappings.
+Across the 130 inventoried dialogs:
+48 dialogs are now partial and 82 await review. No dialog is certified complete.
 See [the reference dialog audit](COMMIT-CONTAINING-REFS-PARITY.md).
 
 Log commit ordering now has the source’s four-choice native sheet, deferred
@@ -59,7 +60,8 @@ window, with mode-specific retry and cancellation through all owned reads.
 Hidden controller and key-equivalent checks pass with system and packaged Git;
 inspected light/dark content captures are on the website. Physical input, full
 progress options and signed acceptance remain pending. Reset output now streams
-through the shared bounded parser. See
+through the shared bounded parser; the native selectable output adds original-icon
+Copy/Copy All, error and link styling, and current-work/percentage presentation. See
 [the Merge follow-up](MERGE-PARITY.md#abort-merge-ownership-follow-up-october-10).
 
 ## Audited baseline

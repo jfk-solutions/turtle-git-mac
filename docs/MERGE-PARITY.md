@@ -472,3 +472,32 @@ See [the confirmation record](qa/merge-abort-confirm-2026-10-11.json).
 These are native event/controller checks on the current host; physical input,
 other macOS runtime versions, full progress menus/options, factory/submodule and
 signed acceptance remain pending. Full dialog/app parity is not certified.
+
+## Abort Merge progress output, October 11
+
+Abort Merge now uses the shared native selectable output control. Its context menu
+matches the pinned `CProgressDlg::PreTranslateMessage`: Copy, a separator and Copy
+all information to clipboard, with the original clipboard icon on both actions.
+Copy is disabled without a selection. Copy All preserves selection and viewport;
+the application context-menu icon preference applies to both commands. Completed
+output follows the existing font and styling preferences, highlights fatal/error/
+warning prefixes and detects links.
+
+The current work label and progress bar are above the output, following
+`IDD_GITPROGRESS`. Parsed percentages update while reset runs; completion fills the
+bar to 100 percent. Native macOS rendering determines the bar appearance; the
+inactive hidden capture renders it gray, so these checks do not establish the
+upstream red error-bar appearance. Animation, completion timing text, Dock progress
+and full progress options remain pending. This is still a partial port.
+
+The receiver checks the actual Abort Merge output view and menu targets using a
+private clipboard, including Unicode, icon preferences, selection/viewport and
+completed error/link attributes. Its progress fixture uses one ordered stderr
+stream: an earlier mixed stdout/stderr fixture allowed a delayed diagnostic to
+overwrite the simulated carriage-return progress line. The failed run was stopped
+and its owned helper group cleaned by the runner.
+
+Final checks pass with both system and packaged Git, and the shared output-control
+regression passes. Four inspected native content captures were refreshed on the
+website. See [the output record](qa/merge-abort-output-2026-10-11.json) for exact
+source/capture hashes and verification scope.
