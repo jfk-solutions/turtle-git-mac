@@ -2742,8 +2742,8 @@ src/Utils/Hash.h,Utils,blob,cbc5eaf8075064a13642105a4921419099641889,pending-rev
 src/Utils/HighResClock.h,Utils,blob,ea240a75ee0b1998fe1e8c6e8bebe78551b4f949,pending-review,,
 src/Utils/Hooks.cpp,Utils,blob,cd363ab5ce7a34115d247a201a97220689d49d99,pending-review,,
 src/Utils/Hooks.h,Utils,blob,c5d4ab2ea7b7fd0e217d695921984f8ed85ea572,pending-review,,
-src/Utils/HwSMTP.cpp,Utils,blob,e931580b7c22d07d6bbba29c75e3907b38a7482e,pending-review,,
-src/Utils/HwSMTP.h,Utils,blob,b61575f7722865efe54d1dd41be10a7460d3312a,pending-review,,
+src/Utils/HwSMTP.cpp,Utils,blob,e931580b7c22d07d6bbba29c75e3907b38a7482e,partial,Sources/TurtleGitCore/PatchMailMIME.swift,MIME envelope/body/ordered attachments reviewed; transport/auth/TLS/retries pending
+src/Utils/HwSMTP.h,Utils,blob,b61575f7722865efe54d1dd41be10a7460d3312a,partial,Sources/TurtleGitCore/PatchMailMIME.swift,MIME serialization only; SMTP API/transport pending
 src/Utils/IInputValidator.h,Utils,blob,449606e6ad9aee583bd74b8d12c598196a5d4bcb,pending-review,,
 src/Utils/IconExtractor.cpp,Utils,blob,91d6916f9b7bda9785517ae81e569004c62de97b,pending-review,,
 src/Utils/IconExtractor.h,Utils,blob,e28a7d573426725e7a80e0502d6a1763d409b9b9,pending-review,,

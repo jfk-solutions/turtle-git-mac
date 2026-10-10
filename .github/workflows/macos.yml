@@ -239,7 +239,7 @@ jobs:
       - name: Build pinned universal Git runtime with source and licenses
         run: python3 scripts/build-git-runtime.py
       - name: Patch mail preparation with packaged Git
-        run: TURTLEGIT_SEND_PATCH_TEST_GIT="$PWD/build/git-runtime/Git/bin/git" swift test --filter PatchMailPreparationTests
+        run: TURTLEGIT_SEND_PATCH_TEST_GIT="$PWD/build/git-runtime/Git/bin/git" swift test --filter PatchMail
       - name: Sandboxed App Store configuration (unsigned compilation)
         run: >-
           xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitAppStore

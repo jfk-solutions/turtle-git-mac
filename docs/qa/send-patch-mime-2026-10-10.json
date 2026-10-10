@@ -1,0 +1,66 @@
+{
+  "checked_at": "2026-10-10T00:10:28.882252+00:00",
+  "parent_commit": "386d2fb51db5b47f9a50a76ebd75fa1df93ebfdd",
+  "scope": "Send Patch MIME serialization foundation; no native composition or delivery acceptance",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blob_sha256": {
+    "src/Utils/HwSMTP.cpp": "bacdc3f7bb59e0b5f195d4e976628bfa4c59f777cf548a25e3ba56e4fd78db90",
+    "src/Utils/HwSMTP.h": "e0c59025414077e50a42646a3e2ba7c98c8bf3e7178329204815ff4cbf0eb3ba"
+  },
+  "checks": {
+    "system_git_tests_exit": 0,
+    "packaged_git_tests_exit": 0,
+    "tests_per_engine": 12,
+    "mime_tests_per_engine": 6,
+    "preparation_tests_per_engine": 6,
+    "independent_parser": "Python standard-library email BytesParser with policy.default",
+    "cases": [
+      "All four source preparation modes retain distinct To/CC, Unicode display names, exact bodies and ordered attachment snapshots",
+      "Long Unicode subjects and RFC 2231 filename continuations, including quotes/semicolon/newline and long multibyte names",
+      "Opaque encoded subjects decode once; long multiword encoded subjects fold without double encoding",
+      "All 256 byte values survive binary attachment decoding without reading original path",
+      "Empty body/recipients and unique IDs; explicit UTF-8/Latin-1 body charset without byte rewriting",
+      "Header injection/control bytes, invalid mailbox syntax, nonfinite dates, oversized header tokens rejected",
+      "Encoded fields enforce 76-character lines; general message lines bounded to 998 bytes",
+      "Real binary patch series serialized as separate inline MIME messages applies with both Git engines to identical tree; source HEAD/index unchanged"
+    ],
+    "debug_build_exit": 0,
+    "debug_bundle_audit_exit": 0,
+    "appstore_unsigned_build_exit": 0,
+    "appstore_bundle_audit_exit": 0,
+    "inventory_pin_exit": 0,
+    "bundled_icons": 100,
+    "initial_review_fix": "Reduced encoded word chunks and folded display-name/address lines after RFC 2047 field-width review; final tests/builds rerun",
+    "side_effects": "No main app or mail client launched; no drafts, network sends or preference suites created",
+    "final_audit": {
+      "matching_processes": [],
+      "current_fixtures": []
+    }
+  },
+  "source_sha256": {
+    ".github/workflows/macos.yml": "05108119296d9f7ff36e243aa46b19b8448affd5025df5a8e1bed18f751f718f",
+    "NOTICE": "0b5682a9eff67c7b8312793125929a0d7765f8d398afefedf76f40cf5cfeb8bf",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "aa45f2874a30cb918c219a40edef306e86b55b6d80697a661e11eb047af209ee",
+    "Sources/TurtleGitCore/PatchMailMIME.swift": "3cedde33c126923e06a7d4e3cb7ab7e5c6cb573e351c8320ff681dd97f417232",
+    "Tests/TurtleGitCoreTests/PatchMailMIMETests.swift": "d0e49de1069e56ed45b2e69400b66bfdd4f216778935232c9089d77d7bf88ef6",
+    "Tests/TurtleGitCoreTests/PatchMailPreparationTests.swift": "783779b4126c5ac48b6def6dee2d6a898b930f17412216072d4127f07164aedf",
+    "docs/SEND-PATCH-PARITY.md": "8f1ec7cbb18d728c6977991f7c4c566ee9e15da92f7ada44cf7371aa30aedaac",
+    "docs/PORTING.md": "b7b5e67d15f88fd1f5470bdb63ec6b379e09b796cd5bafe6bdee3c9edba90389",
+    "docs/upstream-files.csv": "f429725a6133526bf7bc1c7717b6aa28a4d0584af04b49ace243f8395903e9c4"
+  },
+  "binary_sha256": {
+    "Debug_app": "ae0fc297ae892ad6d53e5bfb2e3aee3218b8dda08c01e7e3c33faa88de63b8d1",
+    "Debug_core": "d96d2ea5d6e79308362d4869f9cee8e1772e90f879dc554f4760f0cc2aba3993",
+    "AppStore_app": "8a520236da8547640ceab88ffafe3fed383fd79701a81d745989b15e98ffe609",
+    "AppStore_core": "00e90ab36c13b4e1aa239b9d90d6117a6838216fb97f3fe30dc2e3b23a2eaed7"
+  },
+  "limitations": [
+    "MIME builder is not yet wired to app consumers; native Send Patch dialog, checked list and all caller routing pending",
+    "Git-config sender identity, mail-client/SMTP backend, envelope validation, TLS/authentication/Keychain, progress/retries/cancellation pending",
+    "Broader charsets, SMTPUTF8, address groups/comments, mixed raw-Unicode/encoded-word subjects, unfoldable long encoded fields and large-message streaming require acceptance",
+    "Payload bytes are retained rather than upstream 8bit text CRLF normalization; parser and Git am checks cover current scope only",
+    "Actual signed AppStore sandbox/Finder/distribution and physical UI acceptance pending; hosted GitHub CI unverified",
+    "Whole TortoiseGit port remains incomplete"
+  ],
+  "logs": "build/qa/send-patch-mime-2026-10-10/ (ignored local logs)"
+}

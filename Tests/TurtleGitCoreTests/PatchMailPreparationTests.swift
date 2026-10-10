@@ -139,6 +139,20 @@ final class PatchMailPreparationTests: XCTestCase {
         _ = try await receiver.run(["checkout", "--detach", base]); _ = try await receiver.run(["am", "--", mailbox.path])
         let expected = try await repo.run(["rev-parse", "HEAD^{tree}"]).stdout, actual = try await receiver.run(["rev-parse", "HEAD^{tree}"]).stdout
         XCTAssertEqual(actual, expected)
+        // Exercise actual serialized mail with Git's MIME reader, not just our
+        // preparation bytes. Apply separate inline messages in checked order.
+        _ = try await receiver.run(["checkout", "--detach", base])
+        let separate = try PatchMailPreparation.messages(files: files, options: PatchMailOptions())
+        var serialized: [String] = []
+        for (number, message) in separate.enumerated() {
+            let mail = root.appendingPathComponent("serialized-\(number).eml")
+            try PatchMailMIME.data(message: message,
+                sender: PatchMailSender(name: "Patch QA", email: "patch@example.invalid")).write(to: mail)
+            serialized.append(mail.path)
+        }
+        _ = try await receiver.run(["am", "--"] + serialized)
+        let mimeTree = try await receiver.run(["rev-parse", "HEAD^{tree}"]).stdout
+        XCTAssertEqual(mimeTree, expected)
         XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
         let after = try await repo.run(["rev-parse", "HEAD"]).stdout; XCTAssertEqual(after, head)
     }

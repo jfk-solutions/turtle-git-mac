@@ -1165,3 +1165,10 @@ Immutable patch-byte
 snapshots and single-line header validation are macOS adaptations. This prepares
 messages only; Send Patch UI, mail-client/SMTP delivery and signed acceptance
 remain unfinished. See docs/SEND-PATCH-PARITY.md.
+
+PatchMailMIME.swift is a native MIME serializer under GPL-2.0-or-later.
+Its Send Patch envelope, plain-text body and ordered attachment behavior were
+reviewed against src/Utils/HwSMTP.cpp/.h in the pinned TortoiseGit source.
+The implementation uses RFC 2045 Base64, RFC 2047 header words and RFC 2231
+filename parameters, retains immutable payload snapshots, and keeps To/CC
+separate. It does not implement SMTP, Schannel/SSPI or mail-client delivery.
