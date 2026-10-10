@@ -42,6 +42,7 @@ import TurtleGitCore
         let suite = "TurtleGit.Abort.QA." + UUID().uuidString
         let preferences = UserDefaults(suiteName: suite)!
         defer { preferences.removePersistentDomain(forName: suite) }
+        let privateClipboard = NSPasteboard(name: NSPasteboard.Name(suite)); defer { privateClipboard.releaseGlobally() }
         let idle = MergeAbortWindowModel(repository: repo, access: nil, preferences: preferences)
         var comparisons = 0, idleClosed = 0
         idle.onShowModified = { comparisons += 1 }; idle.close = { idleClosed += 1 }
@@ -157,10 +158,14 @@ import TurtleGitCore
         #!/bin/sh
         for arg in "$@"; do
           if [ "$arg" = reset ]; then
-            /usr/bin/printf 'Resetting α\\n'
-            /usr/bin/printf 'tracked paths\\n' >&2
-            /usr/bin/printf '%s\\n' "$$" > \(quote(streamReady.path))
             behavior=$(/bin/cat \(quote(behaviorFile.path)))
+            if [ "$behavior" = percent ]; then
+              /usr/bin/printf 'Resetting α\\ntracked paths\\nResetting: 25%% (1/4)\\r' >&2
+            else
+              /usr/bin/printf 'Resetting α\\n'
+              /usr/bin/printf 'tracked paths\\n' >&2
+            fi
+            /usr/bin/printf '%s\\n' "$$" > \(quote(streamReady.path))
             if [ "$behavior" = limit ]; then
               for batch in 1 2 3 4 5; do
                 /usr/bin/head -c 4000 /dev/zero | /usr/bin/tr '\\000' x
@@ -168,7 +173,8 @@ import TurtleGitCore
               done
             fi
             while [ ! -f \(quote(release.path)) ]; do /bin/sleep 0.05; done
-            if [ "$behavior" = failure ]; then /usr/bin/printf 'reset refused\\n' >&2; exit 7; fi
+            if [ "$behavior" = failure ]; then /usr/bin/printf 'fatal: reset refused\\nhttps://example.invalid/reset\\n' >&2; exit 7; fi
+            if [ "$behavior" = percent ]; then /usr/bin/printf 'Resetting: 100%% (4/4)\\n' >&2; fi
           fi
         done
         exec \(quote(git.path)) "$@"
@@ -176,11 +182,12 @@ import TurtleGitCore
         try Data(streamScript.utf8).write(to: streamHelper)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: streamHelper.path)
         preferences.set(16, forKey: "GitOutputLimitinKiB")
-        for behavior in ["success", "failure", "cancel", "forced", "limit"] {
+        for behavior in ["success", "failure", "cancel", "forced", "limit", "percent"] {
             try? FileManager.default.removeItem(at: streamReady); try? FileManager.default.removeItem(at: release)
             try Data(behavior.utf8).write(to: behaviorFile)
             let streamRepo = GitRepository(root: root, executable: streamHelper)
             let controller = MergeAbortWindowController(repository: streamRepo, access: nil, preferences: preferences)
+            controller.model.outputClipboard = privateClipboard
             controller.window!.alphaValue = 0; controller.window!.orderFront(nil)
             var callbacks = 0; controller.model.onChanged = { _ in callbacks += 1 }
             controller.model.abort()
@@ -192,6 +199,10 @@ import TurtleGitCore
                 precondition(controller.model.busy && controller.model.output.utf8.count < 17000)
             }
             if behavior == "failure" { try await capture(controller.progress!.window!, name: "merge-abort-running") }
+            if behavior == "percent" {
+                try await waitUntil({ controller.model.percentage == 25 && controller.model.currentWork == "Resetting" }, diagnostic: { "percent=\(String(describing: controller.model.percentage)) work=\(controller.model.currentWork) output=\(controller.model.output)" })
+                precondition(controller.model.busy)
+            }
             let before = controller.model.output
             if behavior == "forced" { controller.window!.close() }
             else if behavior == "cancel" { controller.model.cancel() }
@@ -205,8 +216,33 @@ import TurtleGitCore
                 else if behavior == "failure" {
                     precondition(!controller.model.success && !controller.model.cancelled && controller.model.output.contains("reset refused") && controller.model.output.contains("Git command failed (7)."))
                     try await capture(controller.progress!.window!, name: "merge-abort-stream-failed")
+                    func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap { descendants($0) } }
+                    var outputView: SubmoduleProgressTextView?
+                    try await waitUntil {
+                        outputView = descendants(controller.progress!.window!.contentView!).compactMap { $0 as? SubmoduleProgressTextView }.first
+                        return outputView?.string == controller.model.output
+                    }
+                    let text = outputView!, value = text.string as NSString
+                    precondition(!text.isEditable && text.isSelectable && text.clipboard === privateClipboard)
+                    let emptyMenu = text.outputMenu()
+                    precondition(emptyMenu.items.map(\.title) == ["Copy", "", "Copy all information to clipboard"] && emptyMenu.items[1].isSeparatorItem && !emptyMenu.items[0].isEnabled)
+                    let selection = value.range(of: "α"); text.setSelectedRange(selection)
+                    let menu = text.outputMenu(), origin = text.enclosingScrollView!.contentView.bounds.origin
+                    precondition(menu.items[0].isEnabled && menu.items[0].image != nil && menu.items[2].image != nil)
+                    precondition(NSApp.sendAction(menu.items[0].action!, to: menu.items[0].target, from: menu.items[0]))
+                    precondition(privateClipboard.string(forType: .string) == "α")
+                    precondition(NSApp.sendAction(menu.items[2].action!, to: menu.items[2].target, from: menu.items[2]))
+                    precondition(privateClipboard.string(forType: .string) == text.string && text.selectedRange() == selection && text.enclosingScrollView!.contentView.bounds.origin == origin)
+                    let fatalRange = value.range(of: "fatal: "), urlRange = value.range(of: "https://example.invalid/reset")
+                    precondition((text.textStorage!.attribute(.font, at: fatalRange.location, effectiveRange: nil) as? NSFont)?.fontDescriptor.symbolicTraits.contains(.bold) == true)
+                    precondition(text.textStorage!.attribute(.link, at: urlRange.location, effectiveRange: nil) != nil)
+                    preferences.set(false, forKey: "ShowAppContextMenuIcons")
+                    precondition(text.outputMenu().items.filter { !$0.isSeparatorItem }.allSatisfy { $0.image == nil })
+                    preferences.removeObject(forKey: "ShowAppContextMenuIcons")
+
                 } else {
                     precondition(controller.model.success && !controller.model.cancelled)
+                    if behavior == "percent" { precondition(controller.model.percentage == 100 && controller.model.currentWork == "Resetting") }
                     precondition(controller.model.output.components(separatedBy: "Resetting α").count == 2, "Streamed output must not be repeated at completion")
                 }
                 if behavior == "cancel" { precondition(controller.progress == nil, "Accepted cancellation retires progress after process unwind") }
@@ -215,6 +251,7 @@ import TurtleGitCore
             }
             precondition(controller.progress == nil && !controller.window!.isVisible)
         }
+        print("Abort native output control: read-only selection, original-icon Copy/Copy All menu dispatch into private clipboard, Unicode, unchanged selection/viewport, menu icon preference, completed fatal prefix and URL styling; live25/terminal100 percent and current-work presentation.")
         preferences.set(true, forKey: "ConfirmKillProcess")
         for scenario in ["decline", "accept", "finished-no", "finished-yes", "forced", "stale"] {
             try? FileManager.default.removeItem(at: streamReady); try? FileManager.default.removeItem(at: release)
@@ -339,6 +376,6 @@ import TurtleGitCore
         try await waitUntil { !mixed.busy }; precondition(mixed.success && mixed.postActions == [.good, .bad, .skip, .reset])
         _ = try await repo.run(["bisect", "reset"])
         precondition(MergeAbortPostAction.good.bisectOperation == .good && MergeAbortPostAction.retry.bisectOperation == nil)
-        print("Abort Merge: defaults/comparison/idle nonmutation/invalidation; Cancel vs Close, duplicate dismissal and fresh conflict resolution; all three real reset modes and captured selection; untracked/HEAD preservation; lock failures and mode-specific Retry; active Bisect post-actions. Hidden controller windows closed; private preferences; no clipboard writes.")
+        print("Abort Merge: defaults/comparison/idle nonmutation/invalidation; Cancel vs Close, duplicate dismissal and fresh conflict resolution; all three real reset modes and captured selection; untracked/HEAD preservation; lock failures and mode-specific Retry; active Bisect post-actions. Hidden controller windows closed; private preferences and clipboard; no general clipboard writes.")
     }
 }

@@ -122,6 +122,8 @@ struct SubmoduleProgressOutputView: NSViewRepresentable {
     var completed = false
     var completionRange: NSRange?
     var success = false
-    func makeNSView(context: Context) -> NSScrollView { SubmoduleProgressTextView.scrollView() }
+    var preferences: UserDefaults = .standard
+    var clipboard: NSPasteboard = .general
+    func makeNSView(context: Context) -> NSScrollView { SubmoduleProgressTextView.scrollView(preferences: preferences, clipboard: clipboard) }
     func updateNSView(_ nsView: NSScrollView, context: Context) { (nsView.documentView as? SubmoduleProgressTextView)?.present(text, completed:completed, completionRange:completionRange, success:success) }
 }

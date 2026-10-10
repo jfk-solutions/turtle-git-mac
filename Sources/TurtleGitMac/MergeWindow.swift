@@ -587,6 +587,10 @@ enum MergeAbortPostAction: String, CaseIterable, Hashable {
     @Published private(set) var success = false
     @Published private(set) var cancelled = false
     @Published private(set) var output = ""
+    @Published private(set) var percentage: Int?
+    @Published private(set) var currentWork = ""
+    var outputPreferences: UserDefaults { preferences }
+    var outputClipboard: NSPasteboard = .general
     @Published private(set) var postActions: [MergeAbortPostAction] = []
     var onChanged: (String) -> Void = { _ in }
     var onShowModified: (() -> Void)?
@@ -613,7 +617,7 @@ enum MergeAbortPostAction: String, CaseIterable, Hashable {
         }
         func consume(_ emission: GitCliOutputParser.Emission) {
             guard !invalidated, cancellation === token else { return }
-            outputState.consume(emission, parser: parser); output = outputState.output
+            outputState.consume(emission, parser: parser); output = outputState.output; percentage = outputState.percentage; currentWork = outputState.currentWork
         }
         for await _ in updates { consume(parser.processPending()) }
         consume(parser.processPending()); consume(parser.finish())
@@ -622,7 +626,7 @@ enum MergeAbortPostAction: String, CaseIterable, Hashable {
     private func start() {
         ProgressActionLog.nextAttempt(self, savePrevious: !output.isEmpty)
         autoClosePolicy = GitProgressAutoClose(preferences: preferences)
-        busy = true; success = false; cancelled = false; cancelling = false; closeAfterCancellation = false; outputState.reset(); output = ""; rawOutput = ""; postActions = []; cancellation = OperationCancellation()
+        busy = true; success = false; cancelled = false; cancelling = false; closeAfterCancellation = false; outputState.reset(); output = ""; percentage = nil; currentWork = ""; rawOutput = ""; postActions = []; cancellation = OperationCancellation()
         let token = cancellation, selectedMode = operationMode
         worker = Task {
             // Keep the operation active until the owned process has actually unwound.
@@ -812,8 +816,10 @@ private struct MergeAbortDialog: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if model.showingProgress {
-                ScrollView { Text(model.output).font(.system(.body, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }.frame(maxWidth: .infinity, maxHeight: .infinity).padding(8).background(Color(nsColor: .textBackgroundColor))
-                HStack { if model.busy { ProgressView().controlSize(.small) }; Text(model.busy ? "Resetting HEAD…" : model.cancelled ? "Cancelled" : model.success ? "Finished" : "Reset failed").foregroundStyle(model.busy ? Color.primary : model.success ? Color.green : Color.red); Spacer() }
+                HStack { Text(model.busy ? model.currentWork.isEmpty ? "Resetting HEAD…" : model.currentWork : model.cancelled ? "Cancelled" : model.success ? "Finished" : "Reset failed").foregroundStyle(model.busy ? Color.primary : model.success ? Color.green : Color.red); Spacer() }
+                if model.busy && model.percentage == nil { ProgressView().progressViewStyle(.linear) }
+                else { ProgressView(value: Double(model.busy ? model.percentage ?? 0 : 100), total: 100).tint(model.busy || model.success ? Color.accentColor : Color.red) }
+                SubmoduleProgressOutputView(text: model.output, completed: !model.busy, success: model.success, preferences: model.outputPreferences, clipboard: model.outputClipboard).frame(maxWidth: .infinity, maxHeight: .infinity)
                 HStack {
                     if let first = model.postActions.first {
                         Button { model.perform(first) } label: { CommandLabel(title: first.title, icon: first.icon) }
