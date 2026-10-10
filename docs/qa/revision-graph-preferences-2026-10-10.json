@@ -1,0 +1,47 @@
+{
+  "checked_at": "2026-10-10T14:59:56.031933+00:00",
+  "parent_commit": "fa32d45da17b70c89ac0af80116e1483dd26dfd9",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": "RevisionGraphDlg.cpp InitialSetMenu, ToggleSetMenu and four OnView display commands",
+  "scope": "Native Revision Graph display preference restoration and command persistence; full app/signed acceptance remains incomplete.",
+  "preferences": {
+    "ShowRevGraphOverview": false,
+    "ShowRevGraphBranchesMerges": false,
+    "ShowRevGraphAllTags": true,
+    "ArrowPointToMerges": false
+  },
+  "implementation": [
+    "restore four global display flags from injected app preferences before graph read",
+    "accepted native command persists only its own setting",
+    "missing all-tags value retains true source default",
+    "zoom, selection, revision range and branch filter scopes remain transient",
+    "busy/closed/owned-sheet command guards precede setting mutation"
+  ],
+  "verification": {
+    "native_system_git_exit": 0,
+    "native_bundled_git_exit": 0,
+    "cases": [
+      "absent-key default values without initialization writes",
+      "native menu sendAction changes all four settings",
+      "new controller restores settings and menu checkmarks",
+      "new controller starts with 100% zoom, empty selection and no revision filter",
+      "closed-controller command leaves saved preference unchanged",
+      "loading graph rejects display action before saved value changes",
+      "toggling back restores defaults and corresponding persisted values",
+      "retained mouse/overview/export/filter/menu/deletion/cancellation and repository invariant checks"
+    ],
+    "unsigned_debug_build_exit": 0,
+    "unsigned_appstore_build_exit": 0,
+    "debug_bundle_audit_exit": 0,
+    "appstore_bundle_audit_exit": 0,
+    "upstream_icons": 117
+  },
+  "isolation": "Receiver uses a unique UserDefaults suite, removes its persistent domain on exit and does not install DialogGeometry globally. All Git mutations remain in disposable fixtures.",
+  "pending": [
+    "physical app relaunch and cross-window interaction acceptance",
+    "window geometry restoration acceptance",
+    "VoiceOver, signed sandbox and Finder activation",
+    "current hosted CI and publication",
+    "complete TortoiseGit parity"
+  ]
+}

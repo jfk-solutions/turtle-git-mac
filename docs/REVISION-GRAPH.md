@@ -46,7 +46,10 @@ scopes and immediately refreshes the graph.
 
 **Show all tags**, **Show branchings and merges**, and **Arrows point towards
 merges** are separate View commands. These affect the graph's reduction or arrow
-direction, independently of the range filter.
+direction, independently of the range filter. These three choices and overview
+visibility are remembered across graph windows and app launches. Defaults match
+TortoiseGit: all tags on, overview/branchings/merge-directed arrows off. Zoom,
+selection and revision filters start fresh when a new graph window opens.
 
 **File → Save graph as…** opens a native format chooser, defaulting to SVG.
 Choose SVG, Graphviz (`.gv`), PNG, JPEG, BMP, GIF or PDF. SVG and PDF export

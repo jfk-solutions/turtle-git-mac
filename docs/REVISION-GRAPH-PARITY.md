@@ -273,3 +273,31 @@ Both Git engines passed the focused native receiver. Unsigned Debug/Store
 builds, both packaging audits and the local Pages build passed. Refreshed
 light/dark captures were inspected; see [overview evidence](qa/revision-graph-overview-2026-10-10.json).
 Earlier rendering records describe their original checkpoint captures.
+
+
+## Saved display choices
+
+The native window now reads and immediately saves the four source
+`InitialSetMenu`/`ToggleSetMenu` settings using app-private UserDefaults:
+
+| Source preference | Native command | Default |
+| --- | --- | --- |
+| `ShowRevGraphOverview` | Show Overview | off |
+| `ShowRevGraphBranchesMerges` | Show branchings and merges | off |
+| `ShowRevGraphAllTags` | Show all tags | on |
+| `ArrowPointToMerges` | Arrows point towards merges | off |
+
+Settings apply globally across repositories, matching the source registry
+scope. Each accepted command writes only its own setting, so another window's
+other choices cannot be overwritten by an old snapshot. A new model restores
+the saved display choices before reading history. Zoom, selection and Filter
+From/To/branch scopes remain transient. Busy/closed/owned-sheet command guards
+run before any preference write. Existing `DialogGeometry.attach` retains the
+native window geometry separately; physical/signed window restoration remains
+unverified. Private QA does not install global geometry preferences.
+
+Native source defaults, menu dispatch/checkmarks, new-window restoration and
+busy/closed write guards passed with system and bundled Git. Unsigned
+Debug/Store builds and both packaging audits passed. See
+[preference evidence](qa/revision-graph-preferences-2026-10-10.json). Physical
+app relaunch and cross-window acceptance remain pending.

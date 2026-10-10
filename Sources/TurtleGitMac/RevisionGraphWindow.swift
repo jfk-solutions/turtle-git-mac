@@ -73,6 +73,12 @@ final class RevisionGraphSurface: NSView {
     static let font = NSFont.systemFont(ofSize: 12)
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, layoutExecutable: URL? = nil) {
         self.repository = repository; self.access = access; self.preferences = preferences; self.layoutExecutable = layoutExecutable; sshSettings = SSHTransportSettings(repository: repository)
+        // InitialSetMenu defaults and keys from RevisionGraphDlg.cpp. These
+        // display choices are global; the revision filter and zoom are transient.
+        showOverview = preferences.bool(forKey: "ShowRevGraphOverview")
+        arrowsTowardMerges = preferences.bool(forKey: "ArrowPointToMerges")
+        options.showBranchingsAndMerges = preferences.bool(forKey: "ShowRevGraphBranchesMerges")
+        options.showAllTags = preferences.object(forKey: "ShowRevGraphAllTags") == nil ? true : preferences.bool(forKey: "ShowRevGraphAllTags")
     }
     deinit { cancellation?.cancel(); worker?.cancel() }
     func lines(_ node: RevisionGraphNode, pointers: Set<String>? = nil) -> [(String, LogColorRole?)] {
@@ -403,10 +409,10 @@ enum RevisionGraphReferenceCommand {
                 let viewport = scroll.contentSize; let x = (viewport.width - 20) / size.width, y = (viewport.height - 20) / size.height
                 model.zoom = max(0.01, min(2, command == "fitWidth" ? x : command == "fitHeight" ? y : min(x, y)))
             }
-        case "overview": model.showOverview.toggle()
-        case "arrows": model.arrowsTowardMerges.toggle()
-        case "branchings": model.options.showBranchingsAndMerges.toggle(); model.load()
-        case "tags": model.options.showAllTags.toggle(); model.load()
+        case "overview": model.showOverview.toggle(); model.preferences.set(model.showOverview, forKey: "ShowRevGraphOverview")
+        case "arrows": model.arrowsTowardMerges.toggle(); model.preferences.set(model.arrowsTowardMerges, forKey: "ArrowPointToMerges")
+        case "branchings": model.options.showBranchingsAndMerges.toggle(); model.preferences.set(model.options.showBranchingsAndMerges, forKey: "ShowRevGraphBranchesMerges"); model.load()
+        case "tags": model.options.showAllTags.toggle(); model.preferences.set(model.options.showAllTags, forKey: "ShowRevGraphAllTags"); model.load()
         case "filter": showFilter()
         case "compare": model.compare()
         case "compareHead": model.compare(head: true)

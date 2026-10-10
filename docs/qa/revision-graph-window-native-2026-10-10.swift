@@ -63,6 +63,38 @@ import Darwin
             assert(RevisionGraphPalette.background(.currentBranch, pointer: false, preferences: prefs).usingColorSpace(.sRGB)! == green)
             prefs.removeObject(forKey: "Graph.RevGraphUseLocalForCur")
         }
+        try require(!model.showOverview && !model.arrowsTowardMerges && !model.options.showBranchingsAndMerges && model.options.showAllTags)
+        let keys = ["ShowRevGraphOverview", "ArrowPointToMerges", "ShowRevGraphBranchesMerges", "ShowRevGraphAllTags"]
+        try require(keys.allSatisfy { prefs.object(forKey: $0) == nil })
+        func displayItem(_ owner: RevisionGraphWindowController, _ command: String) -> NSMenuItem {
+            views(owner.window!.contentView!).compactMap { $0 as? NSPopUpButton }.flatMap { $0.itemArray }.first { ($0.representedObject as? String) == command }!
+        }
+        func toggle(_ command: String) async throws {
+            let item = displayItem(controller, command)
+            try require(NSApp.sendAction(item.action!, to: item.target, from: item))
+            try await wait { !model.busy }
+        }
+        try await toggle("overview"); try await toggle("arrows"); try await toggle("branchings"); try await toggle("tags")
+        try require(prefs.bool(forKey: keys[0]) && prefs.bool(forKey: keys[1]) && prefs.bool(forKey: keys[2]) && !prefs.bool(forKey: keys[3]))
+        model.options.from = "transient-filter"; model.options.onlyCurrentBranch = true; model.zoom = 0.5
+        let reopened = RevisionGraphWindowController(repository: repo, access: nil, preferences: prefs, layoutExecutable: helper, automaticallyLoad: false)
+        reopened.window!.alphaValue = 0
+        try require(reopened.model.showOverview && reopened.model.arrowsTowardMerges && reopened.model.options.showBranchingsAndMerges && !reopened.model.options.showAllTags)
+        try require(reopened.model.zoom == 1 && reopened.model.options.from.isEmpty && !reopened.model.options.onlyCurrentBranch && reopened.model.selection.isEmpty)
+        for (command, state) in [("overview", NSControl.StateValue.on), ("arrows", .on), ("branchings", .on), ("tags", .off)] {
+            let item = displayItem(reopened, command); try require(reopened.validateMenuItem(item) && item.state == state)
+        }
+        reopened.window!.close(); try require(reopened.model.closed)
+        reopened.perform("arrows"); try require(prefs.bool(forKey: keys[1]))
+        model.options.from = ""; model.options.onlyCurrentBranch = false; model.zoom = 1
+        // Loading/sheet guards must reject actions before touching saved state.
+        model.load(); try require(model.busy)
+        controller.perform("overview"); try require(model.showOverview && prefs.bool(forKey: keys[0]))
+        try await wait { !model.busy }
+        try await toggle("overview"); try await toggle("arrows"); try await toggle("branchings"); try await toggle("tags")
+        try require(!model.showOverview && !model.arrowsTowardMerges && !model.options.showBranchingsAndMerges && model.options.showAllTags)
+        try require(!prefs.bool(forKey: keys[0]) && !prefs.bool(forKey: keys[1]) && !prefs.bool(forKey: keys[2]) && prefs.bool(forKey: keys[3]))
+        print("PASS: Revision Graph display preferences, source defaults, menu dispatch/checkmarks, reopen and busy/closed guards")
         func click(_ index: Int, modifiers: NSEvent.ModifierFlags = []) {
             let rect = geometry[index].rect
             let point = NSPoint(x: rect.midX * model.zoom + 10, y: rect.midY * model.zoom + 10)
