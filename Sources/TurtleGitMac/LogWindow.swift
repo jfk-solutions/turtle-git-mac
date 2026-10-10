@@ -100,16 +100,18 @@ final class LogHistoryWindow: NSWindow {
     private let findPreferences: UserDefaults
     private var findAvailability: AnyCancellable?
     private(set) var find: RevisionGraphFindController?
+    private(set) var containingReferences: [UUID: CommitContainingReferencesWindowController] = [:]
     private(set) var patchPreviewWindow: PatchWindowController?
     private var previousPatchParentFrame: NSRect?
     private var positioningPatch = false
     var onClosed: () -> Void = {}
     private var selectionCompletion: ((LogEntry?) -> Void)?
     private var multipleSelectionCompletion: (([LogEntry]?) -> Void)?
-    init(repository: GitRepository, access: RepositoryAccessLease?, onChooseMultiple: (([LogEntry]?) -> Void)? = nil, onChoose: ((LogEntry?) -> Void)? = nil, labelDefaults: UserDefaults = .standard, savesColumnLayout: Bool = true, savesGeometry: Bool = true) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, onChooseMultiple: (([LogEntry]?) -> Void)? = nil, onChoose: ((LogEntry?) -> Void)? = nil, labelDefaults: UserDefaults = .standard, savesColumnLayout: Bool = true, savesGeometry: Bool = true, initialRevision: String? = nil) {
         findAccess = access; findPreferences = labelDefaults
         model = LogWindowModel(repository: repository, access: access, selecting: onChoose != nil || onChooseMultiple != nil, selectingMultiple: onChooseMultiple != nil, labelDefaults: labelDefaults)
         selectionCompletion = onChoose; multipleSelectionCompletion = onChooseMultiple
+        model.endRevision = initialRevision
         let window = LogHistoryWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 780),
             styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Log Messages – TurtleGit"
@@ -121,6 +123,7 @@ final class LogHistoryWindow: NSWindow {
         window.find = { [weak self] in self?.showFind() }
         window.blocksInteraction = { [weak model] in model?.findBlocked == true }
         findAvailability = model.$busy.sink { [weak self] _ in DispatchQueue.main.async { self?.find?.updateAvailability() } }
+        model.onShowContainingReferences = { [weak self] hash in self?.showContainingReferences(hash) }
         model.onFindReferenceRefresh = { [weak self] in self?.find?.loadReferences() }
         model.onPatchPreviewVisibility = { [weak self] visible in self?.setPatchPreviewVisible(visible) }
         model.onPatchPreviewContent = { [weak self] bytes in self?.patchPreviewWindow?.model.setReadOnlyDiff(bytes) }
@@ -371,11 +374,33 @@ final class LogHistoryWindow: NSWindow {
         }
         child.updateAvailability(); child.loadReferences()
     }
+    func showContainingReferences(_ hash: String) {
+        guard canFind, !hash.isEmpty, let parent = window else { return }
+        let id = UUID(), child = CommitContainingReferencesWindowController(repository: model.repository, access: findAccess, revision: hash, preferences: findPreferences)
+        child.onLog = { [weak model] name, select, range in model?.onContainingLog?(name, select, range) }
+        child.onBrowse = model.onBrowseRepository; child.onCompare = model.onCompare; child.onUnified = model.onUnifiedDiff
+        child.onNavigate = { [weak model] hash, select in
+            guard let model, !model.isInvalidated, !model.busy else { return }
+            if model.entries.contains(where: { $0.hash == hash }) {
+                if select { model.select([hash]) } else { model.highlightedRevision = hash }
+                model.scrollRevision = hash; model.scrollRequest += 1
+            } else { model.navigationNotice = "The reference is not visible in the current log." }
+        }
+        child.onClosed = { [weak self, weak child, weak parent] in
+            if let window = child?.window { parent?.removeChildWindow(window) }
+            self?.containingReferences.removeValue(forKey: id)
+        }
+        containingReferences[id] = child
+        if let window = child.window { window.alphaValue = parent.alphaValue; window.appearance = parent.appearance; parent.addChildWindow(window, ordered: .above); window.center(); window.orderFront(nil); window.makeFirstResponder(child.revision) }
+        child.refresh()
+    }
+    var hasBlockingReferenceChild: Bool { containingReferences.values.contains { $0.hasBlockingChild } }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard (!model.busy || model.loadingHistory), !model.unifiedViewerBusy, !model.findBlocked, sender.attachedSheet == nil else { return false }
+        guard (!model.busy || model.loadingHistory), !model.unifiedViewerBusy, !model.findBlocked, !hasBlockingReferenceChild, sender.attachedSheet == nil else { return false }
         if model.selecting { finishSelection(nil); return false }; return true
     }
     func windowWillClose(_ notification: Notification) {
+        let references = Array(containingReferences.values); containingReferences.removeAll(); references.forEach { $0.close() }
         find?.close(); find = nil; model.findBlocked = false
         let completion = selectionCompletion; selectionCompletion = nil
         let multiple = multipleSelectionCompletion; multipleSelectionCompletion = nil
@@ -1033,6 +1058,8 @@ struct LogCommandRequest: Identifiable {
 
     var onCherryPick: (([String]) -> Void)?
     var onBrowseRepository: ((String) -> Void)?
+    var onShowContainingReferences: ((String) -> Void)?
+    var onContainingLog: ((String?, Bool, HistoryRevisionRange?) -> Void)?
     var onFormatPatch: ((FormatPatchPreset) -> Void)?
     var formatPatchPreset: FormatPatchPreset? {
         guard !includesWorkingTree else { return nil }
@@ -2847,6 +2874,7 @@ struct RevisionTable: NSViewRepresentable {
                 clipboard.addItem(refs)
             }
             parent.image = MenuIcon.copy.contextImage(); parent.submenu = clipboard; menu.addItem(parent)
+            if one { item("Show branches this commit is on", #selector(showContainingReferences), icon: .showBranches, enabled: !model.busy && model.onShowContainingReferences != nil) }
         }
         func menuDidClose(_ menu: NSMenu) { if menu !== headerMenu { (table as? HistoryTableView)?.contextReference = nil } }
         @objc func pushReference(_ sender: NSMenuItem) { model.requestReference(.push, target: sender.representedObject as? LogReferenceMenuTarget) }
@@ -2886,6 +2914,7 @@ struct RevisionTable: NSViewRepresentable {
                 if current != index { table.moveColumn(current, toColumn: index) }
             }
         }
+        @objc func showContainingReferences() { if !model.busy, model.selected.count == 1, let revision = model.revision { model.onShowContainingReferences?(revision.hash) } }
         @objc func browseRepository() { if let revision = model.revision { model.onBrowseRepository?(revision.hash) } }
         @objc func formatPatch() { if let preset = model.formatPatchPreset, !model.busy { model.onFormatPatch?(preset) } }
         @objc func editNotes() { model.editNotes() }

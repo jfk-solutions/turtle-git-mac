@@ -1455,3 +1455,8 @@ LogDlgFilter::operator() with LOGFILTER_ALL, and GitRevLoglist::SafeGetSimpleLis
 The native port retains the shared Find layout and uses read-only all-parent
 Git path queries, cached rename pairs and the existing working-tree history reader.
 Copyright/licensing remains covered by the upstream GPL-2.0-or-later source notices.
+
+The References commit is on workflow adapts CommitIsOnRefsDlg.cpp/.h and
+CGit::GetRefsCommitIsOn from the pinned upstream GPL-2.0-or-later source.
+Its Show branches menu icon is the unmodified src/Resources/showbranches.ico;
+its hash and source are recorded in the icon provenance manifest.

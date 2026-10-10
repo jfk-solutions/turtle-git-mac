@@ -41,6 +41,7 @@ import AppKit
         if sender.windows.contains(where: { $0.delegate is LFSFileOperationController }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? LFSLocksWindowController }).contains(where: { $0.model.busy || $0.model.showingProgress || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? WorktreeListWindowController }).contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }) { return .terminateCancel }
+        if sender.windows.compactMap({ $0.delegate as? CommitContainingReferencesWindowController }).contains(where: { $0.busy || $0.hasBlockingChild }) { return .terminateCancel }
         let reviews = sender.windows.compactMap { $0.delegate as? WorkingTreePatchWindowController }
         let imports = sender.windows.compactMap { $0.delegate as? ImportPatchWindowController }
         let controllers = sender.windows.compactMap { $0.delegate as? TextConflictWindowController }

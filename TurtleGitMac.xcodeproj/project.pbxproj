@@ -68,6 +68,7 @@
 		3ECB98AE97E907C10D655116 /* ImageLoadWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B42920DE9933183EF4D9AD8 /* ImageLoadWindow.swift */; };
 		407EFF50D7678E3D7BB3F032 /* TurtleGitCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BCB9C51D9D69E943E22F2C8 /* TurtleGitCore.framework */; };
 		413428D2C4D300D242747556 /* RevisionArchive.swift in Sources */ = {isa = PBXBuildFile; fileRef = 366DB6C65F4EF18125B4B7D2 /* RevisionArchive.swift */; };
+		4147FFF07AE3EC01FD10AA15 /* CommitContainingReferencesWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0804A891E850FB3E19658ECD /* CommitContainingReferencesWindow.swift */; };
 		443137D28BFDD283BDA2B71E /* HistoryReferenceLabels.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCD52A86C10025F3F1705C8 /* HistoryReferenceLabels.swift */; };
 		4452DB2F9B5533ACBEAAD448 /* ImageComparisonWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C9B173C5B4A10A0D415C859 /* ImageComparisonWindow.swift */; };
 		46F03179364D977A48FD1EC5 /* Changelists.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA08DAA6757DBD3FB0045BC5 /* Changelists.swift */; };
@@ -212,6 +213,7 @@
 		DC324EE987ED199805D3DF0B /* ResetWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CFEE049A0098A0212AD01DA /* ResetWindow.swift */; };
 		DD16EA85352150A590AED3FB /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 152D20910797F40A39CBF1A8 /* LICENSE */; };
 		DD54AAAEE6EEE0B9B1245370 /* SubmoduleConflict.swift in Sources */ = {isa = PBXBuildFile; fileRef = F925723BED85497207863D60 /* SubmoduleConflict.swift */; };
+		DDEB7F7F1B5C5A57B8BD9AF8 /* CommitContainingReferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08CE434E7454FBA5529A7F36 /* CommitContainingReferences.swift */; };
 		DF0CD2448F2B8812C9593D7E /* SSHKeyPassphraseWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE84FD354494653334022AA8 /* SSHKeyPassphraseWindow.swift */; };
 		DF224DF655B4A741AE3BDC97 /* ReferenceLogDiff.swift in Sources */ = {isa = PBXBuildFile; fileRef = 553B03B8CB0E867E812A6B53 /* ReferenceLogDiff.swift */; };
 		E046B347B367E63019422195 /* WorkingTree.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20E461B2D9629D0293A80EB /* WorkingTree.swift */; };
@@ -335,7 +337,9 @@
 		07308426CB6B06DAFB9B5A89 /* PatchPrinting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchPrinting.swift; sourceTree = "<group>"; };
 		0750171C26BC3934BA091775 /* FormatPatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatPatch.swift; sourceTree = "<group>"; };
 		0798256025F9255AA83AB053 /* UnifiedDiffAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedDiffAppearance.swift; sourceTree = "<group>"; };
+		0804A891E850FB3E19658ECD /* CommitContainingReferencesWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitContainingReferencesWindow.swift; sourceTree = "<group>"; };
 		08425BF4A91945D52E0F6D99 /* Clone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Clone.swift; sourceTree = "<group>"; };
+		08CE434E7454FBA5529A7F36 /* CommitContainingReferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitContainingReferences.swift; sourceTree = "<group>"; };
 		0939C1284CC5B9339D0C0356 /* SubmoduleSyncWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleSyncWindow.swift; sourceTree = "<group>"; };
 		0A8A21C4E5D4C9A48E0B7FE9 /* Rebase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Rebase.swift; sourceTree = "<group>"; };
 		0ABAD60A21F60D01816B9D64 /* CommandLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandLabel.swift; sourceTree = "<group>"; };
@@ -619,6 +623,7 @@
 				7A4B370EB64932B2909A8228 /* CloneWindow.swift */,
 				0ABAD60A21F60D01816B9D64 /* CommandLabel.swift */,
 				F4626C39B694CD13BD1D8FA1 /* CommitCompletionPopup.swift */,
+				0804A891E850FB3E19658ECD /* CommitContainingReferencesWindow.swift */,
 				ADFF9F8C8624249F4AB965DF /* CommitFileInteraction.swift */,
 				4B4940FBDB475FC25EC9B3EC /* CommitMessageEditor.swift */,
 				4ED10F9E629EFB06F9F5F264 /* CommitWindow.swift */,
@@ -775,6 +780,7 @@
 				340673250460ADE4B0D7C99C /* Clean.swift */,
 				08425BF4A91945D52E0F6D99 /* Clone.swift */,
 				A2D91605384F213DBC8C3C9F /* CommitAmend.swift */,
+				08CE434E7454FBA5529A7F36 /* CommitContainingReferences.swift */,
 				DF6352B22FB03878FC59F470 /* CommitHistory.swift */,
 				1559DC3926805ADF57166DCE /* CommitMessage.swift */,
 				5C1E4CB612A126A32276124E /* CommitMessageHistory.swift */,
@@ -1237,6 +1243,7 @@
 				CC6D27AC08555115BD75EB87 /* Clean.swift in Sources */,
 				A0416F3B295FEB5114DF93C1 /* Clone.swift in Sources */,
 				B172FF1DD6076D00FCEB58D7 /* CommitAmend.swift in Sources */,
+				DDEB7F7F1B5C5A57B8BD9AF8 /* CommitContainingReferences.swift in Sources */,
 				FB06077C7097755667D83917 /* CommitHistory.swift in Sources */,
 				7DF22EAE12F58CFE9D5C5D47 /* CommitMessage.swift in Sources */,
 				1979E37CB9AAE2C56AB7BEE7 /* CommitMessageHistory.swift in Sources */,
@@ -1375,6 +1382,7 @@
 				5E1F0466AB4AB402921ADF5F /* CloneWindow.swift in Sources */,
 				A9E14DE01BAAD7CF54993E51 /* CommandLabel.swift in Sources */,
 				73F05370C1A0B99B7BF35C5B /* CommitCompletionPopup.swift in Sources */,
+				4147FFF07AE3EC01FD10AA15 /* CommitContainingReferencesWindow.swift in Sources */,
 				17FDB52BEE9F67B214702790 /* CommitFileInteraction.swift in Sources */,
 				E08926979B3B614AFB769298 /* CommitMessageEditor.swift in Sources */,
 				F5EE3ED18BC448DB2B9E658A /* CommitWindow.swift in Sources */,

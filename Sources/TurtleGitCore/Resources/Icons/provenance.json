@@ -597,6 +597,11 @@
       "asset": "reftype.bmp",
       "source": "src/Resources/reftype.bmp",
       "sha256": "b5f60a0ff4a952d62bf72b3ada93ee1064c4b48aa3cf9474a528a6f4c5889cbc"
+    },
+    {
+      "asset": "showbranches.ico",
+      "source": "src/Resources/showbranches.ico",
+      "sha256": "57e5fe5a75af13786c6c98a2e0d12585e65eec3ceba0c7e53216a03e32b08d9d"
     }
   ]
 }
