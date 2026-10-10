@@ -1,0 +1,95 @@
+{
+  "date": "2026-10-10",
+  "core_source_checkpoint": "c4bd370fb2869b9edce53241692bf3827b9f44d4",
+  "native_source_checkpoint": "a88d8c2a55c6fbf47739001615c36221775adc26",
+  "scope": "Complete local SwiftPM suite, independent pinned Finder rules/metadata correction, native Finder menu order correction, unsigned Debug/Store builds and package validation.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "verification": {
+    "initial_core": {
+      "command": "swift test",
+      "exit_code": 1,
+      "tests": 921,
+      "skipped": 1,
+      "failures": 2,
+      "checkpoint": "3df51991677732874fdcf8c395da00616ed59548",
+      "cause": "Older bare metadata expectation and independent rule fixture omitted Revision Graph."
+    },
+    "focused_core": {
+      "command": "swift test --filter 'FinderRepositoryMetadataTests|FinderShellRulesTests|FinderRequestTests'",
+      "exit_code": 0,
+      "tests": 21,
+      "failures": 0
+    },
+    "corrected_core": {
+      "command": "swift test",
+      "exit_code": 0,
+      "tests": 921,
+      "skipped": 1,
+      "failures": 0,
+      "seconds": 527.305,
+      "skipped_reason": "Read-only system MX DNS probe requires explicit opt-in."
+    },
+    "native_finder": {
+      "command": "python3 scripts/test-finder-menu.py",
+      "exit_code": 0,
+      "root_entries": 45,
+      "initial_failure": "Independent source order detected Revision Graph before Browse References; corrected to follow Browse References.",
+      "scope": "Actual menu builder, pinned source order/group projections, tracked/added/bare selections, icons, captured requests and repository state; no extension activation."
+    },
+    "debug_build": {
+      "exit_code": 0,
+      "scheme": "TurtleGitMac",
+      "configuration": "Debug",
+      "signed": false
+    },
+    "store_build": {
+      "exit_code": 0,
+      "scheme": "TurtleGitAppStore",
+      "configuration": "AppStore",
+      "signed": false
+    },
+    "bundle_audits": {
+      "debug_exit_code": 0,
+      "store_exit_code": 0,
+      "store_requires_git": true,
+      "original_icon_resources": 119
+    },
+    "inventory": {
+      "exit_code": 0,
+      "scope": "Pinned inventory dirty checkout/advanced HEAD/repin/review invalidation/idempotence/shared .rc2 regression."
+    },
+    "site": {
+      "exit_code": 0,
+      "command": "python3 scripts/build-site.py",
+      "scope": "Local generation and screenshot signature checks; publication recorded separately."
+    },
+    "cleanup": "All local test/build/audit sessions completed. Process audit found no TurtleGit app/test/compiler/xcodebuild instances."
+  },
+  "source_manifest": {
+    "path": "build/qa/current-full-suite-2026-10-10/corrected-source-manifest.json",
+    "sha256": "508120ca12845b8268309e049cb71d40453c11542cfadc52848d221e977fe835",
+    "files": 678,
+    "validation": "Every recorded source/test/build/workflow/fixture hash still matches the complete rerun, except the separately verified native Finder script; Core sources/tests unchanged."
+  },
+  "native_changes": {
+    "FinderSync/FinderSync.swift": "f9766c5b13c95616199fd9570009f6596ca92911ac553200e0a1e3d931967b86",
+    "scripts/test-finder-menu.py": "ff5a757931536a45a6ad52011ef21fff17e6586cf7f0f0e27d25c201210000fd",
+    "docs/upstream-shell-menu-conditions.json": "901e7058c7d225e8cfd9d8f7606d2a17cc89519162d5a4b51d8bbcdfa0a4b6be"
+  },
+  "logs": {
+    "build/qa/current-full-suite-2026-10-10/debug-audit.log": "6c4a0639ae077d8a06ed7c1a450f328df6eb54f179d36af72fcbaca3cf48b1a9",
+    "build/qa/current-full-suite-2026-10-10/debug-build.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/current-full-suite-2026-10-10/finder-native-corrected.log": "4ab7874d697caaac14b7bbdad66a22c4f0e95399c356bd9b35d961f9855168ef",
+    "build/qa/current-full-suite-2026-10-10/finder-native-final.log": "da6f32c761212ee87bc1705ddede8f302e480888d9f26284df769e33b2c8533b",
+    "build/qa/current-full-suite-2026-10-10/finder-native.log": "aee85e7283c12ed451d90d812a28562f954c00fdb4002389631775cda67c5a84",
+    "build/qa/current-full-suite-2026-10-10/finder-regression.log": "7ace1ae2bd923bef731ed9016f17003579561ce467adabc4a6883219e1f4e2df",
+    "build/qa/current-full-suite-2026-10-10/inventory.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/current-full-suite-2026-10-10/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/current-full-suite-2026-10-10/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/current-full-suite-2026-10-10/store-audit.log": "ac6ee8a83e94cebfcd5300d885738875ea3ca79702538dd4b4523ab268676878",
+    "build/qa/current-full-suite-2026-10-10/store-build.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/current-full-suite-2026-10-10/swift-test-corrected.log": "fa57d5c3af2efa721f664cb9f5e1ed37090b7a4cf3c73c2d50ed1d443b7255bf",
+    "build/qa/current-full-suite-2026-10-10/swift-test.log": "0fa162475d1d70d38eadf71b0d859b396892ba688e81900a90f1140c7adf2622"
+  },
+  "limitations": "Local SwiftPM/native results and unsigned packaging do not prove hosted CI, full dialog/control parity, physical keyboard/mouse/accessibility acceptance, activated Finder or signed sandbox/App Store distribution. No main app instance, public mail service or real credential changes."
+}

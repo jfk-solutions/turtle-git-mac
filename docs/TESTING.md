@@ -7,11 +7,19 @@ TortoiseGit visually, or that the app is ready for distribution.
 
 ## Current full-suite checkpoint
 
-At source checkpoint `3f76591`, a fresh local `swift test` passed all **866 tests**
-with zero failures on October 10, 2026. The run used Apple Git 2.50.1 and Swift
-6.3.3 and finished normally after 514.5 seconds of test execution. This is the
-complete SwiftPM suite, separate from the focused Send Mail checks and native
-receivers. See [the full-suite record](qa/full-core-2026-10-10.json).
+At Core source checkpoint `c4bd370`, a fresh local `swift test` passed **921 tests,
+zero failures**, with one optional DNS probe skipped, on October 10, 2026. The run
+used Apple Git 2.50.1 and Swift 6.3.3 and finished normally after 527.3 seconds.
+The initial run found two stale Finder Revision Graph expectations; they were
+corrected against the pinned upstream source before this complete rerun.
+
+The native Finder receiver then exposed a real menu-order mismatch. At
+`a88d8c2`, Revision Graph follows Browse References, matching the source menu.
+The receiver passed all 45 implemented root-entry projections, and unsigned
+Debug/Store builds and both bundle audits passed. Core sources and tests were
+unchanged after the full-suite checkpoint. See
+[the current integration record](qa/current-full-suite-2026-10-10.json).
+The [previous 866-test record](qa/full-core-2026-10-10.json) remains historical.
 
 The latest run listed on the public Actions page when inspected was
 [macOS #135](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/37274118557),

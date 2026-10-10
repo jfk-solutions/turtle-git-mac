@@ -63,14 +63,16 @@ require review; a dialog count is not a count of all upstream UI.
 
 ## Current integration verification
 
-The full local SwiftPM suite passed **866 tests, zero failures**, at `3f76591`
-on October 10, 2026. The completed run includes the current repository,
-preference, parser, icon, patch-mail and SMTP checks. The separate native
-receivers and unsigned Debug/Store build evidence remain scoped to their
-feature records. See [testing](TESTING.md) and
-[the integration record](qa/full-core-2026-10-10.json). These checks do not prove
-full dialog parity, activated Finder behavior, signed sandbox execution or
-App Store readiness.
+The full local SwiftPM suite passed **921 tests, zero failures**, with one optional
+DNS probe skipped, at Core checkpoint `c4bd370` on October 10, 2026. Two stale
+Finder expectations were corrected against the pinned source before the full
+rerun. At `a88d8c2`, the native Finder receiver also passed after correcting
+Revision Graph’s menu position; unsigned Debug/Store builds and both bundle
+audits passed. Core sources/tests were unchanged between those checkpoints.
+See [testing](TESTING.md) and
+[the current integration record](qa/current-full-suite-2026-10-10.json).
+These checks do not prove full dialog parity, activated Finder behavior, signed
+sandbox execution, passing hosted CI on this source or App Store readiness.
 
 ## Architecture replacements
 

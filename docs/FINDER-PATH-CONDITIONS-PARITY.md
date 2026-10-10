@@ -75,3 +75,11 @@ run; production menu rules already matched the pinned source and were unchanged.
 The 21 focused Finder metadata, rule and request tests passed after correction.
 The source fixture compares required and excluded masks independently for all
 45 implemented rules. Signed Finder activation remains unverified.
+
+The native receiver’s independent order projection and exact tracked-file/bare
+menus now also include Revision Graph. It caught an implementation order mismatch:
+Revision Graph now follows Browse References as in the pinned source. All 45
+implemented root-entry order/group projections passed, together with icon toggles,
+captured routing and repository-state preservation. Unsigned Debug/Store builds
+and their bundle audits passed. See
+[the current integration record](qa/current-full-suite-2026-10-10.json).
