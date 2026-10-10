@@ -108,6 +108,59 @@ private struct VerificationFailure: Error, CustomStringConvertible { let descrip
         table.fitViewport(NSSize(width: 200, height: 100))
         try require(table.frame.width >= table.rect(ofColumn: 1).maxX, "Horizontal scroll document covers full path columns")
         native.invalidate(); try await settle(native)
+        let list = SendPatchWindowModel(files: [first, first, second], preferences: prefs)
+        list.setChecked([list.rows[2].id])
+        let newFile = root.appendingPathComponent("drop 雪.patch")
+        try Data("Subject: Drop\n\nbody\n".utf8).write(to: newFile)
+        try require(list.appendDroppedFiles([first, root, newFile, newFile, URL(string: "https://example.invalid/remote.patch")!]), "Accepted non-directory unique dropped path")
+        try require(list.rows.map(\.file) == [first, first, second, newFile], "Dropped paths append in order, existing duplicates retained")
+        try require(list.checked.count == 2 && list.highlighted.isEmpty && !list.checked.contains(list.rows[0].id), "Drops check new rows without rechecking existing rows or changing highlight")
+        try require(!list.appendDroppedFiles([first, newFile, root]), "Duplicate/directory-only drop ignored")
+        let listTable = SendPatchTable(frame: NSRect(x: 0, y: 0, width: 650, height: 200))
+        listTable.menuPreferences = prefs
+        listTable.configure(rows: list.rows, checked: list.checked, highlighted: [])
+        try require(listTable.contextMenuForSelection() == nil, "No highlighted rows, no context menu")
+        var views: [URL] = [], alternates: [URL] = [], reviews: [URL] = [], applied: [[URL]] = []
+        list.showPatch = { views.append($0) }; list.showAlternatePatch = { alternates.append($0) }
+        list.reviewPatch = { reviews.append($0) }; list.applyPatches = { applied.append($0) }
+        listTable.canViewPatch = true
+        listTable.openPatch = { list.openPatch($0) }; listTable.openAlternatePatch = { list.openPatch($0, alternate: true) }
+        listTable.reviewPatch = { list.review($0) }; listTable.applyPatches = { list.apply($0) }
+        listTable.configure(rows: list.rows, checked: list.checked, highlighted: [list.rows[0].id])
+        guard let single = listTable.contextMenuForSelection() else { throw VerificationFailure(description: "No single-row menu") }
+        try require(single.items.map(\.title) == ["View Patch", "Review Patch with TurtleGitMerge", "Apply Patch…"], "Source menu order and no recursive Send Mail")
+        try require(single.items.allSatisfy { $0.image != nil }, "Original context icons")
+        // Menu actions retain the highlighted IDs at opening, independent of
+        // checkboxes and later selection changes.
+        listTable.configure(rows: list.rows, checked: list.checked, highlighted: [list.rows[3].id])
+        single.performActionForItem(at: 0); single.performActionForItem(at: 1); single.performActionForItem(at: 2)
+        try require(views == [first] && reviews == [first] && applied == [[first]], "Captured unchecked highlighted row actions")
+        listTable.viewPatch(list.rows[2].id, alternate: true)
+        try require(alternates == [second], "Alternate viewer intent")
+        listTable.configure(rows: list.rows, checked: list.checked, highlighted: [list.rows[0].id, list.rows[1].id, list.rows[2].id])
+        guard let multiple = listTable.contextMenuForSelection() else { throw VerificationFailure(description: "No multi-row menu") }
+        try require(multiple.items.map(\.title) == ["Apply Patch…"], "Multi-highlight menu only Apply")
+        multiple.performActionForItem(at: 0)
+        try require(applied.last == [first, first, second], "Apply uses highlighted list order and duplicate rows, not checks")
+        prefs.set(false, forKey: "ShowAppContextMenuIcons")
+        try require(listTable.contextMenuForSelection()?.items.allSatisfy { $0.image == nil } == true, "Context icon preference")
+        prefs.removeObject(forKey: "ShowAppContextMenuIcons")
+        listTable.interactionEnabled = false
+        try require(listTable.contextMenuForSelection() == nil, "Disabled list has no context menu")
+        let board = NSPasteboard.withUniqueName(); defer { board.releaseGlobally() }
+        board.writeObjects([newFile as NSURL])
+        listTable.droppedFiles = { list.appendDroppedFiles($0) }
+        try require(!listTable.acceptFiles(from: board), "Disabled drop rejected")
+        listTable.interactionEnabled = true
+        let more = root.appendingPathComponent("more.patch")
+        try Data("Subject: More\n\nbody".utf8).write(to: more)
+        board.clearContents(); board.writeObjects([more as NSURL, newFile as NSURL])
+        try require(listTable.acceptFiles(from: board) && list.rows.last?.file == more, "Native file URL pasteboard drop")
+        list.invalidate()
+        try require(!list.appendDroppedFiles([second]), "Closed owner rejects late drops")
+        list.apply(Set(list.rows.map(\.id))); try require(applied.count == 2, "Closed owner rejects actions")
+        try await settle(list)
+
         let completion = SendPatchAddressField.Coordinator(), combo = NSComboBox()
         completion.choices = ["Review 雪 <review@example.invalid>", "other@example.invalid"]
         combo.usesDataSource = true; combo.dataSource = completion; combo.completes = true

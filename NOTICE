@@ -1181,3 +1181,11 @@ SendMailDlg.h Copyright (C) 2008-2013, 2015-2016, 2023 TortoiseGit.
 Asynchronous snapshot loading, owner cancellation/fencing and duplicate row
 identities are macOS adaptations. Caller routing, complete patch-list menus
 and mail delivery remain pending.
+
+SendPatchList.swift and SendPatchWindow.swift additionally adapt PatchListCtrl's
+selection-dependent View Patch / Review Patch / Apply Patch menu, alternate
+viewer intent, and append-only checked file drops to native AppKit under GPL-2.0-or-later.
+PatchListCtrl.cpp Copyright (C) 2009-2013, 2015-2016, 2018-2019, 2021-2023, 2025 TortoiseGit.
+PatchListCtrl.h Copyright (C) 2009-2011, 2015-2016, 2018, 2020, 2023 TortoiseGit.
+Original upstream context-menu icons are reused as requested; dispatch callbacks
+and production caller routing remain subject to the native acceptance gates.

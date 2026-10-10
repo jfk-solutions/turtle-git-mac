@@ -14,7 +14,7 @@ Baseline: TortoiseGit `7338078f8ddd924b8cddee35f512f2286072136d`.
 | SendMailPatch.cpp/.h | PatchMailPreparation.swift: separate/combined, inline/attachment messages |
 | SendMail.cpp/.h | Checked-list ordering only; delivery/retry/sender identity remain pending |
 | Utils/HwSMTP.cpp/.h | PatchMailMIME.swift: envelope, body and ordered attachments only; SMTP pending |
-| SendMailDlg.cpp/.h / IDD_SENDMAIL | SendPatchWindow.swift / SendPatchList.swift: native options, checked/highlighted state and captured preparation; complete routing/delivery/list menus pending |
+| SendMailDlg.cpp/.h / IDD_SENDMAIL | SendPatchWindow.swift / SendPatchList.swift: native options, checked/highlighted state and captured preparation; production viewer/review/apply routing and delivery pending |
 | AppUtils.cpp SendPatchMail / SendMailCommand.cpp | Entry points reviewed; native routing still pending |
 | Settings/SettingSMTP.cpp/.h | SMTP/mail-client settings, Keychain credentials, encryption and delivery remain pending |
 
@@ -33,8 +33,9 @@ Send captures checked paths in list order, remembers recipients and both options
 and then starts mail progress. With no checked paths it starts no delivery. The
 mail-client mode permits empty To/CC so the composition UI can fill them; SMTP
 requires at least one recipient. Double-click opens the patch viewer except on
-the checkbox. Patch-list add/drop/removal/order/context behavior and the SMTP
-settings link require their own native port, along with all callers.
+the checkbox. Native patch-list drop/context controls are implemented below;
+production action routing and the SMTP settings link remain pending, along with
+all callers.
 
 ## Prepared message behavior
 
@@ -161,7 +162,7 @@ backend, and eMail settings without its settings callback. Existing callers are
 unchanged; this window is not yet exposed as a complete Send command.
 
 Remaining work includes native entry-point routing, patch viewer/settings
-callbacks, complete CPatchListCtrl add/drop/order/context menus, sender identity,
+callbacks, production CPatchListCtrl viewer/review/apply routing, sender identity,
 transport progress/cancellation/retry, actual Mail/SMTP delivery and signed
 sandbox acceptance. Help currently links to upstream's patch documentation.
 
@@ -172,3 +173,35 @@ uses a prohibited activation policy and never orders the options window on
 screen. Its light/dark host layout check is distinct from physical visual or
 signed acceptance. Paths remain horizontally scrollable to the last native
 column as the viewport changes. No mail client or delivery is exercised.
+
+## Patch list source audit and native controls
+
+`PatchListCtrl.cpp/.h` was reviewed in full for the Send Patch instance.
+Its menu contains View Patch (default) and Review Patch with the merge tool for
+one highlighted row; Apply Patch for one or more. Send Mail is masked out by
+SendMailDlg to prevent recursive Send dialogs. Actions use highlighted rows,
+independently of checks. This list has no Add/Remove/Up/Down controls: those
+belong to ImportPatchDlg. Earlier backlog references to adding those controls
+to Send Patch were corrected after inspecting this source.
+
+The native menu preserves that order/cardinality, marks View Patch in bold,
+uses original upstream icons as requested, and honors the application's context
+icon preference. Default and alternate (Shift) viewer intent, review and apply
+have explicit callbacks; Apply captures highlighted file IDs in displayed order,
+including initial duplicate rows. Callbacks remain gated until wired to actual
+viewer/review/import consumers. A closed or busy owner ignores actions.
+
+File URL drops append in incoming order, check newly inserted rows, ignore
+directories and already listed standardized paths, and leave existing checks
+and highlights unchanged. Initial duplicate rows remain independently selectable;
+dropping that path does not create another row or recheck an unchecked one.
+Remote URLs are rejected. Dropped URL security leases are retained with the model;
+AppStore drops require a new or existing matching grant. Actual signed drag grants
+remain unverified. No removal/reorder controls were invented for this dialog.
+
+The expanded hidden [receiver](qa/send-patch-dialog-native-2026-10-10.swift)
+checks selection-dependent menu order/icons, callback dispatch against captured
+unchecked rows, alternate viewer intent, highlighted duplicate ordering for
+Apply, icon preference, disabled/closed guards, append/dedup/directory behavior,
+and native file-URL pasteboard decoding. It opens no viewer, applies no patch,
+and sends no mail. See [list QA](qa/send-patch-list-2026-10-10.json).

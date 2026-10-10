@@ -28,7 +28,7 @@ struct SendPatchRequest {
     @Published var error: String?
     let delivery: Delivery
     private let preferences: UserDefaults
-    private let access: [RepositoryAccessLease]
+    private var access: [RepositoryAccessLease]
     private var invalidated = false, submitted = false
     private var previewGeneration = UUID()
     private var previewWork: Task<SerialPatch, Error>?
@@ -38,6 +38,9 @@ struct SendPatchRequest {
     var close: () -> Void = {}
     var endEditing: () -> Void = {}
     @Published var showPatch: ((URL) -> Void)?
+    @Published var showAlternatePatch: ((URL) -> Void)?
+    @Published var reviewPatch: ((URL) -> Void)?
+    @Published var applyPatches: (([URL]) -> Void)?
     @Published var showSettings: (() -> Void)?
     var addresses: [String] { preferences.stringArray(forKey: "SendMail.Addresses") ?? [] }
     var subject: String { combine ? combinedSubject : previewSubject }
@@ -131,7 +134,38 @@ struct SendPatchRequest {
         }
         preferences.set(Array(history.prefix(0xFFFF)), forKey: "SendMail.Addresses")
     }
-    func openPatch(_ id: UUID) { guard canInteract, let row = rows.first(where: { $0.id == id }) else { return }; showPatch?(row.file) }
+    /// CPatchListCtrl appends checked non-directory paths, suppressing dropped
+    /// duplicates without rechecking an existing unchecked row.
+    func appendDroppedFiles(_ files: [URL]) -> Bool {
+        guard canInteract else { return false }
+        var known = Set(rows.map { $0.file.standardizedFileURL.path }), added: [SendPatchRow] = []
+        for file in files where file.isFileURL {
+            let path = file.standardizedFileURL.path
+            guard !known.contains(path) else { continue }
+            let lease = RepositoryAccessLease(url: file)
+            if GitRuntime.isAppStoreBuild && !lease.hasSecurityScope && !access.contains(where: { $0.hasSecurityScope && $0.contains(file) }) {
+                error = RepositoryAccessFailure.securityScopeUnavailable.localizedDescription; continue
+            }
+            var directory: ObjCBool = false
+            _ = FileManager.default.fileExists(atPath: path, isDirectory: &directory)
+            guard !directory.boolValue else { continue }
+            known.insert(path); added.append(SendPatchRow(file: file)); access.append(lease)
+        }
+        guard !added.isEmpty else { return false }
+        rows.append(contentsOf: added); checked.formUnion(added.map(\.id)); return true
+    }
+    func review(_ id: UUID) {
+        guard canInteract, let row = rows.first(where: { $0.id == id }) else { return }; reviewPatch?(row.file)
+    }
+    func apply(_ ids: Set<UUID>) {
+        guard canInteract else { return }
+        let files = rows.filter { ids.contains($0.id) }.map(\.file)
+        guard !files.isEmpty else { return }; applyPatches?(files)
+    }
+    func openPatch(_ id: UUID, alternate: Bool = false) {
+        guard canInteract, let row = rows.first(where: { $0.id == id }) else { return }
+        if alternate, let showAlternatePatch { showAlternatePatch(row.file) } else { showPatch?(row.file) }
+    }
     func cancel() { guard !invalidated && !submitted else { return }; endEditing(); guard !invalidated && !submitted else { return }; invalidate(); close() }
     func invalidate() { invalidated = true; previewGeneration = UUID(); previewBusy = false; previewWork?.cancel(); preparationWork?.cancel() }
 }

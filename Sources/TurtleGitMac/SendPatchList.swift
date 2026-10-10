@@ -10,6 +10,12 @@ import TurtleGitCore
     var checksChanged: (Set<UUID>) -> Void = { _ in }
     var highlightChanged: (Set<UUID>) -> Void = { _ in }
     var openPatch: (UUID) -> Void = { _ in }
+    var openAlternatePatch: ((UUID) -> Void)?
+    var reviewPatch: ((UUID) -> Void)?
+    var applyPatches: ((Set<UUID>) -> Void)?
+    var canViewPatch = false
+    var droppedFiles: ([URL]) -> Bool = { _ in false }
+    var menuPreferences: UserDefaults = .standard
     private var updating = false
     private var contentWidth: CGFloat = 400
     override init(frame frameRect: NSRect) {
@@ -19,6 +25,7 @@ import TurtleGitCore
         let check = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("check")); check.title = ""; check.width = 28; check.minWidth = 28; check.maxWidth = 28; addTableColumn(check)
         let path = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("path")); path.title = "Path"; path.width = 500; path.maxWidth = .greatestFiniteMagnitude; addTableColumn(path)
         target = self; doubleAction = #selector(doubleClicked)
+        registerForDraggedTypes([.fileURL])
         setAccessibilityLabel("Patches to send")
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
@@ -72,7 +79,65 @@ import TurtleGitCore
         checksChanged(checked)
     }
     @objc private func doubleClicked() {
-        guard interactionEnabled, clickedColumn != 0, rows.indices.contains(clickedRow) else { return }; openPatch(rows[clickedRow].id)
+        guard interactionEnabled, clickedColumn != 0, rows.indices.contains(clickedRow) else { return }
+        viewPatch(rows[clickedRow].id, alternate: NSEvent.modifierFlags.contains(.shift))
+    }
+    private final class MenuRequest: NSObject {
+        let ids: Set<UUID>; let kind: Int
+        init(_ ids: Set<UUID>, _ kind: Int) { self.ids = ids; self.kind = kind }
+    }
+    func contextMenuForSelection() -> NSMenu? {
+        guard interactionEnabled else { return nil }
+        let ids = Set(selectedRowIndexes.compactMap { rows.indices.contains($0) ? rows[$0].id : nil })
+        guard !ids.isEmpty else { return nil }
+        let menu = NSMenu(); menu.autoenablesItems = false
+        func item(_ title: String, _ kind: Int, _ icon: MenuIcon, _ enabled: Bool) {
+            let item = NSMenuItem(title: title, action: #selector(runMenu(_:)), keyEquivalent: "")
+            item.target = self; item.representedObject = MenuRequest(ids, kind); item.isEnabled = enabled
+            item.image = icon.contextImage(defaults: menuPreferences)
+            if kind == 0 { item.attributedTitle = NSAttributedString(string: title, attributes: [.font: NSFont.boldSystemFont(ofSize: NSFont.menuFont(ofSize: 0).pointSize)]) }
+            menu.addItem(item)
+        }
+        if ids.count == 1 {
+            item("View Patch", 0, .unifiedDiff, canViewPatch)
+            item("Review Patch with TurtleGitMerge", 1, .editConflict, reviewPatch != nil)
+        }
+        item("Apply Patch…", 2, .patch, applyPatches != nil)
+        return menu
+    }
+    override func menu(for event: NSEvent) -> NSMenu? {
+        guard interactionEnabled else { return nil }
+        let hit = row(at: convert(event.locationInWindow, from: nil))
+        if rows.indices.contains(hit) && !selectedRowIndexes.contains(hit) {
+            selectRowIndexes(IndexSet(integer: hit), byExtendingSelection: false)
+        }
+        return contextMenuForSelection()
+    }
+    @objc private func runMenu(_ item: NSMenuItem) {
+        guard interactionEnabled, let request = item.representedObject as? MenuRequest else { return }
+        let valid = request.ids.intersection(rows.map(\.id))
+        if request.kind == 2 { guard !valid.isEmpty else { return }; applyPatches?(valid) }
+        else if valid.count == 1, let id = valid.first {
+            if request.kind == 0 && canViewPatch { viewPatch(id, alternate: NSEvent.modifierFlags.contains(.shift)) }
+            else if request.kind == 1 { reviewPatch?(id) }
+        }
+    }
+    func viewPatch(_ id: UUID, alternate: Bool) {
+        guard interactionEnabled, canViewPatch, rows.contains(where: { $0.id == id }) else { return }
+        if alternate, let openAlternatePatch { openAlternatePatch(id) } else { openPatch(id) }
+    }
+    private func dropURLs(_ pasteboard: NSPasteboard) -> [URL] {
+        (pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [NSURL])?.map { $0 as URL } ?? []
+    }
+    func tableView(_ tableView: NSTableView, validateDrop info: NSDraggingInfo, proposedRow row: Int, proposedDropOperation operation: NSTableView.DropOperation) -> NSDragOperation {
+        guard interactionEnabled, !dropURLs(info.draggingPasteboard).isEmpty else { return [] }
+        setDropRow(rows.count, dropOperation: .above); return .copy
+    }
+    func acceptFiles(from pasteboard: NSPasteboard) -> Bool {
+        guard interactionEnabled else { return false }; return droppedFiles(dropURLs(pasteboard))
+    }
+    func tableView(_ tableView: NSTableView, acceptDrop info: NSDraggingInfo, row: Int, dropOperation operation: NSTableView.DropOperation) -> Bool {
+        acceptFiles(from: info.draggingPasteboard)
     }
     override func keyDown(with event: NSEvent) {
         if interactionEnabled && event.keyCode == 49 {
@@ -108,6 +173,11 @@ struct SendPatchList: NSViewRepresentable {
         table.interactionEnabled = enabled
         table.checksChanged = { [weak model] in model?.setChecked($0) }
         table.highlightChanged = { [weak model] in model?.setHighlighted($0) }
+        table.canViewPatch = model.showPatch != nil
+        table.openAlternatePatch = { [weak model] in model?.openPatch($0, alternate: true) }
+        table.reviewPatch = model.reviewPatch == nil ? nil : { [weak model] in model?.review($0) }
+        table.applyPatches = model.applyPatches == nil ? nil : { [weak model] in model?.apply($0) }
+        table.droppedFiles = { [weak model] in model?.appendDroppedFiles($0) ?? false }
         table.openPatch = { [weak model] in model?.openPatch($0) }
         table.configure(rows: model.rows, checked: model.checked, highlighted: model.highlighted)
     }

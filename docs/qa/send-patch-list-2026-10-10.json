@@ -1,0 +1,64 @@
+{
+  "checked_at": "2026-10-10T01:10:30.982534+00:00",
+  "parent_commit": "f0cafd3fa7861fa618ad104cd230910d76742631",
+  "scope": "Native Send Patch source context menu and checked file drops; production action routing and delivery pending",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blob_sha256": {
+    "src/TortoiseProc/PatchListCtrl.cpp": "b8569673642789be7910d32e179df21f038f19d0ca28d421bcb230b6854dcc5e",
+    "src/TortoiseProc/PatchListCtrl.h": "178f81852c7ac4c266f82782933ca7388becce2c93cb848d21066fb73b640d30"
+  },
+  "checks": {
+    "native_receiver_exit": 0,
+    "debug_build_exit": 0,
+    "debug_bundle_audit_exit": 0,
+    "appstore_unsigned_build_exit": 0,
+    "appstore_bundle_audit_exit": 0,
+    "inventory_pin_exit": 0,
+    "bundled_icons": 100,
+    "core_tests_rerun": false,
+    "native_cases": [
+      "All existing options, captured four-mode preparation, To/CC/history, retry, close fencing, checkbox/Space and hidden light/dark layout checks",
+      "Single-highlight View/Review/Apply source menu order with original icons; multiple highlights expose only Apply; none exposes no menu",
+      "Captured unchecked selection dispatch and highlighted duplicate ordering independent of checks",
+      "Alternate viewer intent and context icon preference",
+      "Disabled/closed menu/drop guards",
+      "Ordered checked file drops suppress duplicate paths and directories without rechecking existing unchecked rows or changing highlights",
+      "Private native file-URL pasteboard decoding; remote URLs rejected"
+    ],
+    "preferences": [
+      {
+        "suite": "TurtleGit.SendPatch.QA.29335B60-EC4F-43E9-975F-BED4A6D3C5D2",
+        "verified_empty": true,
+        "defaults_delete_exit": 1,
+        "removed": true
+      }
+    ],
+    "final_audit": {
+      "matching_processes": [],
+      "current_fixtures": []
+    },
+    "side_effects": "No main app, displayed window, viewer, patch application, mail client, draft or delivery; private receiver/preferences/pasteboard only"
+  },
+  "source_sha256": {
+    "NOTICE": "1e0364a11d460994b88381ef11185d103ae3b184b9e1f8f36f422cb2eb03f907",
+    "Sources/TurtleGitMac/SendPatchList.swift": "05aeb9be5ec92120483a5b8f51eb6ea071e405a5dadff80113c58d99105e8f77",
+    "Sources/TurtleGitMac/SendPatchWindow.swift": "d0888149a5d1a1219fa7fc9622c259fec9233833de2468e2304508b22993c877",
+    "docs/PORTING.md": "1de9667d17a47d351dd740f083028fd9b906c43b7926923735241d86b6dbb986",
+    "docs/SEND-PATCH-PARITY.md": "f4eab3e705664ea9b2c787694b2602d880d79ae160673e214e900983ee9048e2",
+    "docs/qa/send-patch-dialog-native-2026-10-10.swift": "76c4ef4c250bb0c7d06e7bcfb959cd4f0a6d81cb385e064c6a4e0e187d5e8555",
+    "docs/upstream-files.csv": "f5103bd045a21ae698556265ffe5a676beeebbb187bb5424da3af18249bac46c"
+  },
+  "binary_sha256": {
+    "Debug_app": "ae0fc297ae892ad6d53e5bfb2e3aee3218b8dda08c01e7e3c33faa88de63b8d1",
+    "Debug_core": "d96d2ea5d6e79308362d4869f9cee8e1772e90f879dc554f4760f0cc2aba3993",
+    "AppStore_app": "b17d5f3a2069df702288e17e7c1cc833c08b939cb850434abed038e1d8331cb3",
+    "AppStore_core": "00e90ab36c13b4e1aa239b9d90d6117a6838216fb97f3fe30dc2e3b23a2eaed7"
+  },
+  "limitations": [
+    "Production entry points/viewer/review/apply routing and shared Import Patch status behavior remain pending",
+    "Sender identity, settings, Mail/SMTP delivery, TLS/authentication/Keychain, transport progress/retry/cancellation remain pending",
+    "Unsigned builds and hidden native tests do not prove actual signed drag grants, sandbox/Finder/App Store acceptance or physical visual parity",
+    "Full TortoiseGit port, localization and hosted GitHub CI acceptance remain incomplete"
+  ],
+  "logs": "build/qa/send-patch-list-2026-10-10/ (ignored local logs)"
+}
