@@ -24,8 +24,7 @@ Native colors follow the application appearance.
 
 ## Remaining requirements
 
-This is a partial native replacement. Separate fit
-widths/heights modes, configurable transparent color, blend preset markers,
+This is a partial native replacement. Configurable transparent color, blend preset markers,
 Ctrl+Shift-wheel alpha, toolbar/menu keyboard equivalents, timed animation and
 frame/page controls, three-way conflict selection, standalone Load Images,
 image title tooltips, retained layout/preferences and full resizing/physical
@@ -50,7 +49,7 @@ covered that initial pane checkpoint. Native light/dark offscreen captures were
 visually inspected as diagnostic artifacts. They do not prove physical gestures,
 keyboard handling, VoiceOver, signed Finder activation or signed distribution.
 
-## XOR overlay
+## XOR checkpoint (`38420c1`)
 
 The source `MainWindow.cpp` Blend alpha command toggles Alpha/Xor and is
 enabled only in overlay mode. `PicWindow.cpp` applies `SRCINVERT` followed by
@@ -72,7 +71,44 @@ missing sides, transparency and invalid dimensions. The focused suite passed 17 
 system and bundled Git: colored XOR output for changed images, white output
 for identical images, removal of the alpha slider in XOR mode and restoration
 of alpha-rendered pixels after switching back. HEAD, raw index and working
-bytes remained unchanged. Both current unsigned Debug/App Store builds and
+bytes remained unchanged. Both unsigned Debug/App Store builds and
 bundle audits passed with all 110 original icon resources. See the
 [XOR QA record](qa/image-xor-2026-10-10.json). This is hidden native testing;
 physical menu/keyboard/drag, VoiceOver and signed acceptance remain open.
+
+## Linked dimensions and stepped zoom
+
+Pinned `FitWidths`/`FitHeights` call `SetZoom`, which matches the other image's
+width or height through `SetZoomToWidth`/`SetZoomToHeight`. A single constraint
+preserves aspect ratio; both constraints retain both linked extents in
+`ShowPicWithBorder`, allowing different proportions to be matched. The native
+renderer now carries independent displayed extents through pane layout, alpha
+and XOR. The per-picture model retains each zoom and linked dimension through the
+source's sequential updates, including disabling one constraint and applying
+Original Size to base and then destination. Zero linked extents do not replace
+an ordinary extent. Matching is independent of the Link image positions toggle.
+Original fitwidths/fitheights artwork is used in the toolbar and View menu.
+
+`FitImageInWindow` caps fitting at 100 percent. Native fitting now also avoids
+enlarging small images. `Zoom` quantizes percentages to tens, steps by 10 below
+100, by 20 between 100 and 200, and by 10 above 200; Zoom Out bottoms at 10.
+The previous multiplicative zoom has been replaced with these source steps.
+The disabled Blend alpha menu state is unchecked outside overlay, retaining
+the chosen mode for the next overlay. Sizing callbacks capture scalar side identifiers
+and weak model references so native panes do not retain their model through
+a captured representable.
+
+Core checks cover unequal aspect ratios, each matching combination, absent
+reference dimensions, no enlargement and zoom quantization/thresholds. The native
+receiver additionally measures actual colored pixel extents for unequal images,
+both constraints, stepped zoom and Original size. Native resize/gesture behavior,
+Windows integer/border rounding, frame controls and signed acceptance remain open.
+
+The current sizing checkpoint passed 19 focused Core/icon/file-comparison tests.
+The native receiver passed with system and bundled Git, measuring actual colored
+pixel extents for unequal aspect ratios, both matching controls, source stepped
+zoom and Original Size; existing pane/alpha/XOR and Git-byte preservation checks
+also passed. Both unsigned Debug/App Store builds and bundle audits passed with
+all 112 original icon resources. See the [sizing QA record](qa/image-sizing-2026-10-10.json).
+These checks do not establish physical input, signed Finder/sandbox acceptance,
+all controls or full application parity.

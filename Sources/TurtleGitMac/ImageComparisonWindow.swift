@@ -8,14 +8,37 @@ import TurtleGitCore
     @Published var vertical = false
     @Published var linked = true
     @Published var showInfo = false
+    @Published private var sizing = ImageComparisonSizing(base: .zero, destination: .zero)
     @Published var fit = true
-    @Published var zoom: CGFloat = 1
     @Published var alpha: Double = 0.5
-    var fittedZoom: CGFloat = 1
+    private var viewports: [Bool: CGSize] = [:]
+    var fitWidths: Bool { sizing.widths }
+    var fitHeights: Bool { sizing.heights }
+    var zoom: CGFloat {
+        get { CGFloat(displaySizing.base.percent) / 100 }
+        set { freezeFit(); sizing.setZoom(Int(newValue * 100), base: true); if !fitWidths && !fitHeights && !overlay { sizing.setZoom(Int(newValue * 100), base: false) } }
+    }
+    var fittedZoom: CGFloat { CGFloat(displaySizing.base.percent) / 100 }
     private var scrolls: [Bool: NSScrollView] = [:]
     private var synchronizing = false
-    func originalSize() { fit = false; zoom = 1 }
-    func changeZoom(_ factor: CGFloat) { let wasFit = fit; fit = false; zoom = min(16, max(0.01, (wasFit ? fittedZoom : zoom) * factor)) }
+    func configure(base: CGSize, destination: CGSize) {
+        guard sizing.base.pixels != base || sizing.destination.pixels != destination else { return }
+        sizing = ImageComparisonSizing(base: base, destination: destination); sizing.overlay = overlay
+    }
+    var displaySizing: ImageComparisonSizing {
+        var result = sizing; result.overlay = overlay
+        if fit {
+            let fallback = viewports[true] ?? viewports[false] ?? CGSize(width: 1,height: 1)
+            result.fit(baseViewport: viewports[true] ?? fallback, destinationViewport: overlay ? viewports[true] ?? fallback : viewports[false] ?? fallback)
+        }
+        return result
+    }
+    func recordViewport(_ size: CGSize, base: Bool) { viewports[base] = size }
+    private func freezeFit() { if fit { sizing = displaySizing; fit = false }; sizing.overlay = overlay }
+    func originalSize() { freezeFit(); sizing.originalSize() }
+    func changeZoom(zoomIn: Bool) { freezeFit(); sizing.zoom(zoomIn: zoomIn) }
+    func toggleWidths() { freezeFit(); sizing.toggleWidths() }
+    func toggleHeights() { freezeFit(); sizing.toggleHeights() }
     func register(_ scroll: NSScrollView, base: Bool) { scrolls[base] = scroll }
     func unregister(_ scroll: NSScrollView, base: Bool) { if scrolls[base] === scroll { scrolls.removeValue(forKey: base) } }
     func didScroll(_ source: NSScrollView, base: Bool) {
@@ -31,7 +54,10 @@ import TurtleGitCore
     let document: FileComparisonDocument
     @StateObject private var model: ImageComparisonViewModel
     init(images: ImageComparisonDocument, document: FileComparisonDocument, model: ImageComparisonViewModel? = nil) {
-        self.images = images; self.document = document; _model = StateObject(wrappedValue: model ?? ImageComparisonViewModel())
+        self.images = images; self.document = document
+        let value = model ?? ImageComparisonViewModel()
+        value.configure(base: images.base?.size ?? .zero, destination: images.destination?.size ?? .zero)
+        _model = StateObject(wrappedValue: value)
     }
     private func tool(_ title: String, _ icon: MenuIcon, active: Bool = false, action: @escaping () -> Void) -> some View {
         Button(action: action) { Image(nsImage: icon.image() ?? NSImage()).resizable().frame(width: 20, height: 20) }
@@ -66,23 +92,27 @@ import TurtleGitCore
                 tool("Overlay images", .imageOverlay, active: model.overlay) { model.overlay.toggle() }
                 tool("Blend alpha", .imageBlend, active: model.overlay && model.blendAlpha) { model.blendAlpha.toggle() }.disabled(!model.overlay)
                 tool("Link image positions", .imageLink, active: model.linked) { model.linked.toggle() }.disabled(model.overlay)
+                tool("Fit image widths", .imageFitWidths, active: model.fitWidths) { model.toggleWidths() }
+                tool("Fit image heights", .imageFitHeights, active: model.fitHeights) { model.toggleHeights() }
                 Divider().frame(height: 22)
                 tool("Fit images in window", .imageFit, active: model.fit) { model.fit = true }
                 tool("Original size", .imageOriginal) { model.originalSize() }
-                tool("Zoom in", .imageZoomIn) { model.changeZoom(1.25) }
-                tool("Zoom out", .imageZoomOut) { model.changeZoom(0.8) }
+                tool("Zoom in", .imageZoomIn) { model.changeZoom(zoomIn: true) }
+                tool("Zoom out", .imageZoomOut) { model.changeZoom(zoomIn: false) }
                 Divider().frame(height: 22)
                 tool("Image info", .imageInfo, active: model.showInfo) { model.showInfo.toggle() }
                 tool("Arrange vertical", .imageVertical, active: model.vertical && !model.overlay) { model.vertical.toggle() }.disabled(model.overlay)
                 Spacer()
                 Menu("View") {
                     Toggle(isOn: $model.overlay) { CommandLabel(title: "Overlay images", icon: .imageOverlay) }
-                    Toggle(isOn: $model.blendAlpha) { CommandLabel(title: "Blend alpha", icon: .imageBlend) }.disabled(!model.overlay)
+                    Toggle(isOn: Binding(get: { model.overlay && model.blendAlpha }, set: { model.blendAlpha = $0 })) { CommandLabel(title: "Blend alpha", icon: .imageBlend) }.disabled(!model.overlay)
                     Toggle(isOn: $model.linked) { CommandLabel(title: "Link image positions", icon: .imageLink) }.disabled(model.overlay)
+                    Toggle(isOn: Binding(get: { model.fitWidths }, set: { _ in model.toggleWidths() })) { CommandLabel(title: "Fit image widths", icon: .imageFitWidths) }
+                    Toggle(isOn: Binding(get: { model.fitHeights }, set: { _ in model.toggleHeights() })) { CommandLabel(title: "Fit image heights", icon: .imageFitHeights) }
                     Button { model.fit = true } label: { CommandLabel(title: "Fit images in window", icon: .imageFit) }
                     Button { model.originalSize() } label: { CommandLabel(title: "Original size", icon: .imageOriginal) }
-                    Button { model.changeZoom(1.25) } label: { CommandLabel(title: "Zoom in", icon: .imageZoomIn) }
-                    Button { model.changeZoom(0.8) } label: { CommandLabel(title: "Zoom out", icon: .imageZoomOut) }
+                    Button { model.changeZoom(zoomIn: true) } label: { CommandLabel(title: "Zoom in", icon: .imageZoomIn) }
+                    Button { model.changeZoom(zoomIn: false) } label: { CommandLabel(title: "Zoom out", icon: .imageZoomOut) }
                     Toggle(isOn: $model.showInfo) { CommandLabel(title: "Image info", icon: .imageInfo) }
                     Toggle(isOn: $model.vertical) { CommandLabel(title: "Arrange vertical", icon: .imageVertical) }.disabled(model.overlay)
                 }
@@ -143,8 +173,14 @@ private struct ImageComparisonScroll: NSViewRepresentable {
         return scroll
     }
     func updateNSView(_ scroll: ImageComparisonScrollView, context: Context) {
-        scroll.image = image; scroll.second = second; scroll.fit = model.fit; scroll.zoom = model.zoom; scroll.alpha = model.alpha; scroll.overlay = model.overlay; scroll.blendAlpha = model.blendAlpha
-        scroll.onFittedScale = { [weak model] scale in if base { model?.fittedZoom = scale } }
+        scroll.image = image; scroll.second = second; scroll.alpha = model.alpha; scroll.overlay = model.overlay; scroll.blendAlpha = model.blendAlpha
+        let side = base
+        scroll.recordViewport = { [weak model] size in model?.recordViewport(size, base: side) }
+        scroll.displayedSizes = { [weak model] in
+            guard let model else { return (.zero, .zero) }
+            let state = model.displaySizing
+            return (state.displayed(base: side), model.overlay ? state.displayed(base: false) : .zero)
+        }
         scroll.updateCanvas()
     }
     static func dismantleNSView(_ scroll: ImageComparisonScrollView, coordinator: Coordinator) {
@@ -161,21 +197,19 @@ private struct ImageComparisonScroll: NSViewRepresentable {
 private final class ImageComparisonScrollView: NSScrollView {
     var image: ComparisonImage?
     var second: ComparisonImage?
-    var fit = true
-    var zoom: CGFloat = 1
     var alpha: Double = 0.5
     var overlay = false
     var blendAlpha = true
-    var onFittedScale: ((CGFloat) -> Void)?
+    var recordViewport: ((CGSize) -> Void)?
+    var displayedSizes: (() -> (CGSize, CGSize))?
     override func layout() { super.layout(); updateCanvas() }
     func updateCanvas() {
         guard let canvas = documentView as? ImageComparisonCanvas else { return }
-        let size = CGSize(width: max(image?.size.width ?? 0, second?.size.width ?? 0), height: max(image?.size.height ?? 0, second?.size.height ?? 0))
         let viewport = contentView.bounds.size
-        let scale = fit ? ImageComparisonGeometry.fittedScale(image: size, viewport: viewport) : zoom
-        if fit { onFittedScale?(scale) }
-        let extent = NSSize(width: max(viewport.width, size.width * scale), height: max(viewport.height, size.height * scale))
-        canvas.image = image; canvas.second = second; canvas.scale = scale; canvas.alpha = alpha; canvas.overlay = overlay; canvas.blendAlpha = blendAlpha
+        recordViewport?(viewport)
+        let (firstSize, secondSize) = displayedSizes?() ?? (.zero, .zero)
+        let extent = NSSize(width: max(viewport.width, firstSize.width, secondSize.width), height: max(viewport.height, firstSize.height, secondSize.height))
+        canvas.image = image; canvas.second = second; canvas.imageSize = firstSize; canvas.secondSize = secondSize; canvas.alpha = alpha; canvas.overlay = overlay; canvas.blendAlpha = blendAlpha
         if canvas.frame.size != extent { canvas.setFrameSize(extent) }
         canvas.needsDisplay = true
     }
@@ -183,7 +217,8 @@ private final class ImageComparisonScrollView: NSScrollView {
 private final class ImageComparisonCanvas: NSView {
     var image: ComparisonImage?
     var second: ComparisonImage?
-    var scale: CGFloat = 1
+    var imageSize = CGSize.zero
+    var secondSize = CGSize.zero
     var alpha: Double = 0.5
     var overlay = false
     var blendAlpha = true
@@ -192,12 +227,12 @@ private final class ImageComparisonCanvas: NSView {
     override var isFlipped: Bool { true }
     override func draw(_ dirtyRect: NSRect) {
         NSColor.textBackgroundColor.setFill(); dirtyRect.fill()
-        let combined = CGSize(width: max(image?.size.width ?? 0, second?.size.width ?? 0), height: max(image?.size.height ?? 0, second?.size.height ?? 0))
-        let origin = CGPoint(x: (bounds.width - combined.width * scale) / 2, y: (bounds.height - combined.height * scale) / 2)
-        func paint(_ source: ComparisonImage?, fraction: Double) {
+        let combined = CGSize(width: max(imageSize.width, secondSize.width), height: max(imageSize.height, secondSize.height))
+        let origin = CGPoint(x: (bounds.width - combined.width) / 2, y: (bounds.height - combined.height) / 2)
+        func paint(_ source: ComparisonImage?, size: CGSize, fraction: Double) {
             guard let source else { return }
             let native = NSImage(cgImage: source.pixels, size: source.size)
-            native.draw(in: NSRect(origin: origin, size: NSSize(width: source.size.width * scale, height: source.size.height * scale)), from: .zero, operation: .sourceOver, fraction: fraction, respectFlipped: true, hints: [.interpolation: NSImageInterpolation.none])
+            native.draw(in: NSRect(origin: origin, size: size), from: .zero, operation: .sourceOver, fraction: fraction, respectFlipped: true, hints: [.interpolation: NSImageInterpolation.none])
         }
         if overlay && !blendAlpha {
             // Render only the visible tile at backing resolution, after zoom and
@@ -206,14 +241,14 @@ private final class ImageComparisonCanvas: NSView {
             guard !tile.isEmpty else { return }
             let backing = window?.backingScaleFactor ?? 1
             let width = Int(ceil(tile.width * backing)), height = Int(ceil(tile.height * backing))
-            func rect(_ source: ComparisonImage?) -> CGRect {
+            func rect(_ size: CGSize) -> CGRect {
                 CGRect(x: (origin.x - tile.minX) * backing, y: (origin.y - tile.minY) * backing,
-                       width: (source?.size.width ?? 0) * scale * backing,
-                       height: (source?.size.height ?? 0) * scale * backing)
+                       width: size.width * backing,
+                       height: size.height * backing)
             }
             if let result = ImageComparisonXOR.render(base: image?.pixels, destination: second?.pixels,
-                                                     width: width, height: height, baseRect: rect(image),
-                                                     destinationRect: rect(second), background: NSColor.textBackgroundColor.cgColor) {
+                                                     width: width, height: height, baseRect: rect(imageSize),
+                                                     destinationRect: rect(secondSize), background: NSColor.textBackgroundColor.cgColor) {
                 NSImage(cgImage: result, size: tile.size).draw(in: tile, from: .zero, operation: .copy,
                     fraction: 1, respectFlipped: true, hints: [.interpolation: NSImageInterpolation.none])
             } else {
@@ -221,11 +256,11 @@ private final class ImageComparisonCanvas: NSView {
             }
             return
         }
-        paint(image, fraction: 1)
+        paint(image, size: imageSize, fraction: 1)
         if overlay, alpha > 0 {
             let layer = NSImage(size: bounds.size, flipped: true) { [self] rect in
                 NSColor.textBackgroundColor.setFill(); rect.fill()
-                paint(second, fraction: 1)
+                paint(second, size: secondSize, fraction: 1)
                 return true
             }
             layer.draw(in: bounds, from: .zero, operation: .sourceOver, fraction: alpha, respectFlipped: true, hints: nil)

@@ -1325,3 +1325,10 @@ comparison renders opaque viewport panes at backing resolution, applies
 bytewise RGB XOR and inversion (SRCINVERT/InvertRect behavior), and retains
 the original blend.ico artwork with GPL provenance. This is not full
 TortoiseIDiff or signed distribution acceptance.
+
+Image viewer linked-width/height sizing and stepped zoom adapt the pinned
+TortoiseGitIDiff CPicWindow FitWidths/FitHeights, SetZoomToWidth/Height,
+ShowPicWithBorder, Zoom and FitImageInWindow behavior. Original fitwidths.ico
+and fitheights.ico resources are retained unchanged with GPL provenance.
+Native layout, integer rounding, physical input and all remaining controls
+continue to require broader acceptance.

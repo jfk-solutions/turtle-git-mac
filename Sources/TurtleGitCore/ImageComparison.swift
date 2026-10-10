@@ -35,7 +35,17 @@ public struct ImageComparisonDocument {
 public enum ImageComparisonGeometry {
     public static func fittedScale(image: CGSize, viewport: CGSize) -> CGFloat {
         guard image.width > 0, image.height > 0, viewport.width > 0, viewport.height > 0 else { return 1 }
-        return min(viewport.width / image.width, viewport.height / image.height)
+        return min(1, viewport.width / image.width, viewport.height / image.height)
+    }
+    /// CPicWindow::Zoom quantizes to tens, with 20-percent steps between 100 and 200.
+    public static func nextZoom(_ scale: CGFloat, zoomIn: Bool) -> CGFloat {
+        guard scale.isFinite, scale >= 0, scale < CGFloat(Int.max / 100) else { return 1 }
+        var percent = Int(scale * 100)
+        if percent % 10 != 0 { percent = percent / 10 * 10 + (zoomIn ? 0 : 10) }
+        if !zoomIn && percent <= 20 { return 0.1 }
+        let step = (zoomIn && percent < 100) || (!zoomIn && percent <= 100) ? 10 :
+            (zoomIn && percent < 200) || (!zoomIn && percent <= 200) ? 20 : 10
+        return CGFloat(percent + (zoomIn ? step : -step)) / 100
     }
     public static func linkedOrigin(_ origin: CGPoint, content: CGSize, viewport: CGSize) -> CGPoint {
         CGPoint(x: min(max(0, origin.x), max(0, content.width - viewport.width)),
@@ -70,5 +80,68 @@ public enum ImageComparisonXOR {
             left[offset + 3] = 255
         }
         return a.makeImage()
+    }
+}
+
+/// Per-picture zoom and linked dimensions mirror CPicWindow's sequential updates.
+public struct ImageComparisonSizing {
+    public struct Pane {
+        public let pixels: CGSize
+        public fileprivate(set) var percent = 100
+        fileprivate var width: CGFloat?
+        fileprivate var height: CGFloat?
+        public var displayed: CGSize { CGSize(width: width.flatMap { $0 != 0 ? $0 : nil } ?? floor(pixels.width * CGFloat(percent) / 100),
+                                             height: height.flatMap { $0 != 0 ? $0 : nil } ?? floor(pixels.height * CGFloat(percent) / 100)) }
+    }
+    public private(set) var base: Pane
+    public private(set) var destination: Pane
+    public private(set) var widths = false
+    public private(set) var heights = false
+    public var overlay = false
+    public init(base: CGSize, destination: CGSize) { self.base = Pane(pixels: base); self.destination = Pane(pixels: destination) }
+    public func pane(base: Bool) -> Pane { base ? self.base : destination }
+    private mutating func assign(_ pane: Pane, base: Bool) { if base { self.base = pane } else { destination = pane } }
+    public mutating func setZoom(_ percent: Int, base: Bool, linked: Bool = false) {
+        var current = pane(base: base)
+        guard current.percent != 0, percent > 0 else { return }
+        current.percent = percent; assign(current, base: base)
+        guard !linked else { return }
+        if overlay { setZoom(percent, base: !base, linked: true) }
+        if heights {
+            current.height = nil; assign(current, base: base)
+            var other = pane(base: !base)
+            let target = floor(current.pixels.height * CGFloat(percent) / 100)
+            other.height = target; assign(other, base: !base)
+            if other.pixels.height > 0 { setZoom(Int(target * 100 / other.pixels.height), base: !base, linked: true) }
+        }
+        if widths {
+            current.width = nil; assign(current, base: base)
+            var other = pane(base: !base)
+            let target = floor(current.pixels.width * CGFloat(percent) / 100)
+            other.width = target; assign(other, base: !base)
+            if other.pixels.width > 0 { setZoom(Int(target * 100 / other.pixels.width), base: !base, linked: true) }
+        }
+    }
+    public mutating func toggleWidths() { widths.toggle(); reapplyZooms() }
+    public mutating func toggleHeights() { heights.toggle(); reapplyZooms() }
+    private mutating func reapplyZooms() { setZoom(base.percent, base: true); setZoom(destination.percent, base: false) }
+    public mutating func originalSize() { setZoom(100, base: true); setZoom(100, base: false) }
+    public mutating func zoom(zoomIn: Bool) {
+        setZoom(Int((ImageComparisonGeometry.nextZoom(CGFloat(base.percent) / 100, zoomIn: zoomIn) * 100).rounded()), base: true)
+        if !widths && !heights && !overlay {
+            setZoom(Int((ImageComparisonGeometry.nextZoom(CGFloat(destination.percent) / 100, zoomIn: zoomIn) * 100).rounded()), base: false)
+        }
+    }
+    public mutating func fit(baseViewport: CGSize, destinationViewport: CGSize) {
+        for isBase in [true, false] {
+            let size = pane(base: isBase).pixels, viewport = isBase ? baseViewport : destinationViewport
+            let scale = ImageComparisonGeometry.fittedScale(image: size, viewport: viewport)
+            setZoom(max(1, Int(floor(scale * 100))), base: isBase)
+        }
+    }
+    public func displayed(base: Bool) -> CGSize {
+        var pane = pane(base: base)
+        if !widths { pane.width = nil }; if !heights { pane.height = nil }
+        return pane.displayed
     }
 }

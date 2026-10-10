@@ -593,7 +593,9 @@ executable, uses a disposable repository and hidden native hosting windows,
 and checks image routing without an image filename extension, actual pane
 raster colors, fit/manual zoom, linked/unlinked scrolling, vertical/overlay
 transitions, alpha endpoints/midpoint, XOR changed/unchanged pixels and switching
-back to alpha. It compares HEAD, raw index and file
+back to alpha. Unequal-image checks measure actual colored pixel extents for
+linked widths/heights/both, source stepped zoom and Original Size, including
+retained per-picture zoom. It compares HEAD, raw index and file
 bytes before and after. Each engine runs serially; the runner removes its
 private executable and repository. This does not exercise physical mouse or
 keyboard gestures, signed Finder activation or App Store distribution.

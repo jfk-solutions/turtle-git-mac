@@ -82,7 +82,7 @@ import Darwin
         try await settle()
         let references = try scrolls().map { try pixel($0.documentView!) }
         let fitted = model.fittedZoom
-        model.changeZoom(1.25); try require(abs(model.zoom - min(16, fitted * 1.25)) < 0.001)
+        model.changeZoom(zoomIn: true); try require(fitted == 1 && abs(model.zoom - 1.2) < 0.001)
         model.originalSize(); try require(model.zoom == 1 && !model.fit)
         model.zoom = 16; try await settle()
         let panes = scrolls()
@@ -118,10 +118,43 @@ import Darwin
         model.blendAlpha = true; model.alpha = 1; try await settle()
         let restored = try pixel(scrolls()[0].documentView!)
         try require(abs(restored.blueComponent - blue.blueComponent) < 0.04)
+        let wideFile = root.appendingPathComponent("wide.dat")
+        try png(.blue, width: 160, height: 20).write(to: wideFile)
+        defer { try? FileManager.default.removeItem(at: wideFile) }
+        let unequal = try WorkingFileComparison(base: file, destination: wideFile).read()
+        let sizedModel = ImageComparisonViewModel()
+        let sizedHost = NSHostingView(rootView: ImageComparisonDialog(images: ImageComparisonDocument(unequal)!, document: unequal, model: sizedModel))
+        let sizedWindow = NSWindow(contentRect: NSRect(x: 0,y: 0,width: 1200,height: 700), styleMask: [.titled], backing: .buffered, defer: false)
+        sizedWindow.isReleasedWhenClosed = false; sizedWindow.appearance = NSAppearance(named: .aqua); sizedWindow.contentView = sizedHost
+        defer { sizedWindow.close() }
+        func extents() throws -> [CGSize] {
+            try descendants(sizedHost).compactMap { $0 as? NSScrollView }.filter { String(describing: type(of: $0)).contains("ImageComparisonScrollView") }.map { scroll in
+                let canvas = scroll.documentView!, bitmap = canvas.bitmapImageRepForCachingDisplay(in: canvas.bounds)!
+                canvas.cacheDisplay(in: canvas.bounds, to: bitmap)
+                func blue(_ x: Int, _ y: Int) -> Bool {
+                    let color = bitmap.colorAt(x: x,y: y)!.usingColorSpace(.deviceRGB)!
+                    return color.blueComponent > color.redComponent + 0.4 && color.blueComponent > color.greenComponent + 0.4
+                }
+                let width = (0..<bitmap.pixelsWide).filter { blue($0,bitmap.pixelsHigh / 2) }.count
+                let height = (0..<bitmap.pixelsHigh).filter { blue(bitmap.pixelsWide / 2,$0) }.count
+                return CGSize(width: CGFloat(width) * canvas.bounds.width / CGFloat(bitmap.pixelsWide), height: CGFloat(height) * canvas.bounds.height / CGFloat(bitmap.pixelsHigh))
+            }
+        }
+        func sizes(_ expected: [CGSize]) throws {
+            let actual = try extents(); try require(actual.count == expected.count)
+            for (a,b) in zip(actual,expected) { try require(abs(a.width-b.width) < 2 && abs(a.height-b.height) < 2) }
+        }
+        sizedHost.layoutSubtreeIfNeeded(); try await settle()
+        try sizes([CGSize(width: 80,height: 60),CGSize(width: 160,height: 20)])
+        sizedModel.toggleWidths(); try await settle(); try sizes([CGSize(width: 80,height: 60),CGSize(width: 80,height: 10)])
+        sizedModel.toggleWidths(); sizedModel.toggleHeights(); try await settle(); try sizes([CGSize(width: 80,height: 60),CGSize(width: 480,height: 60)])
+        sizedModel.toggleWidths(); try await settle(); try sizes([CGSize(width: 80,height: 10),CGSize(width: 80,height: 10)])
+        sizedModel.changeZoom(zoomIn: true); try await settle(); try sizes([CGSize(width: 96,height: 72),CGSize(width: 96,height: 72)])
+        sizedModel.originalSize(); try await settle(); try sizes([CGSize(width: 160,height: 20),CGSize(width: 160,height: 20)])
         let afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout
         let afterIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
         let afterBytes = try Data(contentsOf: file)
         try require(afterHead == head && afterIndex == index && afterBytes == bytes)
-        print("PASS: Actual Git image routing without image extension, native pane raster colors, fit/manual zoom, linked/unlinked scrolling, vertical/overlay transitions, alpha endpoints/midpoint, XOR changed/unchanged pixels and slider removal/restoration, and unchanged HEAD/index/file bytes.")
+        print("PASS: Actual Git image routing without image extension, native pane raster colors, fit/manual zoom, linked/unlinked scrolling, vertical/overlay transitions, alpha endpoints/midpoint, XOR changed/unchanged pixels and slider removal/restoration, linked width/height/both native pixel extents with unequal aspect ratios, source stepped zoom, no enlargement on fit, and unchanged HEAD/index/file bytes.")
     }
 }

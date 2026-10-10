@@ -1,0 +1,123 @@
+{
+  "checked_at": "2026-10-10T08:06:10.789466+00:00",
+  "parent_commit": "38420c1bada22831a9761ea1b54cef50213a8994",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Partial TortoiseIDiff linked dimension and zoom parity; full application port remains active and unfinished.",
+  "checks": {
+    "core": {
+      "session": 11848,
+      "exit_code": 0,
+      "tests": 19,
+      "failures": 0,
+      "suites": [
+        "ImageComparisonTests",
+        "ImageComparisonXORTests",
+        "MenuIconTests",
+        "FileComparisonTests"
+      ],
+      "scope": [
+        "Sequential per-picture zoom/linked width and height updates",
+        "Retained companion zoom after disabling a constraint",
+        "Both linked constraints and source Original Size update order",
+        "Zoom percentage quantization and threshold steps",
+        "Fit does not enlarge small images",
+        "Existing image/XOR, all icon decoding and file-comparison regressions"
+      ]
+    },
+    "native": {
+      "session": 29902,
+      "exit_code": 0,
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "scope": [
+        "Existing real-Git route, pane/scroll/alpha/XOR regressions",
+        "Actual colored pixel extents for 80x60 and 160x20 images",
+        "Width-only extents: 80x60 and 80x10",
+        "Height-only extents: 80x60 and 480x60",
+        "Both controls after source sequence: both 80x10",
+        "Zoom In from base 100 percent: both 96x72",
+        "Original Size with both controls active: both 160x20",
+        "Small images remain un-enlarged",
+        "HEAD/raw-index/working-file bytes unchanged"
+      ],
+      "source": "Current application, Core and receiver; no later Swift edits."
+    },
+    "debug_build_and_audit": {
+      "session": 13891,
+      "exit_code": 0,
+      "unsigned": true,
+      "icons": 112
+    },
+    "store_build_and_audit": {
+      "session": 82961,
+      "exit_code": 0,
+      "unsigned": true,
+      "icons": 112,
+      "requires_bundled_git": true
+    },
+    "inventory": "Pin regression passed; source replacements remain partial.",
+    "website": "Local site regenerated successfully; no hosted publication claim.",
+    "cleanup": {
+      "matching_processes": [],
+      "current_fixtures": []
+    },
+    "captures": "Current light/dark hidden native side-by-side renders inspected; linked sizing validated by native pixel measurements, not physical input.",
+    "implementation_review": "Replaced a preliminary shared-scale sizing draft with per-picture source state before final verification. Initial intermediate Debug build is superseded by session 13891."
+  },
+  "source_sha256": {
+    "NOTICE": "e59c688740c6be88aba38fbd7fad747a1fa77b08e9d05ee0e51d36b0548ec487",
+    "Sources/TurtleGitCore/ImageComparison.swift": "20f8d8075535feb80d6c9bccf41b63647f602327929243fda57c6631a3dea3e1",
+    "Sources/TurtleGitCore/MenuIcons.swift": "ecdd06c1a9bd09e04c102e9cb65506b27068f8913ab56eb0827993a9c93212f1",
+    "Sources/TurtleGitCore/Resources/Icons/provenance.json": "9c29d2a17d9fc356d71cd4e14296e7086587af860bace068fbb6b660a0b428b9",
+    "Sources/TurtleGitMac/ImageComparisonWindow.swift": "da64185090e2f2d45f808e4ca5239e2c393f92c29286b298f4b692f35de25e72",
+    "Tests/TurtleGitCoreTests/ImageComparisonTests.swift": "4358a33ac82515751028536f5a9ea9d970984145c516f017357dd6d9008fb855",
+    "docs/IMAGE-COMPARISON-PARITY.md": "f61f7ccbbf65b45fda6388c4cd4e75def7105e27ab264d72c43677c33014e286",
+    "docs/IMAGE-COMPARISON.md": "5a9b8cca5c6b87a4d0fbf6a429baed7060466a9e679c8adfdd5cc89dd3bbbf57",
+    "docs/TESTING.md": "8191194c58f4687c7c51676a72b52b8743cb635a7995a74763b30369fdeb4e74",
+    "docs/UI-PARITY.md": "f1e198c601e6980e5936574865a9090ef2422fd772299cad062e3dd9a58748b7",
+    "docs/qa/image-comparison-native-2026-10-10.swift": "15ecc3b82bd4a1ffbe252620bbbccf1555fee7f50d43a657e85097948b5a5ef7",
+    "docs/upstream-files.csv": "b3b6bae7331fd4e8d185b173031ff7d67c1a94b4e45fa9d64fde8064ad94b068",
+    "Sources/TurtleGitCore/Resources/Icons/fitheights.ico": "45832d76aae72c9e51e788594c917b79a262ef2e3acd9cc75ccc76ad093f9158",
+    "Sources/TurtleGitCore/Resources/Icons/fitwidths.ico": "93da493164b14820eb34f60feecb3f9b4287a398d4f556063aee9780fcf933ad"
+  },
+  "binary_sha256": {
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/MacOS/TurtleGitMac": "ae0fc297ae892ad6d53e5bfb2e3aee3218b8dda08c01e7e3c33faa88de63b8d1",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": "8f5cea619cb04ab3b9b4705409ffc02b88e54dd0c700d2e15fc36e440d260564",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": "4fe130d88732811cb2135fd976f7b9579c0ae3d38211d79ae7708e6973b5955c",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/MacOS/TurtleGitMac": "1e80aa7580f3632e0348c000717338af851454c23289acd311b5c9c543481205",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": "674c0fa9b7ee93fecfe021f3848b6391153656d3015bab2a3e863547a8074523",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": "dc44e47efa6b867ca364f3b9a0bb2f34586e324eb30730045ce6f909abf6318e"
+  },
+  "resource_sha256": {
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/NOTICE": "e59c688740c6be88aba38fbd7fad747a1fa77b08e9d05ee0e51d36b0548ec487",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Resources/NOTICE": "e59c688740c6be88aba38fbd7fad747a1fa77b08e9d05ee0e51d36b0548ec487"
+  },
+  "git_engine_sha256": {
+    "/usr/bin/git": "179301dcb41ea78accc3fa0048a7e6f6710d891945a751a34addd622020c1818",
+    "build/git-runtime/Git/bin/git": "33a006b36637e018a94234c90cd25fe739c75a1644bdf6aeb73ddd31987b9a92"
+  },
+  "log_sha256": {
+    "build/qa/image-sizing-cleanup-2026-10-10.log": "693fa2bca24cbfc45a23756e4f0a95dc75a088dc5f75977d8a59a96ce2f23355",
+    "build/qa/image-sizing-store-audit-2026-10-10.log": "1c33c9f40b1b120466e204cdefffea30a08cbdee3fc290c7562122fcbc45d7ad",
+    "build/qa/image-sizing-inventory-2026-10-10.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/image-sizing-native-2026-10-10.log": "82218be976fb11115bdfff3591a777a72a98f26a23c22dedbbebe557cd9d5d77",
+    "build/qa/image-sizing-core-2026-10-10.log": "05d4cca715bc1326064af51c5ae962d3aa888cd9901b99194826ed0307c6b3ef",
+    "build/qa/image-sizing-store-2026-10-10.log": "b74a73f8796b12aa35fa570e6594a2a6056217b10a225c9c0e7c2efcb5dc7a15",
+    "build/qa/image-sizing-debug-audit-2026-10-10.log": "f73ce0d260d36f1aa2b10a881138e5a01f76cb629a1d7aca37eebe30a3c5fd79",
+    "build/qa/image-sizing-debug-2026-10-10.log": "d08e427d93f1d28d24ba82044c67faeee2fdc54406994bbb782d97ab85a05039",
+    "build/qa/image-sizing-site-2026-10-10.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "capture_sha256": {
+    "build/qa/image-sizing/image-comparison-native-light-2026-10-10.png": "c5d4d702528bc41a5c37e147f64379d689d846296e68e25d9ac33f22e19d3aa9",
+    "build/qa/image-sizing/image-comparison-native-dark-2026-10-10.png": "0a23bb7dd13915219b823c10ee1fa0015c6d717244cdc8013901ed1a0e651ca4"
+  },
+  "limitations": [
+    "Full TortoiseGit/IDiff parity remains unfinished, including animation, three-way conflicts and remaining controls.",
+    "Physical mouse/menu/keyboard/resize/VoiceOver and signed sandbox/Finder acceptance remain pending.",
+    "Windows border/DPI rounding, exact fit-at-extreme-dimensions and all image formats require further comparison.",
+    "Unsigned audits do not establish signing, notarization, legal/distribution clearance or App Store acceptance.",
+    "No full-current Core suite, current hosted CI or hosted website claim."
+  ]
+}

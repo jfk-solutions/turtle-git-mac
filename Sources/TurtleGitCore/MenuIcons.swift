@@ -11,6 +11,7 @@ public enum MenuPresentationSettings {
 /// chooses a representation for the display scale. Monochrome Log, Help and
 /// cherry-pick glyphs use template tinting to remain visible in both appearances.
 public enum MenuIcon: String, CaseIterable {
+    case imageFitWidths = "fitwidths", imageFitHeights = "fitheights"
     case imageBlend = "blend"
     case imageOverlay = "overlap", imageLink = "link", imageFit = "fitinwindow", imageOriginal = "origsize"
     case imageZoomIn = "zoomin", imageZoomOut = "zoomout", imageInfo = "imginfo", imageVertical = "vertical", imageAlphaToggle = "alphatoggle"

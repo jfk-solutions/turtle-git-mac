@@ -552,6 +552,16 @@
       "asset": "blend.ico",
       "source": "src/TortoiseIDiff/resources/blend.ico",
       "sha256": "5d6d0b7408fe81abc8466e247809b335028ab4872cea589616989ddaf7ee031b"
+    },
+    {
+      "asset": "fitwidths.ico",
+      "source": "src/TortoiseIDiff/resources/fitwidths.ico",
+      "sha256": "93da493164b14820eb34f60feecb3f9b4287a398d4f556063aee9780fcf933ad"
+    },
+    {
+      "asset": "fitheights.ico",
+      "source": "src/TortoiseIDiff/resources/fitheights.ico",
+      "sha256": "45832d76aae72c9e51e788594c917b79a262ef2e3acd9cc75ccc76ad093f9158"
     }
   ]
 }

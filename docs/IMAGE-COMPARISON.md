@@ -10,8 +10,13 @@ Hover over a toolbar button to read its command name. The **View** menu offers
 these same controls:
 
 - **Arrange vertical** changes the two panes from side-by-side to top/bottom.
-- **Fit images in window** scales each pane to its available space.
-- **Original size**, **Zoom in** and **Zoom out** control magnification.
+- **Fit image widths** or **Fit image heights** matches that dimension between
+  the images. A single option preserves proportions; enabling both matches
+  both dimensions.
+- **Fit images in window** shrinks images to the available space while keeping
+  small images at their original size.
+- **Original size**, **Zoom in** and **Zoom out** control magnification. Linked
+  dimension controls remain active during these commands.
 - **Link image positions** makes scrolling one pane move the other. Drag an
   image to pan, or use the scrollbars or trackpad.
 - **Image info** shows byte size, pixel dimensions, available resolution and
