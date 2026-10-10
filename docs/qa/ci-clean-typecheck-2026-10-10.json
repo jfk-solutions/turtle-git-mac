@@ -1,0 +1,23 @@
+{
+  "date": "2026-10-10",
+  "published_failure_checkpoint": "23240f52cc785672c09a6218882e6bff53c756a5",
+  "hosted_run": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38071049130",
+  "failure_step": "Git integration tests",
+  "hosted_toolchain": "Xcode 16.4 / Apple Swift 6.1.2",
+  "cause": "CleanExecutionFailure.errorDescription and CleanBatchExecutionFailure.errorDescription timed out in Swift type checking at Clean.swift lines 108 and 228. No tests executed in that step.",
+  "change": "Replace chained optional map/ternary/string concatenations with sequential typed string construction, preserving the same messages, path order and empty-result exclusions.",
+  "local_verification": {
+    "command": "swift test --filter Clean",
+    "exit_code": 0,
+    "tests": 25,
+    "failures": 0,
+    "toolchain": "Apple Swift 6.3.3",
+    "scope": "Existing Cleanup planning/execution/recovery regressions; the in-progress Log Find changes also compiled but are not part of the separately published CI fix."
+  },
+  "sha256": {
+    "Sources/TurtleGitCore/Clean.swift": "57a910607eaab6003f97ce602b2f4ee3669d6d60d6e21ec84bad7906060f0dce",
+    "build/qa/ci-clean-typecheck-2026-10-10.log": "7efe72bff1e2dd7e0fa5be494ab574a18e6e4140a92c1608a7857f4d126fb39b",
+    "build/qa/current-full-suite-2026-10-10/macos-hosted-failure.log": "733a3834c59542e114ea331bfca39e7000cf9fd63afe7f6f50d434f1c6f8c969"
+  },
+  "limitations": "The local compiler is newer. Hosted Swift 6.1.2 verification requires the next GitHub run. The full port, signed Finder and App Store acceptance remain incomplete."
+}

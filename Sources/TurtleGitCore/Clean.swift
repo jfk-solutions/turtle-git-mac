@@ -105,9 +105,11 @@ public struct CleanExecutionFailure: LocalizedError, Sendable {
     public let cancelled: Bool
     public let result: CleanExecutionResult
     public var errorDescription: String? {
-        message + (failedPath.map { "\n\nCleanup stopped at: " + $0 } ?? "") +
-            (result.removedPaths.isEmpty ? "" : "\n\nCompleted removals:\n" + result.removedPaths.joined(separator: "\n")) +
-            (result.trashedFiles.isEmpty ? "" : "\n\nRecoverable Trash items:\n" + result.trashedFiles.map(\.path).joined(separator: "\n"))
+        var description = message
+        if let failedPath { description += "\n\nCleanup stopped at: " + failedPath }
+        if !result.removedPaths.isEmpty { description += "\n\nCompleted removals:\n" + result.removedPaths.joined(separator: "\n") }
+        if !result.trashedFiles.isEmpty { description += "\n\nRecoverable Trash items:\n" + result.trashedFiles.map(\.path).joined(separator: "\n") }
+        return description
     }
 }
 
@@ -225,11 +227,15 @@ public struct CleanBatchExecutionFailure: LocalizedError, Sendable {
     public let completed: [CleanRepositoryResult]
     public let partial: CleanExecutionResult?
     public var errorDescription: String? {
-        message + "\n\nCleanup stopped in: " + failedRepository.path +
-            completed.filter { !$0.result.removedPaths.isEmpty }.map { entry in
-                "\n\nCompleted in " + entry.repository.path + ":\n" + entry.result.removedPaths.joined(separator: "\n") +
-                    (entry.result.trashedFiles.isEmpty ? "" : "\nRecoverable Trash items:\n" + entry.result.trashedFiles.map(\.path).joined(separator: "\n"))
-            }.joined()
+        var description = message + "\n\nCleanup stopped in: " + failedRepository.path
+        for entry in completed where !entry.result.removedPaths.isEmpty {
+            description += "\n\nCompleted in " + entry.repository.path + ":\n"
+            description += entry.result.removedPaths.joined(separator: "\n")
+            if !entry.result.trashedFiles.isEmpty {
+                description += "\nRecoverable Trash items:\n" + entry.result.trashedFiles.map(\.path).joined(separator: "\n")
+            }
+        }
+        return description
     }
 }
 
