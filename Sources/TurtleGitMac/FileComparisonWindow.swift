@@ -35,6 +35,9 @@ import TurtleGitCore
     convenience init(repository: GitRepository, access: RepositoryAccessLease?, snapshot: RevisionComparisonSnapshot, path: String) {
         self.init(model: FileComparisonWindowModel(repository: repository, access: access, snapshot: snapshot, path: path))
     }
+    convenience init(images: ImageFileComparison, permissions: [RepositoryAccessLease]) {
+        self.init(model: FileComparisonWindowModel(images: images, permissions: permissions))
+    }
     convenience init(comparison: WorkingFileComparison, permissions: [RepositoryAccessLease]) {
         self.init(model: FileComparisonWindowModel(comparison: comparison, permissions: permissions))
     }
@@ -67,7 +70,7 @@ import TurtleGitCore
     }
     func windowWillClose(_ notification: Notification) {
         if let window = window as? FileComparisonNativeWindow { window.imageKeyModel?.presentation.retire(); window.imageKeyModel?.stopAllPlayback(); window.imageKeysRetired = true; window.imageKeyModel = nil; window.imageKeyOwner = nil }
-        model.resetHistory(); onClosed()
+        model.retireImageLoader(); model.resetHistory(); onClosed()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
@@ -75,6 +78,10 @@ import TurtleGitCore
     private let repository: GitRepository?
     private var historicalWorkingComparison: HistoricalWorkingFileComparison?
     private var workingComparison: WorkingFileComparison?
+    private var standaloneImages: ImageFileComparison?
+    private var imageLoader: ImageLoadWindowController?
+    var retainedImageModel: ImageComparisonViewModel?
+    var makeImageLoader: (String, [RepositoryAccessLease]) -> ImageLoadWindowController = { ImageLoadWindowController(leftPath: $0, permissions: $1) }
     private var workingPermissions: [RepositoryAccessLease] = []
     private let access: RepositoryAccessLease?
     let snapshot: RevisionComparisonSnapshot
@@ -324,6 +331,25 @@ import TurtleGitCore
     init(repository: GitRepository, access: RepositoryAccessLease?, snapshot: RevisionComparisonSnapshot, path: String) {
         self.repository = repository; self.access = access; self.snapshot = snapshot; self.path = path
     }
+    init(images: ImageFileComparison, permissions: [RepositoryAccessLease]) {
+        repository = nil; access = nil; standaloneImages = images; workingPermissions = permissions
+        snapshot = images.snapshot; path = images.destination?.path ?? images.base?.path ?? "Images"
+    }
+    func retireImageLoader() { imageLoader?.retire(); imageLoader = nil }
+    func chooseImageFiles() {
+        guard !busy, !confirmingQuit, imageLoader == nil, let window, window.attachedSheet == nil else { return }
+        let left = document?.base.path ?? ""
+        let loader = makeImageLoader(left.hasPrefix("/") ? left : "", workingPermissions + [access].compactMap { $0 })
+        imageLoader = loader
+        loader.onAccepted = { [weak self] comparison, permissions in
+            guard let self else { return }
+            self.retainedImageModel = (self.window as? ImageComparisonKeyRouting)?.imageKeyModel
+            self.retainedImageModel?.fit = true
+            self.standaloneImages = comparison; self.workingPermissions = permissions; self.load()
+        }
+        loader.onClosed = { [weak self] in self?.imageLoader = nil }
+        loader.present(parent: window)
+    }
     init(comparison: WorkingFileComparison, permissions: [RepositoryAccessLease]) {
         repository = nil; access = nil; workingComparison = comparison; workingPermissions = permissions
         snapshot = comparison.snapshot; path = comparison.destination.path
@@ -356,7 +382,10 @@ import TurtleGitCore
             defer { busy = false }
             do {
                 let value: FileComparisonDocument
-                if let historicalWorkingComparison, let repository {
+                if let standaloneImages {
+                    guard !GitRuntime.isAppStoreBuild || [standaloneImages.base, standaloneImages.destination].compactMap({ $0 }).allSatisfy({ file in workingPermissions.contains { $0.hasSecurityScope && $0.contains(file) } }) else { throw ImageFileComparisonFailure.filePermissionRequired }
+                    value = try standaloneImages.read()
+                } else if let historicalWorkingComparison, let repository {
                     try validateHistoricalWorkingAccess(historicalWorkingComparison)
                     value = try await repository.comparisonFile(historicalWorkingComparison)
                 } else if let workingComparison {
@@ -367,8 +396,9 @@ import TurtleGitCore
                     value = try await repository.comparisonFile(snapshot, path: path)
                 } else { throw RevisionComparisonFailure.selection }
                 document = value
-                imageComparison = ImageComparisonDocument(value)
-                window?.title = "\(path) – " + (imageComparison == nil ? "TurtleGitMerge" : "TurtleGitIDiff")
+                imagePresentation.openImages = { [weak self] in self?.chooseImageFiles() }
+                imageComparison = standaloneImages == nil ? ImageComparisonDocument(value) : ImageComparisonDocument(base: ComparisonImage(bytes: value.base.bytes), destination: ComparisonImage(bytes: value.destination.bytes))
+                window?.title = "\(standaloneImages == nil ? path : (standaloneImages?.destination?.path ?? standaloneImages?.base?.path ?? "Images")) – " + (imageComparison == nil ? "TurtleGitMerge" : "TurtleGitIDiff")
                 drafts = imageComparison == nil ? FileComparisonDrafts(value) : nil
                 activeBase = drafts?.preferredBase ?? false
                 selectEditorActions()
@@ -520,7 +550,7 @@ private struct FileComparisonDialog: View {
     var body: some View {
         Group {
             if let images = model.imageComparison, let document = model.document {
-                ImageComparisonDialog(images: images, document: document, model: ImageComparisonViewModel(presentation: model.imagePresentation)).id(images.id)
+                ImageComparisonDialog(images: images, document: document, model: model.retainedImageModel ?? ImageComparisonViewModel(presentation: model.imagePresentation)).id(images.id)
             } else { textBody }
         }.onAppear { model.load() }
         .onReceive(NotificationCenter.default.publisher(for: .mergeEditorPreferencesChanged)) { _ in model.refreshPreferences() }

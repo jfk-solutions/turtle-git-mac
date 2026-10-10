@@ -661,3 +661,21 @@ It verifies unchanged comparison HEAD/index/image bytes and unchanged conflict
 index/working bytes. Owned windows remain transparent/offscreen and are closed;
 temporary receivers and fixtures are removed. Physical color-picker gestures,
 VoiceOver, high contrast and signed acceptance remain pending.
+
+## Load Images and standalone viewer inputs
+
+After the Debug build, run:
+
+```sh
+python3 scripts/test-image-open.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
+```
+
+The private receiver uses actual Cmd+O routing, native path fields, OK/Cancel
+buttons and a native file-authorization picker. It checks left-only prefill,
+invalid paths retaining the dialog, identical/single/empty inputs, fit/title and
+view-mode retention, picker cancellation before acceptance, modal close/Quit
+fences, and unchanged Git HEAD/index/file bytes. An injected grant provider
+checks standalone acceptance and retained/released lease ownership; it does not
+prove signed OS grant acceptance. Picker factories keep owned
+native windows transparent/offscreen; fixtures and receivers are removed.
+Physical file-selection/text-entry gestures and signed grants remain pending.

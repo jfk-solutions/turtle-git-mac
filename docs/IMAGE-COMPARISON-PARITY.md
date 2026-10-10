@@ -24,8 +24,8 @@ Native colors follow the application appearance.
 
 ## Remaining requirements
 
-This is a partial native replacement. Standalone image-open commands, broader animation/frame/provider behavior and
-conflict selection acceptance, standalone Load Images,
+This is a partial native replacement. Broader animation/frame/provider behavior and
+conflict selection acceptance, historical-blob Open prefill,
 image title tooltips, retained layout/preferences and full resizing/physical
 interaction/VoiceOver/signed sandbox acceptance remain incomplete. No complete
 TortoiseIDiff parity or App Store acceptance is claimed.
@@ -164,3 +164,6 @@ with scoped D keyboard routing. Comparison and conflict panes share the chosen
 RGB color per window, including alpha/XOR composition. Switching appearance
 resets it to the native theme default, matching upstream SetTheme. See
 [color parity](IMAGE-COLORS-PARITY.md) for source behavior and verification limits.
+
+Native Load Images and standalone viewing are now implemented; see
+[Open parity](IMAGE-OPEN-PARITY.md) for control mapping and acceptance limits.

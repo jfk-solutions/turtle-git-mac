@@ -1,0 +1,150 @@
+{
+  "checked_at": "2026-10-10T10:56:54.009345+00:00",
+  "parent_commit": "cbb7cf957a1211994d9381db7ba0948628df5a9f",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Partial native Load Images dialog, standalone image inputs and file-grant ownership within the continuing full TortoiseGit macOS port.",
+  "checks": {
+    "core": {
+      "session": 66601,
+      "exit_code": 0,
+      "tests": 45,
+      "failures": 0,
+      "scope": [
+        "Empty/single/duplicate inputs",
+        "File symlink contents, original bytes and link target unchanged",
+        "Non-file/directory refusal",
+        "Existing image/frame/file-comparison and image/text-conflict tests"
+      ]
+    },
+    "native_open": {
+      "session": 3825,
+      "exit_code": 0,
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "scope": [
+        "Actual native Cmd+O and left-only prefill",
+        "Native path fields, OK/Cancel, invalid path retains prior image document",
+        "Identical, single and both-empty inputs",
+        "New title/fit and retained overlay/orientation/link/info/alpha choices",
+        "Ungrant-edited path opens actual NSOpenPanel before acceptance; Cancel prevents acceptance",
+        "Standalone granted input retains and releases its lease",
+        "Modal close/Quit guards and unchanged HEAD/raw index/file bytes"
+      ],
+      "grant_scope": "Chooser requiresScopes is enabled with an injected RepositoryBookmarkProvider for positive lifetime checks. Native authorization cancellation is exercised; real signed OS grants are not verified.",
+      "receiver": "Prohibited activation, transparent/offscreen owned windows, proper AppKit event loop, completion sentinel required. Earlier async-main runs exited after picker cancellation before completion; rejected rather than treated as passing."
+    },
+    "native_regressions": {
+      "session": 63424,
+      "exit_code": 0,
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "scope": [
+        "Image routing, scroll/zoom/linked extents, slider/key/alpha/XOR controls",
+        "Color sheets, local D, background composition and source reload",
+        "Frame/page navigation, playback retirement and whole-GIF conflict selection"
+      ],
+      "timing": "Ran before final standalone-only error messages, inline-error width/wrapping and empty regular-file decode-label refinements. Final Core/native Open/build audits cover those refinements."
+    },
+    "debug_build_and_audit": {
+      "session": 66601,
+      "exit_code": 0,
+      "unsigned": true,
+      "icons": 116
+    },
+    "store_build_and_audit": {
+      "session": 3825,
+      "exit_code": 0,
+      "unsigned": true,
+      "icons": 116,
+      "requires_bundled_git": true
+    },
+    "inventory_and_local_site": {
+      "session": 5697,
+      "exit_code": 0,
+      "scope": "Pinned source inventory integrity and local site generation. IDD_OPEN and eight static controls mapped as partial, retaining physical/signed review requirements."
+    },
+    "cleanup": {
+      "matching_processes": [],
+      "current_fixtures": []
+    }
+  },
+  "source_sha256": {
+    "NOTICE": "b111fa63885a88deeaf0ba809632d9bfb211495fa448f2560ec9e2aa0144c9d8",
+    "README.md": "f46b0bf750e6739179d44fb363dbf79b2d04eb0b84bea5b9d32ef25910cd9a8e",
+    "Sources/TurtleGitCore/ImageComparison.swift": "2c7a7f172f7bd96d3d18aa020ded91699e5f7a2b7db199a03cd4a71d72cf63c2",
+    "Sources/TurtleGitCore/ImageFileComparison.swift": "fba1484f3d6bb755f63c193de19b7360d44817058472b1bb314d3915d95c56cd",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "b2bbdee8a510a638cc7830907732c1a6ad2746c9c69c30d5b559c6408bd6c030",
+    "Sources/TurtleGitMac/FileComparisonWindow.swift": "d471784dbb4d7de3d266baf450a02b5e2385e714405ffed23e747390eb6da836",
+    "Sources/TurtleGitMac/ImageComparisonWindow.swift": "08d8d363f7558467ad7e5472f90475ac460b805ef13eb74b2248202408bf925b",
+    "Sources/TurtleGitMac/ImageLoadWindow.swift": "ba2344eed2f8b340bf775fa8ffefa6ed50ee36d6760cc23c3e86b73875fdba36",
+    "Sources/TurtleGitMac/ImageWindowPresentation.swift": "8564feba1f16479822d46229878a2d14a3cd1db5948b3409d58ff8e5bbed64d1",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "53cd2517683e4fec906b7c2afc8a326dd363daafa1102af23dd6ca7eef07fd8b",
+    "Sources/TurtleGitMac/TurtleGitMacApp.swift": "27ce0dd6bc817929c1d95de03902da9641ecdf75f40d25145ea1487dbfc376d3",
+    "Tests/TurtleGitCoreTests/ImageFileComparisonTests.swift": "b4941b9938631430aa38317f8eece73d5275fce3be7a904a2be57430a53c9e0a",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "a85bdfc298244e824edca70415a659229c45db718957672177e5b08751d846d4",
+    "docs/IMAGE-COLORS-PARITY.md": "d960a714dd3eaea9b9e63b576df485ce039d3731cd3546d3af98a3ec6335c45f",
+    "docs/IMAGE-COMPARISON-PARITY.md": "9f98ee5a976c61e520d79e06a49f350f2c4fe12467e00d39932840042bf6d50d",
+    "docs/IMAGE-COMPARISON.md": "5dfe781d512a6f95d2f6481fa8170ca59b8981ad5d73737ab114b2ade76d5934",
+    "docs/IMAGE-FRAMES-PARITY.md": "aac1b6b9174a86d626d96832ceee5379e4f6e48d179c314a82397d073e5828aa",
+    "docs/IMAGE-OPEN-PARITY.md": "9591e25fe63c1acbc77dd341afc8198848228014ccfbdb0b4d2d8b4ee288d90a",
+    "docs/README.md": "c28a0fe61b785b480999211ff7d4eb49eac5c4c48e199b27ef90f3a8d2fb6d5a",
+    "docs/TESTING.md": "670298115390904a4f545f9112afdea942d11dcf295ddc6e7607ca6ecfe5759d",
+    "docs/UI-PARITY.md": "f88717aa72b7cfa27bb678b7876dadfdb52dbabb59f1181df9efd21eee8778ea",
+    "docs/qa/image-open-native-2026-10-10.swift": "9d426d9fce939294ef054b562dfa2555c715bb28e4dcf69400af5ca7a4e9f430",
+    "docs/site/assets/image-open-dark.png": "29b65ca6b88940add8256eaf68b54ce9198d4b9c74ec98fe709fbfc4b492f33f",
+    "docs/site/assets/image-open-light.png": "7d1b97d31c7600eaaaa5769b89cdb97ec63cf8d067c95417b97be73b88b625f3",
+    "docs/site/index.html": "5d01cdcca76fcda060ca13e20511e02b26b0753b44613e9fbd169891987fbc17",
+    "docs/upstream-controls.csv": "6efa23978718bc646cae5d14e8c6dca5a4adcca95adbf235a010ae6fc042e498",
+    "docs/upstream-dialogs.csv": "c9e2db4fd22a4830e5abec4b9f41c7db104d7bf87c9d0463a6aaf599f34e17bd",
+    "docs/upstream-files.csv": "0fb62b96d6d287526d45f25fc1e3ad90d4152d294d7c0f6ceb1222fe639c5303",
+    "scripts/build-site.py": "06f08860b8050a2b44e53a786e4d90f39e99fddfe5d801ae060a06375fe55e20",
+    "scripts/test-image-open.py": "e6bd71169d8b24f16f9fedf0602b4febe7aa95ce4626375d12ac315f5209c208"
+  },
+  "binary_sha256": {
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": "8441f4a302b71398d189edfaf1a393f0b85b90ef479a21949c0405ece32991e1",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": "dc44e47efa6b867ca364f3b9a0bb2f34586e324eb30730045ce6f909abf6318e",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/MacOS/TurtleGitMac": "b80ed13208b61d4e103e18af54b89cb87305dacc8937fef1cdef119b85e7c5be",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": "d518cf7695102d90dd1eed3b22400afafd87294fcc3f9c34844f0d5b6ecc43c7",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": "4fe130d88732811cb2135fd976f7b9579c0ae3d38211d79ae7708e6973b5955c",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/MacOS/TurtleGitMac": "ae0fc297ae892ad6d53e5bfb2e3aee3218b8dda08c01e7e3c33faa88de63b8d1"
+  },
+  "resource_sha256": {
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Resources/NOTICE": "b111fa63885a88deeaf0ba809632d9bfb211495fa448f2560ec9e2aa0144c9d8",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/NOTICE": "b111fa63885a88deeaf0ba809632d9bfb211495fa448f2560ec9e2aa0144c9d8"
+  },
+  "git_engine_sha256": {
+    "/usr/bin/git": "179301dcb41ea78accc3fa0048a7e6f6710d891945a751a34addd622020c1818",
+    "build/git-runtime/Git/bin/git": "33a006b36637e018a94234c90cd25fe739c75a1644bdf6aeb73ddd31987b9a92"
+  },
+  "log_sha256": {
+    "build/qa/image-open-cleanup-2026-10-10.log": "693fa2bca24cbfc45a23756e4f0a95dc75a088dc5f75977d8a59a96ce2f23355",
+    "build/qa/image-open-colors-regression-2026-10-10.log": "5c81c04ca31e557bd98b538abab3cb354a8c785b57db99d136ef15cc25598519",
+    "build/qa/image-open-comparison-regression-2026-10-10.log": "60174ef740a12f85d0402d5b72aa791b5a34264658a3982c9b53a1e75698f5da",
+    "build/qa/image-open-core-2026-10-10.log": "e9b9f8904ea384128cb51dd83607c62a1733da9a1c8acd564f745b4d62cbd917",
+    "build/qa/image-open-debug-2026-10-10.log": "d8dacc4856c6255f4cc6c4d6aafec46d204584c8a5985d51bce890deeb5fc3a8",
+    "build/qa/image-open-debug-audit-2026-10-10.log": "cdeaff9df09b2d3352cce83b62503b07e0e9bb7909accdb3b95f9decbe376ec4",
+    "build/qa/image-open-diagnostic-2026-10-10.log": "26487f136ff85386760636228dc778f35d19d53c4eb2907d32e5c533004c1d60",
+    "build/qa/image-open-frames-regression-2026-10-10.log": "06a0bf4a710f4eee00f6cb3e6f1d8ee66d6fefbeec482d370c80c2f737edad61",
+    "build/qa/image-open-inventory-2026-10-10.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/image-open-native-2026-10-10.log": "baf329e6f4791ed962dc8d8eca84269cb6f0ddac83c4c1663664ea4762eb7aa9",
+    "build/qa/image-open-project-2026-10-10.log": "747909a44a9dc6f2c4861b91f09bc1d70097cf9053754a85a84fa1f2b7e93566",
+    "build/qa/image-open-site-2026-10-10.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/image-open-store-2026-10-10.log": "5825698fbe4c96c8bae328f4908633daab68f24a65d23aaac217f2eb9efd3198",
+    "build/qa/image-open-store-audit-2026-10-10.log": "b1c954ae1e9a5fc2a5d6416be100ef853bfb32fd82cbd6494843f0d1d5710619"
+  },
+  "capture_sha256": {
+    "build/qa/image-open/image-open-native-dark-2026-10-10.png": "29b65ca6b88940add8256eaf68b54ce9198d4b9c74ec98fe709fbfc4b492f33f",
+    "build/qa/image-open/image-open-native-light-2026-10-10.png": "7d1b97d31c7600eaaaa5769b89cdb97ec63cf8d067c95417b97be73b88b625f3"
+  },
+  "limitations": [
+    "Physical Browse selection/text entry, VoiceOver and signed file grants are unverified",
+    "Full image formats/overlay decode errors, source width/height flags across Open, retained layout and historical-blob left-path prefill remain incomplete",
+    "Full dialog/menu/settings/Finder parity remains incomplete",
+    "Unsigned AppStore compilation does not prove sandbox runtime/App Review/license clearance",
+    "This checkpoint and screenshots are local; no hosted CI or Pages publication claim"
+  ]
+}

@@ -163,3 +163,5 @@ External libraries and gitlinks are inventoried, but their nested repositories
 are not recursively audited.
 
 - [Image transparent colors and local appearance](IMAGE-COLORS-PARITY.md)
+
+- [Load Images and standalone viewing](IMAGE-OPEN-PARITY.md)

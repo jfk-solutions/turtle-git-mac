@@ -55,6 +55,8 @@ public struct ImageComparisonDocument {
     public let id = UUID()
     public let base: ComparisonImage?
     public let destination: ComparisonImage?
+    /// Explicit image-viewer inputs may have empty or unsupported image sides.
+    public init(base: ComparisonImage?, destination: ComparisonImage?) { self.base = base; self.destination = destination }
     public init?(_ document: FileComparisonDocument) {
         let a = ComparisonImage(bytes: document.base.bytes), b = ComparisonImage(bytes: document.destination.bytes)
         guard a != nil || b != nil,

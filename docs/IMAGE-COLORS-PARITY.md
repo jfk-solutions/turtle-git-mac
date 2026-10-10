@@ -46,5 +46,6 @@ all 116 original icon resources and the required AppStore runtimes. These checks
 do not establish signing, sandbox runtime acceptance or App Review eligibility.
 See the [QA record](qa/image-colors-2026-10-10.json). Physical color-picker gestures and focus
 return, VoiceOver, high contrast and exact Windows/macOS color-management
-matching remain incomplete. Full image and application parity and signed
+matching remain incomplete. Standalone Load Images is now implemented; see [Open parity](IMAGE-OPEN-PARITY.md).
+Full image and application parity and signed
 App Store/Finder acceptance remain open.

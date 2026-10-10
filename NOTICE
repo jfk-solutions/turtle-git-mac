@@ -1364,3 +1364,8 @@ PicWindow.cpp GetTransparentThemedColor and Utils/Theme.cpp color conversion
 at pinned commit 7338078f8ddd924b8cddee35f512f2286072136d. Native AppKit
 color sheets preserve OK/Cancel and shared-pane semantics; window appearance
 uses macOS colors while custom RGB colors use the existing CTheme adaptation.
+
+Native Load Images adapts TortoiseIDiff/MainWindow.cpp OpenDlgProc, AskForFile
+and ID_FILE_OPEN plus TortoiseIDiff.rc IDD_OPEN at pinned commit
+7338078f8ddd924b8cddee35f512f2286072136d. AppKit uses two native path fields,
+per-side Browse, OK/Cancel and security-scoped file grants before reads.

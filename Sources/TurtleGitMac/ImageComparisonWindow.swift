@@ -118,6 +118,7 @@ import TurtleGitCore
     func performKey(_ event: NSEvent, window: NSWindow) -> Bool {
         let flags = event.modifierFlags.intersection([.command,.control,.option,.shift])
         let key = event.charactersIgnoringModifiers?.lowercased() ?? ""
+        if flags == .command, key == "o" { presentation.openImages(); return true }
         if flags == .command, key == "v" { vertical.toggle(); return true }
         guard flags.isEmpty || flags == .shift else { return false }
         switch event.keyCode {
@@ -171,12 +172,12 @@ import TurtleGitCore
         let image = model.currentImage(base: base)
         let content = base ? document.base : document.destination
         return VStack(alignment: .leading, spacing: 0) {
-            Text(content.path + " — " + content.revision.label).font(.caption).lineLimit(1).truncationMode(.middle)
+            Text((content.path.isEmpty ? (base ? "Left image" : "Right image") : content.path) + " — " + content.revision.label).font(.caption).lineLimit(1).truncationMode(.middle)
                 .padding(7).frame(maxWidth: .infinity, alignment: .leading).background(Color(nsColor: .controlBackgroundColor))
             ImageFrameControls(model: model, base: base, label: base ? "Base" : "Second image")
             ZStack(alignment: .topLeading) {
                 ImageComparisonScroll(model: model, image: image, second: model.overlay ? model.currentImage(base: false) : nil, base: base)
-                if image == nil && !model.overlay { Text("No image on this side").foregroundStyle(.secondary).frame(maxWidth: .infinity, maxHeight: .infinity) }
+                if image == nil && !model.overlay { Text(content.mode == nil ? "No image on this side" : "Unable to decode image").foregroundStyle(.secondary).frame(maxWidth: .infinity, maxHeight: .infinity) }
                 if model.showInfo, let image {
                     VStack(alignment: .leading, spacing: 3) {
                         Text("File size: \(content.bytes.count) bytes")
@@ -207,6 +208,7 @@ import TurtleGitCore
                 tool("Image info", .imageInfo, active: model.showInfo) { model.showInfo.toggle() }
                 tool("Arrange vertical", .imageVertical, active: model.vertical && !model.overlay) { model.vertical.toggle() }.disabled(model.overlay)
                 Spacer()
+                Menu("File") { Button("Open…") { model.presentation.openImages() } }
                 Menu("View") {
                     Toggle(isOn: $model.overlay) { CommandLabel(title: "Overlay images", icon: .imageOverlay) }
                     Toggle(isOn: Binding(get: { model.overlay && model.blendAlpha }, set: { model.blendAlpha = $0 })) { CommandLabel(title: "Blend alpha", icon: .imageBlend) }.disabled(!model.overlay)

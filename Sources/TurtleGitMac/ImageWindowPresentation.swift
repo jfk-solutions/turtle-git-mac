@@ -5,6 +5,7 @@ import SwiftUI
 @MainActor final class ImageWindowPresentation: ObservableObject {
     @Published private(set) var transparentColor: NSColor?
     @Published private var appearanceRevision = 0
+    var openImages: () -> Void = {}
     private weak var window: NSWindow?
     private var colorPrompt: NSAlert?
     private var promptGeneration: UUID?

@@ -122,7 +122,7 @@ src/Resources/TortoiseProcENG.rc,IDD_SETTINGSWIN11CONTEXTMENU,Windows 11 Context
 src/Resources/TortoiseProcENG.rc,IDD_WORKTREE_CREATE,New Worktree,partial
 src/Resources/TortoiseProcENG.rc,IDD_WORKTREE_LIST,Worktree List,partial
 src/SshAskPass/SshAskPass.rc,IDD_ASK_PASSWORD,TortoiseGit -  git CLI stdin wrapper,pending-review
-src/TortoiseIDiff/TortoiseIDiff.rc,IDD_OPEN,Load Images,pending-review
+src/TortoiseIDiff/TortoiseIDiff.rc,IDD_OPEN,Load Images,partial-native-replacement
 src/TortoiseIDiff/TortoiseIDiff.rc,IDD_ABOUT,TortoiseGitIDiff,pending-review
 src/TortoisePlink/Windows/TortoisePlink.rc,IDD_LOGIN,TortoiseGitPlink,pending-review
 src/TortoiseShell/resourceshell.rc,IDD_PROPPAGE,Property Page,pending-review

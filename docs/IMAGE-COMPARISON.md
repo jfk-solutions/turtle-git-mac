@@ -63,3 +63,8 @@ Use **View → Transparent color…** to choose a background behind transparent
 pixels. OK applies the chosen color to every pane in that window; Cancel keeps
 the current choice. **View → Dark Mode** (D) switches that image window's
 appearance and resets the transparency background to the theme default.
+
+Use the app's **File → Load Images…** to compare image files without opening a
+repository. In an image viewer, **File → Open…** or **Cmd+O** opens the same
+native two-path chooser. Use Browse for either side, leave a side blank for a
+single image, or choose the same image twice. Cancel keeps the existing view.

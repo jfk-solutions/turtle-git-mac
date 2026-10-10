@@ -3,6 +3,20 @@ import SwiftUI
 import TurtleGitCore
 
 @MainActor final class RepositoryModel: ObservableObject {
+    func showLoadImages() {
+        guard !busy, !confirmingQuit, imageLoader == nil, workspaceWindow?.attachedSheet == nil else { return }
+        let loader = ImageLoadWindowController(leftPath: "", permissions: [])
+        imageLoader = loader
+        loader.onAccepted = { [weak self] images, permissions in
+            guard let self else { return }
+            let key = "images-" + UUID().uuidString
+            let controller = FileComparisonWindowController(images: images, permissions: permissions)
+            controller.onClosed = { [weak self] in self?.fileComparisonWindows.removeValue(forKey: key) }
+            self.fileComparisonWindows[key] = controller; controller.showWindow(nil)
+        }
+        loader.onClosed = { [weak self] in self?.imageLoader = nil }
+        loader.present(parent: workspaceWindow)
+    }
     weak var workspaceWindow: NSWindow?
     @Published var root: URL?
     @Published var branch = ""
@@ -68,6 +82,7 @@ import TurtleGitCore
     private var textConflictWindows: [String: TextConflictWindowController] = [:]
     private var submoduleDiffWindows: [String: SubmoduleDiffWindowController] = [:]
     private var revisionComparisonWindows: [String: RevisionComparisonWindowController] = [:]
+    private var imageLoader: ImageLoadWindowController?
     private var fileComparisonWindows: [String: FileComparisonWindowController] = [:]
     private var submoduleSyncWindows: [UUID: SubmoduleSyncWindowController] = [:]
     private var submoduleAddWindows: [String: SubmoduleAddWindowController] = [:]

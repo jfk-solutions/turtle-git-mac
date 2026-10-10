@@ -38,6 +38,7 @@ import TurtleGitCore
             StatisticsFileCommands(context: statisticsMenuContext)
             CommandGroup(after: .newItem) {
                 Button("Open Repository…") { model.chooseRepository() }.keyboardShortcut("o")
+                Button("Load Images…") { model.showLoadImages() }.disabled(model.busy || model.confirmingQuit)
                 Menu("Open Recent") {
                     ForEach(model.recentRepositories) { saved in
                         Button(saved.name) { model.openRecent(saved) }.help(saved.lastKnownPath)
