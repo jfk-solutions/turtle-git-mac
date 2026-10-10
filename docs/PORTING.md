@@ -54,6 +54,12 @@ header entry, draft OK/Cancel, Return/Escape and saved Git walk preference.
 Core three-engine and native two-engine checks pass, including retained selection
 and owned sibling/modal close behavior. See [the ordering audit](LOG-ORDERING-PARITY.md).
 
+Abort Merge now owns its Changed Files sheet and opens a separate Reset progress
+window, with mode-specific retry and cancellation through all owned reads.
+Hidden controller checks pass with system and packaged Git. Physical layout,
+keyboard, live progress output and signed acceptance remain pending. See
+[the Merge follow-up](MERGE-PARITY.md#abort-merge-ownership-follow-up-october-10).
+
 ## Audited baseline
 
 Worktree creation, listing, locking, unlocking, removal and pruning now have a
@@ -76,16 +82,16 @@ require review; a dialog count is not a count of all upstream UI.
 
 ## Current integration verification
 
-The full local SwiftPM suite passed **921 tests, zero failures**, with one optional
-DNS probe skipped, at Core checkpoint `c4bd370` on October 10, 2026. Two stale
-Finder expectations were corrected against the pinned source before the full
-rerun. At `a88d8c2`, the native Finder receiver also passed after correcting
-Revision Graph’s menu position; unsigned Debug/Store builds and both bundle
-audits passed. Core sources/tests were unchanged between those checkpoints.
-See [testing](TESTING.md) and
-[the current integration record](qa/current-full-suite-2026-10-10.json).
+The latest completed full local SwiftPM suite passed **928 tests, zero failures**,
+with one optional probe skipped, at Core checkpoint `1769e2c` on October 10, 2026.
+See [the full reference-dialog integration record](qa/commit-containing-refs-2026-10-10.json).
+Later Log ordering, completion caching and Abort Merge changes have focused Core
+and hidden native checks; this full-suite result predates those changes.
+The Abort Merge checkpoint also has passing unsigned Debug/Store builds and
+both bundle audits. See [testing](TESTING.md) and
+[the Abort verification record](qa/merge-abort-owner-2026-10-10.json).
 These checks do not prove full dialog parity, activated Finder behavior, signed
-sandbox execution, passing hosted CI on this source or App Store readiness.
+sandbox execution, passing hosted CI on the latest source or App Store readiness.
 
 ## Architecture replacements
 

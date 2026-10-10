@@ -366,3 +366,28 @@ These are implementation gaps to fix and verify, not parity-complete behavior.
 See [the owner audit](qa/merge-abort-owner-audit-2026-10-10.json). Existing
 model/Git tests remain useful for reset effects and retry/post-actions but do not
 establish native modal ownership or physical/signed acceptance.
+
+## Abort Merge ownership follow-up, October 10
+
+At `789303d`, Abort Merge owns its HEAD-to-working-tree Changed Files sheet.
+The factory retains that ownership instead of replacing it with a global modeless
+comparison. Duplicate comparison, OK, Close and application Quit are fenced while
+the child is attached; forced owner close closes and invalidates the child.
+
+OK now hides the options window and opens a distinct native Reset progress window.
+Merge failure Retry retires progress and reopens options; Mixed/Hard Retry keeps
+the progress window and retries the captured mode. Closing the final progress
+retires the owner. Force-close cancels the stored worker and its token, keeps
+busy until owned work unwinds, and rejects late output, repository-refresh and
+auto-close callbacks. The token also covers both Core preflight reads and
+post-reset Submodule/Bisect reads.
+
+The four Abort/reset Core tests pass with system, Git 2.39.5 and packaged Git.
+The hidden native receiver passes with system and packaged Git, including actual
+controller sheets, separate windows, mode-specific retries, Quit fencing and
+forced-close process-tree reaping. See
+[the verification record](qa/merge-abort-owner-2026-10-10.json).
+The earlier [audit](qa/merge-abort-owner-audit-2026-10-10.json) records the gaps
+before this change. Live progress streaming, physical keyboard/layout and light/
+dark captures, factory entry end-to-end, submodule action acceptance and signed
+sandbox acceptance remain pending. This dialog remains partial.

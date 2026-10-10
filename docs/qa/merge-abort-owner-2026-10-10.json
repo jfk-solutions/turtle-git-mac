@@ -1,0 +1,85 @@
+{
+  "date": "2026-10-10",
+  "native_checkpoint": "789303d16fbd932f4f122e61b682e57df72c0bf2",
+  "core_test_checkpoint": "613e23f4a138757076b9dff560fb91b40369160b",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": "MergeAbortDlg::OnBnClickedShowModifiedFiles owns modal HEAD/working comparison. AppUtils::MergeAbort retires options then calls Reset, type3 for Merge; Merge failure retries options, Mixed/Hard retry reset.",
+  "implemented": [
+    "Controller owns Changed Files sheet, factory no longer overrides with app-global modeless comparison.",
+    "Child gates duplicate Show Modified, OK, Close and Quit; normal child close ends sheet, forced owner close invalidates and closes child.",
+    "Distinct options and progress NSWindows; options hides on OK, Merge Retry retires progress/reopens options, Mixed/Hard Retry keeps progress; final progress close retires owner.",
+    "Stored worker/token, captured mode, forced-close cancellation, busy until unwind and no late publication/refresh/auto-close callbacks.",
+    "Cancellation through both Abort Core preflight reads and Submodule/Bisect post-reset reads."
+  ],
+  "verification": {
+    "core": {
+      "filter": "MergeAbortResetTests",
+      "system_git_2_50_1": {
+        "tests": 4,
+        "failures": 0,
+        "exit": 0
+      },
+      "git_2_39_5": {
+        "tests": 4,
+        "failures": 0,
+        "exit": 0
+      },
+      "packaged_git_2_55_0": {
+        "tests": 4,
+        "failures": 0,
+        "exit": 0
+      },
+      "new_test": "Cancel active is-bare or HEAD preflight; verify leader/child process-group reaping, no reset command and unchanged index/conflicted file/MERGE_HEAD.",
+      "fixture_correction": "Initial old/packaged attempts used a fixture that ignored the engine environment. Only the final logs, after explicit executable selection, support multi-engine verification."
+    },
+    "native": {
+      "command": "python3 scripts/test-merge-abort-dialog.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "exit": 0,
+      "engines": 2,
+      "controller_markers": 2,
+      "separate_window_markers": 2,
+      "existing_model_markers": 2,
+      "scope": "Actual hidden AppKit controllers, private preferences and temporary repositories. Owned comparison endpoints, sheet gates/Quit, normal/forced child close, active HEAD read cancellation and callback suppression, distinct progress/options and three-mode failure/retry/final-close. Existing mode/reset/conflict-routing/Bisect tests retained. Forced-owner cancellation and ordinary titlebar cancellation are independent active-process checks."
+    },
+    "builds": {
+      "unsigned_debug": 0,
+      "unsigned_appstore": 0,
+      "debug_bundle_audit": 0,
+      "appstore_bundle_audit_require_git": 0,
+      "original_icons": 120
+    },
+    "inventory_pin_exit": 0,
+    "site_generation_exit": 0,
+    "cleanup": "All local compiler/test/build/audit sessions terminal; final app/native receiver/compiler process audit empty. Temporary receiver fixtures/programs removed by runner; hidden owned windows closed."
+  },
+  "remaining": [
+    "Live command streaming and progress/menu parity.",
+    "Physical keyboard/layout and light/dark screenshots.",
+    "Factory/menu entry end-to-end and full submodule post-action acceptance.",
+    "Signed sandbox/Finder integration, notarization and App Store acceptance.",
+    "Full application/dialog/control parity; no dialog certified complete."
+  ],
+  "sources_sha256": {
+    "Sources/TurtleGitCore/Reset.swift": "db5e71fa06b7ff4067e4a6b61d7ee3407a83479af55b6132cbc8ff632db957f6",
+    "Sources/TurtleGitMac/MergeWindow.swift": "13920717b1802175764d6181b8173fefd28c29202070b1879d3d02ccd453ab11",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "503aef43f603490a66f362676c121b07cd42153041eccd2fac09dd32c5b91ee5",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "12695ebe8bf688227dff4c2dad0629ae7e7371b50e938d84089cc1ddbd1153e0",
+    "Tests/TurtleGitCoreTests/ResetTests.swift": "6473601012598a8fbdc64a3c73362e0524ee43a69d2c22f0d8e994bd31c0360c",
+    "docs/qa/merge-abort-dialog-native-2026-10-08.swift": "7fbb2482a8cca6034eec9cc3da2abd8e6231e36889906097b1a9876a14973d1c",
+    "scripts/test-merge-abort-dialog.py": "c1af0c279e34d40a2acf8393a3bf428ed25d7a27e06e93e2acc7cc1f029f022a"
+  },
+  "logs_sha256": {
+    "build/qa/merge-abort-owner-core-final-2026-10-10.log": "885def6948a83ebf1ddaf559cefe11dfb69f0f1b323c2f1aad8c1506d2e0b8a5",
+    "build/qa/merge-abort-owner-core-old-final-2026-10-10.log": "0da544dae9560c670c8a70987d2f4df5e83efb2d13b4dff7fec3e6d107f3ce9c",
+    "build/qa/merge-abort-owner-core-packaged-final-2026-10-10.log": "c8dc197bfc56b0c36135f152c16f9afe0dcd3cd466c59f049daf7ff5317f55c7",
+    "build/qa/merge-abort-owner-debug-2026-10-10.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/merge-abort-owner-store-2026-10-10.log": "8b7e42e41011f64b89af2a34249c0e6a736fce554184bf57a0f657922d209930",
+    "build/qa/merge-abort-owner-debug-audit-2026-10-10.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/merge-abort-owner-store-audit-2026-10-10.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/merge-abort-owner-native-final-2026-10-10.log": "a4e4895b5a747dd3b3080b300c24821ec0a09034263b58c962988025323c1919",
+    "build/qa/merge-abort-owner-inventory-2026-10-10.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/merge-abort-owner-site-2026-10-10.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/merge-abort-owner-processes-2026-10-10.json": "efe2765d410bd298240e3b41b9a27cd3922eaa098cfd3fd2a9bc1f531dc27965"
+  },
+  "receiver_checkpoint": "595522caea3832b03664386bb1464f21e15102f1"
+}
