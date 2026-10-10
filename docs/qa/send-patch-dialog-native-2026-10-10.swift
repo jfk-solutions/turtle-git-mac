@@ -1,4 +1,5 @@
 import AppKit
+import Darwin
 import SwiftUI
 @testable import TurtleGitCore
 
@@ -373,6 +374,87 @@ private actor DeliveryProbe {
         try require(prefs.double(forKey: "PartialPatchWindowWidth") > 0, "Patch width saved into private preferences")
         patchPresentations.removeAll()
         print("Send Patch native viewer: exact unchecked highlighted bytes, newline path, Shift builtin/invalid external route, reused child, busy close gates, missing file and pending-close fencing passed with private preferences.")
+        let identityKeys = ["GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL"]
+        let previousIdentity = ProcessInfo.processInfo.environment
+        for key in identityKeys { unsetenv(key) }
+        let toolRoot = root.appendingPathComponent("patch-tools"), toolFiles = root.appendingPathComponent("tool-patches")
+        try FileManager.default.createDirectory(at: toolRoot, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: toolFiles, withIntermediateDirectories: true)
+        let toolsRepository = GitRepository(root: toolRoot)
+        _ = try await toolsRepository.run(["init", "--quiet"])
+        _ = try await toolsRepository.run(["config", "user.name", "Patch Tools"])
+        _ = try await toolsRepository.run(["config", "user.email", "tools@example.invalid"])
+        _ = try await toolsRepository.run(["config", "commit.gpgsign", "false"])
+        let workingFile = toolRoot.appendingPathComponent("file.txt")
+        try Data("base\n".utf8).write(to: workingFile)
+        _ = try await toolsRepository.run(["add", "file.txt"])
+        _ = try await toolsRepository.run(["commit", "--quiet", "-m", "Base"])
+        let base = try await toolsRepository.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        var serialFiles: [URL] = []
+        for (index, text) in ["first\n", "second\n"].enumerated() {
+            try Data(text.utf8).write(to: workingFile)
+            _ = try await toolsRepository.run(["commit", "--quiet", "-am", "Patch \(index + 1)"])
+            let bytes = try await toolsRepository.run(["format-patch", "--stdout", "-1", "HEAD"]).stdout
+            let file = toolFiles.appendingPathComponent("\(index + 1) 雪.patch"); try bytes.write(to: file); serialFiles.append(file)
+        }
+        _ = try await toolsRepository.run(["reset", "--hard", base])
+        let originalIndex = try Data(contentsOf: toolRoot.appendingPathComponent(".git/index"))
+        let grant = RepositoryAccessLease(url: toolFiles)
+        var reviewChild: WorkingTreePatchWindowController?, applyChild: ImportPatchWindowController?
+        let toolOptions = SendPatchWindowController(files: serialFiles, access: [grant], preferences: prefs, repository: toolsRepository,
+            presentation: { child in reviewChild = child as? WorkingTreePatchWindowController })
+        toolOptions.model.setChecked([])
+        toolOptions.model.review(toolOptions.model.rows[0].id)
+        try require(toolOptions.model.openingViewer && !toolOptions.model.canInteract, "Review owned read gates duplicate commands")
+        toolOptions.model.apply(Set(toolOptions.model.rows.map(\.id)))
+        try await settle(toolOptions.model)
+        guard let reviewChild else { throw VerificationFailure(description: "Review command not routed") }
+        let reviewDeadline = Date().addingTimeInterval(15)
+        while reviewChild.model.busy && Date() < reviewDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        try require(reviewChild.model.canApply && reviewChild.window?.isVisible == false && SendPatchCommandWindows.activeCount == 1,
+                    "Actual independent hidden review validates selected patch")
+        let reviewSourceBytes = try Data(contentsOf: serialFiles[0])
+        try require(reviewChild.model.previewDocument.exportDocument.bytes == reviewSourceBytes && toolOptions.model.checked.isEmpty,
+                    "Review receives exact highlighted unchecked patch bytes")
+        toolOptions.window?.performClose(nil)
+        try require(SendPatchCommandWindows.activeCount == 1 && reviewChild.model.canApply, "Send close preserves independent review tool")
+        reviewChild.model.apply()
+        try require(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApplication.shared) == .terminateCancel,
+                    "Independent running review still prevents application termination")
+        while reviewChild.model.busy && Date() < reviewDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        let reviewHead = try await toolsRepository.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        let reviewedBytes = try Data(contentsOf: workingFile), reviewedIndex = try Data(contentsOf: toolRoot.appendingPathComponent(".git/index"))
+        try require(reviewedBytes == Data("first\n".utf8) && reviewHead == base && reviewedIndex == originalIndex,
+                    "Review Apply mutates working file while preserving HEAD/index")
+        reviewChild.window?.performClose(nil)
+        try require(SendPatchCommandWindows.activeCount == 0, "Review own close releases retention")
+        _ = try await toolsRepository.run(["reset", "--hard", base])
+        let applyOptions = SendPatchWindowController(files: serialFiles + [serialFiles[0]], access: [grant], preferences: prefs, repository: toolsRepository,
+            presentation: { child in applyChild = child as? ImportPatchWindowController })
+        applyOptions.model.setChecked([])
+        let applyIDs = Set(applyOptions.model.rows.prefix(2).map(\.id))
+        applyOptions.model.apply(applyIDs)
+        guard let applyChild else { throw VerificationFailure(description: "Apply command not routed") }
+        try require(applyChild.window?.isVisible == false && applyChild.model.items.map(\.file) == serialFiles &&
+                    applyChild.model.items.allSatisfy({ $0.checked && $0.access === grant }) && applyOptions.model.checked.isEmpty,
+                    "Apply uses highlighted source order, independent checks, excludes extra duplicate and retains inherited directory grant")
+        applyOptions.window?.performClose(nil)
+        try require(SendPatchCommandWindows.activeCount == 1 && applyChild.model.editable, "Send close preserves Apply Patch Serial")
+        applyChild.model.apply()
+        try require(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApplication.shared) == .terminateCancel,
+                    "Independent running import prevents application termination")
+        let importDeadline = Date().addingTimeInterval(15)
+        while applyChild.model.busy && Date() < importDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        let importedBytes = try Data(contentsOf: workingFile), importedSubjects = try await toolsRepository.run(["log", "-2", "--format=%s"]).text
+        try require(applyChild.model.finished && applyChild.model.error == nil && importedBytes == Data("second\n".utf8) && importedSubjects == "Patch 2\nPatch 1\n",
+                    "Apply Serial imports both real commits in highlighted order")
+        applyChild.window?.performClose(nil)
+        while SendPatchCommandWindows.activeCount != 0 && Date() < importDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        try require(SendPatchCommandWindows.activeCount == 0, "Apply own guarded close releases retention")
+        for key in identityKeys {
+            if let value = previousIdentity[key] { setenv(key, value, 1) } else { unsetenv(key) }
+        }
+        print("Send Patch Review/Apply: highlighted unchecked files, original bytes/order, inherited file grants, independent lifetime, running Quit gates, real working-tree apply and two serial commits passed in private repositories.")
         var liveOptions = mailOptions; liveOptions.combine = true; liveOptions.attachment = true; liveOptions.subject = "Captured series"
         let liveMessages = try PatchMailPreparation.messages(files: [second, second], options: liveOptions)
         var loopback = EmailConfiguration(preferences: prefs); loopback.delivery = .configured
@@ -394,6 +476,7 @@ private actor DeliveryProbe {
         guard let options = shownOptions else { throw VerificationFailure(description: "Format configured mail options not presented") }
         try require(format.model.composingMail && options.window?.isVisible == false, "Retained hidden options and Format close fence")
         try require(options.model.showPatch != nil && options.model.showAlternatePatch != nil, "Format workflow installs both View Patch routes")
+        try require(options.model.reviewPatch != nil && options.model.applyPatches != nil, "Format workflow installs Review and Apply routes")
         options.model.to = liveOptions.to; options.model.cc = liveOptions.cc; options.model.combine = true
         options.model.attachment = true; options.model.combinedSubject = liveOptions.subject
         options.model.submit(); try await settle(options.model)

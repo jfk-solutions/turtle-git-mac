@@ -232,11 +232,11 @@ import TurtleGitCore
             if let error { self?.error = error }
         }
     }
-    func add(_ urls: [URL]) {
+    func add(_ urls: [URL], retaining grants: [RepositoryAccessLease] = []) {
         guard editable else { return }
         for url in urls {
             guard url.isFileURL else { error = MailPatchFailure.file.localizedDescription; continue }
-            let lease = RepositoryAccessLease(url: url)
+            let lease = grants.first { $0.contains(url) && (!GitRuntime.isAppStoreBuild || $0.hasSecurityScope) } ?? RepositoryAccessLease(url: url)
             guard !GitRuntime.isAppStoreBuild || lease.hasSecurityScope || (access?.hasSecurityScope == true && access?.contains(url) == true) else { error = RepositoryAccessFailure.securityScopeUnavailable.localizedDescription; continue }
             items.append(Item(file: url, access: lease))
         }

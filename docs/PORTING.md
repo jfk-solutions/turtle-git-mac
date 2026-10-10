@@ -17,9 +17,10 @@ Mail options and signed sandbox acceptance remain pending. See
 Configured Send Mail's View Patch action now opens the highlighted file in a
 read-only native unified-diff viewer, preserving its original bytes independently
 of the Send checkbox. Shift uses the alternate viewer setting; owned reads,
-missing-file recovery and close fencing have hidden native verification. Review
-and Apply actions, other delivery modes, physical UI and signed grants remain
-pending. See [Send Patch parity](SEND-PATCH-PARITY.md).
+missing-file recovery and close fencing have hidden native verification. Review and Apply now open independent native patch-review/serial-import tools
+with inherited file grants; real working-tree application and two-commit import
+have hidden native checks. Other delivery modes, physical UI and signed grants
+remain pending. See [Send Patch parity](SEND-PATCH-PARITY.md).
 
 ## Audited baseline
 

@@ -183,6 +183,10 @@ struct SendPatchRequest: Sendable {
         guard canInteract, let row = rows.first(where: { $0.id == id }) else { return }
         if alternate, let showAlternatePatch { showAlternatePatch(row.file) } else { showPatch?(row.file) }
     }
+    func fileGrants(for files: [URL]) throws -> [RepositoryAccessLease] {
+        try checkAccess(files)
+        return access.filter { grant in files.contains { grant.contains($0) } }
+    }
     func loadPatch(_ file: URL, viewer: @escaping (Data) async throws -> Void) {
         guard canInteract else { return }
         do { try checkAccess([file]) } catch { self.error = error.localizedDescription; return }
@@ -256,12 +260,60 @@ struct SendPatchRequest: Sendable {
                 }
             }
             model.showPatch = { open($0, false) }; model.showAlternatePatch = { open($0, true) }
+            model.reviewPatch = { [weak self] file in
+                guard let self else { return }
+                do {
+                    let grants = try self.model.fileGrants(for: [file])
+                    self.model.loadPatch(file) { bytes in
+                        SendPatchCommandWindows.review(bytes: bytes, file: file, repository: repository, access: repositoryAccess,
+                            grants: grants, preferences: preferences, presentation: presentation)
+                    }
+                } catch { self.model.error = error.localizedDescription }
+            }
+            model.applyPatches = { [weak self] files in
+                guard let self else { return }
+                do {
+                    let grants = try self.model.fileGrants(for: files)
+                    SendPatchCommandWindows.apply(files: files, repository: repository, access: repositoryAccess,
+                        grants: grants, preferences: preferences, presentation: presentation)
+                } catch { self.model.error = error.localizedDescription }
+            }
         }
         DialogGeometry.attach(window, identifier: "SendPatchDialog", legacyName: "SendPatchDialog")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { sender.attachedSheet == nil && !model.childActive() }
     func windowWillClose(_ notification: Notification) { model.invalidate(); patch?.close(); patch = nil; onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+}
+
+/// PatchList's Review/Apply commands launch independent tools upstream. Retain
+/// their native windows until their own guarded close, including after Send closes.
+@MainActor enum SendPatchCommandWindows {
+    private static var windows: [UUID: NSWindowController] = [:]
+    static var activeCount: Int { windows.count }
+    private static func present(_ controller: NSWindowController, presentation: ((NSWindowController) -> Void)?) {
+        if let presentation { presentation(controller) }
+        else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
+    }
+    static func review(bytes: Data, file: URL, repository: GitRepository, access: RepositoryAccessLease?, grants: [RepositoryAccessLease],
+                       preferences: UserDefaults, presentation: ((NSWindowController) -> Void)?) {
+        let key = UUID()
+        let lease = grants.first { $0.contains(file) && (!GitRuntime.isAppStoreBuild || $0.hasSecurityScope) }
+        let controller = WorkingTreePatchWindowController(repository: repository, access: access, fileAccess: lease,
+                                                          bytes: bytes, title: file.lastPathComponent, preferences: preferences)
+        windows[key] = controller
+        controller.onClosed = { windows.removeValue(forKey: key) }
+        present(controller, presentation: presentation)
+    }
+    static func apply(files: [URL], repository: GitRepository, access: RepositoryAccessLease?, grants: [RepositoryAccessLease],
+                      preferences: UserDefaults, presentation: ((NSWindowController) -> Void)?) {
+        let key = UUID()
+        let controller = ImportPatchWindowController(repository: repository, access: access, preferences: preferences, mailPresentation: presentation)
+        controller.model.add(files, retaining: grants)
+        windows[key] = controller
+        controller.onClosed = { windows.removeValue(forKey: key) }
+        present(controller, presentation: presentation)
+    }
 }
 
 struct SendPatchDialog: View {

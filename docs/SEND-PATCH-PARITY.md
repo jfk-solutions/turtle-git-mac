@@ -515,3 +515,31 @@ actual configured Format workflow installs both callbacks. See
 physical gestures/rendering and signed sandbox file grants remain unverified.
 Review Patch and Apply Patch callbacks in Send Mail, full mail-client/direct
 routes and complete application parity remain unfinished.
+
+## Review and Apply from Send Mail
+
+Configured Send Mail now installs both remaining PatchList command callbacks.
+Review uses the single highlighted patch's original bytes in the native
+TurtleGitMerge working-tree patch-review window. Apply opens Apply Patch Serial
+with the highlighted rows in source list order, independently of the Send
+checkboxes. Every selected row remains distinct; an unselected duplicate is not
+included. Opening Apply does not immediately import anything: the tool retains
+its normal checked rows, options, Apply and recovery controls.
+
+These two tools have independent retained window lifetimes, matching upstream's
+separate process launches. Closing Send Mail leaves them open; their own guarded
+close releases retention. Application termination still checks their existing
+busy-operation and draft/session guards. Review loading uses the existing owned
+read/cancellation fence, so closing Send before the load finishes prevents a late
+tool window. Serial import inherits matching file grants, including a granted
+output directory outside the repository, instead of attempting to reacquire
+access from plain file URLs.
+
+Hidden native checks exercise actual Review/Apply controllers and disposable
+Git repositories: exact highlighted unchecked patch bytes, original selection
+order, inherited grant identity, independent lifetime, busy Quit guards, review
+application that preserves HEAD/index, and importing two real commits in order.
+The configured Format workflow's callback installation is also checked. See
+[command handoff QA](qa/send-patch-tools-2026-10-10.json). These checks do not prove
+physical gestures, signed access, external merge-tool selection, all error/draft
+flows or complete mail-client/direct delivery and application parity.

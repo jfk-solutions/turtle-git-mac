@@ -355,3 +355,15 @@ refusal, then Undo restores the initial proposal for existing regressions.
 Physical save panels, overwrite/symlink/permission variants, signed panel grants
 and source FileSaveAs target-retargeting remain pending. This implements copy
 export through the shared path, not full TortoiseGitMerge Save As equivalence.
+
+## Send Mail Apply handoff
+
+Send Mail's Apply Patch command now opens an independent native Apply Patch
+Serial window containing the highlighted rows in their original order. Matching
+inherited file grants are retained in the imported items, including output-folder
+grants outside the repository. Default Add/drop behavior still acquires its own
+file leases when no inherited grants are supplied. The child retains its normal
+Apply/recovery/close behavior and survives closing Send Mail. Hidden real-Git
+handoff checks are recorded in [command QA](qa/send-patch-tools-2026-10-10.json).
+Signed sandbox acceptance and complete Import/PatchList/application parity remain
+unfinished.
