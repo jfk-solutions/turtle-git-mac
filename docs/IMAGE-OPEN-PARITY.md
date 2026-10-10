@@ -16,7 +16,7 @@ chooser and prior viewer contents.
 
 Accepting replaces the current image viewer inputs or opens a standalone viewer
 from the app command. The viewer fits the new images, retains its overlay,
-orientation, linking, image-info and alpha choices and keeps its window-owned
+orientation, linking, image-info, width/height matching and alpha choices and keeps its window-owned
 transparency background. Unsupported data remains in the image viewer with an
 explicit decode message in ordinary panes; automatic Git text/binary routing remains unchanged.
 Image inputs are read-only and follow file symlinks after access validation.
@@ -51,8 +51,15 @@ sandbox runtime acceptance or App Review eligibility. See the
 [QA record](qa/image-open-2026-10-10.json).
 
 Physical Browse selection and text-entry gestures, VoiceOver, signed file grants,
-all image formats and overlay decode errors, source width/height flags across
-Open, retained layout and
+all image formats and overlay decode errors, retained layout and
 historical-blob left-path prefill remain incomplete. A historical comparison
 without a usable absolute filesystem path currently starts with an empty left
 field. Full image and application parity and App Store acceptance remain open.
+
+## Width/height matching on replacement
+
+The native Open regression now uses a replacement with different pixel dimensions
+and verifies that both matching controls remain selected across duplicate and
+single-image replacement. This follows upstream `ID_FILE_OPEN` → `SetPic`: the
+pictures and fitted zoom change, while the window's `bFitWidths`/`bFitHeights`
+choices remain. See [the follow-up QA record](qa/image-open-sizing-2026-10-10.json).

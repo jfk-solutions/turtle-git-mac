@@ -12,10 +12,10 @@ import Darwin
     }
     @MainActor static func settle() async throws { try await Task.sleep(nanoseconds: 200_000_000) }
     @MainActor static func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
-    static func png(_ channel: Int) -> Data {
-        let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 80, pixelsHigh: 60, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+    static func png(_ channel: Int, width: Int = 80, height: Int = 60) -> Data {
+        let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: width, pixelsHigh: height, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
         memset(bitmap.bitmapData!, 0, bitmap.bytesPerRow * bitmap.pixelsHigh)
-        for y in 0..<60 { for x in 0..<80 { let offset = y * bitmap.bytesPerRow + x * 4; bitmap.bitmapData![offset + channel] = 255; bitmap.bitmapData![offset + 3] = 255 } }
+        for y in 0..<height { for x in 0..<width { let offset = y * bitmap.bytesPerRow + x * 4; bitmap.bitmapData![offset + channel] = 255; bitmap.bitmapData![offset + 3] = 255 } }
         return bitmap.representation(using: .png, properties: [:])!
     }
     @MainActor static func press(_ title: String, window: NSWindow) throws {
@@ -48,7 +48,7 @@ import Darwin
         _ = try await repo.run(["config", "user.email", "image-open@example.invalid"])
         _ = try await repo.run(["config", "commit.gpgsign", "false"])
         let left = root.appendingPathComponent("left.dat"), right = root.appendingPathComponent("right.dat"), other = root.appendingPathComponent("other.dat")
-        let a = png(0), b = png(2), c = png(1)
+        let a = png(0), b = png(2), c = png(1, width: 120, height: 40)
         try a.write(to: left); try b.write(to: right); try c.write(to: other)
         try await repo.stage(["left.dat", "right.dat", "other.dat"]); _ = try await repo.commit(message: "images")
         let head = try await repo.run(["rev-parse", "HEAD"]).stdout, index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
@@ -66,6 +66,8 @@ import Darwin
         window.orderFront(nil); window.orderOut(nil); try await settle()
         let pane = (window as! ImageComparisonKeyRouting).imageKeyModel!
         pane.vertical = true; pane.linked = false; pane.showInfo = true; pane.alpha = 0.75
+        pane.toggleWidths(); pane.toggleHeights()
+        try require(pane.fitWidths && pane.fitHeights)
         @MainActor func open() async throws -> ImageLoadWindowController {
             let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .command, timestamp: 0, windowNumber: window.windowNumber, context: nil, characters: "o", charactersIgnoringModifiers: "o", isARepeat: false, keyCode: 31)!
             try require(window.performKeyEquivalent(with: event)); try await wait { window.attachedSheet != nil }
@@ -99,9 +101,12 @@ import Darwin
         try require(controller.model.document?.base.bytes == c && controller.model.document?.destination.bytes == c)
         try require(controller.model.imageComparison != nil && pane.vertical && !pane.linked && pane.showInfo && pane.alpha == 0.75 && pane.fit)
         try require(window.title.contains("other.dat") && (window as! ImageComparisonKeyRouting).imageKeyModel === pane)
+        try require(pane.fitWidths && pane.fitHeights)
+        try require(pane.displaySizing.base.pixels == CGSize(width: 120, height: 40))
         loader = try await open(); loader.left.stringValue = ""; loader.right.stringValue = right.path
         try press("OK", window: loader.window!); try await wait { window.attachedSheet == nil && !controller.model.busy }; try await settle()
         try require(controller.model.imageComparison?.base == nil && controller.model.imageComparison?.destination != nil)
+        try require(pane.fitWidths && pane.fitHeights)
         loader = try await open(); loader.left.stringValue = ""; loader.right.stringValue = ""
         try press("OK", window: loader.window!); try await wait { window.attachedSheet == nil && !controller.model.busy }; try await settle()
         try require(controller.model.imageComparison != nil && controller.model.document?.base.bytes.isEmpty == true && controller.model.document?.destination.bytes.isEmpty == true)

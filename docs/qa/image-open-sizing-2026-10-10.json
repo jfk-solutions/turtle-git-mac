@@ -1,0 +1,72 @@
+{
+  "checked_at": "2026-10-10T11:06:47.552882+00:00",
+  "parent_commit": "c92b0d9f6dbc36ad701b1967d83c6f5ebf1a03a1",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Preserve width and height matching choices across Load Images replacement; continuing full-port goal remains incomplete.",
+  "checks": {
+    "native_open": {
+      "session": 22314,
+      "exit_code": 0,
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "scope": [
+        "Native OK accepts different-dimension replacement without clearing width/height selections",
+        "Selections survive duplicate and single-image replacement",
+        "Existing Open, Cancel, authorization and lease-ownership checks remain passing"
+      ]
+    },
+    "unsigned_builds_and_audits": {
+      "session": 60646,
+      "exit_code": 0,
+      "configurations": [
+        "Debug",
+        "AppStore"
+      ],
+      "icons": 116,
+      "appstore_requires_git": true
+    },
+    "comparison_regression": {
+      "session": 74140,
+      "exit_code": 0,
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "scope": "Actual image routing, rendered linked width/height/both extents with unequal aspect ratios, fit/zoom, scrolling, blend/XOR, slider/key lifecycle and unchanged repository bytes"
+    },
+    "cleanup": {
+      "matching_processes": [],
+      "current_fixtures": []
+    }
+  },
+  "source_sha256": {
+    "Sources/TurtleGitMac/ImageComparisonWindow.swift": "31f107467d79f46490fea27bb35f94728fc92256f9db39a3622c54389bc0cebf",
+    "docs/qa/image-open-native-2026-10-10.swift": "c91cb23625f47a748daee880ff76f72ecfbbeee48dabc9a7b4ad041aff4dab67",
+    "docs/IMAGE-OPEN-PARITY.md": "411db78a87b0af5d57261f7736413f3ec0b5729c37904d11c99430890ec7baa0"
+  },
+  "log_sha256": {
+    "build/qa/image-open-sizing-cleanup-2026-10-10.log": "693fa2bca24cbfc45a23756e4f0a95dc75a088dc5f75977d8a59a96ce2f23355",
+    "build/qa/image-open-sizing-comparison-2026-10-10.log": "60174ef740a12f85d0402d5b72aa791b5a34264658a3982c9b53a1e75698f5da",
+    "build/qa/image-open-sizing-debug-2026-10-10.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/image-open-sizing-debug-audit-2026-10-10.log": "cdeaff9df09b2d3352cce83b62503b07e0e9bb7909accdb3b95f9decbe376ec4",
+    "build/qa/image-open-sizing-native-2026-10-10.log": "03e5801e0ebeec4907078e6161fe3716a9fa69aa1418cc123638586a617cbced",
+    "build/qa/image-open-sizing-store-2026-10-10.log": "b74a73f8796b12aa35fa570e6594a2a6056217b10a225c9c0e7c2efcb5dc7a15",
+    "build/qa/image-open-sizing-store-audit-2026-10-10.log": "b1c954ae1e9a5fc2a5d6416be100ef853bfb32fd82cbd6494843f0d1d5710619"
+  },
+  "binary_sha256": {
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": "8441f4a302b71398d189edfaf1a393f0b85b90ef479a21949c0405ece32991e1",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": "dc44e47efa6b867ca364f3b9a0bb2f34586e324eb30730045ce6f909abf6318e",
+    "build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/MacOS/TurtleGitMac": "1254652164f4372e5b9f250e2e2b6102908b34a1dcd0d72b009be371eb34205a",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": "d518cf7695102d90dd1eed3b22400afafd87294fcc3f9c34844f0d5b6ecc43c7",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": "4fe130d88732811cb2135fd976f7b9579c0ae3d38211d79ae7708e6973b5955c",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/MacOS/TurtleGitMac": "ae0fc297ae892ad6d53e5bfb2e3aee3218b8dda08c01e7e3c33faa88de63b8d1"
+  },
+  "limitations": [
+    "Physical input/VoiceOver/signed sandbox grants are unverified",
+    "Image formats, overlay decode feedback, retained layout and historical-blob prefill remain incomplete",
+    "Full dialog/menu/Finder parity and App Store distribution remain incomplete",
+    "Local verification and commits; hosted CI and publication are unverified"
+  ]
+}

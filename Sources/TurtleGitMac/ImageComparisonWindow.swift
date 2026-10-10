@@ -91,7 +91,12 @@ import TurtleGitCore
     private var synchronizing = false
     func configure(base: CGSize, destination: CGSize) {
         guard sizing.base.pixels != base || sizing.destination.pixels != destination else { return }
+        // Open replaces the pictures and fits them, while the window's width and
+        // height matching choices remain selected (TortoiseIDiff SetPic).
+        let widths = sizing.widths, heights = sizing.heights
         sizing = ImageComparisonSizing(base: base, destination: destination); sizing.overlay = overlay
+        if widths { sizing.toggleWidths() }
+        if heights { sizing.toggleHeights() }
     }
     var displaySizing: ImageComparisonSizing {
         var result = sizing; result.overlay = overlay
