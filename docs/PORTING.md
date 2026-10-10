@@ -34,6 +34,17 @@ pages and helper applications. Gitlinks must be recursively audited before using
 those dependencies. Resources such as menus, icons, accelerators and strings also
 require review; a dialog count is not a count of all upstream UI.
 
+## Current integration verification
+
+The full local SwiftPM suite passed **866 tests, zero failures**, at `3f76591`
+on October 10, 2026. The completed run includes the current repository,
+preference, parser, icon, patch-mail and SMTP checks. The separate native
+receivers and unsigned Debug/Store build evidence remain scoped to their
+feature records. See [testing](TESTING.md) and
+[the integration record](qa/full-core-2026-10-10.json). These checks do not prove
+full dialog parity, activated Finder behavior, signed sandbox execution or
+App Store readiness.
+
 ## Architecture replacements
 
 | Upstream component | macOS replacement | Current state |

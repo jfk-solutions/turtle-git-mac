@@ -1,0 +1,52 @@
+{
+  "date": "2026-10-10",
+  "source_checkpoint": "3f76591cd9cbfcd6ba922f3cd84dbdced2889de3",
+  "scope": "Full local SwiftPM regression suite and integration-status documentation; no production source changes.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "verification": {
+    "core": {
+      "command": "swift test",
+      "exit_code": 0,
+      "tests": 866,
+      "failures": 0,
+      "test_seconds": 514.46,
+      "session": 87986
+    },
+    "environment": {
+      "swift": "6.3.3",
+      "xcode": "26.6 (17F113)",
+      "macOS": "26.5.1",
+      "architecture": "arm64",
+      "git": "2.50.1 (Apple Git-155)"
+    },
+    "inventory": "Pinned inventory regression passed.",
+    "site": "Static site generation passed; expected screenshot files have PNG signatures. No visual acceptance or publication was performed.",
+    "cleanup": "Test worker exited normally. Final audit found no matching app/test/compiler/SMTP/owned helper processes and no matching current fixtures. Additional time-bounded temporary-directory scan found only the shared TurtleGitTemporaryFiles root, with no children modified during this run. Recent candidate test preference plist files were all empty; no preference data was deleted."
+  },
+  "hosted_evidence": {
+    "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/37274118557",
+    "run": "macOS #135",
+    "checkpoint": "44d3e52",
+    "trigger_date": "2026-10-05",
+    "status": "Success",
+    "observation": "Latest listed macOS run on the public Actions page at inspection; complete logs require sign-in. This older source does not verify current local HEAD."
+  },
+  "source_manifest": {
+    "path": "build/qa/full-core-source-manifest-2026-10-10.json",
+    "files": 621,
+    "sha256": "b3914d0637e80df832a7d73123b509f8f6960662ae7f6abc2635df00519c8811",
+    "validation": "All listed Sources, Tests, scripts, workflow, package and project files matched source checkpoint bytes before evidence creation."
+  },
+  "sha256": {
+    "docs/TESTING.md": "529619d00f1d04d2faa86f2b7d0cebac33e17590dbfbfe03eab50ad2938f343c",
+    "docs/PORTING.md": "9a200a7b6d12996b8752cb49d32efca7c9be4193b3c77d8fe589ec3095d99206"
+  },
+  "logs": {
+    "build/qa/full-core-2026-10-10.log": "6e1c0253b094c51bdfac26da970eab2bf6cd78cdc214bbe125c0ee4e79d7c78a",
+    "build/qa/full-core-site-2026-10-10.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/full-core-inventory-2026-10-10.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/full-core-process-audit-2026-10-10.json": "693fa2bca24cbfc45a23756e4f0a95dc75a088dc5f75977d8a59a96ce2f23355"
+  },
+  "remaining": "Full TortoiseGit dialog/control/layout/behavior parity; complete helper tools/settings; physical light/dark and keyboard/accessibility acceptance; signed Finder integration and sandbox tests; distribution/license gates; documentation completion and current site publication; hosted workflow on current local source.",
+  "limitations": "Only the complete local SwiftPM suite was rerun. No new native receiver or Xcode build was run in this documentation checkpoint. Prior focused native/build results remain feature-specific. No push, main app launch, real mail service or real Keychain credential access."
+}

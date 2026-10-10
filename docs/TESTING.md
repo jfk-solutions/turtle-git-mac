@@ -5,6 +5,21 @@ Run commands from the repository root. The checked-in
 Local success does not establish that a hosted run passed, that dialogs match
 TortoiseGit visually, or that the app is ready for distribution.
 
+## Current full-suite checkpoint
+
+At source checkpoint `3f76591`, a fresh local `swift test` passed all **866 tests**
+with zero failures on October 10, 2026. The run used Apple Git 2.50.1 and Swift
+6.3.3 and finished normally after 514.5 seconds of test execution. This is the
+complete SwiftPM suite, separate from the focused Send Mail checks and native
+receivers. See [the full-suite record](qa/full-core-2026-10-10.json).
+
+The latest run listed on the public Actions page when inspected was
+[macOS #135](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/37274118557),
+which reports Success for `44d3e52` on October 5. It covers that older hosted
+checkpoint; the current local source has not been verified by that run. GitHub
+requires sign-in to read its full logs. Local success does not resolve a failure
+in a different hosted run or prove the remaining native workflow steps.
+
 ## Core and native receivers
 
 Build the required helpers, run the Git integration suite, then check the native
