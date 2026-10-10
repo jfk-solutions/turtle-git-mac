@@ -65,6 +65,7 @@ for baseline and update rules.
 
 - [Log Messages parity](LOG-PARITY.md)
 - [Find in Log Messages](LOG-FIND.md)
+- [References commit is on: source audit and missing workflow](COMMIT-CONTAINING-REFS-PARITY.md)
 - [Expanding compressed history](LOG-GRAPH.md)
 - [Log Merge and Rebase commands](LOG-MERGE-REBASE.md)
 - [Log Revert parity](LOG-REVERT-PARITY.md)

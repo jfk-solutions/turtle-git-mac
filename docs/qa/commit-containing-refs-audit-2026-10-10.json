@@ -1,0 +1,28 @@
+{
+  "date": "2026-10-10",
+  "native_checkpoint": "dba8464eaf2c3f0cae29d694a51a96b012e978b2",
+  "upstream_checkpoint": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_blobs": {
+    "src/TortoiseProc/CommitIsOnRefsDlg.cpp": "11368b95c9a5475ce26e045d0cf2e2063dacf9eb",
+    "src/TortoiseProc/CommitIsOnRefsDlg.h": "dfaa66a7f77b98ffb3dc38ab1fcb74f6443f75e2",
+    "src/TortoiseProc/GitLogListBase.cpp": "19518f37689e19b7e913c9ff8cc9d65ec223c187",
+    "src/TortoiseProc/GitLogListAction.cpp": "88c255c4c80578c099bbcd4604f6e088f2f9d40a",
+    "src/Git/Git.cpp": "43dee91dbf94e46564b4cc1a139717fcbd8f6803",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f",
+    "src/Resources/TortoiseLoglistCommon.rc2": "a174ae27ca959c289076127e729f58ba37bd2fd6"
+  },
+  "resource": "IDD_COMMITISONREFS",
+  "status": "Source audited; native workflow not implemented or verified. Inventory stays pending-review.",
+  "native_observation": "No dedicated containing-reference query/dialog or Show branches this commit is on menu route found in Sources/Tests. Existing row decorations and Browse References do not answer graph ancestry containment.",
+  "required_acceptance": [
+    "Log single real revision menu entry with original ShowBranches icon; exclude working row and multi-selection.",
+    "All containing local/remote branches and tags, including descendants, nested annotations and symbolic remote HEAD; exclude unrelated refs and detached pseudo-branch text.",
+    "Commit entry, revision chooser, subject with author/date tooltip, Show log, headerless reference list and bottom one-second literal case-sensitive filter.",
+    "Browse References/Log/Reflog picker acceptance/cancellation, one-second revision input debounce, refresh and stale-read/close cancellation.",
+    "Source one/two/many selection menus, icons, correctly directed two-dot/three-dot logs, comparison/unified diff/browse/copy and bare-repository working-tree gate.",
+    "Modeless owned lifetime, parent navigation by double click, select-all/copy and Escape filter clear before close.",
+    "Real Git unchanged HEAD/index/config/worktree assertions and native controller checks on system and packaged engines.",
+    "Displayed light/dark comparison, accessibility and signed repository access; passing hidden receiver alone is insufficient."
+  ],
+  "limitations": "This is a requirements/source audit, not an implementation or completed port."
+}
