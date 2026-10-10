@@ -1,0 +1,72 @@
+{
+  "date": "2026-10-11",
+  "checkpoint": "218f741970f738179ab37a2fd8200d22dece720c",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "progress_source_blob": "557988a1303dc86b11c9c74d29be4797aa7e6090",
+  "status": "partial-native",
+  "source": "CProgressDlg::OnCancel reads ConfirmKillProcess, asks source Yes/No text if enabled, kills process tree only after Yes, writes log and closes. Native waits for actual owned process unwind before retirement.",
+  "implemented": [
+    "Optional owned native Yes/No sheet using existing Settings preference and exact upstream prompt.",
+    "No leaves active reset running; Yes and direct cancellation close progress/options after process cleanup, retaining model output and one repository-refresh callback.",
+    "Pending confirmation gates duplicate Cancel, Close, post-actions and Quit, even after command completion.",
+    "Completion waits for reply; completed successful reset is not relabeled cancelled. Accepted completed response closes, declined completed response applies existing auto-close preference.",
+    "Per-request/token identities fence duplicate callbacks, old response during new prompt and late replies after invalidation.",
+    "Forced owner/progress close cancels operation, invalidates reply and tears down owned alert.",
+    "NSAlert reply is deferred one main-queue turn so automatic close occurs after sheet detachment."
+  ],
+  "verification": {
+    "native": {
+      "command": "python3 scripts/test-merge-abort-dialog.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "exit": 0,
+      "engines": 2,
+      "confirmation_markers": 2,
+      "previous_ownership_lifecycle_stream_keyboard_model_markers_each": 2,
+      "scenarios": [
+        "Actual owned Yes/No buttons, exact prompt text and duplicate/close/Quit gates.",
+        "Decline preserves running helper and permits successful completion.",
+        "Accept cancels/reaps and retires actual progress/owner.",
+        "Success while question pending delays auto-close; both Yes/No retain success and complete close.",
+        "Forced close tears down real alert and rejects result callbacks.",
+        "Injected reply declines, then duplicate accepted reply ignored; old reply cannot resolve new prompt; all replies after forced close ignored.",
+        "Existing no-confirm cancellation now retires actual progress after unwind; prior real reset/retry/stream/keyboard checks retained."
+      ]
+    },
+    "builds": {
+      "unsigned_debug": 0,
+      "unsigned_appstore": 0,
+      "debug_bundle_audit": 0,
+      "appstore_require_git_bundle_audit": 0,
+      "original_icons": 120
+    },
+    "core_scope": "Core/tests unchanged from1f89a7f streaming checkpoint. No new full-suite claim.",
+    "inventory_exit": 0,
+    "site_exit": 0,
+    "final_cleanup": "All local sessions terminal; hidden windows and owned alerts closed; temporary receiver directories removed; final app/receiver/compiler/owned shell-helper audit empty."
+  },
+  "earlier_failure": "First receiver timed out when command completed during prompt and No was selected with no-errors auto-close: sheet still attached during NSAlert completion blocked close. Deferred main-queue reply fixed both completed-response cases on final two-engine run. Failed receiver was terminal and no fixture helper remained.",
+  "remaining": [
+    "Physical keyboard/pointer/VoiceOver and other macOS runtime versions.",
+    "Full progress menus/options and animation/progress roles.",
+    "Factory/menu entry, submodule post-actions and post-reset metadata cancellation acceptance.",
+    "Signed sandbox/Finder/App Store release acceptance.",
+    "Full dialog/control/file port; no dialog certified complete."
+  ],
+  "sources_sha256": {
+    "Sources/TurtleGitMac/MergeWindow.swift": "e88bb20cb58673428382e57ad0ab9df4d8b9534b9f516fcd9b00f80fbc3d4cea",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "dec80bc850a5227d0a149300e0b047096112c7b0257d6cd2d4a8d06075cd30ec",
+    "docs/qa/merge-abort-dialog-native-2026-10-08.swift": "7f29ceae0b39d96d62591f092e3cb6e6bf94967b5e9c8c8c86844794ede98afb",
+    "scripts/test-merge-abort-dialog.py": "fa0e10da3d4b17f3291085044f3fe0161d1c3ee0386ca4a823a32081b00c0feb"
+  },
+  "logs_sha256": {
+    "build/qa/merge-abort-confirm-debug-2026-10-11.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/merge-abort-confirm-debug-final-2026-10-11.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/merge-abort-confirm-native-2026-10-11.log": "178ce14735f5040d88cacb8787ba745cf1b5e9a4e7889f0f22304f22834d4256",
+    "build/qa/merge-abort-confirm-native-final-2026-10-11.log": "18d24206074f9cc0f18b7967f8a2d762e13fd07790ca17e25a8f1487a5f9532e",
+    "build/qa/merge-abort-confirm-store-2026-10-11.log": "8b7e42e41011f64b89af2a34249c0e6a736fce554184bf57a0f657922d209930",
+    "build/qa/merge-abort-confirm-debug-audit-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/merge-abort-confirm-store-audit-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/merge-abort-confirm-processes-2026-10-11.json": "10598bfff825f5f0cf1ebb38bdc1f0371e23da81e6eb6e443e4ec26dfbb669aa",
+    "build/qa/merge-abort-confirm-inventory-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/merge-abort-confirm-site-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

@@ -444,3 +444,31 @@ not published. See [the layout record](qa/merge-abort-layout-2026-10-10.json).
 Physical keyboard/pointer/VoiceOver, full progress menus/options, factory/menu
 entry, submodule post-actions and signed sandbox/Finder acceptance remain pending.
 The dialog stays partial; no full-app completion claim is made.
+
+## Abort Merge cancellation confirmation, October 11
+
+At `218f741`, Abort Merge honors the existing ConfirmKillProcess preference from
+Settings. The source `CProgressDlg::OnCancel` asks Yes/No before killing the
+running process and closes progress after cancellation. The native port now
+owns that same-worded Yes/No sheet. No leaves the command running; Yes cancels
+and waits for owned process cleanup before retiring progress and options. Without
+confirmation enabled, Cancel follows the same retirement behavior directly.
+Received output remains available to the model/action log and repository refresh.
+
+The pending sheet blocks duplicate prompts, Close, post-actions and application
+Quit, including when Git has finished while the question remains open. Completion
+is deferred until the reply so success is not relabeled cancelled. Request and
+token identities reject duplicate replies, an old reply during a new prompt and
+replies after forced owner close. Forced close cancels the worker and tears down
+the owned alert without publishing late state or refresh callbacks.
+
+The first native completion-during-prompt check exposed AppKit calling the alert
+reply before sheet detachment completed: auto-close was blocked by the still
+attached sheet. Deferring the reply to the next main-queue turn fixed the case.
+The final hidden native receiver passed with system and packaged Git, including
+actual Yes/No buttons, both replies after successful completion, direct cancel
+retirement, forced sheet teardown, and independent stale/duplicate reply cases.
+See [the confirmation record](qa/merge-abort-confirm-2026-10-11.json).
+These are native event/controller checks on the current host; physical input,
+other macOS runtime versions, full progress menus/options, factory/submodule and
+signed acceptance remain pending. Full dialog/app parity is not certified.
