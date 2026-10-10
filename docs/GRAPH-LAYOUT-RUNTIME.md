@@ -115,3 +115,9 @@ packages. Appending bytes to the copied binary caused digest rejection before
 execution. This proves the local validation path; a hosted save and subsequent
 exact-key hit remain unverified. See
 [the dated CI evidence](qa/ci-log-typecheck-2026-10-10.json).
+
+The first hosted [cache-enabled run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38074852815)
+at `152aeb2` has now completed package validation and cache saving successfully.
+It is still executing the Git integration step at this observation; a later
+exact-key hit and complete hosted run remain unverified. The dated CI evidence
+includes this separate follow-up.

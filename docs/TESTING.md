@@ -41,12 +41,26 @@ and saves only a validated finished package. A relocated package passed locally;
 a modified copy was rejected by its binary digest. Hosted compiler success and
 cache save/hit behavior still require a new run. See
 [the Log compiler/cache evidence](qa/ci-log-typecheck-2026-10-10.json).
+The [first cache-enabled hosted run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38074852815)
+subsequently completed graph-package validation and cache saving successfully;
+its Git integration step remains in progress at the latest inspection. A later
+exact-key cache hit and the whole hosted run remain unverified.
 
 The subsequent Log Find implementation has four focused Core tests and a native
 receiver, both passing with system and packaged Git. Its unsigned Debug/Store
 builds, package audits, inventory regression and local website generation pass.
 These results are separate from the last complete 921-test checkpoint above.
 See [Log Find evidence](qa/log-find-2026-10-10.json).
+
+The subsequent parent-position correction follows both source headers' initial
+zero and keeps the numeric Find index in the Log/Graph parent. Native receivers
+with both Git engines verify initial Graph row exclusion, successful match/ref
+updates, Shift selection preservation, close/reopen and reload retention, Log
+context-menu positioning and bounded Log search with a stale index. The Graph
+fixture's older first-query assumption was corrected against the pinned source.
+The Log reload check emitted SwiftUI AttributeGraph cycle warnings; its assertions
+passed, but physical rendering remains unverified. See
+[Find position evidence](qa/find-position-2026-10-10.json).
 
 ## Core and native receivers
 

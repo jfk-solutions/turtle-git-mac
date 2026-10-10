@@ -1,0 +1,69 @@
+{
+  "date": "2026-10-10",
+  "source_checkpoint": "af98425e7fe3db265389c8847411a1779c87ff6e",
+  "upstream_checkpoint": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/GitLogListBase.h": "8e4e814ac555e8b91b92e5699f7b2a2fa8b771cb",
+    "src/TortoiseProc/GitLogListBase.cpp": "19518f37689e19b7e913c9ff8cc9d65ec223c187",
+    "src/TortoiseProc/RevisionGraph/RevisionGraphDlg.h": "d108cd7b7de3c502eb6c49e13d9f348d19aef552",
+    "src/TortoiseProc/RevisionGraph/RevisionGraphDlg.cpp": "15fd37ea3e16c1fdbd3391c7936d0344b47802b9"
+  },
+  "source_behavior": [
+    "Both parent headers initialize m_nSearchIndex to zero.",
+    "Successful text and peeled-reference matches update the parent numeric index, including Shift searches.",
+    "Neither Find termination nor history reload resets this parent index.",
+    "Log OnContextMenu assigns the valid selection mark before dispatching commands."
+  ],
+  "native_changes": [
+    "Store position in the Log/Graph parent models rather than a hash in the short-lived Find child.",
+    "Search after the retained numeric index and exclude its row; retain position across query changes, close/reopen and reload.",
+    "Update Log position from the selected native row when the revision context menu opens.",
+    "Bound stale out-of-range index search to one scan to avoid an unbounded source wrap loop."
+  ],
+  "local_verification": {
+    "swift_build": 0,
+    "unsigned_debug_build": 0,
+    "unsigned_store_build": 0,
+    "debug_bundle_audit": 0,
+    "store_bundle_audit_require_git": 0,
+    "native_log_receiver_system_and_packaged_git": 0,
+    "native_graph_receiver_system_and_packaged_git": 0,
+    "inventory_pin_regression": "All named dirty/advanced/repin/invalidation/idempotence/shared-resource cases passed.",
+    "site_generation": "Generated successfully; rebuilt after saving this evidence."
+  },
+  "native_assertions": [
+    "Initial Graph row-zero exclusion.",
+    "Successful text/reference updates and Shift selection preservation.",
+    "Log and Graph close/reopen and reload position retention.",
+    "Ordinary Log selection does not reset the index.",
+    "Log context-menu positioning and stale-index termination.",
+    "Existing Graph interaction/filter/export/reference/error lifecycle checks and Log repository-byte invariants."
+  ],
+  "initial_graph_attempt": "The row-zero exclusion assertion passed, then an older fixture expected the sole row-zero feature message to match. Anchoring to the root reference before that existing text-search check corrects the fixture against source; the final receiver passed with both engines.",
+  "known_warnings": [
+    "The native Log reload check emitted SwiftUI AttributeGraph cycle warnings. Its assertions passed; physical rendering still requires verification.",
+    "Existing Swift sendability/deprecation compiler warnings remain."
+  ],
+  "sha256": {
+    "Sources/TurtleGitMac/LogWindow.swift": "666feb32110734c8de1b3448146bcbebc96cbc15bd11d787236b8d5b6e8f6881",
+    "Sources/TurtleGitMac/RevisionGraphWindow.swift": "0ab48f10343cfb4be2d2153c570b11a26aedbf3188c085e4feed5b405c7e5536",
+    "build/qa/find-position-build-2026-10-10.log": "a235ad9a74f4c232fc040f04daa145ea69456f512c30bb1508196f4d7a278585",
+    "build/qa/find-position-debug-2026-10-10.log": "c93e112da23b9f6fa51577f682715b6b50ee9127ceede084c1251d1209b02d8b",
+    "build/qa/find-position-debug-audit-2026-10-10.log": "6c4a0639ae077d8a06ed7c1a450f328df6eb54f179d36af72fcbaca3cf48b1a9",
+    "build/qa/find-position-graph-initial-2026-10-10.log": "2db852b7c50f51219944a9dbb65d39520225d04ff570f420c32ef9f8ebcf9251",
+    "build/qa/find-position-graph-native-2026-10-10.log": "fde066bf3722bdde38649f3841428ee3f4369a2f06ae81c6cd56b5b0a2987410",
+    "build/qa/find-position-inventory-2026-10-10.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/find-position-log-native-2026-10-10.log": "a55b33e00f5d5521d4a5970fa4f1cc732dc8dbe0f0136cde6935876a0caa1632",
+    "build/qa/find-position-site-2026-10-10.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/find-position-source-2026-10-10.log": "a027b6e21fd8dcdb5401beae50c4cdec638c7decbf5216e61f7af122061ac063",
+    "build/qa/find-position-store-2026-10-10.log": "8b7e42e41011f64b89af2a34249c0e6a736fce554184bf57a0f657922d209930",
+    "build/qa/find-position-store-audit-2026-10-10.log": "ac6ee8a83e94cebfcd5300d885738875ea3ca79702538dd4b4523ab268676878",
+    "docs/qa/log-find-native-2026-10-10.swift": "35bdcb0d121127ed81e13e46d1fb8e46b3b4c4f2df63c9ad4342ac378c5f998f",
+    "docs/qa/revision-graph-window-native-2026-10-10.swift": "d3629b89817b3f5620c70741b27a7213ea65e849000ffc114cdfa34bef395050"
+  },
+  "limitations": [
+    "No new full Core suite; Core implementation/tests unchanged from the preceding Log Find checkpoint.",
+    "Hosted acceptance of this source is not yet proven. The preceding 152aeb2 job has validated and saved its graph package but has not completed all integration tests.",
+    "Physical gestures, accessibility, localization, large-history performance, mutation reference refresh, metadata changes during searches, full dialog parity and signed Finder/sandbox/App Store acceptance remain incomplete."
+  ]
+}

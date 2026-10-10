@@ -570,3 +570,19 @@ Both consumers retain the same reference list, history, case/regex controls,
 Shift navigation and owned error acknowledgment. See [Log Find](LOG-FIND.md);
 this replaces the earlier missing-consumer item above while leaving physical,
 accessibility, mutation refresh and signed acceptance open.
+
+## Parent-owned Find position
+
+The native Graph and Log parents now retain a numeric Find index, following
+`m_nSearchIndex = 0` in both pinned source headers. Searches begin after it,
+exclude that row, and update it for a successful text or peeled-reference match
+even when Shift leaves selection unchanged. Closing/reopening Find and reloading
+the Graph preserve the index; ordinary selection does not reset it. Log's
+revision context menu updates its parent index from the selected row, matching
+`CGitLogListBase::OnContextMenu`'s selection-mark assignment.
+
+A stale out-of-range index falls back to one bounded scan of the displayed rows.
+This retains the intended usable search after reload rather than copying the
+source's unbounded wrap when its retained index no longer belongs to the list.
+Physical keyboard/mouse, metadata changes during search, large histories and
+signed acceptance remain pending. See [the dated position checks](qa/find-position-2026-10-10.json).

@@ -61,5 +61,15 @@
     "Hosted Swift 6.1.2 success and cache save/hit remain unverified until a new run.",
     "No new full Core suite run; last full result is 921 tests at c4bd370.",
     "No full dialog parity, installed signed Finder, signed sandbox or App Store acceptance."
-  ]
+  ],
+  "hosted_followup": {
+    "observed_at": "2026-10-10T18:23:47.316519+00:00",
+    "checkpoint": "152aeb2e8615b32aa919b312e3733f82ec4d9707",
+    "run": 38074852815,
+    "job": 114279590482,
+    "graph_package_validation": "completed success",
+    "graph_package_save": "completed success",
+    "current_step": "Git integration tests in progress",
+    "limitations": "Subsequent exact-key cache hit and complete hosted compiler/test outcome remain unverified."
+  }
 }
