@@ -6,7 +6,7 @@ import Security
 import LocalAuthentication
 import TurtleGitCore
 
-enum EmailDelivery: Int, CaseIterable {
+enum EmailDelivery: Int, CaseIterable, Sendable {
     case direct = 0, mailClient = 1, configured = 2
     var title: String {
         switch self {
@@ -16,18 +16,19 @@ enum EmailDelivery: Int, CaseIterable {
         }
     }
 }
-enum EmailEncryption: Int, CaseIterable {
+enum EmailEncryption: Int, CaseIterable, Sendable {
     case none = 0, startTLS = 1, tls = 2
     var title: String { switch self { case .none: return "none"; case .startTLS: return "STARTTLS"; case .tls: return "SSL/TLS" } }
 }
-struct EmailConfiguration: Equatable {
+struct EmailConfiguration: Equatable, Sendable {
     var delivery: EmailDelivery = .direct
     var server = ""
     var port: UInt32 = 25
     var encryption: EmailEncryption = .none
     var authenticate = false
-    init(preferences: UserDefaults) {
-        delivery = EmailDelivery(rawValue: preferences.integer(forKey: "SendMail.DeliveryType")) ?? .direct
+    init(preferences: UserDefaults, missingDelivery: EmailDelivery = .direct) {
+        if preferences.object(forKey: "SendMail.DeliveryType") == nil { delivery = missingDelivery }
+        else { delivery = EmailDelivery(rawValue: preferences.integer(forKey: "SendMail.DeliveryType")) ?? .direct }
         server = preferences.string(forKey: "SendMail.Address") ?? ""
         port = (preferences.object(forKey: "SendMail.Port") as? NSNumber)?.uint32Value ?? 25
         encryption = EmailEncryption(rawValue: preferences.integer(forKey: "SendMail.Encryption")) ?? .none
@@ -45,6 +46,13 @@ protocol SMTPCredentialStore: Sendable {
     func login() async throws -> String
     func store(login: String, password: String) async throws
     func clear() async throws
+}
+struct SMTPLoginSecret: Sendable {
+    let login: String
+    let password: String
+}
+protocol SMTPTransportCredentialSource: Sendable {
+    func credentials() async throws -> SMTPLoginSecret?
 }
 struct SMTPKeychainFailure: LocalizedError {
     let status: OSStatus
@@ -64,7 +72,7 @@ struct SMTPKeychainAPI: Sendable {
 }
 /// One app-private credential pair, matching upstream's single SMTP slot.
 /// Actor isolation keeps potentially blocking Security calls off the main actor.
-actor SMTPKeychainStore: SMTPCredentialStore {
+actor SMTPKeychainStore: SMTPCredentialStore, SMTPTransportCredentialSource {
     private let api: SMTPKeychainAPI
     init(api: SMTPKeychainAPI = .live) { self.api = api }
     private var query: [String: Any] {
@@ -87,6 +95,25 @@ actor SMTPKeychainStore: SMTPCredentialStore {
               let bytes = attributes[kSecAttrGeneric as String] as? Data,
               let login = String(data: bytes, encoding: .utf8) else { throw SMTPKeychainFailure(status: errSecDecode) }
         return login
+    }
+    /// Read the pair in one query so a concurrent credential replacement cannot
+    /// combine a previous username with a new password. Used only by transport.
+    func credentials() throws -> SMTPLoginSecret? {
+        var request = query
+        request[kSecReturnAttributes as String] = true
+        request[kSecReturnData as String] = true
+        request[kSecMatchLimit as String] = kSecMatchLimitOne
+        let context = LAContext(); context.interactionNotAllowed = true
+        request[kSecUseAuthenticationContext as String] = context
+        let (status, attributes) = api.copy(request)
+        if status == errSecItemNotFound { return nil }
+        guard status == errSecSuccess else { throw SMTPKeychainFailure(status: status) }
+        guard let attributes, let name = attributes[kSecAttrGeneric as String] as? Data,
+              let secret = attributes[kSecValueData as String] as? Data,
+              let login = String(data: name, encoding: .utf8), let password = String(data: secret, encoding: .utf8) else {
+            throw SMTPKeychainFailure(status: errSecDecode)
+        }
+        return SMTPLoginSecret(login: login, password: password)
     }
     func store(login: String, password: String) throws {
         let values: [String: Any] = [kSecAttrGeneric as String: Data(login.utf8),
@@ -174,7 +201,11 @@ actor SMTPKeychainStore: SMTPCredentialStore {
 @MainActor struct EmailSettingsPage: View {
     @StateObject private var model: EmailSettingsModel
     @State private var credentialSheet = false
-    init(model: EmailSettingsModel? = nil) { _model = StateObject(wrappedValue: model ?? EmailSettingsModel()) }
+    private let onCancel: (() -> Void)?
+    private let onOK: (() -> Void)?
+    init(model: EmailSettingsModel? = nil, onCancel: (() -> Void)? = nil, onOK: (() -> Void)? = nil) {
+        _model = StateObject(wrappedValue: model ?? EmailSettingsModel()); self.onCancel = onCancel; self.onOK = onOK
+    }
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack { if let image = MenuIcon.sendMail.image() { Image(nsImage: image) }; Text("Email").font(.headline) }
@@ -208,11 +239,53 @@ actor SMTPKeychainStore: SMTPCredentialStore {
             if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
             if !model.validPort { Text("Enter a whole number from 0 to 4294967295.").foregroundStyle(.red) }
             Spacer()
-            HStack { Spacer(); Button("Cancel") { model.discard() }.disabled(model.busy); Button("Apply") { model.apply() }.disabled(!model.canApply) }
+            HStack {
+                Spacer()
+                if let onOK { Button("OK", action: onOK).keyboardShortcut(.defaultAction).disabled(model.busy || !model.validPort) }
+                Button("Cancel") { model.discard(); onCancel?() }.disabled(model.busy).keyboardShortcut(.cancelAction)
+                Button("Apply") { model.apply() }.disabled(!model.canApply)
+            }
         }.padding(20).disabled(model.busy)
             .onAppear { model.refreshCredentials() }
             .sheet(isPresented: $credentialSheet) { SMTPCredentialSheet(login: model.login) { login, password in model.storeCredentials(login: login, password: password) } }
     }
+}
+
+/// The source settings link launches an independent settings window. Keep its
+/// lifetime separate from Send Patch and reuse it for repeated settings links.
+@MainActor final class EmailSettingsWindowController: NSWindowController, NSWindowDelegate {
+    private(set) static var current: EmailSettingsWindowController?
+    let model: EmailSettingsModel
+    var onClosed: () -> Void = {}
+    static func present(preferences: UserDefaults = .standard) {
+        let controller: EmailSettingsWindowController
+        if let current { controller = current }
+        else {
+            controller = EmailSettingsWindowController(preferences: preferences)
+            current = controller
+            controller.onClosed = { [weak controller] in if current === controller { current = nil } }
+        }
+        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
+    init(preferences: UserDefaults = .standard, credentials: any SMTPCredentialStore = SMTPKeychainStore()) {
+        model = EmailSettingsModel(preferences: preferences, credentials: credentials)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 680, height: 460), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        window.title = "Email – Settings – TurtleGit"; window.isReleasedWhenClosed = false
+        window.contentMinSize = NSSize(width: 640, height: 460)
+        super.init(window: window); window.delegate = self
+        window.contentViewController = NSHostingController(rootView: EmailSettingsPage(model: model,
+            onCancel: { [weak self] in self?.window?.performClose(nil) }, onOK: { [weak self] in self?.accept() }))
+        window.center()
+    }
+    func accept() {
+        guard !model.busy, window?.attachedSheet == nil else { return }
+        window?.makeFirstResponder(nil)
+        guard model.validPort else { return }
+        model.apply(); window?.performClose(nil)
+    }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && sender.attachedSheet == nil }
+    func windowWillClose(_ notification: Notification) { model.invalidate(); onClosed() }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 private struct SMTPLoginField: NSViewRepresentable {
     var login: String

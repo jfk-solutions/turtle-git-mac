@@ -1,0 +1,74 @@
+{
+  "checked_at": "2026-10-10T01:34:21.879832+00:00",
+  "parent_commit": "8b31180c35b9a2935270f2c24df221e818d57cda",
+  "scope": "Native Send Patch settings link/independent Email window, captured effective delivery configuration and atomic Keychain pair source; production callers and transport remain pending",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blob_sha256": {
+    "src/TortoiseProc/SendMailDlg.cpp": "bdc85d9bbc50a21f326f383572ece6f840c729d69afbbe4d59bbefc31e289517",
+    "src/TortoiseProc/SendMail.cpp": "d8f6135a262c4f8b67f8d3bf93dcd482d180362e3c756018e97f3f737f090a25",
+    "src/TortoiseProc/Settings/SettingSMTP.cpp": "176a04ce70f8e680b35a713af648239689ad9018f0073b3a68e7d19e2c082e59"
+  },
+  "checks": {
+    "send_native_receiver_exit": 0,
+    "email_native_receiver_exit": 0,
+    "debug_build_exit": 0,
+    "debug_bundle_audit_exit": 0,
+    "appstore_unsigned_build_exit": 0,
+    "appstore_bundle_audit_exit": 0,
+    "inventory_pin_exit": 0,
+    "bundled_icons": 100,
+    "core_tests_rerun": false,
+    "native_cases": [
+      "Existing four-mode preparation, options/history, checked/highlighted/context/drop behavior, To/CC, retry/cancellation and hidden light/dark checks retained",
+      "Source differing absent delivery defaults: settings direct SMTP, Send mail client",
+      "Applied shared settings observed before next Send; current SMTP mode rejects empty To/CC",
+      "Immutable request delivery/server/port/encryption/auth capture across later preference changes during async preparation",
+      "Controller installs settings callback; injected presenter receives private preferences and instantiates real hidden Email settings controller",
+      "Independent settings leave Send usable; invalid OK keeps settings open; valid OK applies shared settings and closes",
+      "Closing Send leaves independent settings alive; closed Send cannot reopen settings; private settings close without global production window",
+      "Atomic one-query Keychain username/password source through simulated Security API; both attributes/data requested, exact immutable pair, missing nil, missing password and invalid UTF-8 rejected"
+    ],
+    "preferences": [
+      {
+        "suite": "TurtleGit.Email.QA.F1D7A3BB-CF93-4918-9322-FF0C005C554C",
+        "verified_empty": true,
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "suite": "TurtleGit.SendPatch.QA.4BB0F96C-AFBA-487C-B90D-7FF8F192EFDF",
+        "verified_empty": true,
+        "defaults_delete_exit": 1,
+        "removed": true
+      }
+    ],
+    "side_effects": "No main app, displayed window, live Keychain call, mail client, draft, network or delivery; injected private settings presenter and simulated Security only",
+    "final_audit": {
+      "matching_processes": [],
+      "current_fixtures": []
+    }
+  },
+  "source_sha256": {
+    "NOTICE": "338c9fa81755316b67ebc92567a7d651b5ad2c38629650136d2b8469008cf4f8",
+    "Sources/TurtleGitMac/EmailSettings.swift": "a53b82ba6cec08b2a1682f0d2da9280949fa934123632c3b0b391d21f3bca710",
+    "Sources/TurtleGitMac/SendPatchWindow.swift": "e5d87a316d4557ccde5137cd9ef91e6a1c1598688c90e87b05b01a8801a3b0ee",
+    "docs/SEND-PATCH-PARITY.md": "670d972f3ea34dc6c77c51b059b020a3085dfbe2fea041706023a4122646d5b7",
+    "docs/qa/email-settings-native-2026-10-10.swift": "6d7afb4d695b899432bbe6d8dc4ea00f2f5cdf8fab1272678dec995d81393fb2",
+    "docs/qa/send-patch-dialog-native-2026-10-10.swift": "d19f5c8743ea70bc859ff071ac8167d811d6d6f710f161f978ad4c94d1b17050",
+    "docs/upstream-files.csv": "062a6905facf52aca3031af0042c1bf7f7a5413e56e87ec6096be174a4527549"
+  },
+  "binary_sha256": {
+    "Debug_app": "ae0fc297ae892ad6d53e5bfb2e3aee3218b8dda08c01e7e3c33faa88de63b8d1",
+    "Debug_core": "3fe217a463f569a327f14da43ef211e6069d19e868414a09548873618388273d",
+    "AppStore_app": "74e524bd0dda3b07a9457d7cfd5a8e803c1b9474fb0a152a82ee889dd1c467ad",
+    "AppStore_core": "efb68365054441bf70e7f50d39e641854ff43f113e8bf18d8106c84d8609e7da"
+  },
+  "limitations": [
+    "Native Send Patch controller still not exposed through production Format Patch/Import Patch callers; submission backend remains gated",
+    "Sender/credential transport capture orchestration, direct/configured SMTP and Mail client delivery, TLS/authentication/progress/retry/cancellation pending",
+    "Actual visible settings opening/reuse/credential sheet gestures, signed Keychain/file grants/Finder/App Store/distribution acceptance are not proved by hidden injected presentation or simulation",
+    "Hidden native checks do not prove complete physical UI/keyboard/VoiceOver parity; localization and full port remain incomplete",
+    "Hosted GitHub CI remains unverified"
+  ],
+  "logs": "build/qa/send-patch-settings-routing-2026-10-10/ (ignored local logs)"
+}

@@ -9,6 +9,7 @@ struct SendPatchRequest {
     let files: [URL]
     let options: PatchMailOptions
     let messages: [PatchMailMessage]
+    let delivery: EmailConfiguration
 }
 
 @MainActor final class SendPatchWindowModel: ObservableObject {
@@ -26,7 +27,8 @@ struct SendPatchRequest {
     @Published private(set) var busy = false
     @Published private(set) var pendingLoads = 0
     @Published var error: String?
-    let delivery: Delivery
+    private let deliveryOverride: Delivery?
+    var delivery: Delivery { capturedDelivery().delivery == .mailClient ? .mailClient : .smtp }
     private let preferences: UserDefaults
     private var access: [RepositoryAccessLease]
     private var invalidated = false, submitted = false
@@ -47,11 +49,21 @@ struct SendPatchRequest {
     var canSubmit: Bool { !invalidated && !submitted && !busy && onSubmit != nil }
     var canInteract: Bool { !invalidated && !submitted && !busy }
 
-    init(files: [URL], delivery: Delivery = .mailClient, access: [RepositoryAccessLease] = [], preferences: UserDefaults = .standard) {
+    init(files: [URL], delivery: Delivery? = nil, access: [RepositoryAccessLease] = [], preferences: UserDefaults = .standard) {
         let initial = files.map { SendPatchRow(file: $0) }
         rows = initial; checked = Set(initial.map(\.id)); highlighted = initial.count == 1 ? Set(initial.map(\.id)) : []
-        self.delivery = delivery; self.access = access; self.preferences = preferences
+        self.deliveryOverride = delivery; self.access = access; self.preferences = preferences
         attachment = preferences.bool(forKey: "SendMail.Attach"); combine = preferences.bool(forKey: "SendMail.Combine")
+    }
+    private func capturedDelivery() -> EmailConfiguration {
+        // Upstream SendMail/SendMailDlg use MAPI when the preference is absent;
+        // the settings page separately defaults to direct SMTP.
+        var configuration = EmailConfiguration(preferences: preferences, missingDelivery: .mailClient)
+        if let deliveryOverride {
+            if deliveryOverride == .mailClient { configuration.delivery = .mailClient }
+            else if configuration.delivery == .mailClient { configuration.delivery = .direct }
+        }
+        return configuration
     }
     func setChecked(_ ids: Set<UUID>) { guard canInteract else { return }; checked = ids.intersection(rows.map(\.id)) }
     func setHighlighted(_ ids: Set<UUID>) {
@@ -90,11 +102,12 @@ struct SendPatchRequest {
         endEditing(); guard canSubmit else { return }
         previewWork?.cancel(); previewWork = nil; previewGeneration = UUID(); previewBusy = false
         let files = rows.filter { checked.contains($0.id) }.map(\.file)
+        let deliverySnapshot = capturedDelivery()
         var options = PatchMailOptions(); options.to = to; options.cc = cc; options.subject = combinedSubject
         options.attachment = attachment; options.combine = combine
         do {
             try checkAccess(files)
-            if delivery == .smtp && (to + ";" + cc).split(separator: ";").allSatisfy({ $0.trimmingCharacters(in: .whitespaces).isEmpty }) {
+            if deliverySnapshot.delivery != .mailClient && (to + ";" + cc).split(separator: ";").allSatisfy({ $0.trimmingCharacters(in: .whitespaces).isEmpty }) {
                 error = "Enter at least one To or CC address."; return
             }
         } catch { self.error = error.localizedDescription; return }
@@ -119,7 +132,7 @@ struct SendPatchRequest {
                 let messages = try await work.value
                 guard !invalidated, !submitted else { return }
                 submitted = true
-                onSubmit(SendPatchRequest(files: files, options: snapshot, messages: messages)); close()
+                onSubmit(SendPatchRequest(files: files, options: snapshot, messages: messages, delivery: deliverySnapshot)); close()
             } catch { if !invalidated && !(error is CancellationError) { self.error = error.localizedDescription } }
         }
     }
@@ -173,13 +186,20 @@ struct SendPatchRequest {
 @MainActor final class SendPatchWindowController: NSWindowController, NSWindowDelegate {
     let model: SendPatchWindowModel
     var onClosed: () -> Void = {}
-    init(files: [URL], delivery: SendPatchWindowModel.Delivery = .mailClient, access: [RepositoryAccessLease] = [], preferences: UserDefaults = .standard) {
+    init(files: [URL], delivery: SendPatchWindowModel.Delivery? = nil, access: [RepositoryAccessLease] = [], preferences: UserDefaults = .standard,
+         settingsPresenter: ((UserDefaults) -> Void)? = nil) {
         model = SendPatchWindowModel(files: files, delivery: delivery, access: access, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 480), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "Send Patch – TurtleGit"; window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 620, height: 380)
         window.contentViewController = NSHostingController(rootView: SendPatchDialog(model: model))
         super.init(window: window); window.delegate = self; window.center()
         model.close = { [weak window] in window?.close() }; model.endEditing = { [weak window] in window?.makeFirstResponder(nil) }; model.refreshPreview()
+        model.showSettings = { [weak model] in
+            guard model?.canInteract == true else { return }
+            model?.endEditing()
+            if let settingsPresenter { settingsPresenter(preferences) }
+            else { EmailSettingsWindowController.present(preferences: preferences) }
+        }
         DialogGeometry.attach(window, identifier: "SendPatchDialog", legacyName: "SendPatchDialog")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { sender.attachedSheet == nil }

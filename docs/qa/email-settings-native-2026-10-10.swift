@@ -123,6 +123,18 @@ private final class SecurityProbe: @unchecked Sendable {
         login = try await keychain.login(); try require(login == "updated", "Attribute-only login read")
         let request = probe.queries.last!
         try require(request[kSecReturnData as String] == nil && (request[kSecUseAuthenticationContext as String] as? LAContext)?.interactionNotAllowed == true, "Login refresh must not request password or authentication UI")
+        probe.copied = [kSecAttrGeneric as String: Data("pair 雪".utf8), kSecValueData as String: Data("pair-secret 雪".utf8)]
+        let pair = try await keychain.credentials()
+        try require(pair?.login == "pair 雪" && pair?.password == "pair-secret 雪", "Atomic username/password capture")
+        try require(probe.queries.last?[kSecReturnData as String] as? Bool == true && probe.queries.last?[kSecReturnAttributes as String] as? Bool == true, "Credential pair fetched in one query")
+        probe.copied = [kSecAttrGeneric as String: Data("new".utf8), kSecValueData as String: Data("new-secret".utf8)]
+        try require(pair?.login == "pair 雪" && pair?.password == "pair-secret 雪", "Captured pair remains immutable")
+        probe.copyStatus = errSecItemNotFound
+        let missing = try await keychain.credentials(); try require(missing == nil, "Missing credential pair")
+        probe.copyStatus = errSecSuccess; probe.copied = [kSecAttrGeneric as String: Data("bad".utf8)]
+        do { _ = try await keychain.credentials(); throw CheckFailure(description: "Missing password accepted") } catch is SMTPKeychainFailure { }
+        probe.copied = [kSecAttrGeneric as String: Data("bad".utf8), kSecValueData as String: Data([255])]
+        do { _ = try await keychain.credentials(); throw CheckFailure(description: "Invalid password encoding accepted") } catch is SMTPKeychainFailure { }
         probe.deleteStatus = errSecItemNotFound; try await keychain.clear()
         probe.copyStatus = errSecAuthFailed
         do { _ = try await keychain.login(); throw CheckFailure(description: "Keychain access failure swallowed") } catch is SMTPKeychainFailure { }

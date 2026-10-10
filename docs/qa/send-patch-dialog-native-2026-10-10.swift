@@ -3,6 +3,11 @@ import SwiftUI
 import TurtleGitCore
 
 private struct VerificationFailure: Error, CustomStringConvertible { let description: String }
+private actor PrivateSMTPStore: SMTPCredentialStore {
+    func login() async throws -> String { "" }
+    func store(login: String, password: String) async throws { }
+    func clear() async throws { }
+}
 @main struct SendPatchVerification {
     @MainActor static func require(_ condition: @autoclosure () -> Bool, _ message: String) throws {
         if !condition() { throw VerificationFailure(description: message) }
@@ -167,7 +172,46 @@ private struct VerificationFailure: Error, CustomStringConvertible { let descrip
         try require(combo.numberOfItems == 2, "History provided through AppKit data source")
         try require(combo.dataSource?.comboBox?(combo, completedString: "keep@example.invalid;  rev") == "keep@example.invalid;  Review 雪 <review@example.invalid>", "Last-token semicolon completion preserves prefix")
         try require(combo.dataSource?.comboBox?(combo, completedString: "unknown") == nil, "Unknown prefix has no completion")
-        let controller = SendPatchWindowController(files: [first], preferences: prefs)
+        // Settings page and Send use different absent delivery defaults upstream.
+        prefs.removeObject(forKey: "SendMail.DeliveryType")
+        try require(EmailConfiguration(preferences: prefs).delivery == .direct, "Settings default direct SMTP")
+        let dynamic = SendPatchWindowModel(files: [first], preferences: prefs)
+        try require(dynamic.delivery == .mailClient, "Absent Send preference defaults to mail client")
+        var captured: SendPatchRequest?
+        dynamic.onSubmit = { captured = $0 }
+        var config = EmailConfiguration(preferences: prefs)
+        config.delivery = .configured; config.server = "smtp.example.invalid"; config.port = 587
+        config.encryption = .startTLS; config.authenticate = true; config.save(prefs)
+        try require(dynamic.delivery == .smtp, "Settings edits observed without reopening Send")
+        dynamic.submit()
+        try require(dynamic.error != nil && captured == nil && dynamic.pendingLoads == 0, "Updated SMTP mode requires To/CC")
+        dynamic.cc = "review@example.invalid"; dynamic.submit()
+        var later = config; later.delivery = .mailClient; later.server = "later.example.invalid"; later.port = 25; later.save(prefs)
+        try await settle(dynamic)
+        try require(captured?.delivery == config && captured?.options.cc == "review@example.invalid", "Delivery/options captured before async preparation")
+        dynamic.invalidate(); prefs.removeObject(forKey: "SendMail.DeliveryType")
+
+        var settingsOpened = 0, settingsClosed = 0
+        var emailWindow: EmailSettingsWindowController?
+        let controller = SendPatchWindowController(files: [first], preferences: prefs, settingsPresenter: { received in
+            settingsOpened += 1
+            let settings = EmailSettingsWindowController(preferences: received, credentials: PrivateSMTPStore())
+            settings.onClosed = { settingsClosed += 1 }; emailWindow = settings
+        })
+        controller.model.showSettings?()
+        try require(settingsOpened == 1 && controller.model.canInteract && emailWindow?.window?.isVisible == false, "Independent hidden Email settings route")
+        if let settings = emailWindow {
+            let deadline = Date().addingTimeInterval(10)
+            while settings.model.pendingOperations != 0 && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+            try require(settings.model.pendingOperations == 0, "Settings credential refresh finished")
+            settings.model.delivery = .configured; settings.model.server = "applied.example.invalid"; settings.model.port = ""
+            settings.accept(); try require(settingsClosed == 0, "Invalid OK must keep settings open")
+            settings.model.port = "465"; settings.model.encryption = .tls; settings.accept()
+            try require(settingsClosed == 1 && prefs.string(forKey: "SendMail.Address") == "applied.example.invalid" && prefs.integer(forKey: "SendMail.Port") == 465, "Settings OK applies shared options and closes")
+        }
+        prefs.set(EmailDelivery.mailClient.rawValue, forKey: "SendMail.DeliveryType")
+        controller.model.showSettings?()
+        try require(settingsOpened == 2 && controller.model.canInteract, "Independent settings do not block Send")
         guard let window = controller.window else { throw VerificationFailure(description: "No native window") }
         defer { window.close() }
         window.contentView?.layoutSubtreeIfNeeded()
@@ -182,6 +226,14 @@ private struct VerificationFailure: Error, CustomStringConvertible { let descrip
         try require(controller.model.canSubmit, "Injected native host backend")
         controller.model.refreshPreview(); controller.model.submit(); window.performClose(nil); try await settle(controller.model)
         try require(!controller.model.canSubmit && windowSubmits == 0 && !controller.model.busy, "Actual user close invalidates pending preparation")
+        try require(settingsClosed == 1, "Closing Send must not close independent Email settings")
+        controller.model.showSettings?(); try require(settingsOpened == 2, "Closed Send cannot open settings")
+        if let settings = emailWindow {
+            let deadline = Date().addingTimeInterval(10)
+            while settings.model.pendingOperations != 0 && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+            settings.window?.performClose(nil)
+        }
+        try require(settingsClosed == 2 && EmailSettingsWindowController.current == nil, "Private settings close; global production settings not opened")
         print("Send Patch: source options/checked-highlighted subject states, four captured modes, duplicate ordering, private shared history, To/CC, client/SMTP recipient gates, retry, late close fencing, native checkbox/Space interactions, hidden light/dark layout. No mail client, main app or delivery.")
         print("Private suite cleaned: " + suite)
     }

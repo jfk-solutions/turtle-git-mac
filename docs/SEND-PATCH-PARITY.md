@@ -12,11 +12,11 @@ Baseline: TortoiseGit `7338078f8ddd924b8cddee35f512f2286072136d`.
 | --- | --- |
 | SerialPatch.cpp/.h | SerialPatch.swift: bounded file read, source headers/folded subject, LF/CRLF body boundary and exact original bytes |
 | SendMailPatch.cpp/.h | PatchMailPreparation.swift: separate/combined, inline/attachment messages |
-| SendMail.cpp/.h | Checked-list ordering only; delivery/retry/sender identity remain pending |
+| SendMail.cpp/.h | Checked-list ordering, source sender capture API and immutable delivery settings; transport orchestration/delivery/retry pending |
 | Utils/HwSMTP.cpp/.h | PatchMailMIME.swift: envelope, body and ordered attachments only; SMTP pending |
 | SendMailDlg.cpp/.h / IDD_SENDMAIL | SendPatchWindow.swift / SendPatchList.swift: native options, checked/highlighted state and captured preparation; production viewer/review/apply routing and delivery pending |
 | AppUtils.cpp SendPatchMail / SendMailCommand.cpp | Entry points reviewed; native routing still pending |
-| Settings/SettingSMTP.cpp/.h | SMTP/mail-client settings, Keychain credentials, encryption and delivery remain pending |
+| Settings/SettingSMTP.cpp/.h | Native Email settings, app-private Keychain Store/Clear and pair capture source; transports and actual signed access pending |
 
 ## Audited dialog behavior
 
@@ -34,8 +34,7 @@ and then starts mail progress. With no checked paths it starts no delivery. The
 mail-client mode permits empty To/CC so the composition UI can fill them; SMTP
 requires at least one recipient. Double-click opens the patch viewer except on
 the checkbox. Native patch-list drop/context controls are implemented below;
-production action routing and the SMTP settings link remain pending, along with
-all callers.
+production action routing and all callers remain pending.
 
 ## Prepared message behavior
 
@@ -159,10 +158,10 @@ subsequent cancellation retains accepted options. Actual delivery validation
 still belongs to the backend.
 AppStore reads require retained security-scoped file/folder leases; signed
 scope acceptance is pending. Send stays disabled without an injected submission
-backend, and eMail settings without its settings callback. Existing callers are
+backend. The controller now installs the native eMail settings route. Existing callers are
 unchanged; this window is not yet exposed as a complete Send command.
 
-Remaining work includes native entry-point routing, patch viewer/settings
+Remaining work includes native entry-point routing and patch viewer
 callbacks, production CPatchListCtrl viewer/review/apply routing, sender capture routing,
 transport progress/cancellation/retry, actual Mail/SMTP delivery and signed
 sandbox acceptance. Help currently links to upstream's patch documentation.
@@ -271,5 +270,43 @@ private preferences and a private credential store. The production adapter's
 branches are tested through simulated Security APIs; tests never touch the user's
 Keychain or send mail. This is not signed Keychain/file-grant, sheet interaction,
 physical visual or transport acceptance. See [Email settings QA](qa/email-settings-2026-10-10.json).
-Native Send Patch settings-link routing and sender/credential transport capture
-remain pending, along with Mail/SMTP delivery and the full port.
+The native Send Patch settings link is now routed as described below;
+sender/credential transport capture remains pending, along with Mail/SMTP delivery and the full port.
+
+## Settings link and captured delivery configuration
+
+Send Patch's eMail settings link now opens a retained independent Email settings
+window. Upstream launches `/command:settings /page:smtp` as a separate process;
+the native adaptation reuses one app-owned settings window, with OK/Cancel/Apply,
+and leaves the Send dialog usable. Closing Send does not close these settings.
+The window owns its credential work, refuses user close during credential
+operations or a credential sheet, and invalidates late callbacks on close.
+OK ends field editing, validates the port, applies options and closes. Cancel
+discards unapplied options; credential effects remain immediate.
+
+Default Send models now read the current delivery preference when Send is clicked,
+including changes applied through the settings window. Missing preference uses
+mail client (1), matching SendMailDlg/SendMail; the settings page still uses direct
+SMTP (0). Explicit delivery injection remains available for private tests.
+The captured SendPatchRequest includes an immutable EmailConfiguration: delivery,
+server, UInt32 port, encryption and authentication flag. Settings changes during
+asynchronous patch loading cannot change that request. SMTP recipient validation
+uses the same captured delivery; separate To/CC and all four prepared modes remain
+unchanged. The backend must validate network ports and consume this capture
+rather than rereading defaults mid-operation.
+
+SMTPKeychainStore also exposes a transport-only credential source. One
+attribute-and-data query captures username/password atomically; missing item
+returns nil and malformed/access failures are explicit. Login display continues
+to request attributes only. The captured pair is never saved in preferences or
+logged. Transport must request it only when configured authentication is required
+and retain it only for the operation. Real signed access and transport use remain
+pending.
+
+Expanded hidden receivers test the independent settings callback/controller,
+invalid OK and applied shared settings, close lifetime/fencing, differing absent
+defaults, current SMTP recipient gates, immutable request capture across later
+settings changes, and atomic credential decode using simulated Security APIs.
+The settings presenter is injected to keep all windows unordered; actual user
+opening/reuse, credential sheet gestures and signed Keychain acceptance are not
+proved by these tests. See [routing QA](qa/send-patch-settings-routing-2026-10-10.json).

@@ -1206,3 +1206,10 @@ UserPassword.h Copyright (C) 2013, 2018, 2020, 2023 TortoiseGit.
 App-private Keychain credentials, async control gating and native SwiftUI/AppKit
 settings/sheet controls replace Windows registry and Credential Manager APIs.
 Shared credential consumers, transports and signed acceptance remain pending.
+
+SendPatchWindow.swift's Email settings link additionally adapts SendMailDlg's
+settings-page launch and delivery preference validation. EmailSettings.swift
+provides an app-owned independent native settings window and immutable delivery
+and atomic Keychain credential capture. Existing SendMailDlg/SettingSMTP
+attribution applies; native lifecycle and Security API changes remain under
+GPL-2.0-or-later. Production Send callers and transports are still pending.
