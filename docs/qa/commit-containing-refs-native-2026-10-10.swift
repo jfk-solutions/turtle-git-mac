@@ -30,6 +30,14 @@ import Darwin
         _ = try await repo.run(["update-ref", "refs/remotes/origin/main", "HEAD"])
         let head = try await repo.run(["rev-parse", "HEAD"]).stdout
         let index = try Data(contentsOf: root.appendingPathComponent(".git/index")), config = try Data(contentsOf: root.appendingPathComponent(".git/config")), bytes = try Data(contentsOf: file), refs = try await repo.run(["show-ref"]).stdout
+        for name in ["", "missing"] {
+            let initial = CommitContainingReferencesWindowController(repository: repo, access: nil, revision: name, preferences: prefs)
+            initial.window!.alphaValue = 0; initial.window!.orderFront(nil)
+            initial.refresh(); try await wait { !initial.busy }
+            try require(initial.snapshot == nil && initial.revision.objectValues.contains { ($0 as? String) == "refs/heads/main" })
+            try require(name.isEmpty ? initial.status.stringValue.isEmpty : initial.status.stringValue.contains("Invalid revision"))
+            initial.close(); try require(initial.closed)
+        }
         let controller = CommitContainingReferencesWindowController(repository: repo, access: nil, revision: base, preferences: prefs), window = controller.window!
         window.alphaValue = 0; window.orderFront(nil); defer { window.close() }
         var copied = "", logs: [(String?, Bool, HistoryRevisionRange?)] = [], browsed: [String] = [], comparisons: [(ComparisonRevision, ComparisonRevision)] = []
@@ -57,6 +65,16 @@ import Darwin
             }
             window.appearance = NSAppearance(named: .aqua)
         }
+        let cachedNames = controller.revision.objectValues.compactMap { $0 as? String }
+        _ = try await repo.run(["branch", "z-completion-later", base])
+        controller.revision.stringValue = base; controller.refresh(); try await wait { !controller.busy }
+        try require(controller.rows.contains("refs/heads/z-completion-later") && controller.revision.objectValues.compactMap { $0 as? String } == cachedNames)
+        let f5 = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [.function], timestamp: 0, windowNumber: window.windowNumber, context: nil, characters: "\u{F708}", charactersIgnoringModifiers: "\u{F708}", isARepeat: false, keyCode: 96)!
+        try require(window.performKeyEquivalent(with: f5)); try await wait { !controller.busy }
+        try require(controller.revision.stringValue == base && controller.revision.objectValues.contains { ($0 as? String) == "refs/heads/z-completion-later" })
+        _ = try await repo.run(["branch", "-D", "z-completion-later"])
+        try require(window.performKeyEquivalent(with: f5)); try await wait { !controller.busy }
+        try require(controller.rows.count == 4 && controller.revision.objectValues.compactMap { $0 as? String } == cachedNames)
         func menu() -> NSMenu { let menu = controller.table.menu!; controller.menuNeedsUpdate(menu); return menu }
         func action(_ title: String) throws {
             let item = menu().items.first { $0.title == title }!; try require(item.isEnabled && NSApp.sendAction(item.action!, to: item.target, from: item))
@@ -91,7 +109,7 @@ import Darwin
         try require(window.performKeyEquivalent(with: escape)); try require(controller.filter.stringValue.isEmpty && controller.rows.count == 4)
         controller.revision.stringValue = "missing"; controller.refresh(); try await wait { !controller.busy }
         try require(controller.snapshot == nil && !controller.showLog.isEnabled && !controller.filter.isEnabled && controller.chooser.isEnabled && controller.status.stringValue.contains("Invalid revision"))
-        controller.revision.stringValue = ""; controller.refresh(); try require(controller.rows.isEmpty && controller.status.stringValue.isEmpty)
+        controller.revision.stringValue = ""; controller.refresh(); try await wait { !controller.busy }; try require(controller.rows.isEmpty && controller.status.stringValue.isEmpty)
         controller.revision.stringValue = base; controller.refresh(); try await wait { !controller.busy }
         func choose(_ index: Int) throws {
             let item = controller.chooser.itemArray.first { $0.title == ["Browse References", "Log", "Reflog"][index] }!

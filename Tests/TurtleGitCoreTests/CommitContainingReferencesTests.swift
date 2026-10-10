@@ -65,4 +65,17 @@ final class CommitContainingReferencesTests: XCTestCase {
         let token = OperationCancellation(); token.cancel()
         do { _ = try await repo.commitContainingReferences("HEAD", cancellation: token); XCTFail("Accepted cancellation") } catch { XCTAssertTrue(token.isCancelled) }
     }
+    func testCompletionCanLoadWithoutCommitAndContainmentCanSkipRepeatedCompletionRead() async throws {
+        let (root, repo, base, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let names = try await repo.commitContainingReferenceCompletion()
+        XCTAssertTrue(names.contains("refs/notes/nonbranch")); XCTAssertTrue(names.contains("refs/tags/blob-tag"))
+        let included = try await repo.commitContainingReferences(base), skipped = try await repo.commitContainingReferences(base, includeCompletion: false)
+        XCTAssertEqual(included.completion, names); XCTAssertTrue(skipped.completion.isEmpty); XCTAssertEqual(included.references, skipped.references)
+        let empty = root.appendingPathComponent("empty"); try FileManager.default.createDirectory(at: empty, withIntermediateDirectories: true)
+        let unborn = GitRepository(root: empty, executable: repo.executable); _ = try await unborn.run(["init", "-b", "main"])
+        let emptyNames = try await unborn.commitContainingReferenceCompletion(); XCTAssertTrue(emptyNames.isEmpty)
+        let token = OperationCancellation(); token.cancel()
+        do { _ = try await repo.commitContainingReferenceCompletion(cancellation: token); XCTFail("Accepted cancelled completion read") } catch { XCTAssertTrue(token.isCancelled) }
+    }
+
 }

@@ -45,6 +45,7 @@ private final class CommitReferencesWindow: NSWindow {
     private var filterTimer: Timer?
     private var lastSelected: GitReferenceName?
     private var previousSelection = IndexSet()
+    private var completionCache: [GitReferenceName]?
     private var unifiedViewer: PatchWindowController?
     private var canAct: Bool { !closed && !busy && picker == nil && window?.attachedSheet == nil && window?.parent?.attachedSheet == nil }
 
@@ -82,24 +83,30 @@ private final class CommitReferencesWindow: NSWindow {
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     private func cancelRead() { request = UUID(); token?.cancel(); token = nil; worker?.cancel(); worker = nil; busy = false }
-    func refresh() {
-        guard !closed, picker == nil, window?.attachedSheet == nil else { return }
+    func refresh(reloadCompletion: Bool = false) {
+        guard !closed, picker == nil, window?.attachedSheet == nil, window?.parent?.attachedSheet == nil else { return }
         revisionTimer?.invalidate(); revisionTimer = nil; filterTimer?.invalidate(); filterTimer = nil
         cancelRead(); snapshot = nil; rows = []; subject.stringValue = ""; subject.toolTip = nil; table.reloadData(); previousSelection = []; lastSelected = nil
         let name = revision.stringValue
-        guard !name.isEmpty else { status.stringValue = ""; updateAvailability(); return }
+        if reloadCompletion { completionCache = nil; revision.removeAllItems(); revision.stringValue = name }
         let cancellation = OperationCancellation(), generation = UUID(); request = generation; token = cancellation; busy = true; status.stringValue = "Loading…"; updateAvailability()
         worker = Task { [weak self] in
             guard let self else { return }
             defer { withExtendedLifetime(access) {} }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                if completionCache == nil {
+                    let names = try await repository.commitContainingReferenceCompletion(cancellation: cancellation)
+                    guard !closed, request == generation, !cancellation.isCancelled else { return }
+                    completionCache = names
+                    revision.removeAllItems(); revision.addItems(withObjectValues: names.map(\.rawValue)); revision.stringValue = name
+                }
+                guard !name.isEmpty else { busy = false; token = nil; worker = nil; status.stringValue = ""; updateAvailability(); return }
                 let data: CommitContainingReferences
                 if let read { data = try await read(name, cancellation) }
-                else { data = try await repository.commitContainingReferences(name, cancellation: cancellation) }
+                else { data = try await repository.commitContainingReferences(name, includeCompletion: false, cancellation: cancellation) }
                 guard !closed, request == generation, !cancellation.isCancelled else { return }
                 snapshot = data; busy = false; token = nil; worker = nil
-                revision.removeAllItems(); revision.addItems(withObjectValues: data.completion.map(\.rawValue)); revision.stringValue = name
                 subject.stringValue = data.abbreviatedHash + ": " + data.subject; subject.toolTip = HistoryDateSettings.load(defaults: preferences).format(data.authorDate, absolute: true) + "  " + data.author
                 applyFilter(); updateAvailability()
             } catch {
@@ -195,7 +202,7 @@ private final class CommitReferencesWindow: NSWindow {
     }
     var hasBlockingChild: Bool { picker != nil || window?.attachedSheet != nil || unifiedViewer?.model.busy == true || unifiedViewer?.window?.attachedSheet != nil }
     func handleKey(_ event: NSEvent) -> Bool {
-        if event.keyCode == 96 { refresh(); return true }
+        if event.keyCode == 96 { refresh(reloadCompletion: true); return true }
         if event.keyCode == 53, let editor = filter.currentEditor(), window?.firstResponder === editor, !filter.stringValue.isEmpty { filter.stringValue = ""; applyFilter(); return true }
         if event.modifierFlags.contains(.command), window?.firstResponder === table {
             if event.charactersIgnoringModifiers == "a", canAct { table.selectAll(nil); return true }
