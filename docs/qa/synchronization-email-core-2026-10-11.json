@@ -1,0 +1,47 @@
+{
+  "date": "2026-10-11",
+  "status": "core-email-export-prerequisite-verified-native-pending",
+  "code_commit": "73d6a85f1f8312b56e6426e184091ee546b592e8",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": "SyncDlg.cpp OnBnClickedButtonEmail / FetchOutList; AppUtils.cpp SendPatchMail",
+  "behavior": [
+    "Trim remote and remote branch; export named range into repository without saved Format Patch choices",
+    "Use sole for-merge FETCH_HEAD record for local pseudo-reference, reject ambiguous/empty record",
+    "Cancellation and invalid-input guards; existing format-patch safe argument-vector and metadata-directory protection"
+  ],
+  "verification": {
+    "system_git_2_50_1": {
+      "command": "swift test --filter SynchronizationTests.testEmailPatch",
+      "tests": 2,
+      "failures": 0
+    },
+    "packaged_git_2_55_0": {
+      "command": "TURTLEGIT_GROUP_TEST_GIT=\"$PWD/build/git-runtime/Git/bin/git\" swift test --skip-build --filter SynchronizationTests.testEmailPatch",
+      "tests": 2,
+      "failures": 0
+    },
+    "coverage": [
+      "Two actual patch subjects from selected main while HEAD is on another branch",
+      "refs/index/config/HEAD preservation",
+      "sole for-merge and ambiguous FETCH_HEAD cases",
+      "empty range, pre-cancellation and missing branch"
+    ],
+    "corrected_attempts": [
+      "Initial compile used nonexistent GitCommandFailure catch; changed to actual GitFailure.",
+      "Initial eight-test run had one failed temporary-path comparison (/var symbolic directory versus resolved /private/var export). All other seven tests passed. Compare resolved parent URLs; two export tests then passed on both engines. No claim of a final eight-test full rerun."
+    ]
+  },
+  "remaining": [
+    "Native Email Patch button and enablement presentation",
+    "No-patches and export errors",
+    "Captured repository grants and native Send Mail options/progress ownership",
+    "Forced-close cancellation and late-callback fences",
+    "Native screenshots/builds/signed sandbox and public mail acceptance for this route"
+  ],
+  "sha256": {
+    "Sources/TurtleGitCore/Synchronization.swift": "cd53ca257d17f751a54b093b6f7c001563bfaf247ee47fa32f9c0ed76cb20889",
+    "Tests/TurtleGitCoreTests/SynchronizationTests.swift": "7ee0c8c36235f019279047ecdd79638cc84bed22dce001e3bfd615076d621352",
+    "build/qa/synchronization-email-core-focused-2026-10-11.log": "a72cc3b06a89601af041aff61d30d69dc2ae76ec408c367842f268d70abf514e",
+    "build/qa/synchronization-email-core-packaged-2026-10-11.log": "24448f6047c4fb0cea79bef6604582dd9142daff9ac5b8642201c333bed1c5fc"
+  }
+}

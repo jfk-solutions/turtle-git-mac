@@ -846,3 +846,30 @@ The refreshed normal captures are on the website. Debug and unsigned universal
 App Store builds, both bundle audits, inventory-pin and site checks passed.
 Physical input and signed acceptance remain unverified. See [Import Patch lifetime work](IMPORT-PATCH-PARITY.md) and the
 [checkpoint evidence](qa/synchronization-apply-native-2026-10-11.json).
+
+
+## Email Patch caller audit and export prerequisite (October 11, 2026)
+
+SyncDlg::OnBnClickedButtonEmail reads the current local branch, trims remote URL
+and remote branch, then runs `format-patch -o <repository> --end-of-options
+<remote>/<branch>..<local>`. It does not open Format Patch options or use their
+saved no-prefix/output-directory preferences. FixBranchName handles FETCH_HEAD
+by selecting the sole for-merge record. CAppUtils::SendPatchMail opens Send Mail
+options and then mail progress; an empty export shows a no-patches message.
+
+FetchOutList disables Email Patch for unknown URL/branch, equal hashes, and
+divergence without Force. Fast-forward/Force enables it even when an unequal
+but behind local branch yields no outgoing patches. The Core projection already
+exposes that gate through canEmailPatch.
+
+The new Core synchronizationEmailPatches method exports this captured range
+into the repository using the existing safe argument-vector/format-patch route.
+Native button, no-patches/error presentation, captured mail grants, options/progress
+sheet ownership and forced-parent cleanup are still pending. This prerequisite
+does not establish operational or visual parity for the Email Patch control.
+
+Two focused real-Git tests passed with system Git 2.50.1 and packaged Git 2.55.0.
+They verify actual subjects from a selected branch while HEAD points elsewhere,
+unchanged HEAD/refs/index/config, sole/ambiguous FETCH_HEAD, empty ranges,
+pre-cancellation and missing branches. See [export prerequisite evidence and
+corrected attempts](qa/synchronization-email-core-2026-10-11.json).
