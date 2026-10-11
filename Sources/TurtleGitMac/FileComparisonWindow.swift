@@ -55,6 +55,7 @@ import TurtleGitCore
         window.contentMinSize = NSSize(width: 800, height: 440)
         window.contentViewController = NSHostingController(rootView: FileComparisonDialog(model: model))
         super.init(window: window); window.model = model; window.delegate = self; model.window = window; model.installMarkedSavePrompt()
+        model.externalDidOpen = { [weak window] in window?.close() }
         window.setContentSize(NSSize(width: 1120, height: 720))
         window.center()
 
@@ -91,6 +92,9 @@ import TurtleGitCore
     let path: String
     let imagePresentation = ImageWindowPresentation()
     @Published var imageComparison: ImageComparisonDocument?
+    var externalDidOpen: () -> Void = {}
+    private let alternateTool = NSEvent.modifierFlags.contains(.shift)
+    private var externalAttempted = false, retired = false
     @Published var document: FileComparisonDocument?
     @Published var alignment: FileComparisonAlignment?
     @Published var busy = false
@@ -338,7 +342,7 @@ import TurtleGitCore
         repository = nil; access = nil; standaloneImages = images; workingPermissions = permissions
         snapshot = images.snapshot; path = images.destination?.path ?? images.base?.path ?? "Images"
     }
-    func retireImageLoader() { imageLoader?.retire(); imageLoader = nil }
+    func retireImageLoader() { retired = true; imageLoader?.retire(); imageLoader = nil }
     func chooseImageFiles() {
         guard !busy, !confirmingQuit, imageLoader == nil, let window, window.attachedSheet == nil else { return }
         let left = document?.base.path ?? ""
@@ -376,7 +380,7 @@ import TurtleGitCore
         }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     func load() {
-        guard !busy, !confirmingQuit else { return }
+        guard !retired, !busy, !confirmingQuit else { return }
         if dirty {
             let alert = NSAlert(); alert.messageText = "Save changes to “\(unsavedFilesDescription)” before reloading?"
             alert.addButton(withTitle: "Save and Reload"); alert.addButton(withTitle: "Reload Without Saving"); alert.addButton(withTitle: "Cancel")
@@ -388,7 +392,8 @@ import TurtleGitCore
         }
         busy = true
         Task {
-            defer { busy = false }
+            var externalOpened = false
+            defer { busy = false; if externalOpened, !retired { externalDidOpen() } }
             do {
                 let value: FileComparisonDocument
                 if let changeSetDocument {
@@ -406,6 +411,12 @@ import TurtleGitCore
                     if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                     value = try await repository.comparisonFile(snapshot, path: path)
                 } else { throw RevisionComparisonFailure.selection }
+                guard !retired else { return }
+                if !externalAttempted {
+                    externalAttempted = true
+                    externalOpened = try await DiffToolApplication.open(value, root: snapshot.root, permissions: workingPermissions + [access].compactMap { $0 }, alternate: alternateTool)
+                    guard !externalOpened, !retired else { return }
+                }
                 document = value
                 imagePresentation.openImages = { [weak self] in self?.chooseImageFiles() }
                 imageComparison = standaloneImages == nil ? ImageComparisonDocument(value) : ImageComparisonDocument(base: ComparisonImage(bytes: value.base.bytes), destination: ComparisonImage(bytes: value.destination.bytes))

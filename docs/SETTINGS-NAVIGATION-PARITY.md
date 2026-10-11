@@ -222,3 +222,13 @@ light/dark/keyboard accessibility remain in the grouped section validation scope
 General's source language/update/Git executable controls and helper pages still
 need their own mapping; this does not certify the General dialog. Inventory
 counts remain unchanged.
+
+## Diff tool continuation (uncompiled and untested)
+
+Diff Viewer now hosts two-file diff program selection and Advanced associations,
+plus the existing unified patch viewer. Merge Editor is a child of Diff Viewer,
+as in the source hierarchy. Unified Diff has its own appearance page. Source
+external Merge configuration remains pending. The former combined Unified Diff
+Viewer/Appearance draft statement describes the previous checkpoint. See
+[Diff tools](DIFF-TOOLS-PARITY.md) for routing, placeholders, owned Browse sheets,
+permissions, remaining source boundaries and grouped acceptance scope.
