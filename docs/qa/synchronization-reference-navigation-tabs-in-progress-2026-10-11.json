@@ -1,0 +1,31 @@
+{
+  "date": "2026-10-11",
+  "status": "in-progress-uncommitted-navigation-fix-awaits-xcode-license-and-native-reverification",
+  "implemented_in_worktree": [
+    "Captured source tab in revision target and containing-references child navigation",
+    "Separate pending and handled navigation IDs per revision tab",
+    "Immutable coordinator source tab guards against updates/menu construction for a replacement tab",
+    "Fixture checks tab deferral and absence of old-request replay; timeout includes call-site line"
+  ],
+  "observed_checks": [
+    "First run failed existing cold-cache parent caption assertion after simulated tab switches; fixture now explicitly closes its menu before switching, retaining the assertion",
+    "Next run timed out without call-site diagnostics",
+    "Diagnostic run passed system Git, but bundled Git timed out at fixture line 179 waiting for originating table navigation",
+    "Diagnostic receivers 85071 and 85873 were reaped; prior failed receivers also reaped"
+  ],
+  "current_fix_scope": "Immutable coordinator sourceTab guard was added after the diagnostic run. It has not yet been built or verified; UI replacement may otherwise consume navigation before the destination table is created. This is an inference to be tested.",
+  "blocker": "Xcode now reports its license agreements require acceptance. New Xcode builds and Apple developer tool shims cannot run until the user reviews and accepts the agreement. No license acceptance was performed.",
+  "core_result": "Separate completed Core suite: 980 tests, one optional MX skip, zero failures. Navigation edits affect app/fixture only.",
+  "sha256": {
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "dd7327476be8d597528099b19c8559a0659f108e0789696f49ec184862ff2722",
+    "docs/qa/synchronization-revision-list-native-2026-10-11.swift": "d1dc54734fd2a4ec4fc282b41c957d188b8d92d6edcb5252021c5c3b0a8d348d",
+    "build/qa/sync-reference-navigation-tab-native-2026-10-11.log": "fae98ef236fed2b9776f5edcc60a915a6a53efc19cb11c9bc14630c919026c2f",
+    "build/qa/sync-reference-navigation-tab-native-final-2026-10-11.log": "73dfef346d117e4961f2da68d8006db67190cf7e9b4f2a3c9c5dcc3be5f8245e",
+    "build/qa/sync-reference-navigation-tab-native-diagnostic-2026-10-11.log": "5bec631dbf19e712dd508f71f8863d683006a0ea1016928f97c0ec9bf570b9fa"
+  },
+  "next": [
+    "Resume Debug build after Xcode license acceptance",
+    "Run retained complete revision-list fixture with both engines; inspect call-site diagnostics if any failure remains",
+    "Build AppStore configuration sequentially, audit both bundles, record final scope and commit the verified app changes"
+  ]
+}
