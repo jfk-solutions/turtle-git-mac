@@ -39,8 +39,9 @@ The snapshots do not authorize transport operations.
 `SynchronizationTransportOptions` and its immutable plan cover Pull, Fetch,
 Fetch & Rebase, Fetch All, Remote Update, Prune, Push, Push Tags and Push Notes.
 Pull, Fetch, Fetch All, Remote Update and Prune are wired to the native window.
-Fetch & Rebase now owns its source choices and separate progress; Push variants
-still require their native workflows.
+Fetch & Rebase owns its source choices and separate progress. Push, Push tags
+and Push notes now have native split actions and owned Shift Push options;
+project pre/post-push hooks remain pending.
 
 The source CLI rules are preserved: matching pull tracking omits an explicit
 branch; configured Pull rebase performs Fetch and defers the native rebase
@@ -539,3 +540,63 @@ audits, pinned-inventory checks and the website build passed. Post-run process
 inspection found no test receiver/app/compiler processes. These checks verify
 packaging, including the Finder extension and upstream icons, but do not establish
 signed Finder registration, sandbox activation or App Store acceptance.
+
+## Native Push split actions
+
+The source Push button has three entries: Push, Push tags and Push notes. The
+native footer now exposes those same choices with original icons and restores
+source selection indexes 0/1/2. Normal actions capture local branch, remote URL,
+destination and Force, stream into Command Log, read changed refs and refresh
+outgoing results without checking out a branch or creating an incoming history.
+Push tags retains the source combination of all tags plus the selected branch
+refspec. Push notes uses Git's configured notes ref and ignores the destination.
+
+Ordinary named-remote Push asks the existing Yes/No/Cancel tracking question
+when the selected local branch has no tracked branch. Empty destination falls
+back to the selected local branch. Yes writes remote/merge, No keeps Git config,
+Cancel prevents transport; suppression is shared with Pull. Tags, notes and typed
+URLs do not ask. Normal selection is persisted after accepted preflight. Remote
+removal additionally requires an owned Yes/No confirmation before authorizing the
+backend deletion; the pinned Windows Sync handler does not show this extra
+question. Native project pre/post-push hooks are still unimplemented.
+
+Shift+Push opens the full native Push options as an owned sheet with the source
+local-branch preset; it does not preflight the Sync remote or overwrite the saved
+split selection. Its own progress remains owned until Close, then Sync refreshes
+refs/outgoing results. Production refresh and post-action routing reuse the same
+configuration as standalone Push. Shift on Push tags/notes changes the displayed
+selection but runs no command and writes no selection preference. Closing the
+root invalidates and closes options/progress and cancels owned processes.
+
+Full project hooks, authenticated network operations, physical/rendered/VoiceOver
+acceptance, signed sandbox/Finder handoffs and complete Synchronization parity
+remain pending. Hidden native checks are evidence for their exercised workflows,
+not certification of the whole dialog.
+
+Push verification uses its own preference suite, so a preceding Pull test's
+tracking-suppression choice cannot affect the expected Push question. The fixture
+also cancels an injected pending Shift options handoff before opening the real
+owned sheet again; cancellation state resets on completion/new invocation. Root
+invalidation clears transport/cancellation flags while cancelling the token and
+closing all owned children.
+
+The updated root window was captured and visually inspected in light/dark at
+1050×660 and minimum 860×500 content sizes. The initial hidden-view cache omitted
+SwiftUI layers; those images were discarded. Final captures use Core Graphics
+on one actual native preview window, including window chrome, which closes after
+all four captures. Duplicate split-control arrows were removed using the native
+Menu arrow. Labels/actions fit at minimum size; later table columns require
+horizontal scrolling. The two default-size captures are published on the site.
+These captures establish this default root layout only, not menu/prompt/progress
+rendering, keyboard/VoiceOver or complete source visual parity. Upstream's
+[Sync manual](https://tortoisegit.org/docs/tortoisegit/tgit-dug-sync.html) and pinned
+`doc/images/en/GitSync.png` were consulted; the missing controls and graph/actions/
+refs/metadata column differences remain explicit backlog items. Shift source
+resolution for FETCH_HEAD and broader special refs also needs further review.
+
+At code checkpoint `e11f595`, the final full native run passed eight groups on
+both system Git 2.50.1 and packaged Git 2.55.0. Only cosmetic split-menu labels
+changed after that workflow run; fresh Debug build and final root captures
+verified their rendering. Both unsigned configurations, bundle audits, pin checks
+and website build pass. Core hashes match the prior backend record, without a
+new Core/full-suite run. See [Push verification and limits](qa/synchronization-push-native-2026-10-11.json).

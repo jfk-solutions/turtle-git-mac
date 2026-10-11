@@ -1,0 +1,127 @@
+{
+  "date": "2026-10-11",
+  "checkpoint": "e11f595adb9fe5c84a6bd7a915c9a529d53fda11",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/SyncDlg.cpp": "17bfe829c486fee35345727136bec8d1adbf21f9",
+    "src/TortoiseProc/SyncDlg.h": "d45012f6ae0579ef1b98394f05017b6fa365bac9",
+    "doc/images/en/GitSync.png": "f7b758c80c23cc561b754947ffeaf4ae4afc4687"
+  },
+  "reference_manual": "https://tortoisegit.org/docs/tortoisegit/tgit-dug-sync.html",
+  "status": "partial-native-synchronization-push",
+  "implemented": [
+    "Native Push/Push tags/Push notes split with original command artwork and source persisted indexes 0/1/2.",
+    "Shared captured transport/progress and ref-result pipeline: branch+tags, configured notes ref ignoring destination, Force and retained failures; no checkout or incoming history for Push.",
+    "Ordinary named-remote Push tracking Yes/No/Cancel/suppression with empty destination falling back to local branch; tags/notes/URLs bypass the question.",
+    "Empty source/destination removal requires an extra native owned confirmation before backend authorization.",
+    "Shift Push owns full options and progress, normalizes a qualified local branch preset, refreshes only after dismissal and reuses production standalone Push refresh/post-action configuration. Shift tags/notes do not run or persist selection.",
+    "Force-close invalidates children/processes and clears transport/cancellation state. Cancelled pending Shift handoff can be followed by a fresh attempt.",
+    "Single native split-menu arrows and actual light/dark root-window captures at default/minimum sizes."
+  ],
+  "verification": {
+    "native": {
+      "exit": 0,
+      "engines": [
+        "system Git 2.50.1",
+        "packaged Git 2.55.0"
+      ],
+      "pass_groups_per_engine": 8,
+      "log": "build/qa/synchronization-push-native-final-2026-10-11.log",
+      "scope": "Seven existing Synchronization groups plus real Push group covering tracking choices/suppression/fallback, branch+tags, configured notes ref, Force rejection/success, URL bypass, declined/accepted deletion, persisted indexes, Shift no-work variants, actual owned full Push options/progress/cancel/ref refresh, cancellation then fresh handoff and direct/full-options forced process reaping. HEAD/branch/index preserved.",
+      "limits": "Private disposable repositories/preferences and hidden windows. Tracking/deletion answers injected. Production refresh/post-action helper is compiled and inspected; its callbacks are not driven end-to-end in RepositoryModel. Network authentication, hooks, physical/VoiceOver and signed acceptance unverified.",
+      "subsequent_source_change": "After the full workflow run, only the Pull/Push Menu label images were replaced with empty accessible labels to remove duplicate native arrows. A fresh Debug build and final rendered layout captures verify that cosmetic change; command/lifecycle code was unchanged."
+    },
+    "debug_build": {
+      "exit": 0,
+      "log": "build/qa/synchronization-push-debug-layout-2026-10-11.log"
+    },
+    "layout": {
+      "exit": 0,
+      "log": "build/qa/synchronization-layout-final-2026-10-11.log",
+      "method": "QA harness linked against freshly built Debug app objects with _turtlegit_layout_main entry point. One actual native preview window, Core Graphics including chrome, private sample repository, read-only refs/index/config assertions and owned-window closure.",
+      "content_sizes": [
+        "1050x660",
+        "860x500"
+      ],
+      "themes": [
+        "light",
+        "dark"
+      ],
+      "manual_inspection": "All four final captures inspected. Labels, original action icons and single split arrows readable; footer fits minimum size. Table later columns require horizontal scrolling. This is default root layout evidence, not full source layout or interaction certification."
+    },
+    "app_checks": [
+      {
+        "step": "store-build",
+        "exit": 0,
+        "log": "build/qa/synchronization-push-store-build-2026-10-11.log"
+      },
+      {
+        "step": "debug-audit",
+        "exit": 0,
+        "log": "build/qa/synchronization-push-debug-audit-2026-10-11.log"
+      },
+      {
+        "step": "store-audit",
+        "exit": 0,
+        "log": "build/qa/synchronization-push-store-audit-2026-10-11.log"
+      },
+      {
+        "step": "inventory",
+        "exit": 0,
+        "log": "build/qa/synchronization-push-inventory-2026-10-11.log"
+      },
+      {
+        "step": "site",
+        "exit": 0,
+        "log": "build/qa/synchronization-push-site-2026-10-11.log"
+      }
+    ],
+    "core": "The three Core/tag-test hashes match the prior backend checkpoint. Its 34 focused tests per engine remain prior evidence. No Core/full-suite rerun in this native GUI phase.",
+    "prior_core_record": "synchronization-tags-backend-2026-10-11.json",
+    "unsigned_only": true,
+    "cleanup": "Native runner exited zero; forced direct/full-options Push wrapper reaping assertions passed on both engines. Each capture runner closed its one native window and reaped its owned process group. Final process scan found no Synchronization receiver, linked Push test helper, layout preview, TurtleGit app, compiler or xcodebuild process."
+  },
+  "corrected_attempts": [
+    "Initial focused Push passed both engines, but the full invocation inherited AskSetTrackedBranch suppression from a preceding Pull fixture and failed its expected Cancel question. Push fixture now owns a separate private preference suite.",
+    "Cancellation cleanup now resets Shift handoff cancellation state and clears invalidated transport flags; the final full workflow run passes.",
+    "Hidden NSView cache capture omitted SwiftUI layers; those captures were discarded. Final images use actual window capture and were inspected.",
+    "Inspection found duplicate native split arrows. Redundant label images were removed and default/minimum light/dark captures rerun."
+  ],
+  "remaining": [
+    "Project pre/post-push hooks including ignore/abort behavior.",
+    "Production follow-up/refresh callback acceptance and real SSH/network authentication.",
+    "Shift FETCH_HEAD/special-ref prefill and broader URL/config/ref/hook/external-writer cases.",
+    "Other Sync controls: branch/remote choosers, Submodule, Stash, Apply/Email Patch, Manage; full columns/menus/source layout.",
+    "Rendered menus/prompts/progress, physical keyboard/mouse/VoiceOver and full visual parity.",
+    "Signed Finder/sandbox/App Store acceptance and the whole app/documentation/distribution objective."
+  ],
+  "sources_sha256": {
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "84dd1adfc18fabd1f3bea04b2f08e5f7606afd2b8bdf61cee6da7e3b493fb656",
+    "Sources/TurtleGitMac/PushWindow.swift": "c4fdd6d04c8608e0bb9a65790ad22ffca747ea12406f40478859b73efe10b3f8",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "942f950f37a2955c4a299e41ab2958c0b001ed364b7c983d412c5e65829a845a",
+    "docs/qa/synchronization-native-2026-10-11.swift": "210aa6d0eaf3fad417a225a1613580e6abf57d0fd564d5812423a354b1433164",
+    "docs/qa/synchronization-layout-2026-10-11.swift": "724340731f7335e769e8d5c9a9da1cf82de743dfaa8aacaa9617d1fd749204a9",
+    "scripts/test-synchronization-dialog.py": "0190609ab15da49f8045d0c74069f8584b95bc31af90e5b02b40b44364dbdbfb",
+    "scripts/build-site.py": "36c4525230a4658f2d68b68da266c6d821a45094c876cdb2764c18afc74c4e59",
+    "Sources/TurtleGitCore/Synchronization.swift": "523184d2c995c23829a9b30d2eacf846fcaaed547f3d1a2bb6f6cdb9a60a37f7",
+    "Sources/TurtleGitCore/RemoteTags.swift": "a9a717d33007373eb46e4e60bb62cf3990d855888f560f9d37230fad57e0fe27",
+    "Tests/TurtleGitCoreTests/SynchronizationTagTests.swift": "5247724e04d9fe5af13b8aee6824a5529e76c3ab593cf693ce95d574f38d1b77"
+  },
+  "screenshots_sha256": {
+    "docs/site/assets/git-synchronization-light.png": "55b0ff9fb6e0d50436fcaf01d8e749daf2f4a782bd34a811dfa5ad02cd689a79",
+    "docs/site/assets/git-synchronization-dark.png": "e631ff9e996877a271f46ddddb01da7f6c2b86e8547b57b89fac6a4ac3367dd3",
+    "build/qa/synchronization-layout-2026-10-11/git-synchronization-light-minimum.png": "0062707b69c01a84be9c20a4bf5dc2fdb8273b87cf6e0c209b583b80c94ed3f9",
+    "build/qa/synchronization-layout-2026-10-11/git-synchronization-dark-minimum.png": "a16662eef2f80d59cd7cd09ecd4221b843fb07d3555e0008051a10d38bb09b7b"
+  },
+  "logs_sha256": {
+    "build/qa/synchronization-push-native-final-2026-10-11.log": "a2d96ef7b71fdc3c246827961fdab2e93cd9ea01af0a2c4186e4c2a6d4416321",
+    "build/qa/synchronization-push-debug-layout-2026-10-11.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/synchronization-layout-final-2026-10-11.log": "2cbec8b6bf17860d56516b23de7510fe5b92b7ebf8fe1c2a77a97efa763a2502",
+    "build/qa/synchronization-push-store-build-2026-10-11.log": "f15f6ffe9da0933b98dbb31e4726a8be50c682979a778c166d28d99e6ff75e9a",
+    "build/qa/synchronization-push-debug-audit-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/synchronization-push-store-audit-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/synchronization-push-inventory-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/synchronization-push-site-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "native_sync_source_sha256_before_cosmetic_arrow_change": "3c5c45033b9345901674d747b08f5814ec01c9a0c0e0b6ec96d321efd8170c89"
+}

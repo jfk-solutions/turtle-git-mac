@@ -51,7 +51,7 @@ changes, bounded transport output, separate checkout/fast-forward progress and
 Fetch & Rebase source choices. Shift+Pull/Fetch opens owned full options and
 refreshes results after dismissal. The backend covers nine source CLI actions;
 the native Compare Tags tab adds sorting, icon menus, confirmed tag actions and
-owned loading/command progress. Native Push variants/project hooks, remaining
+owned loading/command progress. Native Push variants and owned Shift Push options are implemented; project hooks, remaining
 controls, full visual matching and signed acceptance are still pending. See
 [Synchronization parity](SYNCHRONIZATION-PARITY.md).
 Across the 130 inventoried dialogs:
