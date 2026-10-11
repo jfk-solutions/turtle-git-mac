@@ -386,18 +386,18 @@ struct FetchHistoryCombo: NSViewRepresentable {
 /// PullFetchDlg shares these histories between Pull, Fetch and repositories.
 /// HistoryCombo loads 25 but can save 26: truncation occurs before insertion.
 enum FetchDialogHistory {
-    static func removing(_ index: Int, entries: [String], preferences: UserDefaults, key: String) -> (entries: [String], selection: String)? {
+    static func removing(_ index: Int, entries: [String], preferences: UserDefaults, key: String, maxItems: Int = 25) -> (entries: [String], selection: String)? {
         guard entries.indices.contains(index) else { return nil }
         var result = entries; result.remove(at: index)
         let selection = result.isEmpty ? "" : result[min(index, result.count - 1)]
         // Save without reinserting the selected item, preserving source list order.
-        preferences.set(Array(result.prefix(26)), forKey: key)
+        preferences.set(Array(result.prefix(maxItems + 1)), forKey: key)
         return (result, selection)
     }
     static func trim(_ value: String) -> String {
         value.trimmingCharacters(in: CharacterSet(charactersIn: " \t\r\n\u{0B}\u{0C}"))
     }
-    static func inserting(_ value: String, into entries: [String], atFront: Bool, caseSensitive: Bool) -> [String] {
+    static func inserting(_ value: String, into entries: [String], atFront: Bool, caseSensitive: Bool, maxItems: Int = 25) -> [String] {
         let value = trim(value.replacingOccurrences(of: "\r", with: " ").replacingOccurrences(of: "\n", with: " "))
         guard !value.isEmpty else { return entries }
         var result = entries
@@ -405,21 +405,21 @@ enum FetchDialogHistory {
             if !atFront || index == 0 { return result }
             result.remove(at: index)
         }
-        result = Array(result.prefix(25))
+        result = Array(result.prefix(maxItems))
         result.insert(value, at: atFront ? 0 : result.count)
         return result
     }
-    static func load(_ preferences: UserDefaults, key: String, caseSensitive: Bool) -> [String] {
+    static func load(_ preferences: UserDefaults, key: String, caseSensitive: Bool, maxItems: Int = 25) -> [String] {
         var result: [String] = []
-        for value in (preferences.stringArray(forKey: key) ?? []).prefix(25) {
+        for value in (preferences.stringArray(forKey: key) ?? []).prefix(maxItems) {
             if value.isEmpty { break }
-            result = inserting(value, into: result, atFront: false, caseSensitive: caseSensitive)
+            result = inserting(value, into: result, atFront: false, caseSensitive: caseSensitive, maxItems: maxItems)
         }
         return result
     }
-    static func save(_ value: String, entries: [String], preferences: UserDefaults, key: String, caseSensitive: Bool) -> [String] {
-        let result = inserting(value, into: entries, atFront: true, caseSensitive: caseSensitive)
-        preferences.set(Array(result.prefix(26)), forKey: key)
+    static func save(_ value: String, entries: [String], preferences: UserDefaults, key: String, caseSensitive: Bool, maxItems: Int = 25) -> [String] {
+        let result = inserting(value, into: entries, atFront: true, caseSensitive: caseSensitive, maxItems: maxItems)
+        preferences.set(Array(result.prefix(maxItems + 1)), forKey: key)
         return result
     }
 }

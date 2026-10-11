@@ -518,6 +518,7 @@ private struct SynchronizationProgressDialog: View {
         if let child = [model.comparison, model.incomingComparison].flatMap({ Array($0.comparisonWindows.values) }).first(where: { $0.model.dirty }) {
             child.window?.makeKeyAndOrderFront(nil); child.window?.performClose(nil); return false
         }
+        model.saveHistory()
         return true
     }
     func windowWillClose(_ notification: Notification) {
@@ -677,7 +678,7 @@ enum SynchronizationBranchTarget { case local, remote }
     }
     var remoteChoices: [String] {
         var seen = Set<GitReferenceName>()
-        return (urlHistory + remotes).filter { seen.insert(GitReferenceName($0)).inserted }.sorted { $0.utf16.lexicographicallyPrecedes($1.utf16) }
+        return urlHistory.filter { seen.insert(GitReferenceName($0)).inserted }
     }
     private var historyKey: String { "TurtleGit.Sync." + repository.root.path }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
@@ -701,8 +702,8 @@ enum SynchronizationBranchTarget { case local, remote }
         default: pushAction = .push
         }
         submoduleAction = SynchronizationSubmoduleAction(rawValue: preferences.integer(forKey: historyKey + ".submoduleAction")) ?? .update
-        branchHistory = preferences.stringArray(forKey: historyKey + ".branches") ?? []
-        urlHistory = preferences.stringArray(forKey: historyKey + ".urls") ?? []
+        branchHistory = FetchDialogHistory.load(preferences, key: historyKey + ".branches", caseSensitive: false)
+        urlHistory = FetchDialogHistory.load(preferences, key: historyKey + ".urls", caseSensitive: true, maxItems: Int(Int32.max))
         sshSettings.load(preferences, key: historyKey + ".autoload")
         hideUnchangedReferences = preferences.bool(forKey: "RefCompareHideUnchanged")
         hideEqualTags = preferences.bool(forKey: "TagCompareHideEqual")
@@ -731,7 +732,7 @@ enum SynchronizationBranchTarget { case local, remote }
         outgoing = nil; graph = []; fileSelection = []; comparison.snapshot = nil
         let local = localBranch, selectedRemote = remote, selectedBranch = remoteBranch, forced = force
         let selectedChoice = remoteWasSelected
-        if refreshRemoteSelection { urlHistory = preferences.stringArray(forKey: historyKey + ".urls") ?? [] }
+        if refreshRemoteSelection { urlHistory = FetchDialogHistory.load(preferences, key: historyKey + ".urls", caseSensitive: true, maxItems: Int(Int32.max)) }
         Task {
             defer { if token === request { token = nil; busy = false } }
             do {
@@ -742,6 +743,9 @@ enum SynchronizationBranchTarget { case local, remote }
                 let destination = selectTracking || initial ? catalog.trackedBranch : selectedBranch
                 var url = selectTracking || initial ? (catalog.trackedRemote.isEmpty ? (initial ? (urlHistory.first ?? catalog.remotes.first ?? "") : selectedRemote) : catalog.trackedRemote) : selectedRemote
                 localBranches = catalog.localBranches; remotes = catalog.remotes
+                if initial || refreshRemoteSelection {
+                    for name in remotes { urlHistory = FetchDialogHistory.inserting(name, into: urlHistory, atFront: false, caseSensitive: true, maxItems: Int(Int32.max)) }
+                }
                 // Source Refresh falls back only for an actual combo selection
                 // that no longer names a remote; typed URLs/branch fields survive.
                 if refreshRemoteSelection && selectedChoice && !catalog.remotes.contains(where: { GitReferenceName($0) == GitReferenceName(selectedRemote) }) {
@@ -749,6 +753,7 @@ enum SynchronizationBranchTarget { case local, remote }
                 }
                 if initial || selectTracking { remoteWasSelected = remoteChoices.contains(where: { GitReferenceName($0) == GitReferenceName(url) }) }
                 localBranch = branch; remoteBranch = destination; remote = url
+                if initial || selectTracking { branchHistory = FetchDialogHistory.inserting(destination, into: branchHistory, atFront: false, caseSensitive: false) }
                 let projection = try await repository.synchronizationOutgoing(localBranch: branch, remote: url, remoteBranch: destination, force: forced, cancellation: request)
                 guard !closed, token === request, !request.isCancelled else { return }
                 outgoing = projection; graph = CommitGraph.layout(projection.commits); comparison.snapshot = projection.comparison
@@ -846,9 +851,26 @@ enum SynchronizationBranchTarget { case local, remote }
                   let slash = name.firstIndex(of: "/"), slash != name.startIndex else { return }
             let branch = String(name[name.index(after: slash)...]); guard !branch.isEmpty else { return }
             remote = String(name[..<slash]); remoteWasSelected = true; remoteBranch = branch
-            if !branchHistory.contains(where: { GitReferenceName.equal($0, branch) }) { branchHistory.append(branch) }
+            branchHistory = FetchDialogHistory.inserting(branch, into: branchHistory, atFront: false, caseSensitive: false)
             reload()
         }
+    }
+    // Sync Close saves both controls; forced teardown/Cancel does not insert them.
+    func saveHistory() {
+        guard !closed, !confirmingQuit, !transportRunning, !confirmingCancellation, !hasBlockingChild else { return }
+        branchHistory = FetchDialogHistory.save(remoteBranch, entries: branchHistory, preferences: preferences, key: historyKey + ".branches", caseSensitive: false)
+        urlHistory = FetchDialogHistory.save(remote, entries: remoteChoices, preferences: preferences, key: historyKey + ".urls", caseSensitive: true, maxItems: Int(Int32.max))
+        sshSettings.save(preferences, key: historyKey + ".autoload")
+    }
+    func deleteBranchHistory(at index: Int) {
+        guard !closed, !confirmingQuit, !transportRunning, !hasBlockingChild,
+              let result = FetchDialogHistory.removing(index, entries: branchHistory, preferences: preferences, key: historyKey + ".branches") else { return }
+        branchHistory = result.entries; remoteBranch = result.selection; reload()
+    }
+    func deleteURLHistory(at index: Int) {
+        guard !closed, !confirmingQuit, !transportRunning, !hasBlockingChild,
+              let result = FetchDialogHistory.removing(index, entries: remoteChoices, preferences: preferences, key: historyKey + ".urls", maxItems: Int(Int32.max)) else { return }
+        urlHistory = result.entries; remote = result.selection; remoteWasSelected = !remote.isEmpty; reload()
     }
     func manageRemotes() {
         guard !closed, !confirmingQuit, !busy, !hasBlockingChild, window?.attachedSheet == nil else { return }
@@ -1296,12 +1318,12 @@ private struct SynchronizationDialog: View {
                         }.labelsHidden()
                         Button("…") { model.browseBranch(.local) }.accessibilityLabel("Browse local branches")
                         Text("Remote Branch:")
-                        FetchHistoryCombo(value: edit(\.remoteBranch), choices: model.branchHistory, label: "Remote Branch")
+                        FetchHistoryCombo(value: edit(\.remoteBranch), choices: model.branchHistory, label: "Remote Branch", onDelete: model.deleteBranchHistory)
                         Button("…") { model.browseBranch(.remote) }.accessibilityLabel("Browse remote branches")
                     }
                     HStack {
                         Text("Remote URL:")
-                        FetchHistoryCombo(value: edit(\.remote), choices: model.remoteChoices, label: "Remote URL", onSelectionState: { model.remoteWasSelected = $0 })
+                        FetchHistoryCombo(value: edit(\.remote), choices: model.remoteChoices, label: "Remote URL", onDelete: model.deleteURLHistory, onSelectionState: { model.remoteWasSelected = $0 })
                         Button { model.manageRemotes() } label: { CommandLabel(title: "Manage", icon: .settings) }
                             .disabled(model.busy || model.confirmingQuit)
                     }
