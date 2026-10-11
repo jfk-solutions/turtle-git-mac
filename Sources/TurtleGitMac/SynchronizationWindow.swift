@@ -297,7 +297,7 @@ private struct SynchronizationProgressDialog: View {
             }
         }
         model.historyReferencesBlocking = { [weak self] in self?.historyContainingReferences.values.contains { $0.hasBlockingChild } == true }
-        model.onHistoryContainingReferences = { [weak self] hash in
+        model.onHistoryContainingReferences = { [weak self] hash, sourceTab in
             guard let self, !self.model.closed, !self.model.busy, !self.model.confirmingQuit,
                   !self.model.confirmingCancellation, !self.model.hasBlockingChild,
                   let owner = self.window, owner.attachedSheet == nil, !hash.isEmpty else { return }
@@ -307,7 +307,7 @@ private struct SynchronizationProgressDialog: View {
             child.onNavigate = { [weak self] hash, select in
                 guard let self, !self.model.closed, !self.model.busy, !self.model.confirmingQuit,
                       !self.model.confirmingCancellation, !self.model.hasBlockingChild else { return }
-                self.model.historyNavigation = (UUID(), hash, select)
+                self.model.historyNavigation[sourceTab] = (UUID(), hash, select)
             }
             child.onClosed = { [weak self, weak child, weak owner] in
                 if let window = child?.window { owner?.removeChildWindow(window) }
@@ -936,9 +936,10 @@ enum SynchronizationHistoryDiff {
     var onHistoryBrowseRepository: ((String) -> Void)?
     var onHistoryLog: ((String) -> Void)?
     var onHistoryLogRange: ((HistoryRevisionRange) -> Void)?
-    var onHistoryContainingReferences: ((String) -> Void)?
+    var onHistoryContainingReferences: ((String, Int) -> Void)?
     var historyReferencesBlocking: () -> Bool = { false }
-    @Published var historyNavigation: (id: UUID, hash: String, select: Bool)?
+    @Published var historyNavigation: [Int: (id: UUID, hash: String, select: Bool)] = [:]
+    var handledHistoryNavigation: [Int: UUID] = [:]
     var onHistoryCreateReference: ((Bool, String) -> Void)?
     @Published var creatingHistoryReference = false
     var hasBlockingChild: Bool {
@@ -1780,7 +1781,7 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
     }
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         context.coordinator.model = model
-        guard let table = scroll.documentView as? NSTableView else { return }
+        guard context.coordinator.sourceTab == model.tab, let table = scroll.documentView as? NSTableView else { return }
         if let column = table.tableColumns.first(where: { $0.identifier.rawValue == "graph" }) {
             // GraphCell uses three quarters of the row height per lane. Keep a
             // compact single-lane column, expanding enough to show all lanes.
@@ -1798,8 +1799,8 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
         table.reloadData()
         let selection = IndexSet(hashes.enumerated().compactMap { selectedHashes.contains($0.element) ? $0.offset : nil })
         if table.selectedRowIndexes != selection { table.selectRowIndexes(selection, byExtendingSelection: false) }
-        if let navigation = model.historyNavigation, context.coordinator.navigationID != navigation.id {
-            context.coordinator.navigationID = navigation.id
+        if let navigation = model.historyNavigation[model.tab], model.handledHistoryNavigation[model.tab] != navigation.id {
+            model.handledHistoryNavigation[model.tab] = navigation.id
             if let row = hashes.firstIndex(of: navigation.hash) {
                 if navigation.select { table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false) }
                 table.scrollRowToVisible(row)
@@ -1810,9 +1811,9 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
         var model: SynchronizationWindowModel
         weak var table: NSTableView?
         var entryHashes: [String] = []
-        var navigationID: UUID?
+        let sourceTab: Int
         private var parentMenuTask: Task<Void, Never>?
-        init(_ model: SynchronizationWindowModel) { self.model = model }
+        init(_ model: SynchronizationWindowModel) { self.model = model; sourceTab = model.tab }
         private final class CopyTarget: NSObject {
             let entries: [LogEntry], kind: SynchronizationHistoryCopy, reference: String?
             init(entries: [LogEntry], kind: SynchronizationHistoryCopy, reference: String?) { self.entries = entries; self.kind = kind; self.reference = reference }
@@ -1822,8 +1823,8 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
             init(from: ComparisonRevision, to: ComparisonRevision) { self.from = from; self.to = to }
         }
         private final class RevisionTarget: NSObject {
-            let revision: String, isTag: Bool
-            init(_ revision: String, isTag: Bool = false) { self.revision = revision; self.isTag = isTag }
+            let revision: String, isTag: Bool, sourceTab: Int?
+            init(_ revision: String, isTag: Bool = false, sourceTab: Int? = nil) { self.revision = revision; self.isTag = isTag; self.sourceTab = sourceTab }
         }
         private var revisionActionAvailable: Bool {
             !model.closed && !model.busy && !model.confirmingQuit && !model.confirmingCancellation && !model.hasBlockingChild && model.window?.attachedSheet == nil
@@ -1838,7 +1839,7 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
         }
         @objc func historyContainingReferences(_ sender: NSMenuItem) {
             guard revisionActionAvailable, let target = sender.representedObject as? RevisionTarget else { return }
-            model.onHistoryContainingReferences?(target.revision)
+            if let tab = target.sourceTab { model.onHistoryContainingReferences?(target.revision, tab) }
         }
         @objc func historyLog(_ sender: NSMenuItem) {
             guard revisionActionAvailable, let target = sender.representedObject as? RevisionTarget else { return }
@@ -1874,7 +1875,7 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
         func menuNeedsUpdate(_ menu: NSMenu) {
             parentMenuTask?.cancel(); parentMenuTask = nil
             menu.removeAllItems(); menu.autoenablesItems = false
-            guard let table else { return }
+            guard sourceTab == model.tab, let table else { return }
             let entries = table.selectedRowIndexes.compactMap { model.historyEntries.indices.contains($0) ? model.historyEntries[$0] : nil }
             guard !entries.isEmpty else { return }
             let clipboard = NSMenu(title: "Copy to clipboard"); clipboard.autoenablesItems = false
@@ -1988,7 +1989,7 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
                 let item = NSMenuItem(title: "Show branches this commit is on", action: #selector(historyContainingReferences(_:)), keyEquivalent: "")
                 item.target = self; item.isEnabled = revisionActionAvailable && model.onHistoryContainingReferences != nil
                 item.image = MenuIcon.showBranches.contextImage(defaults: model.preferences)
-                item.representedObject = RevisionTarget(entry.hash); menu.addItem(item)
+                item.representedObject = RevisionTarget(entry.hash, sourceTab: model.tab); menu.addItem(item)
             }
         }
         func menuDidClose(_ menu: NSMenu) { parentMenuTask?.cancel(); parentMenuTask = nil; (table as? HistoryTableView)?.contextReference = nil; (table as? HistoryTableView)?.contextExtendedMenu = false }

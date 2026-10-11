@@ -152,8 +152,9 @@ For a single commit, choose **Show branches this commit is on** to list referenc
 whose history contains it. These can include descendant branches and tags, not
 just references pointing directly at the commit. The dialog's **Show log** button
 opens Log at that commit. Its reference rows provide Log, repository browsing and
-comparison commands. Keep the originating commit tab open while navigating back
-to its list: navigation across tab changes is still under verification.
+comparison commands. Navigation back to a commit targets the list that opened
+the dialog. If you have changed tabs, return to that commit tab to see the requested
+row; reopening the tab later does not repeat an already-handled navigation.
 
 The existing [light Sync screenshot](site/assets/git-synchronization-light.png)
 and [dark Sync screenshot](site/assets/git-synchronization-dark.png) show native

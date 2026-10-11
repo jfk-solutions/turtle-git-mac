@@ -1269,3 +1269,39 @@ commands, accessibility and signed Finder/App Store behavior remain open. Hidden
 zero-size NSSplitView layout warnings were emitted by the nested picker fixture;
 these checks do not establish displayed geometry. Other Sync revision actions and
 full application parity remain pending.
+
+### Reference navigation retains its originating list (2026-10-11)
+
+Containing-reference menu targets now retain the originating Out Commits or
+In Commits tab as well as the full revision hash. Navigation requests and handled
+IDs are stored separately per list. A request waits for its originating list to
+be shown; replacing a table does not replay an already-handled request.
+Each table coordinator retains its initial tab. An outgoing coordinator cannot
+consume an incoming update or build a menu from that other list during SwiftUI
+view replacement, and vice versa. This preserves upstream's parent-list routing
+adapted to Sync's native tab views.
+
+The initial additional fixture run failed the existing cold-cache parent-title
+assertion after simulated tab changes. The fixture now explicitly closes its menu
+before switching, cancelling the menu's pending read while retaining the assertion.
+A later diagnostic run passed system Git but timed out with bundled Git at fixture
+line 179, waiting for selection in the recreated originating table. This evidence
+is retained in the in-progress record. An immutable coordinator tab guard was then
+added; premature consumption during table replacement was an inference, not an
+observed stack trace identifying the consumer.
+
+Two fresh resumed native runs passed both Git engines, and all four receivers
+were reaped. Unsigned Debug and universal AppStore builds, bundle audits,
+inventory pin audit and documentation site generation passed. An initial resumed
+Debug build returned success while emitting compiler/logging diagnostics; the
+final incremental build returned success without those diagnostics. The native
+receiver used objects newer than the changed source.
+
+The resumed native checks cover a captured action delivered
+after switching to the other tab still opens the original revision; navigation
+leaves that other list unselected, applies on returning to its originating list,
+and does not replay through a second table replacement. Existing reference,
+comparison, clipboard, metadata, range Log and child lifecycle assertions remain.
+The Xcode license gate cleared before these resumed builds and tests; no agreement
+acceptance was performed by the agent. These checks remain direct native delivery,
+not physical input, missing-reference attention or signed sandbox acceptance.

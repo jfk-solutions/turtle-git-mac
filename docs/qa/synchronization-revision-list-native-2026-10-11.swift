@@ -5,12 +5,12 @@ import TurtleGitCore
 @testable import TurtleGitMac
 
 struct SynchronizationRevisionListVerification {
-    @MainActor static func settle(_ condition: () -> Bool) async throws {
+    @MainActor static func settle(line: UInt = #line, _ condition: () -> Bool) async throws {
         let deadline = DispatchTime.now().uptimeNanoseconds + 60_000_000_000
         while DispatchTime.now().uptimeNanoseconds < deadline {
             if condition() { return }; try await Task.sleep(nanoseconds: 5_000_000)
         }
-        preconditionFailure("Sync revision list did not settle")
+        preconditionFailure("Sync revision list did not settle at fixture line \(line)")
     }
     @MainActor static func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
     @MainActor static func table(_ window: NSWindow) -> NSTableView {
@@ -64,7 +64,8 @@ struct SynchronizationRevisionListVerification {
         try await settle { !model.busy && model.outgoing != nil }
         model.force = true; model.refresh()
         try await settle { !model.busy && model.historyEntries.count == 6 }
-        let native = table(owner.window!), rows = model.historyEntries
+        var native = table(owner.window!)
+        let rows = model.historyEntries
         let mergeIndex = rows.firstIndex { $0.parents.count == 2 }!, rootIndex = rows.firstIndex { $0.parents.isEmpty }!
         var captured: [(ComparisonRevision,ComparisonRevision)] = []
         model.onHistoryCompare = { captured.append(($0,$1)) }
@@ -153,7 +154,7 @@ struct SynchronizationRevisionListVerification {
         containing.onNavigate(rows[0].hash,true)
         try await settle { native.selectedRowIndexes == IndexSet(integer:0) }
         containing.onNavigate(rows[rootIndex].hash,false)
-        try await settle { model.historyNavigation?.hash == rows[rootIndex].hash }
+        try await settle { model.historyNavigation[0]?.hash == rows[rootIndex].hash }
         precondition(native.selectedRowIndexes == IndexSet(integer:0))
         let pickerItem = containing.chooser.menu!.items.first { $0.title == "Browse References" }!
         precondition(NSApplication.shared.sendAction(pickerItem.action!,to:pickerItem.target,from:pickerItem))
@@ -162,9 +163,32 @@ struct SynchronizationRevisionListVerification {
         let nestedReferences = containing.picker as! ReferenceBrowserWindowController
         containing.close()
         precondition(containing.closed && nestedReferences.model.closed && owner.historyContainingReferences.isEmpty && !model.hasBlockingChild)
+        let containingTarget = containingItem.target
+        native.menu!.delegate?.menuDidClose?(native.menu!)
+        model.tab = 4
+        try await settle { table(owner.window!).numberOfRows == 0 }
+        precondition(NSApplication.shared.sendAction(containingItem.action!,to:containingTarget,from:containingItem))
+        let crossTabChild = owner.historyContainingReferences.values.first!
+        try await settle { !crossTabChild.busy && crossTabChild.snapshot != nil }
+        precondition(crossTabChild.snapshot!.hash == containsHash)
+        crossTabChild.onNavigate(rows[rootIndex].hash,true)
+        precondition(model.historyNavigation[0]?.hash == rows[rootIndex].hash && model.historyNavigation[4] == nil && model.tab == 4)
+        try await Task.sleep(nanoseconds:20_000_000)
+        precondition(table(owner.window!).selectedRowIndexes.isEmpty)
+        model.tab = 0
+        try await settle { table(owner.window!).numberOfRows == rows.count && table(owner.window!).selectedRowIndexes == IndexSet(integer:rootIndex) }
+        native = table(owner.window!)
+        let navigationID = model.historyNavigation[0]!.id
+        precondition(model.handledHistoryNavigation[0] == navigationID)
+        native.selectRowIndexes(IndexSet(integer:0),byExtendingSelection:false)
+        model.tab = 4; try await settle { table(owner.window!).numberOfRows == 0 }
+        model.tab = 0; try await settle { table(owner.window!).numberOfRows == rows.count }
+        native = table(owner.window!)
+        precondition(native.selectedRowIndexes.isEmpty && model.handledHistoryNavigation[0] == navigationID, "Recreated tables must not replay handled navigation")
+        crossTabChild.close(); precondition(owner.historyContainingReferences.isEmpty)
         precondition(!menu(IndexSet([0,1])).items.contains { $0.title == "Show branches this commit is on" })
         model.confirmingQuit = true
-        precondition(NSApplication.shared.sendAction(containingItem.action!,to:containingItem.target,from:containingItem))
+        precondition(NSApplication.shared.sendAction(containingItem.action!,to:containingTarget,from:containingItem))
         precondition(owner.historyContainingReferences.isEmpty)
         model.confirmingQuit = false
         let originalPreference = preferences.object(forKey:"DiffByDoubleClickInLog")
