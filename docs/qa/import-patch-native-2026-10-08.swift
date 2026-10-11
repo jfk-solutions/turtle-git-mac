@@ -43,6 +43,7 @@ import TurtleGitCore
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
         let root = URL(fileURLWithPath: CommandLine.arguments[1]), git = URL(fileURLWithPath: CommandLine.arguments[2])
+        if ProcessInfo.processInfo.environment["TURTLEGIT_IMPORT_LIFECYCLE_ONLY"] == "1" { try await ImportPatchLifecycleVerification.run(root: root, git: git); return }
         let (repo, patches) = try await fixture(root.appendingPathComponent("batch"), git)
         let suite = "TurtleGit.ImportPatch.QA." + UUID().uuidString, prefs = UserDefaults(suiteName: suite)!
         let controller = ImportPatchWindowController(repository: repo, access: nil, preferences: prefs), model = controller.model
@@ -709,6 +710,7 @@ import TurtleGitCore
         precondition(context.preview.contains("Unicode") && !context.preview.contains("�") && context.previewDocument.exportDocument.bytes == bytes)
         context.selection = [contextIDs[0], contextIDs[2]]; precondition(context.preview.isEmpty && context.previewDocument.exportDocument.bytes.isEmpty)
         print("PASS: source 250 MiB preview guard using sparse file; UTF-16 BOM preview decoded with original bytes retained; multiple-selection clear.")
+        try await ImportPatchLifecycleVerification.run(root: root, git: git)
         precondition(RepositoryAction.importPatch.icon == .patch && RepositoryAction.importPatch.requiresWorkingTree)
         print("PASS: hidden native patch table/preview; order, check, fixed batch options and mutation guards; two real mail commits/signoff; retained conflict cursor Abort/Skip/Resolved; close Cancel/Keep/Abort; real hook stop finishes current command without closing; original patch icon; no main app")
     }
