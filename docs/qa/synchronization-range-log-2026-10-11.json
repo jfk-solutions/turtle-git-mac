@@ -1,0 +1,61 @@
+{
+  "date": "2026-10-11",
+  "status": "partial-native-range-log-verified",
+  "code_commit": "f227e8daf316dfa8049598b33c79761e360bdf11",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_references": [
+    "src/TortoiseProc/GitLogListBase.cpp: exactly-two ID_LOG_VIEWRANGE, REVERSE and REACHABLEFROMONLYONE menu order",
+    "src/TortoiseProc/GitLogListAction.cpp: full hash /range routing"
+  ],
+  "implemented": [
+    "Source-ordered last..first, first..last, last...first commands with eight-digit captions and original Log icons",
+    "Captured full hashes routed through RepositoryModel to existing native range Log",
+    "Exactly-two selection gate and owner/action availability guards"
+  ],
+  "verification": {
+    "engines": [
+      "system Git 2.50.1",
+      "bundled Git 2.55.0"
+    ],
+    "native_receivers_reaped": [
+      28156,
+      29041
+    ],
+    "native_scenarios": [
+      "Six range Log windows per engine: three commands for ancestor and divergent pairs",
+      "Actual loaded non-boundary commit sets equal independent git rev-list sets",
+      "Captured targets survive selection changes; range model clears end revision and working tree",
+      "Single and three-row selections omit range commands",
+      "Quit disables menu and blocks retained action delivery",
+      "Existing native revision-list assertions retained"
+    ],
+    "builds": [
+      "Debug unsigned passed",
+      "AppStore unsigned universal passed"
+    ],
+    "bundle_audits": [
+      "Debug passed",
+      "AppStore with required Git passed"
+    ],
+    "inventory_pin_audit": "passed",
+    "documentation_site_build": "passed",
+    "scope": "Direct native action and loaded Log content checks; no physical menu tracking, new complete Core suite, hosted CI or signed acceptance claim."
+  },
+  "sha256": {
+    "Sources/TurtleGitMac/RepositoryModel.swift": "9f4508bfb1ca559c27d9289f509e2713430532500266e2600955f285fa3c38fa",
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "ea0973b27a27c532b92e87421035d92cdd54ca7221db5530fb6931404f89967b",
+    "docs/qa/synchronization-revision-list-native-2026-10-11.swift": "e589650dad24ccf6209b2f36b7840fb20424244935d07b73290efe6634ce21a3",
+    "build/qa/sync-range-log-debug-2026-10-11.log": "434f953749835fdbb1e29a7c8045e3d2e54c3441ae35c8025a9a60219d24f2cb",
+    "build/qa/sync-range-log-store-2026-10-11.log": "d30278547228799b66bf21f11fc895c133e1dcaf2fe54a43ddfda1ee1905169d",
+    "build/qa/sync-range-log-native-2026-10-11.log": "b9f9cbe6e5b2f1054e34f857738c7d252d52ef5917a33f6b4f5e654ad7baffb5",
+    "build/qa/sync-range-log-debug-audit-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/sync-range-log-store-audit-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/sync-range-log-inventory-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/sync-range-log-site-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "remaining": [
+    "Physical menu tracking, keyboard and accessibility acceptance",
+    "Remaining Sync and Log revision actions and complete all-dialog parity",
+    "Signed sandbox/Finder and App Store distribution acceptance"
+  ]
+}
