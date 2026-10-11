@@ -726,3 +726,26 @@ builds, bundle audits, inventory and website checks pass. The backend's before/
 after `refs/stash` reads still need cancellation-token propagation and separate
 process-reaping checks; this phase checks the blocked main stash command only.
 See [verification and limits](qa/synchronization-stash-lifecycle-2026-10-11.json).
+
+
+## Stash reference-read cancellation follow-up (October 11, 2026)
+
+Stash Save now passes its cancellation token into both before/after
+`refs/stash` inspections and checks cancellation after each optional read.
+An absent stash still permits Save, while cancellation is no longer swallowed
+by `try?` or reported as successful completion. Cancellation before the write
+preserves the working file/index and stash reference. Cancellation during final
+inspection preserves any stash already created; it does not undo that write.
+
+A controlled wrapper stalls each reference-read phase around a real Git save.
+Core checks verify process reaping, preserved HEAD, untouched pre-save work and
+retained post-save stash content. Native checks force-close options during the
+first read and ordinarily cancel progress during the second. Closed options
+suppress late replies; ordinary post-save cancellation shows Cancelled, offers
+no completion actions and closes cleanly while retaining the created stash.
+This addresses the reference-read gap recorded by the preceding lifecycle
+checkpoint. Broader UI/physical/signed acceptance remains separate.
+
+Focused checks passed on system Git 2.50.1, Git 2.39.5 and packaged Git
+2.55.0; native Stash checks passed on system and packaged Git. Both unsigned
+builds and bundle audits passed. See [verification scope and limits](qa/stash-reference-cancellation-2026-10-11.json).

@@ -1,0 +1,94 @@
+{
+  "date": "2026-10-11",
+  "checkpoint": "1e2b5b0b09445da07f725b6f7c6d7d45896db519",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "status": "partial-stash-reference-read-cancellation",
+  "implemented": [
+    "Both optional before/after refs/stash reads receive the cancellation token and check it after optional error handling.",
+    "Cancellation before Save preserves work/index/reference; cancellation after Save preserves the completed stash and reports cancellation without completion actions."
+  ],
+  "verification": {
+    "core": [
+      {
+        "engine": "system Git 2.50.1",
+        "tests": 12,
+        "failures": 0,
+        "log": "build/qa/stash-reference-cancellation-system-2026-10-11.log",
+        "scope": "SynchronizationStashTests, StashTests and StashRestoreTests"
+      },
+      {
+        "engine": "Git 2.39.5",
+        "tests": 4,
+        "failures": 0,
+        "log": "build/qa/stash-reference-cancellation-239-2026-10-11.log",
+        "scope": "SynchronizationStashTests only"
+      },
+      {
+        "engine": "packaged Git 2.55.0",
+        "tests": 4,
+        "failures": 0,
+        "log": "build/qa/stash-reference-cancellation-255-2026-10-11.log",
+        "scope": "SynchronizationStashTests only"
+      }
+    ],
+    "native": {
+      "engines": [
+        "system Git 2.50.1",
+        "packaged Git 2.55.0"
+      ],
+      "pass_groups_per_engine": 1,
+      "log": "build/qa/stash-reference-cancellation-native-2026-10-11.log",
+      "scope": "Focused --stash-only group: real standalone options forced closed during first reference read; ordinary progress cancellation during final read; reaping, suppressed late replies, preserved stash and absent completion actions.",
+      "limits": "Hidden windows, disposable local repositories and private preferences; Shift launcher and completion callbacks injected."
+    },
+    "existing_stash_model_regression": {
+      "engines": [
+        "system Git 2.50.1",
+        "packaged Git 2.55.0"
+      ],
+      "log": "build/qa/stash-reference-cancellation-model-regression-2026-10-11.log",
+      "method": "Existing stash-save-progress-native harness linked to fresh Debug app objects. Temporary copy removes @main, uses a C entry point and @testable app import, and injects private preferences/manual auto-close. Owned process groups, timeout and reaping.",
+      "pass": true
+    },
+    "debug_build": {
+      "exit": 0,
+      "log": "build/qa/stash-reference-cancellation-debug-2026-10-11.log"
+    },
+    "unsigned_store_build": {
+      "exit": 0,
+      "log": "build/qa/stash-reference-cancellation-store-2026-10-11.log"
+    },
+    "checks": [
+      {
+        "command": "python3 scripts/validate-app-bundle.py build/Build/Products/Debug/TurtleGitMac.app",
+        "exit": 0
+      },
+      {
+        "command": "python3 scripts/validate-app-bundle.py build/Build/Products/AppStore/TurtleGitMac.app --require-git",
+        "exit": 0
+      },
+      {
+        "command": "python3 scripts/check-inventory-pin.py",
+        "exit": 0
+      },
+      {
+        "command": "python3 scripts/build-site.py",
+        "exit": 0
+      }
+    ],
+    "layout": "No root layout changes or new screenshots.",
+    "prior_full_native_record": "synchronization-stash-lifecycle-2026-10-11.json"
+  },
+  "limits": [
+    "No current full Core suite or full Synchronization native rerun; focused checks above cover the changed reference-read paths.",
+    "Production workspace callbacks, complete source UI parity, physical keyboard/VoiceOver and signed Finder/sandbox acceptance remain unverified.",
+    "Unsigned App Store build and bundle audit do not prove signing, review eligibility or distribution acceptance."
+  ],
+  "sha256": {
+    "Sources/TurtleGitCore/Stash.swift": "a92ac1ba522c4b92cc3167a4c4b87f8f36b2c7fcb4f107c4a9c6dc3b5ccf3360",
+    "Tests/TurtleGitCoreTests/SynchronizationStashTests.swift": "f37231d6575770928b0d747dd147baab1eb231585110e0cd40459a06781a8b37",
+    "docs/qa/synchronization-native-2026-10-11.swift": "c8ce9507a083f9822f196858383f8e119bf28258372b11c58513551e9c0e65ee",
+    "Sources/TurtleGitMac/StashWindow.swift": "8abe6273f2634f530bd68bd03253216bd24871930945b625a4759954aba1234d",
+    "scripts/test-synchronization-dialog.py": "1ae0b37e9ca1c3fa5b11cd7f2b13839241f3a348df8b329df0f0b203cdeca66b"
+  }
+}
