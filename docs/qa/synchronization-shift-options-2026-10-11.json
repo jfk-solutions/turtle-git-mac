@@ -1,0 +1,123 @@
+{
+  "date": "2026-10-11",
+  "checkpoint": "5b472dd0d9ec95e5b392e658c5cb4e4eaa14f8f6",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "SyncDlg.cpp": "17bfe829c486fee35345727136bec8d1adbf21f9",
+    "AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563"
+  },
+  "status": "partial-native-options-workflow",
+  "implemented": [
+    "Shift Pull/Fetch opens real owned native options after original HEAD capture and approved Pull checkout/tracking; full Fetch presets only a named remote, with all-remotes false.",
+    "Unsupported Shift split entries retain source selection preference and do not reset/start command or result work.",
+    "synchronizationOptionsPlan skips direct-transport configured-rebase branch validation, has no executable arguments, and is rejected by both synchronize overloads; approved checkout remains available.",
+    "Reference/conflict refresh on child dismissal, incoming against current HEAD from original pre-checkout HEAD, including ordinary Shift Fetch and cancelled options.",
+    "Owned options/progress invalidation on forced parent close with one-shot dismissal and closed/token fences.",
+    "Source conflict hint and MergeConflictsNeedsCommit suppression for direct/options Pull; production full options receive existing Fetch interaction configuration.",
+    "README, port status, documentation index and site text corrected to reflect current implementation and remaining work."
+  ],
+  "verification": {
+    "core": [
+      {
+        "engine": "system Git 2.50.1",
+        "tests": 29,
+        "transport_tests": 21,
+        "failures": 0,
+        "log": "build/qa/synchronization-shift-system-2026-10-11.log"
+      },
+      {
+        "engine": "Git 2.39.5",
+        "tests": 29,
+        "transport_tests": 21,
+        "failures": 0,
+        "log": "build/qa/synchronization-shift-old-2026-10-11.log"
+      },
+      {
+        "engine": "packaged Git 2.55.0",
+        "tests": 29,
+        "transport_tests": 21,
+        "failures": 0,
+        "log": "build/qa/synchronization-shift-packaged-final-2026-10-11.log"
+      }
+    ],
+    "new_core_tests": 1,
+    "native": {
+      "engines": [
+        "system",
+        "packaged"
+      ],
+      "exit": 0,
+      "log": "build/qa/synchronization-shift-native-verified-2026-10-11.log",
+      "scope": "Existing Sync/Pull/Fetch/reference/Rebase regressions plus real owned full options/progress, ordinary Fetch and Pull execution, named remote vs URL defaults, configured-rebase empty-branch entry/cancellation, pre-checkout incoming baseline, conflict results, unsupported Shift no-op/persistence, idle and running child force-close, and owned wrapper PID reaped without ref changes.",
+      "limits": "Actions/prompts are injected with private repositories/preferences and hidden windows. Production configureFetchInteractions callback, physical modifier keys, rendered layout and signed/authenticated server acceptance are not verified."
+    },
+    "debug_build": {
+      "exit": 0,
+      "log": "build/qa/synchronization-shift-debug-final-2026-10-11.log"
+    },
+    "app_checks": [
+      {
+        "step": "store-build",
+        "exit": 0,
+        "log": "build/qa/synchronization-shift-store-build-final-2026-10-11.log"
+      },
+      {
+        "step": "debug-audit",
+        "exit": 0,
+        "log": "build/qa/synchronization-shift-debug-audit-final-2026-10-11.log"
+      },
+      {
+        "step": "store-audit",
+        "exit": 0,
+        "log": "build/qa/synchronization-shift-store-audit-final-2026-10-11.log"
+      },
+      {
+        "step": "inventory",
+        "exit": 0,
+        "log": "build/qa/synchronization-shift-inventory-final-2026-10-11.log"
+      },
+      {
+        "step": "site",
+        "exit": 0,
+        "log": "build/qa/synchronization-shift-site-final-2026-10-11.log"
+      }
+    ],
+    "full_suite": "Not rerun; 29 synchronization tests per engine and native receiver only.",
+    "unsigned_only": true,
+    "cleanup": "Native runner terminal zero; forced-running fixture verifies wrapper PID termination/reaping. Final process scan recorded separately in task."
+  },
+  "corrected_verification_attempts": [
+    "Initial native receiver compilation used String instead of ComparisonRevision in two assertions; corrected before runtime.",
+    "Initial packaged test path pointed at missing Contents/Resources/Git; rerun with actual Contents/Helpers/Git executable passed.",
+    "First runtime fixture attempted Shift before initial outgoing load settled; fixture now waits for loaded outgoing state. Both engines then passed."
+  ],
+  "remaining": [
+    "Known Shift full-options Rebase ownership gap: deferredRebase closes Fetch then production callback opens modeless Rebase; Sync can refresh before final Rebase HEAD. Must await owned child dismissal.",
+    "CAppUtils Pull active-Rebase entry guard and complete full-options post-action/child ownership need source/runtime audit.",
+    "Compare Tags, native Push variants/project hooks and remaining Synchronization controls, full menus/history/layout.",
+    "Snapshots after asynchronous key loading, broader repository/configuration/hooks/external-writer cases, and FETCH_HEAD ambiguity audit.",
+    "Rendered light/dark, physical/accessibility/modifier keys, production factory completion, authenticated server and signed Finder/sandbox/App Store acceptance.",
+    "Full whole-app port and distribution/documentation objective."
+  ],
+  "sources_sha256": {
+    "Sources/TurtleGitCore/Synchronization.swift": "5b2b0c18ca4dda6fdd0500dce07862473e1f480f86217775fa7df00b17353c0a",
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "1e54cbe650e4f8d8bcb7ca3a7895acfd75b7a49215d14c4911afe41c3f8f7383",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "9657ccd60372428686ec54575396833285fb08b44eacfccd9460a496343cabc4",
+    "Sources/TurtleGitMac/FetchWindow.swift": "65f20990c1464c8ea8aa94561d1d90a2ebf62d624d164b0f83313a815a8a5106",
+    "Tests/TurtleGitCoreTests/SynchronizationTransportTests.swift": "615ebf51e6848d40df509b5769387780216df632eb0eb007a205653843d21213",
+    "docs/qa/synchronization-native-2026-10-11.swift": "61f3a46b130de63491676b80dc4bd96590b06bbad50fc5a0fd4196a6b00b2d2f",
+    "scripts/test-synchronization-dialog.py": "81bd2a31db443df58558c8d5a92e9122c756722e6b2da061727a4ef847ed39ec"
+  },
+  "logs_sha256": {
+    "build/qa/synchronization-shift-system-2026-10-11.log": "8ccebb7fc073138cb4e812c8f283a0fc5ed157d7a2a90367a706009203a4af30",
+    "build/qa/synchronization-shift-old-2026-10-11.log": "97bb7d736749d90d257f7f8febb849a7b476f69f22c4c383fbf3ced7c3401c13",
+    "build/qa/synchronization-shift-packaged-final-2026-10-11.log": "be6c43056c25f422cd915ef47247dac21ed7bd72f725c538c9ff5b52aa6d0374",
+    "build/qa/synchronization-shift-native-verified-2026-10-11.log": "469773e853fdce5f4ee5d8b025e0c9604eadc75dad98bba39e5c57a4051ede43",
+    "build/qa/synchronization-shift-debug-final-2026-10-11.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/synchronization-shift-store-build-final-2026-10-11.log": "8b7e42e41011f64b89af2a34249c0e6a736fce554184bf57a0f657922d209930",
+    "build/qa/synchronization-shift-debug-audit-final-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/synchronization-shift-store-audit-final-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/synchronization-shift-inventory-final-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/synchronization-shift-site-final-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

@@ -333,3 +333,47 @@ remain unverified. See the
   equivalence, external writers, physical accessibility and signed sandbox grants.
 - Bare-repository app entry (currently disabled), signed Finder/App Store/distribution
   acceptance and complete application parity.
+
+## Shift options routing
+
+The Pull split control now samples Shift for the main button and menu commands.
+Shift+Pull and Shift+Fetch open the full existing native options dialogs as owned
+sheets. Other split entries remember their selection and return without starting
+work, matching `CSyncDlg::OnBnClickedButtonPull` at the pinned source revision.
+`synchronizationOptionsPlan` skips direct-transport rebase validation and returns
+no executable command. Both synchronize overloads reject an options-only plan.
+Pull first performs the existing approved branch checkout and tracking question.
+The owner captures the original HEAD and references, prepares configured keys,
+and waits for the options dialog to close before refreshing results. Full Pull
+uses its own defaults. Full Fetch receives a named remote only; a typed URL in
+Synchronization does not override the full Fetch defaults.
+
+The options dialog owns its own progress, configuration and post-actions through
+the existing application Fetch interaction configuration. After dismissal,
+Synchronization reads reference changes and conflicts, then compares the
+original HEAD against current HEAD when no conflicts exist, including Shift+Fetch
+and a cancelled options dialog. Conflict results use the source resolve hint and
+its `MergeConflictsNeedsCommit` suppression preference for both direct and
+options-based Pull. Closing the owner forcibly invalidates and closes
+the options dialog and its progress; late continuation results cannot update the
+closed Synchronization model. Authenticated server, rendered/physical interactions
+and signed sandbox acceptance remain pending. Because macOS uses private SSH
+agents per operation, options transport also prepares its own configured agent;
+this does not inherit a shared Pageant process as Windows does.
+
+Known remaining Shift/Rebase gap: full options currently use the existing
+`FetchProgressWindowModel.deferredRebase` callback, which closes Fetch before
+`RepositoryModel.configureFetchInteractions` opens a modeless Rebase window.
+Synchronization can therefore refresh before that Rebase finishes. Upstream's
+`CAppUtils::Pull`/`DoFetch` waits through the modal Rebase. The next ownership
+step must preserve the full options result until an owned Rebase has dismissed,
+then inspect final HEAD. The new native checks cover ordinary Pull/Fetch and
+configured-rebase options entry/cancellation, not this completion path.
+
+Verification at code checkpoint `5b472dd`: 29 synchronization tests passed on
+system Git 2.50.1, Git 2.39.5 and packaged Git 2.55.0. The hidden native receiver
+passed on system and packaged Git, including real options/progress and forced
+running-Fetch cleanup. Debug and App Store unsigned builds, both bundle audits,
+pin validation and site generation passed. The full suite was not rerun.
+The [dated Shift options record](qa/synchronization-shift-options-2026-10-11.json)
+retains exact source/log hashes and the known full-options Rebase completion gap.

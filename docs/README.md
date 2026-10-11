@@ -93,7 +93,7 @@ for baseline and update rules.
 - [Native SSH key selection and permissions](SSH-IDENTITY-PARITY.md)
 - [SSH transport preparation boundaries](SSH-TRANSPORT-PARITY.md)
 - [Merge dialog parity](MERGE-PARITY.md)
-- [Git Synchronization backend, native outgoing window and remaining port](SYNCHRONIZATION-PARITY.md)
+- [Git Synchronization transport, incoming/results, full options and remaining port](SYNCHRONIZATION-PARITY.md)
 - [Stash Save parity](STASH-PARITY.md)
 - [Reset parity](RESET-PARITY.md)
 - [Cherry Pick parity audit](CHERRY-PICK-PARITY.md)

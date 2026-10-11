@@ -46,12 +46,13 @@ reference dialog with containment filtering, original branch/tag artwork, one/tw
 many selection menus, comparisons and owned Browse References/Log/Reflog pickers.
 Targeted Core and hidden native checks pass; light/dark content captures are on
 the website. Abort Merge progress now also has reviewed native control mappings.
-Synchronization now has a partial native outgoing window with pull-tracking
-branch defaults, Force, a colored graph-first table and pinned change comparisons.
-The transport backend now plans/executes the nine source CLI actions, with
-authorized checkout/deletion and pinned rebase handoffs. Native transport and
-incoming/results tabs still await porting. See
-[SYNCHRONIZATION-PARITY.md](SYNCHRONIZATION-PARITY.md).
+Synchronization has native outgoing/incoming graph and file tabs, reference
+changes, bounded transport output, separate checkout/fast-forward progress and
+Fetch & Rebase source choices. Shift+Pull/Fetch opens owned full options and
+refreshes results after dismissal. The backend covers nine source CLI actions;
+native Push variants/project hooks, Compare Tags, remaining controls, full
+visual matching and signed acceptance are still pending. See
+[Synchronization parity](SYNCHRONIZATION-PARITY.md).
 Across the 130 inventoried dialogs:
 49 dialogs are now partial and 81 await review. No dialog is certified complete.
 See [the reference dialog audit](COMMIT-CONTAINING-REFS-PARITY.md).
@@ -71,10 +72,6 @@ Copy/Copy All, error and link styling, current-work/percentage presentation and
 a source-style completion footer with optional elapsed time. See
 [the Merge follow-up](MERGE-PARITY.md#abort-merge-ownership-follow-up-october-10).
 
-Git Synchronization now has a pinned read-only outgoing/incoming comparison
-backend matching fast-forward/Force, merge-base, copy and working-copy-sentinel
-rules. The native outgoing projection and app entry are now partially implemented;
-transport commands, incoming/result tabs and full native integration remain pending. See [Synchronization parity](SYNCHRONIZATION-PARITY.md).
 
 ## Audited baseline
 
