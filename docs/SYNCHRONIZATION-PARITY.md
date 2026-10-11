@@ -321,17 +321,18 @@ remain unverified. See the
 
 ## Remaining full port
 
-- Remaining source layout: owned branch choosers, remote history saving/deletion,
-  Manage, full tab control and complete status/progress placement. SSH controls
-  exist for four Fetch actions; encrypted-key/network acceptance remains pending.
-- Full incoming/conflict/reference and outgoing columns/refs/sorting/context
-  menus, persistence and rendered light/dark acceptance.
-- Pull/Fetch/Rebase/Fetch All/Remote Update/Prune/Compare Tags, Push/Tags/Notes,
-  Submodule and Stash split actions, Apply/Email Patch, Show Log and Commit.
-- Operation snapshots, live progress, cancellation, hooks, authentication,
-  retained results, refresh, owner lifetimes and factory/app/Finder routing.
+- Complete source arrangement, including tabs below the result grid, Force/SSH
+  placement, Help, status/progress placement and full remote-history saving/deletion.
+  Owned branch choosers and Manage are implemented; physical acceptance is pending.
+- Full incoming/conflict/reference/outgoing columns, ref decorations, actions,
+  Bug-ID, sorting/context menus and persistence. Inspected captures verify the
+  current native controls, not complete visual parity.
+- Project hooks, full completion actions, Shift alternative Compare behavior,
+  authenticated/encrypted-key network acceptance and remaining transport variants.
+- Physical keyboard/pointer/VoiceOver and production app/Finder workflow acceptance,
+  including retained results, child ownership and cross-launch saved state.
 - Configured similarity thresholds beyond the pinned default, libgit2 route
-  equivalence, external writers, physical accessibility and signed sandbox grants.
+  equivalence, external writers and signed sandbox grants.
 - Bare-repository app entry (currently disabled), signed Finder/App Store/distribution
   acceptance and complete application parity.
 
@@ -864,12 +865,38 @@ exposes that gate through canEmailPatch.
 
 The new Core synchronizationEmailPatches method exports this captured range
 into the repository using the existing safe argument-vector/format-patch route.
-Native button, no-patches/error presentation, captured mail grants, options/progress
-sheet ownership and forced-parent cleanup are still pending. This prerequisite
-does not establish operational or visual parity for the Email Patch control.
+At the export prerequisite checkpoint, the native button, no-patches/error
+presentation, mail grants and owned sheets were pending. The native follow-up
+below records that work separately; the backend tests alone do not establish
+operational or visual parity for the Email Patch control.
 
 Two focused real-Git tests passed with system Git 2.50.1 and packaged Git 2.55.0.
 They verify actual subjects from a selected branch while HEAD points elsewhere,
 unchanged HEAD/refs/index/config, sole/ambiguous FETCH_HEAD, empty ranges,
 pre-cancellation and missing branches. See [export prerequisite evidence and
 corrected attempts](qa/synchronization-email-core-2026-10-11.json).
+
+
+### Native Email Patch handoff verification
+
+The native source-position button now uses original menusendmail artwork and
+the outgoing canEmailPatch gate. It exports directly to the repository, then
+opens captured native Send Mail options and progress as owned sheets. Options
+detach before progress opens; Cancel and result dismissal release the parent
+guard. The parent retains no-patches/export-error alerts. Forced closure cancels
+owned export/sender work, ends child prompts/sheets and suppresses late workflow
+submission/completion. Generated patch files remain in the repository, as upstream.
+
+Focused native checks passed with system and packaged Git, including two actual
+patch subjects, options Cancel, captured configured mail settings, error-progress
+dismissal without public delivery, unknown/behind gates, Force with an empty-range
+alert, unchanged HEAD/refs/index/config, duplicate/Quit guards and forced export
+and sender Git/process-group cleanup. The expanded fixture verifies the equal-hash disabled gate. The full 14-group
+Sync fixture passed on each engine (28 groups), before the final cancellation-
+confirmation state cleanup. The final focused fixture passed on both engines
+with an actual pending Abort sheet, cleared active state, detached prompt and
+reaped Git/process group. Debug and unsigned universal App Store builds, both
+bundle audits, inventory-pin and site checks passed. Actual normal/minimum
+light/dark captures were inspected; both patch buttons fit, and normal captures
+are on the website. See [native checkpoint evidence](qa/synchronization-email-native-2026-10-11.json). Public delivery,
+physical input, signed grants and full dialog certification remain unverified.

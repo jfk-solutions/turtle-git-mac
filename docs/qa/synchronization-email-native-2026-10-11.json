@@ -1,0 +1,93 @@
+{
+  "date": "2026-10-11",
+  "status": "partial-native-sync-email-workflow-verified",
+  "code_commit": "4b099dbb5493cc40861e78b60b77e40ef8a6926a",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_blobs": {
+    "src/TortoiseProc/SyncDlg.cpp": "17bfe829c486fee35345727136bec8d1adbf21f9",
+    "src/TortoiseProc/AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563",
+    "doc/images/en/GitSync.png": "f7b758c80c23cc561b754947ffeaf4ae4afc4687"
+  },
+  "behavior": [
+    "Original menusendmail artwork and source-position Email Patch button with canEmailPatch gate",
+    "Direct selected outgoing range export into repository, independent of Format Patch saved choices",
+    "Captured repository/access/preferences flow into owned Send Mail options and progress sheets",
+    "Detach options before progress; retain parent guard until result dismissal; Cancel preserves Sync results",
+    "Empty export and failure alerts are owned; generated files remain in repository",
+    "Forced close cancels export/sender Git and group, ends nested confirmation/sheets, clears pending cancellation and suppresses late workflow callbacks"
+  ],
+  "verification": {
+    "git_engines": [
+      "system 2.50.1",
+      "packaged 2.55.0"
+    ],
+    "final_focused_groups": 2,
+    "full_sync_regression": {
+      "groups": 28,
+      "per_engine": 14,
+      "scope": "Passed before final confirmingCancellation invalidation reset and nil-safe dismissal closure. Final focused tests cover those refinements plus actual pending Abort confirmation. No claim of a second full-suite rerun.",
+      "reconstructed_pre_refinement_source_sha256": {
+        "SynchronizationWindow.swift": "5628d283ea2e6e6d59e35299eee6e9a6c5fac2dae757f854043cfaac038fddf8",
+        "SendPatchWindow.swift": "be22f85cd7c861d4874af06e3c29b49f788effd1aeb124e952bb1c6e5f2c3bd1",
+        "synchronization-email-native-2026-10-11.swift": "6940daabe9284eab458e7c7e1efc5b6a89119eca094ad74c3c0c30c340e91da7"
+      }
+    },
+    "native_method": "Checked-in fixtures compiled with @testable import against fresh Debug app objects/Core and C bootstrap; serial private receivers use actual standard-driver cleanup helper with 600-second per-engine timeout. Standard source driver now includes Email fixture and --email-only. Cached runners/logs remain under ignored build/qa.",
+    "standard_command": "python3 scripts/test-synchronization-dialog.py --email-only --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+    "coverage": [
+      "Two exported patch subjects, duplicate/parent/Quit guards and options Cancel",
+      "Actual options-to-progress handoff, private captured configured mail settings and error-result dismissal",
+      "No public delivery: normal progress uses invalid loopback SMTP port; forced sender stops in private Git config before transport",
+      "Unknown URL/branch, equal hashes, behind without Force, Force-enabled empty range and owned alert",
+      "Unchanged HEAD/refs/index/config; no Sync Command Log or incoming-result replacement",
+      "Forced export and sender Git/process-group cleanup, nested Abort confirmation dismissal, inactive closed progress and suppressed late submit/close callbacks"
+    ],
+    "builds": [
+      "Debug unsigned passed",
+      "AppStore unsigned universal passed"
+    ],
+    "audits": [
+      "Debug bundle passed",
+      "AppStore bundle with required Git passed",
+      "inventory pin passed",
+      "site build passed"
+    ],
+    "captures": "Four actual normal/minimum light/dark captures inspected; original Email Patch icon and full labels fit. Normal captures copied to website; private HEAD/refs/index/config preserved, owned window closed and receiver reaped."
+  },
+  "corrected_attempts": [
+    "Initial native fixture compile placed throwing Data reads inside nonthrowing precondition autoclosure. Moved reads into local values; subsequent focused/full checks passed.",
+    "Final Abort-sheet fixture initially left ConfirmKillProcess disabled, so cancellation immediately reaped the blocked Git rather than opening a prompt. Explicitly enabled the private preference; final two-engine focused checks passed. Failed receiver reaped and no matching owned process remained."
+  ],
+  "ci_observation": {
+    "checkpoint": "09865f44ddf86151a79de0b7893e6dac9650fe2a",
+    "pages": "success; run 38124928413",
+    "macos": "queued, no runner assigned; run 38124928363",
+    "scope": "Read-only public GitHub API snapshot during this work. Does not establish hosted CI success for the new commit."
+  },
+  "limits": [
+    "Full Sync visual/source control/column/hook parity remains incomplete; no dialog certification",
+    "Physical pointer/keyboard/VoiceOver, signed security scopes/Finder and public authenticated mail acceptance remain pending",
+    "App Store build is unsigned and does not establish distribution or legal acceptance",
+    "Core export verification is in synchronization-email-core-2026-10-11.json; no new full Core suite claim"
+  ],
+  "sha256": {
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "6fc0984be68573b0908283fd0c888b085909fa0bd07052021cb96543518708b8",
+    "Sources/TurtleGitMac/SendPatchWindow.swift": "b30a0e9ceb83199d48a27b9afe6cab854c24da91bf456c083c2ec6a0f26f46a4",
+    "docs/qa/synchronization-email-native-2026-10-11.swift": "163ba4bb1692b001dadd48c0102d41346099deefe3185b3c38b2528b01270f0f",
+    "docs/qa/synchronization-native-2026-10-11.swift": "cff47c11598c8dd5dd4b3138c2cbb1313f02bf5749ad3d59174ae073dfa63663",
+    "scripts/test-synchronization-dialog.py": "bddf1cde9539fd425b8d36c1f55cc0fcb46364059c04ef60d4f85dd2e87606b6",
+    "build/qa/synchronization-email-debug-final-2026-10-11.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/synchronization-email-native-final-2026-10-11.log": "d66d9ec19f461af520d2e91564c48cba80a3042b269af4e98492cb314ed0683c",
+    "build/qa/synchronization-email-full-native-2026-10-11.log": "5ed365183ba27665cf8e5ebf3304669c762b6fc28027f71828264e2e7c77bff9",
+    "build/qa/synchronization-email-layout-2026-10-11.log": "32adead1c35ecb5088f23b4a9b3435959f354bcba17457f1bcc43595dbbdb31f",
+    "build/qa/synchronization-email-store-2026-10-11.log": "6926b9a7076d2d9ad8b2b23b24c069ce6913561b958ddbf9a873a5fe75da64dc",
+    "build/qa/synchronization-email-debug-audit-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/synchronization-email-store-audit-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/synchronization-email-inventory-audit-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/synchronization-email-site-audit-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/synchronization-email-layout-2026-10-11/git-synchronization-light.png": "d16e9a2a950cdefb993a2ef99241d93c0f456d079856cbba7ce138fff5f28f34",
+    "build/qa/synchronization-email-layout-2026-10-11/git-synchronization-dark.png": "ba698b78fc1e70a07e515c2a573705cb30b5ff8387f934f6565e4f5c75580fdf",
+    "build/qa/synchronization-email-layout-2026-10-11/git-synchronization-light-minimum.png": "59a9b8f4cf9f930c2a5af7f131c670ab852d1f85b73859a9c84b7814bf12230e",
+    "build/qa/synchronization-email-layout-2026-10-11/git-synchronization-dark-minimum.png": "61fe17b0e48dc10b7f32403e6544fe8cb9e90aa2a95d4e8f26cc8ceb3d62bd82"
+  }
+}

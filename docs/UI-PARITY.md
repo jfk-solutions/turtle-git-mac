@@ -6,7 +6,7 @@ the port must retain the arrangement, command hierarchy, selection semantics,
 information density and interaction order. Generic dialogs remain temporary.
 
 The complete resource inventory is `upstream-dialogs.csv` (130 dialogs).
-`upstream-controls.csv` now inventories 1,648 static controls at that same pinned
+`upstream-controls.csv` now inventories 1,659 static controls at that same pinned
 commit, including hidden controls, IDs, labels and full resource declarations.
 Regenerate it with `python3 scripts/inventory-dialog-controls.py`. Pending controls
 require native mapping, enablement/layout comparison and operational evidence;
