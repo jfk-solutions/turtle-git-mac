@@ -1,0 +1,84 @@
+{
+  "date": "2026-10-11",
+  "status": "partial-sync-selection-refresh-verified",
+  "code_commit": "81047afde42de4315961b74d01564fe92afca0da",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": "SyncDlg.cpp Refresh captures GetCurSel and text, rebuilds sorted history/remotes, chooses entry zero if selected text is not a named remote, and preserves branch text before outgoing refill.",
+  "change": [
+    "Optional selection-state callback in shared FetchHistoryCombo coordinator, emitted before value binding for user selection/typing, suppressed during programmatic updates",
+    "Sync captures selection provenance on initial/tracking loads and actual combo input",
+    "Manage dismissal and ordinary outgoing Refresh reload history and fall back only for selected entries absent from named remotes; typed strings, branch text and Force survive"
+  ],
+  "verification": {
+    "native": {
+      "method": "Current QA compiled with @testable application import and linked against freshly rebuilt Debug application objects; generated C bootstrap and production driver close_receiver helper",
+      "engines": [
+        "system Git 2.50.1",
+        "packaged Git 2.55.0"
+      ],
+      "groups_per_engine": 1,
+      "scope": [
+        "Existing Manage ownership/save/discard/close/read-cancellation checks",
+        "Actual NSComboBox delegate selection and typing routes",
+        "Remove selected remote through shipping owned Remote settings and verify fallback",
+        "Typed removed name preserved across Manage dismissal",
+        "Selected URL history reload/fallback and removal",
+        "Both receiver leaders reaped; post-run process scan found no receiver"
+      ]
+    },
+    "builds": [
+      "Unsigned Debug",
+      "Unsigned universal AppStore"
+    ],
+    "audits": [
+      "Debug bundle",
+      "AppStore bundle with required packaged Git",
+      "Pinned inventory",
+      "Static site"
+    ],
+    "screenshots": "No new visual change or capture; preceding Manage captures retained."
+  },
+  "files": {
+    "Sources/TurtleGitMac/FetchWindow.swift": "3913f750983fa43548a65c81e80b0681e217ff826377be3031fa89efbf8ac706",
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "5cebaa629fbcaebd57cf5c36e17a29ba2fa9d49bc5147458c247a1e47d462f32",
+    "docs/qa/synchronization-native-2026-10-11.swift": "7957c945e1f92ec954070858b9c627aecff559d42fa7e45fc4d3562f7cabbb85",
+    "build/qa/run-sync-selection.py": "66746ae0380e27f8f328491e3b4b21f6671c47430c9991ea08b71b8797167bbf"
+  },
+  "logs": {
+    "debug": {
+      "path": "build/qa/synchronization-selection-debug-2026-10-11.log",
+      "sha256": "48f88228de28f4fcb561823be2c4332f0de2b2118491c420f9da536386d7d6ce"
+    },
+    "store": {
+      "path": "build/qa/synchronization-selection-store-2026-10-11.log",
+      "sha256": "3dd7df5645f6dca569b4f9f753677684520d87f4a156c74260062c102bcc7147"
+    },
+    "native": {
+      "path": "build/qa/synchronization-selection-native-2026-10-11.log",
+      "sha256": "185e96b35f9f506d97e6c5f4b0a50107ef08253877b13e94f8611466983f816e"
+    },
+    "debug-audit": {
+      "path": "build/qa/synchronization-selection-debug-audit-2026-10-11.log",
+      "sha256": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d"
+    },
+    "store-audit": {
+      "path": "build/qa/synchronization-selection-store-audit-2026-10-11.log",
+      "sha256": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30"
+    },
+    "pin-audit": {
+      "path": "build/qa/synchronization-selection-pin-audit-2026-10-11.log",
+      "sha256": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a"
+    },
+    "site-audit": {
+      "path": "build/qa/synchronization-selection-site-audit-2026-10-11.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  },
+  "limits": [
+    "Focus covers Manage/Refresh selection changes; prior eleven-group native regression was not rerun for this checkpoint.",
+    "Synthetic delegate notifications and hidden native sheets are not physical pointer/keyboard or VoiceOver acceptance.",
+    "The complete Settings tree, other Sync controls, signed sandbox/Finder acceptance and App Store release remain incomplete.",
+    "No Core source change or new full Core suite claim.",
+    "Hosted CI completion is not established."
+  ]
+}

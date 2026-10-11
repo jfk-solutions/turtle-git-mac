@@ -763,8 +763,7 @@ retaining typed local/remote branch, URL and Force values. Forced parent closure
 invalidates both models, cancels settings reads and closes the owned sheet.
 
 The native page is currently a standalone Remote settings sheet rather than
-the upstream full Settings tree. Exact selection-index fallback after deleting
-a selected named remote, the complete Settings tree, physical button/keyboard
+the upstream full Settings tree. The complete Settings tree, physical button/keyboard
 acceptance and signed sandbox acceptance remain pending.
 
 Focused all-source Manage checks and the eleven-group native regression passed
@@ -772,3 +771,24 @@ with system and packaged Git. Debug and universal unsigned AppStore builds,
 bundle audits, inventory and site checks passed. Updated native light/dark
 screenshots are published; both sizes were inspected against the source. See
 [verification methods and limits](qa/synchronization-manage-native-2026-10-11.json).
+
+## Selected remote fallback after Manage (October 11, 2026)
+
+Source Refresh captures the combo selection index and text before rebuilding
+history/remotes. If the index was nonnegative and that text is no longer a named
+remote, it chooses the first rebuilt entry. Typed text survives. Native Sync now
+tracks user selection versus typing through the shared combo delegate, and uses
+that distinction on Manage dismissal and ordinary Refresh. Local/remote branch
+text and Force remain unchanged. Refresh reloads the URL history before choosing
+a fallback; a history URL selected from the menu follows the same source rule.
+Programmatic combo redraw does not turn typed text into a user selection.
+
+The focused native regression removes a selected remote through the actual owned
+settings sheet, verifies fallback, then verifies that typed text with the same
+name survives dismissal. It also exercises history reload and selected URL
+fallback through Refresh. Physical input and the full Settings tree are separate
+remaining requirements.
+
+Focused native checks passed with system and packaged Git, along with unsigned
+Debug/universal AppStore builds, bundle audits, inventory and site checks. See
+[verification scope and limits](qa/synchronization-selection-native-2026-10-11.json).
