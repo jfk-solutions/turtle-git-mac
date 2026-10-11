@@ -38,8 +38,8 @@ The snapshots do not authorize transport operations.
 
 `SynchronizationTransportOptions` and its immutable plan cover Pull, Fetch,
 Fetch & Rebase, Fetch All, Remote Update, Prune, Push, Push Tags and Push Notes.
-Fetch, Fetch All, Remote Update and Prune are wired to the native window.
-Pull, Fetch & Rebase and Push variants still require their native owned workflows.
+Pull, Fetch, Fetch All, Remote Update and Prune are wired to the native window.
+Fetch & Rebase's chooser and Push variants still require their native workflows.
 
 The source CLI rules are preserved: matching pull tracking omits an explicit
 branch; configured Pull rebase performs Fetch and defers the native rebase
@@ -84,8 +84,9 @@ HEAD/branch fingerprint. A native owner can present separate checkout progress,
 then ask tracking questions and capture reference metadata before starting
 transport. Continuation rejects a different repository actor or changed
 HEAD/attachment and never repeats checkout, including when a hook selected
-another branch. The existing combined executor remains available. This API is
-not yet connected to a native Pull progress dialog.
+another branch. The existing combined executor remains available. The native
+Pull owner now uses this checkpoint across its separate checkout progress and
+tracking prompt.
 
 Three additional Core tests exercise continuation after a branch-changing hook
 with a different original baseline, streaming checkout output, no transport
@@ -94,13 +95,11 @@ stale continuation, a no-switch Pull, and checkout blocked by uncommitted work.
 The blocked checkout preserves the worktree, index and prior FETCH_HEAD and
 returns no continuation checkpoint.
 
-The native owner still needs source tracking questions, project hooks, separate
-checkout progress and post-checkout metadata refresh, transport/result tabs,
-complete reference-change/conflict views and native Rebase choices. The backend now distinguishes detached/revision-expression Pull from Push
-FETCH_HEAD dereferencing and rereads Pull configuration after checkout and key
-preparation. Native revision-expression prefill, separate checkout progress and
-broader repository modes still require further source parity work. No native transport or signed/network acceptance
-claim follows from the local command tests.
+The native owner still needs Push project hooks, full conflict/reference menus,
+Fetch & Rebase's unchanged/fast-forward choices and the remaining source controls.
+Native revision-expression prefill, metadata snapshot ordering after key loading
+and broader repository modes also require further source parity work. No signed
+or authenticated network acceptance claim follows from the local command tests.
 
 ## Native outgoing window
 
@@ -143,10 +142,41 @@ including after cancellation or failure because Git may already have updated
 references. Fetch does not populate incoming HEAD tabs. These four actions do not
 run Pull/Push tracking questions or Push project hooks.
 
-The Fetch control is an incremental part of the source Pull split control. Pull,
-Fetch & Rebase, Shift options routing, Compare Tags, reference-change tabs and the
-other split controls remain to be ported. This does not establish complete native
-Synchronization parity or authenticated network/physical/signed acceptance.
+The Pull split control remembers its implemented selection per repository, using
+the source entry indexes. Fetch & Rebase, Shift options routing, Compare Tags and
+the other split controls remain to be ported. This does not establish complete
+native Synchronization parity or authenticated network/physical/signed acceptance.
+
+## Native Pull workflow
+
+Pull captures the repository, selected fields, cancellation token and original
+HEAD before any question. A selected branch change asks Switch/Abort and opens
+separate owned checkout progress. Successful checkout closes that progress
+automatically; failure retains selectable output until Close and prevents
+transport. Cancellation honors ConfirmKillProcess. Forced owner closure cancels
+checkout, dismisses its owned alert/progress and suppresses later publication.
+
+For a typed non-URL remote and nonempty branch, a missing tracking branch asks
+Yes/No/Cancel. Do not show again persists AskSetTrackedBranch=false even on
+Cancel, as upstream does. Yes writes local remote/merge configuration for the
+selected branch; No proceeds without writing it. Tracking is read after checkout.
+The guarded checkpoint resumes transport without switching again.
+
+Ordinary successful Pull fills pinned Incoming Commits with its graph and Incoming
+Changes from original HEAD to completed HEAD. Equal hashes select Ref changes and
+show an empty incoming log as Up to date. Failed transport checks conflicts using
+a fresh cancellable read, selecting Conflicts or Command Log. Conflict rows route
+Resolve to the captured repository. Incoming comparisons have an independent
+owner and inherit close, dirty-document and Quit guards.
+
+Configured Pull rebase executes Fetch, then uses the actual returned mode and
+pinned target to open the existing Rebase controller as a sheet, with auto-start
+and preserve-merges as appropriate. Its repository factory configures existing
+conflict, commit-selection and completion actions. Incoming HEAD is read after
+the child closes. An existing Rebase window is not reused for this operation, and
+a modeless activation cannot replace an owned sheet's dismissal callback. Forced
+parent closure detaches a busy Rebase to its retained repository owner, or closes
+an idle child. Full physical child-dialog acceptance remains pending.
 
 ## Reference-change results
 
@@ -233,17 +263,28 @@ for the pending native Pull workflow; see the
 The separate-checkout checkpoint adds three tests. All 26 synchronization tests
 pass on system Git 2.50.1, Git 2.39.5 and packaged Git 2.55.0. The existing native
 receiver passes against rebuilt Core on system and packaged Git, and both
-unsigned builds and bundle audits pass. The new checkout API is backend-only;
-native Pull integration remains pending. See the
+unsigned builds and bundle audits pass. The checkout API was backend-only at that checkpoint; the native Pull workflow
+described above was added later. See the
 [separate checkout QA record](qa/synchronization-checkout-2026-10-11.json).
+
+The extended native Pull receiver passes on system Git 2.50.1 and packaged Git
+2.55.0. It exercises actual separate checkout progress, the original incoming
+baseline and graph/files tables, tracking Yes/No/Cancel suppression, branch Abort,
+conflicts, failed-checkout Close and forced running-checkout cleanup with late
+duplicate cancellation replies. The preserve-merges handoff is tested with an
+injected completion callback; actual production Rebase child/replay acceptance
+remains pending. Both unsigned configurations and bundle audits pass. Core source
+is unchanged from the separate-checkout record; the full suite was not rerun.
+Hidden bitmap captures omitted SwiftUI labels and were rejected for publication.
+See the [native Pull QA record](qa/synchronization-pull-native-2026-10-11.json).
 
 ## Remaining full port
 
 - Remaining source layout: owned branch choosers, remote history saving/deletion,
   Manage, full tab control and complete status/progress placement. SSH controls
   exist for four Fetch actions; encrypted-key/network acceptance remains pending.
-- Incoming Log/changes and conflict lists; complete reference results and outgoing
-  columns/refs/sorting and context menus, persistence and light/dark acceptance.
+- Full incoming/conflict/reference and outgoing columns/refs/sorting/context
+  menus, persistence and rendered light/dark acceptance.
 - Pull/Fetch/Rebase/Fetch All/Remote Update/Prune/Compare Tags, Push/Tags/Notes,
   Submodule and Stash split actions, Apply/Email Patch, Show Log and Commit.
 - Operation snapshots, live progress, cancellation, hooks, authentication,

@@ -1,0 +1,87 @@
+{
+  "date": "2026-10-11",
+  "checkpoint": "fbae051ce1d0af1e805e786f273baca2484245ba",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "status": "partial-native-workflow",
+  "implemented": [
+    "Native Pull uses captured fields/repository and original HEAD, Switch/Abort confirmation and separate owned checkout progress. Success auto-closes; failure retains selectable output until Close.",
+    "Tracking Yes/No/Cancel with AskSetTrackedBranch suppression, including suppression on Cancel; tracking writes affect the selected branch and execution resumes its guarded checkout checkpoint.",
+    "Incoming commits with graph, independent pinned incoming file comparison, Up to date and failed-Pull conflict/command-log results. Resolve routes to captured repository.",
+    "Pull split selection persists source entry indexes; four existing Fetch actions remain available.",
+    "Actual configured Pull rebase mode and pinned target route to an owned, repository-configured Rebase sheet. Incoming HEAD is read after dismissal; modeless activation cannot replace a sheet dismissal callback; forced parent close detaches busy Rebase to retained owner or closes idle child.",
+    "Owned checkout cancellation/close guards and one-shot progress dismissal prevent late publication and process/sheet leaks."
+  ],
+  "verification": {
+    "native": {
+      "engines": [
+        "system Git 2.50.1",
+        "packaged Git 2.55.0"
+      ],
+      "exit": 0,
+      "log": "build/qa/synchronization-pull-native-receiver-final-2026-10-11.log",
+      "scope": "Existing outgoing/Fetch/reference results plus real private local Pull fixtures: separate actual checkout controller, distinct pre-checkout incoming baseline, native graph/files table, tracking Yes/No/Cancel suppression, branch Abort, actual preserve-merges target/mode handoff callback, real merge conflict, failed-checkout output and Close action, controlled running-checkout force-close, late duplicate cancellation replies and unchanged refs.",
+      "rebase_limit": "The handoff callback is injected and completes with private CLI fast-forward merge. Actual production Rebase sheet factory compiles but full runtime child/replay/physical acceptance is not established.",
+      "confirmation_limit": "Checkout/tracking/cancellation answers are injected; actual alerts, physical buttons and accessibility acceptance are not certified."
+    },
+    "debug_build": {
+      "exit": 0,
+      "log": "build/qa/synchronization-pull-native-debug-final-2026-10-11.log"
+    },
+    "app_checks": [
+      {
+        "step": "store-build",
+        "exit": 0,
+        "log": "build/qa/synchronization-pull-native-store-build-final-2026-10-11.log"
+      },
+      {
+        "step": "debug-audit",
+        "exit": 0,
+        "log": "build/qa/synchronization-pull-native-debug-audit-final-2026-10-11.log"
+      },
+      {
+        "step": "store-audit",
+        "exit": 0,
+        "log": "build/qa/synchronization-pull-native-store-audit-final-2026-10-11.log"
+      },
+      {
+        "step": "inventory",
+        "exit": 0,
+        "log": "build/qa/synchronization-pull-native-inventory-final-2026-10-11.log"
+      },
+      {
+        "step": "site",
+        "exit": 0,
+        "log": "build/qa/synchronization-pull-native-site-final-2026-10-11.log"
+      }
+    ],
+    "core": "Core source SHA matches the prior separate-checkout record with 26 tests per engine; Core tests and full suite were not rerun this phase.",
+    "unsigned_only": true,
+    "capture_attempt": "Hidden bitmap cache omitted SwiftUI labels. Eight light/dark captures were inspected and rejected; none published. Rendered UI parity remains unverified.",
+    "cleanup": {
+      "owned_app_receiver_test_wrapper_or_project_build_processes": []
+    }
+  },
+  "remaining": [
+    "Fetch & Rebase unchanged/fast-forward choices, Shift routing, Compare Tags, Push project hooks and remaining Synchronization controls.",
+    "Full source menus/columns/sorting/history, conflict hint/options and revision-expression prefill; snapshot ordering after key loading.",
+    "Actual production Rebase child/replay/close/termination acceptance and wider hook/configuration/external-writer cases.",
+    "Rendered light/dark parity, real SSH/server authentication, physical/accessibility and signed Finder/sandbox/App Store acceptance.",
+    "Complete whole-app port and distribution/documentation objective."
+  ],
+  "sources_sha256": {
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "74169dd663390768e29efd38d98508e2b5ce31e790465d6efb24313a2923cee8",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "8c944459d6d30696c564c068905c9e455a821693b330a863a5a443e4fd02415e",
+    "Sources/TurtleGitCore/Synchronization.swift": "00e36292ff7ca8685336bc093f2a9f26a348945219180fff2921b65efa4352e8",
+    "docs/qa/synchronization-native-2026-10-11.swift": "c6d340659c1a7367b0da231730941de64a915c23c0f842b372770b4ff3b0e8f3",
+    "scripts/test-synchronization-dialog.py": "b6702a89fd88fc3f0f388bce39577de592f3ed2c022706e258bcdae291aa5c0f"
+  },
+  "logs_sha256": {
+    "build/qa/synchronization-pull-native-receiver-final-2026-10-11.log": "8333e12db6cd0d7c9d167c9d5170176e9914b6ceb2527417e35beb0f974a6524",
+    "build/qa/synchronization-pull-native-debug-final-2026-10-11.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/synchronization-pull-native-store-build-final-2026-10-11.log": "8b7e42e41011f64b89af2a34249c0e6a736fce554184bf57a0f657922d209930",
+    "build/qa/synchronization-pull-native-debug-audit-final-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/synchronization-pull-native-store-audit-final-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/synchronization-pull-native-inventory-final-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/synchronization-pull-native-site-final-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}
