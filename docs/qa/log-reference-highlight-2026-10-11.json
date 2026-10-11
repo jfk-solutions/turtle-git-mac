@@ -1,0 +1,66 @@
+{
+  "date": "2026-10-11",
+  "status": "partial-native-log-reference-highlight-font-traits-verified",
+  "code_commit": "10494452feb45a84c185ab97636ec4bab045993e",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_references": [
+    "src/TortoiseProc/GitLogListBase.cpp: custom draw m_highlight italic and HEAD bold-italic",
+    "src/TortoiseProc/GitLogListBase.cpp: OnScrollToRef Shift selection preservation"
+  ],
+  "implemented": [
+    "Replace yellow whole-field background with italic navigation highlight",
+    "Preserve HEAD bold-italic, including default monospaced hash column",
+    "Preserve configured Log fonts, badge colors and search-match foregrounds",
+    "Native references driver links fresh Debug objects with bounded owned receiver cleanup, preserving capture arguments and PASS sentinel"
+  ],
+  "verification": {
+    "native_command": "python3 scripts/test-commit-containing-refs.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+    "engines": [
+      "system Git 2.50.1",
+      "bundled Git 2.55.0"
+    ],
+    "native_receivers_reaped": [
+      31409,
+      31637
+    ],
+    "scenarios": [
+      "Actual owned reference navigation preserves selected base while highlighting normal revision or HEAD",
+      "Message/hash/author/date italic and HEAD bold-italic font traits in light/dark appearance settings",
+      "Configured 14-point monospaced hash font retains italic trait",
+      "Real Next subject/message search retains match foreground alongside navigation italics",
+      "Existing references menus/pickers/filter, bare/type, stale replies and owned-close checks retained",
+      "Repository HEAD/refs/index/config/file bytes unchanged"
+    ],
+    "builds": [
+      "Unsigned Debug passed",
+      "Unsigned universal AppStore passed"
+    ],
+    "bundle_audits": [
+      "Debug passed",
+      "AppStore required Git passed"
+    ],
+    "inventory_pin_audit": "passed",
+    "documentation_site_build": "passed",
+    "scope": "Local arm64 native callback/renderer and real search checks on both engines; no physical-input, pixel screenshot, full Core-suite or signed acceptance claim.",
+    "fixture_compilation_corrections": [
+      "HistorySearchFields has no .all; app LogSearchSelection is private. Final fixture uses public subject/messages flags."
+    ]
+  },
+  "sha256": {
+    "Sources/TurtleGitMac/LogWindow.swift": "17919d5a184e87c1fd1adb359c02c4694474ceaefff763aa373fe87bd704f686",
+    "scripts/test-commit-containing-refs.py": "e9b882fa6dd98cf1d8ea85d835405155dd72e4d1be8961db4157ea0088a16450",
+    "docs/qa/commit-containing-refs-native-2026-10-10.swift": "59685133eb65d65703e18e0b4f6709263c029ff9fd5902c605d3e419e8c7c63b",
+    "build/qa/log-reference-highlight-debug-2026-10-11.log": "6c9c0a2422c561851514a3f939594fa46daa89910f7083994ffbb7dc0f7bf73a",
+    "build/qa/log-reference-highlight-store-2026-10-11.log": "93e2ec85a1b14b997af3341d3889ac2c756ca9288f8c1352cc07017ce1a0712d",
+    "build/qa/log-reference-highlight-native-final-2026-10-11.log": "3902d4e81baea675882c0a85d9d47dc1896a53ac360ecea8317813be081ccfe5",
+    "build/qa/log-reference-highlight-debug-audit-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/log-reference-highlight-store-audit-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/log-reference-highlight-inventory-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/log-reference-highlight-site-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "remaining": [
+    "Physical Shift/reference double-click and pixel-level appearance acceptance",
+    "Full history-view/control and context-menu parity",
+    "Signed sandbox/Finder and App Store distribution acceptance"
+  ]
+}
