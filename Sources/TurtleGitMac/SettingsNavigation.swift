@@ -6,9 +6,9 @@ import TurtleGitCore
 /// Native projection of Settings.cpp's tree for pages currently implemented.
 /// Pending pages are tracked in the inventory, rather than shown as empty panes.
 enum SettingsPageID: String {
-    case general, dialogs, commit, alternativeEditor, git, remote, email
+    case general, dialogs, dialogs2, commit, alternativeEditor, git, remote, email
     case mergeEditor, savedData, blame, unifiedDiff, advanced
-    var applyOrder: Int { let pages: [SettingsPageID] = [.general, .dialogs, .commit, .alternativeEditor, .git, .remote, .email, .mergeEditor, .savedData, .blame, .unifiedDiff, .advanced]; return pages.firstIndex(of: self)! }
+    var applyOrder: Int { let pages: [SettingsPageID] = [.general, .dialogs, .dialogs2, .commit, .alternativeEditor, .git, .remote, .email, .mergeEditor, .savedData, .blame, .unifiedDiff, .advanced]; return pages.firstIndex(of: self)! }
 }
 private final class SettingsPageNode: NSObject {
     let id: SettingsPageID, title: String, icon: MenuIcon
@@ -103,8 +103,9 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         repositoryPath = workspace.root?.path
         roots = [
             SettingsPageNode(.general, "General", .settingsGeneral, children: [
-                SettingsPageNode(.dialogs, "Dialogs", .settingsDialogs),
-                SettingsPageNode(.commit, "Commit", .settingsDialogs),
+                SettingsPageNode(.dialogs, "Dialogs 1", .settingsDialogs),
+                SettingsPageNode(.dialogs2, "Dialogs 2", .settingsDialogs),
+                SettingsPageNode(.commit, "Message Editor", .editor),
                 SettingsPageNode(.alternativeEditor, "Alternative Editor", .editor)]),
             SettingsPageNode(.git, "Git", .settingsGit, children: workspace.root == nil ? [] : [SettingsPageNode(.remote, "Remote", .settingsRemote)]),
             SettingsPageNode(.email, "Email", .sendMail), SettingsPageNode(.mergeEditor, "Merge Editor", .merge),
@@ -139,7 +140,8 @@ struct SettingsNavigation: NSViewControllerRepresentable {
             switch page {
             case .general: controller = host(AppearanceSettings(appearance: appearance))
             case .dialogs: controller = host(LogDialogSettings())
-            case .commit: controller = host(CommitEditorSettings())
+            case .dialogs2: controller = host(DialogsBehaviorSettings())
+            case .commit: controller = host(CommitEditorSettings(editorOnly: true))
             case .alternativeEditor: controller = host(AlternativeEditorSettings())
             case .git: controller = host(GitConfigurationSettingsPage(workspace: workspace))
             case .email: controller = host(EmailSettingsPage())
@@ -217,4 +219,72 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     override func rightMouseDown(with event: NSEvent) {}
     override func scrollWheel(with event: NSEvent) {}
     override func keyDown(with event: NSEvent) {}
+}
+
+/// Implemented SetDialogs2 preferences, kept separate from message-editor extras.
+@MainActor private final class DialogsBehaviorDraft: ObservableObject {
+    @Published var values: [String: SettingsScalar]
+    private var saved: [String: SettingsScalar]
+    static let booleans: [(String, Bool)] = [
+        ("RevertWithRecycleBin", true), ("ConfirmKillProcess", false),
+        ("RefCompareHideUnchanged", false), ("ShowGitexeTimings", true),
+        ("SortTagsReversed", false), ("Autocompletion", true),
+        ("SelectFilesForCommit", true), ("AutoselectMissingFiles", false),
+        ("StripCommentedLines", false)
+    ]
+    init(defaults: UserDefaults = .standard) {
+        var initial: [String: SettingsScalar] = [:]
+        for (key, fallback) in Self.booleans { initial[key] = .boolean((defaults.object(forKey: key) as? NSNumber)?.boolValue ?? fallback) }
+        for (key, fallback) in [("AutoCloseGitProgress", 0), ("AutocompleteParseTimeout", 5), ("MaxHistoryItems", 25)] {
+            initial[key] = .integer((defaults.object(forKey: key) as? NSNumber)?.intValue ?? fallback)
+        }
+        // Migrate the earlier Commit-only history limit to the source shared key.
+        if defaults.object(forKey: "MaxHistoryItems") == nil, let old = defaults.object(forKey: "Commit.MaxHistoryItems") as? NSNumber { initial["MaxHistoryItems"] = .integer(old.intValue) }
+        values = initial; saved = initial
+    }
+    var modified: Bool { values != saved }
+    func boolean(_ key: String) -> Binding<Bool> {
+        Binding(get: { if case .boolean(let value) = self.values[key] { return value }; return false }, set: { self.values[key] = .boolean($0) })
+    }
+    func integer(_ key: String) -> Binding<Int> {
+        Binding(get: { if case .integer(let value) = self.values[key] { return value }; return 0 }, set: { self.values[key] = .integer($0) })
+    }
+    func apply() { for (key, value) in values { value.save(key) }; saved = values }
+    func cancel() { values = saved }
+}
+private struct DialogsBehaviorSettings: View {
+    @Environment(\.settingsTransaction) private var transaction
+    @StateObject private var draft = DialogsBehaviorDraft()
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                GroupBox("Misc") {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Picker("Autoclose Git progress dialog:", selection: draft.integer("AutoCloseGitProgress")) {
+                            ForEach(GitProgressAutoClose.allCases, id: \.rawValue) { Text($0.title).tag($0.rawValue) }
+                        }
+                        Toggle("Use Trash when reverting", isOn: draft.boolean("RevertWithRecycleBin"))
+                        Toggle("Confirm to kill running git process", isOn: draft.boolean("ConfirmKillProcess"))
+                        Toggle("Hide unchanged refs in Ref Compare List", isOn: draft.boolean("RefCompareHideUnchanged"))
+                        Toggle("Show Git execution timings and timestamp", isOn: draft.boolean("ShowGitexeTimings"))
+                        Toggle("Sort tag list in reversed order", isOn: draft.boolean("SortTagsReversed"))
+                    }.padding(8)
+                }
+                GroupBox("Commit") {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Toggle("Use auto-completion of file paths and keywords", isOn: draft.boolean("Autocompletion"))
+                        Stepper("Timeout in seconds to stop auto-completion parsing: \(draft.integer("AutocompleteParseTimeout").wrappedValue)", value: draft.integer("AutocompleteParseTimeout"), in: 1...100)
+                            .disabled(!draft.boolean("Autocompletion").wrappedValue)
+                        Stepper("Max. items to keep in the log message history: \(draft.integer("MaxHistoryItems").wrappedValue)", value: draft.integer("MaxHistoryItems"), in: 1...100)
+                        Toggle("Select items automatically", isOn: draft.boolean("SelectFilesForCommit"))
+                        Toggle("Do not auto-select \"missing\" files (deleted, but unstaged)", isOn: draft.boolean("AutoselectMissingFiles"))
+                        Toggle("Strip lines starting with \"#\" in commit message", isOn: draft.boolean("StripCommentedLines"))
+                    }.padding(8)
+                }
+                Spacer()
+            }.padding(20)
+        }
+        .settingsParticipant("dialogs2", page: .dialogs2, value: draft.values, modified: { draft.modified },
+            apply: { draft.apply(); return true }, cancel: draft.cancel)
+    }
 }

@@ -865,7 +865,7 @@ import UniformTypeIdentifiers
                 if !loadedMessage {
                     issueProperties = try await readReload(token) { try await repository.issueTrackerProperties(cancellation: token) }
                     let identity = try await readReload(token) { try await repository.commitMessageHistoryIdentity(cancellation: token) }
-                    let storedLimit = dialogDefaults.object(forKey: "Commit.MaxHistoryItems") as? Int ?? 25
+                    let storedLimit = dialogDefaults.object(forKey: "MaxHistoryItems") as? Int ?? dialogDefaults.object(forKey: "Commit.MaxHistoryItems") as? Int ?? 25
                     messageHistory = CommitMessageHistory(repositoryIdentity: identity, defaults: dialogDefaults, limit: storedLimit)
                     let seed = try await readReload(token) { try await repository.commitMessageSeed(cancellation: token) }
                     messageTemplate = seed.template

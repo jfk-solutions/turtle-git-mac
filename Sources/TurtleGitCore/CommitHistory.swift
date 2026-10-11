@@ -1492,3 +1492,45 @@ extension GitRepository {
         return try run(["reset", "--hard", plan.originalHead, "--"]).text
     }
 }
+
+/// SetDialogs / LogDlg::DescribeCommit preferences at the pinned source.
+public enum HistoryDescribeStrategy: Int, CaseIterable, Sendable {
+    case annotatedTags = 0, allTags = 1, allReferences = 2
+    public var title: String {
+        switch self { case .annotatedTags: return "Annotated tags"; case .allTags: return "All tags"; case .allReferences: return "All refs" }
+    }
+}
+public struct HistoryDescribeOptions: Equatable, Sendable {
+    public var enabled: Bool
+    public var strategy: HistoryDescribeStrategy
+    public var abbreviatedSize: Int
+    public var alwaysLong: Bool
+    public var firstParent: Bool
+    public init(enabled: Bool = false, strategy: HistoryDescribeStrategy = .annotatedTags, abbreviatedSize: Int = 7, alwaysLong: Bool = false, firstParent: Bool = false) {
+        self.enabled = enabled; self.strategy = strategy; self.abbreviatedSize = abbreviatedSize
+        self.alwaysLong = alwaysLong; self.firstParent = firstParent
+    }
+    public static func load(defaults: UserDefaults = .standard) -> Self {
+        Self(enabled: defaults.bool(forKey: "ShowDescribe"), strategy: HistoryDescribeStrategy(rawValue: defaults.integer(forKey: "DescribeStrategy")) ?? .annotatedTags,
+             abbreviatedSize: (defaults.object(forKey: "DescribeAbbreviatedSize") as? NSNumber)?.intValue ?? 7,
+             alwaysLong: defaults.bool(forKey: "DescribeAlwaysLong"), firstParent: defaults.bool(forKey: "DescribeOnlyFollowFirstParent"))
+    }
+}
+extension GitRepository {
+    public func describeHistoryCommit(_ hash: String, options: HistoryDescribeOptions, cancellation: OperationCancellation? = nil) throws -> String? {
+        guard (hash.count == 40 || hash.count == 64), hash.allSatisfy({ $0.isASCII && $0.isHexDigit }),
+              (0...64).contains(options.abbreviatedSize) else { throw RevisionComparisonFailure.range }
+        try cancellation?.check()
+        guard options.enabled else { return nil }
+        var arguments = ["describe", "--abbrev=\(options.abbreviatedSize)"]
+        if options.strategy == .allTags { arguments.append("--tags") }
+        if options.strategy == .allReferences { arguments.append("--all") }
+        if options.alwaysLong { arguments.append("--long") }
+        if options.firstParent { arguments.append("--first-parent") }
+        arguments += [hash]
+        let result = try run(arguments, environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], successfulExitCodes: 0...128, cancellation: cancellation)
+        // Upstream omits Describe when no matching name can be found.
+        guard result.exitCode == 0 else { return nil }
+        return result.text.trimmingCharacters(in: .newlines)
+    }
+}

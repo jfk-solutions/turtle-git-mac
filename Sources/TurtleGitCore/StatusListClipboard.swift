@@ -20,18 +20,40 @@ public enum StatusListClipboard {
         guard let dot = name.lastIndex(of: ".") else { return "" }
         return String(name[dot...])
     }
-    public static func displayedPath(_ entry: StatusEntry) -> String {
+    public static func displayedPath(_ entry: StatusEntry, abbreviate: Bool = UserDefaults.standard.bool(forKey: "AbbreviateRenamings")) -> String {
         if let old = entry.originalPath, !old.isEmpty, [entry.index, entry.worktree].contains(where: { $0 == "R" || $0 == "C" }) {
-            return entry.path + " (from " + old + ")"
+            return abbreviate ? abbreviatedRename(from: old, to: entry.path) : entry.path + " (from " + old + ")"
         }
         return entry.path
     }
 
-    public static func displayedPath(_ file: CommitFile) -> String {
+    public static func displayedPath(_ file: CommitFile, abbreviate: Bool = UserDefaults.standard.bool(forKey: "AbbreviateRenamings")) -> String {
         if let old = file.oldPath, !old.isEmpty, file.action.hasPrefix("R") || file.action.hasPrefix("C") {
-            return file.path + " (from " + old + ")"
+            return abbreviate ? abbreviatedRename(from: old, to: file.path) : file.path + " (from " + old + ")"
         }
         return file.path
+    }
+
+    /// CTGitPath::GetAbbreviatedRename shares directory prefixes/suffixes,
+    /// never filename fragments. Keep the actual Git paths unchanged.
+    public static func abbreviatedRename(from old: String, to new: String) -> String {
+        let a = Array(old.utf8), b = Array(new.utf8)
+        var prefix = 0
+        for index in 0..<min(a.count, b.count) {
+            if a[index] != b[index] { break }
+            if a[index] == 47 { prefix = index + 1 }
+        }
+        var suffix = 0, offset = 1
+        let limit = min(a.count, b.count) - prefix + (prefix > 0 ? 1 : 0)
+        while offset <= limit {
+            guard a[a.count - offset] == b[b.count - offset] else { break }
+            if a[a.count - offset] == 47 { suffix = offset }
+            offset += 1
+        }
+        let oldEnd = max(prefix, a.count - suffix), newEnd = max(prefix, b.count - suffix)
+        let middle = String(decoding: a[prefix..<oldEnd], as: UTF8.self) + " => " + String(decoding: b[prefix..<newEnd], as: UTF8.self)
+        if prefix + suffix == 0 { return middle }
+        return String(decoding: a.prefix(prefix), as: UTF8.self) + "{" + middle + "}" + String(decoding: b.suffix(suffix), as: UTF8.self)
     }
 
     /// Log merge parents can contain different occurrences of the same path.

@@ -4,12 +4,13 @@ Reference: pinned `Settings.cpp::AddPropPages`,
 `7338078f8ddd924b8cddee35f512f2286072136d`.
 
 The Settings scene now uses a native AppKit outline/sidebar and content pane,
-replacing the crowded global toolbar tab row. General owns Dialogs, Commit and
+replacing the crowded global toolbar tab row. General owns Dialogs 1, Dialogs 2, Message Editor and
 Alternative Editor. Git owns Remote when a repository is open. Email, Merge
 Editor, Saved Data, Blame, Unified Diff and Advanced remain available. This is a
 projection of implemented pages, not the complete upstream page catalogue.
-Commit and Merge Editor retain their existing macOS-specific grouping; source
-Dialogs 1/2/3, Colors 1/2/3, tools and helper-app settings still need full mapping.
+Message Editor and Merge Editor retain macOS-specific grouping. Dialogs 1/2
+now follow the source separation for implemented controls; Dialogs 3, Colors
+1/2/3, tools and helper-app settings still need full mapping.
 
 Rows use original upstream General, Dialogs, Git Config, Git Remote, Saved Data
 and TortoiseUDiff artwork, plus the existing editor/mail/merge/blame assets. The
@@ -77,3 +78,36 @@ No app or native receiver was launched, no full suite or App Store build was run
 and visual, focus, asynchronous sheet and sandbox acceptance remain open.
 See `docs/qa/settings-history-batch-2026-10-11.json`. No complete application/dialog
 certification is implied and inventory counts are unchanged.
+
+
+## Dialogs source-layout continuation (uncompiled and untested)
+
+After the recorded shared-Apply validation, the next implementation section
+separates Dialogs 1 from Dialogs 2. Dialogs 1 contains log limits/font, dates,
+reference presentation, avatars, revision counters and Describe. It now includes
+source AsteriskLogPrefix (default true), AbbreviateRenamings (default false), and
+all five Describe preferences. Describe runs against the captured selected commit
+with annotated-tags/all-tags/all-refs strategy, abbreviated size, long format and
+first-parent choices. Missing describe names are omitted as upstream does. Late
+results are fenced by the detail selection generation/cancellation. The message
+pane follows the source hash/Describe/subject/body/Notes/Tag Info order, removing
+CR and applying optional section asterisks.
+
+Abbreviated rename paths share only directory prefixes/suffixes, with source
+`{old => new}` formatting. Display/clipboard path cells use the preference; actual
+Git paths and operations remain unchanged.
+
+Dialogs 2 has source Misc and Commit groups. Progress auto-close, cancellation
+confirmation, execution timings, Trash, unchanged-reference filtering and tag
+sorting appear with completion, history-limit, selection/missing and comment-strip
+controls. Message-editor-specific formatting and completion extras remain on
+Message Editor and cannot write stale source Dialogs 2 preferences when applied.
+The shared `MaxHistoryItems` key now drives Commit and Merge histories, with a
+fallback/migration for the earlier Commit-only key.
+
+Remaining implementation in this section: persistent log cache; Sync startup
+position behavior; operation notification sounds; FETCH_HEAD choices and .mailmap
+preference coverage; Dialogs 3 scoped project preferences and source physical
+layout/keyboard/visual acceptance. No disabled or inert toggles are used to stand
+in for these missing behaviors. Inventory remains unchanged. This continuation
+has received source/diff review only; the earlier build/tests do not cover it.

@@ -253,6 +253,8 @@ private final class MessageTextView: NSTextView {
 }
 
 struct CommitEditorSettings: View {
+    private let editorOnly: Bool
+    private static let editorKeys = Set(["StyleCommitMessages", "AutoCompleteMinChars", "AutocompleteRemovesExtensions"])
     @State private var stripComments: Bool
     @State private var selectFiles: Bool
     @State private var noMissing: Bool
@@ -264,7 +266,7 @@ struct CommitEditorSettings: View {
     @State private var removeExtensions: Bool
     @Environment(\.settingsTransaction) private var transaction
     @State private var original: [String: SettingsScalar] = [:]
-    private var preferenceValues: [String: SettingsScalar] { [
+    private var preferenceValues: [String: SettingsScalar] { let values: [String: SettingsScalar] = [
         "StripCommentedLines": .boolean(stripComments),
         "SelectFilesForCommit": .boolean(selectFiles),
         "AutoselectMissingFiles": .boolean(noMissing),
@@ -274,8 +276,9 @@ struct CommitEditorSettings: View {
         "AutoCompleteMinChars": .integer(completionMinimum),
         "Autocompletion": .boolean(autocompletion),
         "AutocompleteRemovesExtensions": .boolean(removeExtensions)
-    ] }
-    init() {
+    ]; return editorOnly ? values.filter { Self.editorKeys.contains($0.key) } : values }
+    init(editorOnly: Bool = false) {
+        self.editorOnly = editorOnly
         _stripComments = State(initialValue: (UserDefaults.standard.object(forKey: "StripCommentedLines") as? NSNumber)?.boolValue ?? false)
         _selectFiles = State(initialValue: (UserDefaults.standard.object(forKey: "SelectFilesForCommit") as? NSNumber)?.boolValue ?? true)
         _noMissing = State(initialValue: (UserDefaults.standard.object(forKey: "AutoselectMissingFiles") as? NSNumber)?.boolValue ?? false)
@@ -285,7 +288,7 @@ struct CommitEditorSettings: View {
         _completionMinimum = State(initialValue: (UserDefaults.standard.object(forKey: "AutoCompleteMinChars") as? NSNumber)?.intValue ?? 3)
         _autocompletion = State(initialValue: (UserDefaults.standard.object(forKey: "Autocompletion") as? NSNumber)?.boolValue ?? true)
         _removeExtensions = State(initialValue: (UserDefaults.standard.object(forKey: "AutocompleteRemovesExtensions") as? NSNumber)?.boolValue ?? false)
-        _original = State(initialValue: [
+        let initial: [String: SettingsScalar] = [
             "StripCommentedLines": .boolean((UserDefaults.standard.object(forKey: "StripCommentedLines") as? NSNumber)?.boolValue ?? false),
             "SelectFilesForCommit": .boolean((UserDefaults.standard.object(forKey: "SelectFilesForCommit") as? NSNumber)?.boolValue ?? true),
             "AutoselectMissingFiles": .boolean((UserDefaults.standard.object(forKey: "AutoselectMissingFiles") as? NSNumber)?.boolValue ?? false),
@@ -295,7 +298,8 @@ struct CommitEditorSettings: View {
             "AutoCompleteMinChars": .integer((UserDefaults.standard.object(forKey: "AutoCompleteMinChars") as? NSNumber)?.intValue ?? 3),
             "Autocompletion": .boolean((UserDefaults.standard.object(forKey: "Autocompletion") as? NSNumber)?.boolValue ?? true),
             "AutocompleteRemovesExtensions": .boolean((UserDefaults.standard.object(forKey: "AutocompleteRemovesExtensions") as? NSNumber)?.boolValue ?? false)
-        ])
+        ]
+        _original = State(initialValue: editorOnly ? initial.filter { Self.editorKeys.contains($0.key) } : initial)
     }
     private func applyDraft() { preferenceValues.forEach { $0.value.save($0.key) }; original = preferenceValues }
     private func cancelDraft() {
@@ -314,14 +318,16 @@ struct CommitEditorSettings: View {
             Toggle("Style commit messages", isOn: $styleMessages)
             Text(verbatim: "Use *bold*, ^italic^ and _underlined_ text. Markers remain in the commit message. Issue and URL links stay enabled.")
                 .font(.caption).foregroundStyle(.secondary)
+            if !editorOnly {
             Toggle("Use auto-completion of file paths and keywords", isOn: $autocompletion)
-            Stepper("Timeout in seconds to stop the auto-completion parsing: \(parseTimeout)", value: $parseTimeout, in: 1...100).disabled(!autocompletion)
+            Stepper("Timeout in seconds to stop the auto-completion parsing: \(parseTimeout)", value: $parseTimeout, in: 1...100).disabled(!autocompletion && !editorOnly)
             Stepper("Max. items to keep in the log message history: \(historyLimit)", value: $historyLimit, in: 1...100)
             Toggle("Strip lines starting with \"#\" in commit message", isOn: $stripComments)
             Toggle("Select items automatically", isOn: $selectFiles)
             Toggle("Do not auto-select \"missing\" files (deleted, but unstaged)", isOn: $noMissing)
-            Stepper("Complete after \(completionMinimum) characters", value: $completionMinimum, in: 1...100).disabled(!autocompletion)
-            Toggle("Include file names without extensions", isOn: $removeExtensions).disabled(!autocompletion)
+            }
+            Stepper("Complete after \(completionMinimum) characters", value: $completionMinimum, in: 1...100).disabled(!autocompletion && !editorOnly)
+            Toggle("Include file names without extensions", isOn: $removeExtensions).disabled(!autocompletion && !editorOnly)
             Text("File and code completions come from the displayed changes. Press Ctrl-Space or Option-Escape to request them after one character.").font(.caption).foregroundStyle(.secondary)
         }.padding(20)
         .onChange(of: preferenceValues) { _ in if transaction == nil { applyDraft() } }

@@ -403,3 +403,15 @@ three focused Git configuration tests passed. No app/native receiver was launche
 and no full suite was rerun. Native workflow/visual/sandbox acceptance remains
 open; see `qa/settings-history-batch-2026-10-11.json`. This does not certify any
 additional inventory dialogs or the full port.
+
+
+### Dialogs 1/2 source continuation, 2026-10-11
+
+Added working source Describe strategy/format/first-parent controls, optional
+asterisk message sections and abbreviated rename presentation. Split implemented
+Misc/Commit preferences into Dialogs 2 and isolated Message Editor extras; aligned
+Commit with the source shared history-limit key. This is the next major section
+in progress, with source/diff review only. Builds, tests and app launches remain
+deferred until the rest of this section is implemented. Remaining behavior and
+acceptance is listed in SETTINGS-NAVIGATION-PARITY.md; no inventory certification
+has changed.

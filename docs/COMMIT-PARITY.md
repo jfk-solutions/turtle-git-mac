@@ -1976,3 +1976,15 @@ it does not establish physical confirmation-sheet teardown or pointer interactio
 Final two-engine checks pass, including the existing header/sort/fitting/clipboard
 and repository-preservation cases. See [the close-lifetime record](qa/commit-column-close-2026-10-11.json)
 for the source hashes and precise verification scope.
+
+
+## Dialogs 2 grouping and shared history-key continuation
+
+The new native Settings host now moves source selection, missing-file, completion,
+history-limit and comment-strip controls to General → Dialogs 2 → Commit. The
+Message Editor page keeps formatting/minimum-character/extension extras. Shared
+OK/Cancel/Apply keeps drafts until applied. Commit now reads `MaxHistoryItems`,
+the source key shared with Merge, falling back to `Commit.MaxHistoryItems` for
+existing installations. Dialogs 2 migrates the earlier key when no shared value
+exists. This later continuation is uncompiled/untested; older native QA applies
+to its recorded revision, not this new grouping or shared-key migration.

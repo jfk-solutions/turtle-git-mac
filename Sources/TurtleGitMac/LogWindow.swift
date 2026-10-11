@@ -1077,6 +1077,9 @@ struct LogCommandRequest: Identifiable {
     private var detailGeneration = 0
     private let showBranchRevisionNumber: Bool
     @Published private(set) var branchRevisionNumber: String?
+    @Published private(set) var describedRevision: String?
+    private let describeOptions: HistoryDescribeOptions
+    private let asteriskLogPrefix: Bool
     private var clipboardCancellation: OperationCancellation?
     private var clipboardGeneration = 0
     @Published var copyingDetails = false
@@ -1148,10 +1151,16 @@ struct LogCommandRequest: Identifiable {
     var message: String {
         if selectedWorkingTree, let snapshot = workingTreeSnapshot { return "Working tree changes\n" + snapshot.entry.message + (snapshot.entry.parents.first.map { "\nHEAD: " + $0 } ?? "") }
         guard let revision else { return selected.isEmpty ? "Select a revision to see its commit message and changed files." : "\(selected.count) revisions selected." }
-        return "SHA-1: \(revision.hash)" + (branchRevisionNumber.map { ", Branch RevNo: " + $0 } ?? "") + "\nAuthor: \(revision.author) <\(revision.email)>\nDate: \(HistoryDateSettings.load().format(revision.date))\n" +
-            (revision.parents.isEmpty ? "" : "Parents: \(revision.parents.joined(separator: " "))\n") + "\n" + revision.message + (revision.notes.isEmpty ? "" : "\n----\nNotes:\n" + revision.notes) + (revision.tagInfo.isEmpty ? "" : "\n----\nTag Info:\n" + HistoryDateSettings.load().tagInfo(revision.tagInfo))
+        let prefix = asteriskLogPrefix ? "* " : ""
+        let describe = describedRevision.map { "Describe: " + $0 + "\n" } ?? ""
+        return "SHA-1: \(revision.hash)" + (branchRevisionNumber.map { ", Branch RevNo: " + $0 } ?? "") + "\n" + describe + "\n" +
+            prefix + revision.message.replacingOccurrences(of: "\r", with: "") +
+            (revision.notes.isEmpty ? "" : "\n" + prefix + "Notes:\n" + revision.notes.replacingOccurrences(of: "\r", with: "")) +
+            (revision.tagInfo.isEmpty ? "" : "\n" + prefix + "Tag Info:\n" + HistoryDateSettings.load().tagInfo(revision.tagInfo))
     }
     init(repository: GitRepository, access: RepositoryAccessLease?, selecting: Bool = false, selectingMultiple: Bool = false, labelDefaults: UserDefaults = .standard, gravatar: LogGravatar? = nil, historyRegexExecutable: URL? = nil) {
+        describeOptions = .load(defaults: labelDefaults)
+        asteriskLogPrefix = labelDefaults.object(forKey: "AsteriskLogPrefix") == nil || labelDefaults.bool(forKey: "AsteriskLogPrefix")
         let limits = HistoryLimitDefaults.load(defaults: labelDefaults)
         self.historyLimit = HistoryLimitScope(defaults: limits, from: limits.scale == .selectedDate ? HistoryLimitDefaults.savedFrom(root: repository.root, defaults: labelDefaults) : nil)
         self.fullCommitMessageOnLogLine = labelDefaults.bool(forKey: "FullCommitMessageOnLogLine")
@@ -1357,7 +1366,7 @@ struct LogCommandRequest: Identifiable {
         for entry in entries where !entry.hash.isEmpty && hashes.contains(entry.hash) { selectionNavigation.add(entry.hash) }
         cancelClipboardRead()
         detailCancellation?.cancel(); detailCancellation = nil
-        selected = hashes; branchRevisionNumber = nil; refreshGravatar(); selectedFiles = []; fileSelectionMark = nil; files = []; fileGroups = []
+        selected = hashes; branchRevisionNumber = nil; describedRevision = nil; refreshGravatar(); selectedFiles = []; fileSelectionMark = nil; files = []; fileGroups = []
         detailGeneration += 1; let request = detailGeneration
         if selectedWorkingTree { updateWorkingFiles(); return }
         guard let revision else { return }
@@ -1388,6 +1397,11 @@ struct LogCommandRequest: Identifiable {
                         guard request == detailGeneration else { return }
                         if !cancellation.isCancelled { self.error = "Could not get rev count\n" + error.localizedDescription }
                     }
+                }
+                if describeOptions.enabled {
+                    let description = try? await repository.describeHistoryCommit(revision.hash, options: describeOptions, cancellation: cancellation)
+                    guard request == detailGeneration, !cancellation.isCancelled, !isInvalidated else { return }
+                    describedRevision = description
                 }
                 detailCancellation = nil; refreshPatchPreview()
             } catch { if request == detailGeneration { detailCancellation = nil; if !cancellation.isCancelled { self.error = error.localizedDescription } } }
@@ -2455,9 +2469,6 @@ struct LogPreferenceCheckbox: NSViewRepresentable {
 
 struct LogDialogSettings: View {
     @State private var showBranchRevisionNumber: Bool
-    @State private var autoCloseGitProgress: Int
-    @State private var confirmKillProcess: Bool
-    @State private var showGitexeTimings: Bool
     @State private var diffByDoubleClick: Bool
     @State private var enableGravatar: Bool
     @State private var gravatarURL: String
@@ -2468,13 +2479,17 @@ struct LogDialogSettings: View {
     @State private var labelsOnRight: Bool
     @State private var symbolizeRefs: Bool
     @State private var fullMessage: Bool
+    @State private var describeFirstParent: Bool
+    @State private var describeLong: Bool
+    @State private var describeSize: Int
+    @State private var describeStrategy: Int
+    @State private var showDescribe: Bool
+    @State private var abbreviateRenamings: Bool
+    @State private var asteriskPrefix: Bool
     @Environment(\.settingsTransaction) private var transaction
     @State private var original: [String: SettingsScalar] = [:]
     private var preferenceValues: [String: SettingsScalar] { [
         "ShowBranchRevisionNumber": .boolean(showBranchRevisionNumber),
-        "AutoCloseGitProgress": .integer(autoCloseGitProgress),
-        "ConfirmKillProcess": .boolean(confirmKillProcess),
-        "ShowGitexeTimings": .boolean(showGitexeTimings),
         "DiffByDoubleClickInLog": .boolean(diffByDoubleClick),
         "EnableGravatar": .boolean(enableGravatar),
         "GravatarUrl": .string(gravatarURL),
@@ -2484,13 +2499,24 @@ struct LogDialogSettings: View {
         "UseSystemLocaleForDates": .boolean(useSystemLocale),
         "DrawTagsBranchesOnRightSide": .boolean(labelsOnRight),
         "SymbolizeRefNames": .boolean(symbolizeRefs),
+        "AsteriskLogPrefix": .boolean(asteriskPrefix),
+        "AbbreviateRenamings": .boolean(abbreviateRenamings),
+        "ShowDescribe": .boolean(showDescribe),
+        "DescribeStrategy": .integer(describeStrategy),
+        "DescribeAbbreviatedSize": .integer(describeSize),
+        "DescribeAlwaysLong": .boolean(describeLong),
+        "DescribeOnlyFollowFirstParent": .boolean(describeFirstParent),
         "FullCommitMessageOnLogLine": .boolean(fullMessage)
     ] }
     init() {
+        _describeFirstParent = State(initialValue: (UserDefaults.standard.object(forKey: "DescribeOnlyFollowFirstParent") as? NSNumber)?.boolValue ?? false)
+        _describeLong = State(initialValue: (UserDefaults.standard.object(forKey: "DescribeAlwaysLong") as? NSNumber)?.boolValue ?? false)
+        _describeSize = State(initialValue: (UserDefaults.standard.object(forKey: "DescribeAbbreviatedSize") as? NSNumber)?.intValue ?? 7)
+        _describeStrategy = State(initialValue: (UserDefaults.standard.object(forKey: "DescribeStrategy") as? NSNumber)?.intValue ?? 0)
+        _showDescribe = State(initialValue: (UserDefaults.standard.object(forKey: "ShowDescribe") as? NSNumber)?.boolValue ?? false)
+        _abbreviateRenamings = State(initialValue: (UserDefaults.standard.object(forKey: "AbbreviateRenamings") as? NSNumber)?.boolValue ?? false)
+        _asteriskPrefix = State(initialValue: (UserDefaults.standard.object(forKey: "AsteriskLogPrefix") as? NSNumber)?.boolValue ?? true)
         _showBranchRevisionNumber = State(initialValue: (UserDefaults.standard.object(forKey: "ShowBranchRevisionNumber") as? NSNumber)?.boolValue ?? false)
-        _autoCloseGitProgress = State(initialValue: (UserDefaults.standard.object(forKey: "AutoCloseGitProgress") as? NSNumber)?.intValue ?? 0)
-        _confirmKillProcess = State(initialValue: (UserDefaults.standard.object(forKey: "ConfirmKillProcess") as? NSNumber)?.boolValue ?? false)
-        _showGitexeTimings = State(initialValue: (UserDefaults.standard.object(forKey: "ShowGitexeTimings") as? NSNumber)?.boolValue ?? true)
         _diffByDoubleClick = State(initialValue: (UserDefaults.standard.object(forKey: "DiffByDoubleClickInLog") as? NSNumber)?.boolValue ?? false)
         _enableGravatar = State(initialValue: (UserDefaults.standard.object(forKey: "EnableGravatar") as? NSNumber)?.boolValue ?? false)
         _gravatarURL = State(initialValue: UserDefaults.standard.string(forKey: "GravatarUrl") ?? LogGravatarRequest.defaultTemplate)
@@ -2502,10 +2528,14 @@ struct LogDialogSettings: View {
         _symbolizeRefs = State(initialValue: (UserDefaults.standard.object(forKey: "SymbolizeRefNames") as? NSNumber)?.boolValue ?? false)
         _fullMessage = State(initialValue: (UserDefaults.standard.object(forKey: "FullCommitMessageOnLogLine") as? NSNumber)?.boolValue ?? false)
         _original = State(initialValue: [
+            "DescribeOnlyFollowFirstParent": .boolean((UserDefaults.standard.object(forKey: "DescribeOnlyFollowFirstParent") as? NSNumber)?.boolValue ?? false),
+            "DescribeAlwaysLong": .boolean((UserDefaults.standard.object(forKey: "DescribeAlwaysLong") as? NSNumber)?.boolValue ?? false),
+            "DescribeAbbreviatedSize": .integer((UserDefaults.standard.object(forKey: "DescribeAbbreviatedSize") as? NSNumber)?.intValue ?? 7),
+            "DescribeStrategy": .integer((UserDefaults.standard.object(forKey: "DescribeStrategy") as? NSNumber)?.intValue ?? 0),
+            "ShowDescribe": .boolean((UserDefaults.standard.object(forKey: "ShowDescribe") as? NSNumber)?.boolValue ?? false),
+            "AbbreviateRenamings": .boolean((UserDefaults.standard.object(forKey: "AbbreviateRenamings") as? NSNumber)?.boolValue ?? false),
+            "AsteriskLogPrefix": .boolean((UserDefaults.standard.object(forKey: "AsteriskLogPrefix") as? NSNumber)?.boolValue ?? true),
             "ShowBranchRevisionNumber": .boolean((UserDefaults.standard.object(forKey: "ShowBranchRevisionNumber") as? NSNumber)?.boolValue ?? false),
-            "AutoCloseGitProgress": .integer((UserDefaults.standard.object(forKey: "AutoCloseGitProgress") as? NSNumber)?.intValue ?? 0),
-            "ConfirmKillProcess": .boolean((UserDefaults.standard.object(forKey: "ConfirmKillProcess") as? NSNumber)?.boolValue ?? false),
-            "ShowGitexeTimings": .boolean((UserDefaults.standard.object(forKey: "ShowGitexeTimings") as? NSNumber)?.boolValue ?? true),
             "DiffByDoubleClickInLog": .boolean((UserDefaults.standard.object(forKey: "DiffByDoubleClickInLog") as? NSNumber)?.boolValue ?? false),
             "EnableGravatar": .boolean((UserDefaults.standard.object(forKey: "EnableGravatar") as? NSNumber)?.boolValue ?? false),
             "GravatarUrl": .string(UserDefaults.standard.string(forKey: "GravatarUrl") ?? LogGravatarRequest.defaultTemplate),
@@ -2520,10 +2550,14 @@ struct LogDialogSettings: View {
     }
     private func applyDraft() { preferenceValues.forEach { $0.value.save($0.key) }; original = preferenceValues }
     private func cancelDraft() {
+        if case .boolean(let value) = original["DescribeOnlyFollowFirstParent"] { describeFirstParent = value }
+        if case .boolean(let value) = original["DescribeAlwaysLong"] { describeLong = value }
+        if case .integer(let value) = original["DescribeAbbreviatedSize"] { describeSize = value }
+        if case .integer(let value) = original["DescribeStrategy"] { describeStrategy = value }
+        if case .boolean(let value) = original["ShowDescribe"] { showDescribe = value }
+        if case .boolean(let value) = original["AbbreviateRenamings"] { abbreviateRenamings = value }
+        if case .boolean(let value) = original["AsteriskLogPrefix"] { asteriskPrefix = value }
         if case .boolean(let value) = original["ShowBranchRevisionNumber"] { showBranchRevisionNumber = value }
-        if case .integer(let value) = original["AutoCloseGitProgress"] { autoCloseGitProgress = value }
-        if case .boolean(let value) = original["ConfirmKillProcess"] { confirmKillProcess = value }
-        if case .boolean(let value) = original["ShowGitexeTimings"] { showGitexeTimings = value }
         if case .boolean(let value) = original["DiffByDoubleClickInLog"] { diffByDoubleClick = value }
         if case .boolean(let value) = original["EnableGravatar"] { enableGravatar = value }
         if case .string(let value) = original["GravatarUrl"] { gravatarURL = value }
@@ -2536,24 +2570,17 @@ struct LogDialogSettings: View {
         if case .boolean(let value) = original["FullCommitMessageOnLogLine"] { fullMessage = value }
     }
     var body: some View {
-        Form {
-            MessageEditorFontSettings()
-            HistoryLimitSettings()
-            Picker("Autoclose Git progress dialog:", selection: Binding(get: { GitProgressAutoClose(rawValue: autoCloseGitProgress) ?? .manual }, set: { autoCloseGitProgress = $0.rawValue })) {
-                ForEach(GitProgressAutoClose.allCases, id: \.self) { policy in Text(policy.title).tag(policy) }
-            }.help("Successful operations close according to this policy. Failed operations stay open.")
-            Toggle("Confirm to kill running git process", isOn: $confirmKillProcess)
-                .help("When closing a progress dialog with a running git process, ask for confirmation before killing it")
-            Toggle("Show Git execution timings and timestamp", isOn: $showGitexeTimings)
-            Toggle("Display branch revision number", isOn: $showBranchRevisionNumber)
-                .help("Show branch revision number (git rev-list --count --first-parent) in log dialog and after a push to a remote branch; this is not guaranteed to be unique, please see help")
+        ScrollView { VStack(alignment: .leading) {
             GroupBox("Log messages") {
                 VStack(alignment: .leading, spacing: 10) {
+                    HistoryLimitSettings()
+                    MessageEditorFontSettings()
                     Toggle("Can double-click in log list to compare with previous revision", isOn: $diffByDoubleClick)
                         .help("If checked, double-clicking on a revision in the log list compares it with the previous revision")
                     Toggle("Short date/time format in log messages", isOn: $shortDate).disabled(!useSystemLocale)
-                    Toggle("Relative Times in log", isOn: $relative)
+                    HStack { Toggle("Relative Times in log", isOn: $relative); Toggle("Show asterisk log prefix", isOn: $asteriskPrefix) }
                     Toggle("Use system locale for date/time", isOn: $useSystemLocale)
+                    Toggle("Abbreviate renamings", isOn: $abbreviateRenamings)
                     LogPreferenceCheckbox(title: "Symbolize ref names", value: $symbolizeRefs).fixedSize(horizontal: false, vertical: true)
                     LogPreferenceCheckbox(title: "Draw tag/branch labels on right side", value: $labelsOnRight).fixedSize(horizontal: false, vertical: true)
                     LogPreferenceCheckbox(title: "Display subject and body of commit messages", value: $fullMessage).fixedSize(horizontal: false, vertical: true)
@@ -2561,12 +2588,30 @@ struct LogDialogSettings: View {
                     Toggle("Enable Gravatar", isOn: $enableGravatar).help("Enable showing Gravatar image in Log Dialog")
                     TextField("Gravatar URL", text: $gravatarURL).disabled(!enableGravatar).help("Allow to use custom Gravatar URL; %HASH% is replaced by the author email hash")
                     Toggle("Use MD5 for Gravatar", isOn: $gravatarMD5).disabled(!enableGravatar)
+                    Toggle("Display branch revision number", isOn: $showBranchRevisionNumber)
+                        .help("Count first-parent revisions on the checked-out branch; this count is not guaranteed to be unique.")
+                    GroupBox("Describe") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Toggle("Show describe in log", isOn: $showDescribe)
+                            Picker("Describe Strategy", selection: $describeStrategy) {
+                                ForEach(HistoryDescribeStrategy.allCases, id: \.rawValue) { Text($0.title).tag($0.rawValue) }
+                            }
+                            HStack {
+                                Text("Abbreviated size")
+                                TextField("7", value: $describeSize, formatter: NumberFormatter()).frame(width: 70)
+                                Toggle("Always show long format", isOn: $describeLong)
+                            }
+                            Toggle("Only follow first parent", isOn: $describeFirstParent)
+                            if !(0...64).contains(describeSize) { Text("Enter a size from 0 to 64.").foregroundStyle(.red) }
+                        }.padding(8)
+                    }
+                    Text("Reopen Log windows to apply asterisk and Describe preferences.").font(.caption).foregroundStyle(.secondary)
                 }.padding(8)
             }
-        }.padding(20)
+        }.padding(20) }
         .onChange(of: preferenceValues) { _ in if transaction == nil { applyDraft() } }
         .settingsParticipant("dialogs", page: .dialogs, value: preferenceValues,
-            modified: { preferenceValues != original }, apply: { applyDraft(); return true }, cancel: cancelDraft)
+            modified: { preferenceValues != original }, validate: { (0...64).contains(describeSize) ? nil : "Enter a Describe abbreviated size from 0 to 64." }, apply: { applyDraft(); return true }, cancel: cancelDraft)
     }
 }
 
