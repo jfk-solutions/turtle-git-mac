@@ -784,6 +784,7 @@ import UniformTypeIdentifiers
     }
     func loadHistoryCombine(_ plan: HistoryCombinePlan, date: RebaseSquashDate) {
         invalidateMetadataLoads(); historyCombine = plan
+        createBranch = false; newBranch = ""
         amend = true; amendDiffToLastCommit = plan.lastParentCount != 1
         message = plan.message; amendMessage = plan.message; originalAmendMessage = plan.message
         showWholeProject = true; selectFilesAutomatically = true
@@ -1080,7 +1081,8 @@ import UniformTypeIdentifiers
         }
     }
     func commit(_ action: CompletionAction = .commit) {
-        guard canCommit, replaySplit == nil && historyCombine == nil || action == .commit else { return }
+        guard canCommit, replaySplit == nil && historyCombine == nil || action == .commit,
+              historyCombine == nil || (amend && !createBranch) else { return }
         if replaySplit == nil && historyCombine == nil { completionAction = action }
         let rawMessage = message, rawIssueID = issueID, properties = issueProperties, paths = checkedPathsForCommit, staging = stagingEnabled
         let committedPaths = staging ? Set(entries.filter(\.staged).map(\.path)) : messageOnly ? Set<String>() : paths

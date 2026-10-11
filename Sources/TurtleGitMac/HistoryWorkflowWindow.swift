@@ -173,6 +173,7 @@ private struct HistoryNotesDialog: View {
                 let messageURL = path.hasPrefix("/") ? URL(fileURLWithPath: path) : self.repository.root.appendingPathComponent(path)
                 for entry in self.entries {
                     if self.cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
+                    if entry.hash.isEmpty { self.completed += 1; continue }
                     self.output += entry.hash + " " + entry.subject + "\n"
                     do {
                         let result = try await self.repository.revertLogRevision(revision: entry.hash, mainline: self.entries.count == 1 ? self.mainline : nil, cancellation: self.cancellation)

@@ -45,6 +45,7 @@ import TurtleGitCore
     private var repository: GitRepository?
     private var commitWindows: [String: CommitWindowController] = [:]
     private var combineWindows: [UUID: HistoryCombineWindowController] = [:]
+    private var historyRevertWindows: [UUID: HistoryRevertWindowController] = [:]
     private var logWindows: [String: LogWindowController] = [:]
     private var revisionGraphWindows: [String: RevisionGraphWindowController] = [:]
     private var referenceBrowserWindows: [String: ReferenceBrowserWindowController] = [:]
@@ -808,7 +809,7 @@ import TurtleGitCore
         controller.model.onHistoryBisect = { [weak self, weak controller] request in
             self?.showBisect(repository: repository, access: access, good: request.good, bad: request.bad, operation: request.operation, revisions: request.revisions, requireStart: request.operation == nil, onChanged: { [weak controller] in controller?.model.refresh() })
         }
-        controller.model.onHistoryPush = { [weak self] revision in self?.showPush(repository: repository, access: access, source: revision) }
+        controller.model.onHistoryPush = { [weak self] revision, preserveAllBranches in self?.showPush(repository: repository, access: access, source: revision, preserveAllBranches: preserveAllBranches) }
         controller.model.onHistoryPull = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
         controller.model.onHistoryReferenceChanged = { [weak self] output in
             self?.refreshRepositoryLogs(repository.root); self?.statusWindows[key]?.model.reload(); self?.commitWindows[key]?.model.reload()
@@ -1290,6 +1291,24 @@ import TurtleGitCore
         for log in logWindows.values where log.model.repository.root == root && !log.model.isInvalidated { log.model.requestRepositoryRefresh() }
         for graph in revisionGraphWindows.values where graph.model.repository.root == root && !graph.model.closed { graph.requestRepositoryRefresh() }
     }
+    private func showHistoryRevert(repository: GitRepository, access: RepositoryAccessLease?, entries: [LogEntry], mainline: Int?, owner: NSWindow?) {
+        guard owner?.attachedSheet == nil else { return }
+        let id = UUID(), root = repository.root
+        let child = HistoryRevertWindowController(repository: repository, access: access, entries: entries, mainline: mainline, preferences: .standard)
+        child.model.onChanged = { [weak self] output in
+            self?.refreshRepositoryLogs(root); self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload()
+            if self?.root == root { self?.output = output; Task { await self?.refresh() } }
+        }
+        child.model.onCommit = { [weak self] in self?.showCommitDialog(repository: repository, access: access, paths: []) }
+        child.onClosed = { [weak self, weak owner, weak child] in
+            if let window = child?.window, window.sheetParent === owner { owner?.endSheet(window) }
+            self?.historyRevertWindows.removeValue(forKey: id)
+        }
+        historyRevertWindows[id] = child
+        if let owner, let window = child.window { window.alphaValue = owner.alphaValue; window.appearance = owner.appearance; owner.beginSheet(window) }
+        else { child.showWindow(nil) }
+        child.model.start()
+    }
     private func showHistoryCombine(repository: GitRepository, access: RepositoryAccessLease?, entries: [LogEntry], offset: Int, head: String, owner: NSWindow?) {
         guard owner?.attachedSheet == nil else { return }
         let id = UUID(), root = repository.root
@@ -1325,7 +1344,10 @@ import TurtleGitCore
         let controller = reusable?.value ?? LogWindowController(repository: repository, access: access)
         controller.onClosed = { [weak self] in self?.logWindows.removeValue(forKey: key) }
         controller.model.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
+        controller.model.onHistoryPush = { [weak self] revision, preserveAllBranches in self?.showPush(repository: repository, access: access, source: revision, preserveAllBranches: preserveAllBranches) }
+        controller.model.onHistoryPull = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
         controller.model.onCombineRevisions = { [weak self, weak controller] entries, offset, head in self?.showHistoryCombine(repository: repository, access: access, entries: entries, offset: offset, head: head, owner: controller?.window) }
+        controller.model.onRevertRevisions = { [weak self, weak controller] entries, mainline in self?.showHistoryRevert(repository: repository, access: access, entries: entries, mainline: mainline, owner: controller?.window) }
         controller.model.onFormatPatch = { [weak self] preset in self?.showFormatPatch(repository: repository, access: access, preset: preset) }
         controller.model.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
         controller.model.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
@@ -1476,6 +1498,8 @@ import TurtleGitCore
         }
         controller.model.configureLogPicker = { [weak self] log in
             log.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
+            log.onHistoryPush = { [weak self] revision, preserveAllBranches in self?.showPush(repository: repository, access: access, source: revision, preserveAllBranches: preserveAllBranches) }
+            log.onHistoryPull = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
             log.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
             log.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
             self?.configureLogSwitch(log, repository: repository, access: access)
@@ -1483,6 +1507,7 @@ import TurtleGitCore
             log.onMergeRevision = { [weak self] revision in self?.showMerge(repository: repository, access: access, revision: revision) }
             log.onRebaseRevision = { [weak self] revision in self?.showRebase(repository: repository, access: access, upstream: revision, fromLog: true) }
             log.onCombineRevisions = { [weak self, weak log] entries, offset, head in self?.showHistoryCombine(repository: repository, access: access, entries: entries, offset: offset, head: head, owner: log?.window) }
+            log.onRevertRevisions = { [weak self, weak log] entries, mainline in self?.showHistoryRevert(repository: repository, access: access, entries: entries, mainline: mainline, owner: log?.window) }
             self?.configureLogBisect(log, repository: repository, access: access, refreshPicker: true)
                 log.onCherryPick = { [weak self] commits in self?.showRebase(repository: repository, access: access, cherryPick: commits) }
             log.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
@@ -1559,6 +1584,8 @@ import TurtleGitCore
         model.onRename = { [weak self] path in self?.showRename(repository: repository, access: access, source: path) }
         model.configureLogPicker = { [weak self] log in
             log.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
+            log.onHistoryPush = { [weak self] revision, preserveAllBranches in self?.showPush(repository: repository, access: access, source: revision, preserveAllBranches: preserveAllBranches) }
+            log.onHistoryPull = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
             log.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
             log.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
             self?.configureLogSwitch(log, repository: repository, access: access)
@@ -1566,6 +1593,7 @@ import TurtleGitCore
             log.onMergeRevision = { [weak self] revision in self?.showMerge(repository: repository, access: access, revision: revision) }
             log.onRebaseRevision = { [weak self] revision in self?.showRebase(repository: repository, access: access, upstream: revision, fromLog: true) }
             log.onCombineRevisions = { [weak self, weak log] entries, offset, head in self?.showHistoryCombine(repository: repository, access: access, entries: entries, offset: offset, head: head, owner: log?.window) }
+            log.onRevertRevisions = { [weak self, weak log] entries, mainline in self?.showHistoryRevert(repository: repository, access: access, entries: entries, mainline: mainline, owner: log?.window) }
             self?.configureLogBisect(log, repository: repository, access: access, refreshPicker: true)
             log.onCherryPick = { [weak self] commits in self?.showRebase(repository: repository, access: access, cherryPick: commits) }
         log.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
@@ -1607,6 +1635,8 @@ import TurtleGitCore
         revisionLog.onBrowseRepository = { [weak self] hash in self?.showRepositoryBrowser(repository: repository, access: access, revision: hash) }
         revisionLog.onCreateReference = { [weak self] tag, hash in self?.showReference(repository: repository, access: access, isTag: tag, revision: hash) }
         revisionLog.onPush = { [weak self] hash in self?.showPush(repository: repository, access: access, source: hash) }
+        revisionLog.onHistoryPush = { [weak self] revision, preserveAllBranches in self?.showPush(repository: repository, access: access, source: revision, preserveAllBranches: preserveAllBranches) }
+        revisionLog.onHistoryPull = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
         revisionLog.onFormatPatch = { [weak self] preset in self?.showFormatPatch(repository: repository, access: access, preset: preset) }
         revisionLog.onRevisionChanged = { [weak self] output in
             self?.refreshRepositoryLogs(root)
@@ -1615,6 +1645,8 @@ import TurtleGitCore
         controller.model.onShowRevisionLog = { [weak self] hash in self?.showLog(repository: repository, access: access, paths: [], endRevision: hash) }
         controller.model.configureLogPicker = { [weak self] log in
             log.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
+            log.onHistoryPush = { [weak self] revision, preserveAllBranches in self?.showPush(repository: repository, access: access, source: revision, preserveAllBranches: preserveAllBranches) }
+            log.onHistoryPull = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
             log.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
             log.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
             self?.configureLogSwitch(log, repository: repository, access: access)
@@ -1622,6 +1654,7 @@ import TurtleGitCore
             log.onMergeRevision = { [weak self] revision in self?.showMerge(repository: repository, access: access, revision: revision) }
             log.onRebaseRevision = { [weak self] revision in self?.showRebase(repository: repository, access: access, upstream: revision, fromLog: true) }
             log.onCombineRevisions = { [weak self, weak log] entries, offset, head in self?.showHistoryCombine(repository: repository, access: access, entries: entries, offset: offset, head: head, owner: log?.window) }
+            log.onRevertRevisions = { [weak self, weak log] entries, mainline in self?.showHistoryRevert(repository: repository, access: access, entries: entries, mainline: mainline, owner: log?.window) }
             self?.configureLogBisect(log, repository: repository, access: access, refreshPicker: true)
             log.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
         }

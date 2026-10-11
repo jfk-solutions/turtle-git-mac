@@ -47,3 +47,21 @@ Skip/Abort continuation, detailed conflict/continue/abort flows, linked-worktree
 acceptance and signed sandbox checks remain partial. Cherry Pick still needs its
 upstream Rebase-dialog workflow; this change does not provide merge Cherry Pick.
 The complete Log/application port remains unfinished.
+
+## Shared history workflow implementation (October 11, deferred validation)
+
+Log and the nested Merge, Switch and Fetch revision pickers now route captured
+single/multiple selections through `HistoryRevertWindowController`. Merge-parent
+choices retain their captured mainline. Multiple selection retains displayed row
+order, skips the working-tree placeholder and uses the shared Skip/Abort error
+choice, aggregated MERGE_MSG and completion Commit handoff. The original direct
+model route remains available to consumers without a native workflow factory.
+The child inherits its owner's appearance and opacity; owner close ends pending
+questions and cancels the owned operation.
+
+This integration is source-reviewed implementation, **not new execution evidence**.
+The earlier shared Sync checks in
+[the history workflow batch record](qa/history-workflow-batch-2026-10-11.json)
+do not validate these new Log consumers. Builds, native launches and tests remain
+deferred until the larger history section is ready. Forced close, Skip/Abort,
+keyboard/focus and signed sandbox acceptance remain open for that pass.

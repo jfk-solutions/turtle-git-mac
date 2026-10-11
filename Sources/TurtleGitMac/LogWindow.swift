@@ -610,6 +610,19 @@ struct LogCommandRequest: Identifiable {
     var onMergeRevision: ((String) -> Void)?
     var onRebaseRevision: ((String) -> Void)?
     var onCombineRevisions: (([LogEntry], Int, String) -> Void)?
+    var onRevertRevisions: (([LogEntry], Int?) -> Void)?
+    func revertCaptured(_ entries: [LogEntry], mainline: Int?) {
+        guard !isInvalidated, !busy, !bare, !mergeActive, !jumping, !loadingNote, !savingNote, noteRequest == nil,
+              !findBlocked, !orderingBlocked, !copyingDetails, !unifiedViewerBusy, window?.attachedSheet == nil,
+              !entries.isEmpty, let onRevertRevisions else { return }
+        if entries.count == 1 {
+            let entry = entries[0]
+            guard !entry.hash.isEmpty, !entry.parents.isEmpty, !entry.references.contains(where: { $0.name == "refs/stash" }) else { return }
+            if entry.parents.count > 1 { guard let mainline, (1...entry.parents.count).contains(mainline) else { return } }
+            else if mainline != nil { return }
+        } else if mainline != nil { return }
+        onRevertRevisions(entries, mainline)
+    }
     var onBisect: ((LogBisectRequest) -> Void)?
     func bisectAvailable(_ command: LogBisectCommand) -> Bool {
         if selectedWorkingTree { return !bare && bisectActive && command != .start }
@@ -1069,6 +1082,25 @@ struct LogCommandRequest: Identifiable {
     var clipboard = NSPasteboard.general
     var onCreateReference: (Bool, String) -> Void = { _, _ in }
     var onPush: (String) -> Void = { _ in }
+    var onHistoryPush: ((String, Bool) -> Void)?
+    var onHistoryPull: (() -> Void)?
+    private var canStartHistoryTransport: Bool {
+        !isInvalidated && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil &&
+        !findBlocked && !orderingBlocked && !copyingDetails && !unifiedViewerBusy && window?.attachedSheet == nil
+    }
+    func pushCaptured(_ entry: LogEntry, pointedName: String?) {
+        guard canStartHistoryTransport, !entry.hash.isEmpty else { return }
+        if let pointedName, !entry.references.contains(where: { $0.name == pointedName }) { return }
+        let explicit = pointedName.flatMap { $0.hasPrefix("refs/remotes/") ? nil : $0 }
+        let target = explicit ?? entry.references.first { $0.name.hasPrefix("refs/heads/") }?.name ??
+            entry.references.first { $0.name.hasPrefix("refs/tags/") }?.name ?? entry.hash
+        let revision = GitReferenceName.removingSuffix("^{}", from: target) ?? target
+        if let onHistoryPush { onHistoryPush(revision, explicit == nil) } else { onPush(revision) }
+    }
+    func pullFromHistory() {
+        guard canStartHistoryTransport, !bare, !mergeActive else { return }
+        onHistoryPull?()
+    }
     var onCheckout: (String) -> Void = { _ in }
     var onSwitchBranch: ((String) -> Void)?
     var confirmReferenceDeletion: (HistoryReferenceDeletion) async -> HistoryReferenceDeleteChoice = { _ in .abort }
@@ -2627,6 +2659,14 @@ struct RevisionTable: NSViewRepresentable {
         var headerMenu: NSMenu?
         private var combineMenuTask: Task<Void, Never>?
         private var combineMenuCancellation: OperationCancellation?
+        private final class RevertTarget: NSObject {
+            let entries: [LogEntry], mainline: Int?
+            init(_ entries: [LogEntry], mainline: Int? = nil) { self.entries = entries; self.mainline = mainline }
+        }
+        @objc func revertCaptured(_ sender: NSMenuItem) {
+            guard let target = sender.representedObject as? RevertTarget else { return }
+            model.revertCaptured(target.entries, mainline: target.mainline)
+        }
         private final class CombineTarget: NSObject {
             let entries: [LogEntry], offset: Int, head: String
             init(entries: [LogEntry], offset: Int, head: String) { self.entries = entries; self.offset = offset; self.head = head }
@@ -2791,7 +2831,7 @@ struct RevisionTable: NSViewRepresentable {
                 model.findSearchIndex = table.selectedRow
             }
             @discardableResult func item(_ title: String, _ selector: Selector, icon: MenuIcon, enabled: Bool = true) -> NSMenuItem {
-                let item = NSMenuItem(title: title, action: selector, keyEquivalent: ""); item.image = icon.contextImage(); item.target = self; item.isEnabled = enabled; menu.addItem(item)
+                let item = NSMenuItem(title: title, action: selector, keyEquivalent: ""); item.image = icon.contextImage(defaults: model.colorPreferences); item.target = self; item.isEnabled = enabled; menu.addItem(item)
                 return item
             }
             let pointed: LogReferenceMenuTarget? = {
@@ -2846,39 +2886,42 @@ struct RevisionTable: NSViewRepresentable {
                     let submenu = NSMenu(); submenu.autoenablesItems = false; parent.submenu = submenu
                     for reference in switchBranches {
                         let choice = NSMenuItem(title: reference.label, action: #selector(switchBranchReference(_:)), keyEquivalent: "")
-                        choice.target = self; choice.image = MenuIcon.checkout.contextImage(); choice.isEnabled = parent.isEnabled
+                        choice.target = self; choice.isEnabled = parent.isEnabled
                         choice.representedObject = LogReferenceMenuTarget(hash: revision.hash, name: reference.name); submenu.addItem(choice)
                     }
                 }
             }
-            item("Switch/Checkout to this…", #selector(checkoutReference(_:)), icon: .checkout, enabled: one && !model.busy && !model.bare && !model.selectedIsStash).representedObject = pointed
+            if one && model.revision?.isHead == false && !model.bare && !model.selectedIsStash {
+                item("Switch/Checkout to this…", #selector(checkoutReference(_:)), icon: .checkout, enabled: !model.busy).representedObject = pointed
+            }
             item("Create branch at this version…", #selector(branchReference(_:)), icon: .branch, enabled: one && !model.busy && !model.selectedIsStash).representedObject = pointed
             item("Create tag at this version…", #selector(tagReference(_:)), icon: .tag, enabled: one && !model.busy && !model.selectedIsStash)
-            let pushLabel = pointed.flatMap { model.reference(for: $0) }.flatMap { ref -> String? in
-                let kind = ref.kind ?? HistoryReferenceLabel.shortName(ref.name).kind
-                return [.localBranch, .tag, .annotatedTag].contains(kind) ? "Push \"" + HistoryReferenceLabel.shortName(ref.name).text + "\"…" : nil
-            } ?? "Push…"
-            item(pushLabel, #selector(pushReference(_:)), icon: .push, enabled: one && !model.busy).representedObject = pointed
             if model.integrationAvailable {
                 item(model.integrationTitle(.rebase), #selector(rebaseRevision), icon: .rebase, enabled: model.canIntegrate(.rebase))
             }
             if one && !model.selectedIsStash { item("Export this version…", #selector(exportRevision), icon: .export, enabled: model.canExportRevision) }
-            let deletable = model.deletionCandidates(target: pointed)
-            if let revision = model.revision, !deletable.isEmpty {
-                func target(_ ref: RevisionReference) -> LogReferenceMenuTarget { LogReferenceMenuTarget(hash: revision.hash, name: ref.name) }
-                if deletable.count == 1 {
-                    item("Delete " + deletable[0].name, #selector(deleteReferenceItems(_:)), icon: .remove, enabled: !model.busy).representedObject = [target(deletable[0])]
-                } else {
-                    let parent = item("Delete branch/tag", #selector(deleteReferenceItems(_:)), icon: .remove, enabled: !model.busy)
-                    let submenu = NSMenu(); submenu.autoenablesItems = false; parent.submenu = submenu
-                    for ref in deletable {
-                        let child = NSMenuItem(title: ref.name, action: #selector(deleteReferenceItems(_:)), keyEquivalent: ""); child.target = self; child.image = MenuIcon.remove.contextImage(); child.isEnabled = parent.isEnabled; child.representedObject = [target(ref)]; submenu.addItem(child)
+            if model.onRevertRevisions != nil {
+                let chosen = model.entries.filter { model.selected.contains($0.hash) }
+                let available = !model.isInvalidated && !model.busy && !model.bare && !model.mergeActive && !model.findBlocked && !model.orderingBlocked && model.window?.attachedSheet == nil
+                if chosen.count > 1 && chosen.count == model.selected.count {
+                    item("Revert changes by these commits", #selector(revertCaptured(_:)), icon: .revert, enabled: available).representedObject = RevertTarget(chosen)
+                } else if model.revertAvailable, let revision = model.revision {
+                    if revision.parents.count > 1 {
+                        let parent = NSMenuItem(title: "Revert change by this commit", action: nil, keyEquivalent: "")
+                        parent.image = MenuIcon.revert.contextImage(defaults: model.colorPreferences); parent.isEnabled = available && model.canRevertRevision
+                        let submenu = NSMenu(title: parent.title); submenu.autoenablesItems = false
+                        for choice in model.parentChoices(for: revision) {
+                            let child = NSMenuItem(title: choice.title, action: #selector(revertCaptured(_:)), keyEquivalent: "")
+                            child.target = self; child.isEnabled = parent.isEnabled; child.representedObject = RevertTarget([revision], mainline: choice.number); submenu.addItem(child)
+                        }
+                        parent.submenu = submenu; menu.addItem(parent)
+                    } else {
+                        item("Revert change by this commit", #selector(revertCaptured(_:)), icon: .revert, enabled: available && model.canRevertRevision).representedObject = RevertTarget([revision])
                     }
-                    let all = NSMenuItem(title: "All", action: #selector(deleteReferenceItems(_:)), keyEquivalent: ""); all.target = self; all.image = MenuIcon.remove.contextImage(); all.isEnabled = parent.isEnabled; all.representedObject = deletable.map(target); submenu.addItem(all)
                 }
-            }
-            menu.addItem(.separator())
-            if model.revertAvailable {
+            } else if model.revertAvailable {
+                // Keep the existing direct-model consumer for callers without a
+                // native workflow factory, including the focused model fixture.
                 if let revision = model.revision, revision.parents.count > 1 {
                     let parent = NSMenuItem(title: "Revert change by this commit", action: nil, keyEquivalent: "")
                     parent.image = MenuIcon.revert.contextImage(); parent.isEnabled = model.canRevertRevision
@@ -2888,10 +2931,12 @@ struct RevisionTable: NSViewRepresentable {
                         child.tag = choice.number; child.target = self; child.isEnabled = model.canRevertRevision; submenu.addItem(child)
                     }
                     parent.submenu = submenu; menu.addItem(parent)
-                } else {
-                    item("Revert change by this commit", #selector(revert), icon: .revert, enabled: model.canRevertRevision)
-                }
+                } else { item("Revert change by this commit", #selector(revert), icon: .revert, enabled: model.canRevertRevision) }
             }
+            if one && !model.selectedIsStash {
+                item("Edit Notes", #selector(editNotes), icon: .rebaseEdit, enabled: model.canEditNotes)
+            }
+            if one { menu.addItem(.separator()) }
             if !one && model.bisectAvailable(.skip) {
                 item(LogBisectCommand.skip.title, #selector(bisectSkip), icon: .bisect, enabled: model.canBisect(.skip)); menu.addItem(.separator())
             }
@@ -2917,10 +2962,40 @@ struct RevisionTable: NSViewRepresentable {
             if model.cherryPickAvailable {
                 item(model.selected.count == 1 ? "Cherry Pick this commit…" : "Cherry Pick selected commits…", #selector(cherryPick), icon: .cherryPick, enabled: model.canCherryPick)
             }
-            item("Edit Notes", #selector(editNotes), icon: .rebaseEdit, enabled: model.canEditNotes)
-            item("Format Patch…", #selector(formatPatch), icon: .patch, enabled: model.formatPatchPreset != nil && !model.busy && model.onFormatPatch != nil)
+            if !model.selectedIsStash, model.formatPatchPreset != nil {
+                item("Format Patch…", #selector(formatPatch), icon: .patch, enabled: !model.busy && model.onFormatPatch != nil)
+            }
             if model.bisectAvailable(.start) { menu.addItem(.separator()); item(LogBisectCommand.start.title, #selector(bisectStart), icon: .bisect, enabled: model.canBisect(.start)) }
             menu.addItem(.separator())
+            if one, let entry = model.revision {
+                let extended = (table as? HistoryTableView)?.contextExtendedMenu == true
+                let local = entry.references.contains { $0.name.hasPrefix("refs/heads/") || $0.name.hasPrefix("refs/tags/") }
+                if (!model.selectedIsStash && local) || extended {
+                    let label = pointed.flatMap { model.reference(for: $0) }.flatMap { ref -> String? in
+                        let kind = ref.kind ?? HistoryReferenceLabel.shortName(ref.name).kind
+                        return [.localBranch, .tag, .annotatedTag].contains(kind) ? "Push \"" + HistoryReferenceLabel.shortName(ref.name).text + "\"…" : nil
+                    } ?? "Push…"
+                    item(label, #selector(pushCaptured(_:)), icon: .push, enabled: !model.busy).representedObject = PushTarget(entry, pointedName: pointed?.name)
+                }
+                if entry.isHead && !model.bare && !model.mergeActive && model.onHistoryPull != nil {
+                    item("Pull…", #selector(pullFromHistory), icon: .pull, enabled: !model.busy)
+                }
+            }
+            let deletable = model.deletionCandidates(target: pointed)
+            if let revision = model.revision, !deletable.isEmpty {
+                func target(_ ref: RevisionReference) -> LogReferenceMenuTarget { LogReferenceMenuTarget(hash: revision.hash, name: ref.name) }
+                if deletable.count == 1 {
+                    item("Delete " + deletable[0].name, #selector(deleteReferenceItems(_:)), icon: .remove, enabled: !model.busy).representedObject = [target(deletable[0])]
+                } else {
+                    let parent = item("Delete branch/tag", #selector(deleteReferenceItems(_:)), icon: .remove, enabled: !model.busy)
+                    let submenu = NSMenu(); submenu.autoenablesItems = false; parent.submenu = submenu
+                    for ref in deletable {
+                        let child = NSMenuItem(title: ref.name, action: #selector(deleteReferenceItems(_:)), keyEquivalent: ""); child.target = self; child.isEnabled = parent.isEnabled; child.representedObject = [target(ref)]; submenu.addItem(child)
+                    }
+                    let all = NSMenuItem(title: "All", action: #selector(deleteReferenceItems(_:)), keyEquivalent: ""); all.target = self; all.isEnabled = parent.isEnabled; all.representedObject = deletable.map(target); submenu.addItem(all)
+                }
+            }
+            if one { menu.addItem(.separator()) }
             if model.canToggleRollup {
                 let rollup = NSMenuItem(title: model.rollupTitle, action: #selector(toggleRollup), keyEquivalent: ""); rollup.target = self; menu.addItem(rollup); menu.addItem(.separator())
             }
@@ -2943,6 +3018,15 @@ struct RevisionTable: NSViewRepresentable {
             if one { item("Show branches this commit is on", #selector(showContainingReferences), icon: .showBranches, enabled: !model.busy && model.onShowContainingReferences != nil) }
         }
         func menuDidClose(_ menu: NSMenu) { combineMenuTask?.cancel(); combineMenuTask = nil; combineMenuCancellation?.cancel(); combineMenuCancellation = nil; if menu !== headerMenu { (table as? HistoryTableView)?.contextReference = nil } }
+        private final class PushTarget: NSObject {
+            let entry: LogEntry, pointedName: String?
+            init(_ entry: LogEntry, pointedName: String?) { self.entry = entry; self.pointedName = pointedName }
+        }
+        @objc func pushCaptured(_ sender: NSMenuItem) {
+            guard let target = sender.representedObject as? PushTarget else { return }
+            model.pushCaptured(target.entry, pointedName: target.pointedName)
+        }
+        @objc func pullFromHistory() { model.pullFromHistory() }
         @objc func pushReference(_ sender: NSMenuItem) { model.requestReference(.push, target: sender.representedObject as? LogReferenceMenuTarget) }
         @objc func switchBranchReference(_ sender: NSMenuItem) { if let target = sender.representedObject as? LogReferenceMenuTarget { model.switchBranch(target: target) } }
         @objc func mergeReference(_ sender: NSMenuItem) { model.requestIntegration(.merge, target: sender.representedObject as? LogReferenceMenuTarget) }

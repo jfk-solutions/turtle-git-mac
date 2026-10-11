@@ -2121,3 +2121,25 @@ The first fixture attempts failed to compile because HistorySearchFields has no
 uses public subject/message flags and passed both engines. These fixture fixes
 changed no production search behavior. No new complete Core-suite, physical Shift
 or double-click, full Log-menu, signed Finder or App Store acceptance is claimed.
+
+## History section continuation (October 11, deferred validation)
+
+The native Log context menu now places Edit Notes after the single-commit Revert
+choices, then Combine/Cherry Pick/Format Patch, Bisect Start, Push/Pull and
+reference deletion. Push is offered for local branches/tags or the Shift extended
+menu. It captures the clicked revision and reference, prefers an explicit
+non-remote label, otherwise guesses the first local branch/tag, strips annotated
+tag peel suffixes, and preserves the saved All Branches preference only when no
+explicit non-remote reference was clicked. Pull is offered on HEAD with a working
+tree and no active merge. Primary Log and revision-picker consumers open the
+existing native Push/Pull dialogs with those presets.
+
+Switch/Checkout is omitted on HEAD; Format Patch is omitted for an unsupported
+selection or stash. Switch and deletion submenu children are iconless as in
+`GitLogListBase.cpp`, while their parent items retain the original artwork. The
+main revision actions now use the Log's color/icon preferences.
+
+These changes and the newer shared Combine/Revert integrations have **not been
+compiled or executed yet**. They are part of a larger implementation section;
+the recorded earlier builds and QA results do not cover this continuation. No
+complete-dialog certification or inventory count is changed.
