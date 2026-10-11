@@ -1,0 +1,83 @@
+{
+  "date": "2026-10-11",
+  "checkpoint": "e57e1374e96baa1bed221c8e16e122af6153d171",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "status": "partial-native-stash-save-owned-lifecycle",
+  "implemented": [
+    "Forced standalone options closure cancels/invalidates active progress, detaches and closes its sheet, clears busy state and suppresses late replies.",
+    "Progress closure invalidates results/actions; normal selected post-action remains valid across ordinary completed-window closure.",
+    "Private options preferences propagate to warning suppression and progress auto-close; production standard preferences remain defaults. Hidden parent keeps progress sheet hidden."
+  ],
+  "verification": {
+    "native": {
+      "exit": 0,
+      "engines": [
+        "system Git 2.50.1",
+        "packaged Git 2.55.0"
+      ],
+      "pass_groups_per_engine": 10,
+      "log": "build/qa/synchronization-stash-lifecycle-native-full-2026-10-11.log",
+      "scope": "All existing Synchronization groups, expanded Stash group opens real standalone options after Sync closure, saves captured message, runs one Apply completion callback and refuses a later Pop action. Forced blocked options closure reaps the main stash command, hides/detaches owned progress and suppresses late saved/failed replies. Injected stash/status errors retain original command output and inspection error on Command Log.",
+      "limits": "Hidden windows/private preferences/disposable local repositories. Shift launcher and post-action callbacks injected; production RepositoryModel workspace factories and actual selected Apply operation not driven end-to-end."
+    },
+    "existing_stash_model_regression": {
+      "exit": 0,
+      "engines": [
+        "system Git 2.50.1",
+        "packaged Git 2.55.0"
+      ],
+      "log": "build/qa/synchronization-stash-lifecycle-legacy-2026-10-11.log",
+      "method": "Existing stash-save-progress-native-2026-10-08.swift harness linked against fresh Debug app objects with a C entry point. Temporary copy removes @main, imports app with @testable, injects a disposable preference suite/manual auto-close into model constructors. Two owned process groups/timeouts/reaping; private repositories.",
+      "scope": "Option snapshot, separate index/worktree stash parents and preserved HEAD; Pull/Merge follow-up before created-only Pop/Apply, no-change/failure suppression, warning Abort/invalidation and pre-cancellation."
+    },
+    "debug_build": {
+      "exit": 0,
+      "log": "build/qa/synchronization-stash-lifecycle-debug-2026-10-11.log"
+    },
+    "store_build": {
+      "exit": 0,
+      "log": "build/qa/synchronization-stash-lifecycle-store-2026-10-11.log"
+    },
+    "checks": [
+      {
+        "step": "debug-audit",
+        "exit": 0,
+        "log": "build/qa/synchronization-stash-lifecycle-debug-audit-2026-10-11.log"
+      },
+      {
+        "step": "store-audit",
+        "exit": 0,
+        "log": "build/qa/synchronization-stash-lifecycle-store-audit-2026-10-11.log"
+      },
+      {
+        "step": "inventory",
+        "exit": 0,
+        "log": "build/qa/synchronization-stash-lifecycle-inventory-2026-10-11.log"
+      },
+      {
+        "step": "site",
+        "exit": 0,
+        "log": "build/qa/synchronization-stash-lifecycle-site-2026-10-11.log"
+      }
+    ],
+    "core": "Core Synchronization/Stash APIs and test sources unchanged in this window-lifetime phase. Prior focused three-engine Stash results remain prior evidence; no new Core/full-suite run.",
+    "prior_core_record": "synchronization-stash-native-2026-10-11.json",
+    "layout": "No root view layout changes or new screenshots in this phase. Prior two-row theme captures remain historical evidence."
+  },
+  "limits": [
+    "Known next backend follow-up: saveStash before/after refs/stash reads do not yet receive the cancellation token. This phase reaps a blocked main stash command, not those reference reads.",
+    "Displayed progress/menus, physical keyboard/VoiceOver, source complete dialog parity and production workspace callback acceptance remain unverified.",
+    "Signed sandbox/Finder, real authentication/hooks and App Store distribution acceptance remain pending."
+  ],
+  "sha256": {
+    "Sources/TurtleGitMac/StashWindow.swift": "8abe6273f2634f530bd68bd03253216bd24871930945b625a4759954aba1234d",
+    "Sources/TurtleGitCore/Stash.swift": "4482edc0c38b96a74c83ed51216351ff5a65b5b4492d1316288f932f3b7d9e64",
+    "Sources/TurtleGitCore/Synchronization.swift": "7bc773290d3dc3871aad756e3ab59d44cb52e6862b2942bcb0f9e5be44d6a5d3",
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "1093efc6cdd9382d629f04d50a0322cd6bc93f0646da11d77e34e224229d1d1c",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "b7970f0f7eddf8378592d77cd78ca63395653e104435517dfb38c5d2b2e07487",
+    "Tests/TurtleGitCoreTests/SynchronizationStashTests.swift": "787b40fb669f99218bdc3bd6ad1b2d1747e3055885bff687c3c6571263758905",
+    "docs/qa/synchronization-native-2026-10-11.swift": "aca5dbc37ef2be799fa856fb178c09e99cd2100414dc7968ff565d346e29ad56",
+    "docs/qa/stash-save-progress-native-2026-10-08.swift": "e8e955863e4e710477fffe1248c5ee1537efaf0a9ac0558e13b770c263be5c49",
+    "scripts/test-synchronization-dialog.py": "1ae0b37e9ca1c3fa5b11cd7f2b13839241f3a348df8b329df0f0b203cdeca66b"
+  }
+}

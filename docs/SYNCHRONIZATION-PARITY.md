@@ -697,3 +697,32 @@ workspace callbacks, physical/VoiceOver and signed acceptance remain pending.
 
 At code checkpoint `1afffb2`, both unsigned builds, bundle audits, inventory
 and website checks pass. See [Stash verification and limits](qa/synchronization-stash-native-2026-10-11.json).
+
+
+## Stash standalone lifetime follow-up (October 11, 2026)
+
+The standalone Stash Save options window now owns cancellation and closure of
+its progress sheet when forcibly closed. Previously, invalidating options did
+not cancel its active progress model or close the attached sheet. Progress now
+refuses late results/completion actions after invalidation, and the options
+model refuses late completion/confirmation callbacks. Ordinary completion and
+its selected post-action still finish before releasing the options window.
+Closing Synchronization leaves the separately launched Save window alive.
+
+The options controller accepts private preferences for verification and passes
+them into its progress model and untracked-warning suppression. Production
+callers retain their standard preferences. Hidden options also keep their
+progress sheet hidden. The expanded receiver opens actual Shift Save options,
+closes Sync, submits a captured message, exercises a completion action, and
+force-closes a separately blocked options/progress pair to check process reaping,
+sheet detachment and absence of late replies. It also injects command/status
+failures to check that conflict-inspection errors preserve original command
+output and leave Command Log selected. Production workspace callbacks and
+physical/signed acceptance remain separate.
+
+At code checkpoint `e57e137`, all ten Synchronization groups and the existing
+Stash Save model checks pass on both system and packaged engines. Both unsigned
+builds, bundle audits, inventory and website checks pass. The backend's before/
+after `refs/stash` reads still need cancellation-token propagation and separate
+process-reaping checks; this phase checks the blocked main stash command only.
+See [verification and limits](qa/synchronization-stash-lifecycle-2026-10-11.json).

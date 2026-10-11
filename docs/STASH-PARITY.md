@@ -168,3 +168,23 @@ conflict retention and selected older Apply, fresh-preference remembered answers
 a once-only callback into the real Status model, result modes, delayed/duplicate
 guards and owned hidden-controller close/Quit guards. Existing screenshots predate
 this model refactor; no new displayed window or screenshot is claimed.
+
+
+## Options/progress lifetime follow-up (October 11, 2026)
+
+Forcibly closing standalone Save now invalidates/cancels its progress, detaches
+and closes the owned sheet, and suppresses late results/post-actions. Private
+controller preferences propagate to progress auto-close and warning suppression;
+production defaults remain standard. This closes a cleanup gap found during
+Synchronization Shift Save review. Closing Synchronization itself leaves the
+standalone options window alive. The expanded Synchronization receiver covers
+these real controller lifetimes, a captured message and a completed Apply
+post-action callback. It does not drive the production workspace Apply factory
+or establish displayed/signed acceptance.
+
+At code checkpoint `e57e137`, all ten Synchronization groups and the existing
+Stash Save model checks pass on both system and packaged engines. Both unsigned
+builds, bundle audits, inventory and website checks pass. The backend's before/
+after `refs/stash` reads still need cancellation-token propagation and separate
+process-reaping checks; this phase checks the blocked main stash command only.
+See [verification and limits](qa/synchronization-stash-lifecycle-2026-10-11.json).
