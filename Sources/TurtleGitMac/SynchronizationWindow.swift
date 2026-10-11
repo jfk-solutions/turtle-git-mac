@@ -617,10 +617,32 @@ enum SynchronizationHistoryCopy: String, CaseIterable {
     func historyParentTitle(_ hash: String, index: Int) -> String {
         // The pinned CGit::GetShortHASHLength returns eight, independent of core.abbrev.
         let label = "Parent \(index + 1)", short = String(hash.prefix(8))
-        guard let parent = historyEntries.first(where: { $0.hash == hash }) else { return "\(label) (\(short))" }
-        let subject = parent.subject as NSString
-        let title = subject.length > 20 ? subject.substring(to: 20) + "..." : parent.subject
+        guard let text = historyEntries.first(where: { $0.hash == hash })?.subject ?? historyParentSubjects[hash] else { return "\(label) (\(short))" }
+        let subject = text as NSString
+        let title = subject.length > 20 ? subject.substring(to: 20) + "..." : text
         return "\(label): \"\(title)\" (\(short))"
+    }
+    private(set) var historyParentSubjects: [String: String] = [:]
+    private var historyParentRequests: [UUID: OperationCancellation] = [:]
+    func loadHistoryParentSubjects(_ entry: LogEntry) async {
+        guard !closed, !busy, !confirmingQuit, !hasBlockingChild, !Task.isCancelled,
+              entry.parents.count > 1 else { return }
+        if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { return }
+        let id = UUID(), request = OperationCancellation(), generation = historyActionGeneration
+        historyParentRequests[id] = request
+        defer { historyParentRequests.removeValue(forKey: id) }
+        await withTaskCancellationHandler {
+            for hash in entry.parents where historyParentSubjects[hash] == nil && !historyEntries.contains(where: { $0.hash == hash }) {
+                do {
+                    let result = try await repository.run(["show", "--encoding=UTF-8", "--no-patch", "--no-notes", "--format=%B", "--end-of-options", hash, "--"], cancellation: request)
+                    guard !closed, generation == historyActionGeneration, !request.isCancelled, !Task.isCancelled else { return }
+                    historyParentSubjects[hash] = LogEntry.splitHistoryMessage(result.text).subject
+                } catch {
+                    guard !closed, generation == historyActionGeneration, !request.isCancelled, !Task.isCancelled else { return }
+                    // A missing/corrupt parent keeps the source's hash-only fallback.
+                }
+            }
+        } onCancel: { request.cancel() }
     }
     var historyPasteboard: NSPasteboard = .general
     func copyHistory(_ entries: [LogEntry], kind: SynchronizationHistoryCopy, pointedReference: String? = nil) {
@@ -678,6 +700,8 @@ enum SynchronizationHistoryCopy: String, CaseIterable {
     private var activeHistoryAction: String?
     private var historyActionGeneration = 0
     private func cancelHistoryActions() {
+        for request in historyParentRequests.values { request.cancel() }
+        historyParentRequests = [:]
         historyActionToken?.cancel(); historyActionToken = nil
         historyActionQueue = []; activeHistoryAction = nil; historyActionGeneration += 1
     }
@@ -1630,6 +1654,7 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
         var model: SynchronizationWindowModel
         weak var table: NSTableView?
         var entryHashes: [String] = []
+        private var parentMenuTask: Task<Void, Never>?
         init(_ model: SynchronizationWindowModel) { self.model = model }
         private final class CopyTarget: NSObject {
             let entries: [LogEntry], kind: SynchronizationHistoryCopy, reference: String?
@@ -1646,6 +1671,7 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
             model.onHistoryCompare?(target.from, target.to)
         }
         func menuNeedsUpdate(_ menu: NSMenu) {
+            parentMenuTask?.cancel(); parentMenuTask = nil
             menu.removeAllItems(); menu.autoenablesItems = false
             guard let table else { return }
             let entries = table.selectedRowIndexes.compactMap { model.historyEntries.indices.contains($0) ? model.historyEntries[$0] : nil }
@@ -1673,6 +1699,14 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
                         comparisonItem(model.historyParentTitle(hash, index: index), from: .revision(hash), to: .revision(entry.hash), in: parents)
                     }
                     parentItem.submenu = parents; menu.addItem(parentItem)
+                    let model = model
+                    parentMenuTask = Task { [weak parents] in
+                        await model.loadHistoryParentSubjects(entry)
+                        guard !Task.isCancelled, !model.closed, !model.busy, let parents else { return }
+                        for (index, item) in parents.items.enumerated() where entry.parents.indices.contains(index) {
+                            item.title = model.historyParentTitle(entry.parents[index], index: index)
+                        }
+                    }
                 }
             } else if entries.count == 2 || table.selectedRowIndexes.last! - table.selectedRowIndexes.first! + 1 == entries.count {
                 comparisonItem("Compare revisions", from: .revision(entries.last!.hash), to: .revision(entries.first!.hash), in: menu)
@@ -1689,7 +1723,7 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
             let parent = NSMenuItem(title: "Copy to clipboard", action: nil, keyEquivalent: "")
             parent.image = MenuIcon.copy.contextImage(defaults: model.preferences); parent.submenu = clipboard; menu.addItem(parent)
         }
-        func menuDidClose(_ menu: NSMenu) { (table as? HistoryTableView)?.contextReference = nil }
+        func menuDidClose(_ menu: NSMenu) { parentMenuTask?.cancel(); parentMenuTask = nil; (table as? HistoryTableView)?.contextReference = nil }
         @objc func copyHistory(_ sender: NSMenuItem) {
             guard let target = sender.representedObject as? CopyTarget else { return }
             model.copyHistory(target.entries, kind: target.kind, pointedReference: target.reference)

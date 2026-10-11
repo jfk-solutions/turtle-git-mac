@@ -1069,3 +1069,25 @@ checks that parent captions still use eight. A parent outside the loaded list
 currently uses the source's hash-only fallback; fetching its subject remains open.
 These assertions cover native menu state/dispatch, not complete visual, keyboard,
 accessibility, signed sandbox or Synchronization acceptance.
+
+### Off-list parent metadata (2026-10-11)
+
+Merge-parent submenu creation now starts an owned, cancellable metadata read for
+parents absent from the displayed history. It reads the raw UTF-8 commit message,
+uses the shared first-line subject split, caches successful subjects by immutable
+hash and updates retained submenu item labels without changing captured comparison
+targets. Unknown/corrupt parents retain the source hash-only fallback. Menu closure
+and reconstruction cancel the menu task; window invalidation or a new busy operation
+cancels registered Git requests and advances the generation fence. Signed builds
+require the same valid repository access lease before querying.
+
+The expanded native fixture narrows the outgoing range to exclude a merge parent,
+checks its initial hash-only label and eventual source subject caption, then invokes
+the retained item after selection changes. System and bundled Git both passed.
+Injected stalled `show` reads also passed owner-invalidation and direct task-cancel
+checks: the owned process was reaped, no subject was published, and task cancellation
+left its owner open. The helper now publishes PID readiness atomically. The existing
+comparison, clipboard, columns and lifecycle assertions remain unchanged. These are
+NSMenu delegate/action checks; physical menu tracking, keyboard/accessibility and
+signed sandbox acceptance remain open, as do unified diff merge variants, changeset
+comparison and the other revision actions.

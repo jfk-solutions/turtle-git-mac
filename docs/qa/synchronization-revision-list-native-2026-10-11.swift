@@ -89,6 +89,23 @@ struct SynchronizationRevisionListVerification {
         model.confirmingQuit = false
         let finalRefs = try await repo.run(["show-ref"]).stdout, finalConfig = try Data(contentsOf:root.appendingPathComponent(".git/config")), finalIndex = try Data(contentsOf:root.appendingPathComponent(".git/index"))
         precondition(finalRefs == refs && finalConfig == config && finalIndex == index)
+        // Exclude the merge's side parent from the displayed outgoing range.
+        let merge = rows[mergeIndex], missingParent = merge.parents[1]
+        _ = try await repo.run(["update-ref","refs/remotes/origin/main",missingParent])
+        let narrowedRefs = try await repo.run(["show-ref"]).stdout
+        model.refresh(); try await settle { !model.busy && !model.historyEntries.contains { $0.hash == missingParent } }
+        let narrowedMerge = model.historyEntries.firstIndex { $0.hash == merge.hash }!
+        let parentMenu = menu(IndexSet(integer:narrowedMerge)).items.first { $0.title == "Compare with previous revision" }!.submenu!
+        precondition(parentMenu.items[1].title == "Parent 2 (\(missingParent.prefix(8)))")
+        try await settle { model.historyParentSubjects[missingParent] != nil }
+        let subject = rows.first { $0.hash == missingParent }!.subject as NSString
+        let expected = "Parent 2: \"\(subject.substring(to:20))...\" (\(missingParent.prefix(8)))"
+        precondition(parentMenu.items[1].title == expected, "The tracking menu must update when an off-list parent subject arrives")
+        let cachedItem = parentMenu.items[1]
+        _ = menu(IndexSet(integer:0)); invoke(cachedItem)
+        precondition(captured.last!.0 == .revision(missingParent) && captured.last!.1 == .revision(merge.hash))
+        let afterMetadataRefs = try await repo.run(["show-ref"]).stdout, afterMetadataConfig = try Data(contentsOf:root.appendingPathComponent(".git/config")), afterMetadataIndex = try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        precondition(afterMetadataRefs == narrowedRefs && afterMetadataConfig == config && afterMetadataIndex == index)
         owner.close(); precondition(model.closed && !owner.window!.isVisible)
     }
     @MainActor static func main() async throws {
@@ -244,7 +261,7 @@ struct SynchronizationRevisionListVerification {
         let helper = root.deletingLastPathComponent().appendingPathComponent("action-helper-" + UUID().uuidString)
         let marker = helper.appendingPathExtension("pid")
         func quoted(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\"'\"'") + "'" }
-        let script = "#!/bin/sh\nfor arg in \"$@\"; do\n if [ \"$arg\" = diff-tree ]; then\n  echo $$ > " + quoted(marker.path) + "\n  /bin/sleep 600 &\n  wait\n  exit 0\n fi\ndone\nexec " + quoted(repo.executable.path) + " \"$@\"\n"
+        let script = "#!/bin/sh\nfor arg in \"$@\"; do\n if [ \"$arg\" = diff-tree ]; then\n  echo $$ > " + quoted(marker.path + ".pending") + "\n  /bin/mv " + quoted(marker.path + ".pending") + " " + quoted(marker.path) + "\n  /bin/sleep 600 &\n  wait\n  exit 0\n fi\ndone\nexec " + quoted(repo.executable.path) + " \"$@\"\n"
         try Data(script.utf8).write(to:helper); try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:helper.path)
         let slow = SynchronizationWindowModel(repository:GitRepository(root:root,executable:helper),access:nil,preferences:preferences)
         defer { slow.invalidate(); try? FileManager.default.removeItem(at:helper); try? FileManager.default.removeItem(at:marker) }
@@ -268,11 +285,34 @@ struct SynchronizationRevisionListVerification {
         copying.invalidate(); try await settle { kill(copyPID,0) != 0 && errno == ESRCH }
         try await Task.sleep(nanoseconds:100_000_000)
         precondition(!copying.busy && clipboard.string(forType:.string) == "retain on cancellation")
+        try FileManager.default.removeItem(at:marker)
+        let parents = SynchronizationWindowModel(repository:GitRepository(root:root,executable:helper),access:nil,preferences:preferences)
+        defer { parents.invalidate() }
+        var mergeForCancellation = entry
+        mergeForCancellation.parents = [entry.hash,base]
+        let parentRead = Task { await parents.loadHistoryParentSubjects(mergeForCancellation) }
+        try await settle { FileManager.default.fileExists(atPath:marker.path) }
+        let parentPID = Int32(try String(contentsOf:marker).trimmingCharacters(in:.whitespacesAndNewlines))!
+        defer { if kill(parentPID,0) == 0 { kill(-parentPID,SIGTERM) } }
+        parents.invalidate(); await parentRead.value
+        try await settle { kill(parentPID,0) != 0 && errno == ESRCH }
+        precondition(parents.historyParentSubjects.isEmpty, "Off-list parent reads must not publish after owner close")
+        try FileManager.default.removeItem(at:marker)
+        let cancelledParents = SynchronizationWindowModel(repository:GitRepository(root:root,executable:helper),access:nil,preferences:preferences)
+        defer { cancelledParents.invalidate() }
+        let cancelledRead = Task { await cancelledParents.loadHistoryParentSubjects(mergeForCancellation) }
+        try await settle { FileManager.default.fileExists(atPath:marker.path) }
+        let cancelledPID = Int32(try String(contentsOf:marker).trimmingCharacters(in:.whitespacesAndNewlines))!
+        defer { if kill(cancelledPID,0) == 0 { kill(-cancelledPID,SIGTERM) } }
+        cancelledRead.cancel(); await cancelledRead.value
+        try await settle { kill(cancelledPID,0) != 0 && errno == ESRCH }
+        precondition(!cancelledParents.closed && cancelledParents.historyParentSubjects.isEmpty, "Menu-task cancellation must stop its owned read while the owner stays open")
+
         let finalRefs = try await repo.run(["show-ref"]).stdout, finalIndex = try Data(contentsOf:root.appendingPathComponent(".git/index")), finalConfig = try Data(contentsOf:root.appendingPathComponent(".git/config"))
         precondition(refs == finalRefs && index == finalIndex && config == finalConfig)
         owner.close(); precondition(model.closed && !model.busy && !window.isVisible)
         try await verifyComparisonSelectionCases(root:root.appendingPathExtension("comparison-menu-cases"),git:repo.executable,preferences:preferences)
-        print("PASS: native Sync source columns, original action icons, annotated/current/tracking ref labels, issue IDs, date/full-message settings, independent column toggles/reset, both lists/themes/sizes, clipboard menus/captured multi-selection/source text formats/full metadata/pointed names, native revision comparison menus/captured targets/owner guards/real comparison snapshots/root omission/merge parents/source captions/contiguous and disjoint selection, owned action and clipboard cancellation/late-callback fencing and unchanged Git state")
+        print("PASS: native Sync source columns, original action icons, annotated/current/tracking ref labels, issue IDs, date/full-message settings, independent column toggles/reset, both lists/themes/sizes, clipboard menus/captured multi-selection/source text formats/full metadata/pointed names, native revision comparison menus/captured targets/owner guards/real comparison snapshots/root omission/merge parents/source captions/contiguous and disjoint selection/off-list parent menu updates/owned parent metadata cancellation, owned action and clipboard cancellation/late-callback fencing and unchanged Git state")
     }
 }
 @_cdecl("turtlegit_history_main") func bootstrap() -> Int32 {
