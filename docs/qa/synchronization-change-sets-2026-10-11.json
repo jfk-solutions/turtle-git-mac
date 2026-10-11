@@ -1,0 +1,76 @@
+{
+  "date": "2026-10-11",
+  "status": "partial-native-changeset-patch-comparison-verified",
+  "code_commit": "ce4e73f7fb173056d5bb0c828e9064a999ad7f5f",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_references": [
+    "src/TortoiseProc/GitLogListBase.cpp: ID_COMPARETWOCOMMITCHANGES exactly-two gate",
+    "src/TortoiseProc/GitLogListAction.cpp: two format-patch first-parent ranges and StartExtDiff order"
+  ],
+  "implemented": [
+    "Exactly-two Compare change sets menu with source Diff icon and captured selection",
+    "Core helper preserves raw format-patch streams and hash.patch labels, root errors and merge range behavior",
+    "Native in-memory read-only text comparison with first-selected patch on base side",
+    "Owned parent generation token, access-lease gate, fresh pinned viewer and existing child registry lifecycle"
+  ],
+  "verification": {
+    "core_command": "swift test --filter 'FileComparisonTests|RevisionComparisonTests'",
+    "core_tests": 29,
+    "core_failures": 0,
+    "core_scope": [
+      "FileComparisonTests including new changeset bytes/root/pre-cancel/preservation case",
+      "ImageFileComparisonTests",
+      "RevisionComparisonTests"
+    ],
+    "engines": [
+      "system Git 2.50.1",
+      "bundled Git 2.55.0"
+    ],
+    "native_receivers_reaped": [
+      24499,
+      25147
+    ],
+    "native_scenarios": [
+      "Existing revision-list/native workflows retained",
+      "Actual comparison window preserves independently generated patch bytes and pane order after selection changes",
+      "Read-only aligned panes and owned viewer closure",
+      "Merge first-parent range includes side.txt patch and excludes merge-only resolution change",
+      "Root range error opens no partial viewer; refresh recovers",
+      "Larger selection omits Compare change sets",
+      "Stalled format-patch read cancelled on owner invalidation, with PID reaping and no late viewer/error",
+      "Original fixture refs/index/config unchanged; separate fixture intended branch/tag effects retained"
+    ],
+    "builds": [
+      "Debug unsigned passed",
+      "AppStore unsigned universal passed"
+    ],
+    "bundle_audits": [
+      "Debug passed",
+      "AppStore with required Git passed"
+    ],
+    "inventory_pin_audit": "passed",
+    "documentation_site_build": "passed",
+    "scope": "Focused Core suite and native generated-document/selection/error/cancellation evidence. No new full Core-suite, physical menu tracking, external tool, editable generated-patch or signed acceptance claim."
+  },
+  "sha256": {
+    "Sources/TurtleGitCore/FileComparison.swift": "cfd8f5880cc7048043ebeecc4a20c7d4e9f8e0a98e3ed46b9c6735d354bd6feb",
+    "Sources/TurtleGitMac/FileComparisonWindow.swift": "708575f60c4758e4c11d5e9b9009db4579f848ad84b61cf2ee389021c25d0ba0",
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "035d1752a0b630e20d891c7d2d8be7ce686c971db8594e8d7892a5a9cb9adfb0",
+    "Tests/TurtleGitCoreTests/FileComparisonTests.swift": "a0dea342a3d4352db874037e3876be5166c225f050773ef0f053824dd5854f24",
+    "docs/qa/synchronization-revision-list-native-2026-10-11.swift": "5bb6aa27f2a11600bc2f61475b7ac65819038e8ec405782acee7fc204c449e32",
+    "build/qa/sync-change-sets-final-debug-2026-10-11.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/sync-change-sets-store-2026-10-11.log": "d1eb7e6206f02a1309a4d433f68d972c2a61e2f3b453fced3a813e778f25f236",
+    "build/qa/sync-change-sets-core-2026-10-11.log": "ae52c02ea8fdc1010304b3e88f9e898080ae3b6f7493d87fc2d697bc9e2fad76",
+    "build/qa/sync-change-sets-native-final-2026-10-11.log": "b58e261315047fea7d5251dc7cd047bfb9888a1f39f3e5368f5a5f167e9859f0",
+    "build/qa/sync-change-sets-debug-audit-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/sync-change-sets-store-audit-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/sync-change-sets-inventory-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/sync-change-sets-site-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "remaining": [
+    "Source temporary-patch editing and configured external diff-tool routing",
+    "Owned error-sheet presentation and physical menus/Find/zoom/export acceptance",
+    "Remaining revision commands and complete text/UI parity",
+    "Signed sandbox/Finder and App Store distribution acceptance"
+  ]
+}
