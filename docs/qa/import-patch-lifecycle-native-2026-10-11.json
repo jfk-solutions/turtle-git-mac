@@ -1,0 +1,106 @@
+{
+  "date": "2026-10-11",
+  "status": "partial-importer-lifecycle-verified-sync-caller-pending",
+  "code_commit": "8392b76a318c51fe53d50b7e2d260c17f737d8df",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_audit": "ImportPatchDlg.cpp OnBnClickedOk clears m_PathList; its worker applies checked files/options and final OK closes. Sync OnBnClickedButtonApply captures HEAD, opens that dialog, and only updates results after IDOK. The normal completed caller must not reapply files.",
+  "implementation": [
+    "Owned cancellation token spans identity/configuration reads, git am, recovery, close and quit state checks",
+    "Normal Abort retains stop-after-current-command behavior",
+    "Forced window close invalidates the model, cancels the token, ends owned sheets/prompts and suppresses late success/error/close replies and viewer handoffs",
+    "Final OK records accepted completion separately from Cancel, for the pending Sync caller",
+    "Standard native Import driver now owns a process group, uses a 600-second receiver bound and reaps it in finally"
+  ],
+  "verification": {
+    "focused_native": {
+      "method": "QA compiled against freshly rebuilt Debug app objects with @testable import and generated C bootstrap; lifecycle-only environment flag",
+      "git": [
+        "system 2.50.1",
+        "packaged 2.55.0"
+      ],
+      "pass_groups_per_engine": 6,
+      "scope": "Completed real batches distinguish final OK/Cancel; forced identity/am/recovery/close-read cancellation at stalled Git commands; unchanged HEAD/refs/index/config and retained active am session; late patch/review handoffs suppressed"
+    },
+    "full_native": {
+      "method": "Same fresh Debug application objects, original native QA plus final lifecycle fixture, generated C bootstrap; owned serial receivers and verified cleanup helper",
+      "git": [
+        "system 2.50.1",
+        "packaged 2.55.0"
+      ],
+      "pass_groups_per_engine": 24,
+      "total_pass_groups": 48,
+      "additional_scope": "Existing identity, checked ordering/fixed options, conflicts/recovery, normal stop hook, review/editor/save/undo/format/persistence/drop/preview/menu checks; final lifecycle also asserts both cancelled Git PID and process group are absent"
+    },
+    "driver_cleanup": "Actual Import driver close_receiver AST executed against completed receiver and forced timeout/TERM-refusing receiver. SIGKILL fallback, leader reaping and group absence passed. Helper AST equals the previously verified Sync helper.",
+    "builds": [
+      "Unsigned Debug",
+      "Unsigned universal AppStore"
+    ],
+    "audits": [
+      "Debug bundle",
+      "AppStore bundle requiring packaged Git",
+      "Pinned inventory",
+      "Static site"
+    ],
+    "process_cleanup": "All completed receiver leaders reaped. Post-run process scan found no import receiver or lifecycle-git shim.",
+    "screenshots": "No visual layout change or new capture; prior published dialog captures retained."
+  },
+  "corrected_attempts": [
+    "Initial Debug compilation caught calls to the Core-internal cancellation check helper; repaired with public closed/cancellation state guards before successful build.",
+    "First broader attempt and diagnostic focused attempt timed out waiting for the shim marker because the shim assumed argv[0] was the command. GitRepository prefixes pathspec/repository arguments. Both failed receivers were reaped; changing the shim to inspect arguments produced completed focused and full results."
+  ],
+  "files": {
+    "Sources/TurtleGitMac/ImportPatchWindow.swift": "66a9cebe43878f4dacf88c9183a1905f9527e02e542750cf18224433f55771d5",
+    "docs/qa/import-patch-native-2026-10-08.swift": "e55cfc7955848a74dc383728fa8fcbbd44970e9c571b6d48a6930d4b38e513db",
+    "docs/qa/import-patch-lifecycle-native-2026-10-11.swift": "ff69d91e90fc9ea80536cd914188db53b5cf7273fa435ab67a3a574863043e37",
+    "scripts/test-import-patch.py": "2a1ab1fbdefc145ebaa32e9ede81a116dcdf6d7ae4147adb3cffc6806ab9f196",
+    "build/qa/run-import-lifecycle.py": "7490bf0258b8dbb04ed3324c72fa986343f5896b82415f57d295da137eec8fdd",
+    "build/qa/run-import-lifecycle-focused.py": "b75ecb51936c8d687df4ba72fb565035ce63223d30756c95d24f2450d4263e1c"
+  },
+  "logs": {
+    "debug": {
+      "path": "build/qa/import-patch-lifecycle-debug-2026-10-11.log",
+      "sha256": "a4bb3ef91cf47c921cd191f338d04bf5af57aa9050f7e9c696489cd24b9f7f86"
+    },
+    "store": {
+      "path": "build/qa/import-patch-lifecycle-store-2026-10-11.log",
+      "sha256": "6926b9a7076d2d9ad8b2b23b24c069ce6913561b958ddbf9a873a5fe75da64dc"
+    },
+    "native": {
+      "path": "build/qa/import-patch-lifecycle-native-2026-10-11.log",
+      "sha256": "0fcfe8951943ebc8b3efc46a10760a6a7e5628be9b417c12b75395c0dfa9276b"
+    },
+    "native-focused": {
+      "path": "build/qa/import-patch-lifecycle-native-focused-2026-10-11.log",
+      "sha256": "479b1cbe7d816c7145e115c2d7ba66a2368a28e58e1f1f2f8f6757091de40497"
+    },
+    "driver-cleanup": {
+      "path": "build/qa/import-patch-lifecycle-driver-cleanup-2026-10-11.log",
+      "sha256": "fc0ffafe0091313054a73ebab61715bbf286d27c31e71b07698e1bff68dccc8c"
+    },
+    "debug-audit": {
+      "path": "build/qa/import-patch-lifecycle-debug-audit-2026-10-11.log",
+      "sha256": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d"
+    },
+    "store-audit": {
+      "path": "build/qa/import-patch-lifecycle-store-audit-2026-10-11.log",
+      "sha256": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30"
+    },
+    "pin-audit": {
+      "path": "build/qa/import-patch-lifecycle-pin-audit-2026-10-11.log",
+      "sha256": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a"
+    },
+    "site-audit": {
+      "path": "build/qa/import-patch-lifecycle-site-audit-2026-10-11.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  },
+  "limits": [
+    "Sync Apply Patch entry and incoming/outgoing result integration remain pending; this is its prerequisite.",
+    "Process/repository preservation checks stall selected commands before their writes, rather than proving arbitrary mid-write cancellation is mutation-free. Existing am state is retained rather than silently aborted.",
+    "Physical prompts/keyboard/VoiceOver, actual Mail composition, complete child editor/mail lifetimes, parent-sheet acceptance and signed sandbox/Finder behavior remain incomplete.",
+    "The standard all-source Import driver was updated but not rerun; native execution used the freshly built production Debug objects and the same checked-in QA.",
+    "Core source unchanged; no new full Core suite or hosted CI success claim.",
+    "No complete dialog certification or App Store distribution acceptance."
+  ]
+}

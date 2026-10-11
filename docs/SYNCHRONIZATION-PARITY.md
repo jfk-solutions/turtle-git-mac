@@ -818,3 +818,13 @@ with both engines. Unsigned Debug/universal AppStore builds, bundle audits,
 inventory and site checks passed. All four native root captures were inspected
 against the source; updated full-size captures are published. See
 [verification scope and remaining work](qa/synchronization-branch-picker-native-2026-10-11.json).
+
+## Apply Patch caller audit and prerequisite (October 11, 2026)
+
+Sync OnBnClickedButtonApply captures HEAD, opens CImportPatchDlg and only
+inspects incoming/outgoing results after IDOK. ImportPatchDlg's OK handler
+clears m_PathList; its worker applies checked files using the selected options.
+The normal completed return therefore must not import the same patches again.
+The native importer now distinguishes final OK from Cancel and cancels owned
+Git work on forced closure. The actual Sync button and result handoff remain
+pending; see [Import Patch lifetime work](IMPORT-PATCH-PARITY.md).

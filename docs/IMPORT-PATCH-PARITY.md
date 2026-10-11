@@ -367,3 +367,26 @@ Apply/recovery/close behavior and survives closing Send Mail. Hidden real-Git
 handoff checks are recorded in [command QA](qa/send-patch-tools-2026-10-10.json).
 Signed sandbox acceptance and complete Import/PatchList/application parity remain
 unfinished.
+
+## Forced-close lifetime and successful OK result (October 11, 2026)
+
+The importer now owns a cancellation token across identity queries, serial
+imports, recovery and close/quit state reads. Ordinary Abort still finishes the
+current command before stopping the batch, as in the source. A forced native
+window close invalidates the model and cancels its current Git process; it
+suppresses subsequent success/error/close replies and viewer handoffs. Existing
+`am` state is retained rather than automatically aborted. The controller ends
+its owned sheet and any pending prompt when closing.
+
+The final OK action records successful acceptance separately from Cancel.
+This is needed by Sync's modal Apply Patch caller: upstream ImportPatchDlg
+applies the commits itself and clears m_PathList in OnBnClickedOk. Sync must
+inspect the result after successful OK rather than applying those files twice.
+The Sync entry and incoming/outgoing result handoff remain pending in this
+checkpoint. Physical prompts, arbitrary mid-write cancellation, complete child
+mail/editor lifetimes and signed access remain separate acceptance work.
+
+Focused lifecycle groups and the full 24-group native regression passed with
+system and packaged Git. Both unsigned builds, bundle audits, inventory and
+site checks passed. The actual driver cleanup passed a forced timeout with
+TERM refusal. See [verification scope and corrected attempts](qa/import-patch-lifecycle-native-2026-10-11.json).
