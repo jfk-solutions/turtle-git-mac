@@ -9,9 +9,10 @@ public struct CheckoutReference: Identifiable, Sendable {
     public var id: String { name }
     public let name: String
     public let symbolicTarget: String?
+    public var isFetchHead: Bool { GitReferenceName.equal(name, "FETCH_HEAD") }
     public var remote: Bool { GitReferenceName.removingPrefix("refs/remotes/", from: name) != nil }
     public var target: CheckoutTarget? {
-        if remote || GitReferenceName.removingPrefix("refs/heads/", from: name) != nil { return .branch }
+        if isFetchHead || remote || GitReferenceName.removingPrefix("refs/heads/", from: name) != nil { return .branch }
         if GitReferenceName.removingPrefix("refs/tags/", from: name) != nil { return .tag }
         return nil
     }
@@ -53,7 +54,7 @@ public enum CheckoutFailure: LocalizedError {
 }
 
 extension GitRepository {
-    public func checkoutReferences(includeAll: Bool = false, cancellation: OperationCancellation? = nil) throws -> [CheckoutReference] {
+    public func checkoutReferences(includeAll: Bool = false, includeFetchHead: Bool = false, cancellation: OperationCancellation? = nil) throws -> [CheckoutReference] {
         let bytes = try run(["for-each-ref", "--sort=refname", "--format=%(refname)%00%(symref)%00"] + (includeAll ? [] : ["refs/heads", "refs/remotes", "refs/tags"]), cancellation: cancellation).stdout
         let fields = String(decoding: bytes, as: UTF8.self).components(separatedBy: "\0")
         var result: [CheckoutReference] = []
@@ -62,6 +63,15 @@ extension GitRepository {
             let name = fields[i].hasPrefix("\n") ? String(fields[i].dropFirst()) : fields[i]
             if !name.isEmpty { result.append(CheckoutReference(name: name, symbolicTarget: fields[i+1].isEmpty ? nil : fields[i+1])) }
             i += 2
+        }
+        if includeFetchHead {
+            // Exactly one for-merge FETCH_HEAD, matching GetBranchList's choice.
+            if let hash = try? fetchHeadForMerge(cancellation: cancellation),
+               (hash.count == 40 || hash.count == 64), hash.allSatisfy({ $0.isASCII && $0.isHexDigit }),
+               try run(["rev-parse", "--verify", "--quiet", "--end-of-options", hash + "^{commit}"], successfulExitCodes: 0...1, cancellation: cancellation).exitCode == 0 {
+                result.append(CheckoutReference(name: "FETCH_HEAD", symbolicTarget: nil))
+            }
+            try cancellation?.check()
         }
         return result
     }
@@ -75,7 +85,7 @@ extension GitRepository {
         try cancellation?.check()
         let revision = options.revision
         guard !revision.isEmpty else { throw CheckoutFailure.invalidRevision }
-        let references = try checkoutReferences(cancellation: cancellation)
+        let references = try checkoutReferences(includeFetchHead: GitReferenceName.equal(revision, "FETCH_HEAD"), cancellation: cancellation)
         let reference = references.first { GitReferenceName.equal($0.name, revision) }
         if options.target == .branch {
             guard let reference, reference.target == .branch else { throw CheckoutFailure.invalidRevision }
@@ -109,7 +119,7 @@ extension GitRepository {
                 }
                 args += ["--", revision]
             } else { args += ["--no-track", "--", resolved] }
-        } else if options.target == .branch, let reference, !reference.remote {
+        } else if options.target == .branch, let reference, !reference.remote, !reference.isFetchHead {
             args += ["--", reference.label]
         } else { args += ["--detach", "--", resolved] }
         return args

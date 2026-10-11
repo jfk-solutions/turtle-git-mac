@@ -107,7 +107,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
             defer { if loadToken === token { loadToken = nil; busy = false } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let catalog = try await repository.checkoutReferences(includeAll: true, cancellation: token)
+                let catalog = try await repository.checkoutReferences(includeAll: true, includeFetchHead: UserDefaults.standard.includesFetchHead, cancellation: token)
                 let result = try await repository.revisionComparison(from: old, to: new, options: settings, cancellation: token)
                 guard !closed, loadToken === token, !token.isCancelled else { return }
                 references = catalog; snapshot = result

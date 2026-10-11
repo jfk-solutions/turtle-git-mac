@@ -415,3 +415,18 @@ in progress, with source/diff review only. Builds, tests and app launches remain
 deferred until the rest of this section is implemented. Remaining behavior and
 acceptance is listed in SETTINGS-NAVIGATION-PARITY.md; no inventory certification
 has changed.
+
+
+### Dialogs 2 behavior continuation, 2026-10-11
+
+Connected remaining source Misc preferences to .mailmap display/clipboard,
+validated FETCH_HEAD picker entries and detached/new-branch checkout semantics,
+source Sync position sequencing, reversed native tag choices and shared operation
+sounds. Explicit raw amend-author reads prevent display mailmaps from changing
+author identity. Added source timeout/history Apply validation. Native sounds are
+enabled only by actual application startup, not headless logging installation.
+
+This extends the same major Dialogs section without a new build, test or app
+launch. The next section work is persistent Log cache and Dialogs 3; combined
+validation follows implementation. Details and acceptance limits are in
+SETTINGS-NAVIGATION-PARITY.md. Inventory remains unchanged.

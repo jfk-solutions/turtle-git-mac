@@ -12,6 +12,7 @@ import TurtleGitCore
         if let status = RebaseEditor.handle(arguments: CommandLine.arguments, environment: ProcessInfo.processInfo.environment) { exit(status) }
         GitConfigurationPermissions.restore()
         ProgressActionLog.install()
+        OperationSounds.enabled = true
         DialogGeometry.install()
     }
     var body: some Scene {

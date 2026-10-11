@@ -109,7 +109,7 @@ import TurtleGitCore
             _ = access
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let catalog = try await repository.checkoutReferences(cancellation: request)
+                let catalog = try await repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead, cancellation: request)
                 guard let self, !self.invalidated, self.referenceSelectionToken === request, !request.isCancelled, !Task.isCancelled else { return }
                 self.references = catalog
                 if let reference = catalog.first(where: { GitReferenceName.equal($0.name, requested) }), let kind = reference.target {
@@ -150,8 +150,8 @@ import TurtleGitCore
     var chooseDestination: () -> Void = {}
     var chooseCommit: () -> Void = {}
     var confirmOverwrite: (String) async -> Bool = { _ in false }
-    var branches: [CheckoutReference] { references.filter { ($0.name.hasPrefix("refs/heads/") || $0.remote) && $0.symbolicTarget == nil } }
-    var tags: [CheckoutReference] { references.filter { $0.name.hasPrefix("refs/tags/") } }
+    var branches: [CheckoutReference] { references.filter { ($0.name.hasPrefix("refs/heads/") || $0.remote || $0.isFetchHead) && $0.symbolicTarget == nil } }
+    var tags: [CheckoutReference] { let values = references.filter { $0.name.hasPrefix("refs/tags/") }; return preferences.bool(forKey: "SortTagsReversed") ? Array(values.reversed()) : values }
     var revision: String { switch target { case .head: return "HEAD"; case .branch: return branch; case .tag: return tag; case .commit: return commit } }
     func canReuseForRevision(_ requestedRevision: String, directory requestedDirectory: String) -> Bool {
         !busy && progress == nil && pickerTarget == nil && revision == requestedRevision && directory == requestedDirectory && destination.isEmpty && exported == nil && wholeProject == requestedDirectory.isEmpty
@@ -171,7 +171,7 @@ import TurtleGitCore
         loadTask = Task { [weak self, access] in
             _ = access
             do {
-                let references = try await repository.checkoutReferences(cancellation: request)
+                let references = try await repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead, cancellation: request)
                 let currentBranch = try await repository.branch(cancellation: request)
                 guard let self, !self.invalidated, self.loadCancellation === request, !request.isCancelled, !Task.isCancelled else { return }
                 self.references = references; self.currentBranch = currentBranch

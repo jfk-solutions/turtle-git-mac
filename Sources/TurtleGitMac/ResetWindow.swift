@@ -182,7 +182,7 @@ import TurtleGitCore
             defer { if referenceSelectionToken === token { referenceSelectionToken = nil; showingReferencePicker = false; if applied { initialModeFocusPending = false; referenceFocusRequest += 1 }; completion() } }
             do {
                 try validateAccess()
-                let references = try await chooser.repository.checkoutReferences(cancellation: token)
+                let references = try await chooser.repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead, cancellation: token)
                 guard referenceSelectionAvailable, referenceSelectionToken === token, !token.isCancelled else { return }
                 chooser.references = references
                 if let reference = references.first(where: { GitReferenceName.equal($0.name, revision) }), let target = reference.target {

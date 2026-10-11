@@ -484,6 +484,7 @@ public struct HistoryLimitScope: Equatable, Sendable {
 }
 
 public struct HistoryOptions: Sendable {
+    public var useMailmap = true
     public var ordering: HistoryOrdering = .topological
     public var walk = HistoryWalkOptions()
     public var allBranches = false
@@ -504,7 +505,7 @@ public struct HistoryOptions: Sendable {
     public var paths: [String] = []
     public var since: Date?
     public var until: Date?
-    public init() {}
+    public init(defaults: UserDefaults = .standard) { useMailmap = defaults.object(forKey: "UseMailmap") as? Bool ?? true }
 }
 
 public struct CommitFile: Identifiable, Hashable, Sendable {
@@ -916,7 +917,10 @@ extension GitRepository {
         let query = HistoryTextQuery(options.search, caseSensitive: options.searchCaseSensitive)
         // Git fixed-string grep is equivalent only for one positive message term.
         let filterInMemory = filtering && (options.retainFilteredRows || options.searchRegex || options.searchFields != .messages || query.simpleLiteral == nil)
-        var args = ["log", "--encoding=UTF-8"] + options.ordering.arguments + ["--no-notes", "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00%cn%x00%ce%x00%cI%x00%m%x00"]
+        let authorName = options.useMailmap ? "%aN" : "%an", authorEmail = options.useMailmap ? "%aE" : "%ae"
+        let committerName = options.useMailmap ? "%cN" : "%cn", committerEmail = options.useMailmap ? "%cE" : "%ce"
+        let format = "%H%x00%P%x00" + authorName + "%x00" + authorEmail + "%x00%aI%x00%s%x00%B%x00" + committerName + "%x00" + committerEmail + "%x00%cI%x00%m%x00"
+        var args = ["log", "--encoding=UTF-8", options.useMailmap ? "--use-mailmap" : "--no-use-mailmap"] + options.ordering.arguments + ["--no-notes", "--format=" + format]
         // Match GetLogCmd: parent rewriting for normal walks, raw full history.
         let rewritesParents = !options.walk.fullHistory
         if options.includeBoundaryCommits { args += ["--left-right", "--boundary"] }
@@ -1114,14 +1118,15 @@ extension GitRepository {
     }
     /// Full log clipboard details for a pinned commit, including every parent's
     /// changed paths, Git notes and annotated tags. Use native LF line endings.
-    public func commitLogText(revision: String, includePaths: Bool = true, cancellation: OperationCancellation? = nil, dateSettings: HistoryDateSettings = .load()) throws -> String {
+    public func commitLogText(revision: String, includePaths: Bool = true, cancellation: OperationCancellation? = nil, dateSettings: HistoryDateSettings = .load(), useMailmap: Bool = true) throws -> String {
         try cancellation?.check()
         func clipboardRun(_ arguments: [String]) throws -> GitResult {
             try cancellation?.check()
             return try run(arguments, cancellation: cancellation)
         }
         let hash = try clipboardRun(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"]).text.trimmingCharacters(in: .newlines)
-        let data = try clipboardRun(["show", "--encoding=UTF-8", "-s", "--no-notes", "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00", hash, "--"]).stdout
+        let format = "%H%x00%P%x00" + (useMailmap ? "%aN%x00%aE" : "%an%x00%ae") + "%x00%aI%x00%s%x00%B%x00"
+        let data = try clipboardRun(["show", "--encoding=UTF-8", "-s", "--no-notes", "--format=" + format, hash, "--"]).stdout
         guard let entry = LogEntry.parseHistory(data).first, entry.hash == hash else { throw RevisionComparisonFailure.range }
         var text = "Revision: \(hash)\nAuthor: \(entry.author) <\(entry.email)>\nDate: \(dateSettings.format(entry.date))\nMessage:\n\(entry.message)"
         if !text.hasSuffix("\n") { text += "\n" }

@@ -121,7 +121,7 @@ import TurtleGitCore
             defer { if referenceSelectionToken === token { referenceSelectionToken = nil; busy = false; pickerTarget = nil; if applied { referenceFocusRequest += 1 }; completion() } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let catalog = try await repository.checkoutReferences(cancellation: token)
+                let catalog = try await repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead, cancellation: token)
                 let current = try await repository.branch(cancellation: token)
                 guard !invalidated, referenceSelectionToken === token, !token.isCancelled else { return }
                 references = catalog; currentBranch = current
@@ -140,8 +140,8 @@ import TurtleGitCore
         finishPicker()
     }
     private var historyHandled = false
-    var branches: [CheckoutReference] { references.filter { ($0.name.hasPrefix("refs/heads/") || $0.remote) && ($0.symbolicTarget == nil || GitReferenceName.equal($0.name, branchRevision)) && !GitReferenceName.equal($0.name, "refs/heads/" + currentBranch) } }
-    var tags: [CheckoutReference] { references.filter { $0.name.hasPrefix("refs/tags/") } }
+    var branches: [CheckoutReference] { references.filter { ($0.name.hasPrefix("refs/heads/") || $0.remote || $0.isFetchHead) && ($0.symbolicTarget == nil || GitReferenceName.equal($0.name, branchRevision)) && !GitReferenceName.equal($0.name, "refs/heads/" + currentBranch) } }
+    var tags: [CheckoutReference] { let values = references.filter { $0.name.hasPrefix("refs/tags/") }; return preferences.bool(forKey: "SortTagsReversed") ? Array(values.reversed()) : values }
     var revision: String { switch target { case .branch: return branchRevision; case .tag: return tagRevision; case .commit: return commitRevision } }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
         self.repository = repository; self.access = access; self.preferences = preferences; messageHistory = MergeMessageHistory(defaults: preferences)
@@ -158,7 +158,7 @@ import TurtleGitCore
             defer { if loadToken === token { loadToken = nil; busy = false } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let current = try await repository.branch(cancellation: token), catalog = try await repository.checkoutReferences(cancellation: token)
+                let current = try await repository.branch(cancellation: token), catalog = try await repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead, cancellation: token)
                 let defaults = try await repository.pushDefaults(source: "HEAD", cancellation: token)
                 let destination = defaults.destination.hasPrefix("refs/heads/") ? String(defaults.destination.dropFirst(11)) : defaults.destination
                 let tracked = "refs/remotes/" + defaults.remote + "/" + destination

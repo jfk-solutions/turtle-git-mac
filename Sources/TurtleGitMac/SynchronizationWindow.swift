@@ -188,6 +188,11 @@ extension SynchronizationTagKind {
                 else { output += "\n" + error.localizedDescription }
             }
             guard !closed else { return }; busy = false
+            if let result {
+                let succeeded: Bool
+                if case .success = result { succeeded = true } else { succeeded = false }
+                OperationSounds.report(failed: !succeeded, preferences: preferences)
+            }
             if !confirmingCancellation, automaticClose { close() }
         }
     }
@@ -227,6 +232,7 @@ enum SynchronizationHistoryOperation: Equatable {
 }
 
 @MainActor final class SynchronizationWindowController: NSWindowController, NSWindowDelegate {
+    private static var placementSequence = 0
     let model: SynchronizationWindowModel
     var onClosed: () -> Void = {}
     private var cancellationAlert: NSAlert?
@@ -547,6 +553,16 @@ enum SynchronizationHistoryOperation: Equatable {
         model.onManageRemotes = { [weak self] in self?.showRemoteSettings() }
         model.comparison.window = window; model.incomingComparison.window = window; window.center()
         DialogGeometry.attach(window, identifier: "SyncDlg", legacyName: "SyncDlg")
+        if model.preferences.bool(forKey: "SyncDialogRandomPos"), Self.placementSequence > 0 {
+            let offset = CGFloat(Self.placementSequence % 5) * 30
+            let visible = (window.screen ?? NSScreen.main)?.visibleFrame ?? window.frame
+            var origin = window.frame.origin; origin.y += offset
+            if origin.y + window.frame.height > visible.maxY { origin.y -= 150 }
+            origin.y = max(visible.minY, min(origin.y, visible.maxY - window.frame.height))
+            origin.x = max(visible.minX, min(origin.x, visible.maxX - window.frame.width))
+            window.setFrameOrigin(origin)
+        }
+        Self.placementSequence += 1
     }
     func showImportPatch(oldHead: String) {
         guard !model.closed, !model.confirmingQuit, !model.busy, !model.hasBlockingChild,
@@ -1092,7 +1108,13 @@ enum SynchronizationHistoryDiff {
     @Published private(set) var cancelling = false
     @Published private(set) var commandOutput = ""
     @Published private(set) var commandSucceeded = false
-    @Published private(set) var commandCompleted = false
+    @Published private(set) var commandCompleted = false {
+        didSet {
+            if commandCompleted && !oldValue && !closed {
+                OperationSounds.report(failed: !commandSucceeded, preferences: preferences)
+            }
+        }
+    }
     @Published private(set) var percentage: Int?
     @Published private(set) var currentWork = ""
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
@@ -1400,7 +1422,7 @@ enum SynchronizationHistoryDiff {
                 // but the immediate pre-dialog HEAD for the changed-file diff.
                 if result.comparison.from != result.comparison.to, let baseline = lastTransportOldHash,
                    case .revision(let newHash) = result.comparison.to {
-                    var options = HistoryOptions(); options.limit = -1
+                    var options = HistoryOptions(); options.useMailmap = preferences.usesMailmap; options.limit = -1
                     options.revisionRange = HistoryRevisionRange(from: baseline, to: newHash, kind: .difference)
                     commits = try await repository.history(options: options, cancellation: request)
                 }

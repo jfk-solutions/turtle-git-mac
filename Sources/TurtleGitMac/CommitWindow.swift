@@ -494,7 +494,7 @@ import UniformTypeIdentifiers
         queryCommitStatus = { try await repository.commitDialogStatus(amendToParent: $0, cancellation: $1) }
         queryCommitAuthor = { amend, cancellation in
             if amend {
-                var options = HistoryOptions(); options.limit = 1
+                var options = HistoryOptions(); options.useMailmap = false; options.limit = 1
                 guard let previous = try await repository.history(options: options, cancellation: cancellation).first else { return nil }
                 return "\(previous.author) <\(previous.email)>"
             }

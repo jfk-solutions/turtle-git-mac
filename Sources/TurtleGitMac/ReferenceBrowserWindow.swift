@@ -477,7 +477,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
             defer { if token === request { token = nil; busy = false } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let result = try await repository.referenceBrowser(filter: filter, scope: scope, cancellation: request)
+                let result = try await repository.referenceBrowser(filter: filter, scope: scope, useMailmap: preferences.usesMailmap, cancellation: request)
                 let bare = try await repository.isBare(cancellation: request)
                 guard !invalidated, token === request else { return }
                 let choice = result.initialSelection(requested); folders = result.folders; self.bare = bare; snapshot = result; folder = choice.folder; selected = choice.reference; refilter()

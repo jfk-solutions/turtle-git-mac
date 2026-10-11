@@ -88,7 +88,7 @@ extension GitRepository {
         }
         return try run(["rev-parse", "--verify", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
     }
-    public func referenceBrowser(filter: ReferenceBrowserMergeFilter = .all, scope: ReferenceBrowserScope = .all, cancellation: OperationCancellation? = nil) throws -> ReferenceBrowserSnapshot {
+    public func referenceBrowser(filter: ReferenceBrowserMergeFilter = .all, scope: ReferenceBrowserScope = .all, useMailmap: Bool = true, cancellation: OperationCancellation? = nil) throws -> ReferenceBrowserSnapshot {
         let atoms = ["refname", "objectname", "objecttype", "symref", "upstream", "subject", "authorname", "authoremail", "authordate:unix", "committername", "committeremail", "committerdate:unix", "taggername", "taggeremail", "taggerdate:unix"]
         var arguments = ["for-each-ref", "--sort=refname", "--format=" + atoms.map { "%(" + $0 + ")" }.joined(separator: "%00") + "%00"]
         if filter != .all { arguments += [filter == .merged ? "--merged=HEAD" : "--no-merged=HEAD"] }
@@ -131,7 +131,7 @@ extension GitRepository {
             if unique.insert(contact).inserted { contacts.append(contact) }
         } }
         var mailmap: [GitReferenceName: String] = [:]
-        for start in stride(from: 0, to: contacts.count, by: 200) {
+        for start in stride(from: 0, to: useMailmap ? contacts.count : 0, by: 200) {
             let batch = Array(contacts[start..<min(start + 200, contacts.count)])
             let output = try run(["check-mailmap", "--"] + batch.map(\.rawValue), cancellation: cancellation).text
             var lines = output.components(separatedBy: "\n"); if lines.last == "" { lines.removeLast() }

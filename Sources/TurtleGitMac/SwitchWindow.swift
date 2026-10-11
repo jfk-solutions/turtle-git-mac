@@ -2,6 +2,11 @@ import AppKit
 import SwiftUI
 import TurtleGitCore
 
+extension UserDefaults {
+    var includesFetchHead: Bool { object(forKey: "BranchesIncludeFetchHead") as? Bool ?? true }
+    var usesMailmap: Bool { object(forKey: "UseMailmap") as? Bool ?? true }
+}
+
 @MainActor protocol VersionPickerModel: AnyObject {
     var repository: GitRepository { get }
     var revision: String { get }
@@ -183,7 +188,7 @@ import TurtleGitCore
             defer { if referenceSelectionToken === token { referenceSelectionToken = nil; busy = false; pickerTarget = nil; if applied { referenceFocusRequest += 1 }; completion() } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let catalog = try await repository.checkoutReferences(cancellation: token)
+                let catalog = try await repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead, cancellation: token)
                 guard !invalidated, !finished, referenceSelectionToken === token, !token.isCancelled else { return }
                 references = catalog
                 if let reference = catalog.first(where: { GitReferenceName.equal($0.name, requested) }), let target = reference.target {
@@ -201,7 +206,7 @@ import TurtleGitCore
     var close: () -> Void = {}
     var onSwitched: (String) -> Void = { _ in }
     var branches: [CheckoutReference] { references.filter { $0.target == .branch && ($0.symbolicTarget == nil || GitReferenceName.equal($0.name, branchRevision)) } }
-    var tags: [CheckoutReference] { references.filter { $0.target == .tag } }
+    var tags: [CheckoutReference] { let values = references.filter { $0.target == .tag }; return preferences.bool(forKey: "SortTagsReversed") ? Array(values.reversed()) : values }
     var revision: String { switch options.target { case .branch: return branchRevision; case .tag: return tagRevision; case .commit: return commitRevision } }
     var remote: Bool { options.target == .branch && references.first { $0.name.utf8.elementsEqual(branchRevision.utf8) }?.remote == true }
     init(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; initialRevision = revision; self.preferences = preferences }
@@ -213,7 +218,7 @@ import TurtleGitCore
             defer { if initialLoadToken === token { initialLoadToken = nil; busy = false } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let catalog = try await repository.checkoutReferences(cancellation: token)
+                let catalog = try await repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead, cancellation: token)
                 let current = try await repository.branch(cancellation: token)
                 guard !invalidated, !finished, initialLoadToken === token, !token.isCancelled else { return }
                 references = catalog
@@ -246,7 +251,7 @@ import TurtleGitCore
         busy = true
         Task {
             defer { busy = false }
-            do { var history = HistoryOptions(); history.allBranches = true; history.limit = 200
+            do { var history = HistoryOptions(); history.useMailmap = preferences.usesMailmap; history.allBranches = true; history.limit = 200
                 commits = try await repository.history(options: history); browser = target
             } catch { self.error = error.localizedDescription }
         }

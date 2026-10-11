@@ -111,3 +111,38 @@ preference coverage; Dialogs 3 scoped project preferences and source physical
 layout/keyboard/visual acceptance. No disabled or inert toggles are used to stand
 in for these missing behaviors. Inventory remains unchanged. This continuation
 has received source/diff review only; the earlier build/tests do not cover it.
+
+
+## Dialogs 2 behavior continuation (uncompiled and untested)
+
+The remaining source Misc controls are now implemented alongside the earlier
+controls. `UseMailmap` defaults true and selects canonical author/committer
+formatting in history reads; Log, Sync projections and version-picker history
+honor their preference store. Reference Browser skips its mailmap lookup when
+disabled, and full Log clipboard details use the same choice. Raw amend-author
+identity reads explicitly remain raw; a display mapping does not rewrite an
+original author's identity.
+
+`BranchesIncludeFetchHead` defaults true. Version catalogs opt in to a
+`FETCH_HEAD` entry only when the file contains exactly one for-merge line naming
+an existing commit. Switch, Merge, Export, Reset, revision comparison and Format
+Patch catalogs use the choice. The normal reference catalog remains real refs
+unless a caller explicitly opts in. Switch treats a selected FETCH_HEAD as a
+detached commit (or a new branch at that commit), rather than passing its pseudo
+name as an existing local branch. Operation validation remains available for a
+captured FETCH_HEAD even if the display preference is later disabled.
+
+`SortTagsReversed` additionally governs Switch/Merge/Export tag lists. Sync
+startup positioning follows the source sequence of 30-point offsets, cycling
+through five positions and clamping to the selected screen's visible frame.
+
+`NoSounds` now gates native terminal error/notification sounds for shared progress
+models and Sync operations. Normal application startup enables these sounds;
+headless receivers remain silent unless explicitly enabled. Recording deduplicates
+outcomes across completion/close and resets between retries. Mid-operation warning
+alias fidelity and audible/physical acceptance still require review.
+
+Dialogs 2 Apply validates the source 1–100 timeout/history ranges. Changes above
+have received source/diff review only. The grouped build/core QA record predates
+this continuation. Persistent Log cache, Dialogs 3 and full native/visual/sandbox
+acceptance remain open. No dialog certification or inventory count has changed.

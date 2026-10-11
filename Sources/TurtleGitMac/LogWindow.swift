@@ -1290,6 +1290,7 @@ struct LogCommandRequest: Identifiable {
         cancelClipboardRead()
         generation += 1; let request = generation
         var options = HistoryOptions(); options.endRevision = endRevision; options.revisionRange = revisionRange; options.allBranches = allBranches; options.search = search; options.searchFields = searchFields; options.searchCaseSensitive = searchCaseSensitive; options.searchRegex = searchRegex
+        options.useMailmap = labelDefaults.usesMailmap
         options.ordering = HistoryOrdering.load(defaults: labelDefaults)
         options.walk = historyWalk; options.regexExecutable = historyRegexExecutable
         options.includeBoundaryCommits = includeBoundaryCommits
@@ -1598,7 +1599,7 @@ struct LogCommandRequest: Identifiable {
                 var text = ""
                 for hash in hashes {
                     guard request == clipboardGeneration else { return }
-                    text += try await repository.commitLogText(revision: hash, includePaths: includePaths, cancellation: cancellation, dateSettings: dateSettings)
+                    text += try await repository.commitLogText(revision: hash, includePaths: includePaths, cancellation: cancellation, dateSettings: dateSettings, useMailmap: labelDefaults.usesMailmap)
                 }
                 guard request == clipboardGeneration else { return }
                 copy(text)

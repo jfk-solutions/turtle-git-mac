@@ -227,6 +227,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     private var saved: [String: SettingsScalar]
     static let booleans: [(String, Bool)] = [
         ("RevertWithRecycleBin", true), ("ConfirmKillProcess", false),
+        ("SyncDialogRandomPos", false), ("BranchesIncludeFetchHead", true), ("UseMailmap", true), ("NoSounds", false),
         ("RefCompareHideUnchanged", false), ("ShowGitexeTimings", true),
         ("SortTagsReversed", false), ("Autocompletion", true),
         ("SelectFilesForCommit", true), ("AutoselectMissingFiles", false),
@@ -249,6 +250,14 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     func integer(_ key: String) -> Binding<Int> {
         Binding(get: { if case .integer(let value) = self.values[key] { return value }; return 0 }, set: { self.values[key] = .integer($0) })
     }
+    var validationError: String? {
+        for key in ["AutocompleteParseTimeout", "MaxHistoryItems"] {
+            guard case .integer(let value) = values[key], (1...100).contains(value) else {
+                return "Enter a value from 1 to 100 for " + (key == "MaxHistoryItems" ? "message history items." : "auto-completion timeout.")
+            }
+        }
+        return nil
+    }
     func apply() { for (key, value) in values { value.save(key) }; saved = values }
     func cancel() { values = saved }
 }
@@ -265,9 +274,13 @@ private struct DialogsBehaviorSettings: View {
                         }
                         Toggle("Use Trash when reverting", isOn: draft.boolean("RevertWithRecycleBin"))
                         Toggle("Confirm to kill running git process", isOn: draft.boolean("ConfirmKillProcess"))
+                        Toggle("Randomize Sync Dialog startup position", isOn: draft.boolean("SyncDialogRandomPos"))
                         Toggle("Hide unchanged refs in Ref Compare List", isOn: draft.boolean("RefCompareHideUnchanged"))
                         Toggle("Show Git execution timings and timestamp", isOn: draft.boolean("ShowGitexeTimings"))
                         Toggle("Sort tag list in reversed order", isOn: draft.boolean("SortTagsReversed"))
+                        Toggle("Disable sounds", isOn: draft.boolean("NoSounds"))
+                        Toggle("Include FETCH_HEAD in branch selection boxes", isOn: draft.boolean("BranchesIncludeFetchHead"))
+                        Toggle("Use .mailmap", isOn: draft.boolean("UseMailmap"))
                     }.padding(8)
                 }
                 GroupBox("Commit") {
@@ -284,7 +297,7 @@ private struct DialogsBehaviorSettings: View {
                 Spacer()
             }.padding(20)
         }
-        .settingsParticipant("dialogs2", page: .dialogs2, value: draft.values, modified: { draft.modified },
+        .settingsParticipant("dialogs2", page: .dialogs2, value: draft.values, modified: { draft.modified }, validate: { draft.validationError },
             apply: { draft.apply(); return true }, cancel: draft.cancel)
     }
 }

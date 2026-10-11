@@ -313,7 +313,7 @@ extension GitRepository {
     }
     /// FixBranchName(FETCH_HEAD): exactly one for-merge line, not the first line
     /// and not an arbitrary member of an octopus fetch.
-    private func synchronizationFetchHead(cancellation: OperationCancellation?) throws -> String {
+    func fetchHeadForMerge(cancellation: OperationCancellation?) throws -> String {
         let result = try run(["rev-parse", "--git-path", "FETCH_HEAD"], cancellation: cancellation)
         var bytes = result.stdout; if bytes.last == 10 { bytes.removeLast() }
         let path = String(decoding: bytes, as: UTF8.self)
@@ -346,7 +346,7 @@ extension GitRepository {
         guard pushing || head != nil else { throw SynchronizationFailure.invalidInput }
         let url = options.remote.contains("/") || options.remote.contains("\\")
         var source = options.localBranch
-        if pushing && GitReferenceName.equal(source, "FETCH_HEAD") { source = try synchronizationFetchHead(cancellation: cancellation) }
+        if pushing && GitReferenceName.equal(source, "FETCH_HEAD") { source = try fetchHeadForMerge(cancellation: cancellation) }
         var checkout: String?
         var mode = options.action == .fetchAndRebase ? SynchronizationRebaseMode.choose : .none
         if options.action == .pull {
@@ -504,7 +504,7 @@ extension GitRepository {
         var target: String?
         if let reference = execution.rebaseReference {
             do {
-                let revision = reference == "FETCH_HEAD" ? try synchronizationFetchHead(cancellation: token) : reference
+                let revision = reference == "FETCH_HEAD" ? try fetchHeadForMerge(cancellation: token) : reference
                 guard !revision.isEmpty, let resolved = try synchronizationHash(revision, cancellation: token) else { throw SynchronizationFailure.invalidInput }
                 target = resolved
             } catch {
@@ -582,7 +582,7 @@ extension GitRepository {
         let branch = remoteBranch.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !localBranch.isEmpty, !destination.isEmpty, !branch.isEmpty,
               ![localBranch, destination, branch].contains(where: { $0.contains("\0") }) else { throw SynchronizationFailure.invalidInput }
-        let local = localBranch == "FETCH_HEAD" ? try synchronizationFetchHead(cancellation: cancellation) : localBranch
+        let local = localBranch == "FETCH_HEAD" ? try fetchHeadForMerge(cancellation: cancellation) : localBranch
         guard !local.isEmpty else { throw SynchronizationFailure.invalidInput }
         return try formatPatch(selection: .range(from: destination + "/" + branch, to: local), to: root, cancellation: cancellation)
     }
