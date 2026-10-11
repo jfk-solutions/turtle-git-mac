@@ -1091,3 +1091,34 @@ comparison, clipboard, columns and lifecycle assertions remain unchanged. These 
 NSMenu delegate/action checks; physical menu tracking, keyboard/accessibility and
 signed sandbox acceptance remain open, as do unified diff merge variants, changeset
 comparison and the other revision actions.
+
+### Revision unified diffs (2026-10-11)
+
+Sync's incoming/outgoing revision menus now add Show changes as unified diff for
+a single non-root commit and exactly two selected commits. Merge commits have the
+source Unified diff with submenu: All Parents, Only Merged Files, Show extra changes
+after merge, then individual parent captions. Larger contiguous selections retain
+Compare revisions but omit unified diff, matching GitLogListBase. Captured targets
+survive later selection changes; the existing parent-subject read updates both
+comparison and unified parent captions.
+
+The commands follow GitLogListAction and CGit's CLI GetUnifiedDiffCmd: ordinary
+parent/two-revision `diff-tree -r -p --stat`, all-parent `-m`, combined merged-files
+`-c`, and extra merge changes `diff-tree --cc`. Extra changes check the source hash
+header and following nonempty line, otherwise presenting an owned informational
+sheet saying No extra changes after merge. Additional flags disable external diff,
+text conversion and color. Reads use the Sync operation token and signed repository
+lease gate. Native read-only viewers retain original bytes and are registered in
+the existing comparison child registry for busy/Quit guards and owner cleanup.
+Shared viewer preferences and Shift's alternate choice are honored.
+
+The expanded native fixture verifies byte equality with explicit Git CLI commands
+for ordinary parent/two-revision diffs, both merge parents and all three merge
+variants. Its merge contains an extra resolution change, with a separate clean
+merge for the real informational sheet and native OK action. It checks selection
+changes, owned viewer closure, unchanged refs/index/config, and an injected stalled
+diff read that cannot open a viewer after owner invalidation. Existing parent,
+clipboard, columns and lifecycle assertions are retained. Physical menu tracking,
+external-viewer launch/Shift acceptance, keyboard/accessibility, signed sandbox
+and full revision-command/UI parity remain open. Source libgit2-specific output
+behavior is not reproduced; this port uses the source CLI command semantics.

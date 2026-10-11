@@ -292,6 +292,13 @@ private struct SynchronizationProgressDialog: View {
                 owner.beginSheet(child.window!)
             }
         }
+        model.presentHistoryNotice = { [weak self] message in
+            guard let self, !self.model.closed, let window = self.window, window.attachedSheet == nil else { return }
+            let alert = NSAlert(); alert.alertStyle = .informational; alert.messageText = message
+            alert.addButton(withTitle: "OK"); self.pullAlert = alert
+            _ = await alert.beginSheetModal(for: window)
+            if self.pullAlert === alert { self.pullAlert = nil }
+        }
         model.presentConflictHint = { [weak self] in
             guard let self, !self.model.closed, let window = self.window, window.attachedSheet == nil else { return false }
             let alert = NSAlert(); alert.alertStyle = .informational; alert.messageText = "TurtleGit"
@@ -556,6 +563,27 @@ enum SynchronizationHistoryCopy: String, CaseIterable {
     case subjects = "Subjects", messages = "Messages", referenceNames = "Tag/branch names"
 }
 
+enum SynchronizationHistoryDiff {
+    case revisions(String, String), allParents(String), mergedFiles(String), extraChanges(String)
+    var arguments: [String] {
+        let safe = ["--no-ext-diff", "--no-textconv", "--no-color"]
+        switch self {
+        case .revisions(let base, let revision): return ["diff-tree", "-r", "-p", "--stat"] + safe + ["--end-of-options", base, revision, "--"]
+        case .allParents(let revision): return ["diff-tree", "-r", "-p", "-m", "--stat"] + safe + ["--end-of-options", revision, "--"]
+        case .mergedFiles(let revision): return ["diff-tree", "-r", "-p", "-c", "--stat"] + safe + ["--end-of-options", revision, "--"]
+        case .extraChanges(let revision): return ["diff-tree", "--cc"] + safe + ["--end-of-options", revision, "--"]
+        }
+    }
+    var title: String {
+        switch self {
+        case .revisions: return "Show changes as unified diff"
+        case .allParents: return "All Parents"
+        case .mergedFiles: return "Only Merged Files"
+        case .extraChanges: return "Show extra changes after merge"
+        }
+    }
+}
+
 @MainActor final class SynchronizationWindowModel: ObservableObject {
     let repository: GitRepository
     let access: RepositoryAccessLease?
@@ -643,6 +671,37 @@ enum SynchronizationHistoryCopy: String, CaseIterable {
                 }
             }
         } onCancel: { request.cancel() }
+    }
+    var presentHistoryNotice: (String) async -> Void = { _ in }
+    func showHistoryDiff(_ diff: SynchronizationHistoryDiff, alternate: Bool = false) {
+        guard !closed, !busy, !confirmingQuit, !confirmingCancellation, !hasBlockingChild,
+              window?.attachedSheet == nil else { return }
+        let request = OperationCancellation(), child = tab == 4 ? incomingComparison : comparison
+        token?.cancel(); token = request; busy = true; error = nil
+        Task {
+            defer { if token === request { token = nil; busy = false } }
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let bytes = try await repository.run(diff.arguments, cancellation: request).stdout
+                guard !closed, token === request, !request.isCancelled else { return }
+                if case .extraChanges(let hash) = diff {
+                    let lines = String(decoding: bytes, as: UTF8.self).components(separatedBy: "\n")
+                    guard lines.count > 1, lines[0] == hash, !lines[1].isEmpty else {
+                        await presentHistoryNotice("No extra changes after merge"); return
+                    }
+                }
+                if try await UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: preferences) { return }
+                guard !closed, token === request, !request.isCancelled else { return }
+                let key = "Sync revision diff " + diff.arguments.joined(separator: "\0")
+                let viewer = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access,
+                    existing: child.unifiedWindows[key], title: diff.title,
+                    onClosed: { [weak child] in child?.unifiedWindows.removeValue(forKey: key) })
+                child.unifiedWindows[key] = viewer
+            } catch {
+                guard !closed, token === request, !request.isCancelled else { return }
+                self.error = error.localizedDescription
+            }
+        }
     }
     var historyPasteboard: NSPasteboard = .general
     func copyHistory(_ entries: [LogEntry], kind: SynchronizationHistoryCopy, pointedReference: String? = nil) {
@@ -1664,6 +1723,14 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
             let from: ComparisonRevision, to: ComparisonRevision
             init(from: ComparisonRevision, to: ComparisonRevision) { self.from = from; self.to = to }
         }
+        private final class DiffTarget: NSObject {
+            let diff: SynchronizationHistoryDiff
+            init(_ diff: SynchronizationHistoryDiff) { self.diff = diff }
+        }
+        @objc func historyDiff(_ sender: NSMenuItem) {
+            guard let target = sender.representedObject as? DiffTarget else { return }
+            model.showHistoryDiff(target.diff, alternate: NSEvent.modifierFlags.contains(.shift))
+        }
         @objc func compareHistory(_ sender: NSMenuItem) {
             guard !model.closed, !model.busy, !model.confirmingQuit, !model.confirmingCancellation,
                   !model.hasBlockingChild, model.window?.attachedSheet == nil,
@@ -1687,11 +1754,27 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
                 item.representedObject = ComparisonTarget(from: from, to: to)
                 targetMenu.addItem(item)
             }
+            func diffItem(_ title: String, diff: SynchronizationHistoryDiff, in targetMenu: NSMenu) {
+                let item = NSMenuItem(title: title, action: #selector(historyDiff(_:)), keyEquivalent: "")
+                item.target = self; item.isEnabled = available && !model.confirmingCancellation && model.window?.attachedSheet == nil
+                item.image = MenuIcon.compare.contextImage(defaults: model.preferences)
+                item.representedObject = DiffTarget(diff); targetMenu.addItem(item)
+            }
             if entries.count == 1, let entry = entries.first {
                 comparisonItem("Compare with working tree", from: .revision(entry.hash), to: .workingTree, in: menu)
                 if entry.parents.count == 1, let parent = entry.parents.first {
+                    diffItem("Show changes as unified diff", diff: .revisions(parent, entry.hash), in: menu)
                     comparisonItem("Compare with previous revision", from: .revision(parent), to: .revision(entry.hash), in: menu)
                 } else if entry.parents.count > 1 {
+                    let unified = NSMenu(); unified.autoenablesItems = false
+                    for diff in [SynchronizationHistoryDiff.allParents(entry.hash), .mergedFiles(entry.hash), .extraChanges(entry.hash)] {
+                        diffItem(diff.title, diff: diff, in: unified)
+                    }
+                    for (index, hash) in entry.parents.enumerated() {
+                        diffItem(model.historyParentTitle(hash, index: index), diff: .revisions(hash, entry.hash), in: unified)
+                    }
+                    let unifiedItem = NSMenuItem(title: "Unified diff with", action: nil, keyEquivalent: "")
+                    unifiedItem.image = MenuIcon.compare.contextImage(defaults: model.preferences); unifiedItem.submenu = unified; menu.addItem(unifiedItem)
                     let parentItem = NSMenuItem(title: "Compare with previous revision", action: nil, keyEquivalent: "")
                     parentItem.image = MenuIcon.compare.contextImage(defaults: model.preferences)
                     let parents = NSMenu(); parents.autoenablesItems = false
@@ -1700,16 +1783,22 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
                     }
                     parentItem.submenu = parents; menu.addItem(parentItem)
                     let model = model
-                    parentMenuTask = Task { [weak parents] in
+                    parentMenuTask = Task { [weak parents, weak unified] in
                         await model.loadHistoryParentSubjects(entry)
                         guard !Task.isCancelled, !model.closed, !model.busy, let parents else { return }
                         for (index, item) in parents.items.enumerated() where entry.parents.indices.contains(index) {
                             item.title = model.historyParentTitle(entry.parents[index], index: index)
                         }
+                        if let unified {
+                            for (index, item) in unified.items.dropFirst(3).enumerated() where entry.parents.indices.contains(index) {
+                                item.title = model.historyParentTitle(entry.parents[index], index: index)
+                            }
+                        }
                     }
                 }
             } else if entries.count == 2 || table.selectedRowIndexes.last! - table.selectedRowIndexes.first! + 1 == entries.count {
                 comparisonItem("Compare revisions", from: .revision(entries.last!.hash), to: .revision(entries.first!.hash), in: menu)
+                if entries.count == 2 { diffItem("Show changes as unified diff", diff: .revisions(entries.last!.hash, entries.first!.hash), in: menu) }
             }
             if !menu.items.isEmpty { menu.addItem(.separator()) }
             for kind in SynchronizationHistoryCopy.allCases {

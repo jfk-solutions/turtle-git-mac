@@ -26,6 +26,7 @@ struct SynchronizationRevisionListVerification {
         try Data("root\n".utf8).write(to:root.appendingPathComponent("tracked.txt"))
         try await repo.stage(["tracked.txt"])
         try await commit("Root")
+        let localRoot = try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
         _ = try await repo.run(["branch","side"])
         try await commit("Main parent subject longer than twenty characters")
         try await commit("Main second")
@@ -33,7 +34,19 @@ struct SynchronizationRevisionListVerification {
         try await commit("Side parent & quoted subject longer than twenty characters")
         _ = try await repo.run(["checkout","main"])
         _ = try await repo.run(["merge","--no-ff","side","-m","Merge"])
+        try Data("resolution\n".utf8).write(to:root.appendingPathComponent("tracked.txt"))
+        try await repo.stage(["tracked.txt"])
+        _ = try await repo.run(["commit","--amend","--no-edit"])
         try await commit("Tip")
+        _ = try await repo.run(["checkout","-b","clean-merge",localRoot])
+        _ = try await repo.run(["branch","clean-side"])
+        try await commit("Clean first")
+        _ = try await repo.run(["checkout","clean-side"]); try await commit("Clean second")
+        _ = try await repo.run(["checkout","clean-merge"])
+        _ = try await repo.run(["merge","--no-ff","clean-side","-m","Clean merge"])
+        let cleanMerge = try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
+        _ = try await repo.run(["checkout","main"])
+
         // An unrelated tracking root makes the entire local history outgoing.
         _ = try await repo.run(["checkout","--orphan","remote-root"])
         try await commit("Unrelated remote root")
@@ -71,10 +84,33 @@ struct SynchronizationRevisionListVerification {
             invoke(item)
             precondition(captured.last!.0 == .revision(hash) && captured.last!.1 == .revision(rows[mergeIndex].hash), "Merge parent target must survive a changed selection")
         }
+        let unified = menu(IndexSet(integer:mergeIndex)).items.first { $0.title == "Unified diff with" }!.submenu!.items
+        precondition(unified.count == 5 && unified.prefix(3).map(\.title) == ["All Parents","Only Merged Files","Show extra changes after merge"])
+        for (index,item) in unified.enumerated() {
+            let extra = index == 2
+            let flags = index == 0 ? ["-r","-p","-m","--stat"] : index == 1 ? ["-r","-p","-c","--stat"] : extra ? ["--cc"] : ["-r","-p","--stat"]
+            let endpoints = index < 3 ? [rows[mergeIndex].hash] : [rows[mergeIndex].parents[index - 3],rows[mergeIndex].hash]
+            let expected = try await repo.run(["diff-tree"] + flags + ["--no-ext-diff","--no-textconv","--no-color","--end-of-options"] + endpoints + ["--"]).stdout
+            _ = menu(IndexSet(integer:rootIndex)); invoke(item)
+            try await settle { !model.busy }
+            precondition(model.error == nil && model.comparison.unifiedWindows.count == 1)
+            let viewer = model.comparison.unifiedWindows.values.first!
+            precondition(viewer.model.readOnly && viewer.model.exportDocument.bytes == expected && String(decoding:expected,as:UTF8.self).contains("resolution"))
+            viewer.close(); precondition(model.comparison.unifiedWindows.isEmpty)
+        }
+        model.showHistoryDiff(.extraChanges(cleanMerge))
+        try await settle { owner.window!.attachedSheet != nil }
+        let notice = owner.window!.attachedSheet!
+        precondition(descendants(notice.contentView!).compactMap { $0 as? NSTextField }.contains { $0.stringValue == "No extra changes after merge" })
+        let okay = descendants(notice.contentView!).compactMap { $0 as? NSButton }.first { $0.title == "OK" }!
+        okay.performClick(nil); try await settle { !model.busy && owner.window!.attachedSheet == nil }
+        precondition(model.comparison.unifiedWindows.isEmpty && model.error == nil)
         let rootMenu = menu(IndexSet(integer:rootIndex))
         precondition(!rootMenu.items.contains { $0.title == "Compare with previous revision" })
         precondition(rootMenu.items.contains { $0.title == "Compare with working tree" })
+        precondition(!rootMenu.items.contains { $0.title == "Show changes as unified diff" })
         let contiguous = menu(IndexSet(integersIn:0..<3)).items.first { $0.title == "Compare revisions" }!
+        precondition(!native.menu!.items.contains { $0.title == "Show changes as unified diff" })
         invoke(contiguous)
         precondition(captured.last!.0 == .revision(rows[2].hash) && captured.last!.1 == .revision(rows[0].hash))
         precondition(!menu(IndexSet([0,2,4])).items.contains { $0.title == "Compare revisions" })
@@ -194,6 +230,20 @@ struct SynchronizationRevisionListVerification {
         }
         model.onHistoryCompare = { comparisons.append(($0,$1)) }
         native.selectRowIndexes(IndexSet(integersIn:0..<2),byExtendingSelection:false)
+        for selection in [IndexSet(integer:0),IndexSet(integersIn:0..<2)] {
+            native.selectRowIndexes(selection,byExtendingSelection:false)
+            let item = comparisonItem("Show changes as unified diff")
+            precondition(item.image != nil)
+            let baseHash = selection.count == 1 ? rows[0].parents[0] : rows[1].hash
+            let expected = try await repo.run(["diff-tree","-r","-p","--stat","--no-ext-diff","--no-textconv","--no-color","--end-of-options",baseHash,rows[0].hash,"--"]).stdout
+            native.selectRowIndexes(IndexSet(integer:1),byExtendingSelection:false); invoke(item)
+            try await settle { !model.busy }
+            precondition(model.error == nil && model.comparison.unifiedWindows.count == 1)
+            let viewer = model.comparison.unifiedWindows.values.first!
+            precondition(viewer.model.readOnly && viewer.model.exportDocument.bytes == expected && String(decoding:expected,as:UTF8.self).contains("modify.txt"))
+            viewer.close(); precondition(model.comparison.unifiedWindows.isEmpty)
+        }
+        native.selectRowIndexes(IndexSet(integersIn:0..<2),byExtendingSelection:false)
         let capturedHashes = copyItem("Hashes")
         native.selectRowIndexes(IndexSet(integer:0),byExtendingSelection:false)
         invoke(capturedHashes); precondition(clipboard.string(forType:.string) == rows.map(\.hash).joined(separator:"\n"), "Menu payload must preserve the captured selection")
@@ -308,11 +358,22 @@ struct SynchronizationRevisionListVerification {
         try await settle { kill(cancelledPID,0) != 0 && errno == ESRCH }
         precondition(!cancelledParents.closed && cancelledParents.historyParentSubjects.isEmpty, "Menu-task cancellation must stop its owned read while the owner stays open")
 
+        try FileManager.default.removeItem(at:marker)
+        try Data(script.utf8).write(to:helper)
+        let diffing = SynchronizationWindowModel(repository:GitRepository(root:root,executable:helper),access:nil,preferences:preferences)
+        defer { diffing.invalidate() }
+        diffing.showHistoryDiff(.revisions(base,entry.hash)); diffing.showHistoryDiff(.revisions(base,entry.hash))
+        try await settle { FileManager.default.fileExists(atPath:marker.path) }
+        let diffPID = Int32(try String(contentsOf:marker).trimmingCharacters(in:.whitespacesAndNewlines))!
+        defer { if kill(diffPID,0) == 0 { kill(-diffPID,SIGTERM) } }
+        diffing.invalidate(); try await settle { kill(diffPID,0) != 0 && errno == ESRCH }
+        try await Task.sleep(nanoseconds:100_000_000)
+        precondition(!diffing.busy && diffing.comparison.unifiedWindows.isEmpty && diffing.error == nil, "An owned unified read must not open a viewer after owner close")
         let finalRefs = try await repo.run(["show-ref"]).stdout, finalIndex = try Data(contentsOf:root.appendingPathComponent(".git/index")), finalConfig = try Data(contentsOf:root.appendingPathComponent(".git/config"))
         precondition(refs == finalRefs && index == finalIndex && config == finalConfig)
         owner.close(); precondition(model.closed && !model.busy && !window.isVisible)
         try await verifyComparisonSelectionCases(root:root.appendingPathExtension("comparison-menu-cases"),git:repo.executable,preferences:preferences)
-        print("PASS: native Sync source columns, original action icons, annotated/current/tracking ref labels, issue IDs, date/full-message settings, independent column toggles/reset, both lists/themes/sizes, clipboard menus/captured multi-selection/source text formats/full metadata/pointed names, native revision comparison menus/captured targets/owner guards/real comparison snapshots/root omission/merge parents/source captions/contiguous and disjoint selection/off-list parent menu updates/owned parent metadata cancellation, owned action and clipboard cancellation/late-callback fencing and unchanged Git state")
+        print("PASS: native Sync source columns, original action icons, annotated/current/tracking ref labels, issue IDs, date/full-message settings, independent column toggles/reset, both lists/themes/sizes, clipboard menus/captured multi-selection/source text formats/full metadata/pointed names, native revision comparison menus/captured targets/owner guards/real comparison snapshots/root omission/merge parents/source captions/contiguous and disjoint selection/off-list parent menu updates/owned parent metadata cancellation/unified diff source bytes/all merge modes/no-extra notice/owned read-only viewers, owned action and clipboard cancellation/late-callback fencing and unchanged Git state")
     }
 }
 @_cdecl("turtlegit_history_main") func bootstrap() -> Int32 {
