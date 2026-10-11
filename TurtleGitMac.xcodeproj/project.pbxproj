@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		B73105000000000000000001 /* ProjectDialogSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73105000000000000000002 /* ProjectDialogSettings.swift */; };
+		B73108000000000000000001 /* GeneralSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73108000000000000000002 /* GeneralSettings.swift */; };
 		B73107000000000000000001 /* DiffToolSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73107000000000000000002 /* DiffToolSettings.swift */; };
 		B73104000000000000000001 /* HistoryFileCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73104000000000000000002 /* HistoryFileCache.swift */; };
 		B73102000000000000000009 /* SettingsTransaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7310200000000000000000A /* SettingsTransaction.swift */; };
@@ -339,6 +340,7 @@
 
 /* Begin PBXFileReference section */
 		B73105000000000000000002 /* ProjectDialogSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectDialogSettings.swift; sourceTree = "<group>"; };
+		B73108000000000000000002 /* GeneralSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSettings.swift; sourceTree = "<group>"; };
 		B73107000000000000000002 /* DiffToolSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiffToolSettings.swift; sourceTree = "<group>"; };
 		B73104000000000000000002 /* HistoryFileCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryFileCache.swift; sourceTree = "<group>"; };
 		B7310200000000000000000A /* SettingsTransaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsTransaction.swift; sourceTree = "<group>"; };
@@ -702,6 +704,7 @@
 				B73102000000000000000008 /* SettingsNavigation.swift */,
 				B7310200000000000000000A /* SettingsTransaction.swift */,
 				B73105000000000000000002 /* ProjectDialogSettings.swift */,
+				B73108000000000000000002 /* GeneralSettings.swift */,
 				B73107000000000000000002 /* DiffToolSettings.swift */,
 				B73102000000000000000006 /* GitConfigurationPermissions.swift */,
 				E64D6C9E84E73A820367C405 /* RemoteTagWindow.swift */,
@@ -1480,6 +1483,7 @@
 				B73102000000000000000007 /* SettingsNavigation.swift in Sources */,
 				B73102000000000000000009 /* SettingsTransaction.swift in Sources */,
 				B73105000000000000000001 /* ProjectDialogSettings.swift in Sources */,
+				B73108000000000000000001 /* GeneralSettings.swift in Sources */,
 				B73107000000000000000001 /* DiffToolSettings.swift in Sources */,
 				B73102000000000000000005 /* GitConfigurationPermissions.swift in Sources */,
 				018CF5C4CDB7B942B4775411 /* RemoteTagWindow.swift in Sources */,

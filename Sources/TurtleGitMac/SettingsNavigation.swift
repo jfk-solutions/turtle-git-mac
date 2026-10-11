@@ -149,7 +149,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         if let existing = cache[page] { controller = existing }
         else {
             switch page {
-            case .general: controller = host(AppearanceSettings(draft: appearanceDraft))
+            case .general: controller = host(GeneralSettings(appearance: appearanceDraft))
             case .colors1, .colors2, .colors3: controller = host(SourceColorSettings(page: page, appearance: appearanceDraft))
             case .dialogs: controller = host(LogDialogSettings())
             case .dialogs2: controller = host(DialogsBehaviorSettings())

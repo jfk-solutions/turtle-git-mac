@@ -252,3 +252,12 @@ remaining source modes stay open. No app instances were launched in this check.
 The Xcode Debug build also passes (exit 0). See
 `docs/qa/settings-dialogs-tools-batch-2026-10-11.json` for exact source hashes,
 commands, limited coverage and remaining acceptance.
+
+## General Git-engine continuation (uncompiled and untested)
+
+General now hosts installed-language/appearance and native Git runtime controls.
+Desktop builds can choose system or custom Git and Extra PATH, check the draft
+version and view effective environment variables. AppStore builds keep the
+bundled engine. See [General settings](GENERAL-SETTINGS-PARITY.md) for behavior,
+remaining upstream application controls and combined validation scope. The
+previous grouped Debug build/four tests do not cover this continuation.
