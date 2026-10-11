@@ -81,6 +81,7 @@ import TurtleGitCore
     @Published var messages = false
     @Published var messageCount = "20"
     @Published var message = MergeWindowModel.defaultMessage
+    @Published var projectSettings = ProjectDialogSettings()
     @Published var busy = false
     @Published var error: String?
     var close: () -> Void = {}
@@ -163,11 +164,12 @@ import TurtleGitCore
                 let destination = defaults.destination.hasPrefix("refs/heads/") ? String(defaults.destination.dropFirst(11)) : defaults.destination
                 let tracked = "refs/remotes/" + defaults.remote + "/" + destination
                 let count = try await repository.mergeMessageCount(cancellation: token)
+                let project = try await repository.projectDialogSettings(source: .effective, cancellation: token)
                 guard !invalidated, loadToken === token, !token.isCancelled else { return }
                 currentBranch = current; references = catalog
                 branchRevision = preset ?? ""
                 branchRevision = branches.first { GitReferenceName.equal($0.name, tracked) }?.name ?? branches.first?.name ?? ""
-                tagRevision = tags.first?.name ?? ""; messageCount = String(count)
+                tagRevision = tags.first?.name ?? ""; messageCount = String(count); projectSettings = project
                 if let preset {
                     if catalog.contains(where: { GitReferenceName.equal($0.name, preset) && $0.target == .branch }) { target = .branch; branchRevision = preset }
                     else if tags.contains(where: { GitReferenceName.equal($0.name, preset) }) { target = .tag; tagRevision = preset }

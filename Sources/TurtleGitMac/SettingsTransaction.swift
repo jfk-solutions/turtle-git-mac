@@ -13,6 +13,7 @@ import AppKit
     private(set) static var activeApplications = 0
     private var participants: [String: Participant] = [:]
     private var order: [String] = []
+    private var registrations: [String: UUID] = [:]
     private var invalidated = false
     weak var window: NSWindow?
     private(set) var busy = false
@@ -24,25 +25,32 @@ import AppKit
     func register(_ id: String, participant: Participant) {
         guard !invalidated else { return }
         if participants[id] == nil { order.append(id) }
-        participants[id] = participant; notify()
+        participants[id] = participant; registrations[id] = UUID(); notify()
     }
-    func unregister(_ id: String) { participants.removeValue(forKey: id); order.removeAll { $0 == id }; notify() }
+    func unregister(_ id: String) { participants.removeValue(forKey: id); registrations.removeValue(forKey: id); order.removeAll { $0 == id }; notify() }
     func notify() { objectWillChange.send(); changed() }
     func apply(closeAfter: Bool) {
         guard !invalidated, !busy else { return }
         busy = true; error = nil; Self.activeApplications += 1; notify()
-        var ordered: [(index: Int, participant: Participant)] = []
+        var ordered: [(index: Int, id: String, registration: UUID, participant: Participant)] = []
         for (index, id) in order.enumerated() {
-            if let participant = participants[id] { ordered.append((index, participant)) }
+            if let participant = participants[id], let registration = registrations[id] { ordered.append((index, id, registration, participant)) }
         }
         ordered.sort { left, right in
             let leftPage = left.participant.page.applyOrder, rightPage = right.participant.page.applyOrder
             return leftPage == rightPage ? left.index < right.index : leftPage < rightPage
         }
-        let entries = ordered.map { $0.participant }
+        let entries = ordered
         Task { [self] in
             defer { Self.activeApplications -= 1 }
-            for entry in entries where entry.modified() {
+            for item in entries {
+                guard registrations[item.id] == item.registration else {
+                    busy = false
+                    if !invalidated { error = "The settings context changed. Review the current repository before applying."; notify() }
+                    return
+                }
+                let entry = item.participant
+                guard entry.modified() else { continue }
                 guard !invalidated else { busy = false; return }
                 if let message = entry.validate() {
                     busy = false; error = message; notify(); failed(entry.page); return
@@ -64,7 +72,7 @@ import AppKit
     func invalidate() {
         invalidated = true; changed = {}; failed = { _ in }; completed = { _ in }
         if !busy { cancelDrafts() }
-        participants.removeAll(); order.removeAll()
+        participants.removeAll(); registrations.removeAll(); order.removeAll()
     }
     private func cancelDrafts() { for id in order { participants[id]?.cancel() } }
 }

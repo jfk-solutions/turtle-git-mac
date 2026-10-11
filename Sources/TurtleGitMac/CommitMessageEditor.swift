@@ -37,6 +37,7 @@ struct CommitMessageEditor: NSViewRepresentable {
             editor.string = model.message
             editor.setSelectedRange(NSRange(location: min(range.location, (model.message as NSString).length), length: 0))
         }
+        editor.applyProjectPresentation()
         editor.applyIssueStyles(model.issueMessageStyles, base: MessageEditorFont.resolve(name: fontName, size: fontSize))
         context.coordinator.updatePosition(editor)
         context.coordinator.updateFocus(editor)
@@ -124,10 +125,21 @@ struct CommitMessageEditor: NSViewRepresentable {
     }
 }
 
-private final class MessageTextView: NSTextView {
+private final class MessageTextView: ProjectMessageTextView {
     weak var model: CommitWindowModel?
     var onAttachmentChange: (@MainActor () -> Void)?
-    override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); onAttachmentChange?() }
+    override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); applyProjectPresentation(); onAttachmentChange?() }
+    private weak var iconWindow: NSWindow?
+    private var iconPath: String?
+    func applyProjectPresentation() {
+        guard let model else { return }
+        applyProjectSettings(model.projectSettings)
+        if let window, window !== iconWindow || iconPath != model.projectSettings.icon.value {
+            iconWindow = window; iconPath = model.projectSettings.icon.value
+            window.representedURL = model.repository.root
+            window.standardWindowButton(.documentIconButton)?.image = ProjectDialogIcons.image(model.projectSettings.icon.value, repository: model.repository.root, access: model.projectIconAccess) ?? NSWorkspace.shared.icon(forFile: model.repository.root.path)
+        }
+    }
     private let completionPopup = CommitCompletionPopup()
     private var completionRange: NSRange?
     private var processingTypedKey = false

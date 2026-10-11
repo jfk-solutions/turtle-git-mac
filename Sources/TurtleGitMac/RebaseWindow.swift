@@ -119,6 +119,7 @@ import TurtleGitCore
     @Published var selectedFiles = Set<String>()
     @Published var message = ""
     @Published var amendMessage = ""
+    @Published var projectSettings = ProjectDialogSettings()
     @Published var output = ""
     @Published var tab = 0
     @Published var busy = false
@@ -333,6 +334,7 @@ import TurtleGitCore
             defer { if !started { busy = false; loadPendingHandoff() } }
             do {
                 try requireAccess()
+                projectSettings = try await repository.projectDialogSettings(source: .effective)
                 revisionMenuLog.bare = try await repository.isBare()
                 references = try await repository.checkoutReferences(); state = try await repository.rebaseState(); finished = false; completedSuccessfully = false; output = ""; error = nil; confirmation = nil; draftEntries = []
                 try await loadConflictFiles(); if fileRecovery { tab = 0 }
@@ -729,7 +731,7 @@ struct RebaseDialog: View {
                         if model.fileRecovery || model.state?.squashMessage != nil || model.state?.isEditPause == true || model.state?.split != nil {
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(model.state?.squashMessage != nil ? "Combined commit message:" : "Edit commit message:")
-                                TextEditor(text: $model.amendMessage).font(messageFont).accessibilityLabel(model.state?.squashMessage != nil ? "Combined commit message" : "Edit commit message")
+                                ProjectMessageEditor(text: $model.amendMessage, settings: model.projectSettings, label: model.state?.squashMessage != nil ? "Combined commit message" : "Edit commit message")
                                 if let squash = model.state?.squashMessage { Text("Author: first commit • Author date: " + (squash.datePolicy == .first ? "first commit" : squash.datePolicy == .latest ? "latest commit" : "current time")).font(.caption) }
                             }.padding(8)
                         } else { ScrollView { Text(model.message).font(messageFont).frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled).padding(8) } }

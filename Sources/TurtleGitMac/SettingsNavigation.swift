@@ -6,9 +6,9 @@ import TurtleGitCore
 /// Native projection of Settings.cpp's tree for pages currently implemented.
 /// Pending pages are tracked in the inventory, rather than shown as empty panes.
 enum SettingsPageID: String {
-    case general, dialogs, dialogs2, commit, alternativeEditor, git, remote, email
+    case general, dialogs, dialogs2, dialogs3, commit, alternativeEditor, git, remote, email
     case mergeEditor, savedData, blame, unifiedDiff, advanced
-    var applyOrder: Int { let pages: [SettingsPageID] = [.general, .dialogs, .dialogs2, .commit, .alternativeEditor, .git, .remote, .email, .mergeEditor, .savedData, .blame, .unifiedDiff, .advanced]; return pages.firstIndex(of: self)! }
+    var applyOrder: Int { let pages: [SettingsPageID] = [.general, .dialogs, .dialogs2, .dialogs3, .commit, .alternativeEditor, .git, .remote, .email, .mergeEditor, .savedData, .blame, .unifiedDiff, .advanced]; return pages.firstIndex(of: self)! }
 }
 private final class SettingsPageNode: NSObject {
     let id: SettingsPageID, title: String, icon: MenuIcon
@@ -96,7 +96,12 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         remote?.invalidate()
         if selected == .remote, let window = view.window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.close() }
         remote = nil; cache.removeValue(forKey: .remote); transaction.unregister("remote")
-        if selected == .remote { show(.git) }
+        transaction.unregister("git"); transaction.unregister("dialogs3")
+        cache.removeValue(forKey: .git); cache.removeValue(forKey: .dialogs3)
+        if [.remote, .git, .dialogs3].contains(selected) {
+            current?.view.removeFromSuperview(); current?.removeFromParent(); current = nil
+            show(selected == .remote ? .git : selected)
+        }
         rebuildTree()
     }
     private func rebuildTree() {
@@ -105,6 +110,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
             SettingsPageNode(.general, "General", .settingsGeneral, children: [
                 SettingsPageNode(.dialogs, "Dialogs 1", .settingsDialogs),
                 SettingsPageNode(.dialogs2, "Dialogs 2", .settingsDialogs),
+                SettingsPageNode(.dialogs3, "Dialogs 3", .settingsDialogs),
                 SettingsPageNode(.commit, "Message Editor", .editor),
                 SettingsPageNode(.alternativeEditor, "Alternative Editor", .editor)]),
             SettingsPageNode(.git, "Git", .settingsGit, children: workspace.root == nil ? [] : [SettingsPageNode(.remote, "Remote", .settingsRemote)]),
@@ -141,6 +147,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
             case .general: controller = host(AppearanceSettings(appearance: appearance))
             case .dialogs: controller = host(LogDialogSettings())
             case .dialogs2: controller = host(DialogsBehaviorSettings())
+            case .dialogs3: controller = host(ProjectDialogSettingsPage(workspace: workspace))
             case .commit: controller = host(CommitEditorSettings(editorOnly: true))
             case .alternativeEditor: controller = host(AlternativeEditorSettings())
             case .git: controller = host(GitConfigurationSettingsPage(workspace: workspace))

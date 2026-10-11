@@ -4,13 +4,14 @@ Reference: pinned `Settings.cpp::AddPropPages`,
 `7338078f8ddd924b8cddee35f512f2286072136d`.
 
 The Settings scene now uses a native AppKit outline/sidebar and content pane,
-replacing the crowded global toolbar tab row. General owns Dialogs 1, Dialogs 2, Message Editor and
+replacing the crowded global toolbar tab row. General owns Dialogs 1, Dialogs 2, Dialogs 3, Message Editor and
 Alternative Editor. Git owns Remote when a repository is open. Email, Merge
 Editor, Saved Data, Blame, Unified Diff and Advanced remain available. This is a
 projection of implemented pages, not the complete upstream page catalogue.
 Message Editor and Merge Editor retain macOS-specific grouping. Dialogs 1/2
-now follow the source separation for implemented controls; Dialogs 3, Colors
-1/2/3, tools and helper-app settings still need full mapping.
+now follow the source separation for implemented controls; Dialogs 3 has the
+scoped project fields described below. Colors 1/2/3, tools and helper-app settings
+still need full mapping.
 
 Rows use original upstream General, Dialogs, Git Config, Git Remote, Saved Data
 and TortoiseUDiff artwork, plus the existing editor/mail/merge/blame assets. The
@@ -168,7 +169,27 @@ writes. Errors stop the sequence and report that earlier fields may already have
 been saved. Local/global remain normal Git configuration files; Project writes
 .tgitconfig and may require an ordinary commit to share with collaborators.
 
-The native Dialogs 3 page, cross-destination confirmation/permission ownership,
-editor width/language/icon integration and full displayed acceptance are still
-outstanding. Core/native changes in this continuation are uncompiled/untested;
-no Dialogs 3 placeholder pane is shown. Inventory counts remain unchanged.
+The native Dialogs 3 page now implements the five source fields in the source
+Commit/Dialogs groups, Effective/Local/Project/Global/System selectors, inherited
+fields and Local/Project/Global save destinations. Shared Apply saves in source
+field order; Cancel restores drafts. Cross-destination confirmation, hierarchical
+configuration hint/suppression and sandbox folder authorization use owned sheets.
+Read/chooser callbacks are fenced on page departure and closure. Repository-bound
+Git/Dialogs 3 drafts are removed when the settings repository changes. Shared
+Apply detects participant replacement before saving queued pages.
+
+Commit now enforces the configured minimum message length (UTF-16 units, as in
+the Windows source). Commit, Merge and Rebase use native NSTextView project
+language/disable settings and the configured character margin. Windows locale
+IDs map through CoreFoundation; orthography is document-specific. Commit's
+project icon uses the native window document icon, with security-scoped icon
+bookmarks and fallback to the repository icon. This is a macOS adaptation of the
+source taskbar overlay, not Finder status badges or a Dock overlay. Other dialog
+window project icons still need integration.
+
+These additions and the preceding Dialogs/Log cache changes remain **uncompiled
+and untested**. This checkpoint deliberately adds implementation before another
+combined section check. Native source-layout comparison, spelling support,
+keyboard/focus, scope changes, sheets, signed sandbox permissions, save failures,
+light/dark rendering and full displayed acceptance remain open. Earlier passing
+QA records do not cover these additions. Inventory counts remain unchanged.

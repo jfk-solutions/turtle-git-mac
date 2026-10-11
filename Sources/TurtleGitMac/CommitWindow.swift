@@ -302,6 +302,8 @@ import UniformTypeIdentifiers
     @Published var createBranch = false
     @Published var newBranch = ""
     @Published var message = "" { didSet { if message != oldValue { cancelHistoryIssueUpdate(); scheduleIssueStyling() } } }
+    @Published var projectSettings = ProjectDialogSettings()
+    var projectIconAccess: RepositoryAccessLease? { access }
     @Published var issueProperties = IssueTrackerProperties() { didSet { if issueProperties != oldValue { cancelHistoryIssueUpdate(); scheduleIssueStyling() } } }
     @Published private(set) var issueMessageStyles: [IssueMessageStyle] = []
     private let issueStyler = IssueMessageStyler()
@@ -777,7 +779,7 @@ import UniformTypeIdentifiers
         return changelists.assignments[entry.path].map { origin + "\nChangelist: " + $0 } ?? origin
     }
     var checkedPathsForCommit: Set<String> { Set(visibleEntries.filter { checked.contains($0.id) }.map(\.path)) }
-    var canCommit: Bool { messageFocusAvailable && !pendingReloadCancel && !busy && !confirmingQuit && !loadingAuthorIdentity && !loadingAuthorDate && !loadingAmendMessage && loadedMessage && changelistsLoaded && (messageOnly || (stagingEnabled ? entries.contains(where: \.staged) || operation == .merge || amend : !checkedPathsForCommit.isEmpty || operation == .merge || (amend && amendDiffToLastCommit))) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (!createBranch || !newBranch.isEmpty) && (!setAuthor || !author.isEmpty) }
+    var canCommit: Bool { messageFocusAvailable && !pendingReloadCancel && !busy && !confirmingQuit && !loadingAuthorIdentity && !loadingAuthorDate && !loadingAmendMessage && loadedMessage && changelistsLoaded && (messageOnly || (stagingEnabled ? entries.contains(where: \.staged) || operation == .merge || amend : !checkedPathsForCommit.isEmpty || operation == .merge || (amend && amendDiffToLastCommit))) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && message.trimmingCharacters(in: .whitespacesAndNewlines).utf16.count >= projectSettings.minimumLength && (!createBranch || !newBranch.isEmpty) && (!setAuthor || !author.isEmpty) }
     func didRename(_ source: String, to destination: String) {
         func moved(_ path: String) -> String { path == source ? destination : path.hasPrefix(source + "/") ? destination + path.dropFirst(source.count) : path }
         checked = Set(checked.map(moved)); selection = Set(selection.map(moved)); scopePaths = scopePaths.map(moved); reload()
@@ -864,6 +866,7 @@ import UniformTypeIdentifiers
                 hasLoaded = true; refreshPartial()
                 if !loadedMessage {
                     issueProperties = try await readReload(token) { try await repository.issueTrackerProperties(cancellation: token) }
+                    projectSettings = try await readReload(token) { try await repository.projectDialogSettings(source: .effective, cancellation: token) }
                     let identity = try await readReload(token) { try await repository.commitMessageHistoryIdentity(cancellation: token) }
                     let storedLimit = dialogDefaults.object(forKey: "MaxHistoryItems") as? Int ?? dialogDefaults.object(forKey: "Commit.MaxHistoryItems") as? Int ?? 25
                     messageHistory = CommitMessageHistory(repositoryIdentity: identity, defaults: dialogDefaults, limit: storedLimit)

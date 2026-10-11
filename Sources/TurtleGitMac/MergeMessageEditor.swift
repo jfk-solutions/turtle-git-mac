@@ -24,11 +24,15 @@ struct MergeMessageEditor: NSViewRepresentable {
         guard let editor = scroll.documentView as? MergeMessageTextView else { return }
         editor.model = model; editor.isEditable = enabled
         editor.applyFont(MessageEditorFont.resolve(name: fontName, size: fontSize))
+        editor.applyProjectSettings(model.projectSettings)
         if editor.string != model.message {
             let selection = editor.selectedRange()
             editor.string = model.message
             editor.setSelectedRange(.init(location: min(selection.location, (model.message as NSString).length), length: 0))
         }
+    }
+    static func dismantleNSView(_ scroll: NSScrollView, coordinator: Coordinator) {
+        if let editor = scroll.documentView as? MergeMessageTextView { editor.delegate = nil; editor.model = nil }
     }
     func makeCoordinator() -> Coordinator { Coordinator(model) }
     final class Coordinator: NSObject, NSTextViewDelegate {
@@ -40,7 +44,7 @@ struct MergeMessageEditor: NSViewRepresentable {
     }
 }
 
-final class MergeMessageTextView: NSTextView {
+final class MergeMessageTextView: ProjectMessageTextView {
     weak var model: MergeWindowModel?
     func applyFont(_ value: NSFont) {
         guard font != value else { return }

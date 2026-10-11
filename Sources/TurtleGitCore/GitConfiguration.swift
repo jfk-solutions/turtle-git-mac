@@ -195,6 +195,8 @@ public struct ProjectDialogSettings: Equatable, Sendable {
     public var warnNoSignedOffBy: GitConfigurationBoolean = .inherit
     public var icon = GitConfigurationIdentity()
     public init() {}
+    public var minimumLength: Int { max(0, Int((minimumMessageLength.value as NSString).intValue)) }
+    public var borderColumn: Int { max(0, Int((messageWidthMarker.value as NSString).intValue)) }
     static let pattern = "^tgit[.](projectlanguage|logminsize|logwidthmarker|warnnosignedoffby|icon)$"
     var values: [(String, String?)] {
         [("tgit.projectlanguage", language.inherit ? nil : language.value),
