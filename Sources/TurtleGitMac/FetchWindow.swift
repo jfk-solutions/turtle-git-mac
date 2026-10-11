@@ -138,6 +138,7 @@ import TurtleGitCore
     var onShowStatus: () -> Void = {}
     var onFetched: (String) -> Void = { _ in }
     var onRebase: (String, Bool, Bool) -> Void = { _, _, _ in }
+    var onOwnedRebase: ((String, Bool, Bool) async throws -> Void)?
     private var generation = 0
     private var key: String { (isPull ? "Pull." : "Fetch.") + repository.root.path }
     var configuredRebase: Bool { isPull && rebaseRequired && !options.arbitraryURL }
@@ -283,6 +284,7 @@ import TurtleGitCore
         progress.confirmCancellation = { [weak self] choose in self?.confirmCancellation(choose) }
         progress.onPostAction = onFetchPostAction
         progress.onRebase = onRebase
+        progress.onOwnedRebase = onOwnedRebase
         progress.onCompleted = { [weak self, weak progress] in
             guard let self, let progress, !self.invalidated, self.fetchProgress === progress else { return }; self.busy = false
             self.error = progress.success ? nil : progress.output; self.onChanged(progress.rawOutput)
@@ -802,6 +804,7 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
     var onPostAction: ((FetchPostAction, String) -> Void)?
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { choose in choose(false) }
     var onRebase: (String, Bool, Bool) -> Void = { _, _, _ in }
+    var onOwnedRebase: ((String, Bool, Bool) async throws -> Void)?
     var presentRebasePrompt: (FetchRebasePrompt) async -> FetchRebaseAnswer = { prompt in FetchRebaseAnswer(value: prompt.answers[prompt.defaultIndex], suppress: false) }
     init(repository: GitRepository, access: RepositoryAccessLease?, options: FetchOptions, preferences: UserDefaults = .standard, rebaseMode: FetchRebaseMode = .none, preserveMerges: Bool = false) {
         self.repository = repository; self.access = access; self.options = options; self.preferences = preferences; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences); self.outputState = GitProgressOutputState(preferences: preferences)
@@ -863,6 +866,17 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
                 if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
                 if openRebase {
                     success = true; busy = false
+                    if let onOwnedRebase {
+                        dispatchingAction = true
+                        do { try await onOwnedRebase(fetched.upstream, rebaseMode == .automatic, preserveMerges) }
+                        catch {
+                            guard !invalidated else { return }
+                            success = false; output += "\nOpening Rebase failed.\n" + error.localizedDescription
+                        }
+                        guard !invalidated else { return }
+                        dispatchingAction = false; explicitCloseRequested = true
+                        onCompleted(); finishCompletion(); return
+                    }
                     deferredRebase = { [weak self] in guard let self else { return }; self.close(); self.onRebase(fetched.upstream, self.rebaseMode == .automatic, self.preserveMerges) }
                     onCompleted(); finishCompletion(); return
                 }

@@ -408,6 +408,139 @@ import TurtleGitCore
         precondition(blocked.closed && !blocked.busy && blocked.commandOutput == stoppedOutput && refsAfterClose == refsBeforeClose && blockedOwner.optionsController == nil && blockedChild.window?.sheetParent == nil && progress.window?.sheetParent == nil && !progress.model.busy)
         print("PASS: Shift Fetch/Pull real owned options and progress, named remote vs URL defaults, cancelled child, conflict results, reference refresh, original pre-checkout incoming baseline, ignored Shift variants and forced parent cleanup")
     }
+    @MainActor static func verifyShiftOwnedRebase(root: URL, preferences: UserDefaults) async throws {
+        let git = URL(fileURLWithPath: CommandLine.arguments[2]), directory = root.appendingPathComponent("shift-owned-rebase-fixture")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let parent = GitRepository(root: directory, executable: git), server = directory.appendingPathComponent("server.git"), authorRoot = directory.appendingPathComponent("author"), clientRoot = directory.appendingPathComponent("client")
+        _ = try await parent.run(["init", "--template=", "--bare", "-b", "main", server.path]); _ = try await parent.run(["init", "--template=", "-b", "main", authorRoot.path])
+        let author = GitRepository(root: authorRoot, executable: git)
+        for (key, value) in [("user.name", "Owned Rebase QA"), ("user.email", "qa@example.invalid"), ("commit.gpgsign", "false"), ("core.hooksPath", "/dev/null")] { _ = try await author.run(["config", key, value]) }
+        try Data("base\n".utf8).write(to: authorRoot.appendingPathComponent("file")); try await author.stage(["file"]); _ = try await author.commit(message: "base")
+        _ = try await author.run(["remote", "add", "origin", server.path]); _ = try await author.run(["push", "-u", "origin", "main"])
+        _ = try await parent.run(["clone", "--template=", "--", server.path, clientRoot.path])
+        let repo = GitRepository(root: clientRoot, executable: git)
+        for (key, value) in [("user.name", "Owned Rebase QA"), ("user.email", "qa@example.invalid"), ("commit.gpgsign", "false"), ("core.hooksPath", "/dev/null"), ("branch.main.rebase", "merges")] { _ = try await repo.run(["config", key, value]) }
+        func hash(_ repository: GitRepository) async throws -> String { String(decoding: try await repository.run(["rev-parse", "HEAD"]).stdout, as: UTF8.self).trimmingCharacters(in: .newlines) }
+        func advance(_ name: String) async throws -> String {
+            try Data((name + "\n").utf8).write(to: authorRoot.appendingPathComponent(name)); try await author.stage([name]); _ = try await author.commit(message: name); _ = try await author.run(["push", "origin", "main"]); return try await hash(author)
+        }
+        let base = try await hash(repo), first = try await advance("first")
+        let owner = SynchronizationWindowController(repository: repo, access: nil, preferences: preferences)
+        owner.window!.alphaValue = 0; owner.showWindow(nil); defer { owner.close() }
+        owner.configureOptions = { child in
+            child.model.onRebase = { _, _, _ in preconditionFailure("owned Rebase fell through to modeless legacy callback") }
+            child.presentFetchProgress = { parent, progress in progress.alphaValue = 0; parent.beginSheet(progress); return true }
+        }
+        let model = owner.model; model.sshSettings.enabled = false
+        try await settle { !model.busy && model.outgoing != nil }
+        model.remote = "origin"; model.remoteBranch = "main"; model.localBranch = "main"
+        var rebaseChild: RebaseWindowController?, lastFlags: (Bool, Bool)?, count = 0
+        model.runRebase = { target, autoStart, preserve in
+            count += 1; lastFlags = (autoStart, preserve)
+            precondition(model.busy && !model.commandCompleted && model.incomingComparison.snapshot == nil && owner.optionsController != nil && owner.window?.attachedSheet == nil)
+            let options = owner.optionsController!
+            precondition(options.window?.sheetParent == nil && options.window?.isVisible == false && options.fetchProgressController!.window?.sheetParent == nil && options.fetchProgressController!.model.dispatchingAction)
+            let child = RebaseWindowController(repository: repo, access: nil, preferences: preferences); rebaseChild = child
+            child.window!.alphaValue = 0; child.model.completionAfterFetch = true; child.model.completionAutoStart = autoStart
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                var delivered = false
+                child.onClosed = { [weak child] in
+                    guard !delivered else { return }; delivered = true
+                    if let window = child?.window { window.sheetParent?.endSheet(window) }
+                    continuation.resume()
+                }
+                child.model.load(upstream: target, autoStart: autoStart, preserveMerges: preserve); owner.window!.beginSheet(child.window!)
+            }
+        }
+        model.detachRebase = { rebaseChild?.close() }
+        model.fetch(.pull, shift: true)
+        try await settle { owner.optionsController != nil && !owner.optionsController!.model.busy }
+        let automaticOptions = owner.optionsController!
+        precondition(automaticOptions.model.configuredRebase)
+        automaticOptions.model.options.branch = "main"; automaticOptions.model.fetch()
+        try await settle { rebaseChild != nil && !rebaseChild!.model.busy && rebaseChild!.model.finished }
+        let automatic = rebaseChild!, automaticProgress = automaticOptions.fetchProgressController!
+        precondition(count == 1 && lastFlags!.0 && lastFlags!.1 && automatic.model.completedSuccessfully && automatic.model.options.upstream == first)
+        let advanced = try await hash(repo); precondition(advanced == first && model.busy && !model.commandCompleted && model.referenceChanges.isEmpty && model.incomingCommits == nil)
+        precondition(!owner.windowShouldClose(owner.window!) && !automaticOptions.windowShouldClose(automaticOptions.window!) && !automaticProgress.windowShouldClose(automaticProgress.window!))
+        automatic.model.close()
+        try await settle { model.commandCompleted && !model.busy }
+        precondition(model.incomingComparison.snapshot?.from == .revision(base) && model.incomingComparison.snapshot?.to == .revision(first) && model.referenceChanges.contains { $0.name.rawValue == "refs/heads/main" && $0.newHash == first } && owner.optionsController == nil && automaticOptions.window?.isVisible == false)
+
+        // Manual full Fetch performs a real divergent replay through the editor.
+        _ = try await repo.run(["config", "branch.main.rebase", "false"])
+        try Data("local\n".utf8).write(to: clientRoot.appendingPathComponent("local")); try await repo.stage(["local"]); _ = try await repo.commit(message: "local replay")
+        let old = try await hash(repo), second = try await advance("second")
+        rebaseChild = nil
+        model.fetch(.fetch, shift: true)
+        try await settle { owner.optionsController != nil && !owner.optionsController!.model.busy }
+        let manualOptions = owner.optionsController!
+        manualOptions.model.options.branch = "main"; manualOptions.model.launchRebase = true; manualOptions.model.fetch()
+        try await settle { rebaseChild != nil && !rebaseChild!.model.busy && rebaseChild!.model.plan != nil }
+        let manual = rebaseChild!
+        precondition(count == 2 && !lastFlags!.0 && !lastFlags!.1 && !manual.model.finished && manual.model.canStart && manual.model.options.upstream == second)
+        manual.model.execute("start"); try await settle { !manual.model.busy }
+        precondition(manual.model.finished && manual.model.completedSuccessfully, manual.model.error ?? manual.model.output)
+        let replayed = try await hash(repo); precondition(replayed != old && replayed != second && model.busy && model.incomingComparison.snapshot == nil)
+        manual.model.close(); try await settle { model.commandCompleted && !model.busy }
+        precondition(model.incomingComparison.snapshot?.from == .revision(old) && model.incomingComparison.snapshot?.to == .revision(replayed) && model.commandSucceeded)
+        let ancestry = try await repo.run(["merge-base", "--is-ancestor", second, "HEAD"], successfulExitCodes: 0...1); precondition(ancestry.exitCode == 0)
+
+        // Ordinary cancellation closes an unstarted Rebase then refreshes actual HEAD.
+        let third = try await advance("third")
+        preferences.set(2, forKey: FetchRebasePrompt.fastForward.rawValue)
+        rebaseChild = nil; model.fetch(.fetch, shift: true)
+        try await settle { owner.optionsController != nil && !owner.optionsController!.model.busy }
+        let cancelledOptions = owner.optionsController!
+        cancelledOptions.model.options.branch = "main"; cancelledOptions.model.launchRebase = true; cancelledOptions.model.fetch()
+        try await settle { rebaseChild != nil && !rebaseChild!.model.busy && rebaseChild!.model.plan != nil }
+        let cancelled = rebaseChild!; precondition(!cancelled.model.finished)
+        cancelled.model.close(); try await settle { model.commandCompleted && !model.busy }
+        let cancelledHead = try await hash(repo)
+        precondition(cancelledHead == replayed && model.incomingUpToDate && model.referenceChanges.contains { $0.name.rawValue == "refs/remotes/origin/main" && $0.newHash == third })
+
+        // Presentation failure retains successful fetch ref updates and reports
+        // the handoff error in the parent, with no invisible waiting windows.
+        let fourth = try await advance("fourth")
+        let presentOwnedRebase = model.runRebase
+        model.runRebase = { _, _, _ in throw SynchronizationFailure.invalidInput }
+        model.fetch(.fetch, shift: true)
+        try await settle { owner.optionsController != nil && !owner.optionsController!.model.busy }
+        let failedOptions = owner.optionsController!
+        failedOptions.model.options.branch = "main"; failedOptions.model.launchRebase = true; failedOptions.model.fetch()
+        try await settle { model.commandCompleted && !model.busy }
+        precondition(!model.commandSucceeded && model.error != nil && model.referenceChanges.contains { $0.name.rawValue == "refs/remotes/origin/main" && $0.newHash == fourth } && owner.optionsController == nil && owner.window?.attachedSheet == nil)
+        let retainedError = model.error!
+        precondition(model.commandOutput.contains(retainedError))
+        model.reload(); try await settle { !model.busy }
+        precondition(model.error == nil && model.commandOutput.contains(retainedError))
+        // Force-close during the pending handoff; a late child notification must
+        // not publish into the closed owner or resume either continuation twice.
+        let fifth = try await advance("fifth")
+        model.runRebase = presentOwnedRebase; rebaseChild = nil
+        model.fetch(.fetch, shift: true)
+        try await settle { owner.optionsController != nil && !owner.optionsController!.model.busy }
+        let forcedOptions = owner.optionsController!
+        forcedOptions.model.options.branch = "main"; forcedOptions.model.launchRebase = true; forcedOptions.model.fetch()
+        try await settle { rebaseChild != nil && !rebaseChild!.model.busy && rebaseChild!.model.plan != nil }
+        let forced = rebaseChild!, forcedProgress = forcedOptions.fetchProgressController!, lateDismiss = forced.onClosed
+        owner.close(); let closedOutput = model.commandOutput
+        lateDismiss(); lateDismiss()
+        try await Task.sleep(nanoseconds: 50_000_000)
+        let closedHead = try await hash(repo), fetchedRef = String(decoding: try await repo.run(["rev-parse", "refs/remotes/origin/main"]).stdout, as: UTF8.self).trimmingCharacters(in: .newlines)
+        precondition(model.closed && !model.busy && model.commandOutput == closedOutput && model.referenceChanges.isEmpty && model.incomingComparison.snapshot == nil && owner.optionsController == nil && closedHead == replayed && fetchedRef == fifth)
+        precondition(forced.window?.sheetParent == nil && forced.window?.isVisible == false && forcedOptions.window?.isVisible == false && forcedProgress.window?.isVisible == false && !forcedProgress.model.dispatchingAction)
+
+        // The opt-in owned callback must preserve the standalone deferred route.
+        var legacyOptions = FetchOptions(); legacyOptions.remote = "origin"; legacyOptions.branch = "main"; legacyOptions.namedRemoteFetchAll = false
+        let legacy = FetchProgressWindowModel(repository: repo, access: nil, options: legacyOptions, preferences: preferences, rebaseMode: .automatic, preserveMerges: true)
+        var legacyOrder: [String] = []
+        legacy.close = { [weak legacy] in legacyOrder.append("close"); legacy?.invalidate() }
+        legacy.onRebase = { target, autoStart, preserve in precondition(target == fifth && autoStart && preserve); legacyOrder.append("rebase") }
+        await legacy.run()
+        precondition(legacyOrder == ["close", "rebase"])
+        print("PASS: owned Shift Pull automatic preserve-merges Rebase and manual Fetch divergent replay, no early incoming/ref refresh, ordinary Rebase cancellation, pinned targets, legacy callback exclusion/fallback, handoff failure and forced owner cleanup")
+    }
     @MainActor static func verifyFetchAndRebase(root: URL, preferences: UserDefaults) async throws {
         let git = URL(fileURLWithPath: CommandLine.arguments[2]), directory = root.appendingPathComponent("fetch-rebase-fixture")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -590,6 +723,7 @@ import TurtleGitCore
         try await verifyPull(root: root, preferences: preferences)
         try await verifyFetchAndRebase(root: root, preferences: preferences)
         try await verifyShiftOptions(root: root, preferences: preferences)
+        try await verifyShiftOwnedRebase(root: root, preferences: preferences)
         print("PASS: native Sync tracking controls, exact Unicode choices, graph-first table, changes and pinned comparison snapshot, divergence/Force, unknown states, Quit fences, owner invalidation and read-only preservation")
     }
 }

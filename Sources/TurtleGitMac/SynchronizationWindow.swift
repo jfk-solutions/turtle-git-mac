@@ -159,15 +159,29 @@ private struct SynchronizationProgressDialog: View {
         super.init(window: window); window.delegate = self; model.window = window
         model.runOptions = { [weak self] isPull, remote in
             guard let self, !self.model.closed, let owner = self.window, owner.attachedSheet == nil else { throw OperationCancellationFailure.cancelled }
-            await withCheckedContinuation { continuation in
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
                 let child = FetchWindowController(repository: repository, access: access, isPull: isPull, preferences: preferences)
                 self.configureOptions(child)
                 var dismissed = false
+                var handoffError: Error?
+                child.model.onOwnedRebase = { [weak self, weak child] target, autoStart, preserve in
+                    guard let self, !self.model.closed, let child, let options = child.window,
+                          options.sheetParent === owner, let progress = child.fetchProgressController?.window,
+                          progress.sheetParent === options, progress.attachedSheet == nil else { handoffError = OperationCancellationFailure.cancelled; throw OperationCancellationFailure.cancelled }
+                    // Suspend presentation without invalidating the Fetch model:
+                    // it owns the pending completion until Rebase is dismissed.
+                    options.endSheet(progress); progress.orderOut(nil)
+                    owner.endSheet(options); options.orderOut(nil)
+                    do { try await self.model.runRebase(target, autoStart, preserve) }
+                    catch { handoffError = error; throw error }
+                    guard !self.model.closed else { throw OperationCancellationFailure.cancelled }
+                }
                 child.onClosed = { [weak self, weak child] in
                     guard !dismissed else { return }; dismissed = true
                     if let window = child?.window { window.sheetParent?.endSheet(window) }
                     self?.optionsController = nil
-                    continuation.resume()
+                    if let handoffError { continuation.resume(throwing: handoffError) }
+                    else { continuation.resume() }
                 }
                 self.optionsController = child
                 child.window?.alphaValue = owner.alphaValue
@@ -427,10 +441,11 @@ private struct SynchronizationProgressDialog: View {
         }
     }
     func invalidate() { closed = true; token?.cancel(); token = nil; comparison.invalidate(); incomingComparison.invalidate(); busy = false; confirmingCancellation = false; cancellationQuestion = nil; transportID = nil }
-    func reload(selectTracking: Bool = false, initial: Bool = false) {
+    func reload(selectTracking: Bool = false, initial: Bool = false, preserveError: Bool = false) {
         guard !closed, !confirmingQuit, !transportRunning, !hasBlockingChild else { return }
         token?.cancel()
-        let request = OperationCancellation(); token = request; busy = true; error = nil
+        let retainedError = preserveError ? error : nil
+        let request = OperationCancellation(); token = request; busy = true; error = retainedError
         outgoing = nil; graph = []; fileSelection = []; comparison.snapshot = nil
         let local = localBranch, selectedRemote = remote, selectedBranch = remoteBranch, forced = force
         Task {
@@ -450,7 +465,7 @@ private struct SynchronizationProgressDialog: View {
                 // Native control edits never write Git configuration or refs.
             } catch {
                 guard !closed, token === request, !request.isCancelled else { return }
-                self.error = error.localizedDescription
+                self.error = retainedError ?? error.localizedDescription
             }
         }
     }
@@ -635,7 +650,7 @@ private struct SynchronizationProgressDialog: View {
             onTransportFinished(commandOutput)
             // Fetch completion refreshes outgoing projection, not incoming HEAD.
             // A cancelled/failed Git command can still have updated references.
-            reload()
+            reload(preserveError: true)
         }
     }
     private func consume(_ emission: GitCliOutputParser.Emission, parser: GitCliOutputParser, request: OperationCancellation) {
