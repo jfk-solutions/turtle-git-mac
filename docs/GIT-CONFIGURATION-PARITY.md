@@ -60,7 +60,7 @@ checkbox. Read-only copies are removed at application termination.
 
 - Signed global/config-file permission and persisted-grant execution,
   included-file write compatibility and external configuration changes.
-- Full Settings tree/property-sheet host, displayed hint/editor acceptance and
+- Full property-sheet Apply/Cancel across pages, displayed hint/editor acceptance and
   platform comparison for system edits requiring administrator access.
 - Real repository/environment/inheritance/write/error checks across Git engines,
   native scope switching, three-state input, confirmation, close/quit ownership,
@@ -70,3 +70,7 @@ This is production implementation registered in SwiftPM/Xcode, but **uncompiled
 and untested**. Validation is deferred while the full Git settings section is
 being implemented. No dialog is newly certified and the inventory counts are
 unchanged. Existing history/Settings QA records do not cover this page.
+
+The native tree now hosts this page and conditional Remote. See
+[Settings navigation](SETTINGS-NAVIGATION-PARITY.md) for its unverified continuation
+and remaining property-sheet scope.

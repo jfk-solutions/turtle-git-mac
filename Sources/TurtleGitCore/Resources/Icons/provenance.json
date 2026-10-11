@@ -612,6 +612,36 @@
       "asset": "menucombine.ico",
       "source": "src/Resources/menucombine.ico",
       "sha256": "642974975393d419377f4a7a9d14df8a8355cdb0a38ae8fb0729272413d8c364"
+    },
+    {
+      "asset": "general.ico",
+      "source": "src/Resources/general.ico",
+      "sha256": "e27a47160330e58cc865217657d653df6c1309b78ae3b726753e19913c8197b0"
+    },
+    {
+      "asset": "dialogs.ico",
+      "source": "src/Resources/dialogs.ico",
+      "sha256": "b6f4edb08b6166175cfa9cc949cda9a5dc67bf30525d3ddb5e9f6dba30375709"
+    },
+    {
+      "asset": "gitconfig.ico",
+      "source": "src/Resources/gitconfig.ico",
+      "sha256": "415da507b7bc27a3a28776eae7bc207104530527e9fe63bf750af09ee15de1af"
+    },
+    {
+      "asset": "gitremote.ico",
+      "source": "src/Resources/gitremote.ico",
+      "sha256": "535ae0564de418f24887f50ffd750dccb7cfb760d829b6688467b02656ab5813"
+    },
+    {
+      "asset": "saveddata.ico",
+      "source": "src/Resources/saveddata.ico",
+      "sha256": "138eae325daef1e7bee6bbb1d07919484afce4a8db41aadc590679c3faf231e5"
+    },
+    {
+      "asset": "TortoiseUDiff.ico",
+      "source": "src/TortoiseUDiff/TortoiseUDiff.ico",
+      "sha256": "8678b929d02355e510b77adbcee99a4cbc5ced1673df952d6a50e8f70005b242"
     }
   ]
 }

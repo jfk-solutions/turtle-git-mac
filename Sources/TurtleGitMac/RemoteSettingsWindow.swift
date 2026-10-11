@@ -4,6 +4,7 @@ import SwiftUI
 import TurtleGitCore
 
 @MainActor final class RemoteSettingsWindowModel: ObservableObject {
+    private(set) static var activeOperations = 0
     enum Prompt {
         case saveDiscard, overwrite(String), noTags, fetch, remove(String)
         var message: String {
@@ -70,8 +71,9 @@ import TurtleGitCore
     }
     private func perform(_ body: @escaping (OperationCancellation) async throws -> Void) {
         guard !closed, !busy, !hasChild else { return }; collisionToken?.cancel(); collisionToken = nil
-        let request = OperationCancellation(); token = request; busy = true; error = nil; updated()
+        let request = OperationCancellation(); token = request; busy = true; error = nil; updated(); Self.activeOperations += 1
         Task {
+            defer { Self.activeOperations -= 1 }
             defer {
                 if token === request { token = nil; busy = false; updated(); if pendingClose, !closed { pendingClose = false; close() }; if let remote = pendingFetch, !closed { pendingFetch = nil; onFetch(remote) } }
             }

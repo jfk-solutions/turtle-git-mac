@@ -8,6 +8,7 @@ extension Notification.Name {
 
 struct MergeEditorSettings: View {
     @State private var windowReference = MergeSettingsWindowReference()
+    @State private var initialized = false
     @State private var draft = MergeEditorPreferences.load()
     @State private var tabSize = String(MergeEditorPreferences.load().tabWidth)
     private var validWidth: Int? {
@@ -51,7 +52,7 @@ struct MergeEditorSettings: View {
                     NotificationCenter.default.post(name: .mergeEditorPreferencesChanged, object: nil)
                 }.disabled(!changed || validWidth == nil)
             }
-        }.padding(20).background(MergeSettingsWindowProbe(reference: windowReference).frame(width: 0, height: 0)).onAppear { restore() }
+        }.padding(20).background(MergeSettingsWindowProbe(reference: windowReference).frame(width: 0, height: 0)).onAppear { if !initialized { initialized = true; restore() } }
     }
     private func restore() { draft = .load(); tabSize = String(draft.tabWidth) }
 }

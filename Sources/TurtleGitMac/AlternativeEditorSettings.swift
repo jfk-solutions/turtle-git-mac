@@ -26,6 +26,7 @@ import TurtleGitCore
 }
 
 struct AlternativeEditorSettings: View {
+    @State private var initialized = false
     @State private var draft = AlternativeEditorPreferences.load()
     @State private var saved = AlternativeEditorPreferences.load()
     @State private var error: String?
@@ -55,7 +56,7 @@ struct AlternativeEditorSettings: View {
                 Button("Cancel") { draft = saved; NSApp.keyWindow?.performClose(nil) }
                 Button("Apply") { draft.save(); saved = draft }.disabled(!draft.valid || draft == saved)
             }
-        }.padding(20).onAppear { saved = .load(); draft = saved }
+        }.padding(20).onAppear { if !initialized { initialized = true; saved = .load(); draft = saved } }
             .alert("Alternative editor", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
                 Button("OK") { error = nil }
             } message: { Text(error ?? "") }

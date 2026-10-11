@@ -145,6 +145,14 @@ import TurtleGitCore
             Task { @MainActor in if let self, !self.busy, !self.confirmingQuit, self.root != nil { await self.refresh(refreshStatus: false) } }
         }
     }
+    func configureSettingsRemote(_ model: RemoteSettingsWindowModel) {
+        let repository = model.repository, access = model.access
+        model.onFetch = { [weak self] remote in self?.showFetch(repository: repository, access: access, remote: remote) }
+        model.onRemotesChanged = { [weak self] _ in
+            self?.refreshRepositoryLogs(repository.root)
+            if self?.root == repository.root { Task { await self?.refresh() } }
+        }
+    }
     func gitConfigurationContext() throws -> (repository: GitRepository, access: RepositoryAccessLease?, localAvailable: Bool) {
         if let repository { return (repository, activeAccess, true) }
         return (try makeRepository(FileManager.default.homeDirectoryForCurrentUser), nil, false)

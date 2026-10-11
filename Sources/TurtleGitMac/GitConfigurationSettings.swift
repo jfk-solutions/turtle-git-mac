@@ -20,6 +20,8 @@ import TurtleGitCore
     private var access: RepositoryAccessLease?
     private var hasRepository = false
     private var active = false
+    private var hintShown = false
+    var isActive: Bool { active }
     private var saving = false
     private var pendingContext: (GitRepository, RepositoryAccessLease?, Bool)?
     private var generation = UUID()
@@ -32,6 +34,9 @@ import TurtleGitCore
     var changed: Bool { draft != saved }
     func activate(repository: GitRepository, access: RepositoryAccessLease?, localAvailable: Bool) {
         if saving { pendingContext = (repository, access, localAvailable); return }
+        if loaded && self.repository?.root == repository.root && self.repository?.executable == repository.executable && hasRepository == localAvailable {
+            active = true; return
+        }
         deactivate()
         self.repository = repository; self.access = access; hasRepository = localAvailable
         active = true; destination = localAvailable ? .local : .global
@@ -80,7 +85,8 @@ import TurtleGitCore
         }
     }
     private func showHierarchyHint() {
-        guard active, !UserDefaults.standard.bool(forKey: "HintHierarchicalConfig"), let window, window.attachedSheet == nil else { return }
+        guard active, !hintShown, !UserDefaults.standard.bool(forKey: "HintHierarchicalConfig"), let window, window.attachedSheet == nil else { return }
+        hintShown = true
         let alert = NSAlert(); alert.messageText = "Git configuration"
         alert.informativeText = "Git uses hierarchical configuration: settings in higher levels override lower levels. Effective shows the read-only values for the current scope. Select a level to see its stored values. To change settings, select a level, enter the values and choose where to save them."
         alert.addButton(withTitle: "OK"); alert.showsSuppressionButton = true
@@ -310,7 +316,7 @@ struct GitConfigurationSettingsPage: View {
             }
         }.padding(20)
         .background(GitConfigurationWindowProbe(model: model).frame(width: 0, height: 0))
-        .onAppear(perform: activate).onChange(of: workspace.root) { _ in activate() }.onDisappear { model.deactivate() }
+        .onAppear(perform: activate).onChange(of: workspace.root) { _ in if model.isActive { activate() } }.onDisappear { model.deactivate() }
         .sheet(isPresented: Binding(get: { model.configurationText != nil }, set: { if !$0 { model.configurationText = nil } })) {
             VStack(alignment: .leading) {
                 ScrollView([.horizontal, .vertical]) { Text(model.configurationText ?? "").font(.system(.body, design: .monospaced)).textSelection(.enabled).padding() }

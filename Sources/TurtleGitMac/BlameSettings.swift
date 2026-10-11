@@ -7,6 +7,7 @@ extension Notification.Name {
 }
 
 struct BlameSettings: View {
+    @State private var initialized = false
     @State private var reference = BlameSettingsWindowReference()
     @State private var draft = GitBlamePreferences.load()
     @State private var within = String(GitBlamePreferences.load().withinFileCharacters)
@@ -112,7 +113,7 @@ struct BlameSettings: View {
                     NotificationCenter.default.post(name: .blamePreferencesChanged, object: nil)
                 }.disabled(options == nil || validPresentation == nil || (options == savedOptions && validPresentation == savedPresentation))
             }
-        }.padding(20).background(BlameSettingsWindowProbe(reference: reference).frame(width: 0, height: 0)).onAppear { restore() }
+        }.padding(20).background(BlameSettingsWindowProbe(reference: reference).frame(width: 0, height: 0)).onAppear { if !initialized { initialized = true; restore() } }
             .onChange(of: draft.detectionMode) { _ in draft.normalizeLogSettings() }
             .onChange(of: draft.onlyFirstParent) { _ in draft.normalizeLogSettings() }
             .onChange(of: draft.showCompleteLog) { _ in draft.normalizeLogSettings() }

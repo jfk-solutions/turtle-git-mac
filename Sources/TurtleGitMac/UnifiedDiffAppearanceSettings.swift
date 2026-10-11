@@ -4,6 +4,7 @@ import TurtleGitCore
 
 extension Notification.Name { static let unifiedDiffAppearanceChanged = Notification.Name("TurtleGit.UnifiedDiffAppearanceChanged") }
 struct UnifiedDiffAppearanceSettings: View {
+    @State private var initialized = false
     @State private var draft = UnifiedDiffAppearance.load()
     @State private var saved = UnifiedDiffAppearance.load()
     @State private var size = String(UnifiedDiffAppearance.load().fontSize)
@@ -57,7 +58,7 @@ struct UnifiedDiffAppearanceSettings: View {
             HStack { Spacer(); Button("Cancel") { draft = saved; size = String(saved.fontSize); tabs = String(saved.tabSize); NSApp.keyWindow?.performClose(nil) }
                 Button("Apply") { guard let value else { return }; value.save(); saved = value; NotificationCenter.default.post(name: .unifiedDiffAppearanceChanged, object: nil) }.disabled(value == nil || value == saved)
             }
-        }.padding(20).onAppear { saved = .load(); draft = saved; size = String(saved.fontSize); tabs = String(saved.tabSize) }
+        }.padding(20).onAppear { if !initialized { initialized = true; saved = .load(); draft = saved; size = String(saved.fontSize); tabs = String(saved.tabSize) } }
     }
 }
 

@@ -71,19 +71,8 @@ import TurtleGitCore
             #endif
         }
         Settings {
-            TabView {
-                AppearanceSettings(appearance: appearance).tabItem { Label("Appearance", systemImage: "circle.lefthalf.filled") }
-                LogDialogSettings().tabItem { Label("Dialogs", systemImage: "macwindow") }
-                CommitEditorSettings().tabItem { Label("Commit", systemImage: "checkmark.circle") }
-                MergeEditorSettings().tabItem { Label("Merge Editor", systemImage: "arrow.triangle.merge") }
-                BlameSettings().tabItem { Label("Blame", systemImage: "text.alignleft") }
-                AlternativeEditorSettings().tabItem { Label("Alternative Editor", systemImage: "pencil") }
-                UnifiedDiffSettingsPage().tabItem { Label("Unified Diff", systemImage: "doc.text") }
-                SavedDataSettingsPage().tabItem { Label("Saved Data", systemImage: "archivebox") }
-                GitConfigurationSettingsPage(workspace: model).tabItem { Label("Git", systemImage: "arrow.triangle.branch") }
-                EmailSettingsPage().tabItem { Label("Email", systemImage: "envelope") }
-                AdvancedSettingsPage().tabItem { Label("Advanced", systemImage: "slider.horizontal.3") }
-            }.frame(width: 760, height: 700)
+            SettingsNavigation(workspace: model, appearance: appearance)
+                .frame(minWidth: 980, idealWidth: 1040, minHeight: 700, idealHeight: 740)
         }
     }
 }

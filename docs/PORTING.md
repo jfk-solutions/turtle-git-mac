@@ -79,7 +79,8 @@ identity inheritance, line-ending choices, three-state QuotePath/Prune and a
 separate save destination. Implementation is still in progress and has not been
 compiled or tested. Config editors and remembered sandbox directory grants are
 implemented; their displayed and signed execution checks remain in scope.
-See [the Git configuration continuation](GIT-CONFIGURATION-PARITY.md).
+See [the Git configuration continuation](GIT-CONFIGURATION-PARITY.md) and
+[the unverified native Settings tree](SETTINGS-NAVIGATION-PARITY.md).
 
 ## Audited baseline
 
