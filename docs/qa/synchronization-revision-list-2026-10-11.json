@@ -1,0 +1,91 @@
+{
+  "date": "2026-10-11",
+  "status": "partial-native-revision-list-verified-broader-regression-running",
+  "code_commit": "5e5fc0e12fd8f83a4aac81ac629aa81764774077",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_blobs": {
+    "src/TortoiseProc/SyncDlg.cpp": "17bfe829c486fee35345727136bec8d1adbf21f9",
+    "src/TortoiseProc/GitLogListBase.cpp": "19518f37689e19b7e913c9ff8cc9d65ec223c187"
+  },
+  "implemented": [
+    "Source-default and optional revision columns with independent SyncIn/SyncOut visibility and reset",
+    "Original fixed action icon slots backed by serialized all-parent owned Git reads",
+    "Shared Log badge painter and source/theme-aware colors, current/tracking/annotated labels",
+    "Shared date, relative tooltip, font, symbolic upstream, full-message and left/right label preferences",
+    "Conditional configured issue-ID column"
+  ],
+  "verification": {
+    "command": "python3 scripts/test-synchronization-history.py --revision-list --git /usr/bin/git --git build/git-runtime/Git/bin/git --captures build/qa/sync-revision-list-final-2026-10-11",
+    "engines": [
+      "system 2.50.1",
+      "packaged 2.55.0"
+    ],
+    "native_receivers_passed_and_reaped": [
+      77844,
+      78225
+    ],
+    "checked": [
+      "Actual modified/added/deleted/renamed action classification and four non-empty original icons",
+      "Native current/tracking/annotated label metadata and existing painter",
+      "Issue ID 42 and configured Bug-ID column",
+      "Absolute/relative date and tooltip plus full-message/right-side setting",
+      "Independent incoming/outgoing column visibility and reset",
+      "Refs/index/config preservation",
+      "Slow owned action-reader process termination on invalidation and no late result/failure publication"
+    ],
+    "captures_generated": 16,
+    "final_captures_visually_inspected": [
+      "build/qa/sync-revision-list-final-2026-10-11/0/sync-outgoing-dark.png",
+      "build/qa/sync-revision-list-final-2026-10-11/1/sync-incoming-light-minimum.png"
+    ],
+    "builds": [
+      "Debug unsigned passed",
+      "AppStore unsigned universal passed"
+    ],
+    "debug_bundle_audit": "passed",
+    "store_bundle_audit": "passed",
+    "documentation_site_build": "passed"
+  },
+  "live_verification": {
+    "full_sync_session": 56797,
+    "full_sync_log": "build/qa/sync-revision-list-full-native-2026-10-11.log",
+    "full_core_session": 31154,
+    "full_core_log": "build/qa/git-process-exit-core-full-2026-10-11.log",
+    "scope": "Full Core suite runs unchanged Core source from 550bc87. The earlier 28-group Sync pass covers the pre-revision-list implementation, not this GUI change."
+  },
+  "remaining": [
+    "Complete broader Sync regression",
+    "Updated public-site sample screenshots after serial native regression",
+    "Full row/context/header interaction and cross-launch persistence acceptance",
+    "SVN/ID special modes and custom bisect terms",
+    "Physical accessibility and signed sandbox/App Store/Finder acceptance",
+    "Full application parity"
+  ],
+  "sha256": {
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "9c72dbde57332155aac279b3b8c4652cf04c650909487aa5195be4aa47d99664",
+    "docs/qa/synchronization-revision-list-native-2026-10-11.swift": "21e4e29cb06bec01e054fa251d3ad41c7d9b8f6ffaac0a329bec0975c6ad5fde",
+    "scripts/test-synchronization-history.py": "63c89f5368a62bf4cf94d345578723da00d37a796bc97e9dfdb0ce878b0e6d7c",
+    "build/qa/sync-revision-list-native-final-2026-10-11.log": "8c7afa720f5e688d9671bc4a0b4a0c205b2a9633a3ba12859c4189a33fae9e09",
+    "build/qa/sync-revision-list-build-final-2026-10-11.log": "8af2109dc9712e7d2142ee6d9e9e355c2a19defc641942fd7064f4520f830875",
+    "build/qa/sync-revision-list-store-2026-10-11.log": "6926b9a7076d2d9ad8b2b23b24c069ce6913561b958ddbf9a873a5fe75da64dc",
+    "build/qa/sync-revision-list-debug-audit-final-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/sync-revision-list-site-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/sync-revision-list-final-2026-10-11/0/sync-incoming-dark-minimum.png": "869c66996203984d645105270516f4e10e5755bcb8e8ef80b6092c233cb99f40",
+    "build/qa/sync-revision-list-final-2026-10-11/0/sync-incoming-dark.png": "c80787586f0502d10d953089a4a140847f851077647cba1eb9b0880291e2f796",
+    "build/qa/sync-revision-list-final-2026-10-11/0/sync-incoming-light-minimum.png": "0ec6bfcf578afc188b3c548d267c0500bfd07c56372da16872ec6c448e692f1a",
+    "build/qa/sync-revision-list-final-2026-10-11/0/sync-incoming-light.png": "a305e95bfb55a9659dd95a6f6aae17faeecc6a44e5e26e3f7982195f3be1121e",
+    "build/qa/sync-revision-list-final-2026-10-11/0/sync-outgoing-dark-minimum.png": "8cc0e923dc8e48bdce58f13de9a21f78e154b5da047e6a4cd0cef7765b4ce7b1",
+    "build/qa/sync-revision-list-final-2026-10-11/0/sync-outgoing-dark.png": "e845055929b9390ab4b28afeb745bb06c81803274425994c8827af07018e8d21",
+    "build/qa/sync-revision-list-final-2026-10-11/0/sync-outgoing-light-minimum.png": "f8a19376aeaebae226cb17dc9201f5fdc6b62b7b55f41147bd442d80b8135aa9",
+    "build/qa/sync-revision-list-final-2026-10-11/0/sync-outgoing-light.png": "11d9e257faa0f82d6e676ee704cbc46e36e7ac030ac4ea75f5fbbbd095a1d6f3",
+    "build/qa/sync-revision-list-final-2026-10-11/1/sync-incoming-dark-minimum.png": "e58667d57b370e6e91cbe6b228791ace14324ee53f093e89619319b517b7d0dc",
+    "build/qa/sync-revision-list-final-2026-10-11/1/sync-incoming-dark.png": "ebb122aae24bb3509b845d57142b6ab7090e6b40c8c4855d21357b81dae66ac2",
+    "build/qa/sync-revision-list-final-2026-10-11/1/sync-incoming-light-minimum.png": "f27cf18629b9f0f77944c78c0cc37a21f5a3ac6388badd0716ce8ce578bacc5e",
+    "build/qa/sync-revision-list-final-2026-10-11/1/sync-incoming-light.png": "3b583e3accb945c7907fc33fcf782aa1ae2cc4a97b730482307169663a8c2e17",
+    "build/qa/sync-revision-list-final-2026-10-11/1/sync-outgoing-dark-minimum.png": "a141b84c834aa0a0827467d916e4abcb6a3c7007a5c2d2f7b4065c042716678b",
+    "build/qa/sync-revision-list-final-2026-10-11/1/sync-outgoing-dark.png": "3fbd3d539410929635fc3469991eb82e4938a27300f75d65e031af2e9310741f",
+    "build/qa/sync-revision-list-final-2026-10-11/1/sync-outgoing-light-minimum.png": "e512afe72a11be333ca11e0fa8ad98833e4ae643a87f584c4b244372b1d088a2",
+    "build/qa/sync-revision-list-final-2026-10-11/1/sync-outgoing-light.png": "8b1cae8d7be309255fde250522cd4777d3ca4709c6eacab6ccb7a5229da2fdf7",
+    "build/qa/sync-revision-list-store-audit-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30"
+  }
+}

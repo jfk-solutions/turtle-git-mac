@@ -246,6 +246,10 @@ jobs:
         run: python3 scripts/test-fetch-clipboard.py
       - name: Synchronization comparisons and transport with bundled Git
         run: TURTLEGIT_GROUP_TEST_GIT="$PWD/build/git-runtime/Git/bin/git" swift test --filter 'SynchronizationTests|SynchronizationTransportTests|SynchronizationReferenceTests|SynchronizationTagTests|SynchronizationSubmoduleTests|SynchronizationStashTests|RemoteTagTests'
+      - name: Native Synchronization histories and revision lists
+        run: |
+          python3 scripts/test-synchronization-history.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
+          python3 scripts/test-synchronization-history.py --revision-list --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Synchronization outgoing, Fetch transports and owner lifetime
         run: python3 scripts/test-synchronization-dialog.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Pull and Fetch submodule defaults

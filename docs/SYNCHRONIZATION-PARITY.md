@@ -325,9 +325,9 @@ remain unverified. See the
   Tabs below the result grid, shared Force/SSH row and status/Close/Help footer
   now follow the source layout; full column and interaction parity remain partial.
   Owned branch choosers and Manage are implemented; physical acceptance is pending.
-- Full incoming/conflict/reference/outgoing columns, ref decorations, actions,
-  Bug-ID, sorting/context menus and persistence. Inspected captures verify the
-  current native controls, not complete visual parity.
+- Complete incoming/conflict/reference/outgoing column interactions, sorting and
+  context menus. Actions, reference labels, conditional Bug-ID and shared dates
+  now have focused native evidence; full visual/interaction parity remains partial.
 - Project hooks, full completion actions, Shift alternative Compare behavior,
   authenticated/encrypted-key network acceptance and remaining transport variants.
 - Physical keyboard/pointer/VoiceOver and production app/Finder workflow acceptance,
@@ -974,3 +974,32 @@ AppStore builds and both bundle audits passed. The complete native regression ha
 passed all 28 groups across system and packaged Git; both receivers were reaped.
 The inventory pin audit and documentation-site build passed. The complete Core
 suite is still running. See the [verification record](qa/git-process-exit-2026-10-11.json).
+
+## Revision lists, 11 October 2026
+
+Pinned `SyncDlg.cpp::OnInitDialog` calls `GitLogListBase::InsertGitColumn` for
+both SyncIn and SyncOut. The native lists now show Graph, Actions, Message,
+Author and Date by default. SHA-1, email and committer columns are optional;
+Bug-ID appears only for configured issue properties. Each list has independent
+visibility preferences, a header menu and reset; saved native width/order layouts
+use a new version to avoid the previous always-visible Hash arrangement.
+
+Actions use the original five fixed icon slots and a serialized, cancellable
+all-parent Git read. Busy transitions and owner invalidation cancel the reader;
+closed/generation checks fence late results. Messages use the existing native
+Log badge painter, including current/local refs, tracking outlines and annotated
+tag tips, theme-aware source colors and optional symbolic upstream markers.
+Date, relative-date tooltips, log font, full message and left/right label settings
+use the same preference keys as Log.
+
+The focused native fixture passed with system and packaged Git. It checks real
+added/modified/deleted/renamed paths, annotated/current/tracking labels, issue IDs,
+date/message settings, independent header preferences/reset, immutable Git state,
+and owned slow-query termination with late-result suppression. Sixteen actual
+outgoing/incoming normal/minimum light/dark images were captured across the two
+engines. Debug and unsigned universal AppStore builds and both bundle audits passed.
+The broader Sync regression is still running; the full Core run is on unchanged
+Core sources from the earlier process-completion checkpoint. The earlier 28-group
+pass does not certify this GUI change. Full row/context interactions, SVN/ID
+special modes, custom bisect terms, physical accessibility and signed acceptance
+remain open. See [the verification record](qa/synchronization-revision-list-2026-10-11.json).
