@@ -77,6 +77,23 @@ keeps its pre-checkout old HEAD for incoming results. `rebaseMode` and
 `executedArguments` on the result report the command actually executed; owners
 must use that mode for their native handoff rather than the earlier prediction.
 
+The backend also exposes `synchronizationPullCheckout` and a continuation overload
+of `synchronize`. The checkout step returns its own streamed command result and
+an opaque checkpoint containing the original plan and the actual post-hook
+HEAD/branch fingerprint. A native owner can present separate checkout progress,
+then ask tracking questions and capture reference metadata before starting
+transport. Continuation rejects a different repository actor or changed
+HEAD/attachment and never repeats checkout, including when a hook selected
+another branch. The existing combined executor remains available. This API is
+not yet connected to a native Pull progress dialog.
+
+Three additional Core tests exercise continuation after a branch-changing hook
+with a different original baseline, streaming checkout output, no transport
+before continuation, rejection of unapproved/cancelled checkout and foreign or
+stale continuation, a no-switch Pull, and checkout blocked by uncommitted work.
+The blocked checkout preserves the worktree, index and prior FETCH_HEAD and
+returns no continuation checkpoint.
+
 The native owner still needs source tracking questions, project hooks, separate
 checkout progress and post-checkout metadata refresh, transport/result tabs,
 complete reference-change/conflict views and native Rebase choices. The backend now distinguishes detached/revision-expression Pull from Push
@@ -212,6 +229,13 @@ The existing native receiver passes against rebuilt Core on system and packaged
 Git; both unsigned builds and bundle audits pass. This is backend preparation
 for the pending native Pull workflow; see the
 [Pull preflight QA record](qa/synchronization-pull-preflight-2026-10-11.json).
+
+The separate-checkout checkpoint adds three tests. All 26 synchronization tests
+pass on system Git 2.50.1, Git 2.39.5 and packaged Git 2.55.0. The existing native
+receiver passes against rebuilt Core on system and packaged Git, and both
+unsigned builds and bundle audits pass. The new checkout API is backend-only;
+native Pull integration remains pending. See the
+[separate checkout QA record](qa/synchronization-checkout-2026-10-11.json).
 
 ## Remaining full port
 

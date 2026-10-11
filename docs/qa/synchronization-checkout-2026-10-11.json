@@ -1,0 +1,119 @@
+{
+  "date": "2026-10-11",
+  "checkpoint": "6b89ac5bc170725d715a34d5e85c077e2c6e6da5",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "status": "partial-backend",
+  "implemented": [
+    "Separate approved Pull checkout streams its own Git result and produces a repository-owned continuation checkpoint.",
+    "The checkpoint preserves original pre-checkout HEAD and captures actual post-hook HEAD/branch; continuation skips a second checkout and rejects a foreign actor or changed HEAD/attachment.",
+    "Existing combined synchronization execution continues to check repository state after asynchronous key preparation and reselect Pull command using actual branch configuration."
+  ],
+  "verification": {
+    "core": [
+      {
+        "step": "system",
+        "exit": 0,
+        "log": "build/qa/synchronization-checkout-system-final-2026-10-11.log",
+        "engine": "system Git 2.50.1",
+        "tests": 26,
+        "transport_tests": 18,
+        "comparison_and_branch_tests": 6,
+        "reference_tests": 2,
+        "failures": 0
+      },
+      {
+        "step": "old",
+        "exit": 0,
+        "log": "build/qa/synchronization-checkout-old-final-2026-10-11.log",
+        "engine": "Git 2.39.5",
+        "tests": 26,
+        "transport_tests": 18,
+        "comparison_and_branch_tests": 6,
+        "reference_tests": 2,
+        "failures": 0
+      },
+      {
+        "step": "packaged",
+        "exit": 0,
+        "log": "build/qa/synchronization-checkout-packaged-final-2026-10-11.log",
+        "engine": "packaged Git 2.55.0",
+        "tests": 26,
+        "transport_tests": 18,
+        "comparison_and_branch_tests": 6,
+        "reference_tests": 2,
+        "failures": 0
+      }
+    ],
+    "new_tests": 3,
+    "new_scope": "Private local fixtures exercise a hook changing attachment with a distinct original baseline, streamed checkout output, no fetch before continuation, exactly one checkout hook, rejected unapproved/cancelled checkout, foreign actor and stale attachment, no-switch Pull, and dirty-worktree checkout failure preserving worktree/index/FETCH_HEAD.",
+    "app_checks": [
+      {
+        "step": "debug-build",
+        "exit": 0,
+        "log": "build/qa/synchronization-checkout-debug-build-final-2026-10-11.log"
+      },
+      {
+        "step": "native",
+        "exit": 0,
+        "log": "build/qa/synchronization-checkout-native-final-2026-10-11.log"
+      },
+      {
+        "step": "store-build",
+        "exit": 0,
+        "log": "build/qa/synchronization-checkout-store-build-final-2026-10-11.log"
+      },
+      {
+        "step": "debug-audit",
+        "exit": 0,
+        "log": "build/qa/synchronization-checkout-debug-audit-final-2026-10-11.log"
+      },
+      {
+        "step": "store-audit",
+        "exit": 0,
+        "log": "build/qa/synchronization-checkout-store-audit-final-2026-10-11.log"
+      },
+      {
+        "step": "inventory",
+        "exit": 0,
+        "log": "build/qa/synchronization-checkout-inventory-final-2026-10-11.log"
+      },
+      {
+        "step": "site",
+        "exit": 0,
+        "log": "build/qa/synchronization-checkout-site-final-2026-10-11.log"
+      }
+    ],
+    "native_scope": "Existing hidden outgoing/Fetch/reference-result/menu/cancellation/owner-lifetime receiver with system and packaged Git against rebuilt Core; does not exercise native Pull UI.",
+    "full_suite": "Not rerun; only 26 synchronization tests per engine and existing native receiver.",
+    "unsigned_only": true,
+    "cleanup": {
+      "owned_app_receiver_test_or_project_build_processes": []
+    }
+  },
+  "remaining": [
+    "Native separate checkout progress, tracking questions, Pull/rebase split controls, incoming/conflict results and retained Rebase handoff.",
+    "Push variants with project hooks and remaining Synchronization controls/layout/menu/history parity.",
+    "Broader hook/configuration/external-writer repository cases, real SSH/server authentication and rendered/physical/accessibility acceptance.",
+    "Finder activation and signed sandbox/App Store/distribution acceptance.",
+    "Complete whole-application port and documentation/distribution objective."
+  ],
+  "sources_sha256": {
+    "Sources/TurtleGitCore/Synchronization.swift": "00e36292ff7ca8685336bc093f2a9f26a348945219180fff2921b65efa4352e8",
+    "Tests/TurtleGitCoreTests/SynchronizationTransportTests.swift": "d05702da6a30e12844078ac6a7ac5677513fe8dd90ec58ec89ef62a8976ce611",
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "222ce0abf2f59620433d353287eb43987ebed70a462c6c41c793e8c847396510",
+    "docs/qa/synchronization-native-2026-10-11.swift": "9e703edd8b4ceddccf25ec751344166ee961b6830653a8541d614a98e2e4eb46",
+    "scripts/test-synchronization-dialog.py": "b6702a89fd88fc3f0f388bce39577de592f3ed2c022706e258bcdae291aa5c0f"
+  },
+  "logs_sha256": {
+    "build/qa/synchronization-checkout-system-final-2026-10-11.log": "1e97735cd08f0785b7b28e3d3ef52b22801c26ecfd92300d1a89a229e287bfc0",
+    "build/qa/synchronization-checkout-old-final-2026-10-11.log": "6e8a8febe6e2339748c37b3b1b2cfeb8cf331164326d91ef9c95121c9beb9b85",
+    "build/qa/synchronization-checkout-packaged-final-2026-10-11.log": "a4b5226286967e69fd62a7ec96f14b242c4915623f57960ffda63194f38e6272",
+    "build/qa/synchronization-checkout-debug-build-final-2026-10-11.log": "9f254bdf6432ba99e961fbd24729674dab1a8ebe409433e5cc8ae707422b27de",
+    "build/qa/synchronization-checkout-native-final-2026-10-11.log": "c40c59657e03547fea189d517956c7988fdaf68ea56c69cdcd1d767ec3d26564",
+    "build/qa/synchronization-checkout-store-build-final-2026-10-11.log": "8b7e42e41011f64b89af2a34249c0e6a736fce554184bf57a0f657922d209930",
+    "build/qa/synchronization-checkout-debug-audit-final-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/synchronization-checkout-store-audit-final-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/synchronization-checkout-inventory-final-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/synchronization-checkout-site-final-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}
