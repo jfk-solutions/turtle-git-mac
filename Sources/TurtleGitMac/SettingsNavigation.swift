@@ -6,9 +6,9 @@ import TurtleGitCore
 /// Native projection of Settings.cpp's tree for pages currently implemented.
 /// Pending pages are tracked in the inventory, rather than shown as empty panes.
 enum SettingsPageID: String {
-    case general, dialogs, dialogs2, dialogs3, commit, alternativeEditor, git, remote, email
+    case general, dialogs, dialogs2, dialogs3, colors1, colors2, colors3, commit, alternativeEditor, git, remote, email
     case mergeEditor, savedData, blame, unifiedDiff, advanced
-    var applyOrder: Int { let pages: [SettingsPageID] = [.general, .dialogs, .dialogs2, .dialogs3, .commit, .alternativeEditor, .git, .remote, .email, .mergeEditor, .savedData, .blame, .unifiedDiff, .advanced]; return pages.firstIndex(of: self)! }
+    var applyOrder: Int { let pages: [SettingsPageID] = [.general, .dialogs, .dialogs2, .dialogs3, .colors1, .colors2, .colors3, .commit, .alternativeEditor, .git, .remote, .email, .mergeEditor, .savedData, .blame, .unifiedDiff, .advanced]; return pages.firstIndex(of: self)! }
 }
 private final class SettingsPageNode: NSObject {
     let id: SettingsPageID, title: String, icon: MenuIcon
@@ -26,6 +26,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
 }
 @MainActor final class SettingsNavigationController: NSViewController, NSOutlineViewDataSource, NSOutlineViewDelegate {
     private let workspace: RepositoryModel, appearance: AppAppearance
+    private let appearanceDraft: SettingsAppearanceDraft
     private let outline = NSOutlineView()
     private let content = NSView()
     private let busyShield = SettingsBusyShield()
@@ -43,7 +44,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     private var remote: RemoteSettingsWindowModel?
     private var delegateProxy: SettingsWindowDelegate?
     private var updating = false
-    init(workspace: RepositoryModel, appearance: AppAppearance) { self.workspace = workspace; self.appearance = appearance; super.init(nibName: nil, bundle: nil) }
+    init(workspace: RepositoryModel, appearance: AppAppearance) { self.workspace = workspace; self.appearance = appearance; self.appearanceDraft = SettingsAppearanceDraft(appearance: appearance); super.init(nibName: nil, bundle: nil) }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     override func loadView() {
         view = NSView(); view.setAccessibilityLabel("TurtleGit settings")
@@ -111,6 +112,9 @@ struct SettingsNavigation: NSViewControllerRepresentable {
                 SettingsPageNode(.dialogs, "Dialogs 1", .settingsDialogs),
                 SettingsPageNode(.dialogs2, "Dialogs 2", .settingsDialogs),
                 SettingsPageNode(.dialogs3, "Dialogs 3", .settingsDialogs),
+                SettingsPageNode(.colors1, "Colors 1", .settingsColors),
+                SettingsPageNode(.colors2, "Colors 2", .settingsColors),
+                SettingsPageNode(.colors3, "Colors 3", .settingsColors),
                 SettingsPageNode(.commit, "Message Editor", .editor),
                 SettingsPageNode(.alternativeEditor, "Alternative Editor", .editor)]),
             SettingsPageNode(.git, "Git", .settingsGit, children: workspace.root == nil ? [] : [SettingsPageNode(.remote, "Remote", .settingsRemote)]),
@@ -144,7 +148,8 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         if let existing = cache[page] { controller = existing }
         else {
             switch page {
-            case .general: controller = host(AppearanceSettings(appearance: appearance))
+            case .general: controller = host(AppearanceSettings(draft: appearanceDraft))
+            case .colors1, .colors2, .colors3: controller = host(SourceColorSettings(page: page, appearance: appearanceDraft))
             case .dialogs: controller = host(LogDialogSettings())
             case .dialogs2: controller = host(DialogsBehaviorSettings())
             case .dialogs3: controller = host(ProjectDialogSettingsPage(workspace: workspace))

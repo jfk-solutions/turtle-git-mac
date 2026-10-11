@@ -642,6 +642,11 @@
       "asset": "TortoiseUDiff.ico",
       "source": "src/TortoiseUDiff/TortoiseUDiff.ico",
       "sha256": "8678b929d02355e510b77adbcee99a4cbc5ced1673df952d6a50e8f70005b242"
+    },
+    {
+      "asset": "lookandfeel.ico",
+      "source": "src/Resources/lookandfeel.ico",
+      "sha256": "41ca93051b22ae2c99775d14311afd46e3007ab77c3689850b299787b774327d"
     }
   ]
 }

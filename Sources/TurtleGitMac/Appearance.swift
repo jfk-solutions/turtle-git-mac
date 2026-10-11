@@ -26,33 +26,128 @@ enum AppearanceChoice: String, CaseIterable, Identifiable {
     }
 }
 
+@MainActor final class SettingsAppearanceDraft: ObservableObject {
+    @Published var choice: AppearanceChoice
+    private let appearance: AppAppearance
+    init(appearance: AppAppearance) { self.appearance = appearance; choice = appearance.choice }
+    var changed: Bool { choice != appearance.choice }
+    func apply() { appearance.choice = choice }
+    func cancel() { choice = appearance.choice }
+}
+
 struct AppearanceSettings: View {
-    @ObservedObject var appearance: AppAppearance
-    @State private var draftAppearance: AppearanceChoice
-    @Environment(\.settingsTransaction) private var transaction
-    init(appearance: AppAppearance) { self.appearance = appearance; _draftAppearance = State(initialValue: appearance.choice) }
-    @StateObject private var colors = StatusColorSettingsModel()
-    @StateObject private var logColors = LogColorSettingsModel()
+    @ObservedObject var draft: SettingsAppearanceDraft
     var body: some View {
         Form {
-            Picker("Appearance", selection: $draftAppearance) {
+            Picker("Appearance", selection: $draft.choice) {
                 ForEach(AppearanceChoice.allCases) { Text($0.title).tag($0) }
             }.pickerStyle(.radioGroup)
-            Text("Status colors, graph lanes and original command icons retain their colors in both appearances.")
-                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            TabView {
-                StatusColorsSettings(model: colors).tabItem { Text("Status") }
-                ScrollView { LogColorsSettings(model: logColors).padding(8) }.tabItem { Text("Log") }
-            }.frame(height: 490)
-        }.padding(20).frame(width: 590)
-        .onChange(of: draftAppearance) { _ in if transaction == nil { appearance.choice = draftAppearance } }
-        .onChange(of: colors.draft) { _ in transaction?.notify() }
-        .onChange(of: logColors.draft) { _ in transaction?.notify() }
-        .settingsParticipant("general", page: .general, value: draftAppearance,
-            modified: { draftAppearance != appearance.choice || colors.changed || logColors.changed },
-            apply: { appearance.choice = draftAppearance; colors.apply(); logColors.apply(); return true },
-            cancel: { draftAppearance = appearance.choice; colors.cancel(); logColors.cancel() })
+            Text("Status colors, reference labels and graph lanes are configured on Colors 1, Colors 2 and Colors 3.")
+                .foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        }.padding(20).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .settingsParticipant("general", page: .general, value: draft.choice,
+            modified: { draft.changed }, apply: { draft.apply(); return true }, cancel: draft.cancel)
     }
+}
+
+/// Native projections of SettingsColors.cpp / SettingsColors2.cpp / SettingsColors3.cpp.
+struct SourceColorSettings: View {
+    let page: SettingsPageID
+    @ObservedObject var appearance: SettingsAppearanceDraft
+    @Environment(\.settingsTransaction) private var transaction
+    @StateObject private var status = StatusColorSettingsModel()
+    @StateObject private var log = LogColorSettingsModel()
+    @State private var useLocal = UserDefaults.standard.bool(forKey: "Graph.RevGraphUseLocalForCur")
+    @State private var savedUseLocal = UserDefaults.standard.bool(forKey: "Graph.RevGraphUseLocalForCur")
+    private var roles: [LogColorRole] {
+        switch page {
+        case .colors1: return [.noteNode, .otherRef]
+        case .colors2: return [.currentBranch, .localBranch, .remoteBranch, .tag, .filterMatch]
+        default: return LogColorRole.lanes
+        }
+    }
+    private var modified: Bool { log.changed || (page == .colors1 && (status.changed || useLocal != savedUseLocal)) }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            if page == .colors1 {
+                GroupBox("Status and action colors") {
+                    VStack(spacing: 10) {
+                        statusRow(.conflict, "possible or real conflict/obstructed")
+                        statusRow(.added, "added files")
+                        statusRow(.deleted, "missing/deleted/replaced")
+                        statusRow(.merged, "merged")
+                        statusRow(.modified, "modified/copied")
+                        statusRow(.renamed, "renamed")
+                    }.padding(10)
+                }
+                GroupBox("Revision graph") {
+                    VStack(alignment: .leading, spacing: 10) {
+                        logRow(.noteNode, "Note node")
+                        logRow(.otherRef, "Unknown ref-types")
+                        Toggle("Use local branch color for current branch", isOn: $useLocal)
+                    }.padding(10)
+                }
+                Toggle("Dark theme", isOn: Binding(get: { appearance.choice == .dark }, set: { appearance.choice = $0 ? .dark : .light }))
+                Text("Follow System is available on General. Colors use TortoiseGit’s dark-mode conversion.").font(.caption).foregroundStyle(.secondary)
+            } else if page == .colors2 {
+                GroupBox("Log Graphic") {
+                    VStack(spacing: 10) {
+                        logRow(.currentBranch, "Current Branch")
+                        logRow(.localBranch, "Local Branch")
+                        logRow(.remoteBranch, "Remote Branch")
+                        logRow(.tag, "Tag")
+                    }.padding(10)
+                }
+                logRow(.filterMatch, "Filter match").padding(.horizontal, 10)
+            } else {
+                GroupBox("Log Branch Line") {
+                    VStack(spacing: 10) {
+                        ForEach(Array(LogColorRole.lanes.enumerated()), id: \.element) { index, role in logRow(role, "LINE" + String(index + 1)) }
+                        Picker("Line width", selection: Binding(get: { log.draft.lineWidth }, set: log.setLineWidth)) {
+                            ForEach(1...10, id: \.self) { Text(String($0)).tag($0) }
+                        }
+                        Picker("Node size", selection: Binding(get: { log.draft.nodeSize }, set: log.setNodeSize)) {
+                            ForEach(1...30, id: \.self) { Text(String($0)).tag($0) }
+                        }
+                    }.padding(10)
+                }
+            }
+            Spacer()
+            HStack { Spacer(); StatusColorButton("Restore Default", action: restore) }
+        }.padding(20)
+        .settingsParticipant(page.rawValue, page: page, value: log.draft, modified: { modified }, apply: { apply(); return true }, cancel: cancel)
+        .onChange(of: status.draft) { _ in transaction?.notify() }
+        .onChange(of: useLocal) { _ in transaction?.notify() }
+        .onChange(of: appearance.choice) { _ in transaction?.notify() }
+    }
+    private func statusRow(_ role: StatusTextRole, _ title: String) -> some View {
+        HStack {
+            ColorPicker(title, selection: Binding(get: { status.color(role) }, set: { status.setColor(role, color: $0) }), supportsOpacity: false)
+            StatusColorButton("Default") { status.automatic(role) }
+        }
+    }
+    private func logRow(_ role: LogColorRole, _ title: String) -> some View {
+        HStack {
+            ColorPicker(title, selection: Binding(get: { log.color(role) }, set: { log.setColor(role, color: $0) }), supportsOpacity: false)
+            StatusColorButton("Default") { log.automatic(role) }
+        }
+    }
+    private func restore() {
+        for role in roles { log.automatic(role) }
+        if page == .colors1 { status.restoreDefaults(); useLocal = false }
+        if page == .colors3 { log.setLineWidth(2); log.setNodeSize(10) }
+    }
+    private func apply() {
+        if page == .colors1 {
+            status.apply()
+            if useLocal != savedUseLocal {
+                UserDefaults.standard.set(useLocal, forKey: "Graph.RevGraphUseLocalForCur"); savedUseLocal = useLocal
+                NotificationCenter.default.post(name: .statusColorsChanged, object: nil)
+            }
+        }
+        log.apply(roles: roles, dimensions: page == .colors3)
+    }
+    private func cancel() { status.cancel(); log.cancel(); useLocal = savedUseLocal }
 }
 
 /// Default CColors status roles and CTheme fixed-color conversion at the

@@ -249,6 +249,7 @@ enum RevisionGraphReferenceCommand {
     let scroll = NSScrollView()
     let status = NSTextField(labelWithString: "")
     let zoomBox = NSComboBox()
+    private var colorUpdates: AnyCancellable?
     private var displayedZoom: CGFloat?
     let cancelButton = NSButton(title: "Cancel", target: nil, action: nil)
     private var toolbarButtons: [NSButton] = []
@@ -324,6 +325,9 @@ enum RevisionGraphReferenceCommand {
         overview.interactionAllowed = { [weak self] in self?.hasFindError == false }
         canvas.contextMenu = { [weak self] in self?.nodeMenu() ?? NSMenu() }
         model.changed = { [weak self] in self?.update() }
+        colorUpdates = NotificationCenter.default.publisher(for: .statusColorsChanged).receive(on: RunLoop.main).sink { [weak self] _ in
+            MainActor.assumeIsolated { self?.canvas.needsDisplay = true; self?.overview.needsDisplay = true }
+        }
         model.becameIdle = { [weak self] in if self?.closing == true { self?.window?.close() } }
         model.onUnified = { [weak self] bytes in guard let self else { return }; self.unifiedViewer = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: self.unifiedViewer, title: "Revision Graph changes", onClosed: { [weak self] in self?.unifiedViewer = nil }) }
         model.confirmReferenceDeletion = { [weak self, weak window] request in
@@ -561,6 +565,7 @@ enum RevisionGraphReferenceCommand {
         if model.busy { closing = true; model.cancel(); return false }; return true
     }
     func windowWillClose(_ notification: Notification) {
+        colorUpdates = nil
         NotificationCenter.default.removeObserver(self); model.invalidate(); unifiedViewer?.close(); unifiedViewer = nil
         filter?.close(); filter = nil; find?.close(); find = nil; onClosed()
     }

@@ -86,12 +86,12 @@ struct LogColorPreferences: Equatable {
         guard rgb.count == 3, rgb.allSatisfy({ (0...255).contains($0) }) else { return }
         values[role] = rgb[0] << 16 | rgb[1] << 8 | rgb[2]
     }
-    func save(_ preferences: UserDefaults) {
-        // Preserve non-editable Stash/Bisect and unrelated status roles.
-        for role in LogColorRole.references + LogColorRole.matches + LogColorRole.lanes {
+    func save(_ preferences: UserDefaults, roles: [LogColorRole] = LogColorRole.references + LogColorRole.matches + LogColorRole.lanes, dimensions: Bool = true) {
+        // Each source Colors page writes only its own roles.
+        for role in roles {
             let rgb = rgb(role); preferences.set(rgb[0] << 16 | rgb[1] << 8 | rgb[2], forKey: role.preferenceKey)
         }
-        preferences.set(lineWidth, forKey: Self.lineWidthKey); preferences.set(nodeSize, forKey: Self.nodeSizeKey)
+        if dimensions { preferences.set(lineWidth, forKey: Self.lineWidthKey); preferences.set(nodeSize, forKey: Self.nodeSizeKey) }
     }
 }
 
@@ -132,7 +132,7 @@ enum LogPalette {
     func automatic(_ role: LogColorRole) { draft.set(role, rgb: role.rgb) }
     func restoreDefaults() { for role in LogColorRole.references + LogColorRole.matches + LogColorRole.lanes { automatic(role) }; draft.lineWidth = 2; draft.nodeSize = 10 }
     func cancel() { draft = saved }
-    func apply() { guard changed else { return }; draft.save(preferences); saved = draft; NotificationCenter.default.post(name: .statusColorsChanged, object: nil) }
+    func apply(roles: [LogColorRole] = LogColorRole.references + LogColorRole.matches + LogColorRole.lanes, dimensions: Bool = true) { guard changed else { return }; draft.save(preferences, roles: roles, dimensions: dimensions); saved = draft; NotificationCenter.default.post(name: .statusColorsChanged, object: nil) }
 }
 
 struct LogColorsSettings: View {

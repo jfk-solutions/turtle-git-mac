@@ -4,14 +4,14 @@ Reference: pinned `Settings.cpp::AddPropPages`,
 `7338078f8ddd924b8cddee35f512f2286072136d`.
 
 The Settings scene now uses a native AppKit outline/sidebar and content pane,
-replacing the crowded global toolbar tab row. General owns Dialogs 1, Dialogs 2, Dialogs 3, Message Editor and
+replacing the crowded global toolbar tab row. General owns Dialogs 1, Dialogs 2, Dialogs 3, Colors 1–3, Message Editor and
 Alternative Editor. Git owns Remote when a repository is open. Email, Merge
 Editor, Saved Data, Blame, Unified Diff and Advanced remain available. This is a
 projection of implemented pages, not the complete upstream page catalogue.
 Message Editor and Merge Editor retain macOS-specific grouping. Dialogs 1/2
 now follow the source separation for implemented controls; Dialogs 3 has the
-scoped project fields described below. Colors 1/2/3, tools and helper-app settings
-still need full mapping.
+scoped project fields described below. Colors 1/2/3 now have separate source
+pages as described below; tools and helper-app settings still need full mapping.
 
 Rows use original upstream General, Dialogs, Git Config, Git Remote, Saved Data
 and TortoiseUDiff artwork, plus the existing editor/mail/merge/blame assets. The
@@ -193,3 +193,32 @@ combined section check. Native source-layout comparison, spelling support,
 keyboard/focus, scope changes, sheets, signed sandbox permissions, save failures,
 light/dark rendering and full displayed acceptance remain open. Earlier passing
 QA records do not cover these additions. Inventory counts remain unchanged.
+
+
+## Colors 1–3 native page continuation (uncompiled and untested)
+
+The source's three pages are now separate native Settings children with original
+lookandfeel.ico artwork (new provenance entry; 129 assets). General no longer
+mixes status and Log settings into tabs. Colors 1 uses source-ordered status/action
+rows, Note node/Unknown ref-types and the Revision Graph current/local color
+checkbox. Its Dark theme control shares a draft with General's macOS
+System/Light/Dark selector, so cached pages cannot overwrite each other's theme.
+Colors 2 has the four Log Graphic reference roles and separate Filter match row.
+Colors 3 has eight branch lanes and source ranges/defaults for line width
+(1–10 / 2) and node size (1–30 / 10). Default color actions and page-wide Restore
+Default update drafts. Colors 1 restore retains the theme choice, as in source.
+
+Shared Apply/Cancel owns persistence. Each page saves only its own color roles;
+Colors 1/2 never overwrite graph dimensions or the other page's colors. The
+existing Modified → PropertyChanged alias is retained. Status/Log redraw
+notifications now also repaint open Revision Graph/overview surfaces without
+rerunning Git. Colors continue to use the existing source-derived dark conversion.
+Native ColorPicker replaces the Windows color popup and its Custom option.
+
+This continuation has not been compiled, tested or launched. Earlier passing
+color tests/QA do not certify these new pages. Shared draft retention/Apply/Cancel,
+role isolation, dimensions, source layout, native color panel ownership and
+light/dark/keyboard accessibility remain in the grouped section validation scope.
+General's source language/update/Git executable controls and helper pages still
+need their own mapping; this does not certify the General dialog. Inventory
+counts remain unchanged.
