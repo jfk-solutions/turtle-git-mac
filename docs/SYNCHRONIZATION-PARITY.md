@@ -1051,3 +1051,21 @@ implemented but await dedicated native scenarios. Parent menu captions currently
 show parent number/hash; source subject snippets/configured hash lengths remain
 pending. Unified-diff merge variants, compare changesets and remaining revision
 actions are still open. This is partial Synchronization parity.
+
+### Parent captions and selection acceptance (2026-10-11)
+
+The revision-list fixture now creates a separate six-commit history with a merge
+and an unrelated tracking root. System and bundled Git both passed native menu
+checks for root omission, both captured merge-parent targets after selection changes,
+three contiguous rows, three disjoint rows, two disjoint rows, guarded delivery and
+unchanged refs/index/config. Both private receivers were reaped. The previous
+record's dedicated merge/root/larger-selection checks are now covered by this fixture.
+
+Parent captions now include available parent subjects, shortened after twenty
+UTF-16 units with the source ellipsis, and eight hash digits. Source inspection
+corrects the earlier assumption about configurable short-hash lengths: the pinned
+`CGit::GetShortHASHLength()` returns eight. The fixture sets `core.abbrev=12` and
+checks that parent captions still use eight. A parent outside the loaded list
+currently uses the source's hash-only fallback; fetching its subject remains open.
+These assertions cover native menu state/dispatch, not complete visual, keyboard,
+accessibility, signed sandbox or Synchronization acceptance.

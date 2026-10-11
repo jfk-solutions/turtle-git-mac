@@ -17,6 +17,80 @@ struct SynchronizationRevisionListVerification {
         window.contentView!.layoutSubtreeIfNeeded()
         return descendants(window.contentView!).compactMap { $0 as? NSTableView }.first { $0.tableColumn(withIdentifier: .init("actions")) != nil }!
     }
+    @MainActor static func verifyComparisonSelectionCases(root: URL, git: URL, preferences: UserDefaults) async throws {
+        try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
+        let repo = GitRepository(root:root,executable:git)
+        _ = try await repo.run(["init","-b","main","--template="])
+        for (key,value) in [("user.name","Menu QA"),("user.email","qa@example.invalid"),("core.hooksPath","/dev/null"),("commit.gpgsign","false"),("core.abbrev","12")] { _ = try await repo.run(["config",key,value]) }
+        func commit(_ title: String) async throws { _ = try await repo.run(["commit","--allow-empty","-m",title]) }
+        try Data("root\n".utf8).write(to:root.appendingPathComponent("tracked.txt"))
+        try await repo.stage(["tracked.txt"])
+        try await commit("Root")
+        _ = try await repo.run(["branch","side"])
+        try await commit("Main parent subject longer than twenty characters")
+        try await commit("Main second")
+        _ = try await repo.run(["checkout","side"])
+        try await commit("Side parent & quoted subject longer than twenty characters")
+        _ = try await repo.run(["checkout","main"])
+        _ = try await repo.run(["merge","--no-ff","side","-m","Merge"])
+        try await commit("Tip")
+        // An unrelated tracking root makes the entire local history outgoing.
+        _ = try await repo.run(["checkout","--orphan","remote-root"])
+        try await commit("Unrelated remote root")
+        let remoteHash = try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
+        _ = try await repo.run(["checkout","main"])
+        _ = try await repo.run(["remote","add","origin",root.appendingPathComponent("unused.git").path])
+        _ = try await repo.run(["update-ref","refs/remotes/origin/main",remoteHash])
+        _ = try await repo.run(["config","branch.main.remote","origin"])
+        _ = try await repo.run(["config","branch.main.merge","refs/heads/main"])
+        let refs = try await repo.run(["show-ref"]).stdout, config = try Data(contentsOf:root.appendingPathComponent(".git/config")), index = try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        let owner = SynchronizationWindowController(repository:repo,access:nil,preferences:preferences)
+        owner.showWindow(nil); defer { owner.close() }
+        let model = owner.model
+        try await settle { !model.busy && model.outgoing != nil }
+        model.force = true; model.refresh()
+        try await settle { !model.busy && model.historyEntries.count == 6 }
+        let native = table(owner.window!), rows = model.historyEntries
+        let mergeIndex = rows.firstIndex { $0.parents.count == 2 }!, rootIndex = rows.firstIndex { $0.parents.isEmpty }!
+        var captured: [(ComparisonRevision,ComparisonRevision)] = []
+        model.onHistoryCompare = { captured.append(($0,$1)) }
+        func menu(_ indexes: IndexSet) -> NSMenu {
+            native.selectRowIndexes(indexes,byExtendingSelection:false)
+            let menu = native.menu!; menu.delegate?.menuNeedsUpdate?(menu); return menu
+        }
+        func invoke(_ item: NSMenuItem) { precondition(item.isEnabled && NSApplication.shared.sendAction(item.action!,to:item.target,from:item)) }
+        let parents = menu(IndexSet(integer:mergeIndex)).items.first { $0.title == "Compare with previous revision" }!.submenu!.items
+        precondition(parents.count == 2)
+        for (i,item) in parents.enumerated() {
+            let hash = rows[mergeIndex].parents[i], parent = rows.first { $0.hash == hash }!
+            let text = parent.subject as NSString
+            let subject = text.length > 20 ? text.substring(to:20) + "..." : parent.subject
+            precondition(item.title == "Parent \(i + 1): \"\(subject)\" (\(hash.prefix(8)))", "Source captions use twenty UTF-16 units and eight hash digits even with core.abbrev=12")
+            precondition(item.image != nil)
+            _ = menu(IndexSet(integer:rootIndex))
+            invoke(item)
+            precondition(captured.last!.0 == .revision(hash) && captured.last!.1 == .revision(rows[mergeIndex].hash), "Merge parent target must survive a changed selection")
+        }
+        let rootMenu = menu(IndexSet(integer:rootIndex))
+        precondition(!rootMenu.items.contains { $0.title == "Compare with previous revision" })
+        precondition(rootMenu.items.contains { $0.title == "Compare with working tree" })
+        let contiguous = menu(IndexSet(integersIn:0..<3)).items.first { $0.title == "Compare revisions" }!
+        invoke(contiguous)
+        precondition(captured.last!.0 == .revision(rows[2].hash) && captured.last!.1 == .revision(rows[0].hash))
+        precondition(!menu(IndexSet([0,2,4])).items.contains { $0.title == "Compare revisions" })
+        let disjointTwo = menu(IndexSet([0,4])).items.first { $0.title == "Compare revisions" }!
+        invoke(disjointTwo)
+        precondition(captured.last!.0 == .revision(rows[4].hash) && captured.last!.1 == .revision(rows[0].hash))
+        model.confirmingQuit = true
+        precondition(!menu(IndexSet([0,4])).items.first { $0.title == "Compare revisions" }!.isEnabled)
+        let count = captured.count
+        precondition(NSApplication.shared.sendAction(disjointTwo.action!,to:disjointTwo.target,from:disjointTwo))
+        precondition(captured.count == count)
+        model.confirmingQuit = false
+        let finalRefs = try await repo.run(["show-ref"]).stdout, finalConfig = try Data(contentsOf:root.appendingPathComponent(".git/config")), finalIndex = try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        precondition(finalRefs == refs && finalConfig == config && finalIndex == index)
+        owner.close(); precondition(model.closed && !owner.window!.isVisible)
+    }
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
         let root = URL(fileURLWithPath: CommandLine.arguments[1]), repo = GitRepository(root: root, executable: URL(fileURLWithPath: CommandLine.arguments[2]))
@@ -197,7 +271,8 @@ struct SynchronizationRevisionListVerification {
         let finalRefs = try await repo.run(["show-ref"]).stdout, finalIndex = try Data(contentsOf:root.appendingPathComponent(".git/index")), finalConfig = try Data(contentsOf:root.appendingPathComponent(".git/config"))
         precondition(refs == finalRefs && index == finalIndex && config == finalConfig)
         owner.close(); precondition(model.closed && !model.busy && !window.isVisible)
-        print("PASS: native Sync source columns, original action icons, annotated/current/tracking ref labels, issue IDs, date/full-message settings, independent column toggles/reset, both lists/themes/sizes, clipboard menus/captured multi-selection/source text formats/full metadata/pointed names, native revision comparison menus/captured targets/owner guards/real comparison snapshots, owned action and clipboard cancellation/late-callback fencing and unchanged Git state")
+        try await verifyComparisonSelectionCases(root:root.appendingPathExtension("comparison-menu-cases"),git:repo.executable,preferences:preferences)
+        print("PASS: native Sync source columns, original action icons, annotated/current/tracking ref labels, issue IDs, date/full-message settings, independent column toggles/reset, both lists/themes/sizes, clipboard menus/captured multi-selection/source text formats/full metadata/pointed names, native revision comparison menus/captured targets/owner guards/real comparison snapshots/root omission/merge parents/source captions/contiguous and disjoint selection, owned action and clipboard cancellation/late-callback fencing and unchanged Git state")
     }
 }
 @_cdecl("turtlegit_history_main") func bootstrap() -> Int32 {

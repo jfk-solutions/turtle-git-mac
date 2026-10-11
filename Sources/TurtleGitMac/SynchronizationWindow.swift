@@ -614,6 +614,14 @@ enum SynchronizationHistoryCopy: String, CaseIterable {
     var displayedComparison: RevisionComparisonWindowModel { tab == 5 ? incomingComparison : comparison }
     var historyEntries: [LogEntry] { tab == 4 ? (incomingCommits ?? []) : (outgoing?.commits ?? []) }
     var historyGraph: [CommitGraphRow] { tab == 4 ? incomingGraph : graph }
+    func historyParentTitle(_ hash: String, index: Int) -> String {
+        // The pinned CGit::GetShortHASHLength returns eight, independent of core.abbrev.
+        let label = "Parent \(index + 1)", short = String(hash.prefix(8))
+        guard let parent = historyEntries.first(where: { $0.hash == hash }) else { return "\(label) (\(short))" }
+        let subject = parent.subject as NSString
+        let title = subject.length > 20 ? subject.substring(to: 20) + "..." : parent.subject
+        return "\(label): \"\(title)\" (\(short))"
+    }
     var historyPasteboard: NSPasteboard = .general
     func copyHistory(_ entries: [LogEntry], kind: SynchronizationHistoryCopy, pointedReference: String? = nil) {
         guard !closed, !confirmingQuit, !busy, !hasBlockingChild, !entries.isEmpty,
@@ -1662,7 +1670,7 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
                     parentItem.image = MenuIcon.compare.contextImage(defaults: model.preferences)
                     let parents = NSMenu(); parents.autoenablesItems = false
                     for (index, hash) in entry.parents.enumerated() {
-                        comparisonItem("Parent \(index + 1) (\(hash.prefix(7)))", from: .revision(hash), to: .revision(entry.hash), in: parents)
+                        comparisonItem(model.historyParentTitle(hash, index: index), from: .revision(hash), to: .revision(entry.hash), in: parents)
                     }
                     parentItem.submenu = parents; menu.addItem(parentItem)
                 }
