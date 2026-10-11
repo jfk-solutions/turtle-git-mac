@@ -1213,6 +1213,69 @@ import TurtleGitCore
         print("PASS: native Sync Stash direct commands/conflict tab/Shift routes, retained failed command output on inspection failure, actual standalone Shift Save options and progress after Sync closure, private preferences, forced options/progress sheet cleanup, before/after reference-read process reaping and suppressed late replies")
     }
 
+    @MainActor static func verifyManage(root: URL, preferences: UserDefaults) async throws {
+        let directory = root.appendingPathComponent("qa-sync-manage-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let selected = URL(fileURLWithPath: CommandLine.arguments[2])
+        let source = GitRepository(root: root, executable: selected)
+        _ = try await source.run(["clone", "--no-hardlinks", "--template=", "--", root.path, directory.path])
+        let shim = directory.appendingPathComponent("manage-git"), marker = directory.appendingPathComponent("manage-pid"), enable = directory.appendingPathComponent("manage-stall")
+        func quote(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\"'\"'") + "'" }
+        let environment = GitRuntime.environment(executable: selected).sorted { $0.key < $1.key }.map { "export " + $0.key + "=" + quote($0.value) }.joined(separator: "\n")
+        let script = "#!/bin/sh\n" + environment + "\nif [ -f " + quote(enable.path) + " ]; then\nfor argument; do\nif [ \"$argument\" = remote ]; then\nprintf '%s\\n' \"$$\" > " + quote(marker.path) + "\nwhile :; do sleep 1; done\nfi\ndone\nfi\nexec " + quote(selected.path) + " \"$@\"\n"
+        try Data(script.utf8).write(to: shim); try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: shim.path)
+        let repo = GitRepository(root: directory, executable: shim)
+        let head = try await repo.run(["rev-parse", "HEAD"]).stdout, refs = try await repo.run(["show-ref"]).stdout
+        let index = try Data(contentsOf: directory.appendingPathComponent(".git/index"))
+        let owner = SynchronizationWindowController(repository: repo, access: nil, preferences: preferences)
+        owner.window!.alphaValue = 0; owner.showWindow(nil); defer { owner.close() }
+        let model = owner.model
+        try await settle { !model.busy && model.outgoing != nil }
+        model.confirmingQuit = true; model.manageRemotes(); precondition(owner.remoteSettingsController == nil)
+        model.confirmingQuit = false
+        model.remoteBranch = "typed-branch"; model.remote = directory.path; model.force = true
+        model.manageRemotes()
+        let settings = owner.remoteSettingsController!
+        precondition(model.managingRemotes && model.hasBlockingChild && !owner.windowShouldClose(owner.window!))
+        precondition(settings.window!.sheetParent === owner.window && settings.window!.alphaValue == 0)
+        model.manageRemotes(); precondition(owner.remoteSettingsController === settings)
+        model.reload(); model.stash(.save, shift: false); precondition(!model.busy && !model.transportRunning)
+        try await settle { !settings.model.busy }
+        precondition(settings.model.names.map(\.rawValue) == ["origin"])
+        settings.model.confirm = { _ in (false, false) }
+        settings.model.edit(.name) { $0.name = "review" }
+        settings.model.edit(.url) { $0.url = root.path }
+        settings.model.save(); try await settle { !settings.model.busy }
+        precondition(settings.model.error == nil && settings.model.names.contains(GitReferenceName("review")))
+        settings.close()
+        try await settle { owner.remoteSettingsController == nil && !model.busy }
+        precondition(!model.managingRemotes && owner.window!.attachedSheet == nil && settings.model.closed)
+        precondition(model.remotes == ["origin", "review"] && model.remote == directory.path && model.remoteBranch == "typed-branch" && model.localBranch == "main" && model.force)
+        precondition(model.outgoing?.disposition == .unknownURL)
+        model.manageRemotes(); let cancelled = owner.remoteSettingsController!
+        try await settle { !cancelled.model.busy }
+        cancelled.model.select(GitReferenceName("origin")); try await settle { !cancelled.model.busy }
+        cancelled.model.edit(.url) { $0.url = "/tmp/unapplied-native-manage" }
+        cancelled.model.close()
+        try await settle { owner.remoteSettingsController == nil && !model.busy }
+        let origin = try await repo.run(["remote", "get-url", "origin"]).text.trimmingCharacters(in: .newlines)
+        precondition(origin == root.path)
+        let finalHead = try await repo.run(["rev-parse", "HEAD"]).stdout, finalRefs = try await repo.run(["show-ref"]).stdout
+        let finalIndex = try Data(contentsOf: directory.appendingPathComponent(".git/index"))
+        precondition(finalHead == head && finalRefs == refs && finalIndex == index)
+        // Force owner closure while the actual Remote settings reader is stalled.
+        try Data().write(to: enable); model.manageRemotes(); let blocked = owner.remoteSettingsController!
+        try await settle { FileManager.default.fileExists(atPath: marker.path) }
+        let pid = pid_t(try String(contentsOf: marker).trimmingCharacters(in: .newlines))!
+        owner.close()
+        try await settle { kill(pid, 0) == -1 }
+        let processState = kill(pid, 0), processError = errno
+        precondition(processState == -1 && processError == ESRCH)
+        precondition(model.closed && !model.busy && !model.managingRemotes && blocked.model.closed && !blocked.model.busy)
+        precondition(owner.remoteSettingsController == nil && owner.window!.attachedSheet == nil && blocked.window!.sheetParent == nil)
+        model.manageRemotes(); precondition(owner.remoteSettingsController == nil)
+        print("PASS: native Sync Manage opens owned Remote settings, applies real config, preserves typed branch/URL/Force, refreshes outgoing on dismissal, discards unapplied edits and reaps blocked reads on forced owner closure")
+    }
     @MainActor static func main() async throws {
         if let status = RebaseEditor.handle(arguments: CommandLine.arguments, environment: ProcessInfo.processInfo.environment) { exit(status) }
         NSApplication.shared.setActivationPolicy(.prohibited)
@@ -1221,12 +1284,13 @@ import TurtleGitCore
         _ = try await repo.run(["init", "-b", "main"])
         for (key, value) in [("user.name", "Sync QA"), ("user.email", "qa@example.invalid"), ("commit.gpgsign", "false"), ("core.hooksPath", "/dev/null")] { _ = try await repo.run(["config", key, value]) }
         try Data("base\n".utf8).write(to: root.appendingPathComponent("file")); try await repo.stage(["file"]); _ = try await repo.commit(message: "base")
-        if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_TAGS_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_PUSH_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_SUBMODULES_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_STASH_ONLY"] == "1" {
+        if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_TAGS_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_PUSH_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_SUBMODULES_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_STASH_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_MANAGE_ONLY"] == "1" {
             try Data("second\n".utf8).write(to: root.appendingPathComponent("file")); try await repo.stage(["file"]); _ = try await repo.commit(message: "second")
             let suite = "TurtleGit.Tags.QA." + UUID().uuidString, preferences = UserDefaults(suiteName: suite)!
             defer { preferences.removePersistentDomain(forName: suite) }
             DialogGeometry.install(preferences: preferences)
-            if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_STASH_ONLY"] == "1" { try await verifyStash(root:root,preferences:preferences) }
+            if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_MANAGE_ONLY"] == "1" { try await verifyManage(root:root,preferences:preferences) }
+            else if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_STASH_ONLY"] == "1" { try await verifyStash(root:root,preferences:preferences) }
             else if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_SUBMODULES_ONLY"] == "1" { try await verifySubmodules(root: root, preferences: preferences) }
             else if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_PUSH_ONLY"] == "1" { try await verifyPush(root: root, preferences: preferences) }
             else { try await verifyTags(root: root, preferences: preferences) }; return
@@ -1303,6 +1367,7 @@ import TurtleGitCore
         try await verifyPush(root: root, preferences: preferences)
         try await verifySubmodules(root: root, preferences: preferences)
         try await verifyStash(root: root, preferences: preferences)
+        try await verifyManage(root: root, preferences: preferences)
         print("PASS: native Sync tracking controls, exact Unicode choices, graph-first table, changes and pinned comparison snapshot, divergence/Force, unknown states, Quit fences, owner invalidation and read-only preservation")
     }
 }

@@ -220,6 +220,7 @@ private struct SynchronizationProgressDialog: View {
     private(set) var commandProgress: SynchronizationProgressController?
     private(set) var optionsController: FetchWindowController?
     private(set) var pushOptionsController: PushWindowController?
+    private(set) var remoteSettingsController: RemoteSettingsWindowController?
     var configureOptions: (FetchWindowController) -> Void = { _ in }
     var configurePushOptions: (PushWindowController) -> Void = { _ in }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
@@ -406,8 +407,31 @@ private struct SynchronizationProgressDialog: View {
                 reply(response == .alertSecondButtonReturn)
             }
         }
+        model.onManageRemotes = { [weak self] in self?.showRemoteSettings() }
         model.comparison.window = window; model.incomingComparison.window = window; window.center()
         DialogGeometry.attach(window, identifier: "SyncDlg", legacyName: "SyncDlg")
+    }
+    func showRemoteSettings() {
+        guard !model.closed, !model.confirmingQuit, !model.busy, !model.hasBlockingChild,
+              let owner = window, owner.attachedSheet == nil, remoteSettingsController == nil else { return }
+        owner.makeFirstResponder(nil)
+        let child = RemoteSettingsWindowController(repository: model.repository, access: model.access, preferences: model.preferences)
+        remoteSettingsController = child; model.managingRemotes = true
+        child.configureFetch = configureOptions
+        child.presentFetch = { owner, window in
+            guard owner.attachedSheet == nil else { return false }
+            window.alphaValue = owner.alphaValue; owner.beginSheet(window); return true
+        }
+        child.onClosed = { [weak self, weak child] in
+            guard let self, let child, self.remoteSettingsController === child else { return }
+            if let window = child.window, window.sheetParent === self.window { self.window?.endSheet(window) }
+            self.remoteSettingsController = nil; self.model.managingRemotes = false
+            // Upstream Refresh reloads outgoing results after the modal settings
+            // page closes, including dismissal without edits.
+            if !self.model.closed { self.model.reload() }
+        }
+        guard let window = child.window else { remoteSettingsController = nil; model.managingRemotes = false; return }
+        window.alphaValue = owner.alphaValue; owner.beginSheet(window); child.model.load()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
@@ -422,6 +446,7 @@ private struct SynchronizationProgressDialog: View {
         model.detachRebase()
         optionsController?.close(); optionsController = nil
         pushOptionsController?.close(); pushOptionsController = nil
+        remoteSettingsController?.close(); remoteSettingsController = nil; model.managingRemotes = false
         commandProgress?.abortPresentation(); commandProgress = nil
         if let alert = pullAlert, window?.attachedSheet === alert.window { window?.endSheet(alert.window, returnCode: .abort) }
         pullAlert = nil
@@ -538,6 +563,8 @@ private struct SynchronizationProgressDialog: View {
     private(set) var closed = false
     var onLog: (String) -> Void = { _ in }
     var onCommit: () -> Void = {}
+    var onManageRemotes: () -> Void = {}
+    @Published var managingRemotes = false
     var onStashOptions: () -> Void = {}
     var onSubmoduleOptions: (SynchronizationSubmoduleAction) -> Void = { _ in }
     var onTagLog: ((String) -> Void)?
@@ -545,7 +572,7 @@ private struct SynchronizationProgressDialog: View {
     var onReferenceLog: (String) -> Void = { _ in }
     var onReferenceCompare: (String, String) -> Void = { _, _ in }
     var hasBlockingChild: Bool {
-        NSApp.modalWindow != nil || [comparison, incomingComparison].contains { child in
+        managingRemotes || NSApp.modalWindow != nil || [comparison, incomingComparison].contains { child in
             child.busy || child.comparisonWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil } || child.unifiedWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil }
         }
     }
@@ -628,6 +655,10 @@ private struct SynchronizationProgressDialog: View {
     func performPullAction(_ action: SynchronizationTransportAction? = nil, shift: Bool = NSEvent.modifierFlags.contains(.shift)) {
         if action == nil, compareTagsSelected { compareTags(shift: shift) }
         else { fetch(action ?? pullAction, shift: shift) }
+    }
+    func manageRemotes() {
+        guard !closed, !confirmingQuit, !busy, !hasBlockingChild, window?.attachedSheet == nil else { return }
+        onManageRemotes()
     }
     func refresh() { if comparingTags { compareTags() } else { reload() } }
     func compareTags(shift: Bool = false) {
@@ -1074,6 +1105,8 @@ private struct SynchronizationDialog: View {
                     HStack {
                         Text("Remote URL:")
                         FetchHistoryCombo(value: edit(\.remote), choices: model.remoteChoices, label: "Remote URL")
+                        Button { model.manageRemotes() } label: { CommandLabel(title: "Manage", icon: .settings) }
+                            .disabled(model.busy || model.confirmingQuit)
                     }
                     HStack { SSHAutoloadToggle(settings: model.sshSettings); Spacer() }
                     Toggle("Force", isOn: Binding(get: { model.force }, set: { model.force = $0; model.reload() }))

@@ -10,7 +10,7 @@ struct SynchronizationLayoutCapture {
         let root = URL(fileURLWithPath: CommandLine.arguments[1]), output = URL(fileURLWithPath: CommandLine.arguments[2])
         let repository = GitRepository(root: root)
         _ = try await repository.run(["init", "-b", "main", "--template="])
-        for (key, value) in [("user.name", "TurtleGit demo"), ("user.email", "demo@example.invalid"), ("core.hooksPath", "/dev/null")] { _ = try await repository.run(["config", key, value]) }
+        for (key, value) in [("user.name", "TurtleGit demo"), ("user.email", "demo@example.invalid"), ("core.hooksPath", "/dev/null"), ("commit.gpgsign", "false")] { _ = try await repository.run(["config", key, value]) }
         let file = root.appendingPathComponent("README.md")
         try Data("TurtleGit sample repository\n".utf8).write(to: file)
         try await repository.stage(["README.md"]); _ = try await repository.commit(message: "Create the sample repository")
