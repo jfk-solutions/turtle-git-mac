@@ -1,0 +1,71 @@
+{
+  "date": "2026-10-11",
+  "status": "partial-native-containing-references-verified",
+  "code_commit": "a7cf3052cc33af0ea66d2c24736276372b3cf820",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_references": [
+    "src/TortoiseProc/GitLogListBase.cpp: exactly-one ID_SHOWBRANCHES after clipboard and Find",
+    "src/TortoiseProc/GitLogListAction.cpp: modeless CommitIsOnRefsDlg with captured revision",
+    "src/TortoiseProc/CommitIsOnRefsDlg.cpp: parent navigation on reference double-click"
+  ],
+  "implemented": [
+    "Single-revision source caption and original icon after clipboard",
+    "Captured revision in owned native modeless references child",
+    "RepositoryModel Log/range Log, browser and comparison routes; shared native unified viewer",
+    "Parent-owned child registry, nested picker blockers and forced close cancellation",
+    "Published once-delivered visible-row selection or scroll navigation"
+  ],
+  "verification": {
+    "engines": [
+      "system Git 2.50.1",
+      "bundled Git 2.55.0"
+    ],
+    "native_receivers_reaped": [
+      58386,
+      60462
+    ],
+    "native_scenarios": [
+      "Actual captured revision after selection change and parent-child association",
+      "Containing references match independent git for-each-ref --contains names",
+      "Actual Show Log button opens and selects captured revision",
+      "Reference navigation selects row or preserves selection for scroll-only request",
+      "Original icon, last command position and multi-selection omission",
+      "Quit rejects retained action",
+      "Nested native reference picker blocks competing actions and closes with references owner",
+      "Forced Sync close cancels and closes loading references child",
+      "Existing revision-list assertions retained"
+    ],
+    "builds": [
+      "Debug unsigned passed",
+      "AppStore unsigned universal passed"
+    ],
+    "bundle_audits": [
+      "Debug passed",
+      "AppStore required Git passed"
+    ],
+    "inventory_pin_audit": "passed",
+    "documentation_site_build": "passed",
+    "scope": "Direct native action, content and lifecycle checks; no physical-input, complete child menu, new full Core-suite or signed acceptance claim",
+    "warnings": [
+      "Hidden nested picker emits zero-size NSSplitView layout warnings"
+    ]
+  },
+  "sha256": {
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "a05d401499dbc12893f8279cfc44acf02152507ba972e3eed969235fbb04e2f7",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "41aadf0adefb4c14439ad13fdef7bba65ca3598bb0bf73f38148288b3c34efa2",
+    "docs/qa/synchronization-revision-list-native-2026-10-11.swift": "ca9db8a5b6b201c9de8b912e91f8c9b63ad31282dfb994acf8f208ac1bc681d0",
+    "build/qa/sync-containing-refs-debug-2026-10-11.log": "ea5cfac900ce88ad8d7552c85b5b4cd77d5593c160b8cf45c50b3d4271b9ab47",
+    "build/qa/sync-containing-refs-store-2026-10-11.log": "af229bf8ecc1857bea63fe8660c8ecdead9ac5b5d796c74539aa22508012ac00",
+    "build/qa/sync-containing-refs-native-2026-10-11.log": "619ab0579c2bbe53b57bc928be51a5e8481323f55f795adaef89e20dea22f00b",
+    "build/qa/sync-containing-refs-debug-audit-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/sync-containing-refs-store-audit-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/sync-containing-refs-inventory-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/sync-containing-refs-site-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "remaining": [
+    "Physical double-click/Shift/menu and accessibility acceptance",
+    "Missing-reference attention and navigation across incoming/outgoing tab changes",
+    "Complete references child command and remaining Sync parity",
+    "Signed Finder, sandbox and App Store distribution acceptance"
+  ]
+}
