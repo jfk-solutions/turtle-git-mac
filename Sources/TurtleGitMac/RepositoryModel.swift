@@ -719,6 +719,7 @@ import TurtleGitCore
         if let existing = synchronizationWindows[key] { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
         let controller = SynchronizationWindowController(repository: repository, access: access)
         configureRevisionComparisonInteractions(controller.model.comparison, repository: repository, access: access)
+        configureRevisionComparisonInteractions(controller.model.incomingComparison, repository: repository, access: access)
         controller.model.onTransportFinished = { [weak self] text in
             guard let self else { return }
             self.output = text; self.refreshRepositoryLogs(repository.root)
@@ -728,6 +729,21 @@ import TurtleGitCore
         controller.model.onCommit = { [weak self] in self?.showCommitDialog(repository: repository, access: access, paths: []) }
         controller.model.onReferenceLog = { [weak self] reference in self?.showReferenceLog(repository: repository, access: access, reference: reference) }
         controller.model.onReferenceCompare = { [weak self] old, new in self?.showRevisionComparison(repository: repository, access: access, from: .revision(old), to: .revision(new)) }
+        controller.model.onResolve = { [weak self] paths in self?.showResolve(repository: repository, access: access, paths: paths, quick: nil) }
+        controller.model.runRebase = { [weak self, weak controller] target, preserve in
+            guard let self, let controller, !controller.model.closed, let owner = controller.window,
+                  owner.attachedSheet == nil, self.rebaseWindows[key] == nil else { throw SynchronizationFailure.invalidInput }
+            await withCheckedContinuation { continuation in
+                self.showRebase(repository: repository, access: access, upstream: target, autoStart: true, preserveMerges: preserve,
+                    afterFetch: true, owner: owner, onDismissed: { continuation.resume() })
+            }
+        }
+        controller.model.detachRebase = { [weak self, weak controller] in
+            guard let child = self?.rebaseWindows[key], let window = child.window,
+                  let owner = controller?.window, window.sheetParent === owner else { return }
+            owner.endSheet(window)
+            if child.model.busy { child.showWindow(nil) } else { child.close() }
+        }
         controller.onClosed = { [weak self] in self?.synchronizationWindows.removeValue(forKey: key) }
         synchronizationWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
@@ -1456,11 +1472,17 @@ import TurtleGitCore
         log.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
         }
     }
-    private func showRebase(repository: GitRepository, access: RepositoryAccessLease?, upstream: String? = nil, autoStart: Bool = false, preserveMerges: Bool = false, cherryPick: [String]? = nil, afterFetch: Bool = false, fromLog: Bool = false) {
+    private func showRebase(repository: GitRepository, access: RepositoryAccessLease?, upstream: String? = nil, autoStart: Bool = false, preserveMerges: Bool = false, cherryPick: [String]? = nil, afterFetch: Bool = false, fromLog: Bool = false, owner: NSWindow? = nil, onDismissed: (() -> Void)? = nil) {
         let root = repository.root
         let existing = rebaseWindows[root.path]
+        if let existing, existing.window?.sheetParent != nil { existing.window?.makeKeyAndOrderFront(nil); return }
         let controller = existing ?? RebaseWindowController(repository: repository, access: access)
-        controller.onClosed = { [weak self] in self?.rebaseWindows.removeValue(forKey: root.path) }
+        var dismissed = false
+        controller.onClosed = { [weak self, weak controller] in
+            guard !dismissed else { return }; dismissed = true
+            if let window = controller?.window { window.sheetParent?.endSheet(window) }
+            self?.rebaseWindows.removeValue(forKey: root.path); onDismissed?()
+        }
         controller.model.onChanged = { [weak self] in
             self?.refreshRepositoryLogs(root); self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
             if self?.root == root { Task { await self?.refresh() } }
@@ -1505,7 +1527,8 @@ import TurtleGitCore
         }
         rebaseWindows[root.path] = controller
         if existing == nil || controller.model.finished || upstream != nil || cherryPick != nil { controller.model.load(upstream: upstream, autoStart: autoStart, preserveMerges: preserveMerges, cherryPick: cherryPick) }
-        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        if let owner, let child = controller.window { owner.beginSheet(child) }
+        else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
     }
     private func configureFetchInteractions(_ controller: FetchWindowController, repository: GitRepository, access: RepositoryAccessLease?, followUp: PullFollowUp = PullFollowUp()) {
         let root = repository.root

@@ -3,10 +3,130 @@ import AppKit
 import SwiftUI
 import TurtleGitCore
 
+enum SynchronizationTrackingChoice { case yes, no, cancel }
+struct SynchronizationTrackingAnswer {
+    let choice: SynchronizationTrackingChoice
+    var suppress = false
+}
+
+@MainActor final class SynchronizationCheckoutController: NSWindowController, NSWindowDelegate {
+    let model: SynchronizationCheckoutModel
+    var onClosed: () -> Void = {}
+    private var alert: NSAlert?
+    private var completion: ((Result<SynchronizationPullCheckout, Error>) -> Void)?
+    init(repository: GitRepository, plan: SynchronizationTransportPlan, cancellation: OperationCancellation, preferences: UserDefaults,
+         completion: @escaping (Result<SynchronizationPullCheckout, Error>) -> Void) {
+        model = SynchronizationCheckoutModel(repository: repository, plan: plan, cancellation: cancellation, preferences: preferences)
+        self.completion = completion
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 420), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        window.title = "\(repository.root.lastPathComponent) – Checkout Progress – TurtleGit"
+        window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 560, height: 300)
+        window.contentViewController = NSHostingController(rootView: SynchronizationCheckoutDialog(model: model))
+        super.init(window: window); window.delegate = self
+        model.close = { [weak self] in self?.closePresentation() }
+        model.confirmCancel = { [weak self] reply in
+            guard let self, let window = self.window, window.attachedSheet == nil else { reply(false); return }
+            let alert = NSAlert(); alert.messageText = "The process is still running."; alert.informativeText = "Are you sure to abort?"
+            alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No"); self.alert = alert
+            alert.beginSheetModal(for: window) { [weak self] response in self?.alert = nil; reply(response == .alertFirstButtonReturn) }
+        }
+        DialogGeometry.attach(window, identifier: "ProgressDlg")
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+    private func closePresentation() { guard !model.busy, !model.confirmingCancellation else { return }; window?.sheetParent?.endSheet(window!); close() }
+    func abortPresentation() {
+        model.invalidate()
+        if let alert, window?.attachedSheet === alert.window { window?.endSheet(alert.window, returnCode: .abort) }
+        alert = nil; window?.sheetParent?.endSheet(window!); close()
+    }
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if model.busy { model.cancel(); return false }
+        guard !model.confirmingCancellation, sender.attachedSheet == nil else { return false }
+        sender.sheetParent?.endSheet(sender); return true
+    }
+    func windowWillClose(_ notification: Notification) {
+        let result = model.result ?? .failure(OperationCancellationFailure.cancelled)
+        model.invalidate(); window?.sheetParent?.endSheet(window!)
+        let callback = completion; completion = nil; onClosed(); callback?(result)
+    }
+}
+
+@MainActor final class SynchronizationCheckoutModel: ObservableObject {
+    let repository: GitRepository, plan: SynchronizationTransportPlan, preferences: UserDefaults
+    private let cancellation: OperationCancellation
+    private var started = false, closed = false
+    @Published private(set) var busy = true
+    @Published private(set) var output = ""
+    @Published private(set) var confirmingCancellation = false
+    private(set) var result: Result<SynchronizationPullCheckout, Error>?
+    var close: () -> Void = {}
+    var confirmCancel: (@escaping (Bool) -> Void) -> Void = { $0(false) }
+    init(repository: GitRepository, plan: SynchronizationTransportPlan, cancellation: OperationCancellation, preferences: UserDefaults) {
+        self.repository = repository; self.plan = plan; self.cancellation = cancellation; self.preferences = preferences
+    }
+    func invalidate() { closed = true; if busy { cancellation.cancel() }; busy = false; confirmingCancellation = false }
+    func cancel() {
+        guard !closed, busy, !confirmingCancellation, !cancellation.isCancelled else { return }
+        if preferences.bool(forKey: "ConfirmKillProcess") {
+            confirmingCancellation = true
+            var answered = false
+            confirmCancel { [weak self] accepted in
+                guard !answered, let self, !self.closed else { return }; answered = true; self.confirmingCancellation = false
+                if accepted, self.busy { self.cancellation.cancel() }
+                if !self.busy, case .success = self.result { self.close() }
+            }
+        } else { cancellation.cancel() }
+    }
+    func start() {
+        guard !started, !closed else { return }; started = true
+        Task {
+            let parser = GitCliOutputParser(limit: GitProgressOutputState(preferences: preferences).limit)
+            var state = GitProgressOutputState(preferences: preferences)
+            let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
+            let operation = Task {
+                defer { continuation.finish() }
+                return try await repository.synchronizationPullCheckout(plan, checkoutAuthorized: true, cancellation: cancellation,
+                    onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) })
+            }
+            for await _ in updates {
+                guard !closed else { continue }; state.consume(parser.processPending(), parser: parser); output = state.output
+            }
+            guard !closed else { _ = try? await operation.value; return }
+            state.consume(parser.processPending(), parser: parser); state.consume(parser.finish(), parser: parser); output = state.output
+            do { result = .success(try await operation.value) }
+            catch {
+                result = .failure(error)
+                if let failure = error as? GitFailure, state.hasOutput { output += "\nGit command failed (\(failure.code))." }
+                else { output += "\n" + error.localizedDescription }
+            }
+            guard !closed else { return }; busy = false
+            if !confirmingCancellation, case .success = result { close() }
+        }
+    }
+}
+
+private struct SynchronizationCheckoutDialog: View {
+    @ObservedObject var model: SynchronizationCheckoutModel
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Switch to \(model.plan.checkoutBranch ?? model.plan.options.localBranch)").font(.headline)
+            SubmoduleProgressOutputView(text: model.output, completed: !model.busy, success: { if case .success = model.result { return true }; return false }(), preferences: model.preferences)
+            HStack {
+                if model.busy { ProgressView().controlSize(.small); Text("Switching…") } else { Text("Checkout failed").foregroundStyle(.red) }
+                Spacer()
+                if model.busy { Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction) }
+                else { Button("Close") { model.close() }.keyboardShortcut(.defaultAction) }
+            }.disabled(model.confirmingCancellation)
+        }.padding(12)
+    }
+}
+
 @MainActor final class SynchronizationWindowController: NSWindowController, NSWindowDelegate {
     let model: SynchronizationWindowModel
     var onClosed: () -> Void = {}
     private var cancellationAlert: NSAlert?
+    private var pullAlert: NSAlert?
+    private var checkoutProgress: SynchronizationCheckoutController?
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
         model = SynchronizationWindowModel(repository: repository, access: access, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1050, height: 660), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
@@ -14,6 +134,38 @@ import TurtleGitCore
         window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 860, height: 500)
         window.contentViewController = NSHostingController(rootView: SynchronizationDialog(model: model))
         super.init(window: window); window.delegate = self; model.window = window
+        model.confirmCheckout = { [weak self] branch in
+            guard let self, !self.model.closed, let window = self.window, window.attachedSheet == nil else { return false }
+            let alert = NSAlert(); alert.messageText = "Pull into a different local branch?"
+            alert.informativeText = "Switch to \(branch) before pulling."
+            alert.addButton(withTitle: "Switch to \(branch)"); alert.addButton(withTitle: "Abort")
+            self.pullAlert = alert
+            let response = await alert.beginSheetModal(for: window)
+            if self.pullAlert === alert { self.pullAlert = nil }
+            return response == .alertFirstButtonReturn
+        }
+        model.askTracking = { [weak self] branch, remote, destination in
+            guard let self, !self.model.closed, let window = self.window, window.attachedSheet == nil else { return SynchronizationTrackingAnswer(choice: .cancel) }
+            let alert = NSAlert(); alert.messageText = "Set tracked branch?"
+            alert.informativeText = "\(branch) has no tracked branch. Track \(remote)/\(destination)?"
+            alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No"); alert.addButton(withTitle: "Cancel")
+            let remember = NSButton(checkboxWithTitle: "Do not show again", target: nil, action: nil); alert.accessoryView = remember
+            self.pullAlert = alert
+            let response = await alert.beginSheetModal(for: window)
+            if self.pullAlert === alert { self.pullAlert = nil }
+            let choice: SynchronizationTrackingChoice = response == .alertFirstButtonReturn ? .yes : response == .alertSecondButtonReturn ? .no : .cancel
+            return SynchronizationTrackingAnswer(choice: choice, suppress: remember.state == .on)
+        }
+        model.performCheckout = { [weak self] plan, token in
+            guard let self, !self.model.closed, let window = self.window, window.attachedSheet == nil else { throw OperationCancellationFailure.cancelled }
+            return try await withCheckedThrowingContinuation { continuation in
+                let child = SynchronizationCheckoutController(repository: repository, plan: plan, cancellation: token, preferences: preferences) { result in continuation.resume(with: result) }
+                self.checkoutProgress = child
+                child.onClosed = { [weak self] in self?.checkoutProgress = nil }
+                child.window?.alphaValue = window.alphaValue
+                window.beginSheet(child.window!); child.model.start()
+            }
+        }
         model.sshSettings.present = { [weak self] prompt in
             guard let self, !self.model.closed, !self.model.confirmingQuit, let window = self.window, window.attachedSheet == nil else { return false }
             guard let child = prompt.window else { return false }
@@ -30,23 +182,29 @@ import TurtleGitCore
                 reply(response == .alertSecondButtonReturn)
             }
         }
-        model.comparison.window = window; window.center()
+        model.comparison.window = window; model.incomingComparison.window = window; window.center()
         DialogGeometry.attach(window, identifier: "SyncDlg", legacyName: "SyncDlg")
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         guard !model.transportRunning, !model.confirmingCancellation, !model.hasBlockingChild, sender.attachedSheet == nil else { return false }
-        if let child = model.comparison.comparisonWindows.values.first(where: { $0.model.dirty }) {
+        if let child = [model.comparison, model.incomingComparison].flatMap({ Array($0.comparisonWindows.values) }).first(where: { $0.model.dirty }) {
             child.window?.makeKeyAndOrderFront(nil); child.window?.performClose(nil); return false
         }
         return true
     }
     func windowWillClose(_ notification: Notification) {
         model.invalidate()
+        model.detachRebase()
+        checkoutProgress?.abortPresentation(); checkoutProgress = nil
+        if let alert = pullAlert, window?.attachedSheet === alert.window { window?.endSheet(alert.window, returnCode: .abort) }
+        pullAlert = nil
         if let alert = cancellationAlert, window?.attachedSheet === alert.window { window?.endSheet(alert.window, returnCode: .abort) }
         cancellationAlert = nil
         Array(model.comparison.comparisonWindows.values).forEach { $0.close() }
         Array(model.comparison.unifiedWindows.values).forEach { $0.close() }
+        Array(model.incomingComparison.comparisonWindows.values).forEach { $0.close() }
+        Array(model.incomingComparison.unifiedWindows.values).forEach { $0.close() }
         onClosed()
     }
 }
@@ -56,6 +214,7 @@ import TurtleGitCore
     let access: RepositoryAccessLease?
     let preferences: UserDefaults
     let comparison: RevisionComparisonWindowModel
+    let incomingComparison: RevisionComparisonWindowModel
     let sshSettings: SSHTransportSettings
     weak var window: NSWindow?
     @Published private(set) var localBranches: [String] = []
@@ -69,10 +228,34 @@ import TurtleGitCore
     @Published var confirmingQuit = false {
         didSet {
             comparison.confirmingQuit = confirmingQuit
+            incomingComparison.confirmingQuit = confirmingQuit
             for viewer in comparison.unifiedWindows.values { viewer.model.confirmingQuit = confirmingQuit }
+            for viewer in incomingComparison.unifiedWindows.values { viewer.model.confirmingQuit = confirmingQuit }
         }
     }
-    @Published var tab = 0
+    @Published var tab = 0 { didSet { if tab != oldValue { fileSelection = [] } } }
+    @Published private(set) var incomingCommits: [LogEntry]?
+    @Published private(set) var incomingGraph: [CommitGraphRow] = []
+    @Published private(set) var conflicts: [StatusEntry] = []
+    @Published var pullAction = SynchronizationTransportAction.pull
+    var confirmCheckout: (String) async -> Bool = { _ in false }
+    var askTracking: (String, String, String) async -> SynchronizationTrackingAnswer = { _, _, _ in SynchronizationTrackingAnswer(choice: .cancel) }
+    var performCheckout: ((SynchronizationTransportPlan, OperationCancellation) async throws -> SynchronizationPullCheckout)?
+    var runRebase: (String, Bool) async throws -> Void = { _, _ in throw SynchronizationFailure.invalidInput }
+    var detachRebase: () -> Void = {}
+    var onResolve: ([String]) -> Void = { _ in }
+    var displayedComparison: RevisionComparisonWindowModel { tab == 5 ? incomingComparison : comparison }
+    var historyEntries: [LogEntry] { tab == 4 ? (incomingCommits ?? []) : (outgoing?.commits ?? []) }
+    var historyGraph: [CommitGraphRow] { tab == 4 ? incomingGraph : graph }
+    var pullActionTitle: String {
+        switch pullAction {
+        case .pull: return "Pull"
+        case .fetchAllBranches: return "Fetch All"
+        case .remoteUpdate: return "Remote Update"
+        case .prune: return "Cleanup stale remote branches"
+        default: return "Fetch"
+        }
+    }
     @Published var fileSelection = Set<String>()
     @Published private(set) var referenceChanges: [SynchronizationReferenceChange] = []
     @Published var hideUnchangedReferences = false { didSet { preferences.set(hideUnchangedReferences, forKey: "RefCompareHideUnchanged") } }
@@ -106,7 +289,9 @@ import TurtleGitCore
     var onReferenceLog: (String) -> Void = { _ in }
     var onReferenceCompare: (String, String) -> Void = { _, _ in }
     var hasBlockingChild: Bool {
-        NSApp.modalWindow != nil || comparison.busy || comparison.comparisonWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil } || comparison.unifiedWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil }
+        NSApp.modalWindow != nil || [comparison, incomingComparison].contains { child in
+            child.busy || child.comparisonWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil } || child.unifiedWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil }
+        }
     }
     var remoteChoices: [String] {
         var seen = Set<GitReferenceName>()
@@ -118,6 +303,14 @@ import TurtleGitCore
         sshSettings = SSHTransportSettings(repository: repository)
         outputState = GitProgressOutputState(preferences: preferences)
         comparison = RevisionComparisonWindowModel(repository: repository, access: access, from: .revision("HEAD"), to: .revision("HEAD"))
+        incomingComparison = RevisionComparisonWindowModel(repository: repository, access: access, from: .revision("HEAD"), to: .revision("HEAD"))
+        switch preferences.integer(forKey: historyKey + ".pullAction") {
+        case 1: pullAction = .fetch
+        case 3: pullAction = .fetchAllBranches
+        case 4: pullAction = .remoteUpdate
+        case 5: pullAction = .prune
+        default: pullAction = .pull
+        }
         branchHistory = preferences.stringArray(forKey: historyKey + ".branches") ?? []
         urlHistory = preferences.stringArray(forKey: historyKey + ".urls") ?? []
         sshSettings.load(preferences, key: historyKey + ".autoload")
@@ -136,7 +329,7 @@ import TurtleGitCore
         case nil: return ""
         }
     }
-    func invalidate() { closed = true; token?.cancel(); token = nil; comparison.invalidate(); busy = false; confirmingCancellation = false; cancellationQuestion = nil; transportID = nil }
+    func invalidate() { closed = true; token?.cancel(); token = nil; comparison.invalidate(); incomingComparison.invalidate(); busy = false; confirmingCancellation = false; cancellationQuestion = nil; transportID = nil }
     func reload(selectTracking: Bool = false, initial: Bool = false) {
         guard !closed, !confirmingQuit, !transportRunning, !hasBlockingChild else { return }
         token?.cancel()
@@ -164,14 +357,19 @@ import TurtleGitCore
             }
         }
     }
-    /// Non-integrating entries of SyncDlg's Pull split button. Pull and
-    /// Fetch & Rebase require their own checkout/tracking/Rebase workflow.
+    func performPullAction(_ action: SynchronizationTransportAction? = nil) { fetch(action ?? pullAction) }
+    /// CLI entries of the source Pull split control. Fetch & Rebase's chooser
+    /// and Shift routing still require their separate source workflows.
     func fetch(_ action: SynchronizationTransportAction = .fetch) {
-        guard [.fetch, .fetchAllBranches, .remoteUpdate, .prune].contains(action),
+        guard [.pull, .fetch, .fetchAllBranches, .remoteUpdate, .prune].contains(action),
               !closed, !confirmingQuit, !confirmingCancellation, !busy, !hasBlockingChild, window?.attachedSheet == nil else { return }
+        pullAction = action
+        let actionIndex = action == .pull ? 0 : action == .fetch ? 1 : action == .fetchAllBranches ? 3 : action == .remoteUpdate ? 4 : 5
+        preferences.set(actionIndex, forKey: historyKey + ".pullAction")
         let operationID = UUID(); transportID = operationID
         let request = OperationCancellation(); token = request; busy = true; transportRunning = true
         cancelling = false; commandCompleted = false; commandSucceeded = false; referenceChanges = []
+        incomingCommits = nil; incomingGraph = []; incomingComparison.snapshot = nil; conflicts = []
         outputState.reset(); commandOutput = ""; percentage = nil; currentWork = ""; error = nil; tab = 2
         var options = SynchronizationTransportOptions(action: action)
         options.localBranch = localBranch; options.remote = remote; options.remoteBranch = remoteBranch; options.force = force
@@ -182,15 +380,47 @@ import TurtleGitCore
             defer { if transportID == operationID { token = nil; busy = false; transportRunning = false; transportID = nil } }
             let parser = GitCliOutputParser(limit: outputState.limit)
             var oldReferences: SynchronizationReferenceSnapshot?
+            var oldHead: String?
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let plan = try await repository.synchronizationTransportPlan(options, cancellation: request)
+                oldHead = plan.oldHead
+                var checkout: SynchronizationPullCheckout?
+                if action == .pull {
+                    if let branch = plan.checkoutBranch {
+                        guard await confirmCheckout(branch), !closed, token === request, !request.isCancelled else { throw OperationCancellationFailure.cancelled }
+                        guard let performCheckout else { throw SynchronizationFailure.invalidInput }
+                        checkout = try await performCheckout(plan, request)
+                    } else { checkout = try await repository.synchronizationPullCheckout(plan, cancellation: request) }
+                    guard !closed, token === request, !request.isCancelled else { throw OperationCancellationFailure.cancelled }
+                    if !options.remote.contains("/"), !options.remote.contains("\\"), !plan.options.remoteBranch.isEmpty,
+                       preferences.object(forKey: "AskSetTrackedBranch") == nil || preferences.bool(forKey: "AskSetTrackedBranch") {
+                        let tracking = try await repository.synchronizationBranches(localBranch: options.localBranch, cancellation: request)
+                        if tracking.trackedBranch.isEmpty {
+                            let answer = await askTracking(options.localBranch, options.remote, plan.options.remoteBranch)
+                            guard !closed, token === request else { return }
+                            if answer.suppress { preferences.set(false, forKey: "AskSetTrackedBranch") }
+                            guard answer.choice != .cancel, !request.isCancelled else { throw OperationCancellationFailure.cancelled }
+                            if answer.choice == .yes {
+                                var branch = plan.options.remoteBranch
+                                if let short = GitReferenceName.removingPrefix("refs/heads/", from: branch) { branch = short }
+                                else if let short = GitReferenceName.removingPrefix("refs/", from: branch) { branch = short }
+                                _ = try await repository.run(["config", "--local", "branch." + options.localBranch + ".remote", options.remote], cancellation: request)
+                                _ = try await repository.run(["config", "--local", "branch." + options.localBranch + ".merge", "refs/heads/" + branch], cancellation: request)
+                            }
+                        }
+                    }
+                }
                 oldReferences = try await repository.synchronizationReferenceSnapshot(cancellation: request)
                 guard !closed, token === request else { return }
                 if request.isCancelled { throw OperationCancellationFailure.cancelled }
                 let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
                 let operation = Task {
                     defer { continuation.finish() }
+                    if let checkout {
+                        return try await repository.synchronize(checkout, cancellation: request,
+                            onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }, prepareTransport: coordinator?.preparation)
+                    }
                     return try await repository.synchronize(plan, cancellation: request,
                         onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }, prepareTransport: coordinator?.preparation)
                 }
@@ -200,11 +430,15 @@ import TurtleGitCore
                 let result = try await operation.value
                 guard !closed, token === request else { return }
                 if !outputState.hasOutput { commandOutput = result.command.text }
+                if action == .pull, let target = result.rebaseTarget, result.rebaseMode != .none {
+                    try await runRebase(target, result.rebaseMode == .preserveMerges)
+                    guard !closed, token === request else { return }
+                }
                 commandSucceeded = true
             } catch {
                 guard !closed, token === request else { return }
                 let message: String
-                if request.isCancelled { message = "Synchronization cancelled." }
+                if request.isCancelled || error is OperationCancellationFailure { message = "Synchronization cancelled." }
                 else if let failure = error as? GitFailure, outputState.hasOutput { message = "Git command failed (\(failure.code))." }
                 else { message = error.localizedDescription }
                 commandOutput += (commandOutput.isEmpty || commandOutput.hasSuffix("\n") ? "" : "\n") + message
@@ -224,6 +458,24 @@ import TurtleGitCore
                 } catch {
                     guard !closed, token === inspection else { return }
                     commandOutput += "\nReading reference changes failed.\n" + error.localizedDescription
+                }
+                guard !closed, token === inspection else { return }
+            }
+            if action == .pull, let oldHead {
+                let inspection = OperationCancellation(); token = inspection
+                do {
+                    if commandSucceeded {
+                        let result = try await repository.synchronizationIncoming(from: oldHead, to: "HEAD", cancellation: inspection)
+                        guard !closed, token === inspection else { return }
+                        incomingCommits = result.commits; incomingGraph = CommitGraph.layout(result.commits); incomingComparison.snapshot = result.comparison
+                        tab = result.comparison.from == result.comparison.to ? 3 : 4
+                    } else if oldReferences != nil {
+                        let entries = try await repository.status(refreshIndex: false, cancellation: inspection).filter { $0.state == .conflicted }
+                        guard !closed, token === inspection else { return }; conflicts = entries; tab = entries.isEmpty ? 2 : 6
+                    }
+                } catch {
+                    guard !closed, token === inspection else { return }
+                    commandOutput += "\nReading Pull results failed.\n" + error.localizedDescription
                 }
                 guard !closed, token === inspection else { return }
             }
@@ -252,9 +504,10 @@ import TurtleGitCore
         } else { cancelling = true; request.cancel() }
     }
     func compareFiles(unified: Bool) {
-        guard !closed, !confirmingQuit, !busy, outgoing?.comparison != nil, !fileSelection.isEmpty else { return }
-        if unified { comparison.showPatch(fileSelection, alternate: false) }
-        else { comparison.compare(fileSelection) }
+        let child = displayedComparison
+        guard !closed, !confirmingQuit, !busy, child.snapshot != nil, !fileSelection.isEmpty else { return }
+        if unified { child.showPatch(fileSelection, alternate: false) }
+        else { child.compare(fileSelection) }
     }
 }
 
@@ -286,6 +539,9 @@ private struct SynchronizationDialog: View {
             }.disabled(model.transportRunning || model.hasBlockingChild)
             Picker("Changes", selection: $model.tab) {
                 Text("Outgoing Commits").tag(0); Text("Outgoing Changes").tag(1); Text("Command Log").tag(2); Text("Ref changes").tag(3)
+                if model.incomingCommits != nil { Text("Incoming Commits").tag(4) }
+                if model.incomingComparison.snapshot?.files.isEmpty == false { Text("Incoming Changes").tag(5) }
+                if !model.conflicts.isEmpty { Text("Conflicts").tag(6) }
             }.pickerStyle(.segmented)
             if model.tab == 3 {
                 SynchronizationReferenceTable(model: model)
@@ -300,8 +556,16 @@ private struct SynchronizationDialog: View {
                     if let value = model.percentage { ProgressView(value: Double(value), total: 100) }
                     else { ProgressView().progressViewStyle(.linear) }
                 }
-            } else if model.tab == 0 {
+            } else if model.tab == 0 || model.tab == 4 {
                 SynchronizationHistoryTable(model: model)
+                    .id(model.tab)
+                    .overlay { if model.tab == 4, model.incomingCommits?.isEmpty == true { Text("Up to date.").foregroundStyle(.secondary) } }
+            } else if model.tab == 6 {
+                List(model.conflicts) { entry in
+                    HStack { Image(nsImage: FileState.conflicted.icon.image() ?? NSImage()); Text(entry.path); Spacer()
+                        Button { model.onResolve([entry.path]) } label: { CommandLabel(title: "Resolve", icon: .resolve) }.disabled(model.busy)
+                    }
+                }
             } else {
                 SynchronizationFiles(model: model)
                 HStack {
@@ -312,13 +576,14 @@ private struct SynchronizationDialog: View {
             }
             HStack {
                 HStack(spacing: 0) {
-                    Button { model.fetch() } label: { CommandLabel(title: "Fetch", icon: .fetch) }
+                    Button { model.performPullAction() } label: { CommandLabel(title: model.pullActionTitle, icon: model.pullAction == .pull ? .pull : .fetch) }
                     Menu {
-                        Button { model.fetch(.fetch) } label: { CommandLabel(title: "Fetch", icon: .fetch) }
-                        Button { model.fetch(.fetchAllBranches) } label: { CommandLabel(title: "Fetch All", icon: .fetch) }
-                        Button { model.fetch(.remoteUpdate) } label: { CommandLabel(title: "Remote Update", icon: .fetch) }
-                        Button { model.fetch(.prune) } label: { CommandLabel(title: "Cleanup stale remote branches", icon: .clean) }
-                    } label: { Image(systemName: "chevron.down").accessibilityLabel("Fetch actions") }.menuStyle(.borderlessButton).fixedSize()
+                        Button { model.performPullAction(.pull) } label: { CommandLabel(title: "Pull", icon: .pull) }
+                        Button { model.performPullAction(.fetch) } label: { CommandLabel(title: "Fetch", icon: .fetch) }
+                        Button { model.performPullAction(.fetchAllBranches) } label: { CommandLabel(title: "Fetch All", icon: .fetch) }
+                        Button { model.performPullAction(.remoteUpdate) } label: { CommandLabel(title: "Remote Update", icon: .fetch) }
+                        Button { model.performPullAction(.prune) } label: { CommandLabel(title: "Cleanup stale remote branches", icon: .clean) }
+                    } label: { Image(systemName: "chevron.down").accessibilityLabel("Pull actions") }.menuStyle(.borderlessButton).fixedSize()
                 }.disabled(model.busy || model.hasBlockingChild)
                 Button { model.onLog(model.localBranch) } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(model.busy || model.localBranch.isEmpty)
                 Button { model.onCommit() } label: { CommandLabel(title: "Commit", icon: .commit) }.disabled(model.busy)
@@ -342,7 +607,7 @@ private struct SynchronizationDialog: View {
 
 private struct SynchronizationFiles: View {
     @ObservedObject var model: SynchronizationWindowModel
-    private var files: [CommitFile] { model.outgoing?.comparison?.files ?? [] }
+    private var files: [CommitFile] { model.displayedComparison.snapshot?.files ?? [] }
     private func state(_ file: CommitFile) -> FileState {
         switch file.action.first { case "A": return .added; case "D": return .deleted; default: return .modified }
     }
@@ -373,7 +638,7 @@ private struct SynchronizationHistoryTable: NSViewRepresentable {
         for (id, title, width) in [("graph", "Graph", 90.0), ("hash", "Hash", 110.0), ("message", "Message", 450.0), ("author", "Author", 150.0), ("date", "Date", 180.0)] {
             let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id)); column.title = title; column.width = width; table.addTableColumn(column)
         }
-        if model.preferences === UserDefaults.standard { table.autosaveName = "TurtleGit.SyncOut.RevisionColumns"; table.autosaveTableColumns = true }
+        if model.preferences === UserDefaults.standard { table.autosaveName = model.tab == 4 ? "TurtleGit.SyncIn.RevisionColumns" : "TurtleGit.SyncOut.RevisionColumns"; table.autosaveTableColumns = true }
         table.delegate = context.coordinator; table.dataSource = context.coordinator
         table.target = context.coordinator; table.doubleAction = #selector(Coordinator.showLog)
         let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true; scroll.documentView = table
@@ -385,13 +650,14 @@ private struct SynchronizationHistoryTable: NSViewRepresentable {
     @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate {
         var model: SynchronizationWindowModel
         init(_ model: SynchronizationWindowModel) { self.model = model }
-        func numberOfRows(in tableView: NSTableView) -> Int { model.outgoing?.commits.count ?? 0 }
+        func numberOfRows(in tableView: NSTableView) -> Int { model.historyEntries.count }
         func tableView(_ tableView: NSTableView, viewFor column: NSTableColumn?, row: Int) -> NSView? {
-            guard let entries = model.outgoing?.commits, entries.indices.contains(row) else { return nil }
+            let entries = model.historyEntries
+            guard entries.indices.contains(row) else { return nil }
             let entry = entries[row]
             if column?.identifier.rawValue == "graph" {
                 let cell = GraphCell(); cell.preferences = model.preferences; cell.parentCount = entry.parents.count
-                if model.graph.indices.contains(row) { cell.graph = model.graph[row] }; return cell
+                if model.historyGraph.indices.contains(row) { cell.graph = model.historyGraph[row] }; return cell
             }
             let text: String
             switch column?.identifier.rawValue {
@@ -404,7 +670,8 @@ private struct SynchronizationHistoryTable: NSViewRepresentable {
             let cell = NSTextField(labelWithString: text); cell.lineBreakMode = .byTruncatingTail; return cell
         }
         @objc func showLog(_ table: NSTableView) {
-            guard !model.closed, !model.confirmingQuit, !model.busy, let entries = model.outgoing?.commits, entries.indices.contains(table.clickedRow) else { return }
+            let entries = model.historyEntries
+            guard !model.closed, !model.confirmingQuit, !model.busy, entries.indices.contains(table.clickedRow) else { return }
             model.onLog(entries[table.clickedRow].hash)
         }
     }

@@ -32,7 +32,7 @@ import TurtleGitCore
         model.fetch(); precondition(model.busy && model.transportRunning && model.tab == 2)
         precondition(!owner.windowShouldClose(owner.window!))
         model.reload(); precondition(model.transportRunning)
-        try await settle { !model.busy }
+        try await settle { !model.busy && model.outgoing != nil }
         precondition(model.commandCompleted && model.commandSucceeded && !model.commandOutput.isEmpty && completions == 1)
         let fetched = String(decoding: try await repo.run(["rev-parse", "refs/remotes/origin/review"]).stdout, as: UTF8.self).trimmingCharacters(in: .newlines)
         precondition(fetched == incoming && model.outgoing?.remoteHash == incoming)
@@ -133,6 +133,134 @@ import TurtleGitCore
         precondition(closedRefs == refs)
         print("PASS: native Sync reference results with seven columns, pinned icon actions and Hide unchanged header; Fetch/Fetch All/Remote Update/Prune, retained selectable command log, refresh, HEAD/index preservation, close guard, cancellation reply fences and forced-owner closure")
     }
+    @MainActor static func verifyPull(root: URL, preferences: UserDefaults) async throws {
+        let git = URL(fileURLWithPath: CommandLine.arguments[2])
+        let directory = root.appendingPathComponent("pull-fixture")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let parent = GitRepository(root: directory, executable: git)
+        let server = directory.appendingPathComponent("server 雪.git"), authorRoot = directory.appendingPathComponent("author"), clientRoot = directory.appendingPathComponent("client")
+        _ = try await parent.run(["init", "--template=", "--bare", "-b", "main", server.path])
+        _ = try await parent.run(["init", "--template=", "-b", "main", authorRoot.path])
+        let author = GitRepository(root: authorRoot, executable: git)
+        for (key, value) in [("user.name", "Pull QA"), ("user.email", "qa@example.invalid"), ("commit.gpgsign", "false"), ("core.hooksPath", "/dev/null")] { _ = try await author.run(["config", key, value]) }
+        try Data("base\n".utf8).write(to: authorRoot.appendingPathComponent("file")); try await author.stage(["file"]); _ = try await author.commit(message: "base")
+        _ = try await author.run(["remote", "add", "origin", server.path]); _ = try await author.run(["push", "-u", "origin", "main"])
+        _ = try await parent.run(["clone", "--template=", "--", server.path, clientRoot.path])
+        let repo = GitRepository(root: clientRoot, executable: git)
+        for (key, value) in [("user.name", "Pull QA"), ("user.email", "qa@example.invalid"), ("commit.gpgsign", "false"), ("core.hooksPath", "/dev/null"), ("pull.rebase", "false"), ("pull.ff", "only")] { _ = try await repo.run(["config", key, value]) }
+        func hash(_ repository: GitRepository) async throws -> String { String(decoding: try await repository.run(["rev-parse", "HEAD"]).stdout, as: UTF8.self).trimmingCharacters(in: .newlines) }
+        _ = try await repo.run(["switch", "-c", "other"])
+        try Data("original baseline\n".utf8).write(to: clientRoot.appendingPathComponent("other-file")); try await repo.stage(["other-file"]); _ = try await repo.commit(message: "original baseline")
+        let baseline = try await hash(repo)
+        try Data("incoming\n".utf8).write(to: authorRoot.appendingPathComponent("incoming 雪")); try await author.stage(["incoming 雪"]); _ = try await author.commit(message: "incoming")
+        _ = try await author.run(["push", "origin", "main"]); let incoming = try await hash(author)
+        _ = try await repo.run(["config", "--unset", "branch.main.merge"])
+        preferences.set(true, forKey: "AskSetTrackedBranch")
+        let owner = SynchronizationWindowController(repository: repo, access: nil, preferences: preferences)
+        owner.window!.alphaValue = 0; owner.showWindow(nil); defer { owner.close() }
+        let model = owner.model; model.sshSettings.enabled = false
+        try await settle { !model.busy }
+        model.localBranch = "main"; model.remote = "origin"; model.remoteBranch = "main"
+        var confirmations = 0, questions = 0, checkoutCompleted = false
+        model.confirmCheckout = { branch in confirmations += 1; precondition(branch == "main"); return true }
+        model.askTracking = { branch, remote, destination in questions += 1; precondition(checkoutCompleted && branch == "main" && remote == "origin" && destination == "main"); return SynchronizationTrackingAnswer(choice: .yes) }
+        let presentCheckout = model.performCheckout!
+        model.performCheckout = { plan, token in
+            precondition(plan.oldHead == baseline)
+            let result = try await presentCheckout(plan, token)
+            precondition(result.command != nil && owner.window?.attachedSheet == nil)
+            checkoutCompleted = true; return result
+        }
+        model.performPullAction(.pull); precondition(model.transportRunning && !owner.windowShouldClose(owner.window!))
+        try await settle { !model.busy }
+        precondition(confirmations == 1 && questions == 1 && checkoutCompleted && model.commandSucceeded && model.tab == 4)
+        precondition(model.incomingCommits?.contains { $0.hash == incoming } == true && model.incomingGraph.count == model.incomingCommits?.count)
+        precondition(model.incomingComparison.snapshot?.from == .revision(baseline) && model.incomingComparison.snapshot?.to == .revision(incoming))
+        precondition(model.incomingComparison.snapshot?.files.contains { $0.path == "other-file" && $0.action == "D" } == true)
+        let head = try await hash(repo), branch = try await repo.branch(); precondition(head == incoming && branch == "main")
+        let tracking = try await repo.synchronizationBranches(); precondition(tracking.trackedBranch == "main" && tracking.trackedRemote == "origin")
+        owner.window!.contentView!.layoutSubtreeIfNeeded()
+        try await settle { views(owner.window!.contentView!).compactMap { $0 as? NSTableView }.contains { $0.tableColumns.first?.title == "Graph" && $0.numberOfRows == model.incomingCommits?.count } }
+        model.tab = 5; owner.window!.contentView!.layoutSubtreeIfNeeded()
+        try await settle { views(owner.window!.contentView!).compactMap { $0 as? NSTableView }.contains { $0.tableColumns.first?.title == "Path" && $0.numberOfRows == model.incomingComparison.snapshot?.files.count } }
+        model.performPullAction(.pull); try await settle { !model.busy }
+        precondition(model.commandSucceeded && model.tab == 3 && model.incomingCommits?.isEmpty == true)
+        _ = try await repo.run(["config", "--unset", "branch.main.merge"])
+        model.askTracking = { _, _, _ in SynchronizationTrackingAnswer(choice: .no) }
+        model.performPullAction(.pull); try await settle { !model.busy }
+        let absent = try await repo.run(["config", "--get", "branch.main.merge"], successfulExitCodes: 0...1); precondition(model.commandSucceeded && absent.exitCode == 1)
+        let beforeCancel = try await repo.run(["show-ref"]).stdout
+        model.askTracking = { _, _, _ in SynchronizationTrackingAnswer(choice: .cancel, suppress: true) }
+        model.performPullAction(.pull); try await settle { !model.busy }
+        let afterCancel = try await repo.run(["show-ref"]).stdout
+        precondition(!model.commandSucceeded && beforeCancel == afterCancel && !preferences.bool(forKey: "AskSetTrackedBranch"))
+        _ = try await repo.run(["config", "branch.main.merge", "refs/heads/main"])
+        model.localBranch = "other"; model.confirmCheckout = { _ in false }
+        model.performPullAction(.pull); try await settle { !model.busy }
+        let afterAbort = try await hash(repo); precondition(afterAbort == incoming && !model.commandSucceeded)
+        model.localBranch = "main"
+        try Data("second\n".utf8).write(to: authorRoot.appendingPathComponent("second")); try await author.stage(["second"]); _ = try await author.commit(message: "second incoming")
+        _ = try await author.run(["push", "origin", "main"]); let second = try await hash(author)
+        _ = try await repo.run(["config", "branch.main.rebase", "merges"])
+        var handoff = false
+        model.runRebase = { target, preserve in
+            let before = try await hash(repo); precondition(before == incoming && target == second && preserve && model.busy)
+            handoff = true; _ = try await repo.run(["merge", "--ff-only", "--", target])
+        }
+        model.performPullAction(.pull); try await settle { !model.busy }
+        precondition(handoff && model.commandSucceeded && model.incomingComparison.snapshot?.to == .revision(second))
+        _ = try await repo.run(["config", "branch.main.rebase", "false"]); _ = try await repo.run(["config", "pull.ff", "false"])
+        try Data("local conflict\n".utf8).write(to: clientRoot.appendingPathComponent("file")); try await repo.stage(["file"]); _ = try await repo.commit(message: "local conflict")
+        try Data("remote conflict\n".utf8).write(to: authorRoot.appendingPathComponent("file")); try await author.stage(["file"]); _ = try await author.commit(message: "remote conflict"); _ = try await author.run(["push", "origin", "main"])
+        model.performPullAction(.pull); try await settle { !model.busy }
+        precondition(!model.commandSucceeded && model.tab == 6 && model.conflicts.contains { $0.path == "file" })
+        _ = try await repo.run(["merge", "--abort"])
+        try Data("dirty checkout work\n".utf8).write(to: clientRoot.appendingPathComponent("file"))
+        let fetchHead = try Data(contentsOf: clientRoot.appendingPathComponent(".git/FETCH_HEAD"))
+        model.localBranch = "other"; model.confirmCheckout = { _ in true }
+        model.performCheckout = presentCheckout
+        model.performPullAction(.pull)
+        try await settle { owner.window?.attachedSheet?.title.contains("Checkout Progress") == true }
+        let progress = owner.window!.attachedSheet!
+        let checkoutController = progress.delegate as! SynchronizationCheckoutController
+        try await settle { !checkoutController.model.busy }
+        if case .failure = checkoutController.model.result {} else { preconditionFailure("blocked checkout did not retain failure") }
+        precondition(views(progress.contentView!).compactMap { $0 as? NSTextView }.contains { $0.string.contains("overwritten") })
+        precondition(!owner.windowShouldClose(owner.window!)); checkoutController.model.close()
+        try await settle { !model.busy }
+        precondition(!model.commandSucceeded && owner.window?.attachedSheet == nil)
+        let finalFetchHead = try Data(contentsOf: clientRoot.appendingPathComponent(".git/FETCH_HEAD")), finalWork = try String(contentsOf: clientRoot.appendingPathComponent("file"), encoding: .utf8)
+        precondition(finalFetchHead == fetchHead && finalWork == "dirty checkout work\n")
+        let shim = directory.appendingPathComponent("qa-checkout-git"), marker = directory.appendingPathComponent("checkout-running")
+        func quote(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\"'\"'") + "'" }
+        let script = "#!/bin/sh\nif [ \"$4\" = switch ]; then\nprintf 'running\\n' > " + quote(marker.path) + "\nwhile :; do sleep 1; done\nfi\nexec " + quote(git.path) + " \"$@\"\n"
+        try Data(script.utf8).write(to: shim); try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: shim.path)
+        let blockedRepo = GitRepository(root: clientRoot, executable: shim)
+        let blockedOwner = SynchronizationWindowController(repository: blockedRepo, access: nil, preferences: preferences)
+        blockedOwner.window!.alphaValue = 0; blockedOwner.showWindow(nil); defer { blockedOwner.close() }
+        let blocked = blockedOwner.model; blocked.sshSettings.enabled = false
+        try await settle { !blocked.busy && blocked.outgoing != nil }
+        blocked.localBranch = "other"; blocked.remote = "origin"; blocked.remoteBranch = "main"; blocked.confirmCheckout = { _ in true }
+        let refsBeforeClose = try await repo.run(["show-ref"]).stdout
+        blocked.performPullAction(.pull)
+        precondition(blocked.transportRunning)
+        try await settle { (FileManager.default.fileExists(atPath: marker.path) && blockedOwner.window?.attachedSheet != nil) || blocked.commandCompleted }
+        precondition(FileManager.default.fileExists(atPath: marker.path) && blockedOwner.window?.attachedSheet != nil, "Checkout did not start: \(blocked.commandOutput)")
+        let blockedProgress = blockedOwner.window!.attachedSheet!, blockedController = blockedProgress.delegate as! SynchronizationCheckoutController
+        preferences.set(true, forKey: "ConfirmKillProcess")
+        var cancellationReply: ((Bool) -> Void)?
+        blockedController.model.confirmCancel = { cancellationReply = $0 }
+        blockedController.model.cancel(); precondition(blockedController.model.confirmingCancellation && cancellationReply != nil)
+        blockedOwner.close(); let closedOutput = blocked.commandOutput
+        cancellationReply?(true); cancellationReply?(false)
+        // This read queues behind the owned checkout process, so successful
+        // return also proves cancellation released the repository actor.
+        let refsAfterClose = try await blockedRepo.run(["show-ref"]).stdout
+        try await Task.sleep(nanoseconds: 150_000_000)
+        precondition(blocked.closed && !blocked.busy && blocked.commandOutput == closedOutput && refsAfterClose == refsBeforeClose)
+        precondition(blockedProgress.sheetParent == nil && !blockedProgress.isVisible && !blockedController.model.confirmingCancellation)
+        print("PASS: native Pull separate checkout, original incoming baseline/graph/files, tracking Yes/No/Cancel suppression, branch Abort, actual preserve-merges handoff callback, conflict results, failed-checkout dismissal and forced running-checkout cleanup with late cancellation replies")
+    }
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
         let root = URL(fileURLWithPath: CommandLine.arguments[1])
@@ -204,6 +332,7 @@ import TurtleGitCore
         let afterIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
         precondition(after == refs && afterIndex == index)
         try await verifyTransport(repo: repo, root: root, preferences: preferences)
+        try await verifyPull(root: root, preferences: preferences)
         print("PASS: native Sync tracking controls, exact Unicode choices, graph-first table, changes and pinned comparison snapshot, divergence/Force, unknown states, Quit fences, owner invalidation and read-only preservation")
     }
 }
