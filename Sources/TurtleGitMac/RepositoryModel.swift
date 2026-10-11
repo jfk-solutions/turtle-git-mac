@@ -18,6 +18,10 @@ import TurtleGitCore
         loader.present(parent: workspaceWindow)
     }
     weak var workspaceWindow: NSWindow?
+    var onSettings: (Bool) -> Void = { _ in }
+    var canChangeSettingsContext: () -> Bool = { true }
+    var onHelp: () -> Void = {}
+    var onAbout: () -> Void = {}
     @Published var root: URL?
     @Published var branch = ""
     @Published var bare = false
@@ -159,7 +163,8 @@ import TurtleGitCore
             if self?.root == repository.root { Task { await self?.refresh() } }
         }
     }
-    func gitConfigurationContext() throws -> (repository: GitRepository, access: RepositoryAccessLease?, localAvailable: Bool) {
+    func gitConfigurationContext(globalOnly: Bool = false) throws -> (repository: GitRepository, access: RepositoryAccessLease?, localAvailable: Bool) {
+        if globalOnly { return (try makeRepository(TurtleGitTemporaryStorage.root), nil, false) }
         if let repository { return (repository, activeAccess, true) }
         return (try makeRepository(FileManager.default.homeDirectoryForCurrentUser), nil, false)
     }
@@ -310,6 +315,24 @@ import TurtleGitCore
         guard !confirmingQuit else { return }
         guard !bare || !action.requiresWorkingTree else { error = "\(action.title) requires a working tree. This repository is bare."; return }
         switch action {
+        case .settings: onSettings(false)
+        case .help: onHelp()
+        case .about: onAbout()
+        case .synchronize: showSynchronization()
+        case .blame:
+            guard let repository else { return }
+            let selected = paths.isEmpty ? selectedPaths : paths
+            guard selected.count == 1, selected[0] != "." else { error = "Select one versioned file to blame."; return }
+            showBlame(repository: repository, access: activeAccess, path: selected[0], revision: "HEAD")
+        case .previousDiff:
+            guard let repository else { return }
+            let selected = paths.isEmpty ? selectedPaths : paths
+            guard selected.count == 1 else { error = FinderCommandFailure.selection.localizedDescription; return }
+            showPreviousDiff(repository: repository, access: activeAccess, path: selected[0])
+        case .logSubmodule:
+            guard let repository else { return }
+            guard paths.count == 1, paths[0] != "." else { error = FinderCommandFailure.submodule.localizedDescription; return }
+            showLog(repository: repository, access: activeAccess, paths: paths)
         case .diffLater:
             let selected = paths.isEmpty ? selectedPaths : paths
             if selected.count == 1, let root { handleComparisonMark(file: root.appendingPathComponent(selected[0])) }
@@ -329,8 +352,8 @@ import TurtleGitCore
         case .editConflict:
             guard let repository else { return }
             let selected = paths.isEmpty ? selectedPaths : paths
-            guard selected.count == 1, selected[0] != "." else { error = "Select one conflict to edit."; return }
-            showConflictEditor(repository: repository, access: activeAccess, path: selected[0])
+            guard let first = selected.first, first != "." else { error = "Select a conflict to edit."; return }
+            showConflictEditor(repository: repository, access: activeAccess, path: first)
         case .resolve, .resolveCurrent, .resolveMine, .resolveTheirs:
             guard let repository else { return }
             showResolve(repository: repository, access: activeAccess, paths: paths.isEmpty ? selectedPaths : paths, quick: action.resolveChoice)
@@ -911,14 +934,14 @@ import TurtleGitCore
         submoduleDiffWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.load()
     }
-    private func showRevisionComparison(repository: GitRepository, access: RepositoryAccessLease?, from: ComparisonRevision, to: ComparisonRevision) {
-        let baseKey = repository.root.path + "\0" + from.label + "\0" + to.label
+    private func showRevisionComparison(repository: GitRepository, access: RepositoryAccessLease?, from: ComparisonRevision, to: ComparisonRevision, paths: [String] = []) {
+        let baseKey = repository.root.path + "\0" + from.label + "\0" + to.label + "\0scope\0" + paths.joined(separator: "\0")
         let reusable = revisionComparisonWindows.first { _, controller in
             controller.model.repository.root == repository.root && controller.model.repository.executable == repository.executable &&
-            controller.window?.attachedSheet == nil && controller.model.canReuseForComparison(from: from, to: to)
+            controller.window?.attachedSheet == nil && controller.model.canReuseForComparison(from: from, to: to, paths: paths)
         }
         let key = reusable?.key ?? (revisionComparisonWindows[baseKey] == nil ? baseKey : baseKey + "\0" + UUID().uuidString)
-        let controller = reusable?.value ?? RevisionComparisonWindowController(repository: repository, access: access, from: from, to: to)
+        let controller = reusable?.value ?? RevisionComparisonWindowController(repository: repository, access: access, from: from, to: to, paths: paths)
         controller.onClosed = { [weak self] in self?.revisionComparisonWindows.removeValue(forKey: key) }
         configureRevisionComparisonInteractions(controller.model, repository: repository, access: access)
         revisionComparisonWindows[key] = controller
@@ -963,6 +986,24 @@ import TurtleGitCore
                 let snapshot = try await repository.workingFileComparison(paths: ordinary, amendToParent: amendToParent)
                 if snapshot.files.isEmpty { output = "No changes for the selected files."; return }
                 showFileComparisons(repository: repository, access: access, snapshot: snapshot)
+            } catch { self.error = error.localizedDescription }
+        }
+    }
+    private func showPreviousDiff(repository: GitRepository, access: RepositoryAccessLease?, path: String) {
+        guard !busy, !confirmingQuit else { return }; busy = true
+        Task {
+            defer { busy = false }
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let base = try await repository.previousDiffBase(path: path)
+                guard !confirmingQuit else { return }
+                if base.directory {
+                    showRevisionComparison(repository: repository, access: access, from: .revision(base.revision), to: .workingTree, paths: [path])
+                } else {
+                    let snapshot = try await repository.revisionFileComparison(from: .revision(base.revision), to: .workingTree, paths: [path])
+                    guard !confirmingQuit else { return }
+                    showFileComparisons(repository: repository, access: access, snapshot: snapshot)
+                }
             } catch { self.error = error.localizedDescription }
         }
     }
@@ -1964,8 +2005,18 @@ import TurtleGitCore
         } catch { self.error = error.localizedDescription }
     }
     func handle(_ url: URL) {
-        guard !busy, !confirmingQuit, let request = FinderRequest(url: url) else { return }
+        guard !confirmingQuit, let request = FinderRequest(url: url) else { return }
         let action = request.action
+        if action == .settings {
+            let knownRoot = request.paths.first.flatMap { selected in
+                FinderSnapshot.read()?.roots.sorted { $0.count > $1.count }.first { selected.path == $0 || selected.path.hasPrefix($0 + "/") }
+                    ?? root.flatMap { selected.path == $0.path || selected.path.hasPrefix($0.path + "/") ? $0.path : nil }
+            }
+            if knownRoot == nil { onSettings(true); return }
+            if knownRoot == root?.path { onSettings(false); return }
+            guard canChangeSettingsContext() else { return }
+        } else if action.isApplicationUtility { activate(action); return }
+        guard !busy else { return }
         if action == .clearComparisonMark { clearComparisonMark(); return }
         if action == .diffLater {
             guard request.paths.count == 1 else { error = "Select one file to mark or compare."; return }
@@ -1976,7 +2027,7 @@ import TurtleGitCore
         if action == .diff && request.paths.count == 2 { handleFilePair(paths: request.paths); return }
         let candidate = request.paths[0]
         var permissionTargets = request.paths
-        if action == .rename || action == .remove || action == .submoduleSync,
+        if action == .rename || action == .remove || action == .submoduleSync || action == .logSubmodule,
            let parent = FinderSnapshot.read()?.repositories[candidate.standardizedFileURL.path]?.submoduleParentRoot {
             let parentURL = URL(fileURLWithPath: parent, isDirectory: true)
             if parentURL.path != candidate.path && candidate.standardizedFileURL.path.hasPrefix(parentURL.path.hasSuffix("/") ? parentURL.path : parentURL.path + "/") {

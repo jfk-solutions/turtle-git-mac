@@ -82,16 +82,17 @@ final class FinderMenuGroup: NSObject {
 /// Projection of pinned MenuInfo command order onto implemented Finder commands.
 enum FinderShellMenuLayout {
     static let groups: [[RepositoryAction]] = [
-        [.clone, .pull, .fetch, .push],
+        [.clone, .pull, .fetch, .push, .synchronize],
         [.commit],
-        [.diff, .diffLater],
-        [.log, .reflog, .referenceBrowser, .revisionGraph, .repositoryBrowser, .status, .rebase, .stash, .stashApply, .stashPop, .stashList],
+        [.diff, .diffLater, .previousDiff],
+        [.log, .logSubmodule, .reflog, .referenceBrowser, .revisionGraph, .repositoryBrowser, .status, .rebase, .stash, .stashApply, .stashPop, .stashList],
         [.bisectStart, .bisectGood, .bisectBad, .bisectSkip, .bisectReset],
-        [.resolve, .mergeAbort, .rename, .remove, .removeKeep, .revert, .clean],
+        [.editConflict, .resolve, .mergeAbort, .rename, .remove, .removeKeep, .revert, .clean],
         [.switchBranch, .merge, .branch, .tag, .export],
-        [.initialize, .add, .ignore, .ignoreDelete],
+        [.initialize, .add, .blame, .ignore, .ignoreDelete],
         [.worktreeList, .submoduleAdd, .submoduleUpdate, .submoduleSync],
-        [.formatPatch, .importPatch]
+        [.formatPatch, .importPatch],
+        [.settings, .help, .about]
     ]
     static func action(_ item: NSMenuItem) -> RepositoryAction? {
         (item.representedObject as? FinderMenuCommand)?.request.action ?? (item.representedObject as? FinderMenuGroup)?.action
@@ -151,13 +152,14 @@ enum FinderMenuBuilder {
         }
         let knownRepository = paths.contains { path in snapshot?.roots.contains { path.path == $0 || path.path.hasPrefix($0 + "/") } == true }
         if !submenu.items.isEmpty && knownRepository { submenu.addItem(.separator()) }
-        for action in RepositoryAction.allCases.filter({ $0 != .clone && $0 != .initialize && $0 != .worktreeCreate && $0 != .editConflict && $0 != .reset && $0 != .diffLater && $0 != .clearComparisonMark && !$0.isIgnore && $0.resolveChoice == nil }) {
-            guard (knownRepository || action == .diff && paths.count == 2), FinderShellRules.allows(action, flags: shellFlags) else { continue }
+        for action in RepositoryAction.allCases.filter({ $0 != .clone && $0 != .initialize && $0 != .worktreeCreate && $0 != .reset && $0 != .diffLater && $0 != .clearComparisonMark && !$0.isIgnore && $0.resolveChoice == nil }) {
+            guard (knownRepository || action.isApplicationUtility || action == .diff && paths.count == 2), FinderShellRules.allows(action, flags: shellFlags) else { continue }
             let item = NSMenuItem(title: action.title, action: actionSelector, keyEquivalent: "")
             item.image = image(action.icon)
             if action == .formatPatch || action == .worktreeList { item.isEnabled = paths.count == 1 && paths.first?.hasDirectoryPath == true }
             if action == .revert { item.isEnabled = snapshot?.canRevert(paths) == true }
             if action == .resolve { item.isEnabled = snapshot?.canResolve(paths) == true }
+            if action == .editConflict { item.isEnabled = snapshot?.canResolve(paths) == true }
             if action == .rename { item.isEnabled = snapshot?.canRename(paths) == true }
             if action == .remove || action == .removeKeep { item.isEnabled = snapshot?.canRemove(paths) == true }
             item.target = target; item.representedObject = FinderMenuCommand(action: action, paths: paths); submenu.addItem(item)

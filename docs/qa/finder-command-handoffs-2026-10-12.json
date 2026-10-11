@@ -1,0 +1,75 @@
+{
+  "date": "2026-10-12",
+  "scope": "Eight Finder command routes, previous-version comparison scope, parent gitlink Log and native Settings ownership/context",
+  "source": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_catalog": {
+    "entries": 55,
+    "available_groups": 47,
+    "unavailable_groups": 8,
+    "condition_oracle_commands": 53
+  },
+  "native_build": {
+    "configuration": "Debug arm64",
+    "exit_code": 0,
+    "log": "build/qa/finder-command-native-2026-10-12.log",
+    "diagnostics": "44 warnings in the final build; zero exit-zero/no-output diagnostics. Not a warning-free build claim."
+  },
+  "core_tests": {
+    "filter": "FinderCommandBatchTests|FinderSubmoduleMetadataTests|FinderShellRulesTests|FinderRequestTests|FinderContextMenuSettingsTests|RevisionComparisonTests|WorkingFileComparisonTests|MenuIconTests",
+    "tests": 46,
+    "failures": 0,
+    "seconds": 11.297,
+    "log": "build/qa/finder-command-core-2026-10-12.log",
+    "coverage": [
+      "All 53 source menu-condition clauses match the pinned oracle",
+      "Utility URL round trips without Git argv and bare-source eligibility",
+      "File previous base is second path-history commit, excluding unrelated HEAD commits",
+      "Current working bytes, staged/index/HEAD preservation during file comparison",
+      "Directory/root HEAD~1 comparison and literal Unicode/newline/magic-looking scope",
+      "Scoped all-file patch excludes similarly named sibling",
+      "Invalid/outside path, insufficient file history and pre-cancellation",
+      "Registered submodule folder Log reparents to gitlink owner; ordinary Log stays child; independent nested repository rejected",
+      "Existing comparison/source menu/request/catalog/icon regressions"
+    ]
+  },
+  "actual_receivers": {
+    "finder_menu_builder": {
+      "exit_code": 0,
+      "script": "scripts/test-finder-menu.py",
+      "log": "build/qa/finder-command-builder-2026-10-12.log",
+      "coverage": [
+        "53 source-projected command ordering/groups",
+        "Sync source default appears on first level",
+        "Conflict editor enabled for cached conflicted files",
+        "Utilities outside repositories and targetless toolbar, captured URL round trip",
+        "Existing status/metadata/submodule/merge/bisect/icons/selection policy matrix"
+      ]
+    },
+    "settings": {
+      "exit_code": 0,
+      "script": "scripts/test-context-menu-settings.py",
+      "log": "build/qa/finder-command-settings-receiver-2026-10-12.log",
+      "scope": "Existing Context Menu shared draft/transaction receiver plus updated availability previews; not full new Settings-owner handoff verification"
+    }
+  },
+  "previews": {
+    "kind": "Four offscreen renders of actual Context Menu page views",
+    "files": [
+      "docs/site/assets/context-menu-light.png",
+      "docs/site/assets/context-menu-dark.png",
+      "docs/site/assets/context-menu-2-light.png",
+      "docs/site/assets/context-menu-2-dark.png"
+    ],
+    "visually_inspected": true
+  },
+  "installed_app_launches": 0,
+  "remaining": [
+    "Eight unavailable catalog groups: SVN commands, Daemon, LFS, Review Patch and Send Mail",
+    "Actual Finder gestures/click delivery and cold-launch ordering",
+    "Native Settings global/repository context, focus/reuse/close/reopen and dirty/busy context gates",
+    "Native previous-Diff directory reload and Blame/Sync/conflict-editor handoffs",
+    "Alternative-tool modifier behavior and full source dialogs",
+    "Signed App Group/sandbox/App Store execution",
+    "Full port and dialog certification"
+  ]
+}

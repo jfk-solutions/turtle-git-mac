@@ -29,6 +29,11 @@ public struct RevisionComparisonSnapshot: Sendable {
     public let toDetails: ComparisonRevisionDetails?
     public let files: [CommitFile]
     public let options: RevisionDiffOptions
+    public let scopePaths: [String]
+    public init(root: URL, from: ComparisonRevision, to: ComparisonRevision, fromDetails: ComparisonRevisionDetails?, toDetails: ComparisonRevisionDetails?, files: [CommitFile], options: RevisionDiffOptions, scopePaths: [String] = []) {
+        self.root = root; self.from = from; self.to = to; self.fromDetails = fromDetails; self.toDetails = toDetails
+        self.files = files; self.options = options; self.scopePaths = scopePaths
+    }
 }
 public enum RevisionComparisonFailure: LocalizedError {
     case range, selection
@@ -37,6 +42,22 @@ public enum RevisionComparisonFailure: LocalizedError {
     }
 }
 extension GitRepository {
+    /// PrevDiffCommand uses HEAD~1 for directories, and the second commit
+    /// touching a selected file for files. Both compare against working bytes.
+    public func previousDiffBase(path: String, cancellation: OperationCancellation? = nil) throws -> (revision: String, directory: Bool) {
+        try cancellation?.check()
+        guard try !isBare(cancellation: cancellation) else { throw FinderCommandFailure.selection }
+        let location = path == "." ? root : try restoreLocation(path)
+        let attributes = try? FileManager.default.attributesOfItem(atPath: location.path)
+        if path == "." || attributes?[.type] as? FileAttributeType == .typeDirectory {
+            let result = try run(["rev-parse", "--verify", "--quiet", "HEAD~1^{commit}"], successfulExitCodes: 0...1, cancellation: cancellation)
+            guard result.exitCode == 0 else { throw FinderCommandFailure.previousRevisionUnavailable }
+            return (result.text.trimmingCharacters(in: .newlines), true)
+        }
+        let revisions = try run(["log", "--format=%H", "--max-count=2", "--", path], cancellation: cancellation).text.split(separator: "\n")
+        guard revisions.count == 2 else { throw FinderCommandFailure.previousRevisionUnavailable }
+        return (String(revisions[1]), false)
+    }
     /// Ordinary file Diff uses HEAD-to-working content, including staged edits.
     /// Explicit untracked selections use an empty base without staging them.
     public func workingFileComparison(paths: [String], amendToParent: Bool = false) throws -> RevisionComparisonSnapshot {
@@ -108,7 +129,9 @@ extension GitRepository {
         }
         return RevisionComparisonSnapshot(root: root, from: snapshot.from, to: snapshot.to, fromDetails: snapshot.fromDetails, toDetails: snapshot.toDetails, files: files, options: snapshot.options)
     }
-    public func revisionComparison(from: ComparisonRevision, to: ComparisonRevision, options: RevisionDiffOptions = RevisionDiffOptions(), cancellation: OperationCancellation? = nil) throws -> RevisionComparisonSnapshot {
+    public func revisionComparison(from: ComparisonRevision, to: ComparisonRevision, options: RevisionDiffOptions = RevisionDiffOptions(), cancellation: OperationCancellation? = nil, paths: [String] = []) throws -> RevisionComparisonSnapshot {
+        let scope = paths.filter { $0 != "." }
+        for path in scope { _ = try restoreLocation(path) }
         let token = cancellation ?? OperationCancellation()
         try token.check()
         func resolve(_ side: ComparisonRevision) throws -> ComparisonRevision {
@@ -127,8 +150,8 @@ extension GitRepository {
             old = .revision(try run(["merge-base", a, b], cancellation: token).text.trimmingCharacters(in: .newlines))
         }
         let args = try comparisonArguments(from: old, to: new, options: options, cancellation: token)
-        let files = CommitFile.parse(names: try run(args + ["--name-status", "-z", "--"], cancellation: token).stdout, statistics: try run(args + ["--numstat", "-z", "--"], cancellation: token).stdout, raw: try run(args + ["--raw", "-z", "--"], cancellation: token).stdout).filter { $0.hasStatistics || $0.isSubmodule }
-        return RevisionComparisonSnapshot(root: root, from: old, to: new, fromDetails: try comparisonDetails(old, cancellation: token), toDetails: try comparisonDetails(new, cancellation: token), files: files, options: options)
+        let files = CommitFile.parse(names: try run(args + ["--name-status", "-z", "--"] + scope, cancellation: token).stdout, statistics: try run(args + ["--numstat", "-z", "--"] + scope, cancellation: token).stdout, raw: try run(args + ["--raw", "-z", "--"] + scope, cancellation: token).stdout).filter { $0.hasStatistics || $0.isSubmodule }
+        return RevisionComparisonSnapshot(root: root, from: old, to: new, fromDetails: try comparisonDetails(old, cancellation: token), toDetails: try comparisonDetails(new, cancellation: token), files: files, options: options, scopePaths: scope)
     }
     public func revisionComparisonPatch(_ snapshot: RevisionComparisonSnapshot, paths: [String] = []) throws -> String {
         String(decoding: try revisionComparisonPatchData(snapshot, paths: paths), as: UTF8.self)
@@ -136,7 +159,7 @@ extension GitRepository {
     public func revisionComparisonPatchData(_ snapshot: RevisionComparisonSnapshot, paths: [String] = [], cancellation: OperationCancellation? = nil) throws -> Data {
         let token = cancellation ?? OperationCancellation(); try token.check()
         guard snapshot.root == root, paths.allSatisfy({ path in snapshot.files.contains { $0.path == path } }) else { throw RevisionComparisonFailure.selection }
-        let selected = paths.isEmpty ? [] : snapshot.files.filter { paths.contains($0.path) }.flatMap { [$0.path] + ($0.oldPath.map { [$0] } ?? []) }
+        let selected = paths.isEmpty ? snapshot.scopePaths : snapshot.files.filter { paths.contains($0.path) }.flatMap { [$0.path] + ($0.oldPath.map { [$0] } ?? []) }
         for path in selected { _ = try restoreLocation(path) }
         return try run(comparisonArguments(from: snapshot.from, to: snapshot.to, options: snapshot.options, cancellation: token) + ["--"] + Set(selected).sorted(), cancellation: token).stdout
     }

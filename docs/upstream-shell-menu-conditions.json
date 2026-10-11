@@ -1232,6 +1232,213 @@
           "no": []
         }
       ]
+    },
+    "synchronize": {
+      "command": "Sync",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_ONLYONE"
+          ],
+          "no": [
+            "ITEMIS_BISECT",
+            "ITEMIS_MERGEACTIVE"
+          ]
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "previousDiff": {
+      "command": "PrevDiff",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_INGIT",
+            "ITEMIS_ONLYONE"
+          ],
+          "no": [
+            "ITEMIS_ADDED"
+          ]
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "logSubmodule": {
+      "command": "LogSubmoduleFolder",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_ONLYONE",
+            "ITEMIS_WCROOT",
+            "ITEMIS_SUBMODULE"
+          ],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "blame": {
+      "command": "Blame",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_INGIT",
+            "ITEMIS_ONLYONE"
+          ],
+          "no": [
+            "ITEMIS_FOLDER",
+            "ITEMIS_ADDED"
+          ]
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "editConflict": {
+      "command": "ConflictEditor",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_INGIT",
+            "ITEMIS_CONFLICTED"
+          ],
+          "no": [
+            "ITEMIS_FOLDER"
+          ]
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "settings": {
+      "command": "Settings",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_FOLDER"
+          ],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": [
+            "ITEMIS_FOLDER"
+          ]
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "help": {
+      "command": "Help",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_FOLDER"
+          ],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": [
+            "ITEMIS_FOLDER"
+          ]
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "about": {
+      "command": "About",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_FOLDER"
+          ],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": [
+            "ITEMIS_FOLDER"
+          ]
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
     }
   }
 }

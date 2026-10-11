@@ -35,6 +35,9 @@ final class FinderSubmoduleMetadataTests: XCTestCase {
         XCTAssertEqual(renameRoot.path, root.path); XCTAssertEqual(removeRoot.path, root.path)
         let logRoot = try await child.discoverSelectionRoot(for: .log, selected: child.root)
         XCTAssertEqual(logRoot, child.root)
+        let parentLogRoot = try await child.discoverSelectionRoot(for: .logSubmodule, selected: child.root)
+        XCTAssertEqual(parentLogRoot.path, root.path)
+        XCTAssertEqual(FinderRequest(action: .logSubmodule, paths: [child.root]).relativePaths(root: parentLogRoot), [path])
         _ = try await parent.rename(RenameOptions(source: path, name: "renamed 雪\nmodule"))
         let newPath = "group/renamed 雪\nmodule"
         let indexed = try await parent.submodulePaths(); XCTAssertTrue(indexed.contains(newPath)); XCTAssertFalse(indexed.contains(path))
@@ -56,6 +59,7 @@ final class FinderSubmoduleMetadataTests: XCTestCase {
         let nestedMetadata = try await child.finderMetadata(); XCTAssertNil(nestedMetadata.submoduleParentRoot)
         let owner = try await child.discoverSelectionRoot(for: .rename, selected: nested)
         XCTAssertEqual(owner, nested)
+        do { _ = try await child.discoverSelectionRoot(for: .logSubmodule, selected: nested); XCTFail("Independent nested repository accepted as a submodule") } catch FinderCommandFailure.submodule {}
         try Data("[submodule \"other\"]\npath = nested 雪-other\n".utf8).write(to: root.appendingPathComponent(".gitmodules"))
         let unmatched = try await child.registeredSubmoduleParent(); XCTAssertNil(unmatched)
     }

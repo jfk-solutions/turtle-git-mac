@@ -528,3 +528,16 @@ menu policy and stale page drafts re-read the current icon choice on Apply.
 Unavailable Finder commands and drag-menu integration remain explicit. See
 CONTEXT-MENU-SETTINGS-PARITY.md for the source comparison, validation and remaining
 native/signed acceptance. The full port remains incomplete.
+
+### Finder command and native Settings ownership continuation, 2026-10-12
+
+Added eight source menu entries and their original clauses/order/icons: Sync,
+previous-version Diff, parent gitlink Log, Blame, conflict editor and application
+Settings/Help/About. Previous Diff uses source path-history semantics and immutable
+directory comparison/patch scope. Submodule-folder Log revalidates registration
+and authorizes the parent. App/Finder Settings now share a native property-sheet
+owner; global requests suppress local config sources and known-repository requests
+retain normal authorization. Dirty/busy context switches retain existing drafts.
+The source catalog now exposes 47 groups; eight commands remain unavailable.
+See FINDER-COMMAND-HANDOFF-PARITY.md for grouped evidence and remaining physical/
+signed acceptance. The full port remains incomplete.

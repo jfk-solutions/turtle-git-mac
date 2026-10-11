@@ -16,11 +16,11 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     var onClosed: () -> Void = {}
     private var logPicker: LogWindowController?
     private var reflogPicker: ReferenceLogWindowController?
-    init(repository: GitRepository, access: RepositoryAccessLease?, from: ComparisonRevision, to: ComparisonRevision) {
-        model = RevisionComparisonWindowModel(repository: repository, access: access, from: from, to: to)
+    init(repository: GitRepository, access: RepositoryAccessLease?, from: ComparisonRevision, to: ComparisonRevision, paths: [String] = []) {
+        model = RevisionComparisonWindowModel(repository: repository, access: access, from: from, to: to, paths: paths)
         let size = NSSize(width: 1000, height: 700)
         let window = RevisionComparisonNativeWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Changed Files – TurtleGit"; window.isReleasedWhenClosed = false
+        window.title = "\(paths.isEmpty ? repository.root.lastPathComponent : paths.joined(separator: ", ")) – Changed Files – TurtleGit"; window.isReleasedWhenClosed = false
         window.contentMinSize = NSSize(width: 900, height: 530)
         window.contentViewController = NSHostingController(rootView: RevisionComparisonDialog(model: model))
         super.init(window: window); window.delegate = self
@@ -59,6 +59,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class RevisionComparisonWindowModel: ObservableObject {
+    let scopePaths: [String]
     let repository: GitRepository
     let access: RepositoryAccessLease?
     weak var window: NSWindow?
@@ -88,9 +89,9 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     var onSubmoduleCompare: (String, ComparisonRevision, ComparisonRevision) -> Void = { _, _, _ in }
     var comparisonWindows: [String: FileComparisonWindowController] = [:]
     var visibleFiles: [CommitFile] { snapshot?.files.filter { filter.isEmpty || $0.path.localizedCaseInsensitiveContains(filter) || $0.oldPath?.localizedCaseInsensitiveContains(filter) == true }.sorted(using: sortOrder) ?? [] }
-    init(repository: GitRepository, access: RepositoryAccessLease?, from: ComparisonRevision, to: ComparisonRevision) { self.repository = repository; self.access = access; self.from = from.label; self.to = to.label }
-    func canReuseForComparison(from requestedFrom: ComparisonRevision, to requestedTo: ComparisonRevision) -> Bool {
-        !busy && !confirmingQuit && from == requestedFrom.label && to == requestedTo.label &&
+    init(repository: GitRepository, access: RepositoryAccessLease?, from: ComparisonRevision, to: ComparisonRevision, paths: [String] = []) { self.repository = repository; self.access = access; self.from = from.label; self.to = to.label; scopePaths = paths }
+    func canReuseForComparison(from requestedFrom: ComparisonRevision, to requestedTo: ComparisonRevision, paths: [String] = []) -> Bool {
+        !busy && !confirmingQuit && scopePaths == paths && from == requestedFrom.label && to == requestedTo.label &&
         patchWindow?.model.busy != true && patchWindow?.window?.attachedSheet == nil &&
         !unifiedWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil } &&
         !comparisonWindows.values.contains { $0.model.busy || $0.model.dirty }
@@ -108,7 +109,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let catalog = try await repository.checkoutReferences(includeAll: true, includeFetchHead: UserDefaults.standard.includesFetchHead, cancellation: token)
-                let result = try await repository.revisionComparison(from: old, to: new, options: settings, cancellation: token)
+                let result = try await repository.revisionComparison(from: old, to: new, options: settings, cancellation: token, paths: scopePaths)
                 guard !closed, loadToken === token, !token.isCancelled else { return }
                 references = catalog; snapshot = result
                 if showingPatch { updatePatch() }

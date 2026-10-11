@@ -184,6 +184,7 @@ import TurtleGitCore
 
 struct ProjectDialogSettingsPage: View {
     @ObservedObject var workspace: RepositoryModel
+    var globalOnly = false
     @Environment(\.settingsTransaction) private var transaction
     @StateObject private var model = ProjectDialogSettingsModel()
     private var language: Binding<String> {
@@ -249,7 +250,7 @@ struct ProjectDialogSettingsPage: View {
         }
     }
     private func activate() {
-        do { let context = try workspace.gitConfigurationContext(); model.activate(repository: context.repository, access: context.access, localAvailable: context.localAvailable) }
+        do { let context = try workspace.gitConfigurationContext(globalOnly: globalOnly); model.activate(repository: context.repository, access: context.access, localAvailable: context.localAvailable) }
         catch { model.error = error.localizedDescription }
     }
     private func inherited(_ label: String, field: Binding<GitConfigurationIdentity>) -> some View {

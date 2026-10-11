@@ -71,3 +71,11 @@ previews exercise the real SwiftUI views but do not establish physical keyboard,
 mouse, Settings-navigation geometry, installed Finder Shift gestures, signed
 App Group propagation or sandbox acceptance. The 16 unavailable Finder routes,
 full context-menu command parity and the complete application port remain open.
+
+
+Command-handoff continuation, 2026-10-12: eight formerly disabled catalog entries
+now have Finder routes: Sync, previous-version Diff, submodule-folder Log, Blame,
+conflict editing, Settings, Help and About. The catalog has 47 available groups
+and eight unavailable groups. Earlier 16-unavailable statements above describe
+the original checkpoint. See FINDER-COMMAND-HANDOFF-PARITY.md for repository
+context, scope/authorization behavior and remaining native acceptance.

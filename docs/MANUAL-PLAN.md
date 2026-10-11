@@ -38,3 +38,33 @@ prompts, attribution and recovery. Displayed macOS screenshots remain pending.
 The [Getting started chapter](GETTING-STARTED.md) now covers opening/cloning,
 checked-file commits, staging and inspecting history. It links existing native
 captures with their checkpoint limits; it does not complete the remaining chapters.
+
+
+## Finder command and Settings ownership acceptance
+
+Use a signed App Group build and one app process; close it after this grouped
+section. Record selected paths and check repository/working/index bytes where
+applicable. The Core/menu receiver checkpoint is in
+`qa/finder-command-handoffs-2026-10-12.json`; it does not certify these gestures.
+
+- Open Sync from Finder's first-level menu and verify branch/remote/dialog handoffs,
+  then confirm it is absent during merge and bisect. Close each child afterward.
+- Blame a tracked file; verify its selected path and saved detection preferences.
+  Check conflict editing for text/image paths and a multiple-file source selection.
+- Compare a file with two path-history commits separated by unrelated commits:
+  the base must be its second history entry and the destination current working
+  bytes. Verify staged/index/HEAD preservation and meaningful insufficient-history
+  feedback. Compare a directory and change revisions/options; its scope and patch
+  must exclude similarly named siblings throughout reloads.
+- At a registered submodule root, normal Log must show the child's history; Show
+  log of this folder must authorize the parent and show the parent's gitlink path.
+  Recheck stale registration and a child-only sandbox grant.
+- Cmd-comma and repeated Finder Settings requests must reuse the native window.
+  Close/Cancel and reopen to verify fresh drafts/cache/transaction and child cleanup.
+- Finder Settings in a different known repository must authorize/adopt that target.
+  Outside/empty requests must use Global Settings and suppress Local/project/Remote
+  without altering the active repository. Dirty/busy context switches must retain
+  the old context and provide feedback, rather than discard edits.
+- Invoke Help/About outside Git and from bare-root menus. Verify the website and
+  native fork/license/artwork panel, cold-launch delivery, themes and keyboard focus.
+- Verify source alternative-tool modifiers and signed App Store execution separately.

@@ -265,6 +265,7 @@ import TurtleGitCore
 }
 struct GitConfigurationSettingsPage: View {
     @ObservedObject var workspace: RepositoryModel
+    var globalOnly = false
     @Environment(\.settingsTransaction) private var transaction
     @StateObject private var model = GitConfigurationSettingsModel()
     var body: some View {
@@ -345,7 +346,7 @@ struct GitConfigurationSettingsPage: View {
         }
     }
     private func activate() {
-        do { let context = try workspace.gitConfigurationContext(); model.activate(repository: context.repository, access: context.access, localAvailable: context.localAvailable) }
+        do { let context = try workspace.gitConfigurationContext(globalOnly: globalOnly); model.activate(repository: context.repository, access: context.access, localAvailable: context.localAvailable) }
         catch { model.error = error.localizedDescription }
     }
     private func identity(_ label: String, field: Binding<GitConfigurationIdentity>) -> some View {

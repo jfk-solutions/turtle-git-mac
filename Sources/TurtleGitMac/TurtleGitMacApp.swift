@@ -20,7 +20,7 @@ import TurtleGitCore
             RepositoryWindow(model: model)
                 .disabled(model.confirmingQuit)
                 .onOpenURL { model.handle($0) }
-                .onAppear { applicationDelegate.repositoryModel = model; appearance.apply(); FirstStartWizardService.shared.install(); ReleaseUpdateService.shared.install() }
+                .onAppear { applicationDelegate.repositoryModel = model; appearance.apply(); SettingsPresentationService.shared.install(workspace: model, appearance: appearance); FirstStartWizardService.shared.install(); ReleaseUpdateService.shared.install() }
                 #if DEBUG
                 .onAppear {
                     if Bundle.main.bundleIdentifier?.hasPrefix("org.turtlegit.macos.documentation-preview") == true, model.root == nil,
@@ -36,6 +36,15 @@ import TurtleGitCore
                 #endif
         }
         .commands {
+            CommandGroup(replacing: .appSettings) {
+                Button("Settings…") { SettingsPresentationService.shared.show() }.keyboardShortcut(",", modifiers: .command)
+            }
+            CommandGroup(replacing: .appInfo) {
+                Button("About TurtleGit for Mac") { SettingsPresentationService.showAbout() }
+            }
+            CommandGroup(replacing: .help) {
+                Button("TurtleGit Help") { SettingsPresentationService.showHelp() }
+            }
             PatchFileCommands(context: patchMenuContext)
             StatisticsFileCommands(context: statisticsMenuContext)
             CommandGroup(after: .appInfo) {
@@ -75,10 +84,6 @@ import TurtleGitCore
                 Button("Save Window Screenshot…") { DocumentationCapture.saveWindow() }.keyboardShortcut("s", modifiers: [.command, .option, .shift])
             }
             #endif
-        }
-        Settings {
-            SettingsNavigation(workspace: model, appearance: appearance)
-                .frame(minWidth: 980, idealWidth: 1040, minHeight: 700, idealHeight: 740)
         }
     }
 }

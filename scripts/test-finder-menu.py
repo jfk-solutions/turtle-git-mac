@@ -21,6 +21,7 @@ import TurtleGitCore
         struct SourceOrder: Decodable { let groups: [[String]] }
         let sourceOrder = try JSONDecoder().decode(SourceOrder.self, from: Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[2])))
         let mapping: [RepositoryAction: String] = [
+            .synchronize: "Sync", .previousDiff: "PrevDiff", .logSubmodule: "LogSubmoduleFolder", .blame: "Blame", .editConflict: "ConflictEditor", .settings: "Settings", .help: "Help", .about: "About",
             .add: "Add", .clone: "Clone", .pull: "Pull", .fetch: "Fetch", .push: "Push", .commit: "Commit",
             .diff: "Diff", .diffLater: "DiffLater", .log: "Log", .revisionGraph: "RevisionGraph", .reflog: "RefLog", .referenceBrowser: "RefBrowser", .repositoryBrowser: "RepoBrowse",
             .bisectStart: "BisectStart", .bisectGood: "BisectGood", .bisectBad: "BisectBad", .bisectSkip: "BisectSkip", .bisectReset: "BisectReset",
@@ -124,6 +125,16 @@ import TurtleGitCore
         precondition(policyMenu([outsideFolder], snapshot: nil).items.isEmpty)
         precondition(!policyMenu([outsideFolder], snapshot: nil, extended: true).items.isEmpty)
         precondition(!policyMenu([untracked]).items.isEmpty, "Untracked items inside a repository retain their menu")
+        for selected in [[folder], [tracked], []] {
+            let menu = FinderMenuBuilder.make(paths: selected, snapshot: nil, settings: allCommands(), comparisonMark: nil, target: target, actionSelector: selector)
+            let utilities = items(menu).compactMap { $0.representedObject as? FinderMenuCommand }.filter { $0.request.action.isApplicationUtility }
+            precondition(Set(utilities.map { $0.request.action }) == [.settings, .help, .about])
+            for command in utilities { precondition(FinderRequest(url: command.url()!)!.action == command.request.action) }
+        }
+        let syncMenu = policyMenu([folder], snapshot: rich)
+        precondition(items(syncMenu).contains { FinderShellMenuLayout.action($0) == .synchronize && $0.title.hasPrefix("Git ") }, "Source Sync default is first level")
+        let conflictMenu = make([conflict], settings: allCommands())
+        precondition(items(conflictMenu).contains { FinderShellMenuLayout.action($0) == .editConflict && $0.isEnabled })
         print("Context Menu policy: default/direct placement, Shift-only defaults, nested ignore routing/icons, all-direct omission, toolbar, exclusions and unversioned membership pass against the actual builder.")
         let ignoring = items(make([untracked], settings: allCommands()))
         precondition(ignoring.contains { $0.title == "Add to ignore list" && $0.submenu?.items.count == 2 })
@@ -148,7 +159,7 @@ import TurtleGitCore
                 creationDirectory: directory, extended: extended, toolbar: toolbar))
         }
         for (directory, toolbar) in [(outside as URL?, false), (nil, true)] {
-            let commands = creation(directory, toolbar: toolbar).filter { !$0.isSeparatorItem && $0.submenu == nil }
+            let commands = creation(directory, toolbar: toolbar).filter { !$0.isSeparatorItem && $0.submenu == nil && FinderShellMenuLayout.action($0)?.isApplicationUtility != true }
             precondition(commands.map(\.title) == [RepositoryAction.clone.title, RepositoryAction.initialize.title])
             for item in commands {
                 let command = item.representedObject as! FinderMenuCommand
@@ -195,9 +206,9 @@ import TurtleGitCore
         precondition(items(make([tracked], settings: allCommands())).allSatisfy { ($0.representedObject as? FinderMenuCommand)?.request.action != .clean })
         let toolbarMenu = FinderMenuBuilder.make(paths: [], snapshot: snapshot, settings: allCommands(),
             comparisonMark: nil, target: target, actionSelector: selector, toolbar: true)
-        precondition(toolbarMenu.items.filter { !$0.isSeparatorItem }.map(\.title) == [RepositoryAction.clone.title, RepositoryAction.initialize.title], "Toolbar commands should appear directly")
+        precondition(toolbarMenu.items.filter { !$0.isSeparatorItem }.map(\.title) == [RepositoryAction.clone.title, RepositoryAction.initialize.title, RepositoryAction.settings.title, RepositoryAction.help.title, RepositoryAction.about.title], "Toolbar commands should appear directly")
         verifyOrder(toolbarMenu)
-        precondition(toolbarMenu.items.count == 3 && toolbarMenu.items[1].isSeparatorItem)
+        precondition(toolbarMenu.items.count == 7 && toolbarMenu.items[1].isSeparatorItem && toolbarMenu.items[3].isSeparatorItem)
         precondition(creation(folder).allSatisfy { !(($0.representedObject as? FinderMenuCommand).map { [.clone, .initialize].contains($0.request.action) } ?? false) })
         precondition(creation(folder, extended: true).compactMap { ($0.representedObject as? FinderMenuCommand).flatMap { [.clone, .initialize].contains($0.request.action) ? $0.request.action : nil } } == [.clone])
         let admin = folder.appendingPathComponent(".git", isDirectory: true)
@@ -214,17 +225,17 @@ import TurtleGitCore
         }
         func rootActions(_ menu: NSMenu) -> Set<RepositoryAction> {
             let roots = menu.items.flatMap { $0.title == "TurtleGit" ? ($0.submenu?.items ?? []) : [$0] }
-            return Set(roots.compactMap(FinderShellMenuLayout.action))
+            return Set(roots.compactMap(FinderShellMenuLayout.action).filter { !$0.isApplicationUtility })
         }
         let trackedActions = rootActions(make([tracked], settings: allCommands()))
-        precondition(trackedActions == [.commit, .diff, .diffLater, .log, .revisionGraph, .status, .stash, .rename, .remove, .removeKeep, .ignoreDelete], "Unchanged tracked file must have source file commands, not folder commands or Revert")
+        precondition(trackedActions == [.commit, .diff, .diffLater, .previousDiff, .blame, .log, .revisionGraph, .status, .stash, .rename, .remove, .removeKeep, .ignoreDelete], "Unchanged tracked file must have source file commands, not folder commands or Revert")
         let addedFile = folder.appendingPathComponent("added.txt"); try Data().write(to: addedFile)
         let addedSnapshot = FinderSnapshot(roots: [folder.path], states: [addedFile.path: .added], repositories: [folder.path: FinderRepositoryMetadata()])
         let addedMenu = FinderMenuBuilder.make(paths: [addedFile], snapshot: addedSnapshot, settings: allCommands(), comparisonMark: nil, target: target, actionSelector: selector)
         precondition(rootActions(addedMenu) == [.commit, .diff, .diffLater, .status, .stash, .rename, .revert, .ignoreDelete], "Added paths exclude history and removal")
         verifyOrder(addedMenu)
         let multiple = rootActions(make([tracked, conflict], settings: allCommands()))
-        precondition(multiple == [.commit, .diff, .status, .resolve, .remove, .removeKeep, .ignoreDelete], "Two files exclude single-selection and folder commands")
+        precondition(multiple == [.commit, .diff, .status, .editConflict, .resolve, .remove, .removeKeep, .ignoreDelete], "Two files exclude single-selection and folder commands")
         let untrackedFolder = folder.appendingPathComponent("new-directory", isDirectory: true)
         try FileManager.default.createDirectory(at: untrackedFolder, withIntermediateDirectories: true)
         let creationRules = FinderCreationMenuContext.read(directory: untrackedFolder, snapshot: snapshot, extended: false)
@@ -290,7 +301,7 @@ import TurtleGitCore
         let bareMenu = metadataMenu(FinderRepositoryMetadata(bare: true))
         verifyOrder(bareMenu)
         precondition(rootActions(bareMenu) == [.fetch, .push, .log, .revisionGraph, .reflog, .referenceBrowser, .repositoryBrowser, .export, .worktreeList])
-        print("Actual metadata menu receiver: absent/present stash and .gitmodules, merge/bisect exclusions and nine bare-root commands follow source repository clauses while preserving groups. Cached facts only; fresh signed handoff remains pending.")
+        print("Actual metadata menu receiver: absent/present stash and .gitmodules, merge/bisect exclusions and nine bare-root Git commands plus utilities follow source repository clauses while preserving groups. Cached facts only; fresh signed handoff remains pending.")
         let unrelated = outside.appendingPathComponent("plain.txt"); try Data().write(to: unrelated)
         let outsideFileMenu = FinderMenuBuilder.make(paths: [unrelated], snapshot: nil, settings: allCommands(),
             comparisonMark: nil, target: target, actionSelector: selector)
@@ -302,9 +313,9 @@ import TurtleGitCore
         verifyOrder(outsidePairMenu)
         let fileAndFolder = FinderMenuBuilder.make(paths: [unrelated, outside], snapshot: nil, settings: allCommands(), comparisonMark: nil, target: target, actionSelector: selector)
         precondition(rootActions(fileAndFolder).isEmpty, "Folder selections do not satisfy the two-file clause")
-        print("Actual pair menu receiver: two outside files expose only Diff and retain ordered paths; file/folder selection is excluded. Native comparison activation remains pending.")
+        print("Actual pair menu receiver: two outside files expose Diff alongside utilities and retain ordered paths; file/folder selection is excluded. Native comparison activation remains pending.")
         verifyOrder(outsideFileMenu)
-        precondition(outsideFileMenu.items[0].submenu!.items.count == 1, "A lone mark command needs no leading separator")
+        precondition(outsideFileMenu.items[0].submenu!.items.filter { !$0.isSeparatorItem && FinderShellMenuLayout.action($0)?.isApplicationUtility != true }.count == 1, "A lone mark command needs no leading separator")
         print("Actual layout receiver: all \(mapping.count) implemented root entries match pinned MenuInfo fixture order/groups; six-case visible projections, nested Ignore positions, sparse toolbar/outside-file separators and manager-only New Worktree passed. Activated Finder still pending.")
         let actualRoot = folder.appendingPathComponent("actual-parent", isDirectory: true)
         let actualSource = folder.appendingPathComponent("actual-source", isDirectory: true)

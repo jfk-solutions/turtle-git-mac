@@ -2,6 +2,17 @@
 import AppKit
 import Foundation
 
+public enum FinderCommandFailure: LocalizedError {
+    case previousRevisionUnavailable, submodule, selection
+    public var errorDescription: String? {
+        switch self {
+        case .previousRevisionUnavailable: return "No previous revision is available for this path."
+        case .submodule: return "This folder is no longer a registered submodule."
+        case .selection: return "Select one versioned file or folder."
+        }
+    }
+}
+
 /// Source menu IDs preserve grouped commands and unknown mask bits across edits.
 public enum FinderMenuEntry: String, CaseIterable, Sendable {
     case clone = "Clone"
@@ -243,6 +254,13 @@ public enum FinderMenuEntry: String, CaseIterable, Sendable {
     /// One preference controls every command sharing the source menu ID.
     public static func entry(for action: RepositoryAction) -> Self? {
         switch action {
+        case .synchronize: return .sync
+        case .blame: return .blame
+        case .previousDiff: return .prevDiff
+        case .logSubmodule: return .logSubmodule
+        case .settings: return .settings
+        case .help: return .help
+        case .about: return .about
         case .clone: return .clone
         case .pull: return .pull
         case .fetch: return .fetch
@@ -288,7 +306,7 @@ public enum FinderMenuEntry: String, CaseIterable, Sendable {
     }
     public var availableInFinder: Bool {
         switch self {
-        case .sync, .svndCommit, .svnRebase, .svnFetch, .svnIgnore, .prevDiff, .logSubmodule, .daemon, .conflictEditor, .lfs, .blame, .applyPatch, .sendMail, .settings, .help, .about: return false
+        case .svndCommit, .svnRebase, .svnFetch, .svnIgnore, .daemon, .lfs, .applyPatch, .sendMail: return false
         default: return true
         }
     }

@@ -46,6 +46,11 @@ extension GitRepository {
     /// continue to use the child repository.
     public func discoverSelectionRoot(for action: RepositoryAction, selected: URL) async throws -> URL {
         let resolved = try discoverRoot()
+        if action == .logSubmodule {
+            guard selected.standardizedFileURL == resolved,
+                  let parent = try await GitRepository(root: resolved, executable: executable).registeredSubmoduleParent() else { throw FinderCommandFailure.submodule }
+            return parent
+        }
         guard action.isResolve || action == .revert || action == .submoduleUpdate || action == .submoduleSync || action == .diff || action == .rename || action == .remove, selected.standardizedFileURL == resolved else { return resolved }
         let parent = GitRepository(root: resolved.deletingLastPathComponent(), executable: executable)
         guard let containing = try? await parent.discoverRoot(), containing != resolved,

@@ -40,9 +40,9 @@ public enum MenuIcon: String, CaseIterable {
     case rebasePick = "menupick", rebaseSkip = "menuskip", rebaseEdit = "menuedit", rebaseSquash = "menusquash", reverse = "switch"
     case stash = "menushelve", stashPop = "menuunshelve", clone = "menucheckout", initialize = "menucreaterepos"
     case graphBar = "graph-bar", graphStackedBar = "graph-bar-stacked", graphLine = "graph-line", graphStackedLine = "graph-line-stacked", graphPie = "graph-pie"
-    case clean = "menucleanup", sync = "menusync"
+    case clean = "menucleanup", sync = "menusync", synchronize = "menurelocate"
     case add = "menuadd", revert = "menurevert", reset = "reset", cherryPick = "cherry-pick", copy = "copy"
-    case help = "menuhelp", settings = "menusettings", saveAs = "saveas"
+    case help = "menuhelp", settings = "menusettings", about = "menuabout", saveAs = "saveas"
     case settingsGeneral = "general", settingsDialogs = "dialogs", settingsGit = "gitconfig", settingsRemote = "gitremote"
     case settingsCredential = "gitcredential"
     case settingsNetwork = "proxy"
@@ -192,6 +192,13 @@ private final class IconResourceBundle: NSObject {}
 extension RepositoryAction {
     public var icon: MenuIcon {
         switch self {
+        case .synchronize: return .synchronize
+        case .blame: return .blame
+        case .previousDiff: return .compare
+        case .logSubmodule: return .log
+        case .settings: return .settings
+        case .help: return .help
+        case .about: return .about
         case .status: return .status
         case .commit: return .commit
         case .add, .submoduleAdd: return .add

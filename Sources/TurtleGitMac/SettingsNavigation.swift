@@ -2,6 +2,7 @@
 import AppKit
 import SwiftUI
 import TurtleGitCore
+import Combine
 
 /// Native projection of Settings.cpp's tree for pages currently implemented.
 /// Pending pages are tracked in the inventory, rather than shown as empty panes.
@@ -26,6 +27,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
 }
 @MainActor final class SettingsNavigationController: NSViewController, NSOutlineViewDataSource, NSOutlineViewDelegate {
     private let workspace: RepositoryModel, appearance: AppAppearance
+    let globalOnly: Bool
     private let appearanceDraft: SettingsAppearanceDraft
     private let overlayDraft = FinderOverlaySettingsModel()
     private let contextMenuDraft = FinderContextMenuSettingsModel()
@@ -46,7 +48,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     private var remote: RemoteSettingsWindowModel?
     private var delegateProxy: SettingsWindowDelegate?
     private var updating = false
-    init(workspace: RepositoryModel, appearance: AppAppearance) { self.workspace = workspace; self.appearance = appearance; self.appearanceDraft = SettingsAppearanceDraft(appearance: appearance); super.init(nibName: nil, bundle: nil) }
+    init(workspace: RepositoryModel, appearance: AppAppearance, globalOnly: Bool = false) { self.workspace = workspace; self.appearance = appearance; self.globalOnly = globalOnly; self.appearanceDraft = SettingsAppearanceDraft(appearance: appearance); super.init(nibName: nil, bundle: nil) }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     override func loadView() {
         view = NSView(); view.setAccessibilityLabel("TurtleGit settings")
@@ -90,11 +92,11 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         guard let window = view.window, delegateProxy == nil else { return }
         let proxy = SettingsWindowDelegate(owner: self, original: window.delegate); delegateProxy = proxy; window.delegate = proxy
         transaction.window = window
-        window.title = "Settings – TurtleGit for Mac"
+        window.title = globalOnly ? "Global Settings – TurtleGit for Mac" : "Settings – TurtleGit for Mac"
     }
     var canDismiss: Bool { !transaction.busy && remote?.busy != true && remote?.hasChild != true && GitConfigurationSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSaves == 0 && NetworkSettingsModel.activeSaves == 0 && view.window?.attachedSheet == nil }
     func updateRepository() {
-        guard isViewLoaded, workspace.root?.path != repositoryPath else { return }
+        guard !globalOnly, isViewLoaded, workspace.root?.path != repositoryPath else { return }
         // A captured Remote model belongs to the repository that created it.
         remote?.invalidate()
         if selected == .remote, let window = view.window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.close() }
@@ -123,7 +125,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
                 SettingsPageNode(.colors3, "Colors 3", .settingsColors),
                 SettingsPageNode(.commit, "Message Editor", .editor),
                 SettingsPageNode(.alternativeEditor, "Alternative Editor", .editor)]),
-            SettingsPageNode(.git, "Git", .settingsGit, children: (workspace.root == nil ? [] : [SettingsPageNode(.remote, "Remote", .settingsRemote)]) + [SettingsPageNode(.credential, "Credential", .settingsCredential)]),
+            SettingsPageNode(.git, "Git", .settingsGit, children: (globalOnly || workspace.root == nil ? [] : [SettingsPageNode(.remote, "Remote", .settingsRemote)]) + [SettingsPageNode(.credential, "Credential", .settingsCredential)]),
             SettingsPageNode(.network, "Network", .settingsNetwork),
             SettingsPageNode(.overlays, "Icon Overlays", .settingsOverlays, children: [SettingsPageNode(.overlayIcons, "Icon Set", .settingsOverlays), SettingsPageNode(.overlayHandlers, "Overlay Handlers", .settingsOverlays)]),
             SettingsPageNode(.email, "Email", .sendMail),
@@ -161,15 +163,15 @@ struct SettingsNavigation: NSViewControllerRepresentable {
             case .colors1, .colors2, .colors3: controller = host(SourceColorSettings(page: page, appearance: appearanceDraft))
             case .dialogs: controller = host(LogDialogSettings())
             case .dialogs2: controller = host(DialogsBehaviorSettings())
-            case .dialogs3: controller = host(ProjectDialogSettingsPage(workspace: workspace))
+            case .dialogs3: controller = host(ProjectDialogSettingsPage(workspace: workspace, globalOnly: globalOnly))
             case .commit: controller = host(CommitEditorSettings(editorOnly: true))
             case .alternativeEditor: controller = host(AlternativeEditorSettings())
-            case .git: controller = host(GitConfigurationSettingsPage(workspace: workspace))
+            case .git: controller = host(GitConfigurationSettingsPage(workspace: workspace, globalOnly: globalOnly))
             case .credential:
-                guard let context = try? workspace.gitConfigurationContext() else { return }
+                guard let context = try? workspace.gitConfigurationContext(globalOnly: globalOnly) else { return }
                 controller = host(CredentialSettingsPage(model: CredentialSettingsModel(repository: context.repository, access: context.access, localAvailable: context.localAvailable)))
             case .network:
-                guard let context = try? workspace.gitConfigurationContext() else { return }
+                guard let context = try? workspace.gitConfigurationContext(globalOnly: globalOnly) else { return }
                 controller = host(NetworkSettingsPage(model: NetworkSettingsModel(repository: context.repository, access: context.access, localAvailable: context.localAvailable)))
             case .overlays: controller = host(FinderOverlaySettingsPage(model: overlayDraft))
             case .overlayHandlers: controller = host(FinderOverlaySettingsPage(model: overlayDraft, handlersOnly: true))
@@ -232,6 +234,69 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         guard !updating, let node = outline.item(atRow: outline.selectedRow) as? SettingsPageNode else { return }; show(node.id)
     }
 }
+/// App-menu and Finder Settings use one native property-sheet owner. Closing it
+/// discards drafts; reopening creates a fresh transaction and page cache.
+@MainActor final class SettingsPresentationService: NSObject, NSWindowDelegate {
+    static let shared = SettingsPresentationService()
+    private weak var workspace: RepositoryModel?
+    private weak var appearance: AppAppearance?
+    private var controller: NSWindowController?
+    private var navigation: SettingsNavigationController?
+    private var updates: AnyCancellable?
+    func install(workspace: RepositoryModel, appearance: AppAppearance) {
+        self.workspace = workspace; self.appearance = appearance
+        workspace.onSettings = { Self.shared.show(globalOnly: $0) }
+        workspace.canChangeSettingsContext = { Self.shared.prepareContextChange() }
+        workspace.onHelp = { Self.showHelp() }
+        workspace.onAbout = { Self.showAbout() }
+    }
+    func prepareContextChange() -> Bool {
+        guard let navigation else { return true }
+        guard navigation.canDismiss, !navigation.transaction.modified else {
+            controller?.showWindow(nil); controller?.window?.makeKeyAndOrderFront(nil)
+            if let window = controller?.window, window.attachedSheet == nil {
+                let alert = NSAlert(); alert.messageText = "Finish the current Settings first"
+                alert.informativeText = "Close the current Settings window before opening settings for a different context. Unsaved changes and active operations are retained."
+                alert.beginSheetModal(for: window)
+            }
+            return false
+        }
+        return true
+    }
+    func show(globalOnly: Bool = false) {
+        guard let workspace, let appearance, !workspace.confirmingQuit else { return }
+        if let navigation, navigation.globalOnly != globalOnly {
+            guard prepareContextChange() else { return }
+            controller?.window?.performClose(nil)
+        }
+        if let controller { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); return }
+        let navigation = SettingsNavigationController(workspace: workspace, appearance: appearance, globalOnly: globalOnly)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1040, height: 740), styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
+        window.title = "Settings – TurtleGit for Mac"; window.isReleasedWhenClosed = false
+        window.contentMinSize = NSSize(width: 980, height: 700)
+        window.delegate = self; window.contentViewController = navigation
+        let controller = NSWindowController(window: window)
+        self.navigation = navigation; self.controller = controller
+        updates = workspace.objectWillChange.sink { [weak self] in
+            DispatchQueue.main.async { [weak self] in self?.navigation?.updateRepository() }
+        }
+        window.center(); controller.showWindow(nil); window.makeKeyAndOrderFront(nil)
+    }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { navigation?.canDismiss == true }
+    func windowWillClose(_ notification: Notification) {
+        navigation?.invalidate(); updates?.cancel(); updates = nil
+        navigation = nil; controller = nil
+    }
+    static func showHelp() {
+        NSWorkspace.shared.open(URL(string: "https://jfk-solutions.github.io/turtle-git-mac/")!)
+    }
+    static func showAbout() {
+        let credits = NSMutableAttributedString(string: "A macOS fork of TortoiseGit\nLicensed under GNU GPL v2.\n\nOriginal Git UI and artwork: TortoiseGit.\nOriginal overlay artwork: TortoiseSVN and credited icon contributors.\n\n")
+        credits.append(NSAttributedString(string: "Project and source code", attributes: [.link: URL(string: "https://github.com/jfk-solutions/turtle-git-mac")!]))
+        NSApp.orderFrontStandardAboutPanel(options: [.applicationName: "TurtleGit for Mac", .credits: credits])
+    }
+}
+
 @MainActor private final class SettingsWindowDelegate: NSObject, NSWindowDelegate {
     weak var owner: SettingsNavigationController?
     nonisolated(unsafe) let original: NSWindowDelegate?
