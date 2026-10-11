@@ -120,6 +120,16 @@ public struct SynchronizationTransportResult: Sendable {
     public let rebaseMode: SynchronizationRebaseMode
     public let executedArguments: [String]
 }
+/// A completed, separately presented Pull checkout. The original plan keeps
+/// the incoming-list baseline; the private fingerprint guards the next step.
+/// Only the repository that performed checkout can resume this checkpoint.
+public struct SynchronizationPullCheckout: Sendable {
+    public let plan: SynchronizationTransportPlan
+    public let command: GitResult?
+    fileprivate let repository: GitRepository
+    fileprivate let readyHead: String?
+    fileprivate let readyBranch: String
+}
 public enum SynchronizationTransportFailure: LocalizedError {
     case checkoutNotAuthorized, deletionNotAuthorized, repositoryChanged, rebaseBranchRequired
     public var errorDescription: String? {
@@ -335,15 +345,49 @@ extension GitRepository {
     public func synchronize(_ plan: SynchronizationTransportPlan, checkoutAuthorized: Bool = false, deletionAuthorized: Bool = false,
                             cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil,
                             prepareTransport: SSHTransportPreparation? = nil) async throws -> SynchronizationTransportResult {
+        try await executeSynchronization(plan, checkout: nil, checkoutAuthorized: checkoutAuthorized, deletionAuthorized: deletionAuthorized,
+                                         cancellation: cancellation, onOutput: onOutput, prepareTransport: prepareTransport)
+    }
+    /// Runs only the approved checkout, allowing the native owner to present
+    /// source-style separate progress before tracking and transport questions.
+    public func synchronizationPullCheckout(_ plan: SynchronizationTransportPlan, checkoutAuthorized: Bool = false,
+                                            cancellation: OperationCancellation? = nil,
+                                            onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> SynchronizationPullCheckout {
+        let token = cancellation ?? OperationCancellation(); try token.check()
+        guard plan.options.action == .pull else { throw SynchronizationFailure.invalidInput }
+        guard plan.root == root,
+              try synchronizationHash("HEAD", cancellation: token) == plan.oldHead,
+              GitReferenceName.equal(try branch(cancellation: token), plan.currentBranch) else { throw SynchronizationTransportFailure.repositoryChanged }
+        guard plan.checkoutBranch == nil || checkoutAuthorized else { throw SynchronizationTransportFailure.checkoutNotAuthorized }
+        let command = try plan.checkoutArguments.map { try run($0, cancellation: token, onOutput: onOutput) }
+        let head = try synchronizationHash("HEAD", cancellation: token)
+        let branch = try self.branch(cancellation: token)
+        try token.check()
+        return SynchronizationPullCheckout(plan: plan, command: command, repository: self, readyHead: head, readyBranch: branch)
+    }
+    /// Continues after the owned checkout without switching a second time,
+    /// even when a post-checkout hook changed the actual branch attachment.
+    public func synchronize(_ checkout: SynchronizationPullCheckout, cancellation: OperationCancellation? = nil,
+                            onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil,
+                            prepareTransport: SSHTransportPreparation? = nil) async throws -> SynchronizationTransportResult {
+        try await executeSynchronization(checkout.plan, checkout: checkout, checkoutAuthorized: true, deletionAuthorized: false,
+                                         cancellation: cancellation, onOutput: onOutput, prepareTransport: prepareTransport)
+    }
+    private func executeSynchronization(_ plan: SynchronizationTransportPlan, checkout: SynchronizationPullCheckout?,
+                                        checkoutAuthorized: Bool, deletionAuthorized: Bool, cancellation: OperationCancellation?,
+                                        onOutput: (@Sendable (GitOutputChunk) -> Void)?, prepareTransport: SSHTransportPreparation?) async throws -> SynchronizationTransportResult {
         let token = cancellation ?? OperationCancellation(); try token.check()
         guard plan.root == root else { throw SynchronizationTransportFailure.repositoryChanged }
         guard !plan.deletesDestination || deletionAuthorized else { throw SynchronizationTransportFailure.deletionNotAuthorized }
         guard plan.checkoutBranch == nil || checkoutAuthorized else { throw SynchronizationTransportFailure.checkoutNotAuthorized }
         if plan.options.action == .pull {
-            guard try synchronizationHash("HEAD", cancellation: token) == plan.oldHead,
-                  GitReferenceName.equal(try branch(cancellation: token), plan.currentBranch) else { throw SynchronizationTransportFailure.repositoryChanged }
+            let expectedHead: String?
+            if let checkout { expectedHead = checkout.readyHead } else { expectedHead = plan.oldHead }
+            guard checkout == nil || checkout?.repository === self,
+                  try synchronizationHash("HEAD", cancellation: token) == expectedHead,
+                  GitReferenceName.equal(try branch(cancellation: token), checkout?.readyBranch ?? plan.currentBranch) else { throw SynchronizationTransportFailure.repositoryChanged }
         }
-        if let arguments = plan.checkoutArguments {
+        if checkout == nil, let arguments = plan.checkoutArguments {
             _ = try run(arguments, cancellation: token, onOutput: onOutput)
         }
         let readyHead = plan.options.action == .pull ? try synchronizationHash("HEAD", cancellation: token) : nil

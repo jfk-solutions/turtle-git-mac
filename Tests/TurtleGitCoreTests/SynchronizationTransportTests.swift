@@ -337,6 +337,82 @@ final class SynchronizationTransportTests: XCTestCase {
         XCTAssertEqual(actual, "other"); XCTAssertEqual(head, f.base)
     }
 
+    func testSeparatePullCheckoutRetainsBaselineAndDoesNotRepeatHook() async throws {
+        let f = try await fixture(); defer { try? FileManager.default.removeItem(at: f.directory) }
+        let tip = try await advance(f)
+        _ = try await f.client.run(["switch", "-c", "other"])
+        _ = try await f.client.run(["commit", "--allow-empty", "-m", "original incoming baseline"])
+        let original = try await hash(f.client)
+        _ = try await f.client.run(["config", "branch.other.rebase", "merges"])
+        let hooks = f.directory.appendingPathComponent("separate-checkout-hooks")
+        try FileManager.default.createDirectory(at: hooks, withIntermediateDirectories: true)
+        let marker = f.directory.appendingPathComponent("checkout-count")
+        func quote(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\"'\"'") + "'" }
+        let script = "#!/bin/sh\nprintf 'checkout\\n' >> " + quote(marker.path) + "\nexec " + quote(f.client.executable.path) + " -C " + quote(f.client.root.path) + " -c core.hooksPath=/dev/null switch other\n"
+        let hook = hooks.appendingPathComponent("post-checkout")
+        try Data(script.utf8).write(to: hook); try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: hook.path)
+        _ = try await f.client.run(["config", "core.hooksPath", hooks.path])
+        let plan = try await f.client.synchronizationTransportPlan(options(.pull))
+        let output = Output()
+        let checkout = try await f.client.synchronizationPullCheckout(plan, checkoutAuthorized: true, onOutput: { output.append($0) })
+        XCTAssertEqual(checkout.plan.oldHead, original); XCTAssertNotNil(checkout.command)
+        XCTAssertFalse(output.bytes(.stderr).isEmpty)
+        let trackingBefore = try await hash(f.client, "refs/remotes/origin/main")
+        XCTAssertEqual(trackingBefore, f.base, "checkout must not start transport")
+        let result = try await f.client.synchronize(checkout)
+        XCTAssertEqual(result.executedArguments.first, "fetch"); XCTAssertEqual(result.rebaseMode, .preserveMerges)
+        XCTAssertEqual(result.rebaseTarget, tip); XCTAssertEqual(checkout.plan.oldHead, original)
+        XCTAssertEqual(try String(contentsOf: marker, encoding: .utf8), "checkout\n", "transport must not repeat approved checkout")
+        let actual = try await f.client.branch(), head = try await hash(f.client)
+        XCTAssertEqual(actual, "other"); XCTAssertEqual(head, original)
+    }
+
+    func testSeparatePullCheckoutRejectsUnauthorizedCancelledForeignAndStaleContinuation() async throws {
+        let f = try await fixture(); defer { try? FileManager.default.removeItem(at: f.directory) }
+        _ = try await f.client.run(["switch", "-c", "other"])
+        let plan = try await f.client.synchronizationTransportPlan(options(.pull))
+        do { _ = try await f.client.synchronizationPullCheckout(plan); XCTFail("unapproved checkout accepted") }
+        catch SynchronizationTransportFailure.checkoutNotAuthorized {}
+        let cancelled = OperationCancellation(); cancelled.cancel()
+        do { _ = try await f.client.synchronizationPullCheckout(plan, checkoutAuthorized: true, cancellation: cancelled); XCTFail("cancelled checkout accepted") }
+        catch OperationCancellationFailure.cancelled {}
+        let unchanged = try await f.client.branch(); XCTAssertEqual(unchanged, "other")
+        let checkout = try await f.client.synchronizationPullCheckout(plan, checkoutAuthorized: true)
+        let foreignOwner = GitRepository(root: f.client.root, executable: f.client.executable)
+        do { _ = try await foreignOwner.synchronize(checkout); XCTFail("foreign owner accepted checkpoint") }
+        catch SynchronizationTransportFailure.repositoryChanged {}
+        _ = try await f.client.run(["switch", "--detach", f.base])
+        do { _ = try await f.client.synchronize(checkout); XCTFail("changed attachment accepted checkpoint") }
+        catch SynchronizationTransportFailure.repositoryChanged {}
+        XCTAssertFalse(FileManager.default.fileExists(atPath: f.client.root.appendingPathComponent(".git/FETCH_HEAD").path))
+    }
+
+    func testSeparatePullCheckoutNoSwitchAndFailedSwitchBoundaries() async throws {
+        let f = try await fixture(); defer { try? FileManager.default.removeItem(at: f.directory) }
+        let plan = try await f.client.synchronizationTransportPlan(options(.pull))
+        let checkpoint = try await f.client.synchronizationPullCheckout(plan)
+        XCTAssertNil(checkpoint.command)
+        let tip = try await advance(f)
+        let result = try await f.client.synchronize(checkpoint)
+        XCTAssertEqual(result.executedArguments.first, "pull")
+        let head = try await hash(f.client); XCTAssertEqual(head, tip)
+
+        _ = try await f.client.run(["switch", "-c", "dirty-checkout"])
+        let file = f.client.root.appendingPathComponent("file")
+        try Data("branch version\n".utf8).write(to: file)
+        try await f.client.stage(["file"]); _ = try await f.client.commit(message: "different checkout content")
+        try Data("uncommitted work\n".utf8).write(to: file)
+        let index = try Data(contentsOf: f.client.root.appendingPathComponent(".git/index"))
+        let fetchHead = try Data(contentsOf: f.client.root.appendingPathComponent(".git/FETCH_HEAD"))
+        let failedPlan = try await f.client.synchronizationTransportPlan(options(.pull))
+        do { _ = try await f.client.synchronizationPullCheckout(failedPlan, checkoutAuthorized: true); XCTFail("failed checkout returned checkpoint") }
+        catch is GitFailure {}
+        XCTAssertEqual(try String(contentsOf: file, encoding: .utf8), "uncommitted work\n")
+        XCTAssertEqual(try Data(contentsOf: f.client.root.appendingPathComponent(".git/index")), index)
+        XCTAssertEqual(try Data(contentsOf: f.client.root.appendingPathComponent(".git/FETCH_HEAD")), fetchHead)
+        let branch = try await f.client.branch(); XCTAssertEqual(branch, "dirty-checkout")
+    }
+
     func testEmptyRebaseBranchValidationOccursAfterApprovedCheckoutHook() async throws {
         for (before, after) in [("merges", "false"), ("false", "merges")] {
             let f = try await fixture(); defer { try? FileManager.default.removeItem(at: f.directory) }
