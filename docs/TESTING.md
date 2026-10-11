@@ -1006,3 +1006,10 @@ revision-list command, including captured root/tag targets, ZIP bytes and startu
 Cancel/forced-owner child-process cleanup. See
 [the Export record](qa/synchronization-export-2026-10-11.json). Both receivers are
 reaped; physical file-panel and signed acceptance remain open.
+
+Git runtime deployment regression:
+`python3 scripts/test-git-runtime-deployment.py --runtime build/git-runtime/Git`.
+Synthetic universal/legacy/malformed/platform/high-target fixtures verify strict
+per-architecture rejection; actual Git/LFS slices are cross-checked against
+explicit `otool -arch`. The validator's full local Git and provenance audit passed;
+see [the deployment record](qa/ci-git-deployment-2026-10-11.json).

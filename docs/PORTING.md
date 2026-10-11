@@ -350,3 +350,19 @@ Git path absent on a clean checkout. The move preserves all other steps.
 Local ordering checks pass; hosted execution remains pending. The observed
 prior macOS job was queued with no assigned runner, whose cause is not yet
 established. See [ordering verification and hosted limits](qa/ci-git-runtime-order-2026-10-11.json).
+
+## Git/LFS deployment validation (October 11)
+
+Hosted run 38160034341 passed the repaired universal graph build and then failed
+on the Git LFS deployment-target count. The old validator counted `minos` lines
+from default `otool -l` output across a universal file. The log does not include
+raw load commands, so the exact host-output cause remains unproven.
+
+The replacement reads each architecture's Mach-O deployment command directly,
+accepting modern macOS `LC_BUILD_VERSION` and legacy `LC_VERSION_MIN_MACOSX`. It
+requires one target per slice, validates command bounds/platform, and enforces
+the pinned maximum macOS version independently. Publisher LFS provenance and
+dependency gates remain intact. Three regression tests and explicit per-slice
+otool comparisons for real Git/LFS pass, as does the full local Git runtime
+audit. Hosted Intel execution is still required; this is not a green CI claim.
+See [the deployment record](qa/ci-git-deployment-2026-10-11.json).

@@ -6,10 +6,55 @@ import json
 import os
 import pathlib
 import re
+import struct
 import subprocess
 import tempfile
+from git_lfs_runtime import slices
 
 MACH = {b'\xcf\xfa\xed\xfe', b'\xfe\xed\xfa\xcf', b'\xca\xfe\xba\xbe', b'\xbe\xba\xfe\xca'}
+def macos_minimum(data):
+    """Read one thin slice's deployment command, independent of host otool output."""
+    if len(data) < 32 or data[:4] != b'\xcf\xfa\xed\xfe':
+        raise ValueError('Expected a 64-bit little-endian Mach-O slice')
+    count, length = struct.unpack_from('<II', data, 16)
+    end = 32 + length
+    if end > len(data): raise ValueError('Truncated load commands')
+    cursor = 32; minimums = []
+    for _ in range(count):
+        if cursor + 8 > end: raise ValueError('Missing load command')
+        command, size = struct.unpack_from('<II', data, cursor)
+        if size < 8 or size % 8 or cursor + size > end:
+            raise ValueError('Invalid load command size')
+        if command == 0x32: # LC_BUILD_VERSION; PLATFORM_MACOS == 1
+            if size < 24: raise ValueError('Truncated build version')
+            platform, version, _, tools = struct.unpack_from('<IIII', data, cursor + 8)
+            if platform != 1: raise ValueError('Deployment platform is not macOS')
+            if size != 24 + tools * 8: raise ValueError('Invalid build tool records')
+            minimums.append(version)
+        elif command == 0x24: # LC_VERSION_MIN_MACOSX
+            if size != 16: raise ValueError('Invalid legacy macOS version')
+            minimums.append(struct.unpack_from('<I', data, cursor + 8)[0])
+        elif command in (0x25, 0x2f, 0x30):
+            raise ValueError('Legacy deployment platform is not macOS')
+        cursor += size
+    if cursor != end or len(minimums) != 1:
+        raise ValueError('Expected exactly one macOS deployment target')
+    value = minimums[0]
+    return (value >> 16, (value >> 8) & 255, value & 255)
+
+def audit_deployment(path, architectures, maximum):
+    components = maximum.split('.')
+    if not 1 <= len(components) <= 3: raise ValueError('Invalid maximum macOS version')
+    target = tuple(int(part) for part in components) + (0,) * (3 - len(components))
+    binaries = slices(path.read_bytes())
+    if set(binaries) != set(architectures): raise ValueError('Architecture mismatch: ' + str(path))
+    for arch, data in binaries.items():
+        try:
+            minimum = macos_minimum(data)
+            if minimum > target: raise ValueError('Deployment target %s exceeds %s' % (minimum, target))
+        except ValueError as error:
+            raise ValueError('%s [%s]: %s' % (path, arch, error)) from error
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('runtime', type=pathlib.Path)
@@ -33,11 +78,7 @@ def main():
             binaries += 1
             architectures = subprocess.check_output(['/usr/bin/lipo', '-archs', str(path)], text=True).split()
             assert set(architectures) == set(manifest['architectures']), str(path)
-            commands = subprocess.check_output(['/usr/bin/otool', '-l', str(path)], text=True)
-            minimums = [line.split()[1] for line in commands.splitlines() if line.strip().startswith('minos ')]
-            assert len(minimums) == len(architectures), 'Missing deployment target: ' + str(path)
-            target = tuple(int(part) for part in manifest['minimum_macos'].split('.'))
-            assert all(tuple(int(part) for part in version.split('.')) <= target for version in minimums), str(path)
+            audit_deployment(path, architectures, manifest['minimum_macos'])
             links = subprocess.check_output(['/usr/bin/otool', '-L', str(path)], text=True)
             for line in links.splitlines():
                 if '(compatibility version' in line:

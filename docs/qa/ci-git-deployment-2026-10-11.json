@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-11",
+  "status": "local-per-slice-deployment-audit-passed-hosted-unverified",
+  "observed_hosted_failure": {
+    "run": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38160034341",
+    "job": "114530825115",
+    "gate": "Build pinned universal Git runtime with source and licenses",
+    "failure": "validate-git-runtime.py aggregate otool minos count rejected git-lfs",
+    "cause_limit": "Hosted log lacks raw otool load commands; host default architecture output vs legacy command format cannot be distinguished from that log."
+  },
+  "change": [
+    "Read LC_BUILD_VERSION (platform macOS only) or LC_VERSION_MIN_MACOSX from every thin Mach-O architecture",
+    "Require exactly one target, bounded complete load commands and matching architecture set",
+    "Normalize maximum version to three components and enforce each architecture independently",
+    "Keep publisher LFS provenance, dependency and real Git operation audits",
+    "Include regression in hosted workflow and shipped reconstruction scripts"
+  ],
+  "verification": {
+    "regression_exit_code": 0,
+    "regression_scope": [
+      "modern and legacy targets",
+      "mixed-generation universal fixture",
+      "missing/duplicate/non-macOS/truncated targets rejected",
+      "too-new target rejected separately in either architecture",
+      "architecture mismatch and normalized version handling",
+      "actual bundled Git/LFS arm64 and x86_64 targets agree with explicit otool -arch"
+    ],
+    "runtime_audit_exit_code": 0,
+    "runtime_macho_files": 12,
+    "git": "2.55.0",
+    "git_lfs": "3.8.0",
+    "runtime_scope": "All bundled Mach-O deployment targets/dependencies plus pinned LFS publisher/Go/modules/notices/helper lookup and real init/commit/diff/stash/clone/log/notes/revert/blame operations",
+    "hosted_result": "Awaiting push and observed rerun; no green CI claim."
+  },
+  "remaining": [
+    "Observed Intel hosted CI success",
+    "Signed full App Store/Finder acceptance",
+    "Full upstream port"
+  ],
+  "sha256": {
+    "scripts/validate-git-runtime.py": "a4a9cf335c3231f5dcff3f5bdf2189d6294c8f9a80837e55c5b20a298305b5fe",
+    "scripts/test-git-runtime-deployment.py": "181e716b99666734359e3798e6b30d73ce3a46cf874fed52614c80b6d204b8a2",
+    "scripts/build-git-runtime.py": "2b8b550321d95332d139abacca82618130c8189b16a634b8033316b92e4f2ba1",
+    ".github/workflows/macos.yml": "0508ecc3250dd6ffccf94a57fd5a23736a3f90b4dce7575bbeddaf6c3f6ba805",
+    "build/qa/git-runtime-deployment-regression-final-2026-10-11.log": "b196f21ad2bce5607f93221d6b5c607fc7d5eb4f49e74b735cee65064ce6d4cd",
+    "build/qa/git-runtime-deployment-validation-2026-10-11.log": "9b457303e090e714397deba6915dbed9ef56e6c9701dc005bedc1606a011d91a",
+    "build/qa/ci-git-runtime-38160034341.log": "0a5b6e4dc7b56ddb300373387430022acb93b8f476e8d55fbf3b27eb9906274c"
+  }
+}

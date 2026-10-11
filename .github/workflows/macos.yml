@@ -58,6 +58,8 @@ jobs:
         run: python3 scripts/test-openssh-embedding.py
       - name: Build pinned universal Git runtime with source and licenses
         run: python3 scripts/build-git-runtime.py
+      - name: Verify per-slice Git and LFS macOS deployment targets
+        run: python3 scripts/test-git-runtime-deployment.py --runtime build/git-runtime/Git
       - name: Git integration tests
         run: swift test
       - name: Native historical file and folder item-provider receivers

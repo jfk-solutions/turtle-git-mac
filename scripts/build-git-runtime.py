@@ -85,7 +85,7 @@ def main():
         reconstruction = licenses / 'build'
         (reconstruction / 'scripts').mkdir(parents=True)
         (reconstruction / 'Configuration').mkdir()
-        for script in ['build-git-runtime.py', 'validate-git-runtime.py', 'git_lfs_runtime.py', 'prepare-git-lfs-runtime.py', 'validate-git-lfs-runtime.py']:
+        for script in ['build-git-runtime.py', 'validate-git-runtime.py', 'test-git-runtime-deployment.py', 'git_lfs_runtime.py', 'prepare-git-lfs-runtime.py', 'validate-git-lfs-runtime.py']:
             shutil.copy2(ROOT / 'scripts' / script, reconstruction / 'scripts' / script)
         shutil.copy2(ROOT / 'Configuration/GitRuntime.json', reconstruction / 'Configuration/GitRuntime.json')
         shutil.copy2(ROOT / 'Configuration/GitLFSRuntime.json', reconstruction / 'Configuration/GitLFSRuntime.json')
