@@ -145,6 +145,10 @@ import TurtleGitCore
             Task { @MainActor in if let self, !self.busy, !self.confirmingQuit, self.root != nil { await self.refresh(refreshStatus: false) } }
         }
     }
+    func gitConfigurationContext() throws -> (repository: GitRepository, access: RepositoryAccessLease?, localAvailable: Bool) {
+        if let repository { return (repository, activeAccess, true) }
+        return (try makeRepository(FileManager.default.homeDirectoryForCurrentUser), nil, false)
+    }
     private func makeRepository(_ url: URL) throws -> GitRepository {
         GitRepository(root: url, executable: try GitRuntime.executable())
     }

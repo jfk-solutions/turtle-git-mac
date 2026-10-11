@@ -39,7 +39,7 @@ import AppKit
         // stopped. Keep termination fenced until that child or atomic save ends.
         if HistoryCombineWindowModel.activeOperations > 0 || HistoryRevertWindowModel.activeOperations > 0 ||
             HistoryNotesWindowModel.activeMutations > 0 || SynchronizationWindowModel.activeHistoryDeletions > 0 ||
-            LogWindowModel.activeHistoryDeletions > 0 { return .terminateCancel }
+            LogWindowModel.activeHistoryDeletions > 0 || GitConfigurationSettingsModel.activeSaves > 0 { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? HistoryNotesWindowController }).contains(where: { $0.model.loading || $0.model.saving || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? HistoryRevertWindowController }).contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? BisectWindowController }).contains(where: { $0.activeOperation }) { return .terminateCancel }

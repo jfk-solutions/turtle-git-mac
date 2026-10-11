@@ -74,6 +74,12 @@ a source-style completion footer with optional elapsed time. See
 [the Merge follow-up](MERGE-PARITY.md#abort-merge-ownership-follow-up-october-10).
 
 
+Git configuration now has a native Settings page with scoped source views,
+identity inheritance, line-ending choices, three-state QuotePath/Prune and a
+separate save destination. Implementation is still in progress and has not been
+compiled or tested; external config editors and sandbox grants remain in scope.
+See [the Git configuration continuation](GIT-CONFIGURATION-PARITY.md).
+
 ## Audited baseline
 
 Worktree creation, listing, locking, unlocking, removal and pruning now have a
