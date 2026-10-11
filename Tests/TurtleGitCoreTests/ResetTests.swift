@@ -15,6 +15,55 @@ final class ResetTests: XCTestCase {
         try Data("untracked\n".utf8).write(to: root.appendingPathComponent("keep.txt"))
         return (root, repo, base, latest)
     }
+    func testCancellationDuringResetPreparationReapsEveryReadWithoutMutation() async throws {
+        for argument in ["--is-bare-repository", "HEAD^{commit}", "HEAD", "--quiet"] {
+            let (root, repo, _, _) = try await fixture()
+            let path = "file.txt"
+            defer { try? FileManager.default.removeItem(at: root) }
+            let beforeIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+            let beforeFile = try Data(contentsOf: root.appendingPathComponent(path))
+            let ready = root.appendingPathComponent("abort-processes")
+            let reset = root.appendingPathComponent("unexpected-reset")
+            let helper = root.appendingPathComponent("abort-git")
+            func quote(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'" }
+            let script = """
+            #!/bin/sh
+            for arg in "$@"; do
+              if [ "$arg" = reset ]; then /usr/bin/touch \(quote(reset.path)); fi
+              if [ "$arg" = \(quote(argument)) ]; then
+                /bin/sleep 30 &
+                child=$!
+                /usr/bin/printf '%s\\n%s\\n' "$$" "$child" > \(quote(ready.path))
+                wait "$child"
+              fi
+            done
+            exec \(quote(repo.executable.path)) "$@"
+            """
+            try Data(script.utf8).write(to: helper)
+            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
+            let slow = GitRepository(root: root, executable: helper), token = OperationCancellation()
+            let task = Task { try await slow.prepareReset(to: "HEAD", mode: .hard, cancellation: token) }
+            defer { token.cancel() }
+            var pids: [Int32] = []
+            let deadline = Date().addingTimeInterval(5)
+            while Date() < deadline {
+                pids = ((try? String(contentsOf: ready)) ?? "").split(separator: "\n").compactMap { Int32($0) }
+                if pids.count == 2 { break }
+                try await Task.sleep(nanoseconds: 10_000_000)
+            }
+            guard pids.count == 2 else { token.cancel(); _ = await task.result; XCTFail("Preflight never started"); continue }
+            XCTAssertEqual(getpgid(pids[1]), pids[0])
+            token.cancel()
+            do { _ = try await task.value; XCTFail("Cancelled preflight continued") } catch is GitCommandCancellationFailure {} catch is OperationCancellationFailure {}
+            let stopped = Date().addingTimeInterval(5)
+            while Date() < stopped && pids.contains(where: { kill($0, 0) == 0 }) { try await Task.sleep(nanoseconds: 10_000_000) }
+            for pid in pids { XCTAssertEqual(kill(pid, 0), -1); XCTAssertEqual(errno, ESRCH) }
+            XCTAssertFalse(FileManager.default.fileExists(atPath: reset.path))
+            XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), beforeIndex)
+            XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), beforeFile)
+        }
+    }
+
     func testResetModesHaveExactHeadIndexAndWorkingTreeEffects() async throws {
         for mode in ResetMode.allCases {
             let (root, repo, base, latest) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }

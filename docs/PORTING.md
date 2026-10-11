@@ -366,3 +366,16 @@ dependency gates remain intact. Three regression tests and explicit per-slice
 otool comparisons for real Git/LFS pass, as does the full local Git runtime
 audit. Hosted Intel execution is still required; this is not a green CI claim.
 See [the deployment record](qa/ci-git-deployment-2026-10-11.json).
+
+
+### Implementation and validation cadence
+
+The requested cadence is to implement a complete major port section before
+building and testing it. Small command groups and individual dialog edits are
+not separate validation milestones. Accumulate the related UI, menu, icon,
+backend, ownership and documentation work, then run a combined verification
+pass for that section. During implementation, read the pinned upstream source
+and review diffs; defer builds, native receivers, bundle audits and broad suites
+until the section is ready. Correct a concrete failure from that pass and rerun
+only the affected checks. Reuse completed evidence within its proven scope.
+Always close the owned test receiver and child processes when a check ends.

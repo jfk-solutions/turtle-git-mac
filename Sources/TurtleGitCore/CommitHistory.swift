@@ -824,18 +824,19 @@ extension GitRepository {
         return choices
     }
     /// Source GitRevert: reverse the chosen mainline into index/worktree without committing.
-    public func revertLogRevision(revision: String, mainline: Int? = nil) throws -> GitResult {
-        guard try run(["rev-parse", "--is-bare-repository"]).text.trimmingCharacters(in: .newlines) != "true" else { throw LogRevertFailure.bare }
-        guard try !logMergeActive() else { throw LogRevertFailure.mergeActive }
-        let hash = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"]).text.trimmingCharacters(in: .newlines)
-        let parents = try run(["show", "-s", "--no-notes", "--format=%P", hash, "--"]).text.split(whereSeparator: \.isWhitespace)
+    public func revertLogRevision(revision: String, mainline: Int? = nil, cancellation: OperationCancellation? = nil) throws -> GitResult {
+        try cancellation?.check()
+        guard try run(["rev-parse", "--is-bare-repository"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) != "true" else { throw LogRevertFailure.bare }
+        guard try !logMergeActive(cancellation: cancellation) else { throw LogRevertFailure.mergeActive }
+        let hash = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+        let parents = try run(["show", "-s", "--no-notes", "--format=%P", hash, "--"], cancellation: cancellation).text.split(whereSeparator: \.isWhitespace)
         guard !parents.isEmpty else { throw LogRevertFailure.root }
         if parents.count > 1 { guard let mainline, (1...parents.count).contains(mainline) else { throw LogRevertFailure.parent } }
         else if mainline != nil { throw LogRevertFailure.parent }
         var arguments = ["revert", "--no-edit", "--no-commit"]
         if let mainline { arguments += ["--mainline", String(mainline)] }
         arguments.append(hash)
-        return try run(arguments)
+        return try run(arguments, cancellation: cancellation)
     }
     /// Read the active notes ref, independently of additional log display refs.
     public func editableCommitNote(revision: String, cancellation: OperationCancellation? = nil) throws -> CommitNoteSnapshot {

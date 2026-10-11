@@ -1,0 +1,66 @@
+{
+  "date": "2026-10-11",
+  "status": "partial-history-workflow-native-two-engine-verified",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_contracts": [
+    "GitLogListAction.cpp RevertSelectedCommits and ID_REVERTREV confirmation/order/Skip-Abort/MERGE_MSG/Commit handoff",
+    "AppUtils.cpp EditNote and InputDlg hint/editor/OK/Cancel",
+    "GitLogListBase.cpp source Notes/Revert/Bisect/Format Patch menus and selection conditions",
+    "GitLogListAction.cpp ID_BISECTSTART/good/bad/skip and ID_CREATE_PATCH targets"
+  ],
+  "verification": {
+    "debug_build_exit_code": 0,
+    "native_exit_code": 0,
+    "receivers_reaped": [
+      90837,
+      93029
+    ],
+    "native_command": "python3 scripts/test-synchronization-history.py --revision-list --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+    "core_command": "swift test --filter 'ResetTests|CommitHistoryTests.testMergeRevertEachMainlinePreservesUnrelatedChangesAndDoesNotCommit'",
+    "core_exit_code": 0,
+    "core_tests": 9,
+    "core_failures": 0,
+    "inventory_exit_code": 0,
+    "scope": [
+      "native Notes exact UTF-8 save and Cancel in private repository",
+      "actual multi-commit Revert newest-first, unchanged HEAD, staged/worktree inverse changes, combined MERGE_MSG and completion prompt",
+      "declining Revert causes no staged mutation",
+      "source Notes/multi-Revert/Format Patch menus, original icons and captured payloads",
+      "previous Sync history/Find/Export/Compare/Express checks retained",
+      "Core merge-parent Revert effects and invalid parent/root/merge cases",
+      "Core Reset modes, stale targets and cancellation during all four preflight read classes, with wrapper/child processes reaped"
+    ],
+    "initial_build_failure": "App target could not call Core-internal cancellation.check; replaced with the public isCancelled check and OperationCancellationFailure. Final Debug build succeeded.",
+    "logs": {
+      "history-workflow-batch-debug-final": {
+        "path": "build/qa/history-workflow-batch-debug-final-2026-10-11.log",
+        "sha256": "e8eb4df84b0c242a061356a7b028e986030f0c2fcdb1f601cb473792339b9ede"
+      },
+      "history-workflow-batch-core": {
+        "path": "build/qa/history-workflow-batch-core-2026-10-11.log",
+        "sha256": "0751849c830c6ab72c2d5d26a8f2dfa3ffeaf5eda63118200a067a15c7d587ce"
+      },
+      "history-workflow-batch-native": {
+        "path": "build/qa/history-workflow-batch-native-2026-10-11.log",
+        "sha256": "edb815cc76926b103d23b9a35522596c0c637b38e09012603a86cf4656dc6e81"
+      },
+      "history-workflow-batch-inventory": {
+        "path": "build/qa/history-workflow-batch-inventory-2026-10-11.log",
+        "sha256": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a"
+      },
+      "history-workflow-batch-store": {
+        "path": "build/qa/history-workflow-batch-store-2026-10-11.log",
+        "sha256": "75251a8a9aaeee3a3ad57df78d14a9701092a7c2b1daa3dc2ca95d4ab8bebfdf"
+      }
+    },
+    "unsigned_appstore_build_exit_code": 0
+  },
+  "limitations": [
+    "Bisect routes/source gates inspected and implemented; no new native active-session execution matrix",
+    "Skip/Abort, forced-close Notes/Revert and nested native alerts need further acceptance coverage",
+    "Complete Combine workflow and reference/Push/Pull history actions remain open",
+    "Existing Log Notes consumer uses its earlier presentation",
+    "No new screenshots, bundle audits, site build or full Core suite after user requested larger implementation intervals",
+    "No hosted CI green or signed sandbox/distribution acceptance claim"
+  ]
+}

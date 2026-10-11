@@ -215,6 +215,14 @@ private struct SynchronizationProgressDialog: View {
 
 enum SynchronizationHistoryOperation: Equatable {
     case merge(String), reset(String), checkout(String), switchBranch(String)
+    case editNotes(String), revert([LogEntry], Int?)
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        switch (lhs, rhs) {
+        case (.merge(let a), .merge(let b)), (.reset(let a), .reset(let b)), (.checkout(let a), .checkout(let b)), (.switchBranch(let a), .switchBranch(let b)), (.editNotes(let a), .editNotes(let b)): return a == b
+        case (.revert(let a, let x), .revert(let b, let y)): return a.map(\.hash) == b.map(\.hash) && x == y
+        default: return false
+        }
+    }
 }
 
 @MainActor final class SynchronizationWindowController: NSWindowController, NSWindowDelegate {
@@ -678,6 +686,12 @@ enum SynchronizationHistoryOperation: Equatable {
         case .checkout(let revision):
             let options = SwitchWindowController(repository: model.repository, access: model.access, revision: revision, preferences: model.preferences)
             child = options; start = { options.model.load(revision: revision) }
+        case .editNotes(let revision):
+            let options = HistoryNotesWindowController(repository: model.repository, access: model.access, revision: revision, preferences: model.preferences)
+            child = options; start = { options.model.load() }
+        case .revert(let entries, let mainline):
+            let result = HistoryRevertWindowController(repository: model.repository, access: model.access, entries: entries, mainline: mainline, preferences: model.preferences)
+            child = result; start = { result.model.start() }
         case .switchBranch(let reference):
             var options = CheckoutOptions(); options.target = .branch; options.revision = "refs/heads/" + reference
             let result = SwitchProgressWindowModel(repository: model.repository, access: model.access, options: options, preferences: model.preferences)
@@ -695,6 +709,8 @@ enum SynchronizationHistoryOperation: Equatable {
         case let child as ResetWindowController: child.onClosed = finished
         case let child as SwitchWindowController: child.onClosed = finished
         case let child as SwitchProgressWindowController: child.onClosed = finished
+        case let child as HistoryNotesWindowController: child.onClosed = finished
+        case let child as HistoryRevertWindowController: child.onClosed = finished
         default: break
         }
         configureHistoryOperation(child)
@@ -1074,6 +1090,46 @@ enum SynchronizationHistoryDiff {
     var onHistoryExport: ((String) -> Void)?
     @Published var exportingHistory = false
     var onHistoryOperation: ((SynchronizationHistoryOperation) -> Void)?
+    var onHistoryBisect: ((LogBisectRequest) -> Void)?
+    var onHistoryFormatPatch: ((FormatPatchPreset) -> Void)?
+    @Published private(set) var historyBisectActive = false
+    func requestHistoryBisect(_ handoff: LogBisectRequest, entries: [LogEntry]) {
+        guard !closed, !busy, !hasBlockingChild, !confirmingQuit, !confirmingCancellation,
+              window?.attachedSheet == nil, !entries.isEmpty, let onHistoryBisect else { return }
+        let request = OperationCancellation(); token = request; busy = true; error = nil
+        Task { [weak self, access, repository] in
+            _ = access
+            guard let self else { return }
+            defer { if self.token === request { self.token = nil; self.busy = false } }
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                guard try await !repository.isBare(cancellation: request) else { throw BisectFailure.workingTree }
+                let path = try await repository.run(["rev-parse", "--git-path", "BISECT_START"], cancellation: request).text.trimmingCharacters(in: .newlines)
+                let url = path.hasPrefix("/") ? URL(fileURLWithPath: path) : repository.root.appendingPathComponent(path)
+                let active = FileManager.default.fileExists(atPath: url.path)
+                var captured = handoff
+                if handoff.operation == nil {
+                    guard !active, try await !repository.logMergeActive(cancellation: request) else { throw BisectFailure.active }
+                    func preset(_ entry: LogEntry) async throws -> String {
+                        guard let reference = entry.references.first?.name else { return entry.hash }
+                        let resolved = try await repository.run(["rev-parse", "--verify", "--end-of-options", reference + "^{commit}"], successfulExitCodes: 0...128, cancellation: request)
+                        return resolved.exitCode == 0 && resolved.text.trimmingCharacters(in: .newlines) == entry.hash ? reference : entry.hash
+                    }
+                    let bad = try await preset(entries[0]), good = try await preset(entries[entries.count - 1])
+                    captured = LogBisectRequest(good: good, bad: bad, operation: nil, revisions: [])
+                } else {
+                    guard active else { throw BisectFailure.inactive }
+                    let marks = try await repository.run(["for-each-ref", "--points-at", entries[0].hash, "--format=%(refname)", "refs/bisect/"], cancellation: request)
+                    guard marks.stdout.isEmpty else { throw BisectFailure.operation }
+                }
+                guard !self.closed, self.token === request, !request.isCancelled else { return }
+                self.token = nil; self.busy = false; onHistoryBisect(captured)
+            } catch {
+                if !self.closed, self.token === request, !request.isCancelled { self.error = error.localizedDescription }
+            }
+        }
+    }
+
     var runHistoryReplay: ((String?, [String]?) async throws -> Void)?
     @Published var operatingHistory = false
     @Published private(set) var historyCurrentBranch = ""
@@ -1187,10 +1243,13 @@ enum SynchronizationHistoryDiff {
                 let properties = try await repository.issueTrackerProperties(cancellation: request)
                 let bare = try await repository.isBare(cancellation: request)
                 let mergeActive = try await repository.logMergeActive(cancellation: request)
+                let bisectPath = try await repository.run(["rev-parse", "--git-path", "BISECT_START"], cancellation: request).text.trimmingCharacters(in: .newlines)
+                let bisectURL = bisectPath.hasPrefix("/") ? URL(fileURLWithPath: bisectPath) : repository.root.appendingPathComponent(bisectPath)
+                let bisectActive = FileManager.default.fileExists(atPath: bisectURL.path)
                 let head = try await repository.run(["rev-parse", "--verify", "HEAD"], successfulExitCodes: 0...128, cancellation: request)
                 guard !closed, token === request, !request.isCancelled else { return }
                 historyReferenceContext = references; historyIssueProperties = properties
-                historyBare = bare; historyMergeActive = mergeActive; historyCurrentBranch = catalog.currentBranch
+                historyBare = bare; historyMergeActive = mergeActive; historyBisectActive = bisectActive; historyCurrentBranch = catalog.currentBranch
                 historyHead = head.exitCode == 0 ? head.text.trimmingCharacters(in: .newlines) : ""
                 historyActionFailures = []
                 outgoing = projection; graph = CommitGraph.layout(projection.commits); comparison.snapshot = projection.comparison
@@ -1975,6 +2034,7 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
         var entryHashes: [String] = []
         let sourceTab: Int
         private var parentMenuTask: Task<Void, Never>?
+        private var revertMenuTask: Task<Void, Never>?
         init(_ model: SynchronizationWindowModel) { self.model = model; sourceTab = model.tab }
         private final class CopyTarget: NSObject {
             let entries: [LogEntry], kind: SynchronizationHistoryCopy, reference: String?
@@ -2010,6 +2070,23 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
         private final class OperationTarget: NSObject {
             let action: SynchronizationHistoryOperation
             init(_ action: SynchronizationHistoryOperation) { self.action = action }
+        }
+        private final class BisectTarget: NSObject {
+            let request: LogBisectRequest
+            let entries: [LogEntry]
+            init(_ request: LogBisectRequest, entries: [LogEntry]) { self.request = request; self.entries = entries }
+        }
+        private final class PatchTarget: NSObject {
+            let preset: FormatPatchPreset
+            init(_ preset: FormatPatchPreset) { self.preset = preset }
+        }
+        @objc func historyBisect(_ sender: NSMenuItem) {
+            guard revisionActionAvailable, let target = sender.representedObject as? BisectTarget else { return }
+            model.requestHistoryBisect(target.request, entries: target.entries)
+        }
+        @objc func historyFormatPatch(_ sender: NSMenuItem) {
+            guard revisionActionAvailable, let target = sender.representedObject as? PatchTarget else { return }
+            model.onHistoryFormatPatch?(target.preset)
         }
         private final class ReplayTarget: NSObject {
             let upstream: String?, commits: [String]?
@@ -2067,7 +2144,7 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
             model.onHistoryCompare?(target.from, target.to)
         }
         func menuNeedsUpdate(_ menu: NSMenu) {
-            parentMenuTask?.cancel(); parentMenuTask = nil
+            parentMenuTask?.cancel(); parentMenuTask = nil; revertMenuTask?.cancel(); revertMenuTask = nil
             menu.removeAllItems(); menu.autoenablesItems = false
             guard sourceTab == model.tab, let table else { return }
             let entries = table.selectedRowIndexes.compactMap { model.historyEntries.indices.contains($0) ? model.historyEntries[$0] : nil }
@@ -2099,6 +2176,15 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
                 let item = NSMenuItem(title: title, action: #selector(historyReplay(_:)), keyEquivalent: "")
                 item.target = self; item.isEnabled = revisionActionAvailable && model.runHistoryReplay != nil
                 item.image = icon.contextImage(defaults: model.preferences); item.representedObject = target; menu.addItem(item)
+            }
+            func bisectItem(_ command: LogBisectCommand) {
+                let request: LogBisectRequest
+                if command == .start {
+                    request = LogBisectRequest(good: entries.last!.references.first?.name ?? entries.last!.hash, bad: entries.first!.references.first?.name ?? entries.first!.hash, operation: nil, revisions: [])
+                } else { request = LogBisectRequest(good: nil, bad: nil, operation: command.operation, revisions: entries.map(\.hash)) }
+                let item = NSMenuItem(title: command.title, action: #selector(historyBisect(_:)), keyEquivalent: "")
+                item.target = self; item.isEnabled = revisionActionAvailable && model.onHistoryBisect != nil
+                item.image = command.icon.contextImage(defaults: model.preferences); item.representedObject = BisectTarget(request, entries: entries); menu.addItem(item)
             }
             if entries.count == 1, let entry = entries.first {
                 comparisonItem("Compare with working tree", from: .revision(entry.hash), to: .workingTree, in: menu)
@@ -2153,6 +2239,11 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
                 changes.target = self; changes.isEnabled = revisionActionAvailable
                 changes.image = MenuIcon.compare.contextImage(defaults: model.preferences)
                 changes.representedObject = ComparisonTarget(from: .revision(entries[0].hash), to: .revision(entries[1].hash)); menu.addItem(changes)
+            }
+            if !model.historyBare, model.historyBisectActive, entries.count == 1,
+               !entries[0].references.contains(where: { $0.name.hasPrefix("refs/bisect/") }) {
+                for command in [LogBisectCommand.good, .bad, .skip] { bisectItem(command) }
+                menu.addItem(.separator())
             }
             if entries.count == 1, let entry = entries.first {
                 if !menu.items.isEmpty { menu.addItem(.separator()) }
@@ -2211,10 +2302,42 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
                 export.image = MenuIcon.export.contextImage(defaults: model.preferences)
                 export.representedObject = RevisionTarget(entry.references.first { $0.name.hasPrefix("refs/tags/") }?.name ?? entry.hash)
                 menu.addItem(export)
+                if !stash && !model.historyBare && !model.historyMergeActive {
+                    if entry.parents.count == 1 {
+                        operationItem("Revert change by this commit", .revert([entry], nil), .revert, in: menu)
+                    } else if entry.parents.count > 1 {
+                        let parents = NSMenu(); parents.autoenablesItems = false
+                        for (index, hash) in entry.parents.enumerated() {
+                            operationItem(model.historyParentTitle(hash, index: index), .revert([entry], index + 1), .revert, in: parents)
+                            parents.items.last?.image = nil
+                        }
+                        let item = NSMenuItem(title: "Revert change by this commit", action: nil, keyEquivalent: "")
+                        item.image = MenuIcon.revert.contextImage(defaults: model.preferences); item.submenu = parents; menu.addItem(item)
+                        // Parent captions share the compare/unified menu's owned metadata read.
+                        revertMenuTask = Task { [weak parents] in
+                            await model.loadHistoryParentSubjects(entry)
+                            guard !Task.isCancelled, !model.closed, let parents else { return }
+                            for (index, item) in parents.items.enumerated() { item.title = model.historyParentTitle(entry.parents[index], index: index) }
+                        }
+                    }
+                }
+                if !stash { operationItem("Edit Notes", .editNotes(entry.hash), .rebaseEdit, in: menu) }
             }
+            if entries.count > 1, !model.historyBare, !model.historyMergeActive {
+                operationItem("Revert changes by these commits", .revert(entries, nil), .revert, in: menu)
+            }
+            if entries.count > 1, !model.historyBare, model.historyBisectActive,
+               !entries[0].references.contains(where: { $0.name.hasPrefix("refs/bisect/") }) { bisectItem(.skip); menu.addItem(.separator()) }
             if !model.historyBare && !model.historyMergeActive && entries.first?.hash != model.historyHead {
                 replayItem(entries.count > 1 ? "Cherry Pick selected commits…" : "Cherry Pick this commit…", ReplayTarget(commits: entries.map(\.hash)), .cherryPick)
             }
+            if let preset = FormatPatchPreset.logSelection(orderedHashes: model.historyEntries.map(\.hash), selected: Set(entries.map(\.hash))) {
+                let item = NSMenuItem(title: "Format Patch…", action: #selector(historyFormatPatch(_:)), keyEquivalent: "")
+                item.target = self; item.isEnabled = revisionActionAvailable && model.onHistoryFormatPatch != nil
+                item.image = MenuIcon.patch.contextImage(defaults: model.preferences); item.representedObject = PatchTarget(preset); menu.addItem(item)
+            }
+            if entries.count == 2, !model.historyBare, !model.historyMergeActive, !model.historyBisectActive,
+               !entries[0].references.contains(where: { $0.name == "refs/stash" }) { menu.addItem(.separator()); bisectItem(.start) }
             if !menu.items.isEmpty { menu.addItem(.separator()) }
             for kind in SynchronizationHistoryCopy.allCases {
                 if kind == .referenceNames && (entries.count != 1 || entries[0].references.isEmpty) { continue }
@@ -2237,7 +2360,7 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
                 item.representedObject = RevisionTarget(entry.hash, sourceTab: model.tab); menu.addItem(item)
             }
         }
-        func menuDidClose(_ menu: NSMenu) { parentMenuTask?.cancel(); parentMenuTask = nil; (table as? HistoryTableView)?.contextReference = nil; (table as? HistoryTableView)?.contextExtendedMenu = false }
+        func menuDidClose(_ menu: NSMenu) { parentMenuTask?.cancel(); parentMenuTask = nil; revertMenuTask?.cancel(); revertMenuTask = nil; (table as? HistoryTableView)?.contextReference = nil; (table as? HistoryTableView)?.contextExtendedMenu = false }
         @objc func copyHistory(_ sender: NSMenuItem) {
             guard let target = sender.representedObject as? CopyTarget else { return }
             model.copyHistory(target.entries, kind: target.kind, pointedReference: target.reference)

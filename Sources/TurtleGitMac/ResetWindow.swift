@@ -243,19 +243,26 @@ import TurtleGitCore
     }
     func reset() {
         guard !invalidated, !busy, !showingReferencePicker, !showingCommitPicker, !showingModifiedFiles, !confirmingHard, progress == nil, !chooser.busy else { return }; busy = true
-        let revision = chooser.revision, mode = mode
-        Task {
+        let revision = chooser.revision, mode = mode, request = OperationCancellation()
+        resetCancellation = request
+        Task { [weak self, access, repository = chooser.repository] in
+            _ = access
             do {
-                try validateAccess()
-                let plan = try await chooser.repository.prepareReset(to: revision, mode: mode)
-                guard !invalidated else { return }; busy = false
+                guard let self else { return }; try self.validateAccess()
+                let plan = try await repository.prepareReset(to: revision, mode: mode, cancellation: request)
+                guard !self.invalidated, self.resetCancellation === request, !request.isCancelled else { return }
+                self.resetCancellation = nil; self.busy = false
                 if mode == .hard {
-                    confirmingHard = true
-                    confirmHard(plan) { [weak self] accepted in guard let self, self.confirmingHard else { return }; self.confirmingHard = false; if accepted { self.apply(plan) } }
-                } else { apply(plan) }
-            } catch { if !invalidated { self.error = error.localizedDescription; busy = false } }
+                    self.confirmingHard = true
+                    self.confirmHard(plan) { [weak self] accepted in guard let self, !self.invalidated, self.confirmingHard else { return }; self.confirmingHard = false; if accepted { self.apply(plan) } }
+                } else { self.apply(plan) }
+            } catch {
+                guard let self, !self.invalidated, self.resetCancellation === request, !request.isCancelled else { return }
+                self.resetCancellation = nil; self.error = error.localizedDescription; self.busy = false
+            }
         }
     }
+
     func apply(_ plan: ResetPlan) {
         guard !invalidated, !busy, !showingReferencePicker, !showingCommitPicker, !showingModifiedFiles, !confirmingHard, progress == nil else { return }; busy = true; error = nil
         do { try validateAccess() } catch { self.error = error.localizedDescription; busy = false; return }

@@ -161,6 +161,57 @@ struct SynchronizationRevisionListVerification {
         precondition(closing.model.historyNavigation.count == closedNavigation.count)
         print("PASS: Sync Find context order/icon, captured origin, two-list independence, subject/metadata/path/regex/case search, Shift highlight, cursor, error ownership and cleanup")
     }
+    @MainActor static func verifyHistoryWorkflow(root: URL, git: URL, preferences: UserDefaults) async throws {
+        let root = root.appendingPathExtension("history-workflow")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let repo = GitRepository(root: root, executable: git)
+        _ = try await repo.run(["init", "-b", "main"])
+        _ = try await repo.run(["config", "user.name", "Native history QA"])
+        _ = try await repo.run(["config", "user.email", "qa@example.invalid"])
+        let file = root.appendingPathComponent("tracked.txt")
+        for value in ["root\n", "second\n", "third\n"] {
+            try value.write(to: file, atomically: true, encoding: .utf8)
+            _ = try await repo.run(["add", "tracked.txt"])
+            _ = try await repo.run(["commit", "-m", value.trimmingCharacters(in: .newlines)])
+        }
+        let rows = try await repo.history(), originalHead = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let notes = HistoryNotesWindowController(repository: repo, access: nil, revision: rows[1].hash, preferences: preferences)
+        notes.window!.alphaValue = 0; notes.showWindow(nil); notes.model.load()
+        try await settle { !notes.model.loading && notes.model.snapshot != nil }
+        precondition(notes.model.text.isEmpty && notes.model.canSave)
+        notes.model.text = "Native note\nexact UTF-8: ä🐢\n"
+        notes.model.save()
+        try await settle { !notes.model.saving && !notes.window!.isVisible }
+        let saved = try await repo.editableCommitNote(revision: rows[1].hash)
+        precondition(saved.text == "Native note\nexact UTF-8: ä🐢\n")
+        let cancelNotes = HistoryNotesWindowController(repository: repo, access: nil, revision: rows[1].hash, preferences: preferences)
+        cancelNotes.model.load(); try await settle { !cancelNotes.model.loading && cancelNotes.model.snapshot != nil }
+        cancelNotes.model.text = "Discard this"; cancelNotes.close()
+        let unchanged = try await repo.editableCommitNote(revision: rows[1].hash)
+        precondition(unchanged.text == saved.text)
+        var questions: [String] = [], changed = 0
+        let revert = HistoryRevertWindowModel(repository: repo, access: nil, entries: [rows[0], rows[1]], mainline: nil)
+        revert.ask = { title, _, _, _ in questions.append(title); return title == "Revert the selected commit(s)?" }
+        revert.onChanged = { _ in changed += 1 }; revert.start()
+        try await settle { !revert.busy && !questions.isEmpty }
+        precondition(revert.success && revert.completed == 2 && changed == 1 && questions.count == 2)
+        let afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let afterFile = try String(contentsOf: file, encoding: .utf8)
+        precondition(afterHead == originalHead && afterFile == "root\n")
+        let staged = try await repo.run(["diff", "--cached", "--", "tracked.txt"]).text
+        precondition(staged.contains("-third") && staged.contains("+root"))
+        let messagePath = try await repo.run(["rev-parse", "--git-path", "MERGE_MSG"]).text.trimmingCharacters(in: .newlines)
+        let message = try String(contentsOf: root.appendingPathComponent(messagePath), encoding: .utf8)
+        precondition(message.contains(rows[0].hash) && message.contains(rows[1].hash))
+        _ = try await repo.run(["reset", "--hard", "HEAD"])
+        let cancel = HistoryRevertWindowModel(repository: repo, access: nil, entries: [rows[0]], mainline: nil)
+        var cancelledPrompt = false
+        cancel.ask = { _, _, _, _ in cancelledPrompt = true; return false }; cancel.start()
+        try await settle { !cancel.busy && cancelledPrompt }
+        let cancelledDiff = try await repo.run(["diff", "--cached", "--"]).stdout
+        precondition(cancelledDiff.isEmpty)
+        print("PASS: native Notes exact UTF-8 save/Cancel, multi-commit Revert order/no-commit effects/combined message/completion prompt, decline without mutation")
+    }
     @MainActor static func verifyHistoryOperations(_ owner: SynchronizationWindowController, root: URL) async throws {
         let model = owner.model, window = owner.window!, repo = model.repository
         model.tab = 0
@@ -223,6 +274,21 @@ struct SynchronizationRevisionListVerification {
             invoke(submenu.items.first { $0.title == "sync-menu-branch" }!)
             precondition(operations.last == .switchBranch("sync-menu-branch"))
         }
+        let revisionMenu = menu(IndexSet(integer: row))
+        invoke(revisionMenu.items.first { $0.title == "Edit Notes" }!)
+        precondition(operations.last == .editNotes(entry.hash))
+        let revertMenu = menu(IndexSet(selection))
+        let revertItem = revertMenu.items.first { $0.title == "Revert changes by these commits" }!
+        precondition(revertItem.image != nil)
+        invoke(revertItem)
+        precondition(operations.last == .revert(selection.map { model.historyEntries[$0] }, nil))
+        var capturedPatch: FormatPatchPreset?
+        let oldPatch = model.onHistoryFormatPatch
+        model.onHistoryFormatPatch = { capturedPatch = $0 }
+        let patchMenu = menu(IndexSet(integer: row))
+        invoke(patchMenu.items.first { $0.title == "Format Patch…" }!)
+        precondition(capturedPatch == FormatPatchPreset.logSelection(orderedHashes: model.historyEntries.map(\.hash), selected: [entry.hash]))
+        model.onHistoryFormatPatch = oldPatch
         model.onHistoryOperation = originalOperation; model.runHistoryReplay = originalReplay
         // Exercise the real owned options controllers without mutating this fixture.
         for action in [SynchronizationHistoryOperation.merge(entry.hash), .reset(entry.hash), .checkout(entry.hash)] {
@@ -810,6 +876,7 @@ struct SynchronizationRevisionListVerification {
         }
         let headAfterCreation = try await repo.run(["rev-parse","HEAD"]).stdout, configAfterCreation = try Data(contentsOf:root.appendingPathComponent(".git/config")), indexAfterCreation = try Data(contentsOf:root.appendingPathComponent(".git/index"))
         precondition(headBeforeCreation == headAfterCreation && configAfterCreation == config && indexAfterCreation == index)
+        try await verifyHistoryWorkflow(root: root, git: git, preferences: preferences)
         try await verifyHistoryOperations(owner, root: root)
         try await verifyExport(owner, root: root, git: git, preferences: preferences)
         native = table(owner.window!)

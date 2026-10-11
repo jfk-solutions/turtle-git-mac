@@ -1495,3 +1495,38 @@ checks, source bisect/combine selection conditions and remaining patch actions.
 Retain the original source ordering and icons, captured row/reference targets,
 owned cancellation and repository refresh. Underlying replay, Merge, Reset and
 Checkout dialogs still require their separate complete source-control audits.
+
+
+### Remaining-history workflow implementation batch
+
+Sync history now includes source single-commit Revert and merge-parent choices,
+multiple-commit Revert, Edit Notes, Bisect start/good/bad/skip and Format Patch.
+Revert captures displayed rows in order, confirms with No as default, applies
+without committing, accumulates MERGE_MSG, offers Skip/Abort on multi-selection
+failure and offers Commit after successful changes. Sync owns its native progress
+and nested confirmations; closing the owner cancels Git and answers outstanding
+questions. The completion handoff uses the existing Commit window.
+
+Edit Notes owns a native hint/editor/OK/Cancel window using the existing plain
+text Notes editor. It reads the active notes reference, respects project minimum
+message length and saves exact UTF-8 through the shared core. Normal close is
+blocked during the atomic notes mutation; forced closure fences late publication.
+The shared Log consumer remains on its existing presentation.
+
+Bisect menus follow single/multiple selection and bisect-mark exclusions.
+Captured targets are revalidated through cancellable reads before opening the
+existing Bisect workflow; moved reference presets fall back to the captured hash.
+Bisect completion refreshes its originating Sync. Format Patch uses the shared
+selection preset (one revision, two endpoints, or contiguous larger selection)
+and existing native options/progress workflow. Original action icons and captions
+are used. Parent-menu metadata reads are cancelled when the menu closes.
+
+Reset preparation now accepts cancellation for every Git read, including the
+symbolic-reference read, and checks cancellation before presenting or applying
+the plan. This closes the preflight cancellation gap recorded in the preceding
+batch. Full Combine execution, remaining reference/push/pull actions, source
+operation-dialog certification and physical/signed acceptance remain open.
+The native fixture passed with system and packaged Git; nine focused Core
+checks passed. Scope and remaining acceptance gaps are recorded in
+[the batch record](qa/history-workflow-batch-2026-10-11.json). This is partial
+workflow evidence, not full dialog certification.

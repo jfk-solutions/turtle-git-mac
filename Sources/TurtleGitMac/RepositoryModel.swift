@@ -781,6 +781,14 @@ import TurtleGitCore
             case let child as MergeWindowController: self?.configureMergeInteractions(child, repository: repository, access: access)
             case let child as ResetWindowController: self?.configureResetInteractions(child, repository: repository, access: access)
             case let child as SwitchWindowController: self?.configureSwitchInteractions(child, repository: repository, access: access)
+            case let child as HistoryNotesWindowController:
+                child.model.onChanged = { [weak self] _ in self?.refreshRepositoryLogs(repository.root) }
+            case let child as HistoryRevertWindowController:
+                child.model.onChanged = { [weak self] output in
+                    self?.refreshRepositoryLogs(repository.root); self?.statusWindows[key]?.model.reload(); self?.commitWindows[key]?.model.reload()
+                    if self?.root == repository.root { self?.output = output; Task { await self?.refresh() } }
+                }
+                child.model.onCommit = { [weak self] in self?.showCommitDialog(repository: repository, access: access, paths: []) }
             case let child as SwitchProgressWindowController:
                 child.model.onFinished = { [weak self] output, _ in
                     self?.refreshRepositoryLogs(repository.root); self?.statusWindows[key]?.model.reload(); self?.commitWindows[key]?.model.reload()
@@ -790,6 +798,10 @@ import TurtleGitCore
             default: break
             }
         }
+        controller.model.onHistoryBisect = { [weak self, weak controller] request in
+            self?.showBisect(repository: repository, access: access, good: request.good, bad: request.bad, operation: request.operation, revisions: request.revisions, requireStart: request.operation == nil, onChanged: { [weak controller] in controller?.model.refresh() })
+        }
+        controller.model.onHistoryFormatPatch = { [weak self] preset in self?.showFormatPatch(repository: repository, access: access, preset: preset) }
         controller.model.detachRebase = { [weak self, weak controller] in
             guard let child = self?.rebaseWindows[key], let window = child.window,
                   let owner = controller?.window, window.sheetParent === owner else { return }
@@ -1370,7 +1382,7 @@ import TurtleGitCore
             self?.showBisect(repository: repository, access: access, good: request.good, bad: request.bad, operation: request.operation, revisions: request.revisions, requireStart: request.operation == nil, sourceLog: refreshPicker ? model : nil)
         }
     }
-    private func showBisect(repository: GitRepository, access: RepositoryAccessLease?, good: String? = nil, bad: String? = nil, operation: BisectOperation? = nil, revisions: [String] = [], requireStart: Bool = false, sourceLog: LogWindowModel? = nil) {
+    private func showBisect(repository: GitRepository, access: RepositoryAccessLease?, good: String? = nil, bad: String? = nil, operation: BisectOperation? = nil, revisions: [String] = [], requireStart: Bool = false, sourceLog: LogWindowModel? = nil, onChanged: (() -> Void)? = nil) {
         let root = repository.root
         let controller: BisectWindowController
         if let existing = bisectWindows[root.path] {
@@ -1380,6 +1392,7 @@ import TurtleGitCore
         if let sourceLog { controller.model.observeLog(sourceLog) }
         controller.onClosed = { [weak self] in self?.bisectWindows.removeValue(forKey: root.path) }
         controller.model.onChanged = { [weak self] output in
+            onChanged?()
             guard let self else { return }
             self.refreshRepositoryLogs(root)
             self.commitWindows[root.path]?.model.reload(); self.statusWindows[root.path]?.model.reload()

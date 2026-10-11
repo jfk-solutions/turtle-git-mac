@@ -18,14 +18,16 @@ public enum ResetFailure: LocalizedError {
     }
 }
 extension GitRepository {
-    public func prepareReset(to revision: String, mode: ResetMode) throws -> ResetPlan {
+    public func prepareReset(to revision: String, mode: ResetMode, cancellation: OperationCancellation? = nil) throws -> ResetPlan {
+        try cancellation?.check()
         guard !revision.isEmpty, !revision.contains("\0") else { throw ResetFailure.invalidRevision }
-        if mode != .soft, try isBare() { throw ResetFailure.workingTreeRequired }
+        if mode != .soft, try isBare(cancellation: cancellation) { throw ResetFailure.workingTreeRequired }
         let target: String
-        do { target = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"]).text.trimmingCharacters(in: .newlines) }
-        catch { throw ResetFailure.invalidRevision }
-        let head = try run(["rev-parse", "--verify", "HEAD"]).text.trimmingCharacters(in: .newlines)
-        let reference = try? run(["symbolic-ref", "--quiet", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        do { target = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) }
+        catch { try cancellation?.check(); throw ResetFailure.invalidRevision }
+        let head = try run(["rev-parse", "--verify", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+        let reference = try? run(["symbolic-ref", "--quiet", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+        try cancellation?.check()
         return ResetPlan(revision: target, originalHead: head, originalReference: reference, mode: mode)
     }
     public func reset(_ plan: ResetPlan, cancellation: OperationCancellation? = nil) throws -> String {
