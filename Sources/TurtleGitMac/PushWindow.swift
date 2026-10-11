@@ -20,7 +20,7 @@ import TurtleGitCore
             let controller = PushProgressWindowController(owner: self.model, result: result)
             controller.onClosed = { [weak self, weak result] in guard let self, let result else { return }; self.progressController = nil; self.model.finish(result) }
             self.progressController = controller
-            if let child = controller.window { window.beginSheet(child) } else { result.abandonPresentation() }
+            if let child = controller.window { child.alphaValue = window.alphaValue; window.beginSheet(child) } else { result.abandonPresentation() }
         }
         model.pickSourceLog = { [weak self] in
             guard let self, let window = self.window, window.attachedSheet == nil, self.sourceLogPicker == nil, self.sourceRefLogPicker == nil else { return }

@@ -207,7 +207,9 @@ private struct SynchronizationProgressDialog: View {
     private var pullAlert: NSAlert?
     private(set) var commandProgress: SynchronizationProgressController?
     private(set) var optionsController: FetchWindowController?
+    private(set) var pushOptionsController: PushWindowController?
     var configureOptions: (FetchWindowController) -> Void = { _ in }
+    var configurePushOptions: (PushWindowController) -> Void = { _ in }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
         model = SynchronizationWindowModel(repository: repository, access: access, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1050, height: 660), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
@@ -215,6 +217,31 @@ private struct SynchronizationProgressDialog: View {
         window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 860, height: 500)
         window.contentViewController = NSHostingController(rootView: SynchronizationDialog(model: model))
         super.init(window: window); window.delegate = self; model.window = window
+        model.runPushOptions = { [weak self] source in
+            guard let self, !self.model.closed, let owner = self.window, owner.attachedSheet == nil else { throw OperationCancellationFailure.cancelled }
+            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                let child = PushWindowController(repository: repository, access: access, preferences: preferences)
+                self.configurePushOptions(child)
+                var dismissed = false
+                child.onClosed = { [weak self, weak child] in
+                    guard !dismissed else { return }; dismissed = true
+                    if let window = child?.window { window.sheetParent?.endSheet(window) }
+                    self?.pushOptionsController = nil; continuation.resume()
+                }
+                self.pushOptionsController = child
+                child.window?.alphaValue = owner.alphaValue
+                child.model.load(source: source.isEmpty ? nil : source)
+                owner.beginSheet(child.window!)
+            }
+        }
+        model.confirmPushDeletion = { [weak self] destination in
+            guard let self, !self.model.closed, let owner = self.window, owner.attachedSheet == nil else { return false }
+            let alert = PushWindowController.submissionAlert(message: "The local branch/tag name is empty. This results in removal of \"\(destination)\" on the remote.\nContinue?", allBranches: false, deletion: true)
+            alert.window.alphaValue = owner.alphaValue; self.pullAlert = alert
+            let response = await alert.beginSheetModal(for: owner)
+            if self.pullAlert === alert { self.pullAlert = nil }
+            return response == .alertFirstButtonReturn
+        }
         model.runOptions = { [weak self] isPull, remote in
             guard let self, !self.model.closed, let owner = self.window, owner.attachedSheet == nil else { throw OperationCancellationFailure.cancelled }
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
@@ -382,6 +409,7 @@ private struct SynchronizationProgressDialog: View {
         model.invalidate()
         model.detachRebase()
         optionsController?.close(); optionsController = nil
+        pushOptionsController?.close(); pushOptionsController = nil
         commandProgress?.abortPresentation(); commandProgress = nil
         if let alert = pullAlert, window?.attachedSheet === alert.window { window?.endSheet(alert.window, returnCode: .abort) }
         pullAlert = nil
@@ -425,6 +453,7 @@ private struct SynchronizationProgressDialog: View {
     @Published private(set) var conflicts: [StatusEntry] = []
     @Published var pullAction = SynchronizationTransportAction.pull
     @Published private(set) var compareTagsSelected = false
+    @Published private(set) var pushAction: SynchronizationTransportAction = .push
     @Published private(set) var comparingTags = false
     @Published private(set) var tagSnapshot: SynchronizationTagSnapshot?
     @Published var hideEqualTags = false
@@ -441,6 +470,8 @@ private struct SynchronizationProgressDialog: View {
     var detachRebase: () -> Void = {}
     var presentConflictHint: () async -> Bool = { false }
     var runOptions: (Bool, String?) async throws -> Void = { _, _ in throw SynchronizationFailure.invalidInput }
+    var runPushOptions: (String) async throws -> Void = { _ in throw SynchronizationFailure.invalidInput }
+    var confirmPushDeletion: (String) async -> Bool = { _ in false }
     var onResolve: ([String]) -> Void = { _ in }
     var displayedComparison: RevisionComparisonWindowModel { tab == 5 ? incomingComparison : comparison }
     var historyEntries: [LogEntry] { tab == 4 ? (incomingCommits ?? []) : (outgoing?.commits ?? []) }
@@ -459,6 +490,9 @@ private struct SynchronizationProgressDialog: View {
         case .prune: return "Cleanup stale remote branches"
         default: return "Fetch"
         }
+    }
+    var pushActionTitle: String {
+        switch pushAction { case .pushTags: return "Push tags"; case .pushNotes: return "Push notes"; default: return "Push" }
     }
     @Published var fileSelection = Set<String>()
     @Published private(set) var referenceChanges: [SynchronizationReferenceChange] = []
@@ -519,6 +553,11 @@ private struct SynchronizationProgressDialog: View {
         case 6: compareTagsSelected = true
         default: pullAction = .pull
         }
+        switch preferences.integer(forKey: historyKey + ".pushAction") {
+        case 1: pushAction = .pushTags
+        case 2: pushAction = .pushNotes
+        default: pushAction = .push
+        }
         branchHistory = preferences.stringArray(forKey: historyKey + ".branches") ?? []
         urlHistory = preferences.stringArray(forKey: historyKey + ".urls") ?? []
         sshSettings.load(preferences, key: historyKey + ".autoload")
@@ -539,7 +578,7 @@ private struct SynchronizationProgressDialog: View {
         case nil: return ""
         }
     }
-    func invalidate() { closed = true; token?.cancel(); token = nil; comparison.invalidate(); incomingComparison.invalidate(); busy = false; confirmingCancellation = false; cancellationQuestion = nil; transportID = nil }
+    func invalidate() { closed = true; token?.cancel(); token = nil; comparison.invalidate(); incomingComparison.invalidate(); busy = false; transportRunning = false; cancelling = false; confirmingCancellation = false; cancellationQuestion = nil; transportID = nil }
     func reload(selectTracking: Bool = false, initial: Bool = false, preserveError: Bool = false) {
         guard !closed, !confirmingQuit, !transportRunning, !hasBlockingChild else { return }
         token?.cancel()
@@ -675,6 +714,39 @@ private struct SynchronizationProgressDialog: View {
         let actionIndex = action == .pull ? 0 : action == .fetch ? 1 : action == .fetchAndRebase ? 2 : action == .fetchAllBranches ? 3 : action == .remoteUpdate ? 4 : 5
         preferences.set(actionIndex, forKey: historyKey + ".pullAction")
         if shift && action != .pull && action != .fetch { return }
+        runTransport(action, shift: shift)
+    }
+    func push(_ action: SynchronizationTransportAction? = nil, shift: Bool = NSEvent.modifierFlags.contains(.shift)) {
+        let selected = action ?? pushAction
+        guard [.push, .pushTags, .pushNotes].contains(selected), !closed, !confirmingQuit, !confirmingCancellation,
+              !busy, !hasBlockingChild, window?.attachedSheet == nil else { return }
+        pushAction = selected
+        if shift {
+            // Source only opens full options for Push; tags/notes ignore Shift
+            // without changing the persisted split selection or running Git.
+            guard selected == .push else { return }
+            let request = OperationCancellation(); token = request; busy = true; transportRunning = true; cancelling = false; error = nil
+            let source = PushSourcePresentation.normalized(localBranch)
+            Task {
+                defer { if token === request { token = nil; busy = false; transportRunning = false; cancelling = false } }
+                do {
+                    if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                    let before = try await repository.synchronizationReferenceSnapshot(cancellation: request)
+                    guard !closed, token === request, !request.isCancelled else { return }
+                    try await runPushOptions(source)
+                    guard !closed, token === request, !request.isCancelled else { return }
+                    let after = try await repository.synchronizationReferenceSnapshot(cancellation: request)
+                    let rows = try await repository.synchronizationReferenceChanges(from: before, to: after, cancellation: request)
+                    guard !closed, token === request, !request.isCancelled else { return }
+                    referenceChanges = rows
+                    busy = false; transportRunning = false; token = nil
+                    onTransportFinished(commandOutput); reload(preserveError: true)
+                } catch { if !closed, token === request { self.error = error.localizedDescription } }
+            }
+        } else { runTransport(selected, shift: false) }
+    }
+    private func runTransport(_ action: SynchronizationTransportAction, shift: Bool) {
+        let pushing = [.push, .pushTags, .pushNotes].contains(action)
         comparingTags = false; tagSnapshot = nil
         let operationID = UUID(); transportID = operationID
         let request = OperationCancellation(); token = request; busy = true; transportRunning = true
@@ -704,16 +776,19 @@ private struct SynchronizationProgressDialog: View {
                         checkout = try await performCheckout(plan, request)
                     } else { checkout = try await repository.synchronizationPullCheckout(plan, cancellation: request) }
                     guard !closed, token === request, !request.isCancelled else { throw OperationCancellationFailure.cancelled }
-                    if !options.remote.contains("/"), !options.remote.contains("\\"), !plan.options.remoteBranch.isEmpty,
+                }
+                if action == .pull || action == .push && !options.localBranch.isEmpty {
+                    if !options.remote.contains("/"), !options.remote.contains("\\"),
                        preferences.object(forKey: "AskSetTrackedBranch") == nil || preferences.bool(forKey: "AskSetTrackedBranch") {
                         let tracking = try await repository.synchronizationBranches(localBranch: options.localBranch, cancellation: request)
                         if tracking.trackedBranch.isEmpty {
-                            let answer = await askTracking(options.localBranch, options.remote, plan.options.remoteBranch)
+                            let destination = plan.options.remoteBranch.isEmpty ? options.localBranch : plan.options.remoteBranch
+                            let answer = await askTracking(options.localBranch, options.remote, destination)
                             guard !closed, token === request else { return }
                             if answer.suppress { preferences.set(false, forKey: "AskSetTrackedBranch") }
                             guard answer.choice != .cancel, !request.isCancelled else { throw OperationCancellationFailure.cancelled }
                             if answer.choice == .yes {
-                                var branch = plan.options.remoteBranch
+                                var branch = destination
                                 if let short = GitReferenceName.removingPrefix("refs/heads/", from: branch) { branch = short }
                                 else if let short = GitReferenceName.removingPrefix("refs/", from: branch) { branch = short }
                                 _ = try await repository.run(["config", "--local", "branch." + options.localBranch + ".remote", options.remote], cancellation: request)
@@ -722,6 +797,12 @@ private struct SynchronizationProgressDialog: View {
                         }
                     }
                 }
+                let deletionAuthorized: Bool
+                if plan.deletesDestination {
+                    deletionAuthorized = await confirmPushDeletion(plan.options.remoteBranch)
+                    guard deletionAuthorized, !closed, token === request, !request.isCancelled else { throw OperationCancellationFailure.cancelled }
+                } else { deletionAuthorized = false }
+                if pushing { preferences.set(action == .push ? 0 : action == .pushTags ? 1 : 2, forKey: historyKey + ".pushAction") }
                 oldReferences = try await repository.synchronizationReferenceSnapshot(cancellation: request)
                 guard !closed, token === request else { return }
                 if request.isCancelled { throw OperationCancellationFailure.cancelled }
@@ -749,7 +830,7 @@ private struct SynchronizationProgressDialog: View {
                             return try await repository.synchronize(checkout, cancellation: request,
                                 onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }, prepareTransport: coordinator?.preparation)
                         }
-                        return try await repository.synchronize(plan, cancellation: request,
+                        return try await repository.synchronize(plan, deletionAuthorized: deletionAuthorized, cancellation: request,
                             onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }, prepareTransport: coordinator?.preparation)
                     }
                     for await _ in updates { consume(parser.processPending(), parser: parser, request: request) }
@@ -812,7 +893,7 @@ private struct SynchronizationProgressDialog: View {
                 }
                 guard !closed, token === inspection else { return }
             }
-            if let oldHead, action == .pull || shift || incomingRevision != nil {
+            if let oldHead, action == .pull || shift && !pushing || incomingRevision != nil {
                 let inspection = OperationCancellation(); token = inspection
                 do {
                     if let incomingRevision {
@@ -947,7 +1028,15 @@ private struct SynchronizationDialog: View {
                         Button { model.performPullAction(.remoteUpdate) } label: { CommandLabel(title: "Remote Update", icon: .fetch) }
                         Button { model.performPullAction(.prune) } label: { CommandLabel(title: "Cleanup stale remote branches", icon: .clean) }
                         Button { model.compareTags(shift: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: "Compare Tags", icon: .tag) }
-                    } label: { Image(systemName: "chevron.down").accessibilityLabel("Pull actions") }.menuStyle(.borderlessButton).fixedSize()
+                    } label: { Text("").accessibilityLabel("Pull actions") }.menuStyle(.borderlessButton).fixedSize()
+                }.disabled(model.busy || model.hasBlockingChild)
+                HStack(spacing: 0) {
+                    Button { model.push() } label: { CommandLabel(title: model.pushActionTitle, icon: .push) }
+                    Menu {
+                        Button { model.push(.push) } label: { CommandLabel(title: "Push", icon: .push) }
+                        Button { model.push(.pushTags) } label: { CommandLabel(title: "Push tags", icon: .tag) }
+                        Button { model.push(.pushNotes) } label: { CommandLabel(title: "Push notes", icon: .push) }
+                    } label: { Text("").accessibilityLabel("Push actions") }.menuStyle(.borderlessButton).fixedSize()
                 }.disabled(model.busy || model.hasBlockingChild)
                 Button { model.onLog(model.localBranch) } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(model.busy || model.localBranch.isEmpty)
                 Button { model.onCommit() } label: { CommandLabel(title: "Commit", icon: .commit) }.disabled(model.busy)

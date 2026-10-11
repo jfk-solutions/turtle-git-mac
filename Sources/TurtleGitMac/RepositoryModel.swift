@@ -720,6 +720,7 @@ import TurtleGitCore
         let controller = SynchronizationWindowController(repository: repository, access: access)
         configureRevisionComparisonInteractions(controller.model.comparison, repository: repository, access: access)
         configureRevisionComparisonInteractions(controller.model.incomingComparison, repository: repository, access: access)
+        controller.configurePushOptions = { [weak self] child in self?.configurePushInteractions(child, repository: repository, access: access) }
         controller.model.onTransportFinished = { [weak self] text in
             guard let self else { return }
             self.output = text; self.refreshRepositoryLogs(repository.root)
@@ -1601,6 +1602,12 @@ import TurtleGitCore
         let root = repository.root, key = repository.root.path + ":push:" + UUID().uuidString
         let controller = PushWindowController(repository: repository, access: access)
         controller.onClosed = { [weak self] in self?.pushWindows.removeValue(forKey: key) }
+        configurePushInteractions(controller, repository: repository, access: access)
+        pushWindows[key] = controller; controller.model.load(source: source)
+        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
+    private func configurePushInteractions(_ controller: PushWindowController, repository: GitRepository, access: RepositoryAccessLease?) {
+        let root = repository.root
         controller.model.onTransportResult = { [weak self] output, _ in
             self?.refreshRepositoryLogs(root); self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.referenceLogWindows[root.path]?.model.reload()
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
@@ -1629,8 +1636,6 @@ import TurtleGitCore
                 }
             }
         }
-        pushWindows[key] = controller; controller.model.load(source: source)
-        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func configureReferenceInteractions(_ controller: BranchTagWindowController, repository: GitRepository, access: RepositoryAccessLease?) {
         let root = repository.root

@@ -843,6 +843,139 @@ import TurtleGitCore
         print("PASS: native Compare Tags six columns, raw/friendly entries, natural/reversed sorting, full-hash Log/Compare routes, source icon menus and visibility settings, Hide unchanged, Shift persistence, real non-force failure/Fetch/Push/confirmed friendly deletions, manual/automatic output close, inline local deletion, compact remote deletion with same-window refill/error, loading error handoff and actual owned error-sheet cleanup, HEAD/index/config preservation and forced load/write cleanup")
     }
 
+    @MainActor static func verifyPush(root: URL, preferences sharedPreferences: UserDefaults) async throws {
+        let suite = "TurtleGit.Sync.Push.QA." + UUID().uuidString, preferences = UserDefaults(suiteName: suite)!
+        defer { preferences.removePersistentDomain(forName: suite); DialogGeometry.install(preferences: sharedPreferences) }
+        DialogGeometry.install(preferences: preferences)
+        let git = URL(fileURLWithPath: CommandLine.arguments[2])
+        let directory = root.deletingLastPathComponent().appendingPathComponent("qa-push-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let parent = GitRepository(root: directory, executable: git), serverRoot = directory.appendingPathComponent("server 雪.git"), clientRoot = directory.appendingPathComponent("client")
+        _ = try await parent.run(["clone", "--bare", "--template=", "--", root.path, serverRoot.path])
+        _ = try await parent.run(["clone", "--template=", "--", serverRoot.path, clientRoot.path])
+        let repo = GitRepository(root: clientRoot, executable: git), server = GitRepository(root: serverRoot, executable: git)
+        for (key, value) in [("user.name", "Push QA"), ("user.email", "qa@example.invalid"), ("core.hooksPath", "/dev/null")] { _ = try await repo.run(["config", key, value]) }
+        _ = try await server.run(["config", "core.hooksPath", "/dev/null"])
+        for key in ["branch.main.remote", "branch.main.merge"] { _ = try await repo.run(["config", "--unset", key], successfulExitCodes: 0...5) }
+        func hash(_ repository: GitRepository, _ ref: String) async throws -> String { try await repository.run(["rev-parse", "--verify", ref]).text.trimmingCharacters(in: .newlines) }
+        func refs() async throws -> Data { try await server.run(["show-ref"]).stdout }
+        let head = try await hash(repo, "HEAD"), previous = try await hash(repo, "HEAD^"), initialRefs = try await refs()
+        let index = try Data(contentsOf: clientRoot.appendingPathComponent(".git/index"))
+        let owner = SynchronizationWindowController(repository: repo, access: nil, preferences: preferences)
+        owner.window!.alphaValue = 0; owner.showWindow(nil); defer { owner.close() }
+        let model = owner.model; model.sshSettings.enabled = false
+        preferences.set(0, forKey: "AutoCloseGitProgress")
+        defer { preferences.removeObject(forKey: "AutoCloseGitProgress"); preferences.removeObject(forKey: "AskSetTrackedBranch") }
+        try await settle { !model.busy && model.outgoing != nil }
+        model.localBranch = "main"; model.remote = "origin"; model.remoteBranch = "push-new"
+        let key = "TurtleGit.Sync." + clientRoot.path + ".pushAction"
+        var questions = [(String, String, String)](), finished = 0
+        model.onTransportFinished = { _ in finished += 1 }
+        model.askTracking = { local, remote, destination in questions.append((local, remote, destination)); return SynchronizationTrackingAnswer(choice: .cancel) }
+        model.push(.push, shift: false); try await settle { !model.busy }
+        let cancelledRefs = try await refs()
+        precondition(cancelledRefs == initialRefs && !model.commandSucceeded && preferences.object(forKey: key) == nil && questions.count == 1)
+        precondition(questions[0].0 == "main" && questions[0].1 == "origin" && questions[0].2 == "push-new")
+        model.askTracking = { local, remote, destination in questions.append((local, remote, destination)); return SynchronizationTrackingAnswer(choice: .no, suppress: true) }
+        model.push(.push, shift: false); try await settle { !model.busy }
+        let firstPush = try await hash(server, "refs/heads/push-new")
+        precondition(model.commandSucceeded && firstPush == head && preferences.integer(forKey: key) == 0 && !preferences.bool(forKey: "AskSetTrackedBranch"))
+        let noTracking = try await repo.synchronizationBranches(localBranch: "main"); precondition(noTracking.trackedBranch.isEmpty)
+        preferences.removeObject(forKey: "AskSetTrackedBranch")
+        model.remoteBranch = "refs/heads/tracked-雪"
+        model.askTracking = { local, remote, destination in questions.append((local, remote, destination)); return SynchronizationTrackingAnswer(choice: .yes) }
+        model.push(.push, shift: false); try await settle { !model.busy }
+        let tracking = try await repo.synchronizationBranches(localBranch: "main"), trackedPush = try await hash(server, "refs/heads/tracked-雪")
+        precondition(model.commandSucceeded && tracking.trackedRemote == "origin" && tracking.trackedBranch == "tracked-雪" && trackedPush == head)
+        for config in ["branch.main.remote", "branch.main.merge"] { _ = try await repo.run(["config", "--unset", config]) }
+        model.remoteBranch = ""; model.askTracking = { local, remote, destination in questions.append((local, remote, destination)); return SynchronizationTrackingAnswer(choice: .no) }
+        model.push(.push, shift: false); try await settle { !model.busy }
+        precondition(model.commandSucceeded && questions.last!.2 == "main")
+        let questionCount = questions.count
+        _ = try await repo.run(["tag", "sync-tag", head]); model.remoteBranch = "tag-target"
+        model.push(.pushTags, shift: false); try await settle { !model.busy }
+        let tag = try await hash(server, "refs/tags/sync-tag"), tagBranch = try await hash(server, "refs/heads/tag-target")
+        precondition(model.commandSucceeded && tag == head && tagBranch == head && questions.count == questionCount && preferences.integer(forKey: key) == 1)
+        _ = try await repo.run(["config", "core.notesRef", "refs/notes/sync-qa"]); _ = try await repo.run(["notes", "add", "-m", "source notes", "HEAD"])
+        model.remoteBranch = "ignored for notes"; model.push(.pushNotes, shift: false); try await settle { !model.busy }
+        let localNotes = try await hash(repo, "refs/notes/sync-qa"), remoteNotes = try await hash(server, "refs/notes/sync-qa")
+        precondition(model.commandSucceeded && localNotes == remoteNotes && questions.count == questionCount && preferences.integer(forKey: key) == 2)
+        let restored = SynchronizationWindowModel(repository: repo, access: nil, preferences: preferences)
+        precondition(restored.pushAction == .pushNotes && restored.pushActionTitle == "Push notes")
+        _ = try await repo.run(["branch", "older", previous]); _ = try await server.run(["update-ref", "refs/heads/forced", head])
+        model.localBranch = "older"; model.remoteBranch = "forced"; preferences.set(false, forKey: "AskSetTrackedBranch")
+        model.push(.push, shift: false); try await settle { !model.busy }
+        let rejected = try await hash(server, "refs/heads/forced"); precondition(!model.commandSucceeded && model.error != nil && rejected == head)
+        model.force = true; model.push(.push, shift: false); try await settle { !model.busy }
+        let forced = try await hash(server, "refs/heads/forced"); precondition(model.commandSucceeded && forced == previous)
+        model.force = false; model.localBranch = "main"; model.remote = serverRoot.path; model.remoteBranch = "url-雪"
+        preferences.removeObject(forKey: "AskSetTrackedBranch")
+        model.askTracking = { _, _, _ in preconditionFailure("URL Push must not ask tracking") }
+        model.push(.push, shift: false); try await settle { !model.busy }
+        let urlPush = try await hash(server, "refs/heads/url-雪"); precondition(model.commandSucceeded && urlPush == head)
+        model.localBranch = ""; var deletionAllowed = false, deletionQuestions = 0
+        model.confirmPushDeletion = { destination in precondition(destination == "url-雪"); deletionQuestions += 1; return deletionAllowed }
+        model.push(.push, shift: false); try await settle { !model.busy }
+        let retained = try await hash(server, "refs/heads/url-雪"); precondition(!model.commandSucceeded && retained == head)
+        deletionAllowed = true; model.push(.push, shift: false); try await settle { !model.busy }
+        let removed = try await server.run(["show-ref", "--verify", "--quiet", "refs/heads/url-雪"], successfulExitCodes: 0...1)
+        precondition(model.commandSucceeded && removed.exitCode == 1 && deletionQuestions == 2)
+        let beforeShift = try await refs(), outputBeforeShift = model.commandOutput
+        model.push(.pushTags, shift: true); precondition(!model.busy && owner.pushOptionsController == nil && preferences.integer(forKey: key) == 0)
+        model.push(.pushNotes, shift: true); precondition(!model.busy && owner.pushOptionsController == nil && preferences.integer(forKey: key) == 0)
+        model.remote = ""; model.localBranch = "refs/heads/main"
+        let realPushOptions = model.runPushOptions
+        var pending: CheckedContinuation<Void, Error>?
+        model.runPushOptions = { _ in try await withCheckedThrowingContinuation { pending = $0 } }
+        model.push(.push, shift: true); try await settle { pending != nil }
+        model.cancelTransport(); pending!.resume(throwing: OperationCancellationFailure.cancelled); pending = nil
+        try await settle { !model.busy }
+        precondition(!model.cancelling && !model.transportRunning && preferences.integer(forKey: key) == 0)
+        model.runPushOptions = realPushOptions
+        model.push(.push, shift: true)
+        try await settle { owner.pushOptionsController != nil && !owner.pushOptionsController!.model.busy }
+        let options = owner.pushOptionsController!
+        precondition(model.busy && !owner.windowShouldClose(owner.window!) && options.window!.sheetParent === owner.window && options.window!.alphaValue == 0 && options.model.options.source == "main" && options.model.options.remote == "origin")
+        options.model.close(); try await settle { !model.busy }
+        let afterShiftCancel = try await refs(); precondition(afterShiftCancel == beforeShift && model.commandOutput == outputBeforeShift && preferences.integer(forKey: key) == 0)
+        model.push(.push, shift: true); try await settle { owner.pushOptionsController != nil && !owner.pushOptionsController!.model.busy }
+        let runningOptions = owner.pushOptionsController!
+        runningOptions.model.sshSettings.enabled = false; runningOptions.model.options.destination = "full-options"
+        runningOptions.model.push(confirmed: true)
+        try await settle { runningOptions.model.progress != nil && !runningOptions.model.progress!.busy }
+        let progress = runningOptions.model.progress!
+        precondition(progress.success && model.busy && runningOptions.window!.attachedSheet?.alphaValue == 0 && owner.pushOptionsController === runningOptions)
+        progress.close(); try await settle { !model.busy }
+        let fullPush = try await hash(server, "refs/heads/full-options")
+        precondition(fullPush == head && owner.pushOptionsController == nil && owner.window!.attachedSheet == nil && preferences.integer(forKey: key) == 0)
+        let finalHead = try await hash(repo, "HEAD"), finalBranch = try await repo.branch(), finalIndex = try Data(contentsOf: clientRoot.appendingPathComponent(".git/index"))
+        precondition(finalHead == head && finalBranch == "main" && index == finalIndex && finished > 0 && model.incomingCommits == nil)
+        // Root force-close reaps both direct and owned full-options Push.
+        func quote(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\"'\"'") + "'" }
+        for shift in [false, true] {
+            let shim = directory.appendingPathComponent(shift ? "blocked-options" : "blocked-push"), marker = directory.appendingPathComponent(shift ? "options-pid" : "push-pid")
+            let script = "#!/bin/sh\nfor argument; do\nif [ \"$argument\" = push ]; then\nprintf '%s\\n' \"$$\" > " + quote(marker.path) + "\nwhile :; do sleep 1; done\nfi\ndone\nexec " + quote(git.path) + " \"$@\"\n"
+            try Data(script.utf8).write(to: shim); try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: shim.path)
+            let blockedOwner = SynchronizationWindowController(repository: GitRepository(root: clientRoot, executable: shim), access: nil, preferences: preferences)
+            blockedOwner.window!.alphaValue = 0; blockedOwner.showWindow(nil); defer { blockedOwner.close() }
+            let blocked = blockedOwner.model; blocked.sshSettings.enabled = false
+            try await settle { !blocked.busy && blocked.outgoing != nil }
+            blocked.remote = "origin"; blocked.localBranch = "main"; blocked.remoteBranch = "blocked"
+            blocked.push(shift ? .push : .pushTags, shift: shift)
+            if shift {
+                try await settle { blockedOwner.pushOptionsController != nil && !blockedOwner.pushOptionsController!.model.busy }
+                let child = blockedOwner.pushOptionsController!; child.model.sshSettings.enabled = false; child.model.options.destination = "blocked"; child.model.push(confirmed: true)
+            }
+            try await settle { FileManager.default.fileExists(atPath: marker.path) }
+            let pid = pid_t(try String(contentsOf: marker, encoding: .utf8).trimmingCharacters(in: .newlines))!, refsBeforeClose = try await refs()
+            blockedOwner.close(); try await settle { kill(pid, 0) == -1 && errno == ESRCH }
+            let refsAfterClose = try await refs()
+            precondition(blocked.closed && !blocked.busy && !blocked.transportRunning && !blocked.cancelling && blockedOwner.pushOptionsController == nil && refsAfterClose == refsBeforeClose)
+        }
+        print("PASS: native Sync Push/Push tags/Push notes, tracking Yes/No/Cancel/suppression/default destination, Force rejection/success, configured notes ref, URL/no-tracking, confirmed deletion, source-index persistence, ignored Shift variants, actual owned Shift Push options/progress/cancel/refill and direct/owned forced process cleanup; HEAD/branch/index preserved")
+    }
+
     @MainActor static func main() async throws {
         if let status = RebaseEditor.handle(arguments: CommandLine.arguments, environment: ProcessInfo.processInfo.environment) { exit(status) }
         NSApplication.shared.setActivationPolicy(.prohibited)
@@ -851,12 +984,13 @@ import TurtleGitCore
         _ = try await repo.run(["init", "-b", "main"])
         for (key, value) in [("user.name", "Sync QA"), ("user.email", "qa@example.invalid"), ("commit.gpgsign", "false"), ("core.hooksPath", "/dev/null")] { _ = try await repo.run(["config", key, value]) }
         try Data("base\n".utf8).write(to: root.appendingPathComponent("file")); try await repo.stage(["file"]); _ = try await repo.commit(message: "base")
-        if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_TAGS_ONLY"] == "1" {
+        if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_TAGS_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_PUSH_ONLY"] == "1" {
             try Data("second\n".utf8).write(to: root.appendingPathComponent("file")); try await repo.stage(["file"]); _ = try await repo.commit(message: "second")
             let suite = "TurtleGit.Tags.QA." + UUID().uuidString, preferences = UserDefaults(suiteName: suite)!
             defer { preferences.removePersistentDomain(forName: suite) }
             DialogGeometry.install(preferences: preferences)
-            try await verifyTags(root: root, preferences: preferences); return
+            if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_PUSH_ONLY"] == "1" { try await verifyPush(root: root, preferences: preferences) }
+            else { try await verifyTags(root: root, preferences: preferences) }; return
         }
         let base = String(decoding: try await repo.run(["rev-parse", "HEAD"]).stdout, as: UTF8.self).trimmingCharacters(in: .newlines)
         _ = try await repo.run(["remote", "add", "origin", "/tmp/no-network-required"])
@@ -927,6 +1061,7 @@ import TurtleGitCore
         try await verifyShiftOptions(root: root, preferences: preferences)
         try await verifyShiftOwnedRebase(root: root, preferences: preferences)
         try await verifyTags(root: root, preferences: preferences)
+        try await verifyPush(root: root, preferences: preferences)
         print("PASS: native Sync tracking controls, exact Unicode choices, graph-first table, changes and pinned comparison snapshot, divergence/Force, unknown states, Quit fences, owner invalidation and read-only preservation")
     }
 }

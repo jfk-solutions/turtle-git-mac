@@ -11,7 +11,9 @@ import time
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git', type=Path, action='append')
-parser.add_argument('--tags-only', action='store_true', help='Run the native Compare Tags fixture only.')
+selection = parser.add_mutually_exclusive_group()
+selection.add_argument('--push-only', action='store_true', help='Run the native Push fixture only.')
+selection.add_argument('--tags-only', action='store_true', help='Run the native Compare Tags fixture only.')
 args = parser.parse_args()
 root = Path(__file__).resolve().parent.parent
 products = root / 'build/Build/Products/Debug'
@@ -28,12 +30,13 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-sync-native-') as temporary:
     environment = os.environ.copy()
     environment['DYLD_FRAMEWORK_PATH'] = str(products)
     if args.tags_only: environment['TURTLEGIT_SYNC_TAGS_ONLY'] = '1'
+    if args.push_only: environment['TURTLEGIT_SYNC_PUSH_ONLY'] = '1'
     for index, git in enumerate(args.git or [Path('/usr/bin/git')]):
         fixture = directory / ('fixture-' + str(index)); fixture.mkdir()
         print('Checking ' + str(git), flush=True)
         receiver = subprocess.Popen([str(executable), str(fixture), str(git.resolve())], cwd=root, env=environment, start_new_session=True)
         try:
-            code = receiver.wait(timeout=120)
+            code = receiver.wait(timeout=240)
             if code:
                 raise subprocess.CalledProcessError(code, receiver.args)
         finally:
