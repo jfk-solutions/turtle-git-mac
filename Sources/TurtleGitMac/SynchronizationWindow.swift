@@ -608,6 +608,42 @@ enum SynchronizationBranchTarget { case local, remote }
     var displayedComparison: RevisionComparisonWindowModel { tab == 5 ? incomingComparison : comparison }
     var historyEntries: [LogEntry] { tab == 4 ? (incomingCommits ?? []) : (outgoing?.commits ?? []) }
     var historyGraph: [CommitGraphRow] { tab == 4 ? incomingGraph : graph }
+    @Published private(set) var historyReferenceContext = HistoryReferenceContext()
+    @Published private(set) var historyIssueProperties = IssueTrackerProperties()
+    @Published private(set) var historyActions: [String: LogRevisionActions] = [:]
+    @Published private(set) var historyActionFailures = Set<String>()
+    private var historyActionToken: OperationCancellation?
+    private var historyActionQueue: [LogEntry] = []
+    private var activeHistoryAction: String?
+    private var historyActionGeneration = 0
+    private func cancelHistoryActions() {
+        historyActionToken?.cancel(); historyActionToken = nil
+        historyActionQueue = []; activeHistoryAction = nil; historyActionGeneration += 1
+    }
+    func requestHistoryActions(_ entry: LogEntry) {
+        guard !closed, !busy, !entry.hash.isEmpty, historyActions[entry.hash] == nil,
+              !historyActionFailures.contains(entry.hash), activeHistoryAction != entry.hash,
+              !historyActionQueue.contains(where: { $0.hash == entry.hash }) else { return }
+        historyActionQueue.append(entry)
+        guard historyActionToken == nil else { return }
+        let request = OperationCancellation(), generation = historyActionGeneration
+        historyActionToken = request
+        Task {
+            while !closed, generation == historyActionGeneration, !request.isCancelled, !historyActionQueue.isEmpty {
+                let entry = historyActionQueue.removeFirst(); activeHistoryAction = entry.hash
+                do {
+                    let actions = try await repository.revisionActions(in: entry, cancellation: request)
+                    guard !closed, generation == historyActionGeneration, !request.isCancelled else { return }
+                    historyActions[entry.hash] = actions
+                } catch {
+                    guard !closed, generation == historyActionGeneration, !request.isCancelled else { return }
+                    historyActionFailures.insert(entry.hash)
+                }
+                activeHistoryAction = nil
+            }
+            if generation == historyActionGeneration { historyActionToken = nil; activeHistoryAction = nil }
+        }
+    }
     var incomingUpToDate: Bool {
         guard let snapshot = incomingComparison.snapshot else { return false }
         return snapshot.from == snapshot.to
@@ -637,7 +673,7 @@ enum SynchronizationBranchTarget { case local, remote }
     }
     @Published private(set) var outgoing: SynchronizationOutgoing?
     @Published private(set) var graph: [CommitGraphRow] = []
-    @Published private(set) var busy = false
+    @Published private(set) var busy = false { didSet { if busy { cancelHistoryActions() } } }
     @Published private(set) var error: String?
     @Published private(set) var transportRunning = false
     @Published private(set) var confirmingCancellation = false
@@ -722,7 +758,7 @@ enum SynchronizationBranchTarget { case local, remote }
         case nil: return ""
         }
     }
-    func invalidate() { closed = true; token?.cancel(); token = nil; comparison.invalidate(); incomingComparison.invalidate(); busy = false; transportRunning = false; cancelling = false; confirmingCancellation = false; cancellationQuestion = nil; transportID = nil }
+    func invalidate() { closed = true; cancelHistoryActions(); token?.cancel(); token = nil; comparison.invalidate(); incomingComparison.invalidate(); busy = false; transportRunning = false; cancelling = false; confirmingCancellation = false; cancellationQuestion = nil; transportID = nil }
     func reload(selectTracking: Bool = false, initial: Bool = false, preserveError: Bool = false, refreshRemoteSelection: Bool = false) {
         guard !closed, !confirmingQuit, !transportRunning, !hasBlockingChild else { return }
         token?.cancel()
@@ -756,6 +792,11 @@ enum SynchronizationBranchTarget { case local, remote }
                 if initial || selectTracking { branchHistory = FetchDialogHistory.inserting(destination, into: branchHistory, atFront: false, caseSensitive: false) }
                 let projection = try await repository.synchronizationOutgoing(localBranch: branch, remote: url, remoteBranch: destination, force: forced, cancellation: request)
                 guard !closed, token === request, !request.isCancelled else { return }
+                let references = try await repository.historyReferenceContext(cancellation: request)
+                let properties = try await repository.issueTrackerProperties(cancellation: request)
+                guard !closed, token === request, !request.isCancelled else { return }
+                historyReferenceContext = references; historyIssueProperties = properties
+                historyActionFailures = []
                 outgoing = projection; graph = CommitGraph.layout(projection.commits); comparison.snapshot = projection.comparison
                 // Native control edits never write Git configuration or refs.
             } catch {
@@ -1466,15 +1507,36 @@ private struct SynchronizationFiles: View {
     }
 }
 
-private struct SynchronizationHistoryTable: NSViewRepresentable {
+enum SynchronizationHistoryColumns {
+    // GitLogListBase::InsertGitColumn, shared by upstream SyncIn and SyncOut.
+    static let definitions: [(id: String, title: String, width: Double, visible: Bool)] = [
+        ("graph", "Graph", 65, true), ("hash", "SHA-1", 110, false), ("actions", "Actions", 90, true),
+        ("message", "Message", 450, true), ("author", "Author", 150, true), ("date", "Date", 180, true),
+        ("email", "Email", 200, false), ("committer", "Commit Name", 150, false),
+        ("committerEmail", "Commit Email", 200, false), ("committerDate", "Commit Date", 180, false),
+        ("bugs", "Bug-ID", 110, true)
+    ]
+    static func key(incoming: Bool, id: String) -> String { "TurtleGit.Sync." + (incoming ? "In" : "Out") + ".Column.Visible." + id }
+    static func visible(_ id: String, incoming: Bool, preferences: UserDefaults) -> Bool {
+        guard let definition = definitions.first(where: { $0.id == id }) else { return false }
+        return (preferences.object(forKey: key(incoming: incoming, id: id)) as? NSNumber)?.boolValue ?? definition.visible
+    }
+}
+
+struct SynchronizationHistoryTable: NSViewRepresentable {
     @ObservedObject var model: SynchronizationWindowModel
     func makeCoordinator() -> Coordinator { Coordinator(model) }
     func makeNSView(context: Context) -> NSScrollView {
         let table = NSTableView(); table.rowHeight = 24; table.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
-        for (id, title, width) in [("graph", "Graph", 65.0), ("hash", "Hash", 110.0), ("message", "Message", 450.0), ("author", "Author", 150.0), ("date", "Date", 180.0)] {
-            let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id)); column.title = title; column.width = width; table.addTableColumn(column)
+        for definition in SynchronizationHistoryColumns.definitions {
+            let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(definition.id)); column.title = definition.title; column.width = definition.width
+            column.isHidden = !SynchronizationHistoryColumns.visible(definition.id, incoming: model.tab == 4, preferences: model.preferences) || definition.id == "bugs" && !model.historyIssueProperties.showsBugIDColumn
+            table.addTableColumn(column)
         }
-        if model.preferences === UserDefaults.standard { table.autosaveName = model.tab == 4 ? "TurtleGit.SyncIn.RevisionColumns" : "TurtleGit.SyncOut.RevisionColumns"; table.autosaveTableColumns = true }
+        if model.preferences === UserDefaults.standard { table.autosaveName = model.tab == 4 ? "TurtleGit.SyncIn.RevisionColumns.v2" : "TurtleGit.SyncOut.RevisionColumns.v2"; table.autosaveTableColumns = true }
+        let header = SynchronizationReferenceHeader()
+        header.makeMenu = { [weak coordinator = context.coordinator] in coordinator?.headerMenu() }
+        table.headerView = header; context.coordinator.table = table
         table.delegate = context.coordinator; table.dataSource = context.coordinator
         table.target = context.coordinator; table.doubleAction = #selector(Coordinator.showLog)
         let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true; scroll.documentView = table
@@ -1489,11 +1551,41 @@ private struct SynchronizationHistoryTable: NSViewRepresentable {
             column.minWidth = max(65, CGFloat(model.historyGraph.map(\.width).max() ?? 1) * floor(table.rowHeight * 3 / 4) + 24)
             column.width = max(column.width, column.minWidth)
         }
+        for column in table.tableColumns {
+            let id = column.identifier.rawValue
+            column.isHidden = !SynchronizationHistoryColumns.visible(id, incoming: model.tab == 4, preferences: model.preferences) || id == "bugs" && !model.historyIssueProperties.showsBugIDColumn
+        }
         table.reloadData()
     }
     @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate {
         var model: SynchronizationWindowModel
+        weak var table: NSTableView?
         init(_ model: SynchronizationWindowModel) { self.model = model }
+        func headerMenu() -> NSMenu {
+            let menu = NSMenu(); menu.autoenablesItems = false
+            let reset = NSMenuItem(title: "Reset columns", action: #selector(resetColumns), keyEquivalent: ""); reset.target = self; menu.addItem(reset); menu.addItem(.separator())
+            for definition in SynchronizationHistoryColumns.definitions where definition.id != "bugs" || model.historyIssueProperties.showsBugIDColumn {
+                let item = NSMenuItem(title: definition.title, action: #selector(toggleColumn(_:)), keyEquivalent: "")
+                item.target = self; item.representedObject = definition.id
+                item.state = table?.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier(definition.id))?.isHidden == false ? .on : .off
+                menu.addItem(item)
+            }
+            return menu
+        }
+        @objc func toggleColumn(_ item: NSMenuItem) {
+            guard let id = item.representedObject as? String, let column = table?.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier(id)) else { return }
+            column.isHidden.toggle()
+            model.preferences.set(!column.isHidden, forKey: SynchronizationHistoryColumns.key(incoming: model.tab == 4, id: id))
+        }
+        @objc func resetColumns() {
+            guard let table else { return }
+            for (index, definition) in SynchronizationHistoryColumns.definitions.enumerated() {
+                model.preferences.removeObject(forKey: SynchronizationHistoryColumns.key(incoming: model.tab == 4, id: definition.id))
+                guard let column = table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier(definition.id)) else { continue }
+                table.moveColumn(table.tableColumns.firstIndex(of: column)!, toColumn: index)
+                column.width = definition.width; column.isHidden = !definition.visible || definition.id == "bugs" && !model.historyIssueProperties.showsBugIDColumn
+            }
+        }
         func numberOfRows(in tableView: NSTableView) -> Int { model.historyEntries.count }
         func tableView(_ tableView: NSTableView, viewFor column: NSTableColumn?, row: Int) -> NSView? {
             let entries = model.historyEntries
@@ -1503,15 +1595,72 @@ private struct SynchronizationHistoryTable: NSViewRepresentable {
                 let cell = GraphCell(); cell.preferences = model.preferences; cell.parentCount = entry.parents.count
                 if model.historyGraph.indices.contains(row) { cell.graph = model.historyGraph[row] }; return cell
             }
-            let text: String
-            switch column?.identifier.rawValue {
-            case "hash": text = String(entry.hash.prefix(8))
-            case "message": text = entry.subject
-            case "author": text = entry.author
-            case "date": text = entry.date
-            default: text = ""
+            if column?.identifier.rawValue == "actions" {
+                model.requestHistoryActions(entry)
+                let cell = NSTableCellView()
+                let slots: [(LogRevisionActions, MenuIcon, String)] = [(.modified, .actionModified, "Modified"), (.added, .actionAdded, "Added/copied"), (.deleted, .actionDeleted, "Deleted"), (.replaced, .actionReplaced, "Replaced/renamed"), (.conflicted, .actionConflicted, "Conflicted")]
+                var images: [NSView] = [], labels: [String] = []
+                if let actions = model.historyActions[entry.hash] {
+                    for (flag, icon, title) in slots {
+                        let image = NSImageView(); image.image = actions.contains(flag) ? icon.image() : nil
+                        images.append(image); if actions.contains(flag) { labels.append(title) }
+                    }
+                    if labels.isEmpty { labels = ["No changed files"] }
+                } else {
+                    let failed = model.historyActionFailures.contains(entry.hash)
+                    images = [NSImageView(image: (failed ? MenuIcon.actionError : .actionFetching).image() ?? NSImage())]
+                    labels = [failed ? "Could not read changed files" : "Reading changed files"]
+                }
+                for image in images { image.translatesAutoresizingMaskIntoConstraints = false; image.widthAnchor.constraint(equalToConstant: 16).isActive = true; image.heightAnchor.constraint(equalToConstant: 16).isActive = true }
+                let stack = NSStackView(views: images); stack.orientation = .horizontal; stack.spacing = 0; stack.translatesAutoresizingMaskIntoConstraints = false; cell.addSubview(stack)
+                NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 3), stack.centerYAnchor.constraint(equalTo: cell.centerYAnchor)])
+                cell.toolTip = labels.joined(separator: ", "); cell.setAccessibilityLabel(cell.toolTip); return cell
             }
-            let cell = NSTextField(labelWithString: text); cell.lineBreakMode = .byTruncatingTail; return cell
+            let dates = HistoryDateSettings.load(defaults: model.preferences)
+            let text = NSTextField(labelWithString: ""); text.lineBreakMode = .byTruncatingTail; text.maximumNumberOfLines = 1
+            text.font = .systemFont(ofSize: 12, weight: entry.isHead ? .bold : .regular)
+            if model.preferences.bool(forKey: "LogFontForLogCtrl") {
+                let size = (model.preferences.object(forKey: "LogFontSize") as? NSNumber)?.intValue ?? MessageEditorFont.defaultSize
+                let font = MessageEditorFont.resolve(name: model.preferences.string(forKey: "LogFontName") ?? MessageEditorFont.defaultName, size: size)
+                text.font = entry.isHead ? NSFontManager.shared.convert(font, toHaveTrait: .boldFontMask) : font
+            }
+            switch column?.identifier.rawValue {
+            case "hash": text.stringValue = entry.hash
+            case "author": text.stringValue = entry.author
+            case "date": text.stringValue = dates.format(entry.date); text.toolTip = dates.relative ? dates.format(entry.date, absolute: true) : nil
+            case "email": text.stringValue = entry.email
+            case "committer": text.stringValue = entry.committer
+            case "committerEmail": text.stringValue = entry.committerEmail
+            case "committerDate": text.stringValue = dates.format(entry.committerDate); text.toolTip = dates.relative ? dates.format(entry.committerDate, absolute: true) : nil
+            case "bugs": text.stringValue = entry.issueIDs
+            default:
+                let painter = LogReferenceTextCell(textCell: ""); painter.isEditable = false; painter.isSelectable = false; painter.isBordered = false; painter.drawsBackground = false; text.cell = painter
+                let badges = NSMutableAttributedString()
+                let font = model.preferences.bool(forKey: "LogFontForLogCtrl") ? text.font! : NSFont.systemFont(ofSize: 11, weight: .medium)
+                for badge in model.historyReferenceContext.labels(entry.references, symbolize: model.preferences.bool(forKey: "SymbolizeRefNames")) {
+                    let color = LogPalette.native(LogColorRole.reference(badge.reference), preferences: model.preferences)
+                    let foreground = NSColor(name: nil) { _ in LogPalette.foreground(background: color) }
+                    let attributes: [NSAttributedString.Key: Any] = [.backgroundColor: color, .foregroundColor: foreground, .font: font]
+                    let start = badges.length; badges.append(NSAttributedString(string: " ", attributes: attributes))
+                    if badge.singleRemote {
+                        let marker = NSMutableAttributedString(attachment: LogUpstreamMarker.attachment(foreground: foreground, font: font, isHead: entry.isHead))
+                        marker.addAttributes(attributes, range: NSRange(location: 0, length: marker.length)); badges.append(marker)
+                    }
+                    badges.append(NSAttributedString(string: badge.text + " ", attributes: attributes))
+                    badges.addAttribute(.logReference, value: LogReferenceStyle(badge, color: color), range: NSRange(location: start, length: badges.length - start))
+                    let space = (" " as NSString).size(withAttributes: [.font: font]).width
+                    badges.addAttribute(.kern, value: 4 - space, range: NSRange(location: start, length: 1))
+                    badges.addAttribute(.kern, value: 4 - space + (badge.kind == .annotatedTag ? 8 : 0), range: NSRange(location: badges.length - 1, length: 1))
+                    badges.append(NSAttributedString(string: " ", attributes: [.font: font, .kern: 1 - space]))
+                }
+                let label = NSMutableAttributedString(), message = NSAttributedString(string: entry.logLine(fullMessage: model.preferences.bool(forKey: "FullCommitMessageOnLogLine")), attributes: [.font: text.font!])
+                if model.preferences.bool(forKey: "DrawTagsBranchesOnRightSide") { label.append(message); if badges.length > 0 { label.append(NSAttributedString(string: " ", attributes: [.font: text.font!])); label.append(badges) } }
+                else { label.append(badges); label.append(message) }
+                text.attributedStringValue = label; text.toolTip = entry.historySubject
+            }
+            let cell = NSTableCellView(); cell.addSubview(text); cell.textField = text; text.translatesAutoresizingMaskIntoConstraints = false
+            NSLayoutConstraint.activate([text.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 3), text.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -3), text.centerYAnchor.constraint(equalTo: cell.centerYAnchor)])
+            return cell
         }
         @objc func showLog(_ table: NSTableView) {
             let entries = model.historyEntries
