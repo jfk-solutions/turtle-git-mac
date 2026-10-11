@@ -18,6 +18,42 @@ final class SynchronizationTests: XCTestCase {
     private func hash(_ repo: GitRepository) async throws -> String {
         String(decoding: try await repo.run(["rev-parse", "HEAD"]).stdout, as: UTF8.self).trimmingCharacters(in: .newlines)
     }
+    func testEmailPatchExportsSelectedRangeAndPreservesGitState() async throws {
+        let (root, repo, base) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        for name in ["first-mail", "second-mail"] {
+            try Data((name + "\n").utf8).write(to: root.appendingPathComponent(name)); try await repo.stage([name])
+            _ = try await repo.commit(message: name)
+        }
+        let local = try await hash(repo)
+        _ = try await repo.run(["switch", "-c", "other", base])
+        let refs = try await repo.run(["show-ref"]).stdout, index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let config = try Data(contentsOf: root.appendingPathComponent(".git/config"))
+        let result = try await repo.synchronizationEmailPatches(localBranch: "main", remote: " origin ", remoteBranch: " main ")
+        let files = result.text.split(separator: "\n").map { URL(fileURLWithPath: String($0)) }
+        XCTAssertEqual(files.count, 2)
+        XCTAssertEqual(try files.map { try SerialPatch(file: $0).subject }, ["[PATCH 1/2] first-mail", "[PATCH 2/2] second-mail"])
+        XCTAssertTrue(files.allSatisfy { $0.deletingLastPathComponent().resolvingSymlinksInPath() == root.resolvingSymlinksInPath() })
+        let after = try await hash(repo), afterRefs = try await repo.run(["show-ref"]).stdout
+        XCTAssertEqual(after, base); XCTAssertEqual(afterRefs, refs)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/config")), config)
+        // FixBranchName selects the sole for-merge FETCH_HEAD record, not Git's
+        // first not-for-merge line. An octopus/empty selection cannot export.
+        try Data((base + "\tnot-for-merge\tbranch 'other'\n" + local + "\t\tbranch 'main'\n").utf8).write(to: root.appendingPathComponent(".git/FETCH_HEAD"))
+        let fetched = try await repo.synchronizationEmailPatches(localBranch: "FETCH_HEAD", remote: "origin", remoteBranch: "main")
+        XCTAssertEqual(fetched.stdout, result.stdout)
+        try Data((base + "\t\tbranch 'other'\n" + local + "\t\tbranch 'main'\n").utf8).write(to: root.appendingPathComponent(".git/FETCH_HEAD"))
+        do { _ = try await repo.synchronizationEmailPatches(localBranch: "FETCH_HEAD", remote: "origin", remoteBranch: "main"); XCTFail("ambiguous FETCH_HEAD exported") } catch is SynchronizationFailure {}
+    }
+    func testEmailPatchEmptyRangeAndCancelledExport() async throws {
+        let (root, repo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let result = try await repo.synchronizationEmailPatches(localBranch: "main", remote: "origin", remoteBranch: "main")
+        XCTAssertTrue(result.stdout.isEmpty)
+        let token = OperationCancellation(); token.cancel()
+        do { _ = try await repo.synchronizationEmailPatches(localBranch: "main", remote: "origin", remoteBranch: "main", cancellation: token); XCTFail("cancelled export ran") } catch is OperationCancellationFailure {}
+        XCTAssertFalse(try FileManager.default.contentsOfDirectory(atPath: root.path).contains { $0.hasSuffix(".patch") })
+        do { _ = try await repo.synchronizationEmailPatches(localBranch: "main", remote: "origin", remoteBranch: "missing"); XCTFail("missing branch exported") } catch is GitFailure {}
+    }
     func testBranchControlsUsePullTrackingRatherThanPushOverrides() async throws {
         let (root, repo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
         for name in ["origin", "publish"] { _ = try await repo.run(["remote", "add", name, "/tmp/" + name]) }

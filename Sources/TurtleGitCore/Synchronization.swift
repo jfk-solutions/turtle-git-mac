@@ -573,6 +573,20 @@ extension GitRepository {
         return snapshot(.outgoing, local: localHash, tracking: remoteHash, base: base, fastForward: fastForward, commits: commits, comparison: comparison)
     }
 
+    /// SyncDlg::OnBnClickedButtonEmail exports directly to the working directory,
+    /// independently of Format Patch's saved dialog choices. The caller applies
+    /// the outgoing projection's enablement and hands the resulting paths to mail.
+    public func synchronizationEmailPatches(localBranch: String, remote: String, remoteBranch: String, cancellation: OperationCancellation? = nil) throws -> GitResult {
+        try cancellation?.check()
+        let destination = remote.trimmingCharacters(in: .whitespacesAndNewlines)
+        let branch = remoteBranch.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !localBranch.isEmpty, !destination.isEmpty, !branch.isEmpty,
+              ![localBranch, destination, branch].contains(where: { $0.contains("\0") }) else { throw SynchronizationFailure.invalidInput }
+        let local = localBranch == "FETCH_HEAD" ? try synchronizationFetchHead(cancellation: cancellation) : localBranch
+        guard !local.isEmpty else { throw SynchronizationFailure.invalidInput }
+        return try formatPatch(selection: .range(from: destination + "/" + branch, to: local), to: root, cancellation: cancellation)
+    }
+
     /// Incoming tabs compare the captured pre-operation revision with the actual
     /// completed revision (HEAD for Pull, fetched upstream for Fetch).
     public func synchronizationIncoming(from oldRevision: String, to newRevision: String, cancellation: OperationCancellation? = nil) throws -> (commits: [LogEntry], comparison: RevisionComparisonSnapshot) {
