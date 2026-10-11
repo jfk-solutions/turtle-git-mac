@@ -1153,7 +1153,7 @@ private struct SynchronizationHistoryTable: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(model) }
     func makeNSView(context: Context) -> NSScrollView {
         let table = NSTableView(); table.rowHeight = 24; table.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
-        for (id, title, width) in [("graph", "Graph", 90.0), ("hash", "Hash", 110.0), ("message", "Message", 450.0), ("author", "Author", 150.0), ("date", "Date", 180.0)] {
+        for (id, title, width) in [("graph", "Graph", 65.0), ("hash", "Hash", 110.0), ("message", "Message", 450.0), ("author", "Author", 150.0), ("date", "Date", 180.0)] {
             let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id)); column.title = title; column.width = width; table.addTableColumn(column)
         }
         if model.preferences === UserDefaults.standard { table.autosaveName = model.tab == 4 ? "TurtleGit.SyncIn.RevisionColumns" : "TurtleGit.SyncOut.RevisionColumns"; table.autosaveTableColumns = true }
@@ -1163,7 +1163,15 @@ private struct SynchronizationHistoryTable: NSViewRepresentable {
         return scroll
     }
     func updateNSView(_ scroll: NSScrollView, context: Context) {
-        context.coordinator.model = model; (scroll.documentView as? NSTableView)?.reloadData()
+        context.coordinator.model = model
+        guard let table = scroll.documentView as? NSTableView else { return }
+        if let column = table.tableColumns.first(where: { $0.identifier.rawValue == "graph" }) {
+            // GraphCell uses three quarters of the row height per lane. Keep a
+            // compact single-lane column, expanding enough to show all lanes.
+            column.minWidth = max(65, CGFloat(model.historyGraph.map(\.width).max() ?? 1) * floor(table.rowHeight * 3 / 4) + 24)
+            column.width = max(column.width, column.minWidth)
+        }
+        table.reloadData()
     }
     @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate {
         var model: SynchronizationWindowModel

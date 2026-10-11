@@ -17,6 +17,11 @@ struct SynchronizationLayoutCapture {
         let base = try await repository.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
         try Data("TurtleGit sample repository\nReview native synchronization controls\n".utf8).write(to: file)
         try await repository.stage(["README.md"]); _ = try await repository.commit(message: "Review native synchronization controls")
+        _ = try await repository.run(["checkout", "-b", "submodule-docs", base])
+        try Data("Use Submodule Update, Init or Sync from Synchronization.\n".utf8).write(to: root.appendingPathComponent("SUBMODULES.md"))
+        try await repository.stage(["SUBMODULES.md"]); _ = try await repository.commit(message: "Document native submodule actions")
+        _ = try await repository.run(["checkout", "main"])
+        _ = try await repository.run(["merge", "--no-ff", "submodule-docs", "-m", "Merge submodule documentation"])
         _ = try await repository.run(["remote", "add", "origin", root.deletingLastPathComponent().appendingPathComponent("sample-server.git").path])
         _ = try await repository.run(["update-ref", "refs/remotes/origin/main", base])
         _ = try await repository.run(["config", "branch.main.remote", "origin"])
@@ -28,7 +33,8 @@ struct SynchronizationLayoutCapture {
         let owner = SynchronizationWindowController(repository: repository, access: nil, preferences: preferences)
         owner.window!.alphaValue = 1; owner.showWindow(nil); defer { owner.close() }
         for _ in 0..<2000 { if !owner.model.busy && owner.model.outgoing != nil { break }; try await Task.sleep(nanoseconds: 5_000_000) }
-        precondition(!owner.model.busy && owner.model.outgoing?.commits.count == 1 && owner.model.pushActionTitle == "Push")
+        precondition(!owner.model.busy && owner.model.outgoing?.commits.count == 3 && owner.model.pushActionTitle == "Push")
+        precondition((owner.model.graph.map(\.width).max() ?? 0) >= 2)
         let window = owner.window!
         for (size, suffix) in [(NSSize(width: 1050, height: 660), ""), (NSSize(width: 860, height: 500), "-minimum")] {
             window.setContentSize(size)

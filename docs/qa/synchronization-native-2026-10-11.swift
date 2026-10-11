@@ -1035,7 +1035,53 @@ import TurtleGitCore
         let pid = pid_t(try String(contentsOf: marker, encoding: .utf8).trimmingCharacters(in: .newlines))!
         blockedOwner.close(); try await settle { kill(pid, 0) == -1 && errno == ESRCH }
         precondition(blocked.closed && !blocked.busy && !blocked.transportRunning && !blocked.cancelling && lateCompletions == 0)
-        print("PASS: native Sync Submodule Init/Update/Sync, ignored transport fields, Command Log completion without outgoing refill, Force, persisted selection, Shift Update/Init/Sync routes without parent busy/persistence, closed-owner refusal and forced running process cleanup; HEAD/index preserved")
+        // Exercise the actual standalone controller lifetimes. RepositoryModel's
+        // production callbacks are inspected separately; this fixture injects
+        // private preferences and retains only its own child controllers.
+        preferences.set(0, forKey: "AutoCloseGitProgress")
+        var saved = SubmoduleUpdateOptions(); saved.initialize = true; saved.recursive = false; saved.force = false
+        preferences.set(try JSONEncoder().encode(saved), forKey: "SubmoduleUpdate." + directory.path + ".options")
+        let optionsOwner = SynchronizationWindowController(repository: repo, access: nil, preferences: preferences)
+        optionsOwner.window!.alphaValue = 0; optionsOwner.showWindow(nil); defer { optionsOwner.close() }
+        try await settle { !optionsOwner.model.busy && optionsOwner.model.outgoing != nil }
+        optionsOwner.model.force = true
+        var optionsChild: SubmoduleUpdateWindowController?, progressChild: SubmoduleUpdateProgressWindowController?
+        optionsOwner.model.onSubmoduleOptions = { action in
+            precondition(action == .update)
+            let child = SubmoduleUpdateWindowController(repository: repo, access: nil, scope: [], preferences: preferences)
+            child.window!.alphaValue = 0
+            child.model.onSubmit = { paths, options in
+                precondition(paths == [path] && options.initialize && !options.recursive && !options.force)
+                let progress = SubmoduleUpdateProgressWindowController(repository: repo, access: nil, paths: paths, options: options, preferences: preferences)
+                progress.window!.alphaValue = 0; progressChild = progress; progress.showWindow(nil); progress.model.start()
+            }
+            optionsChild = child; child.showWindow(nil); child.window!.contentView!.layoutSubtreeIfNeeded()
+        }
+        optionsOwner.model.submodule(.initialize, shift: true)
+        try await settle { optionsChild?.model.canApply == true }
+        optionsOwner.close(); precondition(optionsChild!.window!.isVisible && optionsChild!.model.canApply)
+        optionsChild!.model.apply(); try await settle { progressChild != nil && !progressChild!.model.busy }
+        precondition(progressChild!.model.success && !optionsChild!.window!.isVisible)
+        progressChild!.close(); optionsChild!.close()
+
+        try FileManager.default.removeItem(at: marker)
+        let syncOwner = SynchronizationWindowController(repository: GitRepository(root: directory, executable: blockedShim), access: nil, preferences: preferences)
+        syncOwner.window!.alphaValue = 0; syncOwner.showWindow(nil); defer { syncOwner.close() }
+        try await settle { !syncOwner.model.busy && syncOwner.model.outgoing != nil }
+        var syncChild: SubmoduleSyncWindowController?, synced = 0
+        syncOwner.model.onSubmoduleOptions = { action in
+            precondition(action == .sync)
+            let child = SubmoduleSyncWindowController(repository: GitRepository(root: directory, executable: blockedShim), access: nil, scope: [], preferences: preferences)
+            child.window!.alphaValue = 0; child.model.onSynced = { _ in synced += 1 }
+            syncChild = child; child.showWindow(nil); child.model.start()
+        }
+        syncOwner.model.submodule(.sync, shift: true)
+        try await settle { FileManager.default.fileExists(atPath: marker.path) }
+        let childPID = pid_t(try String(contentsOf: marker, encoding: .utf8).trimmingCharacters(in: .newlines))!
+        syncOwner.close(); precondition(syncChild!.window!.isVisible && syncChild!.model.busy && kill(childPID, 0) == 0 && !syncOwner.model.busy)
+        syncChild!.close(); try await settle { kill(childPID, 0) == -1 && errno == ESRCH && !syncChild!.model.busy }
+        precondition(synced == 0 && syncChild!.model.output.contains("git submodule sync\n"))
+        print("PASS: native Sync Submodule Init/Update/Sync, ignored transport fields, Command Log completion without outgoing refill, Force, persisted selection, Shift routes without parent busy/persistence, closed-owner refusal, forced process cleanup and actual standalone Update options/progress and running Sync lifetimes after parent closure; HEAD/index preserved")
     }
 
     @MainActor static func main() async throws {
