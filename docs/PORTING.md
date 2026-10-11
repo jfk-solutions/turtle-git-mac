@@ -96,14 +96,13 @@ require review; a dialog count is not a count of all upstream UI.
 
 ## Current integration verification
 
-The latest completed full local SwiftPM suite passed **928 tests, zero failures**,
-with one optional probe skipped, at Core checkpoint `1769e2c` on October 10, 2026.
-See [the full reference-dialog integration record](qa/commit-containing-refs-2026-10-10.json).
-Later Log ordering, completion caching and Abort Merge changes have focused Core
-and hidden native checks; this full-suite result predates those changes.
-The Abort Merge checkpoint also has passing unsigned Debug/Store builds and
-both bundle audits. See [testing](TESTING.md) and
-[the Abort verification record](qa/merge-abort-owner-2026-10-10.json).
+The latest complete local SwiftPM suite passed **980 tests, zero failures**, with
+one optional MX probe skipped, on October 11, 2026. The system Git 2.50.1 / Swift
+6.3.3 process exited normally after 874.897 seconds. It covers the current Core
+and Core tests, including generated change-set comparison, but not native app UI.
+See [the complete Core checkpoint](qa/core-full-range-log-checkpoint-2026-10-11.json).
+Recent Sync native checks, unsigned builds and bundle audits have separate
+workflow records; these do not expand the Core result's scope.
 These checks do not prove full dialog parity, activated Finder behavior, signed
 sandbox execution, passing hosted CI on the latest source or App Store readiness.
 

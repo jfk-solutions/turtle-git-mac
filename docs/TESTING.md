@@ -5,6 +5,18 @@ Run commands from the repository root. The checked-in
 Local success does not establish that a hosted run passed, that dialogs match
 TortoiseGit visually, or that the app is ready for distribution.
 
+## Latest complete local Core checkpoint
+
+On October 11, 2026, `swift test` completed **980 tests, zero failures, one
+optional MX probe skipped**, in 874.897 seconds with Swift 6.3.3 and system Git
+2.50.1. The process exited with status zero. This includes the generated change-set
+comparison helper and the existing Core integration tests. No Core sources or
+Core tests changed while the suite ran; simultaneous native app work is verified
+separately. See [the checkpoint record](qa/core-full-range-log-checkpoint-2026-10-11.json).
+This result does not establish native UI parity, hosted CI, signed Finder or
+App Store acceptance. The earlier dated checkpoints below retain their original
+scope and limitations.
+
 ## Current compatibility checkpoint
 
 On October 10, 2026, the current compatibility changes passed a complete local

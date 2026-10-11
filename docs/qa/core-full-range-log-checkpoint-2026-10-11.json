@@ -1,0 +1,31 @@
+{
+  "date": "2026-10-11",
+  "status": "complete-local-core-suite-passed-native-and-signed-acceptance-open",
+  "started_at_commit": "d64d0ae290ff90f35b66413bd2545ac32bd14d50",
+  "core_tree": "507b8011b616771ea5100a88a342daf8910c32b5",
+  "core_tests_tree": "337f9df2892c1f453f0c7687423c1af6f3e539c5",
+  "command": "swift test",
+  "verification": {
+    "exit_code": 0,
+    "tests": 980,
+    "failures": 0,
+    "skipped": 1,
+    "skip": "SMTPMXTests.testSystemMXLookupWhenRequested: read-only system DNS probe requires explicit opt-in",
+    "elapsed_seconds": 874.897,
+    "system_git": "2.50.1 (Apple Git-155)",
+    "swift": "6.3.3",
+    "platform": "local Apple Silicon macOS",
+    "scope": "Complete SwiftPM Core suite, including current changeset patch helper. No Core, Core test or package/dependency source changes during the run; app UI changes verified separately."
+  },
+  "sha256": {
+    "Package.swift": "2e4f4e8e902801fcede908bbdd88a9b12f25b4fcf40a8d7da383662da234b4d0",
+    "Sources/TurtleGitCore/FileComparison.swift": "cfd8f5880cc7048043ebeecc4a20c7d4e9f8e0a98e3ed46b9c6735d354bd6feb",
+    "Tests/TurtleGitCoreTests/FileComparisonTests.swift": "a0dea342a3d4352db874037e3876be5166c225f050773ef0f053824dd5854f24",
+    "build/qa/core-full-range-log-checkpoint-2026-10-11.log": "6edcb4a402b01b7d7e8e0dec6b3d099678a300c720660de0a5db54e36eb630ce"
+  },
+  "remaining": [
+    "Hosted macOS CI acceptance",
+    "Complete native all-dialog visual and behavior parity",
+    "Signed sandbox, activated Finder and App Store distribution acceptance"
+  ]
+}
