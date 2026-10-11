@@ -1379,7 +1379,7 @@ navigate the parent. Parent model changes update availability in both dialogs.
 The shared native Find uses a visible wrap/no-match status instead of Windows'
 window flashing.
 
-The native revision-list fixture passed with system Git 2.50.1 and packaged Git
+The native revision-list fixture passed with system Git 2.54.0 and packaged Git
 2.55.0, then passed again while taking captures with both engines. It checks
 menu order/original icon, a captured Out action invoked on In, independent
 windows/cursors, subject/email/path/regex/case searches, reference hits/misses,
@@ -1394,3 +1394,4 @@ AppStore builds and bundle audits passed with all 121 pinned icon resources.
 These checks do not certify Sync/Find or complete application parity. Physical
 menus/keyboard/pointer and VoiceOver, signed repository grants, remaining
 revision commands and complete Finder/App Store acceptance remain open.
+See [the dated Find verification record](qa/synchronization-find-2026-10-11.json).

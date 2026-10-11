@@ -1,0 +1,105 @@
+{
+  "date": "2026-10-11",
+  "status": "native-two-engine-find-and-owned-error-close-verified-partial-sync-parity",
+  "code_commit": "5b32a56bdbd960d37b23813aea997072cc0a5347",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_contracts": [
+    "GitLogListBase.cpp: context Find after clipboard, selected search cursor and per-list CFindDlg",
+    "GitLogListAction.cpp: ID_FINDENTRY cursor reset and existing-dialog focus",
+    "GitLogListBase.cpp: LOGFILTER_ALL next/wrap and Shift highlight",
+    "TortoiseLoglistCommon.rc2: IDD_FIND groups and controls",
+    "TortoiseProcENG.rc: IDI_FILTEREDIT original artwork"
+  ],
+  "environment": {
+    "system_git": "2.54.0 (Apple Git-157)",
+    "packaged_git": "2.55.0",
+    "swift": "6.4 (swiftlang-6.4.0.34.1 clang-2100.3.34.1)",
+    "xcode": "27.0 / 27A266a",
+    "receiver_architecture": "arm64"
+  },
+  "verification": {
+    "native_command": "python3 scripts/test-synchronization-history.py --revision-list --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+    "native_exit_code": 0,
+    "scope": [
+      "source menu order and original icon for one/multiple selected rows",
+      "captured Out menu invoked while In is visible",
+      "independent Out/In modeless Find windows and cursors",
+      "subject/email/path/regex/case searches with actual packaged matcher",
+      "reference hit and out-of-list miss",
+      "native Cmd+F and Shift+Return routing",
+      "italic highlight with preserved selection in aqua/darkAqua",
+      "cursor retention on selection, keyboard focus, Cancel/reopen",
+      "actual reload blocks both searches",
+      "owned missing-reference error acknowledgement",
+      "independent cancellation and closed callback rejection",
+      "forced parent close with both Find children and a live critical error sheet",
+      "existing revision-list comparisons, clipboard, metadata ownership and repository-state checks retained"
+    ],
+    "receiver_environment": "Standalone receiver supplies actual Debug app IssueRegex helper through the production controller injectable route; normal app route resolves its bundle by default.",
+    "corrected_fixture_attempts": [
+      "Use a regex that matches the combined upstream corpus rather than assuming a subject-only end anchor.",
+      "Supply packaged matcher because the receiver executable is not an app bundle.",
+      "Wait for canSearch after initial native field/focus reloads before testing forced error-sheet close; production busy guard stays unchanged."
+    ],
+    "receivers_reaped": {
+      "build/qa/sync-find-native-packaged-matcher-2026-10-11.log": [
+        45762,
+        46567
+      ],
+      "build/qa/sync-find-native-captures-2026-10-11.log": [
+        47466,
+        48264
+      ],
+      "build/qa/sync-find-native-parent-sheet-final-2026-10-11.log": [
+        51387,
+        52312
+      ]
+    },
+    "focused_core": "MenuIconTests: 3 tests, zero failures",
+    "debug_build_exit_code": 0,
+    "unsigned_appstore_build_exit_code": 0,
+    "bundle_audits_exit_code": 0,
+    "pinned_icon_resources": 121,
+    "inventory_exit_code": 0,
+    "site_exit_code": 0,
+    "complete_core_suite": "Not rerun; the earlier 980-test checkpoint retains its recorded sources and older toolchain scope.",
+    "hosted_ci": "Not claimed; the previous graph-runtime fix run was still compiling the graph engine at the last observation."
+  },
+  "captures": {
+    "files": [
+      "docs/site/assets/sync-find-light.png",
+      "docs/site/assets/sync-find-dark.png"
+    ],
+    "inspected": true,
+    "scope": "Actual window captures from the two-engine capture run before adding the final forced-error-sheet assertion; production rendering code unchanged. Full text/search groups, right-side buttons, references/filter and original colored artwork fit. Physical interaction and minimum-size acceptance are not inferred."
+  },
+  "remaining": [
+    "Complete Sync/history command parity",
+    "Physical pointer/keyboard, accessibility and full shared Find acceptance",
+    "Signed repository/Finder/App Store execution and distribution",
+    "Hosted CI success",
+    "Full 130-dialog port acceptance"
+  ],
+  "sha256": {
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "5ba2516daf80601c833cd1c8a94976f336b92c520e9f793ae44f9a494ab8cb30",
+    "Sources/TurtleGitMac/LogWindow.swift": "abca4a1a193e1c2773f6169450df3cddfe117c48cc329aaf230a8d9046fc0ab1",
+    "Sources/TurtleGitCore/MenuIcons.swift": "b06327e60a428aa250c832b35473acecc5cfd7e9bf17ad541a604ba34898a3dd",
+    "Sources/TurtleGitCore/Resources/Icons/filteredit.ico": "69d3d2bced56918219f6baffcabd30a2aca38114d8d11e9f3cd8da995f660e0f",
+    "Sources/TurtleGitCore/Resources/Icons/provenance.json": "3eac97c6f6a40cad83f8b837653973d3b29a93f120115c5f9c9e1f8974921c9d",
+    "docs/qa/synchronization-revision-list-native-2026-10-11.swift": "f935b3524230aa51919e36c10a24995f90d34627826036dd159f982cdb662dc3",
+    "docs/upstream-files.csv": "3f96ed529e340db6a25c453bfaf924c165151e7dd98e520bbed2e54b4fb9bf8a",
+    "docs/upstream-controls.csv": "c8a59746abce8a43d7598ceb95ba8193d8d685d4a70c8f5849119bb80816df41",
+    "docs/site/assets/sync-find-light.png": "c986319babddc26f00432a02e769a8961c5e5bbf56fcfea3a10751b6beb07c5d",
+    "docs/site/assets/sync-find-dark.png": "1dfca19249eca7f4bdf507371af1496190f56134e33df71f0908c8494ef3b843",
+    "build/qa/sync-find-debug-ready-2026-10-11.log": "69d719d573320de39f490c72c0804fde3459ef9b62bb06484a5d0127c3818ef1",
+    "build/qa/sync-find-store-2026-10-11.log": "62a8ad3bd36cc57c48bcc2489545eb1d6ad15eaa2bfeee047869522a011edd7d",
+    "build/qa/sync-find-icons-2026-10-11.log": "af0d638a569637e8f709c61b2589f7514c46f84f081d504cc499791e28f7c6d1",
+    "build/qa/sync-find-native-packaged-matcher-2026-10-11.log": "21ba72c83cc0d31476c1eea2d64fc9d4c6512e5cfe0870d36aca9f6ce59d58f6",
+    "build/qa/sync-find-native-captures-2026-10-11.log": "993ab6bcb0b40e5f443ad7064a4b094bec610bfa84c13a6a2f3588444312cf56",
+    "build/qa/sync-find-native-parent-sheet-final-2026-10-11.log": "d231e5d3ac0e626f56785b377f119e41445012a6c1ea8fa81eb90d5eb34fc0d4",
+    "build/qa/sync-find-debug-audit-2026-10-11.log": "f6874a395191e17601f5f1474d01ad4b2f07b245fc64cb0baae3a3465d18fe36",
+    "build/qa/sync-find-store-audit-2026-10-11.log": "025a02cda9b547f00533c3ecf90f6728fded47e69020e7f2e148177609ad59cb",
+    "build/qa/sync-find-inventory-final-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/sync-find-site-final-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}
