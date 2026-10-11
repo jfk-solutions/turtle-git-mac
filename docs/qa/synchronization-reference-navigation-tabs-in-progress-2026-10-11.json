@@ -27,5 +27,6 @@
     "Resume Debug build after Xcode license acceptance",
     "Run retained complete revision-list fixture with both engines; inspect call-site diagnostics if any failure remains",
     "Build AppStore configuration sequentially, audit both bundles, record final scope and commit the verified app changes"
-  ]
+  ],
+  "superseded_by": "docs/qa/synchronization-reference-navigation-tabs-2026-10-11.json"
 }

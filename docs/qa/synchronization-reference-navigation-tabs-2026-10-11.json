@@ -1,0 +1,72 @@
+{
+  "date": "2026-10-11",
+  "status": "partial-native-originating-tab-navigation-verified",
+  "code_commit": "2a3637fef623106ffa58baa99b1b31ecb96c25b7",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_references": [
+    "src/TortoiseProc/GitLogListAction.cpp: ID_SHOWBRANCHES modeless child parent is its originating list",
+    "src/TortoiseProc/CommitIsOnRefsDlg.cpp: reference double-click sends m_ScrollToRef to that parent"
+  ],
+  "implemented": [
+    "Captured full revision and source tab in containing-reference menu targets",
+    "Separate pending and handled navigation per tab",
+    "Immutable coordinator source tab prevents other-list updates and menu reconstruction",
+    "Deferred navigation applies on return to originating list, with no replay after table recreation",
+    "Fixture timeout diagnostics identify call-site line; menu closes before simulated tab change, retaining cold-cache assertion"
+  ],
+  "earlier_evidence": "docs/qa/synchronization-reference-navigation-tabs-in-progress-2026-10-11.json",
+  "verification": {
+    "native_command": "python3 scripts/test-synchronization-history.py --revision-list --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+    "fresh_runs_per_engine": 2,
+    "native_receivers_reaped": [
+      18160,
+      18952,
+      20480,
+      21285
+    ],
+    "engines": [
+      "system Git 2.50.1",
+      "bundled Git 2.55.0"
+    ],
+    "scenarios": [
+      "Captured menu action delivered after changing tabs still opens captured revision",
+      "Outgoing navigation remains pending while other list is shown and leaves that list unselected",
+      "Returning to originating list selects requested root revision",
+      "Second table replacement does not replay handled navigation",
+      "Retained-action Quit guard and existing reference/compare/range Log/metadata/clipboard/lifecycle checks remain"
+    ],
+    "builds": [
+      "Final unsigned Debug passed without initial compiler/logging diagnostics",
+      "Unsigned universal AppStore passed"
+    ],
+    "bundle_audits": [
+      "Final Debug passed",
+      "AppStore required Git passed"
+    ],
+    "inventory_pin_audit": "passed",
+    "documentation_site_build": "passed",
+    "source_object_freshness": "Changed source mtime 1791733473; tested arm64 SynchronizationWindow.o mtime 1791737201",
+    "initial_resumed_build": "Exit zero but emitted compiler/logging diagnostics and an iOS simulator mismatch. Final incremental Debug build exit zero with empty log.",
+    "license_gate": "Cleared externally before resumed build; no license acceptance performed by agent",
+    "scope": "Direct native delivery and outgoing-tab table recreation checks on local arm64 with both engines. No new complete Core-suite, physical-input, incoming-origin navigation or signed acceptance claim."
+  },
+  "sha256": {
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "dd7327476be8d597528099b19c8559a0659f108e0789696f49ec184862ff2722",
+    "docs/qa/synchronization-revision-list-native-2026-10-11.swift": "d1dc54734fd2a4ec4fc282b41c957d188b8d92d6edcb5252021c5c3b0a8d348d",
+    "build/qa/sync-navigation-xcode-resume-check-2026-10-11.log": "f0ad94c8592f9f666f3ce29d2aba50b8192242f1c500e6283f5cd5753649e9c3",
+    "build/qa/sync-navigation-resumed-debug-final-2026-10-11.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/sync-navigation-resumed-native-2026-10-11.log": "2326bbf686bab13d194451c7c2370dcc7e53ca0c46dc02c8997044d676a8c0bb",
+    "build/qa/sync-navigation-resumed-native-repeat-2026-10-11.log": "0658933c7e0ac2f1e206c63942c27820838a8aa8e8cfe6b1c2c9a7f4e56c78fe",
+    "build/qa/sync-navigation-resumed-store-2026-10-11.log": "1f8a96278389e9e0ede3338c75c4bc2c838e011dfb1232062310ec97d174ee12",
+    "build/qa/sync-navigation-resumed-debug-final-audit-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/sync-navigation-resumed-store-audit-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/sync-navigation-resumed-inventory-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/sync-navigation-resumed-site-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "remaining": [
+    "Incoming-origin navigation and full physical keyboard/mouse/accessibility acceptance",
+    "Missing-reference attention and complete Sync/reference child context commands",
+    "Signed Finder/sandbox and App Store distribution acceptance",
+    "Full all-dialog and application parity"
+  ]
+}
