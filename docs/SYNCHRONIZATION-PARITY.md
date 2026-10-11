@@ -663,3 +663,37 @@ no new Core/full-suite run is claimed for this lifecycle/presentation follow-up.
 
 At code checkpoint `18a07c1`, both unsigned builds, bundle audits, inventory
 and website checks pass. See [lifecycle and layout verification](qa/synchronization-submodule-lifecycle-2026-10-11.json).
+
+
+## Stash split follow-up (October 11, 2026)
+
+The native footer now uses two action rows, with Stash changes/Pop/Apply beside
+Show log and Commit, following the pinned SyncDlg arrangement. Normal commands
+are `git stash save`, `git stash pop` and `git stash apply`. They ignore remote
+and Force fields and do not use the full Save dialog's optional message,
+untracked/all or follow-up settings. Whole-project Save retains Git's internal
+magic pathspec semantics so tracked work is actually cleaned; untracked files
+remain. Apply retains the stash. Pop drops it only after successful application;
+neither requests index restoration.
+
+The commands leave outgoing/reference results unchanged and hide incoming
+results. Failed Pop/Apply checks actual unmerged entries and selects Conflicts
+only when they exist; otherwise Command Log remains selected. Conflict-check
+errors retain the original command output and append the inspection error.
+Shift Save routes to the existing standalone Save dialog for the captured
+repository/access lease. Shift Pop/Apply do nothing. Source does not save a
+Stash split index, so reopening starts with Save.
+
+Three real-repository Core tests pass on system Git 2.50.1, Git 2.39.5 and
+packaged Git 2.55.0. The focused native Stash receiver passes on system and
+packaged engines, including conflict-tab selection, Shift routes/no-ops,
+closed-owner fencing and forced process reaping. Actual Shift Save child
+lifetimes and the full ten-group native regression remain pending. No full-suite
+claim is made. Four root captures were inspected: original colored icons,
+compact merge graph and both footer rows fit in both themes/default and minimum
+sizes. The default captures replace the site images; menus/progress/conflicts
+are not certified by these root captures. Full source controls/columns,
+workspace callbacks, physical/VoiceOver and signed acceptance remain pending.
+
+At code checkpoint `1afffb2`, both unsigned builds, bundle audits, inventory
+and website checks pass. See [Stash verification and limits](qa/synchronization-stash-native-2026-10-11.json).

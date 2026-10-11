@@ -1,0 +1,113 @@
+{
+  "date": "2026-10-11",
+  "checkpoint": "1afffb2f6a31645cc054617edf7b2bdb8a33687c",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/SyncDlg.cpp": "17bfe829c486fee35345727136bec8d1adbf21f9",
+    "src/TortoiseProc/SyncDlg.h": "d45012f6ae0579ef1b98394f05017b6fa365bac9",
+    "doc/images/en/GitSync.png": "f7b758c80c23cc561b754947ffeaf4ae4afc4687"
+  },
+  "status": "partial-native-synchronization-stash",
+  "implemented": [
+    "Stash changes/Pop/Apply split with original artwork and two-row footer. No saved split index, matching source.",
+    "Normal exact stash save/pop/apply commands, no full-options flags or index restore. Save permits Git internal magic pathspec cleanup and leaves untracked files.",
+    "Command Log completion without outgoing/reference refill, hidden incoming results. Failed restore selects Conflicts only for actual unmerged entries; check errors retain command output.",
+    "Shift Save standalone captured repository/access route; Shift Pop/Apply no-ops. Owned streaming/cancellation, closed-owner fences and process reaping."
+  ],
+  "verification": {
+    "core": [
+      {
+        "engine": "system Git 2.50.1",
+        "tests": 3,
+        "failures": 0,
+        "log": "build/qa/synchronization-stash-core-system-2026-10-11.log"
+      },
+      {
+        "engine": "Git 2.39.5",
+        "tests": 3,
+        "failures": 0,
+        "log": "build/qa/synchronization-stash-core-239-2026-10-11.log"
+      },
+      {
+        "engine": "packaged Git 2.55.0",
+        "tests": 3,
+        "failures": 0,
+        "log": "build/qa/synchronization-stash-core-255-2026-10-11.log"
+      }
+    ],
+    "native": {
+      "exit": 0,
+      "engines": [
+        "system Git 2.50.1",
+        "packaged Git 2.55.0"
+      ],
+      "groups_per_engine": 1,
+      "log": "build/qa/synchronization-stash-native-2026-10-11.log",
+      "scope": "Focused Stash fixture only: Save/Apply/Pop success, missing stash failure on Command Log, failed Pop with actual conflict tab, retained outgoing projection and stash, hidden incoming results, ignored remote/Force, no saved index, Shift callback/no-op behavior, closed-owner fencing and forced running process cleanup. All application Swift compiled by receiver.",
+      "limits": "Hidden native windows/private preferences/local repositories. Full ten-group receiver not run in this phase; actual Shift Save child lifecycle and production workspace callbacks not driven."
+    },
+    "layout": {
+      "exit": 0,
+      "log": "build/qa/synchronization-stash-layout-2026-10-11.log",
+      "method": "Actual native root window captured with Core Graphics including chrome, QA harness linked against fresh Debug app objects. Disposable branch/merge repository and private preferences; refs/index/config unchanged and window closure asserted.",
+      "sizes": [
+        "1050x660",
+        "860x500"
+      ],
+      "themes": [
+        "light",
+        "dark"
+      ],
+      "inspection": "All four captures inspected. Colored merge graph, original Stash icon and both action rows readable; footer fits minimum size. Default captures published. Later metadata columns horizontally scroll.",
+      "limits": "Root layout only, no split-menu, conflict/progress or full source visual acceptance."
+    },
+    "debug_build": {
+      "exit": 0,
+      "log": "build/qa/synchronization-stash-debug-2026-10-11.log"
+    },
+    "store_build": {
+      "exit": 0,
+      "log": "build/qa/synchronization-stash-store-2026-10-11.log"
+    },
+    "checks": [
+      {
+        "step": "debug-audit",
+        "exit": 0,
+        "log": "build/qa/synchronization-stash-debug-audit-2026-10-11.log"
+      },
+      {
+        "step": "store-audit",
+        "exit": 0,
+        "log": "build/qa/synchronization-stash-store-audit-2026-10-11.log"
+      },
+      {
+        "step": "inventory",
+        "exit": 0,
+        "log": "build/qa/synchronization-stash-inventory-2026-10-11.log"
+      },
+      {
+        "step": "site",
+        "exit": 0,
+        "log": "build/qa/synchronization-stash-site-2026-10-11.log"
+      }
+    ]
+  },
+  "limits": [
+    "No full Core suite or full ten-group native regression claim.",
+    "Actual Shift Save options/progress lifetimes and production workspace callback acceptance pending.",
+    "Conflict-inspection failure presentation and broader cancellation replies need additional acceptance.",
+    "Missing source controls/columns, physical/VoiceOver, authentication, hooks, signed sandbox/Finder and App Store distribution acceptance remain pending."
+  ],
+  "sha256": {
+    "Sources/TurtleGitCore/Synchronization.swift": "7bc773290d3dc3871aad756e3ab59d44cb52e6862b2942bcb0f9e5be44d6a5d3",
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "1093efc6cdd9382d629f04d50a0322cd6bc93f0646da11d77e34e224229d1d1c",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "b7970f0f7eddf8378592d77cd78ca63395653e104435517dfb38c5d2b2e07487",
+    "Tests/TurtleGitCoreTests/SynchronizationStashTests.swift": "787b40fb669f99218bdc3bd6ad1b2d1747e3055885bff687c3c6571263758905",
+    "docs/qa/synchronization-native-2026-10-11.swift": "e980cc0928ee34d35e8e6d0ada5f947d51885a9b0f54fb44e6ff49d0207b3b4d",
+    "docs/qa/synchronization-layout-2026-10-11.swift": "4ebc83ea9cebbce1348458b3d5f9ed92ffe82fc9c6bc6b700e8c796933a14dfa",
+    "scripts/test-synchronization-dialog.py": "1ae0b37e9ca1c3fa5b11cd7f2b13839241f3a348df8b329df0f0b203cdeca66b",
+    ".github/workflows/macos.yml": "8a504568fd5450d849dd5aac1fb89e044b746949f90ceecf5bdfaac863601604",
+    "docs/site/assets/git-synchronization-light.png": "b20485866d3c2328453727dd179a36faf70b909f9dcbc08ef19e78f58787f2e4",
+    "docs/site/assets/git-synchronization-dark.png": "aac7813c46277b43c3aebf3ae78d41a3df627e8d45a27b8143f72f4f23ccf6aa"
+  }
+}
