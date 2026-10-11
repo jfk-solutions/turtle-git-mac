@@ -1390,12 +1390,13 @@ import TurtleGitCore
         _ = try await repo.run(["init", "-b", "main"])
         for (key, value) in [("user.name", "Sync QA"), ("user.email", "qa@example.invalid"), ("commit.gpgsign", "false"), ("core.hooksPath", "/dev/null")] { _ = try await repo.run(["config", key, value]) }
         try Data("base\n".utf8).write(to: root.appendingPathComponent("file")); try await repo.stage(["file"]); _ = try await repo.commit(message: "base")
-        if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_TAGS_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_PUSH_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_SUBMODULES_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_STASH_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_MANAGE_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_BRANCHES_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_APPLY_ONLY"] == "1" {
+        if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_TAGS_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_PUSH_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_SUBMODULES_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_STASH_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_MANAGE_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_BRANCHES_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_APPLY_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_EMAIL_ONLY"] == "1" {
             try Data("second\n".utf8).write(to: root.appendingPathComponent("file")); try await repo.stage(["file"]); _ = try await repo.commit(message: "second")
             let suite = "TurtleGit.Tags.QA." + UUID().uuidString, preferences = UserDefaults(suiteName: suite)!
             defer { preferences.removePersistentDomain(forName: suite) }
             DialogGeometry.install(preferences: preferences)
-            if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_APPLY_ONLY"] == "1" { try await SynchronizationApplyVerification.run(root:root,preferences:preferences) }
+            if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_EMAIL_ONLY"] == "1" { try await SynchronizationEmailVerification.run(root:root,preferences:preferences) }
+            else if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_APPLY_ONLY"] == "1" { try await SynchronizationApplyVerification.run(root:root,preferences:preferences) }
             else if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_BRANCHES_ONLY"] == "1" { try await verifyBranchPickers(root:root,preferences:preferences) }
             else if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_MANAGE_ONLY"] == "1" { try await verifyManage(root:root,preferences:preferences) }
             else if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_STASH_ONLY"] == "1" { try await verifyStash(root:root,preferences:preferences) }
@@ -1478,6 +1479,7 @@ import TurtleGitCore
         try await verifyManage(root: root, preferences: preferences)
         try await verifyBranchPickers(root: root, preferences: preferences)
         try await SynchronizationApplyVerification.run(root: root, preferences: preferences)
+        try await SynchronizationEmailVerification.run(root: root, preferences: preferences)
         print("PASS: native Sync tracking controls, exact Unicode choices, graph-first table, changes and pinned comparison snapshot, divergence/Force, unknown states, Quit fences, owner invalidation and read-only preservation")
     }
 }

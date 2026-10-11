@@ -744,7 +744,7 @@ private final class SendPatchProgressMailbox: @unchecked Sendable {
             }
         } else { cancelling = true; currentWork = "Cancelling…"; token.cancel() }
     }
-    func invalidate() { invalidated = true; token.cancel() }
+    func invalidate() { invalidated = true; confirmingCancellation = false; token.cancel() }
     private func finishAutomaticClose() { if !activeOperation, !invalidated, policy.shouldClose(success: success, postActionCount: 0) { close() } }
 }
 
@@ -796,7 +796,7 @@ private struct SendPatchProgressDialog: View {
 
 /// Retains options, progress and access for every delivery mode until final close.
 @MainActor final class SendMailWorkflow {
-    private var options: SendPatchWindowController?, progress: SendPatchProgressWindowController?
+    private(set) var options: SendPatchWindowController?, progress: SendPatchProgressWindowController?
     private var finished = false
     private let completion: (String?) -> Void
     private let present: (NSWindowController) -> Void
@@ -818,6 +818,21 @@ private struct SendPatchProgressDialog: View {
         }
     }
     func start() { if let options { present(options) } }
+    /// Forced owner closure cancels work and suppresses workflow completion.
+    /// Generated patches remain on disk, as with upstream cancellation.
+    func invalidate() {
+        guard !finished else { return }; finished = true
+        let children: [NSWindowController] = [options, progress].compactMap { $0 }
+        options?.model.invalidate(); progress?.model.invalidate()
+        options = nil; progress = nil
+        for child in children {
+            if let window = child.window {
+                if let prompt = window.attachedSheet { window.endSheet(prompt, returnCode: .abort); prompt.close() }
+                window.sheetParent?.endSheet(window)
+            }
+            child.close()
+        }
+    }
     private func finish(_ error: String?) {
         guard !finished else { return }; finished = true; options = nil; progress = nil; completion(error)
     }

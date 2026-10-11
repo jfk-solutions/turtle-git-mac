@@ -222,6 +222,8 @@ private struct SynchronizationProgressDialog: View {
     private(set) var pushOptionsController: PushWindowController?
     private(set) var remoteSettingsController: RemoteSettingsWindowController?
     private(set) var importPatchController: ImportPatchWindowController?
+    private(set) var emailWorkflow: SendMailWorkflow?
+    private var emailAlert: NSAlert?
     private(set) var branchPicker: ReferenceBrowserWindowController?
     var configureBranchPicker: (ReferenceBrowserWindowModel) -> Void = { _ in }
     var configureOptions: (FetchWindowController) -> Void = { _ in }
@@ -411,6 +413,15 @@ private struct SynchronizationProgressDialog: View {
             }
         }
         model.onApplyPatch = { [weak self] oldHead in self?.showImportPatch(oldHead: oldHead) }
+        model.onEmailPatches = { [weak self] files in self?.showEmailPatches(files) }
+        model.onEmailMessage = { [weak self] title, message in
+            guard let self, !self.model.closed, let window = self.window, window.attachedSheet == nil else { return }
+            let alert = NSAlert(); alert.messageText = title; alert.informativeText = message; alert.addButton(withTitle: "OK")
+            self.emailAlert = alert
+            alert.beginSheetModal(for: window) { [weak self, weak alert] _ in
+                if self?.emailAlert === alert { self?.emailAlert = nil }
+            }
+        }
         model.onBrowseBranch = { [weak self] target in self?.showBranchPicker(target) }
         model.onManageRemotes = { [weak self] in self?.showRemoteSettings() }
         model.comparison.window = window; model.incomingComparison.window = window; window.center()
@@ -432,6 +443,33 @@ private struct SynchronizationProgressDialog: View {
         }
         guard let window = child.window else { child.close(); importPatchController = nil; model.importingPatches = false; return }
         window.alphaValue = owner.alphaValue; owner.beginSheet(window)
+    }
+    private func showEmailPatches(_ files: [URL]) {
+        guard !model.closed, !model.confirmingQuit, !model.busy, !model.hasBlockingChild,
+              !files.isEmpty, let owner = window, owner.attachedSheet == nil, emailWorkflow == nil else { return }
+        owner.makeFirstResponder(nil); model.emailingPatches = true
+        let workflow = SendMailWorkflow(files: files, repository: model.repository, access: model.access,
+            fileAccess: [model.access].compactMap { $0 }, preferences: model.preferences,
+            presentation: { [weak self] child in
+                guard let self, !self.model.closed, let owner = self.window, let window = child.window else { child.close(); return }
+                // Send Mail submits before closing its options window. Detach
+                // that sheet before presenting the owned result/progress sheet.
+                if let old = owner.attachedSheet, old.delegate is SendPatchWindowController { owner.endSheet(old); old.orderOut(nil) }
+                guard owner.attachedSheet == nil else { child.close(); return }
+                let dismissed: () -> Void = { [weak window] in
+                    guard let window else { return }; window.sheetParent?.endSheet(window)
+                }
+                if let options = child as? SendPatchWindowController {
+                    let original = options.onClosed; options.onClosed = { dismissed(); original() }
+                } else if let progress = child as? SendPatchProgressWindowController {
+                    let original = progress.onClosed; progress.onClosed = { dismissed(); original() }
+                }
+                window.alphaValue = owner.alphaValue; owner.beginSheet(window)
+            }) { [weak self] _ in
+                guard let self, !self.model.closed else { return }
+                self.emailWorkflow = nil; self.model.emailingPatches = false
+            }
+        emailWorkflow = workflow; workflow.start()
     }
     func showBranchPicker(_ target: SynchronizationBranchTarget) {
         guard !model.closed, !model.confirmingQuit, !model.busy, !model.hasBlockingChild,
@@ -492,6 +530,9 @@ private struct SynchronizationProgressDialog: View {
             child.abandonPresentation(); branchPicker = nil; model.choosingBranch = false
         }
         importPatchController?.close(); importPatchController = nil; model.importingPatches = false
+        emailWorkflow?.invalidate(); emailWorkflow = nil; model.emailingPatches = false
+        if let alert = emailAlert, window?.attachedSheet === alert.window { window?.endSheet(alert.window, returnCode: .abort) }
+        emailAlert = nil
         remoteSettingsController?.close(); remoteSettingsController = nil; model.managingRemotes = false
         commandProgress?.abortPresentation(); commandProgress = nil
         if let alert = pullAlert, window?.attachedSheet === alert.window { window?.endSheet(alert.window, returnCode: .abort) }
@@ -616,6 +657,9 @@ enum SynchronizationBranchTarget { case local, remote }
     var onCommit: () -> Void = {}
     var onApplyPatch: (String) -> Void = { _ in }
     @Published var importingPatches = false
+    var onEmailPatches: ([URL]) -> Void = { _ in }
+    var onEmailMessage: (String, String) -> Void = { _, _ in }
+    @Published var emailingPatches = false
     var onBrowseBranch: (SynchronizationBranchTarget) -> Void = { _ in }
     @Published var choosingBranch = false
     var onManageRemotes: () -> Void = {}
@@ -627,7 +671,7 @@ enum SynchronizationBranchTarget { case local, remote }
     var onReferenceLog: (String) -> Void = { _ in }
     var onReferenceCompare: (String, String) -> Void = { _, _ in }
     var hasBlockingChild: Bool {
-        importingPatches || choosingBranch || managingRemotes || NSApp.modalWindow != nil || [comparison, incomingComparison].contains { child in
+        emailingPatches || importingPatches || choosingBranch || managingRemotes || NSApp.modalWindow != nil || [comparison, incomingComparison].contains { child in
             child.busy || child.comparisonWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil } || child.unifiedWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil }
         }
     }
@@ -730,6 +774,33 @@ enum SynchronizationBranchTarget { case local, remote }
                 token = nil; busy = false; onApplyPatch(hash)
             } catch {
                 guard !closed, token === request else { return }; self.error = error.localizedDescription; token = nil; busy = false
+            }
+        }
+    }
+    var canEmailPatch: Bool { !closed && !confirmingQuit && !busy && !hasBlockingChild && window?.attachedSheet == nil && outgoing?.canEmailPatch == true }
+    func emailPatch() {
+        guard canEmailPatch else { return }
+        let request = OperationCancellation(); token = request; busy = true; emailingPatches = true; error = nil
+        let local = localBranch, selectedRemote = remote, branch = remoteBranch
+        Task {
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let result = try await repository.synchronizationEmailPatches(localBranch: local, remote: selectedRemote, remoteBranch: branch, cancellation: request)
+                guard !closed, token === request, !request.isCancelled else { return }
+                let root = repository.root.resolvingSymlinksInPath()
+                let files = String(decoding: result.stdout, as: UTF8.self).components(separatedBy: root.path + "/").dropFirst().compactMap { part -> URL? in
+                    let name = part.hasSuffix("\n") ? String(part.dropLast()) : part
+                    guard !name.isEmpty, !name.contains("/"), !name.contains("\n"), name != ".", name != ".." else { return nil }
+                    let file = root.appendingPathComponent(name)
+                    return FileManager.default.fileExists(atPath: file.path) ? file : nil
+                }
+                token = nil; busy = false; emailingPatches = false
+                if files.isEmpty { onEmailMessage("Email Patch", "No patches generated.") }
+                else { onEmailPatches(files) }
+            } catch {
+                guard !closed, token === request else { return }
+                token = nil; busy = false; emailingPatches = false; self.error = error.localizedDescription
+                onEmailMessage("Could not create patches", error.localizedDescription)
             }
         }
     }
@@ -1312,6 +1383,7 @@ private struct SynchronizationDialog: View {
                     } label: { Text("").accessibilityLabel("Submodule actions") }.menuStyle(.borderlessButton).fixedSize()
                 }.disabled(model.busy || model.hasBlockingChild)
                 Button { model.applyPatch() } label: { CommandLabel(title: "Apply Patch", icon: .patch) }.disabled(model.busy || model.hasBlockingChild)
+                Button { model.emailPatch() } label: { CommandLabel(title: "Email Patch", icon: .sendMail) }.disabled(!model.canEmailPatch)
                 Spacer()
             }
             HStack {
