@@ -1214,3 +1214,26 @@ mapped. Error-sheet presentation, physical menus/Find/zoom/Save As, remaining
 revision commands, full text-comparison acceptance and signed Finder/App Store
 validation remain open. No new complete Core-suite or full-dialog certification
 is claimed.
+
+### Two-revision range Log menus (2026-10-11)
+
+Exactly two selected revisions now expose the three upstream Show log of commands:
+last..first, first..last and last...first, in source order before Compare change
+sets. Captions use the source's eight-digit hashes and original Log icon; commands
+retain full immutable hashes even when selection changes. RepositoryModel opens
+the existing native Log with the captured difference or symmetric-difference range.
+Single and larger selections omit these commands, and owner/operation/child/Quit
+guards apply both when building the menu and when delivering a retained action.
+
+System and bundled Git passed six actual native Log loads per engine: all three
+ranges for ancestor and divergent revision pairs. Loaded non-boundary commit sets
+matched independent git rev-list results, including empty reverse ranges. The
+fixture also checked selection changes after menu construction, exact captions and
+icons, omission for other selection counts, and disabled/delivered Quit guards.
+Both test receivers were reaped. Unsigned Debug and universal AppStore builds,
+bundle audits, inventory pin audit and documentation site generation passed.
+
+This evidence covers direct native menu-action delivery and Log content, not
+physical menu tracking, full keyboard/accessibility, signed sandbox handoffs or
+complete Sync/Log parity. Remaining revision actions and all-dialog acceptance
+stay open. No new complete Core-suite result is claimed.

@@ -722,6 +722,7 @@ import TurtleGitCore
         controller.configureHistoryReference = { [weak self] child in self?.configureReferenceInteractions(child, repository: repository, access: access) }
         controller.model.onHistoryBrowseRepository = { [weak self] hash in self?.showRepositoryBrowser(repository: repository, access: access, revision: hash) }
         controller.model.onHistoryLog = { [weak self] hash in self?.showLog(repository: repository, access: access, paths: [], endRevision: hash, selectedRevision: hash) }
+        controller.model.onHistoryLogRange = { [weak self] range in self?.showLog(repository: repository, access: access, paths: [], revisionRange: range) }
         configureRevisionComparisonInteractions(controller.model.comparison, repository: repository, access: access)
         configureRevisionComparisonInteractions(controller.model.incomingComparison, repository: repository, access: access)
         controller.configurePushOptions = { [weak self] child in self?.configurePushInteractions(child, repository: repository, access: access) }

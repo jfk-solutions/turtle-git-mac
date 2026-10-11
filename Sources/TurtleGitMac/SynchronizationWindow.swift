@@ -906,6 +906,7 @@ enum SynchronizationHistoryDiff {
     var onHistoryCompare: ((ComparisonRevision, ComparisonRevision) -> Void)?
     var onHistoryBrowseRepository: ((String) -> Void)?
     var onHistoryLog: ((String) -> Void)?
+    var onHistoryLogRange: ((HistoryRevisionRange) -> Void)?
     var onHistoryCreateReference: ((Bool, String) -> Void)?
     @Published var creatingHistoryReference = false
     var hasBlockingChild: Bool {
@@ -1787,6 +1788,14 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
         private var revisionActionAvailable: Bool {
             !model.closed && !model.busy && !model.confirmingQuit && !model.confirmingCancellation && !model.hasBlockingChild && model.window?.attachedSheet == nil
         }
+        private final class RangeTarget: NSObject {
+            let range: HistoryRevisionRange
+            init(_ range: HistoryRevisionRange) { self.range = range }
+        }
+        @objc func historyRangeLog(_ sender: NSMenuItem) {
+            guard revisionActionAvailable, let target = sender.representedObject as? RangeTarget else { return }
+            model.onHistoryLogRange?(target.range)
+        }
         @objc func historyLog(_ sender: NSMenuItem) {
             guard revisionActionAvailable, let target = sender.representedObject as? RevisionTarget else { return }
             model.onHistoryLog?(target.revision)
@@ -1882,6 +1891,14 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
                 if entries.count == 2 { diffItem("Show changes as unified diff", diff: .revisions(entries.last!.hash, entries.first!.hash), in: menu) }
             }
             if entries.count == 2 {
+                let first = entries[0].hash, last = entries[1].hash
+                let ranges = [HistoryRevisionRange(from: last, to: first), HistoryRevisionRange(from: first, to: last), HistoryRevisionRange(from: last, to: first, kind: .symmetricDifference)]
+                for range in ranges {
+                    let title = "Show log of " + range.from.prefix(8) + range.separator + range.to.prefix(8)
+                    let item = NSMenuItem(title: title, action: #selector(historyRangeLog(_:)), keyEquivalent: "")
+                    item.target = self; item.isEnabled = revisionActionAvailable && model.onHistoryLogRange != nil
+                    item.image = MenuIcon.log.contextImage(defaults: model.preferences); item.representedObject = RangeTarget(range); menu.addItem(item)
+                }
                 let changes = NSMenuItem(title: "Compare change sets", action: #selector(compareChangeSets(_:)), keyEquivalent: "")
                 changes.target = self; changes.isEnabled = revisionActionAvailable
                 changes.image = MenuIcon.compare.contextImage(defaults: model.preferences)

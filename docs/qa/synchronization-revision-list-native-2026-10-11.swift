@@ -97,6 +97,40 @@ struct SynchronizationRevisionListVerification {
         precondition(!(native as! HistoryTableView).contextExtendedMenu)
         precondition(menu(IndexSet(integer:0)).items.contains { $0.title == "Show log" })
         precondition(!menu(IndexSet([0,1])).items.contains { $0.title == "Show log" })
+        var capturedRange: HistoryRevisionRange?
+        model.onHistoryLogRange = { range in
+            capturedRange = range
+            let child = LogWindowController(repository:repo,access:nil,labelDefaults:preferences,savesColumnLayout:false,savesGeometry:false)
+            ReferenceLogWindowModel.configureRangeLog(child.model,range:range)
+            log = child; child.model.reload(); child.showWindow(nil)
+        }
+        let mainIndex = rows.firstIndex { $0.subject == "Main second" }!, sideIndex = rows.firstIndex { $0.subject.hasPrefix("Side parent") }!
+        for selection in [IndexSet([0,1]),IndexSet([mainIndex,sideIndex])] {
+            let first = rows[selection.first!].hash, last = rows[selection.last!].hash
+            let ranges = [HistoryRevisionRange(from:last,to:first),HistoryRevisionRange(from:first,to:last),HistoryRevisionRange(from:last,to:first,kind:.symmetricDifference)]
+            let items = menu(selection).items.filter { $0.title.hasPrefix("Show log of ") }
+            precondition(items.count == 3)
+            for (index,item) in items.enumerated() {
+                let range = ranges[index]
+                precondition(item.title == "Show log of " + range.from.prefix(8) + range.separator + range.to.prefix(8) && item.image != nil)
+                _ = menu(IndexSet(integer:rootIndex)); invoke(item)
+                try await settle { log?.model.busy == false }
+                precondition(capturedRange == range && log!.model.revisionRange == range && log!.model.endRevision == nil && !log!.model.showWorkingTree)
+                let expected = Set(try await repo.run(["rev-list",range.expression,"--"]).text.split(whereSeparator: \.isNewline).map(String.init))
+                let actual = Set(log!.model.entries.filter { !$0.isBoundary }.map(\.hash))
+                precondition(actual == expected, "Range \(range.expression) returned \(actual), expected \(expected)")
+                log!.close(); log = nil
+            }
+        }
+        precondition(!menu(IndexSet(integer:rootIndex)).items.contains { $0.title.hasPrefix("Show log of ") })
+        precondition(!menu(IndexSet([0,1,2])).items.contains { $0.title.hasPrefix("Show log of ") })
+        let guardedRange = menu(IndexSet([mainIndex,sideIndex])).items.first { $0.title.hasPrefix("Show log of ") }!
+        let priorRange = capturedRange
+        model.confirmingQuit = true
+        precondition(!menu(IndexSet([mainIndex,sideIndex])).items.first { $0.title.hasPrefix("Show log of ") }!.isEnabled)
+        precondition(NSApplication.shared.sendAction(guardedRange.action!,to:guardedRange.target,from:guardedRange))
+        precondition(capturedRange == priorRange && log == nil)
+        model.confirmingQuit = false
         let originalPreference = preferences.object(forKey:"DiffByDoubleClickInLog")
         defer { if let originalPreference { preferences.set(originalPreference,forKey:"DiffByDoubleClickInLog") } else { preferences.removeObject(forKey:"DiffByDoubleClickInLog") } }
         preferences.set(false,forKey:"DiffByDoubleClickInLog")
