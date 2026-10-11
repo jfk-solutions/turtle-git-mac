@@ -1,4 +1,5 @@
 import XCTest
+import Darwin
 @testable import TurtleGitCore
 
 final class SynchronizationStashTests: XCTestCase {
@@ -58,5 +59,42 @@ final class SynchronizationStashTests: XCTestCase {
         let bare = GitRepository(root:repo.root.appendingPathComponent("bare.git"),executable:repo.executable)
         _ = try await repo.run(["init","--bare","--template=",bare.root.path])
         do { _ = try await bare.synchronizationStash(.save); XCTFail("Bare roots have no stash worktree") } catch is SynchronizationStashFailure {}
+    }
+    func testCancellationReapsBeforeAndAfterStashReferenceReads() async throws {
+        func quote(_ value: String) -> String { "'" + value.replacingOccurrences(of:"'",with:"'\"'\"'") + "'" }
+        for target in [1,2] {
+            let repo = try await fixture(); defer { try? FileManager.default.removeItem(at:repo.root) }
+            let file = repo.root.appendingPathComponent("tracked 雪")
+            try Data("work to preserve\n".utf8).write(to:file)
+            let head = try await repo.run(["rev-parse","HEAD"]).stdout
+            let index = try Data(contentsOf:repo.root.appendingPathComponent(".git/index"))
+            let shim = repo.root.appendingPathComponent("reference-git"), marker = repo.root.appendingPathComponent("reference-pid"), counter = repo.root.appendingPathComponent("reference-count")
+            let environment = GitRuntime.environment(executable:repo.executable).sorted { $0.key < $1.key }.map { "export " + $0.key + "=" + quote($0.value) }.joined(separator:"\n")
+            let script = "#!/bin/sh\n" + environment + "\nseen=\nfor argument; do\nif [ \"$argument\" = rev-parse ]; then seen=yes; fi\nif [ \"$argument\" = refs/stash ] && [ \"$seen\" = yes ]; then\ncount=0\nif [ -f " + quote(counter.path) + " ]; then read count < " + quote(counter.path) + "; fi\ncount=$((count+1))\nprintf '%s\\n' \"$count\" > " + quote(counter.path) + "\nif [ \"$count\" -eq " + String(target) + " ]; then\nprintf '%s\\n' \"$$\" > " + quote(marker.path) + "\nwhile :; do sleep 1; done\nfi\nfi\ndone\nexec " + quote(repo.executable.path) + " \"$@\"\n"
+            try Data(script.utf8).write(to:shim); try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:shim.path)
+            let wrapped = GitRepository(root:repo.root,executable:shim), token = OperationCancellation()
+            let operation = Task { try await wrapped.saveStash(StashSaveOptions(),cancellation:token) }
+            defer { token.cancel() }
+            for _ in 0..<1000 { if FileManager.default.fileExists(atPath:marker.path) { break }; try await Task.sleep(nanoseconds:5_000_000) }
+            XCTAssertTrue(FileManager.default.fileExists(atPath:marker.path),"Reference read did not reach the controlled stall")
+            token.cancel()
+            do { _ = try await operation.value; XCTFail("Cancelled reference inspection must not return Save success") } catch is OperationCancellationFailure {}
+            let pid = pid_t(try String(contentsOf:marker).trimmingCharacters(in:.newlines))!
+            let processState = kill(pid,0), processError = errno
+            XCTAssertEqual(processState,-1); XCTAssertEqual(processError,ESRCH)
+            let finalHead = try await repo.run(["rev-parse","HEAD"]).stdout
+            XCTAssertEqual(finalHead,head)
+            let stash = try await repo.run(["rev-parse","--verify","refs/stash"],successfulExitCodes:0...255)
+            if target == 1 {
+                XCTAssertNotEqual(stash.exitCode,0); XCTAssertEqual(try String(contentsOf:file),"work to preserve\n")
+                XCTAssertEqual(try Data(contentsOf:repo.root.appendingPathComponent(".git/index")),index)
+            } else {
+                // Cancellation after the write cannot undo the completed stash.
+                // It must preserve that stash and report cancellation honestly.
+                XCTAssertEqual(stash.exitCode,0); XCTAssertEqual(try String(contentsOf:file),"base\n")
+                let saved = try await repo.run(["show","refs/stash:tracked 雪"]).text
+                XCTAssertEqual(saved,"work to preserve\n")
+            }
+        }
     }
 }

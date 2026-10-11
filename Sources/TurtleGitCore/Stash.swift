@@ -57,7 +57,10 @@ extension GitRepository {
         try cancellation?.check()
         guard !(options.includeUntracked && options.all) else { throw StashFailure.combination }
         guard !options.message.contains("\0") else { throw StashFailure.message }
-        let previous = (try? run(["rev-parse", "--verify", "refs/stash"]).text.trimmingCharacters(in: .newlines))
+        let previous = (try? run(["rev-parse", "--verify", "refs/stash"], cancellation: cancellation).text.trimmingCharacters(in: .newlines))
+        // An absent stash is expected; cancellation must not be swallowed by
+        // the optional reference read or continue into a write.
+        try cancellation?.check()
         var args = ["stash", "push"]
         if options.includeUntracked { args.append("--include-untracked") }
         else if options.all { args.append("--all") }
@@ -66,7 +69,8 @@ extension GitRepository {
         // Whole-repository save accepts no user paths, so preserve Git's own
         // pathspec semantics here; literal mode would silently skip cleanup.
         let output = try run(args, literalPathspecs: false, cancellation: cancellation).text
-        let current = (try? run(["rev-parse", "--verify", "refs/stash"]).text.trimmingCharacters(in: .newlines))
+        let current = (try? run(["rev-parse", "--verify", "refs/stash"], cancellation: cancellation).text.trimmingCharacters(in: .newlines))
+        try cancellation?.check()
         return StashSaveResult(output: output, previous: previous, current: current)
     }
 }

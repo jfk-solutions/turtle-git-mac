@@ -1173,6 +1173,36 @@ import TurtleGitCore
         blockedChild.close(); try await settle { kill(childPID,0) == -1 && errno == ESRCH }
         precondition(!blockedProgress.busy && blockedProgress.result == nil && blockedProgress.output.isEmpty && childReplies == 0 && !sheet.isVisible && blockedChild.window!.attachedSheet == nil && blockedChild.model.progress == nil && !blockedChild.model.busy)
 
+        for target in [1,2] {
+            let referenceShim = directory.appendingPathComponent("reference-git-" + String(target)), referenceMarker = directory.appendingPathComponent("reference-pid-" + String(target)), counter = directory.appendingPathComponent("reference-count-" + String(target))
+            let environment = GitRuntime.environment(executable:git).sorted { $0.key < $1.key }.map { "export " + $0.key + "=" + quote($0.value) }.joined(separator:"\n")
+            let referenceScript = "#!/bin/sh\n" + environment + "\nseen=\nfor argument; do\nif [ \"$argument\" = rev-parse ]; then seen=yes; fi\nif [ \"$argument\" = refs/stash ] && [ \"$seen\" = yes ]; then\ncount=0\nif [ -f " + quote(counter.path) + " ]; then read count < " + quote(counter.path) + "; fi\ncount=$((count+1))\nprintf '%s\\n' \"$count\" > " + quote(counter.path) + "\nif [ \"$count\" -eq " + String(target) + " ]; then\nprintf '%s\\n' \"$$\" > " + quote(referenceMarker.path) + "\nwhile :; do sleep 1; done\nfi\nfi\ndone\nexec " + quote(git.path) + " \"$@\"\n"
+            try Data(referenceScript.utf8).write(to:referenceShim); try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:referenceShim.path)
+            let work = "reference cancellation " + String(target) + "\n"
+            try Data(work.utf8).write(to:file)
+            let before = try await repo.run(["rev-parse","refs/stash"]).stdout
+            let refChild = StashWindowController(repository:GitRepository(root:directory,executable:referenceShim),access:nil,preferences:preferences)
+            refChild.window!.alphaValue = 0; refChild.showWindow(nil); defer { refChild.close() }
+            var referenceReplies = 0; refChild.model.onSaved = { _ in referenceReplies += 1 }; refChild.model.onFailed = { _ in referenceReplies += 1 }
+            refChild.model.save(); let refProgress = refChild.model.progress!
+            try await settle { FileManager.default.fileExists(atPath:referenceMarker.path) }
+            let referencePID = pid_t(try String(contentsOf:referenceMarker).trimmingCharacters(in:.newlines))!
+            if target == 1 {
+                refChild.close(); try await settle { kill(referencePID,0) == -1 && errno == ESRCH }
+                precondition(!refProgress.busy && !refProgress.success && refProgress.result == nil && referenceReplies == 0 && refChild.window!.attachedSheet == nil && refChild.model.progress == nil)
+            } else {
+                refProgress.cancel(); try await settle { !refProgress.busy && kill(referencePID,0) == -1 && errno == ESRCH }
+                precondition(refProgress.cancelled && !refProgress.success && refProgress.result == nil && refProgress.postActions.isEmpty && referenceReplies == 1)
+                refProgress.close(); try await settle { !refChild.window!.isVisible && refChild.model.progress == nil }
+            }
+            let after = try await repo.run(["rev-parse","refs/stash"]).stdout
+            if target == 1 {
+                let working = try String(contentsOf:file); precondition(before == after && working == work)
+            } else {
+                let stashed = try await repo.run(["show","refs/stash:file"]).text
+                precondition(before != after && stashed == work)
+            }
+        }
         let failureShim = directory.appendingPathComponent("inspection-failure")
         let failureScript = "#!/bin/sh\nfor argument; do\ncase \"$argument\" in\nstash) printf 'retained stash failure\\n'; exit 1;;\nstatus) printf 'inspection failure\\n' >&2; exit 2;;\nesac\ndone\nexec " + quote(git.path) + " \"$@\"\n"
         try Data(failureScript.utf8).write(to:failureShim); try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:failureShim.path)
@@ -1180,7 +1210,7 @@ import TurtleGitCore
         failing.stash(.apply,shift:false); try await settle { !failing.busy }
         precondition(failing.commandCompleted && !failing.commandSucceeded && failing.tab == 2 && failing.conflicts.isEmpty && failing.commandOutput.contains("retained stash failure") && failing.commandOutput.contains("Checking for conflicts failed:") && failing.commandOutput.contains("inspection failure"))
         failing.invalidate()
-        print("PASS: native Sync Stash direct commands/conflict tab/Shift routes, retained failed command output on inspection failure, actual standalone Shift Save options and progress after Sync closure, private preferences, forced options/progress sheet cleanup and suppressed late replies")
+        print("PASS: native Sync Stash direct commands/conflict tab/Shift routes, retained failed command output on inspection failure, actual standalone Shift Save options and progress after Sync closure, private preferences, forced options/progress sheet cleanup, before/after reference-read process reaping and suppressed late replies")
     }
 
     @MainActor static func main() async throws {
