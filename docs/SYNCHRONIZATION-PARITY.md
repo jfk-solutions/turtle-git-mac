@@ -1237,3 +1237,35 @@ This evidence covers direct native menu-action delivery and Log content, not
 physical menu tracking, full keyboard/accessibility, signed sandbox handoffs or
 complete Sync/Log parity. Remaining revision actions and all-dialog acceptance
 stay open. No new complete Core-suite result is claimed.
+
+### References containing a selected revision (2026-10-11)
+
+Sync now exposes Show branches this commit is on for exactly one selected
+revision, after Copy to clipboard, with upstream's original Show Branches icon.
+ID_SHOWBRANCHES creates a modeless CommitIsOnRefsDlg with the selected full hash;
+the native route likewise captures that hash and opens the existing references
+window as an owned modeless child. RepositoryModel supplies its Log, range Log,
+Browse Repository and comparison routes. The shared dialog retains its existing
+native unified viewer and picker behavior.
+
+A child registry closes every references window when Sync is forcibly closed.
+Nested pickers and blocking child sheets prevent competing parent actions. Revision
+navigation scrolls the current Sync list, optionally selecting the visible row;
+requests are delivered once and guarded against closed/busy/Quit/cancellation
+owners. The menu action separately checks those guards at delivery, so changing
+row selection cannot change the captured initial revision.
+
+System and bundled Git passed native receiver checks: captured merge hash after
+selection changes, exact containing reference names against for-each-ref --contains,
+actual selected Log load, selection/scroll-only navigation, single-selection menu
+placement/icon, larger-selection omission, retained-action Quit guard, nested
+reference-picker blocking/cleanup and forced owner closure during child loading.
+Both receivers were reaped. Unsigned Debug and universal AppStore builds and
+bundle audits, inventory audit and site generation passed.
+
+This is partial parity. Physical double-click/Shift/menu input, missing-reference
+attention, navigation across incoming/outgoing tab changes, complete child context
+commands, accessibility and signed Finder/App Store behavior remain open. Hidden
+zero-size NSSplitView layout warnings were emitted by the nested picker fixture;
+these checks do not establish displayed geometry. Other Sync revision actions and
+full application parity remain pending.

@@ -228,6 +228,8 @@ private struct SynchronizationProgressDialog: View {
     var configureBranchPicker: (ReferenceBrowserWindowModel) -> Void = { _ in }
     var configureHistoryReference: (BranchTagWindowController) -> Void = { _ in }
     private(set) var historyReferenceController: BranchTagWindowController?
+    var configureHistoryContainingReferences: (CommitContainingReferencesWindowController) -> Void = { _ in }
+    private(set) var historyContainingReferences: [UUID: CommitContainingReferencesWindowController] = [:]
     var configureOptions: (FetchWindowController) -> Void = { _ in }
     var configurePushOptions: (PushWindowController) -> Void = { _ in }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
@@ -293,6 +295,31 @@ private struct SynchronizationProgressDialog: View {
                 child.model.load(remote: remote, allRemotes: false)
                 owner.beginSheet(child.window!)
             }
+        }
+        model.historyReferencesBlocking = { [weak self] in self?.historyContainingReferences.values.contains { $0.hasBlockingChild } == true }
+        model.onHistoryContainingReferences = { [weak self] hash in
+            guard let self, !self.model.closed, !self.model.busy, !self.model.confirmingQuit,
+                  !self.model.confirmingCancellation, !self.model.hasBlockingChild,
+                  let owner = self.window, owner.attachedSheet == nil, !hash.isEmpty else { return }
+            let id = UUID()
+            let child = CommitContainingReferencesWindowController(repository: self.model.repository, access: self.model.access, revision: hash, preferences: self.model.preferences)
+            self.configureHistoryContainingReferences(child)
+            child.onNavigate = { [weak self] hash, select in
+                guard let self, !self.model.closed, !self.model.busy, !self.model.confirmingQuit,
+                      !self.model.confirmingCancellation, !self.model.hasBlockingChild else { return }
+                self.model.historyNavigation = (UUID(), hash, select)
+            }
+            child.onClosed = { [weak self, weak child, weak owner] in
+                if let window = child?.window { owner?.removeChildWindow(window) }
+                self?.historyContainingReferences.removeValue(forKey: id)
+            }
+            self.historyContainingReferences[id] = child
+            if let window = child.window {
+                window.alphaValue = owner.alphaValue; window.appearance = owner.appearance
+                owner.addChildWindow(window, ordered: .above); window.center(); window.orderFront(nil)
+                window.makeFirstResponder(child.revision)
+            }
+            child.refresh()
         }
         model.onHistoryCreateReference = { [weak self] isTag, revision in
             guard let self, !self.model.closed, !self.model.busy, !self.model.confirmingQuit,
@@ -557,6 +584,8 @@ private struct SynchronizationProgressDialog: View {
     func windowWillClose(_ notification: Notification) {
         model.invalidate()
         model.detachRebase()
+        let references = Array(historyContainingReferences.values); historyContainingReferences.removeAll()
+        references.forEach { $0.close() }
         if let child = historyReferenceController {
             child.model.invalidate()
             if let window = child.window, window.sheetParent === self.window { self.window?.endSheet(window) }
@@ -907,10 +936,13 @@ enum SynchronizationHistoryDiff {
     var onHistoryBrowseRepository: ((String) -> Void)?
     var onHistoryLog: ((String) -> Void)?
     var onHistoryLogRange: ((HistoryRevisionRange) -> Void)?
+    var onHistoryContainingReferences: ((String) -> Void)?
+    var historyReferencesBlocking: () -> Bool = { false }
+    @Published var historyNavigation: (id: UUID, hash: String, select: Bool)?
     var onHistoryCreateReference: ((Bool, String) -> Void)?
     @Published var creatingHistoryReference = false
     var hasBlockingChild: Bool {
-        creatingHistoryReference || emailingPatches || importingPatches || choosingBranch || managingRemotes || NSApp.modalWindow != nil || [comparison, incomingComparison].contains { child in
+        historyReferencesBlocking() || creatingHistoryReference || emailingPatches || importingPatches || choosingBranch || managingRemotes || NSApp.modalWindow != nil || [comparison, incomingComparison].contains { child in
             child.busy || child.comparisonWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil } || child.unifiedWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil }
         }
     }
@@ -1766,11 +1798,19 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
         table.reloadData()
         let selection = IndexSet(hashes.enumerated().compactMap { selectedHashes.contains($0.element) ? $0.offset : nil })
         if table.selectedRowIndexes != selection { table.selectRowIndexes(selection, byExtendingSelection: false) }
+        if let navigation = model.historyNavigation, context.coordinator.navigationID != navigation.id {
+            context.coordinator.navigationID = navigation.id
+            if let row = hashes.firstIndex(of: navigation.hash) {
+                if navigation.select { table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false) }
+                table.scrollRowToVisible(row)
+            }
+        }
     }
     @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate {
         var model: SynchronizationWindowModel
         weak var table: NSTableView?
         var entryHashes: [String] = []
+        var navigationID: UUID?
         private var parentMenuTask: Task<Void, Never>?
         init(_ model: SynchronizationWindowModel) { self.model = model }
         private final class CopyTarget: NSObject {
@@ -1795,6 +1835,10 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
         @objc func historyRangeLog(_ sender: NSMenuItem) {
             guard revisionActionAvailable, let target = sender.representedObject as? RangeTarget else { return }
             model.onHistoryLogRange?(target.range)
+        }
+        @objc func historyContainingReferences(_ sender: NSMenuItem) {
+            guard revisionActionAvailable, let target = sender.representedObject as? RevisionTarget else { return }
+            model.onHistoryContainingReferences?(target.revision)
         }
         @objc func historyLog(_ sender: NSMenuItem) {
             guard revisionActionAvailable, let target = sender.representedObject as? RevisionTarget else { return }
@@ -1940,6 +1984,12 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
             }
             let parent = NSMenuItem(title: "Copy to clipboard", action: nil, keyEquivalent: "")
             parent.image = MenuIcon.copy.contextImage(defaults: model.preferences); parent.submenu = clipboard; menu.addItem(parent)
+            if entries.count == 1, let entry = entries.first {
+                let item = NSMenuItem(title: "Show branches this commit is on", action: #selector(historyContainingReferences(_:)), keyEquivalent: "")
+                item.target = self; item.isEnabled = revisionActionAvailable && model.onHistoryContainingReferences != nil
+                item.image = MenuIcon.showBranches.contextImage(defaults: model.preferences)
+                item.representedObject = RevisionTarget(entry.hash); menu.addItem(item)
+            }
         }
         func menuDidClose(_ menu: NSMenu) { parentMenuTask?.cancel(); parentMenuTask = nil; (table as? HistoryTableView)?.contextReference = nil; (table as? HistoryTableView)?.contextExtendedMenu = false }
         @objc func copyHistory(_ sender: NSMenuItem) {

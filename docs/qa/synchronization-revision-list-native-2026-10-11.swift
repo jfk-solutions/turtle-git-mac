@@ -131,6 +131,42 @@ struct SynchronizationRevisionListVerification {
         precondition(NSApplication.shared.sendAction(guardedRange.action!,to:guardedRange.target,from:guardedRange))
         precondition(capturedRange == priorRange && log == nil)
         model.confirmingQuit = false
+        owner.configureHistoryContainingReferences = { child in
+            child.onLog = { name, select, range in
+                let controller = LogWindowController(repository:repo,access:nil,labelDefaults:preferences,savesColumnLayout:false,savesGeometry:false,initialRevision:name)
+                if let range { ReferenceLogWindowModel.configureRangeLog(controller.model,range:range) }
+                else if let name { ReferenceLogWindowModel.configureRevisionLog(controller.model,revision:name) }
+                log = controller; controller.model.reload(); controller.showWindow(nil)
+            }
+        }
+        let containingItem = menu(IndexSet(integer:mergeIndex)).items.first { $0.title == "Show branches this commit is on" }!
+        precondition(containingItem.image != nil && native.menu!.items.last === containingItem)
+        _ = menu(IndexSet(integer:rootIndex)); invoke(containingItem)
+        let containing = owner.historyContainingReferences.values.first!
+        try await settle { !containing.busy && containing.snapshot != nil }
+        let containsHash = rows[mergeIndex].hash
+        let expectedReferences = Set(try await repo.run(["for-each-ref","--format=%(refname)","--contains",containsHash]).text.split(whereSeparator: \.isNewline).map(String.init))
+        precondition(containing.snapshot!.hash == containsHash && Set(containing.rows.map(\.rawValue)) == expectedReferences && containing.window!.parent === owner.window)
+        containing.showLog.performClick(nil); try await settle { log?.model.busy == false }
+        precondition(log!.model.endRevision == containsHash && log!.model.selected == [containsHash])
+        log!.close(); log = nil
+        containing.onNavigate(rows[0].hash,true)
+        try await settle { native.selectedRowIndexes == IndexSet(integer:0) }
+        containing.onNavigate(rows[rootIndex].hash,false)
+        try await settle { model.historyNavigation?.hash == rows[rootIndex].hash }
+        precondition(native.selectedRowIndexes == IndexSet(integer:0))
+        let pickerItem = containing.chooser.menu!.items.first { $0.title == "Browse References" }!
+        precondition(NSApplication.shared.sendAction(pickerItem.action!,to:pickerItem.target,from:pickerItem))
+        try await settle { containing.picker != nil }
+        precondition(model.hasBlockingChild && !menu(IndexSet(integer:mergeIndex)).items.first { $0.title == "Show branches this commit is on" }!.isEnabled)
+        let nestedReferences = containing.picker as! ReferenceBrowserWindowController
+        containing.close()
+        precondition(containing.closed && nestedReferences.model.closed && owner.historyContainingReferences.isEmpty && !model.hasBlockingChild)
+        precondition(!menu(IndexSet([0,1])).items.contains { $0.title == "Show branches this commit is on" })
+        model.confirmingQuit = true
+        precondition(NSApplication.shared.sendAction(containingItem.action!,to:containingItem.target,from:containingItem))
+        precondition(owner.historyContainingReferences.isEmpty)
+        model.confirmingQuit = false
         let originalPreference = preferences.object(forKey:"DiffByDoubleClickInLog")
         defer { if let originalPreference { preferences.set(originalPreference,forKey:"DiffByDoubleClickInLog") } else { preferences.removeObject(forKey:"DiffByDoubleClickInLog") } }
         preferences.set(false,forKey:"DiffByDoubleClickInLog")
@@ -264,7 +300,11 @@ struct SynchronizationRevisionListVerification {
         }
         let headAfterCreation = try await repo.run(["rev-parse","HEAD"]).stdout, configAfterCreation = try Data(contentsOf:root.appendingPathComponent(".git/config")), indexAfterCreation = try Data(contentsOf:root.appendingPathComponent(".git/index"))
         precondition(headBeforeCreation == headAfterCreation && configAfterCreation == config && indexAfterCreation == index)
+        let finalContaining = menu(IndexSet(integer:0)).items.first { $0.title == "Show branches this commit is on" }!
+        invoke(finalContaining)
+        let forcedContaining = owner.historyContainingReferences.values.first!
         owner.close(); precondition(model.closed && !owner.window!.isVisible)
+        precondition(forcedContaining.closed && owner.historyContainingReferences.isEmpty)
     }
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
