@@ -1,0 +1,86 @@
+{
+  "date": "2026-10-11",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blob": "17bfe829c486fee35345727136bec8d1adbf21f9",
+  "status": "partial-native-synchronization-submodules",
+  "verification": {
+    "core": [
+      {
+        "engine": "system Git 2.50.1",
+        "tests": 4,
+        "failures": 0,
+        "log": "build/qa/synchronization-submodule-core-system-2026-10-11.log"
+      },
+      {
+        "engine": "Git 2.39.5",
+        "tests": 38,
+        "failures": 0,
+        "log": "build/qa/synchronization-submodule-core-239-2026-10-11.log"
+      },
+      {
+        "engine": "packaged Git 2.55.0",
+        "tests": 38,
+        "failures": 0,
+        "log": "build/qa/synchronization-submodule-core-255-2026-10-11.log"
+      }
+    ],
+    "native": {
+      "exit": 0,
+      "engines": [
+        "system Git 2.50.1",
+        "packaged Git 2.55.0"
+      ],
+      "groups_per_engine": 1,
+      "log": "build/qa/synchronization-submodule-native-2026-10-11.log",
+      "scope": "Focused Submodule fixture only; real Init/Update/Sync, transport fields ignored, saved selection, Command Log without outgoing refill, Shift callback routes without busy/persistence, HEAD/index preservation, closed-owner refusal and forced process reaping. Original artwork decoded. All application Swift sources compiled by receiver.",
+      "limits": "Hidden windows and disposable local repositories/preferences. Shift callbacks observed; actual production standalone Update/Sync windows and their independent lifetimes not driven."
+    },
+    "debug_build": {
+      "exit": 0,
+      "log": "build/qa/synchronization-submodule-debug-2026-10-11.log"
+    },
+    "app_checks": [
+      {
+        "step": "store",
+        "exit": 0,
+        "log": "build/qa/synchronization-submodule-store-2026-10-11.log"
+      },
+      {
+        "step": "debug-audit",
+        "exit": 0,
+        "log": "build/qa/synchronization-submodule-debug-audit-2026-10-11.log"
+      },
+      {
+        "step": "store-audit",
+        "exit": 0,
+        "log": "build/qa/synchronization-submodule-store-audit-2026-10-11.log"
+      },
+      {
+        "step": "inventory",
+        "exit": 0,
+        "log": "build/qa/synchronization-submodule-inventory-2026-10-11.log"
+      },
+      {
+        "step": "site",
+        "exit": 0,
+        "log": "build/qa/synchronization-submodule-site-2026-10-11.log"
+      }
+    ]
+  },
+  "limits": [
+    "No full-suite or full nine-group native regression run in this checkpoint.",
+    "New nested fixture covers configured update=none, dirty refusal/Force, recursive pinned target checkout and registered URL changes, bare/unsafe metadata refusal and pre-cancellation. It does not establish all configured merge/rebase modes.",
+    "Root screenshots remain the earlier Push checkpoint; Submodule button rendering and minimum-size layout must be recaptured.",
+    "Displayed menus, physical keyboard/VoiceOver acceptance, signed sandbox/Finder, authentication, project hooks and complete dialog parity remain unverified."
+  ],
+  "sha256": {
+    "Sources/TurtleGitCore/Synchronization.swift": "7bb71bccca4de39e9a880ebc111542f7c0bbab7769539a4246c2af1fbd7873b2",
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "4b4d67de9c07974cbd406bfd425b07a4183ec590ee129ed53187abd936aa43a6",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "44902c6d8f3008821fe7b907207131ded018b8ef96b142fc718a66ee2558bb03",
+    "Tests/TurtleGitCoreTests/SynchronizationSubmoduleTests.swift": "ba604b0fa242d433effbe1ea1112dc8a41f3dd1b763cc5927b4587fb1d5715c5",
+    "docs/qa/synchronization-native-2026-10-11.swift": "57f370dc13b42b10e48cdfb17631d405a021aac01f955202260a6059b868988d",
+    "scripts/test-synchronization-dialog.py": "ef785ced348d5cb690b9ce993cf07243ed1ee9dbd2b1320342579cb0dcd27c57",
+    ".github/workflows/macos.yml": "79421eaeaad2f9292f89fe1ba59dbff258be896c59b88b6b2d53df92b1d4f1b6"
+  },
+  "checkpoint": "6d02bce35e2dae7ec5b4b47408c12aef83daf82b"
+}

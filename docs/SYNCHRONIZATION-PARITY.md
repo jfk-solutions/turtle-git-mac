@@ -600,3 +600,35 @@ changed after that workflow run; fresh Debug build and final root captures
 verified their rendering. Both unsigned configurations, bundle audits, pin checks
 and website build pass. Core hashes match the prior backend record, without a
 new Core/full-suite run. See [Push verification and limits](qa/synchronization-push-native-2026-10-11.json).
+
+
+## Submodule split follow-up (October 11, 2026)
+
+The native Synchronization footer now has Submodule Update, Submodule Init and
+Submodule Sync, using the existing original Update/Add/Sync artwork. The pinned
+`CSyncDlg::OnBnClickedButtonSubmodule` handler is the reference: normal Update
+runs `git submodule update --init --recursive`, with `--force` only when checked;
+Init runs `git submodule init`; Sync runs `git submodule sync --recursive`.
+These commands ignore the dialog's remote/branch fields, retain Git's configured
+update mode and leave Command Log selected without refilling Sync's result tabs.
+The normal selected action is saved per repository.
+
+Shift Update and Shift Init route to the existing standalone full Update dialog;
+Shift Sync routes to standalone Sync. The production callbacks capture the
+repository and access lease. As in the upstream separate-process launch, these
+routes do not put Sync into a busy state or save its split selection. Standalone
+Sync retains its own source non-recursive command; it is distinct from this
+button's recursive normal action.
+
+New real nested-repository Core checks cover Init without checkout, recursive
+pinned child checkout and URL synchronization, dirty-work refusal/Force,
+configured `update=none`, bare/unsafe metadata refusal and pre-cancellation.
+The native fixture also exercises completion, saved selection, Shift routes and
+forced-owner process cleanup. At code checkpoint `6d02bce`, the four new Core tests pass on system Git; the
+38 focused Synchronization tests pass on Git 2.39.5 and packaged Git 2.55.0.
+The focused native Submodule group passes on both system and packaged engines.
+Both unsigned builds, bundle audits, inventory and website checks pass. Full
+nine-group native regression, actual standalone Shift child lifetimes and new
+button layout captures remain pending. The published root screenshots retain
+the earlier Push checkpoint. See [verification and limits](qa/synchronization-submodule-native-2026-10-11.json).
+This addition does not certify the whole dialog.
