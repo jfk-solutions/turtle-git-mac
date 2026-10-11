@@ -44,6 +44,9 @@ import TurtleGitCore
     convenience init(repository: GitRepository, access: RepositoryAccessLease?, comparison: HistoricalWorkingFileComparison, permission: RepositoryAccessLease) {
         self.init(model: FileComparisonWindowModel(repository: repository, access: access, comparison: comparison, permission: permission))
     }
+    convenience init(repository: GitRepository, access: RepositoryAccessLease?, changeSets: CommitChangeSetComparison) {
+        self.init(model: FileComparisonWindowModel(repository: repository, access: access, changeSets: changeSets))
+    }
     private init(model: FileComparisonWindowModel) {
         self.model = model
         let path = model.path
@@ -350,6 +353,12 @@ import TurtleGitCore
         loader.onClosed = { [weak self] in self?.imageLoader = nil }
         loader.present(parent: window)
     }
+    private var changeSetDocument: FileComparisonDocument?
+    init(repository: GitRepository, access: RepositoryAccessLease?, changeSets: CommitChangeSetComparison) {
+        self.repository = repository; self.access = access
+        snapshot = changeSets.snapshot; path = changeSets.document.destination.path
+        changeSetDocument = changeSets.document
+    }
     init(comparison: WorkingFileComparison, permissions: [RepositoryAccessLease]) {
         repository = nil; access = nil; workingComparison = comparison; workingPermissions = permissions
         snapshot = comparison.snapshot; path = comparison.destination.path
@@ -382,7 +391,9 @@ import TurtleGitCore
             defer { busy = false }
             do {
                 let value: FileComparisonDocument
-                if let standaloneImages {
+                if let changeSetDocument {
+                    value = changeSetDocument
+                } else if let standaloneImages {
                     guard !GitRuntime.isAppStoreBuild || [standaloneImages.base, standaloneImages.destination].compactMap({ $0 }).allSatisfy({ file in workingPermissions.contains { $0.hasSecurityScope && $0.contains(file) } }) else { throw ImageFileComparisonFailure.filePermissionRequired }
                     value = try standaloneImages.read()
                 } else if let historicalWorkingComparison, let repository {

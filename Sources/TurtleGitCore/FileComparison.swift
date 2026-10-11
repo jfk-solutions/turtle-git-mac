@@ -17,6 +17,29 @@ public struct FileComparisonDocument: Sendable {
     public let base: ComparisonFileContent
     public let destination: ComparisonFileContent
 }
+/// Source ID_COMPARETWOCOMMITCHANGES compares two first-parent format-patch streams.
+public struct CommitChangeSetComparison: Sendable {
+    public let snapshot: RevisionComparisonSnapshot
+    public let document: FileComparisonDocument
+}
+extension GitRepository {
+    public func commitChangeSets(first: String, second: String, cancellation: OperationCancellation? = nil) throws -> CommitChangeSetComparison {
+        let token = cancellation ?? OperationCancellation()
+        func content(_ revision: String) throws -> ComparisonFileContent {
+            try token.check()
+            let hash = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"], cancellation: token).text.trimmingCharacters(in: .newlines)
+            // Resolved hashes make this range literal; retain source merge/root behavior.
+            let bytes = try run(["format-patch", "--stdout", hash + "~1.." + hash, "--"], cancellation: token).stdout
+            return ComparisonFileContent(path: hash + ".patch", revision: .revision(hash), bytes: bytes, mode: "100644")
+        }
+        let a = try content(first), b = try content(second)
+        try token.check()
+        let file = CommitFile(path: b.path, oldPath: a.path, action: "M", added: nil, removed: nil, hasStatistics: false, isSubmodule: false)
+        let snapshot = RevisionComparisonSnapshot(root: root, from: a.revision, to: b.revision, fromDetails: nil, toDetails: nil, files: [file], options: RevisionDiffOptions())
+        return CommitChangeSetComparison(snapshot: snapshot, document: FileComparisonDocument(base: a, destination: b))
+    }
+}
+
 /// A private, read-only regular-file copy for opening a historical blob in an
 /// external application. A symlink blob is copied as target text, never followed.
 public struct HistoricalFilePreview: Sendable {

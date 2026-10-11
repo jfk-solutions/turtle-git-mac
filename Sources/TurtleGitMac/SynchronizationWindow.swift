@@ -703,6 +703,27 @@ enum SynchronizationHistoryDiff {
             }
         } onCancel: { request.cancel() }
     }
+    func compareHistoryChangeSets(first: String, second: String) {
+        guard !closed, !busy, !confirmingQuit, !confirmingCancellation, !hasBlockingChild,
+              window?.attachedSheet == nil else { return }
+        let request = OperationCancellation(), child = tab == 4 ? incomingComparison : comparison
+        token?.cancel(); token = request; busy = true; error = nil
+        Task {
+            defer { if token === request { token = nil; busy = false } }
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let result = try await repository.commitChangeSets(first: first, second: second, cancellation: request)
+                guard !closed, token === request, !request.isCancelled else { return }
+                let key = "Sync change sets " + UUID().uuidString
+                let viewer = FileComparisonWindowController(repository: repository, access: access, changeSets: result)
+                viewer.onClosed = { [weak child] in child?.comparisonWindows.removeValue(forKey: key) }
+                child.comparisonWindows[key] = viewer; viewer.model.load(); viewer.showWindow(nil)
+            } catch {
+                guard !closed, token === request, !request.isCancelled else { return }
+                self.error = error.localizedDescription
+            }
+        }
+    }
     var presentHistoryNotice: (String) async -> Void = { _ in }
     func showHistoryDiff(_ diff: SynchronizationHistoryDiff, alternate: Bool = false) {
         guard !closed, !busy, !confirmingQuit, !confirmingCancellation, !hasBlockingChild,
@@ -1782,6 +1803,11 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
             let diff: SynchronizationHistoryDiff
             init(_ diff: SynchronizationHistoryDiff) { self.diff = diff }
         }
+        @objc func compareChangeSets(_ sender: NSMenuItem) {
+            guard let target = sender.representedObject as? ComparisonTarget,
+                  case .revision(let first) = target.from, case .revision(let second) = target.to else { return }
+            model.compareHistoryChangeSets(first: first, second: second)
+        }
         @objc func historyDiff(_ sender: NSMenuItem) {
             guard let target = sender.representedObject as? DiffTarget else { return }
             model.showHistoryDiff(target.diff, alternate: NSEvent.modifierFlags.contains(.shift))
@@ -1854,6 +1880,12 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
             } else if entries.count == 2 || table.selectedRowIndexes.last! - table.selectedRowIndexes.first! + 1 == entries.count {
                 comparisonItem("Compare revisions", from: .revision(entries.last!.hash), to: .revision(entries.first!.hash), in: menu)
                 if entries.count == 2 { diffItem("Show changes as unified diff", diff: .revisions(entries.last!.hash, entries.first!.hash), in: menu) }
+            }
+            if entries.count == 2 {
+                let changes = NSMenuItem(title: "Compare change sets", action: #selector(compareChangeSets(_:)), keyEquivalent: "")
+                changes.target = self; changes.isEnabled = revisionActionAvailable
+                changes.image = MenuIcon.compare.contextImage(defaults: model.preferences)
+                changes.representedObject = ComparisonTarget(from: .revision(entries[0].hash), to: .revision(entries[1].hash)); menu.addItem(changes)
             }
             if entries.count == 1, let entry = entries.first {
                 if !menu.items.isEmpty { menu.addItem(.separator()) }

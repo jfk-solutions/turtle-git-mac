@@ -2,6 +2,35 @@ import XCTest
 @testable import TurtleGitCore
 
 final class FileComparisonTests: XCTestCase {
+    func testChangeSetsCompareFirstParentPatchStreamsAndPreserveRepository() async throws {
+        let (root, repo, path) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let rootHash = try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
+        try Data("first edit\n".utf8).write(to:root.appendingPathComponent(path)); try await repo.stage([path])
+        _ = try await repo.commit(message:"First edit")
+        let first = try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
+        try Data([0xff,0x0a]).write(to:root.appendingPathComponent(path)); try await repo.stage([path])
+        _ = try await repo.commit(message:"Second raw edit")
+        let second = try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
+        let index = try Data(contentsOf:root.appendingPathComponent(".git/index")), config = try Data(contentsOf:root.appendingPathComponent(".git/config")), refs = try await repo.run(["show-ref"]).stdout
+        let value = try await repo.commitChangeSets(first:second,second:first)
+        let firstPatch = try await repo.run(["format-patch","--stdout",second + "~1.." + second,"--"]).stdout
+        let secondPatch = try await repo.run(["format-patch","--stdout",first + "~1.." + first,"--"]).stdout
+        XCTAssertEqual(value.document.base.bytes,firstPatch)
+        XCTAssertEqual(value.document.destination.bytes,secondPatch)
+        XCTAssertEqual(value.document.base.path,second + ".patch")
+        XCTAssertEqual(value.document.destination.path,first + ".patch")
+        XCTAssertEqual(value.snapshot.from,.revision(second))
+        XCTAssertEqual(value.snapshot.to,.revision(first))
+        XCTAssertNotNil(value.document.base.bytes.range(of:Data([0xff])))
+        do { _ = try await repo.commitChangeSets(first:rootHash,second:first); XCTFail("Root format-patch range unexpectedly accepted") } catch is GitFailure {}
+        let cancelled = OperationCancellation(); cancelled.cancel()
+        do { _ = try await repo.commitChangeSets(first:second,second:first,cancellation:cancelled); XCTFail("Cancelled comparison unexpectedly ran") } catch is OperationCancellationFailure {}
+        let afterRefs = try await repo.run(["show-ref"]).stdout
+        XCTAssertEqual(afterRefs,refs)
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index)
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/config")),config)
+    }
     func testPreparedWorkingAndHistoricalSidesPreserveRawBytesPinRefsAndDoNotChangeIndex() async throws {
         let (root, repo, path) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

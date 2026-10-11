@@ -31,6 +31,7 @@ struct SynchronizationRevisionListVerification {
         try await commit("Main parent subject longer than twenty characters")
         try await commit("Main second")
         _ = try await repo.run(["checkout","side"])
+        try Data("side change\n".utf8).write(to:root.appendingPathComponent("side.txt")); try await repo.stage(["side.txt"])
         try await commit("Side parent & quoted subject longer than twenty characters")
         _ = try await repo.run(["checkout","main"])
         _ = try await repo.run(["merge","--no-ff","side","-m","Merge"])
@@ -158,12 +159,26 @@ struct SynchronizationRevisionListVerification {
         let okay = descendants(notice.contentView!).compactMap { $0 as? NSButton }.first { $0.title == "OK" }!
         okay.performClick(nil); try await settle { !model.busy && owner.window!.attachedSheet == nil }
         precondition(model.comparison.unifiedWindows.isEmpty && model.error == nil)
+        let changes = menu(IndexSet([mergeIndex,rootIndex])).items.first { $0.title == "Compare change sets" }!
+        invoke(changes); try await settle { !model.busy }
+        precondition(model.error != nil && model.comparison.comparisonWindows.isEmpty, "A source root range error must not open a partial comparison")
+        model.refresh(); try await settle { !model.busy && model.error == nil }
+        let mergeChanges = menu(IndexSet([0,mergeIndex])).items.first { $0.title == "Compare change sets" }!
+        let mergePatch = try await repo.run(["format-patch","--stdout",rows[mergeIndex].hash + "~1.." + rows[mergeIndex].hash,"--"]).stdout
+        let tipPatch = try await repo.run(["format-patch","--stdout",rows[0].hash + "~1.." + rows[0].hash,"--"]).stdout
+        precondition(String(decoding:mergePatch,as:UTF8.self).contains("side.txt") && !String(decoding:mergePatch,as:UTF8.self).contains("resolution"))
+        invoke(mergeChanges)
+        try await settle { !model.busy && model.comparison.comparisonWindows.values.first?.model.busy == false }
+        precondition(model.error == nil && model.comparison.comparisonWindows.count == 1)
+        let mergeViewer = model.comparison.comparisonWindows.values.first!
+        precondition(mergeViewer.model.document?.base.bytes == tipPatch && mergeViewer.model.document?.destination.bytes == mergePatch)
+        mergeViewer.close(); precondition(model.comparison.comparisonWindows.isEmpty)
         let rootMenu = menu(IndexSet(integer:rootIndex))
         precondition(!rootMenu.items.contains { $0.title == "Compare with previous revision" })
         precondition(rootMenu.items.contains { $0.title == "Compare with working tree" })
         precondition(!rootMenu.items.contains { $0.title == "Show changes as unified diff" })
         let contiguous = menu(IndexSet(integersIn:0..<3)).items.first { $0.title == "Compare revisions" }!
-        precondition(!native.menu!.items.contains { $0.title == "Show changes as unified diff" })
+        precondition(!native.menu!.items.contains { $0.title == "Show changes as unified diff" || $0.title == "Compare change sets" })
         invoke(contiguous)
         precondition(captured.last!.0 == .revision(rows[2].hash) && captured.last!.1 == .revision(rows[0].hash))
         precondition(!menu(IndexSet([0,2,4])).items.contains { $0.title == "Compare revisions" })
@@ -319,6 +334,19 @@ struct SynchronizationRevisionListVerification {
             viewer.close(); precondition(model.comparison.unifiedWindows.isEmpty)
         }
         native.selectRowIndexes(IndexSet(integersIn:0..<2),byExtendingSelection:false)
+        native.selectRowIndexes(IndexSet(integersIn:0..<2),byExtendingSelection:false)
+        let changes = comparisonItem("Compare change sets")
+        precondition(changes.image != nil)
+        let firstPatch = try await repo.run(["format-patch","--stdout",rows[0].hash + "~1.." + rows[0].hash,"--"]).stdout
+        let secondPatch = try await repo.run(["format-patch","--stdout",rows[1].hash + "~1.." + rows[1].hash,"--"]).stdout
+        native.selectRowIndexes(IndexSet(integer:1),byExtendingSelection:false); invoke(changes)
+        try await settle { !model.busy && model.comparison.comparisonWindows.values.first?.model.busy == false }
+        precondition(model.error == nil && model.comparison.comparisonWindows.count == 1)
+        let changeViewer = model.comparison.comparisonWindows.values.first!
+        precondition(changeViewer.model.document?.base.bytes == firstPatch && changeViewer.model.document?.destination.bytes == secondPatch)
+        precondition(changeViewer.model.snapshot.from == .revision(rows[0].hash) && changeViewer.model.snapshot.to == .revision(rows[1].hash))
+        precondition(changeViewer.model.editableBase == nil && changeViewer.model.alignment != nil)
+        changeViewer.close(); precondition(model.comparison.comparisonWindows.isEmpty)
         var browser: RepositoryBrowserWindowController?
         model.onHistoryBrowseRepository = { hash in
             let child = RepositoryBrowserWindowController(repository:repo,access:nil,revision:hash)
@@ -482,6 +510,17 @@ struct SynchronizationRevisionListVerification {
         diffing.invalidate(); try await settle { kill(diffPID,0) != 0 && errno == ESRCH }
         try await Task.sleep(nanoseconds:100_000_000)
         precondition(!diffing.busy && diffing.comparison.unifiedWindows.isEmpty && diffing.error == nil, "An owned unified read must not open a viewer after owner close")
+        try FileManager.default.removeItem(at:marker)
+        try Data(script.replacingOccurrences(of:"= diff-tree",with:"= format-patch").utf8).write(to:helper)
+        let changing = SynchronizationWindowModel(repository:GitRepository(root:root,executable:helper),access:nil,preferences:preferences)
+        defer { changing.invalidate() }
+        changing.compareHistoryChangeSets(first:entry.hash,second:entry.parents[0])
+        try await settle { FileManager.default.fileExists(atPath:marker.path) }
+        let changePID = Int32(try String(contentsOf:marker).trimmingCharacters(in:.whitespacesAndNewlines))!
+        defer { if kill(changePID,0) == 0 { kill(-changePID,SIGTERM) } }
+        changing.invalidate(); try await settle { kill(changePID,0) != 0 && errno == ESRCH }
+        try await Task.sleep(nanoseconds:100_000_000)
+        precondition(!changing.busy && changing.comparison.comparisonWindows.isEmpty && changing.error == nil, "An owned change-set read must not open a viewer after owner close")
         let finalRefs = try await repo.run(["show-ref"]).stdout, finalIndex = try Data(contentsOf:root.appendingPathComponent(".git/index")), finalConfig = try Data(contentsOf:root.appendingPathComponent(".git/config"))
         precondition(refs == finalRefs && index == finalIndex && config == finalConfig)
         model.onHistoryCreateReference?(false,entry.hash)
@@ -491,7 +530,7 @@ struct SynchronizationRevisionListVerification {
         precondition(owner.historyReferenceController == nil && !ownedReference.window!.isVisible && !model.creatingHistoryReference)
 
         try await verifyComparisonSelectionCases(root:root.appendingPathExtension("comparison-menu-cases"),git:repo.executable,preferences:preferences)
-        print("PASS: native Sync source columns, original action icons, annotated/current/tracking ref labels, issue IDs, date/full-message settings, independent column toggles/reset, both lists/themes/sizes, clipboard menus/captured multi-selection/source text formats/full metadata/pointed names, native revision comparison menus/captured targets/owner guards/real comparison snapshots/root omission/merge parents/source captions/contiguous and disjoint selection/off-list parent menu updates/owned parent metadata cancellation/unified diff source bytes/all merge modes/no-extra notice/owned read-only viewers/native browse/remote suggestions/owned reference sheets/real branch and tag creation/refresh/conditional source Show log/native selected Log/default and configured activation/Return/root and close guards, owned action and clipboard cancellation/late-callback fencing and unchanged Git state")
+        print("PASS: native Sync source columns, original action icons, annotated/current/tracking ref labels, issue IDs, date/full-message settings, independent column toggles/reset, both lists/themes/sizes, clipboard menus/captured multi-selection/source text formats/full metadata/pointed names, native revision comparison menus/captured targets/owner guards/real comparison snapshots/root omission/merge parents/source captions/contiguous and disjoint selection/off-list parent menu updates/owned parent metadata cancellation/unified diff source bytes/all merge modes/no-extra notice/owned read-only viewers/native browse/remote suggestions/owned reference sheets/real branch and tag creation/refresh/conditional source Show log/native selected Log/default and configured activation/Return/root and close guards/changeset source bytes/readonly native comparison/root failure/owned format-patch cancellation, owned action and clipboard cancellation/late-callback fencing and unchanged Git state")
     }
 }
 @_cdecl("turtlegit_history_main") func bootstrap() -> Int32 {

@@ -1180,3 +1180,37 @@ creation, clipboard, metadata, unified diff and owned-child assertions remain.
 Default-dialog Return fallback, stash-specific extended menus, physical double-click
 gestures, full keyboard/accessibility and signed acceptance remain open. Other
 revision commands and complete application parity are still pending.
+
+### Compare change sets (2026-10-11)
+
+Exactly two selected Sync revisions now offer Compare change sets with the original
+Diff icon. This follows ID_COMPARETWOCOMMITCHANGES: generate each commit's
+`format-patch --stdout <hash>~1..<hash>` stream, then compare first-selected against
+last-selected patch content. It does not substitute a tree diff or range-diff.
+The Core helper resolves commit inputs, preserves raw bytes and source root/merge
+range behavior, and carries an owned cancellation token through both generations.
+Root ranges fail rather than silently producing a different patch. Merge ranges
+may contain side-branch patches and omit the merge commit itself, just as upstream.
+
+The native comparison uses generated in-memory documents and source hash.patch
+labels, with read-only panes, normal alignment/Find/navigation and existing
+comparison-child ownership/close/Quit guards. Each invocation opens a fresh pinned
+comparison. Sync checks its signed repository lease before generation and cannot
+open a viewer after owner invalidation. No temporary repository files are created.
+
+Twenty-nine focused Core FileComparison/ImageFileComparison/RevisionComparison
+tests passed, including a new raw-byte, first-parent range, root-failure, pre-cancel
+and repository-preservation case. Native fixtures passed with system and bundled
+Git: exact patch bytes and selection capture in the real comparison window, a
+merge with a nonempty side-branch patch and omitted merge-only resolution, root
+failure with no partial viewer, larger-selection omission, child closure and an
+injected stalled format-patch read cancelled by owner close. Existing revision-list
+checks remain. The original fixture has no new Git mutations; its separate reference
+creation fixture still intentionally creates its branch/tag.
+
+This remains partial parity. Generated patch panes are read-only; upstream's
+temporary-file editing and configurable external diff-tool routing are not yet
+mapped. Error-sheet presentation, physical menus/Find/zoom/Save As, remaining
+revision commands, full text-comparison acceptance and signed Finder/App Store
+validation remain open. No new complete Core-suite or full-dialog certification
+is claimed.
