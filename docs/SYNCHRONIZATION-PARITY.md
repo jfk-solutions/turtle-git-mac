@@ -321,8 +321,9 @@ remain unverified. See the
 
 ## Remaining full port
 
-- Complete source arrangement, including tabs below the result grid, Force/SSH
-  placement, Help, status/progress placement and full remote-history saving/deletion.
+- Complete progress-phase arrangement and full remote-history saving/deletion.
+  Tabs below the result grid, shared Force/SSH row and status/Close/Help footer
+  now follow the source layout; full column and interaction parity remain partial.
   Owned branch choosers and Manage are implemented; physical acceptance is pending.
 - Full incoming/conflict/reference/outgoing columns, ref decorations, actions,
   Bug-ID, sorting/context menus and persistence. Inspected captures verify the
@@ -900,3 +901,21 @@ bundle audits, inventory-pin and site checks passed. Actual normal/minimum
 light/dark captures were inspected; both patch buttons fit, and normal captures
 are on the website. See [native checkpoint evidence](qa/synchronization-email-native-2026-10-11.json). Public delivery,
 physical input, signed grants and full dialog certification remain unverified.
+
+## Source layout follow-up, 11 October 2026
+
+The result tabs now sit below the grid, in the source order and with the original
+Log/In Commits/In Changelist/Out Commits/Out Changelist/Ref List captions.
+Conditional Conflicts and Compare tags retain their existing modes. Force shares
+the SSH row, and Close/Cancel and Help now sit beside the status footer. Help
+routes to the official Synchronization manual; physical browser handoff remains
+unverified. Native Refresh remains available.
+
+The final Debug and unsigned universal AppStore builds and both bundle audits
+passed. Six actual normal/minimum/incoming-tab light/dark captures were inspected
+against the pinned upstream screenshot and resources; the compact captions fit.
+Private refs/index/config were preserved, the owned window closed and receiver
+reaped. Normal captures refresh the website. This UI-only follow-up does not claim
+a new full behavioral suite run or complete dialog parity. Source columns, date
+formatting, history, menus, progress phases and signed/physical acceptance remain
+open. See the [verification record](qa/synchronization-layout-order-2026-10-11.json).

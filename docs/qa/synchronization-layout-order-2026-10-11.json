@@ -1,0 +1,61 @@
+{
+  "date": "2026-10-11",
+  "status": "partial-native-sync-layout-verified",
+  "code_commit": "ea68b44e9e34ee5b83cffa743d2c7c0339c00792",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_blobs": {
+    "src/TortoiseProc/SyncDlg.cpp": "17bfe829c486fee35345727136bec8d1adbf21f9",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f",
+    "doc/images/en/GitSync.png": "f7b758c80c23cc561b754947ffeaf4ae4afc4687"
+  },
+  "changes": [
+    "Result tabs below grid, before action buttons, with original source captions/order and unchanged tab IDs",
+    "Force shares SSH options row",
+    "Close/Cancel and official Sync Help beside status in footer"
+  ],
+  "verification": {
+    "builds": [
+      "Debug unsigned passed",
+      "AppStore unsigned universal passed"
+    ],
+    "audits": [
+      "Debug bundle passed",
+      "AppStore bundle with required Git passed",
+      "inventory pin passed",
+      "site build passed"
+    ],
+    "native_method": "Checked-in fixture linked against fresh Debug app objects/Core, with one private owned AppKit/SwiftUI receiver and production cleanup helper; actual CoreGraphics captures.",
+    "captures": [
+      "Normal light/dark 1050x660 content",
+      "Minimum light/dark 860x500 content",
+      "Incoming/outgoing tabs at minimum width light/dark"
+    ],
+    "inspection": "All six final captures inspected in small batches against pinned GitSync.png and resource layout. Tabs/action labels/footer fit; original colored command icons retained. Normal captures copied to website.",
+    "state": "Private refs, index and config byte-preserved; owner closed and receiver 16259 reaped.",
+    "regression_scope": "UI arrangement only: no new Core behavior tests and no claim of rerunning full Sync workflow suite. Latest prior behavior evidence remains synchronization-email-native-2026-10-11.json."
+  },
+  "remaining": [
+    "Full columns, Actions icons, ref decorations, Bug-ID and source date formatting",
+    "History saving/deletion, full menus and persistence",
+    "Progress-phase layout and project hooks",
+    "Physical keyboard/pointer/VoiceOver and Help browser handoff",
+    "Signed Finder/sandbox/App Store acceptance and complete port"
+  ],
+  "sha256": {
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "625c01b26671a5efdaf2eacdb487cb415aba1974cb2ca74e7ab777822e38a662",
+    "docs/qa/synchronization-layout-2026-10-11.swift": "7b3a457aba46e3001b388a7dc9898d41f61ca12b3c111307a137baa848a42c1b",
+    "build/qa/synchronization-layout-order-debug-footer-2026-10-11.log": "bdbb4742cd04a78b9fdf205fd296479793a7b22970851117a71efb79ce0a6010",
+    "build/qa/synchronization-layout-order-capture-footer-2026-10-11.log": "4233dee96e920958c5b890f8f90880e9757d72586d9bc4c69ffd5510f9da203b",
+    "build/qa/synchronization-layout-order-store-2026-10-11.log": "6926b9a7076d2d9ad8b2b23b24c069ce6913561b958ddbf9a873a5fe75da64dc",
+    "build/qa/synchronization-layout-order-debug-audit-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/synchronization-layout-order-store-audit-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/synchronization-layout-order-inventory-audit-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/synchronization-layout-order-site-audit-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/synchronization-layout-order-2026-10-11/git-synchronization-dark-minimum.png": "66017b0ef09ad99741f8d7edb3e69592c502b655ca3a33b82a40aac30dfb6ac0",
+    "build/qa/synchronization-layout-order-2026-10-11/git-synchronization-dark.png": "49217ce282a93954e04c961cf4d417476ea71b912167c364b00439fa97f886bd",
+    "build/qa/synchronization-layout-order-2026-10-11/git-synchronization-incoming-dark-minimum.png": "2a02ba4bb9b37fc664616d32fbc7796b67374e62250cf6343286a243a3529db2",
+    "build/qa/synchronization-layout-order-2026-10-11/git-synchronization-incoming-light-minimum.png": "9430220a6830335875065b039ad0a5ef13b314c7fad21da107c0532b87746821",
+    "build/qa/synchronization-layout-order-2026-10-11/git-synchronization-light-minimum.png": "c3e03dac5f46959de39c13e3e15516cd0c62e101d4fcc80a71e68e710e8e47ad",
+    "build/qa/synchronization-layout-order-2026-10-11/git-synchronization-light.png": "156b8c3d43b2df5559cd32dbac2a85d182e5a07f2e5759760dc6c5ee1b2a94fb"
+  }
+}
