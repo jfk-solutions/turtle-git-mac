@@ -1,0 +1,68 @@
+{
+  "date": "2026-10-11",
+  "status": "partial-native-unified-revision-menus-verified",
+  "code_commit": "03240a3b098b1cbbb20d073116812da8d6af94b2",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_references": [
+    "src/TortoiseProc/GitLogListBase.cpp: ID_GNUDIFF1/2 selection and merge menu rules",
+    "src/TortoiseProc/GitLogListAction.cpp: parent/all/combined/extra mode dispatch and no-extra check",
+    "src/Git/Git.cpp: CLI GetUnifiedDiffCmd"
+  ],
+  "implemented": [
+    "Single non-root and exactly two revision unified diffs",
+    "Merge Unified diff with submenu: All Parents, Only Merged Files, extra changes and individual parents",
+    "Source CLI byte semantics and no-extra informational sheet",
+    "Owned cancellable Sync reads, access-lease check and registered native read-only viewers",
+    "Shared external viewer preference/Shift dispatch",
+    "Off-list parent labels update both comparison and unified menus"
+  ],
+  "verification": {
+    "engines": [
+      "system Git 2.50.1",
+      "bundled Git 2.55.0"
+    ],
+    "native_receivers_reaped": [
+      7274,
+      7617
+    ],
+    "native_scenarios": [
+      "Existing comparison/parent/clipboard/columns/lifecycle assertions retained",
+      "Byte equality against explicit CLI commands for ordinary parent and two-revision diffs",
+      "Byte equality for both merge parents, -m all-parent, -c merged files and --cc extra changes",
+      "Merge contains resolution changes; separate clean merge exercises actual informational sheet and native OK action",
+      "Captured menu target survives changed selection; root and larger selection menu gates checked",
+      "Native viewer retains original bytes read-only and closes/removes its registration",
+      "Stalled diff read cancelled on owner invalidation with process reaping and no late viewer/error",
+      "Refs/index/config unchanged except deliberate fixture setup"
+    ],
+    "builds": [
+      "Debug unsigned passed",
+      "AppStore unsigned universal passed"
+    ],
+    "bundle_audits": [
+      "Debug passed",
+      "AppStore with required Git passed"
+    ],
+    "inventory_pin_audit": "passed",
+    "documentation_site_build": "passed",
+    "scope": "No Core changes/full Core rerun. Native menus via delegate/actions, real viewers and informational sheet; no physical menu tracking, external launch, signed or complete parity claim."
+  },
+  "sha256": {
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "1b40ac4cc78b7b3b7d39df3ec9c5d416c30ddf9a27c6a510afeeebedb8f7b6ee",
+    "docs/qa/synchronization-revision-list-native-2026-10-11.swift": "11fd496463bfa09f80d5ce7b37d00f9151f9d0fbf0afa57f4ea7461b76973102",
+    "build/qa/sync-unified-history-debug-2026-10-11.log": "47dbc86a92bb0b88a04ccc2e76242a713b5184e038a748024a52170a7f0b3a14",
+    "build/qa/sync-unified-history-store-2026-10-11.log": "bcc2f98252e5410042d87fae624a2aeb01b11f2e58e28bf19806ade64e67eb5b",
+    "build/qa/sync-unified-history-native-final-2026-10-11.log": "9d0113df90a94987ddaf6ee2a95c8b970fb8f1ccb3374556ccbc6be2596b6ab4",
+    "build/qa/sync-unified-history-debug-audit-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/sync-unified-history-store-audit-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/sync-unified-history-inventory-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/sync-unified-history-site-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "remaining": [
+    "Physical menu/Shift/external viewer and keyboard/accessibility acceptance",
+    "Compare changesets and other revision commands",
+    "Source libgit2-specific output behavior; current port uses CLI semantics",
+    "Signed sandbox/Finder and App Store distribution acceptance",
+    "Complete TortoiseGit application parity"
+  ]
+}
