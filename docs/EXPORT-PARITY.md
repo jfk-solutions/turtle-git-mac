@@ -106,3 +106,31 @@ appearance to macOS; complete chooser/edit-history and physical/signed acceptanc
 remain pending. See [light](site/assets/sync-export-light.png) and
 [dark](site/assets/sync-export-dark.png) captures. All 18 static Export controls
 are now mapped as partial in the inventory; this does not certify the dialog.
+
+### Export version pickers follow-up
+
+Export's Branch ellipsis now uses the shared full Browse References window in
+all-reference, single-selection mode. This replaces the earlier branch-only list.
+It follows CChooseVersion::OnBnClickedButtonBrowseRef: both an accepted canonical
+name and Cancel reload the reference catalog, classify branch/tag choices, and
+preserve the typed commit draft. Selecting a tag from the branch chooser changes
+the selected radio to Tag. Unknown reference names remain editable commit
+expressions. Export retains its root/directory scope and ZIP destination.
+
+The Commit ellipsis now uses the shared owned Log picker at the typed revision,
+with single selection and working-tree rows disabled. Cancel retains the draft;
+OK captures the full selected hash. Both children prevent competing pickers,
+Export and normal options closure. Forced options closure ends its child sheet,
+cancels reads and rejects late callbacks. Reference refresh owns its task/token
+and access lease; Cancel export can also terminate this read and close options.
+Complete source focus restoration, revision edit-history, physical input and
+signed repository/chooser acceptance remain open. The previous layout captures
+retain their rendering scope; these changes affect picker routing, not the options
+layout. Verification is recorded separately in
+[the picker record](qa/export-version-pickers-2026-10-11.json).
+
+The two-engine native run completed successfully with actual reference/Log
+sheets, fresh tag creation/selection, Cancel catalog refresh, forced child closure
+and real process cleanup for startup/selection reads. Final Debug and unsigned
+AppStore compilation passed; the current Debug bundle audit and inventory gate
+passed. See the dated record for exact scope and receiver PIDs.

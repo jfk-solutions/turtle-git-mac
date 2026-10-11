@@ -1013,3 +1013,10 @@ Synthetic universal/legacy/malformed/platform/high-target fixtures verify strict
 per-architecture rejection; actual Git/LFS slices are cross-checked against
 explicit `otool -arch`. The validator's full local Git and provenance audit passed;
 see [the deployment record](qa/ci-git-deployment-2026-10-11.json).
+
+Export's shared native version pickers are included in the Sync revision-list
+fixture: actual nested reference/Log sheets, fresh-catalog tag selection, Cancel
+refresh, guarded competing actions, forced child closure and startup/selection
+read process cleanup. The two-engine run passed;
+[the record](qa/export-version-pickers-2026-10-11.json) keeps physical/signed and
+full-dialog acceptance separate.

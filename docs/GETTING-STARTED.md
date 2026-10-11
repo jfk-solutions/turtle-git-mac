@@ -171,7 +171,10 @@ original list. See the [light Find capture](site/assets/sync-find-light.png) and
 
 For a single commit, **Export this version…** opens Export options attached to
 Sync. Choose the destination ZIP and export the whole project or a directory.
-When that commit has a tag, the dialog initially selects the first tag. Close the
+When that commit has a tag, the dialog initially selects the first tag. Use
+the Branch **…** button to browse references; selecting a tag there switches to
+Tag. The Commit **…** button opens Log at the typed revision so you can choose
+one commit. Cancel keeps the current choice. Close the
 completed progress result to return to Sync; Cancel dismisses the options. See
 the [light Export sheet](site/assets/sync-export-light.png) and
 [dark Export sheet](site/assets/sync-export-dark.png).

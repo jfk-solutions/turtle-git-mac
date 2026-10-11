@@ -7,7 +7,11 @@ import TurtleGitCore
 @MainActor final class ExportWindowController: NSWindowController, NSWindowDelegate {
     let model: ExportWindowModel
     var onClosed: () -> Void = {}
-    private var picker: LogWindowController?
+    private var pickers: VersionPickerCoordinator!
+    var referencePicker: ReferenceBrowserWindowController? { pickers.referencePicker }
+    var commitPicker: LogWindowController? { pickers.commitPicker }
+    var configureReferencePicker: (ReferenceBrowserWindowModel) -> Void { get { pickers.configureReferencePicker } set { pickers.configureReferencePicker = newValue } }
+    var configureCommitPicker: (LogWindowModel) -> Void { get { pickers.configureCommitPicker } set { pickers.configureCommitPicker = newValue } }
     private var progressController: ExportProgressWindowController?
     init(repository: GitRepository, access: RepositoryAccessLease?, revision: String, directory: String = "", preferences: UserDefaults = .standard) {
         model = ExportWindowModel(repository: repository, access: access, directory: directory, preferences: preferences)
@@ -21,7 +25,7 @@ import TurtleGitCore
         window.contentMinSize = NSSize(width: max(600, fitting.width), height: max(360, fitting.height))
         window.setContentSize(NSSize(width: max(620, fitting.width), height: max(360, fitting.height))); window.center()
         model.close = { [weak self] in
-            guard let self, !self.model.busy, self.model.progress == nil, self.window?.attachedSheet == nil, let window = self.window else { return }
+            guard let self, !self.model.busy, self.model.progress == nil, self.model.pickerTarget == nil, self.window?.attachedSheet == nil, let window = self.window else { return }
             window.sheetParent?.endSheet(window); window.close()
         }
         model.onProgress = { [weak self] result in
@@ -32,15 +36,8 @@ import TurtleGitCore
             if let child = controller.window { window.beginSheet(child) } else { result.abandonPresentation() }
         }
         model.chooseDestination = { [weak self] in self?.chooseDestination() }
-        model.chooseCommit = { [weak self] in
-            guard let self, let window = self.window, window.attachedSheet == nil else { return }
-            let picker = LogWindowController(repository: repository, access: access, onChoose: { [weak self] entry in
-                self?.picker = nil
-                if let entry { self?.model.commit = entry.hash }
-            })
-            self.picker = picker; picker.model.reload()
-            if let child = picker.window { window.beginSheet(child) }
-        }
+        pickers = VersionPickerCoordinator(window: window, model: model, access: access, preferences: preferences)
+        model.chooseCommit = { [weak model] in model?.onBrowsePicker?(.commit) }
         model.confirmOverwrite = { [weak window] path in
             guard let window, window.attachedSheet == nil else { return false }
             let alert = NSAlert(); alert.messageText = "Replace existing ZIP file?"; alert.informativeText = path
@@ -62,17 +59,17 @@ import TurtleGitCore
             self.model.outputAccess = lease; self.model.destination = url.path
         }
     }
-    var activeOperation: Bool { model.busy || model.progress != nil || window?.attachedSheet != nil }
+    var activeOperation: Bool { model.busy || model.progress != nil || model.pickerTarget != nil || window?.attachedSheet != nil }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !activeOperation }
     func windowWillClose(_ notification: Notification) {
         model.invalidate()
         if let sheet = window?.attachedSheet { window?.endSheet(sheet, returnCode: .abort); sheet.close() }
-        picker?.close(); picker = nil; progressController?.window?.close(); progressController = nil; onClosed()
+        pickers.invalidate(); progressController?.window?.close(); progressController = nil; onClosed()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
-@MainActor final class ExportWindowModel: ObservableObject {
+@MainActor final class ExportWindowModel: ObservableObject, VersionPickerModel {
     enum Target { case head, branch, tag, commit }
     let repository: GitRepository
     let access: RepositoryAccessLease?
@@ -90,13 +87,55 @@ import TurtleGitCore
     @Published var error: String?
     @Published var output = ""
     @Published var exported: URL?
-    @Published var browseReferences = false
+    @Published private(set) var pickerTarget: CheckoutTarget?
+    var onBrowsePicker: ((CheckoutTarget) -> Void)?
+    var commitRevision: String { commit }
+    private var referenceSelectionToken: OperationCancellation?
+    private var referenceSelectionTask: Task<Void, Never>?
+    func beginPicker(_ choice: CheckoutTarget) -> Bool {
+        guard !invalidated, !busy, progress == nil, pickerTarget == nil,
+              (choice == .branch && target == .branch) || (choice == .commit && target == .commit) else { return false }
+        pickerTarget = choice; return true
+    }
+    func finishPicker() {
+        if referenceSelectionToken != nil { referenceSelectionToken?.cancel(); referenceSelectionTask?.cancel(); busy = false }
+        referenceSelectionToken = nil; referenceSelectionTask = nil; pickerTarget = nil
+    }
+    func acceptReferenceSelection(_ name: String?, completion: @escaping () -> Void) {
+        guard !invalidated, pickerTarget == .branch else { return }
+        let requested = name ?? revision, draft = commit, request = OperationCancellation(), repository = repository
+        referenceSelectionToken = request; busy = true
+        referenceSelectionTask = Task { [weak self, access] in
+            _ = access
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let catalog = try await repository.checkoutReferences(cancellation: request)
+                guard let self, !self.invalidated, self.referenceSelectionToken === request, !request.isCancelled, !Task.isCancelled else { return }
+                self.references = catalog
+                if let reference = catalog.first(where: { GitReferenceName.equal($0.name, requested) }), let kind = reference.target {
+                    if kind == .branch { self.target = .branch; self.branch = requested }
+                    else { self.target = .tag; self.tag = requested }
+                    self.commit = draft
+                } else if requested == "HEAD" { self.target = .head }
+                else { self.target = .commit; self.commit = requested }
+            } catch {
+                guard let self, !self.invalidated, self.referenceSelectionToken === request, !request.isCancelled else { return }
+                self.error = error.localizedDescription
+            }
+            guard let self, self.referenceSelectionToken === request else { return }
+            self.referenceSelectionToken = nil; self.referenceSelectionTask = nil; self.busy = false; self.pickerTarget = nil; completion()
+        }
+    }
+    func acceptCommitSelection(_ entry: LogEntry?) {
+        guard !invalidated, pickerTarget == .commit else { return }
+        if let entry { commit = entry.hash }; finishPicker()
+    }
     private let preferences: UserDefaults
     private var invalidated = false
     private var loadTask: Task<Void, Never>?
     private var loadCancellation: OperationCancellation?
     func invalidate() {
-        invalidated = true; cancellation?.cancel(); progress?.invalidate()
+        invalidated = true; cancellation?.cancel(); progress?.invalidate(); finishPicker()
         loadCancellation?.cancel(); loadTask?.cancel(); loadCancellation = nil; loadTask = nil; busy = false
     }
     @Published private(set) var progress: ExportProgressWindowModel?
@@ -115,7 +154,7 @@ import TurtleGitCore
     var tags: [CheckoutReference] { references.filter { $0.name.hasPrefix("refs/tags/") } }
     var revision: String { switch target { case .head: return "HEAD"; case .branch: return branch; case .tag: return tag; case .commit: return commit } }
     func canReuseForRevision(_ requestedRevision: String, directory requestedDirectory: String) -> Bool {
-        !busy && progress == nil && revision == requestedRevision && directory == requestedDirectory && destination.isEmpty && exported == nil && wholeProject == requestedDirectory.isEmpty
+        !busy && progress == nil && pickerTarget == nil && revision == requestedRevision && directory == requestedDirectory && destination.isEmpty && exported == nil && wholeProject == requestedDirectory.isEmpty
     }
     static func directoryScope(root: URL, paths: [String]) -> String {
         guard paths.count == 1, paths[0] != ".", !paths[0].isEmpty,
@@ -126,7 +165,7 @@ import TurtleGitCore
         self.repository = repository; self.access = access; self.directory = directory; self.preferences = preferences; wholeProject = directory.isEmpty
     }
     func load(revision preset: String) {
-        guard !invalidated, !busy, progress == nil else { return }; busy = true
+        guard !invalidated, !busy, progress == nil, pickerTarget == nil else { return }; busy = true
         let repository = repository, request = OperationCancellation()
         loadCancellation = request
         loadTask = Task { [weak self, access] in
@@ -150,7 +189,7 @@ import TurtleGitCore
         }
     }
     func export() {
-        guard !invalidated, !busy, progress == nil, !browseReferences, !destination.isEmpty, !revision.isEmpty else { return }
+        guard !invalidated, !busy, progress == nil, pickerTarget == nil, !destination.isEmpty, !revision.isEmpty else { return }
         var url = URL(fileURLWithPath: destination)
         if url.pathExtension.isEmpty { url.appendPathExtension("zip") }
         if GitRuntime.isAppStoreBuild {
@@ -181,6 +220,7 @@ import TurtleGitCore
     }
     func cancel() {
         if let progress { progress.cancel() }
+        else if referenceSelectionToken != nil { finishPicker(); close() }
         else if let request = loadCancellation {
             request.cancel(); loadTask?.cancel(); loadCancellation = nil; loadTask = nil; busy = false; close()
         } else { cancellation?.cancel() }
@@ -203,7 +243,7 @@ struct ExportDialog: View {
             GroupBox("Revision") {
                 VStack(alignment: .leading, spacing: 10) {
                     radio("HEAD" + (model.currentBranch.isEmpty ? "" : " (" + model.currentBranch + ")"), .head).frame(maxWidth: .infinity, alignment: .leading)
-                    HStack { radio("Branch", .branch).frame(width: 100, alignment: .leading); ReferencePopup(references: model.branches, selection: $model.branch).disabled(model.target != .branch); Button("…") { model.browseReferences = true }.disabled(model.target != .branch).accessibilityLabel("Browse references") }
+                    HStack { radio("Branch", .branch).frame(width: 100, alignment: .leading); ReferencePopup(references: model.branches, selection: $model.branch).disabled(model.target != .branch); Button("…") { model.onBrowsePicker?(.branch) }.disabled(model.target != .branch).accessibilityLabel("Browse references") }
                     HStack { radio("Tag", .tag).frame(width: 100, alignment: .leading); ReferencePopup(references: model.tags, selection: $model.tag).disabled(model.target != .tag); Color.clear.frame(width: 29) }
                     HStack { radio("Commit", .commit).frame(width: 100, alignment: .leading); TextField("Commit", text: $model.commit).disabled(model.target != .commit); Button("…") { model.chooseCommit() }.disabled(model.target != .commit).accessibilityLabel("Choose commit") }
                 }.padding(8)
@@ -220,12 +260,7 @@ struct ExportDialog: View {
             }
         }.padding(16)
         .alert("Export failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
-        .sheet(isPresented: $model.browseReferences) {
-            VStack { Text("Browse references").font(.headline)
-                List { ForEach(model.branches, id: \.name) { ref in Button(ref.label) { model.branch = ref.name; model.browseReferences = false } } }
-                Button("Cancel") { model.browseReferences = false }.keyboardShortcut(.cancelAction)
-            }.padding(16).frame(width: 500, height: 350)
-        }
+
     }
 }
 

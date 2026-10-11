@@ -1,0 +1,58 @@
+{
+  "date": "2026-10-11",
+  "status": "partial-export-version-pickers-native-two-engine-verified",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_contracts": [
+    "ChooseVersion.h OnBnClickedButtonBrowseRef uses gPickRef_All and refreshes on accept/Cancel",
+    "ChooseVersion.h OnBnClickedChooseVersion uses typed revision, single-selection Log with no working tree",
+    "ChooseVersion.h SelectRef switches branch/tag/commit radio"
+  ],
+  "verification": {
+    "command": "python3 scripts/test-synchronization-history.py --revision-list --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+    "native_exit_code": 0,
+    "scope": [
+      "actual owned nested all-reference Browse References",
+      "actual single-selection Log at typed revision, no working-tree rows",
+      "Log Cancel preserves draft and acceptance captures full hash",
+      "reference chooser duplicate-open and options-close guards",
+      "tag created while chooser open causes fresh parent catalog/tag classification",
+      "reference Cancel refresh removes deleted tag while retaining branch/commit draft",
+      "forced options close dismisses either picker and rejects late accept",
+      "startup and reference-selection refresh Cancel/forced owner close cancel and reap helper and sleep child with no late fields",
+      "existing actual ZIP, menu, comparison, unchanged refs/index/config and process checks retained"
+    ],
+    "debug_build_exit_code": 0,
+    "unsigned_appstore_build_exit_code": 0,
+    "debug_bundle_audit_exit_code": 0,
+    "unsigned_appstore_bundle_audit": "Prior picker build audit passed before final one-line refresh cancellation addition; not rerun because packaged resources were unchanged. Final AppStore compilation passed.",
+    "inventory_exit_code": 0,
+    "corrected_fixture_attempt": "Capture the reference-refresh baseline only after Export startup settles; the first extended fixture captured HEAD before the startup preset hash was installed. Failed receiver 74497 was reaped.",
+    "complete_core_suite": "Not rerun for native picker routing.",
+    "hosted_ci": "Run 38163890913 has passed Git runtime build and per-slice deployment regression; Core tests remain active. This run predates the Export picker changes and is not full CI success.",
+    "receivers_reaped": [
+      76433,
+      77603
+    ]
+  },
+  "remaining": [
+    "Focus restoration and editable revision-history parity",
+    "Physical picker input/rendering/accessibility acceptance",
+    "Signed repository grants and App Store/Finder acceptance",
+    "Full upstream dialog/command parity"
+  ],
+  "sha256": {
+    "Sources/TurtleGitMac/ExportWindow.swift": "d8776b55217ccf155392ffe800b8428db15612bdd73d2ad943855957d86f5a5e",
+    "Sources/TurtleGitMac/SwitchWindow.swift": "10c72d73acfe9290ca0715e83f976e82e1d3e7b80ed112f7af8a684a463adfd6",
+    "docs/qa/synchronization-revision-list-native-2026-10-11.swift": "0a39e5a8833cb20465bc4b2dfe224831ef27f92fc22841dc6eda6494c53d13f4",
+    "docs/upstream-files.csv": "fb4aa2d0f319b97f9644373e60bacb5fd2fd8e288e2468bc98845e4269ffb386",
+    "docs/upstream-controls.csv": "4d71d7bc3f365c11427f4e56296ed694cdf436df7c83cbb5acd3a1f3f044ab6e",
+    "build/qa/export-picker-native-2026-10-11.log": "a192955e463f2c37f4734cdee234f886998126f7ec39d3a4fce5247652947f29",
+    "build/qa/export-picker-native-final-2026-10-11.log": "83d0cce4360c39f57b7cf167ccf52fabc845368b7d73820043bd14e6570c05e0",
+    "build/qa/export-picker-native-cancel-final-2026-10-11.log": "fa9df4ec0f39e34f4ca2ebaeaf31938e1295b6cffa574f78dadeb7beaf942ab5",
+    "build/qa/export-picker-debug-cancel-2026-10-11.log": "e86adfbf7374da6094410dc7b3a48c54cc05d5c5aea4b67c01987c8e617f0b4c",
+    "build/qa/export-picker-store-cancel-2026-10-11.log": "5a3dafa9226ca8db4682c01ec46a4024bd9b59e78697299ba3a4cff50f6fcee0",
+    "build/qa/export-picker-debug-cancel-audit-2026-10-11.log": "f6874a395191e17601f5f1474d01ad4b2f07b245fc64cb0baae3a3465d18fe36",
+    "build/qa/export-picker-store-audit-2026-10-11.log": "025a02cda9b547f00533c3ecf90f6728fded47e69020e7f2e148177609ad59cb",
+    "build/qa/export-picker-inventory-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a"
+  }
+}

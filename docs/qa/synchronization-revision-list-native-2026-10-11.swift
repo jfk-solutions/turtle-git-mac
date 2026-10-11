@@ -206,7 +206,61 @@ struct SynchronizationRevisionListVerification {
         }
         owner.showHistoryFind(sourceTab: 4); precondition(owner.historyFind.isEmpty)
         precondition(NSApp.sendAction(captured.action!, to: capturedTarget, from: captured) && owner.historyExportController === first)
+        let draft = first.model.commit
+        first.model.chooseCommit()
+        let logPicker = first.commitPicker!
+        try await settle { !logPicker.model.busy && !logPicker.model.entries.isEmpty }
+        precondition(logPicker.window!.sheetParent === first.window && logPicker.model.selecting && !logPicker.model.selectingMultiple && !logPicker.model.showWorkingTree && logPicker.model.endRevision == draft)
+        precondition(first.activeOperation && !first.windowShouldClose(first.window!))
+        first.model.chooseCommit(); precondition(first.commitPicker === logPicker)
+        logPicker.model.close()
+        try await settle { first.commitPicker == nil && first.model.pickerTarget == nil }
+        precondition(first.model.commit == draft)
+        first.model.commit = outgoing[0].hash; first.model.chooseCommit()
+        let chooseLog = first.commitPicker!
+        try await settle { !chooseLog.model.busy && chooseLog.model.entries.contains { $0.hash == draft } }
+        chooseLog.model.select([draft]); chooseLog.model.accept()
+        try await settle { first.commitPicker == nil && first.model.pickerTarget == nil }
+        precondition(first.model.commit == draft)
+        first.model.target = .branch; first.model.branch = "refs/heads/main"
+        first.model.onBrowsePicker?(.branch)
+        let refsPicker = first.referencePicker!
+        try await settle { !refsPicker.model.busy && !refsPicker.model.rows.isEmpty }
+        precondition(refsPicker.window!.sheetParent === first.window && refsPicker.model.picking && !refsPicker.model.pickMultiple)
+        if case .all = refsPicker.model.scope {} else { preconditionFailure("Export requires all reference kinds") }
+        precondition(first.model.pickerTarget == .branch && !first.windowShouldClose(first.window!))
+        first.model.onBrowsePicker?(.branch); precondition(first.referencePicker === refsPicker)
+        precondition(!first.model.references.contains { $0.name == "refs/tags/export-picker-late" })
+        _ = try await repo.run(["tag", "export-picker-late", draft])
+        refsPicker.model.load(); try await settle { !refsPicker.model.busy }
+        refsPicker.model.setFolder("refs/tags")
+        let pickedTag = refsPicker.model.rows.first { $0.reference.name.rawValue == "refs/tags/export-picker-late" }!.reference.name
+        refsPicker.model.selected = pickedTag; refsPicker.model.accept()
+        try await settle { first.referencePicker == nil && !first.model.busy && first.model.pickerTarget == nil }
+        precondition(first.model.target == .tag && first.model.tag == pickedTag.rawValue && first.model.commit == draft && first.model.references.contains { $0.name == pickedTag.rawValue })
+        _ = try await repo.run(["tag", "-d", "export-picker-late"])
+        first.model.target = .branch; first.model.onBrowsePicker?(.branch)
+        let cancelRefs = first.referencePicker!
+        try await settle { !cancelRefs.model.busy }
+        cancelRefs.model.cancel()
+        try await settle { first.referencePicker == nil && !first.model.busy && first.model.pickerTarget == nil }
+        precondition(first.model.target == .branch && first.model.branch == "refs/heads/main" && first.model.commit == draft && !first.model.references.contains { $0.name == pickedTag.rawValue })
         first.model.close(); try await settle { owner.historyExportController == nil && window.attachedSheet == nil && !model.exportingHistory }
+        for choice in [CheckoutTarget.branch, .commit] {
+            model.onHistoryExport?(outgoing[rootIndex].hash)
+            let forcedOptions = owner.historyExportController!
+            try await settle { !forcedOptions.model.busy }
+            forcedOptions.model.target = choice == .branch ? .branch : .commit
+            forcedOptions.model.onBrowsePicker?(choice)
+            let heldRefs = forcedOptions.referencePicker, heldLog = forcedOptions.commitPicker
+            try await settle { heldRefs.map { !$0.model.busy } ?? (heldLog.map { !$0.model.busy } ?? false) }
+            let priorCommit = forcedOptions.model.commit, priorBranch = forcedOptions.model.branch
+            forcedOptions.close()
+            try await settle { owner.historyExportController == nil && window.attachedSheet == nil && forcedOptions.model.pickerTarget == nil }
+            heldRefs?.model.accept(); heldLog?.model.accept()
+            precondition(forcedOptions.referencePicker == nil && forcedOptions.commitPicker == nil && forcedOptions.model.commit == priorCommit && forcedOptions.model.branch == priorBranch)
+            precondition(heldRefs?.window?.sheetParent == nil && heldLog?.window?.sheetParent == nil)
+        }
         model.tab = 0; try await settle { table(window).numberOfRows == outgoing.count }
         let tagIndex = outgoing.firstIndex { $0.references.contains { $0.name.hasPrefix("refs/tags/") } }!
         let tags = outgoing[tagIndex].references.filter { $0.name.hasPrefix("refs/tags/") }
@@ -239,7 +293,8 @@ struct SynchronizationRevisionListVerification {
         model.confirmingQuit = false
         // Freeze only Export's catalog read, after Sync's own startup settles.
         func quote(_ text: String) -> String { "'" + text.replacingOccurrences(of: "'", with: "'\\''") + "'" }
-        for forced in [false, true] {
+        for phase in ["startup-cancel", "startup-close", "reference-refresh-cancel", "reference-refresh-close"] {
+            let forced = phase.hasSuffix("-close"), refreshing = phase.hasPrefix("reference-refresh")
             let directory = root.deletingLastPathComponent().appendingPathComponent("export-startup-" + UUID().uuidString)
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             defer { try? FileManager.default.removeItem(at: directory) }
@@ -265,22 +320,34 @@ struct SynchronizationRevisionListVerification {
             let closing = SynchronizationWindowController(repository: slowRepo, access: nil, preferences: preferences)
             closing.showWindow(nil); defer { closing.close() }
             try await settle { !closing.model.busy && !closing.model.hasBlockingChild }
-            try Data().write(to: trigger)
+            if !refreshing { try Data().write(to: trigger) }
             closing.model.onHistoryExport?(outgoing[rootIndex].hash)
             let waiting = closing.historyExportController!
+            var priorCommit = waiting.model.commit
+            var priorCatalog: [String] = []
+            if refreshing {
+                try await settle { !waiting.model.busy }
+                priorCommit = waiting.model.commit; priorCatalog = waiting.model.references.map(\.name)
+                waiting.model.target = .branch; waiting.model.branch = "refs/heads/main"; waiting.model.onBrowsePicker?(.branch)
+                let refs = waiting.referencePicker!
+                try await settle { !refs.model.busy }
+                try Data().write(to: trigger); refs.model.cancel()
+            }
             try await settle { FileManager.default.fileExists(atPath: marker.path) }
             let pids = try String(contentsOf: marker).split(whereSeparator: { $0.isWhitespace }).compactMap { Int32($0) }
             precondition(pids.count == 2 && pids.allSatisfy { kill($0, 0) == 0 } && waiting.model.busy)
             if forced { closing.close() } else { waiting.model.cancel() }
             try await settle { closing.historyExportController == nil && !closing.model.exportingHistory && pids.allSatisfy { kill($0, 0) != 0 } }
-            precondition(waiting.model.references.isEmpty && waiting.model.currentBranch.isEmpty && waiting.model.error == nil && !waiting.model.busy)
+            precondition(waiting.model.error == nil && !waiting.model.busy && waiting.model.pickerTarget == nil)
+            if refreshing { precondition(waiting.model.references.map(\.name) == priorCatalog && waiting.model.commit == priorCommit && waiting.model.branch == "refs/heads/main") }
+            else { precondition(waiting.model.references.isEmpty && waiting.model.currentBranch.isEmpty) }
         }
         let finalRefs = try await repo.run(["show-ref"]).stdout
         let finalIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")), finalConfig = try Data(contentsOf: root.appendingPathComponent(".git/config"))
         precondition(finalRefs == refs && finalIndex == index && finalConfig == config)
         _ = try await repo.run(["update-ref", "refs/remotes/origin/main", narrowedRemote])
         model.refresh(); try await settle { !model.busy && !model.hasBlockingChild }
-        print("PASS: Sync Export source menu/icon, captured hash/tag, modal ownership, actual ZIP bytes, progress close, startup Cancel/forced owner close, process cleanup and unchanged Git state")
+        print("PASS: Sync Export source menu/icon, captured hash/tag, modal ownership, actual ZIP bytes, progress close, full reference and single-revision Log pickers, refreshed tag classification/Cancel catalogs, forced child close, startup Cancel/forced owner close, selection refresh process cleanup and unchanged Git state")
     }
     @MainActor static func verifyComparisonSelectionCases(root: URL, git: URL, preferences: UserDefaults) async throws {
         try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
