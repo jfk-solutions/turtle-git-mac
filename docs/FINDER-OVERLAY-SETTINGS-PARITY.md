@@ -5,7 +5,7 @@ CPathFilter, IconOverlay.cpp and their resource dialogs at
 7338078f8ddd924b8cddee35f512f2286072136d.
 
 The native Settings tree now includes Icon Overlays and its Overlay Handlers
-child with the original Overlays.ico. Source group order is retained: overlay
+and Icon Set children with the original Overlays.ico. Source group order is retained: overlay
 propagation controls, status cache, drive types, exclude/include editors and
 Show excluded folders as normal. Windows A:/B: drive and DLL/elevation switches
 have no direct Finder Sync counterpart; Finder provides the extension surface.
@@ -30,10 +30,19 @@ open. Invalid relative/NUL paths cannot be saved.
 
 Overlay Handlers offers working ignored, unversioned, added and deleted toggles
 with original status artwork. Normal, modified and conflicted remain enabled in
-the UI. Skip-worktree and assume-valid/unchanged overlays require additional
-index metadata/artwork and are pending; the complete source page is not certified.
+the UI. Skip-worktree and assume-valid/unchanged handlers now use the original LockedIcon
+and ReadOnlyIcon artwork. The containing app reads NUL-delimited `ls-files -v`
+index flags for main repositories and scanned submodules, preserving Unicode and
+newline paths. They apply only to normal files: skip-worktree has precedence over
+assume-unchanged; disabling a handler allows the other active flag or normal badge.
+Changed/conflicted status has precedence. Refresh removes stale child flags while
+preserving independently opened repositories. The complete source page is not certified.
 Finder has no Explorer overlay-slot allocation or cross-Tortoise registry control.
-The original icon set is retained; source icon-set switching is still pending.
+Icon Set offers all 16 pinned source sets, including List and Symbols previews.
+All 144 ICO assets are copied without modification, with original per-set notices
+and SHA-256 provenance. Apply saves the selection with the shared overlay draft;
+Finder re-registers all nine images and clears/reassigns cached badge identifiers
+on a set change. Live Finder refresh acceptance remains pending.
 
 Settings pages share one draft and property-sheet Apply/Cancel participant.
 Apply atomically publishes overlay-settings.json in the signed App Group, saves
@@ -68,9 +77,24 @@ and seven unusual SwiftCompile diagnostics reporting exit code 0 with no output;
 this is not a clean diagnostics claim. See
 `qa/network-finder-settings-batch-2026-10-11.json`.
 
+Grouped icon/index/menu continuation: native Debug arm64 Xcode build exited 0;
+34 focused Core tests passed with zero failures in 6.585 seconds. The native
+framework contains all 144 overlay ICO assets. All nine badges in all 16 sets
+decode to actual AppKit pixels at 16 and 32 points. Tests cover live Git flag
+reads with Unicode/newline paths and both bits, unchanged index bytes, flag
+clearing/cancellation, badge priority and disabled handlers, exclusions/None,
+old/new preferences and snapshot compatibility, stale-child flag removal,
+independent repository preservation and known-root menu classification.
+Existing menu/icon/submodule/Network checks ran in the same grouped pass.
+No app was launched and no full suite was rerun. Xcode again reported seven
+exit-zero/no-output SwiftCompile diagnostics alongside existing warnings.
+See `qa/finder-icons-batch-2026-10-11.json`.
+
 Native Finder badge refresh, settings focus/layout/theme, mount classification,
 App Group notification propagation and signed sandbox acceptance remain open.
-Legacy aggregated menu status for roots containing only unversioned files also
-needs a separate menu-eligibility review. This batch preserves that raw status;
-narrow badge tests do not prove complete context-menu parity. The full port and
+Known repository roots now retain versioned menu classification even when their
+aggregated status is unversioned, ignored or absent. Creation-menu classification
+also recognizes those roots, preventing extended-menu Initialize there. Untracked
+files retain their Add eligibility and are not classified as versioned. Raw cached
+status remains unchanged; narrow tests do not prove complete context-menu parity. The full port and
 inventory certification remain incomplete.

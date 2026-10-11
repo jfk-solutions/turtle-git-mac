@@ -5,14 +5,10 @@ import TurtleGitCore
 /// Finder never launches Git. Only the containing application scans repositories.
 @objc(FinderSync) final class FinderSync: FIFinderSync {
     private var snapshot: FinderSnapshot?
-    private var badges: [String: FileState] = [:]
+    private var badges: [String: FinderOverlayBadge] = [:]
+    private var iconSet: FinderOverlayIconSet?
     override init() {
         super.init()
-        let controller = FIFinderSyncController.default()
-        for state in FileState.allCases {
-            guard let image = state.icon.image() else { continue }
-            controller.setBadgeImage(image, label: state.rawValue.capitalized, forBadgeIdentifier: state.rawValue)
-        }
         reload()
         DistributedNotificationCenter.default().addObserver(self, selector: #selector(reload), name: NSNotification.Name(FinderIntegration.notification), object: nil)
     }
@@ -20,16 +16,25 @@ import TurtleGitCore
     @objc private func reload() {
         let old = badges
         snapshot = FinderSnapshot.read()
+        let settings = FinderOverlaySettings.read(), changedIcons = iconSet != settings.iconSet
+        let controller = FIFinderSyncController.default()
+        if changedIcons {
+            for state in FinderOverlayBadge.allCases {
+                guard let image = state.image(set: settings.iconSet) else { continue }
+                controller.setBadgeImage(image, label: state.title, forBadgeIdentifier: state.rawValue)
+            }
+            iconSet = settings.iconSet
+        }
         if let snapshot {
             let volumes = Dictionary(uniqueKeysWithValues: Set(snapshot.roots).map { ($0, FinderOverlaySettings.volumeKind(for: URL(fileURLWithPath: $0))) })
-            badges = FinderOverlaySettings.read().badges(snapshot: snapshot, volume: { volumes[$0] ?? .unknown }, isDirectory: { path in
+            badges = settings.overlayBadges(snapshot: snapshot, volume: { volumes[$0] ?? .unknown }, isDirectory: { path in
                 var directory: ObjCBool = false; return FileManager.default.fileExists(atPath: path, isDirectory: &directory) && directory.boolValue
             })
         } else { badges = [:] }
-        let controller = FIFinderSyncController.default()
         controller.directoryURLs = Set((snapshot?.roots ?? []).map { URL(fileURLWithPath: $0, isDirectory: true) })
         let paths = Set(old.keys).union(badges.keys)
-        for path in paths where old[path] != badges[path] {
+        for path in paths where changedIcons || old[path] != badges[path] {
+            if changedIcons { controller.setBadgeIdentifier("", for: URL(fileURLWithPath: path)) }
             controller.setBadgeIdentifier(badges[path]?.rawValue ?? "", for: URL(fileURLWithPath: path))
         }
     }

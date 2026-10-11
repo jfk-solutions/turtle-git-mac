@@ -104,6 +104,7 @@ import TurtleGitCore
     private var timer: Timer?
     private var cacheStates: [String: FileState] = [:]
     private var cacheOverlayEntries: [String: FileState]?
+    private var cacheIndexFlags: [String: FinderIndexFlags]?
     private var cacheRepositories: [String: FinderRepositoryMetadata] = [:]
     private var monitoredRoots: [String] = []
     var visibleEntries: [StatusEntry] { entries.filter { showIgnored || $0.state != .ignored } }
@@ -143,6 +144,7 @@ import TurtleGitCore
             if let snapshot = await Task.detached(operation: { FinderSnapshot.read() }).value, root == nil {
                 cacheStates = snapshot.states; monitoredRoots = snapshot.roots; cacheRepositories = snapshot.repositories
                 cacheOverlayEntries = snapshot.overlayEntries
+                cacheIndexFlags = snapshot.indexFlags
             }
         }
         timer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
@@ -263,12 +265,14 @@ import TurtleGitCore
         let metadata = try await repository.finderMetadata(knownBare: bare)
         mergeActive = metadata.mergeActive
         var snapshot = FinderSnapshot.build(root: root, tracked: tracked, changes: entries)
+        snapshot.indexFlags = bare ? [:] : try await repository.finderIndexFlags()
         snapshot.repositories[root.path] = metadata
         let children = bare ? FinderSubmoduleScan() : try await repository.finderSubmoduleSnapshots(authorizedRoot: activeAccess?.url ?? root)
-        var cached = FinderSnapshot(roots: monitoredRoots, states: cacheStates, repositories: cacheRepositories, overlayEntries: cacheOverlayEntries)
+        var cached = FinderSnapshot(roots: monitoredRoots, states: cacheStates, repositories: cacheRepositories, overlayEntries: cacheOverlayEntries, indexFlags: cacheIndexFlags)
         cached.replaceSubtree(root: root, snapshots: [snapshot] + children.snapshots)
         monitoredRoots = cached.roots; cacheStates = cached.states; cacheRepositories = cached.repositories
         cacheOverlayEntries = cached.overlayEntries
+        cacheIndexFlags = cached.indexFlags
         do {
             let written = try await Task.detached(operation: { try cached.write() }).value
             finderStatus = written ? (children.failures.isEmpty ? "Finder cache updated" : "Finder cache updated; \(children.failures.count) submodule scan(s) failed: " + children.failures.sorted { $0.key < $1.key }.map { $0.key + ": " + $0.value }.joined(separator: "; ")) : "Finder cache unavailable: App Group access required"

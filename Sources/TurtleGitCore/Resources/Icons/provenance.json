@@ -662,6 +662,776 @@
       "asset": "Overlays.ico",
       "source": "src/Resources/Overlays.ico",
       "sha256": "471c904177748cedd36b93a893c6f0d765bd37df37bad9ae996448c69479e70b"
+    },
+    {
+      "asset": "status-skip-worktree.ico",
+      "source": "src/Resources/Icons/XPStyle/LockedIcon.ico",
+      "sha256": "69873cd2bdf26ce7ec3805071bb473f116964f8a1c358ea28f2b115ee21f3a58"
+    },
+    {
+      "asset": "status-assume-unchanged.ico",
+      "source": "src/Resources/Icons/XPStyle/ReadOnlyIcon.ico",
+      "sha256": "7f3bf72822f95353cc930e6be2fca80979e6a8f97e548e0ef68cabf7bc9fbefc"
+    },
+    {
+      "asset": "OverlaySets/Blip/NormalIcon.ico",
+      "source": "src/Resources/Icons/Blip/NormalIcon.ico",
+      "sha256": "23d21a3c44c1b8d330ffa44b32928715978c0ae0f3b4b6a41731696265e2b0e0"
+    },
+    {
+      "asset": "OverlaySets/Blip/ModifiedIcon.ico",
+      "source": "src/Resources/Icons/Blip/ModifiedIcon.ico",
+      "sha256": "ee354cdea4946f09a6e93b28dcb22ab8e4a94897dd958e66acb76c47f4c350c8"
+    },
+    {
+      "asset": "OverlaySets/Blip/AddedIcon.ico",
+      "source": "src/Resources/Icons/Blip/AddedIcon.ico",
+      "sha256": "55fc9783200e99ddf8d3dafa6be3c854cdb29fc8e6f458a360b44a618e8cdf27"
+    },
+    {
+      "asset": "OverlaySets/Blip/DeletedIcon.ico",
+      "source": "src/Resources/Icons/Blip/DeletedIcon.ico",
+      "sha256": "f549d7c73047a6dbe2e8856299a644037a6f9be9378e5ece59962cd3337f5e76"
+    },
+    {
+      "asset": "OverlaySets/Blip/UnversionedIcon.ico",
+      "source": "src/Resources/Icons/Blip/UnversionedIcon.ico",
+      "sha256": "72974297ab2632722a2e7260c8761cde147ce94158de9424ef1d1217148a8157"
+    },
+    {
+      "asset": "OverlaySets/Blip/IgnoredIcon.ico",
+      "source": "src/Resources/Icons/Blip/IgnoredIcon.ico",
+      "sha256": "97ec66ecd62edbf112bea4e6bf4ce7f785b4f15d6f1135479c9619c267f91cd4"
+    },
+    {
+      "asset": "OverlaySets/Blip/ConflictIcon.ico",
+      "source": "src/Resources/Icons/Blip/ConflictIcon.ico",
+      "sha256": "acc4b5552f33e910762ecb0444d3133f8314ab59469f74a5d932ae07d4209bd9"
+    },
+    {
+      "asset": "OverlaySets/Blip/LockedIcon.ico",
+      "source": "src/Resources/Icons/Blip/LockedIcon.ico",
+      "sha256": "4f8b44f24225eb223f0c2a948c871d07cd02b1b722e531dea5d61d905180d6ba"
+    },
+    {
+      "asset": "OverlaySets/Blip/ReadOnlyIcon.ico",
+      "source": "src/Resources/Icons/Blip/ReadOnlyIcon.ico",
+      "sha256": "54c364896025688e9c570030404d9e029edfb8f79a5500f53ca433c8c87888b3"
+    },
+    {
+      "asset": "OverlaySets/Blip Clean/NormalIcon.ico",
+      "source": "src/Resources/Icons/Blip Clean/NormalIcon.ico",
+      "sha256": "0a15dbee12c70493d8a2b6841b89b5f99d3a146174e59e6a91e066ad3fe8f550"
+    },
+    {
+      "asset": "OverlaySets/Blip Clean/ModifiedIcon.ico",
+      "source": "src/Resources/Icons/Blip Clean/ModifiedIcon.ico",
+      "sha256": "d6a1114a88846e1ac70f97f9d5b0706e11d943e18aa0b9c46745e2827a829562"
+    },
+    {
+      "asset": "OverlaySets/Blip Clean/AddedIcon.ico",
+      "source": "src/Resources/Icons/Blip Clean/AddedIcon.ico",
+      "sha256": "55fc9783200e99ddf8d3dafa6be3c854cdb29fc8e6f458a360b44a618e8cdf27"
+    },
+    {
+      "asset": "OverlaySets/Blip Clean/DeletedIcon.ico",
+      "source": "src/Resources/Icons/Blip Clean/DeletedIcon.ico",
+      "sha256": "f549d7c73047a6dbe2e8856299a644037a6f9be9378e5ece59962cd3337f5e76"
+    },
+    {
+      "asset": "OverlaySets/Blip Clean/UnversionedIcon.ico",
+      "source": "src/Resources/Icons/Blip Clean/UnversionedIcon.ico",
+      "sha256": "72974297ab2632722a2e7260c8761cde147ce94158de9424ef1d1217148a8157"
+    },
+    {
+      "asset": "OverlaySets/Blip Clean/IgnoredIcon.ico",
+      "source": "src/Resources/Icons/Blip Clean/IgnoredIcon.ico",
+      "sha256": "97ec66ecd62edbf112bea4e6bf4ce7f785b4f15d6f1135479c9619c267f91cd4"
+    },
+    {
+      "asset": "OverlaySets/Blip Clean/ConflictIcon.ico",
+      "source": "src/Resources/Icons/Blip Clean/ConflictIcon.ico",
+      "sha256": "acc4b5552f33e910762ecb0444d3133f8314ab59469f74a5d932ae07d4209bd9"
+    },
+    {
+      "asset": "OverlaySets/Blip Clean/LockedIcon.ico",
+      "source": "src/Resources/Icons/Blip Clean/LockedIcon.ico",
+      "sha256": "4f8b44f24225eb223f0c2a948c871d07cd02b1b722e531dea5d61d905180d6ba"
+    },
+    {
+      "asset": "OverlaySets/Blip Clean/ReadOnlyIcon.ico",
+      "source": "src/Resources/Icons/Blip Clean/ReadOnlyIcon.ico",
+      "sha256": "54c364896025688e9c570030404d9e029edfb8f79a5500f53ca433c8c87888b3"
+    },
+    {
+      "asset": "OverlaySets/CVSClassic/NormalIcon.ico",
+      "source": "src/Resources/Icons/CVSClassic/NormalIcon.ico",
+      "sha256": "353aac1729f4eff368e55b194bd7eef07fc4b5481819b74163c998c8b1beb0b2"
+    },
+    {
+      "asset": "OverlaySets/CVSClassic/ModifiedIcon.ico",
+      "source": "src/Resources/Icons/CVSClassic/ModifiedIcon.ico",
+      "sha256": "097e0db954b0c723134e17b84cf9d8af71c9176880933c4f6044cb7718bea38b"
+    },
+    {
+      "asset": "OverlaySets/CVSClassic/AddedIcon.ico",
+      "source": "src/Resources/Icons/CVSClassic/AddedIcon.ico",
+      "sha256": "8c8593a20a404e9ab2e2656a8b2544892c0b6344954aa4278b4b8bb07f1e82c7"
+    },
+    {
+      "asset": "OverlaySets/CVSClassic/DeletedIcon.ico",
+      "source": "src/Resources/Icons/CVSClassic/DeletedIcon.ico",
+      "sha256": "e40724a9b729bfdf6b858500409cdd70826c959692123c307bef5d44687bdc8e"
+    },
+    {
+      "asset": "OverlaySets/CVSClassic/UnversionedIcon.ico",
+      "source": "src/Resources/Icons/CVSClassic/UnversionedIcon.ico",
+      "sha256": "ababc9bf953ab99a1009c362c8476875d8867919753f62e18f72e17b4c13e6ec"
+    },
+    {
+      "asset": "OverlaySets/CVSClassic/IgnoredIcon.ico",
+      "source": "src/Resources/Icons/CVSClassic/IgnoredIcon.ico",
+      "sha256": "d3a0e0da1b7f496aec475e8ff37d5e50212373d2650f15b694b8d65c643eaf87"
+    },
+    {
+      "asset": "OverlaySets/CVSClassic/ConflictIcon.ico",
+      "source": "src/Resources/Icons/CVSClassic/ConflictIcon.ico",
+      "sha256": "e75bdfd19b7e434c7fde2dea22c0607b982910d951c3d0bb40954d5d0251854c"
+    },
+    {
+      "asset": "OverlaySets/CVSClassic/LockedIcon.ico",
+      "source": "src/Resources/Icons/CVSClassic/LockedIcon.ico",
+      "sha256": "abffd4364294cd6edf94db44c742a71de9498225a992ed01ed6e396e86a22af4"
+    },
+    {
+      "asset": "OverlaySets/CVSClassic/ReadOnlyIcon.ico",
+      "source": "src/Resources/Icons/CVSClassic/ReadOnlyIcon.ico",
+      "sha256": "abffd4364294cd6edf94db44c742a71de9498225a992ed01ed6e396e86a22af4"
+    },
+    {
+      "asset": "OverlaySets/DechenesVista/NormalIcon.ico",
+      "source": "src/Resources/Icons/DechenesVista/NormalIcon.ico",
+      "sha256": "06ec46fc4f24b27cf39157a8da0e1fb2720b5952f746b560018ffd9aee1e117c"
+    },
+    {
+      "asset": "OverlaySets/DechenesVista/ModifiedIcon.ico",
+      "source": "src/Resources/Icons/DechenesVista/ModifiedIcon.ico",
+      "sha256": "19a617b9cbd16dcbd87ff376e004b0efd4adb4110ff661c77d6e41d803af26e3"
+    },
+    {
+      "asset": "OverlaySets/DechenesVista/AddedIcon.ico",
+      "source": "src/Resources/Icons/DechenesVista/AddedIcon.ico",
+      "sha256": "cc37cbce9180308a611b62568a76d516fcad56ef1b05908bc751ded843306368"
+    },
+    {
+      "asset": "OverlaySets/DechenesVista/DeletedIcon.ico",
+      "source": "src/Resources/Icons/DechenesVista/DeletedIcon.ico",
+      "sha256": "a94ef3ee452e00eacbfdc9ccd0f5b80b92cbca392ffc62f1656eb76dff40ac04"
+    },
+    {
+      "asset": "OverlaySets/DechenesVista/UnversionedIcon.ico",
+      "source": "src/Resources/Icons/DechenesVista/UnversionedIcon.ico",
+      "sha256": "f7143a04c7267304810f52a2c3846055159188b7223c49dfdeb3f3f4a64e495e"
+    },
+    {
+      "asset": "OverlaySets/DechenesVista/IgnoredIcon.ico",
+      "source": "src/Resources/Icons/DechenesVista/IgnoredIcon.ico",
+      "sha256": "3b926d17262cdd196efaa03615da6b576a4eb47069cda3af8395378c2391472d"
+    },
+    {
+      "asset": "OverlaySets/DechenesVista/ConflictIcon.ico",
+      "source": "src/Resources/Icons/DechenesVista/ConflictIcon.ico",
+      "sha256": "649dac16e04095d41bc315573733ba476fbb60e5fef375476fe650eeb5137095"
+    },
+    {
+      "asset": "OverlaySets/DechenesVista/LockedIcon.ico",
+      "source": "src/Resources/Icons/DechenesVista/LockedIcon.ico",
+      "sha256": "0bfeec9ec777f811fb415917426d7458130f07f5e39a4fd4828b641d331c5730"
+    },
+    {
+      "asset": "OverlaySets/DechenesVista/ReadOnlyIcon.ico",
+      "source": "src/Resources/Icons/DechenesVista/ReadOnlyIcon.ico",
+      "sha256": "060c740e60e31500aed022041f5a32faeb64de3a0b4c9c145e40287f810e9ec5"
+    },
+    {
+      "asset": "OverlaySets/DechenesVista/readme.txt",
+      "source": "src/Resources/Icons/DechenesVista/readme.txt",
+      "sha256": "89176c419aa163d95542bf0f3883288db4903ac45c92faade64dad80553639d8"
+    },
+    {
+      "asset": "OverlaySets/DechenesXp/NormalIcon.ico",
+      "source": "src/Resources/Icons/DechenesXp/NormalIcon.ico",
+      "sha256": "2d06b772ed83a5d5f6456df3a5423952750f0fedccf2b59f9dde937adbc6ca00"
+    },
+    {
+      "asset": "OverlaySets/DechenesXp/ModifiedIcon.ico",
+      "source": "src/Resources/Icons/DechenesXp/ModifiedIcon.ico",
+      "sha256": "a7df23ab766ebd1afc3c8e206a9dde5cd929dd969a235a3234963be5da39eed2"
+    },
+    {
+      "asset": "OverlaySets/DechenesXp/AddedIcon.ico",
+      "source": "src/Resources/Icons/DechenesXp/AddedIcon.ico",
+      "sha256": "1ce71adcf7f35669edd47524a37d668584883d67dcb87e1a4bad2b37d2b37e11"
+    },
+    {
+      "asset": "OverlaySets/DechenesXp/DeletedIcon.ico",
+      "source": "src/Resources/Icons/DechenesXp/DeletedIcon.ico",
+      "sha256": "b68b7dd31119f3ffcec9e46bfceffab1236717e6499ff3b5aad919719f233ba8"
+    },
+    {
+      "asset": "OverlaySets/DechenesXp/UnversionedIcon.ico",
+      "source": "src/Resources/Icons/DechenesXp/UnversionedIcon.ico",
+      "sha256": "ef7786a200ad3b6135dc8b7908d8f8086c96ecf363f2952dbcffa48a93dbbb32"
+    },
+    {
+      "asset": "OverlaySets/DechenesXp/IgnoredIcon.ico",
+      "source": "src/Resources/Icons/DechenesXp/IgnoredIcon.ico",
+      "sha256": "76e9ac680247601fa62d57b535914fb3ea95313d436dd1d0233a5e36eee405ff"
+    },
+    {
+      "asset": "OverlaySets/DechenesXp/ConflictIcon.ico",
+      "source": "src/Resources/Icons/DechenesXp/ConflictIcon.ico",
+      "sha256": "2cbf4298e13235e77c2f2ce4949b5fae52f951bd02adda0abf27ba041a4ced85"
+    },
+    {
+      "asset": "OverlaySets/DechenesXp/LockedIcon.ico",
+      "source": "src/Resources/Icons/DechenesXp/LockedIcon.ico",
+      "sha256": "aafdaa8a69d2bf4ff8e0ed8314f24efa38d72c8220bf63ed5fc1bb784948187a"
+    },
+    {
+      "asset": "OverlaySets/DechenesXp/ReadOnlyIcon.ico",
+      "source": "src/Resources/Icons/DechenesXp/ReadOnlyIcon.ico",
+      "sha256": "44a1ab6180cc029f19cc0ce0b4a1e6e3d042256674aa8f0d1ed2adfa5d5c65ec"
+    },
+    {
+      "asset": "OverlaySets/DechenesXp/readme.txt",
+      "source": "src/Resources/Icons/DechenesXp/readme.txt",
+      "sha256": "89176c419aa163d95542bf0f3883288db4903ac45c92faade64dad80553639d8"
+    },
+    {
+      "asset": "OverlaySets/Flat/NormalIcon.ico",
+      "source": "src/Resources/Icons/Flat/NormalIcon.ico",
+      "sha256": "8948c5c4ea26c3161bfc99d0bc5b4a06260f55602f7358163608f21e87edbc33"
+    },
+    {
+      "asset": "OverlaySets/Flat/ModifiedIcon.ico",
+      "source": "src/Resources/Icons/Flat/ModifiedIcon.ico",
+      "sha256": "9f29255993cf119233c1cd21c59a7f0e563bf9d3793e8d50d88edb3671ee903e"
+    },
+    {
+      "asset": "OverlaySets/Flat/AddedIcon.ico",
+      "source": "src/Resources/Icons/Flat/AddedIcon.ico",
+      "sha256": "7eb0254c16271ce6cb2d049f307a38666f06cb077cae1b9bf157261228e51280"
+    },
+    {
+      "asset": "OverlaySets/Flat/DeletedIcon.ico",
+      "source": "src/Resources/Icons/Flat/DeletedIcon.ico",
+      "sha256": "2f732d8e1da6c7c5b104e92aaecf1efdaafa36afa9adb11c07ae56449ba2cf2d"
+    },
+    {
+      "asset": "OverlaySets/Flat/UnversionedIcon.ico",
+      "source": "src/Resources/Icons/Flat/UnversionedIcon.ico",
+      "sha256": "1ff750bb4c519bb0d94073c79121ba96c1afb5e92595d679c9f322959db53e7f"
+    },
+    {
+      "asset": "OverlaySets/Flat/IgnoredIcon.ico",
+      "source": "src/Resources/Icons/Flat/IgnoredIcon.ico",
+      "sha256": "567127ba7ec745356f5bdcb41b06b6183bcebbf3b36749c11a6af4e01b4f6a0d"
+    },
+    {
+      "asset": "OverlaySets/Flat/ConflictIcon.ico",
+      "source": "src/Resources/Icons/Flat/ConflictIcon.ico",
+      "sha256": "110cdf27b9af3d4490209e675f484da6ed6f948115f894d20503d55d971692f9"
+    },
+    {
+      "asset": "OverlaySets/Flat/LockedIcon.ico",
+      "source": "src/Resources/Icons/Flat/LockedIcon.ico",
+      "sha256": "d8f913c8ca0121a5040c703fa4ba0b434fc3b616aac2dce8a4dd040420bd6945"
+    },
+    {
+      "asset": "OverlaySets/Flat/ReadOnlyIcon.ico",
+      "source": "src/Resources/Icons/Flat/ReadOnlyIcon.ico",
+      "sha256": "2b46ed395cbb49c7851f43dde1bb6a36dacc98a37cd378c6c5e8d4eeadfbf2d2"
+    },
+    {
+      "asset": "OverlaySets/Flat/README.md",
+      "source": "src/Resources/Icons/Flat/README.md",
+      "sha256": "66e3e06873ada6a795f2addf5ec6407525c892dc650c1994560a86663757e352"
+    },
+    {
+      "asset": "OverlaySets/Function/NormalIcon.ico",
+      "source": "src/Resources/Icons/Function/NormalIcon.ico",
+      "sha256": "20d192f9729cbab140fe3c5f290b66f6d18aa66950f2c0fdf4bd8f54ef2a2ef4"
+    },
+    {
+      "asset": "OverlaySets/Function/ModifiedIcon.ico",
+      "source": "src/Resources/Icons/Function/ModifiedIcon.ico",
+      "sha256": "43e997330541c02d6b6a049e735eb5b8d8696c9d12bb240b3a8eb6b39a06842f"
+    },
+    {
+      "asset": "OverlaySets/Function/AddedIcon.ico",
+      "source": "src/Resources/Icons/Function/AddedIcon.ico",
+      "sha256": "2f96cf41748ae6bdfacd2166b8a356b5fb3cd79faf0c1724e0f0a8736612f5c3"
+    },
+    {
+      "asset": "OverlaySets/Function/DeletedIcon.ico",
+      "source": "src/Resources/Icons/Function/DeletedIcon.ico",
+      "sha256": "2f469362d3f6d861821ff96dcff1e5a71ed3607bcd21fc7e1e84492fe965d228"
+    },
+    {
+      "asset": "OverlaySets/Function/UnversionedIcon.ico",
+      "source": "src/Resources/Icons/Function/UnversionedIcon.ico",
+      "sha256": "7f40a6a3ae6a096d34466000e22dc2a1d12be702637f907dd495cfc73ce52f09"
+    },
+    {
+      "asset": "OverlaySets/Function/IgnoredIcon.ico",
+      "source": "src/Resources/Icons/Function/IgnoredIcon.ico",
+      "sha256": "786a90572d58ea99bf6686f1b512a42a6f3dd3f6e0e0f475cedb6d4cfa383755"
+    },
+    {
+      "asset": "OverlaySets/Function/ConflictIcon.ico",
+      "source": "src/Resources/Icons/Function/ConflictIcon.ico",
+      "sha256": "479ab7dbf9d524ffa45846b016b8c95ff100e21bb897fd2c0b23f0fb761cc4e6"
+    },
+    {
+      "asset": "OverlaySets/Function/LockedIcon.ico",
+      "source": "src/Resources/Icons/Function/LockedIcon.ico",
+      "sha256": "0a3ea1bfa1464cd7af310a7aae60512fa46da0285e910c54ab3eff8aba484a3a"
+    },
+    {
+      "asset": "OverlaySets/Function/ReadOnlyIcon.ico",
+      "source": "src/Resources/Icons/Function/ReadOnlyIcon.ico",
+      "sha256": "9dd9a6f3e736db283645efc43ec03ffa17c4d054ad24d7e1c46f7a831c74fe7f"
+    },
+    {
+      "asset": "OverlaySets/Function/Readme.txt",
+      "source": "src/Resources/Icons/Function/Readme.txt",
+      "sha256": "cbec4ecebee8e0594e7034991431c73ff1e5245b51adb60ad008fa99a7a69c20"
+    },
+    {
+      "asset": "OverlaySets/Illustration/NormalIcon.ico",
+      "source": "src/Resources/Icons/Illustration/NormalIcon.ico",
+      "sha256": "bf6cef17629c959ace537a4a79ed12d56cbd0ee086c79507c832ff03d9bfdec2"
+    },
+    {
+      "asset": "OverlaySets/Illustration/ModifiedIcon.ico",
+      "source": "src/Resources/Icons/Illustration/ModifiedIcon.ico",
+      "sha256": "80c5aefc6126e245c80248a5b1258a5f7f9fe1910b53cf6d9ed8be6959abc173"
+    },
+    {
+      "asset": "OverlaySets/Illustration/AddedIcon.ico",
+      "source": "src/Resources/Icons/Illustration/AddedIcon.ico",
+      "sha256": "8f144280002e27a041bd6f1f72051225593a2ca88228799d99fc19811c18af59"
+    },
+    {
+      "asset": "OverlaySets/Illustration/DeletedIcon.ico",
+      "source": "src/Resources/Icons/Illustration/DeletedIcon.ico",
+      "sha256": "31f1d91affdf312531e003659cff3df57c9836d04a22436d995a999fb338decd"
+    },
+    {
+      "asset": "OverlaySets/Illustration/UnversionedIcon.ico",
+      "source": "src/Resources/Icons/Illustration/UnversionedIcon.ico",
+      "sha256": "a5d71883ca9021a18c5fd77e8d61ee5f30ed8f2e980b48afc822e44244332ca1"
+    },
+    {
+      "asset": "OverlaySets/Illustration/IgnoredIcon.ico",
+      "source": "src/Resources/Icons/Illustration/IgnoredIcon.ico",
+      "sha256": "18cfb1829919734d6200319d1fa482ba73a2e4f902fc18381a25aa43553238a8"
+    },
+    {
+      "asset": "OverlaySets/Illustration/ConflictIcon.ico",
+      "source": "src/Resources/Icons/Illustration/ConflictIcon.ico",
+      "sha256": "c49aa9c9ec9df0de371fa17d1d9580900a4a6f1bcf8629f74bd787724fdaf02f"
+    },
+    {
+      "asset": "OverlaySets/Illustration/LockedIcon.ico",
+      "source": "src/Resources/Icons/Illustration/LockedIcon.ico",
+      "sha256": "cb7405190f5c3d0c4ec31d2ff33ff83137b3329e1a33fe548329a9f12a0717a2"
+    },
+    {
+      "asset": "OverlaySets/Illustration/ReadOnlyIcon.ico",
+      "source": "src/Resources/Icons/Illustration/ReadOnlyIcon.ico",
+      "sha256": "7b23618fcdaf9b84b0bf82afff8bedc4ceaf70c971ce7f86adee264786ee8d0c"
+    },
+    {
+      "asset": "OverlaySets/Illustration/README.md",
+      "source": "src/Resources/Icons/Illustration/README.md",
+      "sha256": "0fe5a8a189ca789422dd711aa18d2fc966d8af42498cd78b2262bf255b444efd"
+    },
+    {
+      "asset": "OverlaySets/Modern/NormalIcon.ico",
+      "source": "src/Resources/Icons/Modern/NormalIcon.ico",
+      "sha256": "29261c4b93f2d1c3f80e087fea0ddee8c2a1e1bbbf6fb5b71b9df1e7181cc2fe"
+    },
+    {
+      "asset": "OverlaySets/Modern/ModifiedIcon.ico",
+      "source": "src/Resources/Icons/Modern/ModifiedIcon.ico",
+      "sha256": "bd447d73ae657bd8e959072d35dbff0fd3d9d5b787a693d7d8afdb000980a41f"
+    },
+    {
+      "asset": "OverlaySets/Modern/AddedIcon.ico",
+      "source": "src/Resources/Icons/Modern/AddedIcon.ico",
+      "sha256": "339492b3378c5e67870dd70d975d81fc99ba996e997239b511fd6d13a6fc5bb2"
+    },
+    {
+      "asset": "OverlaySets/Modern/DeletedIcon.ico",
+      "source": "src/Resources/Icons/Modern/DeletedIcon.ico",
+      "sha256": "cf86fd4170239d5ef25c1f800181f21dee099d9a46d51312df16d844dcbf0bf9"
+    },
+    {
+      "asset": "OverlaySets/Modern/UnversionedIcon.ico",
+      "source": "src/Resources/Icons/Modern/UnversionedIcon.ico",
+      "sha256": "f5e01c2d2d57af66dc675ec6b322fac94fd97811ac4841e326fc129fd9fddec6"
+    },
+    {
+      "asset": "OverlaySets/Modern/IgnoredIcon.ico",
+      "source": "src/Resources/Icons/Modern/IgnoredIcon.ico",
+      "sha256": "8e8c74fb8ed84184c0671df1d6a17f538a5926981e2d0f05603d87f7a3100f5b"
+    },
+    {
+      "asset": "OverlaySets/Modern/ConflictIcon.ico",
+      "source": "src/Resources/Icons/Modern/ConflictIcon.ico",
+      "sha256": "2ca63b1578550497dbd35b2c01e9a8bb4c6ba8dccc1afe7e04d31dba0122c910"
+    },
+    {
+      "asset": "OverlaySets/Modern/LockedIcon.ico",
+      "source": "src/Resources/Icons/Modern/LockedIcon.ico",
+      "sha256": "b5a1635933ed76090b900ed457aebfe7c07ada4c887fde62ff831ffb775d6a64"
+    },
+    {
+      "asset": "OverlaySets/Modern/ReadOnlyIcon.ico",
+      "source": "src/Resources/Icons/Modern/ReadOnlyIcon.ico",
+      "sha256": "f45342c533257d336b668069f13a59ed67e5bf3d2bee0820377c7e692b840733"
+    },
+    {
+      "asset": "OverlaySets/MufWin7/NormalIcon.ico",
+      "source": "src/Resources/Icons/MufWin7/NormalIcon.ico",
+      "sha256": "cdd65e5c8254490320e565f7b6aae2f0d41234e5841c3b5d81acb4405131b0d1"
+    },
+    {
+      "asset": "OverlaySets/MufWin7/ModifiedIcon.ico",
+      "source": "src/Resources/Icons/MufWin7/ModifiedIcon.ico",
+      "sha256": "134953007386d27ce3fffd4ac19417ec719e2fcb7394242bc118c0b519d34536"
+    },
+    {
+      "asset": "OverlaySets/MufWin7/AddedIcon.ico",
+      "source": "src/Resources/Icons/MufWin7/AddedIcon.ico",
+      "sha256": "4e25d99e5d091fbe8f45b13a38acad4c7d7362f048a3c9aca16b4d6ebad4e6b3"
+    },
+    {
+      "asset": "OverlaySets/MufWin7/DeletedIcon.ico",
+      "source": "src/Resources/Icons/MufWin7/DeletedIcon.ico",
+      "sha256": "38e9d36c9f01d3738ab0af7cebba05e27077bad1f9284acb913c5f5fb6390b9d"
+    },
+    {
+      "asset": "OverlaySets/MufWin7/UnversionedIcon.ico",
+      "source": "src/Resources/Icons/MufWin7/UnversionedIcon.ico",
+      "sha256": "61e67f42a69ab1d67c977fda1d48bd97960c7491a648c6a2f57956d2558c311e"
+    },
+    {
+      "asset": "OverlaySets/MufWin7/IgnoredIcon.ico",
+      "source": "src/Resources/Icons/MufWin7/IgnoredIcon.ico",
+      "sha256": "041e7a102b7253060b83d37f4f24cb58036ba8b3de66800c96467a1555d5c25e"
+    },
+    {
+      "asset": "OverlaySets/MufWin7/ConflictIcon.ico",
+      "source": "src/Resources/Icons/MufWin7/ConflictIcon.ico",
+      "sha256": "4971a9058457ceace1c0af8ad7c27809f5106878b8d467afcf211c7daa5f0625"
+    },
+    {
+      "asset": "OverlaySets/MufWin7/LockedIcon.ico",
+      "source": "src/Resources/Icons/MufWin7/LockedIcon.ico",
+      "sha256": "299a0becff5a3eb3df3a8cbc77d8e5f75f485093e30f6da6a1577d0c2888ef21"
+    },
+    {
+      "asset": "OverlaySets/MufWin7/ReadOnlyIcon.ico",
+      "source": "src/Resources/Icons/MufWin7/ReadOnlyIcon.ico",
+      "sha256": "19ff3e5d57ab7df37b9a55dc9033981ff3e649737cc0fd4e4984be1daeeb4600"
+    },
+    {
+      "asset": "OverlaySets/Professional/NormalIcon.ico",
+      "source": "src/Resources/Icons/Professional/NormalIcon.ico",
+      "sha256": "9a0a4c461cb100b3f8012fc61c41859286f34af154c7e6402b4cae3313ff4794"
+    },
+    {
+      "asset": "OverlaySets/Professional/ModifiedIcon.ico",
+      "source": "src/Resources/Icons/Professional/ModifiedIcon.ico",
+      "sha256": "fcc3419d906b2fa8d5e55013e530106949f1b833dd72988157c867ab0d2086df"
+    },
+    {
+      "asset": "OverlaySets/Professional/AddedIcon.ico",
+      "source": "src/Resources/Icons/Professional/AddedIcon.ico",
+      "sha256": "7e66da0c0e50c0c9b2b81327ed8fc1c0a96df902483e6c279bd452b53a15081a"
+    },
+    {
+      "asset": "OverlaySets/Professional/DeletedIcon.ico",
+      "source": "src/Resources/Icons/Professional/DeletedIcon.ico",
+      "sha256": "0a492c38a6afd747f5f372e6445b2268739ae8eef4a794ac5902dad8773bbaee"
+    },
+    {
+      "asset": "OverlaySets/Professional/UnversionedIcon.ico",
+      "source": "src/Resources/Icons/Professional/UnversionedIcon.ico",
+      "sha256": "65ab82064c239f4e950ec176c0d916afa76520ed72ad919378af2f9f07532c37"
+    },
+    {
+      "asset": "OverlaySets/Professional/IgnoredIcon.ico",
+      "source": "src/Resources/Icons/Professional/IgnoredIcon.ico",
+      "sha256": "e330ca7fed737ed814dd75bdd26626f570635ca060ddb51b043bf634bed7b6c7"
+    },
+    {
+      "asset": "OverlaySets/Professional/ConflictIcon.ico",
+      "source": "src/Resources/Icons/Professional/ConflictIcon.ico",
+      "sha256": "1fdc892670a7fab8c9b4a07bdad4036535fe8cbc75342dc09d9691158ac4d111"
+    },
+    {
+      "asset": "OverlaySets/Professional/LockedIcon.ico",
+      "source": "src/Resources/Icons/Professional/LockedIcon.ico",
+      "sha256": "74b5b8c1db4241dea1b3c85e29c8a4097d280c16c790e58ef4b9aca28ae54681"
+    },
+    {
+      "asset": "OverlaySets/Professional/ReadOnlyIcon.ico",
+      "source": "src/Resources/Icons/Professional/ReadOnlyIcon.ico",
+      "sha256": "2878ec1c6a4547ecf52da5b81de2bef0cb4143e3fa8f3289098f589856eb6fff"
+    },
+    {
+      "asset": "OverlaySets/Professional/README.md",
+      "source": "src/Resources/Icons/Professional/README.md",
+      "sha256": "208309b453206a3befd5a7f746de4cdbc68781699e64e1a6706b0c1719e0c105"
+    },
+    {
+      "asset": "OverlaySets/Ribbon/NormalIcon.ico",
+      "source": "src/Resources/Icons/Ribbon/NormalIcon.ico",
+      "sha256": "9a57ecad15fcd59f5baf99c1f28f142aca6fb21d09a002a7371589fa7e1f7edd"
+    },
+    {
+      "asset": "OverlaySets/Ribbon/ModifiedIcon.ico",
+      "source": "src/Resources/Icons/Ribbon/ModifiedIcon.ico",
+      "sha256": "7063438d84575086a050cb03fdf7cb2890de3fad503c346a551f81e9ef244100"
+    },
+    {
+      "asset": "OverlaySets/Ribbon/AddedIcon.ico",
+      "source": "src/Resources/Icons/Ribbon/AddedIcon.ico",
+      "sha256": "37ba98823d9c543bf8eb991c4fbecc29f32015233a9c8f7b55df2844a50cf9b0"
+    },
+    {
+      "asset": "OverlaySets/Ribbon/DeletedIcon.ico",
+      "source": "src/Resources/Icons/Ribbon/DeletedIcon.ico",
+      "sha256": "b3df2fe18a27d6daa467d1555493c61568c7c16bacc7170dc5157a07f1141b92"
+    },
+    {
+      "asset": "OverlaySets/Ribbon/UnversionedIcon.ico",
+      "source": "src/Resources/Icons/Ribbon/UnversionedIcon.ico",
+      "sha256": "271d6292dae37bcd7762c3fe919ef444578e539ae00fc4aa85fa5bdd51c96827"
+    },
+    {
+      "asset": "OverlaySets/Ribbon/IgnoredIcon.ico",
+      "source": "src/Resources/Icons/Ribbon/IgnoredIcon.ico",
+      "sha256": "a8ff6281df68547382fcff87d9ddfd489ffb633eeead3b3ad87a3ea705854e23"
+    },
+    {
+      "asset": "OverlaySets/Ribbon/ConflictIcon.ico",
+      "source": "src/Resources/Icons/Ribbon/ConflictIcon.ico",
+      "sha256": "5028aaf240960cc26c003fd395241deb3b600e8d9d1bbab05e1977bc8f0f49c7"
+    },
+    {
+      "asset": "OverlaySets/Ribbon/LockedIcon.ico",
+      "source": "src/Resources/Icons/Ribbon/LockedIcon.ico",
+      "sha256": "a6516ac43cd5eb78a484c32de7b69f77c77856968b7dcac5631594a375aaabfe"
+    },
+    {
+      "asset": "OverlaySets/Ribbon/ReadOnlyIcon.ico",
+      "source": "src/Resources/Icons/Ribbon/ReadOnlyIcon.ico",
+      "sha256": "bf024c68185959529cd3a73dcf931948db23c67527c6f1684e8ba0c61acfc2c6"
+    },
+    {
+      "asset": "OverlaySets/Ribbon/README.md",
+      "source": "src/Resources/Icons/Ribbon/README.md",
+      "sha256": "a90a6a54cc5c43c9c53cf5314778a32b89438c36b2f67abb20c1d6d06aadef2a"
+    },
+    {
+      "asset": "OverlaySets/Straight/NormalIcon.ico",
+      "source": "src/Resources/Icons/Straight/NormalIcon.ico",
+      "sha256": "08cd523b97f6ce0377178af566b36b7b4ba43d2104009a6ed6dae570bb311315"
+    },
+    {
+      "asset": "OverlaySets/Straight/ModifiedIcon.ico",
+      "source": "src/Resources/Icons/Straight/ModifiedIcon.ico",
+      "sha256": "5ee033b826f1fb4cd0d1c6ee4cf9af79d97b5d7304672263f74a3ea29c3914a5"
+    },
+    {
+      "asset": "OverlaySets/Straight/AddedIcon.ico",
+      "source": "src/Resources/Icons/Straight/AddedIcon.ico",
+      "sha256": "b0f2c1c04b9e2197ab1c88b7b7cc31f6dbcb9c91d153314c7d4201e172a2aaab"
+    },
+    {
+      "asset": "OverlaySets/Straight/DeletedIcon.ico",
+      "source": "src/Resources/Icons/Straight/DeletedIcon.ico",
+      "sha256": "c63337a312297033f851110cdb56888cf9043c6d38a778fb45357f4b1b8e4de0"
+    },
+    {
+      "asset": "OverlaySets/Straight/UnversionedIcon.ico",
+      "source": "src/Resources/Icons/Straight/UnversionedIcon.ico",
+      "sha256": "f5e01c2d2d57af66dc675ec6b322fac94fd97811ac4841e326fc129fd9fddec6"
+    },
+    {
+      "asset": "OverlaySets/Straight/IgnoredIcon.ico",
+      "source": "src/Resources/Icons/Straight/IgnoredIcon.ico",
+      "sha256": "8e8c74fb8ed84184c0671df1d6a17f538a5926981e2d0f05603d87f7a3100f5b"
+    },
+    {
+      "asset": "OverlaySets/Straight/ConflictIcon.ico",
+      "source": "src/Resources/Icons/Straight/ConflictIcon.ico",
+      "sha256": "986a9a18a2dc50c0fa48e16619670c0799d940b8384dae5986d7e66dae069dc8"
+    },
+    {
+      "asset": "OverlaySets/Straight/LockedIcon.ico",
+      "source": "src/Resources/Icons/Straight/LockedIcon.ico",
+      "sha256": "f9ef46491c81c19bd2b1619c708ae7e2fce097fa10ee545675ad33cacd89837f"
+    },
+    {
+      "asset": "OverlaySets/Straight/ReadOnlyIcon.ico",
+      "source": "src/Resources/Icons/Straight/ReadOnlyIcon.ico",
+      "sha256": "8306cc866a698912d283b62fe09d7d8f9a1e0a36bd9d7f07311b1fde1f1b094e"
+    },
+    {
+      "asset": "OverlaySets/Subclipse/NormalIcon.ico",
+      "source": "src/Resources/Icons/Subclipse/NormalIcon.ico",
+      "sha256": "48af496b6588ab027d0f4c5fb0aa569660736cd15db3452ced9192d1238d156e"
+    },
+    {
+      "asset": "OverlaySets/Subclipse/ModifiedIcon.ico",
+      "source": "src/Resources/Icons/Subclipse/ModifiedIcon.ico",
+      "sha256": "1bc71e6624bf6aa5ef54cfefdcc7d5579b5eba722832a5923ac489adea1bd53f"
+    },
+    {
+      "asset": "OverlaySets/Subclipse/AddedIcon.ico",
+      "source": "src/Resources/Icons/Subclipse/AddedIcon.ico",
+      "sha256": "244644f80f750d02e280d2589fbaa45b0265621ba8a6106507a57f1ff79a92e4"
+    },
+    {
+      "asset": "OverlaySets/Subclipse/DeletedIcon.ico",
+      "source": "src/Resources/Icons/Subclipse/DeletedIcon.ico",
+      "sha256": "c4f53baf2ababd7ac48e64fe609ab73829c2cf1a0ad8e6d59f4830f01371c784"
+    },
+    {
+      "asset": "OverlaySets/Subclipse/UnversionedIcon.ico",
+      "source": "src/Resources/Icons/Subclipse/UnversionedIcon.ico",
+      "sha256": "f5e01c2d2d57af66dc675ec6b322fac94fd97811ac4841e326fc129fd9fddec6"
+    },
+    {
+      "asset": "OverlaySets/Subclipse/IgnoredIcon.ico",
+      "source": "src/Resources/Icons/Subclipse/IgnoredIcon.ico",
+      "sha256": "8e8c74fb8ed84184c0671df1d6a17f538a5926981e2d0f05603d87f7a3100f5b"
+    },
+    {
+      "asset": "OverlaySets/Subclipse/ConflictIcon.ico",
+      "source": "src/Resources/Icons/Subclipse/ConflictIcon.ico",
+      "sha256": "7818ec71ddf025d9c28285cb8ed8cad707c2e20666315a9b5ff25a54875bbe17"
+    },
+    {
+      "asset": "OverlaySets/Subclipse/LockedIcon.ico",
+      "source": "src/Resources/Icons/Subclipse/LockedIcon.ico",
+      "sha256": "e6115849d2ae6d3326e5f5318e34fe862f3f51aec069a0c53f8f53ab17138712"
+    },
+    {
+      "asset": "OverlaySets/Subclipse/ReadOnlyIcon.ico",
+      "source": "src/Resources/Icons/Subclipse/ReadOnlyIcon.ico",
+      "sha256": "fccc1dbb26049aff969d0651fee6f99b17da8721718129411fd4e758afe2698b"
+    },
+    {
+      "asset": "OverlaySets/Win10/NormalIcon.ico",
+      "source": "src/Resources/Icons/Win10/NormalIcon.ico",
+      "sha256": "fd7dd93af53a8f554c98a2303e1abe2642a65504350edfdad5b4eb6242deb4b9"
+    },
+    {
+      "asset": "OverlaySets/Win10/ModifiedIcon.ico",
+      "source": "src/Resources/Icons/Win10/ModifiedIcon.ico",
+      "sha256": "3ba75b0ab59bac1e91aa8621e1f09496538e4c91e951d402347705d5380772b4"
+    },
+    {
+      "asset": "OverlaySets/Win10/AddedIcon.ico",
+      "source": "src/Resources/Icons/Win10/AddedIcon.ico",
+      "sha256": "a571c4eb973557cbcd248219733ca4d7594ff5b8bdf3ff03f7759f76851b19c9"
+    },
+    {
+      "asset": "OverlaySets/Win10/DeletedIcon.ico",
+      "source": "src/Resources/Icons/Win10/DeletedIcon.ico",
+      "sha256": "1a01d54bb62b068c34976ddef5b4e467b180dd4c7868889679ec1aa625cd32e6"
+    },
+    {
+      "asset": "OverlaySets/Win10/UnversionedIcon.ico",
+      "source": "src/Resources/Icons/Win10/UnversionedIcon.ico",
+      "sha256": "25f4b39b29ff647297fd4b11632fad51f07852f2e548215f1873c8eef8bb6fd4"
+    },
+    {
+      "asset": "OverlaySets/Win10/IgnoredIcon.ico",
+      "source": "src/Resources/Icons/Win10/IgnoredIcon.ico",
+      "sha256": "16f75b663f4606f86fa3b7779e81286ddc8be593663cad177ed6b17cfdf960c2"
+    },
+    {
+      "asset": "OverlaySets/Win10/ConflictIcon.ico",
+      "source": "src/Resources/Icons/Win10/ConflictIcon.ico",
+      "sha256": "75de23d3749f44f014b86d088cd81e46c7391bbd9cf0c5930f288f14096b22fa"
+    },
+    {
+      "asset": "OverlaySets/Win10/LockedIcon.ico",
+      "source": "src/Resources/Icons/Win10/LockedIcon.ico",
+      "sha256": "d7bfe76b894f5c603b7e7864483b68f6a907211021ddc617c76e0e9f4e4c6a52"
+    },
+    {
+      "asset": "OverlaySets/Win10/ReadOnlyIcon.ico",
+      "source": "src/Resources/Icons/Win10/ReadOnlyIcon.ico",
+      "sha256": "c998123b3d23f3c15ecf55a2019cecde679fb3cf2c1806bf481687a5c1fcb3e2"
+    },
+    {
+      "asset": "OverlaySets/Win10/ReadMe.txt",
+      "source": "src/Resources/Icons/Win10/ReadMe.txt",
+      "sha256": "be01b53da4857bb735b1060c1f45af1e838bd6f15a1298b22268fb80b457e801"
+    },
+    {
+      "asset": "OverlaySets/XPStyle/NormalIcon.ico",
+      "source": "src/Resources/Icons/XPStyle/NormalIcon.ico",
+      "sha256": "f47eae6d68287963fb88af762397c3287524f8a8f354ca979e3dd3e24bb3e988"
+    },
+    {
+      "asset": "OverlaySets/XPStyle/ModifiedIcon.ico",
+      "source": "src/Resources/Icons/XPStyle/ModifiedIcon.ico",
+      "sha256": "80a9a56235604d001d27df2ae126b89f29a177f68431903576632597855fb4f5"
+    },
+    {
+      "asset": "OverlaySets/XPStyle/AddedIcon.ico",
+      "source": "src/Resources/Icons/XPStyle/AddedIcon.ico",
+      "sha256": "43f20e3270ef1898993d7761d8f8220aa43fa0a28f2af7f5e000e46fdb1204bb"
+    },
+    {
+      "asset": "OverlaySets/XPStyle/DeletedIcon.ico",
+      "source": "src/Resources/Icons/XPStyle/DeletedIcon.ico",
+      "sha256": "2cbc83e56fbce10af5f4fc6385b66c27bc3c64ece086c7d887c796107b1761a7"
+    },
+    {
+      "asset": "OverlaySets/XPStyle/UnversionedIcon.ico",
+      "source": "src/Resources/Icons/XPStyle/UnversionedIcon.ico",
+      "sha256": "a1119e99ab54899b5889a5ffc92405d21d847c2bb4837b9256e3e431bfa3b97e"
+    },
+    {
+      "asset": "OverlaySets/XPStyle/IgnoredIcon.ico",
+      "source": "src/Resources/Icons/XPStyle/IgnoredIcon.ico",
+      "sha256": "8e8c74fb8ed84184c0671df1d6a17f538a5926981e2d0f05603d87f7a3100f5b"
+    },
+    {
+      "asset": "OverlaySets/XPStyle/ConflictIcon.ico",
+      "source": "src/Resources/Icons/XPStyle/ConflictIcon.ico",
+      "sha256": "f5857d9523639a840d8133521a590bd7f8abd50f4e1eb237c9f6e16c9e6ad999"
+    },
+    {
+      "asset": "OverlaySets/XPStyle/LockedIcon.ico",
+      "source": "src/Resources/Icons/XPStyle/LockedIcon.ico",
+      "sha256": "69873cd2bdf26ce7ec3805071bb473f116964f8a1c358ea28f2b115ee21f3a58"
+    },
+    {
+      "asset": "OverlaySets/XPStyle/ReadOnlyIcon.ico",
+      "source": "src/Resources/Icons/XPStyle/ReadOnlyIcon.ico",
+      "sha256": "7f3bf72822f95353cc930e6be2fca80979e6a8f97e548e0ef68cabf7bc9fbefc"
     }
   ]
 }

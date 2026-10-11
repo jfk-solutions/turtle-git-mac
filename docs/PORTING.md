@@ -501,3 +501,16 @@ with the preceding Network batch: native Debug build exited 0 and 22 focused
 Core tests passed. No app or full suite was launched. Remaining source/native/
 signed acceptance is in FINDER-OVERLAY-SETTINGS-PARITY.md and
 `qa/network-finder-settings-batch-2026-10-11.json`.
+
+### Finder icon/index/menu continuation, 2026-10-11
+
+Ported all 16 source overlay icon sets (144 original ICO files and per-set notices)
+with native List/Symbols previews and shared Apply/Cancel selection. Finder reloads
+all nine badge images on set changes. Main/submodule snapshots now retain Git
+skip-worktree and assume-unchanged flags, with source normal-state precedence and
+handler toggles. Subtree refresh clears stale flags and preserves independent
+repositories. Known roots retain versioned menus despite aggregated untracked or
+ignored status; untracked files keep Add eligibility. One grouped native build
+exited 0 and 34 focused tests passed, zero failures, with no app launch. Native
+Finder/UI/signed acceptance and complete source certification remain open; see
+`qa/finder-icons-batch-2026-10-11.json` and FINDER-OVERLAY-SETTINGS-PARITY.md.

@@ -65,9 +65,10 @@ public struct FinderCreationMenuContext: Sendable {
         let folder = values?.isDirectory ?? url.hasDirectoryPath
         let path = url.standardizedFileURL.path
         let known = snapshot?.roots.contains { path == $0 || path.hasPrefix($0 + "/") } == true
+        let knownRoot = snapshot?.roots.contains(path) == true
         let state = snapshot?.states[path]
-        let versioned = known && state.map { [.normal, .modified, .added, .deleted, .conflicted].contains($0) } == true
-        let ignored = snapshot?.states.contains { entry in entry.value == .ignored && (path == entry.key || path.hasPrefix(entry.key + "/")) } == true
+        let versioned = knownRoot || known && state.map { [.normal, .modified, .added, .deleted, .conflicted].contains($0) } == true
+        let ignored = !knownRoot && snapshot?.states.contains { entry in entry.value == .ignored && (path == entry.key || path.hasPrefix(entry.key + "/")) } == true
         let fm = FileManager.default
         // Same loose-ref metadata checks as pinned GitAdminDir::IsBareRepo.
         func hasDirectory(_ name: String) -> Bool {
@@ -142,11 +143,13 @@ public struct FinderSnapshot: Codable, Sendable {
     public var updated: Date
     public var repositories: [String: FinderRepositoryMetadata]
     public var overlayEntries: [String: FileState]?
-    public init(roots: [String], states: [String: FileState], updated: Date = Date(), repositories: [String: FinderRepositoryMetadata] = [:], overlayEntries: [String: FileState]? = nil) {
+    public var indexFlags: [String: FinderIndexFlags]?
+    public init(roots: [String], states: [String: FileState], updated: Date = Date(), repositories: [String: FinderRepositoryMetadata] = [:], overlayEntries: [String: FileState]? = nil, indexFlags: [String: FinderIndexFlags]? = nil) {
         self.roots = roots; self.states = states; self.updated = updated; self.repositories = repositories
         self.overlayEntries = overlayEntries
+        self.indexFlags = indexFlags
     }
-    private enum CodingKeys: String, CodingKey { case roots, states, updated, repositories, overlayEntries }
+    private enum CodingKeys: String, CodingKey { case roots, states, updated, repositories, overlayEntries, indexFlags }
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         roots = try values.decode([String].self, forKey: .roots)
@@ -154,6 +157,7 @@ public struct FinderSnapshot: Codable, Sendable {
         updated = try values.decode(Date.self, forKey: .updated)
         repositories = try values.decodeIfPresent([String: FinderRepositoryMetadata].self, forKey: .repositories) ?? [:]
         overlayEntries = try values.decodeIfPresent([String: FileState].self, forKey: .overlayEntries)
+        indexFlags = try values.decodeIfPresent([String: FinderIndexFlags].self, forKey: .indexFlags)
     }
     public func repositoryMetadata(for paths: [URL]) -> FinderRepositoryMetadata? {
         guard !paths.isEmpty else { return nil }
@@ -477,6 +481,9 @@ public enum FinderShellRules {
             case .ignored: flags.remove(.inGit); flags.insert(.ignored)
             case .untracked, nil: flags.remove(.inGit)
             }
+            // A repository root is versioned independently of aggregated child
+            // status, including an unborn root containing only untracked files.
+            if directory, root == path.path, !bare { flags.insert(.inGit); flags.remove(.ignored) }
         }
         return flags
     }
@@ -561,6 +568,7 @@ extension GitRepository {
                 guard metadata.submoduleParentRoot == root.path else { continue }
                 let tracked = try await child.trackedPaths(), changes = try await child.status()
                 var snapshot = FinderSnapshot.build(root: location, tracked: tracked, changes: changes)
+                snapshot.indexFlags = try await child.finderIndexFlags()
                 snapshot.repositories[location.path] = metadata
                 result.snapshots.append(snapshot)
                 let nested = await child.scanFinderSubmodules(authorizedRoot: authorizedRoot, ancestors: visited)
@@ -583,12 +591,13 @@ extension FinderSnapshot {
         let preserved = independent.map { candidate -> FinderSnapshot in
             func belongs(_ value: String) -> Bool { value == candidate || value.hasPrefix(candidate + "/") }
             return FinderSnapshot(roots: roots.filter(belongs), states: states.filter { belongs($0.key) },
-                repositories: repositories.filter { belongs($0.key) }, overlayEntries: overlayEntries?.filter { belongs($0.key) })
+                repositories: repositories.filter { belongs($0.key) }, overlayEntries: overlayEntries?.filter { belongs($0.key) }, indexFlags: indexFlags?.filter { belongs($0.key) })
         }
         roots.removeAll(where: contains)
         states = states.filter { !contains($0.key) }
         repositories = repositories.filter { !contains($0.key) }
         overlayEntries = (overlayEntries ?? states).filter { !contains($0.key) }
+        indexFlags = indexFlags?.filter { !contains($0.key) }
         let priority: [FileState: Int] = [.normal: 0, .ignored: 1, .untracked: 2, .added: 3, .deleted: 4, .modified: 5, .conflicted: 6]
         for snapshot in (snapshots + preserved).sorted(by: { ($0.roots.first?.count ?? 0) < ($1.roots.first?.count ?? 0) }) {
             let accepted = snapshot.roots.filter(contains)
@@ -597,6 +606,9 @@ extension FinderSnapshot {
             let rootStates = Dictionary(uniqueKeysWithValues: accepted.compactMap { candidate in states[candidate].map { (candidate, $0) } })
             states.merge(snapshot.states.filter { contains($0.key) }) { _, latest in latest }
             overlayEntries?.merge((snapshot.overlayEntries ?? snapshot.states).filter { contains($0.key) }) { _, latest in latest }
+            if let flags = snapshot.indexFlags {
+                if indexFlags == nil { indexFlags = [:] }; indexFlags?.merge(flags.filter { contains($0.key) }) { _, latest in latest }
+            }
             for (candidate, state) in rootStates where snapshot.repositories[candidate]?.submoduleParentRoot != nil && priority[state, default: 0] > priority[states[candidate] ?? .normal, default: 0] { states[candidate] = state }
             repositories.merge(snapshot.repositories.filter { contains($0.key) }) { _, latest in latest }
         }

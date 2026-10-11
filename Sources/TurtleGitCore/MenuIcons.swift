@@ -11,6 +11,15 @@ public enum MenuPresentationSettings {
 /// chooses a representation for the display scale. Monochrome Log, Help and
 /// cherry-pick glyphs use template tinting to remain visible in both appearances.
 public enum MenuIcon: String, CaseIterable {
+    static func overlayImage(filename: String, set: String, size: CGFloat) -> NSImage? {
+        #if SWIFT_PACKAGE
+        let bundle = Bundle.main.resourceURL.flatMap { Bundle(url: $0.appendingPathComponent("TurtleGitMac_TurtleGitCore.bundle")) } ?? Bundle.module
+        #else
+        let bundle = Bundle(for: IconResourceBundle.self)
+        #endif
+        guard let url = bundle.url(forResource: filename, withExtension: "ico", subdirectory: "Icons/OverlaySets/" + set), let image = NSImage(contentsOf: url) else { return nil }
+        image.size = NSSize(width: size, height: size); return image
+    }
     case imageFitWidths = "fitwidths", imageFitHeights = "fitheights"
     case imagePrevious = "player_rew", imageNext = "player_fwd", imagePlay = "player_start", imageStop = "player_stop"
     case imageBlend = "blend"
@@ -38,6 +47,7 @@ public enum MenuIcon: String, CaseIterable {
     case settingsCredential = "gitcredential"
     case settingsNetwork = "proxy"
     case settingsOverlays = "Overlays"
+    case skipWorktreeOverlay = "status-skip-worktree", assumeUnchangedOverlay = "status-assume-unchanged"
     case settingsSavedData = "saveddata", settingsUnifiedDiff = "TortoiseUDiff", settingsColors = "lookandfeel"
     case open = "open", explore = "explorer", export = "menuexport", editor = "notepad"
     case rename = "menurename"

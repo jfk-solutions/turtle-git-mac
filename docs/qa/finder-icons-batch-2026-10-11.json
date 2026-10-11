@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-11",
+  "scope": "Finder overlay icon sets, index flag handlers, and known-root context-menu classification",
+  "source": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "native_build": {
+    "configuration": "Debug arm64",
+    "exit_code": 0,
+    "log": "build/qa/finder-icons-native-2026-10-11.log",
+    "diagnostics": "Existing warnings and seven unusual SwiftCompile diagnostics reporting exit code 0 with no output.",
+    "packaged_overlay_icons": 144
+  },
+  "core_tests": {
+    "filter": "FinderOverlayIconBatchTests|NetworkFinderSettingsBatchTests|FinderSubmoduleMetadataTests|FinderSubmoduleScanTests|FinderShellRulesTests|FinderCreationMenuTests|FinderMenuSettingsTests|MenuIconTests",
+    "tests": 34,
+    "failures": 0,
+    "seconds": 6.585,
+    "log": "build/qa/finder-icons-core-2026-10-11.log"
+  },
+  "assets": {
+    "sets": 16,
+    "icons": 144,
+    "original_per_set_notices": 8,
+    "sha256_provenance_verified": true,
+    "pixel_decode_sizes": [
+      16,
+      32
+    ]
+  },
+  "app_launches": 0,
+  "remaining": [
+    "Live Finder badge refresh, notification propagation and signed App Group acceptance",
+    "Native Icon Set and Overlay Handlers layout/focus/light/dark acceptance",
+    "Shell/Shell Extended cache modes",
+    "Native mount/RAM/case/symlink policy acceptance",
+    "Full context-menu parity and dialog certification",
+    "Full port and release/distribution acceptance"
+  ]
+}

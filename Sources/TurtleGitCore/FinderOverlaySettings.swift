@@ -1,9 +1,50 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import Foundation
 import Darwin
+import AppKit
 
 public enum FinderVolumeKind: String, Codable, CaseIterable, Sendable { case fixed, removable, network, optical, ram, unknown }
 public enum FinderOverlayCacheMode: Int, Codable, Sendable { case none = 0, standard = 1 }
+public enum FinderOverlayIconSet: String, Codable, CaseIterable, Sendable {
+    case blip = "Blip", blipClean = "Blip Clean", cvsClassic = "CVSClassic", dechenesVista = "DechenesVista", dechenesXp = "DechenesXp"
+    case flat = "Flat", function = "Function", illustration = "Illustration", modern = "Modern", mufWin7 = "MufWin7", professional = "Professional"
+    case ribbon = "Ribbon", straight = "Straight", subclipse = "Subclipse", win10 = "Win10", xpStyle = "XPStyle"
+}
+public enum FinderOverlayBadge: String, CaseIterable, Sendable {
+    case normal, modified, added, deleted, untracked, ignored, conflicted, skipWorktree, assumeUnchanged
+    public var icon: MenuIcon {
+        switch self {
+        case .skipWorktree: return .skipWorktreeOverlay
+        case .assumeUnchanged: return .assumeUnchangedOverlay
+        default: return FileState(rawValue: rawValue)!.icon
+        }
+    }
+    public var title: String { self == .skipWorktree ? "Skip worktree" : self == .assumeUnchanged ? "Assume unchanged" : rawValue.capitalized }
+    public func image(set: FinderOverlayIconSet, size: CGFloat = 16) -> NSImage? {
+        let filenames: [Self: String] = [.normal: "NormalIcon", .modified: "ModifiedIcon", .added: "AddedIcon", .deleted: "DeletedIcon", .untracked: "UnversionedIcon", .ignored: "IgnoredIcon", .conflicted: "ConflictIcon", .skipWorktree: "LockedIcon", .assumeUnchanged: "ReadOnlyIcon"]
+        return MenuIcon.overlayImage(filename: filenames[self]!, set: set.rawValue, size: size)
+    }
+}
+public struct FinderIndexFlags: Codable, Equatable, Sendable {
+    public let skipWorktree: Bool, assumeUnchanged: Bool
+    public init(skipWorktree: Bool = false, assumeUnchanged: Bool = false) { self.skipWorktree = skipWorktree; self.assumeUnchanged = assumeUnchanged }
+}
+extension GitRepository {
+    public func finderIndexFlags(cancellation: OperationCancellation? = nil) throws -> [String: FinderIndexFlags] {
+        var flags: [String: FinderIndexFlags] = [:]
+        for record in try run(["ls-files", "-v", "-z"], cancellation: cancellation).stdout.split(separator: 0) {
+            guard record.count >= 3 else { throw GitConfigurationFailure.output }
+            let bytes = Array(record), code = bytes[0]
+            guard bytes[1] == 32 else { throw GitConfigurationFailure.output }
+            let assume = (97...122).contains(code), skip = code == 83 || code == 115
+            if assume || skip {
+                let path = String(decoding: bytes.dropFirst(2), as: UTF8.self)
+                flags[root.appendingPathComponent(path).path] = .init(skipWorktree: skip, assumeUnchanged: assume)
+            }
+        }
+        return flags
+    }
+}
 public struct FinderOverlaySettings: Codable, Equatable, Sendable {
     public var cacheMode: FinderOverlayCacheMode = .standard
     public var unversionedAsModified = false
@@ -13,7 +54,25 @@ public struct FinderOverlaySettings: Codable, Equatable, Sendable {
     public var excludePaths = ""
     public var includePaths = ""
     public var hiddenStates: Set<FileState> = []
+    public var showSkipWorktree = true
+    public var showAssumeUnchanged = true
+    public var iconSet: FinderOverlayIconSet = .xpStyle
     public init() {}
+    private enum CodingKeys: String, CodingKey { case cacheMode, unversionedAsModified, recurseSubmodules, showExcludedAsNormal, volumes, excludePaths, includePaths, hiddenStates, showSkipWorktree, showAssumeUnchanged, iconSet }
+    public init(from decoder: Decoder) throws {
+        self.init(); let values = try decoder.container(keyedBy: CodingKeys.self)
+        cacheMode = try values.decodeIfPresent(FinderOverlayCacheMode.self, forKey: .cacheMode) ?? .standard
+        unversionedAsModified = try values.decodeIfPresent(Bool.self, forKey: .unversionedAsModified) ?? false
+        recurseSubmodules = try values.decodeIfPresent(Bool.self, forKey: .recurseSubmodules) ?? false
+        showExcludedAsNormal = try values.decodeIfPresent(Bool.self, forKey: .showExcludedAsNormal) ?? true
+        volumes = try values.decodeIfPresent(Set<FinderVolumeKind>.self, forKey: .volumes) ?? [.fixed]
+        excludePaths = try values.decodeIfPresent(String.self, forKey: .excludePaths) ?? ""
+        includePaths = try values.decodeIfPresent(String.self, forKey: .includePaths) ?? ""
+        hiddenStates = try values.decodeIfPresent(Set<FileState>.self, forKey: .hiddenStates) ?? []
+        showSkipWorktree = try values.decodeIfPresent(Bool.self, forKey: .showSkipWorktree) ?? true
+        showAssumeUnchanged = try values.decodeIfPresent(Bool.self, forKey: .showAssumeUnchanged) ?? true
+        iconSet = try values.decodeIfPresent(FinderOverlayIconSet.self, forKey: .iconSet) ?? .xpStyle
+    }
     public static var sharedURL: URL? { FinderIntegration.container?.appendingPathComponent("overlay-settings.json") }
     public static func from(defaults: UserDefaults = .standard) -> Self {
         guard let data = defaults.data(forKey: "TurtleGit.FinderOverlaySettings"), let settings = try? JSONDecoder().decode(Self.self, from: data) else { return Self() }; return settings
@@ -122,6 +181,20 @@ public struct FinderOverlaySettings: Codable, Equatable, Sendable {
             if allows(entry.key, volume: volume(root ?? entry.key)) {
                 if !hiddenStates.contains(entry.value) { result[entry.key] = entry.value }
             } else if showExcludedAsNormal && (folders.contains(entry.key) || isDirectory(entry.key)) { result[entry.key] = .normal }
+        }
+    }
+    public func overlayBadges(snapshot: FinderSnapshot, volume: (String) -> FinderVolumeKind, isDirectory: (String) -> Bool) -> [String: FinderOverlayBadge] {
+        let states = badges(snapshot: snapshot, volume: volume, isDirectory: isDirectory)
+        let roots = snapshot.roots.sorted { $0.count > $1.count }
+        return states.mapValues { FinderOverlayBadge(rawValue: $0.rawValue)! }.reduce(into: [:]) { result, entry in
+            var badge = entry.value
+            if cacheMode == .standard, badge == .normal, let flags = snapshot.indexFlags?[entry.key] {
+                let root = roots.first { entry.key == $0 || entry.key.hasPrefix($0 + "/") }
+                guard allows(entry.key, volume: volume(root ?? entry.key)) else { result[entry.key] = badge; return }
+                if flags.skipWorktree && showSkipWorktree { badge = .skipWorktree }
+                else if flags.assumeUnchanged && showAssumeUnchanged { badge = .assumeUnchanged }
+            }
+            result[entry.key] = badge
         }
     }
 }
