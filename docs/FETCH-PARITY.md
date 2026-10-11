@@ -377,3 +377,19 @@ see [Pull parity](PULL-PARITY.md#owned-pull-lifetime-and-forced-cleanup).
 All Fetch-for-Rebase preflight cancellation, physical prompt/sheet restoration,
 every metadata/error/post-action stage and signed sandbox acceptance remain
 incomplete. Full Fetch/Pull parity remains partial.
+
+## Synchronization full-options Rebase ownership
+
+Shift+Pull/Fetch from Synchronization now installs an awaited owned-Rebase
+handoff. Fetch progress and options remain alive but are suspended while the
+owned Rebase dialog runs. Automatic configured Pull forwards auto-start and
+Preserve Merges; manual Fetch retains manual Start. Synchronization reads final
+HEAD only after Rebase dismisses, including ordinary cancellation. Opening
+failures close suspended windows, retain fetched ref changes and keep the error
+visible across outgoing refresh; manual Refresh clears that status.
+
+The standalone Fetch callback remains deferred when no owned handoff is
+installed. Full production factory, Push/Mail completion chains, physical input,
+rendered UI and signed sandbox acceptance are still pending. See
+[Synchronization parity](SYNCHRONIZATION-PARITY.md) for the source comparison and
+verification scope.

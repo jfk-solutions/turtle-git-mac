@@ -361,14 +361,22 @@ and signed sandbox acceptance remain pending. Because macOS uses private SSH
 agents per operation, options transport also prepares its own configured agent;
 this does not inherit a shared Pageant process as Windows does.
 
-Known remaining Shift/Rebase gap: full options currently use the existing
-`FetchProgressWindowModel.deferredRebase` callback, which closes Fetch before
-`RepositoryModel.configureFetchInteractions` opens a modeless Rebase window.
-Synchronization can therefore refresh before that Rebase finishes. Upstream's
-`CAppUtils::Pull`/`DoFetch` waits through the modal Rebase. The next ownership
-step must preserve the full options result until an owned Rebase has dismissed,
-then inspect final HEAD. The new native checks cover ordinary Pull/Fetch and
-configured-rebase options entry/cancellation, not this completion path.
+At checkpoint `5b472dd`, full-options Rebase closed Fetch before a modeless
+Rebase callback, allowing incoming results to refresh too early. Synchronization
+now installs an awaited owned-Rebase callback. It suspends the Fetch progress
+and options sheets without invalidating their pending completion, opens Rebase
+through the existing owned factory, then finishes the Fetch/options workflow
+when Rebase dismisses. Original HEAD and the fetched target are retained.
+Automatic Pull forwards auto-start and Preserve Merges; manual Fetch does not
+auto-start. An opening failure closes suspended windows and propagates the
+handoff error to Synchronization while preserving fetched reference changes.
+The outgoing refresh retains that error; a normal manual Refresh clears it.
+
+The standalone Fetch route retains its existing deferred callback when no owned
+callback is installed. Full application factory/post-action acceptance, including
+Push/Mail completion chains and the upstream TortoiseGit-specific stale-lock
+marker prompt, remains pending. The marker prompt checks `tgitrebase.active`;
+it must not be replaced by a generic Git active-Rebase test.
 
 Verification at code checkpoint `5b472dd`: 29 synchronization tests passed on
 system Git 2.50.1, Git 2.39.5 and packaged Git 2.55.0. The hidden native receiver
@@ -376,4 +384,14 @@ passed on system and packaged Git, including real options/progress and forced
 running-Fetch cleanup. Debug and App Store unsigned builds, both bundle audits,
 pin validation and site generation passed. The full suite was not rerun.
 The [dated Shift options record](qa/synchronization-shift-options-2026-10-11.json)
-retains exact source/log hashes and the known full-options Rebase completion gap.
+retains exact source/log hashes and the earlier full-options Rebase completion gap.
+
+Verification at code checkpoint `84d55b5`: the expanded native receiver passed
+on system and packaged Git, including automatic Preserve Merges, real divergent
+manual replay, cancellation, retained opening error/manual Refresh, suspended
+window cleanup on failure/force-close and duplicate late dismissals. Both unsigned
+builds and bundle audits, source pin validation and site generation passed.
+Core/test source hashes are unchanged from the preceding 29-test-per-engine
+checkpoint; Core tests and the full suite were not rerun in this GUI phase.
+See the [owned Rebase record](qa/synchronization-owned-rebase-2026-10-11.json)
+for exact source/log hashes and remaining acceptance work.

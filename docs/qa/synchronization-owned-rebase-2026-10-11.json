@@ -1,0 +1,98 @@
+{
+  "date": "2026-10-11",
+  "checkpoint": "84d55b5b3c8b6260e069248f890fc379cfb0e9d9",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "SyncDlg.cpp": "17bfe829c486fee35345727136bec8d1adbf21f9",
+    "AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563"
+  },
+  "status": "partial-native-owned-rebase-workflow",
+  "implemented": [
+    "Synchronization full-options Fetch/Pull installs optional awaited owned Rebase callback instead of the deferred modeless callback.",
+    "Progress and options sheets are suspended without invalidating the pending Fetch completion; existing owned Rebase factory is awaited before closing options and refreshing incoming/ref results.",
+    "Configured automatic Pull forwards auto-start and Preserve Merges; manual Fetch retains manual Start and immutable fetched target.",
+    "Handoff exceptions close suspended windows and propagate to Synchronization while preserving successful fetched ref changes.",
+    "Completion outgoing refresh retains operation error; manual Refresh clears displayed status while retaining command output.",
+    "Standalone Fetch deferred callback stays in use when no owned callback is installed."
+  ],
+  "verification": {
+    "native": {
+      "engines": [
+        "system Git 2.50.1",
+        "packaged Git 2.55.0"
+      ],
+      "exit": 0,
+      "log": "build/qa/synchronization-owned-rebase-native-verified-2026-10-11.log",
+      "pass_groups_per_engine": 6,
+      "scope": "Existing Sync/Pull/Fetch/ref/direct Rebase and Shift options regressions, plus actual owned Rebase controller automatic preserve-merges fast-forward and manual divergent replay through the sequence editor, no premature incoming/ref publication, ordinary Rebase cancellation, injected opening failure and ref/error retention, manual refresh, force-close and duplicate late dismissal, and standalone deferred callback fallback.",
+      "limits": "Actions and failure are injected in hidden windows with private preferences/repos. Rebase controller is real but presented through the verification callback, rather than running the production RepositoryModel factory. Full factory, physical modifier keys, rendered/accessibility, authenticated server and signed acceptance remain pending."
+    },
+    "debug_build": {
+      "exit": 0,
+      "log": "build/qa/synchronization-owned-rebase-debug-verified-2026-10-11.log"
+    },
+    "app_checks": [
+      {
+        "step": "store-build",
+        "exit": 0,
+        "log": "build/qa/synchronization-owned-rebase-store-build-final-2026-10-11.log"
+      },
+      {
+        "step": "debug-audit",
+        "exit": 0,
+        "log": "build/qa/synchronization-owned-rebase-debug-audit-final-2026-10-11.log"
+      },
+      {
+        "step": "store-audit",
+        "exit": 0,
+        "log": "build/qa/synchronization-owned-rebase-store-audit-final-2026-10-11.log"
+      },
+      {
+        "step": "inventory",
+        "exit": 0,
+        "log": "build/qa/synchronization-owned-rebase-inventory-final-2026-10-11.log"
+      },
+      {
+        "step": "site",
+        "exit": 0,
+        "log": "build/qa/synchronization-owned-rebase-site-final-2026-10-11.log"
+      }
+    ],
+    "core": "Core and Core test sources are unchanged from the linked Shift options record. Its 29 synchronization tests per engine are prior evidence; Core tests and full suite were not rerun in this GUI lifecycle phase.",
+    "prior_core_record": "synchronization-shift-options-2026-10-11.json",
+    "unsigned_only": true,
+    "cleanup": "Native runner completed zero; private windows closed and forced/duplicate dismissal checks passed. Final owned-process scan recorded in task."
+  },
+  "corrected_verification_attempts": [
+    "First native compilation tried to inspect private Fetch preserveMerges; assertion replaced with flags delivered to real Rebase and actual execution.",
+    "First runtime failed handoff-error assertion because automatic outgoing refresh cleared error. Production reload now retains operation error, with native retention/manual Refresh checks passing on both engines."
+  ],
+  "remaining": [
+    "Full production Rebase factory/completion actions, including Push/Mail chains and forced-close during a busy production Rebase.",
+    "Upstream stale-lock entry prompt checks tgitrebase.active directory; broader port is pending and must not be replaced by a generic Git active-Rebase test.",
+    "Standalone full Fetch/Rebase modal completion ownership beyond its current deferred callback.",
+    "Compare Tags, native Push variants/project hooks and remaining Synchronization controls, full menus/history/layout.",
+    "Metadata after key loading, wider repository/configuration/hook/external-writer cases and FETCH_HEAD ambiguity audit.",
+    "Rendered light/dark, physical/accessibility/modifier keys, authenticated server and signed Finder/sandbox/App Store acceptance.",
+    "Full whole-app port and distribution/documentation objective."
+  ],
+  "sources_sha256": {
+    "Sources/TurtleGitMac/FetchWindow.swift": "c118847f9d656393554401fb9d63b3e78ab10e79aeb3c07887112c060a99e15a",
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "0dbd936d43ae0f20b21022d87d9f4e1b6c32f8b1ded91eb7eb76eafcd3ad5b62",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "9657ccd60372428686ec54575396833285fb08b44eacfccd9460a496343cabc4",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "d75f8a3d3987ad6100bbeecf1ea380b1f1faa5ef6ff17cd515c3fbd58e7a1bfd",
+    "docs/qa/synchronization-native-2026-10-11.swift": "1e08dd09cdf2e42b3b6e04a60e60f54f2fdd4b5a3046ce4a2c3da76c697d3653",
+    "scripts/test-synchronization-dialog.py": "81bd2a31db443df58558c8d5a92e9122c756722e6b2da061727a4ef847ed39ec",
+    "Sources/TurtleGitCore/Synchronization.swift": "5b2b0c18ca4dda6fdd0500dce07862473e1f480f86217775fa7df00b17353c0a",
+    "Tests/TurtleGitCoreTests/SynchronizationTransportTests.swift": "615ebf51e6848d40df509b5769387780216df632eb0eb007a205653843d21213"
+  },
+  "logs_sha256": {
+    "build/qa/synchronization-owned-rebase-debug-verified-2026-10-11.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/synchronization-owned-rebase-native-verified-2026-10-11.log": "f71312dba79869c9c4af694f7835463523ebbfceaee895cd18a20aa22e455763",
+    "build/qa/synchronization-owned-rebase-store-build-final-2026-10-11.log": "8b7e42e41011f64b89af2a34249c0e6a736fce554184bf57a0f657922d209930",
+    "build/qa/synchronization-owned-rebase-debug-audit-final-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/synchronization-owned-rebase-store-audit-final-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/synchronization-owned-rebase-inventory-final-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/synchronization-owned-rebase-site-final-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}
