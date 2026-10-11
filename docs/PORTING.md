@@ -50,8 +50,9 @@ Synchronization has native outgoing/incoming graph and file tabs, reference
 changes, bounded transport output, separate checkout/fast-forward progress and
 Fetch & Rebase source choices. Shift+Pull/Fetch opens owned full options and
 refreshes results after dismissal. The backend covers nine source CLI actions;
-native Push variants/project hooks, Compare Tags, remaining controls, full
-visual matching and signed acceptance are still pending. See
+the native Compare Tags tab adds sorting, icon menus, confirmed tag actions and
+owned loading/command progress. Native Push variants/project hooks, remaining
+controls, full visual matching and signed acceptance are still pending. See
 [Synchronization parity](SYNCHRONIZATION-PARITY.md).
 Across the 130 inventoried dialogs:
 49 dialogs are now partial and 81 await review. No dialog is certified complete.

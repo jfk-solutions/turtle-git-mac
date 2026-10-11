@@ -1,0 +1,97 @@
+{
+  "date": "2026-10-11",
+  "checkpoint": "6408cc57964b7391b38c4ee10c6234769d2f9a46",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/GitTagCompareList.cpp": "7fe2ee7c872e49da2a2c38c491606d0ba7d80f0d",
+    "src/TortoiseProc/GitTagCompareList.h": "c49a38b10570f6069af685ce4d879d710b446dbc",
+    "src/TortoiseProc/SyncDlg.cpp": "17bfe829c486fee35345727136bec8d1adbf21f9"
+  },
+  "status": "partial-native-compare-tags",
+  "implemented": [
+    "Source split index 6 with persisted selection, Shift no-operation behavior and a dedicated six-column tab.",
+    "Owned loading sheet and immutable repository/remote snapshot; natural/reversed/header sorting and Hide unchanged initialization without adding source-absent preference writes.",
+    "Original side-dependent Log/Compare/Fetch/Push/local-delete/remote-delete icons and application icon visibility setting; full selected hash routes and production Log selection callback.",
+    "Yes/No deletion confirmation for underlying friendly-row tag; non-force Fetch and force Push through owned output/progress; refills after completion/failure/cancellation, except source remote-delete failure return.",
+    "Parent close fencing, process cancellation, owned key/progress cleanup and tag-write repository refresh callback."
+  ],
+  "verification": {
+    "native": {
+      "exit": 0,
+      "engines": [
+        "system Git 2.50.1",
+        "packaged Git 2.55.0"
+      ],
+      "pass_groups_per_engine": 7,
+      "log": "build/qa/synchronization-tags-ui-native-final-2026-10-11.log",
+      "scope": "Six existing Synchronization workflow groups and one new real private-repository Compare Tags group. New checks cover six columns, raw/friendly rows, natural/reversed sorting, full-hash Log/Compare callbacks, icon presence/visibility, Hide unchanged behavior, persisted Shift selection, actual Fetch/Push and non-force rejection, declined/accepted normalized local deletion and remote deletion, stale menu refusal, progress Close-button completion/refill, unchanged HEAD/index/config and forced loading/write process reaping.",
+      "limits": "Hidden windows/private preferences. Deletion answers and Log/Compare callbacks are injected; production RepositoryModel Log selection and repository refresh wiring are inspected but not driven end-to-end. Appearance switches execute without rendered visual acceptance. Authentication, physical/accessibility controls, signed distribution and wider edge cases remain unverified."
+    },
+    "debug_build": {
+      "exit": 0,
+      "log": "build/qa/synchronization-tags-ui-debug-verified-2026-10-11.log"
+    },
+    "app_checks": [
+      {
+        "step": "store-build",
+        "exit": 0,
+        "log": "build/qa/synchronization-tags-ui-store-build-2026-10-11.log"
+      },
+      {
+        "step": "debug-audit",
+        "exit": 0,
+        "log": "build/qa/synchronization-tags-ui-debug-audit-2026-10-11.log"
+      },
+      {
+        "step": "store-audit",
+        "exit": 0,
+        "log": "build/qa/synchronization-tags-ui-store-audit-2026-10-11.log"
+      },
+      {
+        "step": "inventory",
+        "exit": 0,
+        "log": "build/qa/synchronization-tags-ui-inventory-2026-10-11.log"
+      },
+      {
+        "step": "site",
+        "exit": 0,
+        "log": "build/qa/synchronization-tags-ui-site-final-2026-10-11.log"
+      }
+    ],
+    "core": "Source hashes match the backend checkpoint. Its 34 tests per engine are prior evidence; Core tests and the full suite were not rerun in this GUI phase.",
+    "prior_core_record": "synchronization-tags-backend-2026-10-11.json",
+    "unsigned_only": true,
+    "cleanup": "Native runner returned zero; post-run process scan found no native receiver or TurtleGit process. Forced load/write wrappers were reaped in both engine fixtures."
+  },
+  "corrected_attempts": [
+    "First build called internal OperationCancellation.check across modules; replaced with the public isCancelled guard.",
+    "First fixture used NSWindow.performClose on a sheet and did not complete; changed to the same model.close action wired to its Close button, and strengthened table refresh waits to inspect row hash contents.",
+    "Rejected tag Fetch can still auto-follow another tag, so a later remote-only Fetch menu became inapplicable after correct refill. Fixture ordering now fetches that tag before testing the rejection, retaining both checks."
+  ],
+  "remaining": [
+    "Source compact remote-deletion/local-deletion presentation and exact source menu captions. Current integration uses the common owned command progress sheet for all tag mutations.",
+    "Shift alternative Compare routing and progress auto-close preference combinations.",
+    "Production Log/Compare/refresh callback acceptance, including raw/non-commit annotated objects and prefix collisions.",
+    "Windows/Mac collation edge cases, symbolic/SHA-256 repositories, authentication, hooks and external writers.",
+    "Rendered light/dark and physical/accessibility verification; signed Finder/sandbox/App Store acceptance.",
+    "Remaining Synchronization controls/Push/project hooks and whole-app port/distribution/documentation objective."
+  ],
+  "sources_sha256": {
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "950a6a74395e2a57f825579149e9369a8ddba4d4b5e46d44c1191c44d5131e0d",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "15a64d4612ce0bf17e6ac005de8adc3411fdbca88c5c97b1fef814f7d95e7b2a",
+    "docs/qa/synchronization-native-2026-10-11.swift": "ff2f471281f526a9fa7a3b42a0ef19d1980cb72ec3ce525c38954aa8244daab1",
+    "scripts/test-synchronization-dialog.py": "4d79922d4f2cac3a38a0a5dd0aa1d2d2f5278634fd4dad973d84c7338b4426af",
+    "Sources/TurtleGitCore/Synchronization.swift": "523184d2c995c23829a9b30d2eacf846fcaaed547f3d1a2bb6f6cdb9a60a37f7",
+    "Sources/TurtleGitCore/RemoteTags.swift": "a9a717d33007373eb46e4e60bb62cf3990d855888f560f9d37230fad57e0fe27",
+    "Tests/TurtleGitCoreTests/SynchronizationTagTests.swift": "5247724e04d9fe5af13b8aee6824a5529e76c3ab593cf693ce95d574f38d1b77"
+  },
+  "logs_sha256": {
+    "build/qa/synchronization-tags-ui-debug-verified-2026-10-11.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/synchronization-tags-ui-native-final-2026-10-11.log": "7f43e88b519a8f91ce6f836f65a42373419f05c1dd59bae69cdd5a7666517f29",
+    "build/qa/synchronization-tags-ui-store-build-2026-10-11.log": "8b7e42e41011f64b89af2a34249c0e6a736fce554184bf57a0f657922d209930",
+    "build/qa/synchronization-tags-ui-debug-audit-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/synchronization-tags-ui-store-audit-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/synchronization-tags-ui-inventory-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/synchronization-tags-ui-site-final-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

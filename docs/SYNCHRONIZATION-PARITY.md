@@ -417,8 +417,8 @@ local tag state reject stale changes before and after asynchronous key loading.
 Remote Push retains source force behavior; no server lease is added. Ref commands
 disable macOS argument precomposition to preserve exact UTF-8 names.
 
-The native Compare Tags entry, six-column table, sort/hide state, icon menus,
-owned loading/command progress and result refresh are still pending. Backend
+At the backend checkpoint, the native Compare Tags entry, six-column table,
+sort/hide state, icon menus, owned progress and result refresh remained pending. Backend
 results are not a certification of native control parity. Broader symbolic tags,
 short-name ambiguity, SHA-256 repositories, remote authentication, hook/race and
 signed/rendered/physical acceptance also remain to be audited.
@@ -433,3 +433,54 @@ audits, pin validation and site generation passed. The full suite was not rerun;
 there is no Compare Tags UI acceptance in this backend phase. See the
 [backend verification record](qa/synchronization-tags-backend-2026-10-11.json)
 for exact source/log hashes and remaining work.
+
+## Native Compare Tags integration
+
+The source Pull split entry at index 6 now opens a dedicated Compare Tags tab.
+Its selection is remembered; Shift remembers the entry without starting work,
+as for the other source entries above index 1. Loading owns a cancellable native
+sheet, with repository-access checks and a captured remote. The tab has Tag,
+Status, Local hash, Local message, Remote hash and Remote message columns.
+Hashes display the pinned source's eight-character length with full-hash tooltips.
+Names/messages use macOS natural ordering by default; header clicks select a
+column/direction, and SortTagsReversed starts with descending tag names.
+Windows Explorer's NoStrCmpLogical policy maps to a local preference. Exact-name
+row identity is retained even when the platform collation treats names equally.
+
+The header's Hide unchanged state initializes from TagCompareHideEqual and
+stays in the window, matching the source header handler, which does not write
+that registry value. Row menus offer local/remote Log, Compare revisions,
+Fetch, Push, Delete local tag and Delete tag on remote according to source side
+presence/difference rules. They use original artwork, including Commit for the
+source tag Push icon, and honor the application context-icon setting. Native
+Log and Compare route full selected hashes; displayed-prefix ambiguity is not
+introduced into commands. Log selects the requested revision through the
+production RepositoryModel callback.
+
+Both deletion paths require a Yes/No answer for the normalized underlying tag
+and captured remote. Fetch and Push own a separate output/progress sheet whose
+Close button completes the command handoff. The table refills after dismissal,
+including a failed/cancelled Fetch or Push. Failed remote deletion returns
+without refill, as in source. Successful deletions refill. Repository log/status
+views are notified after a command returns, since failure can still have changed
+refs. Root force-close cancels the active operation, closes owned progress/key
+prompts and fences late publication. Editing branch/remote controls returns to
+the outgoing view and discards the old tag snapshot; Refresh in tag mode loads
+tags again.
+
+This remains partial parity. Physical/accessibility and rendered light/dark
+acceptance, authenticated remotes, progress auto-close preference combinations,
+source compact remote-deletion/local-deletion presentation, exact source menu
+captions, Shift alternative Compare routing, prefix-collision behavior, Windows-versus-Mac
+collation edge cases and wider symbolic/SHA-256/hook/external-writer scenarios
+are still pending. No new screenshots or dialog certification are claimed.
+
+Verification at code checkpoint `6408cc5`: seven hidden native check
+groups passed on system Git 2.50.1 and packaged Git 2.55.0. The added tag group
+exercises actual menu actions, real tag transport/deletion, source sort/hide
+behavior, failed-command refill, preserved HEAD/index/config and forced parent
+cleanup during loading/writing. Debug and App Store unsigned builds, both bundle
+audits, inventory pin validation and site generation passed. Core/test hashes
+match the backend record; Core tests and the full suite were not rerun in this
+GUI phase. See the [native verification record](qa/synchronization-tags-native-2026-10-11.json)
+for scope, source/log hashes, corrected fixture attempts and remaining work.
