@@ -25,7 +25,7 @@ final class FinderCommandBatchTests: XCTestCase {
         XCTAssertFalse(FinderShellRules.allows(.synchronize, flags: [.folderInGit, .onlyOne, .bisect]))
         XCTAssertTrue(FinderShellRules.allows(.logSubmodule, flags: [.folderInGit, .onlyOne, .workingTreeRoot, .submodule]))
         XCTAssertFalse(FinderShellRules.allows(.logSubmodule, flags: [.folderInGit, .onlyOne, .workingTreeRoot]))
-        XCTAssertEqual(FinderMenuEntry.allCases.filter(\.availableInFinder).count, 47)
+        XCTAssertEqual(FinderMenuEntry.allCases.filter(\.availableInFinder).count, 49)
         for action in [RepositoryAction.synchronize, .blame, .previousDiff, .logSubmodule, .editConflict, .settings, .help, .about] {
             XCTAssertTrue(FinderMenuEntry.entry(for: action)?.availableInFinder == true)
             XCTAssertNil(action.arguments(value: ""))

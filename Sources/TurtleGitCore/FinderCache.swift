@@ -140,13 +140,15 @@ public struct FinderRepositoryMetadata: Codable, Equatable, Sendable {
     public var mergeActive: Bool
     public var hasStash: Bool
     public var hasSubmoduleConfig: Bool
+    public var hasLFS: Bool
     public var submoduleParentRoot: String?
     public init(bare: Bool = false, bisectActive: Bool = false, mergeActive: Bool = false,
-                hasStash: Bool = false, hasSubmoduleConfig: Bool = false, submoduleParentRoot: String? = nil) {
+                hasStash: Bool = false, hasSubmoduleConfig: Bool = false, submoduleParentRoot: String? = nil, hasLFS: Bool = false) {
         self.bare = bare; self.bisectActive = bisectActive; self.mergeActive = mergeActive
         self.hasStash = hasStash; self.hasSubmoduleConfig = hasSubmoduleConfig; self.submoduleParentRoot = submoduleParentRoot
+        self.hasLFS = hasLFS
     }
-    private enum CodingKeys: String, CodingKey { case bare, bisectActive, mergeActive, hasStash, hasSubmoduleConfig, submoduleParentRoot }
+    private enum CodingKeys: String, CodingKey { case bare, bisectActive, mergeActive, hasStash, hasSubmoduleConfig, submoduleParentRoot, hasLFS }
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         bare = try values.decode(Bool.self, forKey: .bare)
@@ -155,10 +157,11 @@ public struct FinderRepositoryMetadata: Codable, Equatable, Sendable {
         hasStash = try values.decode(Bool.self, forKey: .hasStash)
         hasSubmoduleConfig = try values.decode(Bool.self, forKey: .hasSubmoduleConfig)
         submoduleParentRoot = try values.decodeIfPresent(String.self, forKey: .submoduleParentRoot)
+        hasLFS = try values.decodeIfPresent(Bool.self, forKey: .hasLFS) ?? false
     }
     /// Repository-wide clauses only; path/status clauses remain separate.
     public func allows(_ action: RepositoryAction) -> Bool {
-        if action.isApplicationUtility { return true }
+        if action.isApplicationUtility || action == .sendMail { return true }
         if bare { return [.fetch, .push, .log, .revisionGraph, .reflog, .referenceBrowser, .repositoryBrowser, .export, .worktreeList].contains(action) }
         if [.pull, .merge, .rebase, .synchronize].contains(action) && (bisectActive || mergeActive) { return false }
         if action == .bisectStart && (bisectActive || mergeActive) { return false }
@@ -180,11 +183,12 @@ extension GitRepository {
         let directory = URL(fileURLWithPath: String(decoding: bytes, as: UTF8.self), isDirectory: true)
         let fm = FileManager.default
         let stash = try run(["show-ref", "--verify", "--quiet", "refs/stash"], successfulExitCodes: 0...1).exitCode == 0
+        let lfs = bare ? false : try hasLFS()
         return FinderRepositoryMetadata(bare: bare,
             bisectActive: fm.fileExists(atPath: directory.appendingPathComponent("BISECT_START").path),
             mergeActive: fm.fileExists(atPath: directory.appendingPathComponent("MERGE_HEAD").path),
             hasStash: stash, hasSubmoduleConfig: !bare && fm.fileExists(atPath: root.appendingPathComponent(".gitmodules").path),
-            submoduleParentRoot: bare ? nil : try registeredSubmoduleParent()?.path)
+            submoduleParentRoot: bare ? nil : try registeredSubmoduleParent()?.path, hasLFS: lfs)
     }
 }
 
@@ -289,11 +293,17 @@ public struct FinderSnapshot: Codable, Sendable {
 }
 
 public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
+    case lfs, lfsLocks, lfsLock, lfsUnlock, sendMail
     case synchronize, blame, previousDiff, logSubmodule, settings, help, about
     case status, commit, add, revert, clean, submoduleAdd, submoduleUpdate, submoduleSync, log, revisionGraph, referenceBrowser, repositoryBrowser, export, bisect, bisectStart, bisectGood, bisectBad, bisectSkip, bisectReset, formatPatch, importPatch, requestPull, worktreeCreate, worktreeList, diff, diffLater, clearComparisonMark, pull, push, fetch, branch, tag, switchBranch, merge, mergeAbort, rebase, stash, stashApply, stashPop, stashList, reflog, clone, initialize, rename, remove, removeKeep, ignore, ignoreMask, ignoreDelete, ignoreDeleteMask, resolve, resolveCurrent, resolveMine, resolveTheirs, reset, editConflict
     public var id: String { rawValue }
     public var title: String {
         switch self {
+        case .lfs: return "LFS"
+        case .lfsLocks: return "Show locked files"
+        case .lfsLock: return "Lock"
+        case .lfsUnlock: return "Unlock"
+        case .sendMail: return "Send Mail…"
         case .synchronize: return "Sync…"
         case .blame: return "Blame"
         case .previousDiff: return "Diff with previous version"
@@ -368,11 +378,13 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
     public var isResolve: Bool { self == .resolve || self == .editConflict || resolveChoice != nil }
     public var isApplicationUtility: Bool { [.settings, .help, .about].contains(self) }
     public var allowsEmptySelection: Bool { isApplicationUtility || self == .clone || self == .initialize }
+    public var isMenuHeader: Bool { self == .lfs }
+    public var isLFS: Bool { [.lfs, .lfsLocks, .lfsLock, .lfsUnlock].contains(self) }
     public var isIgnore: Bool { [.ignore, .ignoreMask, .ignoreDelete, .ignoreDeleteMask].contains(self) }
     public var ignoresByExtension: Bool { self == .ignoreMask || self == .ignoreDeleteMask }
     public var removesWhenIgnoring: Bool { self == .ignoreDelete || self == .ignoreDeleteMask }
     public var requiresValue: Bool { [.branch, .tag, .switchBranch, .merge, .rebase, .stash, .clone].contains(self) }
-    public var requiresWorkingTree: Bool { [.synchronize, .blame, .previousDiff, .logSubmodule, .status, .commit, .importPatch, .add, .revert, .clean, .submoduleAdd, .submoduleUpdate, .submoduleSync, .diff, .bisect, .bisectStart, .bisectGood, .bisectBad, .bisectSkip, .bisectReset, .pull, .switchBranch, .merge, .mergeAbort, .rebase, .stash, .stashApply, .stashPop, .stashList, .rename, .remove, .removeKeep, .ignore, .ignoreMask, .ignoreDelete, .ignoreDeleteMask, .resolve, .resolveCurrent, .resolveMine, .resolveTheirs, .editConflict].contains(self) }
+    public var requiresWorkingTree: Bool { [.lfs, .lfsLocks, .lfsLock, .lfsUnlock, .synchronize, .blame, .previousDiff, .logSubmodule, .status, .commit, .importPatch, .add, .revert, .clean, .submoduleAdd, .submoduleUpdate, .submoduleSync, .diff, .bisect, .bisectStart, .bisectGood, .bisectBad, .bisectSkip, .bisectReset, .pull, .switchBranch, .merge, .mergeAbort, .rebase, .stash, .stashApply, .stashPop, .stashList, .rename, .remove, .removeKeep, .ignore, .ignoreMask, .ignoreDelete, .ignoreDeleteMask, .resolve, .resolveCurrent, .resolveMine, .resolveTheirs, .editConflict].contains(self) }
     public var prompt: String {
         switch self {
         case .clone: return "Repository URL"
@@ -458,6 +470,11 @@ public struct FinderShellCondition: Sendable {
 }
 public enum FinderShellRules {
     public static let conditions: [RepositoryAction: [FinderShellCondition]] = [
+        .lfs: [.init([.inVersionedFolder, .inGit], []), .init([], []), .init([], []), .init([], [])],
+        .lfsLocks: [.init([.folderInGit, .onlyOne], []), .init([], []), .init([], []), .init([], [])],
+        .lfsLock: [.init([.inGit, .inVersionedFolder], [.folder]), .init([], []), .init([], []), .init([], [])],
+        .lfsUnlock: [.init([.inGit, .inVersionedFolder], [.folder]), .init([], []), .init([], []), .init([], [])],
+        .sendMail: [.init([.patchFile], []), .init([.extended], [.folder]), .init([], []), .init([], [])],
         .synchronize: [.init([.folderInGit, .onlyOne], [.bisect, .merge]), .init([], []), .init([], []), .init([], [])],
         .previousDiff: [.init([.inGit, .onlyOne], [.added]), .init([], []), .init([], []), .init([], [])],
         .blame: [.init([.inGit, .onlyOne], [.folder, .added]), .init([], []), .init([], []), .init([], [])],

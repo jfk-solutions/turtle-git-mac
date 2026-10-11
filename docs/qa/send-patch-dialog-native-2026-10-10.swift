@@ -109,6 +109,43 @@ private actor MailDraftProbe {
         let first = root.appendingPathComponent("1 雪\n.patch"), second = root.appendingPathComponent("2.patch")
         try Data("Subject: First 雪\n\none\n".utf8).write(to: first)
         try Data("Subject: Second\n\ntwo\n".utf8).write(to: second)
+        // The no-repository sender context is owned, does not pretend to have
+        // a security-scoped grant, and refuses a substituted directory.
+        do {
+            var context: ApplicationMailContext? = try ApplicationMailContext()
+            let directory = context!.root
+            let repository = GitRepository(root: directory)
+            try require(context!.permits(repository), "Owned global mail directory rejected")
+            try require(!context!.permits(GitRepository(root: root)), "Foreign sender directory accepted")
+            context = nil
+            try require(!FileManager.default.fileExists(atPath: directory.path), "Mail context leaked after release")
+            var replaced: ApplicationMailContext? = try ApplicationMailContext()
+            let path = replaced!.root, backup = root.appendingPathComponent("owned-mail-directory-backup")
+            try FileManager.default.moveItem(at: path, to: backup)
+            try FileManager.default.createDirectory(at: path, withIntermediateDirectories: false)
+            try require(!replaced!.permits(GitRepository(root: path)), "Replaced directory accepted")
+            replaced = nil
+            try require(FileManager.default.fileExists(atPath: path.path), "Release removed someone else's replacement")
+            try FileManager.default.removeItem(at: path); try FileManager.default.removeItem(at: backup)
+        }
+        do {
+            let workspace = RepositoryModel()
+            var captured: [NSWindowController] = []
+            workspace.finderMailPresentation = { captured.append($0) }
+            let request = FinderRequest(action: .sendMail, paths: [first, second, first])
+            workspace.handle(request.url!)
+            let deadline = Date().addingTimeInterval(15)
+            while workspace.busy && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+            try require(!workspace.busy && workspace.root == nil && captured.count == 1, "Finder mail changed checkout or failed to open its composer")
+            let options = captured[0] as! SendPatchWindowController
+            try require(options.model.rows.map(\.file) == [first, second] && options.model.checked.count == 2, "Finder selection/order/deduplication lost")
+            try require(options.model.canSubmit, "Finder mail backend was not attached")
+            try await settle(options.model)
+            options.close(); captured.removeAll()
+            try require(options.model.canInteract == false, "Closed Finder mail composer retained active controls")
+            try require(FileManager.default.fileExists(atPath: first.path) && FileManager.default.fileExists(atPath: second.path), "Cancel deleted source files")
+        }
+        print("Finder Send Mail receiver: no-repository composer, captured Unicode/newline/order/deduplication, backend attachment and Cancel/source retention passed without submission. Owned sender contexts clean up and reject directory substitution.")
         let defaults = SendPatchWindowModel(files: [first], preferences: prefs)
         try require(!defaults.attachment && !defaults.combine && !defaults.canSubmit, "Defaults or missing backend gate")
         try require(defaults.checked.count == 1 && defaults.highlighted.count == 1, "Single-file initial check/highlight")

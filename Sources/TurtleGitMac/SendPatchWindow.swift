@@ -12,6 +12,35 @@ struct SendPatchRequest: Sendable {
     let delivery: EmailConfiguration
 }
 
+/// A no-repository mail command still needs Git's global sender configuration.
+/// Own an exclusive private directory instead of borrowing the active checkout
+/// or claiming a security-scoped grant that macOS never provided.
+final class ApplicationMailContext: @unchecked Sendable {
+    let root: URL
+    private let device: UInt64, inode: UInt64
+    init() throws {
+        let directory = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGit-mail-context-" + UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+        var ready = false; defer { if !ready { try? FileManager.default.removeItem(at: directory) } }
+        let attributes = try FileManager.default.attributesOfItem(atPath: directory.path)
+        guard let device = (attributes[.systemNumber] as? NSNumber)?.uint64Value,
+              let inode = (attributes[.systemFileNumber] as? NSNumber)?.uint64Value else { throw CocoaError(.fileReadUnknown) }
+        root = directory; self.device = device; self.inode = inode; ready = true
+    }
+    func permits(_ repository: GitRepository) -> Bool {
+        guard repository.root.standardizedFileURL == root.standardizedFileURL,
+              let attributes = try? FileManager.default.attributesOfItem(atPath: root.path),
+              attributes[.type] as? FileAttributeType == .typeDirectory else { return false }
+        return (attributes[.systemNumber] as? NSNumber)?.uint64Value == device && (attributes[.systemFileNumber] as? NSNumber)?.uint64Value == inode
+    }
+    deinit {
+        if let attributes = try? FileManager.default.attributesOfItem(atPath: root.path),
+           attributes[.type] as? FileAttributeType == .typeDirectory,
+           (attributes[.systemNumber] as? NSNumber)?.uint64Value == device,
+           (attributes[.systemFileNumber] as? NSNumber)?.uint64Value == inode { try? FileManager.default.removeItem(at: root) }
+    }
+}
+
 @MainActor final class SendPatchWindowModel: ObservableObject {
     enum Delivery { case mailClient, smtp }
     @Published private(set) var rows: [SendPatchRow]
@@ -237,9 +266,12 @@ struct SendPatchRequest: Sendable {
     let model: SendPatchWindowModel
     var onClosed: () -> Void = {}
     private var patch: PatchWindowController?
+    private var targetPicker: NSOpenPanel?
+    private var targetGeneration = 0
+    private var choosingTarget = false, retired = false
     init(files: [URL], delivery: SendPatchWindowModel.Delivery? = nil, access: [RepositoryAccessLease] = [], preferences: UserDefaults = .standard,
          settingsPresenter: ((UserDefaults) -> Void)? = nil, repository: GitRepository? = nil, repositoryAccess: RepositoryAccessLease? = nil,
-         presentation: ((NSWindowController) -> Void)? = nil, customSubject: Bool = false, appOwnedFiles: [URL] = []) {
+         presentation: ((NSWindowController) -> Void)? = nil, customSubject: Bool = false, appOwnedFiles: [URL] = [], choosePatchTarget: Bool = false) {
         model = SendPatchWindowModel(files: files, delivery: delivery, access: access, preferences: preferences, customSubject: customSubject, appOwnedFiles: appOwnedFiles)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 480), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = customSubject ? "Send Mail – TurtleGit" : "Send Patch – TurtleGit"; window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 620, height: 380)
@@ -253,7 +285,7 @@ struct SendPatchRequest: Sendable {
             else { EmailSettingsWindowController.present(preferences: preferences) }
         }
         if let repository {
-            model.childActive = { [weak self] in self?.patch?.model.busy == true || self?.patch?.window?.attachedSheet != nil }
+            model.childActive = { [weak self] in self?.choosingTarget == true || self?.window?.attachedSheet != nil || self?.patch?.model.busy == true || self?.patch?.window?.attachedSheet != nil }
             let open: (URL, Bool) -> Void = { [weak self] file, alternate in
                 guard let self else { return }
                 self.model.loadPatch(file) { [weak self] bytes in
@@ -275,9 +307,11 @@ struct SendPatchRequest: Sendable {
                 guard let self else { return }
                 do {
                     let grants = try self.model.fileGrants(for: [file])
-                    self.model.loadPatch(file) { bytes in
-                        SendPatchCommandWindows.review(bytes: bytes, file: file, repository: repository, access: repositoryAccess,
-                            grants: grants, preferences: preferences, presentation: presentation)
+                    self.model.loadPatch(file) { [weak self] bytes in
+                        self?.withPatchTarget(repository: repository, access: repositoryAccess, choose: choosePatchTarget, preferred: file.deletingLastPathComponent()) { target, access in
+                            SendPatchCommandWindows.review(bytes: bytes, file: file, repository: target, access: access,
+                                grants: grants, preferences: preferences, presentation: presentation)
+                        }
                     }
                 } catch { self.model.error = error.localizedDescription }
             }
@@ -285,15 +319,50 @@ struct SendPatchRequest: Sendable {
                 guard let self else { return }
                 do {
                     let grants = try self.model.fileGrants(for: files)
-                    SendPatchCommandWindows.apply(files: files, repository: repository, access: repositoryAccess,
-                        grants: grants, preferences: preferences, presentation: presentation)
+                    self.withPatchTarget(repository: repository, access: repositoryAccess, choose: choosePatchTarget, preferred: files.first?.deletingLastPathComponent()) { target, access in
+                        SendPatchCommandWindows.apply(files: files, repository: target, access: access,
+                            grants: grants, preferences: preferences, presentation: presentation)
+                    }
                 } catch { self.model.error = error.localizedDescription }
             }
         }
         DialogGeometry.attach(window, identifier: "SendPatchDialog", legacyName: "SendPatchDialog")
     }
+    private func withPatchTarget(repository: GitRepository, access: RepositoryAccessLease?, choose: Bool, preferred: URL?, perform: @escaping (GitRepository, RepositoryAccessLease?) -> Void) {
+        guard !retired, targetPicker == nil, !choosingTarget else { return }
+        if !choose { perform(repository, access); return }
+        guard let window, window.attachedSheet == nil else { return }
+        let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.directoryURL = preferred
+        panel.prompt = "Choose working repository"; panel.message = "Choose the working repository where these patches should be reviewed or applied."
+        targetGeneration += 1; let generation = targetGeneration
+        targetPicker = panel; choosingTarget = true; model.objectWillChange.send()
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard let self, !self.retired, self.targetGeneration == generation else { return }
+            self.targetPicker = nil
+            guard response == .OK, let directory = panel.url else { self.choosingTarget = false; self.model.objectWillChange.send(); return }
+            let lease = RepositoryAccessLease(url: directory)
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                defer { if self.targetGeneration == generation { self.choosingTarget = false; self.model.objectWillChange.send() } }
+                do {
+                    let candidate = GitRepository(root: directory, executable: repository.executable)
+                    let root = try await candidate.discoverRoot()
+                    if GitRuntime.isAppStoreBuild && (!lease.hasSecurityScope || !lease.contains(root)) { throw RepositoryAccessFailure.repositoryRootOutsidePermission(root.path) }
+                    let target = GitRepository(root: root, executable: repository.executable)
+                    guard try await !target.isBare() else { throw FinderCommandFailure.selection }
+                    guard !self.retired, self.targetGeneration == generation else { return }
+                    perform(target, lease)
+                } catch { if !self.retired, self.targetGeneration == generation { self.model.error = error.localizedDescription } }
+            }
+        }
+    }
     func windowShouldClose(_ sender: NSWindow) -> Bool { sender.attachedSheet == nil && !model.childActive() }
-    func windowWillClose(_ notification: Notification) { model.invalidate(); patch?.close(); patch = nil; onClosed() }
+    func windowWillClose(_ notification: Notification) {
+        retired = true; targetGeneration += 1
+        if let panel = targetPicker { window?.endSheet(panel, returnCode: .cancel); panel.close() }
+        targetPicker = nil; choosingTarget = false
+        model.invalidate(); patch?.close(); patch = nil; onClosed()
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
@@ -408,10 +477,11 @@ enum SendPatchMailClientDelivery {
     }
     typealias Invocation = @Sendable (MailClientDraft, OperationCancellation) async throws -> Void
     static func send(_ request: SendPatchRequest, repository: GitRepository, access: RepositoryAccessLease?,
+                     applicationContext: ApplicationMailContext? = nil,
                      cancellation: OperationCancellation, onProgress: @escaping @Sendable (SMTPSeriesProgress) -> Void,
                      invocation: @escaping Invocation = { try await MailClientDraftAutomation.compose($0, cancellation: $1) }) async throws -> [SMTPReceipt] {
         if GitRuntime.isAppStoreBuild {
-            guard let access, access.hasSecurityScope, access.contains(repository.root) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+            guard applicationContext?.permits(repository) == true || access?.hasSecurityScope == true && access?.contains(repository.root) == true else { throw RepositoryAccessFailure.securityScopeUnavailable }
         }
         defer { withExtendedLifetime(access) {} }
         guard request.delivery.delivery == .mailClient else { throw SendPatchSMTPDeliveryFailure.delivery }
@@ -535,6 +605,7 @@ enum SendPatchSMTPDelivery {
     typealias SenderSource = @Sendable (OperationCancellation) async throws -> PatchMailSender
     typealias Transport = @Sendable ([PatchMailMessage], PatchMailSender, SMTPServer, SMTPAuthentication?, OperationCancellation, @escaping @Sendable (SMTPSeriesProgress) -> Void) async throws -> [SMTPReceipt]
     @MainActor static func send(_ request: SendPatchRequest, repository: GitRepository, access: RepositoryAccessLease?,
+                               applicationContext: ApplicationMailContext? = nil,
                                credentials: any SMTPTransportCredentialSource = SMTPKeychainStore(),
                                directSubmission: @escaping DirectSubmission = { messages, sender, token, progress in
                                    try await PatchMailSMTP.sendDirectSeries(messages: messages, sender: sender, cancellation: token, onProgress: progress)
@@ -542,7 +613,7 @@ enum SendPatchSMTPDelivery {
                                cancellation: OperationCancellation,
                                onProgress: @escaping @Sendable (SMTPSeriesProgress) -> Void) async throws -> [SMTPReceipt] {
         if GitRuntime.isAppStoreBuild {
-            guard access?.hasSecurityScope == true, access?.contains(repository.root) == true else { throw RepositoryAccessFailure.securityScopeUnavailable }
+            guard applicationContext?.permits(repository) == true || access?.hasSecurityScope == true && access?.contains(repository.root) == true else { throw RepositoryAccessFailure.securityScopeUnavailable }
         }
         defer { withExtendedLifetime(access) {} }
         return try await send(request, credentials: credentials, cancellation: cancellation, onProgress: onProgress,
@@ -646,15 +717,15 @@ private final class SendPatchProgressMailbox: @unchecked Sendable {
     var actionLogRepository: URL { repository.root }
     var actionLogCancelled: Bool { cancelled }
     var actionLogEligible: Bool { started && !busy && !invalidated }
-    init(request: SendPatchRequest, repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, submission: Submission? = nil) {
+    init(request: SendPatchRequest, repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, applicationContext: ApplicationMailContext? = nil, submission: Submission? = nil) {
         self.repository = repository; total = request.messages.count; self.preferences = preferences
         files = request.files; combined = request.options.combine; mailClient = request.delivery.delivery == .mailClient
         policy = GitProgressAutoClose(preferences: preferences); logLimit = GitProgressOutputState(preferences: preferences).limit
         self.submission = submission ?? { token, progress in
             if request.delivery.delivery == .mailClient {
-                return try await SendPatchMailClientDelivery.send(request, repository: repository, access: access, cancellation: token, onProgress: progress)
+                return try await SendPatchMailClientDelivery.send(request, repository: repository, access: access, applicationContext: applicationContext, cancellation: token, onProgress: progress)
             }
-            return try await SendPatchSMTPDelivery.send(request, repository: repository, access: access, cancellation: token, onProgress: progress)
+            return try await SendPatchSMTPDelivery.send(request, repository: repository, access: access, applicationContext: applicationContext, cancellation: token, onProgress: progress)
         }
     }
     func start() {
@@ -800,14 +871,16 @@ private struct SendPatchProgressDialog: View {
     private var finished = false
     private let completion: (String?) -> Void
     private let present: (NSWindowController) -> Void
-    init(files: [URL], repository: GitRepository, access: RepositoryAccessLease?, fileAccess: [RepositoryAccessLease], preferences: UserDefaults, presentation: ((NSWindowController) -> Void)? = nil, customSubject: Bool = false, appOwnedFiles: [URL] = [], completion: @escaping (String?) -> Void) {
+    private let applicationContext: ApplicationMailContext?
+    init(files: [URL], repository: GitRepository, access: RepositoryAccessLease?, fileAccess: [RepositoryAccessLease], preferences: UserDefaults, presentation: ((NSWindowController) -> Void)? = nil, customSubject: Bool = false, appOwnedFiles: [URL] = [], applicationContext: ApplicationMailContext? = nil, completion: @escaping (String?) -> Void) {
         self.completion = completion
+        self.applicationContext = applicationContext
         present = presentation ?? { $0.showWindow(nil); $0.window?.makeKeyAndOrderFront(nil) }
-        let controller = SendPatchWindowController(files: files, access: fileAccess, preferences: preferences, repository: repository, repositoryAccess: access, presentation: presentation, customSubject: customSubject, appOwnedFiles: appOwnedFiles)
+        let controller = SendPatchWindowController(files: files, access: fileAccess, preferences: preferences, repository: repository, repositoryAccess: access, presentation: presentation, customSubject: customSubject, appOwnedFiles: appOwnedFiles, choosePatchTarget: applicationContext != nil)
         options = controller
         controller.model.onSubmit = { [weak self] request in
             guard let self, !self.finished, self.progress == nil else { return }
-            let model = SendPatchProgressModel(request: request, repository: repository, access: access, preferences: preferences)
+            let model = SendPatchProgressModel(request: request, repository: repository, access: access, preferences: preferences, applicationContext: self.applicationContext)
             let progress = SendPatchProgressWindowController(model: model); self.progress = progress
             progress.onClosed = { [weak self, weak model] in self?.finish(model?.success == true ? nil : model?.error) }
             self.present(progress); model.start()

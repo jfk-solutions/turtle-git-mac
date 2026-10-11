@@ -44,6 +44,33 @@ public enum LFSLocksFailure: LocalizedError {
     }
 }
 extension GitRepository {
+    /// Finder eligibility is cached, so revalidate literal versioned file targets
+    /// (including staged deletions still present in HEAD) before remote locking.
+    public func finderLFSPaths(_ paths: [String], cancellation: OperationCancellation? = nil) throws -> [String] {
+        try cancellation?.check()
+        guard !paths.isEmpty, try !isBare(cancellation: cancellation), try hasLFS(cancellation: cancellation) else { throw LFSLocksFailure.selection }
+        var versioned = Set<String>()
+        for record in try run(["ls-files", "--stage", "-z"], cancellation: cancellation).stdout.split(separator: 0) {
+            let fields = record.split(separator: 9, maxSplits: 1)
+            if fields.count == 2, ["100644", "100755", "120000"].contains(String(decoding: fields[0].prefix(6), as: UTF8.self)) { versioned.insert(String(decoding: fields[1], as: UTF8.self)) }
+        }
+        let head = try run(["rev-parse", "--verify", "--quiet", "HEAD^{commit}"], successfulExitCodes: 0...1, cancellation: cancellation)
+        if head.exitCode == 0 {
+            for record in try run(["ls-tree", "-r", "-z", "HEAD", "--"], cancellation: cancellation).stdout.split(separator: 0) {
+                let fields = record.split(separator: 9, maxSplits: 1)
+                if fields.count == 2, ["100644", "100755", "120000"].contains(String(decoding: fields[0].prefix(6), as: UTF8.self)) { versioned.insert(String(decoding: fields[1], as: UTF8.self)) }
+            }
+        }
+        var seen = Set<String>(), result: [String] = []
+        for path in paths where seen.insert(path).inserted {
+            let location = try restoreLocation(path)
+            var directory: ObjCBool = false
+            if FileManager.default.fileExists(atPath: location.path, isDirectory: &directory), directory.boolValue { throw LFSLocksFailure.directory }
+            guard versioned.contains(path) else { throw LFSLocksFailure.selection }
+            result.append(path)
+        }
+        return result
+    }
     public func hasLFS(cancellation: OperationCancellation? = nil) throws -> Bool {
         try cancellation?.check()
         var bytes = try run(["rev-parse", "--git-common-dir"], cancellation: cancellation).stdout

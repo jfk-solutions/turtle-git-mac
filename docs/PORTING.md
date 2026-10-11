@@ -541,3 +541,16 @@ retain normal authorization. Dirty/busy context switches retain existing drafts.
 The source catalog now exposes 47 groups; eight commands remain unavailable.
 See FINDER-COMMAND-HANDOFF-PARITY.md for grouped evidence and remaining physical/
 signed acceptance. The full port remains incomplete.
+
+### Finder LFS and mail continuation, 2026-10-12
+
+Added source LFS group and its three inner actions using cached marker metadata,
+original icons, shared placement/Shift policy and fresh literal versioned-file
+preflight. Existing LFS results/Force/cancellation/Pull/Quit flows now support a
+standalone progress owner. Send Mail launches the native composer outside Git
+with file/root grants and an exclusive owned global-sender context; opening it
+does not submit mail or change the active checkout. Outside-repository Review/
+Apply chooses a target working repository with owned-sheet/late-reply fencing.
+The catalog exposes 49 groups; six remain unavailable. Native LFS/mail receivers
+now compile once and run together. See FINDER-LFS-MAIL-PARITY.md for exact source,
+validation and remaining signed/physical/patch-review acceptance.

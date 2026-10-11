@@ -252,3 +252,13 @@ SetColorCode and ReportError. See [Appearance](APPEARANCE.md) and
 [status color QA](qa/status-colors-2026-10-09.json). The combined per-file result
 layout remains an adaptation; full progress rows/context commands and visual
 acceptance are still pending.
+
+
+Finder continuation (2026-10-12): cached LFS marker metadata now drives the source
+nested group, with Show locked files for folders and Lock/Unlock for files.
+Live literal versioned-target preflight precedes file operations. Standalone
+progress ownership is supported in addition to owned sheets. The grouped actual
+receiver covers duplicate gates, Quit and once-only Close cleanup with injected
+responses. See FINDER-LFS-MAIL-PARITY.md and
+`qa/finder-lfs-mail-batch-2026-10-12.json`; physical/signed/real-server acceptance
+remains incomplete.

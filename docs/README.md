@@ -135,6 +135,7 @@ for baseline and update rules.
 - [Finder repository metadata and command availability](FINDER-REPOSITORY-METADATA-PARITY.md)
 - [Finder menu selection dispatch](FINDER-SELECTION-PARITY.md)
 - [Finder command handoffs and native Settings ownership](FINDER-COMMAND-HANDOFF-PARITY.md)
+- [Finder LFS submenu and Send Mail handoff](FINDER-LFS-MAIL-PARITY.md)
 - [Finder registered submodule roots](FINDER-SUBMODULE-ROOT-PARITY.md)
 - [Finder submodule cache tree](FINDER-SUBMODULE-TREE-PARITY.md)
 - [Finder two-file Diff](FINDER-TWO-FILE-DIFF-PARITY.md)

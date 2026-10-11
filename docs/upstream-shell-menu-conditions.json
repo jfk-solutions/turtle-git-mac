@@ -1439,6 +1439,139 @@
           "no": []
         }
       ]
+    },
+    "lfs": {
+      "command": "LFSMenu",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_INVERSIONEDFOLDER",
+            "ITEMIS_INGIT"
+          ],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "sendMail": {
+      "command": "Sendmail",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_PATCHFILE"
+          ],
+          "no": []
+        },
+        {
+          "yes": [
+            "ITEMIS_EXTENDED"
+          ],
+          "no": [
+            "ITEMIS_FOLDER"
+          ]
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "lfsLocks": {
+      "command": "LFSLocks",
+      "source": "src/TortoiseShell/ContextMenu.cpp",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_ONLYONE"
+          ],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "lfsLock": {
+      "command": "LFSLock",
+      "source": "src/TortoiseShell/ContextMenu.cpp",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_INGIT",
+            "ITEMIS_INVERSIONEDFOLDER"
+          ],
+          "no": [
+            "ITEMIS_FOLDER"
+          ]
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "lfsUnlock": {
+      "command": "LFSUnlock",
+      "source": "src/TortoiseShell/ContextMenu.cpp",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_INGIT",
+            "ITEMIS_INVERSIONEDFOLDER"
+          ],
+          "no": [
+            "ITEMIS_FOLDER"
+          ]
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
     }
+  },
+  "additionalSources": {
+    "src/TortoiseShell/ContextMenu.cpp": "0b31f963e73ff71cd9cdb0861972a671236ae20f"
   }
 }

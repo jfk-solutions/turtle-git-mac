@@ -1021,3 +1021,28 @@ refresh, guarded competing actions, forced child closure and startup/selection
 read process cleanup. The two-engine run passed;
 [the record](qa/export-version-pickers-2026-10-11.json) keeps physical/signed and
 full-dialog acceptance separate.
+
+
+## Grouped native LFS and mail checkpoint
+
+After a Debug framework build, run `python3 scripts/test-native-lfs-mail-batch.py`
+for the combined section. It compiles all Mac receiver sources once, then runs
+the existing LFS and Send Patch verification drivers in one process. The LFS
+responses are injected. The private SMTP server starts only after LFS completes,
+with a bounded acceptance timeout and independent MIME assertions. The process,
+server and private fixtures are cleaned on success or failure. The individual
+`test-lfs-locks.py` and `test-send-patch-dialog.py` scripts remain available for
+focused debugging; the CI native-mail slot now uses the grouped runner.
+
+The receivers cover standalone LFS progress ownership/duplicates/Close and the
+actual outside-repository Finder Send Mail composer/Cancel path. They do not
+establish physical Finder, signed file permissions or target-chooser gestures.
+See FINDER-LFS-MAIL-PARITY.md and its QA checkpoint for the exact proof scope.
+
+The combined compiler uses whole-module `-Onone` mode to avoid repeated per-file
+whole-program type checks. It caches the executable by Mac source, receiver,
+Core framework, architecture, flags and Swift toolchain hashes; changed inputs
+rebuild it. LFS fixture author variables are isolated from the subsequent mail
+fixture's intentional empty-author setup. The legacy unhosted Commit reload
+cancellation test explicitly approves the same production confirmation used by
+a hosted dialog and checks it is requested once.

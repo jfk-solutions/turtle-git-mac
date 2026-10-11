@@ -71,6 +71,9 @@ import TurtleGitCore
     private var addWindows: [String: AddWindowController] = [:]
     private var addUnifiedWindows: [String: PatchWindowController] = [:]
     private var lfsLocksWindows: [String: LFSLocksWindowController] = [:]
+    private var lfsFileOperations: [UUID: LFSFileOperationController] = [:]
+    private var finderMailWorkflows: [UUID: SendMailWorkflow] = [:]
+    var finderMailPresentation: ((NSWindowController) -> Void)?
     private var addProgressWindows: [UUID: AddProgressWindowController] = [:]
     private var cleanWindows: [String: CleanWindowController] = [:]
     private var cleanProgressWindows: [UUID: CleanProgressWindowController] = [:]
@@ -315,6 +318,14 @@ import TurtleGitCore
         guard !confirmingQuit else { return }
         guard !bare || !action.requiresWorkingTree else { error = "\(action.title) requires a working tree. This repository is bare."; return }
         switch action {
+        case .lfs: error = "Choose an operation from the Git LFS submenu."
+        case .lfsLocks: showLFSLocks()
+        case .lfsLock, .lfsUnlock:
+            guard let repository else { return }
+            showFinderLFSOperation(repository: repository, access: activeAccess, paths: paths.isEmpty ? selectedPaths : paths, locked: action == .lfsLock)
+        case .sendMail:
+            guard let root else { return }
+            showFinderSendMail(files: (paths.isEmpty ? selectedPaths : paths).map { root.appendingPathComponent($0) })
         case .settings: onSettings(false)
         case .help: onHelp()
         case .about: onAbout()
@@ -768,6 +779,88 @@ import TurtleGitCore
         controller.onClosed = { [weak self] in self?.lfsLocksWindows.removeValue(forKey: key) }
         lfsLocksWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
         Task { await controller.model.refresh() }
+    }
+    private func showFinderLFSOperation(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], locked: Bool) {
+        guard !busy, !confirmingQuit, workspaceWindow?.attachedSheet == nil else { return }
+        busy = true
+        Task {
+            defer { busy = false }
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let targets = try await repository.finderLFSPaths(paths)
+                guard !confirmingQuit else { return }
+                let id = UUID(), controller = LFSFileOperationController(repository: repository, access: access)
+                controller.model.onPullAfterLock = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
+                controller.onClosed = { [weak self] in
+                    guard let self else { return }; self.lfsFileOperations.removeValue(forKey: id)
+                    self.statusWindows[repository.root.path]?.model.reload(); self.commitWindows[repository.root.path]?.model.reload()
+                    if self.root == repository.root { Task { await self.refresh() } }
+                }
+                lfsFileOperations[id] = controller
+                if !controller.present(owner: workspaceWindow, paths: targets, locked: locked) { lfsFileOperations.removeValue(forKey: id) }
+            } catch { self.error = error.localizedDescription }
+        }
+    }
+
+    /// Send Mail captures file grants and does not change the app's checkout.
+    /// A known first-file repository supplies local sender identity; otherwise
+    /// an owned no-repository context supplies Git's global identity.
+    private func showFinderSendMail(files: [URL]) {
+        guard !busy, !confirmingQuit, !files.isEmpty else { return }
+        let first = files[0]
+        let knownRoot = FinderSnapshot.read()?.roots.sorted { $0.count > $1.count }.first { first.path == $0 || first.path.hasPrefix($0 + "/") }
+            ?? root.flatMap { first.path == $0.path || first.path.hasPrefix($0.path + "/") ? $0.path : nil }
+        let rootURL = knownRoot.map { URL(fileURLWithPath: $0, isDirectory: true) }
+        let targets = files + (rootURL.map { [$0] } ?? [])
+        var grants: [RepositoryAccessLease] = []
+        if let activeAccess { grants.append(activeAccess) }
+        if GitRuntime.isAppStoreBuild {
+            if let store = accessStore {
+                for saved in store.repositories {
+                    if let lease = try? store.acquire(saved.id, requireSecurityScope: true), targets.contains(where: { lease.contains($0) }) { grants.append(lease) }
+                }
+            }
+            if !targets.allSatisfy({ target in grants.contains { $0.hasSecurityScope && $0.contains(target) } }) {
+                let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = true; panel.allowsMultipleSelection = true
+                panel.prompt = "Authorize mail files"; panel.directoryURL = rootURL ?? first.deletingLastPathComponent()
+                panel.message = "Select these files or their containing folders. For a known repository, include its root folder to use the local sender identity."
+                guard panel.runModal() == .OK else { return }
+                grants += panel.urls.map { RepositoryAccessLease(url: $0) }
+                guard targets.allSatisfy({ target in grants.contains { $0.hasSecurityScope && $0.contains(target) } }) else {
+                    error = "The selected permissions do not cover every mail file and its sender repository."; return
+                }
+            }
+        }
+        busy = true
+        Task {
+            defer { busy = false }
+            do {
+                for file in files {
+                    guard (try file.resolvingSymlinksInPath().resourceValues(forKeys: [.isRegularFileKey])).isRegularFile == true else { throw MailPatchFailure.file }
+                }
+                var senderRoot = rootURL
+                // Desktop permits direct discovery. Sandboxed discovery is only
+                // attempted when the containing folder is already authorized.
+                if !GitRuntime.isAppStoreBuild || grants.contains(where: { $0.hasSecurityScope && $0.contains(first.deletingLastPathComponent()) }) {
+                    let candidate = try makeRepository(first.deletingLastPathComponent())
+                    senderRoot = try? await candidate.discoverRoot()
+                    if let senderRoot, GitRuntime.isAppStoreBuild, !grants.contains(where: { $0.hasSecurityScope && $0.contains(senderRoot) }) {
+                        throw RepositoryAccessFailure.repositoryRootOutsidePermission(senderRoot.path)
+                    }
+                }
+                let context = senderRoot == nil ? try ApplicationMailContext() : nil
+                guard let directory = senderRoot ?? context?.root else { throw MailPatchFailure.file }
+                let repository = try makeRepository(directory)
+                let access = grants.first { $0.contains(repository.root) && (!GitRuntime.isAppStoreBuild || $0.hasSecurityScope) }
+                guard !confirmingQuit else { return }
+                let id = UUID()
+                let workflow = SendMailWorkflow(files: files, repository: repository, access: access, fileAccess: grants, preferences: .standard, presentation: finderMailPresentation, applicationContext: context) { [weak self] result in
+                    self?.finderMailWorkflows.removeValue(forKey: id)
+                    if let result { self?.error = result }
+                }
+                finderMailWorkflows[id] = workflow; workflow.start()
+            } catch { self.error = error.localizedDescription }
+        }
     }
 
     func showSynchronization() {
@@ -2017,6 +2110,7 @@ import TurtleGitCore
             guard canChangeSettingsContext() else { return }
         } else if action.isApplicationUtility { activate(action); return }
         guard !busy else { return }
+        if action == .sendMail { showFinderSendMail(files: request.paths); return }
         if action == .clearComparisonMark { clearComparisonMark(); return }
         if action == .diffLater {
             guard request.paths.count == 1 else { error = "Select one file to mark or compare."; return }

@@ -344,6 +344,8 @@ struct LFSUnlockProgress: View {
 @MainActor final class LFSFileOperationController: NSWindowController, NSWindowDelegate {
     let model: LFSLocksWindowModel
     var onClosed: () -> Void = {}
+    var standalonePresentation: ((NSWindow) -> Void)?
+    private var started = false, finished = false
     init(repository: GitRepository, access: RepositoryAccessLease?) {
         model = LFSLocksWindowModel(repository: repository, access: access)
         model.refreshLocksAfterOperation = false
@@ -353,15 +355,19 @@ struct LFSUnlockProgress: View {
         super.init(window: window); window.delegate = self
         model.onProgressVisibility = { [weak self] visible in if !visible { self?.finish() } }
     }
-    func present(owner: NSWindow, paths: [String], locked: Bool) {
-        guard owner.attachedSheet == nil, let window else { return }
+    @discardableResult func present(owner: NSWindow? = nil, paths: [String], locked: Bool) -> Bool {
+        guard !started, owner?.attachedSheet == nil, let window else { return false }
+        started = true
         window.title = locked ? "LFS Lock – TurtleGit" : "LFS Unlock – TurtleGit"
         model.operationLocked = locked
-        owner.beginSheet(window)
+        if let owner { owner.beginSheet(window) }
+        else if let standalonePresentation { standalonePresentation(window) }
+        else { window.center(); showWindow(nil); window.makeKeyAndOrderFront(nil) }
         Task { await model.perform(paths: paths, locked: locked) }
+        return true
     }
     private func finish() {
-        guard let window else { return }
+        guard !finished, let window else { return }; finished = true
         if let parent = window.sheetParent { parent.endSheet(window) }
         window.orderOut(nil); window.close(); onClosed()
     }

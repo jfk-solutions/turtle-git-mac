@@ -411,6 +411,21 @@ import TurtleGitCore
             }
             captured = controller; return controller
         }
+        do {
+            let standalone = factory(repository, nil)
+            standalone.standalonePresentation = { $0.orderOut(nil) }
+            var closes = 0; standalone.onClosed = { closes += 1 }
+            precondition(standalone.present(paths: [unusual], locked: true))
+            precondition(!standalone.present(paths: [unusual], locked: false), "Duplicate standalone batch accepted")
+            try await settle { standalone.model.showingProgress && !standalone.model.busy }
+            precondition(standalone.window?.sheetParent == nil && standalone.model.results.first?.success == true)
+            precondition(delegate.applicationShouldTerminate(NSApplication.shared) == .terminateCancel)
+            standalone.model.finishProgress()
+            precondition(closes == 1 && standalone.model.showingProgress == false)
+            standalone.model.finishProgress(); precondition(closes == 1)
+        }
+        operations.removeAll(); captured = nil
+        print("Standalone Finder LFS progress receiver: captured file batch, duplicate gate, no required parent window, Quit guard and exactly-once Close cleanup passed with injected results; no remote endpoint or displayed window.")
         commit.makeLFSOperation = factory; status.makeLFSOperation = factory
         var commitPulls = 0, statusPulls = 0
         commit.onPullAfterLFSLock = {
@@ -494,6 +509,7 @@ import TurtleGitCore
         failureModel.queryLFSOwners = { _ in throw LFSLocksFailure.selection }
         failureModel.reload(); try await settle { !failureModel.busy }
         precondition(failureModel.error != nil && !failureModel.lfsOwnershipKnown && failureModel.lfsOwners.isEmpty && failureModel.lfsActions([freeEntry]).isEmpty)
+        failureModel.error = nil
         var querying = false
         failureModel.queryLFSOwners = { token in
             querying = true
@@ -501,8 +517,11 @@ import TurtleGitCore
             return [LFSLock(id: "stale", path: unusual, owner: "Stale")]
         }
         failureModel.reload(); try await settle { querying && failureModel.busy }
+        var cancelRequests = 0
+        failureModel.confirmCancel = { answer in cancelRequests += 1; answer(true) }
         failureModel.cancel(closeWindow: false)
         try await settle { !failureModel.busy }
+        precondition(cancelRequests == 1, "Reload cancellation confirmation must be requested once")
         precondition(!failureModel.lfsOwnershipKnown && failureModel.lfsOwners.isEmpty)
         let hide = ownerProbe().columnMenu().item(withTitle: "LFS Lock")!
         _ = NSApplication.shared.sendAction(hide.action!, to: hide.target, from: hide)

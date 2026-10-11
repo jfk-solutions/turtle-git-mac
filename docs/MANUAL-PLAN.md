@@ -68,3 +68,34 @@ applicable. The Core/menu receiver checkpoint is in
 - Invoke Help/About outside Git and from bare-root menus. Verify the website and
   native fork/license/artwork panel, cold-launch delivery, themes and keyboard focus.
 - Verify source alternative-tool modifiers and signed App Store execution separately.
+
+## Finder LFS and Send Mail acceptance
+
+Run this section with one signed app process and close it afterward. The private
+native receiver is a partial proof; real Finder/sandbox gestures remain open.
+
+- Verify the LFS marker gate and outer/inner clauses for a tracked file, multiple
+  tracked files, versioned folder, untracked path, bare root and linked worktree.
+  Check default nesting, first-level placement, Shift-only policy, exclusions and
+  icon suppression. Menu construction must not query remote ownership.
+- Remove/change an indexed target after opening the menu: preflight must reject
+  invalid paths before server commands. Check staged deletions, literal Unicode,
+  tabs/newlines and similarly named directories. Use a controlled LFS endpoint.
+- Verify standalone cold-launch progress and an owned-sheet launch. Cancel/Force
+  retry must retain captured targets and completed results; Close must clean up
+  once and refresh the right repository. Check the successful-lock Pull handoff
+  and global Quit guards, then close every child/result.
+- Open Send Mail on a patch file outside Git and on an extended-menu ordinary file.
+  Opening/Cancel must not submit, change the active checkout or delete source files.
+  Check mixed selections, requested order and original capture versus later Finder
+  changes. Verify local first-file sender identity and global no-repository identity.
+- In the sandbox, reuse grants and authorize missing files/folders/root as needed.
+  Check a symlink target outside the selected folder, stale roots and discovered
+  roots outside the grant. An owned global context must not become a fake bookmark.
+- From outside-repository mail, Review/Apply must choose and authorize the target
+  working repository. Test cancellation, owner close/late replies, wrong/bare root,
+  blocked controls during discovery and retained patch-file grants. Pure non-Git
+  directory review/application remains unfinished rather than certified here.
+- Exercise mail-client privacy/Apple Events and controlled SMTP delivery separately
+  from this opening/Cancel check. Verify settings/cancellation/progress lifetime
+  under the signed App Store configuration.

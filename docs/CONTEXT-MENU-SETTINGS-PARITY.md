@@ -79,3 +79,9 @@ conflict editing, Settings, Help and About. The catalog has 47 available groups
 and eight unavailable groups. Earlier 16-unavailable statements above describe
 the original checkpoint. See FINDER-COMMAND-HANDOFF-PARITY.md for repository
 context, scope/authorization behavior and remaining native acceptance.
+
+
+LFS/mail continuation: the two additional LFS and Send Mail groups are available,
+for 49 of 55 source catalog groups. LFS children share the group preference and
+Send Mail supports outside-repository file selections. Six groups remain gated;
+see FINDER-LFS-MAIL-PARITY.md. Earlier counts are historical checkpoints.

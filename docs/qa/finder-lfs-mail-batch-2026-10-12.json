@@ -1,0 +1,74 @@
+{
+  "date": "2026-10-12",
+  "scope": "Finder LFS submenu and Send Mail handoff with owned sender/target contexts and grouped native receivers",
+  "source": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_catalog": {
+    "entries": 55,
+    "available_groups": 49,
+    "unavailable_groups": 6,
+    "root_order_projection": 55,
+    "condition_oracle_commands": 58
+  },
+  "native_build": {
+    "configuration": "Debug arm64",
+    "exit_code": 0,
+    "log": "build/qa/finder-lfs-mail-native-2026-10-12.log",
+    "diagnostics": "Final incremental build emitted no warnings or exit-zero/no-output diagnostics; not a clean full-build claim."
+  },
+  "core_tests": {
+    "filter": "FinderLFSMailBatchTests|FinderShellRulesTests|FinderSubmoduleMetadataTests|FinderCommandBatchTests|FinderRepositoryMetadataTests|FinderContextMenuSettingsTests|FinderRequestTests|LFSLocksTests|PatchMailPreparationTests|PatchMailMIMETests|PatchMailDirectTests|MenuIconTests",
+    "tests": 65,
+    "failures": 0,
+    "seconds": 7.251,
+    "log": "build/qa/finder-lfs-mail-core-2026-10-12.log",
+    "coverage": [
+      "58 source conditions, including outer/inner LFS and Send Mail",
+      "LFS metadata marker, old-cache compatibility, linked worktrees and round trip",
+      "Literal versioned-file preflight, staged deletions, invalid batches and cancellation",
+      "HEAD/index preservation during read-only LFS preflight",
+      "Existing sender/MIME/preparation/request/menu/icon regressions"
+    ]
+  },
+  "finder_menu_receiver": {
+    "exit_code": 0,
+    "script": "scripts/test-finder-menu.py",
+    "log": "build/qa/finder-lfs-mail-menu-2026-10-12.log",
+    "coverage": [
+      "LFS nested folder/file children, original icons and captured selectors/URLs",
+      "Missing/legacy marker suppression, first-level/Shift/icon policies",
+      "Outside-repository patch and extended-file mail eligibility",
+      "55 root source-order projection and existing menu regression matrix"
+    ]
+  },
+  "native_batch_receiver": {
+    "exit_code": 0,
+    "script": "scripts/test-native-lfs-mail-batch.py",
+    "log": "build/qa/finder-lfs-mail-receivers-2026-10-12.log",
+    "compilation": "Whole-module Onone compilation shared by both receivers; source/framework/toolchain-keyed executable cache",
+    "coverage": [
+      "Standalone LFS progress duplicate/presentation/Close/Quit lifetime",
+      "Existing LFS checked-owner/Force/cancellation/owned-sheet/source-retention fixtures with injected responses",
+      "Actual Finder outside-repository mail composer opening, Unicode/newline/order/deduplication, backend attachment and Cancel/source retention without submission",
+      "Application-owned sender directory exact identity, cleanup and replacement rejection",
+      "Existing mail options/viewer/review/apply/progress/immutable preparation fixtures",
+      "Private loopback SMTP receipt and independent MIME decoding"
+    ],
+    "real_external_lfs_or_mail": false,
+    "cleanup": "Receiver, loopback server, private suites and temporary fixtures exited/cleaned."
+  },
+  "validation_repairs": [
+    "Bare metadata expectation now includes supported application utilities and Send Mail",
+    "Per-stage Git author environment isolated in the combined native receiver",
+    "SMTP fixture starts after LFS completion with bounded acceptance wait",
+    "Legacy Commit reload-cancellation fixture explicitly approves the production confirmation and asserts one request"
+  ],
+  "installed_app_launches": 0,
+  "remaining": [
+    "Physical Finder/permission/target chooser gestures and cold launch",
+    "Signed App Group/cache/runtime/sandbox/App Store acceptance",
+    "Actual controlled LFS endpoint and mail-client Apple Events",
+    "Pure non-Git patch-review/application and standalone Finder Review Patch",
+    "Six unavailable groups: four SVN commands, Daemon and Review Patch",
+    "Full port and dialog certification"
+  ]
+}

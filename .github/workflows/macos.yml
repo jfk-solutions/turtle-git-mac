@@ -71,8 +71,8 @@ jobs:
           -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
       - name: Verify app, extension and original icon resources
         run: python3 scripts/validate-app-bundle.py build/Build/Products/Debug/TurtleGitMac.app
-      - name: Native Send Patch options and immutable preparation
-        run: python3 scripts/test-send-patch-dialog.py
+      - name: Grouped native LFS and Send Mail receivers with one compilation
+        run: python3 scripts/test-native-lfs-mail-batch.py
       - name: Native Email settings with private preferences and simulated Keychain
         run: python3 scripts/test-email-settings.py
       - name: Configured SMTP through built frameworks with private loopback server

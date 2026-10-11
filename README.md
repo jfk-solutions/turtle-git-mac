@@ -77,6 +77,12 @@ The first page also supports path exclusions and hiding outside-repository menus
 Unavailable commands remain disabled. See the
 [source comparison and validation](docs/CONTEXT-MENU-SETTINGS-PARITY.md).
 
+Initialized LFS repositories have a nested **LFS** menu for locked-file lists and
+file Lock/Unlock operations. **Send Mail…** opens the native patch composer for
+Finder files, including files outside a repository; opening it does not send mail.
+See the [LFS/mail handoff notes](docs/FINDER-LFS-MAIL-PARITY.md) for permissions
+and remaining acceptance work.
+
 Signed activation and badge rendering remain unverified. Finder Sync controls
 badge placement and menu insertion. Badges apply to registered repository
 folders. Only the current repository refreshes every five seconds while the app

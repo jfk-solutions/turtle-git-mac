@@ -88,10 +88,11 @@ enum FinderShellMenuLayout {
         [.log, .logSubmodule, .reflog, .referenceBrowser, .revisionGraph, .repositoryBrowser, .status, .rebase, .stash, .stashApply, .stashPop, .stashList],
         [.bisectStart, .bisectGood, .bisectBad, .bisectSkip, .bisectReset],
         [.editConflict, .resolve, .mergeAbort, .rename, .remove, .removeKeep, .revert, .clean],
+        [.lfs],
         [.switchBranch, .merge, .branch, .tag, .export],
         [.initialize, .add, .blame, .ignore, .ignoreDelete],
         [.worktreeList, .submoduleAdd, .submoduleUpdate, .submoduleSync],
-        [.formatPatch, .importPatch],
+        [.formatPatch, .importPatch, .sendMail],
         [.settings, .help, .about]
     ]
     static func action(_ item: NSMenuItem) -> RepositoryAction? {
@@ -152,8 +153,8 @@ enum FinderMenuBuilder {
         }
         let knownRepository = paths.contains { path in snapshot?.roots.contains { path.path == $0 || path.path.hasPrefix($0 + "/") } == true }
         if !submenu.items.isEmpty && knownRepository { submenu.addItem(.separator()) }
-        for action in RepositoryAction.allCases.filter({ $0 != .clone && $0 != .initialize && $0 != .worktreeCreate && $0 != .reset && $0 != .diffLater && $0 != .clearComparisonMark && !$0.isIgnore && $0.resolveChoice == nil }) {
-            guard (knownRepository || action.isApplicationUtility || action == .diff && paths.count == 2), FinderShellRules.allows(action, flags: shellFlags) else { continue }
+        for action in RepositoryAction.allCases.filter({ $0 != .clone && $0 != .initialize && $0 != .worktreeCreate && $0 != .reset && $0 != .diffLater && $0 != .clearComparisonMark && !$0.isIgnore && !$0.isLFS && $0.resolveChoice == nil }) {
+            guard (knownRepository || action.isApplicationUtility || action == .sendMail || action == .diff && paths.count == 2), FinderShellRules.allows(action, flags: shellFlags) else { continue }
             let item = NSMenuItem(title: action.title, action: actionSelector, keyEquivalent: "")
             item.image = image(action.icon)
             if action == .formatPatch || action == .worktreeList { item.isEnabled = paths.count == 1 && paths.first?.hasDirectoryPath == true }
@@ -163,6 +164,18 @@ enum FinderMenuBuilder {
             if action == .rename { item.isEnabled = snapshot?.canRename(paths) == true }
             if action == .remove || action == .removeKeep { item.isEnabled = snapshot?.canRemove(paths) == true }
             item.target = target; item.representedObject = FinderMenuCommand(action: action, paths: paths); submenu.addItem(item)
+        }
+        if snapshot?.repositoryMetadata(for: paths)?.hasLFS == true, FinderShellRules.allows(.lfs, flags: shellFlags) {
+            let choices = NSMenu(title: RepositoryAction.lfs.title); choices.autoenablesItems = false
+            for action in [RepositoryAction.lfsLocks, .lfsLock, .lfsUnlock] where FinderShellRules.allows(action, flags: shellFlags) {
+                let item = NSMenuItem(title: action.title, action: actionSelector, keyEquivalent: "")
+                item.image = image(action.icon); item.target = target; item.representedObject = FinderMenuCommand(action: action, paths: paths)
+                choices.addItem(item)
+            }
+            if !choices.items.isEmpty {
+                let parent = NSMenuItem(title: RepositoryAction.lfs.title, action: nil, keyEquivalent: "")
+                parent.image = image(.lfs); parent.submenu = choices; parent.representedObject = FinderMenuGroup(.lfs); submenu.addItem(parent)
+            }
         }
         for deleting in [false, true] where snapshot?.canIgnore(paths, deleting: deleting) == true && FinderShellRules.allows(deleting ? .ignoreDelete : .ignore, flags: shellFlags) {
             let ignore = NSMenuItem(title: deleting ? "Delete and add to ignore list" : "Add to ignore list", action: nil, keyEquivalent: "")

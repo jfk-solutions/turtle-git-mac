@@ -21,6 +21,7 @@ import TurtleGitCore
         struct SourceOrder: Decodable { let groups: [[String]] }
         let sourceOrder = try JSONDecoder().decode(SourceOrder.self, from: Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[2])))
         let mapping: [RepositoryAction: String] = [
+            .lfs: "LFSMenu", .sendMail: "Sendmail",
             .synchronize: "Sync", .previousDiff: "PrevDiff", .logSubmodule: "LogSubmoduleFolder", .blame: "Blame", .editConflict: "ConflictEditor", .settings: "Settings", .help: "Help", .about: "About",
             .add: "Add", .clone: "Clone", .pull: "Pull", .fetch: "Fetch", .push: "Push", .commit: "Commit",
             .diff: "Diff", .diffLater: "DiffLater", .log: "Log", .revisionGraph: "RevisionGraph", .reflog: "RefLog", .referenceBrowser: "RefBrowser", .repositoryBrowser: "RepoBrowse",
@@ -227,6 +228,36 @@ import TurtleGitCore
             let roots = menu.items.flatMap { $0.title == "TurtleGit" ? ($0.submenu?.items ?? []) : [$0] }
             return Set(roots.compactMap(FinderShellMenuLayout.action).filter { !$0.isApplicationUtility })
         }
+        let lfsSnapshot = FinderSnapshot(roots: [folder.path], states: [folder.path: .normal, tracked.path: .normal, untracked.path: .untracked], repositories: [folder.path: FinderRepositoryMetadata(hasLFS: true)])
+        func lfsMenu(_ paths: [URL], settings: FinderMenuSettings = allCommands(), extended: Bool = false) -> NSMenu {
+            FinderMenuBuilder.make(paths: paths, snapshot: lfsSnapshot, settings: settings, comparisonMark: nil, target: target, actionSelector: selector, extended: extended)
+        }
+        let folderLFS = items(lfsMenu([folder])).first { FinderShellMenuLayout.action($0) == .lfs }!
+        precondition(folderLFS.submenu!.items.compactMap(FinderShellMenuLayout.action) == [.lfsLocks])
+        let fileLFS = items(lfsMenu([tracked])).first { FinderShellMenuLayout.action($0) == .lfs }!
+        precondition(fileLFS.submenu!.items.compactMap(FinderShellMenuLayout.action) == [.lfsLock, .lfsUnlock])
+        for item in fileLFS.submenu!.items {
+            let request = (item.representedObject as! FinderMenuCommand).request
+            precondition(request.paths == [tracked] && item.target === target && item.action == selector && item.image != nil)
+        }
+        precondition(!items(lfsMenu([untracked])).contains { FinderShellMenuLayout.action($0) == .lfs })
+        precondition(!items(make([tracked], settings: allCommands())).contains { FinderShellMenuLayout.action($0) == .lfs }, "Legacy/missing LFS metadata hides the group")
+        var lfsPolicy = allCommands(); lfsPolicy.topLevelMask = FinderMenuEntry.lfs.mask
+        let directLFS = lfsMenu([tracked], settings: lfsPolicy)
+        precondition(directLFS.items.first?.title == "Git LFS" && directLFS.items.first?.submenu?.items.count == 2)
+        lfsPolicy.extendedOnlyMask = FinderMenuEntry.lfs.mask
+        precondition(!items(lfsMenu([tracked], settings: lfsPolicy)).contains { FinderShellMenuLayout.action($0) == .lfs })
+        precondition(items(lfsMenu([tracked], settings: lfsPolicy, extended: true)).contains { FinderShellMenuLayout.action($0) == .lfs })
+        lfsPolicy.showIcons = false
+        precondition(items(lfsMenu([tracked], settings: lfsPolicy, extended: true)).allSatisfy { $0.image == nil })
+        let patchFile = folder.appendingPathComponent("mail 雪\n.patch"); try Data().write(to: patchFile)
+        for (selected, extended) in [([patchFile], false), ([tracked], true)] {
+            let menu = FinderMenuBuilder.make(paths: selected, snapshot: nil, settings: allCommands(), comparisonMark: nil, target: target, actionSelector: selector, extended: extended)
+            let mail = items(menu).first { FinderShellMenuLayout.action($0) == .sendMail }!
+            precondition((mail.representedObject as! FinderMenuCommand).request.paths == selected && mail.image != nil)
+        }
+        precondition(!items(make([tracked], settings: allCommands())).contains { FinderShellMenuLayout.action($0) == .sendMail })
+        print("Actual Finder LFS/Send Mail: cached marker, folder/file nested commands, original icons and selectors, captured URL paths, first-level/Shift/icon policies and outside-repository patch/extended mail gates passed.")
         let trackedActions = rootActions(make([tracked], settings: allCommands()))
         precondition(trackedActions == [.commit, .diff, .diffLater, .previousDiff, .blame, .log, .revisionGraph, .status, .stash, .rename, .remove, .removeKeep, .ignoreDelete], "Unchanged tracked file must have source file commands, not folder commands or Revert")
         let addedFile = folder.appendingPathComponent("added.txt"); try Data().write(to: addedFile)

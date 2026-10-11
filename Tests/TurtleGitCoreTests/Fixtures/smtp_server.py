@@ -17,7 +17,7 @@ def publish_json(name, value):
     temporary.write_text(json.dumps(value), encoding='utf-8')
     temporary.replace(destination)
 
-server = socket.socket(); server.bind(('127.0.0.1', 0)); server.listen(1); server.settimeout(15)
+server = socket.socket(); server.bind(('127.0.0.1', 0)); server.listen(1); server.settimeout(float(sys.argv[3]) if len(sys.argv) > 3 else 15)
 publish_json('ready.json', {'port': server.getsockname()[1]})
 state = {'mail': [], 'recipients': [], 'data': 0, 'accepted': 0, 'auth': 0, 'tls': False, 'ehlo': 0}
 connection = None

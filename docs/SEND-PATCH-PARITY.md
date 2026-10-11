@@ -737,3 +737,15 @@ version. Compilation cannot prove that Mail creates the intended draft, selects
 an account, displays recipients correctly or imports attachments. Other supported
 macOS/Mail versions, signed sandbox/TCC permission, runtime draft behavior and
 full upstream mail-client lifecycle remain unverified.
+
+
+Finder continuation (2026-10-12): Send Mail now captures file selections outside
+Git, reuses/requests file and sender-root permissions and preserves the active
+checkout. An exclusive owned global context supplies sender identity when there
+is no repository. Opening/Cancel, URL order/deduplication and source retention
+were exercised through the actual repository-model handler, without submission.
+Outside-repository Review/Apply has a fenced owned target-repository chooser;
+its physical/signed selection remains pending. The grouped native receiver also
+passed prior options/progress/MIME fixtures against only private loopback SMTP.
+See FINDER-LFS-MAIL-PARITY.md and its QA record for exact evidence and remaining
+pure-folder review, Finder and App Store acceptance.

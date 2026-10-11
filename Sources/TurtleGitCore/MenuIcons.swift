@@ -41,6 +41,7 @@ public enum MenuIcon: String, CaseIterable {
     case stash = "menushelve", stashPop = "menuunshelve", clone = "menucheckout", initialize = "menucreaterepos"
     case graphBar = "graph-bar", graphStackedBar = "graph-bar-stacked", graphLine = "graph-line", graphStackedLine = "graph-line-stacked", graphPie = "graph-pie"
     case clean = "menucleanup", sync = "menusync", synchronize = "menurelocate"
+    case lfs = "menulfs"
     case add = "menuadd", revert = "menurevert", reset = "reset", cherryPick = "cherry-pick", copy = "copy"
     case help = "menuhelp", settings = "menusettings", about = "menuabout", saveAs = "saveas"
     case settingsGeneral = "general", settingsDialogs = "dialogs", settingsGit = "gitconfig", settingsRemote = "gitremote"
@@ -192,6 +193,11 @@ private final class IconResourceBundle: NSObject {}
 extension RepositoryAction {
     public var icon: MenuIcon {
         switch self {
+        case .lfs: return .lfs
+        case .lfsLocks: return .repositoryBrowser
+        case .lfsLock: return .lock
+        case .lfsUnlock: return .unlock
+        case .sendMail: return .sendMail
         case .synchronize: return .synchronize
         case .blame: return .blame
         case .previousDiff: return .compare
