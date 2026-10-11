@@ -1,0 +1,98 @@
+{
+  "date": "2026-10-11",
+  "checkpoint": "ab8054f26a42a95d78c8dae7c8c1bced8bd8ba2f",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "status": "partial-backend",
+  "implemented": [
+    "Read-only immutable plans and streamed, cancellable execution for Pull, Fetch, Fetch & Rebase, Fetch All, Remote Update, Prune, Push, Push Tags and Push Notes.",
+    "Source tracking/configuration/refspec rules, FETCH_HEAD uniqueness, separate checkout/deletion authorization, Git 2.39 switch adapter and pinned Rebase handoff."
+  ],
+  "verification": {
+    "focused_tests": [
+      {
+        "engine": "system Git 2.50.1",
+        "tests": 16,
+        "transport_tests": 10,
+        "comparison_and_branch_tests": 6,
+        "failures": 0,
+        "log": "build/qa/synchronization-transport-system-final-2026-10-11.log"
+      },
+      {
+        "engine": "Git 2.39.5",
+        "tests": 16,
+        "transport_tests": 10,
+        "comparison_and_branch_tests": 6,
+        "failures": 0,
+        "log": "build/qa/synchronization-transport-old-final-2026-10-11.log"
+      },
+      {
+        "engine": "packaged Git 2.55.0",
+        "tests": 16,
+        "transport_tests": 10,
+        "comparison_and_branch_tests": 6,
+        "failures": 0,
+        "log": "build/qa/synchronization-transport-packaged-final-2026-10-11.log"
+      }
+    ],
+    "validation": [
+      {
+        "step": "debug-build",
+        "exit": 0,
+        "log": "build/qa/synchronization-transport-debug-build-confirmed-2026-10-11.log"
+      },
+      {
+        "step": "store-build",
+        "exit": 0,
+        "log": "build/qa/synchronization-transport-store-build-confirmed-2026-10-11.log"
+      },
+      {
+        "step": "debug-audit",
+        "exit": 0,
+        "log": "build/qa/synchronization-transport-debug-audit-confirmed-2026-10-11.log"
+      },
+      {
+        "step": "store-audit",
+        "exit": 0,
+        "log": "build/qa/synchronization-transport-store-audit-confirmed-2026-10-11.log"
+      },
+      {
+        "step": "inventory",
+        "exit": 0,
+        "log": "build/qa/synchronization-transport-inventory-confirmed-2026-10-11.log"
+      },
+      {
+        "step": "site",
+        "exit": 0,
+        "log": "build/qa/synchronization-transport-site-confirmed-2026-10-11.log"
+      }
+    ],
+    "scope": "Private local bare-server repositories; real Git transport, streaming, force rejection/retry, tags/notes, checkout authorization, cancellation during asynchronous authentication preparation, changed Pull context, incoming results and failed Rebase-target preparation.",
+    "full_suite": "Not rerun at this checkpoint.",
+    "native_transport": "Not wired or tested at this checkpoint; previous outgoing-window evidence remains scoped to its own checkpoint.",
+    "unsigned_only": true,
+    "owned_app_or_build_processes": []
+  },
+  "remaining": [
+    "Native transport controls, tracking questions, project hooks, separate checkout progress and metadata replan after checkout.",
+    "Revision-expression/detached Pull and checkout-hook configuration parity.",
+    "Native Rebase choices, incoming/conflict/reference/result tabs, transport progress and authenticated network acceptance.",
+    "Full dialog parity, Finder activation, rendered/physical accessibility checks and signed sandbox/App Store/distribution acceptance."
+  ],
+  "corrections": "Earlier fixture used an ambiguous unqualified destination with a raw source hash; final fixture uses refs/heads/review. Git 2.39 checkout rejected newer --end-of-options syntax; the switch adapter passes all three final engine runs.",
+  "sources_sha256": {
+    "Sources/TurtleGitCore/Synchronization.swift": "64ec15616d2b70fdf03b2b646aa506bbe636fed15a8c7969c5cd7aa832bebea1",
+    "Tests/TurtleGitCoreTests/SynchronizationTransportTests.swift": "b10800a76f7288c36ecfbd2a9261655b36ba1be2764559b8fb8a72f5281e7358",
+    ".github/workflows/macos.yml": "3db808a9fc47ed6dca01b4892fb76527ca4a9235a257dd033fd70841c3664e38"
+  },
+  "logs_sha256": {
+    "build/qa/synchronization-transport-system-final-2026-10-11.log": "8dfa8a8c303fa3472ea9e3dbfc6f60f0188d893c672ac1e4c4f0fd1259e3c494",
+    "build/qa/synchronization-transport-old-final-2026-10-11.log": "8f2b9326f998a50957c680d449bf45d54aad5b1bebab5a879e8942adec094d60",
+    "build/qa/synchronization-transport-packaged-final-2026-10-11.log": "35b36dac4829893ae7129559287efabb19042e3a1a2c9feb2e095ea9d2367f1d",
+    "build/qa/synchronization-transport-debug-build-confirmed-2026-10-11.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/synchronization-transport-store-build-confirmed-2026-10-11.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/synchronization-transport-debug-audit-confirmed-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/synchronization-transport-store-audit-confirmed-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/synchronization-transport-inventory-confirmed-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/synchronization-transport-site-confirmed-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

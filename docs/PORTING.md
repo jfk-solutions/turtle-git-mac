@@ -48,7 +48,9 @@ Targeted Core and hidden native checks pass; light/dark content captures are on
 the website. Abort Merge progress now also has reviewed native control mappings.
 Synchronization now has a partial native outgoing window with pull-tracking
 branch defaults, Force, a colored graph-first table and pinned change comparisons.
-Transport and incoming/results tabs still await porting. See
+The transport backend now plans/executes the nine source CLI actions, with
+authorized checkout/deletion and pinned rebase handoffs. Native transport and
+incoming/results tabs still await porting. See
 [SYNCHRONIZATION-PARITY.md](SYNCHRONIZATION-PARITY.md).
 Across the 130 inventoried dialogs:
 49 dialogs are now partial and 81 await review. No dialog is certified complete.

@@ -34,6 +34,45 @@ Resolving hashes uses stdout independently of diagnostic output. Input NULs and
 pre-cancelled operations are rejected; the token is forwarded through Git reads.
 The snapshots do not authorize transport operations.
 
+## Transport backend
+
+`SynchronizationTransportOptions` and its immutable plan cover Pull, Fetch,
+Fetch & Rebase, Fetch All, Remote Update, Prune, Push, Push Tags and Push Notes.
+These APIs are not wired to the native Synchronization buttons yet.
+
+The source CLI rules are preserved: matching pull tracking omits an explicit
+branch; configured Pull rebase performs Fetch and defers the native rebase
+handoff. Branch-specific rebase overrides the global setting, including Git's
+numeric and valueless boolean forms. `merges` requests preserved merges.
+Existing tracking refs give Fetch a `branch:remotes/remote/branch` refspec;
+missing refs and typed URLs use the selected branch alone. Fetch All omits the
+branch for the selected remote. Remote Update uses `git remote update`; Prune
+uses the selected remote. Git still applies its configured remote-update groups.
+
+Push Tags includes both `--tags` and the selected branch refspec. Push Notes
+uses `git notes get-ref` and ignores the destination-branch field. FETCH_HEAD
+prefill uses exactly one for-merge line, preserving the source's FixBranchName
+rule. An empty resulting source with a destination is a deletion refspec; the
+executor requires separate explicit deletion authorization. NULs in fields or
+metadata-derived arguments are rejected.
+
+Pull requires explicit authorization before a planned branch switch. Git 2.39
+rejects the pinned upstream's newer checkout `--end-of-options` syntax, so the
+macOS adapter uses `switch --no-guess -- branch` for local branches and
+`switch --detach -- revision` otherwise. Source old-HEAD metadata remains in the
+original plan. Execution checks the repository identity and the Pull HEAD/branch
+before work and again after asynchronous authentication. Cancellation reaches
+metadata reads, checkout, authentication and transport; output uses the shared
+stdout/stderr stream protocol. Fetch-for-Rebase pins the completed target hash;
+if that read fails, a separate error retains the successful transport result.
+
+The native owner still needs source tracking questions, project hooks, separate
+checkout progress and post-checkout metadata refresh, transport/result tabs,
+reference-change/conflict views and native Rebase choices. Revision-expression
+prefill, checkout-hook configuration changes and broader repository modes require
+further source parity work. No native transport or signed/network acceptance
+claim follows from the local command tests.
+
 ## Native outgoing window
 
 The TurtleGit menu opens a retained per-repository Git Synchronization window.
@@ -73,6 +112,15 @@ explicitly select the requested Git executable. No full-suite, transport, physic
 follows from them. The separate native verification covers only the outgoing
 window controls/table/snapshot lifecycle; see the
 [native QA record](qa/synchronization-window-2026-10-11.json).
+
+Ten additional transport tests, alongside the six comparison/branch tests, pass
+with system Git 2.50.1, Git 2.39.5 and packaged Git 2.55.0. They execute against
+private local bare repositories and cover refspecs, force, tags/notes, checkout
+authorization, FETCH_HEAD deletion refusal, asynchronous authentication cancellation
+and pinned Rebase targets. Both unsigned build configurations and their bundle
+audits pass. This does not verify native transport controls, real network
+authentication, the full test suite or signed distribution; see the
+[transport QA record](qa/synchronization-transport-2026-10-11.json).
 
 ## Remaining full port
 
