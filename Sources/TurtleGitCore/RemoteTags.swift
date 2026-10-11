@@ -17,7 +17,7 @@ public enum RemoteTagConfirmation {
     }
 }
 extension GitRepository {
-    public func remoteTags(remote: String, reversed: Bool = false, cancellation: OperationCancellation? = nil, prepareTransport: SSHTransportPreparation? = nil) async throws -> [RemoteTag] {
+    public func remoteTags(remote: String, includingPeeled: Bool = false, reversed: Bool = false, cancellation: OperationCancellation? = nil, prepareTransport: SSHTransportPreparation? = nil) async throws -> [RemoteTag] {
         let token = cancellation ?? OperationCancellation(); try token.check()
         guard !remote.isEmpty, !remote.utf8.contains(0) else { throw RemoteTagFailure.selection }
         let session = try await prepareSSHTransport([remote], cancellation: token, preparation: prepareTransport)
@@ -27,7 +27,7 @@ extension GitRepository {
         for line in output.split(separator: 10) {
             try token.check()
             guard let tab = line.firstIndex(of: 9), let hash = String(data: line[..<tab], encoding: .utf8), let reference = String(data: line[line.index(after: tab)...], encoding: .utf8), [40, 64].contains(hash.utf8.count), hash.utf8.allSatisfy({ (48...57).contains($0) || (97...102).contains($0) }) else { throw RemoteTagFailure.output }
-            guard let short = GitReferenceName.removingPrefix("refs/tags/", from: reference), !short.hasSuffix("^{}") else { continue }
+            guard let short = GitReferenceName.removingPrefix("refs/tags/", from: reference), includingPeeled || !short.hasSuffix("^{}") else { continue }
             let name = GitReferenceName(short); guard !short.isEmpty, !short.utf8.contains(0), names.insert(name).inserted else { throw RemoteTagFailure.output }
             result.append(RemoteTag(name: name, hash: hash))
         }

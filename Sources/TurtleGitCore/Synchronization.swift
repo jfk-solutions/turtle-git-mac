@@ -534,3 +534,120 @@ extension GitRepository {
         return (commits, comparison)
     }
 }
+
+// Source: CGitTagCompareList. Compare annotated objects and friendly target rows
+// separately; remote metadata is looked up only in the local object database.
+public enum SynchronizationTagKind: String, Sendable { case same, differ, onlyLocal, onlyRemote }
+public enum SynchronizationTagAction: Sendable { case fetch, push, deleteLocal, deleteRemote }
+public struct SynchronizationTagRow: Hashable, Sendable, Identifiable {
+    public let name: GitReferenceName
+    public var id: GitReferenceName { name }
+    public let localHash: String?
+    public let remoteHash: String?
+    public let localMessage: String
+    public let remoteMessage: String
+    public var kind: SynchronizationTagKind {
+        if let localHash, let remoteHash { return localHash == remoteHash ? .same : .differ }
+        return localHash != nil ? .onlyLocal : .onlyRemote
+    }
+    public var tag: GitReferenceName {
+        GitReferenceName(name.rawValue.hasSuffix("^{}") ? String(name.rawValue.dropLast(3)) : name.rawValue)
+    }
+    public func allows(_ action: SynchronizationTagAction) -> Bool {
+        switch action {
+        case .fetch: return remoteHash != nil && kind != .same
+        case .push: return localHash != nil && kind != .same
+        case .deleteLocal: return localHash != nil
+        case .deleteRemote: return remoteHash != nil
+        }
+    }
+}
+public struct SynchronizationTagSnapshot: Sendable {
+    public let root: URL
+    public let remote: String
+    public let rows: [SynchronizationTagRow]
+    fileprivate let localObjects: [GitReferenceName: String]
+    fileprivate let repository: GitRepository
+}
+extension GitRepository {
+    public func synchronizationTags(remote: String, cancellation: OperationCancellation? = nil,
+                                    prepareTransport: SSHTransportPreparation? = nil) async throws -> SynchronizationTagSnapshot {
+        let token = cancellation ?? OperationCancellation(); try token.check()
+        let remoteRows = try await remoteTags(remote: remote, includingPeeled: true, cancellation: token, prepareTransport: prepareTransport)
+        let advertised = Dictionary(uniqueKeysWithValues: remoteRows.map { ($0.name, $0.hash) })
+        let bytes = try run(["for-each-ref", "--format=%(refname)%00%(objectname)%00%(objecttype)%00%(object)%00", "refs/tags/"], cancellation: token).stdout
+        var local = [GitReferenceName: String](), objects = [GitReferenceName: String]()
+        for line in String(decoding: bytes, as: UTF8.self).split(separator: "\n") {
+            try token.check()
+            let fields = line.split(separator: "\0", omittingEmptySubsequences: false)
+            guard fields.count == 5, let short = GitReferenceName.removingPrefix("refs/tags/", from: String(fields[0])) else { throw SynchronizationFailure.invalidInput }
+            let name = GitReferenceName(short), hash = String(fields[1])
+            objects[name] = hash; local[name] = hash
+            if fields[2] == "tag" {
+                // Source libgit2's git_tag_target is one level, not recursive.
+                guard !fields[3].isEmpty else { throw SynchronizationFailure.invalidInput }
+                local[GitReferenceName(short + "^{}")] = String(fields[3])
+            }
+        }
+        var messages = [String: String]()
+        func message(_ hash: String?) throws -> String {
+            guard let hash else { return "" }
+            if let cached = messages[hash] { return cached }
+            var result = ""
+            do {
+                let type = try run(["cat-file", "-t", hash], cancellation: token).stdout
+                if String(decoding: type, as: UTF8.self).trimmingCharacters(in: .newlines) == "commit" {
+                    let body = try run(["show", "--no-patch", "--no-show-signature", "--encoding=UTF-8", "--format=%B", hash, "--"], cancellation: token).stdout
+                    result = String(decoding: body, as: UTF8.self).split(separator: "\n").first.map(String.init) ?? ""
+                }
+            } catch is GitFailure { try token.check() }
+            messages[hash] = result; return result
+        }
+        let names = Set(local.keys).union(advertised.keys).sorted { $0.rawValue.utf16.lexicographicallyPrecedes($1.rawValue.utf16) }
+        var rows = [SynchronizationTagRow]()
+        for name in names {
+            try token.check()
+            let mine = local[name], theirs = advertised[name]
+            rows.append(SynchronizationTagRow(name: name, localHash: mine, remoteHash: theirs, localMessage: try message(mine), remoteMessage: try message(theirs)))
+        }
+        try token.check()
+        return SynchronizationTagSnapshot(root: root, remote: remote, rows: rows, localObjects: objects, repository: self)
+    }
+    /// Menus normalize a friendly ^{} row to the underlying tag. Force Push and
+    /// non-force Fetch retain upstream behavior; deletions require confirmation.
+    public func synchronizeTag(_ action: SynchronizationTagAction, row: SynchronizationTagRow, snapshot: SynchronizationTagSnapshot,
+                               deletionAuthorized: Bool = false, cancellation: OperationCancellation? = nil,
+                               onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil,
+                               prepareTransport: SSHTransportPreparation? = nil) async throws -> GitResult {
+        let token = cancellation ?? OperationCancellation(); try token.check()
+        guard snapshot.repository === self, snapshot.root == root else { throw SynchronizationTransportFailure.repositoryChanged }
+        guard snapshot.rows.contains(row), row.allows(action) else { throw SynchronizationFailure.invalidInput }
+        let reference = "refs/tags/" + row.tag.rawValue
+        _ = try run(["-c", "core.precomposeunicode=false", "check-ref-format", reference], cancellation: token)
+        if action == .deleteLocal || action == .deleteRemote {
+            guard deletionAuthorized else { throw SynchronizationTransportFailure.deletionNotAuthorized }
+        }
+        func checkLocal() throws {
+            let current = try run(["-c", "core.precomposeunicode=false", "rev-parse", "--verify", "--quiet", "--end-of-options", reference], successfulExitCodes: 0...1, cancellation: token)
+            let hash = current.exitCode == 0 ? String(decoding: current.stdout, as: UTF8.self).trimmingCharacters(in: .newlines) : nil
+            guard hash == snapshot.localObjects[row.tag] else { throw SynchronizationTransportFailure.repositoryChanged }
+        }
+        if action == .deleteLocal {
+            try checkLocal()
+            guard let expected = snapshot.localObjects[row.tag] else { throw SynchronizationFailure.invalidInput }
+            return try run(["-c", "core.precomposeunicode=false", "update-ref", "--no-deref", "-d", reference, expected], cancellation: token, onOutput: onOutput)
+        }
+        if action != .deleteRemote { try checkLocal() }
+        let session = try await prepareSSHTransport([snapshot.remote], cancellation: token, preparation: prepareTransport)
+        defer { withExtendedLifetime(session) {} }
+        if action != .deleteRemote { try checkLocal() }
+        let args: [String]
+        switch action {
+        case .fetch: args = ["fetch", "--", snapshot.remote, reference + ":" + reference]
+        case .push: args = ["push", "--force", "--", snapshot.remote, reference]
+        case .deleteRemote: args = ["push", "--", snapshot.remote, ":" + reference]
+        case .deleteLocal: throw SynchronizationFailure.invalidInput
+        }
+        return try run(["-c", "core.precomposeunicode=false"] + args, environmentOverrides: session?.transportEnvironment ?? [:], cancellation: token, onOutput: onOutput)
+    }
+}
