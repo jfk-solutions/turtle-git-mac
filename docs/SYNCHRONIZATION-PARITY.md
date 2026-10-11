@@ -826,5 +826,23 @@ inspects incoming/outgoing results after IDOK. ImportPatchDlg's OK handler
 clears m_PathList; its worker applies checked files using the selected options.
 The normal completed return therefore must not import the same patches again.
 The native importer now distinguishes final OK from Cancel and cancels owned
-Git work on forced closure. The actual Sync button and result handoff remain
-pending; see [Import Patch lifetime work](IMPORT-PATCH-PARITY.md).
+Git work on forced closure. The native Sync button now opens the captured importer as an owned sheet.
+Only final OK refreshes incoming results, without importing files a second time.
+The file comparison uses HEAD captured immediately before opening the dialog;
+the incoming log uses the previous Pull/Fetch baseline when available. Without
+a prior transport, the native log uses the immediate pre-import HEAD.
+
+The source-position Apply Patch button retains the upstream patch artwork.
+Cancel preserves Sync results; a skipped/no-change session shows the source
+“No commits get from patch” result and hides the Incoming Changes tab. Changed
+HEAD refreshes outgoing results while preserving Force. Parent/duplicate-command
+guards, sheet dismissal and forced parent cleanup have focused native verification
+with both system and packaged Git. A missing HEAD reports an error before opening
+the importer. The full 13-group Sync native regression passed on each engine (26 groups).
+The standalone Import Patch regression also passed all 24 groups per engine
+(48 groups). Actual light/dark captures at normal and minimum sizes were
+inspected against the pinned GitSync image; Apply Patch fits in both sizes.
+The refreshed normal captures are on the website. Debug and unsigned universal
+App Store builds, both bundle audits, inventory-pin and site checks passed.
+Physical input and signed acceptance remain unverified. See [Import Patch lifetime work](IMPORT-PATCH-PARITY.md) and the
+[checkpoint evidence](qa/synchronization-apply-native-2026-10-11.json).

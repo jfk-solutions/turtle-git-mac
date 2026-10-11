@@ -382,8 +382,10 @@ The final OK action records successful acceptance separately from Cancel.
 This is needed by Sync's modal Apply Patch caller: upstream ImportPatchDlg
 applies the commits itself and clears m_PathList in OnBnClickedOk. Sync must
 inspect the result after successful OK rather than applying those files twice.
-The Sync entry and incoming/outgoing result handoff remain pending in this
-checkpoint. Physical prompts, arbitrary mid-write cancellation, complete child
+Sync now opens this importer as an owned sheet and consumes successful OK
+without reapplying files; its focused two-engine native checks pass. Approved
+Cancel/OK explicitly ends the parent sheet before closing the window. Wider
+checkpoint verification is tracked in [Synchronization parity](SYNCHRONIZATION-PARITY.md). Physical prompts, arbitrary mid-write cancellation, complete child
 mail/editor lifetimes and signed access remain separate acceptance work.
 
 Focused lifecycle groups and the full 24-group native regression passed with

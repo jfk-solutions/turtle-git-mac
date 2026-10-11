@@ -1,0 +1,72 @@
+{
+  "date": "2026-10-11",
+  "status": "partial-native-sync-apply-patch-verified",
+  "code_commit": "6ecfb0f0dec8085c2dd0e63cea56c09676656f7d",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_blobs": {
+    "src/TortoiseProc/SyncDlg.cpp": "17bfe829c486fee35345727136bec8d1adbf21f9",
+    "src/TortoiseProc/ImportPatchDlg.cpp": "3bce8ea1941166a18a3380799d9a44e201a995c9",
+    "doc/images/en/GitSync.png": "f7b758c80c23cc561b754947ffeaf4ae4afc4687"
+  },
+  "behavior": [
+    "Source-position original patch icon and owned importer sheet with captured repository/access/preferences",
+    "Final OK versus Cancel; no repeated git am after modal return",
+    "Immediate pre-import HEAD for file diff, previous Pull/Fetch HEAD for incoming log when available; native immediate-HEAD fallback before any transport",
+    "No-change source message and hidden Incoming Changes; changed HEAD refreshes outgoing while retaining Force",
+    "Blocking guards and forced owner closure cancel/reap Git/group, detach sheet and suppress late callbacks",
+    "Missing HEAD error before importer presentation; explicit approved sheet dismissal also preserves standalone closure"
+  ],
+  "verification": {
+    "git_engines": [
+      "system 2.50.1",
+      "packaged 2.55.0"
+    ],
+    "focused_apply_groups": 2,
+    "sync_full_groups": 26,
+    "import_full_groups": 48,
+    "builds": [
+      "Debug unsigned passed",
+      "AppStore unsigned universal passed"
+    ],
+    "audits": [
+      "Debug bundle passed",
+      "AppStore bundle with required Git passed",
+      "inventory pin passed",
+      "site build passed"
+    ],
+    "native_method": "Compiled checked-in native fixtures against fresh Debug app objects and Core framework, with @testable import and C bootstrap; serial owned receivers with actual driver cleanup and 600-second per-engine timeout. Standard source driver includes the added Apply fixture. Cached runners/logs under ignored build/qa.",
+    "standard_command": "python3 scripts/test-synchronization-dialog.py --apply-only",
+    "captures": "Four actual native light/dark normal/minimum captures inspected; normal captures copied to website. One owned window closed and repository HEAD/refs/index/config remained unchanged."
+  },
+  "corrected_attempts": [
+    "Initial focus stalled on Cancel at merged fixture line 1528: approved standalone performClose did not dismiss a sheet. Fixed controller to endSheet then close after model approval. Failed receiver reaped.",
+    "Next focus failed unborn assertion: fixture invoked command before hidden hosting onAppear initialization; diagnostic child=false/error=nil. Fixture now shows window and waits for its initial projection/error before Apply. No assertion removed; final two-engine focus and broader regressions passed."
+  ],
+  "limits": [
+    "No complete Sync dialog certification; remaining controls, columns, source visual arrangement and project hooks pending",
+    "Physical keyboard/pointer/VoiceOver, signed Finder/sandbox, public authentication and App Store acceptance not verified",
+    "No new Core behavior or full Core suite claim at this checkpoint",
+    "Cached linked native checks are not the hosted CI result"
+  ],
+  "sha256": {
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "aa9fcda2b6eceec56bec91a4f49bbdb69c1bd67b828f2bdaffed1e8981a8f58e",
+    "Sources/TurtleGitMac/ImportPatchWindow.swift": "e78d4809f9df061d50153817e683542ec0d5591b8d876e34e285cebd88815f09",
+    "docs/qa/synchronization-apply-native-2026-10-11.swift": "d856c53a1a6e9983276122d6950b4fc5ef6f2c38ac0d8fdc1cc85490362c230e",
+    "docs/qa/synchronization-native-2026-10-11.swift": "41ca4db1dc071d00f89e524861e84c0e22fd28595feb2c63b8fb85a66557ca62",
+    "scripts/test-synchronization-dialog.py": "4a2a42bebbfb4d1f12db465c0a73523d333b34060cd393d081a2b10c276c1f28",
+    "build/qa/synchronization-apply-sheet-debug-2026-10-11.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/synchronization-apply-native-2026-10-11.log": "87a4c147fa6f378856982a3f7a2997f037d7915a74acce28996c467cc24021f0",
+    "build/qa/synchronization-apply-full-native-2026-10-11.log": "fdb4283987211a5c3a8af0111724d3e4c845b6a4a8e32cfb16f0a2a20123823b",
+    "build/qa/import-patch-sync-sheet-regression-native-2026-10-11.log": "8b0bff939cc7ae43cb681704166038891999cc3137695b4670207bb93cc2f0c0",
+    "build/qa/synchronization-apply-layout-2026-10-11.log": "6adf031aa01c5676206a470ee69ffbd801c66b9f4c0613b5636b9a701bc16eda",
+    "build/qa/synchronization-apply-store-2026-10-11.log": "6926b9a7076d2d9ad8b2b23b24c069ce6913561b958ddbf9a873a5fe75da64dc",
+    "build/qa/synchronization-apply-debug-audit-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/synchronization-apply-store-audit-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/synchronization-apply-inventory-audit-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/synchronization-apply-site-audit-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/synchronization-apply-layout-2026-10-11/git-synchronization-light.png": "1ae0c79ee9089d9f39b817c4646d133dff417c113738cfbe67d309a6a19c8303",
+    "build/qa/synchronization-apply-layout-2026-10-11/git-synchronization-dark.png": "26da0da55874f3d9d1cf7ab0ce83874f833ee18c835b874a6111c2f088aba4f5",
+    "build/qa/synchronization-apply-layout-2026-10-11/git-synchronization-light-minimum.png": "1328636ec6d199000cee38c6871fe132b186b288dbed777d4e7f269e4f982cc9",
+    "build/qa/synchronization-apply-layout-2026-10-11/git-synchronization-dark-minimum.png": "96b48fac9a6379ec3e814b7bfa33463aa0fdb5e3009e129277b40212c1386368"
+  }
+}
