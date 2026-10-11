@@ -1,0 +1,166 @@
+{
+  "date": "2026-10-11",
+  "status": "partial-native-sync-branch-picker-workflows-verified",
+  "code_commit": "b7ee159111dd2ec16c301c74548aef967c873217",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_blobs": {
+    "src/TortoiseProc/BranchCombox.h": "9d3608114618fcb9db4b7948509727923110f2ab",
+    "src/TortoiseProc/BrowseRefsDlg.cpp": "735fd67f1fcd366d415fd397344032eb5f297f51",
+    "doc/images/en/GitSync.png": "f7b758c80c23cc561b754947ffeaf4ae4afc4687"
+  },
+  "behavior": [
+    "Source-position Local/Remote Branch ellipsis controls",
+    "Local-head-only scoped Browse References sheet, short local branch acceptance and tracking defaults",
+    "Remote-only scoped Browse References sheet, first-slash remote/branch mapping and in-memory branch history",
+    "Captured repository/access/preferences and production workspace reference-action configuration",
+    "Cancel preserves fields; guards block duplicate child, Manage, transport, Quit and normal parent closure",
+    "Forced parent closure abandons completion, detaches sheet, invalidates browser and cancels reader"
+  ],
+  "verification": {
+    "core": {
+      "system_git": "2.50.1",
+      "command": "swift test --filter ReferenceBrowserTests",
+      "tests": 20,
+      "failures": 0
+    },
+    "core_packaged": {
+      "git": "2.55.0",
+      "command": "TURTLEGIT_QA_GIT=build/git-runtime/Git/bin/git swift test --skip-build --filter ReferenceBrowserTests.testRemoteOnlyPickerAndTrackingFetchMappingUnsetPreservation",
+      "tests": 1,
+      "failures": 0,
+      "scope": "Namespace exclusion for local-head and remote scopes plus existing tracking/config preservation"
+    },
+    "native": {
+      "method": "QA linked against freshly rebuilt Debug production app objects, @testable module import and generated C entry; production close_receiver helper owns/reaps each process group",
+      "git": [
+        "system 2.50.1",
+        "packaged 2.55.0"
+      ],
+      "pass_groups_per_engine": 1,
+      "scope": [
+        "Shipping Sync controller opens real Browse References sheets",
+        "Canonical local/remote scopes and excluded tag/note namespaces",
+        "Nested Unicode local branch reloads tracking destination",
+        "Nested Unicode remote branch populates both remote/branch fields and retains Force",
+        "Both Cancel routes preserve fields without parent busy",
+        "Invalid namespace acceptance refuses updates",
+        "No changes to HEAD/refs/index/config during selection",
+        "Forced parent close during actual stalled reference query reaps PID and detaches child; closed child refuses later acceptance"
+      ]
+    },
+    "builds": [
+      "Unsigned Debug",
+      "Unsigned universal AppStore"
+    ],
+    "audits": [
+      "Debug bundle",
+      "AppStore bundle requiring embedded Git",
+      "Pinned inventory",
+      "Static site"
+    ],
+    "layout": {
+      "capture": "Actual native Sync window with captured chrome, one owned window in a disposable repository; HEAD/refs/index/config unchanged and owner closed",
+      "inspected": [
+        "light normal",
+        "dark normal",
+        "light minimum",
+        "dark minimum"
+      ],
+      "source_comparison": "Pinned GitSync.png inspected. Browse buttons follow each branch field and fit at minimum size in both themes. Source differences remain in tab placement, Actions/ref/bug-ID columns, SSH/Force grouping and unfinished footer controls. Later metadata columns scroll horizontally at minimum size.",
+      "images": {
+        "light": {
+          "path": "build/qa/synchronization-branch-picker-layout-2026-10-11/git-synchronization-light.png",
+          "sha256": "39797deaf2b651d21b4231f3502d93f12fda5edff95a9db4c37372d60d8b760c",
+          "pixels": [
+            2100,
+            1384
+          ]
+        },
+        "dark": {
+          "path": "build/qa/synchronization-branch-picker-layout-2026-10-11/git-synchronization-dark.png",
+          "sha256": "3c0db2702a5d1da2aca4cec36d3aba3d22c6a24b86a4d790dd389d2d15e9e39e",
+          "pixels": [
+            2100,
+            1384
+          ]
+        },
+        "light-minimum": {
+          "path": "build/qa/synchronization-branch-picker-layout-2026-10-11/git-synchronization-light-minimum.png",
+          "sha256": "49ba6bb90a7bffd158246db8baea82320218e46094ca1025c036d45c82a3b385",
+          "pixels": [
+            1720,
+            1064
+          ]
+        },
+        "dark-minimum": {
+          "path": "build/qa/synchronization-branch-picker-layout-2026-10-11/git-synchronization-dark-minimum.png",
+          "sha256": "b7a8a8390bffaa9a262dc7ad73f42e837f317e9474d75a92c1903f5bc1789938",
+          "pixels": [
+            1720,
+            1064
+          ]
+        }
+      }
+    }
+  },
+  "source_hashes": {
+    "Sources/TurtleGitCore/ReferenceBrowser.swift": "ff3678ccb0fe28d8eff733f51bb374885d2cff40677825c7d860c053a5dce5bc",
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "783910dd4a281d19c06b9a92fc67d46c55b8e935645bb500c022095fa5338757",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "7d85f1c22e8890d793609853e6a174c9794015fafaad409f91f07979b66d1e09",
+    "Tests/TurtleGitCoreTests/ReferenceBrowserTests.swift": "2f8b9f0ad76d0acdd517a8d286b54cac44a9759a9b4ee15389ddb5c53ee7f760",
+    "docs/qa/synchronization-native-2026-10-11.swift": "7c094678ef1e3b17f756ad0ee343fd8304fa0a9a81d4eb1aa8d8a6c7f90c1f04",
+    "scripts/test-synchronization-dialog.py": "7e0a45d2e59c2c24829ead44729c4b8e2127f8fd57136b0288cf83b1a0fe7837",
+    "build/qa/run-sync-branches.py": "7d12e5c5ed8d354836c4b9d0406cb29b03786ac2c1164c7defc38f6974d77c4b",
+    "build/qa/run-sync-branch-layout.py": "70e927cb68f93da17f4a7b2f7892191723200f787e214e77a1200e106798dc7e"
+  },
+  "logs": {
+    "core": {
+      "path": "build/qa/synchronization-branch-picker-core-2026-10-11.log",
+      "sha256": "3e76ab8c8b45e18aff0f96f4f490e801d79b601a957bb663d04b9389372d736e"
+    },
+    "core-packaged": {
+      "path": "build/qa/synchronization-branch-picker-core-packaged-2026-10-11.log",
+      "sha256": "32868e1e0345cbee924d4bd9c2b8fb93b4dbc0f9714ba324cdd2cecda587c71c"
+    },
+    "debug": {
+      "path": "build/qa/synchronization-branch-picker-debug-2026-10-11.log",
+      "sha256": "b94f603dcfa72d6c808c87d51b1f050021e3d64d4e4fe108a18be738cf4b81b8"
+    },
+    "native": {
+      "path": "build/qa/synchronization-branch-picker-native-2026-10-11.log",
+      "sha256": "bacf37a26b710bfb261a83a2c5dd52146ac77c26fa4eee234d1b34c79978b4df"
+    },
+    "store": {
+      "path": "build/qa/synchronization-branch-picker-store-2026-10-11.log",
+      "sha256": "6926b9a7076d2d9ad8b2b23b24c069ce6913561b958ddbf9a873a5fe75da64dc"
+    },
+    "layout": {
+      "path": "build/qa/synchronization-branch-picker-layout-2026-10-11.log",
+      "sha256": "ad807d29eefb671241371f9e5d7194c8f31c247eb815f37a5d8b2aac4aa8a4fe"
+    },
+    "debug-audit": {
+      "path": "build/qa/synchronization-branch-picker-debug-audit-2026-10-11.log",
+      "sha256": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d"
+    },
+    "store-audit": {
+      "path": "build/qa/synchronization-branch-picker-store-audit-2026-10-11.log",
+      "sha256": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30"
+    },
+    "pin-audit": {
+      "path": "build/qa/synchronization-branch-picker-pin-audit-2026-10-11.log",
+      "sha256": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a"
+    },
+    "site-audit": {
+      "path": "build/qa/synchronization-branch-picker-site-audit-2026-10-11.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  },
+  "limits": [
+    "No complete dialog certification. Full picker menus, physical input/keyboard/VoiceOver and signed access/Finder acceptance remain incomplete.",
+    "The production workspace reference-action callback is wired and inspected; this fixture supplies a configuration spy rather than launching the workspace factory.",
+    "The twelve-group broader native QA now includes this fixture but was not rerun in this checkpoint. The focused fixture covers the added workflow; earlier broader results are historical.",
+    "No new full Core suite result or hosted macOS CI success claim.",
+    "Shared BranchCombox consumers outside Sync and source tooltip/history details remain partial.",
+    "App Store signing, distribution acceptance and whole-app parity remain unfinished."
+  ]
+}

@@ -792,3 +792,29 @@ remaining requirements.
 Focused native checks passed with system and packaged Git, along with unsigned
 Debug/universal AppStore builds, bundle audits, inventory and site checks. See
 [verification scope and limits](qa/synchronization-selection-native-2026-10-11.json).
+
+## Local and remote branch browse buttons (October 11, 2026)
+
+Sync now has both ellipsis buttons in the source positions after their branch
+fields. The inherited BranchCombox handlers use a local-head-only reference
+picker for Local Branch and a remote-reference-only picker for Remote Branch.
+Local acceptance strips refs/heads/ and reloads the selected branch's tracking
+remote/branch. Remote acceptance strips refs/remotes/, splits at the first slash,
+sets the remote and remaining branch text, adds the branch to the in-memory
+history, and reloads outgoing results. Force remains unchanged. Cancel returns
+without altering the fields or reloading Sync.
+
+Each picker is the existing native Browse References dialog, presented as an
+owned sheet with captured repository access and preferences. The production
+workspace configures its reference actions through the shared browser adapter.
+While it is open, duplicate pickers, Manage and parent transport/normal closure
+are blocked. Forced parent closure invalidates Sync, abandons picker completion,
+ends its sheet and cancels the browser's reader. The complete picker menus,
+physical input/accessibility and signed scope remain separate acceptance work.
+
+Twenty Core reference-browser tests passed on system Git; the namespace/tracking
+check also passed on packaged Git. Focused native branch-picker checks passed
+with both engines. Unsigned Debug/universal AppStore builds, bundle audits,
+inventory and site checks passed. All four native root captures were inspected
+against the source; updated full-size captures are published. See
+[verification scope and remaining work](qa/synchronization-branch-picker-native-2026-10-11.json).

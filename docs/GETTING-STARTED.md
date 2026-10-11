@@ -114,3 +114,9 @@ apply its URL, Push URL, tag, prune or Push Default changes. Closing Remote
 settings refreshes Synchronization's remote list and outgoing results.
 Unapplied edits are discarded when you cancel. The complete Settings tree
 and full upstream dialog parity are still being ported.
+
+In Synchronization, use **…** beside Local Branch to choose a local branch and
+load its tracking destination. Use **…** beside Remote Branch to choose a stored
+remote-tracking reference; its remote and branch populate both fields. These
+choices prepare Sync without checking out a branch or changing Git configuration.
+Cancel leaves your current fields unchanged.
