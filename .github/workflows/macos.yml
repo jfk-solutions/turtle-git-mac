@@ -242,6 +242,8 @@ jobs:
         run: python3 scripts/test-fetch-cancellation.py
       - name: Native Pull and Fetch clipboard input
         run: python3 scripts/test-fetch-clipboard.py
+      - name: Synchronization comparisons and transport with bundled Git
+        run: TURTLEGIT_GROUP_TEST_GIT="$PWD/build/git-runtime/Git/bin/git" swift test --filter 'SynchronizationTests|SynchronizationTransportTests'
       - name: Native Synchronization outgoing window and owner lifetime
         run: python3 scripts/test-synchronization-dialog.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Pull and Fetch submodule defaults
