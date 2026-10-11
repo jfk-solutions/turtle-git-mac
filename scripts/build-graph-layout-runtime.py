@@ -17,6 +17,20 @@ def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def patch_apple_cpu_baseline(source):
+    # The pinned OGDF selects -march=native from the build host. On Intel
+    # macOS that flag also reaches the arm64 slice, where Clang rejects it.
+    # Let Apple's -arch defaults select each slice's portable CPU baseline.
+    # Keep the archive intact; this deterministic build patch is reproduced
+    # by the reconstruction script shipped alongside it.
+    compiler_options = source / 'cmake/compiler-specifics.cmake'
+    original = 'if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND NOT ${CMAKE_SYSTEM_PROCESSOR} MATCHES "^arm")'
+    contents = compiler_options.read_text()
+    if contents.count(original) != 1:
+        raise RuntimeError('Pinned OGDF CPU selection no longer matches the reviewed build patch')
+    compiler_options.write_text(contents.replace(original, original[:-1] + ' AND NOT APPLE)'))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=pathlib.Path, default=ROOT / 'build/graph-layout-runtime/GraphLayout')
@@ -57,6 +71,7 @@ def main():
                     destination.write_bytes(contents)
             else:
                 raise RuntimeError('Unsupported source archive entry')
+    patch_apple_cpu_baseline(source)
     build = work / 'universal-release'
     subprocess.run(['cmake', '-S', str(source), '-B', str(build), '-DCMAKE_BUILD_TYPE=Release',
                     '-DCMAKE_OSX_ARCHITECTURES=' + ';'.join(pin['architectures']),

@@ -271,6 +271,7 @@ cancelled worker:
 swift test --filter 'RevisionGraphLayoutTests|RevisionGraphTests'
 python3 scripts/validate-graph-layout-runtime.py \
   build/graph-layout-runtime/GraphLayout --all-architectures
+python3 scripts/test-graph-layout-cpu-baseline.py
 python3 scripts/test-graph-layout-embedding.py
 python3 scripts/test-graph-layout-bundles.py
 ```

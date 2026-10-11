@@ -42,6 +42,8 @@ jobs:
         run: python3 scripts/build-graph-layout-runtime.py
       - name: Validate graph runtime package before reuse or caching
         run: python3 scripts/validate-graph-layout-runtime.py build/graph-layout-runtime/GraphLayout
+      - name: Verify Intel-host universal graph CPU baseline regression
+        run: python3 scripts/test-graph-layout-cpu-baseline.py
       - name: Save verified graph runtime package
         if: steps.graph-layout-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5

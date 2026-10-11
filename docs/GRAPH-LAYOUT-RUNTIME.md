@@ -44,6 +44,21 @@ The second command executes both slices; Apple Silicon needs Rosetta for the
 Intel slice. Normal validation executes the host slice and inspects both Mach-O
 slices, their macOS 13 minimum and system-only dynamic linkage.
 
+The reconstruction script applies one reviewed build patch to OGDF's
+`cmake/compiler-specifics.cmake`: Apple builds omit the host-selected
+`-march=native` flag and use Clang's per-slice `-arch` defaults. Upstream's
+Intel-host condition otherwise forwards `native` to the arm64 slice and fails
+before building the graph engine. The original checksum-verified archive stays
+unchanged; the shipped reconstruction script reapplies the patch after extraction
+and refuses an unexpected source condition. This changes CPU build selection,
+not the graph algorithms.
+
+`scripts/test-graph-layout-cpu-baseline.py` uses that exact archived compiler
+configuration with an Intel build-host processor setting. It requires the
+original universal compilation to fail with a CPU diagnostic and the patched
+compilation to produce both architecture slices. CI runs this regression for
+fresh builds and cached runtime packages.
+
 The runtime contains the exact OGDF archive, the adapter and reconstruction
 scripts/configuration under `Sources/`, plus the original project GPL license,
 OGDF's license and GPL texts, and the Eclipse EPL 1.0 text for COIN. OGDF's
