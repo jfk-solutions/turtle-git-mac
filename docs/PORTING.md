@@ -77,7 +77,8 @@ a source-style completion footer with optional elapsed time. See
 Git configuration now has a native Settings page with scoped source views,
 identity inheritance, line-ending choices, three-state QuotePath/Prune and a
 separate save destination. Implementation is still in progress and has not been
-compiled or tested; external config editors and sandbox grants remain in scope.
+compiled or tested. Config editors and remembered sandbox directory grants are
+implemented; their displayed and signed execution checks remain in scope.
 See [the Git configuration continuation](GIT-CONFIGURATION-PARITY.md).
 
 ## Audited baseline

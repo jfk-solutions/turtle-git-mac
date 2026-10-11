@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		B73102000000000000000005 /* GitConfigurationPermissions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73102000000000000000006 /* GitConfigurationPermissions.swift */; };
 		B73102000000000000000003 /* GitConfigurationSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73102000000000000000004 /* GitConfigurationSettings.swift */; };
 		B73102000000000000000001 /* GitConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73102000000000000000002 /* GitConfiguration.swift */; };
 		A47E71000000000000000001 /* HistoryWorkflowWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A47E71000000000000000002 /* HistoryWorkflowWindow.swift */; };
@@ -331,6 +332,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		B73102000000000000000006 /* GitConfigurationPermissions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitConfigurationPermissions.swift; sourceTree = "<group>"; };
 		B73102000000000000000004 /* GitConfigurationSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitConfigurationSettings.swift; sourceTree = "<group>"; };
 		B73102000000000000000002 /* GitConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitConfiguration.swift; sourceTree = "<group>"; };
 		A47E71000000000000000002 /* HistoryWorkflowWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryWorkflowWindow.swift; sourceTree = "<group>"; };
@@ -685,6 +687,7 @@
 				2ED7A4FB5DF119ED7F648EF4 /* ReferenceLogWindow.swift */,
 				837C5F7103FADCDAC3F99EC1 /* RemoteSettingsWindow.swift */,
 				B73102000000000000000004 /* GitConfigurationSettings.swift */,
+				B73102000000000000000006 /* GitConfigurationPermissions.swift */,
 				E64D6C9E84E73A820367C405 /* RemoteTagWindow.swift */,
 				A35B58726A94B9B4799C06DE /* RemoveWindow.swift */,
 				D1F6087799A5783306A27CEE /* RenameWindow.swift */,
@@ -1454,6 +1457,7 @@
 				8F4345E3454F4ABF3E75D4C9 /* ReferenceLogWindow.swift in Sources */,
 				2C55E0EBFCD53E3B244197A8 /* RemoteSettingsWindow.swift in Sources */,
 				B73102000000000000000003 /* GitConfigurationSettings.swift in Sources */,
+				B73102000000000000000005 /* GitConfigurationPermissions.swift in Sources */,
 				018CF5C4CDB7B942B4775411 /* RemoteTagWindow.swift in Sources */,
 				5C7063047C3D6080C0D541A4 /* RemoveWindow.swift in Sources */,
 				6AEF7E4CDFDA1B02489A78EE /* RenameWindow.swift in Sources */,

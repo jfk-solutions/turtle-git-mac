@@ -10,6 +10,7 @@ import TurtleGitCore
     @StateObject private var statisticsMenuContext = StatisticsMenuContext()
     init() {
         if let status = RebaseEditor.handle(arguments: CommandLine.arguments, environment: ProcessInfo.processInfo.environment) { exit(status) }
+        GitConfigurationPermissions.restore()
         ProgressActionLog.install()
         DialogGeometry.install()
     }

@@ -128,3 +128,58 @@ extension GitRepository {
         return text
     }
 }
+
+public enum GitConfigurationFile: String, CaseIterable, Sendable {
+    case local, project, global, xdg, system
+}
+public struct GitConfigurationFiles: Sendable {
+    public let local: URL?, project: URL?, global: URL?, xdg: URL?, system: URL?
+    public let bare: Bool
+    public subscript(_ file: GitConfigurationFile) -> URL? {
+        switch file {
+        case .local: return local
+        case .project: return project
+        case .global: return global
+        case .xdg: return xdg
+        case .system: return system
+        }
+    }
+}
+extension GitRepository {
+    public func gitConfigurationFiles(hasRepository: Bool, cancellation: OperationCancellation? = nil) throws -> GitConfigurationFiles {
+        let environment = ProcessInfo.processInfo.environment
+        func url(_ path: String) -> URL {
+            path.hasPrefix("/") ? URL(fileURLWithPath: path) : root.appendingPathComponent(path)
+        }
+        // Git var reports runtime relocation and explicit config overrides. Older
+        // engines lack these variables; fall back to their conventional paths.
+        func paths(_ variable: String, fallback: [URL]) throws -> [URL] {
+            let result = try run(["var", variable], successfulExitCodes: 0...129, cancellation: cancellation)
+            if result.exitCode == 1 { return [] } // Enabled engine, disabled file.
+            if result.exitCode == 0 {
+                guard let value = String(data: result.stdout, encoding: .utf8) else { throw GitConfigurationFailure.output }
+                return value.split(separator: "\n").map { url(String($0)) }
+            }
+            guard result.exitCode == 129 else { throw GitFailure(arguments: ["var", variable], code: result.exitCode, message: result.text) }
+            return fallback
+        }
+        let home = environment["HOME"].map(url) ?? FileManager.default.homeDirectoryForCurrentUser
+        let xdg = environment["XDG_CONFIG_HOME"].flatMap { $0.isEmpty ? nil : url($0) } ?? home.appendingPathComponent(".config")
+        let globalFallback = environment["GIT_CONFIG_GLOBAL"].map { $0.isEmpty ? [] : [url($0)] } ?? [home.appendingPathComponent(".gitconfig"), xdg.appendingPathComponent("git/config")]
+        let global = try paths("GIT_CONFIG_GLOBAL", fallback: globalFallback)
+        let systemFallback = environment["GIT_CONFIG_NOSYSTEM"].map { $0 == "1" || $0.lowercased() == "true" } == true ? [] : [url(environment["GIT_CONFIG_SYSTEM"] ?? "/etc/gitconfig")]
+        let system = try paths("GIT_CONFIG_SYSTEM", fallback: systemFallback).first
+        let bare = hasRepository ? try isBare(cancellation: cancellation) : false
+        let local: URL?
+        if hasRepository {
+            let path = try run(["rev-parse", "--git-path", "config"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+            local = url(path)
+        } else { local = nil }
+        try cancellation?.check()
+        return GitConfigurationFiles(local: local, project: hasRepository ? root.appendingPathComponent(".tgitconfig") : nil,
+                                     global: global.first, xdg: global.dropFirst().first, system: system, bare: bare)
+    }
+    public func projectConfigurationFromHEAD(cancellation: OperationCancellation? = nil) throws -> Data {
+        try run(["show", "HEAD:.tgitconfig"], cancellation: cancellation).stdout
+    }
+}
