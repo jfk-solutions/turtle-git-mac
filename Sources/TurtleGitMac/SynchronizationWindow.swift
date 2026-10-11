@@ -229,6 +229,7 @@ private struct SynchronizationProgressDialog: View {
     var configureBranchPicker: (ReferenceBrowserWindowModel) -> Void = { _ in }
     var configureHistoryReference: (BranchTagWindowController) -> Void = { _ in }
     private(set) var historyReferenceController: BranchTagWindowController?
+    private(set) var historyExportController: ExportWindowController?
     var configureHistoryContainingReferences: (CommitContainingReferencesWindowController) -> Void = { _ in }
     private(set) var historyContainingReferences: [UUID: CommitContainingReferencesWindowController] = [:]
     private(set) var historyFind: [Int: RevisionGraphFindController] = [:]
@@ -305,6 +306,22 @@ private struct SynchronizationProgressDialog: View {
                 || self.historyFind.values.contains { $0.acknowledgingFailure || $0.window?.attachedSheet != nil }
         }
         model.onHistoryFind = { [weak self] tab, index in self?.showHistoryFind(sourceTab: tab, selectionIndex: index) }
+        model.onHistoryExport = { [weak self] revision in
+            guard let self, !self.model.closed, !self.model.busy, !self.model.confirmingQuit,
+                  !self.model.confirmingCancellation, !self.model.hasBlockingChild,
+                  self.historyExportController == nil, let parent = self.window, parent.attachedSheet == nil else { return }
+            let child = ExportWindowController(repository: self.model.repository, access: self.model.access, revision: revision, preferences: self.model.preferences)
+            self.historyExportController = child; self.model.exportingHistory = true
+            child.onClosed = { [weak self, weak child, weak parent] in
+                if let window = child?.window, window.sheetParent === parent { parent?.endSheet(window) }
+                guard let self, self.historyExportController === child else { return }
+                self.historyExportController = nil; self.model.exportingHistory = false
+            }
+            if let window = child.window {
+                window.alphaValue = parent.alphaValue; window.appearance = parent.appearance
+                parent.beginSheet(window)
+            }
+        }
         historyFindAvailability = model.objectWillChange.sink { [weak self] _ in
             DispatchQueue.main.async { [weak self] in self?.historyFind.values.forEach { $0.updateAvailability() } }
         }
@@ -644,6 +661,11 @@ private struct SynchronizationProgressDialog: View {
         historyFindAvailability = nil
         let findDialogs = Array(historyFind.values); historyFind.removeAll()
         findDialogs.forEach { $0.close() }
+        if let child = historyExportController {
+            child.model.invalidate()
+            if let window = child.window, window.sheetParent === self.window { self.window?.endSheet(window, returnCode: .abort) }
+            child.close(); historyExportController = nil; model.exportingHistory = false
+        }
         let references = Array(historyContainingReferences.values); historyContainingReferences.removeAll()
         references.forEach { $0.close() }
         if let child = historyReferenceController {
@@ -998,6 +1020,8 @@ enum SynchronizationHistoryDiff {
     var onHistoryLogRange: ((HistoryRevisionRange) -> Void)?
     var onHistoryContainingReferences: ((String, Int) -> Void)?
     var onHistoryFind: ((Int, Int?) -> Void)?
+    var onHistoryExport: ((String) -> Void)?
+    @Published var exportingHistory = false
     var historyFindIndex: [Int: Int] = [:]
     var historyReferencesBlocking: () -> Bool = { false }
     @Published var historyNavigation: [Int: (id: UUID, hash: String, select: Bool)] = [:]
@@ -1006,7 +1030,7 @@ enum SynchronizationHistoryDiff {
     var onHistoryCreateReference: ((Bool, String) -> Void)?
     @Published var creatingHistoryReference = false
     var hasBlockingChild: Bool {
-        historyReferencesBlocking() || creatingHistoryReference || emailingPatches || importingPatches || choosingBranch || managingRemotes || NSApp.modalWindow != nil || [comparison, incomingComparison].contains { child in
+        historyReferencesBlocking() || exportingHistory || creatingHistoryReference || emailingPatches || importingPatches || choosingBranch || managingRemotes || NSApp.modalWindow != nil || [comparison, incomingComparison].contains { child in
             child.busy || child.comparisonWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil } || child.unifiedWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil }
         }
     }
@@ -1905,6 +1929,10 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
             guard revisionActionAvailable, let target = sender.representedObject as? FindTarget else { return }
             model.onHistoryFind?(target.tab, target.index)
         }
+        @objc func historyExport(_ sender: NSMenuItem) {
+            guard revisionActionAvailable, let target = sender.representedObject as? RevisionTarget else { return }
+            model.onHistoryExport?(target.revision)
+        }
         private final class RangeTarget: NSObject {
             let range: HistoryRevisionRange
             init(_ range: HistoryRevisionRange) { self.range = range }
@@ -2050,6 +2078,11 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
                         item.representedObject = RevisionTarget(revision, isTag: isTag); menu.addItem(item)
                     }
                 }
+                let export = NSMenuItem(title: "Export this version…", action: #selector(historyExport(_:)), keyEquivalent: "")
+                export.target = self; export.isEnabled = revisionActionAvailable && model.onHistoryExport != nil
+                export.image = MenuIcon.export.contextImage(defaults: model.preferences)
+                export.representedObject = RevisionTarget(entry.references.first { $0.name.hasPrefix("refs/tags/") }?.name ?? entry.hash)
+                menu.addItem(export)
             }
             if !menu.items.isEmpty { menu.addItem(.separator()) }
             for kind in SynchronizationHistoryCopy.allCases {

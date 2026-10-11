@@ -68,3 +68,26 @@ Finder reveal, physical sheet/default-button/keyboard/close/Quit interaction,
 rendered themes, accessibility, geometry, filesystem completion, full progress
 parity and signed sandbox/Finder/App Store acceptance remain pending. Existing
 screenshots predate this owned result and radio replacement.
+
+## Sync revision export and options lifetime (October 11)
+
+The single-row Sync history menu now offers **Export this version…**, in the
+source position after branch/tag commands, with the original Export icon. It
+captures the full selected hash, preferring the first tag pointing at that commit
+as `GitLogListAction.cpp` does. The pointed branch label does not override this
+choice; multiple selection omits Export. Root commits remain exportable.
+
+Sync owns the native Export options sheet and its existing archive progress.
+Competing actions and normal parent closure are blocked while it is open. Cancel
+ends the sheet explicitly; forced owner closure dismisses children and cancels
+startup reference/branch reads. Those reads retain their access lease, own a
+cancellation token/task, and cannot publish fields or errors after cancellation.
+
+The native revision-list fixture passed with system Git 2.54.0 and packaged Git
+2.55.0. It verifies captured actions across tab/selection changes, root and tag
+selection, modal ownership, real ZIP contents, progress closure, startup Cancel
+and forced-parent process cleanup. Refs, index and configuration remain unchanged
+by Export. Receivers 62480 and 63395 were reaped. Debug and unsigned AppStore
+bundle audits passed. Physical save panels, full chooser behavior, visual matching
+and signed repository/destination/Finder acceptance remain unverified.
+See [the Export verification record](qa/synchronization-export-2026-10-11.json).

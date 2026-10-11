@@ -161,6 +161,114 @@ struct SynchronizationRevisionListVerification {
         precondition(closing.model.historyNavigation.count == closedNavigation.count)
         print("PASS: Sync Find context order/icon, captured origin, two-list independence, subject/metadata/path/regex/case search, Shift highlight, cursor, error ownership and cleanup")
     }
+    @MainActor static func verifyExport(_ owner: SynchronizationWindowController, root: URL, git: URL, preferences: UserDefaults) async throws {
+        let model = owner.model, repo = model.repository, window = owner.window!
+        // The preceding off-list-parent test deliberately narrowed origin/main
+        // to the side parent. Restore the unrelated fixture root temporarily so
+        // Export also covers a displayed root commit, then restore that range.
+        let narrowedRemote = try await repo.run(["rev-parse", "refs/remotes/origin/main"]).text.trimmingCharacters(in: .newlines)
+        _ = try await repo.run(["update-ref", "refs/remotes/origin/main", "refs/heads/remote-root"])
+        model.refresh()
+        model.tab = 0
+        try await settle { !model.busy && !model.hasBlockingChild && model.historyEntries.contains { $0.parents.isEmpty } && model.historyEntries.contains { $0.references.contains { $0.name.hasPrefix("refs/tags/") } } && table(window).numberOfRows == model.historyEntries.count }
+        let outgoing = model.historyEntries
+        func menu(_ indexes: IndexSet) -> NSMenu {
+            let list = table(window); list.selectRowIndexes(indexes, byExtendingSelection: false)
+            let menu = list.menu!; menu.delegate?.menuNeedsUpdate?(menu); return menu
+        }
+        func invoke(_ item: NSMenuItem) { precondition(item.isEnabled && NSApp.sendAction(item.action!, to: item.target, from: item)) }
+        let refs = try await repo.run(["show-ref"]).stdout
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index")), config = try Data(contentsOf: root.appendingPathComponent(".git/config"))
+        let rootIndex = outgoing.firstIndex { $0.parents.isEmpty }!
+        let captured = menu(IndexSet(integer: rootIndex)).items.first { $0.title == "Export this version…" }!
+        let capturedTarget = captured.target
+        precondition(captured.image != nil && !menu(IndexSet([0, 1])).items.contains { $0.title == "Export this version…" })
+        precondition(window.attachedSheet == nil)
+        table(window).menu!.delegate?.menuDidClose?(table(window).menu!)
+        model.tab = 4; try await settle { table(window).numberOfRows == model.incomingCommits!.count }
+        precondition(NSApp.sendAction(captured.action!, to: capturedTarget, from: captured))
+        let first = owner.historyExportController!
+        try await settle { !first.model.busy }
+        precondition(first.window!.sheetParent === window && model.exportingHistory && model.hasBlockingChild && !owner.windowShouldClose(window))
+        precondition(first.model.revision == outgoing[rootIndex].hash && first.model.target == .commit && first.model.wholeProject && first.model.directory.isEmpty)
+        owner.showHistoryFind(sourceTab: 4); precondition(owner.historyFind.isEmpty)
+        precondition(NSApp.sendAction(captured.action!, to: capturedTarget, from: captured) && owner.historyExportController === first)
+        first.model.close(); try await settle { owner.historyExportController == nil && window.attachedSheet == nil && !model.exportingHistory }
+        model.tab = 0; try await settle { table(window).numberOfRows == outgoing.count }
+        let tagIndex = outgoing.firstIndex { $0.references.contains { $0.name.hasPrefix("refs/tags/") } }!
+        let tags = outgoing[tagIndex].references.filter { $0.name.hasPrefix("refs/tags/") }
+        let branch = outgoing[tagIndex].references.first { $0.name.hasPrefix("refs/heads/") }!
+        _ = menu(IndexSet(integer: tagIndex))
+        (table(window) as! HistoryTableView).contextReference = (tagIndex, branch.name)
+        let tagMenu = table(window).menu!; tagMenu.delegate?.menuNeedsUpdate?(tagMenu)
+        let exporting = tagMenu.items.first { $0.title == "Export this version…" }!
+        precondition(tagMenu.items.firstIndex { $0.title == "Export this version…" }! > tagMenu.items.firstIndex { $0.title == "Create tag at this version…" }!)
+        table(window).selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
+        invoke(exporting)
+        let child = owner.historyExportController!
+        try await settle { !child.model.busy }
+        precondition(child.model.target == .tag && child.model.tag == tags[0].name && child.model.revision == tags[0].name)
+        let destination = root.deletingLastPathComponent().appendingPathComponent("sync-export-" + UUID().uuidString + ".zip")
+        defer { try? FileManager.default.removeItem(at: destination) }
+        child.model.destination = destination.path; child.model.export()
+        try await settle { child.model.progress?.busy == false && child.model.progress?.success == true }
+        let progress = child.model.progress!
+        precondition(child.window!.attachedSheet != nil && model.hasBlockingChild && !owner.windowShouldClose(window))
+        let unzip = Process(); unzip.executableURL = URL(fileURLWithPath: "/usr/bin/unzip"); unzip.arguments = ["-p", destination.path, "tracked.txt"]
+        let pipe = Pipe(); unzip.standardOutput = pipe; unzip.standardError = FileHandle.nullDevice
+        try unzip.run(); let contents = pipe.fileHandleForReading.readDataToEndOfFile(); unzip.waitUntilExit()
+        let expected = try await repo.run(["show", outgoing[tagIndex].hash + ":tracked.txt"]).stdout
+        precondition(unzip.terminationStatus == 0 && contents == expected && contents == Data("resolution\n".utf8))
+        progress.close(); try await settle { owner.historyExportController == nil && window.attachedSheet == nil && !model.exportingHistory }
+        precondition(child.model.exported == destination)
+        model.confirmingQuit = true
+        precondition(NSApp.sendAction(exporting.action!, to: exporting.target, from: exporting) && owner.historyExportController == nil)
+        model.confirmingQuit = false
+        // Freeze only Export's catalog read, after Sync's own startup settles.
+        func quote(_ text: String) -> String { "'" + text.replacingOccurrences(of: "'", with: "'\\''") + "'" }
+        for forced in [false, true] {
+            let directory = root.deletingLastPathComponent().appendingPathComponent("export-startup-" + UUID().uuidString)
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            defer { try? FileManager.default.removeItem(at: directory) }
+            let trigger = directory.appendingPathComponent("trigger"), marker = directory.appendingPathComponent("pids"), helper = directory.appendingPathComponent("git")
+            let script = """
+            #!/bin/sh
+            if [ -f \(quote(trigger.path)) ]; then
+              for task_arg in "$@"; do
+                if [ "$task_arg" = for-each-ref ]; then
+                  /bin/sleep 60 &
+                  task_child=$!
+                  printf '%s %s\\n' "$$" "$task_child" > \(quote(marker.path + ".tmp"))
+                  /bin/mv \(quote(marker.path + ".tmp")) \(quote(marker.path))
+                  wait "$task_child"
+                  exit 0
+                fi
+              done
+            fi
+            exec \(quote(git.path)) "$@"
+            """
+            try Data(script.utf8).write(to: helper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
+            let slowRepo = GitRepository(root: root, executable: helper)
+            let closing = SynchronizationWindowController(repository: slowRepo, access: nil, preferences: preferences)
+            closing.showWindow(nil); defer { closing.close() }
+            try await settle { !closing.model.busy && !closing.model.hasBlockingChild }
+            try Data().write(to: trigger)
+            closing.model.onHistoryExport?(outgoing[rootIndex].hash)
+            let waiting = closing.historyExportController!
+            try await settle { FileManager.default.fileExists(atPath: marker.path) }
+            let pids = try String(contentsOf: marker).split(whereSeparator: { $0.isWhitespace }).compactMap { Int32($0) }
+            precondition(pids.count == 2 && pids.allSatisfy { kill($0, 0) == 0 } && waiting.model.busy)
+            if forced { closing.close() } else { waiting.model.cancel() }
+            try await settle { closing.historyExportController == nil && !closing.model.exportingHistory && pids.allSatisfy { kill($0, 0) != 0 } }
+            precondition(waiting.model.references.isEmpty && waiting.model.currentBranch.isEmpty && waiting.model.error == nil && !waiting.model.busy)
+        }
+        let finalRefs = try await repo.run(["show-ref"]).stdout
+        let finalIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")), finalConfig = try Data(contentsOf: root.appendingPathComponent(".git/config"))
+        precondition(finalRefs == refs && finalIndex == index && finalConfig == config)
+        _ = try await repo.run(["update-ref", "refs/remotes/origin/main", narrowedRemote])
+        model.refresh(); try await settle { !model.busy && !model.hasBlockingChild }
+        print("PASS: Sync Export source menu/icon, captured hash/tag, modal ownership, actual ZIP bytes, progress close, startup Cancel/forced owner close, process cleanup and unchanged Git state")
+    }
     @MainActor static func verifyComparisonSelectionCases(root: URL, git: URL, preferences: UserDefaults) async throws {
         try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
         let repo = GitRepository(root:root,executable:git)
@@ -521,6 +629,8 @@ struct SynchronizationRevisionListVerification {
         }
         let headAfterCreation = try await repo.run(["rev-parse","HEAD"]).stdout, configAfterCreation = try Data(contentsOf:root.appendingPathComponent(".git/config")), indexAfterCreation = try Data(contentsOf:root.appendingPathComponent(".git/index"))
         precondition(headBeforeCreation == headAfterCreation && configAfterCreation == config && indexAfterCreation == index)
+        try await verifyExport(owner, root: root, git: git, preferences: preferences)
+        native = table(owner.window!)
         let finalContaining = menu(IndexSet(integer:0)).items.first { $0.title == "Show branches this commit is on" }!
         invoke(finalContaining)
         let forcedContaining = owner.historyContainingReferences.values.first!

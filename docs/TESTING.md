@@ -1000,3 +1000,9 @@ owner/progress closure at metadata/validation/switch/post-checkout stages and la
 callback rejection. Both receivers were reaped. Hidden zero-size split-view layout
 warnings were emitted; this does not prove displayed geometry, signed acceptance
 or a successful hosted retry.
+
+Sync revision Export now has actual owned options/progress checks in the same
+revision-list command, including captured root/tag targets, ZIP bytes and startup
+Cancel/forced-owner child-process cleanup. See
+[the Export record](qa/synchronization-export-2026-10-11.json). Both receivers are
+reaped; physical file-panel and signed acceptance remain open.

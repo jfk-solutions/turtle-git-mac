@@ -169,6 +169,11 @@ If you switch tabs while a Find window is open, its results still belong to its
 original list. See the [light Find capture](site/assets/sync-find-light.png) and
 [dark Find capture](site/assets/sync-find-dark.png).
 
+For a single commit, **Export this version…** opens Export options attached to
+Sync. Choose the destination ZIP and export the whole project or a directory.
+When that commit has a tag, the dialog initially selects the first tag. Close the
+completed progress result to return to Sync; Cancel dismisses the options.
+
 The existing [light Sync screenshot](site/assets/git-synchronization-light.png)
 and [dark Sync screenshot](site/assets/git-synchronization-dark.png) show native
 windows at earlier development checkpoints. See [Sync parity](SYNCHRONIZATION-PARITY.md)

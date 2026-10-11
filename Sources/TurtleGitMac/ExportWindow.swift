@@ -17,7 +17,10 @@ import TurtleGitCore
         window.contentViewController = NSHostingController(rootView: ExportDialog(model: model))
         super.init(window: window); window.delegate = self
         window.contentMinSize = NSSize(width: 600, height: 360); window.center()
-        model.close = { [weak self] in guard let self, !self.model.busy, self.model.progress == nil, self.window?.attachedSheet == nil else { return }; self.window?.performClose(nil) }
+        model.close = { [weak self] in
+            guard let self, !self.model.busy, self.model.progress == nil, self.window?.attachedSheet == nil, let window = self.window else { return }
+            window.sheetParent?.endSheet(window); window.close()
+        }
         model.onProgress = { [weak self] result in
             guard let self, let window = self.window, window.attachedSheet == nil else { result.abandonPresentation(); return }
             let controller = ExportProgressWindowController(model: result)
@@ -58,7 +61,11 @@ import TurtleGitCore
     }
     var activeOperation: Bool { model.busy || model.progress != nil || window?.attachedSheet != nil }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !activeOperation }
-    func windowWillClose(_ notification: Notification) { picker?.close(); picker = nil; model.invalidate(); progressController?.window?.close(); progressController = nil; onClosed() }
+    func windowWillClose(_ notification: Notification) {
+        model.invalidate()
+        if let sheet = window?.attachedSheet { window?.endSheet(sheet, returnCode: .abort); sheet.close() }
+        picker?.close(); picker = nil; progressController?.window?.close(); progressController = nil; onClosed()
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
@@ -83,7 +90,12 @@ import TurtleGitCore
     @Published var browseReferences = false
     private let preferences: UserDefaults
     private var invalidated = false
-    func invalidate() { invalidated = true; cancellation?.cancel(); progress?.invalidate() }
+    private var loadTask: Task<Void, Never>?
+    private var loadCancellation: OperationCancellation?
+    func invalidate() {
+        invalidated = true; cancellation?.cancel(); progress?.invalidate()
+        loadCancellation?.cancel(); loadTask?.cancel(); loadCancellation = nil; loadTask = nil; busy = false
+    }
     @Published private(set) var progress: ExportProgressWindowModel?
     var onProgress: ((ExportProgressWindowModel) -> Void)?
     func finish(_ result: ExportProgressWindowModel) {
@@ -112,16 +124,26 @@ import TurtleGitCore
     }
     func load(revision preset: String) {
         guard !invalidated, !busy, progress == nil else { return }; busy = true
-        Task {
-            defer { busy = false }
+        let repository = repository, request = OperationCancellation()
+        loadCancellation = request
+        loadTask = Task { [weak self, access] in
+            _ = access
             do {
-                references = try await repository.checkoutReferences(); currentBranch = try await repository.branch()
-                branch = branches.first?.name ?? ""; tag = tags.first?.name ?? ""
-                if preset == "HEAD" || preset.isEmpty { target = .head }
-                else if tags.contains(where: { $0.name == preset }) { target = .tag; tag = preset }
-                else if branches.contains(where: { $0.name == preset }) { target = .branch; branch = preset }
-                else { target = .commit; commit = preset }
-            } catch { self.error = error.localizedDescription }
+                let references = try await repository.checkoutReferences(cancellation: request)
+                let currentBranch = try await repository.branch(cancellation: request)
+                guard let self, !self.invalidated, self.loadCancellation === request, !request.isCancelled, !Task.isCancelled else { return }
+                self.references = references; self.currentBranch = currentBranch
+                self.branch = self.branches.first?.name ?? ""; self.tag = self.tags.first?.name ?? ""
+                if preset == "HEAD" || preset.isEmpty { self.target = .head }
+                else if self.tags.contains(where: { $0.name == preset }) { self.target = .tag; self.tag = preset }
+                else if self.branches.contains(where: { $0.name == preset }) { self.target = .branch; self.branch = preset }
+                else { self.target = .commit; self.commit = preset }
+            } catch {
+                guard let self, !self.invalidated, self.loadCancellation === request, !request.isCancelled else { return }
+                self.error = error.localizedDescription
+            }
+            guard let self, self.loadCancellation === request else { return }
+            self.loadCancellation = nil; self.loadTask = nil; self.busy = false
         }
     }
     func export() {
@@ -154,7 +176,12 @@ import TurtleGitCore
             } catch { if !token.isCancelled { self.error = error.localizedDescription } }
         }
     }
-    func cancel() { if let progress { progress.cancel() } else { cancellation?.cancel() } }
+    func cancel() {
+        if let progress { progress.cancel() }
+        else if let request = loadCancellation {
+            request.cancel(); loadTask?.cancel(); loadCancellation = nil; loadTask = nil; busy = false; close()
+        } else { cancellation?.cancel() }
+    }
 }
 
 struct ExportDialog: View {

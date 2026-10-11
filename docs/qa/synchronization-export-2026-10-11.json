@@ -1,0 +1,61 @@
+{
+  "date": "2026-10-11",
+  "status": "partial-sync-export-native-two-engine-verified",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_contracts": [
+    "GitLogListBase.cpp single-row ID_EXPORT position and IDI_EXPORT",
+    "GitLogListAction.cpp ID_EXPORT first refs/tags match or selected full hash",
+    "AppUtils.cpp modal Export options then archive progress"
+  ],
+  "environment": {
+    "system_git": "2.54.0 (Apple Git-157)",
+    "packaged_git": "2.55.0",
+    "swift": "6.4",
+    "xcode": "27.0 / 27A266a",
+    "receiver_architecture": "arm64"
+  },
+  "verification": {
+    "command": "python3 scripts/test-synchronization-history.py --revision-list --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+    "native_result": "All Find, Export and existing revision-list PASS markers observed for both engines; wrapper and receivers terminal. Original terminal exit handle was unavailable after context rollover, so no exit code is inferred.",
+    "receivers_reaped": [
+      62480,
+      63395
+    ],
+    "scope": [
+      "source single-row menu/order/icon; multi-row omission",
+      "captured root hash and first tag independent of pointed branch and later selection",
+      "owned modal options and competing action/normal closure guards",
+      "real ZIP payload compared to Git show",
+      "progress close dismisses options and releases Sync",
+      "startup Cancel and forced owner closure reap Git wrapper/child processes with no late fields/errors",
+      "refs/index/config unchanged by Export"
+    ],
+    "debug_build_exit_code": 0,
+    "unsigned_appstore_build": "Completed log observed; terminal session handle unavailable after context rollover. Final bundle audit passed.",
+    "debug_bundle_audit_exit_code": 0,
+    "unsigned_appstore_bundle_audit_exit_code": 0,
+    "inventory_exit_code": 0,
+    "site_exit_code": 0,
+    "complete_core_suite": "Not rerun; previous checkpoint scope remains unchanged.",
+    "hosted_ci": "Last inspected run failed on Git LFS deployment-target validation; not claimed green."
+  },
+  "remaining": [
+    "Physical interaction and chooser/save-panel acceptance",
+    "Full visual and source command parity",
+    "Signed repository/destination/Finder/App Store acceptance",
+    "Full 130-dialog port"
+  ],
+  "sha256": {
+    "Sources/TurtleGitMac/ExportWindow.swift": "de5a1cf6ba6b23316777d33c9b6b88e7fea631059a145647ad00fb3399446a7b",
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "dfaa2dff581c1bed7623896f9012b30f92925956fd70f366a31b4512f034b3ea",
+    "docs/qa/synchronization-revision-list-native-2026-10-11.swift": "359c2c2b92090184709099b647d47699f1654544558044d57985a033192b78b1",
+    "docs/upstream-files.csv": "22f934098ab3712f1f2c148da61f67bb4e2897b1a7bcc244f47ff3e5305eb842",
+    "build/qa/sync-export-native-final-2026-10-11.log": "798538f77889a93dbdaf2f2c5bee0dbb24a3aafb2851421e284c133ec740fe16",
+    "build/qa/sync-export-debug-modal-close-2026-10-11.log": "e7c98b99bc5666ee00c6dae23970b0ce4c32bae5ba9b33d7aa85f6daafc4f05c",
+    "build/qa/sync-export-store-final-2026-10-11.log": "9f4a9094e3117a96b99a9931d2ccc4e825ef63134725e1d89513fb9533ba19fe",
+    "build/qa/sync-export-debug-final-audit-2026-10-11.log": "f6874a395191e17601f5f1474d01ad4b2f07b245fc64cb0baae3a3465d18fe36",
+    "build/qa/sync-export-store-final-audit-2026-10-11.log": "025a02cda9b547f00533c3ecf90f6728fded47e69020e7f2e148177609ad59cb",
+    "build/qa/sync-export-inventory-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/sync-export-site-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}
