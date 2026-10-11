@@ -1,0 +1,109 @@
+{
+  "date": "2026-10-11",
+  "checkpoint": "e1b1f97efa1a4104f1d70b1e2dbac72a9f952834",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/GitTagCompareList.cpp": "7fe2ee7c872e49da2a2c38c491606d0ba7d80f0d",
+    "src/TortoiseProc/GitTagCompareList.h": "c49a38b10570f6069af685ce4d879d710b446dbc",
+    "src/TortoiseProc/SyncDlg.cpp": "17bfe829c486fee35345727136bec8d1adbf21f9"
+  },
+  "status": "partial-native-tags-progress-presentation",
+  "implemented": [
+    "Local tag deletion and refill run inline, without command/loading progress sheets.",
+    "Remote deletion and refill share one compact nonresizable sheet without output/bar or saved regular progress geometry. Failed deletion retains the accepted snapshot; compact errors hand off to an owned native error alert.",
+    "Tag Fetch/Push capture AutoCloseGitProgress: manual retains output; no-options/no-errors close successful commands with no post-actions; failures retain output. Pending cancellation confirmation fences automatic close.",
+    "Source Compare with previous revision menu caption and quoted-tag Yes/No deletion question; captured remote displayed for remote deletion."
+  ],
+  "verification": {
+    "native": {
+      "engines": [
+        "system Git 2.50.1",
+        "packaged Git 2.55.0"
+      ],
+      "pass_groups_per_engine": 7,
+      "system_log": "build/qa/synchronization-tags-presentation-native-verified-2026-10-11.log",
+      "system_receiver_exit": 0,
+      "system_runner_exit": 1,
+      "system_runner_note": "All seven system receiver groups passed. Runner then tried a nonexistent Debug-bundle Git path and failed before packaged checks; the separate corrected packaged run below passed.",
+      "packaged_log": "build/qa/synchronization-tags-presentation-native-packaged-2026-10-11.log",
+      "packaged_runner_exit": 0,
+      "scope": "All seven Synchronization groups, including real tag Fetch/Push/non-force rejection, inline local deletion, one compact remote deletion/refill, rejected remote deletion preserving rows and reporting error, modes 0/1/2, retained failed command output, missing remote/error handoff, actual owned alert force-close and stalled load/write process reaping.",
+      "limits": "Hidden native windows/private preferences/private disposable repositories. Deletion answers and Log/Compare callbacks are injected. No rendered/physical/accessibility/authenticated/signed acceptance."
+    },
+    "debug_build": {
+      "exit": 0,
+      "log": "build/qa/synchronization-tags-presentation-debug-final-2026-10-11.log"
+    },
+    "core": "The three Core/tag-test source hashes still match the prior backend record; its 34 focused tests per engine are prior evidence. No Core or full-suite rerun in this GUI phase.",
+    "prior_core_record": "synchronization-tags-backend-2026-10-11.json",
+    "unsigned_only": true,
+    "app_checks": [
+      {
+        "step": "store-build",
+        "exit": 0,
+        "log": "build/qa/synchronization-tags-presentation-store-build-2026-10-11.log"
+      },
+      {
+        "step": "debug-audit",
+        "exit": 0,
+        "log": "build/qa/synchronization-tags-presentation-debug-audit-2026-10-11.log"
+      },
+      {
+        "step": "store-audit",
+        "exit": 0,
+        "log": "build/qa/synchronization-tags-presentation-store-audit-2026-10-11.log"
+      },
+      {
+        "step": "inventory",
+        "exit": 0,
+        "log": "build/qa/synchronization-tags-presentation-inventory-2026-10-11.log"
+      },
+      {
+        "step": "site",
+        "exit": 0,
+        "log": "build/qa/synchronization-tags-presentation-site-2026-10-11.log"
+      }
+    ],
+    "cleanup": "Both receiver runs were terminal and their runner process groups were reaped. Post-audit process scan found no native receiver, synchronization-linked helper, TurtleGit app, compiler or xcodebuild process. Forced private load/write cleanup assertions passed with both engines."
+  },
+  "corrected_attempts": [
+    "receive.denyDeletes did not reject this tag deletion; replaced with a rejecting pre-receive hook.",
+    "The local receive-pack trace showed client hooksPath=/dev/null before entering the server, bypassing the server hook even after moving the fixture out of its ancestor repository. The test now pins the remote receive command to the selected Git executable and explicit rejecting hook path, then restores remote configuration before the unchanged-config assertion. No product workaround was introduced.",
+    "First full runner used a nonexistent bundled Git under Debug. The system groups passed; separate packaged run used the existing build/git-runtime/Git/bin/git."
+  ],
+  "remaining": [
+    "Rendered light/dark, physical keyboard/mouse/VoiceOver and authenticated remotes.",
+    "CLI close-on-end override and cancellation/finish race combinations.",
+    "Shift alternative Compare and production Log/Compare/refresh acceptance, raw/non-commit objects and prefix collisions.",
+    "Wider symbolic/SHA-256/collation/hook/external-writer scenarios.",
+    "Other Synchronization controls/Push/project hooks and full-app source parity.",
+    "Signed Finder/sandbox/App Store distribution acceptance."
+  ],
+  "sources_sha256": {
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "fa7ea8d92d974a9f23a60c3cc85436205dec4c9bbf221b707cda2b8c9dc3abfc",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "15a64d4612ce0bf17e6ac005de8adc3411fdbca88c5c97b1fef814f7d95e7b2a",
+    "docs/qa/synchronization-native-2026-10-11.swift": "bbb44b095ba1c68e0e9b430cccebf0132b4a6e63a1e3cc4091d3b0df79e4a4d1",
+    "scripts/test-synchronization-dialog.py": "4d79922d4f2cac3a38a0a5dd0aa1d2d2f5278634fd4dad973d84c7338b4426af",
+    "Sources/TurtleGitCore/Synchronization.swift": "523184d2c995c23829a9b30d2eacf846fcaaed547f3d1a2bb6f6cdb9a60a37f7",
+    "Sources/TurtleGitCore/RemoteTags.swift": "a9a717d33007373eb46e4e60bb62cf3990d855888f560f9d37230fad57e0fe27",
+    "Tests/TurtleGitCoreTests/SynchronizationTagTests.swift": "5247724e04d9fe5af13b8aee6824a5529e76c3ab593cf693ce95d574f38d1b77"
+  },
+  "logs_sha256": {
+    "build/qa/synchronization-tags-presentation-native-verified-2026-10-11.log": "28d8fe334ac1bb61fc66dde0354fa0e1efec22e2a484e46473b5729860fa0dc6",
+    "build/qa/synchronization-tags-presentation-native-packaged-2026-10-11.log": "39aa78d5bb30d70eea39bd163fc92ebf900ff7d958fc72e56a377f8e128b21d7",
+    "build/qa/synchronization-tags-presentation-debug-final-2026-10-11.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/synchronization-tags-presentation-store-build-2026-10-11.log": "4e103813aa9cc99b0e94acb41022726b1c223d393f5c1fb58e3824302bbb20a5",
+    "build/qa/synchronization-tags-presentation-debug-audit-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/synchronization-tags-presentation-store-audit-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/synchronization-tags-presentation-inventory-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/synchronization-tags-presentation-site-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "hosted_ci_observation": {
+    "checkpoint": "46b6a3cd94cca56dac58443fde64bfa0aa484ce0",
+    "pages": "success",
+    "macOS": "queued",
+    "pages_url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38108329857",
+    "macOS_url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38108329814",
+    "limits": "Observed before publishing this checkpoint. No current hosted macOS success is claimed."
+  }
+}

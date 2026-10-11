@@ -458,10 +458,13 @@ introduced into commands. Log selects the requested revision through the
 production RepositoryModel callback.
 
 Both deletion paths require a Yes/No answer for the normalized underlying tag
-and captured remote. Fetch and Push own a separate output/progress sheet whose
-Close button completes the command handoff. The table refills after dismissal,
+and captured remote. Fetch and Push own a separate output/progress sheet. Its
+Close button completes the command handoff in manual mode; successful commands
+with no post-actions also honor AutoCloseGitProgress modes 1 and 2. The table refills after dismissal,
 including a failed/cancelled Fetch or Push. Failed remote deletion returns
-without refill, as in source. Successful deletions refill. Repository log/status
+without refill, as in source. Local deletion and its refill have no progress
+window. Remote deletion and its refill use one compact native progress sheet.
+Successful deletions refill. Repository log/status
 views are notified after a command returns, since failure can still have changed
 refs. Root force-close cancels the active operation, closes owned progress/key
 prompts and fences late publication. Editing branch/remote controls returns to
@@ -469,9 +472,9 @@ the outgoing view and discards the old tag snapshot; Refresh in tag mode loads
 tags again.
 
 This remains partial parity. Physical/accessibility and rendered light/dark
-acceptance, authenticated remotes, progress auto-close preference combinations,
-source compact remote-deletion/local-deletion presentation, exact source menu
-captions, Shift alternative Compare routing, prefix-collision behavior, Windows-versus-Mac
+acceptance, authenticated remotes, command-line close-on-end overrides and
+cancellation/finish races, Shift alternative Compare routing, prefix-collision
+behavior, Windows-versus-Mac
 collation edge cases and wider symbolic/SHA-256/hook/external-writer scenarios
 are still pending. No new screenshots or dialog certification are claimed.
 
@@ -484,3 +487,55 @@ audits, inventory pin validation and site generation passed. Core/test hashes
 match the backend record; Core tests and the full suite were not rerun in this
 GUI phase. See the [native verification record](qa/synchronization-tags-native-2026-10-11.json)
 for scope, source/log hashes, corrected fixture attempts and remaining work.
+
+## Compare Tags source progress presentation
+
+The first native checkpoint used the common output sheet for every mutation.
+The source handlers distinguish them: Delete local tag calls DeleteRef and Fill
+without a progress dialog; Delete tag on remote holds its compact system dialog
+through DeleteRemoteRefs and Fill; Fetch/Push use CProgressDlg. The native port
+now keeps these same phases. Compact sheets have no output pane or progress bar,
+are not resizable, and do not reuse the saved regular ProgressDlg geometry.
+
+Local deletion executes the guarded backend directly after confirmation. Its
+remote advertisement refill uses the captured SSH factory without introducing
+a command/loading sheet. Remote deletion performs its write and refill inside
+one owned compact sheet, reusing the operation's SSH coordinator. Command failure
+skips refill and preserves the previous snapshot. Successful deletion followed
+by a failed refill clears the table and reports the read error. Loading and
+remote-deletion errors close compact progress before presenting an owned native
+error alert; force-closing the owner ends that alert and fences late completion.
+
+Tag Fetch/Push now capture AutoCloseGitProgress when the output controller is
+created. Manual mode retains output for Close; no-options and no-errors modes
+close successful commands because these source tag handlers have no post-actions.
+Failed commands retain output in every mode. A pending cancellation confirmation
+still delays automatic close until answered. Existing checkout/merge automatic
+close behavior is retained. The tag menu now uses the source caption Compare
+with previous revision, and deletion confirmations use the source quoted-tag
+question with the captured remote shown for remote deletion.
+
+Rendered appearance, physical keyboard/mouse/accessibility, authentication,
+command-line close-on-end overrides, cancellation/finish races, Shift alternative
+Compare routing and wider object/ref/configuration cases remain pending.
+
+At code checkpoint `e1b1f97`, all seven hidden native Synchronization groups
+passed separately on system Git 2.50.1 and packaged Git 2.55.0. The extended tag
+fixture checks inline local deletion, one compact remote deletion/refill,
+rejected deletion preserving the old rows and reporting an error, manual and
+automatic output closing, loading error handoff, and force-closing the actual
+owned native error alert. Its rejection hook is explicitly pinned in the remote
+receive command because the system local receiver read the client hook
+configuration before entering the server. The temporary receive configuration
+is removed before the unchanged-client-config assertion.
+
+The first full invocation passed all system groups but then supplied a missing
+Debug-bundle Git path; the corrected separate packaged invocation passed. Core
+and test hashes still match the earlier backend record; no full suite was rerun.
+See [progress presentation verification](qa/synchronization-tags-presentation-2026-10-11.json).
+
+The unsigned Debug and App Store configurations built successfully; both bundle
+audits, pinned-inventory checks and the website build passed. Post-run process
+inspection found no test receiver/app/compiler processes. These checks verify
+packaging, including the Finder extension and upstream icons, but do not establish
+signed Finder registration, sandbox activation or App Store acceptance.
