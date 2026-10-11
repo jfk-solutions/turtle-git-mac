@@ -47,12 +47,63 @@ block app termination; termination removes retained comparison copies. Browse
 panels for both diff programs and unified viewers belong to their hosting window
 and are canceled when their form disappears.
 
-This entire continuation is **uncompiled and untested**. Meaningful argument/
-selection/persistence checks, native association/table/sheet/keyboard acceptance,
+The implementation checkpoint was uncompiled and untested. The later grouped
+validation below supersedes compilation and the focused argument/selection/
+persistence checks only. Native association/table/sheet/keyboard acceptance,
 actual receiving-app arguments, regular working-file edits, source image and
 helper boundaries, failures/close races, retained copies, signed AppStore grants,
 and light/dark screenshots remain in the grouped section validation. Older
 Unified Diff QA covers its earlier viewer implementation, not these additions.
-External merge-program associations and source Merge tool configuration are
-still pending; existing Merge Editor controls cover built-in editor preferences.
+The external merge continuation below adds source Merge tool configuration;
+existing Merge Editor controls cover built-in editor preferences.
 Inventory counts remain unchanged; no dialog is newly certified.
+
+## External merge continuation
+
+Merge Tool is now a child of Diff Viewer and has internal/external program,
+arguments, Browse, Advanced associations, Block while merging and a displayed
+Trust exit-code control. Matching follows the source's `.` + filename key before
+extension keys. Argument fallback adds base/theirs/mine/merged only when none of
+those placeholders is present. Shared Apply/Cancel handles its draft.
+
+The main conflict-editor dispatch now checks the external selection before
+opening the image/text editor. Delete/modify and submodule conflicts retain their
+specialized workflows. Exact stage bytes are copied into read-only inputs;
+Mine/Theirs swap for rebase as in the source. The merged output is the working
+file. Conflict stages are validated before and after input reads. No source blob
+is decoded and rewritten just to launch an external tool. App bookmarks and
+repository grants remain alive through launch/wait.
+
+Nonblocking mode returns after launch and leaves resolution to the user.
+Blocking mode observes the launched app's termination, then asks an owned visible
+caller window whether to mark the file resolved. Resolve revalidates the original
+conflict stages. If that window has closed or has another sheet, no resolution is
+performed. Temporary inputs stay until application termination; active waits and
+launches block quitting. Successful external dispatch refreshes repository panes.
+
+NSWorkspace app launches do not expose a process exit status. Trust exit-code
+selection is unavailable for .app programs; an existing enabled value may be
+cleared in Settings and produces an explicit launch error until cleared. This
+source mode still requires an implementation for a compatible command-line tool;
+it is not certified or silently treated as successful. Other direct conflict
+helper launch paths, wait cancellation, tool process failures, stale app bookmark
+renewal, exact source filename-key usability and signed sandbox receiving-app
+behavior remain open.
+
+A grouped Debug build has been started for the accumulated Dialogs/Colors/Tools
+section. Its result and focused behavior tests will be recorded separately;
+this document does not claim a passing build or native acceptance yet.
+
+
+## Grouped validation result
+
+The accumulated Debug Xcode build and Swift package build pass after fixing
+continuation type inference and the current SDK's typed CoreFoundation locale
+identifier bridge. Four tool tests pass with zero failures (0.773 seconds).
+They verify selection/Shift/image precedence, literal argument parsing and
+single-pass substitution, fallback file arguments, persistence/duplicate keys,
+merge filename precedence, and real-Git exact stage bytes without index or
+working-file mutation. See `docs/qa/settings-dialogs-tools-batch-2026-10-11.json`.
+No application instances were launched. This evidence does not validate actual
+receiving-app behavior, native sheets/layout, blocking mode or signed sandbox
+permissions. Those checks and source exit-code trust remain open.

@@ -1,0 +1,44 @@
+{
+  "date": "2026-10-11",
+  "source_base": "5d4fa75",
+  "source_sha256": {
+    "Sources/TurtleGitCore/DiffToolPreferences.swift": "ff791c83b7a11096cb1fc1c42db3f84e2b5a71a0667e63f76b82c8950295301d",
+    "Sources/TurtleGitMac/DiffToolSettings.swift": "4f10687bd50986805f79dd37a7477010474fa786d6b89a64faedb6b3d6a1094b",
+    "Sources/TurtleGitMac/ProjectDialogSettings.swift": "66300f10763c6dfef743cd38ee4aedba3aeca1de5b975e5f3850824a381963fe",
+    "Sources/TurtleGitMac/SettingsNavigation.swift": "2c812786e285e14efa9a563ea324c669d87689a0b391649ebf2a066a94e84b5f",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "57e659431b0432ec5a79d83df44118fe0e4b0445c1252e18beefa0b3edf78897",
+    "Tests/TurtleGitCoreTests/DiffToolPreferencesTests.swift": "63b1c43b3deb281d2a33007cd9a962f5eab7dd9b3dcc782da756771cf6035568"
+  },
+  "scope": "Accumulated Settings Dialogs 1\u20133, Colors 1\u20133, Log configuration/cache and diff/merge tool implementation compiles. Focused tests cover four new tool behaviors only.",
+  "validation": {
+    "debug_build": {
+      "command": "xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitMac -configuration Debug -destination 'platform=macOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build",
+      "exit_code": 0,
+      "log": "build/qa/settings-dialogs-tools-batch-final-2026-10-11.log"
+    },
+    "tool_tests": {
+      "command": "swift test --filter DiffToolPreferencesTests",
+      "exit_code": 0,
+      "tests": 4,
+      "failures": 0,
+      "seconds": 0.773,
+      "log": "build/qa/settings-dialogs-tools-core-final-2026-10-11.log",
+      "coverage": [
+        "Diff destination/base filename and extension precedence; disabled/Shift behavior; image defaults",
+        "Literal argument tokenization, one-pass placeholders and fallback; malformed arguments",
+        "Preference persistence and duplicate normalized association rejection; merge filename precedence",
+        "Real Git conflict-stage extraction without modifying index or working contents"
+      ]
+    }
+  },
+  "app_instances_launched": 0,
+  "open": [
+    "Dialogs/Colors/Log-cache behavior tests beyond compilation",
+    "Native source-layout, keyboard, sheet and accessibility acceptance",
+    "Actual receiving diff/merge application arguments and working-file edits",
+    "Merge wait and close/cancel behavior; app exit-code trust (unavailable through NSWorkspace)",
+    "Signed AppStore build and grants; sandbox interoperability",
+    "Full source command/helper audit and screenshots"
+  ],
+  "inventory_changed": false
+}

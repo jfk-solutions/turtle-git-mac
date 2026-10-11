@@ -13,12 +13,12 @@ import TurtleGitCore
     static func identifier(_ value: String) -> String? {
         guard let code = code(value), code > 0, code <= UInt32.max,
               let identifier = CFLocaleCreateLocaleIdentifierFromWindowsLocaleCode(kCFAllocatorDefault, UInt32(code)) else { return nil }
-        return identifier as String
+        return identifier.rawValue as String
     }
     static let choices: [(value: String, title: String)] = {
         var result: [UInt32: String] = [:]
         for identifier in Locale.availableIdentifiers {
-            let code = CFLocaleGetWindowsLocaleCodeFromLocaleIdentifier(identifier as CFString)
+            let code = CFLocaleGetWindowsLocaleCodeFromLocaleIdentifier(CFLocaleIdentifier(rawValue: identifier as CFString))
             if code != 0 { result[code] = Locale.current.localizedString(forIdentifier: identifier) ?? identifier }
         }
         return result.map { (value: String($0.key), title: $0.value) }.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }

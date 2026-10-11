@@ -39,9 +39,9 @@ public struct DiffToolProgram: Codable, Equatable, Sendable {
         guard !escaped, quote == nil else { throw DiffToolFailure.arguments }
         if started { tokens.append(token) }; return tokens
     }
-    public func expandedArguments(values: [String: String]) throws -> [String] {
+    public func expandedArguments(values: [String: String], files: [String] = ["base", "mine"]) throws -> [String] {
         var tokens = try Self.argumentTokens(arguments)
-        if !arguments.contains("%base") && !arguments.contains("%mine") { tokens += ["%base", "%mine"] }
+        if !files.contains(where: { arguments.contains("%" + $0) }) { tokens += files.map { "%" + $0 } }
         return tokens.map { token in
             // Single pass prevents placeholder-looking file names being expanded again.
             var output = "", index = token.startIndex
@@ -93,5 +93,51 @@ public struct DiffToolPreferences: Codable, Equatable, Sendable {
         var result = found; result.enabled = true
         guard result.valid else { throw DiffToolFailure.application }
         return result
+    }
+}
+
+public struct MergeToolPreferences: Codable, Equatable, Sendable {
+    public var program: DiffToolProgram
+    public var associations: [DiffToolAssociation] = []
+    public var blockWhileMerging = false
+    public var trustExitCode = false
+    public init() { var value = DiffToolProgram(); value.arguments = "%base %theirs %mine %merged"; program = value }
+    public var valid: Bool { program.valid && associations.allSatisfy(\.valid) && Set(associations.map(\.normalizedPattern)).count == associations.count }
+    public static func load(from defaults: UserDefaults = .standard) -> Self {
+        guard let data = defaults.data(forKey: "TurtleGit.MergeTools"), let value = try? JSONDecoder().decode(Self.self, from: data) else { return Self() }
+        return value
+    }
+    public func save(to defaults: UserDefaults = .standard) throws {
+        guard valid else { throw DiffToolFailure.association }
+        defaults.set(try JSONEncoder().encode(self), forKey: "TurtleGit.MergeTools")
+    }
+    public func selected(path: String, alternate: Bool = false) throws -> DiffToolProgram? {
+        let name = (path as NSString).lastPathComponent.lowercased(), ext = (path as NSString).pathExtension.lowercased()
+        let keys = ["." + name] + (ext.isEmpty ? [] : ["." + ext])
+        let found = keys.compactMap { key in associations.first { $0.normalizedPattern == key } }.first?.program ?? program
+        guard found.enabled != alternate, !found.applicationPath.isEmpty else { return nil }
+        var result = found; result.enabled = true
+        guard result.valid else { throw DiffToolFailure.application }; return result
+    }
+}
+public struct ExternalMergeInputs: Sendable {
+    public let entry: ConflictEntry
+    public let base: Data, mine: Data, theirs: Data
+    public let result: URL
+}
+extension GitRepository {
+    public func externalMergeInputs(path: String) throws -> ExternalMergeInputs {
+        guard let entry = try conflicts(paths: [path]).first(where: { $0.path == path }), !entry.isSubmodule, !entry.isDeleteModify,
+              entry.stages.allSatisfy({ ["100644", "100755"].contains($0.mode) }) else { throw TextConflictFailure.unsupported }
+        try validateConflicts([entry], using: .current)
+        let rebase = try conflictIsRebase()
+        func bytes(_ stage: Int) throws -> Data {
+            guard let object = entry.stages.first(where: { $0.number == stage })?.object else { return Data() }
+            return try run(["cat-file", "blob", object]).stdout
+        }
+        let result = root.appendingPathComponent(path)
+        _ = try conflictWorkingSnapshot(result)
+        let input = try ExternalMergeInputs(entry: entry, base: bytes(1), mine: bytes(rebase ? 3 : 2), theirs: bytes(rebase ? 2 : 3), result: result)
+        try validateConflicts([entry], using: .current); return input
     }
 }

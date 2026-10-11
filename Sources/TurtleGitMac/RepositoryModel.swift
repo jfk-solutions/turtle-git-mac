@@ -522,11 +522,18 @@ import TurtleGitCore
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showConflictEditor(repository: GitRepository, access: RepositoryAccessLease?, path: String) {
+        let alternate = NSEvent.modifierFlags.contains(.shift), owner = NSApp.keyWindow
         Task {
             do {
                 guard let entry = try await repository.conflicts(paths: [path]).first(where: { $0.path == path }) else { throw ResolveFailure.stale }
                 if entry.isDeleteModify { showDeleteConflict(repository: repository, access: access, path: path); return }
                 if !entry.isSubmodule {
+                    if try await MergeToolApplication.open(repository: repository, access: access, path: path, alternate: alternate, owner: owner) {
+                        let root = repository.root
+                        statusWindows[root.path]?.model.reload(); commitWindows[root.path]?.model.reload(); rebaseWindows[root.path]?.model.refreshState(); refreshRepositoryLogs(root)
+                        for resolve in resolveWindows.values where resolve.model.repository.root == root { resolve.model.load() }
+                        if self.root == root { await refresh() }; return
+                    }
                     let root = repository.root, key = root.path + "\0" + path
                     if let document = try await repository.imageConflictDocument(path: path) {
                         let controller = imageConflictWindows[key] ?? ImageConflictWindowController(repository: repository, access: access, document: document)

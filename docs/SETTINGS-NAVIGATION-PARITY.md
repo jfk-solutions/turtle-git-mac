@@ -232,3 +232,23 @@ external Merge configuration remains pending. The former combined Unified Diff
 Viewer/Appearance draft statement describes the previous checkpoint. See
 [Diff tools](DIFF-TOOLS-PARITY.md) for routing, placeholders, owned Browse sheets,
 permissions, remaining source boundaries and grouped acceptance scope.
+
+
+## Merge tool and grouped validation checkpoint
+
+Merge Tool now supplies external program and association drafts, Block while
+merging and the main conflict dispatch. Merge Editor remains the built-in
+editor-preferences page. App-bundle launch exit codes are unavailable; source
+Trust exit-code behavior is still open and cannot be enabled for these programs.
+The preceding pending external-Merge statements describe earlier checkpoints.
+
+The Swift package builds and four new DiffToolPreferencesTests pass: source
+selection/Shift precedence (including image/default boundaries), safe argument
+substitution/fallback, persistence/unique normalized association keys, and exact
+stage extraction without index or working-file mutation. This does not validate
+all accumulated Dialogs/Colors/Log-cache behavior. Native layout and runtime
+acceptance, real tool receiving-app behavior, signed sandbox execution and the
+remaining source modes stay open. No app instances were launched in this check.
+The Xcode Debug build also passes (exit 0). See
+`docs/qa/settings-dialogs-tools-batch-2026-10-11.json` for exact source hashes,
+commands, limited coverage and remaining acceptance.
