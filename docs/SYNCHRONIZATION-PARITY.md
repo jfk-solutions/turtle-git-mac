@@ -67,11 +67,22 @@ metadata reads, checkout, authentication and transport; output uses the shared
 stdout/stderr stream protocol. Fetch-for-Rebase pins the completed target hash;
 if that read fails, a separate error retains the successful transport result.
 
+Pull preflight predicts the selected branch's attachment, and detached targets skip
+the native Fetch-for-Rebase interception. Pull resolves FETCH_HEAD as a normal
+revision; Push alone uses the source unique-for-merge FixBranchName rule. After an
+approved checkout and asynchronous key preparation, execution uses the actual
+current branch's rebase setting and current pull configuration. This preserves
+post-checkout hook and key-preparation configuration changes. The original plan
+keeps its pre-checkout old HEAD for incoming results. `rebaseMode` and
+`executedArguments` on the result report the command actually executed; owners
+must use that mode for their native handoff rather than the earlier prediction.
+
 The native owner still needs source tracking questions, project hooks, separate
 checkout progress and post-checkout metadata refresh, transport/result tabs,
-complete reference-change/conflict views and native Rebase choices. Revision-expression
-prefill, checkout-hook configuration changes and broader repository modes require
-further source parity work. No native transport or signed/network acceptance
+complete reference-change/conflict views and native Rebase choices. The backend now distinguishes detached/revision-expression Pull from Push
+FETCH_HEAD dereferencing and rereads Pull configuration after checkout and key
+preparation. Native revision-expression prefill, separate checkout progress and
+broader repository modes still require further source parity work. No native transport or signed/network acceptance
 claim follows from the local command tests.
 
 ## Native outgoing window
@@ -192,6 +203,15 @@ persistence, failed/cancelled result selection and chained-operation ownership.
 Both unsigned builds and bundle audits pass. Full-suite, downstream child windows,
 rendered pixels, real network and signed acceptance remain unverified; see the
 [reference-result QA record](qa/synchronization-reference-2026-10-11.json).
+
+Five additional Pull preflight tests cover approved checkout hooks changing
+configuration/attachment, asynchronous key-preparation configuration changes,
+detached FETCH_HEAD/qualified refs and empty rebase branch validation after
+checkout. All 23 synchronization tests pass on each of the three Git versions.
+The existing native receiver passes against rebuilt Core on system and packaged
+Git; both unsigned builds and bundle audits pass. This is backend preparation
+for the pending native Pull workflow; see the
+[Pull preflight QA record](qa/synchronization-pull-preflight-2026-10-11.json).
 
 ## Remaining full port
 

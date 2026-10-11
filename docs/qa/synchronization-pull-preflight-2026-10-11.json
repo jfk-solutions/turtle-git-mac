@@ -1,0 +1,105 @@
+{
+  "date": "2026-10-11",
+  "checkpoint": "c880778eb45a66ebbc933c436295500c70184104",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "status": "partial-backend",
+  "implemented": [
+    "Pull alone resolves its selected FETCH_HEAD revision normally; only Push uses unique for-merge FixBranchName dereferencing.",
+    "Detached/revision-expression checkout skips native Fetch-for-Rebase interception; the ordinary CLI Pull retains Git configuration behavior.",
+    "After approved checkout and asynchronous key preparation, Pull reselects its command using actual current branch configuration; original pre-checkout HEAD remains in the immutable plan.",
+    "Planned checkout defers empty rebase branch validation past its hook; execution reports actual rebaseMode and executedArguments."
+  ],
+  "verification": {
+    "core": [
+      {
+        "engine": "system Git 2.50.1",
+        "tests": 23,
+        "transport_tests": 15,
+        "comparison_and_branch_tests": 6,
+        "reference_tests": 2,
+        "failures": 0,
+        "log": "build/qa/synchronization-pull-preflight-system-final-2026-10-11.log"
+      },
+      {
+        "engine": "Git 2.39.5",
+        "tests": 23,
+        "transport_tests": 15,
+        "comparison_and_branch_tests": 6,
+        "reference_tests": 2,
+        "failures": 0,
+        "log": "build/qa/synchronization-pull-preflight-old-final-2026-10-11.log"
+      },
+      {
+        "engine": "packaged Git 2.55.0",
+        "tests": 23,
+        "transport_tests": 15,
+        "comparison_and_branch_tests": 6,
+        "reference_tests": 2,
+        "failures": 0,
+        "log": "build/qa/synchronization-pull-preflight-packaged-final-2026-10-11.log"
+      }
+    ],
+    "new_tests": 5,
+    "new_scope": "Private local bare-server/author/client fixtures exercise post-checkout hooks changing configuration both ways, hooks changing actual attachment, asynchronous key-preparation configuration writes, detached qualified refs/FETCH_HEAD with multiple for-merge lines, deferred empty branch validation and preserved original old HEAD. Hooks are explicit private fixtures; no user hooks or network are run.",
+    "native_regression": {
+      "engines": [
+        "system",
+        "packaged"
+      ],
+      "exit": 0,
+      "log": "build/qa/synchronization-pull-preflight-native-final-2026-10-11.log",
+      "scope": "Existing outgoing/Fetch/reference-result/controller/menu/cancellation and owner-lifetime receiver against the rebuilt Core framework. Pull UI integration is not exercised."
+    },
+    "builds_and_audits": [
+      {
+        "step": "debug-build",
+        "exit": 0,
+        "log": "build/qa/synchronization-pull-preflight-debug-build-final-2026-10-11.log"
+      },
+      {
+        "step": "store-build",
+        "exit": 0,
+        "log": "build/qa/synchronization-pull-preflight-store-build-final-2026-10-11.log"
+      },
+      {
+        "step": "debug-audit",
+        "exit": 0,
+        "log": "build/qa/synchronization-pull-preflight-debug-audit-final-2026-10-11.log"
+      },
+      {
+        "step": "store-audit",
+        "exit": 0,
+        "log": "build/qa/synchronization-pull-preflight-store-audit-final-2026-10-11.log"
+      }
+    ],
+    "full_suite": "Not rerun; only 23 synchronization tests per engine and the extended native receiver.",
+    "unsigned_only": true,
+    "cleanup": {
+      "owned_app_receiver_wrapper_or_project_build_processes": []
+    }
+  },
+  "remaining": [
+    "Native separate checkout progress, tracking questions, Pull/rebase split controls, retained incoming/conflict results and Rebase handoff/ownership.",
+    "Push variants with TortoiseGit project hooks, remaining Synchronization split controls, full layout/menu/history/column parity.",
+    "Native revision-expression prefill and broader repository/hook/configuration/error/external-writer cases.",
+    "Actual SSH/server authentication, rendered light/dark, physical/accessibility, Finder activation and signed sandbox/App Store/distribution acceptance.",
+    "Complete whole-application port and distribution objective."
+  ],
+  "sources_sha256": {
+    "Sources/TurtleGitCore/Synchronization.swift": "82bc767ed0f433224db16d578bfc920cc25c442eb5954f76ea9aa5b56c2402c3",
+    "Tests/TurtleGitCoreTests/SynchronizationTransportTests.swift": "d1e1c101d41b0e1ac557ee55bb6b34dc0e00b31f71002f1e55308d504404109c",
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "222ce0abf2f59620433d353287eb43987ebed70a462c6c41c793e8c847396510",
+    "docs/qa/synchronization-native-2026-10-11.swift": "9e703edd8b4ceddccf25ec751344166ee961b6830653a8541d614a98e2e4eb46",
+    "scripts/test-synchronization-dialog.py": "b6702a89fd88fc3f0f388bce39577de592f3ed2c022706e258bcdae291aa5c0f"
+  },
+  "logs_sha256": {
+    "build/qa/synchronization-pull-preflight-system-final-2026-10-11.log": "4647d122f7089ba582f0368b2a3b6e30f6dd4b160733c1708757cac7b43ab16d",
+    "build/qa/synchronization-pull-preflight-old-final-2026-10-11.log": "8a1a444d388f9a77a48eca3e348fb32d6f07448ae5eb7ca6b48696ecd015603e",
+    "build/qa/synchronization-pull-preflight-packaged-final-2026-10-11.log": "78593820be1f988cdbdede9f35434e944d5484358405a79e155a44e2138ad06a",
+    "build/qa/synchronization-pull-preflight-debug-build-final-2026-10-11.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/synchronization-pull-preflight-native-final-2026-10-11.log": "0156d940ddb29a9f88eb840a9476ee038998a1e8339d1b35974ea09623b03b33",
+    "build/qa/synchronization-pull-preflight-store-build-final-2026-10-11.log": "8b7e42e41011f64b89af2a34249c0e6a736fce554184bf57a0f657922d209930",
+    "build/qa/synchronization-pull-preflight-debug-audit-final-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/synchronization-pull-preflight-store-audit-final-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30"
+  }
+}
