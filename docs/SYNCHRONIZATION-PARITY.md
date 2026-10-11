@@ -632,3 +632,34 @@ nine-group native regression, actual standalone Shift child lifetimes and new
 button layout captures remain pending. The published root screenshots retain
 the earlier Push checkpoint. See [verification and limits](qa/synchronization-submodule-native-2026-10-11.json).
 This addition does not certify the whole dialog.
+
+
+## Submodule lifecycle and layout follow-up (October 11, 2026)
+
+The full Synchronization native receiver now passes nine groups on both system
+Git 2.50.1 and packaged Git 2.55.0. In addition to the earlier direct-command
+checks, Shift Init opens an actual standalone Update options controller with
+saved settings, which survives closing Synchronization. Submitting it opens
+actual standalone Update progress and completes successfully. A running
+standalone Sync likewise survives its parent closing; closing its own window
+reaps the Git process and prevents a late completion callback. These are real
+controllers with fixture-injected callbacks/private preferences. The production
+RepositoryModel routing is compiled and inspected, but its complete workspace
+callbacks are not driven end-to-end by this receiver.
+
+After that workflow run, the only application change was presentation of the
+history graph column: it starts compact and expands to fit rendered lane widths.
+Fresh Debug compilation and real native captures cover that change. The capture
+fixture now includes a branch and merge, displaying colored lanes. All four
+captures (light/dark, default/minimum size) were inspected; actions fit and the
+graph is visible. The default-size captures replace the site images. Later
+metadata columns still require horizontal scrolling at smaller widths.
+
+The source screenshot still has action/ref/bug columns, two action rows and
+other controls absent from this partial port. Displayed split menus, physical
+keyboard/VoiceOver interaction and signed sandbox/Finder acceptance remain
+pending. The Core and test hashes match the preceding Submodule checkpoint;
+no new Core/full-suite run is claimed for this lifecycle/presentation follow-up.
+
+At code checkpoint `18a07c1`, both unsigned builds, bundle audits, inventory
+and website checks pass. See [lifecycle and layout verification](qa/synchronization-submodule-lifecycle-2026-10-11.json).
