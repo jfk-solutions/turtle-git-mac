@@ -120,3 +120,42 @@ load its tracking destination. Use **…** beside Remote Branch to choose a stor
 remote-tracking reference; its remote and branch populate both fields. These
 choices prepare Sync without checking out a branch or changing Git configuration.
 Cancel leaves your current fields unchanged.
+
+
+## Inspect commits in Synchronization
+
+In **Git Synchronization**, open **Out Commits** to inspect the outgoing history.
+**In Commits** appears when incoming history is available. Each list has a compact
+revision graph and a context menu for the selected commits.
+
+For one commit, **Compare with working tree** opens its changed-file comparison.
+**Compare with previous revision** compares it with its parent; merge commits
+offer a parent submenu. Root commits have no previous revision. **Show changes as
+unified diff** opens the patch, and merges provide additional modes under
+**Unified diff with**. **Browse repository** opens the files at that revision.
+
+Select two commit rows to open **Compare revisions**, a unified diff, or one of
+three **Show log of** ranges. The menu labels identify the endpoints:
+
+| Range | Commits shown |
+| --- | --- |
+| `A..B` | Commits reachable from B that are not reachable from A |
+| `B..A` | Commits reachable from A that are not reachable from B |
+| `A...B` | Commits reachable from either endpoint, excluding their shared history |
+
+A range can be empty. Menu captions abbreviate the hashes; the opened Log uses the
+full commit IDs. **Compare change sets** opens a read-only comparison of the two
+commit patches in displayed row order. This currently cannot compare a root
+commit; merge patches follow the first-parent range behavior of TortoiseGit.
+
+For a single commit, choose **Show branches this commit is on** to list references
+whose history contains it. These can include descendant branches and tags, not
+just references pointing directly at the commit. The dialog's **Show log** button
+opens Log at that commit. Its reference rows provide Log, repository browsing and
+comparison commands. Keep the originating commit tab open while navigating back
+to its list: navigation across tab changes is still under verification.
+
+The existing [light Sync screenshot](site/assets/git-synchronization-light.png)
+and [dark Sync screenshot](site/assets/git-synchronization-dark.png) show native
+windows at earlier development checkpoints. See [Sync parity](SYNCHRONIZATION-PARITY.md)
+for the tested commands and remaining UI, Finder and signed acceptance work.
