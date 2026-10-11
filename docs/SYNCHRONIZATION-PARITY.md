@@ -395,3 +395,41 @@ Core/test source hashes are unchanged from the preceding 29-test-per-engine
 checkpoint; Core tests and the full suite were not rerun in this GUI phase.
 See the [owned Rebase record](qa/synchronization-owned-rebase-2026-10-11.json)
 for exact source/log hashes and remaining acceptance work.
+
+## Compare Tags backend
+
+`synchronizationTags` implements the pinned `CGitTagCompareList::Fill` data
+model using Git CLI remote advertisement rather than Windows libgit2. Rows
+include raw annotated objects and `^{}` target entries,
+with Same/Differ/Only local/Only remote states. Local nested annotation targets
+remain one-level `git_tag_target` equivalents; remote advertisements retain
+Git's recursive peeled target. Thus an equal nested tag object can have a
+Different friendly row, as in the source. Commit messages are looked up only
+in the local object database; absent remote objects, tags and non-commit objects
+have empty messages. Comparing does not fetch objects or alter refs/index/config.
+Default `remoteTags` consumers still omit peeled advertisement rows.
+
+The immutable snapshot owns its repository actor and selected remote.
+`synchronizeTag` normalizes a friendly row to the tag and implements non-force
+Fetch, force Push, confirmed local deletion and confirmed remote deletion.
+Local deletion uses an expected-object update-ref guard; actions that depend on
+local tag state reject stale changes before and after asynchronous key loading.
+Remote Push retains source force behavior; no server lease is added. Ref commands
+disable macOS argument precomposition to preserve exact UTF-8 names.
+
+The native Compare Tags entry, six-column table, sort/hide state, icon menus,
+owned loading/command progress and result refresh are still pending. Backend
+results are not a certification of native control parity. Broader symbolic tags,
+short-name ambiguity, SHA-256 repositories, remote authentication, hook/race and
+signed/rendered/physical acceptance also remain to be audited.
+
+Verification at code checkpoint `daf20c0`: 34 focused tests passed on
+system Git 2.50.1, Git 2.39.5 and packaged Git 2.55.0. Three new tests exercise
+real tag advertisement and mutations, nested objects, read preservation,
+confirmation, exact Unicode names, stale snapshots and cancellation. Existing
+native Synchronization regressions passed six groups on system and packaged
+Git with the rebuilt framework. Debug and App Store unsigned builds, both bundle
+audits, pin validation and site generation passed. The full suite was not rerun;
+there is no Compare Tags UI acceptance in this backend phase. See the
+[backend verification record](qa/synchronization-tags-backend-2026-10-11.json)
+for exact source/log hashes and remaining work.

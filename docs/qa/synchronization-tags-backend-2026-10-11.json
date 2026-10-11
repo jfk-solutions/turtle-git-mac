@@ -1,0 +1,105 @@
+{
+  "date": "2026-10-11",
+  "checkpoint": "daf20c09807b6dc3977947dc9ea32aadbc503499",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/GitTagCompareList.cpp": "7fe2ee7c872e49da2a2c38c491606d0ba7d80f0d"
+  },
+  "status": "partial-compare-tags-backend",
+  "implemented": [
+    "Remote tag advertisement optionally includes peeled rows; existing callers retain unpeeled defaults.",
+    "Exact-name raw/friendly row union, four comparison states, one-level local nested annotation targets versus recursively peeled remote targets.",
+    "Direct local commit message lookup without fetching missing remote objects.",
+    "Repository-owned snapshot, source non-force Fetch and force Push, confirmed local expected-object deletion and remote deletion.",
+    "Local stale-state checks before and after key preparation; exact Unicode ref arguments without macOS precomposition."
+  ],
+  "verification": {
+    "core": {
+      "tests_per_engine": 34,
+      "failures_per_engine": 0,
+      "engines": [
+        "system Git 2.50.1",
+        "Git 2.39.5",
+        "packaged Git 2.55.0"
+      ],
+      "new_tests": 3,
+      "scope": "Actual private bare/author/client repositories: raw and nested tag targets, messages and no-fetch read preservation, packed canonical-equivalent names, default remoteTags omission, real non-force fetch rejection and force push, confirmed friendly-row local/remote deletion, snapshot ownership, cancellation and local change during key preparation."
+    },
+    "native": {
+      "exit": 0,
+      "pass_groups_per_engine": 6,
+      "engines": [
+        "system Git 2.50.1",
+        "packaged Git 2.55.0"
+      ],
+      "log": "build/qa/synchronization-tags-native-2026-10-11.log",
+      "scope": "Regression checks for existing Synchronization workflows with rebuilt framework. No Compare Tags native UI exists yet. Hidden windows, private repositories/preferences and owned process-group cleanup."
+    },
+    "debug_build": {
+      "exit": 0,
+      "log": "build/qa/synchronization-tags-debug-2026-10-11.log"
+    },
+    "app_checks": [
+      {
+        "step": "store-build",
+        "exit": 0,
+        "log": "build/qa/synchronization-tags-store-build-2026-10-11.log"
+      },
+      {
+        "step": "debug-audit",
+        "exit": 0,
+        "log": "build/qa/synchronization-tags-debug-audit-2026-10-11.log"
+      },
+      {
+        "step": "store-audit",
+        "exit": 0,
+        "log": "build/qa/synchronization-tags-store-audit-2026-10-11.log"
+      },
+      {
+        "step": "inventory",
+        "exit": 0,
+        "log": "build/qa/synchronization-tags-inventory-2026-10-11.log"
+      },
+      {
+        "step": "site",
+        "exit": 0,
+        "log": "build/qa/synchronization-tags-site-final-2026-10-11.log"
+      }
+    ],
+    "unsigned_only": true,
+    "full_suite": "Not rerun in this phase. Focused test results do not certify whole-app parity.",
+    "cleanup": "Native runner returned zero and subsequent process scan found no TurtleGit or native test receiver."
+  },
+  "corrected_attempts": [
+    "Initial compile used Dictionary.keys as a function; corrected to its property.",
+    "APFS loose-ref Unicode fixture could not retain both spellings; replaced with exact packed-refs entries. Ref actions disable core.precomposeunicode for command argument fidelity."
+  ],
+  "remaining": [
+    "Native Compare Tags split-button entry and dedicated six-column Synchronization tab.",
+    "Header sorting, Hide unchanged, original-icon Log/Compare/Fetch/Push/delete menus and owned loading/command progress with refill.",
+    "Symbolic tags, short-name ambiguity, SHA-256 repositories, authenticated server and wider hooks/external-writer acceptance.",
+    "Rendered light/dark, accessibility/physical controls and signed Finder/sandbox/App Store acceptance.",
+    "Whole-app port and complete distribution/documentation objective."
+  ],
+  "sources_sha256": {
+    "Sources/TurtleGitCore/Synchronization.swift": "523184d2c995c23829a9b30d2eacf846fcaaed547f3d1a2bb6f6cdb9a60a37f7",
+    "Sources/TurtleGitCore/RemoteTags.swift": "a9a717d33007373eb46e4e60bb62cf3990d855888f560f9d37230fad57e0fe27",
+    "Tests/TurtleGitCoreTests/SynchronizationTagTests.swift": "5247724e04d9fe5af13b8aee6824a5529e76c3ab593cf693ce95d574f38d1b77",
+    ".github/workflows/macos.yml": "5e824f1665e308bb97da5046fd87d728f37910eb397542de8d6339a418a0d521",
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "0dbd936d43ae0f20b21022d87d9f4e1b6c32f8b1ded91eb7eb76eafcd3ad5b62",
+    "docs/qa/synchronization-native-2026-10-11.swift": "1e08dd09cdf2e42b3b6e04a60e60f54f2fdd4b5a3046ce4a2c3da76c697d3653",
+    "scripts/test-synchronization-dialog.py": "81bd2a31db443df58558c8d5a92e9122c756722e6b2da061727a4ef847ed39ec"
+  },
+  "logs_sha256": {
+    "build/qa/synchronization-tags-system-final-2026-10-11.log": "d393ccfbe940d5bf1577de16eb2aac56b929cab800f9a519afff18e1993b9fe5",
+    "build/qa/synchronization-tags-old-final-2026-10-11.log": "19da923b03d283d753b135f0f6755766036c75ff4ed87dd18627bd4317bcd5fc",
+    "build/qa/synchronization-tags-packaged-final-2026-10-11.log": "52a47729ae9b287cf8143e95d71f1f3373b5a66fe1bc57e0d2111e0268a6b23f",
+    "build/qa/synchronization-tags-debug-2026-10-11.log": "9f3a2f9935a5106d988a27ed78c052c462f1327ebf24b02117ae4fd2cd5c1ae0",
+    "build/qa/synchronization-tags-native-2026-10-11.log": "f71312dba79869c9c4af694f7835463523ebbfceaee895cd18a20aa22e455763",
+    "build/qa/synchronization-tags-store-build-2026-10-11.log": "beef49ccc4c85ece0316e652a916478fd4758cdbe656d51f138b56d49c1e1e6f",
+    "build/qa/synchronization-tags-debug-audit-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/synchronization-tags-store-audit-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/synchronization-tags-inventory-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/synchronization-tags-site-final-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}
