@@ -1,0 +1,68 @@
+{
+  "date": "2026-10-11",
+  "status": "partial-native-log-and-activation-navigation-verified",
+  "code_commit": "17e0287feed1dc3cffa4f3e6380ba8f640c9bb8f",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_references": [
+    "src/TortoiseProc/GitLogListBase.cpp: default ID_LOG mask, ref/Shift menu gate, OnNMDblclkLoglist, PreTranslateMessage and DiffSelectedRevWithPrevious",
+    "src/TortoiseProc/GitLogListAction.cpp: ID_LOG endrev and rev arguments"
+  ],
+  "implemented": [
+    "Show log for one referenced non-stash revision or Shift extended menu",
+    "Captured Log revision routed as both end revision and selected revision",
+    "Source default-disabled double-click; enabled activation compares first selected row and first parent",
+    "Unmodified Return uses same Sync handler; shared Log tables have no new Return handler",
+    "Shift menu state captured from event and cleared on close",
+    "Owner busy/Quit/cancellation/child/sheet guards and root no-op"
+  ],
+  "verification": {
+    "engines": [
+      "system Git 2.50.1",
+      "bundled Git 2.55.0"
+    ],
+    "native_receivers_reaped": [
+      17271,
+      17766
+    ],
+    "native_scenarios": [
+      "Existing columns/comparison/unified/metadata/clipboard/browse/reference/lifecycle assertions retained",
+      "Actual native Log loads captured end revision and selects it after changing Sync selection",
+      "Unreferenced ordinary menu omits Show log; Shift right-click event/delegate cycle exposes it; multi-selection omits it",
+      "Referenced revision exposes Show log; menu close clears extended state",
+      "Native doubleAction with preference disabled does not compare or open Log; enabled merge activation compares first parent",
+      "Return on multiple selection compares first selected row; root and Quit deliver no comparison",
+      "Command/Control Return native keyDown does not invoke parent comparison"
+    ],
+    "builds": [
+      "Debug unsigned passed",
+      "AppStore unsigned universal passed"
+    ],
+    "bundle_audits": [
+      "Debug passed",
+      "AppStore with required Git passed"
+    ],
+    "inventory_pin_audit": "passed",
+    "documentation_site_build": "passed",
+    "scope": "No Core changes/full Core rerun. Native action/key event/delegate and Log window checks; no physical menu tracking or signed acceptance."
+  },
+  "fixture_correction": "Initial direct menu(for:) Shift-event check read the old untracked menu before its menuNeedsUpdate cycle. Fixture now invokes the delegate update after event delivery, retaining Shift-state, selected-row and captured Log assertions.",
+  "sha256": {
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "62ffea8d7ee249f21ea15a7b221d294d834d6a2e84202f5401aa2eedb8c3cc79",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "061668e57afea76a31486fc2dc4c309a3576a0928498c7c333daf82f57385582",
+    "Sources/TurtleGitMac/LogWindow.swift": "6a2d6859f3d3a3fd2fe43a8db747cb10435e105023a91441d5a2b977e853e7bc",
+    "docs/qa/synchronization-revision-list-native-2026-10-11.swift": "9e3831bc0639a3fcc72b9e3d970dd7fd5a57330662fec2b0806dbe4b263c6968",
+    "build/qa/sync-history-navigation-debug-2026-10-11.log": "49193ca52df52806094f5e2e51cc4ed26d9654f6eeb8023c0b0cc88a1b49f492",
+    "build/qa/sync-history-navigation-store-2026-10-11.log": "d1eb7e6206f02a1309a4d433f68d972c2a61e2f3b453fced3a813e778f25f236",
+    "build/qa/sync-history-navigation-native-event-final-2026-10-11.log": "e4ea3e33da1e4771d064e41855956788ef6df1c8c3ab141a1fbacde1c46ebdc9",
+    "build/qa/sync-history-navigation-debug-audit-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/sync-history-navigation-store-audit-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/sync-history-navigation-inventory-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/sync-history-navigation-site-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "remaining": [
+    "Default dialog Return fallback, physical double-click/menu gestures and full keyboard/accessibility acceptance",
+    "Stash-specific extended-menu scenarios",
+    "Remaining revision commands and full UI parity",
+    "Signed sandbox/Finder and App Store distribution acceptance"
+  ]
+}
