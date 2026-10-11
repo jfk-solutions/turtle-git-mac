@@ -75,7 +75,14 @@ import TurtleGitCore
             guard let self else { return false }
             return await self.prompt("Could not check patch import state", reason + "\n\nClose this window and keep any existing Git state?", buttons: ["Close and keep state", "Cancel"]) == 0
         }
-        model.close = { [weak self] in self?.approvedClose = true; self?.window?.performClose(nil) }
+        model.close = { [weak self] in
+            guard let self, let window = self.window else { return }
+            self.approvedClose = true
+            if let parent = window.sheetParent {
+                parent.endSheet(window)
+                window.close()
+            } else { window.performClose(nil) }
+        }
         DialogGeometry.attach(window, identifier: "ImportDlg", legacyName: "ImportDlg")
     }
     private func prompt(_ title: String, _ message: String, buttons: [String]) async -> Int {

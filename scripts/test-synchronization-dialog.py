@@ -39,6 +39,7 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git', type=Path, action='append')
 selection = parser.add_mutually_exclusive_group()
 selection.add_argument('--push-only', action='store_true', help='Run the native Push fixture only.')
+selection.add_argument('--apply-only', action='store_true', help='Run the native Apply Patch fixture only.')
 selection.add_argument('--branches-only', action='store_true', help='Run the native local/remote branch picker fixture only.')
 selection.add_argument('--manage-only', action='store_true', help='Run the native Manage Remote settings fixture only.')
 selection.add_argument('--stash-only', action='store_true', help='Run the native Stash fixture only.')
@@ -56,12 +57,13 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-sync-native-') as temporary:
     executable = directory / 'sync-native-receiver'
     # Git's system executable may strip DYLD_* before launching the sequence
     # editor. The temporary receiver needs its own framework search path.
-    subprocess.run(['xcrun', 'swiftc', '-parse-as-library', '-swift-version', '5', '-target', platform.machine() + '-apple-macos13.0', '-I', str(products), '-F', str(products), *sources, str(copy), str(root / 'docs/qa/synchronization-native-2026-10-11.swift'), '-framework', 'TurtleGitCore', '-Xlinker', '-rpath', '-Xlinker', str(products), '-o', str(executable)], cwd=root, check=True)
+    subprocess.run(['xcrun', 'swiftc', '-parse-as-library', '-swift-version', '5', '-target', platform.machine() + '-apple-macos13.0', '-I', str(products), '-F', str(products), *sources, str(copy), str(root / 'docs/qa/synchronization-native-2026-10-11.swift'), str(root / 'docs/qa/synchronization-apply-native-2026-10-11.swift'), '-framework', 'TurtleGitCore', '-Xlinker', '-rpath', '-Xlinker', str(products), '-o', str(executable)], cwd=root, check=True)
     environment = os.environ.copy()
     environment['DYLD_FRAMEWORK_PATH'] = str(products)
     if args.tags_only: environment['TURTLEGIT_SYNC_TAGS_ONLY'] = '1'
     if args.push_only: environment['TURTLEGIT_SYNC_PUSH_ONLY'] = '1'
     if args.submodules_only: environment['TURTLEGIT_SYNC_SUBMODULES_ONLY'] = '1'
+    if args.apply_only: environment['TURTLEGIT_SYNC_APPLY_ONLY'] = '1'
     if args.branches_only: environment['TURTLEGIT_SYNC_BRANCHES_ONLY'] = '1'
     if args.manage_only: environment['TURTLEGIT_SYNC_MANAGE_ONLY'] = '1'
     if args.stash_only: environment['TURTLEGIT_SYNC_STASH_ONLY'] = '1'

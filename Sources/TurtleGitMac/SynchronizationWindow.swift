@@ -221,6 +221,7 @@ private struct SynchronizationProgressDialog: View {
     private(set) var optionsController: FetchWindowController?
     private(set) var pushOptionsController: PushWindowController?
     private(set) var remoteSettingsController: RemoteSettingsWindowController?
+    private(set) var importPatchController: ImportPatchWindowController?
     private(set) var branchPicker: ReferenceBrowserWindowController?
     var configureBranchPicker: (ReferenceBrowserWindowModel) -> Void = { _ in }
     var configureOptions: (FetchWindowController) -> Void = { _ in }
@@ -409,10 +410,28 @@ private struct SynchronizationProgressDialog: View {
                 reply(response == .alertSecondButtonReturn)
             }
         }
+        model.onApplyPatch = { [weak self] oldHead in self?.showImportPatch(oldHead: oldHead) }
         model.onBrowseBranch = { [weak self] target in self?.showBranchPicker(target) }
         model.onManageRemotes = { [weak self] in self?.showRemoteSettings() }
         model.comparison.window = window; model.incomingComparison.window = window; window.center()
         DialogGeometry.attach(window, identifier: "SyncDlg", legacyName: "SyncDlg")
+    }
+    func showImportPatch(oldHead: String) {
+        guard !model.closed, !model.confirmingQuit, !model.busy, !model.hasBlockingChild,
+              let owner = window, owner.attachedSheet == nil, importPatchController == nil else { return }
+        owner.makeFirstResponder(nil)
+        let child = ImportPatchWindowController(repository: model.repository, access: model.access, preferences: model.preferences)
+        importPatchController = child; model.importingPatches = true
+        child.model.onChanged = { [weak self] output in
+            guard let self, !self.model.closed else { return }; self.model.onTransportFinished(output)
+        }
+        child.onClosed = { [weak self, weak child] in
+            guard let self, let child, self.importPatchController === child else { return }
+            self.importPatchController = nil; self.model.importingPatches = false
+            if child.model.accepted { self.model.finishPatchImport(oldHead: oldHead) }
+        }
+        guard let window = child.window else { child.close(); importPatchController = nil; model.importingPatches = false; return }
+        window.alphaValue = owner.alphaValue; owner.beginSheet(window)
     }
     func showBranchPicker(_ target: SynchronizationBranchTarget) {
         guard !model.closed, !model.confirmingQuit, !model.busy, !model.hasBlockingChild,
@@ -472,6 +491,7 @@ private struct SynchronizationProgressDialog: View {
             if let window = child.window, window.sheetParent === self.window { self.window?.endSheet(window) }
             child.abandonPresentation(); branchPicker = nil; model.choosingBranch = false
         }
+        importPatchController?.close(); importPatchController = nil; model.importingPatches = false
         remoteSettingsController?.close(); remoteSettingsController = nil; model.managingRemotes = false
         commandProgress?.abortPresentation(); commandProgress = nil
         if let alert = pullAlert, window?.attachedSheet === alert.window { window?.endSheet(alert.window, returnCode: .abort) }
@@ -514,6 +534,8 @@ enum SynchronizationBranchTarget { case local, remote }
         }
     }
     @Published var tab = 0 { didSet { if tab != oldValue { fileSelection = [] } } }
+    @Published private(set) var incomingFromPatch = false
+    private var lastTransportOldHash: String?
     @Published private(set) var incomingCommits: [LogEntry]?
     @Published private(set) var incomingGraph: [CommitGraphRow] = []
     @Published private(set) var conflicts: [StatusEntry] = []
@@ -592,6 +614,8 @@ enum SynchronizationBranchTarget { case local, remote }
     private(set) var closed = false
     var onLog: (String) -> Void = { _ in }
     var onCommit: () -> Void = {}
+    var onApplyPatch: (String) -> Void = { _ in }
+    @Published var importingPatches = false
     var onBrowseBranch: (SynchronizationBranchTarget) -> Void = { _ in }
     @Published var choosingBranch = false
     var onManageRemotes: () -> Void = {}
@@ -603,7 +627,7 @@ enum SynchronizationBranchTarget { case local, remote }
     var onReferenceLog: (String) -> Void = { _ in }
     var onReferenceCompare: (String, String) -> Void = { _, _ in }
     var hasBlockingChild: Bool {
-        choosingBranch || managingRemotes || NSApp.modalWindow != nil || [comparison, incomingComparison].contains { child in
+        importingPatches || choosingBranch || managingRemotes || NSApp.modalWindow != nil || [comparison, incomingComparison].contains { child in
             child.busy || child.comparisonWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil } || child.unifiedWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil }
         }
     }
@@ -695,6 +719,47 @@ enum SynchronizationBranchTarget { case local, remote }
         if action == nil, compareTagsSelected { compareTags(shift: shift) }
         else { fetch(action ?? pullAction, shift: shift) }
     }
+    func applyPatch() {
+        guard !closed, !confirmingQuit, !busy, !hasBlockingChild, window?.attachedSheet == nil else { return }
+        let request = OperationCancellation(); token = request; busy = true; error = nil
+        Task {
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let hash = try await repository.run(["rev-parse", "--verify", "HEAD^{commit}"], cancellation: request).text.trimmingCharacters(in: .newlines)
+                guard !closed, token === request, !request.isCancelled else { return }
+                token = nil; busy = false; onApplyPatch(hash)
+            } catch {
+                guard !closed, token === request else { return }; self.error = error.localizedDescription; token = nil; busy = false
+            }
+        }
+    }
+    func finishPatchImport(oldHead: String) {
+        guard !closed, !confirmingQuit, !transportRunning, !hasBlockingChild else { return }
+        let request = OperationCancellation(); token?.cancel(); token = request; busy = true; error = nil
+        comparingTags = false; tagSnapshot = nil
+        incomingFromPatch = true; incomingCommits = nil; incomingGraph = []; incomingComparison.snapshot = nil
+        Task {
+            do {
+                let result = try await repository.synchronizationIncoming(from: oldHead, to: "HEAD", cancellation: request)
+                guard !closed, token === request, !request.isCancelled else { return }
+                var commits = result.commits
+                // Source uses the previous Pull/Fetch HEAD for the log range,
+                // but the immediate pre-dialog HEAD for the changed-file diff.
+                if result.comparison.from != result.comparison.to, let baseline = lastTransportOldHash,
+                   case .revision(let newHash) = result.comparison.to {
+                    var options = HistoryOptions(); options.limit = -1
+                    options.revisionRange = HistoryRevisionRange(from: baseline, to: newHash, kind: .difference)
+                    commits = try await repository.history(options: options, cancellation: request)
+                }
+                guard !closed, token === request, !request.isCancelled else { return }
+                incomingCommits = commits; incomingGraph = CommitGraph.layout(commits); incomingComparison.snapshot = result.comparison
+                tab = 4; token = nil; busy = false
+                if result.comparison.from != result.comparison.to { reload() }
+            } catch {
+                guard !closed, token === request else { return }; self.error = error.localizedDescription; token = nil; busy = false
+            }
+        }
+    }
     func browseBranch(_ target: SynchronizationBranchTarget) {
         guard !closed, !confirmingQuit, !busy, !hasBlockingChild, window?.attachedSheet == nil else { return }
         onBrowseBranch(target)
@@ -725,7 +790,7 @@ enum SynchronizationBranchTarget { case local, remote }
         if shift { return }
         let request = OperationCancellation(); token = request; busy = true; transportRunning = true
         comparingTags = true; tagSnapshot = nil; tab = 7; error = nil; commandOutput = ""; referenceChanges = []
-        incomingCommits = nil; incomingGraph = []; incomingComparison.snapshot = nil; conflicts = []
+        incomingFromPatch = false; incomingCommits = nil; incomingGraph = []; incomingComparison.snapshot = nil; conflicts = []
         let selectedRemote = remote
         sshSettings.save(preferences, key: historyKey + ".autoload")
         Task {
@@ -901,7 +966,7 @@ enum SynchronizationBranchTarget { case local, remote }
         guard !closed, !confirmingQuit, !confirmingCancellation, !busy, !hasBlockingChild, window?.attachedSheet == nil else { return }
         let selected = action ?? stashAction; stashAction = selected
         if shift { if selected == .save { onStashOptions() }; return }
-        incomingCommits = nil; incomingGraph = []; incomingComparison.snapshot = nil; conflicts = []
+        incomingFromPatch = false; incomingCommits = nil; incomingGraph = []; incomingComparison.snapshot = nil; conflicts = []
         comparingTags = false; tagSnapshot = nil
         let operationID = UUID(); transportID = operationID
         let request = OperationCancellation(); token = request; busy = true; transportRunning = true
@@ -946,7 +1011,7 @@ enum SynchronizationBranchTarget { case local, remote }
         let operationID = UUID(); transportID = operationID
         let request = OperationCancellation(); token = request; busy = true; transportRunning = true
         cancelling = false; commandCompleted = false; commandSucceeded = false; referenceChanges = []
-        incomingCommits = nil; incomingGraph = []; incomingComparison.snapshot = nil; conflicts = []
+        incomingFromPatch = false; incomingCommits = nil; incomingGraph = []; incomingComparison.snapshot = nil; conflicts = []
         outputState.reset(); commandOutput = ""; percentage = nil; currentWork = ""; error = nil; tab = 2
         var options = SynchronizationTransportOptions(action: action)
         options.localBranch = localBranch; options.remote = remote; options.remoteBranch = remoteBranch; options.force = force
@@ -963,6 +1028,7 @@ enum SynchronizationBranchTarget { case local, remote }
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let plan = try await (shift ? repository.synchronizationOptionsPlan(options, cancellation: request) : repository.synchronizationTransportPlan(options, cancellation: request))
                 oldHead = plan.oldHead
+                if !pushing { lastTransportOldHash = plan.oldHead }
                 var checkout: SynchronizationPullCheckout?
                 if action == .pull {
                     if let branch = plan.checkoutBranch {
@@ -1201,7 +1267,7 @@ private struct SynchronizationDialog: View {
             } else if model.tab == 0 || model.tab == 4 {
                 SynchronizationHistoryTable(model: model)
                     .id(model.tab)
-                    .overlay { if model.tab == 4, model.incomingUpToDate { Text("Up to date.").foregroundStyle(.secondary) } }
+                    .overlay { if model.tab == 4, model.incomingUpToDate { Text(model.incomingFromPatch ? "No commits get from patch" : "Up to date.").foregroundStyle(.secondary) } }
             } else if model.tab == 6 {
                 List(model.conflicts) { entry in
                     HStack { Image(nsImage: FileState.conflicted.icon.image() ?? NSImage()); Text(entry.path); Spacer()
@@ -1245,6 +1311,7 @@ private struct SynchronizationDialog: View {
                         }
                     } label: { Text("").accessibilityLabel("Submodule actions") }.menuStyle(.borderlessButton).fixedSize()
                 }.disabled(model.busy || model.hasBlockingChild)
+                Button { model.applyPatch() } label: { CommandLabel(title: "Apply Patch", icon: .patch) }.disabled(model.busy || model.hasBlockingChild)
                 Spacer()
             }
             HStack {
