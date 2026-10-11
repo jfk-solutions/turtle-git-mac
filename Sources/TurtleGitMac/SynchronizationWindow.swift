@@ -74,6 +74,14 @@ import TurtleGitCore
     }
     @Published var tab = 0
     @Published var fileSelection = Set<String>()
+    @Published private(set) var referenceChanges: [SynchronizationReferenceChange] = []
+    @Published var hideUnchangedReferences = false { didSet { preferences.set(hideUnchangedReferences, forKey: "RefCompareHideUnchanged") } }
+    var referenceRows: [SynchronizationReferenceChange] {
+        referenceChanges.filter { !hideUnchangedReferences || $0.kind != .same }.sorted {
+            if $0.kind != $1.kind { return $0.kind.rawValue < $1.kind.rawValue }
+            return $0.name.rawValue.localizedStandardCompare($1.name.rawValue) == .orderedAscending
+        }
+    }
     @Published private(set) var outgoing: SynchronizationOutgoing?
     @Published private(set) var graph: [CommitGraphRow] = []
     @Published private(set) var busy = false
@@ -90,10 +98,13 @@ import TurtleGitCore
     var onTransportFinished: (String) -> Void = { _ in }
     private var outputState: GitProgressOutputState
     private var cancellationQuestion: UUID?
+    private var transportID: UUID?
     private var token: OperationCancellation?
     private(set) var closed = false
     var onLog: (String) -> Void = { _ in }
     var onCommit: () -> Void = {}
+    var onReferenceLog: (String) -> Void = { _ in }
+    var onReferenceCompare: (String, String) -> Void = { _, _ in }
     var hasBlockingChild: Bool {
         NSApp.modalWindow != nil || comparison.busy || comparison.comparisonWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil } || comparison.unifiedWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil }
     }
@@ -110,6 +121,7 @@ import TurtleGitCore
         branchHistory = preferences.stringArray(forKey: historyKey + ".branches") ?? []
         urlHistory = preferences.stringArray(forKey: historyKey + ".urls") ?? []
         sshSettings.load(preferences, key: historyKey + ".autoload")
+        hideUnchangedReferences = preferences.bool(forKey: "RefCompareHideUnchanged")
     }
     var status: String {
         if transportRunning { return cancelling ? "Cancelling…" : (currentWork.isEmpty ? "Running Git…" : currentWork) }
@@ -124,7 +136,7 @@ import TurtleGitCore
         case nil: return ""
         }
     }
-    func invalidate() { closed = true; token?.cancel(); token = nil; comparison.invalidate(); busy = false; confirmingCancellation = false; cancellationQuestion = nil }
+    func invalidate() { closed = true; token?.cancel(); token = nil; comparison.invalidate(); busy = false; confirmingCancellation = false; cancellationQuestion = nil; transportID = nil }
     func reload(selectTracking: Bool = false, initial: Bool = false) {
         guard !closed, !confirmingQuit, !transportRunning, !hasBlockingChild else { return }
         token?.cancel()
@@ -156,9 +168,10 @@ import TurtleGitCore
     /// Fetch & Rebase require their own checkout/tracking/Rebase workflow.
     func fetch(_ action: SynchronizationTransportAction = .fetch) {
         guard [.fetch, .fetchAllBranches, .remoteUpdate, .prune].contains(action),
-              !closed, !confirmingQuit, !busy, !hasBlockingChild, window?.attachedSheet == nil else { return }
+              !closed, !confirmingQuit, !confirmingCancellation, !busy, !hasBlockingChild, window?.attachedSheet == nil else { return }
+        let operationID = UUID(); transportID = operationID
         let request = OperationCancellation(); token = request; busy = true; transportRunning = true
-        cancelling = false; commandCompleted = false; commandSucceeded = false
+        cancelling = false; commandCompleted = false; commandSucceeded = false; referenceChanges = []
         outputState.reset(); commandOutput = ""; percentage = nil; currentWork = ""; error = nil; tab = 2
         var options = SynchronizationTransportOptions(action: action)
         options.localBranch = localBranch; options.remote = remote; options.remoteBranch = remoteBranch; options.force = force
@@ -166,11 +179,13 @@ import TurtleGitCore
         sshSettings.save(preferences, key: historyKey + ".autoload")
         Task {
             let coordinator = factory?(); defer { coordinator?.close() }
-            defer { if token === request { token = nil; busy = false; transportRunning = false } }
+            defer { if transportID == operationID { token = nil; busy = false; transportRunning = false; transportID = nil } }
             let parser = GitCliOutputParser(limit: outputState.limit)
+            var oldReferences: SynchronizationReferenceSnapshot?
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let plan = try await repository.synchronizationTransportPlan(options, cancellation: request)
+                oldReferences = try await repository.synchronizationReferenceSnapshot(cancellation: request)
                 guard !closed, token === request else { return }
                 if request.isCancelled { throw OperationCancellationFailure.cancelled }
                 let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
@@ -196,7 +211,23 @@ import TurtleGitCore
                 self.error = message
             }
             guard !closed, token === request else { return }
-            commandCompleted = true; cancelling = false; transportRunning = false; busy = false; token = nil
+            // A normal cancellation may still move refs. Inspect with a fresh
+            // token; forced owner closure cancels this read as well.
+            if let before = oldReferences {
+                let inspection = OperationCancellation(); token = inspection
+                do {
+                    let after = try await repository.synchronizationReferenceSnapshot(cancellation: inspection)
+                    let rows = try await repository.synchronizationReferenceChanges(from: before, to: after, cancellation: inspection)
+                    guard !closed, token === inspection else { return }
+                    referenceChanges = rows
+                    tab = 3
+                } catch {
+                    guard !closed, token === inspection else { return }
+                    commandOutput += "\nReading reference changes failed.\n" + error.localizedDescription
+                }
+                guard !closed, token === inspection else { return }
+            }
+            commandCompleted = true; cancelling = false; transportRunning = false; busy = false; token = nil; transportID = nil
             onTransportFinished(commandOutput)
             // Fetch completion refreshes outgoing projection, not incoming HEAD.
             // A cancelled/failed Git command can still have updated references.
@@ -254,9 +285,16 @@ private struct SynchronizationDialog: View {
                 }.padding(6)
             }.disabled(model.transportRunning || model.hasBlockingChild)
             Picker("Changes", selection: $model.tab) {
-                Text("Outgoing Commits").tag(0); Text("Outgoing Changes").tag(1); Text("Command Log").tag(2)
+                Text("Outgoing Commits").tag(0); Text("Outgoing Changes").tag(1); Text("Command Log").tag(2); Text("Ref changes").tag(3)
             }.pickerStyle(.segmented)
-            if model.tab == 2 {
+            if model.tab == 3 {
+                SynchronizationReferenceTable(model: model)
+                    .overlay {
+                        if model.referenceRows.isEmpty {
+                            Text(model.transportRunning ? "Please wait…" : "No differences found.").foregroundStyle(.secondary).allowsHitTesting(false)
+                        }
+                    }
+            } else if model.tab == 2 {
                 SubmoduleProgressOutputView(text: model.commandOutput, completed: model.commandCompleted, success: model.commandSucceeded, preferences: model.preferences)
                 if model.transportRunning {
                     if let value = model.percentage { ProgressView(value: Double(value), total: 100) }
@@ -369,5 +407,112 @@ private struct SynchronizationHistoryTable: NSViewRepresentable {
             guard !model.closed, !model.confirmingQuit, !model.busy, let entries = model.outgoing?.commits, entries.indices.contains(table.clickedRow) else { return }
             model.onLog(entries[table.clickedRow].hash)
         }
+    }
+}
+
+private final class SynchronizationReferenceNativeTable: NSTableView {
+    var makeMenu: () -> NSMenu? = { nil }
+    override func menu(for event: NSEvent) -> NSMenu? {
+        let row = row(at: convert(event.locationInWindow, from: nil))
+        if row >= 0 { selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false) }
+        return makeMenu()
+    }
+}
+private final class SynchronizationReferenceHeader: NSTableHeaderView {
+    var makeMenu: () -> NSMenu? = { nil }
+    override func menu(for event: NSEvent) -> NSMenu? { makeMenu() }
+}
+private struct SynchronizationReferenceTable: NSViewRepresentable {
+    @ObservedObject var model: SynchronizationWindowModel
+    func makeCoordinator() -> Coordinator { Coordinator(model) }
+    func makeNSView(context: Context) -> NSScrollView {
+        let table = SynchronizationReferenceNativeTable(); table.rowHeight = 24
+        let titles = ["Reference", "Type", "Change", "Old hash", "Old message", "New hash", "New message"]
+        for (index, title) in titles.enumerated() {
+            let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(String(index)))
+            column.title = title; column.width = [180.0, 110, 140, 100, 200, 100, 200][index]
+            column.sortDescriptorPrototype = NSSortDescriptor(key: String(index), ascending: true)
+            table.addTableColumn(column)
+        }
+        table.delegate = context.coordinator; table.dataSource = context.coordinator
+        let header = SynchronizationReferenceHeader(); header.makeMenu = { [weak coordinator = context.coordinator] in coordinator?.headerMenu() }; table.headerView = header
+        table.makeMenu = { [weak table, weak coordinator = context.coordinator] in coordinator?.rowMenu(table?.selectedRow ?? -1) }
+        if model.preferences === UserDefaults.standard { table.autosaveName = "TurtleGit.SyncRefs.Columns"; table.autosaveTableColumns = true }
+        let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true; scroll.documentView = table
+        context.coordinator.table = table; return scroll
+    }
+    func updateNSView(_ scroll: NSScrollView, context: Context) {
+        context.coordinator.model = model; context.coordinator.reload()
+    }
+    @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate {
+        var model: SynchronizationWindowModel
+        weak var table: NSTableView?
+        var rows: [SynchronizationReferenceChange] = []
+        init(_ model: SynchronizationWindowModel) { self.model = model }
+        private func field(_ row: SynchronizationReferenceChange, _ column: Int) -> String {
+            switch column {
+            case 0: return row.shortName
+            case 1: return row.typeName
+            case 2: return row.change
+            case 3: return row.oldHash ?? ""
+            case 4: return row.oldMessage
+            case 5: return row.newHash ?? ""
+            default: return row.newMessage
+            }
+        }
+        func reload() {
+            let selected = table.flatMap { rows.indices.contains($0.selectedRow) ? rows[$0.selectedRow].id : nil }
+            rows = model.referenceRows
+            if let descriptor = table?.sortDescriptors.first, let column = Int(descriptor.key ?? "") {
+                rows = rows.enumerated().sorted { a, b in
+                    let lhs = field(a.element, column), rhs = field(b.element, column)
+                    let order = [0, 4, 6].contains(column) ? lhs.localizedStandardCompare(rhs) : lhs.compare(rhs, options: .literal)
+                    if order == .orderedSame { return a.offset < b.offset }
+                    return descriptor.ascending ? order == .orderedAscending : order == .orderedDescending
+                }.map(\.element)
+            }
+            table?.reloadData()
+            if let selected, let index = rows.firstIndex(where: { $0.id == selected }) { table?.selectRowIndexes(IndexSet(integer: index), byExtendingSelection: false) }
+            else { table?.deselectAll(nil) }
+        }
+        func tableView(_ tableView: NSTableView, sortDescriptorsDidChange oldDescriptors: [NSSortDescriptor]) { reload() }
+        func numberOfRows(in tableView: NSTableView) -> Int { rows.count }
+        func tableView(_ tableView: NSTableView, viewFor column: NSTableColumn?, row: Int) -> NSView? {
+            guard rows.indices.contains(row), let index = Int(column?.identifier.rawValue ?? "") else { return nil }
+            let entry = rows[row]
+            let value = field(entry, index)
+            let text = NSTextField(labelWithString: [3, 5].contains(index) ? String(value.prefix(8)) : value)
+            text.lineBreakMode = .byTruncatingTail; text.toolTip = value
+            if index == 0, let icon = ReferenceTypeIcon(referenceName: entry.name.rawValue)?.image() {
+                let image = NSImageView(image: icon); image.setContentHuggingPriority(.required, for: .horizontal)
+                let stack = NSStackView(views: [image, text]); stack.orientation = .horizontal; stack.spacing = 4; return stack
+            }
+            return text
+        }
+        private var available: Bool { !model.closed && !model.busy && !model.confirmingQuit && !model.confirmingCancellation && !model.hasBlockingChild }
+        func headerMenu() -> NSMenu {
+            let menu = NSMenu(); menu.autoenablesItems = false
+            let item = NSMenuItem(title: "Hide unchanged refs", action: #selector(toggleUnchanged), keyEquivalent: "")
+            item.target = self; item.state = model.hideUnchangedReferences ? .on : .off; menu.addItem(item); return menu
+        }
+        @objc func toggleUnchanged() { model.hideUnchangedReferences.toggle() }
+        func rowMenu(_ row: Int) -> NSMenu? {
+            guard rows.indices.contains(row) else { return nil }
+            let entry = rows[row], menu = NSMenu(); menu.autoenablesItems = false
+            func add(_ title: String, _ selector: Selector, _ icon: MenuIcon) {
+                let item = NSMenuItem(title: title, action: selector, keyEquivalent: ""); item.target = self
+                item.representedObject = entry; item.isEnabled = available
+                item.image = MenuPresentationSettings.applicationContextIcons(defaults: model.preferences) ? icon.image() : nil
+                menu.addItem(item)
+            }
+            if let hash = entry.oldHash { add("Show log of " + String(hash.prefix(8)), #selector(oldLog(_:)), .log) }
+            if let hash = entry.newHash, entry.oldHash != hash { add("Show log of " + String(hash.prefix(8)), #selector(newLog(_:)), .log) }
+            if entry.oldHash != nil && entry.newHash != nil && entry.oldHash != entry.newHash { add("Compare revisions", #selector(compare(_:)), .compare) }
+            add("Reflog", #selector(reflog(_:)), .log); return menu
+        }
+        @objc func oldLog(_ sender: NSMenuItem) { guard available, let row = sender.representedObject as? SynchronizationReferenceChange, let hash = row.oldHash else { return }; model.onLog(hash) }
+        @objc func newLog(_ sender: NSMenuItem) { guard available, let row = sender.representedObject as? SynchronizationReferenceChange, let hash = row.newHash else { return }; model.onLog(hash) }
+        @objc func compare(_ sender: NSMenuItem) { guard available, let row = sender.representedObject as? SynchronizationReferenceChange, let old = row.oldHash, let new = row.newHash else { return }; model.onReferenceCompare(old, new) }
+        @objc func reflog(_ sender: NSMenuItem) { guard available, let row = sender.representedObject as? SynchronizationReferenceChange else { return }; model.onReferenceLog(row.name.rawValue) }
     }
 }

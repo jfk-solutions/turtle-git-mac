@@ -36,6 +36,32 @@ import TurtleGitCore
         precondition(model.commandCompleted && model.commandSucceeded && !model.commandOutput.isEmpty && completions == 1)
         let fetched = String(decoding: try await repo.run(["rev-parse", "refs/remotes/origin/review"]).stdout, as: UTF8.self).trimmingCharacters(in: .newlines)
         precondition(fetched == incoming && model.outgoing?.remoteHash == incoming)
+        precondition(model.tab == 3)
+        let changed = model.referenceChanges.first { $0.name == GitReferenceName("refs/remotes/origin/review") }!
+        precondition(changed.kind == .forward && changed.count == 2 && changed.newHash == incoming)
+        precondition(model.referenceChanges.contains { $0.name == GitReferenceName("refs/heads/main") && $0.kind == .same })
+        owner.window!.contentView!.layoutSubtreeIfNeeded()
+        try await settle { views(owner.window!.contentView!).compactMap { $0 as? NSTableView }.contains { $0.tableColumns.contains { $0.title == "Old hash" } } }
+        let refsTable = views(owner.window!.contentView!).compactMap { $0 as? NSTableView }.first { $0.tableColumns.contains { $0.title == "Old hash" } }!
+        precondition(refsTable.tableColumns.count == 7 && refsTable.numberOfRows == model.referenceChanges.count)
+        let targetRow = (0..<refsTable.numberOfRows).first { index in
+            guard let cell = refsTable.delegate!.tableView!(refsTable, viewFor: refsTable.tableColumns[0], row: index) else { return false }
+            return views(cell).compactMap { $0 as? NSTextField }.contains { $0.stringValue == "origin/review" }
+        }!
+        let point = refsTable.convert(NSPoint(x: 8, y: refsTable.rect(ofRow: targetRow).midY), to: nil)
+        let event = NSEvent.mouseEvent(with: .rightMouseDown, location: point, modifierFlags: [], timestamp: 0, windowNumber: owner.window!.windowNumber, context: nil, eventNumber: 1, clickCount: 1, pressure: 1)!
+        let menu = refsTable.menu(for: event)!
+        precondition(menu.items.count == 4 && menu.items.allSatisfy { $0.image != nil && $0.isEnabled })
+        var shown: [String] = [], compared: (String, String)?, reflog = ""
+        model.onLog = { shown.append($0) }; model.onReferenceCompare = { compared = ($0, $1) }; model.onReferenceLog = { reflog = $0 }
+        for item in menu.items { _ = NSApp.sendAction(item.action!, to: item.target, from: item) }
+        precondition(shown == [changed.oldHash!, incoming] && compared?.0 == changed.oldHash && compared?.1 == incoming && reflog == "refs/remotes/origin/review")
+        let hideMenu = refsTable.headerView!.menu(for: event)!, hide = hideMenu.items.first!
+        precondition(hide.state == .off)
+        _ = NSApp.sendAction(hide.action!, to: hide.target, from: hide)
+        precondition(model.hideUnchangedReferences && model.referenceRows.allSatisfy { $0.kind != .same } && preferences.bool(forKey: "RefCompareHideUnchanged"))
+        _ = NSApp.sendAction(hide.action!, to: hide.target, from: hide)
+        model.tab = 2
         owner.window!.contentView!.layoutSubtreeIfNeeded()
         try await settle { views(owner.window!.contentView!).compactMap { $0 as? SubmoduleProgressTextView }.contains { $0.string == model.commandOutput } }
         let outputView = views(owner.window!.contentView!).compactMap { $0 as? SubmoduleProgressTextView }.first!
@@ -44,7 +70,7 @@ import TurtleGitCore
         owner.window!.appearance = NSAppearance(named: .aqua)
         model.remoteBranch = "does-not-exist"; model.fetch()
         try await settle { !model.busy }
-        precondition(model.commandCompleted && !model.commandSucceeded && model.commandOutput.contains("Git command failed") && completions == 2)
+        precondition(model.commandCompleted && !model.commandSucceeded && model.commandOutput.contains("Git command failed") && completions == 2 && model.tab == 3)
         model.remoteBranch = "review"
         preferences.set(true, forKey: "ConfirmKillProcess")
         var completionAnswer: ((Bool) -> Void)?
@@ -64,6 +90,11 @@ import TurtleGitCore
         let gone = try await repo.run(["rev-parse", "--verify", "--quiet", "refs/remotes/origin/topic"], successfulExitCodes: 0...1)
         precondition(gone.exitCode == 1)
         _ = try await repo.run(["rev-parse", "refs/remotes/second/topic"])
+        var chained = 0
+        model.onTransportFinished = { _ in chained += 1; if chained == 1 { model.fetch(.prune) } }
+        model.fetch(); try await settle { !model.busy }
+        precondition(chained == 2 && model.commandSucceeded)
+        model.onTransportFinished = { _ in }
         let finalHead = String(decoding: try await repo.run(["rev-parse", "HEAD"]).stdout, as: UTF8.self).trimmingCharacters(in: .newlines)
         let finalIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
         precondition(finalHead == originalHead && finalIndex == index)
@@ -88,7 +119,7 @@ import TurtleGitCore
         answer?(false); precondition(!blockedModel.confirmingCancellation && blockedModel.transportRunning)
         blockedModel.cancelTransport(); answer?(true)
         try await settle { !blockedModel.busy }
-        precondition(blockedModel.commandCompleted && !blockedModel.commandSucceeded && blockedModel.commandOutput.contains("Synchronization cancelled."))
+        precondition(blockedModel.commandCompleted && !blockedModel.commandSucceeded && blockedModel.commandOutput.contains("Synchronization cancelled.") && blockedModel.tab == 3)
         let preservedRefs = try await repo.run(["show-ref"]).stdout
         precondition(preservedRefs == refs)
         try FileManager.default.removeItem(at: marker)
@@ -100,7 +131,7 @@ import TurtleGitCore
         precondition(blockedModel.closed && !blockedModel.busy && !blockedModel.confirmingCancellation && blockedModel.commandOutput == closedOutput)
         let closedRefs = try await repo.run(["show-ref"]).stdout
         precondition(closedRefs == refs)
-        print("PASS: native Sync Fetch/Fetch All/Remote Update/Prune, retained selectable command log, refresh, HEAD/index preservation, close guard, cancellation reply fences and forced-owner closure")
+        print("PASS: native Sync reference results with seven columns, pinned icon actions and Hide unchanged header; Fetch/Fetch All/Remote Update/Prune, retained selectable command log, refresh, HEAD/index preservation, close guard, cancellation reply fences and forced-owner closure")
     }
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)

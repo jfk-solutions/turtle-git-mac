@@ -38,6 +38,52 @@ public enum SynchronizationFailure: LocalizedError {
     }
 }
 
+/// Source GitRefCompareList ordering, including unchanged references.
+public enum SynchronizationReferenceChangeKind: Int, Sendable {
+    case unknown, new, deleted, forward, newerTime, rewind, olderTime, sameTime, same
+}
+public struct SynchronizationReferenceSnapshot: Sendable {
+    public let root: URL
+    public let references: [GitReferenceName: String]
+}
+public struct SynchronizationReferenceChange: Sendable, Identifiable {
+    public let name: GitReferenceName
+    public var id: GitReferenceName { name }
+    public let oldHash: String?
+    public let newHash: String?
+    public let oldMessage: String
+    public let newMessage: String
+    public let kind: SynchronizationReferenceChangeKind
+    public let count: Int
+    public var shortName: String {
+        for prefix in ["refs/heads/", "refs/remotes/", "refs/tags/", "refs/notes/", "refs/"] {
+            if let short = GitReferenceName.removingPrefix(prefix, from: name.rawValue) {
+                return short.hasSuffix("^{}") ? String(short.dropLast(3)) : short
+            }
+        }
+        return name.rawValue
+    }
+    public var typeName: String {
+        if name.rawValue.hasPrefix("refs/heads/") { return "Branch" }
+        if name.rawValue.hasPrefix("refs/remotes/") { return "Remote branch" }
+        if name.rawValue.hasPrefix("refs/tags/") { return "Tag" }
+        return ""
+    }
+    public var change: String {
+        switch kind {
+        case .unknown: return ""
+        case .new: return "New"
+        case .deleted: return "Deleted"
+        case .forward: return "Forward \(count)"
+        case .newerTime: return "Newer commit time"
+        case .rewind: return "Rewind \(count)"
+        case .olderTime: return "Older commit time"
+        case .sameTime: return "Same commit time"
+        case .same: return "Same"
+        }
+    }
+}
+
 public enum SynchronizationTransportAction: Equatable, Sendable {
     case pull, fetch, fetchAndRebase, fetchAllBranches, remoteUpdate, prune
     case push, pushTags, pushNotes
@@ -92,6 +138,71 @@ public struct SynchronizationTransportFollowUpFailure: LocalizedError {
 }
 
 extension GitRepository {
+    public func synchronizationReferenceSnapshot(cancellation: OperationCancellation? = nil) throws -> SynchronizationReferenceSnapshot {
+        try cancellation?.check()
+        let output = try run(["for-each-ref", "--format=%(refname)%00%(objectname)%00%(objecttype)%00%(object)%00"], cancellation: cancellation).stdout
+        var refs = [GitReferenceName: String]()
+        for line in String(decoding: output, as: UTF8.self).split(separator: "\n") {
+            let fields = line.split(separator: "\0", omittingEmptySubsequences: false)
+            guard fields.count == 5 else { throw SynchronizationFailure.invalidInput }
+            let tag = fields[2] == "tag"
+            let name = String(fields[0]) + (tag ? "^{}" : "")
+            let hash = String(tag ? fields[3] : fields[1])
+            guard !hash.isEmpty else { throw SynchronizationFailure.invalidInput }
+            refs[GitReferenceName(name)] = hash
+        }
+        try cancellation?.check()
+        return SynchronizationReferenceSnapshot(root: root, references: refs)
+    }
+    /// Compare pinned all-ref maps, preserving source tag-target identity. Full
+    /// hashes stay in the model so menu actions do not resolve moving ref names.
+    public func synchronizationReferenceChanges(from old: SynchronizationReferenceSnapshot, to new: SynchronizationReferenceSnapshot,
+                                                cancellation: OperationCancellation? = nil) throws -> [SynchronizationReferenceChange] {
+        try cancellation?.check()
+        guard old.root == root, new.root == root else { throw SynchronizationTransportFailure.repositoryChanged }
+        var metadata = [String: (String, Int64?)]()
+        func commit(_ hash: String?) throws -> (String, Int64?) {
+            guard let hash else { return ("", nil) }
+            if let cached = metadata[hash] { return cached }
+            var result: (String, Int64?) = ("", nil)
+            do {
+                let type = try run(["cat-file", "-t", hash], cancellation: cancellation).stdout
+                if String(decoding: type, as: UTF8.self).trimmingCharacters(in: .newlines) == "commit" {
+                    let bytes = try run(["show", "--no-patch", "--no-show-signature", "--encoding=UTF-8", "--format=%ct%x00%B", hash, "--"], cancellation: cancellation).stdout
+                    let fields = String(decoding: bytes, as: UTF8.self).split(separator: "\0", maxSplits: 1, omittingEmptySubsequences: false)
+                    if fields.count == 2 {
+                        result = (fields[1].split(separator: "\n").first.map(String.init) ?? "", Int64(fields[0]))
+                    }
+                }
+            } catch is GitFailure { try cancellation?.check() }
+            metadata[hash] = result; return result
+        }
+        let names = Set(old.references.keys).union(new.references.keys)
+        var changes = [SynchronizationReferenceChange]()
+        for name in names {
+            try cancellation?.check()
+            let before = old.references[name], after = new.references[name]
+            let oldCommit = try commit(before), newCommit = try commit(after)
+            var kind: SynchronizationReferenceChangeKind = .unknown, count = 0
+            if before == nil { kind = .new }
+            else if after == nil { kind = .deleted }
+            else if before == after { kind = .same }
+            else if let before, let after, let oldTime = oldCommit.1, let newTime = newCommit.1 {
+                do {
+                    let value = try run(["rev-list", "--left-right", "--count", before + "..." + after, "--"], cancellation: cancellation).stdout
+                    let counts = String(decoding: value, as: UTF8.self).split(whereSeparator: { $0.isWhitespace }).compactMap { Int($0) }
+                    if counts.count == 2 {
+                        if counts[0] == 0 && counts[1] > 0 { kind = .forward; count = counts[1] }
+                        else if counts[1] == 0 && counts[0] > 0 { kind = .rewind; count = counts[0] }
+                        else { kind = oldTime < newTime ? .newerTime : oldTime > newTime ? .olderTime : .sameTime }
+                    }
+                } catch is GitFailure { try cancellation?.check() }
+            }
+            changes.append(SynchronizationReferenceChange(name: name, oldHash: before, newHash: after, oldMessage: oldCommit.0, newMessage: newCommit.0, kind: kind, count: count))
+        }
+        try cancellation?.check()
+        return changes.sorted { a, b in a.kind.rawValue == b.kind.rawValue ? a.name.rawValue.utf16.lexicographicallyPrecedes(b.name.rawValue.utf16) : a.kind.rawValue < b.kind.rawValue }
+    }
     private func synchronizationHash(_ revision: String, cancellation: OperationCancellation?) throws -> String? {
         guard !revision.contains("\0") else { throw SynchronizationFailure.invalidInput }
         let result = try run(["rev-parse", "--verify", "--quiet", "--end-of-options", revision + "^{commit}"], successfulExitCodes: 0...1, cancellation: cancellation)
