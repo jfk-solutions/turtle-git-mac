@@ -143,3 +143,13 @@ passed and save was skipped on the hit. The earlier `152aeb2` run then finished
 with an unrelated DNS test-fixture compiler failure; the cache package had already
 been saved successfully. See [the follow-up evidence](qa/ci-mx-typecheck-2026-10-10.json)
 for both observations. Whole-run success remains separate.
+
+The [October 11 run at `f54c213`](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38159129450)
+failed before app tests because OGDF passed `-march=native` from the Intel host
+to the arm64 compilation. The Apple CPU-selection build patch above now passes
+a full local universal rebuild, both executable slices, unsigned Debug/AppStore
+builds and audits, ad-hoc helper signing branches, and actual embedded-framework
+geometry/clipping/cancellation receivers. The new regression also reproduces
+the incompatible original flags locally and verifies both patched slices.
+Hosted Intel retry and full CI success remain unverified. See
+[the dated build evidence](qa/ci-graph-cpu-baseline-2026-10-11.json).

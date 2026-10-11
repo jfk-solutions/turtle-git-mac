@@ -1,0 +1,80 @@
+{
+  "date": "2026-10-11",
+  "status": "local-universal-build-and-packaging-verified-hosted-retry-pending",
+  "code_commit": "0624a538ccb0d6674742400755c3136203f7906a",
+  "hosted_failure": {
+    "run": 38159129450,
+    "job": 114528163043,
+    "step": "Build and verify pinned universal Revision Graph layout engine",
+    "message": "clang++: error: unsupported argument 'native' to option '-march='",
+    "cause": "Pinned OGDF enables -march=native on an Intel host and passes it to both universal slices."
+  },
+  "changes": [
+    "Skip host-selected CPU flags for Apple builds; use the per-slice architecture defaults.",
+    "Preserve the pinned archive and reproduce a guarded source build patch from the shipped reconstruction script.",
+    "Run a regression with the archived compiler configuration and an Intel processor setting on fresh builds and cache hits."
+  ],
+  "verification": {
+    "full_universal_graph_build": 0,
+    "regression": {
+      "exit_code": 0,
+      "scope": "Original CPU-selection flags fail on the local Apple Silicon compiler with an unknown target CPU diagnostic; patched compilation produces arm64 and x86_64. Actual Intel-host retry remains pending."
+    },
+    "simulated_intel_configuration": {
+      "exit_code": 0,
+      "coin_object_architectures": [
+        "x86_64",
+        "arm64"
+      ],
+      "coin_and_ogdf_flags": "Both architectures, no -march or -mcpu."
+    },
+    "both_runtime_slices": 0,
+    "ad_hoc_signing_branches": 0,
+    "unsigned_debug_build": 0,
+    "unsigned_appstore_build": 0,
+    "debug_and_store_bundle_audits": 0,
+    "actual_embedded_framework_receivers": {
+      "exit_code": 0,
+      "configurations": [
+        "Debug",
+        "AppStore"
+      ],
+      "checks": [
+        "bundled helper lookup",
+        "OGDF geometry",
+        "endpoint clipping",
+        "pre-cancelled request"
+      ],
+      "cleanup": "Disposable receivers removed; no app windows launched."
+    },
+    "inventory": 0,
+    "site": 0,
+    "hosted_retry": "Not yet verified",
+    "complete_core_suite": "Separate unchanged Core checkpoint; not rerun for this build-script correction."
+  },
+  "runtime_binary_sha256": "39d3867b2feca43494feab58688f661924faec4f30821a5572a2c8722251dc40",
+  "sha256": {
+    "scripts/build-graph-layout-runtime.py": "18d347325a9541d5419e03ce29b9cf4a7623e1b13dbcb1de789b8169c1d189ee",
+    "scripts/test-graph-layout-cpu-baseline.py": "3bcdf7e8b7a54ba1935d330911f84713d500d83008d4446f0edb34c244c431f6",
+    ".github/workflows/macos.yml": "73f18d337ae328b82cdaf305258fe6b57d2d7737136a9f18cc79d89a3aea1325",
+    "build/qa/ci-graph-runtime-38159129450.log": "0a15814d48133a4086ecee0399d1816f3e6cbf635f1ceb5a9f1f06c08e1b0e5d",
+    "build/qa/ci-graph-portable-build-2026-10-11.log": "b4ecc4789baa9a2ec24ca5b88d4312d2c344dfc440a901907a3f5618622206b0",
+    "build/qa/ci-graph-cpu-regression-final-2026-10-11.log": "414b9a2499b3f047e7759f0a40b35e63b1896765ac50007a9b5815ec40239566",
+    "build/qa/ci-graph-both-slices-final-2026-10-11.log": "5fb3451772e49faa15489f1ff1d10aa8be3b018995522025a0185cd8102bea54",
+    "build/qa/ci-graph-signing-branches-2026-10-11.log": "8252637e03bfc9bcc28c4aaa37297712256e713ca1e5729fc61146b94806dc7e",
+    "build/qa/ci-graph-intel-configure-2026-10-11.log": "67ac90bfde0d2ad651ff0d1443edddbc3fb3e8a2f6cf048bcfce8900d39e401d",
+    "build/qa/ci-graph-intel-object-2026-10-11.log": "fbdee761b7962e50c78b4ff417e1094f6008165270c7f17efc305ad38c00a5e6",
+    "build/qa/ci-graph-debug-2026-10-11.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/ci-graph-store-2026-10-11.log": "64968f3758d430de072e61aa5dfd2037d78b9524d1bcf5cd6b648849a391b377",
+    "build/qa/ci-graph-debug-audit-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/ci-graph-store-audit-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/ci-graph-built-frameworks-2026-10-11.log": "71602b57b8dd6cc4482372a6e90e09a37bfe4af997ec9e39f53c5d30626f5972",
+    "build/qa/ci-graph-inventory-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/ci-graph-site-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "remaining": [
+    "Hosted Intel build and complete CI success",
+    "Signed app sandbox and distribution acceptance",
+    "Complete dialog, menu and Finder parity"
+  ]
+}
