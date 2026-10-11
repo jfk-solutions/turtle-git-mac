@@ -428,7 +428,7 @@ private struct SynchronizationProgressDialog: View {
             self.remoteSettingsController = nil; self.model.managingRemotes = false
             // Upstream Refresh reloads outgoing results after the modal settings
             // page closes, including dismissal without edits.
-            if !self.model.closed { self.model.reload() }
+            if !self.model.closed { self.model.reload(refreshRemoteSelection: true) }
         }
         guard let window = child.window else { remoteSettingsController = nil; model.managingRemotes = false; return }
         window.alphaValue = owner.alphaValue; owner.beginSheet(window); child.model.load()
@@ -475,6 +475,7 @@ private struct SynchronizationProgressDialog: View {
     @Published var localBranch = ""
     @Published var remoteBranch = ""
     @Published var remote = ""
+    var remoteWasSelected = false
     @Published var force = false
     @Published var confirmingQuit = false {
         didSet {
@@ -623,7 +624,7 @@ private struct SynchronizationProgressDialog: View {
         }
     }
     func invalidate() { closed = true; token?.cancel(); token = nil; comparison.invalidate(); incomingComparison.invalidate(); busy = false; transportRunning = false; cancelling = false; confirmingCancellation = false; cancellationQuestion = nil; transportID = nil }
-    func reload(selectTracking: Bool = false, initial: Bool = false, preserveError: Bool = false) {
+    func reload(selectTracking: Bool = false, initial: Bool = false, preserveError: Bool = false, refreshRemoteSelection: Bool = false) {
         guard !closed, !confirmingQuit, !transportRunning, !hasBlockingChild else { return }
         token?.cancel()
         comparingTags = false; tagSnapshot = nil; if tab == 7 { tab = 0 }
@@ -631,6 +632,8 @@ private struct SynchronizationProgressDialog: View {
         let request = OperationCancellation(); token = request; busy = true; error = retainedError
         outgoing = nil; graph = []; fileSelection = []; comparison.snapshot = nil
         let local = localBranch, selectedRemote = remote, selectedBranch = remoteBranch, forced = force
+        let selectedChoice = remoteWasSelected
+        if refreshRemoteSelection { urlHistory = preferences.stringArray(forKey: historyKey + ".urls") ?? [] }
         Task {
             defer { if token === request { token = nil; busy = false } }
             do {
@@ -639,8 +642,14 @@ private struct SynchronizationProgressDialog: View {
                 guard !closed, token === request, !request.isCancelled else { return }
                 let branch = initial ? catalog.currentBranch : local
                 let destination = selectTracking || initial ? catalog.trackedBranch : selectedBranch
-                let url = selectTracking || initial ? (catalog.trackedRemote.isEmpty ? (initial ? (urlHistory.first ?? catalog.remotes.first ?? "") : selectedRemote) : catalog.trackedRemote) : selectedRemote
+                var url = selectTracking || initial ? (catalog.trackedRemote.isEmpty ? (initial ? (urlHistory.first ?? catalog.remotes.first ?? "") : selectedRemote) : catalog.trackedRemote) : selectedRemote
                 localBranches = catalog.localBranches; remotes = catalog.remotes
+                // Source Refresh falls back only for an actual combo selection
+                // that no longer names a remote; typed URLs/branch fields survive.
+                if refreshRemoteSelection && selectedChoice && !catalog.remotes.contains(where: { GitReferenceName($0) == GitReferenceName(selectedRemote) }) {
+                    url = remoteChoices.first ?? ""
+                }
+                if initial || selectTracking { remoteWasSelected = remoteChoices.contains(where: { GitReferenceName($0) == GitReferenceName(url) }) }
                 localBranch = branch; remoteBranch = destination; remote = url
                 let projection = try await repository.synchronizationOutgoing(localBranch: branch, remote: url, remoteBranch: destination, force: forced, cancellation: request)
                 guard !closed, token === request, !request.isCancelled else { return }
@@ -660,7 +669,7 @@ private struct SynchronizationProgressDialog: View {
         guard !closed, !confirmingQuit, !busy, !hasBlockingChild, window?.attachedSheet == nil else { return }
         onManageRemotes()
     }
-    func refresh() { if comparingTags { compareTags() } else { reload() } }
+    func refresh() { if comparingTags { compareTags() } else { reload(refreshRemoteSelection: true) } }
     func compareTags(shift: Bool = false) {
         guard !closed, !confirmingQuit, !busy, !hasBlockingChild, window?.attachedSheet == nil else { return }
         compareTagsSelected = true; preferences.set(6, forKey: historyKey + ".pullAction")
@@ -1104,7 +1113,7 @@ private struct SynchronizationDialog: View {
                     }
                     HStack {
                         Text("Remote URL:")
-                        FetchHistoryCombo(value: edit(\.remote), choices: model.remoteChoices, label: "Remote URL")
+                        FetchHistoryCombo(value: edit(\.remote), choices: model.remoteChoices, label: "Remote URL", onSelectionState: { model.remoteWasSelected = $0 })
                         Button { model.manageRemotes() } label: { CommandLabel(title: "Manage", icon: .settings) }
                             .disabled(model.busy || model.confirmingQuit)
                     }

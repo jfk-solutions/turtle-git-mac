@@ -1233,7 +1233,7 @@ import TurtleGitCore
         try await settle { !model.busy && model.outgoing != nil }
         model.confirmingQuit = true; model.manageRemotes(); precondition(owner.remoteSettingsController == nil)
         model.confirmingQuit = false
-        model.remoteBranch = "typed-branch"; model.remote = directory.path; model.force = true
+        model.remoteBranch = "typed-branch"; model.remote = directory.path; model.remoteWasSelected = false; model.force = true
         model.manageRemotes()
         let settings = owner.remoteSettingsController!
         precondition(model.managingRemotes && model.hasBlockingChild && !owner.windowShouldClose(owner.window!))
@@ -1263,6 +1263,40 @@ import TurtleGitCore
         let finalHead = try await repo.run(["rev-parse", "HEAD"]).stdout, finalRefs = try await repo.run(["show-ref"]).stdout
         let finalIndex = try Data(contentsOf: directory.appendingPathComponent(".git/index"))
         precondition(finalHead == head && finalRefs == refs && finalIndex == index)
+        // Exercise the actual combo delegate distinction: choosing a remote is
+        // different from typing the same text, even when redraw matches a choice.
+        let combo = NSComboBox(), coordinator = FetchHistoryCombo.Coordinator()
+        coordinator.choices = model.remoteChoices; combo.addItems(withObjectValues: coordinator.choices)
+        coordinator.selectionState = { model.remoteWasSelected = $0 }
+        coordinator.change = { model.remote = $0 }
+        combo.selectItem(at: coordinator.choices.firstIndex(of: "review")!)
+        coordinator.comboBoxSelectionDidChange(Notification(name: NSComboBox.selectionDidChangeNotification, object: combo))
+        precondition(model.remote == "review" && model.remoteWasSelected)
+        model.manageRemotes(); let removing = owner.remoteSettingsController!
+        try await settle { !removing.model.busy }
+        removing.model.select(GitReferenceName("review")); try await settle { !removing.model.busy }
+        removing.model.confirm = { _ in (true, false) }; removing.model.remove()
+        try await settle { !removing.model.busy && !removing.model.names.contains(GitReferenceName("review")) }
+        removing.close(); try await settle { owner.remoteSettingsController == nil && !model.busy }
+        precondition(model.remote == model.remoteChoices.first && model.remote == "origin")
+        precondition(model.localBranch == "main" && model.remoteBranch == "typed-branch" && model.force)
+        combo.stringValue = "review"
+        coordinator.controlTextDidChange(Notification(name: NSControl.textDidChangeNotification, object: combo))
+        precondition(model.remote == "review" && !model.remoteWasSelected)
+        model.manageRemotes(); let typed = owner.remoteSettingsController!
+        try await settle { !typed.model.busy }; typed.close()
+        try await settle { owner.remoteSettingsController == nil && !model.busy }
+        precondition(model.remote == "review" && !model.remoteWasSelected)
+        // A selected history URL also falls back when it is not a named remote,
+        // exactly as source Refresh; a typed URL is preserved by the earlier case.
+        let key = "TurtleGit.Sync." + directory.path + ".urls"
+        preferences.set([directory.path], forKey: key)
+        model.remote = directory.path; model.remoteWasSelected = true; model.refresh()
+        try await settle { !model.busy }
+        precondition(model.remote == model.remoteChoices.first && model.remote == directory.path)
+        preferences.removeObject(forKey: key)
+        model.refresh(); try await settle { !model.busy }
+        precondition(model.remote == "origin")
         // Force owner closure while the actual Remote settings reader is stalled.
         try Data().write(to: enable); model.manageRemotes(); let blocked = owner.remoteSettingsController!
         try await settle { FileManager.default.fileExists(atPath: marker.path) }
@@ -1274,7 +1308,7 @@ import TurtleGitCore
         precondition(model.closed && !model.busy && !model.managingRemotes && blocked.model.closed && !blocked.model.busy)
         precondition(owner.remoteSettingsController == nil && owner.window!.attachedSheet == nil && blocked.window!.sheetParent == nil)
         model.manageRemotes(); precondition(owner.remoteSettingsController == nil)
-        print("PASS: native Sync Manage opens owned Remote settings, applies real config, preserves typed branch/URL/Force, refreshes outgoing on dismissal, discards unapplied edits and reaps blocked reads on forced owner closure")
+        print("PASS: native Sync Manage opens owned Remote settings, applies real config, preserves typed branch/URL/Force, refreshes outgoing on dismissal, discards unapplied edits, distinguishes selected/typed remotes and URLs with source Refresh fallback, and reaps blocked reads on forced owner closure")
     }
     @MainActor static func main() async throws {
         if let status = RebaseEditor.handle(arguments: CommandLine.arguments, environment: ProcessInfo.processInfo.environment) { exit(status) }

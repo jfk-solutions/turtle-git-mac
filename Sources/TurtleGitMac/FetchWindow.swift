@@ -357,6 +357,7 @@ struct FetchHistoryCombo: NSViewRepresentable {
     let choices: [String]
     let label: String
     var onDelete: ((Int) -> Void)? = nil
+    var onSelectionState: ((Bool) -> Void)? = nil
     @Environment(\.isEnabled) private var enabled
     func makeCoordinator() -> Coordinator { Coordinator() }
     func makeNSView(context: Context) -> NSComboBox {
@@ -365,7 +366,7 @@ struct FetchHistoryCombo: NSViewRepresentable {
     }
     func updateNSView(_ combo: NSComboBox, context: Context) {
         let coordinator = context.coordinator; coordinator.updating = true; defer { coordinator.updating = false }
-        coordinator.change = { value = $0 }
+        coordinator.change = { value = $0 }; coordinator.selectionState = onSelectionState
         (combo as? EditableHistoryCombo)?.deleteHistory = onDelete
         if !coordinator.choices.elementsEqual(choices, by: { $0.utf16.elementsEqual($1.utf16) }) { (combo as? EditableHistoryCombo)?.replaceHistory(choices); coordinator.choices = choices }
         if let index = choices.firstIndex(where: { $0.utf16.elementsEqual(value.utf16) }) { combo.selectItem(at: index) }
@@ -374,11 +375,11 @@ struct FetchHistoryCombo: NSViewRepresentable {
         combo.isEnabled = enabled; combo.setAccessibilityLabel(label)
     }
     final class Coordinator: NSObject, NSComboBoxDelegate {
-        var choices: [String] = []; var updating = false; var change: (String) -> Void = { _ in }
+        var choices: [String] = []; var updating = false; var change: (String) -> Void = { _ in }; var selectionState: ((Bool) -> Void)?
         func comboBoxWillPopUp(_ notification: Notification) { (notification.object as? EditableHistoryCombo)?.historyPopupOpen = true }
         func comboBoxWillDismiss(_ notification: Notification) { (notification.object as? EditableHistoryCombo)?.historyPopupOpen = false }
-        func controlTextDidChange(_ notification: Notification) { guard !updating, let combo = notification.object as? NSComboBox else { return }; change(combo.stringValue) }
-        func comboBoxSelectionDidChange(_ notification: Notification) { guard !updating, let combo = notification.object as? NSComboBox, choices.indices.contains(combo.indexOfSelectedItem) else { return }; change(choices[combo.indexOfSelectedItem]) }
+        func controlTextDidChange(_ notification: Notification) { guard !updating, let combo = notification.object as? NSComboBox else { return }; selectionState?(false); change(combo.stringValue) }
+        func comboBoxSelectionDidChange(_ notification: Notification) { guard !updating, let combo = notification.object as? NSComboBox, choices.indices.contains(combo.indexOfSelectedItem) else { return }; selectionState?(true); change(choices[combo.indexOfSelectedItem]) }
     }
 }
 
