@@ -48,6 +48,20 @@ struct SynchronizationLayoutCapture {
                 print("CAPTURE: \(name)\(suffix) \(bitmap.pixelsWide)x\(bitmap.pixelsHigh)")
             }
         }
+        // Render the additional incoming tabs from an actual read-only Git range
+        // to inspect compact source captions at the minimum window width.
+        owner.model.finishPatchImport(oldHead: base)
+        for _ in 0..<2000 { if !owner.model.busy && owner.model.incomingCommits != nil { break }; try await Task.sleep(nanoseconds: 5_000_000) }
+        precondition(!owner.model.busy && owner.model.incomingComparison.snapshot?.files.isEmpty == false)
+        window.setContentSize(NSSize(width: 860, height: 500))
+        for (name, appearance) in [("light", NSAppearance.Name.aqua), ("dark", .darkAqua)] {
+            window.appearance = NSAppearance(named: appearance); window.contentView!.layoutSubtreeIfNeeded()
+            try await Task.sleep(nanoseconds: 250_000_000)
+            guard let capture = CGWindowListCreateImage(.null, .optionIncludingWindow, CGWindowID(window.windowNumber), [.boundsIgnoreFraming, .bestResolution]) else { throw NSError(domain: "SynchronizationCapture", code: 2) }
+            let bitmap = NSBitmapImageRep(cgImage: capture)
+            try bitmap.representation(using: .png, properties: [:])!.write(to: output.appendingPathComponent("git-synchronization-incoming-" + name + "-minimum.png"))
+            print("CAPTURE: incoming-\(name)-minimum \(bitmap.pixelsWide)x\(bitmap.pixelsHigh)")
+        }
         let finalRefs = try await repository.run(["show-ref"]).stdout, finalIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")), finalConfig = try Data(contentsOf: root.appendingPathComponent(".git/config"))
         precondition(refs == finalRefs && index == finalIndex && config == finalConfig)
         owner.close(); precondition(owner.model.closed && !owner.model.busy && !owner.model.transportRunning && !window.isVisible)

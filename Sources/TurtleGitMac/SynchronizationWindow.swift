@@ -1305,20 +1305,13 @@ private struct SynchronizationDialog: View {
                         Button { model.manageRemotes() } label: { CommandLabel(title: "Manage", icon: .settings) }
                             .disabled(model.busy || model.confirmingQuit)
                     }
-                    HStack { SSHAutoloadToggle(settings: model.sshSettings); Spacer() }
-                    Toggle("Force", isOn: Binding(get: { model.force }, set: { model.force = $0; model.reload() }))
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    HStack(spacing: 24) {
+                        SSHAutoloadToggle(settings: model.sshSettings)
+                        Toggle("Force", isOn: Binding(get: { model.force }, set: { model.force = $0; model.reload() }))
+                        Spacer()
+                    }.padding(.leading, 100)
                 }.padding(6)
             }.disabled(model.transportRunning || model.hasBlockingChild)
-            Picker("Changes", selection: $model.tab) {
-                if model.comparingTags { Text("Compare Tags").tag(7) }
-                else {
-                Text("Outgoing Commits").tag(0); Text("Outgoing Changes").tag(1); Text("Command Log").tag(2); Text("Ref changes").tag(3)
-                if model.incomingCommits != nil { Text("Incoming Commits").tag(4) }
-                if model.incomingComparison.snapshot?.files.isEmpty == false { Text("Incoming Changes").tag(5) }
-                if !model.conflicts.isEmpty { Text("Conflicts").tag(6) }
-                }
-            }.pickerStyle(.segmented)
             if model.tab == 7 {
                 SynchronizationTagTable(model: model)
                     .overlay { if model.tagRows.isEmpty { Text(model.busy ? "Please wait…" : "No differences found.").foregroundStyle(.secondary).allowsHitTesting(false) } }
@@ -1353,6 +1346,16 @@ private struct SynchronizationDialog: View {
                     Spacer()
                 }
             }
+            Picker("Changes", selection: $model.tab) {
+                if model.comparingTags { Text("Compare tags").tag(7) }
+                else {
+                    Text("Log").tag(2)
+                    if model.incomingCommits != nil { Text("In Commits").tag(4) }
+                    if model.incomingComparison.snapshot?.files.isEmpty == false { Text("In Changelist").tag(5) }
+                    if !model.conflicts.isEmpty { Text("Conflicts").tag(6) }
+                    Text("Out Commits").tag(0); Text("Out Changelist").tag(1); Text("Ref List").tag(3)
+                }
+            }.labelsHidden().pickerStyle(.segmented)
             HStack {
                 HStack(spacing: 0) {
                     Button { model.performPullAction() } label: { CommandLabel(title: model.pullActionTitle, icon: model.compareTagsSelected ? .tag : model.pullAction == .pull ? .pull : .fetch) }
@@ -1399,17 +1402,18 @@ private struct SynchronizationDialog: View {
                 }.disabled(model.busy || model.hasBlockingChild)
                 Button("Refresh") { model.refresh() }.disabled(model.transportRunning || model.hasBlockingChild)
                 Spacer()
+            }
+            HStack {
+                if model.busy { ProgressView().controlSize(.small) }
+                Text(model.status).foregroundStyle(model.error == nil ? Color.secondary : Color.red).textSelection(.enabled)
+                Spacer()
                 if model.transportRunning {
                     Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancelTransport() }
                         .keyboardShortcut(.cancelAction).disabled(model.cancelling || model.confirmingCancellation)
                 } else {
                     Button("Close") { model.window?.performClose(nil) }.keyboardShortcut(.defaultAction)
                 }
-            }
-            HStack {
-                if model.busy { ProgressView().controlSize(.small) }
-                Text(model.status).foregroundStyle(model.error == nil ? Color.secondary : Color.red).textSelection(.enabled)
-                Spacer()
+                Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-sync.html")!) }
             }
         }.padding(12).disabled(model.confirmingQuit).onAppear { model.reload(initial: true) }
     }
