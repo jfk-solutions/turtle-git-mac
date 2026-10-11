@@ -53,7 +53,7 @@ struct SynchronizationRevisionListVerification {
         func copyItem(_ title: String) -> NSMenuItem {
             precondition(native.menu?.delegate === coordinator, "Revision menu lost its coordinator")
             native.menu!.delegate?.menuNeedsUpdate?(native.menu!)
-            guard let item = native.menu!.items.first?.submenu?.items.first(where: { $0.title == title }) else {
+            guard let item = native.menu!.items.first(where: { $0.title == "Copy to clipboard" })?.submenu?.items.first(where: { $0.title == title }) else {
                 preconditionFailure("Missing clipboard command \(title); selected rows \(native.selectedRowIndexes); menu \(native.menu!.items.map(\.title))")
             }
             return item
@@ -62,6 +62,47 @@ struct SynchronizationRevisionListVerification {
         native.selectRowIndexes(IndexSet(integersIn:0..<2),byExtendingSelection:false)
         let rows = model.historyEntries
         precondition(rows.count == 2)
+        var comparisons: [(ComparisonRevision, ComparisonRevision)] = []
+        model.onHistoryCompare = { comparisons.append(($0, $1)) }
+        func comparisonItem(_ title: String) -> NSMenuItem {
+            native.menu!.delegate?.menuNeedsUpdate?(native.menu!)
+            return native.menu!.items.first { $0.title == title }!
+        }
+        let capturedComparison = comparisonItem("Compare revisions")
+        precondition(capturedComparison.image != nil)
+        native.selectRowIndexes(IndexSet(integer:0),byExtendingSelection:false)
+        invoke(capturedComparison)
+        precondition(comparisons.last!.0 == .revision(rows[1].hash) && comparisons.last!.1 == .revision(rows[0].hash))
+        invoke(comparisonItem("Compare with working tree"))
+        precondition(comparisons.last!.0 == .revision(rows[0].hash) && comparisons.last!.1 == .workingTree)
+        let previous = comparisonItem("Compare with previous revision")
+        invoke(previous)
+        precondition(comparisons.last!.0 == .revision(rows[0].parents[0]) && comparisons.last!.1 == .revision(rows[0].hash))
+        let count = comparisons.count
+        model.confirmingQuit = true
+        precondition(NSApplication.shared.sendAction(previous.action!,to:previous.target,from:previous))
+        precondition(comparisons.count == count, "Captured comparison must respect owner guards")
+        model.confirmingQuit = false
+        // Exercise the same concrete comparison window used by RepositoryModel routing.
+        var comparisonWindow: RevisionComparisonWindowController?
+        model.onHistoryCompare = { from, to in
+            let child = RevisionComparisonWindowController(repository:repo,access:nil,from:from,to:to)
+            comparisonWindow = child; child.model.load(); child.showWindow(nil)
+        }
+        for title in ["Compare with working tree", "Compare with previous revision", "Compare revisions"] {
+            native.selectRowIndexes(title == "Compare revisions" ? IndexSet(integersIn:0..<2) : IndexSet(integer:0),byExtendingSelection:false)
+            invoke(comparisonItem(title))
+            let child = comparisonWindow!
+            try await settle { !child.model.busy }
+            precondition(child.model.error == nil && child.model.snapshot != nil)
+            let result = child.model.snapshot!
+            precondition(result.to == (title == "Compare with working tree" ? .workingTree : .revision(rows[0].hash)))
+            precondition(result.from == .revision(title == "Compare with working tree" ? rows[0].hash : title == "Compare revisions" ? rows[1].hash : rows[0].parents[0]))
+            precondition(result.files.isEmpty == (title == "Compare with working tree"))
+            child.close(); comparisonWindow = nil
+        }
+        model.onHistoryCompare = { comparisons.append(($0,$1)) }
+        native.selectRowIndexes(IndexSet(integersIn:0..<2),byExtendingSelection:false)
         let capturedHashes = copyItem("Hashes")
         native.selectRowIndexes(IndexSet(integer:0),byExtendingSelection:false)
         invoke(capturedHashes); precondition(clipboard.string(forType:.string) == rows.map(\.hash).joined(separator:"\n"), "Menu payload must preserve the captured selection")
@@ -69,7 +110,7 @@ struct SynchronizationRevisionListVerification {
         for (kind,expected) in [(SynchronizationHistoryCopy.authors, rows.map { "\($0.author) <\($0.email)>" }.joined(separator:"\n")),(.authorNames,rows.map(\.author).joined(separator:"\n")),(.authorEmails,rows.map(\.email).joined(separator:"\n")),(.subjects,LogEntry.historyClipboard(rows,subjectsOnly:true)),(.messages,LogEntry.historyClipboard(rows,subjectsOnly:false))] {
             invoke(copyItem(kind.rawValue)); precondition(clipboard.string(forType:.string) == expected)
         }
-        precondition(!native.menu!.items.first!.submenu!.items.contains { $0.title == "Tag/branch names" })
+        precondition(!native.menu!.items.first(where: { $0.title == "Copy to clipboard" })!.submenu!.items.contains { $0.title == "Tag/branch names" })
         native.selectRowIndexes(IndexSet(integer:0),byExtendingSelection:false)
         invoke(copyItem("Tag/branch names")); precondition(clipboard.string(forType:.string)?.contains("refs/tags/v1.0\r\n") == true)
         (native as! HistoryTableView).contextReference = (0,"refs/tags/v1.0")
@@ -156,7 +197,7 @@ struct SynchronizationRevisionListVerification {
         let finalRefs = try await repo.run(["show-ref"]).stdout, finalIndex = try Data(contentsOf:root.appendingPathComponent(".git/index")), finalConfig = try Data(contentsOf:root.appendingPathComponent(".git/config"))
         precondition(refs == finalRefs && index == finalIndex && config == finalConfig)
         owner.close(); precondition(model.closed && !model.busy && !window.isVisible)
-        print("PASS: native Sync source columns, original action icons, annotated/current/tracking ref labels, issue IDs, date/full-message settings, independent column toggles/reset, both lists/themes/sizes, clipboard menus/captured multi-selection/source text formats/full metadata/pointed names, owned action and clipboard cancellation/late-callback fencing and unchanged Git state")
+        print("PASS: native Sync source columns, original action icons, annotated/current/tracking ref labels, issue IDs, date/full-message settings, independent column toggles/reset, both lists/themes/sizes, clipboard menus/captured multi-selection/source text formats/full metadata/pointed names, native revision comparison menus/captured targets/owner guards/real comparison snapshots, owned action and clipboard cancellation/late-callback fencing and unchanged Git state")
     }
 }
 @_cdecl("turtlegit_history_main") func bootstrap() -> Int32 {

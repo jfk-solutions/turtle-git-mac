@@ -760,6 +760,7 @@ enum SynchronizationHistoryCopy: String, CaseIterable {
     var onTagsChanged: () -> Void = {}
     var onReferenceLog: (String) -> Void = { _ in }
     var onReferenceCompare: (String, String) -> Void = { _, _ in }
+    var onHistoryCompare: ((ComparisonRevision, ComparisonRevision) -> Void)?
     var hasBlockingChild: Bool {
         emailingPatches || importingPatches || choosingBranch || managingRemotes || NSApp.modalWindow != nil || [comparison, incomingComparison].contains { child in
             child.busy || child.comparisonWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil } || child.unifiedWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil }
@@ -1626,6 +1627,16 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
             let entries: [LogEntry], kind: SynchronizationHistoryCopy, reference: String?
             init(entries: [LogEntry], kind: SynchronizationHistoryCopy, reference: String?) { self.entries = entries; self.kind = kind; self.reference = reference }
         }
+        private final class ComparisonTarget: NSObject {
+            let from: ComparisonRevision, to: ComparisonRevision
+            init(from: ComparisonRevision, to: ComparisonRevision) { self.from = from; self.to = to }
+        }
+        @objc func compareHistory(_ sender: NSMenuItem) {
+            guard !model.closed, !model.busy, !model.confirmingQuit, !model.confirmingCancellation,
+                  !model.hasBlockingChild, model.window?.attachedSheet == nil,
+                  let target = sender.representedObject as? ComparisonTarget else { return }
+            model.onHistoryCompare?(target.from, target.to)
+        }
         func menuNeedsUpdate(_ menu: NSMenu) {
             menu.removeAllItems(); menu.autoenablesItems = false
             guard let table else { return }
@@ -1634,6 +1645,31 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
             let clipboard = NSMenu(title: "Copy to clipboard"); clipboard.autoenablesItems = false
             let available = !model.closed && !model.busy && !model.confirmingQuit && !model.hasBlockingChild
             let pointed = (table as? HistoryTableView)?.contextReference
+            func comparisonItem(_ title: String, from: ComparisonRevision, to: ComparisonRevision, in targetMenu: NSMenu) {
+                let item = NSMenuItem(title: title, action: #selector(compareHistory(_:)), keyEquivalent: "")
+                item.target = self
+                item.isEnabled = available && !model.confirmingCancellation && model.window?.attachedSheet == nil && model.onHistoryCompare != nil
+                item.image = MenuIcon.compare.contextImage(defaults: model.preferences)
+                item.representedObject = ComparisonTarget(from: from, to: to)
+                targetMenu.addItem(item)
+            }
+            if entries.count == 1, let entry = entries.first {
+                comparisonItem("Compare with working tree", from: .revision(entry.hash), to: .workingTree, in: menu)
+                if entry.parents.count == 1, let parent = entry.parents.first {
+                    comparisonItem("Compare with previous revision", from: .revision(parent), to: .revision(entry.hash), in: menu)
+                } else if entry.parents.count > 1 {
+                    let parentItem = NSMenuItem(title: "Compare with previous revision", action: nil, keyEquivalent: "")
+                    parentItem.image = MenuIcon.compare.contextImage(defaults: model.preferences)
+                    let parents = NSMenu(); parents.autoenablesItems = false
+                    for (index, hash) in entry.parents.enumerated() {
+                        comparisonItem("Parent \(index + 1) (\(hash.prefix(7)))", from: .revision(hash), to: .revision(entry.hash), in: parents)
+                    }
+                    parentItem.submenu = parents; menu.addItem(parentItem)
+                }
+            } else if entries.count == 2 || table.selectedRowIndexes.last! - table.selectedRowIndexes.first! + 1 == entries.count {
+                comparisonItem("Compare revisions", from: .revision(entries.last!.hash), to: .revision(entries.first!.hash), in: menu)
+            }
+            if !menu.items.isEmpty { menu.addItem(.separator()) }
             for kind in SynchronizationHistoryCopy.allCases {
                 if kind == .referenceNames && (entries.count != 1 || entries[0].references.isEmpty) { continue }
                 let item = NSMenuItem(title: kind.rawValue, action: #selector(copyHistory(_:)), keyEquivalent: "")

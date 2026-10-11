@@ -1030,3 +1030,24 @@ the two normal public-site images updated after inspection. Full row/context
 commands beyond clipboard, cross-launch/tab selection, live font sizing, source
 special modes, physical/signed acceptance and the prior transient cycle warnings
 remain open. See [the clipboard record](qa/synchronization-clipboard-2026-10-11.json).
+
+### Revision context comparisons (2026-10-11)
+
+Incoming/outgoing revision menus now route Compare with working tree, Compare with
+previous revision, merge-parent choices and Compare revisions to the existing native
+Changed Files window. Two selected revisions compare the later listed revision as
+base to the first listed revision; larger selections offer comparison only when
+contiguous, matching GitLogListBase's selection gate. Root revisions omit the
+previous-revision command. Menu actions carry captured revision values, original
+Diff icons and owner busy/close/cancellation/sheet guards. RepositoryModel supplies
+the comparison callback using the same repository access lease.
+
+The expanded revision-list native fixture exercised actual NSMenu actions, changed
+selection after menu creation, close guards and real Changed Files windows for
+working-tree, parent and two-revision comparisons with system and bundled Git.
+Both receivers passed and were reaped; refs/index/config remained unchanged.
+Merge-parent submenu and larger contiguous/noncontiguous selection behavior are
+implemented but await dedicated native scenarios. Parent menu captions currently
+show parent number/hash; source subject snippets/configured hash lengths remain
+pending. Unified-diff merge variants, compare changesets and remaining revision
+actions are still open. This is partial Synchronization parity.
