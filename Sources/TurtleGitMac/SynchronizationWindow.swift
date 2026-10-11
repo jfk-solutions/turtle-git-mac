@@ -884,6 +884,7 @@ enum SynchronizationHistoryDiff {
     var onReferenceCompare: (String, String) -> Void = { _, _ in }
     var onHistoryCompare: ((ComparisonRevision, ComparisonRevision) -> Void)?
     var onHistoryBrowseRepository: ((String) -> Void)?
+    var onHistoryLog: ((String) -> Void)?
     var onHistoryCreateReference: ((Bool, String) -> Void)?
     @Published var creatingHistoryReference = false
     var hasBlockingChild: Bool {
@@ -1718,7 +1719,8 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
         header.makeMenu = { [weak coordinator = context.coordinator] in coordinator?.headerMenu() }
         table.headerView = header; context.coordinator.table = table; context.coordinator.entryHashes = model.historyEntries.map(\.hash)
         table.delegate = context.coordinator; table.dataSource = context.coordinator
-        table.target = context.coordinator; table.doubleAction = #selector(Coordinator.showLog)
+        table.target = context.coordinator; table.doubleAction = #selector(Coordinator.activateRevision)
+        table.onReturn = { [weak coordinator = context.coordinator] in coordinator?.activateParentComparison() ?? false }
         let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true; scroll.documentView = table
         return scroll
     }
@@ -1763,6 +1765,10 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
         }
         private var revisionActionAvailable: Bool {
             !model.closed && !model.busy && !model.confirmingQuit && !model.confirmingCancellation && !model.hasBlockingChild && model.window?.attachedSheet == nil
+        }
+        @objc func historyLog(_ sender: NSMenuItem) {
+            guard revisionActionAvailable, let target = sender.representedObject as? RevisionTarget else { return }
+            model.onHistoryLog?(target.revision)
         }
         @objc func browseHistory(_ sender: NSMenuItem) {
             guard revisionActionAvailable, let target = sender.representedObject as? RevisionTarget else { return }
@@ -1851,6 +1857,12 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
             }
             if entries.count == 1, let entry = entries.first {
                 if !menu.items.isEmpty { menu.addItem(.separator()) }
+                let stash = entry.references.contains { $0.name == "refs/stash" }
+                if !stash && !entry.references.isEmpty || (table as? HistoryTableView)?.contextExtendedMenu == true {
+                    let log = NSMenuItem(title: "Show log", action: #selector(historyLog(_:)), keyEquivalent: "")
+                    log.target = self; log.isEnabled = revisionActionAvailable && model.onHistoryLog != nil
+                    log.image = MenuIcon.log.contextImage(defaults: model.preferences); log.representedObject = RevisionTarget(entry.hash); menu.addItem(log)
+                }
                 let browse = NSMenuItem(title: "Browse repository", action: #selector(browseHistory(_:)), keyEquivalent: "")
                 browse.target = self; browse.isEnabled = revisionActionAvailable && model.onHistoryBrowseRepository != nil
                 browse.image = MenuIcon.repositoryBrowser.contextImage(defaults: model.preferences); browse.representedObject = RevisionTarget(entry.hash); menu.addItem(browse)
@@ -1880,7 +1892,7 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
             let parent = NSMenuItem(title: "Copy to clipboard", action: nil, keyEquivalent: "")
             parent.image = MenuIcon.copy.contextImage(defaults: model.preferences); parent.submenu = clipboard; menu.addItem(parent)
         }
-        func menuDidClose(_ menu: NSMenu) { parentMenuTask?.cancel(); parentMenuTask = nil; (table as? HistoryTableView)?.contextReference = nil }
+        func menuDidClose(_ menu: NSMenu) { parentMenuTask?.cancel(); parentMenuTask = nil; (table as? HistoryTableView)?.contextReference = nil; (table as? HistoryTableView)?.contextExtendedMenu = false }
         @objc func copyHistory(_ sender: NSMenuItem) {
             guard let target = sender.representedObject as? CopyTarget else { return }
             model.copyHistory(target.entries, kind: target.kind, pointedReference: target.reference)
@@ -1988,11 +2000,15 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
             NSLayoutConstraint.activate([text.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 3), text.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -3), text.centerYAnchor.constraint(equalTo: cell.centerYAnchor)])
             return cell
         }
-        @objc func showLog(_ table: NSTableView) {
-            let entries = model.historyEntries
-            guard !model.closed, !model.confirmingQuit, !model.busy, entries.indices.contains(table.clickedRow) else { return }
-            model.onLog(entries[table.clickedRow].hash)
+        func activateParentComparison() -> Bool {
+            guard model.preferences.bool(forKey: "DiffByDoubleClickInLog") else { return false }
+            guard revisionActionAvailable, let table,
+                  let index = table.selectedRowIndexes.first, model.historyEntries.indices.contains(index),
+                  let parent = model.historyEntries[index].parents.first else { return true }
+            model.onHistoryCompare?(.revision(parent), .revision(model.historyEntries[index].hash))
+            return true
         }
+        @objc func activateRevision(_ sender: Any?) { _ = activateParentComparison() }
     }
 }
 

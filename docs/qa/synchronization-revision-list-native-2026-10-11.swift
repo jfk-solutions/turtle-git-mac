@@ -72,6 +72,59 @@ struct SynchronizationRevisionListVerification {
             let menu = native.menu!; menu.delegate?.menuNeedsUpdate?(menu); return menu
         }
         func invoke(_ item: NSMenuItem) { precondition(item.isEnabled && NSApplication.shared.sendAction(item.action!,to:item.target,from:item)) }
+        var log: LogWindowController?
+        model.onHistoryLog = { hash in
+            let child = LogWindowController(repository:repo,access:nil,labelDefaults:preferences,savesColumnLayout:false,savesGeometry:false,initialRevision:hash)
+            ReferenceLogWindowModel.configureRevisionLog(child.model,revision:hash)
+            log = child; child.model.reload(); child.showWindow(nil)
+        }
+        let unreferenced = rows.firstIndex { $0.references.isEmpty && !$0.parents.isEmpty }!
+        precondition(!menu(IndexSet(integer:unreferenced)).items.contains { $0.title == "Show log" })
+        let rowRect = native.rect(ofRow:unreferenced)
+        let mousePoint = native.convert(NSPoint(x:rowRect.midX,y:rowRect.midY),to:nil)
+        let shifted = NSEvent.mouseEvent(with:.rightMouseDown,location:mousePoint,modifierFlags:.shift,timestamp:0,windowNumber:owner.window!.windowNumber,context:nil,eventNumber:0,clickCount:1,pressure:1)!
+        let shiftedMenu = (native as! HistoryTableView).menu(for:shifted)!
+        precondition((native as! HistoryTableView).contextExtendedMenu && native.selectedRowIndexes == IndexSet(integer:unreferenced))
+        shiftedMenu.delegate?.menuNeedsUpdate?(shiftedMenu)
+        let extendedLog = shiftedMenu.items.first { $0.title == "Show log" }!
+        precondition(extendedLog.image != nil)
+        _ = menu(IndexSet(integer:0)); invoke(extendedLog)
+        try await settle { log?.model.busy == false && log?.model.selected.contains(rows[unreferenced].hash) == true }
+        precondition(log!.model.endRevision == rows[unreferenced].hash)
+        log!.close(); log = nil
+        native.menu!.delegate?.menuDidClose?(native.menu!)
+        precondition(!(native as! HistoryTableView).contextExtendedMenu)
+        precondition(menu(IndexSet(integer:0)).items.contains { $0.title == "Show log" })
+        precondition(!menu(IndexSet([0,1])).items.contains { $0.title == "Show log" })
+        let originalPreference = preferences.object(forKey:"DiffByDoubleClickInLog")
+        defer { if let originalPreference { preferences.set(originalPreference,forKey:"DiffByDoubleClickInLog") } else { preferences.removeObject(forKey:"DiffByDoubleClickInLog") } }
+        preferences.set(false,forKey:"DiffByDoubleClickInLog")
+        _ = menu(IndexSet(integer:mergeIndex))
+        let initialComparisons = captured.count
+        precondition(NSApplication.shared.sendAction(native.doubleAction!,to:native.target,from:native))
+        precondition(captured.count == initialComparisons && log == nil)
+        preferences.set(true,forKey:"DiffByDoubleClickInLog")
+        precondition(NSApplication.shared.sendAction(native.doubleAction!,to:native.target,from:native))
+        precondition(captured.last!.0 == .revision(rows[mergeIndex].parents[0]) && captured.last!.1 == .revision(rows[mergeIndex].hash))
+        let returning = NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[],timestamp:0,windowNumber:owner.window!.windowNumber,context:nil,characters:"\r",charactersIgnoringModifiers:"\r",isARepeat:false,keyCode:36)!
+        _ = menu(IndexSet([0,1])); native.keyDown(with:returning)
+        precondition(captured.last!.0 == .revision(rows[0].parents[0]) && captured.last!.1 == .revision(rows[0].hash))
+        let beforeRoot = captured.count
+        _ = menu(IndexSet(integer:rootIndex)); native.keyDown(with:returning)
+        precondition(NSApplication.shared.sendAction(native.doubleAction!,to:native.target,from:native))
+        precondition(captured.count == beforeRoot)
+        model.confirmingQuit = true
+        _ = menu(IndexSet(integer:mergeIndex)); native.keyDown(with:returning)
+        precondition(NSApplication.shared.sendAction(native.doubleAction!,to:native.target,from:native))
+        precondition(captured.count == beforeRoot)
+        model.confirmingQuit = false
+        _ = menu(IndexSet(integer:mergeIndex))
+        for modifier in [NSEvent.ModifierFlags.command,.control] {
+            let modifiedReturn = NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:modifier,timestamp:0,windowNumber:owner.window!.windowNumber,context:nil,characters:"\r",charactersIgnoringModifiers:"\r",isARepeat:false,keyCode:36)!
+            native.keyDown(with:modifiedReturn)
+            precondition(captured.count == beforeRoot, "Modified Return must not invoke the unmodified parent-compare shortcut")
+        }
+        preferences.set(false,forKey:"DiffByDoubleClickInLog")
         let parents = menu(IndexSet(integer:mergeIndex)).items.first { $0.title == "Compare with previous revision" }!.submenu!.items
         precondition(parents.count == 2)
         for (i,item) in parents.enumerated() {
@@ -438,7 +491,7 @@ struct SynchronizationRevisionListVerification {
         precondition(owner.historyReferenceController == nil && !ownedReference.window!.isVisible && !model.creatingHistoryReference)
 
         try await verifyComparisonSelectionCases(root:root.appendingPathExtension("comparison-menu-cases"),git:repo.executable,preferences:preferences)
-        print("PASS: native Sync source columns, original action icons, annotated/current/tracking ref labels, issue IDs, date/full-message settings, independent column toggles/reset, both lists/themes/sizes, clipboard menus/captured multi-selection/source text formats/full metadata/pointed names, native revision comparison menus/captured targets/owner guards/real comparison snapshots/root omission/merge parents/source captions/contiguous and disjoint selection/off-list parent menu updates/owned parent metadata cancellation/unified diff source bytes/all merge modes/no-extra notice/owned read-only viewers/native browse/remote suggestions/owned reference sheets/real branch and tag creation/refresh, owned action and clipboard cancellation/late-callback fencing and unchanged Git state")
+        print("PASS: native Sync source columns, original action icons, annotated/current/tracking ref labels, issue IDs, date/full-message settings, independent column toggles/reset, both lists/themes/sizes, clipboard menus/captured multi-selection/source text formats/full metadata/pointed names, native revision comparison menus/captured targets/owner guards/real comparison snapshots/root omission/merge parents/source captions/contiguous and disjoint selection/off-list parent menu updates/owned parent metadata cancellation/unified diff source bytes/all merge modes/no-extra notice/owned read-only viewers/native browse/remote suggestions/owned reference sheets/real branch and tag creation/refresh/conditional source Show log/native selected Log/default and configured activation/Return/root and close guards, owned action and clipboard cancellation/late-callback fencing and unchanged Git state")
     }
 }
 @_cdecl("turtlegit_history_main") func bootstrap() -> Int32 {

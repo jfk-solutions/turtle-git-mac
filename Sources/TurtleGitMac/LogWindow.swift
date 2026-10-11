@@ -2987,6 +2987,13 @@ struct RevisionTable: NSViewRepresentable {
 
 final class HistoryTableView: NSTableView {
     var contextReference: (row: Int, name: String)?
+    var contextExtendedMenu = false
+    var onReturn: (() -> Bool)?
+    override func keyDown(with event: NSEvent) {
+        if [36, 76].contains(event.keyCode), event.modifierFlags.intersection([.command, .control]).isEmpty,
+           onReturn?() == true { return }
+        super.keyDown(with: event)
+    }
     func reference(at point: NSPoint) -> (row: Int, name: String)? {
         let row = row(at: point)
         guard row >= 0, let column = tableColumns.firstIndex(where: { $0.identifier.rawValue == "message" }),
@@ -2999,6 +3006,7 @@ final class HistoryTableView: NSTableView {
         let point = convert(event.locationInWindow, from: nil), row = row(at: point)
         let mouse = event.type == .rightMouseDown || event.type == .leftMouseDown
         contextReference = mouse ? reference(at: point) : nil
+        contextExtendedMenu = event.modifierFlags.contains(.shift)
         if mouse, row >= 0, !selectedRowIndexes.contains(row) { selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false) }
         menu?.update()
         return menu

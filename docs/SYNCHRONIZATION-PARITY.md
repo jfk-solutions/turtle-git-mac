@@ -1152,3 +1152,31 @@ Existing comparison, unified diff, parent metadata, clipboard and lifecycle chec
 remain in the fixture. Physical menu tracking, stash-specific menu scenarios, remote
 tracking creation, picker/switch/push post-actions and signed acceptance remain open.
 Other Sync revision commands and full application parity are still incomplete.
+
+### Revision Log and activation navigation (2026-10-11)
+
+Sync no longer opens Log unconditionally when a revision is double-clicked. The
+pinned GitLogListBase implementation only compares against the first parent when
+DiffByDoubleClickInLog is enabled; default-disabled activation is a no-op. The
+native double-action now follows that rule and first-selected-row semantics,
+including first-parent merge comparison and no action for root revisions.
+Unmodified Return uses the same preference-gated action; Command/Control Return
+retain ordinary AppKit handling. The optional Return handler is installed only on
+Sync's shared HistoryTableView, leaving Log tables' existing handling unchanged.
+
+Show log is now a separate captured context action for a single non-stash revision
+with reference labels, or a Shift-extended menu. The input event captures Shift
+state and menu closure clears it. RepositoryModel opens Log with both its end
+revision and selected revision set to the captured hash, as ID_LOG does upstream.
+This does not change the Sync footer's branch-wide Show log action.
+
+System and bundled Git passed actual native Log loading/selection after row
+selection changes, normal/unreferenced/Shift/multi-selection menu gates, native
+double-action dispatch with preference off/on, Return first-selection comparison,
+root and Quit guards, and Command/Control Return without parent comparison. The
+fixture delivers a Shift right-click NSEvent then performs the native menu delegate
+update; it does not claim physical menu tracking. Existing comparison, reference
+creation, clipboard, metadata, unified diff and owned-child assertions remain.
+Default-dialog Return fallback, stash-specific extended menus, physical double-click
+gestures, full keyboard/accessibility and signed acceptance remain open. Other
+revision commands and complete application parity are still pending.
