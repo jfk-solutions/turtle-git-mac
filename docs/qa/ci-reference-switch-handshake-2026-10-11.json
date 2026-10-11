@@ -1,0 +1,39 @@
+{
+  "date": "2026-10-11",
+  "status": "local-fixture-handshake-and-cleanup-verified-hosted-root-cause-unproven",
+  "code_commit": "130e87f74a8c36d0ced68af8a627b5ff341d0b5f",
+  "hosted_failure": {
+    "run": 38124517913,
+    "job": 114425990900,
+    "step": "Native reference-browser Switch dialog route",
+    "message": "Expected checkout stage not live: switch-progress",
+    "cause": "Unproven: combined assertion omitted which state condition failed"
+  },
+  "changes": [
+    "Atomic publication of complete injected-helper PID markers",
+    "Failure diagnostics for PID count/liveness, busy and actual/expected progress",
+    "Link current Debug app objects, NSApplication event loop and bounded owned receiver cleanup"
+  ],
+  "verification": {
+    "command": "python3 scripts/test-reference-switch.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+    "exit_code": 0,
+    "native_receivers_reaped": [
+      40310,
+      41919
+    ],
+    "scope": "Existing real checkout, acknowledgement policies, injected cancellation, owner and progress lifecycle assertions retained on both engines",
+    "warnings": "Hidden zero-size NSSplitView layout warnings",
+    "hosted_retry": "Not yet verified",
+    "complete_core_suite": "Separate run still in progress; not claimed here"
+  },
+  "sha256": {
+    "scripts/test-reference-switch.py": "18788d896863582791077fe54db8aee6cbe4dc02f32f192437e83dc63db37ae7",
+    "docs/qa/reference-switch-native-2026-10-09.swift": "54d4f05e79ef3a090847f100675ea025f643e3202c7c5e85d5298ea9c0daf442",
+    "build/qa/ci-reference-switch-handshake-2026-10-11.log": "374d142911dbeddadf5ff8244ba3387873e1c0ff15a6c9c77508c8e5883d3059",
+    "build/qa/ci-reference-switch-38124517913.log": "ca45a2883fac967b5f0764764ed2d95e46b820d27e78e6da90fc67a4a8ff3fb9"
+  },
+  "remaining": [
+    "Hosted retry and exact original failure diagnosis",
+    "Displayed geometry/input, signed sandbox and complete application acceptance"
+  ]
+}
