@@ -1,0 +1,92 @@
+{
+  "date": "2026-10-11",
+  "status": "partial-native-sync-history-verified-full-regression-incomplete",
+  "code_commit": "fb50410b26879bdb6acc4abb75c61c29cff351f2",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_blobs": {
+    "src/TortoiseProc/SyncDlg.cpp": "17bfe829c486fee35345727136bec8d1adbf21f9",
+    "src/TortoiseProc/BranchCombox.h": "9d3608114618fcb9db4b7948509727923110f2ab",
+    "src/Utils/MiscUI/HistoryCombo.cpp": "f52dcb94e8403eb3bcb0a6b0d80db47e92d61657"
+  },
+  "behavior": [
+    "Accepted Close saves per-repository branch/URL histories and SSH choice; forced invalidation does not insert typed values",
+    "Original order and configured-remotes append on initial/Manage reload; ordinary field edits preserve deletion",
+    "Case-insensitive 25-load/26-save branches, exact UTF-16 effectively unbounded URLs, source whitespace and CR/LF folding",
+    "Scoped open-popup Shift+Delete persists removal immediately and selects next/previous; background read does not block deletion",
+    "Shared Pull/Fetch history limits retain existing defaults"
+  ],
+  "verification": {
+    "engines": [
+      "system 2.50.1",
+      "packaged 2.55.0"
+    ],
+    "focused_sync_history_receivers": 2,
+    "pull_fetch_history_receivers": 2,
+    "method": "Checked-in native history fixture linked against fresh Debug app objects/Core; private serial receivers with production cleanup helper. Existing Pull/Fetch fixture linked the same way through ignored cached runner. Actual popup key receiver, delegate and NSWindow.performClose used; physical input acceptance not claimed.",
+    "commands": [
+      "python3 scripts/test-synchronization-history.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "python3 build/qa/run-fetch-history-cached.py --git /usr/bin/git --git build/git-runtime/Git/bin/git"
+    ],
+    "coverage": [
+      "Actual Close/reopen, blocked close and closed-model save suppression",
+      "Actual native combo key receiver Shift+Delete, immediate persistence and selection",
+      "URL order/case/canonically distinct UTF-16 entries, line folding and more than 25 entries",
+      "Repository-isolated preferences and unchanged refs/index/config",
+      "Existing Pull/Fetch failed URL preservation, real local URL Pull and named Fetch, unused URL exclusion and default history limits"
+    ],
+    "builds": [
+      "Debug unsigned passed",
+      "AppStore unsigned universal passed"
+    ],
+    "audits": [
+      "Debug bundle passed",
+      "AppStore bundle with required Git passed",
+      "inventory pin passed",
+      "site build passed"
+    ],
+    "receivers_reaped": [
+      20821,
+      20861,
+      26651,
+      26821
+    ],
+    "screenshots": "No new layout or screenshot acceptance claimed; prior source-layout captures remain in synchronization-layout-order-2026-10-11.json."
+  },
+  "full_sync_regression": {
+    "status": "incomplete-stopped-after-diagnosed-stall",
+    "scope": "System Git attempt only; packaged full regression did not run. No full pass claimed.",
+    "receiver": 21052,
+    "evidence": "Sample showed RebaseWindowModel.execute -> GitRepository.startRebase -> executeRebase -> run -> Foundation Process.waitUntilExit. ps showed receiver alive but no children in its process group. Receiver explicitly terminated with SIGTERM, standard cleanup reaped it.",
+    "next_action": "Investigate process-exit wait, verify safe lifetime behavior and rerun full regression."
+  },
+  "corrected_attempts": [
+    "Fixture initially assigned a private cancellation setter; used an owned-child guard state instead",
+    "Initial fixture raced onAppear load; wait now requires actual outgoing result",
+    "Native selection starts background refresh; deletion guard incorrectly rejected Shift+Delete while busy. Guard now blocks transport/owned child instead; final two-engine fixture passed."
+  ],
+  "remaining": [
+    "Rebase process-exit stall and current full Sync regression",
+    "Full native filesystem/URL autocomplete",
+    "Physical popup/keyboard, VoiceOver and signed sandbox/Finder acceptance",
+    "Complete Sync columns/menus/progress/hooks and full port"
+  ],
+  "sha256": {
+    "Sources/TurtleGitMac/FetchWindow.swift": "8ccc32560c242bedb9434ad0a41a2ed2dc640d5968d18833b138ef6f1faefb79",
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "5eaefb29d0de56b4512af256c6f33e372273dac8cbaad880b69f6d6539e5e533",
+    "docs/qa/synchronization-history-native-2026-10-11.swift": "f16d94ebf019f072a3e8ffa5b62a13a00801fb1e2cdddb129f559a4714a73993",
+    "scripts/test-synchronization-history.py": "31a9ad527aaf147e5f6f199eb5100e5f51e893b6c2163c8c0a65e5383cc5f868",
+    "docs/qa/fetch-history-native-2026-10-07.swift": "05766d756c222eb4198be19d124c905e04047bb53e25553d6e64e433957d250f",
+    "build/qa/run-sync-email-full.py": "781fcd4795287c20e26ce08807b5698d4b4fad613ae552cef00f706e2e5ca87d",
+    "build/qa/run-fetch-history-cached.py": "11aca4d539455f0c537a451d3acc231cd01f534e86c42cdd9e49144258804660",
+    "build/qa/synchronization-history-debug-final-2026-10-11.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/synchronization-history-native-accepted-2026-10-11.log": "e9fab40f9bda8159bdf06953a3bc1e3fb7d45bca7fa732496c1f700970f82cd8",
+    "build/qa/synchronization-history-fetch-regression-2026-10-11.log": "765f25980c94a6739fd9f69398cdf018eba1aeb65fa34737d836efb12c3bfd8a",
+    "build/qa/synchronization-history-full-sync-2026-10-11.log": "e64e36c771f564b46f048f182395eb9c78f1aed64bcddd382695e91f7ec4917c",
+    "build/qa/synchronization-history-store-2026-10-11.log": "6926b9a7076d2d9ad8b2b23b24c069ce6913561b958ddbf9a873a5fe75da64dc",
+    "build/qa/synchronization-history-debug-audit-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/synchronization-history-store-audit-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/synchronization-history-inventory-audit-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/synchronization-history-full-sync-sample-2026-10-11.txt": "65af39296962e735ff5e0c48ea1155a3a12b2c418868caf731082a4d2a2569d8",
+    "build/qa/synchronization-history-site-audit-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

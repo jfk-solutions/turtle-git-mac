@@ -321,7 +321,7 @@ remain unverified. See the
 
 ## Remaining full port
 
-- Complete progress-phase arrangement and full remote-history saving/deletion.
+- Complete progress-phase arrangement and full history autocomplete/interaction acceptance.
   Tabs below the result grid, shared Force/SSH row and status/Close/Help footer
   now follow the source layout; full column and interaction parity remain partial.
   Owned branch choosers and Manage are implemented; physical acceptance is pending.
@@ -919,3 +919,32 @@ reaped. Normal captures refresh the website. This UI-only follow-up does not cla
 a new full behavioral suite run or complete dialog parity. Source columns, date
 formatting, history, menus, progress phases and signed/physical acceptance remain
 open. See the [verification record](qa/synchronization-layout-order-2026-10-11.json).
+
+## Saved history follow-up, 11 October 2026
+
+Accepted Close now saves remote branch and URL histories, following SyncDlg::OnOK
+and CBranchCombox::SaveHistory. Forced teardown does not insert typed values.
+Configured remotes append after saved URLs on initial/Manage reload; ordinary
+field refresh preserves deletions and list order. Remote branch history retains
+the source case-insensitive 25-load/26-save rule. URLs compare exact UTF-16 and
+use Sync's effectively unbounded history limit. Both controls fold CR/LF and trim
+source whitespace. Shift+Delete in an enabled open popup removes its selected
+item immediately, persists without waiting for Close and chooses the next or
+previous item. Deletion remains available during read-only refresh.
+
+The focused native Close/reopen, blocked/forced-close, popup deletion, ordering,
+case/Unicode, repository isolation and Git-state checks passed with system and
+packaged Git. Existing Pull/Fetch history workflows also passed with both engines
+after parameterizing the shared helper's limit. Receivers were run serially and
+reaped. These are receiver checks; physical popup/VoiceOver, native path/URL
+autocomplete and signed acceptance remain open.
+
+A broader full Sync regression did not complete. The system-Git receiver was
+sampled waiting in Rebase execution's Foundation Process.waitUntilExit while no
+child remained in its process group. It was stopped and reaped after diagnosis;
+no full-suite pass is claimed for this checkpoint. Resolve that process-exit stall
+and rerun the full regression before treating the broader workflows as current.
+
+Debug and unsigned universal AppStore builds, both bundle audits and the inventory
+pin check passed. No new layout screenshots or dialog certification are claimed.
+See the [verification and diagnostic record](qa/synchronization-history-native-2026-10-11.json).
