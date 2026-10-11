@@ -8,21 +8,28 @@ public struct ReleaseVersion: Comparable, Equatable, Sendable {
         var value = value.trimmingCharacters(in: .whitespacesAndNewlines)
         if value.hasPrefix("v") || value.hasPrefix("V") { value.removeFirst() }
         guard !value.isEmpty else { return nil }
-        let withoutBuild = value.split(separator: "+", maxSplits: 1, omittingEmptySubsequences: false)[0]
+        let buildParts = value.split(separator: "+", omittingEmptySubsequences: false)
+        guard buildParts.count <= 2 else { return nil }
+        if buildParts.count == 2 {
+            guard buildParts[1].split(separator: ".", omittingEmptySubsequences: false).allSatisfy({ !$0.isEmpty && $0.utf8.allSatisfy { (48...57).contains($0) || (65...90).contains($0) || (97...122).contains($0) || $0 == 45 } }) else { return nil }
+        }
+        let withoutBuild = buildParts[0]
         let pieces = withoutBuild.split(separator: "-", maxSplits: 1, omittingEmptySubsequences: false)
         let components = pieces[0].split(separator: ".", omittingEmptySubsequences: false)
         guard (2...4).contains(components.count), components.allSatisfy({ !$0.isEmpty && $0.utf8.allSatisfy { (48...57).contains($0) } }) else { return nil }
         let numbers = components.compactMap { UInt64($0) }; guard numbers.count == components.count else { return nil }
         let suffix = pieces.count == 2 ? pieces[1].split(separator: ".", omittingEmptySubsequences: false).map(String.init) : []
         guard suffix.allSatisfy({ !$0.isEmpty && $0.utf8.allSatisfy { (48...57).contains($0) || (65...90).contains($0) || (97...122).contains($0) || $0 == 45 } }) else { return nil }
+        guard suffix.allSatisfy({ !$0.utf8.allSatisfy { (48...57).contains($0) } || $0.count == 1 || !$0.hasPrefix("0") }) else { return nil }
         self.numbers = numbers + Array(repeating: 0, count: 4 - numbers.count); prerelease = suffix
     }
     public static func < (lhs: Self, rhs: Self) -> Bool {
         if lhs.numbers != rhs.numbers { return lhs.numbers.lexicographicallyPrecedes(rhs.numbers) }
         if lhs.prerelease.isEmpty || rhs.prerelease.isEmpty { return !lhs.prerelease.isEmpty && rhs.prerelease.isEmpty }
         for (a, b) in zip(lhs.prerelease, rhs.prerelease) where a != b {
-            if let first = UInt64(a), let second = UInt64(b) { return first < second }
-            if UInt64(a) != nil { return true }; if UInt64(b) != nil { return false }
+            let firstNumeric = a.utf8.allSatisfy { (48...57).contains($0) }, secondNumeric = b.utf8.allSatisfy { (48...57).contains($0) }
+            if firstNumeric && secondNumeric { return a.count == b.count ? a < b : a.count < b.count }
+            if firstNumeric { return true }; if secondNumeric { return false }
             return a < b
         }
         return lhs.prerelease.count < rhs.prerelease.count

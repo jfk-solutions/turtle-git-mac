@@ -45,3 +45,19 @@ installed App Store opening, native keyboard/visual acceptance and signed sandbo
 network execution remain in the next grouped General validation. A production
 release feed, release assets/signatures, localization and complete First Start
 Wizard remain open. Inventory counts are unchanged; no dialog is newly certified.
+
+## Grouped General/Updates/Wizard checkpoint — 2026-10-11
+
+Debug Xcode build exited 0. The focused GeneralSetupBatchTests, GitRuntimeSSHTests
+and GitConfigurationTests group passed: 13 tests, zero failures, 3.018 seconds.
+Coverage includes selective identity saves, preservation of includes/scoped
+credentials, validation before writes, idempotent helper clearing, engine
+preference persistence, PATH validation/precedence and App Store isolation,
+version/prerelease ordering, malformed tags, feed filtering and unexpected links.
+No app was launched and no live release request was tested. Xcode emitted existing
+warnings and six unusual SwiftCompile diagnostics reporting exit code 0 with no
+output; this is not a clean diagnostics claim. Logs and remaining acceptance are
+in `qa/general-setup-batch-2026-10-11.json`. Native visual/keyboard/ownership, live
+network, bookmark renewal and signed sandbox acceptance remain open. This
+checkpoint supersedes the uncompiled/untested statements above. Inventory is
+unchanged; no dialog is newly certified.

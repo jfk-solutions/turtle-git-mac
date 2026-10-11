@@ -51,3 +51,27 @@ managed-update result instead. See [Release updates](RELEASE-UPDATES-PARITY.md)
 for request/version rules, owned windows/confirmation, remaining source installer
 scope and grouped acceptance. The pending weekly-check statement above describes
 the previous checkpoint; both General continuations remain unverified.
+
+## First Start Wizard continuation (uncompiled and untested)
+
+General's Re-run First Start Wizard and the application menu now open the native
+five-stage manual setup flow. See [First Start Wizard](FIRST-START-WIZARD-PARITY.md)
+for source-ordered saves, credential preservation, permission ownership and the
+remaining automatic-first-run/key-generation/Advanced/native acceptance scope.
+This and the preceding General/update work await grouped validation.
+
+## Grouped General/Updates/Wizard checkpoint — 2026-10-11
+
+Debug Xcode build exited 0. The focused GeneralSetupBatchTests, GitRuntimeSSHTests
+and GitConfigurationTests group passed: 13 tests, zero failures, 3.018 seconds.
+Coverage includes selective identity saves, preservation of includes/scoped
+credentials, validation before writes, idempotent helper clearing, engine
+preference persistence, PATH validation/precedence and App Store isolation,
+version/prerelease ordering, malformed tags, feed filtering and unexpected links.
+No app was launched and no live release request was tested. Xcode emitted existing
+warnings and six unusual SwiftCompile diagnostics reporting exit code 0 with no
+output; this is not a clean diagnostics claim. Logs and remaining acceptance are
+in `qa/general-setup-batch-2026-10-11.json`. Native visual/keyboard/ownership, live
+network, bookmark renewal and signed sandbox acceptance remain open. This
+checkpoint supersedes the uncompiled/untested statements above. Inventory is
+unchanged; no dialog is newly certified.

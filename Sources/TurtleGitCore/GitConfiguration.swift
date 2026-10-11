@@ -295,3 +295,49 @@ extension GitRepository {
         }
     }
 }
+
+public struct FirstStartConfiguration: Sendable {
+    public let name: String, email: String
+    public let helpers: [String]
+    public let selectedHelper: String
+    public let advancedCredentials: Bool
+}
+extension GitRepository {
+    public func firstStartConfiguration(cancellation: OperationCancellation? = nil) throws -> FirstStartConfiguration {
+        let output = try run(["config", "--includes", "--null", "--get-regexp", "^(user[.](name|email)|credential[.].*helper)$"], successfulExitCodes: 0...1, cancellation: cancellation)
+        var entries: [(String, String)] = []
+        for record in output.stdout.split(separator: 0) {
+            guard let text = String(data: Data(record), encoding: .utf8) else { throw GitConfigurationFailure.output }
+            let parts = text.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false)
+            entries.append((parts[0].lowercased(), parts.count == 2 ? String(parts[1]) : ""))
+        }
+        let executablePath = try run(["--exec-path"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+        let path = GitRuntime.environment(executable: executable)["PATH"] ?? ProcessInfo.processInfo.environment["PATH"] ?? ""
+        let directories = [executablePath] + path.split(separator: ":").map(String.init)
+        var helpers = [""]
+        for name in ["osxkeychain", "manager", "manager-core", "cache", "store"] {
+            if directories.contains(where: { FileManager.default.isExecutableFile(atPath: URL(fileURLWithPath: $0).appendingPathComponent("git-credential-" + name).path) }) { helpers.append(name) }
+        }
+        let plain = entries.filter { $0.0 == "credential.helper" }
+        let selected = plain.last?.1 ?? ""
+        let advanced = plain.count > 1 || entries.contains { $0.0.hasPrefix("credential.") && $0.0 != "credential.helper" } || !helpers.contains(selected)
+        return FirstStartConfiguration(name: entries.last { $0.0 == "user.name" }?.1 ?? "", email: entries.last { $0.0 == "user.email" }?.1 ?? "", helpers: helpers, selectedHelper: selected, advancedCredentials: advanced)
+    }
+    /// Wizard writes only its two fields, preserving all unrelated Git settings.
+    public func saveFirstStartIdentity(name: String, email: String) throws {
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines), email = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, !email.isEmpty, !name.contains("\0"), !email.contains("\0") else { throw GitConfigurationFailure.invalidValue }
+        for (key, value) in [("user.name", name), ("user.email", email)] {
+            do { _ = try run(["config", "--global", "--replace-all", "--", key, value]) }
+            catch { throw GitConfigurationFailure.save(key: key, detail: error.localizedDescription) }
+        }
+    }
+    public func saveFirstStartCredentialHelper(_ helper: String) throws {
+        guard !helper.contains("\0") else { throw GitConfigurationFailure.invalidValue }
+        if helper.isEmpty {
+            let arguments = ["config", "--global", "--unset-all", "--", "credential.helper"]
+            let result = try run(arguments, successfulExitCodes: 0...5)
+            guard result.exitCode == 0 || result.exitCode == 5 else { throw GitFailure(arguments: arguments, code: result.exitCode, message: result.text) }
+        } else { _ = try run(["config", "--global", "--replace-all", "--", "credential.helper", helper]) }
+    }
+}

@@ -58,12 +58,12 @@ import TurtleGitCore
             catch { if active, request == generation, !cancellation.isCancelled { self.error = error.localizedDescription } }
         }
     }
-    func apply() async -> Bool {
-        guard modified else { return true }
+    func apply(validateUnchanged: Bool = false) async -> Bool {
+        guard modified || validateUnchanged else { return true }
         guard !busy else { return false }
         let settings = draft
         do {
-            _ = try await inspect(settings, cancellation: nil)
+            version = try await inspect(settings, cancellation: nil)
             if !GitRuntime.isAppStoreBuild { try settings.save() }
             saved = settings; return true
         } catch { self.error = error.localizedDescription; return false }
@@ -126,6 +126,7 @@ struct GeneralSettings: View {
                         })).disabled(GitRuntime.isAppStoreBuild)
                         Spacer(); Button("Check now") { ReleaseUpdateService.shared.show() }
                     }
+                    Button("Re-run First Start Wizard") { FirstStartWizardService.shared.show() }
                     Picker("Appearance:", selection: $appearance.choice) { ForEach(AppearanceChoice.allCases) { Text($0.title).tag($0) } }
                 }.padding(10)
             }

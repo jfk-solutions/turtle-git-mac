@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		B73105000000000000000001 /* ProjectDialogSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73105000000000000000002 /* ProjectDialogSettings.swift */; };
+		B73111000000000000000001 /* FirstStartWizard.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73111000000000000000002 /* FirstStartWizard.swift */; };
 		B73110000000000000000001 /* ReleaseUpdateWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73110000000000000000002 /* ReleaseUpdateWindow.swift */; };
 		B73108000000000000000001 /* GeneralSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73108000000000000000002 /* GeneralSettings.swift */; };
 		B73107000000000000000001 /* DiffToolSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73107000000000000000002 /* DiffToolSettings.swift */; };
@@ -342,6 +343,7 @@
 
 /* Begin PBXFileReference section */
 		B73105000000000000000002 /* ProjectDialogSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectDialogSettings.swift; sourceTree = "<group>"; };
+		B73111000000000000000002 /* FirstStartWizard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirstStartWizard.swift; sourceTree = "<group>"; };
 		B73110000000000000000002 /* ReleaseUpdateWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReleaseUpdateWindow.swift; sourceTree = "<group>"; };
 		B73108000000000000000002 /* GeneralSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSettings.swift; sourceTree = "<group>"; };
 		B73107000000000000000002 /* DiffToolSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiffToolSettings.swift; sourceTree = "<group>"; };
@@ -708,6 +710,7 @@
 				B73102000000000000000008 /* SettingsNavigation.swift */,
 				B7310200000000000000000A /* SettingsTransaction.swift */,
 				B73105000000000000000002 /* ProjectDialogSettings.swift */,
+				B73111000000000000000002 /* FirstStartWizard.swift */,
 				B73110000000000000000002 /* ReleaseUpdateWindow.swift */,
 				B73108000000000000000002 /* GeneralSettings.swift */,
 				B73107000000000000000002 /* DiffToolSettings.swift */,
@@ -1490,6 +1493,7 @@
 				B73102000000000000000007 /* SettingsNavigation.swift in Sources */,
 				B73102000000000000000009 /* SettingsTransaction.swift in Sources */,
 				B73105000000000000000001 /* ProjectDialogSettings.swift in Sources */,
+				B73111000000000000000001 /* FirstStartWizard.swift in Sources */,
 				B73110000000000000000001 /* ReleaseUpdateWindow.swift in Sources */,
 				B73108000000000000000001 /* GeneralSettings.swift in Sources */,
 				B73107000000000000000001 /* DiffToolSettings.swift in Sources */,

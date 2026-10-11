@@ -443,3 +443,17 @@ and source-ordered writes. Native page/editor integration remains in progress.
 No build, tests or app launches were run for this continuation; validation stays
 with the whole Dialogs section. See LOG-CACHE-PARITY.md and
 SETTINGS-NAVIGATION-PARITY.md for implementation scope and open acceptance.
+
+
+### Development cadence and General/setup batch, 2026-10-11
+
+Implement substantial feature sections before grouped validation. Repeat checks
+only for failures, meaningful subsequent changes or unresolved concerns. Close
+every app instance launched for testing. Avoid full-suite or UI relaunch loops
+between small edits.
+
+The General engine preferences, update checking and five-stage First Start Wizard
+were validated together: Debug native build exited 0 and 13 focused Core tests
+passed. Compile failures were repaired within that checkpoint. No app was
+launched. Native, network and sandbox acceptance remains open; see
+`qa/general-setup-batch-2026-10-11.json`. Full-port certification is unchanged.

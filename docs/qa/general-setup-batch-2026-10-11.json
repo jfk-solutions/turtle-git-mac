@@ -1,0 +1,29 @@
+{
+  "date": "2026-10-11",
+  "scope": "General Git engine preferences, release checking, five-stage First Start Wizard",
+  "source": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "native_build": {
+    "configuration": "Debug",
+    "exit_code": 0,
+    "log": "build/qa/general-setup-native-final-2026-10-11.log",
+    "diagnostics": "Existing warnings plus six SwiftCompile diagnostics reporting exit code 0 with no output. Not a clean diagnostics claim."
+  },
+  "core_tests": {
+    "filter": "GeneralSetupBatchTests|GitRuntimeSSHTests|GitConfigurationTests",
+    "tests": 13,
+    "failures": 0,
+    "seconds": 3.018,
+    "log": "build/qa/general-setup-core-final-2026-10-11.log"
+  },
+  "app_launches": 0,
+  "remaining": [
+    "Native layout, light/dark, keyboard and window ownership acceptance",
+    "Automatic startup/Cancel/Finish acceptance",
+    "Sandbox and signed App Store execution",
+    "Bookmark move/renewal",
+    "Live release feed and HTTP cancellation/rate failures",
+    "Wizard localization, key generation and Advanced credential dialog",
+    "Full port and all dialog certification"
+  ],
+  "cadence": "Implement substantial feature sections before grouped validation. Repeat only for failures, meaningful subsequent changes or unresolved concerns. Close every app instance launched for testing."
+}

@@ -50,7 +50,8 @@ import TurtleGitCore
 @MainActor final class ReleaseUpdateWindowController: NSWindowController, NSWindowDelegate {
     let model: ReleaseUpdateModel
     var onClosed: () -> Void = {}
-    init(model: ReleaseUpdateModel = ReleaseUpdateModel(), automatic: Bool = false) {
+    init(model suppliedModel: ReleaseUpdateModel? = nil, automatic: Bool = false) {
+        let model = suppliedModel ?? ReleaseUpdateModel()
         self.model = model
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 640, height: 470), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "Check for updates – TurtleGit for Mac"; window.isReleasedWhenClosed = false
