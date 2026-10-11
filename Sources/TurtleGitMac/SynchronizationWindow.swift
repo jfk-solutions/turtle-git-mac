@@ -47,6 +47,10 @@ extension SynchronizationTagAction {
         switch self { case .fetch: return "Fetch"; case .push: return "Push"; case .deleteLocal: return "Delete local tag"; case .deleteRemote: return "Delete tag on remote" }
     }
 }
+extension SynchronizationStashAction {
+    var title: String { switch self { case .save: return "Stash changes"; case .pop: return "Stash pop"; case .apply: return "Stash apply" } }
+    var icon: MenuIcon { self == .save ? .stash : .stashPop }
+}
 extension SynchronizationSubmoduleAction {
     var title: String {
         switch self { case .update: return "Submodule Update"; case .initialize: return "Submodule Init"; case .sync: return "Submodule Sync" }
@@ -462,6 +466,7 @@ private struct SynchronizationProgressDialog: View {
     @Published var pullAction = SynchronizationTransportAction.pull
     @Published private(set) var compareTagsSelected = false
     @Published private(set) var pushAction: SynchronizationTransportAction = .push
+    @Published private(set) var stashAction: SynchronizationStashAction = .save
     @Published private(set) var submoduleAction: SynchronizationSubmoduleAction = .update
     @Published private(set) var comparingTags = false
     @Published private(set) var tagSnapshot: SynchronizationTagSnapshot?
@@ -533,6 +538,7 @@ private struct SynchronizationProgressDialog: View {
     private(set) var closed = false
     var onLog: (String) -> Void = { _ in }
     var onCommit: () -> Void = {}
+    var onStashOptions: () -> Void = {}
     var onSubmoduleOptions: (SynchronizationSubmoduleAction) -> Void = { _ in }
     var onTagLog: ((String) -> Void)?
     var onTagsChanged: () -> Void = {}
@@ -799,6 +805,49 @@ private struct SynchronizationProgressDialog: View {
             commandCompleted = true; cancelling = false; transportRunning = false; busy = false; token = nil; transportID = nil
             // Source Submodule completion leaves Command Log selected, without
             // Fetch's reference/incoming/outgoing refill phases.
+            onTransportFinished(commandOutput)
+        }
+    }
+    func stash(_ action: SynchronizationStashAction? = nil, shift: Bool = NSEvent.modifierFlags.contains(.shift)) {
+        guard !closed, !confirmingQuit, !confirmingCancellation, !busy, !hasBlockingChild, window?.attachedSheet == nil else { return }
+        let selected = action ?? stashAction; stashAction = selected
+        if shift { if selected == .save { onStashOptions() }; return }
+        incomingCommits = nil; incomingGraph = []; incomingComparison.snapshot = nil; conflicts = []
+        comparingTags = false; tagSnapshot = nil
+        let operationID = UUID(); transportID = operationID
+        let request = OperationCancellation(); token = request; busy = true; transportRunning = true
+        cancelling = false; commandCompleted = false; commandSucceeded = false
+        outputState.reset(); commandOutput = ""; percentage = nil; currentWork = ""; error = nil; tab = 2
+        Task {
+            defer { if transportID == operationID { token = nil; busy = false; transportRunning = false; cancelling = false; transportID = nil } }
+            let parser = GitCliOutputParser(limit: outputState.limit)
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
+                let operation = Task {
+                    defer { continuation.finish() }
+                    return try await repository.synchronizationStash(selected, cancellation: request,
+                        onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) })
+                }
+                for await _ in updates { consume(parser.processPending(), parser: parser, request: request) }
+                consume(parser.processPending(), parser: parser, request: request); consume(parser.finish(), parser: parser, request: request)
+                let result = try await operation.value
+                guard !closed, token === request else { return }
+                if !outputState.hasOutput { commandOutput = result.command.text }
+                commandSucceeded = result.command.exitCode == 0
+                if !commandSucceeded { self.error = result.conflictCheckError ?? "Git exited with status \(result.command.exitCode)." }
+                if let message = result.conflictCheckError { commandOutput += "\nChecking for conflicts failed: " + message }
+                conflicts = result.conflicts; if !conflicts.isEmpty { tab = 6 }
+            } catch {
+                guard !closed, token === request else { return }
+                let message = request.isCancelled ? "Synchronization cancelled." : error.localizedDescription
+                commandOutput += (commandOutput.isEmpty || commandOutput.hasSuffix("\n") ? "" : "\n") + message
+                self.error = message
+            }
+            guard !closed, token === request else { return }
+            commandCompleted = true; cancelling = false; transportRunning = false; busy = false; token = nil; transportID = nil
+            // Stash leaves the outgoing/reference projection unchanged. Failed
+            // restore shows Conflicts only for actual unmerged entries.
             onTransportFinished(commandOutput)
         }
     }
@@ -1103,8 +1152,19 @@ private struct SynchronizationDialog: View {
                         }
                     } label: { Text("").accessibilityLabel("Submodule actions") }.menuStyle(.borderlessButton).fixedSize()
                 }.disabled(model.busy || model.hasBlockingChild)
+                Spacer()
+            }
+            HStack {
                 Button { model.onLog(model.localBranch) } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(model.busy || model.localBranch.isEmpty)
                 Button { model.onCommit() } label: { CommandLabel(title: "Commit", icon: .commit) }.disabled(model.busy)
+                HStack(spacing: 0) {
+                    Button { model.stash() } label: { CommandLabel(title: model.stashAction.title, icon: model.stashAction.icon) }
+                    Menu {
+                        ForEach(SynchronizationStashAction.allCases, id: \.rawValue) { action in
+                            Button { model.stash(action) } label: { CommandLabel(title: action.title, icon: action.icon) }
+                        }
+                    } label: { Text("").accessibilityLabel("Stash actions") }.menuStyle(.borderlessButton).fixedSize()
+                }.disabled(model.busy || model.hasBlockingChild)
                 Button("Refresh") { model.refresh() }.disabled(model.transportRunning || model.hasBlockingChild)
                 Spacer()
                 if model.transportRunning {

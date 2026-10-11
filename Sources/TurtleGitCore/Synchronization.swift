@@ -1,6 +1,38 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import Foundation
 
+public enum SynchronizationStashAction: Int, CaseIterable, Sendable {
+    case save, pop, apply
+    public var arguments: [String] {
+        switch self { case .save: return ["stash", "save"]; case .pop: return ["stash", "pop"]; case .apply: return ["stash", "apply"] }
+    }
+}
+public struct SynchronizationStashResult: Sendable {
+    public let command: GitResult
+    public let conflicts: [StatusEntry]
+    public let conflictCheckError: String?
+}
+public enum SynchronizationStashFailure: LocalizedError {
+    case workingTree
+    public var errorDescription: String? { "Stash requires a working-tree repository." }
+}
+extension GitRepository {
+    public func synchronizationStash(_ action: SynchronizationStashAction, cancellation: OperationCancellation? = nil,
+                                     onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> SynchronizationStashResult {
+        let token = cancellation ?? OperationCancellation()
+        guard try !isBare(cancellation: token) else { throw SynchronizationStashFailure.workingTree }
+        // Save accepts no user pathspecs. Its internal :/ cleanup must retain
+        // Git's magic pathspec semantics, as in the standalone Save workflow.
+        let result = try run(action.arguments, literalPathspecs: action != .save, successfulExitCodes: 0...255, cancellation: token, onOutput: onOutput)
+        var conflicts: [StatusEntry] = [], checkError: String?
+        if result.exitCode != 0 && action != .save {
+            do { conflicts = try status(refreshIndex: false, cancellation: token).filter { $0.state == .conflicted } }
+            catch { try token.check(); checkError = error.localizedDescription }
+        }
+        return SynchronizationStashResult(command: result, conflicts: conflicts, conflictCheckError: checkError)
+    }
+}
+
 /// SyncDlg's Submodule split button is independent of its Pull/Push transports.
 public enum SynchronizationSubmoduleAction: Int, CaseIterable, Sendable {
     case update, initialize, sync

@@ -1084,6 +1084,65 @@ import TurtleGitCore
         print("PASS: native Sync Submodule Init/Update/Sync, ignored transport fields, Command Log completion without outgoing refill, Force, persisted selection, Shift routes without parent busy/persistence, closed-owner refusal, forced process cleanup and actual standalone Update options/progress and running Sync lifetimes after parent closure; HEAD/index preserved")
     }
 
+    @MainActor static func verifyStash(root: URL, preferences: UserDefaults) async throws {
+        let directory = root.deletingLastPathComponent().appendingPathComponent("qa-sync-stash-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let git = URL(fileURLWithPath: CommandLine.arguments[2]), parent = GitRepository(root: root, executable: URL(fileURLWithPath: CommandLine.arguments[2]))
+        _ = try await parent.run(["clone", "--template=", "--", root.path, directory.path])
+        let repo = GitRepository(root: directory, executable: git), file = directory.appendingPathComponent("file")
+        for (key,value) in [("user.name","Stash QA"),("user.email","qa@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")] { _ = try await repo.run(["config",key,value]) }
+        let head = try await repo.run(["rev-parse","HEAD"]).stdout
+        let owner = SynchronizationWindowController(repository: repo, access: nil, preferences: preferences)
+        owner.window!.alphaValue = 0; owner.showWindow(nil); defer { owner.close() }
+        try await settle { !owner.model.busy && owner.model.outgoing != nil }
+        let model = owner.model, projection = model.outgoing!.remoteReference
+        var shifted = 0, finished = 0
+        model.onStashOptions = { shifted += 1 }; model.onTransportFinished = { _ in finished += 1 }
+        model.remote = "ignored remote"; model.force = true
+        try Data("work to stash\n".utf8).write(to:file)
+        try Data("keep untracked\n".utf8).write(to:directory.appendingPathComponent("untracked"))
+        model.stash(.save,shift:false); precondition(model.busy && model.transportRunning && model.tab == 2)
+        try await settle { !model.busy }
+        precondition(model.commandSucceeded && model.commandCompleted && finished == 1 && FileManager.default.fileExists(atPath:directory.appendingPathComponent("untracked").path))
+        model.stash(.apply,shift:false); try await settle { !model.busy }
+        precondition(model.commandSucceeded && model.tab == 2 && finished == 2)
+        _ = try await repo.run(["reset","--hard","HEAD"])
+        model.stash(.pop,shift:false); try await settle { !model.busy }
+        precondition(model.commandSucceeded && model.tab == 2 && finished == 3)
+        model.stash(.pop,shift:false); try await settle { !model.busy }
+        precondition(!model.commandSucceeded && model.conflicts.isEmpty && model.tab == 2 && finished == 4)
+        _ = try await repo.run(["reset","--hard","HEAD"])
+        try Data("stash side\n".utf8).write(to:file); model.stash(.save,shift:false); try await settle { !model.busy }
+        try Data("branch side\n".utf8).write(to:file); _ = try await repo.run(["commit","-am","diverge"])
+        model.stash(.pop,shift:false); try await settle { !model.busy }
+        precondition(!model.commandSucceeded && model.conflicts.map(\.path) == ["file"] && model.tab == 6 && finished == 6 && model.outgoing!.remoteReference == projection && model.incomingCommits == nil)
+        let stashBeforeShift = try await repo.run(["rev-parse","refs/stash"]).stdout
+        for action in [SynchronizationStashAction.pop,.apply] { model.stash(action,shift:true); precondition(!model.busy && shifted == 0 && finished == 6) }
+        model.stash(.save,shift:true); precondition(!model.busy && shifted == 1 && finished == 6)
+        let stashAfterShift = try await repo.run(["rev-parse","refs/stash"]).stdout
+        precondition(stashBeforeShift == stashAfterShift)
+        let fresh = SynchronizationWindowModel(repository:repo,access:nil,preferences:preferences)
+        precondition(fresh.stashAction == .save); fresh.invalidate()
+        owner.close(); model.stash(.save,shift:true); precondition(shifted == 1 && model.closed)
+        _ = try await repo.run(["reset","--hard","HEAD"])
+        // Preserve HEAD through the direct stash actions; the deliberate conflict
+        // commit above is the sole branch movement in this fixture.
+        let parentOfConflict = try await repo.run(["rev-parse","HEAD^"]).stdout; precondition(parentOfConflict == head)
+        func quote(_ value:String)->String { "'" + value.replacingOccurrences(of:"'",with:"'\"'\"'") + "'" }
+        let shim = directory.appendingPathComponent("blocked-git"), marker = directory.appendingPathComponent("stash-pid")
+        let script = "#!/bin/sh\nfor argument; do\nif [ \"$argument\" = stash ]; then\nprintf '%s\\n' \"$$\" > " + quote(marker.path) + "\nwhile :; do sleep 1; done\nfi\ndone\nexec " + quote(git.path) + " \"$@\"\n"
+        try Data(script.utf8).write(to:shim); try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:shim.path)
+        let blockedOwner = SynchronizationWindowController(repository:GitRepository(root:directory,executable:shim),access:nil,preferences:preferences)
+        blockedOwner.window!.alphaValue = 0; blockedOwner.showWindow(nil); defer { blockedOwner.close() }
+        try await settle { !blockedOwner.model.busy && blockedOwner.model.outgoing != nil }
+        var late = 0; blockedOwner.model.onTransportFinished = { _ in late += 1 }
+        blockedOwner.model.stash(.save,shift:false); try await settle { FileManager.default.fileExists(atPath:marker.path) }
+        let pid = pid_t(try String(contentsOf:marker).trimmingCharacters(in:.newlines))!
+        blockedOwner.close(); try await settle { kill(pid,0) == -1 && errno == ESRCH }
+        precondition(blockedOwner.model.closed && !blockedOwner.model.busy && !blockedOwner.model.transportRunning && late == 0)
+        print("PASS: native Sync Stash Save/Apply/Pop, Command Log and actual conflict tab, retained outgoing projection, hidden incoming results, ignored remote/Force, no persisted split selection, Shift Save routing and Pop/Apply no-ops, closed-owner fencing and forced process cleanup")
+    }
+
     @MainActor static func main() async throws {
         if let status = RebaseEditor.handle(arguments: CommandLine.arguments, environment: ProcessInfo.processInfo.environment) { exit(status) }
         NSApplication.shared.setActivationPolicy(.prohibited)
@@ -1092,12 +1151,13 @@ import TurtleGitCore
         _ = try await repo.run(["init", "-b", "main"])
         for (key, value) in [("user.name", "Sync QA"), ("user.email", "qa@example.invalid"), ("commit.gpgsign", "false"), ("core.hooksPath", "/dev/null")] { _ = try await repo.run(["config", key, value]) }
         try Data("base\n".utf8).write(to: root.appendingPathComponent("file")); try await repo.stage(["file"]); _ = try await repo.commit(message: "base")
-        if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_TAGS_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_PUSH_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_SUBMODULES_ONLY"] == "1" {
+        if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_TAGS_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_PUSH_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_SUBMODULES_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_STASH_ONLY"] == "1" {
             try Data("second\n".utf8).write(to: root.appendingPathComponent("file")); try await repo.stage(["file"]); _ = try await repo.commit(message: "second")
             let suite = "TurtleGit.Tags.QA." + UUID().uuidString, preferences = UserDefaults(suiteName: suite)!
             defer { preferences.removePersistentDomain(forName: suite) }
             DialogGeometry.install(preferences: preferences)
-            if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_SUBMODULES_ONLY"] == "1" { try await verifySubmodules(root: root, preferences: preferences) }
+            if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_STASH_ONLY"] == "1" { try await verifyStash(root:root,preferences:preferences) }
+            else if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_SUBMODULES_ONLY"] == "1" { try await verifySubmodules(root: root, preferences: preferences) }
             else if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_PUSH_ONLY"] == "1" { try await verifyPush(root: root, preferences: preferences) }
             else { try await verifyTags(root: root, preferences: preferences) }; return
         }
@@ -1172,6 +1232,7 @@ import TurtleGitCore
         try await verifyTags(root: root, preferences: preferences)
         try await verifyPush(root: root, preferences: preferences)
         try await verifySubmodules(root: root, preferences: preferences)
+        try await verifyStash(root: root, preferences: preferences)
         print("PASS: native Sync tracking controls, exact Unicode choices, graph-first table, changes and pinned comparison snapshot, divergence/Force, unknown states, Quit fences, owner invalidation and read-only preservation")
     }
 }

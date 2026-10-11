@@ -728,6 +728,7 @@ import TurtleGitCore
         }
         controller.model.onLog = { [weak self] revision in self?.showLog(repository: repository, access: access, paths: [], endRevision: revision) }
         controller.model.onCommit = { [weak self] in self?.showCommitDialog(repository: repository, access: access, paths: []) }
+        controller.model.onStashOptions = { [weak self] in self?.showStash(repository: repository, access: access) }
         controller.model.onSubmoduleOptions = { [weak self] action in
             if action == .sync { self?.showSubmoduleSync(repository: repository, access: access, scope: []) }
             else { self?.showSubmoduleUpdate(repository: repository, access: access, scope: []) }
