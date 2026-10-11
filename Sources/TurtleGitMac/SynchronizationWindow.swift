@@ -9,19 +9,46 @@ struct SynchronizationTrackingAnswer {
     var suppress = false
 }
 enum SynchronizationProgressResult: Sendable {
-    case checkout(SynchronizationPullCheckout), merge(GitResult)
+    case checkout(SynchronizationPullCheckout), merge(GitResult), tags(SynchronizationTagSnapshot), tag(GitResult)
 }
 enum SynchronizationProgressOperation: Sendable {
     case checkout(SynchronizationTransportPlan), merge(SynchronizationRebaseState)
-    var title: String { if case .checkout = self { return "Checkout Progress" }; return "Merge Progress" }
+    case tags(String), tag(SynchronizationTagAction, SynchronizationTagRow, SynchronizationTagSnapshot, Bool)
+    var title: String {
+        switch self {
+        case .checkout: return "Checkout Progress"
+        case .merge: return "Merge Progress"
+        case .tags: return "Compare Tags"
+        case .tag(let action, _, _, _): return action.title + " Progress"
+        }
+    }
     var label: String {
         switch self {
         case .checkout(let plan): return "Switch to " + (plan.checkoutBranch ?? plan.options.localBranch)
         case .merge(let state): return "Fast-forward to " + state.target
+        case .tags(let remote): return "Loading tags from " + remote
+        case .tag(let action, let row, let snapshot, _): return action.title + " – " + row.tag.rawValue + (action == .deleteLocal ? "" : " – " + snapshot.remote)
         }
     }
-    var work: String { if case .checkout = self { return "Switching…" }; return "Merging…" }
-    var failure: String { if case .checkout = self { return "Checkout failed" }; return "Merge failed" }
+    var work: String {
+        switch self { case .checkout: return "Switching…"; case .merge: return "Merging…"; case .tags: return "Please wait…"; case .tag: return "Running Git…" }
+    }
+    var failure: String { title.replacingOccurrences(of: " Progress", with: "") + " failed" }
+    var loadingTags: Bool { if case .tags = self { return true }; return false }
+    var closeOnSuccess: Bool {
+        if case .tag(let action, _, _, _) = self { return action == .deleteLocal || action == .deleteRemote }
+        return true
+    }
+}
+extension SynchronizationTagAction {
+    var title: String {
+        switch self { case .fetch: return "Fetch"; case .push: return "Push"; case .deleteLocal: return "Delete local tag"; case .deleteRemote: return "Delete tag on remote" }
+    }
+}
+extension SynchronizationTagKind {
+    var title: String {
+        switch self { case .same: return "Same"; case .differ: return "Differ"; case .onlyLocal: return "Only local"; case .onlyRemote: return "Only remote" }
+    }
 }
 
 @MainActor final class SynchronizationProgressController: NSWindowController, NSWindowDelegate {
@@ -29,13 +56,13 @@ enum SynchronizationProgressOperation: Sendable {
     var onClosed: () -> Void = {}
     private var alert: NSAlert?
     private var completion: ((Result<SynchronizationProgressResult, Error>) -> Void)?
-    init(repository: GitRepository, operation: SynchronizationProgressOperation, cancellation: OperationCancellation, preferences: UserDefaults,
+    init(repository: GitRepository, operation: SynchronizationProgressOperation, cancellation: OperationCancellation, preferences: UserDefaults, transportFactory: SSHTransportFactory? = nil,
          completion: @escaping (Result<SynchronizationProgressResult, Error>) -> Void) {
-        model = SynchronizationProgressModel(repository: repository, operation: operation, cancellation: cancellation, preferences: preferences)
+        model = SynchronizationProgressModel(repository: repository, operation: operation, cancellation: cancellation, preferences: preferences, transportFactory: transportFactory)
         self.completion = completion
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 420), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: operation.loadingTags ? 480 : 760, height: operation.loadingTags ? 170 : 420), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – \(operation.title) – TurtleGit"
-        window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 560, height: 300)
+        window.isReleasedWhenClosed = false; window.contentMinSize = operation.loadingTags ? NSSize(width: 400, height: 150) : NSSize(width: 560, height: 300)
         window.contentViewController = NSHostingController(rootView: SynchronizationProgressDialog(model: model))
         super.init(window: window); window.delegate = self
         model.close = { [weak self] in self?.closePresentation() }
@@ -69,6 +96,8 @@ enum SynchronizationProgressOperation: Sendable {
 @MainActor final class SynchronizationProgressModel: ObservableObject {
     let repository: GitRepository, operation: SynchronizationProgressOperation, preferences: UserDefaults
     private let cancellation: OperationCancellation
+    private let transportFactory: SSHTransportFactory?
+    private var transportCoordinator: SSHTransportCoordinator?
     private var started = false, closed = false
     @Published private(set) var busy = true
     @Published private(set) var output = ""
@@ -76,10 +105,11 @@ enum SynchronizationProgressOperation: Sendable {
     private(set) var result: Result<SynchronizationProgressResult, Error>?
     var close: () -> Void = {}
     var confirmCancel: (@escaping (Bool) -> Void) -> Void = { $0(false) }
-    init(repository: GitRepository, operation: SynchronizationProgressOperation, cancellation: OperationCancellation, preferences: UserDefaults) {
+    init(repository: GitRepository, operation: SynchronizationProgressOperation, cancellation: OperationCancellation, preferences: UserDefaults, transportFactory: SSHTransportFactory? = nil) {
+        self.transportFactory = transportFactory
         self.repository = repository; self.operation = operation; self.cancellation = cancellation; self.preferences = preferences
     }
-    func invalidate() { closed = true; if busy { cancellation.cancel() }; busy = false; confirmingCancellation = false }
+    func invalidate() { closed = true; if busy { cancellation.cancel() }; transportCoordinator?.close(); transportCoordinator = nil; busy = false; confirmingCancellation = false }
     func cancel() {
         guard !closed, busy, !confirmingCancellation, !cancellation.isCancelled else { return }
         if preferences.bool(forKey: "ConfirmKillProcess") {
@@ -88,13 +118,15 @@ enum SynchronizationProgressOperation: Sendable {
             confirmCancel { [weak self] accepted in
                 guard !answered, let self, !self.closed else { return }; answered = true; self.confirmingCancellation = false
                 if accepted, self.busy { self.cancellation.cancel() }
-                if !self.busy, case .success = self.result { self.close() }
+                if !self.busy, self.operation.closeOnSuccess, case .success = self.result { self.close() }
             }
         } else { cancellation.cancel() }
     }
     func start() {
         guard !started, !closed else { return }; started = true
         Task {
+            let coordinator = transportFactory?(); transportCoordinator = coordinator
+            defer { coordinator?.close(); transportCoordinator = nil }
             let parser = GitCliOutputParser(limit: GitProgressOutputState(preferences: preferences).limit)
             var state = GitProgressOutputState(preferences: preferences)
             let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
@@ -107,6 +139,11 @@ enum SynchronizationProgressOperation: Sendable {
                 case .merge(let state):
                     return SynchronizationProgressResult.merge(try await repository.synchronizationFastForward(state, cancellation: cancellation,
                         onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }))
+                case .tags(let remote):
+                    return SynchronizationProgressResult.tags(try await repository.synchronizationTags(remote: remote, cancellation: cancellation, prepareTransport: coordinator?.preparation))
+                case .tag(let action, let row, let snapshot, let authorized):
+                    return SynchronizationProgressResult.tag(try await repository.synchronizeTag(action, row: row, snapshot: snapshot, deletionAuthorized: authorized, cancellation: cancellation,
+                        onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }, prepareTransport: coordinator?.preparation))
                 }
             }
             for await _ in updates {
@@ -121,7 +158,7 @@ enum SynchronizationProgressOperation: Sendable {
                 else { output += "\n" + error.localizedDescription }
             }
             guard !closed else { return }; busy = false
-            if !confirmingCancellation, case .success = result { close() }
+            if !confirmingCancellation, self.operation.closeOnSuccess, case .success = result { close() }
         }
     }
 }
@@ -131,9 +168,15 @@ private struct SynchronizationProgressDialog: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(model.operation.label).font(.headline)
-            SubmoduleProgressOutputView(text: model.output, completed: !model.busy, success: { if case .success = model.result { return true }; return false }(), preferences: model.preferences)
+            if model.operation.loadingTags {
+                if model.busy { ProgressView().progressViewStyle(.linear) }
+                else { Text(model.output).foregroundStyle(.red).textSelection(.enabled) }
+                Spacer()
+            } else {
+                SubmoduleProgressOutputView(text: model.output, completed: !model.busy, success: { if case .success = model.result { return true }; return false }(), preferences: model.preferences)
+            }
             HStack {
-                if model.busy { ProgressView().controlSize(.small); Text(model.operation.work) } else { Text(model.operation.failure).foregroundStyle(.red) }
+                if model.busy { ProgressView().controlSize(.small); Text(model.operation.work) } else if case .success = model.result { Text("Finished") } else { Text(model.operation.failure).foregroundStyle(.red) }
                 Spacer()
                 if model.busy { Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction) }
                 else { Button("Close") { model.close() }.keyboardShortcut(.defaultAction) }
@@ -147,7 +190,7 @@ private struct SynchronizationProgressDialog: View {
     var onClosed: () -> Void = {}
     private var cancellationAlert: NSAlert?
     private var pullAlert: NSAlert?
-    private var commandProgress: SynchronizationProgressController?
+    private(set) var commandProgress: SynchronizationProgressController?
     private(set) var optionsController: FetchWindowController?
     var configureOptions: (FetchWindowController) -> Void = { _ in }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
@@ -228,7 +271,7 @@ private struct SynchronizationProgressDialog: View {
                 let child = SynchronizationProgressController(repository: repository, operation: .checkout(plan), cancellation: token, preferences: preferences) { result in
                     switch result {
                     case .success(.checkout(let checkpoint)): continuation.resume(returning: checkpoint)
-                    case .success(.merge): continuation.resume(throwing: SynchronizationFailure.invalidInput)
+                    case .success: continuation.resume(throwing: SynchronizationFailure.invalidInput)
                     case .failure(let error): continuation.resume(throwing: error)
                     }
                 }
@@ -244,13 +287,32 @@ private struct SynchronizationProgressDialog: View {
                 let child = SynchronizationProgressController(repository: repository, operation: .merge(state), cancellation: token, preferences: preferences) { result in
                     switch result {
                     case .success(.merge(let command)): continuation.resume(returning: .success(command))
-                    case .success(.checkout): continuation.resume(returning: .failure(SynchronizationFailure.invalidInput))
+                    case .success: continuation.resume(returning: .failure(SynchronizationFailure.invalidInput))
                     case .failure(let error): continuation.resume(returning: .failure(error))
                     }
                 }
                 self.commandProgress = child; child.onClosed = { [weak self] in self?.commandProgress = nil }
                 child.window?.alphaValue = window.alphaValue; window.beginSheet(child.window!); child.model.start()
             }
+        }
+        model.performTagOperation = { [weak self] operation, token in
+            guard let self, !self.model.closed, let window = self.window, window.attachedSheet == nil else { return .failure(OperationCancellationFailure.cancelled) }
+            return await withCheckedContinuation { continuation in
+                let child = SynchronizationProgressController(repository: repository, operation: operation, cancellation: token, preferences: preferences, transportFactory: self.model.sshSettings.capture()) { result in
+                    continuation.resume(returning: result)
+                }
+                self.commandProgress = child; child.onClosed = { [weak self] in self?.commandProgress = nil }
+                child.window?.alphaValue = window.alphaValue; window.beginSheet(child.window!); child.model.start()
+            }
+        }
+        model.confirmTagDeletion = { [weak self] action, row, snapshot in
+            guard let self, !self.model.closed, let window = self.window, window.attachedSheet == nil else { return false }
+            let alert = NSAlert(); alert.messageText = "Delete tag?"
+            alert.informativeText = "Delete \(row.tag.rawValue)" + (action == .deleteRemote ? " on \(snapshot.remote)?" : " locally?")
+            alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No"); self.pullAlert = alert
+            let response = await alert.beginSheetModal(for: window)
+            if self.pullAlert === alert { self.pullAlert = nil }
+            return response == .alertFirstButtonReturn
         }
         model.presentRebasePrompt = { [weak self] prompt in
             guard let self, !self.model.closed, let window = self.window, window.attachedSheet == nil else { return FetchRebaseAnswer(value: prompt.answers[prompt.defaultIndex], suppress: false) }
@@ -267,8 +329,9 @@ private struct SynchronizationProgressDialog: View {
             return FetchRebaseAnswer(value: prompt.answers.indices.contains(index) ? prompt.answers[index] : prompt.answers[prompt.defaultIndex], suppress: alert.suppressionButton?.state == .on)
         }
         model.sshSettings.present = { [weak self] prompt in
-            guard let self, !self.model.closed, !self.model.confirmingQuit, let window = self.window, window.attachedSheet == nil else { return false }
-            guard let child = prompt.window else { return false }
+            guard let self, !self.model.closed, !self.model.confirmingQuit, let root = self.window else { return false }
+            let window = self.commandProgress?.window ?? root
+            guard window.attachedSheet == nil, let child = prompt.window else { return false }
             window.makeFirstResponder(nil); window.beginSheet(child); return true
         }
         model.confirmCancellation = { [weak self] reply in
@@ -339,6 +402,13 @@ private struct SynchronizationProgressDialog: View {
     @Published private(set) var incomingGraph: [CommitGraphRow] = []
     @Published private(set) var conflicts: [StatusEntry] = []
     @Published var pullAction = SynchronizationTransportAction.pull
+    @Published private(set) var compareTagsSelected = false
+    @Published private(set) var comparingTags = false
+    @Published private(set) var tagSnapshot: SynchronizationTagSnapshot?
+    @Published var hideEqualTags = false
+    var performTagOperation: (SynchronizationProgressOperation, OperationCancellation) async -> Result<SynchronizationProgressResult, Error> = { _, _ in .failure(SynchronizationFailure.invalidInput) }
+    var confirmTagDeletion: (SynchronizationTagAction, SynchronizationTagRow, SynchronizationTagSnapshot) async -> Bool = { _, _, _ in false }
+    var tagRows: [SynchronizationTagRow] { (tagSnapshot?.rows ?? []).filter { !hideEqualTags || $0.kind != .same } }
     var confirmCheckout: (String) async -> Bool = { _ in false }
     var askTracking: (String, String, String) async -> SynchronizationTrackingAnswer = { _, _, _ in SynchronizationTrackingAnswer(choice: .cancel) }
     var performCheckout: ((SynchronizationTransportPlan, OperationCancellation) async throws -> SynchronizationPullCheckout)?
@@ -357,6 +427,7 @@ private struct SynchronizationProgressDialog: View {
         return snapshot.from == snapshot.to
     }
     var pullActionTitle: String {
+        if compareTagsSelected { return "Compare Tags" }
         switch pullAction {
         case .pull: return "Pull"
         case .fetchAndRebase: return "Fetch & Rebase"
@@ -396,6 +467,8 @@ private struct SynchronizationProgressDialog: View {
     private(set) var closed = false
     var onLog: (String) -> Void = { _ in }
     var onCommit: () -> Void = {}
+    var onTagLog: ((String) -> Void)?
+    var onTagsChanged: () -> Void = {}
     var onReferenceLog: (String) -> Void = { _ in }
     var onReferenceCompare: (String, String) -> Void = { _, _ in }
     var hasBlockingChild: Bool {
@@ -420,17 +493,20 @@ private struct SynchronizationProgressDialog: View {
         case 3: pullAction = .fetchAllBranches
         case 4: pullAction = .remoteUpdate
         case 5: pullAction = .prune
+        case 6: compareTagsSelected = true
         default: pullAction = .pull
         }
         branchHistory = preferences.stringArray(forKey: historyKey + ".branches") ?? []
         urlHistory = preferences.stringArray(forKey: historyKey + ".urls") ?? []
         sshSettings.load(preferences, key: historyKey + ".autoload")
         hideUnchangedReferences = preferences.bool(forKey: "RefCompareHideUnchanged")
+        hideEqualTags = preferences.bool(forKey: "TagCompareHideEqual")
     }
     var status: String {
         if transportRunning { return cancelling ? "Cancelling…" : (currentWork.isEmpty ? "Running Git…" : currentWork) }
         if busy { return "Loading…" }
         if let error { return error }
+        if comparingTags { return "\(tagRows.count) tags" }
         switch outgoing?.disposition {
         case .unknownURL: return "Outgoing commits are unknown for a URL."
         case .unknownRemoteBranch: return "Remote branch is unknown."
@@ -444,6 +520,7 @@ private struct SynchronizationProgressDialog: View {
     func reload(selectTracking: Bool = false, initial: Bool = false, preserveError: Bool = false) {
         guard !closed, !confirmingQuit, !transportRunning, !hasBlockingChild else { return }
         token?.cancel()
+        comparingTags = false; tagSnapshot = nil; if tab == 7 { tab = 0 }
         let retainedError = preserveError ? error : nil
         let request = OperationCancellation(); token = request; busy = true; error = retainedError
         outgoing = nil; graph = []; fileSelection = []; comparison.snapshot = nil
@@ -469,7 +546,66 @@ private struct SynchronizationProgressDialog: View {
             }
         }
     }
-    func performPullAction(_ action: SynchronizationTransportAction? = nil, shift: Bool = NSEvent.modifierFlags.contains(.shift)) { fetch(action ?? pullAction, shift: shift) }
+    func performPullAction(_ action: SynchronizationTransportAction? = nil, shift: Bool = NSEvent.modifierFlags.contains(.shift)) {
+        if action == nil, compareTagsSelected { compareTags(shift: shift) }
+        else { fetch(action ?? pullAction, shift: shift) }
+    }
+    func refresh() { if comparingTags { compareTags() } else { reload() } }
+    func compareTags(shift: Bool = false) {
+        guard !closed, !confirmingQuit, !busy, !hasBlockingChild, window?.attachedSheet == nil else { return }
+        compareTagsSelected = true; preferences.set(6, forKey: historyKey + ".pullAction")
+        if shift { return }
+        let request = OperationCancellation(); token = request; busy = true; transportRunning = true
+        comparingTags = true; tagSnapshot = nil; tab = 7; error = nil; commandOutput = ""; referenceChanges = []
+        incomingCommits = nil; incomingGraph = []; incomingComparison.snapshot = nil; conflicts = []
+        let selectedRemote = remote
+        sshSettings.save(preferences, key: historyKey + ".autoload")
+        Task {
+            defer { if token === request { token = nil; busy = false; transportRunning = false } }
+            do {
+                try checkTagAccess()
+                _ = try await repository.run(["rev-parse", "--verify", "HEAD"], cancellation: request)
+                if request.isCancelled { throw OperationCancellationFailure.cancelled }
+                guard !closed, token === request else { return }
+                let result = await performTagOperation(.tags(selectedRemote), request)
+                guard !closed, token === request, !request.isCancelled else { return }
+                switch result { case .success(.tags(let snapshot)): tagSnapshot = snapshot; case .failure(let failure): error = failure.localizedDescription; default: error = SynchronizationFailure.invalidInput.localizedDescription }
+            } catch { if !closed, token === request { self.error = error.localizedDescription } }
+        }
+    }
+    private func checkTagAccess() throws {
+        if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+    }
+    func performTag(_ action: SynchronizationTagAction, row: SynchronizationTagRow) {
+        guard !closed, !confirmingQuit, !busy, !hasBlockingChild, window?.attachedSheet == nil,
+              let snapshot = tagSnapshot, snapshot.rows.contains(row), row.allows(action) else { return }
+        let request = OperationCancellation(); token = request; busy = true; transportRunning = true; error = nil
+        Task {
+            var finalRequest = request
+            defer { if token === finalRequest { token = nil; busy = false; transportRunning = false } }
+            do {
+                try checkTagAccess()
+                if action == .deleteLocal || action == .deleteRemote {
+                    let accepted = await confirmTagDeletion(action, row, snapshot)
+                    guard !closed, token === request, !request.isCancelled, accepted else { return }
+                }
+                let result = await performTagOperation(.tag(action, row, snapshot, action == .deleteLocal || action == .deleteRemote), request)
+                guard !closed, token === request else { return }
+                onTagsChanged()
+                if case .failure(let failure) = result {
+                    error = failure.localizedDescription
+                    // Upstream remote deletion returns immediately on failure.
+                    if action == .deleteRemote { return }
+                }
+                // Fetch/Push refill after their progress closes, even after failure
+                // or cancellation, since Git may already have changed a tag.
+                let refresh = OperationCancellation(); finalRequest = refresh; token = refresh; tagSnapshot = nil
+                let updated = await performTagOperation(.tags(snapshot.remote), refresh)
+                guard !closed, token === refresh, !refresh.isCancelled else { return }
+                switch updated { case .success(.tags(let snapshot)): tagSnapshot = snapshot; case .failure(let failure): error = error ?? failure.localizedDescription; default: error = error ?? SynchronizationFailure.invalidInput.localizedDescription }
+            } catch { if !closed, token === finalRequest { self.error = error.localizedDescription } }
+        }
+    }
     private func rebaseAnswer(_ prompt: FetchRebasePrompt, request: OperationCancellation) async throws -> Int {
         guard !closed, token === request, !request.isCancelled else { throw OperationCancellationFailure.cancelled }
         if let saved = preferences.object(forKey: prompt.rawValue) as? Int, prompt.answers.contains(saved) { return saved }
@@ -483,10 +619,11 @@ private struct SynchronizationProgressDialog: View {
     func fetch(_ action: SynchronizationTransportAction = .fetch, shift: Bool = false) {
         guard [.pull, .fetch, .fetchAndRebase, .fetchAllBranches, .remoteUpdate, .prune].contains(action),
               !closed, !confirmingQuit, !confirmingCancellation, !busy, !hasBlockingChild, window?.attachedSheet == nil else { return }
-        pullAction = action
+        pullAction = action; compareTagsSelected = false
         let actionIndex = action == .pull ? 0 : action == .fetch ? 1 : action == .fetchAndRebase ? 2 : action == .fetchAllBranches ? 3 : action == .remoteUpdate ? 4 : 5
         preferences.set(actionIndex, forKey: historyKey + ".pullAction")
         if shift && action != .pull && action != .fetch { return }
+        comparingTags = false; tagSnapshot = nil
         let operationID = UUID(); transportID = operationID
         let request = OperationCancellation(); token = request; busy = true; transportRunning = true
         cancelling = false; commandCompleted = false; commandSucceeded = false; referenceChanges = []
@@ -705,12 +842,18 @@ private struct SynchronizationDialog: View {
                 }.padding(6)
             }.disabled(model.transportRunning || model.hasBlockingChild)
             Picker("Changes", selection: $model.tab) {
+                if model.comparingTags { Text("Compare Tags").tag(7) }
+                else {
                 Text("Outgoing Commits").tag(0); Text("Outgoing Changes").tag(1); Text("Command Log").tag(2); Text("Ref changes").tag(3)
                 if model.incomingCommits != nil { Text("Incoming Commits").tag(4) }
                 if model.incomingComparison.snapshot?.files.isEmpty == false { Text("Incoming Changes").tag(5) }
                 if !model.conflicts.isEmpty { Text("Conflicts").tag(6) }
+                }
             }.pickerStyle(.segmented)
-            if model.tab == 3 {
+            if model.tab == 7 {
+                SynchronizationTagTable(model: model)
+                    .overlay { if model.tagRows.isEmpty { Text(model.busy ? "Please wait…" : "No differences found.").foregroundStyle(.secondary).allowsHitTesting(false) } }
+            } else if model.tab == 3 {
                 SynchronizationReferenceTable(model: model)
                     .overlay {
                         if model.referenceRows.isEmpty {
@@ -743,7 +886,7 @@ private struct SynchronizationDialog: View {
             }
             HStack {
                 HStack(spacing: 0) {
-                    Button { model.performPullAction() } label: { CommandLabel(title: model.pullActionTitle, icon: model.pullAction == .pull ? .pull : .fetch) }
+                    Button { model.performPullAction() } label: { CommandLabel(title: model.pullActionTitle, icon: model.compareTagsSelected ? .tag : model.pullAction == .pull ? .pull : .fetch) }
                     Menu {
                         Button { model.performPullAction(.pull) } label: { CommandLabel(title: "Pull", icon: .pull) }
                         Button { model.performPullAction(.fetch) } label: { CommandLabel(title: "Fetch", icon: .fetch) }
@@ -751,11 +894,12 @@ private struct SynchronizationDialog: View {
                         Button { model.performPullAction(.fetchAllBranches) } label: { CommandLabel(title: "Fetch All", icon: .fetch) }
                         Button { model.performPullAction(.remoteUpdate) } label: { CommandLabel(title: "Remote Update", icon: .fetch) }
                         Button { model.performPullAction(.prune) } label: { CommandLabel(title: "Cleanup stale remote branches", icon: .clean) }
+                        Button { model.compareTags(shift: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: "Compare Tags", icon: .tag) }
                     } label: { Image(systemName: "chevron.down").accessibilityLabel("Pull actions") }.menuStyle(.borderlessButton).fixedSize()
                 }.disabled(model.busy || model.hasBlockingChild)
                 Button { model.onLog(model.localBranch) } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(model.busy || model.localBranch.isEmpty)
                 Button { model.onCommit() } label: { CommandLabel(title: "Commit", icon: .commit) }.disabled(model.busy)
-                Button("Refresh") { model.reload() }.disabled(model.transportRunning || model.hasBlockingChild)
+                Button("Refresh") { model.refresh() }.disabled(model.transportRunning || model.hasBlockingChild)
                 Spacer()
                 if model.transportRunning {
                     Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancelTransport() }
@@ -949,5 +1093,106 @@ private struct SynchronizationReferenceTable: NSViewRepresentable {
         @objc func newLog(_ sender: NSMenuItem) { guard available, let row = sender.representedObject as? SynchronizationReferenceChange, let hash = row.newHash else { return }; model.onLog(hash) }
         @objc func compare(_ sender: NSMenuItem) { guard available, let row = sender.representedObject as? SynchronizationReferenceChange, let old = row.oldHash, let new = row.newHash else { return }; model.onReferenceCompare(old, new) }
         @objc func reflog(_ sender: NSMenuItem) { guard available, let row = sender.representedObject as? SynchronizationReferenceChange else { return }; model.onReferenceLog(row.name.rawValue) }
+    }
+}
+
+private struct SynchronizationTagTable: NSViewRepresentable {
+    @ObservedObject var model: SynchronizationWindowModel
+    func makeCoordinator() -> Coordinator { Coordinator(model) }
+    func makeNSView(context: Context) -> NSScrollView {
+        let table = SynchronizationReferenceNativeTable(); table.rowHeight = 24
+        let titles = ["Tag", "Status", "Local hash", "Local message", "Remote hash", "Remote message"]
+        for (index, title) in titles.enumerated() {
+            let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(String(index)))
+            column.title = title; column.width = [180.0, 100, 100, 200, 100, 200][index]
+            column.sortDescriptorPrototype = NSSortDescriptor(key: String(index), ascending: true)
+            table.addTableColumn(column)
+        }
+        table.delegate = context.coordinator; table.dataSource = context.coordinator
+        if model.preferences.bool(forKey: "SortTagsReversed") { table.sortDescriptors = [NSSortDescriptor(key: "0", ascending: false)] }
+        let header = SynchronizationReferenceHeader(); header.makeMenu = { [weak coordinator = context.coordinator] in coordinator?.headerMenu() }; table.headerView = header
+        table.makeMenu = { [weak table, weak coordinator = context.coordinator] in coordinator?.rowMenu(table?.selectedRow ?? -1) }
+        if model.preferences === UserDefaults.standard { table.autosaveName = "TurtleGit.SyncTags.Columns"; table.autosaveTableColumns = true }
+        let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true; scroll.documentView = table
+        context.coordinator.table = table; context.coordinator.reload(); return scroll
+    }
+    func updateNSView(_ scroll: NSScrollView, context: Context) { context.coordinator.model = model; context.coordinator.reload() }
+    @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate {
+        var model: SynchronizationWindowModel
+        weak var table: NSTableView?
+        var rows: [SynchronizationTagRow] = []
+        init(_ model: SynchronizationWindowModel) { self.model = model }
+        private func field(_ row: SynchronizationTagRow, _ column: Int) -> String {
+            switch column {
+            case 0: return row.name.rawValue
+            case 1: return row.kind.title
+            case 2: return row.localHash ?? ""
+            case 3: return row.localMessage
+            case 4: return row.remoteHash ?? ""
+            default: return row.remoteMessage
+            }
+        }
+        func reload() {
+            let selected = table.flatMap { rows.indices.contains($0.selectedRow) ? rows[$0.selectedRow].id : nil }
+            let descriptor = table?.sortDescriptors.first, column = Int(descriptor?.key ?? "0") ?? 0
+            let logical = !model.preferences.bool(forKey: "NoStrCmpLogical")
+            rows = model.tagRows.enumerated().sorted { a, b in
+                let lhs = field(a.element, column), rhs = field(b.element, column)
+                let order = logical && [0, 3, 5].contains(column) ? lhs.localizedStandardCompare(rhs) : lhs.compare(rhs, options: .literal)
+                if order == .orderedSame { return a.offset < b.offset }
+                return descriptor?.ascending == false ? order == .orderedDescending : order == .orderedAscending
+            }.map(\.element)
+            table?.reloadData()
+            if let selected, let index = rows.firstIndex(where: { $0.id == selected }) { table?.selectRowIndexes(IndexSet(integer: index), byExtendingSelection: false) }
+            else { table?.deselectAll(nil) }
+        }
+        func tableView(_ tableView: NSTableView, sortDescriptorsDidChange oldDescriptors: [NSSortDescriptor]) { reload() }
+        func numberOfRows(in tableView: NSTableView) -> Int { rows.count }
+        func tableView(_ tableView: NSTableView, viewFor column: NSTableColumn?, row: Int) -> NSView? {
+            guard rows.indices.contains(row), let index = Int(column?.identifier.rawValue ?? "") else { return nil }
+            let value = field(rows[row], index)
+            let text = NSTextField(labelWithString: [2, 4].contains(index) ? String(value.prefix(8)) : value)
+            text.lineBreakMode = .byTruncatingTail; text.toolTip = value
+            return text
+        }
+        private var available: Bool { !model.closed && !model.busy && !model.confirmingQuit && !model.confirmingCancellation && !model.hasBlockingChild }
+        func headerMenu() -> NSMenu {
+            let menu = NSMenu(); menu.autoenablesItems = false
+            let item = NSMenuItem(title: "Hide unchanged", action: #selector(toggleEqual), keyEquivalent: "")
+            item.target = self; item.state = model.hideEqualTags ? .on : .off; item.isEnabled = available; menu.addItem(item); return menu
+        }
+        @objc func toggleEqual() { guard available else { return }; model.hideEqualTags.toggle() }
+        func rowMenu(_ index: Int) -> NSMenu? {
+            guard rows.indices.contains(index) else { return nil }
+            let row = rows[index], menu = NSMenu(); menu.autoenablesItems = false
+            func add(_ title: String, _ selector: Selector, _ icon: MenuIcon) {
+                let item = NSMenuItem(title: title, action: selector, keyEquivalent: ""); item.target = self
+                item.representedObject = row; item.isEnabled = available
+                item.image = MenuPresentationSettings.applicationContextIcons(defaults: model.preferences) ? icon.image() : nil
+                menu.addItem(item)
+            }
+            if let hash = row.localHash { add("Show log of " + String(hash.prefix(8)), #selector(localLog(_:)), .log) }
+            if row.kind != .same {
+                if let hash = row.remoteHash { add("Show log of " + String(hash.prefix(8)), #selector(remoteLog(_:)), .log) }
+                if row.localHash != nil, row.remoteHash != nil { add("Compare revisions", #selector(compare(_:)), .compare) }
+                if !menu.items.isEmpty { menu.addItem(.separator()) }
+                if row.allows(.fetch) { add("Fetch", #selector(fetch(_:)), .fetch) }
+                if row.allows(.push) { add("Push", #selector(push(_:)), .commit) }
+            }
+            if !menu.items.isEmpty { menu.addItem(.separator()) }
+            if row.allows(.deleteLocal) { add("Delete local tag", #selector(deleteLocal(_:)), .remove) }
+            if row.allows(.deleteRemote) { add("Delete tag on remote", #selector(deleteRemote(_:)), .remove) }
+            return menu
+        }
+        private func current(_ sender: NSMenuItem) -> SynchronizationTagRow? {
+            guard available, let row = sender.representedObject as? SynchronizationTagRow, model.tagSnapshot?.rows.contains(row) == true else { return nil }; return row
+        }
+        @objc func localLog(_ sender: NSMenuItem) { guard let row = current(sender), let hash = row.localHash else { return }; (model.onTagLog ?? model.onLog)(hash) }
+        @objc func remoteLog(_ sender: NSMenuItem) { guard let row = current(sender), let hash = row.remoteHash else { return }; (model.onTagLog ?? model.onLog)(hash) }
+        @objc func compare(_ sender: NSMenuItem) { guard let row = current(sender), let local = row.localHash, let remote = row.remoteHash else { return }; model.onReferenceCompare(local, remote) }
+        @objc func fetch(_ sender: NSMenuItem) { guard let row = current(sender) else { return }; model.performTag(.fetch, row: row) }
+        @objc func push(_ sender: NSMenuItem) { guard let row = current(sender) else { return }; model.performTag(.push, row: row) }
+        @objc func deleteLocal(_ sender: NSMenuItem) { guard let row = current(sender) else { return }; model.performTag(.deleteLocal, row: row) }
+        @objc func deleteRemote(_ sender: NSMenuItem) { guard let row = current(sender) else { return }; model.performTag(.deleteRemote, row: row) }
     }
 }

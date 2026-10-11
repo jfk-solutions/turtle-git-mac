@@ -727,6 +727,12 @@ import TurtleGitCore
         }
         controller.model.onLog = { [weak self] revision in self?.showLog(repository: repository, access: access, paths: [], endRevision: revision) }
         controller.model.onCommit = { [weak self] in self?.showCommitDialog(repository: repository, access: access, paths: []) }
+        controller.model.onTagLog = { [weak self] revision in self?.showLog(repository: repository, access: access, paths: [], endRevision: revision, selectedRevision: revision) }
+        controller.model.onTagsChanged = { [weak self] in
+            guard let self else { return }
+            self.refreshRepositoryLogs(repository.root)
+            if self.root?.path == repository.root.path { Task { await self.refresh() } }
+        }
         controller.model.onReferenceLog = { [weak self] reference in self?.showReferenceLog(repository: repository, access: access, reference: reference) }
         controller.model.onReferenceCompare = { [weak self] old, new in self?.showRevisionComparison(repository: repository, access: access, from: .revision(old), to: .revision(new)) }
         controller.model.onResolve = { [weak self] paths in self?.showResolve(repository: repository, access: access, paths: paths, quick: nil) }

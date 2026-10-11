@@ -648,6 +648,124 @@ import TurtleGitCore
         precondition(mainRef == third && fourth != third)
         print("PASS: native Sync Fetch & Rebase unchanged No/suppression with ahead HEAD, separate fast-forward Merge, Abort without incoming, unchanged Yes then manual Rebase, actual owned Rebase controller fast-forward/divergent replay, stale Merge refusal, source action persistence and pinned incoming results")
     }
+    @MainActor static func verifyTags(root: URL, preferences: UserDefaults) async throws {
+        let git = URL(fileURLWithPath: CommandLine.arguments[2]), directory = root.appendingPathComponent("qa-tags")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let parent = GitRepository(root: directory, executable: git), serverRoot = directory.appendingPathComponent("server 雪.git"), clientRoot = directory.appendingPathComponent("client")
+        _ = try await parent.run(["clone", "--bare", "--template=", "--", root.path, serverRoot.path])
+        _ = try await parent.run(["clone", "--template=", "--", serverRoot.path, clientRoot.path])
+        let repo = GitRepository(root: clientRoot, executable: git), server = GitRepository(root: serverRoot, executable: git)
+        for (key, value) in [("user.name", "Tag UI QA"), ("user.email", "qa@example.invalid"), ("tag.gpgsign", "false"), ("core.hooksPath", "/dev/null")] { _ = try await repo.run(["config", key, value]) }
+        _ = try await server.run(["config", "core.hooksPath", "/dev/null"])
+        func hash(_ repository: GitRepository, _ ref: String) async throws -> String { String(decoding: try await repository.run(["rev-parse", "--verify", ref]).stdout, as: UTF8.self).trimmingCharacters(in: .newlines) }
+        let head = try await hash(repo, "HEAD"), previous = try await hash(repo, "HEAD^")
+        for name in ["v2", "v10", "same"] { _ = try await repo.run(["tag", name, head]) }
+        _ = try await server.run(["update-ref", "refs/tags/same", head]); _ = try await server.run(["update-ref", "refs/tags/different", head])
+        _ = try await repo.run(["tag", "different", previous])
+        _ = try await repo.run(["tag", "-a", "-m", "remote annotation", "remote", head]); _ = try await repo.run(["push", "origin", "refs/tags/remote"]); _ = try await repo.run(["tag", "-d", "remote"])
+        let refs = try await repo.run(["show-ref"]).stdout, index = try Data(contentsOf: clientRoot.appendingPathComponent(".git/index")), config = try Data(contentsOf: clientRoot.appendingPathComponent(".git/config"))
+        preferences.set(true, forKey: "SortTagsReversed"); preferences.set(false, forKey: "TagCompareHideEqual")
+        defer { preferences.removeObject(forKey: "SortTagsReversed"); preferences.removeObject(forKey: "TagCompareHideEqual") }
+        let owner = SynchronizationWindowController(repository: repo, access: nil, preferences: preferences)
+        owner.window!.alphaValue = 0; owner.showWindow(nil); defer { owner.close() }
+        let model = owner.model; model.sshSettings.enabled = false
+        try await settle { !model.busy && model.outgoing != nil }
+        model.compareTags(shift: true)
+        precondition(model.compareTagsSelected && !model.busy && !model.comparingTags && preferences.integer(forKey: "TurtleGit.Sync." + clientRoot.path + ".pullAction") == 6)
+        model.performPullAction(shift: false); try await settle { !model.busy }
+        precondition(model.error == nil && model.comparingTags && model.tab == 7 && model.tagSnapshot!.remote == "origin")
+        let refsAfterRead = try await repo.run(["show-ref"]).stdout; precondition(refsAfterRead == refs)
+        try await settle { views(owner.window!.contentView!).compactMap { $0 as? NSTableView }.contains { $0.tableColumns.first?.title == "Tag" } }
+        let table = views(owner.window!.contentView!).compactMap { $0 as? NSTableView }.first { $0.tableColumns.first?.title == "Tag" }!
+        precondition(table.tableColumns.map(\.title) == ["Tag", "Status", "Local hash", "Local message", "Remote hash", "Remote message"])
+        func field(_ row: Int, _ column: Int) -> NSTextField { table.delegate!.tableView!(table, viewFor: table.tableColumns[column], row: row) as! NSTextField }
+        func settleTable() async throws {
+            try await settle {
+                table.numberOfRows == model.tagRows.count && (0..<table.numberOfRows).allSatisfy { index in
+                    guard let row = model.tagRows.first(where: { $0.name.rawValue == field(index, 0).stringValue }) else { return false }
+                    return field(index, 2).toolTip == (row.localHash ?? "") && field(index, 4).toolTip == (row.remoteHash ?? "")
+                }
+            }
+        }
+        try await settleTable()
+        func rowIndex(_ name: String) -> Int { (0..<table.numberOfRows).first { field($0, 0).stringValue == name }! }
+        precondition(rowIndex("v10") < rowIndex("v2"))
+        table.sortDescriptors = [NSSortDescriptor(key: "0", ascending: true)]; precondition(rowIndex("v2") < rowIndex("v10"))
+        func menu(_ name: String) -> NSMenu {
+            let point = table.convert(NSPoint(x: 8, y: table.rect(ofRow: rowIndex(name)).midY), to: nil)
+            let event = NSEvent.mouseEvent(with: .rightMouseDown, location: point, modifierFlags: [], timestamp: 0, windowNumber: owner.window!.windowNumber, context: nil, eventNumber: 1, clickCount: 1, pressure: 1)!
+            return table.menu(for: event)!
+        }
+        func send(_ item: NSMenuItem) { precondition(NSApp.sendAction(item.action!, to: item.target, from: item)) }
+        let different = menu("different"), items = different.items.filter { !$0.isSeparatorItem }
+        precondition(Array(items.map(\.title).suffix(4)) == ["Fetch", "Push", "Delete local tag", "Delete tag on remote"] && items.allSatisfy { $0.image != nil && $0.isEnabled })
+        precondition(field(rowIndex("different"), 2).stringValue == String(previous.prefix(8)) && field(rowIndex("different"), 2).toolTip == previous)
+        var logs = [String](), comparison: (String, String)?, changed = 0
+        model.onTagsChanged = { changed += 1 }
+        model.onLog = { logs.append($0) }; model.onReferenceCompare = { comparison = ($0, $1) }
+        for item in items.prefix(3) { send(item) }
+        precondition(logs == [previous, head] && comparison?.0 == previous && comparison?.1 == head)
+        precondition(menu("same").items.filter { !$0.isSeparatorItem }.count == 3)
+        preferences.set(false, forKey: "ShowAppContextMenuIcons"); precondition(menu("different").items.filter { !$0.isSeparatorItem }.allSatisfy { $0.image == nil }); preferences.removeObject(forKey: "ShowAppContextMenuIcons")
+        let event = NSEvent.mouseEvent(with: .rightMouseDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: owner.window!.windowNumber, context: nil, eventNumber: 1, clickCount: 1, pressure: 1)!
+        let hide = table.headerView!.menu(for: event)!.items.first!; send(hide)
+        try await settleTable()
+        precondition(model.hideEqualTags && model.tagRows.allSatisfy { $0.kind != .same } && !preferences.bool(forKey: "TagCompareHideEqual"))
+        send(hide); try await settleTable()
+        owner.window!.appearance = NSAppearance(named: .darkAqua); owner.window!.contentView!.layoutSubtreeIfNeeded(); owner.window!.appearance = NSAppearance(named: .aqua)
+        func closeCommand() async throws {
+            try await settle { owner.commandProgress != nil && !owner.commandProgress!.model.busy && !owner.commandProgress!.model.operation.loadingTags }
+            precondition(model.busy && !owner.windowShouldClose(owner.window!))
+            owner.commandProgress!.model.close(); try await settle { !model.busy }
+            try await settleTable()
+        }
+        let oldRemoteMenu = menu("remote^{}"), fetch = oldRemoteMenu.items.first { $0.title == "Fetch" }!; send(fetch)
+        try await closeCommand(); precondition(model.error == nil && model.tagSnapshot!.rows.first { $0.name.rawValue == "remote^{}" }!.kind == .same)
+        send(fetch); precondition(!model.busy) // stale represented row cannot run again
+        let failedFetch = menu("different").items.first { $0.title == "Fetch" }!; send(failedFetch)
+        try await closeCommand(); precondition(model.error != nil && model.tagSnapshot!.rows.first { $0.name.rawValue == "different" }!.kind == .differ)
+        send(menu("v2").items.first { $0.title == "Push" }!); try await closeCommand()
+        let pushed = try await hash(server, "refs/tags/v2"); precondition(pushed == head)
+        var confirmed = false, confirmationName = "", confirmationRemote = ""
+        model.confirmTagDeletion = { _, row, snapshot in confirmationName = row.tag.rawValue; confirmationRemote = snapshot.remote; return confirmed }
+        send(menu("remote^{}").items.first { $0.title == "Delete local tag" }!); try await settle { !model.busy }
+        let stillPresent = try await hash(repo, "refs/tags/remote"); precondition(!stillPresent.isEmpty && confirmationName == "remote" && confirmationRemote == "origin")
+        confirmed = true
+        send(menu("remote^{}").items.first { $0.title == "Delete local tag" }!); try await settle { !model.busy }
+        precondition(model.tagSnapshot!.rows.first { $0.name.rawValue == "remote" }!.kind == .onlyRemote)
+        try await settleTable()
+        send(menu("v2").items.first { $0.title == "Delete tag on remote" }!); try await settle { !model.busy }
+        let deleted = try await server.run(["for-each-ref", "refs/tags/v2"]).stdout; precondition(deleted.isEmpty)
+        let finalHead = try await hash(repo, "HEAD"), finalIndex = try Data(contentsOf: clientRoot.appendingPathComponent(".git/index")), finalConfig = try Data(contentsOf: clientRoot.appendingPathComponent(".git/config"))
+        precondition(finalHead == head && index == finalIndex && config == finalConfig && changed == 5)
+        model.refresh(); try await settle { !model.busy }; precondition(model.tab == 7 && model.tagSnapshot != nil)
+        let restored = SynchronizationWindowModel(repository: repo, access: nil, preferences: preferences); precondition(restored.compareTagsSelected && restored.pullActionTitle == "Compare Tags")
+        model.reload(); try await settle { !model.busy }; precondition(model.tab == 0 && !model.comparingTags && model.tagSnapshot == nil)
+        // Both loading and a write own their cancellation/process group, and
+        // force-closing the root must suppress late results and reap the shim.
+        func quote(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\"'\"'") + "'" }
+        for writing in [false, true] {
+            let shim = directory.appendingPathComponent(writing ? "blocked-push" : "blocked-load"), marker = directory.appendingPathComponent(writing ? "push-pid" : "load-pid")
+            let condition = writing ? "[ \"$6\" = push ]" : "[ \"$4\" = ls-remote ]"
+            let script = "#!/bin/sh\nif " + condition + "; then\nprintf '%s\\n' \"$$\" > " + quote(marker.path) + "\nwhile :; do sleep 1; done\nfi\nexec " + quote(git.path) + " \"$@\"\n"
+            try Data(script.utf8).write(to: shim); try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: shim.path)
+            let blockedOwner = SynchronizationWindowController(repository: GitRepository(root: clientRoot, executable: shim), access: nil, preferences: preferences)
+            blockedOwner.window!.alphaValue = 0; blockedOwner.showWindow(nil); defer { blockedOwner.close() }
+            let blocked = blockedOwner.model; blocked.sshSettings.enabled = false
+            try await settle { !blocked.busy && blocked.outgoing != nil }
+            blocked.compareTags()
+            if writing { try await settle { !blocked.busy }; blocked.performTag(.push, row: blocked.tagSnapshot!.rows.first { $0.name.rawValue == "v10" }!) }
+            try await settle { FileManager.default.fileExists(atPath: marker.path) }
+            let progress = blockedOwner.commandProgress!, pid = pid_t(try String(contentsOf: marker, encoding: .utf8).trimmingCharacters(in: .newlines))!
+            precondition(progress.model.busy && progress.window?.sheetParent === blockedOwner.window)
+            let refsBeforeClose = try await repo.run(["show-ref"]).stdout
+            blockedOwner.close(); try await settle { kill(pid, 0) == -1 && errno == ESRCH }
+            let refsAfterClose = try await repo.run(["show-ref"]).stdout
+            precondition(blocked.closed && !blocked.busy && !progress.model.busy && progress.window?.sheetParent == nil && blockedOwner.commandProgress == nil && refsAfterClose == refsBeforeClose)
+        }
+        print("PASS: native Compare Tags six columns, raw/friendly entries, natural/reversed sorting, full-hash Log/Compare routes, source icon menus and visibility settings, Hide unchanged, Shift persistence, real non-force failure/Fetch/Push/confirmed friendly deletions, owned progress/refill, HEAD/index/config preservation and forced load/write cleanup")
+    }
+
     @MainActor static func main() async throws {
         if let status = RebaseEditor.handle(arguments: CommandLine.arguments, environment: ProcessInfo.processInfo.environment) { exit(status) }
         NSApplication.shared.setActivationPolicy(.prohibited)
@@ -656,6 +774,13 @@ import TurtleGitCore
         _ = try await repo.run(["init", "-b", "main"])
         for (key, value) in [("user.name", "Sync QA"), ("user.email", "qa@example.invalid"), ("commit.gpgsign", "false"), ("core.hooksPath", "/dev/null")] { _ = try await repo.run(["config", key, value]) }
         try Data("base\n".utf8).write(to: root.appendingPathComponent("file")); try await repo.stage(["file"]); _ = try await repo.commit(message: "base")
+        if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_TAGS_ONLY"] == "1" {
+            try Data("second\n".utf8).write(to: root.appendingPathComponent("file")); try await repo.stage(["file"]); _ = try await repo.commit(message: "second")
+            let suite = "TurtleGit.Tags.QA." + UUID().uuidString, preferences = UserDefaults(suiteName: suite)!
+            defer { preferences.removePersistentDomain(forName: suite) }
+            DialogGeometry.install(preferences: preferences)
+            try await verifyTags(root: root, preferences: preferences); return
+        }
         let base = String(decoding: try await repo.run(["rev-parse", "HEAD"]).stdout, as: UTF8.self).trimmingCharacters(in: .newlines)
         _ = try await repo.run(["remote", "add", "origin", "/tmp/no-network-required"])
         _ = try await repo.run(["update-ref", "refs/remotes/origin/review", base])
@@ -724,6 +849,7 @@ import TurtleGitCore
         try await verifyFetchAndRebase(root: root, preferences: preferences)
         try await verifyShiftOptions(root: root, preferences: preferences)
         try await verifyShiftOwnedRebase(root: root, preferences: preferences)
+        try await verifyTags(root: root, preferences: preferences)
         print("PASS: native Sync tracking controls, exact Unicode choices, graph-first table, changes and pinned comparison snapshot, divergence/Force, unknown states, Quit fences, owner invalidation and read-only preservation")
     }
 }

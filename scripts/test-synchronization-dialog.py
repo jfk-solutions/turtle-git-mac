@@ -11,6 +11,7 @@ import time
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git', type=Path, action='append')
+parser.add_argument('--tags-only', action='store_true', help='Run the native Compare Tags fixture only.')
 args = parser.parse_args()
 root = Path(__file__).resolve().parent.parent
 products = root / 'build/Build/Products/Debug'
@@ -26,6 +27,7 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-sync-native-') as temporary:
     subprocess.run(['xcrun', 'swiftc', '-parse-as-library', '-swift-version', '5', '-target', platform.machine() + '-apple-macos13.0', '-I', str(products), '-F', str(products), *sources, str(copy), str(root / 'docs/qa/synchronization-native-2026-10-11.swift'), '-framework', 'TurtleGitCore', '-Xlinker', '-rpath', '-Xlinker', str(products), '-o', str(executable)], cwd=root, check=True)
     environment = os.environ.copy()
     environment['DYLD_FRAMEWORK_PATH'] = str(products)
+    if args.tags_only: environment['TURTLEGIT_SYNC_TAGS_ONLY'] = '1'
     for index, git in enumerate(args.git or [Path('/usr/bin/git')]):
         fixture = directory / ('fixture-' + str(index)); fixture.mkdir()
         print('Checking ' + str(git), flush=True)
