@@ -8,20 +8,35 @@ struct SynchronizationTrackingAnswer {
     let choice: SynchronizationTrackingChoice
     var suppress = false
 }
+enum SynchronizationProgressResult: Sendable {
+    case checkout(SynchronizationPullCheckout), merge(GitResult)
+}
+enum SynchronizationProgressOperation: Sendable {
+    case checkout(SynchronizationTransportPlan), merge(SynchronizationRebaseState)
+    var title: String { if case .checkout = self { return "Checkout Progress" }; return "Merge Progress" }
+    var label: String {
+        switch self {
+        case .checkout(let plan): return "Switch to " + (plan.checkoutBranch ?? plan.options.localBranch)
+        case .merge(let state): return "Fast-forward to " + state.target
+        }
+    }
+    var work: String { if case .checkout = self { return "Switching…" }; return "Merging…" }
+    var failure: String { if case .checkout = self { return "Checkout failed" }; return "Merge failed" }
+}
 
-@MainActor final class SynchronizationCheckoutController: NSWindowController, NSWindowDelegate {
-    let model: SynchronizationCheckoutModel
+@MainActor final class SynchronizationProgressController: NSWindowController, NSWindowDelegate {
+    let model: SynchronizationProgressModel
     var onClosed: () -> Void = {}
     private var alert: NSAlert?
-    private var completion: ((Result<SynchronizationPullCheckout, Error>) -> Void)?
-    init(repository: GitRepository, plan: SynchronizationTransportPlan, cancellation: OperationCancellation, preferences: UserDefaults,
-         completion: @escaping (Result<SynchronizationPullCheckout, Error>) -> Void) {
-        model = SynchronizationCheckoutModel(repository: repository, plan: plan, cancellation: cancellation, preferences: preferences)
+    private var completion: ((Result<SynchronizationProgressResult, Error>) -> Void)?
+    init(repository: GitRepository, operation: SynchronizationProgressOperation, cancellation: OperationCancellation, preferences: UserDefaults,
+         completion: @escaping (Result<SynchronizationProgressResult, Error>) -> Void) {
+        model = SynchronizationProgressModel(repository: repository, operation: operation, cancellation: cancellation, preferences: preferences)
         self.completion = completion
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 420), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Checkout Progress – TurtleGit"
+        window.title = "\(repository.root.lastPathComponent) – \(operation.title) – TurtleGit"
         window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 560, height: 300)
-        window.contentViewController = NSHostingController(rootView: SynchronizationCheckoutDialog(model: model))
+        window.contentViewController = NSHostingController(rootView: SynchronizationProgressDialog(model: model))
         super.init(window: window); window.delegate = self
         model.close = { [weak self] in self?.closePresentation() }
         model.confirmCancel = { [weak self] reply in
@@ -51,18 +66,18 @@ struct SynchronizationTrackingAnswer {
     }
 }
 
-@MainActor final class SynchronizationCheckoutModel: ObservableObject {
-    let repository: GitRepository, plan: SynchronizationTransportPlan, preferences: UserDefaults
+@MainActor final class SynchronizationProgressModel: ObservableObject {
+    let repository: GitRepository, operation: SynchronizationProgressOperation, preferences: UserDefaults
     private let cancellation: OperationCancellation
     private var started = false, closed = false
     @Published private(set) var busy = true
     @Published private(set) var output = ""
     @Published private(set) var confirmingCancellation = false
-    private(set) var result: Result<SynchronizationPullCheckout, Error>?
+    private(set) var result: Result<SynchronizationProgressResult, Error>?
     var close: () -> Void = {}
     var confirmCancel: (@escaping (Bool) -> Void) -> Void = { $0(false) }
-    init(repository: GitRepository, plan: SynchronizationTransportPlan, cancellation: OperationCancellation, preferences: UserDefaults) {
-        self.repository = repository; self.plan = plan; self.cancellation = cancellation; self.preferences = preferences
+    init(repository: GitRepository, operation: SynchronizationProgressOperation, cancellation: OperationCancellation, preferences: UserDefaults) {
+        self.repository = repository; self.operation = operation; self.cancellation = cancellation; self.preferences = preferences
     }
     func invalidate() { closed = true; if busy { cancellation.cancel() }; busy = false; confirmingCancellation = false }
     func cancel() {
@@ -85,8 +100,14 @@ struct SynchronizationTrackingAnswer {
             let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
             let operation = Task {
                 defer { continuation.finish() }
-                return try await repository.synchronizationPullCheckout(plan, checkoutAuthorized: true, cancellation: cancellation,
-                    onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) })
+                switch self.operation {
+                case .checkout(let plan):
+                    return SynchronizationProgressResult.checkout(try await repository.synchronizationPullCheckout(plan, checkoutAuthorized: true, cancellation: cancellation,
+                        onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }))
+                case .merge(let state):
+                    return SynchronizationProgressResult.merge(try await repository.synchronizationFastForward(state, cancellation: cancellation,
+                        onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }))
+                }
             }
             for await _ in updates {
                 guard !closed else { continue }; state.consume(parser.processPending(), parser: parser); output = state.output
@@ -105,14 +126,14 @@ struct SynchronizationTrackingAnswer {
     }
 }
 
-private struct SynchronizationCheckoutDialog: View {
-    @ObservedObject var model: SynchronizationCheckoutModel
+private struct SynchronizationProgressDialog: View {
+    @ObservedObject var model: SynchronizationProgressModel
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Switch to \(model.plan.checkoutBranch ?? model.plan.options.localBranch)").font(.headline)
+            Text(model.operation.label).font(.headline)
             SubmoduleProgressOutputView(text: model.output, completed: !model.busy, success: { if case .success = model.result { return true }; return false }(), preferences: model.preferences)
             HStack {
-                if model.busy { ProgressView().controlSize(.small); Text("Switching…") } else { Text("Checkout failed").foregroundStyle(.red) }
+                if model.busy { ProgressView().controlSize(.small); Text(model.operation.work) } else { Text(model.operation.failure).foregroundStyle(.red) }
                 Spacer()
                 if model.busy { Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction) }
                 else { Button("Close") { model.close() }.keyboardShortcut(.defaultAction) }
@@ -126,7 +147,7 @@ private struct SynchronizationCheckoutDialog: View {
     var onClosed: () -> Void = {}
     private var cancellationAlert: NSAlert?
     private var pullAlert: NSAlert?
-    private var checkoutProgress: SynchronizationCheckoutController?
+    private var commandProgress: SynchronizationProgressController?
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
         model = SynchronizationWindowModel(repository: repository, access: access, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1050, height: 660), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
@@ -159,12 +180,46 @@ private struct SynchronizationCheckoutDialog: View {
         model.performCheckout = { [weak self] plan, token in
             guard let self, !self.model.closed, let window = self.window, window.attachedSheet == nil else { throw OperationCancellationFailure.cancelled }
             return try await withCheckedThrowingContinuation { continuation in
-                let child = SynchronizationCheckoutController(repository: repository, plan: plan, cancellation: token, preferences: preferences) { result in continuation.resume(with: result) }
-                self.checkoutProgress = child
-                child.onClosed = { [weak self] in self?.checkoutProgress = nil }
+                let child = SynchronizationProgressController(repository: repository, operation: .checkout(plan), cancellation: token, preferences: preferences) { result in
+                    switch result {
+                    case .success(.checkout(let checkpoint)): continuation.resume(returning: checkpoint)
+                    case .success(.merge): continuation.resume(throwing: SynchronizationFailure.invalidInput)
+                    case .failure(let error): continuation.resume(throwing: error)
+                    }
+                }
+                self.commandProgress = child
+                child.onClosed = { [weak self] in self?.commandProgress = nil }
                 child.window?.alphaValue = window.alphaValue
                 window.beginSheet(child.window!); child.model.start()
             }
+        }
+        model.performFastForward = { [weak self] state, token in
+            guard let self, !self.model.closed, let window = self.window, window.attachedSheet == nil else { return .failure(OperationCancellationFailure.cancelled) }
+            return await withCheckedContinuation { continuation in
+                let child = SynchronizationProgressController(repository: repository, operation: .merge(state), cancellation: token, preferences: preferences) { result in
+                    switch result {
+                    case .success(.merge(let command)): continuation.resume(returning: .success(command))
+                    case .success(.checkout): continuation.resume(returning: .failure(SynchronizationFailure.invalidInput))
+                    case .failure(let error): continuation.resume(returning: .failure(error))
+                    }
+                }
+                self.commandProgress = child; child.onClosed = { [weak self] in self?.commandProgress = nil }
+                child.window?.alphaValue = window.alphaValue; window.beginSheet(child.window!); child.model.start()
+            }
+        }
+        model.presentRebasePrompt = { [weak self] prompt in
+            guard let self, !self.model.closed, let window = self.window, window.attachedSheet == nil else { return FetchRebaseAnswer(value: prompt.answers[prompt.defaultIndex], suppress: false) }
+            let alert = NSAlert(); alert.messageText = "TurtleGit"; alert.informativeText = prompt.message
+            for (index, title) in prompt.buttons.enumerated() {
+                let button = alert.addButton(withTitle: title); button.keyEquivalent = index == prompt.defaultIndex ? "\r" : ""
+                if index == prompt.defaultIndex { alert.window.defaultButtonCell = button.cell as? NSButtonCell }
+            }
+            if prompt == .fastForward { alert.buttons.last?.keyEquivalent = "\u{1b}" }
+            alert.showsSuppressionButton = true; alert.suppressionButton?.title = "Do not show again"; self.pullAlert = alert
+            let response = await alert.beginSheetModal(for: window)
+            if self.pullAlert === alert { self.pullAlert = nil }
+            let index = response.rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
+            return FetchRebaseAnswer(value: prompt.answers.indices.contains(index) ? prompt.answers[index] : prompt.answers[prompt.defaultIndex], suppress: alert.suppressionButton?.state == .on)
         }
         model.sshSettings.present = { [weak self] prompt in
             guard let self, !self.model.closed, !self.model.confirmingQuit, let window = self.window, window.attachedSheet == nil else { return false }
@@ -196,7 +251,7 @@ private struct SynchronizationCheckoutDialog: View {
     func windowWillClose(_ notification: Notification) {
         model.invalidate()
         model.detachRebase()
-        checkoutProgress?.abortPresentation(); checkoutProgress = nil
+        commandProgress?.abortPresentation(); commandProgress = nil
         if let alert = pullAlert, window?.attachedSheet === alert.window { window?.endSheet(alert.window, returnCode: .abort) }
         pullAlert = nil
         if let alert = cancellationAlert, window?.attachedSheet === alert.window { window?.endSheet(alert.window, returnCode: .abort) }
@@ -241,15 +296,22 @@ private struct SynchronizationCheckoutDialog: View {
     var confirmCheckout: (String) async -> Bool = { _ in false }
     var askTracking: (String, String, String) async -> SynchronizationTrackingAnswer = { _, _, _ in SynchronizationTrackingAnswer(choice: .cancel) }
     var performCheckout: ((SynchronizationTransportPlan, OperationCancellation) async throws -> SynchronizationPullCheckout)?
-    var runRebase: (String, Bool) async throws -> Void = { _, _ in throw SynchronizationFailure.invalidInput }
+    var performFastForward: ((SynchronizationRebaseState, OperationCancellation) async -> Result<GitResult, Error>)?
+    var presentRebasePrompt: (FetchRebasePrompt) async -> FetchRebaseAnswer = { prompt in FetchRebaseAnswer(value: prompt.answers[prompt.defaultIndex], suppress: false) }
+    var runRebase: (String, Bool, Bool) async throws -> Void = { _, _, _ in throw SynchronizationFailure.invalidInput }
     var detachRebase: () -> Void = {}
     var onResolve: ([String]) -> Void = { _ in }
     var displayedComparison: RevisionComparisonWindowModel { tab == 5 ? incomingComparison : comparison }
     var historyEntries: [LogEntry] { tab == 4 ? (incomingCommits ?? []) : (outgoing?.commits ?? []) }
     var historyGraph: [CommitGraphRow] { tab == 4 ? incomingGraph : graph }
+    var incomingUpToDate: Bool {
+        guard let snapshot = incomingComparison.snapshot else { return false }
+        return snapshot.from == snapshot.to
+    }
     var pullActionTitle: String {
         switch pullAction {
         case .pull: return "Pull"
+        case .fetchAndRebase: return "Fetch & Rebase"
         case .fetchAllBranches: return "Fetch All"
         case .remoteUpdate: return "Remote Update"
         case .prune: return "Cleanup stale remote branches"
@@ -306,6 +368,7 @@ private struct SynchronizationCheckoutDialog: View {
         incomingComparison = RevisionComparisonWindowModel(repository: repository, access: access, from: .revision("HEAD"), to: .revision("HEAD"))
         switch preferences.integer(forKey: historyKey + ".pullAction") {
         case 1: pullAction = .fetch
+        case 2: pullAction = .fetchAndRebase
         case 3: pullAction = .fetchAllBranches
         case 4: pullAction = .remoteUpdate
         case 5: pullAction = .prune
@@ -358,13 +421,21 @@ private struct SynchronizationCheckoutDialog: View {
         }
     }
     func performPullAction(_ action: SynchronizationTransportAction? = nil) { fetch(action ?? pullAction) }
-    /// CLI entries of the source Pull split control. Fetch & Rebase's chooser
-    /// and Shift routing still require their separate source workflows.
+    private func rebaseAnswer(_ prompt: FetchRebasePrompt, request: OperationCancellation) async throws -> Int {
+        guard !closed, token === request, !request.isCancelled else { throw OperationCancellationFailure.cancelled }
+        if let saved = preferences.object(forKey: prompt.rawValue) as? Int, prompt.answers.contains(saved) { return saved }
+        let answer = await presentRebasePrompt(prompt)
+        guard !closed, token === request, !request.isCancelled else { throw OperationCancellationFailure.cancelled }
+        let value = prompt.answers.contains(answer.value) ? answer.value : prompt.answers[prompt.defaultIndex]
+        if answer.suppress { preferences.set(value, forKey: prompt.rawValue) }
+        return value
+    }
+    /// CLI entries of the source Pull split control; Shift routing is pending.
     func fetch(_ action: SynchronizationTransportAction = .fetch) {
-        guard [.pull, .fetch, .fetchAllBranches, .remoteUpdate, .prune].contains(action),
+        guard [.pull, .fetch, .fetchAndRebase, .fetchAllBranches, .remoteUpdate, .prune].contains(action),
               !closed, !confirmingQuit, !confirmingCancellation, !busy, !hasBlockingChild, window?.attachedSheet == nil else { return }
         pullAction = action
-        let actionIndex = action == .pull ? 0 : action == .fetch ? 1 : action == .fetchAllBranches ? 3 : action == .remoteUpdate ? 4 : 5
+        let actionIndex = action == .pull ? 0 : action == .fetch ? 1 : action == .fetchAndRebase ? 2 : action == .fetchAllBranches ? 3 : action == .remoteUpdate ? 4 : 5
         preferences.set(actionIndex, forKey: historyKey + ".pullAction")
         let operationID = UUID(); transportID = operationID
         let request = OperationCancellation(); token = request; busy = true; transportRunning = true
@@ -381,6 +452,7 @@ private struct SynchronizationCheckoutDialog: View {
             let parser = GitCliOutputParser(limit: outputState.limit)
             var oldReferences: SynchronizationReferenceSnapshot?
             var oldHead: String?
+            var incomingRevision: String?
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let plan = try await repository.synchronizationTransportPlan(options, cancellation: request)
@@ -430,11 +502,33 @@ private struct SynchronizationCheckoutDialog: View {
                 let result = try await operation.value
                 guard !closed, token === request else { return }
                 if !outputState.hasOutput { commandOutput = result.command.text }
+                var followUpSucceeded = true
                 if action == .pull, let target = result.rebaseTarget, result.rebaseMode != .none {
-                    try await runRebase(target, result.rebaseMode == .preserveMerges)
+                    try await runRebase(target, true, result.rebaseMode == .preserveMerges)
                     guard !closed, token === request else { return }
+                    incomingRevision = "HEAD"
+                } else if action == .pull { incomingRevision = "HEAD" }
+                else if action == .fetchAndRebase, let target = result.rebaseTarget {
+                    let unchanged = plan.oldRemoteHash != nil && plan.oldRemoteHash == target
+                    if unchanged, try await rebaseAnswer(.unchanged, request: request) == 7 { incomingRevision = target }
+                    else {
+                        let state = try await repository.synchronizationRebaseState(target: target, cancellation: request)
+                        let choice = state.canFastForward ? try await rebaseAnswer(.fastForward, request: request) : 2
+                        if choice == 1 {
+                            guard let performFastForward else { throw SynchronizationFailure.invalidInput }
+                            let merge = await performFastForward(state, request)
+                            guard !closed, token === request else { return }
+                            if case .failure(let error) = merge { followUpSucceeded = false; self.error = error.localizedDescription; commandOutput += "\nFast-forward failed.\n" + error.localizedDescription }
+                            incomingRevision = "HEAD"
+                        } else if choice == 2 {
+                            try await repository.validateSynchronizationRebaseState(state, cancellation: request)
+                            try await runRebase(target, false, false)
+                            guard !closed, token === request else { return }; incomingRevision = "HEAD"
+                        }
+                        // Abort keeps the successful Fetch and reference results.
+                    }
                 }
-                commandSucceeded = true
+                commandSucceeded = followUpSucceeded
             } catch {
                 guard !closed, token === request else { return }
                 let message: String
@@ -461,11 +555,11 @@ private struct SynchronizationCheckoutDialog: View {
                 }
                 guard !closed, token === inspection else { return }
             }
-            if action == .pull, let oldHead {
+            if let oldHead, action == .pull || incomingRevision != nil {
                 let inspection = OperationCancellation(); token = inspection
                 do {
-                    if commandSucceeded {
-                        let result = try await repository.synchronizationIncoming(from: oldHead, to: "HEAD", cancellation: inspection)
+                    if let incomingRevision {
+                        let result = try await repository.synchronizationIncoming(from: oldHead, to: incomingRevision, cancellation: inspection)
                         guard !closed, token === inspection else { return }
                         incomingCommits = result.commits; incomingGraph = CommitGraph.layout(result.commits); incomingComparison.snapshot = result.comparison
                         tab = result.comparison.from == result.comparison.to ? 3 : 4
@@ -559,7 +653,7 @@ private struct SynchronizationDialog: View {
             } else if model.tab == 0 || model.tab == 4 {
                 SynchronizationHistoryTable(model: model)
                     .id(model.tab)
-                    .overlay { if model.tab == 4, model.incomingCommits?.isEmpty == true { Text("Up to date.").foregroundStyle(.secondary) } }
+                    .overlay { if model.tab == 4, model.incomingUpToDate { Text("Up to date.").foregroundStyle(.secondary) } }
             } else if model.tab == 6 {
                 List(model.conflicts) { entry in
                     HStack { Image(nsImage: FileState.conflicted.icon.image() ?? NSImage()); Text(entry.path); Spacer()
@@ -580,6 +674,7 @@ private struct SynchronizationDialog: View {
                     Menu {
                         Button { model.performPullAction(.pull) } label: { CommandLabel(title: "Pull", icon: .pull) }
                         Button { model.performPullAction(.fetch) } label: { CommandLabel(title: "Fetch", icon: .fetch) }
+                        Button { model.performPullAction(.fetchAndRebase) } label: { CommandLabel(title: "Fetch & Rebase", icon: .rebase) }
                         Button { model.performPullAction(.fetchAllBranches) } label: { CommandLabel(title: "Fetch All", icon: .fetch) }
                         Button { model.performPullAction(.remoteUpdate) } label: { CommandLabel(title: "Remote Update", icon: .fetch) }
                         Button { model.performPullAction(.prune) } label: { CommandLabel(title: "Cleanup stale remote branches", icon: .clean) }

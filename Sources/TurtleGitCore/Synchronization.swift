@@ -130,14 +130,24 @@ public struct SynchronizationPullCheckout: Sendable {
     fileprivate let readyHead: String?
     fileprivate let readyBranch: String
 }
+/// Captures the actual branch attachment for SyncDlg's post-fetch choices.
+/// The pinned target is independent of subsequent remote-ref/FETCH_HEAD writes.
+public struct SynchronizationRebaseState: Sendable {
+    public let target: String
+    public let head: String
+    public let branch: String
+    public let canFastForward: Bool
+    fileprivate let repository: GitRepository
+}
 public enum SynchronizationTransportFailure: LocalizedError {
-    case checkoutNotAuthorized, deletionNotAuthorized, repositoryChanged, rebaseBranchRequired
+    case checkoutNotAuthorized, deletionNotAuthorized, repositoryChanged, rebaseBranchRequired, fastForwardRequired
     public var errorDescription: String? {
         switch self {
         case .checkoutNotAuthorized: return "Confirm switching to the selected local branch before pulling."
         case .deletionNotAuthorized: return "Confirm deleting the destination branch before pushing an empty source."
         case .repositoryChanged: return "The repository changed. Refresh Synchronization before starting this operation."
         case .rebaseBranchRequired: return "Choose a remote branch before fetching for the configured Pull rebase."
+        case .fastForwardRequired: return "The fetched revision cannot fast-forward the current branch."
         }
     }
 }
@@ -150,6 +160,29 @@ public struct SynchronizationTransportFollowUpFailure: LocalizedError {
 }
 
 extension GitRepository {
+    public func synchronizationRebaseState(target: String, cancellation: OperationCancellation? = nil) throws -> SynchronizationRebaseState {
+        try cancellation?.check()
+        guard !target.isEmpty, !target.contains("\0"),
+              let targetHash = try synchronizationHash(target, cancellation: cancellation),
+              let head = try synchronizationHash("HEAD", cancellation: cancellation) else { throw SynchronizationFailure.invalidInput }
+        let branch = try self.branch(cancellation: cancellation)
+        let forward = try run(["merge-base", "--is-ancestor", head, targetHash], successfulExitCodes: 0...1, cancellation: cancellation).exitCode == 0
+        try cancellation?.check()
+        return SynchronizationRebaseState(target: targetHash, head: head, branch: branch, canFastForward: forward, repository: self)
+    }
+    public func validateSynchronizationRebaseState(_ state: SynchronizationRebaseState, cancellation: OperationCancellation? = nil) throws {
+        try cancellation?.check()
+        guard state.repository === self,
+              try synchronizationHash("HEAD", cancellation: cancellation) == state.head,
+              GitReferenceName.equal(try branch(cancellation: cancellation), state.branch) else { throw SynchronizationTransportFailure.repositoryChanged }
+    }
+    /// Source SyncDlg runs this separate progress command after Merge is chosen.
+    public func synchronizationFastForward(_ state: SynchronizationRebaseState, cancellation: OperationCancellation? = nil,
+                                            onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> GitResult {
+        try validateSynchronizationRebaseState(state, cancellation: cancellation)
+        guard state.canFastForward else { throw SynchronizationTransportFailure.fastForwardRequired }
+        return try run(["merge", "--ff-only", "--", state.target], cancellation: cancellation, onOutput: onOutput)
+    }
     public func synchronizationReferenceSnapshot(cancellation: OperationCancellation? = nil) throws -> SynchronizationReferenceSnapshot {
         try cancellation?.check()
         let output = try run(["for-each-ref", "--format=%(refname)%00%(objectname)%00%(objecttype)%00%(object)%00"], cancellation: cancellation).stdout

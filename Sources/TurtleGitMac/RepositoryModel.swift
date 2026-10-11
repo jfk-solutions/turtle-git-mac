@@ -730,11 +730,11 @@ import TurtleGitCore
         controller.model.onReferenceLog = { [weak self] reference in self?.showReferenceLog(repository: repository, access: access, reference: reference) }
         controller.model.onReferenceCompare = { [weak self] old, new in self?.showRevisionComparison(repository: repository, access: access, from: .revision(old), to: .revision(new)) }
         controller.model.onResolve = { [weak self] paths in self?.showResolve(repository: repository, access: access, paths: paths, quick: nil) }
-        controller.model.runRebase = { [weak self, weak controller] target, preserve in
+        controller.model.runRebase = { [weak self, weak controller] target, autoStart, preserve in
             guard let self, let controller, !controller.model.closed, let owner = controller.window,
                   owner.attachedSheet == nil, self.rebaseWindows[key] == nil else { throw SynchronizationFailure.invalidInput }
             await withCheckedContinuation { continuation in
-                self.showRebase(repository: repository, access: access, upstream: target, autoStart: true, preserveMerges: preserve,
+                self.showRebase(repository: repository, access: access, upstream: target, autoStart: autoStart, preserveMerges: preserve,
                     afterFetch: true, owner: owner, onDismissed: { continuation.resume() })
             }
         }

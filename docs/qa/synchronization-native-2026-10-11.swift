@@ -203,8 +203,8 @@ import TurtleGitCore
         _ = try await author.run(["push", "origin", "main"]); let second = try await hash(author)
         _ = try await repo.run(["config", "branch.main.rebase", "merges"])
         var handoff = false
-        model.runRebase = { target, preserve in
-            let before = try await hash(repo); precondition(before == incoming && target == second && preserve && model.busy)
+        model.runRebase = { target, autoStart, preserve in
+            let before = try await hash(repo); precondition(before == incoming && target == second && autoStart && preserve && model.busy)
             handoff = true; _ = try await repo.run(["merge", "--ff-only", "--", target])
         }
         model.performPullAction(.pull); try await settle { !model.busy }
@@ -222,7 +222,7 @@ import TurtleGitCore
         model.performPullAction(.pull)
         try await settle { owner.window?.attachedSheet?.title.contains("Checkout Progress") == true }
         let progress = owner.window!.attachedSheet!
-        let checkoutController = progress.delegate as! SynchronizationCheckoutController
+        let checkoutController = progress.delegate as! SynchronizationProgressController
         try await settle { !checkoutController.model.busy }
         if case .failure = checkoutController.model.result {} else { preconditionFailure("blocked checkout did not retain failure") }
         precondition(views(progress.contentView!).compactMap { $0 as? NSTextView }.contains { $0.string.contains("overwritten") })
@@ -246,7 +246,7 @@ import TurtleGitCore
         precondition(blocked.transportRunning)
         try await settle { (FileManager.default.fileExists(atPath: marker.path) && blockedOwner.window?.attachedSheet != nil) || blocked.commandCompleted }
         precondition(FileManager.default.fileExists(atPath: marker.path) && blockedOwner.window?.attachedSheet != nil, "Checkout did not start: \(blocked.commandOutput)")
-        let blockedProgress = blockedOwner.window!.attachedSheet!, blockedController = blockedProgress.delegate as! SynchronizationCheckoutController
+        let blockedProgress = blockedOwner.window!.attachedSheet!, blockedController = blockedProgress.delegate as! SynchronizationProgressController
         preferences.set(true, forKey: "ConfirmKillProcess")
         var cancellationReply: ((Bool) -> Void)?
         blockedController.model.confirmCancel = { cancellationReply = $0 }
@@ -261,7 +261,115 @@ import TurtleGitCore
         precondition(blockedProgress.sheetParent == nil && !blockedProgress.isVisible && !blockedController.model.confirmingCancellation)
         print("PASS: native Pull separate checkout, original incoming baseline/graph/files, tracking Yes/No/Cancel suppression, branch Abort, actual preserve-merges handoff callback, conflict results, failed-checkout dismissal and forced running-checkout cleanup with late cancellation replies")
     }
+    @MainActor static func verifyFetchAndRebase(root: URL, preferences: UserDefaults) async throws {
+        let git = URL(fileURLWithPath: CommandLine.arguments[2]), directory = root.appendingPathComponent("fetch-rebase-fixture")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let parent = GitRepository(root: directory, executable: git), server = directory.appendingPathComponent("server.git"), authorRoot = directory.appendingPathComponent("author"), clientRoot = directory.appendingPathComponent("client")
+        _ = try await parent.run(["init", "--template=", "--bare", "-b", "main", server.path]); _ = try await parent.run(["init", "--template=", "-b", "main", authorRoot.path])
+        let author = GitRepository(root: authorRoot, executable: git)
+        for (key, value) in [("user.name", "Rebase QA"), ("user.email", "qa@example.invalid"), ("commit.gpgsign", "false"), ("core.hooksPath", "/dev/null")] { _ = try await author.run(["config", key, value]) }
+        try Data("base\n".utf8).write(to: authorRoot.appendingPathComponent("file")); try await author.stage(["file"]); _ = try await author.commit(message: "base")
+        _ = try await author.run(["remote", "add", "origin", server.path]); _ = try await author.run(["push", "-u", "origin", "main"])
+        _ = try await parent.run(["clone", "--template=", "--", server.path, clientRoot.path])
+        let repo = GitRepository(root: clientRoot, executable: git)
+        for (key, value) in [("user.name", "Rebase QA"), ("user.email", "qa@example.invalid"), ("commit.gpgsign", "false"), ("core.hooksPath", "/dev/null")] { _ = try await repo.run(["config", key, value]) }
+        func hash(_ repository: GitRepository) async throws -> String { String(decoding: try await repository.run(["rev-parse", "HEAD"]).stdout, as: UTF8.self).trimmingCharacters(in: .newlines) }
+        func advance(_ name: String) async throws -> String {
+            try Data((name + "\n").utf8).write(to: authorRoot.appendingPathComponent(name)); try await author.stage([name]); _ = try await author.commit(message: name); _ = try await author.run(["push", "origin", "main"]); return try await hash(author)
+        }
+        for prompt in FetchRebasePrompt.allCases { preferences.removeObject(forKey: prompt.rawValue) }
+        let base = try await hash(repo), first = try await advance("first")
+        let owner = SynchronizationWindowController(repository: repo, access: nil, preferences: preferences)
+        owner.window!.alphaValue = 0; owner.showWindow(nil); defer { owner.close() }
+        let model = owner.model; model.sshSettings.enabled = false
+        try await settle { !model.busy && model.outgoing != nil }
+        model.localBranch = "main"; model.remote = "origin"; model.remoteBranch = "main"
+        var prompts: [FetchRebasePrompt] = [], mergeCount = 0, rebaseCount = 0
+        model.presentRebasePrompt = { prompt in prompts.append(prompt); precondition(prompt == .fastForward); return FetchRebaseAnswer(value: 1, suppress: false) }
+        let presentMerge = model.performFastForward!
+        model.performFastForward = { state, token in
+            mergeCount += 1; precondition(state.target == first && state.head == base && state.branch == "main")
+            let result = await presentMerge(state, token); precondition(owner.window?.attachedSheet == nil); return result
+        }
+        model.performPullAction(.fetchAndRebase); try await settle { !model.busy }
+        let merged = try await hash(repo)
+        precondition(merged == first && mergeCount == 1 && prompts == [.fastForward] && model.commandSucceeded && model.tab == 4)
+        precondition(model.incomingComparison.snapshot?.from == .revision(base) && model.incomingComparison.snapshot?.to == .revision(first))
+        let restored = SynchronizationWindowModel(repository: repo, access: nil, preferences: preferences); precondition(restored.pullAction == .fetchAndRebase)
+        prompts = []; model.presentRebasePrompt = { prompt in prompts.append(prompt); return FetchRebaseAnswer(value: 7, suppress: true) }
+        model.performPullAction(.fetchAndRebase); try await settle { !model.busy }
+        precondition(prompts == [.unchanged] && model.commandSucceeded && preferences.integer(forKey: FetchRebasePrompt.unchanged.rawValue) == 7)
+        model.presentRebasePrompt = { _ in preconditionFailure("suppressed prompt was shown") }
+        model.performPullAction(.fetchAndRebase); try await settle { !model.busy }; precondition(model.commandSucceeded && mergeCount == 1)
+        preferences.removeObject(forKey: FetchRebasePrompt.unchanged.rawValue)
+        let second = try await advance("second")
+        prompts = []; model.presentRebasePrompt = { prompt in prompts.append(prompt); return FetchRebaseAnswer(value: 3, suppress: false) }
+        model.performPullAction(.fetchAndRebase); try await settle { !model.busy }
+        let abortedHead = try await hash(repo); precondition(abortedHead == first && prompts == [.fastForward] && model.commandSucceeded && model.incomingCommits == nil && model.tab == 3)
+        model.runRebase = { target, autoStart, preserve in
+            rebaseCount += 1; precondition(!autoStart && !preserve && model.busy && owner.window?.attachedSheet == nil)
+            let child = RebaseWindowController(repository: repo, access: nil, preferences: preferences)
+            child.window!.alphaValue = 0; child.model.completionAfterFetch = true; child.model.completionAutoStart = false
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                var delivered = false
+                child.onClosed = { [weak child] in
+                    guard !delivered else { return }; delivered = true
+                    if let window = child?.window { window.sheetParent?.endSheet(window) }
+                    continuation.resume()
+                }
+                child.model.load(upstream: target, autoStart: false); owner.window!.beginSheet(child.window!)
+                Task {
+                    do {
+                        try await settle { !child.model.busy && child.model.plan != nil }
+                        precondition(child.model.options.upstream == target && child.model.canStart && !child.model.finished)
+                        precondition(!owner.windowShouldClose(owner.window!))
+                        child.model.execute("start"); try await settle { !child.model.busy }
+                        precondition(child.model.finished && child.model.completedSuccessfully, child.model.error ?? child.model.output)
+                        child.model.close()
+                    } catch { child.close(); if !delivered { delivered = true; continuation.resume(throwing: error) } }
+                }
+            }
+            precondition(owner.window?.attachedSheet == nil)
+        }
+        prompts = []; model.presentRebasePrompt = { prompt in prompts.append(prompt); return FetchRebaseAnswer(value: prompt == .unchanged ? 6 : 2, suppress: false) }
+        model.performPullAction(.fetchAndRebase); try await settle { !model.busy }
+        let rebasedFF = try await hash(repo)
+        precondition(prompts == [.unchanged, .fastForward] && rebaseCount == 1 && rebasedFF == second && model.incomingComparison.snapshot?.to == .revision(second))
+        try Data("local\n".utf8).write(to: clientRoot.appendingPathComponent("local")); try await repo.stage(["local"]); _ = try await repo.commit(message: "local replay")
+        let original = try await hash(repo), third = try await advance("third")
+        prompts = []; model.performPullAction(.fetchAndRebase); try await settle { !model.busy }
+        let replayed = try await hash(repo)
+        precondition(prompts.isEmpty && rebaseCount == 2 && model.commandSucceeded && replayed != original && replayed != third)
+        precondition(model.incomingComparison.snapshot?.from == .revision(original) && model.incomingComparison.snapshot?.to == .revision(replayed))
+        let ancestry = try await repo.run(["merge-base", "--is-ancestor", third, "HEAD"], successfulExitCodes: 0...1); precondition(ancestry.exitCode == 0)
+        prompts = []; model.presentRebasePrompt = { prompt in prompts.append(prompt); return FetchRebaseAnswer(value: 7, suppress: false) }
+        model.performPullAction(.fetchAndRebase); try await settle { !model.busy }
+        let ahead = try await hash(repo)
+        precondition(prompts == [.unchanged] && ahead == replayed && model.commandSucceeded && !model.incomingUpToDate)
+        precondition(model.incomingCommits?.isEmpty == true && model.incomingComparison.snapshot?.from == .revision(replayed) && model.incomingComparison.snapshot?.to == .revision(third))
+        precondition(model.incomingComparison.snapshot?.files.contains { $0.path == "local" && $0.action == "D" } == true)
+        _ = try await repo.run(["reset", "--hard", third])
+        let fourth = try await advance("fourth")
+        model.performFastForward = presentMerge
+        model.presentRebasePrompt = { prompt in
+            precondition(prompt == .fastForward)
+            _ = try! await repo.run(["switch", "--detach", third])
+            return FetchRebaseAnswer(value: 1, suppress: false)
+        }
+        model.performPullAction(.fetchAndRebase)
+        try await settle { owner.window?.attachedSheet?.title.contains("Merge Progress") == true }
+        let staleProgress = owner.window!.attachedSheet!, staleController = staleProgress.delegate as! SynchronizationProgressController
+        try await settle { !staleController.model.busy }
+        precondition(staleController.model.output.contains("repository changed"))
+        staleController.model.close(); try await settle { !model.busy }
+        let staleHead = try await hash(repo), staleBranch = try await repo.branch()
+        precondition(staleHead == third && staleBranch.isEmpty && !model.commandSucceeded && model.incomingUpToDate)
+        let mainRef = String(decoding: try await repo.run(["rev-parse", "refs/heads/main"]).stdout, as: UTF8.self).trimmingCharacters(in: .newlines)
+        precondition(mainRef == third && fourth != third)
+        print("PASS: native Sync Fetch & Rebase unchanged No/suppression with ahead HEAD, separate fast-forward Merge, Abort without incoming, unchanged Yes then manual Rebase, actual owned Rebase controller fast-forward/divergent replay, stale Merge refusal, source action persistence and pinned incoming results")
+    }
     @MainActor static func main() async throws {
+        if let status = RebaseEditor.handle(arguments: CommandLine.arguments, environment: ProcessInfo.processInfo.environment) { exit(status) }
         NSApplication.shared.setActivationPolicy(.prohibited)
         let root = URL(fileURLWithPath: CommandLine.arguments[1])
         let repo = GitRepository(root: root, executable: URL(fileURLWithPath: CommandLine.arguments[2]))
@@ -333,6 +441,7 @@ import TurtleGitCore
         precondition(after == refs && afterIndex == index)
         try await verifyTransport(repo: repo, root: root, preferences: preferences)
         try await verifyPull(root: root, preferences: preferences)
+        try await verifyFetchAndRebase(root: root, preferences: preferences)
         print("PASS: native Sync tracking controls, exact Unicode choices, graph-first table, changes and pinned comparison snapshot, divergence/Force, unknown states, Quit fences, owner invalidation and read-only preservation")
     }
 }

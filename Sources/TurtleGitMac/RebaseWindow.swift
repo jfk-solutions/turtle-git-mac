@@ -7,8 +7,8 @@ import TurtleGitCore
     var onClosed: () -> Void = {}
     private var logPicker: LogWindowController?
     private var splitCommitPicker: CommitWindowController?
-    init(repository: GitRepository, access: RepositoryAccessLease?) {
-        model = RebaseWindowModel(repository: repository, access: access)
+    init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
+        model = RebaseWindowModel(repository: repository, access: access, messageDefaults: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1040, height: 720), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Rebase – TurtleGit"; window.minSize = NSSize(width: 930, height: 620); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: RebaseDialog(model: model))
@@ -53,7 +53,7 @@ import TurtleGitCore
             alert.buttons.first?.keyEquivalent = ""; abort.keyEquivalent = "\r"; alert.window.defaultButtonCell = abort.cell as? NSButtonCell
             let remember = NSButton(checkboxWithTitle: "Do not show again", target: nil, action: nil); alert.accessoryView = remember
             let answer = await alert.beginSheetModal(for: window)
-            if answer == .alertFirstButtonReturn, remember.state == .on { UserDefaults.standard.set(true, forKey: "CommitMessageContainsConflictHint") }
+            if answer == .alertFirstButtonReturn, remember.state == .on { preferences.set(true, forKey: "CommitMessageContainsConflictHint") }
             return answer == .alertFirstButtonReturn
         }
         model.chooseMainline = { [weak window] commit, choices in
@@ -341,14 +341,14 @@ import TurtleGitCore
                 if let cherryPick {
                     plan = try await repository.cherryPickPlan(revisions: cherryPick)
                     options = plan!.options
-                    options.addCherryPickedFrom = UserDefaults.standard.bool(forKey: "CherrypickAddCherryPickedFrom")
+                    options.addCherryPickedFrom = messageDefaults.bool(forKey: "CherrypickAddCherryPickedFrom")
                     updateAttribution()
-                    options.squashDate = RebaseSquashDate(rawValue: UserDefaults.standard.integer(forKey: "SquashDate")) ?? .first
+                    options.squashDate = RebaseSquashDate(rawValue: messageDefaults.integer(forKey: "SquashDate")) ?? .first
                     plan?.options.squashDate = options.squashDate
                     onModeChanged(); selection = Set(entries.first.map { [$0.id] } ?? []); selectCommit(); return
                 }
                 onModeChanged()
-                options.squashDate = RebaseSquashDate(rawValue: UserDefaults.standard.integer(forKey: "SquashDate")) ?? .first
+                options.squashDate = RebaseSquashDate(rawValue: messageDefaults.integer(forKey: "SquashDate")) ?? .first
                 let branch = try await repository.branch(); options.branch = branch.isEmpty ? "HEAD" : "refs/heads/" + branch
                 let defaults = try await repository.pullDefaults()
                 options.upstream = upstream ?? (defaults.trackedRemote.isEmpty || defaults.trackedBranch.isEmpty ? "" : "refs/remotes/" + defaults.trackedRemote + "/" + defaults.trackedBranch)
@@ -375,7 +375,7 @@ import TurtleGitCore
         guard isCherryPick, var value = plan, !active else { return }
         value.options.addCherryPickedFrom = options.addCherryPickedFrom
         plan = value
-        UserDefaults.standard.set(options.addCherryPickedFrom, forKey: "CherrypickAddCherryPickedFrom")
+        messageDefaults.set(options.addCherryPickedFrom, forKey: "CherrypickAddCherryPickedFrom")
     }
     private func prepareCherryPick() {
         guard canStart, var snapshot = plan else { return }
@@ -510,7 +510,7 @@ import TurtleGitCore
                     let rawText = amendMessage, paths = checkedConflicts, head = conflictHead
                     let stripComments = messageDefaults.bool(forKey: "StripCommentedLines")
                     let text = try await repository.prepareCommitMessageFile(rawText, stripComments: stripComments, sanitize: messageDefaults.object(forKey: "SanitizeCommitMsg") as? Bool ?? true).contents
-                    if fileRecovery, state?.split == nil, !UserDefaults.standard.bool(forKey: "CommitMessageContainsConflictHint"), try await repository.rebaseMessageContainsConflictHints(rawText, stripComments: stripComments) {
+                    if fileRecovery, state?.split == nil, !messageDefaults.bool(forKey: "CommitMessageContainsConflictHint"), try await repository.rebaseMessageContainsConflictHints(rawText, stripComments: stripComments) {
                         guard await confirmConflictHints() else { tab = 1; return }
                     }
                     if state?.squashMessage?.skipBaseHead != nil { result = try await repository.continueRebase() }

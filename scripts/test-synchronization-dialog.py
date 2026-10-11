@@ -21,7 +21,9 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-sync-native-') as temporary:
     copy.write_text(app.read_text().replace('@main struct', 'struct', 1))
     sources = sorted(str(p) for p in (root / 'Sources/TurtleGitMac').glob('*.swift') if p != app)
     executable = directory / 'sync-native-receiver'
-    subprocess.run(['xcrun', 'swiftc', '-parse-as-library', '-swift-version', '5', '-target', platform.machine() + '-apple-macos13.0', '-I', str(products), '-F', str(products), *sources, str(copy), str(root / 'docs/qa/synchronization-native-2026-10-11.swift'), '-framework', 'TurtleGitCore', '-o', str(executable)], cwd=root, check=True)
+    # Git's system executable may strip DYLD_* before launching the sequence
+    # editor. The temporary receiver needs its own framework search path.
+    subprocess.run(['xcrun', 'swiftc', '-parse-as-library', '-swift-version', '5', '-target', platform.machine() + '-apple-macos13.0', '-I', str(products), '-F', str(products), *sources, str(copy), str(root / 'docs/qa/synchronization-native-2026-10-11.swift'), '-framework', 'TurtleGitCore', '-Xlinker', '-rpath', '-Xlinker', str(products), '-o', str(executable)], cwd=root, check=True)
     environment = os.environ.copy()
     environment['DYLD_FRAMEWORK_PATH'] = str(products)
     for index, git in enumerate(args.git or [Path('/usr/bin/git')]):
