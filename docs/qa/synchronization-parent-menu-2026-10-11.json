@@ -1,0 +1,54 @@
+{
+  "date": "2026-10-11",
+  "status": "partial-native-parent-captions-and-selection-cases-verified",
+  "code_commit": "4c143d07044a1630978343bcb1bdb265e223ce2a",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_references": [
+    "src/TortoiseProc/GitLogListBase.cpp: GetParentHashes, parentInfo and selectedCount comparison gates",
+    "src/Git/Git.cpp: CGit::GetShortHASHLength returns 8"
+  ],
+  "correction": "Prior record listed configurable parent hash lengths as pending. Pinned source hard-codes eight; labels now match that even when core.abbrev=12. Subjects of parents outside the loaded history still require lookup.",
+  "verification": {
+    "engines": [
+      "system Git 2.50.1",
+      "bundled Git 2.55.0"
+    ],
+    "native_receivers_reaped": [
+      40251,
+      40545
+    ],
+    "native_scenarios": [
+      "Original revision-list/clipboard/lifecycle and real comparison-window assertions retained",
+      "Separate six-commit local history with merge and unrelated tracking root exposes root and both parents",
+      "Root omits previous revision while retaining working-tree comparison",
+      "Both merge-parent actions carry captured hashes after changing selection",
+      "Available parent subject captions use twenty UTF-16 units and source ellipsis; hashes use eight digits with core.abbrev=12",
+      "Three contiguous revisions compare endpoints; three disjoint revisions omit Compare revisions; two disjoint revisions compare endpoints",
+      "Quit guards disable the menu and suppress a captured action",
+      "Original and additional fixture refs/index/config unchanged, owners closed"
+    ],
+    "debug_unsigned_build": "passed",
+    "appstore_unsigned_universal_build": "passed",
+    "bundle_audits": "Both passed; AppStore includes required Git",
+    "inventory_pin_audit": "passed",
+    "documentation_site_build": "passed",
+    "scope": "Native NSMenu dispatch/state and existing comparison-window snapshot coverage. No new full Core run, physical capture or signed acceptance."
+  },
+  "sha256": {
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "bd3ca6e39b92db4d569933f133632cdc1e64b827ac15b4515bb4e0d0e0a453bc",
+    "docs/qa/synchronization-revision-list-native-2026-10-11.swift": "f197e6aa1925aedc3f849bc4f7550c1a25ee4b2a92ac7affb77e61b165d82b4c",
+    "build/qa/sync-parent-menu-debug-2026-10-11.log": "939a8270ac82dfb019bbcd9bdfa4bf83969a18362d5b0e4eab5518f137b713f7",
+    "build/qa/sync-parent-menu-store-2026-10-11.log": "bcc2f98252e5410042d87fae624a2aeb01b11f2e58e28bf19806ade64e67eb5b",
+    "build/qa/sync-parent-menu-native-final-2026-10-11.log": "0f181f1b47f05af1c75ff18079c772b8d1a228af25cebb000a4498e9f2b6cf32",
+    "build/qa/sync-parent-menu-debug-audit-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/sync-parent-menu-store-audit-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/sync-parent-menu-inventory-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/sync-parent-menu-site-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "remaining": [
+    "Metadata lookup for parent subjects outside loaded history",
+    "Unified diff merge variants, compare changesets and remaining revision commands",
+    "Keyboard/default double-click, physical/accessibility and signed sandbox/Finder acceptance",
+    "Complete application parity and signed App Store distribution"
+  ]
+}
