@@ -250,4 +250,121 @@ final class SynchronizationTransportTests: XCTestCase {
         let head = try await hash(f.client), topic = try await hash(f.client, "refs/remotes/origin/topic")
         XCTAssertEqual(head, f.base); XCTAssertEqual(topic, f.base)
     }
+    func testPullReplansConfigurationChangedByApprovedCheckoutHook() async throws {
+        for (before, after, expected) in [("false", "merges", SynchronizationRebaseMode.preserveMerges), ("merges", "false", .none)] {
+            let f = try await fixture(); defer { try? FileManager.default.removeItem(at: f.directory) }
+            let tip = try await advance(f)
+            _ = try await f.client.run(["config", "branch.main.rebase", before])
+            _ = try await f.client.run(["switch", "-c", "other"])
+            let tree = String(decoding: try await f.client.run(["rev-parse", f.base + "^{tree}"]).stdout, as: UTF8.self).trimmingCharacters(in: .newlines)
+            let other = String(decoding: try await f.client.run(["commit-tree", tree, "-p", f.base, "-m", "other branch"]).stdout, as: UTF8.self).trimmingCharacters(in: .newlines)
+            _ = try await f.client.run(["update-ref", "refs/heads/other", other])
+            let hooks = f.directory.appendingPathComponent("approved-hooks")
+            try FileManager.default.createDirectory(at: hooks, withIntermediateDirectories: true)
+            let hook = hooks.appendingPathComponent("post-checkout")
+            func quote(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\"'\"'") + "'" }
+            let script = "#!/bin/sh\nexec " + quote(f.client.executable.path) + " -C " + quote(f.client.root.path) + " config --local branch.main.rebase " + after + "\n"
+            try Data(script.utf8).write(to: hook); try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: hook.path)
+            _ = try await f.client.run(["config", "core.hooksPath", hooks.path])
+            let plan = try await f.client.synchronizationTransportPlan(options(.pull))
+            XCTAssertEqual(plan.oldHead, other); XCTAssertEqual(plan.checkoutBranch, "main")
+            let result = try await f.client.synchronize(plan, checkoutAuthorized: true)
+            XCTAssertEqual(result.rebaseMode, expected)
+            XCTAssertEqual(result.executedArguments.first, expected == .none ? "pull" : "fetch")
+            let head = try await hash(f.client), branch = try await f.client.branch(), untouched = try await hash(f.client, "refs/heads/other")
+            XCTAssertEqual(branch, "main"); XCTAssertEqual(untouched, other); XCTAssertEqual(plan.oldHead, other)
+            XCTAssertEqual(head, expected == .none ? tip : f.base)
+            XCTAssertEqual(result.rebaseTarget, expected == .none ? nil : tip)
+        }
+    }
+    func testDetachedPullDoesNotInterceptRebaseAndFetchHeadUsesItsFirstRevision() async throws {
+        let f = try await fixture(); defer { try? FileManager.default.removeItem(at: f.directory) }
+        let tip = try await advance(f)
+        _ = try await f.client.run(["config", "pull.rebase", "true"])
+        let gitPath = String(decoding: try await f.client.run(["rev-parse", "--git-path", "FETCH_HEAD"]).stdout, as: UTF8.self).trimmingCharacters(in: .newlines)
+        let fetchHead = gitPath.hasPrefix("/") ? URL(fileURLWithPath: gitPath) : f.client.root.appendingPathComponent(gitPath)
+        // Push's FixBranchName rejects two for-merge lines; source Pull resolves
+        // FETCH_HEAD normally and checks out the first line instead.
+        try Data((f.base + "\t\tfirst\n" + tip + "\t\tsecond\n").utf8).write(to: fetchHead)
+        var input = options(.pull); input.localBranch = "FETCH_HEAD"
+        let plan = try await f.client.synchronizationTransportPlan(input)
+        XCTAssertEqual(plan.checkoutArguments, ["switch", "--detach", "--", "FETCH_HEAD"])
+        XCTAssertEqual(plan.rebaseMode, .none); XCTAssertEqual(plan.arguments.first, "pull")
+        let result = try await f.client.synchronize(plan, checkoutAuthorized: true)
+        XCTAssertEqual(result.rebaseMode, .none); XCTAssertNil(result.rebaseTarget)
+        XCTAssertEqual(result.executedArguments, ["pull", "-v", "--progress", "--", "origin", "main"])
+        let branch = try await f.client.branch(), head = try await hash(f.client)
+        XCTAssertEqual(branch, ""); XCTAssertEqual(head, tip)
+        _ = try await f.client.run(["switch", "main"])
+        input.localBranch = "refs/heads/main"
+        let qualified = try await f.client.synchronizationTransportPlan(input)
+        XCTAssertEqual(qualified.checkoutArguments, ["switch", "--detach", "--", "refs/heads/main"])
+        XCTAssertEqual(qualified.rebaseMode, .none)
+    }
+    func testPullReplansConfigurationAfterAsynchronousKeyPreparation() async throws {
+        let f = try await fixture(); defer { try? FileManager.default.removeItem(at: f.directory) }
+        let tip = try await advance(f)
+        let plan = try await f.client.synchronizationTransportPlan(options(.pull))
+        XCTAssertEqual(plan.rebaseMode, .none)
+        let result = try await f.client.synchronize(plan, prepareTransport: { _, _ in
+            _ = try await f.client.run(["config", "branch.main.rebase", "merges"])
+            return nil
+        })
+        XCTAssertEqual(result.rebaseMode, .preserveMerges); XCTAssertEqual(result.executedArguments.first, "fetch")
+        XCTAssertEqual(result.rebaseTarget, tip)
+        let head = try await hash(f.client); XCTAssertEqual(head, f.base)
+    }
+
+    func testPullUsesActualBranchAfterOwnedCheckoutHookChangesAttachment() async throws {
+        let f = try await fixture(); defer { try? FileManager.default.removeItem(at: f.directory) }
+        let tip = try await advance(f)
+        _ = try await f.client.run(["switch", "-c", "other"])
+        _ = try await f.client.run(["config", "branch.other.rebase", "true"])
+        _ = try await f.client.run(["config", "branch.main.rebase", "false"])
+        let hooks = f.directory.appendingPathComponent("attachment-hooks")
+        try FileManager.default.createDirectory(at: hooks, withIntermediateDirectories: true)
+        func quote(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\"'\"'") + "'" }
+        let hook = hooks.appendingPathComponent("post-checkout")
+        let script = "#!/bin/sh\nexec " + quote(f.client.executable.path) + " -C " + quote(f.client.root.path) + " -c core.hooksPath=/dev/null switch other\n"
+        try Data(script.utf8).write(to: hook); try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: hook.path)
+        _ = try await f.client.run(["config", "core.hooksPath", hooks.path])
+        let plan = try await f.client.synchronizationTransportPlan(options(.pull))
+        XCTAssertEqual(plan.checkoutBranch, "main"); XCTAssertEqual(plan.rebaseMode, .none)
+        let result = try await f.client.synchronize(plan, checkoutAuthorized: true)
+        XCTAssertEqual(result.rebaseMode, .rebase); XCTAssertEqual(result.executedArguments.first, "fetch")
+        XCTAssertEqual(result.rebaseTarget, tip)
+        let actual = try await f.client.branch(), head = try await hash(f.client)
+        XCTAssertEqual(actual, "other"); XCTAssertEqual(head, f.base)
+    }
+
+    func testEmptyRebaseBranchValidationOccursAfterApprovedCheckoutHook() async throws {
+        for (before, after) in [("merges", "false"), ("false", "merges")] {
+            let f = try await fixture(); defer { try? FileManager.default.removeItem(at: f.directory) }
+            let tip = try await advance(f)
+            _ = try await f.client.run(["config", "branch.main.rebase", before])
+            _ = try await f.client.run(["switch", "-c", "other"])
+            let hooks = f.directory.appendingPathComponent("empty-branch-hooks")
+            try FileManager.default.createDirectory(at: hooks, withIntermediateDirectories: true)
+            func quote(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\"'\"'") + "'" }
+            let hook = hooks.appendingPathComponent("post-checkout")
+            let script = "#!/bin/sh\nexec " + quote(f.client.executable.path) + " -C " + quote(f.client.root.path) + " config --local branch.main.rebase " + after + "\n"
+            try Data(script.utf8).write(to: hook); try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: hook.path)
+            _ = try await f.client.run(["config", "core.hooksPath", hooks.path])
+            var input = options(.pull); input.remoteBranch = ""
+            let plan = try await f.client.synchronizationTransportPlan(input)
+            XCTAssertEqual(plan.checkoutBranch, "main")
+            if after == "false" {
+                let result = try await f.client.synchronize(plan, checkoutAuthorized: true)
+                XCTAssertEqual(result.rebaseMode, .none); XCTAssertEqual(result.executedArguments.first, "pull")
+                let head = try await hash(f.client); XCTAssertEqual(head, tip)
+            } else {
+                do { _ = try await f.client.synchronize(plan, checkoutAuthorized: true); XCTFail("missing branch accepted") }
+                catch SynchronizationTransportFailure.rebaseBranchRequired {}
+                let head = try await hash(f.client), tracking = try await hash(f.client, "refs/remotes/origin/main")
+                XCTAssertEqual(head, f.base); XCTAssertEqual(tracking, f.base)
+            }
+            let selected = try await f.client.branch(); XCTAssertEqual(selected, "main")
+        }
+    }
+
 }

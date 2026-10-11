@@ -117,6 +117,8 @@ public struct SynchronizationTransportPlan: Sendable {
 public struct SynchronizationTransportResult: Sendable {
     public let command: GitResult
     public let rebaseTarget: String?
+    public let rebaseMode: SynchronizationRebaseMode
+    public let executedArguments: [String]
 }
 public enum SynchronizationTransportFailure: LocalizedError {
     case checkoutNotAuthorized, deletionNotAuthorized, repositoryChanged, rebaseBranchRequired
@@ -224,6 +226,9 @@ extension GitRepository {
         return mergeLines.count == 1 ? mergeLines[0] : ""
     }
     public func synchronizationTransportPlan(_ input: SynchronizationTransportOptions, cancellation: OperationCancellation? = nil) throws -> SynchronizationTransportPlan {
+        try buildSynchronizationTransportPlan(input, cancellation: cancellation, checkoutCompleted: false)
+    }
+    private func buildSynchronizationTransportPlan(_ input: SynchronizationTransportOptions, cancellation: OperationCancellation?, checkoutCompleted: Bool) throws -> SynchronizationTransportPlan {
         try cancellation?.check()
         guard ![input.localBranch, input.remote, input.remoteBranch].contains(where: { $0.contains("\0") }), !input.remote.isEmpty else { throw SynchronizationFailure.invalidInput }
         var options = input
@@ -234,32 +239,42 @@ extension GitRepository {
         guard pushing || head != nil else { throw SynchronizationFailure.invalidInput }
         let url = options.remote.contains("/") || options.remote.contains("\\")
         var source = options.localBranch
-        if GitReferenceName.equal(source, "FETCH_HEAD") { source = try synchronizationFetchHead(cancellation: cancellation) }
+        if pushing && GitReferenceName.equal(source, "FETCH_HEAD") { source = try synchronizationFetchHead(cancellation: cancellation) }
         var checkout: String?
         var mode = options.action == .fetchAndRebase ? SynchronizationRebaseMode.choose : .none
         if options.action == .pull {
-            guard let localHash = try synchronizationHash(source, cancellation: cancellation) else { throw SynchronizationFailure.invalidInput }
-            if localHash != head || !GitReferenceName.equal(options.localBranch, catalog.currentBranch) { checkout = options.localBranch }
-            func configuration(_ key: String) throws -> String? {
-                let value = try run(["config", "--get", key], successfulExitCodes: 0...1, cancellation: cancellation)
-                return value.exitCode == 0 ? String(decoding: value.stdout, as: UTF8.self).trimmingCharacters(in: .newlines) : nil
+            if !checkoutCompleted {
+                guard let localHash = try synchronizationHash(source, cancellation: cancellation) else { throw SynchronizationFailure.invalidInput }
+                if localHash != head || !GitReferenceName.equal(options.localBranch, catalog.currentBranch) { checkout = options.localBranch }
             }
-            let branchKey = "branch." + options.localBranch + ".rebase"
-            let branchValue = try configuration(branchKey)
-            let key = branchValue == nil ? "pull.rebase" : branchKey
-            let rebase = try branchValue ?? configuration(key) ?? "false"
-            if rebase == "merges" { mode = .preserveMerges }
-            else {
-                do {
-                    let value = try run(["config", "--bool", "--get", key], successfulExitCodes: 0...1, cancellation: cancellation)
-                    if String(decoding: value.stdout, as: UTF8.self).trimmingCharacters(in: .newlines) == "true" { mode = .rebase }
-                } catch let error as GitFailure {
-                    // Source GetBOOL leaves its zero default for a non-boolean
-                    // string. The CLI Pull still receives its configured value.
-                    guard error.code == 128 else { throw error }
+            // Before checkout, predict whether the selected short local branch
+            // stays attached. After checkout/authentication, use the actual HEAD
+            // branch: post-checkout hooks may change configuration or attachment.
+            let rebaseBranch = checkout.map { target in catalog.localBranches.contains { GitReferenceName.equal($0, target) } ? target : "" } ?? catalog.currentBranch
+            if !rebaseBranch.isEmpty {
+                func configuration(_ key: String) throws -> String? {
+                    let value = try run(["config", "--get", key], successfulExitCodes: 0...1, cancellation: cancellation)
+                    return value.exitCode == 0 ? String(decoding: value.stdout, as: UTF8.self).trimmingCharacters(in: .newlines) : nil
+                }
+                let branchKey = "branch." + rebaseBranch + ".rebase"
+                let branchValue = try configuration(branchKey)
+                let key = branchValue == nil ? "pull.rebase" : branchKey
+                let rebase = try branchValue ?? configuration(key) ?? "false"
+                if rebase == "merges" { mode = .preserveMerges }
+                else {
+                    do {
+                        let value = try run(["config", "--bool", "--get", key], successfulExitCodes: 0...1, cancellation: cancellation)
+                        if String(decoding: value.stdout, as: UTF8.self).trimmingCharacters(in: .newlines) == "true" { mode = .rebase }
+                    } catch let error as GitFailure {
+                        // Source GetBOOL leaves its zero default for a non-boolean
+                        // string. The CLI Pull still receives its configured value.
+                        guard error.code == 128 else { throw error }
+                    }
                 }
             }
-            if mode != .none && options.remoteBranch.isEmpty { throw SynchronizationTransportFailure.rebaseBranchRequired }
+            // Source validates this after the separate checkout step. Do not
+            // reject before a planned checkout whose hook can change the mode.
+            if checkout == nil && mode != .none && options.remoteBranch.isEmpty { throw SynchronizationTransportFailure.rebaseBranchRequired }
         }
         let fetching = [.fetch, .fetchAndRebase, .fetchAllBranches].contains(options.action) || options.action == .pull && mode != .none
         var oldRemote: String?, args: [String], reference: String?
@@ -339,9 +354,13 @@ extension GitRepository {
             guard try synchronizationHash("HEAD", cancellation: token) == readyHead,
                   GitReferenceName.equal(try branch(cancellation: token), readyBranch) else { throw SynchronizationTransportFailure.repositoryChanged }
         }
-        let result = try run(plan.arguments, environmentOverrides: session?.transportEnvironment ?? [:], cancellation: token, onOutput: onOutput)
+        // Source evaluates Pull rebase settings only after checkout and key
+        // preparation. Rebuild its command from the same selected fields then;
+        // the original plan still owns the pre-checkout HEAD for incoming tabs.
+        let execution = plan.options.action == .pull ? try buildSynchronizationTransportPlan(plan.options, cancellation: token, checkoutCompleted: true) : plan
+        let result = try run(execution.arguments, environmentOverrides: session?.transportEnvironment ?? [:], cancellation: token, onOutput: onOutput)
         var target: String?
-        if let reference = plan.rebaseReference {
+        if let reference = execution.rebaseReference {
             do {
                 let revision = reference == "FETCH_HEAD" ? try synchronizationFetchHead(cancellation: token) : reference
                 guard !revision.isEmpty, let resolved = try synchronizationHash(revision, cancellation: token) else { throw SynchronizationFailure.invalidInput }
@@ -351,7 +370,7 @@ extension GitRepository {
                 throw SynchronizationTransportFollowUpFailure(command: result, details: error.localizedDescription)
             }
         }
-        return SynchronizationTransportResult(command: result, rebaseTarget: target)
+        return SynchronizationTransportResult(command: result, rebaseTarget: target, rebaseMode: execution.rebaseMode, executedArguments: execution.arguments)
     }
 
     public func synchronizationBranches(localBranch: String? = nil, cancellation: OperationCancellation? = nil) throws -> SynchronizationBranches {
