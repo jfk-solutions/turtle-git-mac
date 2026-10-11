@@ -39,7 +39,8 @@ The snapshots do not authorize transport operations.
 `SynchronizationTransportOptions` and its immutable plan cover Pull, Fetch,
 Fetch & Rebase, Fetch All, Remote Update, Prune, Push, Push Tags and Push Notes.
 Pull, Fetch, Fetch All, Remote Update and Prune are wired to the native window.
-Fetch & Rebase's chooser and Push variants still require their native workflows.
+Fetch & Rebase now owns its source choices and separate progress; Push variants
+still require their native workflows.
 
 The source CLI rules are preserved: matching pull tracking omits an explicit
 branch; configured Pull rebase performs Fetch and defers the native rebase
@@ -96,7 +97,7 @@ The blocked checkout preserves the worktree, index and prior FETCH_HEAD and
 returns no continuation checkpoint.
 
 The native owner still needs Push project hooks, full conflict/reference menus,
-Fetch & Rebase's unchanged/fast-forward choices and the remaining source controls.
+the remaining source controls and complete post-action menus.
 Native revision-expression prefill, metadata snapshot ordering after key loading
 and broader repository modes also require further source parity work. No signed
 or authenticated network acceptance claim follows from the local command tests.
@@ -143,7 +144,7 @@ references. Fetch does not populate incoming HEAD tabs. These four actions do no
 run Pull/Push tracking questions or Push project hooks.
 
 The Pull split control remembers its implemented selection per repository, using
-the source entry indexes. Fetch & Rebase, Shift options routing, Compare Tags and
+the source entry indexes. Shift options routing, Compare Tags and
 the other split controls remain to be ported. This does not establish complete
 native Synchronization parity or authenticated network/physical/signed acceptance.
 
@@ -177,6 +178,31 @@ the child closes. An existing Rebase window is not reused for this operation, an
 a modeless activation cannot replace an owned sheet's dismissal callback. Forced
 parent closure detaches a busy Rebase to its retained repository owner, or closes
 an idle child. Full physical child-dialog acceptance remains pending.
+
+## Native Fetch & Rebase
+
+The Pull split control exposes source entry 2, Fetch & Rebase, and remembers it
+per repository. Successful transport pins the fetched target. The source
+unchanged-remote check compares that target with the pre-fetch remote hash,
+independently of current HEAD. No shows incoming results against the fetched
+target without changing HEAD. Yes continues to the fast-forward check. The
+shared prompt uses the source response values and suppression preference keys.
+
+A fast-forward offers Merge/Rebase/Abort with Rebase as the default. Merge opens
+separate owned progress for `git merge --ff-only -- PINNED_TARGET`. Its Core
+state captures actual HEAD and branch attachment, and validates the same actor,
+HEAD and branch before executing. Planning is read-only; later remote-ref movement
+does not change the target. Equal HEAD/target remains a valid fast-forward.
+Failure retains progress output until Close. Incoming HEAD and reference results
+are read after the progress closes, including failed merge. Abort preserves
+successful Fetch/reference results and does not fill incoming tabs.
+
+Rebase opens the owned child without auto-start or preserve-merges. Divergence
+opens it directly, without the standalone Fetch dialog's extra up-to-date prompt.
+Incoming HEAD is read after dismissal. Configured Pull continues to request
+auto-start and its actual preserve-merges setting. Checkout and Merge share the
+same bounded selectable progress output, cancellation and force-close handling.
+Full Merge post-actions and physical prompt/button acceptance remain pending.
 
 ## Reference-change results
 
@@ -277,6 +303,20 @@ remains pending. Both unsigned configurations and bundle audits pass. Core sourc
 is unchanged from the separate-checkout record; the full suite was not rerun.
 Hidden bitmap captures omitted SwiftUI labels and were rejected for publication.
 See the [native Pull QA record](qa/synchronization-pull-native-2026-10-11.json).
+
+Fetch & Rebase adds two Core tests; all 28 synchronization tests pass on system
+Git 2.50.1, Git 2.39.5 and packaged Git 2.55.0. The extended native receiver passes
+on system and packaged Git, including actual separate Merge progress, unchanged
+No/suppression with ahead HEAD, Abort, real owned Rebase controller fast-forward
+and divergent replay, stale Merge refusal and pinned incoming results. Prompt
+answers and Start/Close actions are injected; the child is opened in the callback
+with the actual controller, not through the production RepositoryModel factory.
+The temporary receiver embeds its framework rpath for the sequence-editor role.
+System Git also completes a private two-commit replay using the actual Debug app
+sequence editor without DYLD overrides. Both unsigned builds and bundle audits
+pass. Full-suite, physical/rendered, full factory/completion and signed acceptance
+remain unverified. See the
+[Fetch & Rebase QA record](qa/synchronization-fetch-rebase-2026-10-11.json).
 
 ## Remaining full port
 

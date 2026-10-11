@@ -1,0 +1,127 @@
+{
+  "date": "2026-10-11",
+  "checkpoint": "6dff08025be35ccbfd41b8019fba4f5499de7cbc",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "status": "partial-native-workflow",
+  "implemented": [
+    "Source Fetch & Rebase entry 2 with unchanged-remote Yes/No and remembered suppression, independent of current HEAD. No fills incoming against the fetched target without changing HEAD.",
+    "Fast-forward Merge/Rebase/Abort with source default Rebase, separate owned Merge progress, and manual Rebase without auto-start/preserve-merges. Abort retains Fetch/ref results without incoming tabs.",
+    "Read-only post-fetch state pins target and actual HEAD/branch; separate fast-forward merge rejects foreign actor, stale HEAD/attachment, divergence or cancellation.",
+    "Incoming Up to date depends on equal revision hashes, including unchanged remote with ahead HEAD and empty incoming log.",
+    "Checkout and Merge share bounded selectable progress, cancellation and force-close handling; configured Pull still requests actual auto-start/preserve-merges.",
+    "Rebase controller accepts isolated preferences and its settings/hint paths honor those preferences; default production preference storage remains standard.",
+    "Temporary native receiver embeds Debug framework rpath for its Git sequence-editor subprocess."
+  ],
+  "verification": {
+    "core": [
+      {
+        "engine": "system Git 2.50.1",
+        "tests": 28,
+        "transport_tests": 20,
+        "comparison_and_branch_tests": 6,
+        "reference_tests": 2,
+        "failures": 0,
+        "log": "build/qa/synchronization-fetch-rebase-system-2026-10-11.log"
+      },
+      {
+        "engine": "Git 2.39.5",
+        "tests": 28,
+        "transport_tests": 20,
+        "comparison_and_branch_tests": 6,
+        "reference_tests": 2,
+        "failures": 0,
+        "log": "build/qa/synchronization-fetch-rebase-old-2026-10-11.log"
+      },
+      {
+        "engine": "packaged Git 2.55.0",
+        "tests": 28,
+        "transport_tests": 20,
+        "comparison_and_branch_tests": 6,
+        "reference_tests": 2,
+        "failures": 0,
+        "log": "build/qa/synchronization-fetch-rebase-packaged-2026-10-11.log"
+      }
+    ],
+    "new_core_tests": 2,
+    "native": {
+      "engines": [
+        "system",
+        "packaged"
+      ],
+      "exit": 0,
+      "log": "build/qa/synchronization-fetch-rebase-native-final-2026-10-11.log",
+      "scope": "Existing outgoing/Fetch/reference/Pull regressions plus unchanged No/suppression with ahead HEAD, real separate Merge progress, Abort, unchanged Yes then manual Rebase, real owned Rebase controller fast-forward and divergent replay using the receiver sequence editor, stale Merge refusal and pinned incoming results.",
+      "limits": "Prompt answers and Start/Close actions are injected. Rebase child uses the real controller in the callback, rather than production RepositoryModel factory. Full factory/completion/physical/accessibility/rendered acceptance remains pending."
+    },
+    "debug_build": {
+      "exit": 0,
+      "log": "build/qa/synchronization-fetch-rebase-debug-final-2026-10-11.log"
+    },
+    "actual_bundle_editor": {
+      "exit": 0,
+      "log": "build/qa/synchronization-fetch-rebase-bundle-editor-2026-10-11.log",
+      "scope": "System Git invokes actual Debug app sequence-editor entry point without DYLD overrides for private two-commit root replay; Git exits zero and private history/worktree checks pass."
+    },
+    "app_checks": [
+      {
+        "step": "store-build",
+        "exit": 0,
+        "log": "build/qa/synchronization-fetch-rebase-store-build-final-2026-10-11.log"
+      },
+      {
+        "step": "debug-audit",
+        "exit": 0,
+        "log": "build/qa/synchronization-fetch-rebase-debug-audit-final-2026-10-11.log"
+      },
+      {
+        "step": "store-audit",
+        "exit": 0,
+        "log": "build/qa/synchronization-fetch-rebase-store-audit-final-2026-10-11.log"
+      },
+      {
+        "step": "inventory",
+        "exit": 0,
+        "log": "build/qa/synchronization-fetch-rebase-inventory-final-2026-10-11.log"
+      },
+      {
+        "step": "site",
+        "exit": 0,
+        "log": "build/qa/synchronization-fetch-rebase-site-final-2026-10-11.log"
+      }
+    ],
+    "full_suite": "Not rerun; only 28 synchronization tests per engine and extended native receiver.",
+    "unsigned_only": true,
+    "cleanup": {
+      "owned_app_receiver_test_wrapper_or_project_build_processes": []
+    }
+  },
+  "remaining": [
+    "Shift options routing, Compare Tags, Push hooks/variants and remaining Synchronization controls and full menus/history/layout.",
+    "Full Merge progress post-actions, conflict hint/options and metadata snapshots after key loading.",
+    "Production Rebase factory/completion actions, wider repository/configuration/hook/external-writer cases and FETCH_HEAD ambiguity parity audit.",
+    "Actual rendered light/dark, physical/accessibility, SSH/server authentication and signed Finder/sandbox/App Store acceptance.",
+    "Complete whole-app port and distribution/documentation objective."
+  ],
+  "sources_sha256": {
+    "Sources/TurtleGitCore/Synchronization.swift": "e450aa4ead0f4151a2b15e62a20df5aef79bd8ce00f7dd34a08b53f3b99f63f8",
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "07b3f03fca4f960171892d5f8681eb1dfd88da2a9bc8f77949b70dfd31b2a3bf",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "b9f8dac3b27c44f3d644c0066a64646841ccbdb3343803c9e01626babca81d47",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "d75f8a3d3987ad6100bbeecf1ea380b1f1faa5ef6ff17cd515c3fbd58e7a1bfd",
+    "Tests/TurtleGitCoreTests/SynchronizationTransportTests.swift": "cc95783dcf7ad0d14672e8c8e5a15440f407e42e271529ed6820c23db550b543",
+    "docs/qa/synchronization-native-2026-10-11.swift": "ad8d6482e257dc3b2b4c49ae815d13ef24165224c6e6d42b9b44796bdd3f80b3",
+    "scripts/test-synchronization-dialog.py": "81bd2a31db443df58558c8d5a92e9122c756722e6b2da061727a4ef847ed39ec"
+  },
+  "logs_sha256": {
+    "build/qa/synchronization-fetch-rebase-system-2026-10-11.log": "604d574cb2f91e5afba2ca2ef42fdbf1dbe780b47c6558f28f6446e44204e908",
+    "build/qa/synchronization-fetch-rebase-old-2026-10-11.log": "2e6675c1bed624b65ea41b3bfd58f1e0ca3a678fce0a2043830975978c6de7ed",
+    "build/qa/synchronization-fetch-rebase-packaged-2026-10-11.log": "8ac2cfc0bc1690e3f40fdbbb9ae6c908b87fcd96f4998bd7618f4e3b5ed84e8c",
+    "build/qa/synchronization-fetch-rebase-native-final-2026-10-11.log": "44ebca0361a57f165938a896a3cfc5eb35fdb0e03fab5179ca4050e2d4af4763",
+    "build/qa/synchronization-fetch-rebase-debug-final-2026-10-11.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/synchronization-fetch-rebase-bundle-editor-2026-10-11.log": "a637445a407da2a9aeb4983f9003c4842b64c01583f23cd2974102fb6bfbb3c3",
+    "build/qa/synchronization-fetch-rebase-store-build-final-2026-10-11.log": "8b7e42e41011f64b89af2a34249c0e6a736fce554184bf57a0f657922d209930",
+    "build/qa/synchronization-fetch-rebase-debug-audit-final-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/synchronization-fetch-rebase-store-audit-final-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/synchronization-fetch-rebase-inventory-final-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/synchronization-fetch-rebase-site-final-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}
