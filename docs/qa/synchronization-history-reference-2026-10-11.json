@@ -1,0 +1,68 @@
+{
+  "date": "2026-10-11",
+  "status": "partial-native-browse-and-owned-reference-creation-verified",
+  "code_commit": "c3fc1fb3ccdf87d3a07f52640e89bc8c59ad5b5d",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_references": [
+    "src/TortoiseProc/GitLogListBase.cpp: ID_REPOBROWSE and ID_CREATE_BRANCH/TAG menu gates and pointed remote label",
+    "src/TortoiseProc/GitLogListAction.cpp: ID_CREATE_BRANCH/TAG remote recommendation and ref refresh"
+  ],
+  "implemented": [
+    "Single revision Browse repository routes captured commit to existing RepositoryModel browser",
+    "Branch/tag context commands with original icons, stash tip exclusion and multi-selection omission",
+    "Source pointed-remote branch choice and first-remote/default-hash recommendations",
+    "Owned BranchTag sheet configured through RepositoryModel native interactions",
+    "Parent child-state guards, forced owner cleanup and post-creation Sync refresh"
+  ],
+  "diagnostic": "Initial native creation check failed refreshed-ref assertion at line 158. Source inspection found standalone BranchTag onCreated occurs after close while native handoff occurs before close. Sync wrapper now handles both orders; unchanged creation/ref assertions passed with both engines.",
+  "verification": {
+    "engines": [
+      "system Git 2.50.1",
+      "bundled Git 2.55.0"
+    ],
+    "native_receivers_reaped": [
+      11699,
+      12137
+    ],
+    "native_scenarios": [
+      "Existing columns/clipboard/comparison/unified/metadata/lifecycle assertions retained",
+      "Actual browser snapshot equals captured commit after changing row selection",
+      "Multiple remote refs exercise first-remote, pointed-remote branch and tag recommendation",
+      "Native branch/tag sheets prefill captured commit and cancel without Git changes",
+      "Multiple selection omits browse/create commands",
+      "Actual branch and tag created at captured merge; refreshed labels contain both refs",
+      "Standalone callback-after-close and handoff callback-before-close paths exercised",
+      "Creation leaves HEAD/index/config unchanged; new branch/tag refs are intended effects",
+      "Forced Sync closure invalidates/closes owned reference sheet"
+    ],
+    "builds": [
+      "Debug unsigned passed",
+      "AppStore unsigned universal passed"
+    ],
+    "bundle_audits": [
+      "Debug passed",
+      "AppStore with required Git passed"
+    ],
+    "inventory_pin_audit": "passed",
+    "documentation_site_build": "passed",
+    "scope": "No Core changes/full Core rerun. Native delegates/actions/windows/sheets and disposable Git mutations, not complete physical or signed acceptance."
+  },
+  "sha256": {
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "91db04984f3a94a007645f22f15ad13225ea4b92eb484dade3983171b3f7c41f",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "94e7d6f6149ecafbbd0cf04b03b184a51405b0c5109847c1c2543f3e8cd6abcc",
+    "docs/qa/synchronization-revision-list-native-2026-10-11.swift": "3e0354ec9002cf53ae75c452ebe2e601da0c2ff67199b2ea1d09c0563b171ba3",
+    "build/qa/sync-history-reference-refresh-debug-2026-10-11.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/sync-history-reference-refresh-store-2026-10-11.log": "1c2f92f5b853ea8f934827328ad76232d02acf71f7f9ece008a96c3863af6531",
+    "build/qa/sync-history-reference-native-final-2026-10-11.log": "8c9c6ec32eaf581d6ce64cca163f230a7609a1099f51ed08ce0bf1282bc3ca6c",
+    "build/qa/sync-history-reference-debug-audit-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/sync-history-reference-store-audit-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/sync-history-reference-inventory-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/sync-history-reference-site-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "remaining": [
+    "Physical menus, stash-specific scenarios and keyboard/accessibility acceptance",
+    "Remote tracking creation and picker/switch/push post-actions",
+    "Remaining Sync revision commands and complete UI parity",
+    "Signed sandbox/Finder and App Store distribution acceptance"
+  ]
+}
