@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-11",
+  "status": "partial-native-revision-comparison-actions-verified",
+  "code_commit": "493cc8398443fd525b7eed53021560f071e2dbe5",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_references": [
+    "src/TortoiseProc/GitLogListBase.cpp: selectedCount comparison menu gates",
+    "src/TortoiseProc/GitLogListAction.cpp: ID_COMPARETWO and ID_COMPAREWITHPREVIOUS",
+    "src/TortoiseProc/GitDiff.cpp: DiffCommit reverses r1/r2 into base/target"
+  ],
+  "implemented": [
+    "Working-tree comparison for one revision",
+    "Previous-revision comparison, explicit merge-parent submenu, omitted for roots",
+    "Two-revision and larger contiguous selection comparisons",
+    "Captured revision values, original Diff icons, owner lifecycle guards, RepositoryModel access-lease routing"
+  ],
+  "verification": {
+    "engines": [
+      "system Git 2.50.1",
+      "bundled Git 2.55.0"
+    ],
+    "native_receivers_reaped": [
+      38713,
+      38867
+    ],
+    "native": "Both passed: real NSMenu invocation, capture after selection changes, close guard, three real Changed Files snapshot workflows, original clipboard/columns/lifecycle and unchanged refs/index/config assertions",
+    "debug_unsigned_build": "passed",
+    "appstore_unsigned_universal_build": "passed",
+    "bundle_audits": "Debug and AppStore with required Git passed",
+    "scope": "No Core changes or new full Core run; no signed or physical acceptance claim"
+  },
+  "sha256": {
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "307cc2d2e5aab0799739219cd2bf02186bffb462401c411e75042a5e84bbdfba",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "ada9749859836b3b00eb213c2b68dacc038987290866f9a2e0816e45203888c5",
+    "docs/qa/synchronization-revision-list-native-2026-10-11.swift": "e5262cf6e3d5a0380f84072b8d3ab8c4a1c29fb331c679adf18091805b5d06bf",
+    "build/qa/sync-row-comparison-debug-2026-10-11.log": "47dbc86a92bb0b88a04ccc2e76242a713b5184e038a748024a52170a7f0b3a14",
+    "build/qa/sync-row-comparison-store-2026-10-11.log": "bcc2f98252e5410042d87fae624a2aeb01b11f2e58e28bf19806ade64e67eb5b",
+    "build/qa/sync-row-comparison-native-final-2026-10-11.log": "ef2e4476677eb32ad9318cd335ef18aba2eb9601f1616c89e4bcd2fe89b123e4",
+    "build/qa/sync-row-comparison-debug-audit-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/sync-row-comparison-store-audit-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30"
+  },
+  "remaining": [
+    "Dedicated native root, merge-parent and larger contiguous/noncontiguous scenarios",
+    "Parent subject snippets and configured short-hash lengths",
+    "Unified diff merge variants, compare changesets and remaining context actions",
+    "Keyboard/default double-click behavior and physical/signed acceptance",
+    "Complete TortoiseGit app parity and App Store distribution"
+  ]
+}
