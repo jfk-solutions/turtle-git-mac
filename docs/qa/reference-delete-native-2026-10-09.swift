@@ -82,7 +82,8 @@ import TurtleGitCore
               /bin/sleep 30 &
               task_child=$!
               trap 'kill "$task_child" 2>/dev/null; wait "$task_child" 2>/dev/null; exit 143' TERM INT
-              printf '%s %s\\n' "$$" "$task_child" > "$0.started"
+              printf '%s %s\\n' "$$" "$task_child" > "$0.started.pending"
+              /bin/mv "$0.started.pending" "$0.started"
               wait "$task_child"
             fi
             exec \(quoted) "$@"
@@ -92,7 +93,7 @@ import TurtleGitCore
             defer {closing.close();for pid in ids where kill(pid,0)==0 {_ = kill(pid,SIGTERM)}}
             closing.model.confirmDeletion={_ in true};closing.model.load();try await wait([closing.window!]){!closing.model.busy && closing.model.chosen != nil}
             try Data().write(to:pause);closing.model.deleteChosen();try await wait{FileManager.default.fileExists(atPath:marker.path)}
-            ids=try String(contentsOf:marker).split(whereSeparator:{$0.isWhitespace}).compactMap{Int32($0)};try require(ids.count==2 && ids.allSatisfy{kill($0,0)==0},"Owned deletion process absent")
+            ids=try String(contentsOf:marker).split(whereSeparator:{$0.isWhitespace}).compactMap{Int32($0)};try require(ids.count==2 && ids.allSatisfy{kill($0,0)==0},"Owned deletion process absent: parsed \(ids), alive \(ids.map { kill($0,0)==0 })")
             closing.model.load();try require(closing.model.deletingReference && closing.model.busy,"Refresh superseded deletion")
             closing.close();let frozenError=closing.model.error;try await wait{ids.allSatisfy{kill($0,0) != 0}};try await Task.sleep(nanoseconds:100_000_000)
             let local=try await repo.referenceBrowser();try require(local.references.contains{$0.name==GitReferenceName(target)} && closing.model.closed && !closing.model.busy && frozenError==closing.model.error,"Forced deletion continued or published late error")

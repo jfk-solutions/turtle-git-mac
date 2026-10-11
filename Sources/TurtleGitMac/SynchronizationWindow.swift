@@ -550,6 +550,12 @@ private struct SynchronizationProgressDialog: View {
 
 enum SynchronizationBranchTarget { case local, remote }
 
+enum SynchronizationHistoryCopy: String, CaseIterable {
+    case details = "Full log details", detailsWithoutPaths = "Full log details without changed paths"
+    case hashes = "Hashes", authors = "Authors", authorNames = "Author names", authorEmails = "Author emails"
+    case subjects = "Subjects", messages = "Messages", referenceNames = "Tag/branch names"
+}
+
 @MainActor final class SynchronizationWindowModel: ObservableObject {
     let repository: GitRepository
     let access: RepositoryAccessLease?
@@ -608,6 +614,53 @@ enum SynchronizationBranchTarget { case local, remote }
     var displayedComparison: RevisionComparisonWindowModel { tab == 5 ? incomingComparison : comparison }
     var historyEntries: [LogEntry] { tab == 4 ? (incomingCommits ?? []) : (outgoing?.commits ?? []) }
     var historyGraph: [CommitGraphRow] { tab == 4 ? incomingGraph : graph }
+    var historyPasteboard: NSPasteboard = .general
+    func copyHistory(_ entries: [LogEntry], kind: SynchronizationHistoryCopy, pointedReference: String? = nil) {
+        guard !closed, !confirmingQuit, !busy, !hasBlockingChild, !entries.isEmpty,
+              entries.allSatisfy({ !$0.hash.isEmpty }) else { return }
+        func publish(_ text: String) {
+            historyPasteboard.clearContents(); historyPasteboard.setString(text, forType: .string)
+        }
+        switch kind {
+        case .hashes: publish(entries.map(\.hash).joined(separator: "\n"))
+        case .authors: publish(entries.map { "\($0.author) <\($0.email)>" }.joined(separator: "\n"))
+        case .authorNames: publish(entries.map(\.author).joined(separator: "\n"))
+        case .authorEmails: publish(entries.map(\.email).joined(separator: "\n"))
+        case .subjects, .messages: publish(LogEntry.historyClipboard(entries, subjectsOnly: kind == .subjects))
+        case .referenceNames:
+            guard entries.count == 1 else { return }
+            if let pointedReference {
+                guard entries[0].references.contains(where: { GitReferenceName.equal($0.name, pointedReference) }) else { return }
+                let tag = GitReferenceName.removingPrefix("refs/tags/", from: pointedReference)
+                let name = tag.map { GitReferenceName.removingSuffix("^{}", from: $0) ?? $0 }
+                    ?? GitReferenceName.removingPrefix("refs/heads/", from: pointedReference)
+                    ?? GitReferenceName.removingPrefix("refs/", from: pointedReference) ?? pointedReference
+                publish(String(name.reversed().drop(while: { $0.isWhitespace }).reversed()))
+            } else {
+                publish(entries[0].references.map { ref in
+                    (ref.name.hasPrefix("refs/tags/") ? GitReferenceName.removingSuffix("^{}", from: ref.name) ?? ref.name : ref.name) + "\r\n"
+                }.joined())
+            }
+        case .details, .detailsWithoutPaths:
+            let request = OperationCancellation(); token = request; busy = true; error = nil
+            let dates = HistoryDateSettings.load(defaults: preferences)
+            Task {
+                defer { if token === request { token = nil; busy = false } }
+                do {
+                    if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                    var text = ""
+                    for entry in entries {
+                        text += try await repository.commitLogText(revision: entry.hash, includePaths: kind == .details, cancellation: request, dateSettings: dates)
+                    }
+                    guard !closed, token === request, !request.isCancelled else { return }
+                    publish(text)
+                } catch {
+                    guard !closed, token === request, !request.isCancelled else { return }
+                    self.error = error.localizedDescription
+                }
+            }
+        }
+    }
     @Published private(set) var historyReferenceContext = HistoryReferenceContext()
     @Published private(set) var historyIssueProperties = IssueTrackerProperties()
     @Published private(set) var historyActions: [String: LogRevisionActions] = [:]
@@ -1527,7 +1580,8 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
     @ObservedObject var model: SynchronizationWindowModel
     func makeCoordinator() -> Coordinator { Coordinator(model) }
     func makeNSView(context: Context) -> NSScrollView {
-        let table = NSTableView(); table.rowHeight = 24; table.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
+        let table = HistoryTableView(); table.rowHeight = 24; table.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle; table.allowsMultipleSelection = true
+        table.menu = NSMenu(); table.menu?.delegate = context.coordinator
         for definition in SynchronizationHistoryColumns.definitions {
             let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(definition.id)); column.title = definition.title; column.width = definition.width
             column.isHidden = !SynchronizationHistoryColumns.visible(definition.id, incoming: model.tab == 4, preferences: model.preferences) || definition.id == "bugs" && !model.historyIssueProperties.showsBugIDColumn
@@ -1536,7 +1590,7 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
         if model.preferences === UserDefaults.standard { table.autosaveName = model.tab == 4 ? "TurtleGit.SyncIn.RevisionColumns.v2" : "TurtleGit.SyncOut.RevisionColumns.v2"; table.autosaveTableColumns = true }
         let header = SynchronizationReferenceHeader()
         header.makeMenu = { [weak coordinator = context.coordinator] in coordinator?.headerMenu() }
-        table.headerView = header; context.coordinator.table = table
+        table.headerView = header; context.coordinator.table = table; context.coordinator.entryHashes = model.historyEntries.map(\.hash)
         table.delegate = context.coordinator; table.dataSource = context.coordinator
         table.target = context.coordinator; table.doubleAction = #selector(Coordinator.showLog)
         let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true; scroll.documentView = table
@@ -1555,12 +1609,47 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
             let id = column.identifier.rawValue
             column.isHidden = !SynchronizationHistoryColumns.visible(id, incoming: model.tab == 4, preferences: model.preferences) || id == "bugs" && !model.historyIssueProperties.showsBugIDColumn
         }
+        let previousHashes = context.coordinator.entryHashes
+        let selectedHashes = Set(table.selectedRowIndexes.compactMap { previousHashes.indices.contains($0) ? previousHashes[$0] : nil })
+        let hashes = model.historyEntries.map(\.hash)
+        context.coordinator.entryHashes = hashes
         table.reloadData()
+        let selection = IndexSet(hashes.enumerated().compactMap { selectedHashes.contains($0.element) ? $0.offset : nil })
+        if table.selectedRowIndexes != selection { table.selectRowIndexes(selection, byExtendingSelection: false) }
     }
-    @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate {
+    @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate {
         var model: SynchronizationWindowModel
         weak var table: NSTableView?
+        var entryHashes: [String] = []
         init(_ model: SynchronizationWindowModel) { self.model = model }
+        private final class CopyTarget: NSObject {
+            let entries: [LogEntry], kind: SynchronizationHistoryCopy, reference: String?
+            init(entries: [LogEntry], kind: SynchronizationHistoryCopy, reference: String?) { self.entries = entries; self.kind = kind; self.reference = reference }
+        }
+        func menuNeedsUpdate(_ menu: NSMenu) {
+            menu.removeAllItems(); menu.autoenablesItems = false
+            guard let table else { return }
+            let entries = table.selectedRowIndexes.compactMap { model.historyEntries.indices.contains($0) ? model.historyEntries[$0] : nil }
+            guard !entries.isEmpty else { return }
+            let clipboard = NSMenu(title: "Copy to clipboard"); clipboard.autoenablesItems = false
+            let available = !model.closed && !model.busy && !model.confirmingQuit && !model.hasBlockingChild
+            let pointed = (table as? HistoryTableView)?.contextReference
+            for kind in SynchronizationHistoryCopy.allCases {
+                if kind == .referenceNames && (entries.count != 1 || entries[0].references.isEmpty) { continue }
+                let item = NSMenuItem(title: kind.rawValue, action: #selector(copyHistory(_:)), keyEquivalent: "")
+                item.target = self; item.isEnabled = available
+                item.image = MenuIcon.copy.contextImage(defaults: model.preferences)
+                item.representedObject = CopyTarget(entries: entries, kind: kind, reference: kind == .referenceNames ? pointed?.name : nil)
+                clipboard.addItem(item)
+            }
+            let parent = NSMenuItem(title: "Copy to clipboard", action: nil, keyEquivalent: "")
+            parent.image = MenuIcon.copy.contextImage(defaults: model.preferences); parent.submenu = clipboard; menu.addItem(parent)
+        }
+        func menuDidClose(_ menu: NSMenu) { (table as? HistoryTableView)?.contextReference = nil }
+        @objc func copyHistory(_ sender: NSMenuItem) {
+            guard let target = sender.representedObject as? CopyTarget else { return }
+            model.copyHistory(target.entries, kind: target.kind, pointedReference: target.reference)
+        }
         func headerMenu() -> NSMenu {
             let menu = NSMenu(); menu.autoenablesItems = false
             let reset = NSMenuItem(title: "Reset columns", action: #selector(resetColumns), keyEquivalent: ""); reset.target = self; menu.addItem(reset); menu.addItem(.separator())
@@ -1618,6 +1707,9 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
             }
             let dates = HistoryDateSettings.load(defaults: model.preferences)
             let text = NSTextField(labelWithString: ""); text.lineBreakMode = .byTruncatingTail; text.maximumNumberOfLines = 1
+            if column?.identifier.rawValue == "message" {
+                let painter = LogReferenceTextCell(textCell: ""); painter.isEditable = false; painter.isSelectable = false; painter.isBordered = false; painter.drawsBackground = false; text.cell = painter
+            }
             text.font = .systemFont(ofSize: 12, weight: entry.isHead ? .bold : .regular)
             if model.preferences.bool(forKey: "LogFontForLogCtrl") {
                 let size = (model.preferences.object(forKey: "LogFontSize") as? NSNumber)?.intValue ?? MessageEditorFont.defaultSize
@@ -1634,7 +1726,6 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
             case "committerDate": text.stringValue = dates.format(entry.committerDate); text.toolTip = dates.relative ? dates.format(entry.committerDate, absolute: true) : nil
             case "bugs": text.stringValue = entry.issueIDs
             default:
-                let painter = LogReferenceTextCell(textCell: ""); painter.isEditable = false; painter.isSelectable = false; painter.isBordered = false; painter.drawsBackground = false; text.cell = painter
                 let badges = NSMutableAttributedString()
                 let font = model.preferences.bool(forKey: "LogFontForLogCtrl") ? text.font! : NSFont.systemFont(ofSize: 11, weight: .medium)
                 for badge in model.historyReferenceContext.labels(entry.references, symbolize: model.preferences.bool(forKey: "SymbolizeRefNames")) {

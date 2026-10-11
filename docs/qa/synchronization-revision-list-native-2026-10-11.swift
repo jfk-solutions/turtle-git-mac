@@ -25,6 +25,7 @@ struct SynchronizationRevisionListVerification {
         for name in ["modify.txt","rename.txt","delete.txt"] { try Data((name + "\n").utf8).write(to: root.appendingPathComponent(name)) }
         try await repo.stage(["."]); _ = try await repo.commit(message:"Base")
         let base = try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
+        _ = try await repo.run(["commit","--allow-empty","-m","A second revision for selection tests"])
         try Data("modified\n".utf8).write(to: root.appendingPathComponent("modify.txt"))
         try Data("added\n".utf8).write(to: root.appendingPathComponent("added.txt"))
         try FileManager.default.moveItem(at: root.appendingPathComponent("rename.txt"),to: root.appendingPathComponent("renamed.txt"))
@@ -46,12 +47,47 @@ struct SynchronizationRevisionListVerification {
         try await settle { model.historyActions[entry.hash] != nil }
         precondition(model.historyActions[entry.hash] == [.modified,.added,.deleted,.replaced])
         let native = table(window), coordinator = native.delegate as! SynchronizationHistoryTable.Coordinator
+        let clipboard = NSPasteboard(name: .init("TurtleGit.Sync.Clipboard.QA." + UUID().uuidString))
+        defer { clipboard.releaseGlobally() }
+        model.historyPasteboard = clipboard
+        func copyItem(_ title: String) -> NSMenuItem {
+            precondition(native.menu?.delegate === coordinator, "Revision menu lost its coordinator")
+            native.menu!.delegate?.menuNeedsUpdate?(native.menu!)
+            guard let item = native.menu!.items.first?.submenu?.items.first(where: { $0.title == title }) else {
+                preconditionFailure("Missing clipboard command \(title); selected rows \(native.selectedRowIndexes); menu \(native.menu!.items.map(\.title))")
+            }
+            return item
+        }
+        func invoke(_ item: NSMenuItem) { precondition(item.isEnabled && NSApplication.shared.sendAction(item.action!,to:item.target,from:item)) }
+        native.selectRowIndexes(IndexSet(integersIn:0..<2),byExtendingSelection:false)
+        let rows = model.historyEntries
+        precondition(rows.count == 2)
+        let capturedHashes = copyItem("Hashes")
+        native.selectRowIndexes(IndexSet(integer:0),byExtendingSelection:false)
+        invoke(capturedHashes); precondition(clipboard.string(forType:.string) == rows.map(\.hash).joined(separator:"\n"), "Menu payload must preserve the captured selection")
+        native.selectRowIndexes(IndexSet(integersIn:0..<2),byExtendingSelection:false)
+        for (kind,expected) in [(SynchronizationHistoryCopy.authors, rows.map { "\($0.author) <\($0.email)>" }.joined(separator:"\n")),(.authorNames,rows.map(\.author).joined(separator:"\n")),(.authorEmails,rows.map(\.email).joined(separator:"\n")),(.subjects,LogEntry.historyClipboard(rows,subjectsOnly:true)),(.messages,LogEntry.historyClipboard(rows,subjectsOnly:false))] {
+            invoke(copyItem(kind.rawValue)); precondition(clipboard.string(forType:.string) == expected)
+        }
+        precondition(!native.menu!.items.first!.submenu!.items.contains { $0.title == "Tag/branch names" })
+        native.selectRowIndexes(IndexSet(integer:0),byExtendingSelection:false)
+        invoke(copyItem("Tag/branch names")); precondition(clipboard.string(forType:.string)?.contains("refs/tags/v1.0\r\n") == true)
+        (native as! HistoryTableView).contextReference = (0,"refs/tags/v1.0")
+        invoke(copyItem("Tag/branch names")); precondition(clipboard.string(forType:.string) == "v1.0")
+        (native as! HistoryTableView).contextReference = nil
+        for kind in [SynchronizationHistoryCopy.detailsWithoutPaths,.details] {
+            invoke(copyItem(kind.rawValue)); try await settle { !model.busy }
+            let text = clipboard.string(forType:.string)!
+            precondition(text.contains("Revision: " + entry.hash) && text.contains("Tag info: refs/tags/v1.0"))
+            precondition(text.contains("modify.txt") == (kind == .details))
+        }
         precondition(native.tableColumns.filter { !$0.isHidden }.map { $0.identifier.rawValue } == ["graph","actions","message","author","date","bugs"])
         func cell(_ id: String) -> NSTableCellView { coordinator.tableView(native, viewFor:native.tableColumn(withIdentifier:.init(id)),row:0) as! NSTableCellView }
         let actions = cell("actions")
         precondition(actions.toolTip == "Modified, Added/copied, Deleted, Replaced/renamed")
         precondition(descendants(actions).compactMap { $0 as? NSImageView }.filter { $0.image != nil }.count == 4)
         let message = cell("message").textField!
+        precondition(NSFontManager.shared.traits(of: message.font!).contains(.boldFontMask), "The shared painter must retain HEAD's bold font")
         precondition(message.cell is LogReferenceTextCell && message.stringValue.contains("v1.0") && message.stringValue.contains("main"))
         var labels: [HistoryReferenceLabel] = []
         message.attributedStringValue.enumerateAttribute(.logReference,in:NSRange(location:0,length:message.attributedStringValue.length)) { value,_,_ in if let style = value as? LogReferenceStyle { labels.append(style.label) } }
@@ -105,10 +141,22 @@ struct SynchronizationRevisionListVerification {
         try await settle { kill(pid,0) != 0 && errno == ESRCH }
         try await Task.sleep(nanoseconds:100_000_000)
         precondition(slow.historyActions.isEmpty && slow.historyActionFailures.isEmpty)
+        try FileManager.default.removeItem(at:marker)
+        try Data(script.replacingOccurrences(of:"= diff-tree",with:"= show").utf8).write(to:helper)
+        let copying = SynchronizationWindowModel(repository:GitRepository(root:root,executable:helper),access:nil,preferences:preferences)
+        copying.historyPasteboard = clipboard; clipboard.clearContents(); clipboard.setString("retain on cancellation",forType:.string)
+        defer { copying.invalidate() }
+        copying.copyHistory([entry],kind:.details)
+        try await settle { FileManager.default.fileExists(atPath:marker.path) }
+        let copyPID = Int32(try String(contentsOf:marker).trimmingCharacters(in:.whitespacesAndNewlines))!
+        defer { if kill(copyPID,0) == 0 { kill(-copyPID,SIGTERM) } }
+        copying.invalidate(); try await settle { kill(copyPID,0) != 0 && errno == ESRCH }
+        try await Task.sleep(nanoseconds:100_000_000)
+        precondition(!copying.busy && clipboard.string(forType:.string) == "retain on cancellation")
         let finalRefs = try await repo.run(["show-ref"]).stdout, finalIndex = try Data(contentsOf:root.appendingPathComponent(".git/index")), finalConfig = try Data(contentsOf:root.appendingPathComponent(".git/config"))
         precondition(refs == finalRefs && index == finalIndex && config == finalConfig)
         owner.close(); precondition(model.closed && !model.busy && !window.isVisible)
-        print("PASS: native Sync source columns, original action icons, annotated/current/tracking ref labels, issue IDs, date/full-message settings, independent column toggles/reset, both lists/themes/sizes, owned action-query cancellation/late-callback fencing and unchanged Git state")
+        print("PASS: native Sync source columns, original action icons, annotated/current/tracking ref labels, issue IDs, date/full-message settings, independent column toggles/reset, both lists/themes/sizes, clipboard menus/captured multi-selection/source text formats/full metadata/pointed names, owned action and clipboard cancellation/late-callback fencing and unchanged Git state")
     }
 }
 @_cdecl("turtlegit_history_main") func bootstrap() -> Int32 {
