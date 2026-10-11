@@ -106,6 +106,7 @@ import TurtleGitCore
             }
         }
         values["GIT_TERMINAL_PROMPT"] = "0"; values["GIT_PAGER"] = "cat"; values["LC_ALL"] = "C"
+        values.merge(SSHClientPreferences.load().environment(existing: values)) { _, selected in selected }
         return values.keys.sorted().map { $0 + "=" + values[$0]! }.joined(separator: "\n")
     }
 }

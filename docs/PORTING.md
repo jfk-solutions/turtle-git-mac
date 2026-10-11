@@ -479,3 +479,13 @@ settings batch: Debug native build exited 0; 17 focused Core tests passed. No
 app or full suite was launched. Remaining native/sandbox/source utility parity
 is recorded in SSH-KEY-GENERATION-PARITY.md and
 `qa/authentication-settings-batch-2026-10-11.json`.
+
+
+### Network settings implementation batch, 2026-10-11
+
+Added source-layout Network controls, global proxy configuration and retained
+disabled drafts with Keychain password storage, custom OpenSSH bookmarks and
+validation, shared Apply/Cancel, actual Git process environment integration and
+the original source icon. No build, tests or app launch were run for this
+continuation; validation remains grouped with the next Finder-settings section.
+See NETWORK-SETTINGS-PARITY.md for behavior and remaining acceptance.

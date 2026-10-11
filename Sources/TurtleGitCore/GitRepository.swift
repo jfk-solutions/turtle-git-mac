@@ -23,6 +23,7 @@ public actor GitRepository {
         environment["GIT_PAGER"] = "cat"
         environment["LC_ALL"] = "C"
         environment.merge(GitRuntime.environment(executable: executable)) { _, runtime in runtime }
+        environment.merge(SSHClientPreferences.load().environment(existing: environment)) { _, selected in selected }
         environment.merge(environmentOverrides) { _, override in override }
         // Disk-backed streams avoid pipe deadlock with large diffs and command output.
         let status: Int32

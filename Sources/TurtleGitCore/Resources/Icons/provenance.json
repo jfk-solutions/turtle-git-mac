@@ -652,6 +652,11 @@
       "asset": "gitcredential.ico",
       "source": "src/Resources/gitcredential.ico",
       "sha256": "8728e8cb096f1863bc5cbf09781b63aeb2934452cb9926a4189232e9c17a8df1"
+    },
+    {
+      "asset": "proxy.ico",
+      "source": "src/Resources/proxy.ico",
+      "sha256": "c9ae75081212435a42cfad80c429520d4b8c7bddc58bd93b04aa142029481d4b"
     }
   ]
 }

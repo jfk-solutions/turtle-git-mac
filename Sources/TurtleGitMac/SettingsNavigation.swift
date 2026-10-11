@@ -7,8 +7,8 @@ import TurtleGitCore
 /// Pending pages are tracked in the inventory, rather than shown as empty panes.
 enum SettingsPageID: String {
     case general, dialogs, dialogs2, dialogs3, colors1, colors2, colors3, commit, alternativeEditor, git, remote, email, diff
-    case credential, mergeTool, mergeEditor, savedData, blame, unifiedDiff, advanced
-    var applyOrder: Int { let pages: [SettingsPageID] = [.general, .dialogs, .dialogs2, .dialogs3, .colors1, .colors2, .colors3, .commit, .alternativeEditor, .git, .remote, .credential, .email, .diff, .mergeTool, .mergeEditor, .savedData, .blame, .unifiedDiff, .advanced]; return pages.firstIndex(of: self)! }
+    case credential, network, mergeTool, mergeEditor, savedData, blame, unifiedDiff, advanced
+    var applyOrder: Int { let pages: [SettingsPageID] = [.general, .dialogs, .dialogs2, .dialogs3, .colors1, .colors2, .colors3, .commit, .alternativeEditor, .git, .remote, .credential, .network, .email, .diff, .mergeTool, .mergeEditor, .savedData, .blame, .unifiedDiff, .advanced]; return pages.firstIndex(of: self)! }
 }
 private final class SettingsPageNode: NSObject {
     let id: SettingsPageID, title: String, icon: MenuIcon
@@ -90,7 +90,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         transaction.window = window
         window.title = "Settings – TurtleGit for Mac"
     }
-    var canDismiss: Bool { !transaction.busy && remote?.busy != true && remote?.hasChild != true && GitConfigurationSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSaves == 0 && view.window?.attachedSheet == nil }
+    var canDismiss: Bool { !transaction.busy && remote?.busy != true && remote?.hasChild != true && GitConfigurationSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSaves == 0 && NetworkSettingsModel.activeSaves == 0 && view.window?.attachedSheet == nil }
     func updateRepository() {
         guard isViewLoaded, workspace.root?.path != repositoryPath else { return }
         // A captured Remote model belongs to the repository that created it.
@@ -99,8 +99,9 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         remote = nil; cache.removeValue(forKey: .remote); transaction.unregister("remote")
         transaction.unregister("git"); transaction.unregister("dialogs3")
         transaction.unregister("credential"); cache.removeValue(forKey: .credential)
+        transaction.unregister("network"); cache.removeValue(forKey: .network)
         cache.removeValue(forKey: .git); cache.removeValue(forKey: .dialogs3)
-        if [.remote, .git, .dialogs3, .credential].contains(selected) {
+        if [.remote, .git, .dialogs3, .credential, .network].contains(selected) {
             current?.view.removeFromSuperview(); current?.removeFromParent(); current = nil
             show(selected == .remote ? .git : selected)
         }
@@ -119,6 +120,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
                 SettingsPageNode(.commit, "Message Editor", .editor),
                 SettingsPageNode(.alternativeEditor, "Alternative Editor", .editor)]),
             SettingsPageNode(.git, "Git", .settingsGit, children: (workspace.root == nil ? [] : [SettingsPageNode(.remote, "Remote", .settingsRemote)]) + [SettingsPageNode(.credential, "Credential", .settingsCredential)]),
+            SettingsPageNode(.network, "Network", .settingsNetwork),
             SettingsPageNode(.email, "Email", .sendMail),
             SettingsPageNode(.diff, "Diff Viewer", .compare, children: [SettingsPageNode(.mergeTool, "Merge Tool", .merge), SettingsPageNode(.mergeEditor, "Merge Editor", .merge)]),
             SettingsPageNode(.savedData, "Saved Data", .settingsSavedData), SettingsPageNode(.blame, "TortoiseGitBlame", .blame),
@@ -143,7 +145,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     @objc private func cancelSettings() { guard canDismiss else { return }; view.window?.makeFirstResponder(nil); transaction.cancel(); view.window?.performClose(nil) }
     private func host<V: View>(_ view: V) -> NSViewController { NSHostingController(rootView: view.environment(\.settingsTransaction, transaction)) }
     private func show(_ page: SettingsPageID) {
-        guard view.window?.attachedSheet == nil, remote?.busy != true, remote?.hasChild != true, GitConfigurationSettingsModel.activeSaves == 0, CredentialSettingsModel.activeSaves == 0 else { return }
+        guard view.window?.attachedSheet == nil, remote?.busy != true, remote?.hasChild != true, GitConfigurationSettingsModel.activeSaves == 0, CredentialSettingsModel.activeSaves == 0, NetworkSettingsModel.activeSaves == 0 else { return }
         if current != nil && selected == page { return }
         view.window?.makeFirstResponder(nil)
         let controller: NSViewController
@@ -161,6 +163,9 @@ struct SettingsNavigation: NSViewControllerRepresentable {
             case .credential:
                 guard let context = try? workspace.gitConfigurationContext() else { return }
                 controller = host(CredentialSettingsPage(model: CredentialSettingsModel(repository: context.repository, access: context.access, localAvailable: context.localAvailable)))
+            case .network:
+                guard let context = try? workspace.gitConfigurationContext() else { return }
+                controller = host(NetworkSettingsPage(model: NetworkSettingsModel(repository: context.repository, access: context.access, localAvailable: context.localAvailable)))
             case .email: controller = host(EmailSettingsPage())
             case .diff: controller = host(DiffToolSettings())
             case .mergeTool: controller = host(MergeToolSettings())
