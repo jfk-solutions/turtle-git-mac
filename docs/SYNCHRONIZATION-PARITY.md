@@ -939,12 +939,38 @@ after parameterizing the shared helper's limit. Receivers were run serially and
 reaped. These are receiver checks; physical popup/VoiceOver, native path/URL
 autocomplete and signed acceptance remain open.
 
-A broader full Sync regression did not complete. The system-Git receiver was
-sampled waiting in Rebase execution's Foundation Process.waitUntilExit while no
-child remained in its process group. It was stopped and reaped after diagnosis;
-no full-suite pass is claimed for this checkpoint. Resolve that process-exit stall
-and rerun the full regression before treating the broader workflows as current.
+A broader full Sync regression did not complete at this history checkpoint.
+The system-Git receiver was sampled in Foundation Process.waitUntilExit and then
+stopped and reaped too soon. Later healthy samples demonstrated that these
+intermittent waits and gaps between child processes do not establish a deadlock.
+That earlier run remains incomplete; the subsequent process-completion follow-up
+uses phase progress and a realistic fixture deadline to verify completion.
 
 Debug and unsigned universal AppStore builds, both bundle audits and the inventory
 pin check passed. No new layout screenshots or dialog certification are claimed.
 See the [verification and diagnostic record](qa/synchronization-history-native-2026-10-11.json).
+
+Diagnostic correction: subsequent healthy Core Rebase samples also show brief
+process-exit waits and gaps between children. The earlier snapshot did not prove
+a deadlock; that receiver was stopped too soon. Its run remains incomplete. The
+follow-up removes Foundation notifications from ordinary Git completion and must
+be assessed using completed workflows, not a claimed proven root cause.
+
+## Ordinary process completion follow-up, 11 October 2026
+
+Ordinary Git commands now share the descriptor/environment/spawn code of the
+cancellable runner and block on their own PID, preserving normal signal exit
+status. The real Foundation process-group baseline confirms that both runners
+create an independent child group. This is an implementation change; no proven
+Foundation deadlock root cause is claimed.
+
+All 72 selected Core tests passed, including 55 Rebase cases. Owned Shift Rebase
+and measured Fetch/Rebase fixtures passed with system and packaged Git. The
+concrete native failure was an outer ten-second fixture deadline covering Fetch,
+owned child load/replay and result refresh. The success assertions are unchanged;
+the standard fixture now has a monotonic 60-second state deadline, explicit phase
+markers and a bounded 1200-second receiver lifetime. Debug and unsigned universal
+AppStore builds and both bundle audits passed. The complete native regression has
+passed all 28 groups across system and packaged Git; both receivers were reaped.
+The inventory pin audit and documentation-site build passed. The complete Core
+suite is still running. See the [verification record](qa/git-process-exit-2026-10-11.json).

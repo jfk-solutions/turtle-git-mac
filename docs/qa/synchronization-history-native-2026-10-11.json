@@ -53,11 +53,12 @@
     "screenshots": "No new layout or screenshot acceptance claimed; prior source-layout captures remain in synchronization-layout-order-2026-10-11.json."
   },
   "full_sync_regression": {
-    "status": "incomplete-stopped-after-diagnosed-stall",
+    "status": "incomplete-stopped-after-insufficient-diagnostic-evidence",
     "scope": "System Git attempt only; packaged full regression did not run. No full pass claimed.",
     "receiver": 21052,
     "evidence": "Sample showed RebaseWindowModel.execute -> GitRepository.startRebase -> executeRebase -> run -> Foundation Process.waitUntilExit. ps showed receiver alive but no children in its process group. Receiver explicitly terminated with SIGTERM, standard cleanup reaped it.",
-    "next_action": "Investigate process-exit wait, verify safe lifetime behavior and rerun full regression."
+    "next_action": "Run the workflow with phase progress and allow its bounded execution to complete; compare actual completion rather than intermittent child snapshots.",
+    "diagnostic_limit": "Follow-up samples of healthy Core Rebase tests also show transient waits and gaps between child processes. The earlier sample/ps snapshots do not prove a deadlock or its root cause. This earlier run was stopped too soon; it remains incomplete, not a confirmed runner failure."
   },
   "corrected_attempts": [
     "Fixture initially assigned a private cancellation setter; used an owned-child guard state instead",
@@ -65,7 +66,7 @@
     "Native selection starts background refresh; deletion guard incorrectly rejected Shift+Delete while busy. Guard now blocks transport/owned child instead; final two-engine fixture passed."
   ],
   "remaining": [
-    "Rebase process-exit stall and current full Sync regression",
+    "Current full Sync regression after earlier premature stop",
     "Full native filesystem/URL autocomplete",
     "Physical popup/keyboard, VoiceOver and signed sandbox/Finder acceptance",
     "Complete Sync columns/menus/progress/hooks and full port"

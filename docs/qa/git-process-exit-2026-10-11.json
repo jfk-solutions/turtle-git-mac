@@ -1,0 +1,74 @@
+{
+  "date": "2026-10-11",
+  "status": "partial-process-completion-full-native-verified-core-suite-running",
+  "code_commit": "550bc872b5ba7c176467de58f0af1fc46610cbba",
+  "change": [
+    "Ordinary Git commands use PID-specific blocking wait, sharing spawn/descriptor/environment handling with cancellable commands",
+    "Normal signal status remains compatible with Foundation terminationStatus; streamed/cancellable status and cancellation semantics remain unchanged",
+    "Native Sync fixture uses a monotonic 60-second state deadline, phase markers and a bounded 1200-second receiver timeout"
+  ],
+  "diagnostic_correction": "The earlier sample/child snapshots did not prove a deadlock. Healthy tests show transient waits and gaps between children. The concrete reproduced failure was the ten-second outer Fetch/Rebase fixture deadline. Both measured workflows completed when given enough time; no proven deadlock root cause is claimed.",
+  "verification": {
+    "selected_core_tests": 72,
+    "rebase_tests_in_selected_run": 55,
+    "selected_core_failures": 0,
+    "command": "swift test --filter 'GitProcessExitTests|GitProcessCancellationTests|GitRepositoryTests|RebaseTests'",
+    "native_owned_rebase_receivers": 2,
+    "measured_fetch_rebase_receivers": 2,
+    "engines": [
+      "system 2.50.1",
+      "packaged 2.55.0"
+    ],
+    "measured_workflow_seconds": [
+      80.096,
+      73.233
+    ],
+    "timing_scope": "Complete Fetch/Rebase fixture durations; individual owned Rebase load/replay/close handoffs took roughly 5\u20136 seconds plus Fetch and result refresh. Original success assertions retained.",
+    "normal_process_group": "Actual Foundation baseline host group 53944, child PID/group 54001 confirms old runner also creates a separate child group. New POSIX group behavior matches it.",
+    "builds": [
+      "Debug unsigned passed",
+      "AppStore unsigned universal passed"
+    ],
+    "audits": [
+      "Debug bundle passed",
+      "AppStore bundle with required Git passed"
+    ],
+    "system_full_native_groups_passed": 14,
+    "packaged_full_native_status": "passed",
+    "complete_core_suite_status": "running",
+    "packaged_full_native_groups_passed": 14,
+    "full_native_groups_passed": 28,
+    "full_native_receivers_reaped": [
+      50517,
+      59328
+    ],
+    "inventory_pin_audit": "passed",
+    "documentation_site_build": "passed"
+  },
+  "live_verification": {
+    "full_native_command": "python3 build/qa/run-sync-exit-full-final.py",
+    "full_native_log": "build/qa/git-process-exit-full-sync-final-2026-10-11.log",
+    "core_full_command": "swift test --skip-build",
+    "core_full_log": "build/qa/git-process-exit-core-full-2026-10-11.log"
+  },
+  "remaining": [
+    "Complete Core suite completion",
+    "Physical/signed sandbox/Finder acceptance and complete application parity"
+  ],
+  "sha256": {
+    "Sources/TurtleGitCore/CancellableGitProcess.swift": "369b5a31da2eeced7b6c74309a13769d15868885369e3f7b8a75ed6492e3838e",
+    "Sources/TurtleGitCore/GitRepository.swift": "4a736ce053b67a7fa4390e0fbf7fd1b45398d301951125f192e9e94d22e99a70",
+    "Tests/TurtleGitCoreTests/GitProcessExitTests.swift": "80af7b6814d60c66dbd1d7177d2fd68676a6427c98bbbce3fd6d31fb41754059",
+    "docs/qa/synchronization-native-2026-10-11.swift": "e813d5bca187c0cf966c157bc74a086b4d4f1a433e7599b705a4b5a476a6453e",
+    "scripts/test-synchronization-dialog.py": "8235677e712057140cd1c786433f240b712e929dc588b5ae0b469d44c8c93c86",
+    "build/qa/git-process-exit-core-focused-2026-10-11.log": "d7709044ca0f5376978502178b8ba3518860bb76c3139c4ac4ff2a84c04c3a47",
+    "build/qa/git-process-exit-owned-rebase-2026-10-11.log": "d83eac2ef6b47d236e269958bb51ed7dc38d6f5f3f20fc1f442a273d804d5d87",
+    "build/qa/git-process-exit-fetch-rebase-measured-2026-10-11.log": "f365617ec6ddfac6b1af21905feddaebc58ef8cc12f0184adfb2ebb0f66f52a9",
+    "build/qa/git-process-exit-debug-2026-10-11.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/git-process-exit-store-2026-10-11.log": "6926b9a7076d2d9ad8b2b23b24c069ce6913561b958ddbf9a873a5fe75da64dc",
+    "build/qa/git-process-exit-debug-audit-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/git-process-exit-store-audit-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/git-process-exit-group-baseline-2026-10-11.log": "a52243b275a6bb5552f4804de98bbe8dc68318cd1b7e192a94336a0f5970b67e",
+    "build/qa/git-process-exit-full-sync-final-2026-10-11.log": "b0feb9471b98422c8dc5ac08039eeebc8fea5f2f2378388a05800421c123edb7"
+  }
+}
