@@ -47,6 +47,14 @@ extension SynchronizationTagAction {
         switch self { case .fetch: return "Fetch"; case .push: return "Push"; case .deleteLocal: return "Delete local tag"; case .deleteRemote: return "Delete tag on remote" }
     }
 }
+extension SynchronizationSubmoduleAction {
+    var title: String {
+        switch self { case .update: return "Submodule Update"; case .initialize: return "Submodule Init"; case .sync: return "Submodule Sync" }
+    }
+    var icon: MenuIcon {
+        switch self { case .update: return .fetch; case .initialize: return .add; case .sync: return .sync }
+    }
+}
 extension SynchronizationTagKind {
     var title: String {
         switch self { case .same: return "Same"; case .differ: return "Differ"; case .onlyLocal: return "Only local"; case .onlyRemote: return "Only remote" }
@@ -454,6 +462,7 @@ private struct SynchronizationProgressDialog: View {
     @Published var pullAction = SynchronizationTransportAction.pull
     @Published private(set) var compareTagsSelected = false
     @Published private(set) var pushAction: SynchronizationTransportAction = .push
+    @Published private(set) var submoduleAction: SynchronizationSubmoduleAction = .update
     @Published private(set) var comparingTags = false
     @Published private(set) var tagSnapshot: SynchronizationTagSnapshot?
     @Published var hideEqualTags = false
@@ -524,6 +533,7 @@ private struct SynchronizationProgressDialog: View {
     private(set) var closed = false
     var onLog: (String) -> Void = { _ in }
     var onCommit: () -> Void = {}
+    var onSubmoduleOptions: (SynchronizationSubmoduleAction) -> Void = { _ in }
     var onTagLog: ((String) -> Void)?
     var onTagsChanged: () -> Void = {}
     var onReferenceLog: (String) -> Void = { _ in }
@@ -558,6 +568,7 @@ private struct SynchronizationProgressDialog: View {
         case 2: pushAction = .pushNotes
         default: pushAction = .push
         }
+        submoduleAction = SynchronizationSubmoduleAction(rawValue: preferences.integer(forKey: historyKey + ".submoduleAction")) ?? .update
         branchHistory = preferences.stringArray(forKey: historyKey + ".branches") ?? []
         urlHistory = preferences.stringArray(forKey: historyKey + ".urls") ?? []
         sshSettings.load(preferences, key: historyKey + ".autoload")
@@ -744,6 +755,52 @@ private struct SynchronizationProgressDialog: View {
                 } catch { if !closed, token === request { self.error = error.localizedDescription } }
             }
         } else { runTransport(selected, shift: false) }
+    }
+    func submodule(_ action: SynchronizationSubmoduleAction? = nil, shift: Bool = NSEvent.modifierFlags.contains(.shift)) {
+        guard !closed, !confirmingQuit, !confirmingCancellation, !busy, !hasBlockingChild, window?.attachedSheet == nil else { return }
+        let selected = action ?? submoduleAction; submoduleAction = selected
+        if shift {
+            // Source launches a separate process and returns immediately. Init
+            // and Update both open full Update; Sync opens standalone Sync.
+            onSubmoduleOptions(selected == .sync ? .sync : .update)
+            return
+        }
+        preferences.set(selected.rawValue, forKey: historyKey + ".submoduleAction")
+        comparingTags = false; tagSnapshot = nil
+        let operationID = UUID(); transportID = operationID
+        let request = OperationCancellation(); token = request; busy = true; transportRunning = true
+        cancelling = false; commandCompleted = false; commandSucceeded = false
+        outputState.reset(); commandOutput = ""; percentage = nil; currentWork = ""; error = nil; tab = 2
+        let forced = force
+        Task {
+            defer { if transportID == operationID { token = nil; busy = false; transportRunning = false; cancelling = false; transportID = nil } }
+            let parser = GitCliOutputParser(limit: outputState.limit)
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
+                let operation = Task {
+                    defer { continuation.finish() }
+                    return try await repository.synchronizeSubmodules(selected, force: forced, cancellation: request,
+                        onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) })
+                }
+                for await _ in updates { consume(parser.processPending(), parser: parser, request: request) }
+                consume(parser.processPending(), parser: parser, request: request); consume(parser.finish(), parser: parser, request: request)
+                let result = try await operation.value
+                guard !closed, token === request else { return }
+                if !outputState.hasOutput { commandOutput = result.text }
+                commandSucceeded = true
+            } catch {
+                guard !closed, token === request else { return }
+                let message = request.isCancelled ? "Synchronization cancelled." : error.localizedDescription
+                commandOutput += (commandOutput.isEmpty || commandOutput.hasSuffix("\n") ? "" : "\n") + message
+                self.error = message
+            }
+            guard !closed, token === request else { return }
+            commandCompleted = true; cancelling = false; transportRunning = false; busy = false; token = nil; transportID = nil
+            // Source Submodule completion leaves Command Log selected, without
+            // Fetch's reference/incoming/outgoing refill phases.
+            onTransportFinished(commandOutput)
+        }
     }
     private func runTransport(_ action: SynchronizationTransportAction, shift: Bool) {
         let pushing = [.push, .pushTags, .pushNotes].contains(action)
@@ -1037,6 +1094,14 @@ private struct SynchronizationDialog: View {
                         Button { model.push(.pushTags) } label: { CommandLabel(title: "Push tags", icon: .tag) }
                         Button { model.push(.pushNotes) } label: { CommandLabel(title: "Push notes", icon: .push) }
                     } label: { Text("").accessibilityLabel("Push actions") }.menuStyle(.borderlessButton).fixedSize()
+                }.disabled(model.busy || model.hasBlockingChild)
+                HStack(spacing: 0) {
+                    Button { model.submodule() } label: { CommandLabel(title: model.submoduleAction.title, icon: model.submoduleAction.icon) }
+                    Menu {
+                        ForEach(SynchronizationSubmoduleAction.allCases, id: \.rawValue) { action in
+                            Button { model.submodule(action) } label: { CommandLabel(title: action.title, icon: action.icon) }
+                        }
+                    } label: { Text("").accessibilityLabel("Submodule actions") }.menuStyle(.borderlessButton).fixedSize()
                 }.disabled(model.busy || model.hasBlockingChild)
                 Button { model.onLog(model.localBranch) } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(model.busy || model.localBranch.isEmpty)
                 Button { model.onCommit() } label: { CommandLabel(title: "Commit", icon: .commit) }.disabled(model.busy)

@@ -13,6 +13,7 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git', type=Path, action='append')
 selection = parser.add_mutually_exclusive_group()
 selection.add_argument('--push-only', action='store_true', help='Run the native Push fixture only.')
+selection.add_argument('--submodules-only', action='store_true', help='Run the native Submodule fixture only.')
 selection.add_argument('--tags-only', action='store_true', help='Run the native Compare Tags fixture only.')
 args = parser.parse_args()
 root = Path(__file__).resolve().parent.parent
@@ -31,6 +32,7 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-sync-native-') as temporary:
     environment['DYLD_FRAMEWORK_PATH'] = str(products)
     if args.tags_only: environment['TURTLEGIT_SYNC_TAGS_ONLY'] = '1'
     if args.push_only: environment['TURTLEGIT_SYNC_PUSH_ONLY'] = '1'
+    if args.submodules_only: environment['TURTLEGIT_SYNC_SUBMODULES_ONLY'] = '1'
     for index, git in enumerate(args.git or [Path('/usr/bin/git')]):
         fixture = directory / ('fixture-' + str(index)); fixture.mkdir()
         print('Checking ' + str(git), flush=True)

@@ -976,6 +976,68 @@ import TurtleGitCore
         print("PASS: native Sync Push/Push tags/Push notes, tracking Yes/No/Cancel/suppression/default destination, Force rejection/success, configured notes ref, URL/no-tracking, confirmed deletion, source-index persistence, ignored Shift variants, actual owned Shift Push options/progress/cancel/refill and direct/owned forced process cleanup; HEAD/branch/index preserved")
     }
 
+    @MainActor static func verifySubmodules(root: URL, preferences: UserDefaults) async throws {
+        let directory = root.deletingLastPathComponent().appendingPathComponent("qa-sync-submodule-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let selected = URL(fileURLWithPath: CommandLine.arguments[2]), shim = directory.appendingPathComponent("fixture-git")
+        func quote(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\"'\"'") + "'" }
+        let environment = GitRuntime.environment(executable: selected).sorted { $0.key < $1.key }.map { "export " + $0.key + "=" + quote($0.value) }.joined(separator: "\n")
+        try Data(("#!/bin/sh\n" + environment + "\nexec " + quote(selected.path) + " -c protocol.file.allow=always \"$@\"\n").utf8).write(to: shim)
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: shim.path)
+        let repo = GitRepository(root: directory, executable: shim), path = "child 雪"
+        _ = try await repo.run(["init", "-b", "main", "--template="])
+        for (key, value) in [("user.name", "Sync QA"), ("user.email", "qa@example.invalid"), ("commit.gpgsign", "false"), ("core.hooksPath", "/dev/null")] { _ = try await repo.run(["config", key, value]) }
+        _ = try await repo.run(["submodule", "add", "--name", "child-雪", "--", root.path, path])
+        _ = try await repo.run(["commit", "-am", "submodule fixture"])
+        _ = try await repo.run(["submodule", "deinit", "--force", "--all"])
+        let index = try Data(contentsOf: directory.appendingPathComponent(".git/index")), head = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let owner = SynchronizationWindowController(repository: repo, access: nil, preferences: preferences)
+        owner.window!.alphaValue = 0; owner.showWindow(nil); owner.window!.contentView!.layoutSubtreeIfNeeded()
+        defer { owner.close() }
+        let model = owner.model
+        try await settle { !model.busy && model.outgoing != nil }
+        let outgoing = model.outgoing!.remoteReference, key = "TurtleGit.Sync." + directory.path + ".submoduleAction"
+        var completed = 0, children: [SynchronizationSubmoduleAction] = []
+        model.onTransportFinished = { _ in completed += 1 }
+        model.onSubmoduleOptions = { children.append($0) }
+        model.remote = "invalid remote ignored by submodule commands"; model.remoteBranch = "invalid branch"; model.force = true
+        model.submodule(.initialize, shift: false)
+        precondition(model.busy && model.transportRunning && model.tab == 2)
+        try await settle { !model.busy }
+        precondition(model.commandSucceeded && model.commandCompleted && completed == 1 && preferences.integer(forKey: key) == 1)
+        precondition(!FileManager.default.fileExists(atPath: directory.appendingPathComponent(path + "/.git").path))
+        model.submodule(.update, shift: false); try await settle { !model.busy }
+        precondition(model.commandSucceeded && completed == 2 && FileManager.default.fileExists(atPath: directory.appendingPathComponent(path + "/.git").path))
+        let newURL = directory.appendingPathComponent("new remote.git").path
+        _ = try await repo.run(["config", "--file", ".gitmodules", "submodule.child-雪.url", newURL])
+        model.submodule(.sync, shift: false); try await settle { !model.busy }
+        let registered = try await repo.run(["config", "--get", "submodule.child-雪.url"]).text.trimmingCharacters(in: .newlines)
+        precondition(model.commandSucceeded && completed == 3 && registered == newURL && model.tab == 2 && model.outgoing!.remoteReference == outgoing)
+        for action in SynchronizationSubmoduleAction.allCases { model.submodule(action, shift: true); precondition(!model.busy && !model.transportRunning && preferences.integer(forKey: key) == 2) }
+        precondition(children == [.update, .update, .sync] && completed == 3)
+        let restored = SynchronizationWindowModel(repository: repo, access: nil, preferences: preferences)
+        precondition(restored.submoduleAction == .sync); restored.invalidate()
+        for action in SynchronizationSubmoduleAction.allCases { precondition(action.icon.image() != nil) }
+        let finalHead = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let finalIndex = try Data(contentsOf: directory.appendingPathComponent(".git/index"))
+        precondition(finalHead == head && finalIndex == index)
+        owner.close(); model.submodule(.initialize, shift: true)
+        precondition(model.closed && children.count == 3 && !model.busy)
+        let blockedShim = directory.appendingPathComponent("blocked-git"), marker = directory.appendingPathComponent("blocked-pid")
+        let blockedScript = "#!/bin/sh\nfor argument; do\nif [ \"$argument\" = submodule ]; then\nprintf '%s\\n' \"$$\" > " + quote(marker.path) + "\nwhile :; do sleep 1; done\nfi\ndone\nexec " + quote(shim.path) + " \"$@\"\n"
+        try Data(blockedScript.utf8).write(to: blockedShim); try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: blockedShim.path)
+        let blockedOwner = SynchronizationWindowController(repository: GitRepository(root: directory, executable: blockedShim), access: nil, preferences: preferences)
+        blockedOwner.window!.alphaValue = 0; blockedOwner.showWindow(nil); defer { blockedOwner.close() }
+        let blocked = blockedOwner.model; try await settle { !blocked.busy && blocked.outgoing != nil }
+        var lateCompletions = 0; blocked.onTransportFinished = { _ in lateCompletions += 1 }
+        blocked.submodule(.update, shift: false); try await settle { FileManager.default.fileExists(atPath: marker.path) }
+        let pid = pid_t(try String(contentsOf: marker, encoding: .utf8).trimmingCharacters(in: .newlines))!
+        blockedOwner.close(); try await settle { kill(pid, 0) == -1 && errno == ESRCH }
+        precondition(blocked.closed && !blocked.busy && !blocked.transportRunning && !blocked.cancelling && lateCompletions == 0)
+        print("PASS: native Sync Submodule Init/Update/Sync, ignored transport fields, Command Log completion without outgoing refill, Force, persisted selection, Shift Update/Init/Sync routes without parent busy/persistence, closed-owner refusal and forced running process cleanup; HEAD/index preserved")
+    }
+
     @MainActor static func main() async throws {
         if let status = RebaseEditor.handle(arguments: CommandLine.arguments, environment: ProcessInfo.processInfo.environment) { exit(status) }
         NSApplication.shared.setActivationPolicy(.prohibited)
@@ -984,12 +1046,13 @@ import TurtleGitCore
         _ = try await repo.run(["init", "-b", "main"])
         for (key, value) in [("user.name", "Sync QA"), ("user.email", "qa@example.invalid"), ("commit.gpgsign", "false"), ("core.hooksPath", "/dev/null")] { _ = try await repo.run(["config", key, value]) }
         try Data("base\n".utf8).write(to: root.appendingPathComponent("file")); try await repo.stage(["file"]); _ = try await repo.commit(message: "base")
-        if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_TAGS_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_PUSH_ONLY"] == "1" {
+        if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_TAGS_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_PUSH_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_SUBMODULES_ONLY"] == "1" {
             try Data("second\n".utf8).write(to: root.appendingPathComponent("file")); try await repo.stage(["file"]); _ = try await repo.commit(message: "second")
             let suite = "TurtleGit.Tags.QA." + UUID().uuidString, preferences = UserDefaults(suiteName: suite)!
             defer { preferences.removePersistentDomain(forName: suite) }
             DialogGeometry.install(preferences: preferences)
-            if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_PUSH_ONLY"] == "1" { try await verifyPush(root: root, preferences: preferences) }
+            if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_SUBMODULES_ONLY"] == "1" { try await verifySubmodules(root: root, preferences: preferences) }
+            else if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_PUSH_ONLY"] == "1" { try await verifyPush(root: root, preferences: preferences) }
             else { try await verifyTags(root: root, preferences: preferences) }; return
         }
         let base = String(decoding: try await repo.run(["rev-parse", "HEAD"]).stdout, as: UTF8.self).trimmingCharacters(in: .newlines)
@@ -1062,6 +1125,7 @@ import TurtleGitCore
         try await verifyShiftOwnedRebase(root: root, preferences: preferences)
         try await verifyTags(root: root, preferences: preferences)
         try await verifyPush(root: root, preferences: preferences)
+        try await verifySubmodules(root: root, preferences: preferences)
         print("PASS: native Sync tracking controls, exact Unicode choices, graph-first table, changes and pinned comparison snapshot, divergence/Force, unknown states, Quit fences, owner invalidation and read-only preservation")
     }
 }

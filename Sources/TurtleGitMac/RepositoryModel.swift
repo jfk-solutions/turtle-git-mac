@@ -728,6 +728,10 @@ import TurtleGitCore
         }
         controller.model.onLog = { [weak self] revision in self?.showLog(repository: repository, access: access, paths: [], endRevision: revision) }
         controller.model.onCommit = { [weak self] in self?.showCommitDialog(repository: repository, access: access, paths: []) }
+        controller.model.onSubmoduleOptions = { [weak self] action in
+            if action == .sync { self?.showSubmoduleSync(repository: repository, access: access, scope: []) }
+            else { self?.showSubmoduleUpdate(repository: repository, access: access, scope: []) }
+        }
         controller.model.onTagLog = { [weak self] revision in self?.showLog(repository: repository, access: access, paths: [], endRevision: revision, selectedRevision: revision) }
         controller.model.onTagsChanged = { [weak self] in
             guard let self else { return }

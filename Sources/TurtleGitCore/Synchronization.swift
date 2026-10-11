@@ -1,6 +1,31 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import Foundation
 
+/// SyncDlg's Submodule split button is independent of its Pull/Push transports.
+public enum SynchronizationSubmoduleAction: Int, CaseIterable, Sendable {
+    case update, initialize, sync
+    public func arguments(force: Bool = false) -> [String] {
+        switch self {
+        case .update: return ["submodule", "update", "--init", "--recursive"] + (force ? ["--force"] : [])
+        case .initialize: return ["submodule", "init"]
+        case .sync: return ["submodule", "sync", "--recursive"]
+        }
+    }
+}
+
+extension GitRepository {
+    /// Runs the source all-project command, retaining Git's configured update
+    /// mode. Full-options callers use their separate reviewed path selection.
+    public func synchronizeSubmodules(_ action: SynchronizationSubmoduleAction, force: Bool = false,
+                                     cancellation: OperationCancellation? = nil,
+                                     onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> GitResult {
+        let token = cancellation ?? OperationCancellation()
+        // Reuse the reviewed superproject/gitlink path and non-bare validation.
+        _ = try submoduleSyncPlan(scope: [], cancellation: token)
+        return try run(action.arguments(force: force), cancellation: token, onOutput: onOutput)
+    }
+}
+
 /// BranchCombox uses the pull tracking configuration, independently of Push's
 /// pushRemote/pushDefault/pushbranch preferences.
 public struct SynchronizationBranches: Sendable {
