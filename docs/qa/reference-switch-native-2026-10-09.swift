@@ -154,7 +154,8 @@ import TurtleGitCore
               /bin/sleep 30 &
               task_child=$!
               trap 'kill "$task_child" 2>/dev/null; wait "$task_child" 2>/dev/null; exit 143' TERM INT
-              printf '%s %s\\n' "$$" "$task_child" > "$0.started"
+              printf '%s %s\\n' "$$" "$task_child" > "$0.started.pending"
+              /bin/mv "$0.started.pending" "$0.started"
               wait "$task_child"
             fi
             exec \(quoted) "$@"
@@ -189,7 +190,8 @@ import TurtleGitCore
               /bin/sleep 30 &
               task_child=$!
               trap 'kill "$task_child" 2>/dev/null; wait "$task_child" 2>/dev/null; exit 143' TERM INT
-              printf '%s %s\\n' "$$" "$task_child" > "$0.started"
+              printf '%s %s\\n' "$$" "$task_child" > "$0.started.pending"
+              /bin/mv "$0.started.pending" "$0.started"
               wait "$task_child"
             fi
             exec \(quoted) "$@"
@@ -217,7 +219,7 @@ import TurtleGitCore
             try await wait([parent.window!, child.window!]) { FileManager.default.fileExists(atPath: marker.path) }
             pids = try String(contentsOf: marker).split(whereSeparator: { $0.isWhitespace }).compactMap { Int32($0) }
             let progress = child.progressController, oldCompletion = completed
-            try require(pids.count == 2 && pids.allSatisfy { kill($0, 0) == 0 } && child.model.busy && (progress != nil) == ownsProgress, "Expected checkout stage not live: " + suffix)
+            try require(pids.count == 2 && pids.allSatisfy { kill($0, 0) == 0 } && child.model.busy && (progress != nil) == ownsProgress, "Expected checkout stage not live: \(suffix); pids=\(pids); live=\(pids.map { kill($0, 0) == 0 }); busy=\(child.model.busy); progress=\(progress != nil); expectedProgress=\(ownsProgress)")
             if let progress, command == "switch" {
                 prefs.set(true, forKey: "ConfirmKillProcess"); progress.model.confirmCancellation = { lateAnswer = $0 }
                 progress.model.cancel(); try require(progress.model.confirmingCancellation, "Cancellation question not pending")

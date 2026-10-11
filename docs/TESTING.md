@@ -964,3 +964,24 @@ reference navigation, Shift/plain Return, critical Return recovery, Cancel and
 parent-close cleanup. It uses private preferences, disables saved Log geometry
 and column layout, displays no app windows and cleans up its owned fixtures.
 Physical input, installed Finder and signed sandbox acceptance remain separate.
+
+## Reference-browser Switch receiver handshake (2026-10-11)
+
+Hosted macOS run [38124517913](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38124517913)
+failed the reference-browser Switch receiver at “Expected checkout stage not live:
+switch-progress”. Its assertion combined PID count/liveness, busy state and owned
+progress presence without recording which condition failed. The precise hosted
+root cause is unproven.
+
+The two injected Git stall scripts now atomically publish their complete PID
+markers. A failure records parsed PIDs, liveness, busy state and actual/expected
+progress presence. All assertions remain. The driver links the freshly built
+Debug app objects instead of recompiling all app sources, runs the fixture on
+NSApplication's event loop and applies bounded receiver cleanup on every exit.
+
+The unchanged lifecycle requirements passed locally with system and bundled Git,
+including real captured checkout, all three acknowledgement policies, forced
+owner/progress closure at metadata/validation/switch/post-checkout stages and late
+callback rejection. Both receivers were reaped. Hidden zero-size split-view layout
+warnings were emitted; this does not prove displayed geometry, signed acceptance
+or a successful hosted retry.
