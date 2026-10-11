@@ -141,16 +141,19 @@ public struct FinderSnapshot: Codable, Sendable {
     public var states: [String: FileState]
     public var updated: Date
     public var repositories: [String: FinderRepositoryMetadata]
-    public init(roots: [String], states: [String: FileState], updated: Date = Date(), repositories: [String: FinderRepositoryMetadata] = [:]) {
+    public var overlayEntries: [String: FileState]?
+    public init(roots: [String], states: [String: FileState], updated: Date = Date(), repositories: [String: FinderRepositoryMetadata] = [:], overlayEntries: [String: FileState]? = nil) {
         self.roots = roots; self.states = states; self.updated = updated; self.repositories = repositories
+        self.overlayEntries = overlayEntries
     }
-    private enum CodingKeys: String, CodingKey { case roots, states, updated, repositories }
+    private enum CodingKeys: String, CodingKey { case roots, states, updated, repositories, overlayEntries }
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         roots = try values.decode([String].self, forKey: .roots)
         states = try values.decode([String: FileState].self, forKey: .states)
         updated = try values.decode(Date.self, forKey: .updated)
         repositories = try values.decodeIfPresent([String: FinderRepositoryMetadata].self, forKey: .repositories) ?? [:]
+        overlayEntries = try values.decodeIfPresent([String: FileState].self, forKey: .overlayEntries)
     }
     public func repositoryMetadata(for paths: [URL]) -> FinderRepositoryMetadata? {
         guard !paths.isEmpty else { return nil }
@@ -183,7 +186,7 @@ public struct FinderSnapshot: Codable, Sendable {
             }
         }
         states[root.path] = states[root.path] ?? .normal
-        return FinderSnapshot(roots: [root.path], states: states)
+        return FinderSnapshot(roots: [root.path], states: states, overlayEntries: files)
     }
     /// Cached eligibility only. The containing app revalidates tracked paths and
     /// the working tree before Git mutates anything.
@@ -580,11 +583,12 @@ extension FinderSnapshot {
         let preserved = independent.map { candidate -> FinderSnapshot in
             func belongs(_ value: String) -> Bool { value == candidate || value.hasPrefix(candidate + "/") }
             return FinderSnapshot(roots: roots.filter(belongs), states: states.filter { belongs($0.key) },
-                repositories: repositories.filter { belongs($0.key) })
+                repositories: repositories.filter { belongs($0.key) }, overlayEntries: overlayEntries?.filter { belongs($0.key) })
         }
         roots.removeAll(where: contains)
         states = states.filter { !contains($0.key) }
         repositories = repositories.filter { !contains($0.key) }
+        overlayEntries = (overlayEntries ?? states).filter { !contains($0.key) }
         let priority: [FileState: Int] = [.normal: 0, .ignored: 1, .untracked: 2, .added: 3, .deleted: 4, .modified: 5, .conflicted: 6]
         for snapshot in (snapshots + preserved).sorted(by: { ($0.roots.first?.count ?? 0) < ($1.roots.first?.count ?? 0) }) {
             let accepted = snapshot.roots.filter(contains)
@@ -592,6 +596,7 @@ extension FinderSnapshot {
             for candidate in accepted where !roots.contains(candidate) { roots.append(candidate) }
             let rootStates = Dictionary(uniqueKeysWithValues: accepted.compactMap { candidate in states[candidate].map { (candidate, $0) } })
             states.merge(snapshot.states.filter { contains($0.key) }) { _, latest in latest }
+            overlayEntries?.merge((snapshot.overlayEntries ?? snapshot.states).filter { contains($0.key) }) { _, latest in latest }
             for (candidate, state) in rootStates where snapshot.repositories[candidate]?.submoduleParentRoot != nil && priority[state, default: 0] > priority[states[candidate] ?? .normal, default: 0] { states[candidate] = state }
             repositories.merge(snapshot.repositories.filter { contains($0.key) }) { _, latest in latest }
         }

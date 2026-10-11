@@ -58,3 +58,18 @@ keyboard/theme and owned panels, Finder runtime boundaries and signed sandbox
 execution. Source PuTTY/plink client behavior is replaced by native OpenSSH;
 non-OpenSSH executable variants and key conversion remain open. No dialog is
 newly certified and the whole port remains incomplete.
+
+## Grouped Network/Finder checkpoint — 2026-10-11
+
+Debug arm64 native build exited 0. The focused NetworkFinderSettingsBatchTests,
+FinderSubmoduleMetadataTests, FinderMenuSettingsTests, FinderSubmoduleScanTests
+and GitRuntimeSSHTests group passed: 22 tests, zero failures, 7.692 seconds.
+Proxy parsing/credential escaping/IPv6 and invalid inputs, live global writes
+with local/URL-specific preservation, sanitized lock failures, SSH precedence/
+App Store selection and real version check/cancellation are covered. Finder
+policy tests cover rule precedence, propagation, handlers, None mode, persistence
+and snapshot compatibility; existing cache/child scans also passed. No app
+was launched. Native UI/Keychain/Finder, timeout/moved bookmark, mount/case and
+signed sandbox acceptance remain open. Xcode emitted existing warnings and seven
+unusual exit-zero SwiftCompile diagnostics. This supersedes the uncompiled/
+untested statements above; see `qa/network-finder-settings-batch-2026-10-11.json`.

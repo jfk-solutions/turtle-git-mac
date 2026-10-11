@@ -489,3 +489,15 @@ validation, shared Apply/Cancel, actual Git process environment integration and
 the original source icon. No build, tests or app launch were run for this
 continuation; validation remains grouped with the next Finder-settings section.
 See NETWORK-SETTINGS-PARITY.md for behavior and remaining acceptance.
+
+
+### Finder overlay settings and Network checkpoint, 2026-10-11
+
+Added source-grouped Icon Overlays/Overlay Handlers pages, original artwork,
+volume/path filters, handler suppression and unversioned/subrepository folder
+propagation. Direct overlay entries are cached independently of raw menu status;
+App Group preferences and notification reloads drive the extension. Validated
+with the preceding Network batch: native Debug build exited 0 and 22 focused
+Core tests passed. No app or full suite was launched. Remaining source/native/
+signed acceptance is in FINDER-OVERLAY-SETTINGS-PARITY.md and
+`qa/network-finder-settings-batch-2026-10-11.json`.

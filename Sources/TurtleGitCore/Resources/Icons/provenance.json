@@ -657,6 +657,11 @@
       "asset": "proxy.ico",
       "source": "src/Resources/proxy.ico",
       "sha256": "c9ae75081212435a42cfad80c429520d4b8c7bddc58bd93b04aa142029481d4b"
+    },
+    {
+      "asset": "Overlays.ico",
+      "source": "src/Resources/Overlays.ico",
+      "sha256": "471c904177748cedd36b93a893c6f0d765bd37df37bad9ae996448c69479e70b"
     }
   ]
 }

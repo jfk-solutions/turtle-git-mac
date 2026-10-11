@@ -1,0 +1,29 @@
+{
+  "date": "2026-10-11",
+  "scope": "Network settings, Finder Icon Overlays and partial Overlay Handlers",
+  "source": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "native_build": {
+    "configuration": "Debug arm64",
+    "exit_code": 0,
+    "log": "build/qa/network-finder-settings-native-2026-10-11.log",
+    "diagnostics": "Existing warnings and seven unusual SwiftCompile diagnostics reporting exit code 0 with no output."
+  },
+  "core_tests": {
+    "filter": "NetworkFinderSettingsBatchTests|FinderSubmoduleMetadataTests|FinderMenuSettingsTests|FinderSubmoduleScanTests|GitRuntimeSSHTests",
+    "tests": 22,
+    "failures": 0,
+    "seconds": 7.692,
+    "log": "build/qa/network-finder-settings-core-2026-10-11.log"
+  },
+  "app_launches": 0,
+  "remaining": [
+    "Native UI, Keychain retention and panel ownership",
+    "Live Finder badge refresh, App Group propagation and signed sandbox acceptance",
+    "Shell/Shell Extended cache modes and icon-set switching",
+    "Skip-worktree/assume-unchanged metadata and badges",
+    "Native volume/mount/RAM/case/symlink policy acceptance",
+    "SSH timeout and bookmark movement/partial failures",
+    "Legacy raw root menu eligibility for only-unversioned content",
+    "Full port and dialog certification"
+  ]
+}

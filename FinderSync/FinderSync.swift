@@ -5,6 +5,7 @@ import TurtleGitCore
 /// Finder never launches Git. Only the containing application scans repositories.
 @objc(FinderSync) final class FinderSync: FIFinderSync {
     private var snapshot: FinderSnapshot?
+    private var badges: [String: FileState] = [:]
     override init() {
         super.init()
         let controller = FIFinderSyncController.default()
@@ -17,17 +18,23 @@ import TurtleGitCore
     }
     deinit { DistributedNotificationCenter.default().removeObserver(self) }
     @objc private func reload() {
-        let old = snapshot
+        let old = badges
         snapshot = FinderSnapshot.read()
+        if let snapshot {
+            let volumes = Dictionary(uniqueKeysWithValues: Set(snapshot.roots).map { ($0, FinderOverlaySettings.volumeKind(for: URL(fileURLWithPath: $0))) })
+            badges = FinderOverlaySettings.read().badges(snapshot: snapshot, volume: { volumes[$0] ?? .unknown }, isDirectory: { path in
+                var directory: ObjCBool = false; return FileManager.default.fileExists(atPath: path, isDirectory: &directory) && directory.boolValue
+            })
+        } else { badges = [:] }
         let controller = FIFinderSyncController.default()
         controller.directoryURLs = Set((snapshot?.roots ?? []).map { URL(fileURLWithPath: $0, isDirectory: true) })
-        let paths = Set(old?.states.keys.map { $0 } ?? []).union(snapshot?.states.keys.map { $0 } ?? [])
-        for path in paths where old?.states[path] != snapshot?.states[path] {
-            controller.setBadgeIdentifier(snapshot?.states[path]?.rawValue ?? "", for: URL(fileURLWithPath: path))
+        let paths = Set(old.keys).union(badges.keys)
+        for path in paths where old[path] != badges[path] {
+            controller.setBadgeIdentifier(badges[path]?.rawValue ?? "", for: URL(fileURLWithPath: path))
         }
     }
     override func requestBadgeIdentifier(for url: URL) {
-        FIFinderSyncController.default().setBadgeIdentifier(snapshot?.states[url.path]?.rawValue ?? "", for: url)
+        FIFinderSyncController.default().setBadgeIdentifier(badges[url.path]?.rawValue ?? "", for: url)
     }
     override var toolbarItemName: String { "TurtleGit" }
     override var toolbarItemToolTip: String { "TurtleGit for Mac" }

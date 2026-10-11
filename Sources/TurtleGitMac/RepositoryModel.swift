@@ -103,6 +103,7 @@ import TurtleGitCore
     private var cloneKeyAccess: [String: RepositoryAccessLease] = [:]
     private var timer: Timer?
     private var cacheStates: [String: FileState] = [:]
+    private var cacheOverlayEntries: [String: FileState]?
     private var cacheRepositories: [String: FinderRepositoryMetadata] = [:]
     private var monitoredRoots: [String] = []
     var visibleEntries: [StatusEntry] { entries.filter { showIgnored || $0.state != .ignored } }
@@ -131,6 +132,8 @@ import TurtleGitCore
     init() {
         do { _ = try FinderMenuSettings.from().write() }
         catch { finderStatus = "Finder menu preferences unavailable: " + error.localizedDescription }
+        do { _ = try FinderOverlaySettings.from().write() }
+        catch { finderStatus = "Finder overlay preferences unavailable: " + error.localizedDescription }
         do { workingComparisonMark = try comparisonMarkStore.snapshot() } catch { self.error = error.localizedDescription }
         do {
             let store = try RepositoryAccessStore(storageURL: RepositoryAccessStore.defaultStorageURL)
@@ -139,6 +142,7 @@ import TurtleGitCore
         Task {
             if let snapshot = await Task.detached(operation: { FinderSnapshot.read() }).value, root == nil {
                 cacheStates = snapshot.states; monitoredRoots = snapshot.roots; cacheRepositories = snapshot.repositories
+                cacheOverlayEntries = snapshot.overlayEntries
             }
         }
         timer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
@@ -261,9 +265,10 @@ import TurtleGitCore
         var snapshot = FinderSnapshot.build(root: root, tracked: tracked, changes: entries)
         snapshot.repositories[root.path] = metadata
         let children = bare ? FinderSubmoduleScan() : try await repository.finderSubmoduleSnapshots(authorizedRoot: activeAccess?.url ?? root)
-        var cached = FinderSnapshot(roots: monitoredRoots, states: cacheStates, repositories: cacheRepositories)
+        var cached = FinderSnapshot(roots: monitoredRoots, states: cacheStates, repositories: cacheRepositories, overlayEntries: cacheOverlayEntries)
         cached.replaceSubtree(root: root, snapshots: [snapshot] + children.snapshots)
         monitoredRoots = cached.roots; cacheStates = cached.states; cacheRepositories = cached.repositories
+        cacheOverlayEntries = cached.overlayEntries
         do {
             let written = try await Task.detached(operation: { try cached.write() }).value
             finderStatus = written ? (children.failures.isEmpty ? "Finder cache updated" : "Finder cache updated; \(children.failures.count) submodule scan(s) failed: " + children.failures.sorted { $0.key < $1.key }.map { $0.key + ": " + $0.value }.joined(separator: "; ")) : "Finder cache unavailable: App Group access required"
