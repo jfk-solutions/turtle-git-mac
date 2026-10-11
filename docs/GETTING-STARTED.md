@@ -172,7 +172,9 @@ original list. See the [light Find capture](site/assets/sync-find-light.png) and
 For a single commit, **Export this version…** opens Export options attached to
 Sync. Choose the destination ZIP and export the whole project or a directory.
 When that commit has a tag, the dialog initially selects the first tag. Close the
-completed progress result to return to Sync; Cancel dismisses the options.
+completed progress result to return to Sync; Cancel dismisses the options. See
+the [light Export sheet](site/assets/sync-export-light.png) and
+[dark Export sheet](site/assets/sync-export-dark.png).
 
 The existing [light Sync screenshot](site/assets/git-synchronization-light.png)
 and [dark Sync screenshot](site/assets/git-synchronization-dark.png) show native

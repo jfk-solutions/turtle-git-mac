@@ -57,5 +57,44 @@
     "build/qa/sync-export-store-final-audit-2026-10-11.log": "025a02cda9b547f00533c3ecf90f6728fded47e69020e7f2e148177609ad59cb",
     "build/qa/sync-export-inventory-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
     "build/qa/sync-export-site-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "followup": {
+    "code_base_commit": "7c33b3a92b052597bb497ede46e4cb44100177f4",
+    "reason": "Visual captures showed clipped top title and footer; enforce intrinsic minimum hosted-root geometry and fitted window size.",
+    "native_exit_code": 0,
+    "receivers_reaped": [
+      67677,
+      68628
+    ],
+    "debug_build_exit_code": 0,
+    "unsigned_appstore_build_exit_code": 0,
+    "debug_bundle_audit_exit_code": 0,
+    "unsigned_appstore_bundle_audit_exit_code": 0,
+    "inventory_exit_code": 0,
+    "site_exit_code": 0,
+    "captures": [
+      "docs/site/assets/sync-export-light.png",
+      "docs/site/assets/sync-export-dark.png"
+    ],
+    "inspected": true,
+    "reference": "Pinned upstream doc/images/en/ExportURL.png and source IDD_EXPORT",
+    "scope": "Complete initial sheet content visible in both themes; no full chooser, physical input, accessibility, signed or complete-dialog claim.",
+    "inventory": "Export row and 18 controls now mapped partial; 50 partial/80 pending/zero certified dialogs.",
+    "sha256": {
+      "Sources/TurtleGitMac/ExportWindow.swift": "b92cdaeafdc7d136a788e4dc48a678677ac72ea2bca4fbf7e11f74bed9aa9f88",
+      "docs/qa/synchronization-revision-list-native-2026-10-11.swift": "fe3f76ec775f3b95c6286a7bbd6bef308b35e4a634546a1b2b551dc76d0b9f41",
+      "docs/upstream-files.csv": "be1b84fba0dd256724da5724359a556143b9dd5696daee8d5021426eb482531e",
+      "docs/upstream-controls.csv": "d5a5cc6a9d88ecb500063dca0d1493ce438ebe869d40be2b84bb69419d89ec6b",
+      "docs/upstream-dialogs.csv": "fa3dc1f8dca8e40335574f600b375af17049a9075dfbfb7824fff5b6852a6877",
+      "docs/site/assets/sync-export-light.png": "3d5731a88c9c05537fdaf38fcb5372cdbac544755ea24b48d8813ec4d4b54878",
+      "docs/site/assets/sync-export-dark.png": "8ef9e0bb50a7ad1b47c7f7968c59268c3567e8c24471e799be40b92ca4c50503",
+      "build/qa/sync-export-fitting-native-2026-10-11.log": "52b18f7723476ec0513c4e0ff640dc3ace2a57f99e62a1ddf1d2f6c36ed8a31b",
+      "build/qa/sync-export-fitting-debug-2026-10-11.log": "8005f0e9fb2142aeaefcd0f14ad8625a81f7b1bb074bfbc6fbf641ba4cfb4e52",
+      "build/qa/sync-export-fitting-store-2026-10-11.log": "e49d06512e36da6366c111456a2c992b8deece5eada87f3cfd4b17115903f19f",
+      "build/qa/sync-export-fitting-debug-audit-2026-10-11.log": "f6874a395191e17601f5f1474d01ad4b2f07b245fc64cb0baae3a3465d18fe36",
+      "build/qa/sync-export-fitting-store-audit-2026-10-11.log": "025a02cda9b547f00533c3ecf90f6728fded47e69020e7f2e148177609ad59cb",
+      "build/qa/sync-export-fitting-inventory-final-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+      "build/qa/sync-export-fitting-site-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
   }
 }

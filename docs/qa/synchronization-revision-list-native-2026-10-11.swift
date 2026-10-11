@@ -191,6 +191,19 @@ struct SynchronizationRevisionListVerification {
         try await settle { !first.model.busy }
         precondition(first.window!.sheetParent === window && model.exportingHistory && model.hasBlockingChild && !owner.windowShouldClose(window))
         precondition(first.model.revision == outgoing[rootIndex].hash && first.model.target == .commit && first.model.wholeProject && first.model.directory.isEmpty)
+        if CommandLine.arguments.count > 3 {
+            let output = URL(fileURLWithPath: CommandLine.arguments[3])
+            let appearance = first.window!.appearance
+            precondition(first.window!.contentView!.bounds.width >= 600 && first.window!.contentView!.bounds.height >= 360, "Export sheet must preserve the source groups and footer at its minimum size")
+            for (theme, name) in [("light", NSAppearance.Name.aqua), ("dark", .darkAqua)] {
+                first.window!.appearance = NSAppearance(named: name)
+                first.window!.contentView!.layoutSubtreeIfNeeded(); first.window!.contentView!.displayIfNeeded()
+                try await Task.sleep(nanoseconds: 250_000_000)
+                guard let pixels = CGWindowListCreateImage(.null, .optionIncludingWindow, CGWindowID(first.window!.windowNumber), [.boundsIgnoreFraming, .bestResolution]) else { preconditionFailure("Export capture unavailable") }
+                try NSBitmapImageRep(cgImage: pixels).representation(using: .png, properties: [:])!.write(to: output.appendingPathComponent("sync-export-" + theme + ".png"))
+            }
+            first.window!.appearance = appearance
+        }
         owner.showHistoryFind(sourceTab: 4); precondition(owner.historyFind.isEmpty)
         precondition(NSApp.sendAction(captured.action!, to: capturedTarget, from: captured) && owner.historyExportController === first)
         first.model.close(); try await settle { owner.historyExportController == nil && window.attachedSheet == nil && !model.exportingHistory }

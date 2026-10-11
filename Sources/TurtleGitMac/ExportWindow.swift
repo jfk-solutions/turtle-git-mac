@@ -14,9 +14,12 @@ import TurtleGitCore
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 620, height: 360), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Export – TurtleGit"
         window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: ExportDialog(model: model))
+        let content = NSHostingController(rootView: ExportDialog(model: model).frame(minWidth: 600, minHeight: 360))
+        window.contentViewController = content
         super.init(window: window); window.delegate = self
-        window.contentMinSize = NSSize(width: 600, height: 360); window.center()
+        let fitting = content.view.fittingSize
+        window.contentMinSize = NSSize(width: max(600, fitting.width), height: max(360, fitting.height))
+        window.setContentSize(NSSize(width: max(620, fitting.width), height: max(360, fitting.height))); window.center()
         model.close = { [weak self] in
             guard let self, !self.model.busy, self.model.progress == nil, self.window?.attachedSheet == nil, let window = self.window else { return }
             window.sheetParent?.endSheet(window); window.close()

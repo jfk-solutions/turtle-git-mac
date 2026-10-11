@@ -1418,3 +1418,18 @@ by Export. Receivers 62480 and 63395 were reaped. Debug and unsigned AppStore
 bundle audits passed. Physical save panels, full chooser behavior, visual matching
 and signed repository/destination/Finder acceptance remain unverified.
 See [the Export verification record](qa/synchronization-export-2026-10-11.json).
+
+### Export sheet geometry follow-up
+
+Actual light/dark captures exposed intrinsic sheet sizing that clipped the top
+group title and footer. Export now gives its hosted root the native minimum size
+and sets window content/minimum sizes from the fitted view before presentation.
+Repeated two-engine native checks passed (receivers 67677 and 68628, both reaped),
+including the minimum-content-size assertion, archive and cancellation cases.
+Inspected captures show the complete source group order, full hash, Whole Project
+and OK/Cancel/Help controls without clipping. The original upstream ExportURL.png
+and IDD_EXPORT resource were compared. Native radios/popups/buttons adapt their
+appearance to macOS; complete chooser/edit-history and physical/signed acceptance
+remain pending. See [light](site/assets/sync-export-light.png) and
+[dark](site/assets/sync-export-dark.png) captures. All 18 static Export controls
+are now mapped as partial in the inventory; this does not certify the dialog.
