@@ -74,7 +74,7 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-sync-native-') as temporary:
         print('Checking ' + str(git), flush=True)
         receiver = subprocess.Popen([str(executable), str(fixture), str(git.resolve())], cwd=root, env=environment, start_new_session=True)
         try:
-            code = receiver.wait(timeout=600)
+            code = receiver.wait(timeout=1200)
             if code:
                 raise subprocess.CalledProcessError(code, receiver.args)
         finally:

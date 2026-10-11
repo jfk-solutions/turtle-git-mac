@@ -17,18 +17,13 @@ public actor GitRepository {
         FileManager.default.createFile(atPath: err.path, contents: nil)
         let output = try FileHandle(forWritingTo: out), error = try FileHandle(forWritingTo: err)
         defer { try? output.close(); try? error.close() }
-        let process = Process()
-        process.executableURL = executable
-        process.arguments = (literalPathspecs ? ["--literal-pathspecs"] : ["--no-literal-pathspecs"]) + ["-C", root.path] + arguments
+        let commandArguments = (literalPathspecs ? ["--literal-pathspecs"] : ["--no-literal-pathspecs"]) + ["-C", root.path] + arguments
         var environment = ProcessInfo.processInfo.environment
         environment["GIT_TERMINAL_PROMPT"] = "0"
         environment["GIT_PAGER"] = "cat"
         environment["LC_ALL"] = "C"
         environment.merge(GitRuntime.environment(executable: executable)) { _, runtime in runtime }
         environment.merge(environmentOverrides) { _, override in override }
-        process.environment = environment
-        process.standardInput = FileHandle.nullDevice
-        process.standardOutput = output; process.standardError = error
         // Disk-backed streams avoid pipe deadlock with large diffs and command output.
         let status: Int32
         if cancellation != nil || onOutput != nil {
@@ -42,10 +37,10 @@ public actor GitRepository {
                     if !drain { return }
                 } while true
             }
-            status = try CancellableGitProcess.run(executable: executable, arguments: process.arguments ?? [], environment: environment, output: output.fileDescriptor, error: error.fileDescriptor, cancellation: cancellation ?? OperationCancellation(), pollOutput: { read(outputReader, stream: .stdout); read(errorReader, stream: .stderr) })
+            status = try CancellableGitProcess.run(executable: executable, arguments: commandArguments, environment: environment, output: output.fileDescriptor, error: error.fileDescriptor, cancellation: cancellation ?? OperationCancellation(), pollOutput: { read(outputReader, stream: .stdout); read(errorReader, stream: .stderr) })
             read(outputReader, stream: .stdout, drain: true); read(errorReader, stream: .stderr, drain: true)
         } else {
-            try process.run(); process.waitUntilExit(); status = process.terminationStatus
+            status = try CancellableGitProcess.run(executable: executable, arguments: commandArguments, environment: environment, output: output.fileDescriptor, error: error.fileDescriptor)
         }
         let result = GitResult(exitCode: status, stdout: try Data(contentsOf: out), stderr: try Data(contentsOf: err))
         if cancellation?.isCancelled == true { throw GitCommandCancellationFailure(result: result) }

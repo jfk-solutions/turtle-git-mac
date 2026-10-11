@@ -5,8 +5,8 @@ import Darwin
 /// Cancellation targets that group while its leader PID is still unreaped, so
 /// helper children stop too and the numeric ID cannot be reused by another job.
 enum CancellableGitProcess {
-    static func run(executable: URL, arguments: [String], environment: [String: String], output: Int32, error: Int32, cancellation: OperationCancellation, pollOutput: (() -> Void)? = nil) throws -> Int32 {
-        try cancellation.check()
+    static func run(executable: URL, arguments: [String], environment: [String: String], output: Int32, error: Int32, cancellation: OperationCancellation? = nil, pollOutput: (() -> Void)? = nil) throws -> Int32 {
+        try cancellation?.check()
         func check(_ code: Int32) throws {
             guard code == 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(code)) }
         }
@@ -46,15 +46,23 @@ enum CancellableGitProcess {
         var pid: pid_t = 0
         try strings([executable.path] + arguments) { argv in
             try strings(environment.keys.sorted().map { $0 + "=" + environment[$0]! }) { env in
-                try cancellation.check()
+                try cancellation?.check()
                 try check(posix_spawn(&pid, executable.path, &actions, &attributes, argv, env))
             }
         }
         var status: Int32 = 0
         func exitCode() -> Int32 { status & 0x7f == 0 ? (status >> 8) & 0xff : 128 + (status & 0x7f) }
+        // Ordinary commands block on their own PID without a Foundation run-loop
+        // termination notification. Preserve Process.terminationStatus for signals.
+        if cancellation == nil && pollOutput == nil {
+            while waitpid(pid, &status, 0) < 0 {
+                if errno != EINTR { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
+            }
+            return status & 0x7f == 0 ? (status >> 8) & 0xff : status & 0x7f
+        }
         while true {
             pollOutput?()
-            if cancellation.isCancelled {
+            if cancellation?.isCancelled == true {
                 // Give Git a brief chance to handle interruption, then enforce
                 // termination like upstream's Ctrl-C plus KillProcessTree.
                 // Do not reap the leader before the final group signal.

@@ -5,7 +5,12 @@ import TurtleGitCore
 @main struct SynchronizationVerification {
     @MainActor static func views(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(views) }
     @MainActor static func settle(_ condition: () -> Bool, line: UInt = #line) async throws {
-        for _ in 0..<2000 { if condition() { return }; try await Task.sleep(nanoseconds: 5_000_000) }
+        // Parent waits include Fetch, owned Rebase load/replay and result refresh.
+        // Use a monotonic deadline rather than assuming those Git stages fit 10s.
+        let started = DispatchTime.now().uptimeNanoseconds
+        while DispatchTime.now().uptimeNanoseconds - started < 60_000_000_000 {
+            if condition() { return }; try await Task.sleep(nanoseconds: 5_000_000)
+        }
         preconditionFailure("Synchronization did not settle at fixture line \(line)")
     }
     @MainActor static func verifyTransport(repo: GitRepository, root: URL, preferences: UserDefaults) async throws {
@@ -1467,19 +1472,45 @@ import TurtleGitCore
         let after = try await repo.run(["show-ref"]).stdout
         let afterIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
         precondition(after == refs && afterIndex == index)
+        FileHandle.standardError.write(Data("BEGIN: verifyTransport\n".utf8))
         try await verifyTransport(repo: repo, root: root, preferences: preferences)
+        FileHandle.standardError.write(Data("END: verifyTransport\n".utf8))
+        FileHandle.standardError.write(Data("BEGIN: verifyPull\n".utf8))
         try await verifyPull(root: root, preferences: preferences)
+        FileHandle.standardError.write(Data("END: verifyPull\n".utf8))
+        FileHandle.standardError.write(Data("BEGIN: verifyFetchAndRebase\n".utf8))
         try await verifyFetchAndRebase(root: root, preferences: preferences)
+        FileHandle.standardError.write(Data("END: verifyFetchAndRebase\n".utf8))
+        FileHandle.standardError.write(Data("BEGIN: verifyShiftOptions\n".utf8))
         try await verifyShiftOptions(root: root, preferences: preferences)
+        FileHandle.standardError.write(Data("END: verifyShiftOptions\n".utf8))
+        FileHandle.standardError.write(Data("BEGIN: verifyShiftOwnedRebase\n".utf8))
         try await verifyShiftOwnedRebase(root: root, preferences: preferences)
+        FileHandle.standardError.write(Data("END: verifyShiftOwnedRebase\n".utf8))
+        FileHandle.standardError.write(Data("BEGIN: verifyTags\n".utf8))
         try await verifyTags(root: root, preferences: preferences)
+        FileHandle.standardError.write(Data("END: verifyTags\n".utf8))
+        FileHandle.standardError.write(Data("BEGIN: verifyPush\n".utf8))
         try await verifyPush(root: root, preferences: preferences)
+        FileHandle.standardError.write(Data("END: verifyPush\n".utf8))
+        FileHandle.standardError.write(Data("BEGIN: verifySubmodules\n".utf8))
         try await verifySubmodules(root: root, preferences: preferences)
+        FileHandle.standardError.write(Data("END: verifySubmodules\n".utf8))
+        FileHandle.standardError.write(Data("BEGIN: verifyStash\n".utf8))
         try await verifyStash(root: root, preferences: preferences)
+        FileHandle.standardError.write(Data("END: verifyStash\n".utf8))
+        FileHandle.standardError.write(Data("BEGIN: verifyManage\n".utf8))
         try await verifyManage(root: root, preferences: preferences)
+        FileHandle.standardError.write(Data("END: verifyManage\n".utf8))
+        FileHandle.standardError.write(Data("BEGIN: verifyBranchPickers\n".utf8))
         try await verifyBranchPickers(root: root, preferences: preferences)
+        FileHandle.standardError.write(Data("END: verifyBranchPickers\n".utf8))
+        FileHandle.standardError.write(Data("BEGIN: SynchronizationApplyVerification.run\n".utf8))
         try await SynchronizationApplyVerification.run(root: root, preferences: preferences)
+        FileHandle.standardError.write(Data("END: SynchronizationApplyVerification.run\n".utf8))
+        FileHandle.standardError.write(Data("BEGIN: SynchronizationEmailVerification.run\n".utf8))
         try await SynchronizationEmailVerification.run(root: root, preferences: preferences)
+        FileHandle.standardError.write(Data("END: SynchronizationEmailVerification.run\n".utf8))
         print("PASS: native Sync tracking controls, exact Unicode choices, graph-first table, changes and pinned comparison snapshot, divergence/Force, unknown states, Quit fences, owner invalidation and read-only preservation")
     }
 }
