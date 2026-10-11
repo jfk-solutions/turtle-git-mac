@@ -41,6 +41,7 @@ import TurtleGitCore
             CommandGroup(after: .appInfo) {
                 Button("Check for Updates…") { ReleaseUpdateService.shared.show() }
                 Button("First Start Wizard…") { FirstStartWizardService.shared.show() }
+                Button("SSH Key Generator…") { SSHKeyGenerationService.shared.show() }
             }
             CommandGroup(after: .newItem) {
                 Button("Open Repository…") { model.chooseRepository() }.keyboardShortcut("o")

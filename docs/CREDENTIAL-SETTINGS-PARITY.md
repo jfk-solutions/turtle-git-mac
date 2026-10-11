@@ -57,3 +57,26 @@ helper-chain/reset ordering, Git boolean edge cases, no-repository contexts,
 external edits and partial failures, owned-sheet closure and signed sandbox
 permissions. Credential helper availability and Keychain Access lookup need
 native acceptance. No inventory dialog is newly certified.
+
+## Grouped authentication checkpoint — 2026-10-11
+
+Credential settings and native SSH key generation were validated together. Debug
+Xcode build exited 0. AuthenticationSettingsBatchTests, SSHAskpassTests and
+GeneralSetupBatchTests passed: 17 tests, zero failures, 20.638 seconds. Coverage
+includes live Git scoped writes, preservation of other URLs/includes/unknown
+keys, helper reset chains, implicit versus explicit-empty booleans, stale save/
+remove rejection, simple helper/None replacement, invalid-write refusal, plain
+and encrypted Ed25519 generation, exclusive publication, file permissions,
+fingerprint, private staging cleanup and existing one-use agent-helper behavior.
+Real encrypted output was loaded into an owned private agent with its phrase;
+loading without a phrase failed. Pre-cancelled requests publish nothing. No app
+was launched and no full suite was rerun.
+
+Xcode emitted existing warnings and four unusual SwiftCompile diagnostics
+reporting exit code 0 with no output; this is not a clean diagnostics claim.
+Native layout/keyboard/theme/owned sheets, live generation cancellation,
+publication races, all algorithm/bit choices, read-only simplification,
+partial-write failures and signed sandbox acceptance remain open. Logs and
+limitations are in `qa/authentication-settings-batch-2026-10-11.json`.
+This supersedes the uncompiled/untested statements above. Full-port and inventory
+certification remain unchanged.

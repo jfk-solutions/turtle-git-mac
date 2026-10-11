@@ -3,7 +3,7 @@ import XCTest
 @testable import TurtleGitCore
 
 final class GeneralSetupBatchTests: XCTestCase {
-    private func fixture(_ contents: String) throws -> (URL, URL, GitRepository) {
+    func fixture(_ contents: String) throws -> (URL, URL, GitRepository) {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-setup-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let config = root.appendingPathComponent("global.config"), executable = root.appendingPathComponent("git")

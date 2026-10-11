@@ -468,3 +468,14 @@ and the First Start Wizard's owned Advanced credential sheet. Keychain Access
 replaces Windows Credential Manager. No build/test/app launch was run for this
 continuation; validation is deferred to the authentication-section boundary.
 See CREDENTIAL-SETTINGS-PARITY.md for current behavior and acceptance limits.
+
+
+### Authentication section checkpoint, 2026-10-11
+
+Added the native SSH Key Generator using bundled OpenSSH and owned wizard/menu
+entry points, secure passphrase helper channels, exclusive key-pair publication
+and cancellable process cleanup. Validated together with the preceding credential
+settings batch: Debug native build exited 0; 17 focused Core tests passed. No
+app or full suite was launched. Remaining native/sandbox/source utility parity
+is recorded in SSH-KEY-GENERATION-PARITY.md and
+`qa/authentication-settings-batch-2026-10-11.json`.

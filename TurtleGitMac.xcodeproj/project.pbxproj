@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		B73105000000000000000001 /* ProjectDialogSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73105000000000000000002 /* ProjectDialogSettings.swift */; };
+		B73115000000000000000001 /* SSHKeyGenerationWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73115000000000000000002 /* SSHKeyGenerationWindow.swift */; };
 		B73113000000000000000001 /* CredentialSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73113000000000000000002 /* CredentialSettings.swift */; };
 		B73111000000000000000001 /* FirstStartWizard.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73111000000000000000002 /* FirstStartWizard.swift */; };
 		B73110000000000000000001 /* ReleaseUpdateWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73110000000000000000002 /* ReleaseUpdateWindow.swift */; };
@@ -18,6 +19,7 @@
 		B73102000000000000000007 /* SettingsNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73102000000000000000008 /* SettingsNavigation.swift */; };
 		B73102000000000000000005 /* GitConfigurationPermissions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73102000000000000000006 /* GitConfigurationPermissions.swift */; };
 		B73102000000000000000003 /* GitConfigurationSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73102000000000000000004 /* GitConfigurationSettings.swift */; };
+		B73114000000000000000001 /* SSHKeyGeneration.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73114000000000000000002 /* SSHKeyGeneration.swift */; };
 		B73112000000000000000001 /* GitCredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73112000000000000000002 /* GitCredentials.swift */; };
 		B73102000000000000000001 /* GitConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73102000000000000000002 /* GitConfiguration.swift */; };
 		A47E71000000000000000001 /* HistoryWorkflowWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A47E71000000000000000002 /* HistoryWorkflowWindow.swift */; };
@@ -345,6 +347,7 @@
 
 /* Begin PBXFileReference section */
 		B73105000000000000000002 /* ProjectDialogSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectDialogSettings.swift; sourceTree = "<group>"; };
+		B73115000000000000000002 /* SSHKeyGenerationWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHKeyGenerationWindow.swift; sourceTree = "<group>"; };
 		B73113000000000000000002 /* CredentialSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialSettings.swift; sourceTree = "<group>"; };
 		B73111000000000000000002 /* FirstStartWizard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirstStartWizard.swift; sourceTree = "<group>"; };
 		B73110000000000000000002 /* ReleaseUpdateWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReleaseUpdateWindow.swift; sourceTree = "<group>"; };
@@ -355,6 +358,7 @@
 		B73102000000000000000008 /* SettingsNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsNavigation.swift; sourceTree = "<group>"; };
 		B73102000000000000000006 /* GitConfigurationPermissions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitConfigurationPermissions.swift; sourceTree = "<group>"; };
 		B73102000000000000000004 /* GitConfigurationSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitConfigurationSettings.swift; sourceTree = "<group>"; };
+		B73114000000000000000002 /* SSHKeyGeneration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHKeyGeneration.swift; sourceTree = "<group>"; };
 		B73112000000000000000002 /* GitCredentials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitCredentials.swift; sourceTree = "<group>"; };
 		B73102000000000000000002 /* GitConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitConfiguration.swift; sourceTree = "<group>"; };
 		A47E71000000000000000002 /* HistoryWorkflowWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryWorkflowWindow.swift; sourceTree = "<group>"; };
@@ -714,6 +718,7 @@
 				B73102000000000000000008 /* SettingsNavigation.swift */,
 				B7310200000000000000000A /* SettingsTransaction.swift */,
 				B73105000000000000000002 /* ProjectDialogSettings.swift */,
+				B73115000000000000000002 /* SSHKeyGenerationWindow.swift */,
 				B73113000000000000000002 /* CredentialSettings.swift */,
 				B73111000000000000000002 /* FirstStartWizard.swift */,
 				B73110000000000000000002 /* ReleaseUpdateWindow.swift */,
@@ -902,6 +907,7 @@
 				62406E495663E4FBABB4E1A6 /* ReferenceLog.swift */,
 				553B03B8CB0E867E812A6B53 /* ReferenceLogDiff.swift */,
 				C3343365A5D1715F6611CABA /* RemoteSettings.swift */,
+				B73114000000000000000002 /* SSHKeyGeneration.swift */,
 				B73112000000000000000002 /* GitCredentials.swift */,
 				B73102000000000000000002 /* GitConfiguration.swift */,
 				B73104000000000000000002 /* HistoryFileCache.swift */,
@@ -1372,6 +1378,7 @@
 				0963B328CDA08FFD1416E9A3 /* ReferenceLog.swift in Sources */,
 				DF224DF655B4A741AE3BDC97 /* ReferenceLogDiff.swift in Sources */,
 				9EAA76B0018911240EAC2639 /* RemoteSettings.swift in Sources */,
+				B73114000000000000000001 /* SSHKeyGeneration.swift in Sources */,
 				B73112000000000000000001 /* GitCredentials.swift in Sources */,
 				B73102000000000000000001 /* GitConfiguration.swift in Sources */,
 				B73104000000000000000001 /* HistoryFileCache.swift in Sources */,
@@ -1500,6 +1507,7 @@
 				B73102000000000000000007 /* SettingsNavigation.swift in Sources */,
 				B73102000000000000000009 /* SettingsTransaction.swift in Sources */,
 				B73105000000000000000001 /* ProjectDialogSettings.swift in Sources */,
+				B73115000000000000000001 /* SSHKeyGenerationWindow.swift in Sources */,
 				B73113000000000000000001 /* CredentialSettings.swift in Sources */,
 				B73111000000000000000001 /* FirstStartWizard.swift in Sources */,
 				B73110000000000000000001 /* ReleaseUpdateWindow.swift in Sources */,

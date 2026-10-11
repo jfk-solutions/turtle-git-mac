@@ -1,0 +1,39 @@
+{
+  "date": "2026-10-11",
+  "scope": "Credential Settings, wizard Advanced integration, native SSH Key Generator and passphrase helper protocol",
+  "source": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "native_build": {
+    "configuration": "Debug arm64",
+    "exit_code": 0,
+    "log": "build/qa/authentication-settings-native-2026-10-11.log",
+    "diagnostics": "Existing warnings plus four unusual SwiftCompile diagnostics reporting exit code 0 with no output."
+  },
+  "core_tests": {
+    "filter": "AuthenticationSettingsBatchTests|SSHAskpassTests|GeneralSetupBatchTests",
+    "tests": 17,
+    "failures": 0,
+    "seconds": 20.638,
+    "log": "build/qa/authentication-settings-core-2026-10-11.log"
+  },
+  "app_launches": 0,
+  "verified": [
+    "Live scoped credential writes and other URL/include/unknown field preservation",
+    "Helper chain ordering and empty reset values",
+    "Implicit/explicit-empty boolean distinction",
+    "Stale save/remove rejection",
+    "Simple helper and None replacement",
+    "Invalid write refusal",
+    "Real plain/encrypted Ed25519 generation and private-agent loading",
+    "File modes, fingerprints, exclusive publication and staging cleanup",
+    "Existing one-use askpass tests"
+  ],
+  "remaining": [
+    "Native layout/theme/keyboard and owned-sheet interactions",
+    "Live generation cancellation and publication races",
+    "All RSA/ECDSA algorithm/bit choices",
+    "Read-only simplification and partial failure acceptance",
+    "Signed sandbox and App Store acceptance",
+    "PuTTYgen import/conversion/change-passphrase/comment interoperability",
+    "Whole port/dialog certification"
+  ]
+}

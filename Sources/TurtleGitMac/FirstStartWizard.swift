@@ -17,6 +17,7 @@ import TurtleGitCore
     @Published var advanced = false
     @Published private(set) var hasCredentialSheet = false
     private var credentialController: CredentialSettingsController?
+    private var keyGenerationController: SSHKeyGenerationWindowController?
     @Published var error: String?
     let git = GeneralGitSettingsModel()
     private var repository: GitRepository?
@@ -38,8 +39,18 @@ import TurtleGitCore
     func retire() {
         retired = true; git.suspend()
         credentialController?.model.deactivate(); credentialController?.window?.close(); credentialController = nil; hasCredentialSheet = false
+        keyGenerationController?.model.retire(); keyGenerationController?.window?.close(); keyGenerationController = nil
         if let panel { window?.endSheet(panel, returnCode: .cancel); panel.orderOut(nil) }; panel = nil
         let reply = permissionReply; permissionReply = nil; reply?(false); finish = {}
+    }
+    func generateSSHKey() {
+        guard !busy, !hasCredentialSheet, !retired, let window, window.attachedSheet == nil else { return }
+        let controller = SSHKeyGenerationWindowController(); keyGenerationController = controller; hasCredentialSheet = true
+        controller.onClosed = { [weak self, weak controller] in
+            guard let self, self.keyGenerationController === controller else { return }
+            self.keyGenerationController = nil; self.hasCredentialSheet = false
+        }
+        if let sheet = controller.window { window.beginSheet(sheet) }
     }
     func configureCredentials() {
         guard !busy, !hasCredentialSheet, !retired, let repository, let window, window.attachedSheet == nil else { return }
@@ -177,6 +188,7 @@ private struct FirstStartWizardDialog: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Picker("SSH client:", selection: .constant("openssh")) { Text("OpenSSH").tag("openssh") }
                             Text("TurtleGit uses OpenSSH and honors your SSH config, agent and repository command overrides. Configure each remote’s key file in Remote settings.")
+                            Button("Generate SSH key…", action: model.generateSSHKey)
                         }.padding(8)
                     }
                     GroupBox("HTTP (URLs start with http:// or https://)") {
