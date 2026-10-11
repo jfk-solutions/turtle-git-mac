@@ -1,0 +1,110 @@
+{
+  "date": "2026-10-11",
+  "checkpoint": "d58491e5c097db881e85a880ad5ca702d7956291",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_ref_compare_blobs": {
+    "cpp": "4d249c4ab0fd1179c76f195e5df3ca93c3aa22cf",
+    "h": "b208fd47eefe445ba2a82ab8334c80ab4c707756"
+  },
+  "status": "partial-native",
+  "implemented": [
+    "All-ref pinned before/after maps with exact Unicode identity, symbolic remote aliases and immediate annotated/nested tag targets.",
+    "Source change-kind ordering, new/deleted/forward/rewind counts, divergent committer-time classifications, unknown non-commit and unchanged states, first-line commit messages and full pinned hashes.",
+    "Native seven-column reference results with original type artwork, header sorting, persisted Hide unchanged, old/new Log, Compare and Reflog icon menus.",
+    "Fresh owned post-operation metadata token, result selection after successful/failed/cancelled non-integrating transport, retained output/read failure and operation identity fencing against chained callbacks."
+  ],
+  "verification": {
+    "core": [
+      {
+        "engine": "system Git 2.50.1",
+        "tests": 2,
+        "failures": 0,
+        "log": "build/qa/synchronization-reference-system-final-2026-10-11.log"
+      },
+      {
+        "engine": "Git 2.39.5",
+        "tests": 2,
+        "failures": 0,
+        "log": "build/qa/synchronization-reference-old-final-2026-10-11.log"
+      },
+      {
+        "engine": "packaged Git 2.55.0",
+        "tests": 2,
+        "failures": 0,
+        "log": "build/qa/synchronization-reference-packaged-final-2026-10-11.log"
+      }
+    ],
+    "core_scope": "Real Git fixtures exercise all change classifications, counts, symbolic aliases, changed annotation with unchanged target, nested immediate targets, exact Unicode packed refs, empty repositories, cancellation, cross-root rejection, preserved refs/config and pinned result after a ref moves.",
+    "native": {
+      "engines": [
+        "system",
+        "packaged"
+      ],
+      "exit": 0,
+      "log": "build/qa/synchronization-reference-native-verified-2026-10-11.log",
+      "scope": "Actual hidden controller and seven-column NSTableView; reference state/counts, original-icon NSMenu actions dispatched through NSApp to captured callback hashes/ref, persisted header checkbox, selectable command log, all four Fetch actions and existing lifecycle cases. A completion callback starts another transport, verifying old cleanup does not cancel the new request.",
+      "downstream_receivers": "Factory compiled/wired; actual Log/Compare/Reflog child receiver invocation not covered.",
+      "physical_input": "Not exercised; menu events/actions synthesized and confirmation decisions injected.",
+      "appearance": "Aqua/Dark Aqua layout exercised, no rendered pixel or physical accessibility certification.",
+      "cancellation": "Controlled executable shim blocks only Fetch; post-cancellation reference reads use real Git."
+    },
+    "unsigned_builds_and_bundle_audits": [
+      {
+        "step": "debug-build",
+        "exit": 0,
+        "log": "build/qa/synchronization-reference-debug-build-verified-2026-10-11.log"
+      },
+      {
+        "step": "native",
+        "exit": 0,
+        "log": "build/qa/synchronization-reference-native-verified-2026-10-11.log"
+      },
+      {
+        "step": "store-build",
+        "exit": 0,
+        "log": "build/qa/synchronization-reference-store-build-verified-2026-10-11.log"
+      },
+      {
+        "step": "debug-audit",
+        "exit": 0,
+        "log": "build/qa/synchronization-reference-debug-audit-verified-2026-10-11.log"
+      },
+      {
+        "step": "store-audit",
+        "exit": 0,
+        "log": "build/qa/synchronization-reference-store-audit-verified-2026-10-11.log"
+      }
+    ],
+    "full_suite": "Not rerun; two reference tests per engine plus extended native receiver only.",
+    "cleanup": {
+      "owned_app_receiver_wrapper_or_project_build_processes": []
+    }
+  },
+  "remaining": [
+    "Pull/Fetch & Rebase/Push variants with tracking questions, project hooks, separate checkout/progress/replan and native Rebase decisions.",
+    "Incoming/conflicts, remaining result/control/menu/history parity and source full tab order.",
+    "Windows logical sort policy, configured short hash/columns, bisect short names and alternate Compare; actual downstream receivers and large-repository performance.",
+    "Invalid UTF-8 refs, external writers, actual encrypted-key/server authentication, full rendered light/dark and physical/accessibility acceptance.",
+    "Signed Finder/sandbox/App Store/distribution and complete application port."
+  ],
+  "corrections": "First run exposed incorrect log-format NUL syntax; corrected to %x00. A nested-tag fixture then exposed recursive peeling; using the object header atom retains the immediate source target. Final runs pass all three engines.",
+  "sources_sha256": {
+    "Sources/TurtleGitCore/Synchronization.swift": "e71486931788bfeed05a8703af3aedbd19009a6d2c3cf782c1ca9c8a8718254d",
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "222ce0abf2f59620433d353287eb43987ebed70a462c6c41c793e8c847396510",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "fec3f201b6590c5bb04bbc8fac687e037bd741606ab9165db38567ebb4ec74aa",
+    "Tests/TurtleGitCoreTests/SynchronizationReferenceTests.swift": "32dd585a57f03621964f487875e58a455b34bd693b5f5a2b859fc34aa8538245",
+    "docs/qa/synchronization-native-2026-10-11.swift": "9e703edd8b4ceddccf25ec751344166ee961b6830653a8541d614a98e2e4eb46",
+    "scripts/test-synchronization-dialog.py": "b6702a89fd88fc3f0f388bce39577de592f3ed2c022706e258bcdae291aa5c0f",
+    ".github/workflows/macos.yml": "efb8bab52658ca828ff3c45e6ee306a11a86324bb1f1471ed79da228cd7c8151"
+  },
+  "logs_sha256": {
+    "build/qa/synchronization-reference-system-final-2026-10-11.log": "57f1a48adc746620f53d56d9bc704e5ceb5572c0953416db571d8f72b8bbc567",
+    "build/qa/synchronization-reference-old-final-2026-10-11.log": "a0e2eaa14ad6a58f80fc18c2051b7b4754a9ee2824ac1bdc6e8568f6cf4d203b",
+    "build/qa/synchronization-reference-packaged-final-2026-10-11.log": "18f3564cd0d2a2ce6048f73323dea46c0cb394189e7d100c68a21667bb32a72f",
+    "build/qa/synchronization-reference-debug-build-verified-2026-10-11.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/synchronization-reference-native-verified-2026-10-11.log": "0156d940ddb29a9f88eb840a9476ee038998a1e8339d1b35974ea09623b03b33",
+    "build/qa/synchronization-reference-store-build-verified-2026-10-11.log": "8b7e42e41011f64b89af2a34249c0e6a736fce554184bf57a0f657922d209930",
+    "build/qa/synchronization-reference-debug-audit-verified-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/synchronization-reference-store-audit-verified-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30"
+  }
+}

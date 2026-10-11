@@ -69,7 +69,7 @@ if that read fails, a separate error retains the successful transport result.
 
 The native owner still needs source tracking questions, project hooks, separate
 checkout progress and post-checkout metadata refresh, transport/result tabs,
-reference-change/conflict views and native Rebase choices. Revision-expression
+complete reference-change/conflict views and native Rebase choices. Revision-expression
 prefill, checkout-hook configuration changes and broader repository modes require
 further source parity work. No native transport or signed/network acceptance
 claim follows from the local command tests.
@@ -120,6 +120,37 @@ Fetch & Rebase, Shift options routing, Compare Tags, reference-change tabs and t
 other split controls remain to be ported. This does not establish complete native
 Synchronization parity or authenticated network/physical/signed acceptance.
 
+## Reference-change results
+
+The reference backend captures all refs into maps keyed by exact UTF-8 identity,
+including symbolic remote aliases and annotated tags. Annotated tags retain the
+source `^{}` friendly name and immediate tag target; nested tags are not silently
+peeled through every tag layer. Git's [`object` header atom](https://git-scm.com/docs/git-for-each-ref)
+provides that target without a separate process for every tag.
+
+Comparison keeps full old/new hashes and first-line commit messages. New, deleted,
+forward and rewind counts, divergent newer/older/equal committer times, unchanged
+and unknown non-commit states follow `GitRefCompareList`. Backend metadata is
+cached per object. Native results use the seven source columns, original reference
+type tiles, header sorting and a persisted Hide unchanged refs header checkbox.
+Row menus contain original icons for old/new Log, Compare and Reflog. Log/Compare
+use captured hashes rather than resolving moving names.
+
+The owner captures refs before transport, then reads results with a fresh token
+so a cancelled Git command can still report changes it already made. Forced close
+cancels the currently owned metadata read and suppresses later publication.
+Non-integrating completion selects Ref changes after success, failure or ordinary
+cancellation, as the source CLI flow does; Command Log remains available. Empty
+filtered results show No differences found. Result-read failure retains the
+successful/failed transport output separately.
+Native factory handlers retain the repository and access lease.
+
+Windows logical-sort policy, complete configured short-hash/column settings,
+bisect short-name terms, Shift alternate Compare, actual downstream receiver
+acceptance, large-repository performance, invalid UTF-8 refs, external writers,
+physical input and signed/network acceptance remain to be checked. This is a
+partial reference-result port rather than complete Synchronization parity.
+
 ## Verification scope
 
 Five real-Git tests cover equal/ahead/missing/URL states, incoming and unchanged
@@ -154,12 +185,20 @@ shim; confirmation decisions are injected. SSH/network authentication and physic
 input remain untested. See the
 [native Fetch QA record](qa/synchronization-native-fetch-2026-10-11.json).
 
+Two reference tests pass on system Git 2.50.1, Git 2.39.5 and packaged Git
+2.55.0. The extended native receiver passes on system and packaged Git, including
+all seven columns, actual icon menu dispatch to captured callbacks, Hide unchanged
+persistence, failed/cancelled result selection and chained-operation ownership.
+Both unsigned builds and bundle audits pass. Full-suite, downstream child windows,
+rendered pixels, real network and signed acceptance remain unverified; see the
+[reference-result QA record](qa/synchronization-reference-2026-10-11.json).
+
 ## Remaining full port
 
 - Remaining source layout: owned branch choosers, remote history saving/deletion,
   Manage, full tab control and complete status/progress placement. SSH controls
   exist for four Fetch actions; encrypted-key/network acceptance remains pending.
-- Incoming Log/changes, reference changes and conflict lists; complete outgoing
+- Incoming Log/changes and conflict lists; complete reference results and outgoing
   columns/refs/sorting and context menus, persistence and light/dark acceptance.
 - Pull/Fetch/Rebase/Fetch All/Remote Update/Prune/Compare Tags, Push/Tags/Notes,
   Submodule and Stash split actions, Apply/Email Patch, Show Log and Commit.
