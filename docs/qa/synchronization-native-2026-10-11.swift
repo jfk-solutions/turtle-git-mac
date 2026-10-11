@@ -1140,7 +1140,47 @@ import TurtleGitCore
         let pid = pid_t(try String(contentsOf:marker).trimmingCharacters(in:.newlines))!
         blockedOwner.close(); try await settle { kill(pid,0) == -1 && errno == ESRCH }
         precondition(blockedOwner.model.closed && !blockedOwner.model.busy && !blockedOwner.model.transportRunning && late == 0)
-        print("PASS: native Sync Stash Save/Apply/Pop, Command Log and actual conflict tab, retained outgoing projection, hidden incoming results, ignored remote/Force, no persisted split selection, Shift Save routing and Pop/Apply no-ops, closed-owner fencing and forced process cleanup")
+        preferences.set(0,forKey:"AutoCloseGitProgress")
+        let shiftOwner = SynchronizationWindowController(repository:repo,access:nil,preferences:preferences)
+        shiftOwner.window!.alphaValue = 0; shiftOwner.showWindow(nil); defer { shiftOwner.close() }
+        try await settle { !shiftOwner.model.busy && shiftOwner.model.outgoing != nil }
+        var child: StashWindowController?, childSaves = 0, postActions: [StashSavePostAction] = []
+        shiftOwner.model.onStashOptions = {
+            let controller = StashWindowController(repository:repo,access:nil,preferences:preferences)
+            controller.window!.alphaValue = 0; controller.model.onSaved = { _ in childSaves += 1 }; controller.model.onPostAction = { action, _ in postActions.append(action) }
+            child = controller; controller.showWindow(nil)
+        }
+        shiftOwner.model.stash(.save,shift:true); precondition(child != nil && !shiftOwner.model.busy)
+        shiftOwner.close(); precondition(child!.window!.isVisible && !child!.model.busy)
+        try Data("full options work\n".utf8).write(to:file)
+        child!.model.options.message = "Shift snapshot 雪"; child!.model.save()
+        let progress = child!.model.progress!
+        try await settle { !progress.busy }
+        precondition(progress.success && childSaves == 1 && child!.window!.attachedSheet != nil && child!.model.busy)
+        let subject = try await repo.run(["show","-s","--format=%s","refs/stash"]).text
+        precondition(subject.contains("Shift snapshot 雪"))
+        precondition(progress.postActions == [.pop,.apply]); progress.perform(.apply)
+        try await settle { !child!.window!.isVisible && !child!.model.busy && child!.model.progress == nil }
+        progress.perform(.pop); precondition(postActions == [.apply])
+
+        try FileManager.default.removeItem(at:marker)
+        let blockedChild = StashWindowController(repository:GitRepository(root:directory,executable:shim),access:nil,preferences:preferences)
+        blockedChild.window!.alphaValue = 0; blockedChild.showWindow(nil); defer { blockedChild.close() }
+        var childReplies = 0; blockedChild.model.onSaved = { _ in childReplies += 1 }; blockedChild.model.onFailed = { _ in childReplies += 1 }
+        blockedChild.model.save(); let blockedProgress = blockedChild.model.progress!
+        try await settle { FileManager.default.fileExists(atPath:marker.path) && blockedChild.window!.attachedSheet != nil }
+        let sheet = blockedChild.window!.attachedSheet!, childPID = pid_t(try String(contentsOf:marker).trimmingCharacters(in:.newlines))!
+        blockedChild.close(); try await settle { kill(childPID,0) == -1 && errno == ESRCH }
+        precondition(!blockedProgress.busy && blockedProgress.result == nil && blockedProgress.output.isEmpty && childReplies == 0 && !sheet.isVisible && blockedChild.window!.attachedSheet == nil && blockedChild.model.progress == nil && !blockedChild.model.busy)
+
+        let failureShim = directory.appendingPathComponent("inspection-failure")
+        let failureScript = "#!/bin/sh\nfor argument; do\ncase \"$argument\" in\nstash) printf 'retained stash failure\\n'; exit 1;;\nstatus) printf 'inspection failure\\n' >&2; exit 2;;\nesac\ndone\nexec " + quote(git.path) + " \"$@\"\n"
+        try Data(failureScript.utf8).write(to:failureShim); try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:failureShim.path)
+        let failing = SynchronizationWindowModel(repository:GitRepository(root:directory,executable:failureShim),access:nil,preferences:preferences)
+        failing.stash(.apply,shift:false); try await settle { !failing.busy }
+        precondition(failing.commandCompleted && !failing.commandSucceeded && failing.tab == 2 && failing.conflicts.isEmpty && failing.commandOutput.contains("retained stash failure") && failing.commandOutput.contains("Checking for conflicts failed:") && failing.commandOutput.contains("inspection failure"))
+        failing.invalidate()
+        print("PASS: native Sync Stash direct commands/conflict tab/Shift routes, retained failed command output on inspection failure, actual standalone Shift Save options and progress after Sync closure, private preferences, forced options/progress sheet cleanup and suppressed late replies")
     }
 
     @MainActor static func main() async throws {

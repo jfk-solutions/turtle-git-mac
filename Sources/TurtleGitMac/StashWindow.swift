@@ -6,8 +6,8 @@ import TurtleGitCore
     let model: StashWindowModel
     var onClosed: () -> Void = {}
     private var progressController: StashSaveProgressWindowController?
-    init(repository: GitRepository, access: RepositoryAccessLease?) {
-        model = StashWindowModel(repository: repository, access: access)
+    init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
+        model = StashWindowModel(repository: repository, access: access, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 560, height: 240), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Stash – TurtleGit"
         window.minSize = NSSize(width: 500, height: 272); window.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: 272)
@@ -22,6 +22,7 @@ import TurtleGitCore
         model.onProgress = { [weak self] progress in
             guard let self, let window = self.window, window.attachedSheet == nil else { progress.cancel(); return }
             let controller = StashSaveProgressWindowController(model: progress)
+            controller.window?.alphaValue = window.alphaValue
             controller.onClosed = { [weak self, weak progress] in
                 guard let self, let progress else { return }
                 self.progressController = nil; self.model.finish(progress)
@@ -39,7 +40,7 @@ import TurtleGitCore
             alert.suppressionButton?.title = "Do not show this warning again (if Continue is selected)"
             alert.beginSheetModal(for: window) { response in
                 guard response == .alertSecondButtonReturn else { choose(false); return }
-                if alert.suppressionButton?.state == .on { UserDefaults.standard.set(true, forKey: "Stash.NoIncludeUntrackedWarning") }
+                if alert.suppressionButton?.state == .on { preferences.set(true, forKey: "Stash.NoIncludeUntrackedWarning") }
                 choose(true)
             }
         }
@@ -47,7 +48,12 @@ import TurtleGitCore
         DialogGeometry.attach(window, identifier: "StashWindowController")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && !model.confirmingUntracked && sender.attachedSheet == nil }
-    func windowWillClose(_ notification: Notification) { model.invalidate(); onClosed() }
+    func windowWillClose(_ notification: Notification) {
+        model.invalidate()
+        if let window, let child = window.attachedSheet { window.endSheet(child, returnCode: .abort); child.close() }
+        progressController?.close(); progressController = nil
+        onClosed()
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class StashWindowModel: ObservableObject {
@@ -80,17 +86,18 @@ import TurtleGitCore
             }
         } else { perform(snapshot) }
     }
-    func invalidate() { invalidated = true }
+    func invalidate() { invalidated = true; progress?.invalidate(); progress = nil; busy = false; confirmingUntracked = false }
     func finish(_ progress: StashSaveProgressWindowModel) {
-        guard self.progress === progress, !progress.busy else { return }
+        guard !invalidated, self.progress === progress, !progress.busy else { return }
         self.progress = nil; busy = false; close()
     }
     private func perform(_ snapshot: StashSaveOptions) {
         guard !invalidated, !busy else { return }; busy = true
-        let progress = StashSaveProgressWindowModel(repository: repository, access: access, options: snapshot, followUp: followUp)
+        let progress = StashSaveProgressWindowModel(repository: repository, access: access, options: snapshot, followUp: followUp, preferences: preferences)
         self.progress = progress
         progress.onFinished = { [weak self] result, details in
-            if let result { self?.onSaved(result) } else { self?.onFailed(details) }
+            guard let self, !self.invalidated else { return }
+            if let result { self.onSaved(result) } else { self.onFailed(details) }
         }
         progress.onPostAction = onPostAction
         progress.close = { [weak self, weak progress] in if let progress { self?.finish(progress) } }
@@ -143,6 +150,7 @@ enum StashSavePostAction: String, CaseIterable, Hashable {
     private let access: RepositoryAccessLease?
     private let cancellation = OperationCancellation()
     private var started = false
+    private var invalidated = false
     @Published private(set) var busy = true
     @Published private(set) var success = false
     @Published private(set) var cancelled = false
@@ -155,21 +163,23 @@ enum StashSavePostAction: String, CaseIterable, Hashable {
     init(repository: GitRepository, access: RepositoryAccessLease?, options: StashSaveOptions, followUp: StashSaveFollowUp, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.options = options; self.followUp = followUp; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences) }
     func start() { Task { await run() } }
     func cancel() { guard busy else { return }; cancellation.cancel() }
+    func invalidate() { invalidated = true; cancellation.cancel(); busy = false; postActions = [] }
     func run() async {
-        guard !started else { return }; started = true
+        guard !started, !invalidated else { return }; started = true
         do {
             if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
             let saved = try await repository.saveStash(options, cancellation: cancellation)
+            guard !invalidated else { return }
             result = saved; output = saved.output; success = true
             if followUp.showPull { postActions.append(.pull) }
             if followUp.mergeRevision != nil { postActions.append(.merge) }
             if saved.created { postActions += [.pop, .apply] }
-        } catch { output = error.localizedDescription; cancelled = cancellation.isCancelled }
+        } catch { guard !invalidated else { return }; output = error.localizedDescription; cancelled = cancellation.isCancelled }
         busy = false; onFinished(result, output)
         if autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { close() }
     }
     func perform(_ action: StashSavePostAction) {
-        guard !busy, success, postActions.contains(action), let onPostAction else { return }
+        guard !invalidated, !busy, success, postActions.contains(action), let onPostAction else { return }
         close(); onPostAction(action, followUp)
     }
 }
@@ -195,7 +205,7 @@ enum StashSavePostAction: String, CaseIterable, Hashable {
         guard sender.attachedSheet == nil else { return false }
         sender.sheetParent?.endSheet(sender); return true
     }
-    func windowWillClose(_ notification: Notification) { model.saveActionLog(); onClosed() }
+    func windowWillClose(_ notification: Notification) { model.saveActionLog(); model.invalidate(); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 private struct StashSaveProgressDialog: View {
