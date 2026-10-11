@@ -15,6 +15,8 @@ import TurtleGitCore
     @Published var skipHelper = false
     @Published var helpers = [String]()
     @Published var advanced = false
+    @Published private(set) var hasCredentialSheet = false
+    private var credentialController: CredentialSettingsController?
     @Published var error: String?
     let git = GeneralGitSettingsModel()
     private var repository: GitRepository?
@@ -35,8 +37,30 @@ import TurtleGitCore
     func activate() { git.activate() }
     func retire() {
         retired = true; git.suspend()
+        credentialController?.model.deactivate(); credentialController?.window?.close(); credentialController = nil; hasCredentialSheet = false
         if let panel { window?.endSheet(panel, returnCode: .cancel); panel.orderOut(nil) }; panel = nil
         let reply = permissionReply; permissionReply = nil; reply?(false); finish = {}
+    }
+    func configureCredentials() {
+        guard !busy, !hasCredentialSheet, !retired, let repository, let window, window.attachedSheet == nil else { return }
+        let controller = CredentialSettingsController(repository: repository, access: nil, localAvailable: false)
+        credentialController = controller; hasCredentialSheet = true
+        controller.onClosed = { [weak self, weak controller] in
+            guard let self, self.credentialController === controller else { return }
+            self.credentialController = nil; self.hasCredentialSheet = false
+            guard !self.retired else { return }
+            self.busy = true
+            Task {
+                defer { self.busy = false }
+                do {
+                    let configuration = try await repository.firstStartConfiguration()
+                    guard !self.retired else { return }
+                    self.helpers = configuration.helpers; self.helper = configuration.selectedHelper
+                    self.advanced = configuration.advancedCredentials; self.skipHelper = configuration.advancedCredentials
+                } catch { if !self.retired { self.error = error.localizedDescription } }
+            }
+        }
+        if let sheet = controller.window { window.beginSheet(sheet) }
     }
     private func authorize(_ file: URL) async -> Bool {
         if GitConfigurationPermissions.authorized(file) { return true }
@@ -64,7 +88,7 @@ import TurtleGitCore
         return repository
     }
     func next() {
-        guard !busy, !git.busy, !retired else { return }
+        guard !busy, !git.busy, !hasCredentialSheet, !retired else { return }
         error = nil
         if page == .language || page == .welcome { page = Page(rawValue: page.rawValue + 1)!; return }
         let current = page; busy = true; Self.activeWrites += 1
@@ -94,7 +118,7 @@ import TurtleGitCore
             } catch { if !retired { self.error = error.localizedDescription } }
         }
     }
-    func back() { guard !busy, !git.busy, page != .language else { return }; page = Page(rawValue: page.rawValue - 1)!; error = nil }
+    func back() { guard !busy, !git.busy, !hasCredentialSheet, page != .language else { return }; page = Page(rawValue: page.rawValue - 1)!; error = nil }
 }
 @MainActor final class FirstStartWizardController: NSWindowController, NSWindowDelegate {
     let model = FirstStartWizardModel()
@@ -115,7 +139,7 @@ import TurtleGitCore
 private struct FirstStartWizardDialog: View {
     @ObservedObject var model: FirstStartWizardModel
     @ObservedObject var git: GeneralGitSettingsModel
-    private var blocked: Bool { model.busy || git.busy }
+    private var blocked: Bool { model.busy || git.busy || model.hasCredentialSheet }
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack {
@@ -160,6 +184,7 @@ private struct FirstStartWizardDialog: View {
                             if model.advanced { Text("Existing URL-specific, multiple or custom credential helpers are preserved.") }
                             else { Picker("Credential helper:", selection: $model.helper) { ForEach(model.helpers, id: \.self) { Text($0.isEmpty ? "None" : $0).tag($0) } }.disabled(model.skipHelper) }
                             Toggle("Don’t store these settings now.", isOn: $model.skipHelper).disabled(model.advanced)
+                            Button("Advanced configuration…", action: model.configureCredentials)
                             Text("The selected helper is stored globally. Keychain helpers store credentials in the macOS Keychain; store saves them in a plaintext file.").font(.caption)
                         }.padding(8)
                     }

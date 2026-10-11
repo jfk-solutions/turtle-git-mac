@@ -62,3 +62,12 @@ in `qa/general-setup-batch-2026-10-11.json`. Native visual/keyboard/ownership, l
 network, bookmark renewal and signed sandbox acceptance remain open. This
 checkpoint supersedes the uncompiled/untested statements above. Inventory is
 unchanged; no dialog is newly certified.
+
+## Advanced credential continuation
+
+Advanced configuration now opens the native Credential page as an owned wizard
+sheet, blocks navigation until closed, and reloads helper choices without
+replacing identity fields. See CREDENTIAL-SETTINGS-PARITY.md. This continuation
+is uncompiled and untested and is outside the preceding General/setup checkpoint.
+Native SSH key generation and the rest of the authentication-section validation
+remain pending.

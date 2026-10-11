@@ -457,3 +457,14 @@ were validated together: Debug native build exited 0 and 13 focused Core tests
 passed. Compile failures were repaired within that checkpoint. No app was
 launched. Native, network and sandbox acceptance remains open; see
 `qa/general-setup-batch-2026-10-11.json`. Full-port certification is unchanged.
+
+
+### Credential settings implementation batch, 2026-10-11
+
+Implemented scoped/origin-aware credential configuration, exact-file advanced
+writes/removal, simple helper choices with confirmed simplification, native
+source-layout controls, original credential icon, shared Settings Apply/Cancel
+and the First Start Wizard's owned Advanced credential sheet. Keychain Access
+replaces Windows Credential Manager. No build/test/app launch was run for this
+continuation; validation is deferred to the authentication-section boundary.
+See CREDENTIAL-SETTINGS-PARITY.md for current behavior and acceptance limits.

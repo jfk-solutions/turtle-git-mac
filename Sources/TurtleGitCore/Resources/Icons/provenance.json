@@ -647,6 +647,11 @@
       "asset": "lookandfeel.ico",
       "source": "src/Resources/lookandfeel.ico",
       "sha256": "41ca93051b22ae2c99775d14311afd46e3007ab77c3689850b299787b774327d"
+    },
+    {
+      "asset": "gitcredential.ico",
+      "source": "src/Resources/gitcredential.ico",
+      "sha256": "8728e8cb096f1863bc5cbf09781b63aeb2934452cb9926a4189232e9c17a8df1"
     }
   ]
 }
