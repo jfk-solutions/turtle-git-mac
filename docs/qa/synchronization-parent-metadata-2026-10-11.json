@@ -1,0 +1,60 @@
+{
+  "date": "2026-10-11",
+  "status": "partial-native-off-list-parent-metadata-verified",
+  "code_commit": "dbebc8097bb859c80a1fe30ac5c7564c6cf1ee0a",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implemented": [
+    "Off-list merge parent subjects from raw UTF-8 messages and shared first-line split",
+    "Successful immutable-hash cache and captured submenu label updates",
+    "Hash-only fallback on unavailable parents",
+    "Menu-task cancellation and owner-operation request cancellation with generation fencing",
+    "Signed runtime repository lease gate"
+  ],
+  "verification": {
+    "engines": [
+      "system Git 2.50.1",
+      "bundled Git 2.55.0"
+    ],
+    "native_receivers_reaped": [
+      3846,
+      4166
+    ],
+    "native_scenarios": [
+      "Existing revision list, clipboard, comparison and selection scenarios retained",
+      "Range narrowed to exclude a merge parent; initial fallback and eventual source subject caption checked",
+      "Retained parent item compares captured revisions after selection changes",
+      "Injected stalled parent read cancelled on owner invalidation; PID reaped and no cache publication",
+      "Injected stalled parent read cancelled via Task.cancel while owner remains open; PID reaped and no cache publication",
+      "Refs/index/config unchanged apart from deliberate fixture range setup",
+      "Atomic PID-ready marker used by injected helpers"
+    ],
+    "builds": [
+      "Debug unsigned passed",
+      "AppStore unsigned universal passed"
+    ],
+    "bundle_audits": [
+      "Debug passed",
+      "AppStore with required Git passed"
+    ],
+    "inventory_pin_audit": "passed",
+    "documentation_site_build": "passed",
+    "scope": "No Core changes/full Core rerun; NSMenu delegate/actions and retained item updates, not physical menu tracking or signed acceptance"
+  },
+  "sha256": {
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "760bce6354e10defa047c7e1e2e6b4527396be1db94ff884ed05ef32b71ba6c9",
+    "docs/qa/synchronization-revision-list-native-2026-10-11.swift": "c092a752343eb7af3dca7c1ffa01216bd166873673c915370a3ef0aafcebc4e0",
+    "build/qa/sync-parent-metadata-debug-2026-10-11.log": "e2b02185adeaf193bcaef762e31ee17753647182557bcbfc8ddfd357f6fe9cec",
+    "build/qa/sync-parent-metadata-store-2026-10-11.log": "01d75e42ec957b94bca4bfb0d8be09e343a5aa658ad7c518115dd7028ca82886",
+    "build/qa/sync-parent-metadata-native-final-2026-10-11.log": "ef437417b4e140625e66b8e7181f147f21fee66d4108607113e86140d091a02e",
+    "build/qa/sync-parent-metadata-debug-audit-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/sync-parent-metadata-store-audit-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/sync-parent-metadata-inventory-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/sync-parent-metadata-site-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "remaining": [
+    "Physical menu tracking, keyboard/default double-click and accessibility acceptance",
+    "Unified diff merge variants, compare changesets and other revision commands",
+    "Signed sandbox/Finder acceptance and App Store distribution",
+    "Complete TortoiseGit application parity"
+  ]
+}
