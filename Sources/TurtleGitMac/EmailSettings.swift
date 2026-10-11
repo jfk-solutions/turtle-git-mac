@@ -199,6 +199,7 @@ actor SMTPKeychainStore: SMTPCredentialStore, SMTPTransportCredentialSource {
 }
 
 @MainActor struct EmailSettingsPage: View {
+    @Environment(\.settingsTransaction) private var transaction
     @StateObject private var model: EmailSettingsModel
     @State private var credentialSheet = false
     private let onCancel: (() -> Void)?
@@ -239,13 +240,17 @@ actor SMTPKeychainStore: SMTPCredentialStore, SMTPTransportCredentialSource {
             if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
             if !model.validPort { Text("Enter a whole number from 0 to 4294967295.").foregroundStyle(.red) }
             Spacer()
-            HStack {
+            if transaction == nil { HStack {
                 Spacer()
                 if let onOK { Button("OK", action: onOK).keyboardShortcut(.defaultAction).disabled(model.busy || !model.validPort) }
                 Button("Cancel") { model.discard(); onCancel?() }.disabled(model.busy).keyboardShortcut(.cancelAction)
                 Button("Apply") { model.apply() }.disabled(!model.canApply)
-            }
+            } }
         }.padding(20).disabled(model.busy)
+            .settingsParticipant("email", page: .email,
+                value: [String(describing: model.delivery), model.server, model.port, String(describing: model.encryption), String(model.authenticate)],
+                modified: { model.changed }, validate: { model.validPort ? nil : "Enter a whole port number from 0 to 4294967295." },
+                apply: { model.apply(); return model.error == nil && !model.changed }, cancel: model.discard)
             .onAppear { model.refreshCredentials() }
             .sheet(isPresented: $credentialSheet) { SMTPCredentialSheet(login: model.login) { login, password in model.storeCredentials(login: login, password: password) } }
     }

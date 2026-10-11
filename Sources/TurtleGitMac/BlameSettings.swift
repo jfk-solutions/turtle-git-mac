@@ -7,6 +7,7 @@ extension Notification.Name {
 }
 
 struct BlameSettings: View {
+    @Environment(\.settingsTransaction) private var transaction
     @State private var initialized = false
     @State private var reference = BlameSettingsWindowReference()
     @State private var draft = GitBlamePreferences.load()
@@ -102,7 +103,7 @@ struct BlameSettings: View {
             }
             Text("Apply these defaults to open and new Blame windows. Each window retains its source encoding.").font(.caption).foregroundStyle(.secondary)
             Spacer()
-            HStack {
+            if transaction == nil { HStack {
                 Spacer()
                 Button("Cancel") { restore(); reference.window?.performClose(nil) }
                 Button("Apply") {
@@ -112,8 +113,15 @@ struct BlameSettings: View {
                     savedOptions = options; savedPresentation = validPresentation
                     NotificationCenter.default.post(name: .blamePreferencesChanged, object: nil)
                 }.disabled(options == nil || validPresentation == nil || (options == savedOptions && validPresentation == savedPresentation))
-            }
+            } }
         }.padding(20).background(BlameSettingsWindowProbe(reference: reference).frame(width: 0, height: 0)).onAppear { if !initialized { initialized = true; restore() } }
+            .settingsParticipant("blame", page: .blame, value: draft,
+                modified: { options != savedOptions || validPresentation != savedPresentation },
+                validate: { options == nil || validPresentation == nil ? "Enter valid blame thresholds, font size and tab size." : nil },
+                apply: { guard let options, let value = validPresentation else { return false }; GitBlamePreferences.save(options); value.save(); savedOptions = options; savedPresentation = value; NotificationCenter.default.post(name: .blamePreferencesChanged, object: nil); return true }, cancel: restore)
+            .onChange(of: presentation) { _ in transaction?.notify() }
+            .onChange(of: within) { _ in transaction?.notify() }.onChange(of: between) { _ in transaction?.notify() }
+            .onChange(of: fontSize) { _ in transaction?.notify() }.onChange(of: tabSize) { _ in transaction?.notify() }
             .onChange(of: draft.detectionMode) { _ in draft.normalizeLogSettings() }
             .onChange(of: draft.onlyFirstParent) { _ in draft.normalizeLogSettings() }
             .onChange(of: draft.showCompleteLog) { _ in draft.normalizeLogSettings() }

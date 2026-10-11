@@ -2454,20 +2454,87 @@ struct LogPreferenceCheckbox: NSViewRepresentable {
 }
 
 struct LogDialogSettings: View {
-    @AppStorage("ShowBranchRevisionNumber") private var showBranchRevisionNumber = false
-    @AppStorage("AutoCloseGitProgress") private var autoCloseGitProgress = 0
-    @AppStorage("ConfirmKillProcess") private var confirmKillProcess = false
-    @AppStorage("ShowGitexeTimings") private var showGitexeTimings = true
-    @AppStorage("DiffByDoubleClickInLog") private var diffByDoubleClick = false
-    @AppStorage("EnableGravatar") private var enableGravatar = false
-    @AppStorage("GravatarUrl") private var gravatarURL = LogGravatarRequest.defaultTemplate
-    @AppStorage("GravatarUseMD5") private var gravatarMD5 = false
-    @AppStorage("LogDateFormat") private var shortDate = true
-    @AppStorage("RelativeTimes") private var relative = false
-    @AppStorage("UseSystemLocaleForDates") private var useSystemLocale = true
-    @AppStorage("DrawTagsBranchesOnRightSide") private var labelsOnRight = false
-    @AppStorage("SymbolizeRefNames") private var symbolizeRefs = false
-    @AppStorage("FullCommitMessageOnLogLine") private var fullMessage = false
+    @State private var showBranchRevisionNumber: Bool
+    @State private var autoCloseGitProgress: Int
+    @State private var confirmKillProcess: Bool
+    @State private var showGitexeTimings: Bool
+    @State private var diffByDoubleClick: Bool
+    @State private var enableGravatar: Bool
+    @State private var gravatarURL: String
+    @State private var gravatarMD5: Bool
+    @State private var shortDate: Bool
+    @State private var relative: Bool
+    @State private var useSystemLocale: Bool
+    @State private var labelsOnRight: Bool
+    @State private var symbolizeRefs: Bool
+    @State private var fullMessage: Bool
+    @Environment(\.settingsTransaction) private var transaction
+    @State private var original: [String: SettingsScalar] = [:]
+    private var preferenceValues: [String: SettingsScalar] { [
+        "ShowBranchRevisionNumber": .boolean(showBranchRevisionNumber),
+        "AutoCloseGitProgress": .integer(autoCloseGitProgress),
+        "ConfirmKillProcess": .boolean(confirmKillProcess),
+        "ShowGitexeTimings": .boolean(showGitexeTimings),
+        "DiffByDoubleClickInLog": .boolean(diffByDoubleClick),
+        "EnableGravatar": .boolean(enableGravatar),
+        "GravatarUrl": .string(gravatarURL),
+        "GravatarUseMD5": .boolean(gravatarMD5),
+        "LogDateFormat": .boolean(shortDate),
+        "RelativeTimes": .boolean(relative),
+        "UseSystemLocaleForDates": .boolean(useSystemLocale),
+        "DrawTagsBranchesOnRightSide": .boolean(labelsOnRight),
+        "SymbolizeRefNames": .boolean(symbolizeRefs),
+        "FullCommitMessageOnLogLine": .boolean(fullMessage)
+    ] }
+    init() {
+        _showBranchRevisionNumber = State(initialValue: (UserDefaults.standard.object(forKey: "ShowBranchRevisionNumber") as? NSNumber)?.boolValue ?? false)
+        _autoCloseGitProgress = State(initialValue: (UserDefaults.standard.object(forKey: "AutoCloseGitProgress") as? NSNumber)?.intValue ?? 0)
+        _confirmKillProcess = State(initialValue: (UserDefaults.standard.object(forKey: "ConfirmKillProcess") as? NSNumber)?.boolValue ?? false)
+        _showGitexeTimings = State(initialValue: (UserDefaults.standard.object(forKey: "ShowGitexeTimings") as? NSNumber)?.boolValue ?? true)
+        _diffByDoubleClick = State(initialValue: (UserDefaults.standard.object(forKey: "DiffByDoubleClickInLog") as? NSNumber)?.boolValue ?? false)
+        _enableGravatar = State(initialValue: (UserDefaults.standard.object(forKey: "EnableGravatar") as? NSNumber)?.boolValue ?? false)
+        _gravatarURL = State(initialValue: UserDefaults.standard.string(forKey: "GravatarUrl") ?? LogGravatarRequest.defaultTemplate)
+        _gravatarMD5 = State(initialValue: (UserDefaults.standard.object(forKey: "GravatarUseMD5") as? NSNumber)?.boolValue ?? false)
+        _shortDate = State(initialValue: (UserDefaults.standard.object(forKey: "LogDateFormat") as? NSNumber)?.boolValue ?? true)
+        _relative = State(initialValue: (UserDefaults.standard.object(forKey: "RelativeTimes") as? NSNumber)?.boolValue ?? false)
+        _useSystemLocale = State(initialValue: (UserDefaults.standard.object(forKey: "UseSystemLocaleForDates") as? NSNumber)?.boolValue ?? true)
+        _labelsOnRight = State(initialValue: (UserDefaults.standard.object(forKey: "DrawTagsBranchesOnRightSide") as? NSNumber)?.boolValue ?? false)
+        _symbolizeRefs = State(initialValue: (UserDefaults.standard.object(forKey: "SymbolizeRefNames") as? NSNumber)?.boolValue ?? false)
+        _fullMessage = State(initialValue: (UserDefaults.standard.object(forKey: "FullCommitMessageOnLogLine") as? NSNumber)?.boolValue ?? false)
+        _original = State(initialValue: [
+            "ShowBranchRevisionNumber": .boolean((UserDefaults.standard.object(forKey: "ShowBranchRevisionNumber") as? NSNumber)?.boolValue ?? false),
+            "AutoCloseGitProgress": .integer((UserDefaults.standard.object(forKey: "AutoCloseGitProgress") as? NSNumber)?.intValue ?? 0),
+            "ConfirmKillProcess": .boolean((UserDefaults.standard.object(forKey: "ConfirmKillProcess") as? NSNumber)?.boolValue ?? false),
+            "ShowGitexeTimings": .boolean((UserDefaults.standard.object(forKey: "ShowGitexeTimings") as? NSNumber)?.boolValue ?? true),
+            "DiffByDoubleClickInLog": .boolean((UserDefaults.standard.object(forKey: "DiffByDoubleClickInLog") as? NSNumber)?.boolValue ?? false),
+            "EnableGravatar": .boolean((UserDefaults.standard.object(forKey: "EnableGravatar") as? NSNumber)?.boolValue ?? false),
+            "GravatarUrl": .string(UserDefaults.standard.string(forKey: "GravatarUrl") ?? LogGravatarRequest.defaultTemplate),
+            "GravatarUseMD5": .boolean((UserDefaults.standard.object(forKey: "GravatarUseMD5") as? NSNumber)?.boolValue ?? false),
+            "LogDateFormat": .boolean((UserDefaults.standard.object(forKey: "LogDateFormat") as? NSNumber)?.boolValue ?? true),
+            "RelativeTimes": .boolean((UserDefaults.standard.object(forKey: "RelativeTimes") as? NSNumber)?.boolValue ?? false),
+            "UseSystemLocaleForDates": .boolean((UserDefaults.standard.object(forKey: "UseSystemLocaleForDates") as? NSNumber)?.boolValue ?? true),
+            "DrawTagsBranchesOnRightSide": .boolean((UserDefaults.standard.object(forKey: "DrawTagsBranchesOnRightSide") as? NSNumber)?.boolValue ?? false),
+            "SymbolizeRefNames": .boolean((UserDefaults.standard.object(forKey: "SymbolizeRefNames") as? NSNumber)?.boolValue ?? false),
+            "FullCommitMessageOnLogLine": .boolean((UserDefaults.standard.object(forKey: "FullCommitMessageOnLogLine") as? NSNumber)?.boolValue ?? false)
+        ])
+    }
+    private func applyDraft() { preferenceValues.forEach { $0.value.save($0.key) }; original = preferenceValues }
+    private func cancelDraft() {
+        if case .boolean(let value) = original["ShowBranchRevisionNumber"] { showBranchRevisionNumber = value }
+        if case .integer(let value) = original["AutoCloseGitProgress"] { autoCloseGitProgress = value }
+        if case .boolean(let value) = original["ConfirmKillProcess"] { confirmKillProcess = value }
+        if case .boolean(let value) = original["ShowGitexeTimings"] { showGitexeTimings = value }
+        if case .boolean(let value) = original["DiffByDoubleClickInLog"] { diffByDoubleClick = value }
+        if case .boolean(let value) = original["EnableGravatar"] { enableGravatar = value }
+        if case .string(let value) = original["GravatarUrl"] { gravatarURL = value }
+        if case .boolean(let value) = original["GravatarUseMD5"] { gravatarMD5 = value }
+        if case .boolean(let value) = original["LogDateFormat"] { shortDate = value }
+        if case .boolean(let value) = original["RelativeTimes"] { relative = value }
+        if case .boolean(let value) = original["UseSystemLocaleForDates"] { useSystemLocale = value }
+        if case .boolean(let value) = original["DrawTagsBranchesOnRightSide"] { labelsOnRight = value }
+        if case .boolean(let value) = original["SymbolizeRefNames"] { symbolizeRefs = value }
+        if case .boolean(let value) = original["FullCommitMessageOnLogLine"] { fullMessage = value }
+    }
     var body: some View {
         Form {
             MessageEditorFontSettings()
@@ -2497,6 +2564,9 @@ struct LogDialogSettings: View {
                 }.padding(8)
             }
         }.padding(20)
+        .onChange(of: preferenceValues) { _ in if transaction == nil { applyDraft() } }
+        .settingsParticipant("dialogs", page: .dialogs, value: preferenceValues,
+            modified: { preferenceValues != original }, apply: { applyDraft(); return true }, cancel: cancelDraft)
     }
 }
 
@@ -2522,6 +2592,7 @@ struct LogDialogSettings: View {
     func cancel() { original = .load(defaults: defaults); scale = original.scale; numberText = scale.requiresNumber ? String(Int32(bitPattern: original.number)) : ""; originalText = numberText }
 }
 struct HistoryLimitSettings: View {
+    @Environment(\.settingsTransaction) private var transaction
     @StateObject private var model: HistoryLimitSettingsModel
     private let onClose: (() -> Void)?
     init(defaults: UserDefaults = .standard, onClose: (() -> Void)? = nil) { _model = StateObject(wrappedValue: HistoryLimitSettingsModel(defaults: defaults)); self.onClose = onClose }
@@ -2534,12 +2605,15 @@ struct HistoryLimitSettings: View {
                 }
                 TextField("Number of", text: $model.numberText).disabled(!model.scale.requiresNumber)
                     .help("The number for Last N options. Should be greater than zero.")
-                HStack {
+                if transaction == nil { HStack {
                     StatusColorButton("Apply", action: { model.apply() }).frame(width: 70, height: 24).disabled(!model.modified)
                     StatusColorButton("Cancel", action: { model.cancel(); onClose?() }).frame(width: 70, height: 24)
-                }
+                } }
             }.padding(8)
         }
+        .onChange(of: model.scale) { _ in transaction?.notify() }
+        .settingsParticipant("dialogs.limit", page: .dialogs, value: model.numberText, modified: { model.modified },
+            apply: { model.apply(); return true }, cancel: model.cancel)
     }
 }
 

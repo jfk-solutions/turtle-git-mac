@@ -8,6 +8,7 @@ import TurtleGitCore
 enum SettingsPageID: String {
     case general, dialogs, commit, alternativeEditor, git, remote, email
     case mergeEditor, savedData, blame, unifiedDiff, advanced
+    var applyOrder: Int { let pages: [SettingsPageID] = [.general, .dialogs, .commit, .alternativeEditor, .git, .remote, .email, .mergeEditor, .savedData, .blame, .unifiedDiff, .advanced]; return pages.firstIndex(of: self)! }
 }
 private final class SettingsPageNode: NSObject {
     let id: SettingsPageID, title: String, icon: MenuIcon
@@ -27,7 +28,13 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     private let workspace: RepositoryModel, appearance: AppAppearance
     private let outline = NSOutlineView()
     private let content = NSView()
+    private let busyShield = SettingsBusyShield()
     private let heading = NSTextField(labelWithString: "General")
+    let transaction = SettingsTransaction()
+    private let applyButton = NSButton(title: "Apply", target: nil, action: nil)
+    private let okButton = NSButton(title: "OK", target: nil, action: nil)
+    private let cancelButton = NSButton(title: "Cancel", target: nil, action: nil)
+    private let errorLabel = NSTextField(wrappingLabelWithString: "")
     private var roots: [SettingsPageNode] = []
     private var cache: [SettingsPageID: NSViewController] = [:]
     private var current: NSViewController?
@@ -47,7 +54,20 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         let sidebar = NSScrollView(); sidebar.documentView = outline; sidebar.hasVerticalScroller = true; sidebar.autohidesScrollers = true
         sidebar.drawsBackground = false
         heading.font = .systemFont(ofSize: 17, weight: .semibold)
-        let right = NSStackView(views: [heading, NSBox(), content]); right.orientation = .vertical; right.alignment = .leading; right.spacing = 8
+        for (button, action) in [(okButton, #selector(acceptSettings)), (cancelButton, #selector(cancelSettings)), (applyButton, #selector(applySettings))] {
+            button.target = self; button.action = action; button.bezelStyle = .rounded
+        }
+        okButton.keyEquivalent = "\r"; cancelButton.keyEquivalent = "\u{1b}"
+        errorLabel.textColor = .systemRed
+        let footer = NSStackView(views: [errorLabel, NSView(), okButton, cancelButton, applyButton]); footer.orientation = .horizontal; footer.spacing = 8
+        let right = NSStackView(views: [heading, NSBox(), content, footer]); right.orientation = .vertical; right.alignment = .leading; right.spacing = 8
+        footer.widthAnchor.constraint(equalTo: right.widthAnchor).isActive = true
+        transaction.changed = { [weak self] in self?.renderFooter() }
+        transaction.failed = { [weak self] page in
+            guard let self else { return }; self.show(page)
+            if let node = self.nodes.first(where: { $0.id == page }) { let row = self.outline.row(forItem: node); if row >= 0 { self.outline.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false) } }
+        }
+        transaction.completed = { [weak self] close in if close { self?.view.window?.performClose(nil) } }
         (right.arrangedSubviews[1] as? NSBox)?.boxType = .separator
         let split = NSSplitView(); split.isVertical = true; split.dividerStyle = .thin
         split.addArrangedSubview(sidebar); split.addArrangedSubview(right)
@@ -60,21 +80,22 @@ struct SettingsNavigation: NSViewControllerRepresentable {
             content.heightAnchor.constraint(greaterThanOrEqualToConstant: 640)
         ])
         split.setPosition(220, ofDividerAt: 0)
-        rebuildTree(); show(.general)
+        rebuildTree(); show(.general); renderFooter()
     }
     override func viewDidAppear() {
         super.viewDidAppear()
         guard let window = view.window, delegateProxy == nil else { return }
         let proxy = SettingsWindowDelegate(owner: self, original: window.delegate); delegateProxy = proxy; window.delegate = proxy
+        transaction.window = window
         window.title = "Settings – TurtleGit for Mac"
     }
-    var canDismiss: Bool { remote?.busy != true && remote?.hasChild != true && GitConfigurationSettingsModel.activeSaves == 0 && view.window?.attachedSheet == nil }
+    var canDismiss: Bool { !transaction.busy && remote?.busy != true && remote?.hasChild != true && GitConfigurationSettingsModel.activeSaves == 0 && view.window?.attachedSheet == nil }
     func updateRepository() {
         guard isViewLoaded, workspace.root?.path != repositoryPath else { return }
         // A captured Remote model belongs to the repository that created it.
         remote?.invalidate()
         if selected == .remote, let window = view.window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.close() }
-        remote = nil; cache.removeValue(forKey: .remote)
+        remote = nil; cache.removeValue(forKey: .remote); transaction.unregister("remote")
         if selected == .remote { show(.git) }
         rebuildTree()
     }
@@ -95,6 +116,19 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         updating = false
     }
     private var nodes: [SettingsPageNode] { roots.flatMap { [$0] + $0.children } }
+    private func renderFooter() {
+        applyButton.isEnabled = !transaction.busy && transaction.modified
+        okButton.isEnabled = !transaction.busy; cancelButton.isEnabled = !transaction.busy
+        errorLabel.stringValue = transaction.error ?? ""
+        let wasHidden = busyShield.isHidden
+        busyShield.isHidden = !transaction.busy
+        if transaction.busy && wasHidden { view.window?.makeFirstResponder(busyShield) }
+
+    }
+    @objc private func applySettings() { guard canDismiss else { return }; view.window?.makeFirstResponder(nil); transaction.apply(closeAfter: false) }
+    @objc private func acceptSettings() { guard canDismiss else { return }; view.window?.makeFirstResponder(nil); transaction.apply(closeAfter: true) }
+    @objc private func cancelSettings() { guard canDismiss else { return }; view.window?.makeFirstResponder(nil); transaction.cancel(); view.window?.performClose(nil) }
+    private func host<V: View>(_ view: V) -> NSViewController { NSHostingController(rootView: view.environment(\.settingsTransaction, transaction)) }
     private func show(_ page: SettingsPageID) {
         guard view.window?.attachedSheet == nil, remote?.busy != true, remote?.hasChild != true, GitConfigurationSettingsModel.activeSaves == 0 else { return }
         if current != nil && selected == page { return }
@@ -103,23 +137,29 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         if let existing = cache[page] { controller = existing }
         else {
             switch page {
-            case .general: controller = NSHostingController(rootView: AppearanceSettings(appearance: appearance))
-            case .dialogs: controller = NSHostingController(rootView: LogDialogSettings())
-            case .commit: controller = NSHostingController(rootView: CommitEditorSettings())
-            case .alternativeEditor: controller = NSHostingController(rootView: AlternativeEditorSettings())
-            case .git: controller = NSHostingController(rootView: GitConfigurationSettingsPage(workspace: workspace))
-            case .email: controller = NSHostingController(rootView: EmailSettingsPage())
-            case .mergeEditor: controller = NSHostingController(rootView: MergeEditorSettings())
-            case .savedData: controller = NSHostingController(rootView: SavedDataSettingsPage())
-            case .blame: controller = NSHostingController(rootView: BlameSettings())
-            case .unifiedDiff: controller = NSHostingController(rootView: UnifiedDiffSettingsPage())
-            case .advanced: controller = NSHostingController(rootView: AdvancedSettingsPage())
+            case .general: controller = host(AppearanceSettings(appearance: appearance))
+            case .dialogs: controller = host(LogDialogSettings())
+            case .commit: controller = host(CommitEditorSettings())
+            case .alternativeEditor: controller = host(AlternativeEditorSettings())
+            case .git: controller = host(GitConfigurationSettingsPage(workspace: workspace))
+            case .email: controller = host(EmailSettingsPage())
+            case .mergeEditor: controller = host(MergeEditorSettings())
+            case .savedData: controller = host(SavedDataSettingsPage())
+            case .blame: controller = host(BlameSettings())
+            case .unifiedDiff: controller = host(UnifiedDiffSettingsPage())
+            case .advanced: controller = host(AdvancedSettingsPage())
             case .remote:
                 guard let context = try? workspace.gitConfigurationContext(), context.localAvailable else { return }
                 let model = RemoteSettingsWindowModel(repository: context.repository, access: context.access)
                 remote = model; workspace.configureSettingsRemote(model)
                 model.close = { [weak self] in guard let self, self.canDismiss else { return }; self.view.window?.performClose(nil) }
-                controller = NSViewController(); controller.view = RemoteSettingsNativeView(model: model); model.load()
+                controller = NSViewController(); controller.view = RemoteSettingsNativeView(model: model, embeddedSettings: true)
+                let render = model.updated
+                model.updated = { [weak transaction] in render(); transaction?.notify() }
+                transaction.register("remote", participant: .init(page: .remote, modified: { !model.changed.isEmpty },
+                    validate: { model.busy || model.hasChild ? "Finish the Remote operation first." : nil },
+                    apply: { await model.applyForSettings() }, cancel: model.invalidate))
+                model.load()
             }
             cache[page] = controller
         }
@@ -127,9 +167,15 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         addChild(controller); content.addSubview(controller.view)
         controller.view.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([controller.view.leadingAnchor.constraint(equalTo: content.leadingAnchor), controller.view.trailingAnchor.constraint(equalTo: content.trailingAnchor), controller.view.topAnchor.constraint(equalTo: content.topAnchor), controller.view.bottomAnchor.constraint(equalTo: content.bottomAnchor)])
+        if busyShield.superview == nil {
+            busyShield.translatesAutoresizingMaskIntoConstraints = false; busyShield.isHidden = !transaction.busy
+            content.addSubview(busyShield)
+            NSLayoutConstraint.activate([busyShield.leadingAnchor.constraint(equalTo: content.leadingAnchor), busyShield.trailingAnchor.constraint(equalTo: content.trailingAnchor), busyShield.topAnchor.constraint(equalTo: content.topAnchor), busyShield.bottomAnchor.constraint(equalTo: content.bottomAnchor)])
+        } else { content.addSubview(busyShield, positioned: .above, relativeTo: controller.view) }
         current = controller; selected = page; heading.stringValue = nodes.first(where: { $0.id == page })?.title ?? page.rawValue
     }
     func invalidate() {
+        transaction.invalidate()
         remote?.invalidate(); remote = nil
         if let window = view.window, let delegateProxy, window.delegate === delegateProxy { window.delegate = delegateProxy.original }
         delegateProxy = nil; current?.view.removeFromSuperview(); current?.removeFromParent(); current = nil; cache.removeAll()
@@ -161,4 +207,14 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     }
     override func responds(to selector: Selector!) -> Bool { super.responds(to: selector) || original?.responds(to: selector) == true }
     override func forwardingTarget(for selector: Selector!) -> Any? { original }
+}
+
+/// Captures pointer and keyboard input while a property-sheet save is in flight.
+/// Owned confirmation sheets remain interactive above the Settings window.
+@MainActor private final class SettingsBusyShield: NSView {
+    override var acceptsFirstResponder: Bool { true }
+    override func mouseDown(with event: NSEvent) {}
+    override func rightMouseDown(with event: NSEvent) {}
+    override func scrollWheel(with event: NSEvent) {}
+    override func keyDown(with event: NSEvent) {}
 }

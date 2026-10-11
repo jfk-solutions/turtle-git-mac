@@ -4,6 +4,7 @@ import TurtleGitCore
 
 extension Notification.Name { static let unifiedDiffAppearanceChanged = Notification.Name("TurtleGit.UnifiedDiffAppearanceChanged") }
 struct UnifiedDiffAppearanceSettings: View {
+    @Environment(\.settingsTransaction) private var transaction
     @State private var initialized = false
     @State private var draft = UnifiedDiffAppearance.load()
     @State private var saved = UnifiedDiffAppearance.load()
@@ -55,10 +56,16 @@ struct UnifiedDiffAppearanceSettings: View {
                     Text("These settings also apply to Patch Viewer previews. Choose the built-in or external program in the Viewer tab.").font(.caption).foregroundStyle(.secondary)
                 }.frame(maxWidth: .infinity, alignment: .leading)
             }.frame(maxHeight: .infinity)
-            HStack { Spacer(); Button("Cancel") { draft = saved; size = String(saved.fontSize); tabs = String(saved.tabSize); NSApp.keyWindow?.performClose(nil) }
+            if transaction == nil { HStack { Spacer(); Button("Cancel") { draft = saved; size = String(saved.fontSize); tabs = String(saved.tabSize); NSApp.keyWindow?.performClose(nil) }
                 Button("Apply") { guard let value else { return }; value.save(); saved = value; NotificationCenter.default.post(name: .unifiedDiffAppearanceChanged, object: nil) }.disabled(value == nil || value == saved)
-            }
+            } }
         }.padding(20).onAppear { if !initialized { initialized = true; saved = .load(); draft = saved; size = String(saved.fontSize); tabs = String(saved.tabSize) } }
+        .settingsParticipant("unifiedDiff.appearance", page: .unifiedDiff, value: draft,
+            modified: { value != saved }, validate: { value == nil ? "Enter font and tab sizes from 1 to 1000." : nil },
+            apply: { guard let value else { return false }; value.save(); saved = value; NotificationCenter.default.post(name: .unifiedDiffAppearanceChanged, object: nil); return true },
+            cancel: { draft = saved; size = String(saved.fontSize); tabs = String(saved.tabSize) })
+        .onChange(of: size) { _ in transaction?.notify() }
+        .onChange(of: tabs) { _ in transaction?.notify() }
     }
 }
 
@@ -72,8 +79,10 @@ struct UnifiedDiffSettingsPage: View {
                 Text("Viewer").tag(false)
                 Text("Appearance").tag(true)
             }.pickerStyle(.segmented).padding(.horizontal, 20).padding(.top, 16)
-            if appearance { UnifiedDiffAppearanceSettings() }
-            else { UnifiedDiffViewerSettings() }
+            ZStack {
+                UnifiedDiffViewerSettings().opacity(appearance ? 0 : 1).disabled(appearance).accessibilityHidden(appearance)
+                UnifiedDiffAppearanceSettings().opacity(appearance ? 1 : 0).disabled(!appearance).accessibilityHidden(!appearance)
+            }
         }
     }
 }

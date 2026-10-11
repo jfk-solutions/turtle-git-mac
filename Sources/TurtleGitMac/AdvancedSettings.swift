@@ -35,6 +35,7 @@ import TurtleGitCore
 }
 
 struct AdvancedSettingsPage: View {
+    @Environment(\.settingsTransaction) private var transaction
     @StateObject private var model = AdvancedSettingsModel()
     @StateObject private var windowReference = AdvancedSettingsWindowReference()
     var body: some View {
@@ -42,11 +43,13 @@ struct AdvancedSettingsPage: View {
             AdvancedSettingsTable(model: model)
             Text("WARNING:\nOnly change these settings if you are absolutely sure what you are doing!\nTo set the values to their default, delete the value text.")
                 .fixedSize(horizontal: false, vertical: true)
-            HStack { Spacer()
+            if transaction == nil { HStack { Spacer()
                 Button("Cancel") { windowReference.window?.makeFirstResponder(nil); model.cancel(); windowReference.window?.performClose(nil) }
                 Button("Apply") { windowReference.window?.makeFirstResponder(nil); model.apply() }.disabled(!model.modified)
-            }
+            } }
         }.padding(20)
+        .settingsParticipant("advanced", page: .advanced, value: model.values, modified: { model.modified },
+            apply: { model.apply(); return model.error == nil }, cancel: model.cancel)
         .onAppear { if !model.modified { model.cancel() }; model.onApplied = { for window in NSApp.windows { if let view = window.contentView { Self.invalidate(view) } } } }
         .alert("Advanced Settings", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { notification in

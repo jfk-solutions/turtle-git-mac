@@ -26,6 +26,7 @@ import TurtleGitCore
 }
 
 struct AlternativeEditorSettings: View {
+    @Environment(\.settingsTransaction) private var transaction
     @State private var initialized = false
     @State private var draft = AlternativeEditorPreferences.load()
     @State private var saved = AlternativeEditorPreferences.load()
@@ -51,12 +52,15 @@ struct AlternativeEditorSettings: View {
             Text("The editor command opens working files in TextEdit or your chosen application. Open uses the file’s default application; Open With lets you choose an application once.")
                 .font(.caption).foregroundStyle(.secondary)
             Spacer()
-            HStack {
+            if transaction == nil { HStack {
                 Spacer()
                 Button("Cancel") { draft = saved; NSApp.keyWindow?.performClose(nil) }
                 Button("Apply") { draft.save(); saved = draft }.disabled(!draft.valid || draft == saved)
-            }
+            } }
         }.padding(20).onAppear { if !initialized { initialized = true; saved = .load(); draft = saved } }
+            .settingsParticipant("alternativeEditor", page: .alternativeEditor, value: draft,
+                modified: { draft != saved }, validate: { draft.valid ? nil : "Choose a macOS editor application." },
+                apply: { draft.save(); saved = draft; return true }, cancel: { draft = saved })
             .alert("Alternative editor", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
                 Button("OK") { error = nil }
             } message: { Text(error ?? "") }

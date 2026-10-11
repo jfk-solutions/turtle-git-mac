@@ -3,6 +3,9 @@ import SwiftUI
 import TurtleGitCore
 
 @MainActor final class SavedDataSettingsModel: ObservableObject {
+    private(set) var savedMaximumLines: String = ""
+    var modified: Bool { maximumLines != savedMaximumLines }
+    func cancelDraft() { maximumLines = savedMaximumLines }
     @Published var maximumLines: String
     @Published private(set) var available = false
     @Published var error: String?
@@ -20,10 +23,10 @@ import TurtleGitCore
          temporaryFiles: TemporaryFileStore = TemporaryFileStore(),
          showFile: @escaping (URL) -> Bool = { NSWorkspace.shared.open($0) }) {
         self.temporaryFiles = temporaryFiles; self.store = store; self.preferences = preferences; self.savedData = SavedDataStore(preferences: preferences); self.showFile = showFile
-        maximumLines = String(ActionLogStore.maximumLines(preferences: preferences)); refresh()
+        maximumLines = String(ActionLogStore.maximumLines(preferences: preferences)); savedMaximumLines = maximumLines; refresh()
     }
     var valid: Bool { !maximumLines.isEmpty && maximumLines.utf8.allSatisfy { (48...57).contains($0) } && UInt32(maximumLines) != nil }
-    func apply() { guard valid, let value = UInt32(maximumLines) else { return }; preferences.set(NSNumber(value: value), forKey: "MaxLinesInLogfile") }
+    func apply() { guard valid, let value = UInt32(maximumLines) else { return }; preferences.set(NSNumber(value: value), forKey: "MaxLinesInLogfile"); savedMaximumLines = maximumLines }
     func refresh() { available = store.exists; summaries = Dictionary(uniqueKeysWithValues: SavedDataCategory.allCases.map { ($0, savedData.summary($0)) }) }
     func clear(_ category: SavedDataCategory) { savedData.clear(category); refresh() }
     func resetTemporaryAvailability() { if !confirmingTemporaryClear { canClearTemporaryFiles = true } }
@@ -50,6 +53,7 @@ import TurtleGitCore
     func clear() { do { try store.clear(); error = nil } catch { self.error = error.localizedDescription }; refresh() }
 }
 struct SavedDataSettingsPage: View {
+    @Environment(\.settingsTransaction) private var transaction
     @StateObject private var model = SavedDataSettingsModel()
     private func help(_ category: SavedDataCategory) -> String {
         let count = model.summaries[category]
@@ -84,7 +88,7 @@ struct SavedDataSettingsPage: View {
                 HStack {
                     Text("Max. lines in action log")
                     TextField("4000", text: $model.maximumLines).frame(width: 100)
-                        .onChange(of: model.maximumLines) { _ in model.apply() }
+                        .onChange(of: model.maximumLines) { _ in if transaction == nil { model.apply() } }
                     Spacer()
                     Button("Show") { model.show() }.disabled(!model.available)
                     Button("Clear") { model.clear() }.disabled(!model.available)
@@ -99,6 +103,9 @@ struct SavedDataSettingsPage: View {
                 choose(alert.runModal() == .alertSecondButtonReturn)
             }
         }
+        .settingsParticipant("savedData", page: .savedData, value: model.maximumLines, modified: { model.modified },
+            validate: { model.valid ? nil : "Enter a whole number from 0 to 4294967295 for action log lines." },
+            apply: { model.apply(); return !model.modified }, cancel: model.cancelDraft)
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { _ in model.refresh() }
         .alert("Saved Data", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
     }

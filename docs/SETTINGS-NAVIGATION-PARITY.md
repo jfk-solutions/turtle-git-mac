@@ -40,11 +40,29 @@ The proxy is removed when the host is dismantled. Sidebar navigation uses native
 outline keyboard behavior, single selection, disclosure triangles and accessible
 page labels; geometry and actual focus need verification.
 
+## Shared property-sheet draft handling
+
+The host now owns OK, Cancel and Apply for its implemented pages. Visited pages
+register draft participants; Apply saves modified participants in page order and
+stops at the first validation or save failure, selecting that page. Successful
+earlier saves remain saved if a later page fails, matching sequential property
+sheet behavior. OK closes only after successful Apply. Cancel discards pending
+preference drafts; immediate actions such as clearing saved data, Remote Add/Save,
+Rename/Remove and credential actions retain their existing source semantics.
+
+Dialogs and Commit now keep preference drafts instead of saving each click.
+Font, history limit, status/log colors, viewer appearance, Email, Advanced,
+Alternative Editor, Merge and Blame participate in the same flow. Unified Diff
+keeps both subpage drafts alive when switching Viewer/Appearance. Git and Remote
+await their asynchronous save results. A native input shield prevents editing the
+content while Apply is running, while owned confirmation sheets remain usable.
+Application termination is guarded until active saves finish. Repository changes
+remove the captured Remote participant before creating its replacement.
+
+Standalone settings windows retain their own existing buttons and save behavior.
+
 ## Remaining section work and acceptance
 
-- Unified property-sheet OK/Cancel/Apply across all visited pages. Existing page
-  Apply/Cancel buttons still define draft persistence; this is not yet the full
-  source property-sheet behavior.
 - Remaining settings pages and exact source hierarchy, captions, grouping and
   helper application boundaries. Existing pages remain partial.
 - Source page sizes/resizing, sidebar width, all light/dark content and original
@@ -52,7 +70,10 @@ page labels; geometry and actual focus need verification.
 - Remote Fetch ownership, forced repository replacement/close, cached draft
   retention and signed sandbox grants across the complete Settings host.
 
-This continuation is **uncompiled and untested**. It is part of the larger
-Settings implementation section; validation remains deferred. Prior Settings or
-history QA records do not cover this host or the new resource set. No complete
-application/dialog certification is implied and inventory counts are unchanged.
+The combined Debug build passes at this continuation, and three focused real-Git
+configuration tests pass (1.193 seconds). The check compiled the accumulated
+History and Settings changes; it did not exercise their complete native workflows.
+No app or native receiver was launched, no full suite or App Store build was run,
+and visual, focus, asynchronous sheet and sandbox acceptance remain open.
+See `docs/qa/settings-history-batch-2026-10-11.json`. No complete application/dialog
+certification is implied and inventory counts are unchanged.

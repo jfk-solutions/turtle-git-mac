@@ -7,6 +7,7 @@ extension Notification.Name {
 }
 
 struct MergeEditorSettings: View {
+    @Environment(\.settingsTransaction) private var transaction
     @State private var windowReference = MergeSettingsWindowReference()
     @State private var initialized = false
     @State private var draft = MergeEditorPreferences.load()
@@ -43,7 +44,7 @@ struct MergeEditorSettings: View {
             Text("Apply indentation defaults to open panes and new windows. Enable EditorConfig sets the default for new windows; open panes retain their individual toggles.")
                 .font(.caption).foregroundStyle(.secondary)
             Spacer()
-            HStack {
+            if transaction == nil { HStack {
                 Spacer()
                 Button("Cancel") { restore(); windowReference.window?.performClose(nil) }
                 Button("Apply") {
@@ -51,8 +52,16 @@ struct MergeEditorSettings: View {
                     draft.tabWidth = width; draft.save()
                     NotificationCenter.default.post(name: .mergeEditorPreferencesChanged, object: nil)
                 }.disabled(!changed || validWidth == nil)
-            }
+            } }
         }.padding(20).background(MergeSettingsWindowProbe(reference: windowReference).frame(width: 0, height: 0)).onAppear { if !initialized { initialized = true; restore() } }
+        .onChange(of: tabSize) { _ in transaction?.notify() }
+        .settingsParticipant("mergeEditor", page: .mergeEditor, value: draft,
+            modified: { changed }, validate: { validWidth == nil ? "Enter a tab size from 1 to 1000." : nil },
+            apply: { applyDraft() }, cancel: restore)
+    }
+    private func applyDraft() -> Bool {
+        guard let width = validWidth else { return false }; draft.tabWidth = width; draft.save()
+        NotificationCenter.default.post(name: .mergeEditorPreferencesChanged, object: nil); return true
     }
     private func restore() { draft = .load(); tabSize = String(draft.tabWidth) }
 }

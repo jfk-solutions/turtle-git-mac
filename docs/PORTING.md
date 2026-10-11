@@ -387,3 +387,19 @@ and review diffs; defer builds, native receivers, bundle audits and broad suites
 until the section is ready. Correct a concrete failure from that pass and rerun
 only the affected checks. Reuse completed evidence within its proven scope.
 Always close the owned test receiver and child processes when a check ends.
+
+
+### Shared Settings section, 2026-10-11
+
+Implemented native host OK/Cancel/Apply with page-ordered draft participants for
+currently available pages, asynchronous Git/Remote saves, failure-page selection,
+input shielding during save and a termination guard. Dialogs/Commit no longer
+persist every click in this host. Color, font, viewer, history-limit and saved-data
+preferences participate; Unified Diff retains both subpage drafts. Standalone
+settings retain their local controls. Remote immediate actions remain immediate.
+
+Validation was grouped after the implementation batch: Debug build passed and
+three focused Git configuration tests passed. No app/native receiver was launched
+and no full suite was rerun. Native workflow/visual/sandbox acceptance remains
+open; see `qa/settings-history-batch-2026-10-11.json`. This does not certify any
+additional inventory dialogs or the full port.

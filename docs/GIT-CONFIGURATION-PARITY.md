@@ -60,17 +60,19 @@ checkbox. Read-only copies are removed at application termination.
 
 - Signed global/config-file permission and persisted-grant execution,
   included-file write compatibility and external configuration changes.
-- Full property-sheet Apply/Cancel across pages, displayed hint/editor acceptance and
+- Native acceptance of the implemented shared Apply/Cancel, displayed hint/editor and
   platform comparison for system edits requiring administrator access.
 - Real repository/environment/inheritance/write/error checks across Git engines,
   native scope switching, three-state input, confirmation, close/quit ownership,
   keyboard/focus, light/dark screenshots and displayed acceptance.
 
-This is production implementation registered in SwiftPM/Xcode, but **uncompiled
-and untested**. Validation is deferred while the full Git settings section is
-being implemented. No dialog is newly certified and the inventory counts are
-unchanged. Existing history/Settings QA records do not cover this page.
+The combined Debug build passes. Three focused real-Git tests cover local writes,
+include precedence/clearing, repeated-value replacement, boolean normalization,
+invalid destinations/values and cancellation without writes. They pass with zero
+failures. Native scope/editor/sheet and signed sandbox acceptance remain open;
+see `docs/qa/settings-history-batch-2026-10-11.json`. No dialog is newly certified
+and inventory counts are unchanged.
 
 The native tree now hosts this page and conditional Remote. See
-[Settings navigation](SETTINGS-NAVIGATION-PARITY.md) for its unverified continuation
-and remaining property-sheet scope.
+[Settings navigation](SETTINGS-NAVIGATION-PARITY.md) for implemented shared draft handling
+and remaining acceptance scope.

@@ -136,6 +136,7 @@ enum LogPalette {
 }
 
 struct LogColorsSettings: View {
+    @Environment(\.settingsTransaction) private var transaction
     @ObservedObject var model: LogColorSettingsModel
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -151,8 +152,10 @@ struct LogColorsSettings: View {
             HStack {
                 StatusColorButton("Restore Defaults") { model.restoreDefaults() }
                 Spacer()
-                StatusColorButton("Cancel") { model.cancel() }.disabled(!model.changed)
-                StatusColorButton("Apply") { model.apply() }.disabled(!model.changed)
+                if transaction == nil {
+                    StatusColorButton("Cancel") { model.cancel() }.disabled(!model.changed)
+                    StatusColorButton("Apply") { model.apply() }.disabled(!model.changed)
+                }
             }
         }
     }

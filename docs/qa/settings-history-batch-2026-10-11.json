@@ -1,0 +1,31 @@
+{
+  "date": "2026-10-11",
+  "base_revision": "e957359",
+  "scope": "Shared Settings OK/Cancel/Apply and draft participants; accumulated History/Settings Debug compilation",
+  "debug_build": {
+    "exit_code": 0,
+    "log": "build/qa/settings-history-batch-build-final-2026-10-11.log"
+  },
+  "configuration_tests": {
+    "command": "swift test --filter GitConfigurationTests",
+    "exit_code": 0,
+    "tests": 3,
+    "failures": 0,
+    "seconds": 1.193,
+    "log": "build/qa/settings-history-batch-core-verified-2026-10-11.log"
+  },
+  "corrections": [
+    "Split save-order expression after compiler type-check timeout.",
+    "Corrected include-order test expectation; Git includes later in config override earlier identity entries."
+  ],
+  "app_launches": 0,
+  "native_receiver_launches": 0,
+  "open_acceptance": [
+    "Native shared Apply/Cancel and cached drafts",
+    "History Combine/replay and captured reference workflows",
+    "Owned sheets and forced closure/repository replacement",
+    "Light/dark visual parity, keyboard and VoiceOver",
+    "Signed sandbox/App Store runtime and full suite"
+  ],
+  "certification": "Partial implementation only; inventory unchanged."
+}

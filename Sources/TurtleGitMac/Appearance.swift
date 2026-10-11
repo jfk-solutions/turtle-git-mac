@@ -28,11 +28,14 @@ enum AppearanceChoice: String, CaseIterable, Identifiable {
 
 struct AppearanceSettings: View {
     @ObservedObject var appearance: AppAppearance
+    @State private var draftAppearance: AppearanceChoice
+    @Environment(\.settingsTransaction) private var transaction
+    init(appearance: AppAppearance) { self.appearance = appearance; _draftAppearance = State(initialValue: appearance.choice) }
     @StateObject private var colors = StatusColorSettingsModel()
     @StateObject private var logColors = LogColorSettingsModel()
     var body: some View {
         Form {
-            Picker("Appearance", selection: $appearance.choice) {
+            Picker("Appearance", selection: $draftAppearance) {
                 ForEach(AppearanceChoice.allCases) { Text($0.title).tag($0) }
             }.pickerStyle(.radioGroup)
             Text("Status colors, graph lanes and original command icons retain their colors in both appearances.")
@@ -42,6 +45,13 @@ struct AppearanceSettings: View {
                 ScrollView { LogColorsSettings(model: logColors).padding(8) }.tabItem { Text("Log") }
             }.frame(height: 490)
         }.padding(20).frame(width: 590)
+        .onChange(of: draftAppearance) { _ in if transaction == nil { appearance.choice = draftAppearance } }
+        .onChange(of: colors.draft) { _ in transaction?.notify() }
+        .onChange(of: logColors.draft) { _ in transaction?.notify() }
+        .settingsParticipant("general", page: .general, value: draftAppearance,
+            modified: { draftAppearance != appearance.choice || colors.changed || logColors.changed },
+            apply: { appearance.choice = draftAppearance; colors.apply(); logColors.apply(); return true },
+            cancel: { draftAppearance = appearance.choice; colors.cancel(); logColors.cancel() })
     }
 }
 
@@ -259,6 +269,7 @@ final class StatusColorUpdates: ObservableObject {
 }
 
 struct StatusColorsSettings: View {
+    @Environment(\.settingsTransaction) private var transaction
     @ObservedObject var model: StatusColorSettingsModel
     private let roles: [StatusTextRole] = [.added,.deleted,.merged,.modified,.conflict,.renamed]
     var body: some View {
@@ -274,8 +285,10 @@ struct StatusColorsSettings: View {
                 HStack {
                     StatusColorButton("Restore Defaults") { model.restoreDefaults() }
                     Spacer()
-                    StatusColorButton("Cancel") { model.cancel() }.disabled(!model.changed)
-                    StatusColorButton("Apply") { model.apply() }.disabled(!model.changed)
+                    if transaction == nil {
+                        StatusColorButton("Cancel") { model.cancel() }.disabled(!model.changed)
+                        StatusColorButton("Apply") { model.apply() }.disabled(!model.changed)
+                    }
                 }
             }.padding(8)
         }

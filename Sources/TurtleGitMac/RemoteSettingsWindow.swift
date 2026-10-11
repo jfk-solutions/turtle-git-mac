@@ -40,6 +40,7 @@ import TurtleGitCore
     private var token: OperationCancellation?
     private var collisionToken: OperationCancellation?
     private var pendingClose = false
+    private var settingsCompletion: ((Bool) -> Void)?
     private var pendingFetch: String?
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, noFetch: Bool = false, identityAccess: SSHIdentityAccessStore = SSHIdentityAccessStore()) {
         self.repository = repository; self.access = access; self.preferences = preferences; self.noFetch = noFetch; self.identityAccess = identityAccess
@@ -55,7 +56,7 @@ import TurtleGitCore
     private func live(_ request: OperationCancellation) -> Bool { !closed && token === request && !request.isCancelled }
     private func checkAccess() throws { if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable } }
     func setChild(_ value: Bool) { hasChild = value; updated() }
-    func invalidate() { hasChild = false; closed = true; token?.cancel(); collisionToken?.cancel(); token = nil; collisionToken = nil; pendingFetch = nil; busy = false; updated() }
+    func invalidate() { let completion = settingsCompletion; settingsCompletion = nil; completion?(false); hasChild = false; closed = true; token?.cancel(); collisionToken?.cancel(); token = nil; collisionToken = nil; pendingFetch = nil; busy = false; updated() }
     func edit(_ field: RemoteSettingsFields, _ change: (inout RemoteSettings) -> Void) {
         guard !closed, !busy, !hasChild else { return }; change(&draft); changed.formUnion(field)
         if field == .url, names.isEmpty, draft.name.isEmpty, !draft.url.isEmpty { draft.name = "origin"; changed.insert(.name) }
@@ -75,6 +76,8 @@ import TurtleGitCore
         Task {
             defer { Self.activeOperations -= 1 }
             defer {
+                let completion = settingsCompletion; settingsCompletion = nil
+                defer { completion?(error == nil && changed.isEmpty && !closed) }
                 if token === request { token = nil; busy = false; updated(); if pendingClose, !closed { pendingClose = false; close() }; if let remote = pendingFetch, !closed { pendingFetch = nil; onFetch(remote) } }
             }
             do { try checkAccess(); try await body(request) }
@@ -97,6 +100,13 @@ import TurtleGitCore
         perform { [self] request in
             if !changed.isEmpty { let choice = await confirm(.saveDiscard); guard live(request) else { return }; if choice.yes { do { try await apply(request) } catch { guard live(request) else { return }; self.error = error.localizedDescription } } }
             guard live(request) else { return }; try await read(name, request)
+        }
+    }
+    func applyForSettings() async -> Bool {
+        if changed.isEmpty { return true }
+        guard canApply, settingsCompletion == nil else { return false }
+        return await withCheckedContinuation { continuation in
+            settingsCompletion = { continuation.resume(returning: $0) }; apply()
         }
     }
     func apply(closeAfter: Bool = false) {
@@ -193,7 +203,7 @@ import TurtleGitCore
     let rename = NSButton(title: "Rename", target: nil, action: nil), add = NSButton(title: "Add New/Save", target: nil, action: nil), remove = NSButton(title: "Remove", target: nil, action: nil)
     let apply = NSButton(title: "Apply", target: nil, action: nil), ok = NSButton(title: "OK", target: nil, action: nil), cancel = NSButton(title: "Cancel", target: nil, action: nil)
     private var updating = false
-    init(model: RemoteSettingsWindowModel) {
+    init(model: RemoteSettingsWindowModel, embeddedSettings: Bool = false) {
         self.model = model; super.init(frame: .zero)
         table.headerView = nil; table.delegate = self; table.dataSource = self; table.rowHeight = 22; table.addTableColumn(NSTableColumn(identifier: .init("remote"))); table.setAccessibilityLabel("Configured remotes")
         let scroll = NSScrollView(); scroll.documentView = table; scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true
@@ -215,7 +225,7 @@ import TurtleGitCore
         let body = NSStackView(views: [list,form]); body.orientation = .horizontal; body.alignment = .top; body.spacing = 20
         list.heightAnchor.constraint(equalTo: body.heightAnchor).isActive = true; form.heightAnchor.constraint(equalTo: body.heightAnchor).isActive = true
         let help = NSButton(title: "Help", target: self, action: #selector(helpClicked)); help.bezelStyle = .rounded
-        let buttons = NSStackView(views: [help,status,NSView(),ok,cancel,apply]); buttons.orientation = .horizontal; buttons.spacing = 8
+        let buttons = NSStackView(views: embeddedSettings ? [help,status,NSView()] : [help,status,NSView(),ok,cancel,apply]); buttons.orientation = .horizontal; buttons.spacing = 8
         let layout = NSStackView(views: [body,buttons]); layout.orientation = .vertical; layout.spacing = 16; layout.translatesAutoresizingMaskIntoConstraints = false; addSubview(layout)
         NSLayoutConstraint.activate([layout.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),layout.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),layout.topAnchor.constraint(equalTo: topAnchor, constant: 16),layout.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -16),body.widthAnchor.constraint(equalTo: layout.widthAnchor),buttons.widthAnchor.constraint(equalTo: layout.widthAnchor)])
         model.updated = { [weak self] in self?.render() }; render()

@@ -253,15 +253,62 @@ private final class MessageTextView: NSTextView {
 }
 
 struct CommitEditorSettings: View {
-    @AppStorage("StripCommentedLines") private var stripComments = false
-    @AppStorage("SelectFilesForCommit") private var selectFiles = true
-    @AppStorage("AutoselectMissingFiles") private var noMissing = false
-    @AppStorage("Commit.MaxHistoryItems") private var historyLimit = 25
-    @AppStorage("AutocompleteParseTimeout") private var parseTimeout = 5
-    @AppStorage("StyleCommitMessages") private var styleMessages = true
-    @AppStorage("AutoCompleteMinChars") private var completionMinimum = 3
-    @AppStorage("Autocompletion") private var autocompletion = true
-    @AppStorage("AutocompleteRemovesExtensions") private var removeExtensions = false
+    @State private var stripComments: Bool
+    @State private var selectFiles: Bool
+    @State private var noMissing: Bool
+    @State private var historyLimit: Int
+    @State private var parseTimeout: Int
+    @State private var styleMessages: Bool
+    @State private var completionMinimum: Int
+    @State private var autocompletion: Bool
+    @State private var removeExtensions: Bool
+    @Environment(\.settingsTransaction) private var transaction
+    @State private var original: [String: SettingsScalar] = [:]
+    private var preferenceValues: [String: SettingsScalar] { [
+        "StripCommentedLines": .boolean(stripComments),
+        "SelectFilesForCommit": .boolean(selectFiles),
+        "AutoselectMissingFiles": .boolean(noMissing),
+        "Commit.MaxHistoryItems": .integer(historyLimit),
+        "AutocompleteParseTimeout": .integer(parseTimeout),
+        "StyleCommitMessages": .boolean(styleMessages),
+        "AutoCompleteMinChars": .integer(completionMinimum),
+        "Autocompletion": .boolean(autocompletion),
+        "AutocompleteRemovesExtensions": .boolean(removeExtensions)
+    ] }
+    init() {
+        _stripComments = State(initialValue: (UserDefaults.standard.object(forKey: "StripCommentedLines") as? NSNumber)?.boolValue ?? false)
+        _selectFiles = State(initialValue: (UserDefaults.standard.object(forKey: "SelectFilesForCommit") as? NSNumber)?.boolValue ?? true)
+        _noMissing = State(initialValue: (UserDefaults.standard.object(forKey: "AutoselectMissingFiles") as? NSNumber)?.boolValue ?? false)
+        _historyLimit = State(initialValue: (UserDefaults.standard.object(forKey: "Commit.MaxHistoryItems") as? NSNumber)?.intValue ?? 25)
+        _parseTimeout = State(initialValue: (UserDefaults.standard.object(forKey: "AutocompleteParseTimeout") as? NSNumber)?.intValue ?? 5)
+        _styleMessages = State(initialValue: (UserDefaults.standard.object(forKey: "StyleCommitMessages") as? NSNumber)?.boolValue ?? true)
+        _completionMinimum = State(initialValue: (UserDefaults.standard.object(forKey: "AutoCompleteMinChars") as? NSNumber)?.intValue ?? 3)
+        _autocompletion = State(initialValue: (UserDefaults.standard.object(forKey: "Autocompletion") as? NSNumber)?.boolValue ?? true)
+        _removeExtensions = State(initialValue: (UserDefaults.standard.object(forKey: "AutocompleteRemovesExtensions") as? NSNumber)?.boolValue ?? false)
+        _original = State(initialValue: [
+            "StripCommentedLines": .boolean((UserDefaults.standard.object(forKey: "StripCommentedLines") as? NSNumber)?.boolValue ?? false),
+            "SelectFilesForCommit": .boolean((UserDefaults.standard.object(forKey: "SelectFilesForCommit") as? NSNumber)?.boolValue ?? true),
+            "AutoselectMissingFiles": .boolean((UserDefaults.standard.object(forKey: "AutoselectMissingFiles") as? NSNumber)?.boolValue ?? false),
+            "Commit.MaxHistoryItems": .integer((UserDefaults.standard.object(forKey: "Commit.MaxHistoryItems") as? NSNumber)?.intValue ?? 25),
+            "AutocompleteParseTimeout": .integer((UserDefaults.standard.object(forKey: "AutocompleteParseTimeout") as? NSNumber)?.intValue ?? 5),
+            "StyleCommitMessages": .boolean((UserDefaults.standard.object(forKey: "StyleCommitMessages") as? NSNumber)?.boolValue ?? true),
+            "AutoCompleteMinChars": .integer((UserDefaults.standard.object(forKey: "AutoCompleteMinChars") as? NSNumber)?.intValue ?? 3),
+            "Autocompletion": .boolean((UserDefaults.standard.object(forKey: "Autocompletion") as? NSNumber)?.boolValue ?? true),
+            "AutocompleteRemovesExtensions": .boolean((UserDefaults.standard.object(forKey: "AutocompleteRemovesExtensions") as? NSNumber)?.boolValue ?? false)
+        ])
+    }
+    private func applyDraft() { preferenceValues.forEach { $0.value.save($0.key) }; original = preferenceValues }
+    private func cancelDraft() {
+        if case .boolean(let value) = original["StripCommentedLines"] { stripComments = value }
+        if case .boolean(let value) = original["SelectFilesForCommit"] { selectFiles = value }
+        if case .boolean(let value) = original["AutoselectMissingFiles"] { noMissing = value }
+        if case .integer(let value) = original["Commit.MaxHistoryItems"] { historyLimit = value }
+        if case .integer(let value) = original["AutocompleteParseTimeout"] { parseTimeout = value }
+        if case .boolean(let value) = original["StyleCommitMessages"] { styleMessages = value }
+        if case .integer(let value) = original["AutoCompleteMinChars"] { completionMinimum = value }
+        if case .boolean(let value) = original["Autocompletion"] { autocompletion = value }
+        if case .boolean(let value) = original["AutocompleteRemovesExtensions"] { removeExtensions = value }
+    }
     var body: some View {
         Form {
             Toggle("Style commit messages", isOn: $styleMessages)
@@ -277,6 +324,9 @@ struct CommitEditorSettings: View {
             Toggle("Include file names without extensions", isOn: $removeExtensions).disabled(!autocompletion)
             Text("File and code completions come from the displayed changes. Press Ctrl-Space or Option-Escape to request them after one character.").font(.caption).foregroundStyle(.secondary)
         }.padding(20)
+        .onChange(of: preferenceValues) { _ in if transaction == nil { applyDraft() } }
+        .settingsParticipant("commit", page: .commit, value: preferenceValues,
+            modified: { preferenceValues != original }, apply: { applyDraft(); return true }, cancel: cancelDraft)
     }
 }
 

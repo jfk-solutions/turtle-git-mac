@@ -58,6 +58,7 @@ import TurtleGitCore
 }
 
 struct UnifiedDiffViewerSettings: View {
+    @Environment(\.settingsTransaction) private var transaction
     @State private var draft = UnifiedDiffViewerPreferences.load()
     @State private var saved = UnifiedDiffViewerPreferences.load()
     @State private var error: String?
@@ -78,11 +79,14 @@ struct UnifiedDiffViewerSettings: View {
             }
             Text("Hold Shift when opening a unified diff from Format Patch, Log, Commit, Working Tree or Changed Files to reverse the viewer choice. A saved external application remains available while the built-in viewer is selected.").font(.caption).foregroundStyle(.secondary)
             Spacer()
-            HStack { Spacer()
+            if transaction == nil { HStack { Spacer()
                 Button("Cancel") { draft = saved; NSApp.keyWindow?.performClose(nil) }
                 Button("Apply") { draft.save(); saved = draft }.disabled(!draft.valid || draft == saved)
-            }
-        }.padding(20).onAppear { saved = .load(); draft = saved }
+            } }
+        }.padding(20)
+            .settingsParticipant("unifiedDiff.viewer", page: .unifiedDiff, value: draft, modified: { draft != saved },
+                validate: { draft.valid ? nil : "Choose a valid unified diff viewer application." },
+                apply: { draft.save(); saved = draft; return true }, cancel: { draft = saved })
             .alert("Unified Diff Viewer", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) { Button("OK") { error = nil } } message: { Text(error ?? "") }
     }
     private func browse() {

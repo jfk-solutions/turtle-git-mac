@@ -7,6 +7,7 @@ import TurtleGitCore
     private(set) static var activeSaves = 0
     @Published private(set) var source: GitConfigurationSource = .effective
     @Published var destination: GitConfigurationSource = .local
+    private var savedDestination: GitConfigurationSource = .local
     @Published var draft = GitConfigurationSettings()
     @Published private(set) var saved = GitConfigurationSettings()
     @Published private(set) var busy = false
@@ -31,7 +32,7 @@ import TurtleGitCore
     weak var window: NSWindow?
     var localAvailable: Bool { hasRepository }
     var editable: Bool { loaded && source != .effective && !busy }
-    var changed: Bool { draft != saved }
+    var changed: Bool { loaded && (draft != saved || destination != savedDestination) }
     func activate(repository: GitRepository, access: RepositoryAccessLease?, localAvailable: Bool) {
         if saving { pendingContext = (repository, access, localAvailable); return }
         if loaded && self.repository?.root == repository.root && self.repository?.executable == repository.executable && hasRepository == localAvailable {
@@ -79,7 +80,7 @@ import TurtleGitCore
                     self.source = .global; self.destination = .global
                     value.name.inherit = false; value.email.inherit = false
                 }
-                self.draft = value; self.saved = value; self.loaded = true
+                self.draft = value; self.saved = value; self.savedDestination = self.destination; self.loaded = true
                 if initial { self.showHierarchyHint() }
             } catch { if self.active, self.generation == request, !token.isCancelled { self.error = error.localizedDescription } }
         }
@@ -115,13 +116,25 @@ import TurtleGitCore
             }
         }
     }
-    func apply() {
-        guard active, editable, changed, window?.attachedSheet == nil, let repository, destination != .local || hasRepository else { return }
+    func apply() { performApply { _ in } }
+    func applyForSettings(owner: NSWindow?) async -> Bool {
+        if !changed { return true }
+        let wasActive = active
+        active = true
+        if window == nil { window = owner }
+        let success = await withCheckedContinuation { continuation in performApply { continuation.resume(returning: $0) } }
+        if !wasActive { active = false }
+        return success
+    }
+    func cancelDraft() { guard !saving else { return }; draft = saved; destination = savedDestination }
+    private func performApply(completion: @escaping (Bool) -> Void) {
+        guard active, editable, changed, window?.attachedSheet == nil, let repository, destination != .local || hasRepository else { completion(false); return }
         let value = draft, destination = destination, request = generation, access = access
         busy = true; saving = true; error = nil
         Self.activeSaves += 1
         Task { [weak self] in
-            defer { Self.activeSaves -= 1 }
+            var success = false
+            defer { Self.activeSaves -= 1; completion(success) }
             guard let self else { return }
             defer {
                 self.saving = false
@@ -144,7 +157,7 @@ import TurtleGitCore
                 // allow this source-ordered batch to finish after owner closure.
                 try await repository.saveGitConfiguration(value, destination: destination)
                 guard self.active, self.generation == request else { return }
-                self.saved = value
+                self.saved = value; self.savedDestination = destination; success = true
             } catch { if self.active, self.generation == request { self.error = error.localizedDescription } }
         }
     }
@@ -252,6 +265,7 @@ import TurtleGitCore
 }
 struct GitConfigurationSettingsPage: View {
     @ObservedObject var workspace: RepositoryModel
+    @Environment(\.settingsTransaction) private var transaction
     @StateObject private var model = GitConfigurationSettingsModel()
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -311,11 +325,17 @@ struct GitConfigurationSettingsPage: View {
             HStack {
                 if model.busy { ProgressView().controlSize(.small) }
                 Spacer()
-                Button("Cancel") { model.deactivate(); model.window?.performClose(nil) }.disabled(model.busy)
-                Button("Apply", action: model.apply).disabled(!model.editable || !model.changed)
+                if transaction == nil {
+                    Button("Cancel") { model.deactivate(); model.window?.performClose(nil) }.disabled(model.busy)
+                    Button("Apply", action: model.apply).disabled(!model.editable || !model.changed)
+                }
             }
         }.padding(20)
         .background(GitConfigurationWindowProbe(model: model).frame(width: 0, height: 0))
+        .settingsParticipant("git", page: .git, value: model.draft, modified: { model.changed },
+            validate: { model.repository == nil ? "Choose a repository or global configuration." : nil },
+            apply: { await model.applyForSettings(owner: transaction?.window) }, cancel: model.cancelDraft)
+        .onChange(of: model.destination) { _ in transaction?.notify() }
         .onAppear(perform: activate).onChange(of: workspace.root) { _ in if model.isActive { activate() } }.onDisappear { model.deactivate() }
         .sheet(isPresented: Binding(get: { model.configurationText != nil }, set: { if !$0 { model.configurationText = nil } })) {
             VStack(alignment: .leading) {
