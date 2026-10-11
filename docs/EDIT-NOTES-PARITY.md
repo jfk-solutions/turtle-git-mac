@@ -54,3 +54,11 @@ and malformed-note compatibility, and signed sandbox/App Store checks. Updating 
 note does not rerun an existing Notes search; refresh its search when needed.
 Concurrent external note changes are force-overwritten on OK, as upstream does.
 The full Log/application port remains incomplete.
+
+## Shared history save ownership (October 11, deferred validation)
+
+The shared Sync Notes editor now tracks an atomic save independently of its
+window. If its owner is forcibly closed, late UI publication remains fenced and
+Quit remains blocked until the save task returns. This continues to retain the
+repository access lease for the operation. This ownership change is uncompiled
+and untested; the earlier Notes evidence does not cover it.

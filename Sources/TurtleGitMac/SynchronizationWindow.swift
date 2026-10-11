@@ -831,6 +831,7 @@ enum SynchronizationHistoryDiff {
 }
 
 @MainActor final class SynchronizationWindowModel: ObservableObject {
+    private(set) static var activeHistoryDeletions = 0
     let repository: GitRepository
     let access: RepositoryAccessLease?
     let preferences: UserDefaults
@@ -1139,9 +1140,10 @@ enum SynchronizationHistoryDiff {
         guard !closed, !busy, !hasBlockingChild, !confirmingQuit, !confirmingCancellation,
               window?.attachedSheet == nil, !names.isEmpty else { return }
         let request = OperationCancellation(), factory = sshSettings.capture()
-        token = request; busy = true; error = nil
+        token = request; busy = true; error = nil; Self.activeHistoryDeletions += 1
         Task { [weak self, access, repository] in
             _ = access
+            defer { Self.activeHistoryDeletions -= 1 }
             guard let self else { return }
             let coordinator = factory?(); self.historyDeletionCoordinator = coordinator
             var refresh = false

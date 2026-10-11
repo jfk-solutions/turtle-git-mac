@@ -12,7 +12,8 @@ Cancelling the Commit dialog or a replay failure restores the original HEAD.
 The working tree must be clean before preparation. The captured branch, HEAD and
 ancestry are checked again before changing Git state. An active Commit is allowed
 to finish before recovery begins after a forced owner close; Quit is blocked
-until recovery ends.
+until recovery ends. Sibling history/status views refresh only after replay or
+recovery, rather than after the temporary amended commit.
 
 Implementation: `HistoryCombineWindowController`, `HistoryCombineWindowModel`,
 `CommitWindowModel.loadHistoryCombine`, and the `GitRepository` Combine methods.

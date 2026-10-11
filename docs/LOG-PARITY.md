@@ -2143,3 +2143,9 @@ These changes and the newer shared Combine/Revert integrations have **not been
 compiled or executed yet**. They are part of a larger implementation section;
 the recorded earlier builds and QA results do not cover this continuation. No
 complete-dialog certification or inventory count is changed.
+
+Log reference deletion now also rejects a branch/tag that moved away from the
+captured menu revision before confirmation, including peeled annotated tags.
+The shared core revalidates the confirmed object again before mutation. Its
+operation lifetime remains tracked after a forced window close until owned Git
+work returns. These changes await the grouped history validation pass.

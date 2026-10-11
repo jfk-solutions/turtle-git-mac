@@ -1563,3 +1563,19 @@ owner close/recovery, Commit presets, root/merge endpoints, replay failures,
 remote/stash deletion and signed AppStore acceptance require the combined pass.
 Remaining history consumers and source-specialized commands are still open;
 this continuation does not change the certified parity counts.
+
+
+### History operation ownership continuation (unverified)
+
+Atomic Notes saves, Revert workers and history reference deletions now contribute
+to independent application-level termination guards. A forced owner close can
+remove a window before its Git child exits; Quit remains blocked until that
+operation returns, rather than relying only on the remaining window delegates.
+All counters are released by task completion, including error/cancellation paths.
+The Revert message accumulator persists successful revision messages before a
+later step can be cancelled. Combine publishes its repository refresh after
+replay/recovery rather than immediately after its intermediate amend.
+
+These changes are part of the same deferred history section validation. Native
+forced close/quit, both Git engines, partial Revert cancellation, pending deletion
+confirmation and atomic Notes save completion still need execution evidence.

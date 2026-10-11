@@ -23,6 +23,7 @@ import TurtleGitCore
 }
 
 @MainActor final class HistoryNotesWindowModel: ObservableObject {
+    private(set) static var activeMutations = 0
     let repository: GitRepository
     let access: RepositoryAccessLease?
     let revision: String
@@ -58,11 +59,12 @@ import TurtleGitCore
         }
     }
     func save() {
-        guard canSave, let snapshot else { return }; saving = true; error = nil
+        guard canSave, let snapshot else { return }; saving = true; error = nil; Self.activeMutations += 1
         let text = text
         // Notes mutation is atomic at Git's ref lock and is kept open until it ends.
         worker = Task { [weak self, access, repository] in
             _ = access
+            defer { Self.activeMutations -= 1 }
             do {
                 guard let self else { return }; try self.validateAccess()
                 let display = try await repository.saveCommitNote(snapshot, text: text)
@@ -138,6 +140,7 @@ private struct HistoryNotesDialog: View {
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class HistoryRevertWindowModel: ObservableObject {
+    private(set) static var activeOperations = 0
     let repository: GitRepository
     let access: RepositoryAccessLease?
     let entries: [LogEntry]
@@ -158,9 +161,10 @@ private struct HistoryNotesDialog: View {
     var onCommit: () -> Void = {}
     init(repository: GitRepository, access: RepositoryAccessLease?, entries: [LogEntry], mainline: Int?) { self.repository = repository; self.access = access; self.entries = entries; self.mainline = mainline }
     func start() {
-        guard !started, !invalidated else { return }; started = true; busy = true
+        guard !started, !invalidated else { return }; started = true; busy = true; Self.activeOperations += 1
         worker = Task { [weak self, access] in
             _ = access
+            defer { Self.activeOperations -= 1 }
             guard let self else { return }
             self.confirming = true
             let accepted = await self.ask("Revert the selected commit(s)?", "", "Yes", "No")
@@ -177,9 +181,13 @@ private struct HistoryNotesDialog: View {
                     self.output += entry.hash + " " + entry.subject + "\n"
                     do {
                         let result = try await self.repository.revertLogRevision(revision: entry.hash, mainline: self.entries.count == 1 ? self.mainline : nil, cancellation: self.cancellation)
+                        changed = true
+                        if let message = try? String(contentsOf: messageURL, encoding: .utf8) {
+                            messages += (messages.isEmpty ? "" : "\n") + message
+                            try messages.write(to: messageURL, atomically: true, encoding: .utf8)
+                        }
                         guard !self.invalidated else { return }
-                        self.output += result.text; changed = true
-                        if let message = try? String(contentsOf: messageURL, encoding: .utf8) { messages += (messages.isEmpty ? "" : "\n") + message }
+                        self.output += result.text
                     } catch {
                         guard !self.invalidated else { return }
                         self.output += error.localizedDescription + "\n"
@@ -251,7 +259,9 @@ private struct HistoryRevertDialog: View {
             self.commit = child; self.configureCommit(child)
             child.model.loadHistoryCombine(plan, date: RebaseSquashDate(rawValue: preferences.integer(forKey: "SquashDate")) ?? .first)
             var committed = false
-            child.model.onCommitted = { [weak self] _ in committed = true; self?.model.onChanged("Combined selected commits") }
+            // Publish only after replay or recovery, so sibling history views
+            // never reload the temporary combined HEAD as the finished result.
+            child.model.onCommitted = { _ in committed = true }
             return await withCheckedContinuation { continuation in
                 child.onClosed = { [weak self, weak child, weak owner] in
                     if let window = child?.window, window.sheetParent === owner { owner?.endSheet(window) }

@@ -65,3 +65,9 @@ The earlier shared Sync checks in
 do not validate these new Log consumers. Builds, native launches and tests remain
 deferred until the larger history section is ready. Forced close, Skip/Abort,
 keyboard/focus and signed sandbox acceptance remain open for that pass.
+
+The continuation also retains operation ownership after a forced window close:
+Quit remains blocked until the cancelled Git worker returns. Successful Revert
+messages are accumulated back into MERGE_MSG after each applied revision, so
+cancellation of a later revision cannot discard earlier message text. These
+lifecycle changes await the same deferred verification pass.

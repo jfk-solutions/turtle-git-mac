@@ -523,6 +523,7 @@ struct LogCommandRequest: Identifiable {
 }
 
 @MainActor final class LogWindowModel: ObservableObject {
+    private(set) static var activeHistoryDeletions = 0
     let repository: GitRepository
     let sshSettings: SSHTransportSettings
     private var deletionCancellation: OperationCancellation?
@@ -1455,8 +1456,9 @@ struct LogCommandRequest: Identifiable {
         guard !isInvalidated, !busy, !targets.isEmpty, let chosen = revision,
               targets.allSatisfy({ deletionCandidates(target: $0).count == 1 }) else { return }
         let request = generation, cancellation = OperationCancellation(), factory = sshSettings.capture()
-        deletionCancellation = cancellation; busy = true; error = nil
+        deletionCancellation = cancellation; busy = true; error = nil; Self.activeHistoryDeletions += 1
         Task {
+            defer { Self.activeHistoryDeletions -= 1 }
             let coordinator = factory?(); defer { coordinator?.close() }
             var refresh = false
             defer { if deletionCancellation === cancellation { deletionCancellation = nil; busy = false; if refresh && !isInvalidated { reload() } } }
@@ -1466,6 +1468,8 @@ struct LogCommandRequest: Identifiable {
                 do {
                     if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                     let snapshot = try await repository.prepareHistoryReferenceDeletion(target.name, cancellation: cancellation)
+                    let resolved = try await repository.run(["rev-parse", "--verify", "--end-of-options", snapshot.name + "^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+                    guard resolved == target.revisionHash else { throw HistoryReferenceDeletionFailure.changed }
                     choice = await confirmReferenceDeletion(snapshot)
                     guard choice != .abort, !isInvalidated, !cancellation.isCancelled, generation == request, revision?.hash == chosen.hash else { break }
                     _ = try await repository.deleteHistoryReference(snapshot, choice: choice, cancellation: cancellation, prepareTransport: coordinator?.preparation); refresh = true
