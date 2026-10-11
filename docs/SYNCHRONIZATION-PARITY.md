@@ -749,3 +749,26 @@ checkpoint. Broader UI/physical/signed acceptance remains separate.
 Focused checks passed on system Git 2.50.1, Git 2.39.5 and packaged Git
 2.55.0; native Stash checks passed on system and packaged Git. Both unsigned
 builds and bundle audits passed. See [verification scope and limits](qa/stash-reference-cancellation-2026-10-11.json).
+
+## Manage Remote settings (October 11, 2026)
+
+The source `OnBnClickedButtonManage` opens Settings on its Remote page modally,
+then calls `Refresh` after dismissal. The native Manage button now sits beside
+Remote URL and opens the existing native Remote settings page as an owned sheet,
+using the captured repository, access lease and private/default preferences.
+It reuses configured Fetch interactions for the settings page's Fetch offer.
+The settings page blocks Sync transport/reload and normal parent closure.
+Dismissal reloads the remote/branch catalog and outgoing projection while
+retaining typed local/remote branch, URL and Force values. Forced parent closure
+invalidates both models, cancels settings reads and closes the owned sheet.
+
+The native page is currently a standalone Remote settings sheet rather than
+the upstream full Settings tree. Exact selection-index fallback after deleting
+a selected named remote, the complete Settings tree, physical button/keyboard
+acceptance and signed sandbox acceptance remain pending.
+
+Focused all-source Manage checks and the eleven-group native regression passed
+with system and packaged Git. Debug and universal unsigned AppStore builds,
+bundle audits, inventory and site checks passed. Updated native light/dark
+screenshots are published; both sizes were inspected against the source. See
+[verification methods and limits](qa/synchronization-manage-native-2026-10-11.json).

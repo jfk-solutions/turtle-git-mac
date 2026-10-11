@@ -101,9 +101,16 @@ reverse the configured built-in/external unified viewer choice.
 
 Right-click a branch or tag folder in Browse References to create a branch or tag
 from HEAD. **Delete all tags** applies to the tag rows currently displayed in that
-folder and filter. Tags outside the displayed list remain intact. Remote management settings are still being ported.
+folder and filter. Tags outside the displayed list remain intact.
 
 Use **Delete remote tags on "remote"…** in a tag folder to open the remote tag list.
 Select tags, click Delete and confirm; Abort is the default. The dialog refreshes
 and stays open after deletion. Local tags remain intact. Remote folders also offer
 Fetch and Delete remote tags for their configured remote.
+
+In **Git Synchronization**, click **Manage** beside Remote URL to edit remotes.
+Use **Add New/Save** to add a name and URL, or select an existing remote and
+apply its URL, Push URL, tag, prune or Push Default changes. Closing Remote
+settings refreshes Synchronization's remote list and outgoing results.
+Unapplied edits are discarded when you cancel. The complete Settings tree
+and full upstream dialog parity are still being ported.

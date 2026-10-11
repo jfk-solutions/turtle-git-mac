@@ -1,0 +1,104 @@
+{
+  "date": "2026-10-11",
+  "status": "partial-native-manage-verified-complete-dialog-parity-pending",
+  "code_commit": "9ad1cbf55e88f6da8e43ad6dd19d4a22f9accb23",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_behavior": "Sync OnBnClickedButtonManage opens Settings on Remote page modally, then Refresh on dismissal.",
+  "implemented": [
+    "Manage with original settings icon beside Remote URL",
+    "Owned Remote settings sheet using captured repository, lease and preferences",
+    "Dismissal reloads remote catalog and outgoing projection, preserving typed branches/URL and Force",
+    "Blocks duplicate opening, parent transport/reload and normal closure; forced closure cancels child reads and detaches sheet"
+  ],
+  "verification": {
+    "focused_native": {
+      "method": "All application Swift sources compiled by test-synchronization-dialog.py --manage-only",
+      "git": [
+        "system 2.50.1",
+        "packaged 2.55.0"
+      ],
+      "pass_groups_per_engine": 1
+    },
+    "broader_native": {
+      "method": "Current QA linked to fresh Debug application objects through a generated C entry; temporary START markers and unbuffered stdout; owned receiver replay with 600-second timeout",
+      "git": [
+        "system 2.50.1",
+        "packaged 2.55.0"
+      ],
+      "pass_groups_per_engine": 11
+    },
+    "earlier_attempts": "Two 240-second broader attempts timed out; diagnostic output established progression. First cleanup probed group before leader reaping and raised PermissionError; process inspection confirmed receiver/group gone. Driver now reaps leader before probing descendants.",
+    "driver_cleanup": "Actual close_receiver helper tested with completed receiver and forced timeout/TERM refusal; SIGKILL fallback, leader reaping and group absence passed.",
+    "builds": [
+      "Debug unsigned",
+      "AppStore unsigned universal"
+    ],
+    "audits": [
+      "Debug bundle",
+      "AppStore bundle requiring packaged Git",
+      "Pinned inventory",
+      "Static site"
+    ],
+    "screenshots": {
+      "capture": "Actual native Sync window in a disposable repository; read-only HEAD/refs/index/config checks",
+      "inspected": [
+        "light 2100x1384",
+        "dark 2100x1384",
+        "light minimum 1720x1064",
+        "dark minimum 1720x1064"
+      ],
+      "source_comparison": "Pinned GitSync.png inspected. Manage fits beside Remote URL; source still differs in SSH/Force grouping, tab placement and columns. Later metadata columns scroll horizontally at minimum size."
+    }
+  },
+  "logs": {
+    "debug": {
+      "path": "build/qa/synchronization-manage-debug-2026-10-11.log",
+      "sha256": "48f88228de28f4fcb561823be2c4332f0de2b2118491c420f9da536386d7d6ce"
+    },
+    "store": {
+      "path": "build/qa/synchronization-manage-store-2026-10-11.log",
+      "sha256": "6760480ae9300fd02d4e568c287fb9ec126d9b02d9a1157cd9dd8db4cdf63913"
+    },
+    "native": {
+      "path": "build/qa/synchronization-manage-native-2026-10-11.log",
+      "sha256": "d81399cc44ffd120401f883116dfe6ff11f3a149c97eb4a67e5f5e58218db8a9"
+    },
+    "native-full-600": {
+      "path": "build/qa/synchronization-manage-native-full-600-2026-10-11.log",
+      "sha256": "c1a7d6c30152ae5c20ad63b6020337a05897f790d264918bebd5331bcc41808c"
+    },
+    "driver-cleanup": {
+      "path": "build/qa/synchronization-manage-driver-cleanup-2026-10-11.log",
+      "sha256": "f440e680625d8da8a72924922db42de19ec8cbdcb5b9ca27c2d8c819f4c29a13"
+    },
+    "layout": {
+      "path": "build/qa/synchronization-manage-layout-2026-10-11.log",
+      "sha256": "4b2f7947be5bc8acbdb48032e9b81f7bc90f132e64831edb8e49e9acc9bba73b"
+    },
+    "debug-audit": {
+      "path": "build/qa/synchronization-manage-debug-audit-2026-10-11.log",
+      "sha256": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d"
+    },
+    "store-audit": {
+      "path": "build/qa/synchronization-manage-store-audit-2026-10-11.log",
+      "sha256": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30"
+    },
+    "pin-audit": {
+      "path": "build/qa/synchronization-manage-pin-audit-2026-10-11.log",
+      "sha256": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a"
+    },
+    "site-audit": {
+      "path": "build/qa/synchronization-manage-site-audit-2026-10-11.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  },
+  "limits": [
+    "Full Settings tree remains incomplete; this opens the existing Remote page.",
+    "Exact selected-index fallback after deleting a selected named remote remains incomplete.",
+    "Manage-to-Fetch nested production route is configured but not exercised by this fixture.",
+    "Settings confirmation answers are injected; no physical keyboard/VoiceOver or signed sandbox certification.",
+    "No Core source change or new full Core suite result.",
+    "The standard all-source broader driver was not rerun after cleanup/timeout edits; the completed broader check uses current Debug application objects.",
+    "Hosted CI success and App Store release acceptance are not established."
+  ]
+}
