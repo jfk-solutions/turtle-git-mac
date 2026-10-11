@@ -136,7 +136,7 @@ import TurtleGitCore
     var canSave: Bool { !options.arbitraryURL && !options.allRemotes && !options.allBranches && localBranch != nil && !options.setUpstream }
     var canTrack: Bool { !options.arbitraryURL && (options.allBranches || localBranch != nil) }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.preferences = preferences; sshSettings = SSHTransportSettings(repository: repository) }
-    func load(source: String? = nil) {
+    func load(source: String? = nil, preserveAllBranches: Bool = false) {
         guard !busy else { return }; busy = true
         Task {
             defer { busy = false }
@@ -149,7 +149,7 @@ import TurtleGitCore
                 url = ""
                 let current = try await repository.branch()
                 options.source = PushSourcePresentation.normalized(source ?? (current.isEmpty ? "HEAD" : current))
-                options.allBranches = source == nil && preferences.bool(forKey: key + ".allBranches")
+                options.allBranches = (source == nil || preserveAllBranches) && preferences.bool(forKey: key + ".allBranches")
                 options.allRemotes = remotes.count > 1 && preferences.bool(forKey: key + ".allRemotes")
                 options.submodules = await repository.pushSubmoduleDefault()
                 if let stored = preferences.object(forKey: submodulePreferenceKey) as? NSNumber,

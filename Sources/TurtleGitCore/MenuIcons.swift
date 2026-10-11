@@ -22,6 +22,7 @@ public enum MenuIcon: String, CaseIterable {
     case revisionGraph = "menurevisiongraph", showBranches = "showbranches"
     case historyFind = "filteredit"
     case bisect = "menubisect", bisectReset = "menubisectreset", bisectGood = "thumb_up", bisectBad = "thumb_down"
+    case combine = "menucombine"
     case patch = "menupatch", sendMail = "menusendmail"
     case repositoryBrowser = "menurepobrowse", executableOverlay = "executableovl", symlinkOverlay = "symlinkovl", externalOverlay = "externalovl"
     case repositoryBackdrop = "RepoBrowserBackground", addBackdrop = "AddBackground"

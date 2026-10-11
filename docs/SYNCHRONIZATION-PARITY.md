@@ -1530,3 +1530,36 @@ The native fixture passed with system and packaged Git; nine focused Core
 checks passed. Scope and remaining acceptance gaps are recorded in
 [the batch record](qa/history-workflow-batch-2026-10-11.json). This is partial
 workflow evidence, not full dialog certification.
+
+
+### Reference and Combine implementation continuation (unverified)
+
+The implementation continuation adds source Push/Pull and branch/tag Delete
+menus, including pointed-reference selection, current-branch omission, iconless
+Delete children and All. Deletion owns confirmation/error sheets and cancellable
+preflight/transport work. Remote-and-local, local remote-tracking and stash
+choices use the shared reference deletion core; All keeps source abort/error
+continuation rules. A moved selected reference is rejected before confirmation.
+Workspace logs/status/Commit and the originating Sync refresh after mutation.
+Push preserves the saved all-branches setting unless a particular non-remote
+reference was clicked, matching the source handoff.
+
+Combine is now implemented as a shared Log/Sync workflow. The menu checks source
+contiguous-row and HEAD-offset conditions, then asynchronously confirms endpoint
+ancestry. The core revalidates every captured row, HEAD, branch and cleanliness,
+hard-resets to the newest selected commit, soft-resets to the oldest and opens
+the existing Commit dialog with forced Amend, combined messages, whole-project
+selection and SquashDate. The oldest-commit parent warning and diff behavior are
+preserved. Post-actions are suppressed. Commits above the range are replayed in
+source order; cancelled/failed execution restores original HEAD using recovery
+independent of the cancelled token. A forced owner close keeps an active Commit
+visible until it finishes, so recovery cannot race the commit mutation. Quit is
+blocked until the Combine worker and recovery finish, including a closed owner.
+The original menucombine.ico is included with upstream provenance (122 assets).
+
+These changes have **not been built or tested**. Validation is deliberately
+deferred until the major history section is ready. Menu ancestry reads, forced
+owner close/recovery, Commit presets, root/merge endpoints, replay failures,
+remote/stash deletion and signed AppStore acceptance require the combined pass.
+Remaining history consumers and source-specialized commands are still open;
+this continuation does not change the certified parity counts.

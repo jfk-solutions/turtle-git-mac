@@ -609,6 +609,7 @@ struct LogCommandRequest: Identifiable {
     }
     var onMergeRevision: ((String) -> Void)?
     var onRebaseRevision: ((String) -> Void)?
+    var onCombineRevisions: (([LogEntry], Int, String) -> Void)?
     var onBisect: ((LogBisectRequest) -> Void)?
     func bisectAvailable(_ command: LogBisectCommand) -> Bool {
         if selectedWorkingTree { return !bare && bisectActive && command != .start }
@@ -2624,6 +2625,17 @@ struct RevisionTable: NSViewRepresentable {
         var model: LogWindowModel
         weak var table: NSTableView?
         var headerMenu: NSMenu?
+        private var combineMenuTask: Task<Void, Never>?
+        private var combineMenuCancellation: OperationCancellation?
+        private final class CombineTarget: NSObject {
+            let entries: [LogEntry], offset: Int, head: String
+            init(entries: [LogEntry], offset: Int, head: String) { self.entries = entries; self.offset = offset; self.head = head }
+        }
+        @objc func combineRevisions(_ sender: NSMenuItem) {
+            guard !model.isInvalidated, !model.busy, !model.findBlocked, !model.orderingBlocked, !model.mergeActive, !model.bare,
+                  model.window?.attachedSheet == nil, let target = sender.representedObject as? CombineTarget else { return }
+            model.onCombineRevisions?(target.entries, target.offset, target.head)
+        }
         var updating = false
         var signature: [Data] = []
         var logFont: NSFont?
@@ -2759,6 +2771,7 @@ struct RevisionTable: NSViewRepresentable {
             }
         }
         func menuNeedsUpdate(_ menu: NSMenu) {
+            combineMenuTask?.cancel(); combineMenuTask = nil; combineMenuCancellation?.cancel(); combineMenuCancellation = nil
             menu.removeAllItems()
             if menu === headerMenu {
                 menu.autoenablesItems = false
@@ -2882,6 +2895,25 @@ struct RevisionTable: NSViewRepresentable {
             if !one && model.bisectAvailable(.skip) {
                 item(LogBisectCommand.skip.title, #selector(bisectSkip), icon: .bisect, enabled: model.canBisect(.skip)); menu.addItem(.separator())
             }
+            let combineRows = model.entries.indices.filter { model.selected.contains(model.entries[$0].hash) }
+            if !model.bare, !model.mergeActive, !model.includesWorkingTree, combineRows.count > 1,
+               combineRows.count == model.selected.count, combineRows.last! - combineRows.first! + 1 == combineRows.count,
+               let headRow = model.entries.firstIndex(where: \.isHead), combineRows.first! >= headRow, model.onCombineRevisions != nil {
+                let chosen = combineRows.map { model.entries[$0] }, offset = combineRows.first! - headRow, head = model.entries[headRow].hash
+                let combine = item("Combine to one commit", #selector(combineRevisions(_:)), icon: .combine, enabled: false)
+                combine.representedObject = CombineTarget(entries: chosen, offset: offset, head: head); combine.isHidden = true
+                let request = OperationCancellation(); combineMenuCancellation = request
+                let repository = model.repository
+                combineMenuTask = Task { [weak self, weak combine] in
+                    do {
+                        let first = try await repository.run(["rev-parse", "--verify", "HEAD~" + String(offset)], cancellation: request).text.trimmingCharacters(in: .newlines)
+                        let last = try await repository.run(["rev-parse", "--verify", "HEAD~" + String(offset + chosen.count - 1)], cancellation: request).text.trimmingCharacters(in: .newlines)
+                        guard !Task.isCancelled, !request.isCancelled, let self, !self.model.isInvalidated,
+                              first == chosen[0].hash, last == chosen[chosen.count - 1].hash else { return }
+                        combine?.isHidden = false; combine?.isEnabled = !self.model.busy && !self.model.findBlocked && !self.model.orderingBlocked && self.model.window?.attachedSheet == nil
+                    } catch { /* Source omits Combine when ancestry cannot be resolved. */ }
+                }
+            }
             if model.cherryPickAvailable {
                 item(model.selected.count == 1 ? "Cherry Pick this commit…" : "Cherry Pick selected commits…", #selector(cherryPick), icon: .cherryPick, enabled: model.canCherryPick)
             }
@@ -2910,7 +2942,7 @@ struct RevisionTable: NSViewRepresentable {
             parent.image = MenuIcon.copy.contextImage(); parent.submenu = clipboard; menu.addItem(parent)
             if one { item("Show branches this commit is on", #selector(showContainingReferences), icon: .showBranches, enabled: !model.busy && model.onShowContainingReferences != nil) }
         }
-        func menuDidClose(_ menu: NSMenu) { if menu !== headerMenu { (table as? HistoryTableView)?.contextReference = nil } }
+        func menuDidClose(_ menu: NSMenu) { combineMenuTask?.cancel(); combineMenuTask = nil; combineMenuCancellation?.cancel(); combineMenuCancellation = nil; if menu !== headerMenu { (table as? HistoryTableView)?.contextReference = nil } }
         @objc func pushReference(_ sender: NSMenuItem) { model.requestReference(.push, target: sender.representedObject as? LogReferenceMenuTarget) }
         @objc func switchBranchReference(_ sender: NSMenuItem) { if let target = sender.representedObject as? LogReferenceMenuTarget { model.switchBranch(target: target) } }
         @objc func mergeReference(_ sender: NSMenuItem) { model.requestIntegration(.merge, target: sender.representedObject as? LogReferenceMenuTarget) }

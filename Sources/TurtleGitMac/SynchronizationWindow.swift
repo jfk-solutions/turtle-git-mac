@@ -215,11 +215,12 @@ private struct SynchronizationProgressDialog: View {
 
 enum SynchronizationHistoryOperation: Equatable {
     case merge(String), reset(String), checkout(String), switchBranch(String)
-    case editNotes(String), revert([LogEntry], Int?)
+    case editNotes(String), revert([LogEntry], Int?), combine([LogEntry], Int, String)
     static func == (lhs: Self, rhs: Self) -> Bool {
         switch (lhs, rhs) {
         case (.merge(let a), .merge(let b)), (.reset(let a), .reset(let b)), (.checkout(let a), .checkout(let b)), (.switchBranch(let a), .switchBranch(let b)), (.editNotes(let a), .editNotes(let b)): return a == b
         case (.revert(let a, let x), .revert(let b, let y)): return a.map(\.hash) == b.map(\.hash) && x == y
+        case (.combine(let a, let x, let h), .combine(let b, let y, let j)): return a.map(\.hash) == b.map(\.hash) && x == y && h == j
         default: return false
         }
     }
@@ -230,6 +231,8 @@ enum SynchronizationHistoryOperation: Equatable {
     var onClosed: () -> Void = {}
     private var cancellationAlert: NSAlert?
     private var pullAlert: NSAlert?
+    private var historyDeletionAlert: NSAlert?
+    private var historyDeletionAnswer: ((Int) -> Void)?
     private(set) var commandProgress: SynchronizationProgressController?
     private(set) var optionsController: FetchWindowController?
     private(set) var pushOptionsController: PushWindowController?
@@ -318,6 +321,14 @@ enum SynchronizationHistoryOperation: Equatable {
             guard let self else { return false }
             return self.historyContainingReferences.values.contains { $0.hasBlockingChild }
                 || self.historyFind.values.contains { $0.acknowledgingFailure || $0.window?.attachedSheet != nil }
+        }
+        model.confirmHistoryDeletion = { [weak self] request in
+            guard let self else { return .abort }
+            let selected = await self.historyDeletionQuestion(request.message, detail: "", buttons: request.choices.map(\.title), defaultIndex: request.choices.count - 1)
+            return request.choices.indices.contains(selected) ? request.choices[selected].choice : .abort
+        }
+        model.acknowledgeHistoryDeletionFailure = { [weak self] message in
+            _ = await self?.historyDeletionQuestion("Could not delete reference.", detail: message, buttons: ["OK"], defaultIndex: 0)
         }
         model.onHistoryOperation = { [weak self] action in self?.showHistoryOperation(action) }
         model.onHistoryFind = { [weak self] tab, index in self?.showHistoryFind(sourceTab: tab, selectionIndex: index) }
@@ -670,6 +681,25 @@ enum SynchronizationHistoryOperation: Equatable {
         }
         child.updateAvailability(); child.loadReferences()
     }
+    private func historyDeletionQuestion(_ title: String, detail: String, buttons: [String], defaultIndex: Int) async -> Int {
+        guard !model.closed, historyDeletionAlert == nil, let window, window.attachedSheet == nil else { return -1 }
+        let alert = NSAlert(); alert.alertStyle = .warning; alert.messageText = title; alert.informativeText = detail
+        for title in buttons { alert.addButton(withTitle: title).keyEquivalent = "" }
+        if alert.buttons.indices.contains(defaultIndex) {
+            alert.buttons[defaultIndex].keyEquivalent = "\r"; alert.window.defaultButtonCell = alert.buttons[defaultIndex].cell as? NSButtonCell
+        }
+        historyDeletionAlert = alert
+        return await withCheckedContinuation { continuation in
+            var answered = false
+            let answer: (Int) -> Void = { value in guard !answered else { return }; answered = true; continuation.resume(returning: value) }
+            historyDeletionAnswer = answer
+            alert.beginSheetModal(for: window) { [weak self] response in
+                guard let self, self.historyDeletionAlert === alert, !self.model.closed else { answer(-1); return }
+                self.historyDeletionAlert = nil; self.historyDeletionAnswer = nil
+                answer(response.rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue)
+            }
+        }
+    }
     private func showHistoryOperation(_ action: SynchronizationHistoryOperation) {
         guard !model.closed, !model.busy, !model.confirmingQuit, !model.confirmingCancellation,
               !model.hasBlockingChild, historyOperationController == nil,
@@ -686,6 +716,9 @@ enum SynchronizationHistoryOperation: Equatable {
         case .checkout(let revision):
             let options = SwitchWindowController(repository: model.repository, access: model.access, revision: revision, preferences: model.preferences)
             child = options; start = { options.model.load(revision: revision) }
+        case .combine(let entries, let offset, let head):
+            let result = HistoryCombineWindowController(repository: model.repository, access: model.access, entries: entries, firstOffset: offset, expectedHead: head, preferences: model.preferences)
+            child = result; start = { result.model.start() }
         case .editNotes(let revision):
             let options = HistoryNotesWindowController(repository: model.repository, access: model.access, revision: revision, preferences: model.preferences)
             child = options; start = { options.model.load() }
@@ -711,6 +744,7 @@ enum SynchronizationHistoryOperation: Equatable {
         case let child as SwitchProgressWindowController: child.onClosed = finished
         case let child as HistoryNotesWindowController: child.onClosed = finished
         case let child as HistoryRevertWindowController: child.onClosed = finished
+        case let child as HistoryCombineWindowController: child.onClosed = finished
         default: break
         }
         configureHistoryOperation(child)
@@ -720,6 +754,9 @@ enum SynchronizationHistoryOperation: Equatable {
     }
     func windowWillClose(_ notification: Notification) {
         model.invalidate()
+        let answer = historyDeletionAnswer; historyDeletionAnswer = nil
+        if let alert = historyDeletionAlert { window?.endSheet(alert.window, returnCode: .abort) }
+        historyDeletionAlert = nil; answer?(-1)
         model.detachRebase()
         if let child = historyOperationController {
             if let window = child.window, window.sheetParent === self.window { self.window?.endSheet(window, returnCode: .abort) }
@@ -1092,6 +1129,48 @@ enum SynchronizationHistoryDiff {
     var onHistoryOperation: ((SynchronizationHistoryOperation) -> Void)?
     var onHistoryBisect: ((LogBisectRequest) -> Void)?
     var onHistoryFormatPatch: ((FormatPatchPreset) -> Void)?
+    var onHistoryPush: ((String, Bool) -> Void)?
+    var onHistoryPull: (() -> Void)?
+    var onHistoryReferenceChanged: (String) -> Void = { _ in }
+    var confirmHistoryDeletion: (HistoryReferenceDeletion) async -> HistoryReferenceDeleteChoice = { _ in .abort }
+    var acknowledgeHistoryDeletionFailure: (String) async -> Void = { _ in }
+    private var historyDeletionCoordinator: SSHTransportCoordinator?
+    func deleteHistoryReferences(_ names: [String], revision: String) {
+        guard !closed, !busy, !hasBlockingChild, !confirmingQuit, !confirmingCancellation,
+              window?.attachedSheet == nil, !names.isEmpty else { return }
+        let request = OperationCancellation(), factory = sshSettings.capture()
+        token = request; busy = true; error = nil
+        Task { [weak self, access, repository] in
+            _ = access
+            guard let self else { return }
+            let coordinator = factory?(); self.historyDeletionCoordinator = coordinator
+            var refresh = false
+            defer {
+                coordinator?.close(); if self.historyDeletionCoordinator === coordinator { self.historyDeletionCoordinator = nil }
+                if self.token === request { self.token = nil; self.busy = false; if refresh && !self.closed { self.refresh() } }
+            }
+            for name in names {
+                guard !self.closed, self.token === request, !request.isCancelled else { break }
+                var choice = HistoryReferenceDeleteChoice.abort
+                do {
+                    if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                    let snapshot = try await repository.prepareHistoryReferenceDeletion(name, cancellation: request)
+                    let resolved = try await repository.run(["rev-parse", "--verify", "--end-of-options", name + "^{commit}"], cancellation: request).text.trimmingCharacters(in: .newlines)
+                    guard resolved == revision else { throw HistoryReferenceDeletionFailure.changed }
+                    choice = await self.confirmHistoryDeletion(snapshot)
+                    guard choice != .abort, !self.closed, self.token === request, !request.isCancelled else { break }
+                    let output = try await repository.deleteHistoryReference(snapshot, choice: choice, cancellation: request, prepareTransport: coordinator?.preparation)
+                    refresh = true; self.onHistoryReferenceChanged(output)
+                } catch {
+                    guard !self.closed, !request.isCancelled else { break }
+                    self.error = error.localizedDescription
+                    await self.acknowledgeHistoryDeletionFailure(error.localizedDescription)
+                    if [.remoteAndLocal, .stashAll, .stashOne].contains(choice) { refresh = true } else { break }
+                }
+            }
+        }
+    }
+
     @Published private(set) var historyBisectActive = false
     func requestHistoryBisect(_ handoff: LogBisectRequest, entries: [LogEntry]) {
         guard !closed, !busy, !hasBlockingChild, !confirmingQuit, !confirmingCancellation,
@@ -1205,7 +1284,7 @@ enum SynchronizationHistoryDiff {
         case nil: return ""
         }
     }
-    func invalidate() { closed = true; cancelHistoryActions(); token?.cancel(); token = nil; comparison.invalidate(); incomingComparison.invalidate(); busy = false; transportRunning = false; cancelling = false; confirmingCancellation = false; cancellationQuestion = nil; transportID = nil }
+    func invalidate() { closed = true; historyDeletionCoordinator?.close(); historyDeletionCoordinator = nil; cancelHistoryActions(); token?.cancel(); token = nil; comparison.invalidate(); incomingComparison.invalidate(); busy = false; transportRunning = false; cancelling = false; confirmingCancellation = false; cancellationQuestion = nil; transportID = nil }
     func reload(selectTracking: Bool = false, initial: Bool = false, preserveError: Bool = false, refreshRemoteSelection: Bool = false) {
         guard !closed, !confirmingQuit, !transportRunning, !hasBlockingChild else { return }
         token?.cancel()
@@ -2035,6 +2114,8 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
         let sourceTab: Int
         private var parentMenuTask: Task<Void, Never>?
         private var revertMenuTask: Task<Void, Never>?
+        private var combineMenuTask: Task<Void, Never>?
+        private var combineMenuCancellation: OperationCancellation?
         init(_ model: SynchronizationWindowModel) { self.model = model; sourceTab = model.tab }
         private final class CopyTarget: NSObject {
             let entries: [LogEntry], kind: SynchronizationHistoryCopy, reference: String?
@@ -2076,6 +2157,23 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
             let entries: [LogEntry]
             init(_ request: LogBisectRequest, entries: [LogEntry]) { self.request = request; self.entries = entries }
         }
+        private final class DeleteTarget: NSObject {
+            let names: [String], revision: String
+            init(_ names: [String], revision: String) { self.names = names; self.revision = revision }
+        }
+        @objc func historyDelete(_ sender: NSMenuItem) {
+            guard revisionActionAvailable, let target = sender.representedObject as? DeleteTarget else { return }
+            model.deleteHistoryReferences(target.names, revision: target.revision)
+        }
+        private final class PushTarget: NSObject {
+            let revision: String, preserveAllBranches: Bool
+            init(_ revision: String, preserveAllBranches: Bool) { self.revision = revision; self.preserveAllBranches = preserveAllBranches }
+        }
+        @objc func historyPush(_ sender: NSMenuItem) {
+            guard revisionActionAvailable, let target = sender.representedObject as? PushTarget else { return }
+            model.onHistoryPush?(target.revision, target.preserveAllBranches)
+        }
+        @objc func historyPull(_ sender: NSMenuItem) { guard revisionActionAvailable else { return }; model.onHistoryPull?() }
         private final class PatchTarget: NSObject {
             let preset: FormatPatchPreset
             init(_ preset: FormatPatchPreset) { self.preset = preset }
@@ -2144,7 +2242,7 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
             model.onHistoryCompare?(target.from, target.to)
         }
         func menuNeedsUpdate(_ menu: NSMenu) {
-            parentMenuTask?.cancel(); parentMenuTask = nil; revertMenuTask?.cancel(); revertMenuTask = nil
+            parentMenuTask?.cancel(); parentMenuTask = nil; revertMenuTask?.cancel(); revertMenuTask = nil; combineMenuTask?.cancel(); combineMenuTask = nil; combineMenuCancellation?.cancel(); combineMenuCancellation = nil
             menu.removeAllItems(); menu.autoenablesItems = false
             guard sourceTab == model.tab, let table else { return }
             let entries = table.selectedRowIndexes.compactMap { model.historyEntries.indices.contains($0) ? model.historyEntries[$0] : nil }
@@ -2328,6 +2426,23 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
             }
             if entries.count > 1, !model.historyBare, model.historyBisectActive,
                !entries[0].references.contains(where: { $0.name.hasPrefix("refs/bisect/") }) { bisectItem(.skip); menu.addItem(.separator()) }
+            if entries.count > 1, !model.historyBare, !model.historyMergeActive,
+               table.selectedRowIndexes.last! - table.selectedRowIndexes.first! + 1 == entries.count,
+               let headRow = model.historyEntries.firstIndex(where: { $0.hash == model.historyHead }), table.selectedRowIndexes.first! >= headRow {
+                let offset = table.selectedRowIndexes.first! - headRow, expectedHead = model.historyHead
+                operationItem("Combine to one commit", .combine(entries, offset, expectedHead), .combine, in: menu)
+                let item = menu.items.last!; item.isHidden = true; item.isEnabled = false
+                let request = OperationCancellation(); combineMenuCancellation = request
+                let repository = model.repository
+                combineMenuTask = Task { [weak item, weak self] in
+                    do {
+                        let first = try await repository.run(["rev-parse", "--verify", "HEAD~" + String(offset)], cancellation: request).text.trimmingCharacters(in: .newlines)
+                        let last = try await repository.run(["rev-parse", "--verify", "HEAD~" + String(offset + entries.count - 1)], cancellation: request).text.trimmingCharacters(in: .newlines)
+                        guard !request.isCancelled, !Task.isCancelled, first == entries[0].hash, last == entries[entries.count - 1].hash, let self else { return }
+                        item?.isHidden = false; item?.isEnabled = self.revisionActionAvailable
+                    } catch { /* Source omits Combine when ancestry cannot be resolved. */ }
+                }
+            }
             if !model.historyBare && !model.historyMergeActive && entries.first?.hash != model.historyHead {
                 replayItem(entries.count > 1 ? "Cherry Pick selected commits…" : "Cherry Pick this commit…", ReplayTarget(commits: entries.map(\.hash)), .cherryPick)
             }
@@ -2338,6 +2453,40 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
             }
             if entries.count == 2, !model.historyBare, !model.historyMergeActive, !model.historyBisectActive,
                !entries[0].references.contains(where: { $0.name == "refs/stash" }) { menu.addItem(.separator()); bisectItem(.start) }
+            if entries.count == 1, let entry = entries.first {
+                let extended = (table as? HistoryTableView)?.contextExtendedMenu == true
+                let stash = entry.references.contains { $0.name == "refs/stash" }
+                let local = entry.references.contains { $0.name.hasPrefix("refs/heads/") || $0.name.hasPrefix("refs/tags/") }
+                if (!stash && local) || extended {
+                    let pointedLocal = pointed?.name.hasPrefix("refs/heads/") == true || pointed?.name.hasPrefix("refs/tags/") == true ? pointed?.name : nil
+                    let pointedTarget = pointed?.name.hasPrefix("refs/remotes/") == false ? pointed?.name : nil
+                    let target = pointedTarget ?? entry.references.first { $0.name.hasPrefix("refs/heads/") }?.name ?? entry.references.first { $0.name.hasPrefix("refs/tags/") }?.name ?? entry.hash
+                    let title = pointedLocal.map { "Push \"" + (GitReferenceName.removingPrefix("refs/heads/", from: $0) ?? GitReferenceName.removingPrefix("refs/tags/", from: $0) ?? $0) + "\"…" } ?? "Push…"
+                    let item = NSMenuItem(title: title, action: #selector(historyPush(_:)), keyEquivalent: "")
+                    item.target = self; item.isEnabled = revisionActionAvailable && model.onHistoryPush != nil
+                    item.image = MenuIcon.push.contextImage(defaults: model.preferences); item.representedObject = PushTarget(GitReferenceName.removingSuffix("^{}", from: target) ?? target, preserveAllBranches: pointedTarget == nil); menu.addItem(item)
+                }
+                if entry.hash == model.historyHead, !model.historyBare, !model.historyMergeActive {
+                    let item = NSMenuItem(title: "Pull…", action: #selector(historyPull(_:)), keyEquivalent: "")
+                    item.target = self; item.isEnabled = revisionActionAvailable && model.onHistoryPull != nil
+                    item.image = MenuIcon.pull.contextImage(defaults: model.preferences); menu.addItem(item)
+                }
+                let candidates = (pointed.map { [$0.name] } ?? entry.references.map(\.name)).filter { $0 != "refs/heads/" + model.historyCurrentBranch }
+                func deletionItem(_ title: String, names: [String], in targetMenu: NSMenu, icon: Bool) {
+                    let item = NSMenuItem(title: title, action: #selector(historyDelete(_:)), keyEquivalent: "")
+                    item.target = self; item.isEnabled = revisionActionAvailable
+                    if icon { item.image = MenuIcon.remove.contextImage(defaults: model.preferences) }
+                    item.representedObject = DeleteTarget(names, revision: entry.hash); targetMenu.addItem(item)
+                }
+                if candidates.count == 1 { deletionItem("Delete " + candidates[0], names: candidates, in: menu, icon: true) }
+                else if candidates.count > 1 {
+                    let submenu = NSMenu(); submenu.autoenablesItems = false
+                    for name in candidates { deletionItem(name, names: [name], in: submenu, icon: false) }
+                    deletionItem("All", names: candidates, in: submenu, icon: false)
+                    let item = NSMenuItem(title: "Delete branch/tag", action: nil, keyEquivalent: "")
+                    item.image = MenuIcon.remove.contextImage(defaults: model.preferences); item.submenu = submenu; menu.addItem(item)
+                }
+            }
             if !menu.items.isEmpty { menu.addItem(.separator()) }
             for kind in SynchronizationHistoryCopy.allCases {
                 if kind == .referenceNames && (entries.count != 1 || entries[0].references.isEmpty) { continue }
@@ -2360,7 +2509,7 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
                 item.representedObject = RevisionTarget(entry.hash, sourceTab: model.tab); menu.addItem(item)
             }
         }
-        func menuDidClose(_ menu: NSMenu) { parentMenuTask?.cancel(); parentMenuTask = nil; revertMenuTask?.cancel(); revertMenuTask = nil; (table as? HistoryTableView)?.contextReference = nil; (table as? HistoryTableView)?.contextExtendedMenu = false }
+        func menuDidClose(_ menu: NSMenu) { parentMenuTask?.cancel(); parentMenuTask = nil; revertMenuTask?.cancel(); revertMenuTask = nil; combineMenuTask?.cancel(); combineMenuTask = nil; combineMenuCancellation?.cancel(); combineMenuCancellation = nil; (table as? HistoryTableView)?.contextReference = nil; (table as? HistoryTableView)?.contextExtendedMenu = false }
         @objc func copyHistory(_ sender: NSMenuItem) {
             guard let target = sender.representedObject as? CopyTarget else { return }
             model.copyHistory(target.entries, kind: target.kind, pointedReference: target.reference)

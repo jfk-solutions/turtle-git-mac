@@ -607,6 +607,11 @@
       "asset": "filteredit.ico",
       "source": "src/Resources/filteredit.ico",
       "sha256": "69d3d2bced56918219f6baffcabd30a2aca38114d8d11e9f3cd8da995f660e0f"
+    },
+    {
+      "asset": "menucombine.ico",
+      "source": "src/Resources/menucombine.ico",
+      "sha256": "642974975393d419377f4a7a9d14df8a8355cdb0a38ae8fb0729272413d8c364"
     }
   ]
 }

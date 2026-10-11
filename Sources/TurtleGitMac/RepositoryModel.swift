@@ -44,6 +44,7 @@ import TurtleGitCore
     private var activeAccess: RepositoryAccessLease?
     private var repository: GitRepository?
     private var commitWindows: [String: CommitWindowController] = [:]
+    private var combineWindows: [UUID: HistoryCombineWindowController] = [:]
     private var logWindows: [String: LogWindowController] = [:]
     private var revisionGraphWindows: [String: RevisionGraphWindowController] = [:]
     private var referenceBrowserWindows: [String: ReferenceBrowserWindowController] = [:]
@@ -781,6 +782,12 @@ import TurtleGitCore
             case let child as MergeWindowController: self?.configureMergeInteractions(child, repository: repository, access: access)
             case let child as ResetWindowController: self?.configureResetInteractions(child, repository: repository, access: access)
             case let child as SwitchWindowController: self?.configureSwitchInteractions(child, repository: repository, access: access)
+            case let child as HistoryCombineWindowController:
+                child.configureCommit = { [weak self] commit in self?.configureCommitInteractions(commit.model, repository: repository, access: access) }
+                child.model.onChanged = { [weak self] output in
+                    self?.refreshRepositoryLogs(repository.root); self?.statusWindows[key]?.model.reload(); self?.commitWindows[key]?.model.reload()
+                    if self?.root == repository.root { self?.output = output; Task { await self?.refresh() } }
+                }
             case let child as HistoryNotesWindowController:
                 child.model.onChanged = { [weak self] _ in self?.refreshRepositoryLogs(repository.root) }
             case let child as HistoryRevertWindowController:
@@ -800,6 +807,12 @@ import TurtleGitCore
         }
         controller.model.onHistoryBisect = { [weak self, weak controller] request in
             self?.showBisect(repository: repository, access: access, good: request.good, bad: request.bad, operation: request.operation, revisions: request.revisions, requireStart: request.operation == nil, onChanged: { [weak controller] in controller?.model.refresh() })
+        }
+        controller.model.onHistoryPush = { [weak self] revision in self?.showPush(repository: repository, access: access, source: revision) }
+        controller.model.onHistoryPull = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
+        controller.model.onHistoryReferenceChanged = { [weak self] output in
+            self?.refreshRepositoryLogs(repository.root); self?.statusWindows[key]?.model.reload(); self?.commitWindows[key]?.model.reload()
+            if self?.root == repository.root { self?.output = output; Task { await self?.refresh() } }
         }
         controller.model.onHistoryFormatPatch = { [weak self] preset in self?.showFormatPatch(repository: repository, access: access, preset: preset) }
         controller.model.detachRebase = { [weak self, weak controller] in
@@ -1277,6 +1290,24 @@ import TurtleGitCore
         for log in logWindows.values where log.model.repository.root == root && !log.model.isInvalidated { log.model.requestRepositoryRefresh() }
         for graph in revisionGraphWindows.values where graph.model.repository.root == root && !graph.model.closed { graph.requestRepositoryRefresh() }
     }
+    private func showHistoryCombine(repository: GitRepository, access: RepositoryAccessLease?, entries: [LogEntry], offset: Int, head: String, owner: NSWindow?) {
+        guard owner?.attachedSheet == nil else { return }
+        let id = UUID(), root = repository.root
+        let child = HistoryCombineWindowController(repository: repository, access: access, entries: entries, firstOffset: offset, expectedHead: head, preferences: .standard)
+        child.configureCommit = { [weak self] commit in self?.configureCommitInteractions(commit.model, repository: repository, access: access) }
+        child.model.onChanged = { [weak self] output in
+            self?.refreshRepositoryLogs(root); self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload()
+            if self?.root == root { self?.output = output; Task { await self?.refresh() } }
+        }
+        child.onClosed = { [weak self, weak owner, weak child] in
+            if let window = child?.window, window.sheetParent === owner { owner?.endSheet(window) }
+            self?.combineWindows.removeValue(forKey: id)
+        }
+        combineWindows[id] = child
+        if let owner, let window = child.window { window.alphaValue = owner.alphaValue; window.appearance = owner.appearance; owner.beginSheet(window) }
+        else { child.showWindow(nil) }
+        child.model.start()
+    }
     private func showLog(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], endRevision: String? = nil, selectedRevision: String? = nil, revisionRange: HistoryRevisionRange? = nil) {
         let root = repository.root
         var baseKey = root.path
@@ -1294,6 +1325,7 @@ import TurtleGitCore
         let controller = reusable?.value ?? LogWindowController(repository: repository, access: access)
         controller.onClosed = { [weak self] in self?.logWindows.removeValue(forKey: key) }
         controller.model.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
+        controller.model.onCombineRevisions = { [weak self, weak controller] entries, offset, head in self?.showHistoryCombine(repository: repository, access: access, entries: entries, offset: offset, head: head, owner: controller?.window) }
         controller.model.onFormatPatch = { [weak self] preset in self?.showFormatPatch(repository: repository, access: access, preset: preset) }
         controller.model.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
         controller.model.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
@@ -1450,6 +1482,7 @@ import TurtleGitCore
             log.onExportRevision = { [weak self] revision in self?.showExport(repository: repository, access: access, revision: revision) }
             log.onMergeRevision = { [weak self] revision in self?.showMerge(repository: repository, access: access, revision: revision) }
             log.onRebaseRevision = { [weak self] revision in self?.showRebase(repository: repository, access: access, upstream: revision, fromLog: true) }
+            log.onCombineRevisions = { [weak self, weak log] entries, offset, head in self?.showHistoryCombine(repository: repository, access: access, entries: entries, offset: offset, head: head, owner: log?.window) }
             self?.configureLogBisect(log, repository: repository, access: access, refreshPicker: true)
                 log.onCherryPick = { [weak self] commits in self?.showRebase(repository: repository, access: access, cherryPick: commits) }
             log.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
@@ -1532,6 +1565,7 @@ import TurtleGitCore
             log.onExportRevision = { [weak self] revision in self?.showExport(repository: repository, access: access, revision: revision) }
             log.onMergeRevision = { [weak self] revision in self?.showMerge(repository: repository, access: access, revision: revision) }
             log.onRebaseRevision = { [weak self] revision in self?.showRebase(repository: repository, access: access, upstream: revision, fromLog: true) }
+            log.onCombineRevisions = { [weak self, weak log] entries, offset, head in self?.showHistoryCombine(repository: repository, access: access, entries: entries, offset: offset, head: head, owner: log?.window) }
             self?.configureLogBisect(log, repository: repository, access: access, refreshPicker: true)
             log.onCherryPick = { [weak self] commits in self?.showRebase(repository: repository, access: access, cherryPick: commits) }
         log.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
@@ -1587,6 +1621,7 @@ import TurtleGitCore
             log.onExportRevision = { [weak self] revision in self?.showExport(repository: repository, access: access, revision: revision) }
             log.onMergeRevision = { [weak self] revision in self?.showMerge(repository: repository, access: access, revision: revision) }
             log.onRebaseRevision = { [weak self] revision in self?.showRebase(repository: repository, access: access, upstream: revision, fromLog: true) }
+            log.onCombineRevisions = { [weak self, weak log] entries, offset, head in self?.showHistoryCombine(repository: repository, access: access, entries: entries, offset: offset, head: head, owner: log?.window) }
             self?.configureLogBisect(log, repository: repository, access: access, refreshPicker: true)
             log.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
         }
@@ -1653,12 +1688,12 @@ import TurtleGitCore
         fetchWindows[key] = controller; controller.model.load(remote: remote, allRemotes: allRemotes)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showPush(repository: GitRepository, access: RepositoryAccessLease?, source: String? = nil) {
+    private func showPush(repository: GitRepository, access: RepositoryAccessLease?, source: String? = nil, preserveAllBranches: Bool = false) {
         let root = repository.root, key = repository.root.path + ":push:" + UUID().uuidString
         let controller = PushWindowController(repository: repository, access: access)
         controller.onClosed = { [weak self] in self?.pushWindows.removeValue(forKey: key) }
         configurePushInteractions(controller, repository: repository, access: access)
-        pushWindows[key] = controller; controller.model.load(source: source)
+        pushWindows[key] = controller; controller.model.load(source: source, preserveAllBranches: preserveAllBranches)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func configurePushInteractions(_ controller: PushWindowController, repository: GitRepository, access: RepositoryAccessLease?) {

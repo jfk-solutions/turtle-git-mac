@@ -419,6 +419,7 @@ import UniformTypeIdentifiers
     @Published var hasHead = false
     @Published var hasParent = false
     var replaySplit: RebaseSplitState?
+    private(set) var historyCombine: HistoryCombinePlan?
     @Published var amend = false
     @Published var amendDiffToLastCommit = false
     private var nonAmendMessage = ""
@@ -479,10 +480,10 @@ import UniformTypeIdentifiers
         init(sourceIndex: Int) { self = Self.allCases.first { $0.sourceIndex == sourceIndex } ?? .commit }
     }
     @Published private(set) var completionAction: CompletionAction = .commit
-    var currentCompletionAction: CompletionAction { replaySplit == nil ? completionAction : .commit }
+    var currentCompletionAction: CompletionAction { replaySplit == nil && historyCombine == nil ? completionAction : .commit }
     func commitCurrentAction() { commit(currentCompletionAction) }
     private func rememberCompletionAction(_ action: CompletionAction) {
-        guard replaySplit == nil else { return }
+        guard replaySplit == nil, historyCombine == nil else { return }
         dialogDefaults.set(action.sourceIndex, forKey: "CommitLastAction")
     }
     init(repository: GitRepository, access: RepositoryAccessLease?, unversionedDefaults: UserDefaults = .standard, dialogDefaults: UserDefaults = .standard) {
@@ -781,6 +782,16 @@ import UniformTypeIdentifiers
         func moved(_ path: String) -> String { path == source ? destination : path.hasPrefix(source + "/") ? destination + path.dropFirst(source.count) : path }
         checked = Set(checked.map(moved)); selection = Set(selection.map(moved)); scopePaths = scopePaths.map(moved); reload()
     }
+    func loadHistoryCombine(_ plan: HistoryCombinePlan, date: RebaseSquashDate) {
+        invalidateMetadataLoads(); historyCombine = plan
+        amend = true; amendDiffToLastCommit = plan.lastParentCount != 1
+        message = plan.message; amendMessage = plan.message; originalAmendMessage = plan.message
+        showWholeProject = true; selectFilesAutomatically = true
+        setAuthorDate = true; authorDate = date == .first ? plan.lastAuthorDate : date == .latest ? plan.firstAuthorDate : Date()
+        resetAuthorDate = date == .current
+        replayDatePreset = (setAuthorDate, authorDate, resetAuthorDate)
+        reload(paths: ["."])
+    }
     func loadReplaySplit(_ split: RebaseSplitState, message: String) {
         invalidateMetadataLoads()
         appliedMessageFocusRequest = messageFocusRequest
@@ -922,7 +933,7 @@ import UniformTypeIdentifiers
     }
     func amendChanged() {
         guard messageFocusAvailable else { return }
-        if replaySplit != nil { comparisonChanged(); return }
+        if replaySplit != nil || historyCombine != nil { comparisonChanged(); return }
         let wasLoading = loadingAmendMessage
         invalidateMetadataLoads()
         if amend {
@@ -1069,8 +1080,8 @@ import UniformTypeIdentifiers
         }
     }
     func commit(_ action: CompletionAction = .commit) {
-        guard canCommit, replaySplit == nil || action == .commit else { return }
-        if replaySplit == nil { completionAction = action }
+        guard canCommit, replaySplit == nil && historyCombine == nil || action == .commit else { return }
+        if replaySplit == nil && historyCombine == nil { completionAction = action }
         let rawMessage = message, rawIssueID = issueID, properties = issueProperties, paths = checkedPathsForCommit, staging = stagingEnabled
         let committedPaths = staging ? Set(entries.filter(\.staged).map(\.path)) : messageOnly ? Set<String>() : paths
         let retainedChangelists = Set(visibleEntries.filter { !committedPaths.contains($0.path) }.map(\.path)).union(restoreCopies.keys)
@@ -1085,6 +1096,7 @@ import UniformTypeIdentifiers
             var selectedPostAction: CommitPostAction?
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                if let historyCombine { try await repository.verifyHistoryCombineAmend(historyCombine) }
                 let validation = try await repository.prepareIssueCommit(properties: properties, message: rawMessage, issueID: rawIssueID)
                 if validation.requiresIssueWarning {
                     let proceed = await withCheckedContinuation { continuation in confirmMissingIssue { continuation.resume(returning: $0) } }
@@ -1126,12 +1138,13 @@ import UniformTypeIdentifiers
                 }
                 let written = try await repository.prepareCommitMessageFile(text, stripComments: dialogDefaults.bool(forKey: "StripCommentedLines"), sanitize: dialogDefaults.object(forKey: "SanitizeCommitMsg") as? Bool ?? true)
                 text = written.contents; message = written.draft
-                let result = CommitProgressWindowModel(repository: repository, action: action, staging: staging, paths: paths, options: options, preferences: dialogDefaults, cancellable: replaySplit == nil)
+                let result = CommitProgressWindowModel(repository: repository, action: action, staging: staging, paths: paths, options: options, preferences: dialogDefaults, cancellable: replaySplit == nil && historyCombine == nil)
                 progress = result; commitProgress = result
                 onCommitProgress?(result)
                 let presented = onCommitProgress != nil && !result.dismissWithoutWindow
                 let output: String
                 commitAttempted = true
+                if let historyCombine { try await repository.verifyHistoryCombineAmend(historyCombine) }
                 if let replaySplit { output = try await repository.commitRebaseSplit(message: text, paths: paths, staging: staging, options: options, expected: replaySplit) }
                 else {
                     let parser = GitCliOutputParser(limit: result.outputLimit)
@@ -1149,8 +1162,8 @@ import UniformTypeIdentifiers
                 messageHistory?.add(written.draft)
                 if options.amend && !nonAmendMessage.isEmpty && nonAmendMessage != messageTemplate { messageHistory?.add(nonAmendMessage) }
                 if !result.isAbandoned { onCommitted(output) }
-                result.complete(output: output, success: true, cancelled: false, postActions: replaySplit == nil ? [.push, .pull, .recommit, .createTag] : [])
-                if action != .commit || replaySplit != nil || !presented || result.isAbandoned { result.choose(nil) }
+                result.complete(output: output, success: true, cancelled: false, postActions: replaySplit == nil && historyCombine == nil ? [.push, .pull, .recommit, .createTag] : [])
+                if action != .commit || replaySplit != nil || historyCombine != nil || !presented || result.isAbandoned { result.choose(nil) }
                 selectedPostAction = await result.waitForChoice()
                 rememberCompletionAction(action)
                 commitProgress = nil
@@ -1395,7 +1408,7 @@ struct CommitDialog: View {
                     Text("Commit to:")
                     if model.createBranch { CommitNewBranchField(name: $model.newBranch).frame(width: 250) }
                     else { Text(model.branch.isEmpty ? "Detached / unborn HEAD" : model.branch).foregroundStyle(.blue) }
-                    Toggle("new branch", isOn: $model.createBranch).toggleStyle(.checkbox).disabled(model.operation != nil || model.replaySplit != nil)
+                    Toggle("new branch", isOn: $model.createBranch).toggleStyle(.checkbox).disabled(model.operation != nil || model.replaySplit != nil || model.historyCombine != nil)
                     Spacer()
                     if model.issueProperties.showsIssueField {
                         Text(model.issueProperties.label)
@@ -1443,7 +1456,7 @@ struct CommitDialog: View {
                 Spacer()
                 HStack(spacing: 0) {
                     Button(model.currentCompletionAction.rawValue) { model.commitCurrentAction() }.keyboardShortcut(.return, modifiers: [.command])
-                    if model.replaySplit == nil { Menu {
+                    if model.replaySplit == nil && model.historyCombine == nil { Menu {
                         ForEach(CommitWindowModel.CompletionAction.allCases, id: \.self) { action in
                             Button { model.commit(action) } label: { CommandLabel(title: action.rawValue, icon: action == .push ? .push : .commit) }
                         }
@@ -1484,8 +1497,8 @@ GroupBox("Message:") {
                     CommitMessageEditor(model: model).frame(minHeight: 100, maxHeight: .infinity).border(Color.secondary.opacity(0.3))
                     HStack { Spacer(); CommitMessagePositionIndicator(model: model) }
                     HStack {
-                        Toggle("Amend Last Commit", isOn: $model.amend).toggleStyle(.checkbox).disabled(!model.hasHead || model.operation != nil || model.replaySplit != nil).onChange(of: model.amend) { _ in model.amendChanged() }
-                        if model.amend { Toggle("Show diff to last commit", isOn: $model.amendDiffToLastCommit).toggleStyle(.checkbox).disabled(!model.hasParent || model.replaySplit != nil) }
+                        Toggle("Amend Last Commit", isOn: $model.amend).toggleStyle(.checkbox).disabled(!model.hasHead || model.operation != nil || model.replaySplit != nil || model.historyCombine != nil).onChange(of: model.amend) { _ in model.amendChanged() }
+                        if model.amend { Toggle("Show diff to last commit", isOn: $model.amendDiffToLastCommit).toggleStyle(.checkbox).disabled(!model.hasParent || model.replaySplit != nil || model.historyCombine != nil) }
                         Spacer()
                     }
                     HStack {

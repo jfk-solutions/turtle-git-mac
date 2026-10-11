@@ -1402,3 +1402,93 @@ extension GitRepository {
         return try read(["diff-tree", "-r", "-p", "--stat"] + flags + [parents[0], hash, "--"]).stdout
     }
 }
+
+/// GitLogListAction ID_COMBINE_COMMIT uses hard/soft reset, forced Amend, then
+/// replays commits above the selected range. Keep the original HEAD for recovery.
+public struct HistoryCombinePlan: Sendable {
+    public let originalHead: String
+    public let originalReference: String?
+    public let first: String
+    public let last: String
+    public let lastParentCount: Int
+    public let message: String
+    public let firstAuthorDate: Date
+    public let lastAuthorDate: Date
+}
+public enum HistoryCombineFailure: LocalizedError {
+    case selection, dirty, changed, rollback(String)
+    public var errorDescription: String? {
+        switch self {
+        case .selection: return "Only a continuous range on the checked-out branch can be combined."
+        case .dirty: return "Commit or stash tracked changes before combining commits."
+        case .changed: return "HEAD or the checked-out branch changed during Combine."
+        case .rollback(let detail): return "Restoring the original HEAD failed.\n\n" + detail
+        }
+    }
+}
+extension GitRepository {
+    public func prepareHistoryCombine(hashes: [String], firstOffset: Int, expectedHead: String, cancellation: OperationCancellation? = nil) throws -> HistoryCombinePlan {
+        try cancellation?.check()
+        guard hashes.count > 1, firstOffset >= 0, !hashes.contains(where: { $0.isEmpty }), try !isBare(cancellation: cancellation), try !logMergeActive(cancellation: cancellation) else { throw HistoryCombineFailure.selection }
+        let head = try run(["rev-parse", "--verify", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+        guard head == expectedHead else { throw HistoryCombineFailure.changed }
+        let reference = try? run(["symbolic-ref", "--quiet", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+        // Source uses row offsets from HEAD, rather than assuming filtered rows
+        // necessarily form an ancestry range. Verify every captured row as well.
+        for (index, hash) in hashes.enumerated() {
+            let actual = try run(["rev-parse", "--verify", "HEAD~" + String(firstOffset + index)], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+            guard actual == hash else { throw HistoryCombineFailure.selection }
+        }
+        guard try run(["diff", "--quiet", "--"], successfulExitCodes: 0...1, cancellation: cancellation).exitCode == 0,
+              try run(["diff", "--cached", "--quiet", "--"], successfulExitCodes: 0...1, cancellation: cancellation).exitCode == 0 else { throw HistoryCombineFailure.dirty }
+        let first = hashes[0], last = hashes[hashes.count - 1]
+        let parents = try run(["show", "-s", "--no-notes", "--format=%P", last, "--"], cancellation: cancellation).text.split(whereSeparator: \.isWhitespace)
+        func date(_ hash: String) throws -> Date {
+            let value = try run(["show", "-s", "--no-notes", "--format=%aI", hash, "--"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+            guard let date = ISO8601DateFormatter().date(from: value) else { throw HistoryCombineFailure.selection }; return date
+        }
+        var message = ""
+        for hash in hashes {
+            let value = try run(["show", "--encoding=UTF-8", "-s", "--no-notes", "--format=%B", hash, "--"], cancellation: cancellation).text
+            message += value.hasSuffix("\n") ? value : value + "\n"
+        }
+        let firstDate = try date(first), lastDate = try date(last)
+        try cancellation?.check()
+        return HistoryCombinePlan(originalHead: head, originalReference: reference, first: first, last: last, lastParentCount: parents.count, message: message, firstAuthorDate: firstDate, lastAuthorDate: lastDate)
+    }
+    private func verifyHistoryCombineReference(_ plan: HistoryCombinePlan, cancellation: OperationCancellation? = nil) throws {
+        let reference = try? run(["symbolic-ref", "--quiet", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+        try cancellation?.check()
+        guard reference == plan.originalReference else { throw HistoryCombineFailure.changed }
+    }
+    public func beginHistoryCombine(_ plan: HistoryCombinePlan, cancellation: OperationCancellation? = nil) throws -> String {
+        try verifyHistoryCombineReference(plan, cancellation: cancellation)
+        guard try run(["rev-parse", "--verify", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) == plan.originalHead else { throw HistoryCombineFailure.changed }
+        guard try run(["diff", "--quiet", "--"], successfulExitCodes: 0...1, cancellation: cancellation).exitCode == 0,
+              try run(["diff", "--cached", "--quiet", "--"], successfulExitCodes: 0...1, cancellation: cancellation).exitCode == 0 else { throw HistoryCombineFailure.dirty }
+        do {
+            let output = try run(["reset", "--hard", plan.first, "--"], cancellation: cancellation).text
+            return output + (try run(["reset", "--soft", plan.last, "--"], cancellation: cancellation).text)
+        } catch {
+            do { _ = try abortHistoryCombine(plan) } catch { throw HistoryCombineFailure.rollback(error.localizedDescription) }
+            throw error
+        }
+    }
+    public func verifyHistoryCombineAmend(_ plan: HistoryCombinePlan, cancellation: OperationCancellation? = nil) throws {
+        try verifyHistoryCombineReference(plan, cancellation: cancellation)
+        guard try run(["rev-parse", "--verify", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) == plan.last else { throw HistoryCombineFailure.changed }
+    }
+    public func finishHistoryCombine(_ plan: HistoryCombinePlan, cancellation: OperationCancellation? = nil) throws -> String {
+        try verifyHistoryCombineReference(plan, cancellation: cancellation)
+        guard plan.first != plan.originalHead else { return "" }
+        let hashes = try run(["rev-list", "--reverse", plan.first + ".." + plan.originalHead, "--"], cancellation: cancellation).text.split(whereSeparator: \.isWhitespace)
+        var output = ""
+        for hash in hashes { output += try run(["cherry-pick", String(hash)], cancellation: cancellation).text }
+        return output
+    }
+    public func abortHistoryCombine(_ plan: HistoryCombinePlan) throws -> String {
+        // Recovery is intentionally independent of the cancelled worker token.
+        try verifyHistoryCombineReference(plan)
+        return try run(["reset", "--hard", plan.originalHead, "--"]).text
+    }
+}
