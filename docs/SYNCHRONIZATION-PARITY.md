@@ -973,7 +973,7 @@ markers and a bounded 1200-second receiver lifetime. Debug and unsigned universa
 AppStore builds and both bundle audits passed. The complete native regression has
 passed all 28 groups across system and packaged Git; both receivers were reaped.
 The inventory pin audit and documentation-site build passed. The complete Core
-suite is still running. See the [verification record](qa/git-process-exit-2026-10-11.json).
+suite passed 979 tests with one optional DNS probe skipped and no failures. See the [verification record](qa/git-process-exit-2026-10-11.json).
 
 ## Revision lists, 11 October 2026
 
@@ -998,8 +998,35 @@ date/message settings, independent header preferences/reset, immutable Git state
 and owned slow-query termination with late-result suppression. Sixteen actual
 outgoing/incoming normal/minimum light/dark images were captured across the two
 engines. Debug and unsigned universal AppStore builds and both bundle audits passed.
-The broader Sync regression is still running; the full Core run is on unchanged
-Core sources from the earlier process-completion checkpoint. The earlier 28-group
-pass does not certify this GUI change. Full row/context interactions, SVN/ID
+All 28 broader Sync regression groups passed on code 5e5fc0e with both owned
+receivers reaped; transient SwiftUI cycle warnings remain an investigation item.
+The complete Core suite passed 979 tests with one optional DNS probe skipped and
+no failures, on unchanged Core sources from the process-completion checkpoint.
+This evidence covers revision-list code 5e5fc0e; later clipboard changes have a
+separate record. Full row/context interactions, SVN/ID
 special modes, custom bisect terms, physical accessibility and signed acceptance
 remain open. See [the verification record](qa/synchronization-revision-list-2026-10-11.json).
+
+## Clipboard menus and selection retention, 11 October 2026
+
+The incoming/outgoing revision lists now expose the source clipboard submenu:
+full details with/without changed paths, hashes, full authors, author names/emails,
+subjects/messages, and tag/branch names. Right-clicking a painted label carries
+its canonical name; multiple-row menus capture their ordered revision values.
+Full details reuse the cancellable all-parent/notes/annotated-tag Core routine.
+Forced closure cancels the owned read and fences late clipboard writes. List
+refresh now restores selected commit hashes, fixing the selection loss reproduced
+between two consecutive full-detail copy actions. Installing the shared badge
+cell before setting its font also preserves HEAD's bold message text.
+
+Both Git engines passed the expanded native fixture, including private clipboard
+contents, captured multi-selection, source text formats, pointed names, metadata
+with/without paths, selection retention, and owned read termination without late
+publication. Debug/unsigned universal AppStore builds and both audits passed.
+The complete Core suite passed 979 cases with one optional DNS skip; the skipped
+system MX probe subsequently passed, including 32 post-open descriptor checks.
+Six actual normal/minimum/incoming light/dark demo captures were generated and
+the two normal public-site images updated after inspection. Full row/context
+commands beyond clipboard, cross-launch/tab selection, live font sizing, source
+special modes, physical/signed acceptance and the prior transient cycle warnings
+remain open. See [the clipboard record](qa/synchronization-clipboard-2026-10-11.json).

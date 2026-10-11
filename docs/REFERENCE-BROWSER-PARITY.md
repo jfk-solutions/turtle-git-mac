@@ -578,3 +578,16 @@ load keys. Native operation closure cancels pending encrypted responses and owns
 agent cleanup. This does not cover Log's separate reference-deletion route or
 prove displayed sheets, signed scopes or real SSH authentication. See
 SSH-TRANSPORT-PARITY.md.
+
+## Deletion fixture follow-up, 11 October 2026
+
+The completed hosted run at 76824a5793 failed with “Owned deletion process absent”.
+Its log did not report the parsed PIDs. The fixture now atomically publishes its
+helper/child PID marker before readiness, retains the original live-process
+assertions and reports PID diagnostics. Its driver links the fresh Debug objects,
+runs the native event loop, and bounds/terminates/reaps private receivers. Both
+Git engines passed the original confirmation/mutation/refresh and forced-close
+checks after this change. This does not prove the exact old CI root cause or a
+new hosted pass. CI now uses the documented standard Intel runner and preserves
+an active workflow while superseding future pending runs on the same branch.
+See [the scoped record](qa/reference-deletion-ci-2026-10-11.json).

@@ -1,6 +1,6 @@
 {
   "date": "2026-10-11",
-  "status": "partial-process-completion-full-native-verified-core-suite-running",
+  "status": "partial-process-completion-full-core-and-native-verified",
   "code_commit": "550bc872b5ba7c176467de58f0af1fc46610cbba",
   "change": [
     "Ordinary Git commands use PID-specific blocking wait, sharing spawn/descriptor/environment handling with cancellable commands",
@@ -35,7 +35,7 @@
     ],
     "system_full_native_groups_passed": 14,
     "packaged_full_native_status": "passed",
-    "complete_core_suite_status": "running",
+    "complete_core_suite_status": "passed",
     "packaged_full_native_groups_passed": 14,
     "full_native_groups_passed": 28,
     "full_native_receivers_reaped": [
@@ -43,16 +43,14 @@
       59328
     ],
     "inventory_pin_audit": "passed",
-    "documentation_site_build": "passed"
-  },
-  "live_verification": {
-    "full_native_command": "python3 build/qa/run-sync-exit-full-final.py",
-    "full_native_log": "build/qa/git-process-exit-full-sync-final-2026-10-11.log",
-    "core_full_command": "swift test --skip-build",
-    "core_full_log": "build/qa/git-process-exit-core-full-2026-10-11.log"
+    "documentation_site_build": "passed",
+    "complete_core_tests": 979,
+    "complete_core_failures": 0,
+    "complete_core_skipped": 1,
+    "skip_reason": "Full suite skipped optional system MX DNS; subsequent opt-in execution passed",
+    "optional_system_mx_probe": "passed separately, including 32 post-open cancellation descriptor checks"
   },
   "remaining": [
-    "Complete Core suite completion",
     "Physical/signed sandbox/Finder acceptance and complete application parity"
   ],
   "sha256": {
@@ -69,6 +67,14 @@
     "build/qa/git-process-exit-debug-audit-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
     "build/qa/git-process-exit-store-audit-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
     "build/qa/git-process-exit-group-baseline-2026-10-11.log": "a52243b275a6bb5552f4804de98bbe8dc68318cd1b7e192a94336a0f5970b67e",
-    "build/qa/git-process-exit-full-sync-final-2026-10-11.log": "b0feb9471b98422c8dc5ac08039eeebc8fea5f2f2378388a05800421c123edb7"
+    "build/qa/git-process-exit-full-sync-final-2026-10-11.log": "b0feb9471b98422c8dc5ac08039eeebc8fea5f2f2378388a05800421c123edb7",
+    "build/qa/git-process-exit-core-full-2026-10-11.log": "80423cf6df4cfd1434a35c9bdfe819afe794e2f84619e30dcdb1128ad688b449",
+    "build/qa/git-process-exit-mx-probe-2026-10-11.log": "fa17f73e5d4e6fd5241148a6c5ce58d43109d88d4b503fddb158072048712d04"
+  },
+  "completed_verification": {
+    "full_native_command": "python3 build/qa/run-sync-exit-full-final.py",
+    "full_native_log": "build/qa/git-process-exit-full-sync-final-2026-10-11.log",
+    "core_full_command": "swift test --skip-build",
+    "core_full_log": "build/qa/git-process-exit-core-full-2026-10-11.log"
   }
 }

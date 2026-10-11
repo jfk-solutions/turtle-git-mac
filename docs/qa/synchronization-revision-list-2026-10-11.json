@@ -1,6 +1,6 @@
 {
   "date": "2026-10-11",
-  "status": "partial-native-revision-list-verified-broader-regression-running",
+  "status": "partial-native-revision-list-full-sync-verified",
   "code_commit": "5e5fc0e12fd8f83a4aac81ac629aa81764774077",
   "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
   "source_blobs": {
@@ -44,22 +44,24 @@
     ],
     "debug_bundle_audit": "passed",
     "store_bundle_audit": "passed",
-    "documentation_site_build": "passed"
-  },
-  "live_verification": {
-    "full_sync_session": 56797,
-    "full_sync_log": "build/qa/sync-revision-list-full-native-2026-10-11.log",
-    "full_core_session": 31154,
-    "full_core_log": "build/qa/git-process-exit-core-full-2026-10-11.log",
-    "scope": "Full Core suite runs unchanged Core source from 550bc87. The earlier 28-group Sync pass covers the pre-revision-list implementation, not this GUI change."
+    "documentation_site_build": "passed",
+    "full_native_groups_passed": 28,
+    "full_native_receivers_passed_and_reaped": [
+      79669,
+      93231
+    ],
+    "swiftui_cycle_warnings": 5,
+    "complete_core_tests_on_unchanged_core": 979,
+    "complete_core_skipped": 1,
+    "complete_core_failures": 0,
+    "optional_dns_probe_on_unchanged_core": "passed separately"
   },
   "remaining": [
-    "Complete broader Sync regression",
-    "Updated public-site sample screenshots after serial native regression",
     "Full row/context/header interaction and cross-launch persistence acceptance",
     "SVN/ID special modes and custom bisect terms",
     "Physical accessibility and signed sandbox/App Store/Finder acceptance",
-    "Full application parity"
+    "Full application parity",
+    "Investigate transient SwiftUI cycle warnings; completed functional checks do not prove a root cause or visual absence"
   ],
   "sha256": {
     "Sources/TurtleGitMac/SynchronizationWindow.swift": "9c72dbde57332155aac279b3b8c4652cf04c650909487aa5195be4aa47d99664",
@@ -86,6 +88,12 @@
     "build/qa/sync-revision-list-final-2026-10-11/1/sync-outgoing-dark.png": "3fbd3d539410929635fc3469991eb82e4938a27300f75d65e031af2e9310741f",
     "build/qa/sync-revision-list-final-2026-10-11/1/sync-outgoing-light-minimum.png": "e512afe72a11be333ca11e0fa8ad98833e4ae643a87f584c4b244372b1d088a2",
     "build/qa/sync-revision-list-final-2026-10-11/1/sync-outgoing-light.png": "8b1cae8d7be309255fde250522cd4777d3ca4709c6eacab6ccb7a5229da2fdf7",
-    "build/qa/sync-revision-list-store-audit-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30"
+    "build/qa/sync-revision-list-store-audit-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/sync-revision-list-full-native-2026-10-11.log": "074ae4ddc271bcdc6fac08c92caf165bbdcbc4023fa1f9197ede8026dac16e43"
+  },
+  "completed_verification": {
+    "full_sync_log": "build/qa/sync-revision-list-full-native-2026-10-11.log",
+    "full_core_log": "build/qa/git-process-exit-core-full-2026-10-11.log",
+    "scope": "Full Sync passed on code 5e5fc0e. Full Core passed on unchanged Core source from 550bc87. Later clipboard GUI changes have a separate record."
   }
 }

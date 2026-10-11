@@ -1,0 +1,78 @@
+{
+  "date": "2026-10-11",
+  "status": "partial-native-clipboard-and-selection-verified",
+  "code_commit": "314e1f3011698338039c1785bfe9f62369a5cca0",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_methods": [
+    "GitLogListBase::CopySelectionToClipBoard",
+    "GitLogList::ContextMenuAction"
+  ],
+  "verification": {
+    "native_command": "python3 scripts/test-synchronization-history.py --revision-list --git /usr/bin/git --git build/git-runtime/Git/bin/git --captures build/qa/sync-clipboard-final-2026-10-11",
+    "engines": [
+      "system 2.50.1",
+      "packaged 2.55.0"
+    ],
+    "receivers_passed_and_reaped": [
+      32820,
+      32966
+    ],
+    "checks": [
+      "Clipboard source formats and captured multi-row selection",
+      "Full metadata with/without changed paths and annotated tags",
+      "Canonical clicked tag names and single-row-only reference submenu",
+      "Selected hashes retained across full-detail refreshes",
+      "HEAD message font retains bold trait",
+      "Owned action and clipboard reads terminate without late publication",
+      "Refs/index/config remain unchanged"
+    ],
+    "builds": [
+      "Debug unsigned passed",
+      "AppStore unsigned universal passed"
+    ],
+    "bundle_audits": [
+      "Debug passed",
+      "AppStore required Git passed"
+    ],
+    "layout_receiver_passed_and_reaped": 34772,
+    "layout_captures": 6,
+    "visually_inspected": [
+      "git-synchronization-light.png",
+      "git-synchronization-dark.png",
+      "git-synchronization-dark-minimum.png"
+    ],
+    "core_scope": "979 full cases, 1 optional skip, zero failures on unchanged Core from 550bc87; skipped DNS probe passed separately",
+    "full_sync_scope": "Prior 28-group run covers revision-list checkpoint 5e5fc0e, not these later clipboard-only additions",
+    "documentation_site_build": "passed",
+    "inventory_pin_audit": "passed"
+  },
+  "diagnostic": "Initial clipboard fixture failed because table reload cleared selection before the second Full log details menu invocation. Hash restoration fixed the reproduced behavior; original assertions retained. No claimed resolution of earlier SwiftUI cycle warnings.",
+  "remaining": [
+    "Remaining upstream row/context commands",
+    "Cross-launch/tab selection and live font sizing",
+    "Physical keyboard/pointer/accessibility and signed sandbox acceptance",
+    "Whole application parity and App Store distribution acceptance"
+  ],
+  "sha256": {
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "bf82055f83a6be5d5632459a6e25d2f5548bedaa440c948963c85affe0e7ded3",
+    "docs/qa/synchronization-revision-list-native-2026-10-11.swift": "7c984a8f8412c80e6588e284b9e7bf848445a4006a544bc22bbfbbc4baa6b0a7",
+    "build/qa/sync-clipboard-native-final-2026-10-11.log": "281f1da6e87f1b03aac2c2637747f1a0f50056a5593326e624bb09499947425f",
+    "build/qa/sync-clipboard-selection-debug-2026-10-11.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/sync-clipboard-selection-store-2026-10-11.log": "6926b9a7076d2d9ad8b2b23b24c069ce6913561b958ddbf9a873a5fe75da64dc",
+    "build/qa/sync-clipboard-final-debug-audit-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/sync-clipboard-final-store-audit-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30",
+    "build/qa/sync-clipboard-layout-2026-10-11.log": "538206fbd7c5e33068796e8bffed356c03c8755abe461d7bb06b42a360c1870b",
+    "docs/site/assets/git-synchronization-light.png": "24970ed8f4b663674c73ce29e6a1867e493bbfc1ec860aeb62dafc5f5ce21a73",
+    "docs/site/assets/git-synchronization-dark.png": "1fadf7b4da6ed7daf2734004d7a8123d912529a25051b19772a2bda89696965f",
+    "build/qa/sync-clipboard-layout-2026-10-11/git-synchronization-dark-minimum.png": "010b6019f363911077cbddcd618347efc8fa1360000b61a997829930ec6bb81d",
+    "build/qa/sync-clipboard-layout-2026-10-11/git-synchronization-dark.png": "1fadf7b4da6ed7daf2734004d7a8123d912529a25051b19772a2bda89696965f",
+    "build/qa/sync-clipboard-layout-2026-10-11/git-synchronization-incoming-dark-minimum.png": "ca463c46775aca98fc0ec3d489c1e5f1d92262f712e0a1bff5b95f0b5bee96ed",
+    "build/qa/sync-clipboard-layout-2026-10-11/git-synchronization-incoming-light-minimum.png": "74a0867e14e5dc6f9647a9739fc4859a231aa797f9cbbd335ffc9dee16141505",
+    "build/qa/sync-clipboard-layout-2026-10-11/git-synchronization-light-minimum.png": "f7dbf4831a2e6047f94abb6fcfc8c9c78151aa90d93ba480e76b850d1b4398d3",
+    "build/qa/sync-clipboard-layout-2026-10-11/git-synchronization-light.png": "24970ed8f4b663674c73ce29e6a1867e493bbfc1ec860aeb62dafc5f5ce21a73",
+    "build/qa/sync-clipboard-site-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/sync-clipboard-inventory-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a",
+    "build/qa/sync-clipboard-site-final-2026-10-11.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/sync-clipboard-inventory-final-2026-10-11.log": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a"
+  }
+}

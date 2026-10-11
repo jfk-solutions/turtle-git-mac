@@ -1,0 +1,52 @@
+{
+  "date": "2026-10-11",
+  "status": "partial-native-deletion-ci-fixture-verified-hosted-followup-pending",
+  "code_commit": "314e1f3011698338039c1785bfe9f62369a5cca0",
+  "observed_hosted_failure": {
+    "run_id": 38112177672,
+    "commit": "76824a5793",
+    "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38112177672",
+    "step": "Native reference-browser deletion",
+    "message": "Owned deletion process absent",
+    "access": "Existing repository Git authentication reused to retrieve the job log; credentials not stored in the record"
+  },
+  "diagnostic_limit": "The failed log lacks parsed PID values, so the exact failing condition is unproven. Inspection found a real readiness race: the marker could exist before its PID contents were complete. Atomic rename removes that race, with original process-presence assertions retained and PID diagnostics added.",
+  "implemented": [
+    "Atomic helper PID marker publication",
+    "Fresh Debug object linkage with an explicit native run loop",
+    "Bounded 300-second private serial receivers with owned-group termination and reaping",
+    "Standard macos-15-intel runner to add hosted x86_64 execution while arm64 queue capacity is constrained",
+    "Workflow/branch concurrency retains the active run and only the latest future pending run"
+  ],
+  "verification": {
+    "command": "python3 scripts/test-reference-delete.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+    "receivers_passed_and_reaped": [
+      33234,
+      33479
+    ],
+    "checks": [
+      "Merged No and unmerged/tag/remote Yes confirmations and effects",
+      "Canonical names, original icons and refresh",
+      "Duplicate/close/Quit/late-answer gates",
+      "Forced preflight/local/remote owned process cleanup",
+      "HEAD/index/worktree preservation and no displayed windows"
+    ],
+    "workflow_yaml": "Ruby YAML parser passed runner/concurrency assertions"
+  },
+  "primary_ci_documentation": [
+    "https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency",
+    "https://docs.github.com/en/actions/reference/runners/github-hosted-runners"
+  ],
+  "remaining": [
+    "Latest hosted run after push",
+    "Hosted Intel build/runtime and physical/signed acceptance",
+    "Broader reference-browser/application parity"
+  ],
+  "sha256": {
+    "scripts/test-reference-delete.py": "af2e696a077ac30510c9c0f2d587ccef7e645f0024b470183dbb55d823a9c14e",
+    "docs/qa/reference-delete-native-2026-10-09.swift": "27987173587a97386d16cb53e47aca14aafbce45a68d1ba15be1757a0c5c0331",
+    ".github/workflows/macos.yml": "4b3ba362702a88a34c9fd89bafa09bda03e67069083541dd81b692e56a5c88d0",
+    "build/qa/reference-delete-atomic-marker-2026-10-11.log": "dad6453449c29121095a01040e35d95c8fc096cb55e193caf176a69e50da6b4c",
+    "build/qa/github-reference-delete-authenticated-2026-10-11.log": "1b8f502a43b7582511731eb8fbf53c31769a1843e32c0f6e7c11e8a54bae76ca"
+  }
+}
