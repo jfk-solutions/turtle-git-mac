@@ -304,9 +304,16 @@ private struct SynchronizationProgressDialog: View {
             let id = UUID()
             let child = CommitContainingReferencesWindowController(repository: self.model.repository, access: self.model.access, revision: hash, preferences: self.model.preferences)
             self.configureHistoryContainingReferences(child)
-            child.onNavigate = { [weak self] hash, select in
-                guard let self, !self.model.closed, !self.model.busy, !self.model.confirmingQuit,
+            child.onNavigate = { [weak self, weak child] hash, select in
+                guard let self, let child, !child.closed, !self.model.closed, !self.model.busy, !self.model.confirmingQuit,
                       !self.model.confirmingCancellation, !self.model.hasBlockingChild else { return }
+                let entries = sourceTab == 4 ? (self.model.incomingCommits ?? []) : (self.model.outgoing?.commits ?? [])
+                guard entries.contains(where: { $0.hash == hash }) else {
+                    child.status.stringValue = "The reference is not visible in " + (sourceTab == 4 ? "In Commits." : "Out Commits.")
+                    return
+                }
+                child.status.stringValue = ""
+                if !select { self.model.historyHighlights[sourceTab] = hash }
                 self.model.historyNavigation[sourceTab] = (UUID(), hash, select)
             }
             child.onClosed = { [weak self, weak child, weak owner] in
@@ -940,6 +947,7 @@ enum SynchronizationHistoryDiff {
     var historyReferencesBlocking: () -> Bool = { false }
     @Published var historyNavigation: [Int: (id: UUID, hash: String, select: Bool)] = [:]
     var handledHistoryNavigation: [Int: UUID] = [:]
+    @Published var historyHighlights: [Int: String] = [:]
     var onHistoryCreateReference: ((Bool, String) -> Void)?
     @Published var creatingHistoryReference = false
     var hasBlockingChild: Bool {
@@ -2063,6 +2071,9 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
                 let font = MessageEditorFont.resolve(name: model.preferences.string(forKey: "LogFontName") ?? MessageEditorFont.defaultName, size: size)
                 text.font = entry.isHead ? NSFontManager.shared.convert(font, toHaveTrait: .boldFontMask) : font
             }
+            if model.historyHighlights[sourceTab] == entry.hash, let font = text.font {
+                text.font = NSFontManager.shared.convert(font, toHaveTrait: .italicFontMask)
+            }
             switch column?.identifier.rawValue {
             case "hash": text.stringValue = entry.hash
             case "author": text.stringValue = entry.author
@@ -2074,7 +2085,8 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
             case "bugs": text.stringValue = entry.issueIDs
             default:
                 let badges = NSMutableAttributedString()
-                let font = model.preferences.bool(forKey: "LogFontForLogCtrl") ? text.font! : NSFont.systemFont(ofSize: 11, weight: .medium)
+                let badgeFont = model.preferences.bool(forKey: "LogFontForLogCtrl") ? text.font! : NSFont.systemFont(ofSize: 11, weight: .medium)
+                let font = model.historyHighlights[sourceTab] == entry.hash ? NSFontManager.shared.convert(badgeFont, toHaveTrait: .italicFontMask) : badgeFont
                 for badge in model.historyReferenceContext.labels(entry.references, symbolize: model.preferences.bool(forKey: "SymbolizeRefNames")) {
                     let color = LogPalette.native(LogColorRole.reference(badge.reference), preferences: model.preferences)
                     let foreground = NSColor(name: nil) { _ in LogPalette.foreground(background: color) }

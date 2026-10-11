@@ -1305,3 +1305,42 @@ comparison, clipboard, metadata, range Log and child lifecycle assertions remain
 The Xcode license gate cleared before these resumed builds and tests; no agreement
 acceptance was performed by the agent. These checks remain direct native delivery,
 not physical input, missing-reference attention or signed sandbox acceptance.
+
+### Reference navigation feedback and incoming scope (2026-10-11)
+
+Upstream OnScrollToRef returns failure when the peeled reference hash is not in
+its originating list; CommitIsOnRefsDlg flashes its window on that result. The
+native Sync route now checks the originating outgoing/incoming snapshot and shows
+“The reference is not visible in Out Commits.” or “In Commits.” in the owned
+references dialog. A missing target leaves navigation IDs, highlight and selection
+unchanged; a valid navigation clears the notice. Closed references children cannot
+issue later navigation callbacks.
+
+Source Shift-navigation preserves selection and sets m_highlight. The shared
+upstream row renderer uses italics, or bold italics for highlighted HEAD. Sync now
+retains a highlight per list and applies those font traits to text columns and
+reference badges, preserving configured fonts and HEAD boldness. The initial
+attempt borrowed Log's yellow background, but source inspection of the row
+renderer corrected this before final verification. No yellow highlight was kept.
+
+The expanded native fixture creates real incoming history from the private
+repository's existing commits, opens the In Commits menu and checks captured
+incoming navigation while Out Commits is shown. Returning to the incoming list
+applies the pending request; ordinary navigation selects while Shift-style delivery
+preserves selection. It checks independent outgoing/incoming IDs/highlights,
+missing-reference notices in both scopes, successful-notice clearing, a closed
+child callback and italic/bold-italic cell font traits. The original refs/config/index
+preservation and all previous revision-list assertions remain. The first fixture
+compile failed on an optional NSColor assertion in the discarded background test;
+that assertion was replaced by the source font-trait checks.
+
+System and bundled Git passed the expanded native fixture and both receivers were
+reaped. Final unsigned Debug and universal AppStore builds, both bundle audits,
+inventory pin audit and documentation site generation passed.
+
+These are direct native callback/menu delivery and renderer-property checks, not
+physical double-click/Shift gestures or displayed screenshot acceptance. Source
+Windows flashing is adapted to a visible macOS status notice; VoiceOver announcement,
+full child context commands and complete signed Finder/App Store acceptance remain
+pending. The earlier complete Core-suite checkpoint is unchanged; no new full-suite
+result is claimed for this app-only change.

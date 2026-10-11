@@ -156,6 +156,21 @@ struct SynchronizationRevisionListVerification {
         containing.onNavigate(rows[rootIndex].hash,false)
         try await settle { model.historyNavigation[0]?.hash == rows[rootIndex].hash }
         precondition(native.selectedRowIndexes == IndexSet(integer:0))
+        precondition(model.historyHighlights[0] == rows[rootIndex].hash)
+        let historyCoordinator = native.delegate as! SynchronizationHistoryTable.Coordinator
+        for appearance in [NSAppearance.Name.aqua,.darkAqua] {
+            owner.window!.appearance = NSAppearance(named:appearance)
+            let highlighted = historyCoordinator.tableView(native,viewFor:native.tableColumn(withIdentifier:.init("message")),row:rootIndex) as! NSTableCellView
+            precondition(NSFontManager.shared.traits(of:highlighted.textField!.font!).contains(.italicFontMask) && !highlighted.textField!.drawsBackground)
+        }
+        owner.window!.appearance = nil
+        let priorNavigation = model.historyNavigation[0]!.id
+        containing.revision.stringValue = remoteHash; containing.refresh()
+        try await settle { !containing.busy && containing.snapshot?.hash == remoteHash }
+        containing.onNavigate(containing.snapshot!.hash,true)
+        precondition(containing.status.stringValue == "The reference is not visible in Out Commits." && model.historyNavigation[0]!.id == priorNavigation && native.selectedRowIndexes == IndexSet(integer:0))
+        containing.onNavigate(rows[0].hash,true)
+        try await settle { containing.status.stringValue.isEmpty && native.selectedRowIndexes == IndexSet(integer:0) }
         let pickerItem = containing.chooser.menu!.items.first { $0.title == "Browse References" }!
         precondition(NSApplication.shared.sendAction(pickerItem.action!,to:pickerItem.target,from:pickerItem))
         try await settle { containing.picker != nil }
@@ -186,6 +201,43 @@ struct SynchronizationRevisionListVerification {
         native = table(owner.window!)
         precondition(native.selectedRowIndexes.isEmpty && model.handledHistoryNavigation[0] == navigationID, "Recreated tables must not replay handled navigation")
         crossTabChild.close(); precondition(owner.historyContainingReferences.isEmpty)
+        let closedNavigation = model.historyNavigation[0]!.id
+        crossTabChild.onNavigate(rows[0].hash,true)
+        precondition(model.historyNavigation[0]!.id == closedNavigation, "A closed references child cannot navigate its parent")
+        model.finishPatchImport(oldHead:localRoot)
+        try await settle { !model.busy && model.incomingCommits != nil && !model.hasBlockingChild }
+        native = table(owner.window!)
+        let incomingRows = model.historyEntries
+        precondition(model.tab == 4 && incomingRows.count == 5)
+        let incomingTarget = incomingRows.last!.hash
+        let incomingItem = menu(IndexSet(integer:0)).items.first { $0.title == "Show branches this commit is on" }!
+        invoke(incomingItem)
+        let incomingChild = owner.historyContainingReferences.values.first!
+        try await settle { !incomingChild.busy && incomingChild.snapshot?.hash == incomingRows[0].hash }
+        native.menu!.delegate?.menuDidClose?(native.menu!)
+        model.tab = 0; try await settle { table(owner.window!).numberOfRows == rows.count }
+        native = table(owner.window!); native.selectRowIndexes(IndexSet(integer:0),byExtendingSelection:false)
+        let outgoingNavigation = model.historyNavigation[0]!.id
+        incomingChild.onNavigate(incomingTarget,false)
+        precondition(model.historyNavigation[4]?.hash == incomingTarget && model.historyNavigation[0]!.id == outgoingNavigation && model.historyHighlights[4] == incomingTarget)
+        incomingChild.onNavigate(remoteHash,true)
+        precondition(incomingChild.status.stringValue == "The reference is not visible in In Commits." && model.historyNavigation[4]?.hash == incomingTarget)
+        try await Task.sleep(nanoseconds:20_000_000)
+        precondition(native.selectedRowIndexes == IndexSet(integer:0))
+        model.tab = 4; try await settle { table(owner.window!).numberOfRows == incomingRows.count && model.handledHistoryNavigation[4] == model.historyNavigation[4]?.id }
+        native = table(owner.window!)
+        precondition(native.selectedRowIndexes.isEmpty)
+        incomingChild.onNavigate(incomingTarget,true)
+        try await settle { incomingChild.status.stringValue.isEmpty && native.selectedRowIndexes == IndexSet(integer:incomingRows.count - 1) }
+        incomingChild.onNavigate(incomingRows[0].hash,false)
+        try await settle { model.historyHighlights[4] == incomingRows[0].hash && model.handledHistoryNavigation[4] == model.historyNavigation[4]?.id }
+        let incomingCoordinator = native.delegate as! SynchronizationHistoryTable.Coordinator
+        let highlightedHead = incomingCoordinator.tableView(native,viewFor:native.tableColumn(withIdentifier:.init("message")),row:0) as! NSTableCellView
+        let headTraits = NSFontManager.shared.traits(of:highlightedHead.textField!.font!)
+        precondition(incomingRows[0].isHead && headTraits.contains(.boldFontMask) && headTraits.contains(.italicFontMask) && native.selectedRowIndexes == IndexSet(integer:incomingRows.count - 1))
+        incomingChild.close(); precondition(owner.historyContainingReferences.isEmpty)
+        model.tab = 0; try await settle { table(owner.window!).numberOfRows == rows.count }
+        native = table(owner.window!)
         precondition(!menu(IndexSet([0,1])).items.contains { $0.title == "Show branches this commit is on" })
         model.confirmingQuit = true
         precondition(NSApplication.shared.sendAction(containingItem.action!,to:containingTarget,from:containingItem))

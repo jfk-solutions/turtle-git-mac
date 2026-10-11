@@ -155,6 +155,10 @@ opens Log at that commit. Its reference rows provide Log, repository browsing an
 comparison commands. Navigation back to a commit targets the list that opened
 the dialog. If you have changed tabs, return to that commit tab to see the requested
 row; reopening the tab later does not repeat an already-handled navigation.
+Normal reference navigation selects the commit. Hold Shift while double-clicking
+a reference to highlight the commit in italics while keeping the selection.
+If its commit is outside that list, the reference dialog explains that it is not
+visible; your selection remains unchanged.
 
 The existing [light Sync screenshot](site/assets/git-synchronization-light.png)
 and [dark Sync screenshot](site/assets/git-synchronization-dark.png) show native
