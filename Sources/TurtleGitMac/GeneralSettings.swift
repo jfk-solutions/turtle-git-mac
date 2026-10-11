@@ -11,6 +11,7 @@ import TurtleGitCore
     private var saved = GitEnginePreferences.load()
     private var token: OperationCancellation?
     private var request = UUID()
+    private var updateAlert: NSAlert?
     private var panel: NSOpenPanel?
     private var active = false
     weak var window: NSWindow?
@@ -19,6 +20,7 @@ import TurtleGitCore
     func suspend() {
         active = false; request = UUID(); token?.cancel(); token = nil; busy = false
         if let panel { window?.endSheet(panel, returnCode: .cancel); panel.orderOut(nil) }; panel = nil
+        if let updateAlert { window?.endSheet(updateAlert.window, returnCode: .abort) }; updateAlert = nil
     }
     private func executable(_ settings: GitEnginePreferences) throws -> URL {
         if !GitRuntime.isAppStoreBuild, settings.choice == .custom {
@@ -67,6 +69,19 @@ import TurtleGitCore
         } catch { self.error = error.localizedDescription; return false }
     }
     func cancel() { draft = saved; error = nil }
+    func confirmDisableUpdates(_ completion: @escaping () -> Void) {
+        guard active, let window, window.attachedSheet == nil else { return }
+        let alert = NSAlert(); alert.messageText = "Disable automatic update checks?"
+        alert.informativeText = "You can still check manually using Check now."
+        alert.addButton(withTitle: "Disable update checks"); alert.addButton(withTitle: "Abort")
+        updateAlert = alert
+        alert.beginSheetModal(for: window) { [weak self] response in
+            guard let self, self.active, self.updateAlert === alert else { return }; self.updateAlert = nil
+            if response == .alertFirstButtonReturn { completion() }
+        }
+        alert.buttons[0].keyEquivalent = ""; alert.buttons[1].keyEquivalent = "\r"
+        alert.window.defaultButtonCell = alert.buttons[1].cell as? NSButtonCell
+    }
     func browse() {
         guard active, !busy, !GitRuntime.isAppStoreBuild, let window, window.attachedSheet == nil else { return }
         let chooser = NSOpenPanel(); chooser.title = "Select Git executable"; chooser.prompt = "Select Git"
@@ -98,11 +113,19 @@ struct GeneralSettings: View {
     @ObservedObject var appearance: SettingsAppearanceDraft
     @StateObject private var model = GeneralGitSettingsModel()
     @State private var environment: String?
+    @State private var updates = ReleaseUpdateService.enabled
+    @State private var savedUpdates = ReleaseUpdateService.enabled
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             GroupBox("TurtleGit for Mac") {
                 VStack(alignment: .leading, spacing: 12) {
                     Picker("Language:", selection: .constant("en")) { Text("English").tag("en") }
+                    HStack {
+                        Toggle("Automatically check for newer versions every week", isOn: Binding(get: { updates }, set: { enabled in
+                            if enabled { updates = true } else { model.confirmDisableUpdates { updates = false } }
+                        })).disabled(GitRuntime.isAppStoreBuild)
+                        Spacer(); Button("Check now") { ReleaseUpdateService.shared.show() }
+                    }
                     Picker("Appearance:", selection: $appearance.choice) { ForEach(AppearanceChoice.allCases) { Text($0.title).tag($0) } }
                 }.padding(10)
             }
@@ -130,6 +153,7 @@ struct GeneralSettings: View {
         }.padding(20).background(GeneralSettingsProbe(model: model).frame(width: 0, height: 0))
         .onAppear { model.activate() }.onDisappear { model.suspend() }
         .settingsParticipant("general", page: .general, value: appearance.choice, modified: { appearance.changed }, apply: { appearance.apply(); return true }, cancel: appearance.cancel)
+        .settingsParticipant("general.updates", page: .general, value: updates, modified: { updates != savedUpdates }, apply: { UserDefaults.standard.set(updates, forKey: "VersionCheck"); savedUpdates = updates; return true }, cancel: { updates = savedUpdates })
         .settingsParticipant("general.git", page: .general, value: model.draft, modified: { model.modified }, validate: { GitRuntime.isAppStoreBuild || model.draft.valid ? nil : "Choose a valid Git executable and absolute Extra PATH directories." }, apply: { await model.apply() }, cancel: model.cancel)
         .sheet(isPresented: Binding(get: { environment != nil }, set: { if !$0 { environment = nil } })) {
             VStack(alignment: .leading) {

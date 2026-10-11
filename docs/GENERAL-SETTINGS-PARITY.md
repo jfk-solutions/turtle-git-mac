@@ -42,3 +42,12 @@ Language assets/localization, weekly release checking/Check now, full First Star
 Wizard and Windows Create Library's macOS adaptation remain pending. No inactive
 controls are presented as those implemented features. General is not certified
 and inventory counts remain unchanged.
+
+## Weekly update check continuation (uncompiled and untested)
+
+The weekly preference and Check now are now connected to a native release-check
+window and GitHub release metadata for this fork. AppStore builds open their
+managed-update result instead. See [Release updates](RELEASE-UPDATES-PARITY.md)
+for request/version rules, owned windows/confirmation, remaining source installer
+scope and grouped acceptance. The pending weekly-check statement above describes
+the previous checkpoint; both General continuations remain unverified.

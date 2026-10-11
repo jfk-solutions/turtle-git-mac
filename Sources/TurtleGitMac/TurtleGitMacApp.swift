@@ -20,7 +20,7 @@ import TurtleGitCore
             RepositoryWindow(model: model)
                 .disabled(model.confirmingQuit)
                 .onOpenURL { model.handle($0) }
-                .onAppear { applicationDelegate.repositoryModel = model; appearance.apply() }
+                .onAppear { applicationDelegate.repositoryModel = model; appearance.apply(); ReleaseUpdateService.shared.install() }
                 #if DEBUG
                 .onAppear {
                     if Bundle.main.bundleIdentifier?.hasPrefix("org.turtlegit.macos.documentation-preview") == true, model.root == nil,
@@ -38,6 +38,7 @@ import TurtleGitCore
         .commands {
             PatchFileCommands(context: patchMenuContext)
             StatisticsFileCommands(context: statisticsMenuContext)
+            CommandGroup(after: .appInfo) { Button("Check for Updates…") { ReleaseUpdateService.shared.show() } }
             CommandGroup(after: .newItem) {
                 Button("Open Repository…") { model.chooseRepository() }.keyboardShortcut("o")
                 Button("Load Images…") { model.showLoadImages() }.disabled(model.busy || model.confirmingQuit)
