@@ -508,7 +508,7 @@ public struct HistoryOptions: Sendable {
     public init(defaults: UserDefaults = .standard) { useMailmap = defaults.object(forKey: "UseMailmap") as? Bool ?? true }
 }
 
-public struct CommitFile: Identifiable, Hashable, Sendable {
+public struct CommitFile: Identifiable, Hashable, Codable, Sendable {
     public var id: String { parentIndex.map { "\0parent\($0)\0" + path } ?? path }
     /// Present only for separate occurrences in a merge Log's parent groups.
     public let parentIndex: Int?
@@ -1233,7 +1233,13 @@ extension GitRepository {
         return try texts.map { text in try cancellation?.check(); return filter.matches(text) }
     }
 
-    public func files(in entry: LogEntry, cancellation: OperationCancellation? = nil) throws -> [CommitFile] {
+    public func files(in entry: LogEntry, cache: HistoryFileCache? = nil, cancellation: OperationCancellation? = nil) throws -> [CommitFile] {
+        try cancellation?.check()
+        let context = cache.flatMap { _ in try? historyFileCacheContext(entry, cancellation: cancellation) }
+        if let cache, let context, let record = cache.read(context.key), record.context == context.context,
+           let attributes = try? historyFileAttributesFingerprint(record.files, info: context.infoAttributes, global: context.globalAttributes, cancellation: cancellation), attributes == record.attributes {
+            try cancellation?.check(); return record.files
+        }
         try cancellation?.check()
         var args = ["diff-tree", "--root", "--no-commit-id", "-r", "-M", "--no-ext-diff", "--no-color"]
         if let parent = entry.parents.first { args.append(parent) }
@@ -1249,12 +1255,17 @@ extension GitRepository {
         try cancellation?.check()
         let files = CommitFile.parse(names: nameData, statistics: numberData, raw: rawData)
         try cancellation?.check()
-        return files
+        if let cache, let context,
+           let attributes = try? historyFileAttributesFingerprint(files, info: context.infoAttributes, global: context.globalAttributes, cancellation: cancellation) {
+            try cancellation?.check()
+            cache.write(.init(key: context.key, context: context.context, attributes: attributes, files: files))
+        }
+        try cancellation?.check(); return files
     }
     /// GitRevLoglist::GetFiles reads every actual parent in commit order.
     /// Resolve metadata from the pinned commit rather than a caller's cached
     /// parent list; preserve empty groups and duplicate paths across groups.
-    public func logFileGroups(in entry: LogEntry, cancellation: OperationCancellation? = nil) throws -> [LogFileGroup] {
+    public func logFileGroups(in entry: LogEntry, cache: HistoryFileCache? = nil, cancellation: OperationCancellation? = nil) throws -> [LogFileGroup] {
         try cancellation?.check()
         guard (entry.hash.count == 40 || entry.hash.count == 64), entry.hash.allSatisfy({ $0.isASCII && $0.isHexDigit }) else { throw RevisionComparisonFailure.range }
         let metadata = try run(["show", "-s", "--no-notes", "--format=%H%x00%P", entry.hash, "--"], environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation).stdout
@@ -1265,7 +1276,7 @@ extension GitRepository {
         for (index, parent) in (parents.isEmpty ? [nil] : parents.map(Optional.some)).enumerated() {
             try cancellation?.check()
             var scoped = entry; scoped.parents = parent.map { [$0] } ?? []
-            let changed = try files(in: scoped, cancellation: cancellation)
+            let changed = try files(in: scoped, cache: cache, cancellation: cancellation)
             try cancellation?.check()
             groups.append(LogFileGroup(id: index, parent: parent, entry: scoped, files: changed))
         }

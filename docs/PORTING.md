@@ -430,3 +430,16 @@ This extends the same major Dialogs section without a new build, test or app
 launch. The next section work is persistent Log cache and Dialogs 3; combined
 validation follows implementation. Details and acceptance limits are in
 SETTINGS-NAVIGATION-PARITY.md. Inventory remains unchanged.
+
+
+### Log cache and Dialogs 3 backend continuation, 2026-10-11
+
+Added persistent opt-in Log changed-file caching and its source checkbox, with
+configuration/tree/index/attribute invalidation, cancellation fencing, bounded
+atomic records and Git fallback on cache failure. Added all five Dialogs 3 project
+settings with source scopes/inheritance, .tgitconfig hierarchy, bare HEAD reads
+and source-ordered writes. Native page/editor integration remains in progress.
+
+No build, tests or app launches were run for this continuation; validation stays
+with the whole Dialogs section. See LOG-CACHE-PARITY.md and
+SETTINGS-NAVIGATION-PARITY.md for implementation scope and open acceptance.

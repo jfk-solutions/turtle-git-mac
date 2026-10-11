@@ -1078,6 +1078,7 @@ struct LogCommandRequest: Identifiable {
     private let showBranchRevisionNumber: Bool
     @Published private(set) var branchRevisionNumber: String?
     @Published private(set) var describedRevision: String?
+    private let fileCache: HistoryFileCache?
     private let describeOptions: HistoryDescribeOptions
     private let asteriskLogPrefix: Bool
     private var clipboardCancellation: OperationCancellation?
@@ -1159,6 +1160,7 @@ struct LogCommandRequest: Identifiable {
             (revision.tagInfo.isEmpty ? "" : "\n" + prefix + "Tag Info:\n" + HistoryDateSettings.load().tagInfo(revision.tagInfo))
     }
     init(repository: GitRepository, access: RepositoryAccessLease?, selecting: Bool = false, selectingMultiple: Bool = false, labelDefaults: UserDefaults = .standard, gravatar: LogGravatar? = nil, historyRegexExecutable: URL? = nil) {
+        fileCache = (labelDefaults.object(forKey: "EnableLogCache") as? Bool ?? true) ? HistoryFileCache() : nil
         describeOptions = .load(defaults: labelDefaults)
         asteriskLogPrefix = labelDefaults.object(forKey: "AsteriskLogPrefix") == nil || labelDefaults.bool(forKey: "AsteriskLogPrefix")
         let limits = HistoryLimitDefaults.load(defaults: labelDefaults)
@@ -1375,12 +1377,12 @@ struct LogCommandRequest: Identifiable {
         Task {
             do {
                 if revision.parents.count > 1 {
-                    let groups = try await repository.logFileGroups(in: revision, cancellation: cancellation)
+                    let groups = try await repository.logFileGroups(in: revision, cache: fileCache, cancellation: cancellation)
                     guard request == detailGeneration else { return }
                     fileGroups = groups
                     files = groups.flatMap { group in group.files.map { $0.inParentGroup(group.id) } }
                 } else {
-                    let result = try await repository.files(in: revision, cancellation: cancellation)
+                    let result = try await repository.files(in: revision, cache: fileCache, cancellation: cancellation)
                     guard request == detailGeneration else { return }
                     files = result
                 }
@@ -2479,6 +2481,7 @@ struct LogDialogSettings: View {
     @State private var useSystemLocale: Bool
     @State private var labelsOnRight: Bool
     @State private var symbolizeRefs: Bool
+    @State private var enableLogCache: Bool
     @State private var fullMessage: Bool
     @State private var describeFirstParent: Bool
     @State private var describeLong: Bool
@@ -2507,9 +2510,11 @@ struct LogDialogSettings: View {
         "DescribeAbbreviatedSize": .integer(describeSize),
         "DescribeAlwaysLong": .boolean(describeLong),
         "DescribeOnlyFollowFirstParent": .boolean(describeFirstParent),
+        "EnableLogCache": .boolean(enableLogCache),
         "FullCommitMessageOnLogLine": .boolean(fullMessage)
     ] }
     init() {
+        _enableLogCache = State(initialValue: UserDefaults.standard.object(forKey: "EnableLogCache") as? Bool ?? true)
         _describeFirstParent = State(initialValue: (UserDefaults.standard.object(forKey: "DescribeOnlyFollowFirstParent") as? NSNumber)?.boolValue ?? false)
         _describeLong = State(initialValue: (UserDefaults.standard.object(forKey: "DescribeAlwaysLong") as? NSNumber)?.boolValue ?? false)
         _describeSize = State(initialValue: (UserDefaults.standard.object(forKey: "DescribeAbbreviatedSize") as? NSNumber)?.intValue ?? 7)
@@ -2529,6 +2534,7 @@ struct LogDialogSettings: View {
         _symbolizeRefs = State(initialValue: (UserDefaults.standard.object(forKey: "SymbolizeRefNames") as? NSNumber)?.boolValue ?? false)
         _fullMessage = State(initialValue: (UserDefaults.standard.object(forKey: "FullCommitMessageOnLogLine") as? NSNumber)?.boolValue ?? false)
         _original = State(initialValue: [
+            "EnableLogCache": .boolean(UserDefaults.standard.object(forKey: "EnableLogCache") as? Bool ?? true),
             "DescribeOnlyFollowFirstParent": .boolean((UserDefaults.standard.object(forKey: "DescribeOnlyFollowFirstParent") as? NSNumber)?.boolValue ?? false),
             "DescribeAlwaysLong": .boolean((UserDefaults.standard.object(forKey: "DescribeAlwaysLong") as? NSNumber)?.boolValue ?? false),
             "DescribeAbbreviatedSize": .integer((UserDefaults.standard.object(forKey: "DescribeAbbreviatedSize") as? NSNumber)?.intValue ?? 7),
@@ -2551,6 +2557,7 @@ struct LogDialogSettings: View {
     }
     private func applyDraft() { preferenceValues.forEach { $0.value.save($0.key) }; original = preferenceValues }
     private func cancelDraft() {
+        if case .boolean(let value) = original["EnableLogCache"] { enableLogCache = value }
         if case .boolean(let value) = original["DescribeOnlyFollowFirstParent"] { describeFirstParent = value }
         if case .boolean(let value) = original["DescribeAlwaysLong"] { describeLong = value }
         if case .integer(let value) = original["DescribeAbbreviatedSize"] { describeSize = value }
@@ -2586,6 +2593,7 @@ struct LogDialogSettings: View {
                     LogPreferenceCheckbox(title: "Draw tag/branch labels on right side", value: $labelsOnRight).fixedSize(horizontal: false, vertical: true)
                     LogPreferenceCheckbox(title: "Display subject and body of commit messages", value: $fullMessage).fixedSize(horizontal: false, vertical: true)
                     Text("Reopen history windows to apply reference-label and full-message choices.").font(.caption).foregroundStyle(.secondary)
+                    Toggle("Enable log cache", isOn: $enableLogCache)
                     Toggle("Enable Gravatar", isOn: $enableGravatar).help("Enable showing Gravatar image in Log Dialog")
                     TextField("Gravatar URL", text: $gravatarURL).disabled(!enableGravatar).help("Allow to use custom Gravatar URL; %HASH% is replaced by the author email hash")
                     Toggle("Use MD5 for Gravatar", isOn: $gravatarMD5).disabled(!enableGravatar)

@@ -146,3 +146,29 @@ Dialogs 2 Apply validates the source 1–100 timeout/history ranges. Changes abo
 have received source/diff review only. The grouped build/core QA record predates
 this continuation. Persistent Log cache, Dialogs 3 and full native/visual/sandbox
 acceptance remain open. No dialog certification or inventory count has changed.
+
+
+## Persistent cache and Dialogs 3 backend continuation
+
+Dialogs 1 now exposes Enable Log Cache with persistent changed-file records;
+see LOG-CACHE-PARITY.md for its scope and unverified acceptance. The previous
+paragraphs' pending-cache statement describes the earlier checkpoint.
+
+Dialogs 3 backend models are implemented for `tgit.projectlanguage`,
+`tgit.logminsize`, `tgit.logwidthmarker`, `tgit.warnnosignedoffby` and `tgit.icon`.
+Reads support Effective/Local/Project/Global/System. Effective honors the shared
+system/global → .tgitconfig includes → local/worktree/command hierarchy. A missing
+project file gives inherited values; bare repositories read HEAD:.tgitconfig
+through an owned temporary file. Effective fields use read-only default values.
+
+Writes allow Local/Project/Global and reject System/Effective, Local/Project
+without a repository, and Project in a bare repository. Field order matches
+SetDialogs3; inherited fields unset their key. NUL values are rejected before
+writes. Errors stop the sequence and report that earlier fields may already have
+been saved. Local/global remain normal Git configuration files; Project writes
+.tgitconfig and may require an ordinary commit to share with collaborators.
+
+The native Dialogs 3 page, cross-destination confirmation/permission ownership,
+editor width/language/icon integration and full displayed acceptance are still
+outstanding. Core/native changes in this continuation are uncompiled/untested;
+no Dialogs 3 placeholder pane is shown. Inventory counts remain unchanged.

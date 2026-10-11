@@ -183,3 +183,113 @@ extension GitRepository {
         try run(["show", "HEAD:.tgitconfig"], cancellation: cancellation).stdout
     }
 }
+
+/// CGitSettings scope selection for SetDialogs3 (includes .tgitconfig).
+public enum ProjectDialogSettingsSource: String, CaseIterable, Sendable {
+    case effective = "Effective", local = "Local", project = "Project", global = "Global", system = "System"
+}
+public struct ProjectDialogSettings: Equatable, Sendable {
+    public var language = GitConfigurationIdentity()
+    public var minimumMessageLength = GitConfigurationIdentity()
+    public var messageWidthMarker = GitConfigurationIdentity()
+    public var warnNoSignedOffBy: GitConfigurationBoolean = .inherit
+    public var icon = GitConfigurationIdentity()
+    public init() {}
+    static let pattern = "^tgit[.](projectlanguage|logminsize|logwidthmarker|warnnosignedoffby|icon)$"
+    var values: [(String, String?)] {
+        [("tgit.projectlanguage", language.inherit ? nil : language.value),
+         ("tgit.logminsize", minimumMessageLength.inherit ? nil : minimumMessageLength.value),
+         ("tgit.logwidthmarker", messageWidthMarker.inherit ? nil : messageWidthMarker.value),
+         ("tgit.warnnosignedoffby", warnNoSignedOffBy == .inherit ? nil : warnNoSignedOffBy.rawValue),
+         ("tgit.icon", icon.inherit ? nil : icon.value)]
+    }
+}
+extension GitRepository {
+    private func projectDialogSettingsArguments(_ source: ProjectDialogSettingsSource) -> [String] {
+        switch source {
+        case .effective: return []
+        case .local: return ["--local"]
+        case .project: return ["--file", root.appendingPathComponent(".tgitconfig").path]
+        case .global: return ["--global"]
+        case .system: return ["--system"]
+        }
+    }
+    public func projectDialogSettings(source: ProjectDialogSettingsSource, hasRepository: Bool = true, cancellation: OperationCancellation? = nil) throws -> ProjectDialogSettings {
+        try cancellation?.check()
+        if source == .local && !hasRepository { throw GitConfigurationFailure.destination }
+        let values: [String: String]
+        if source == .effective && hasRepository {
+            values = try projectConfiguration(pattern: ProjectDialogSettings.pattern, cancellation: cancellation)
+        } else {
+            var arguments = projectDialogSettingsArguments(source), temporary: URL?
+            defer { if let temporary { try? FileManager.default.removeItem(at: temporary) } }
+            if source == .project {
+                guard hasRepository else { throw GitConfigurationFailure.destination }
+                if try isBare(cancellation: cancellation) {
+                    let bytes = try? projectConfigurationFromHEAD(cancellation: cancellation)
+                    try cancellation?.check()
+                    if let bytes {
+                        let directory = try TurtleGitTemporaryStorage.root.appendingPathComponent("ProjectDialogConfig-" + UUID().uuidString)
+                        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                        temporary = directory
+                        let file = directory.appendingPathComponent(".tgitconfig"); try bytes.write(to: file)
+                        arguments = ["--file", file.path]
+                    } else { return ProjectDialogSettings() }
+                } else if !FileManager.default.fileExists(atPath: root.appendingPathComponent(".tgitconfig").path) {
+                    return ProjectDialogSettings()
+                }
+            }
+            let bytes = try run(["config"] + arguments + ["--includes", "--null", "--get-regexp", ProjectDialogSettings.pattern], successfulExitCodes: 0...1, cancellation: cancellation).stdout
+            var result: [String: String] = [:]
+            for record in bytes.split(separator: 0) {
+                guard let separator = record.firstIndex(of: 10) else {
+                    result[String(decoding: record, as: UTF8.self).lowercased()] = "true"; continue
+                }
+                let key = String(decoding: record[..<separator], as: UTF8.self).lowercased()
+                guard let value = String(data: Data(record[record.index(after: separator)...]), encoding: .utf8) else { throw GitConfigurationFailure.output }
+                result[key] = value
+            }
+            values = result
+        }
+        var result = ProjectDialogSettings()
+        func identity(_ key: String, fallback: String) -> GitConfigurationIdentity {
+            GitConfigurationIdentity(value: values[key] ?? (source == .effective ? fallback : ""), inherit: source != .effective && values[key] == nil)
+        }
+        result.language = identity("tgit.projectlanguage", fallback: "0")
+        result.minimumMessageLength = identity("tgit.logminsize", fallback: "0")
+        result.messageWidthMarker = identity("tgit.logwidthmarker", fallback: "0")
+        result.icon = identity("tgit.icon", fallback: "")
+        if let value = values["tgit.warnnosignedoffby"] {
+            let normalized = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if ["true", "yes", "on", ""].contains(normalized) { result.warnNoSignedOffBy = .enabled }
+            else if ["false", "no", "off"].contains(normalized) { result.warnNoSignedOffBy = .disabled }
+            else if let number = Int64(normalized) { result.warnNoSignedOffBy = number == 0 ? .disabled : .enabled }
+            else { throw GitConfigurationFailure.invalidValue }
+        } else { result.warnNoSignedOffBy = source == .effective ? .disabled : .inherit }
+        try cancellation?.check(); return result
+    }
+    public func saveProjectDialogSettings(_ settings: ProjectDialogSettings, destination: ProjectDialogSettingsSource, hasRepository: Bool = true, cancellation: OperationCancellation? = nil) throws {
+        guard destination == .local || destination == .global || destination == .project else { throw GitConfigurationFailure.destination }
+        if destination == .local || destination == .project {
+            guard hasRepository else { throw GitConfigurationFailure.destination }
+        }
+        if destination == .project, try isBare(cancellation: cancellation) { throw GitConfigurationFailure.destination }
+        guard !settings.values.contains(where: { $0.1?.utf8.contains(0) == true }) else { throw GitConfigurationFailure.invalidValue }
+        let scope = projectDialogSettingsArguments(destination)
+        for (key, value) in settings.values {
+            try cancellation?.check()
+            do {
+                if let value { _ = try run(["config"] + scope + ["--replace-all", "--", key, value], cancellation: cancellation) }
+                else {
+                    if destination == .project, !FileManager.default.fileExists(atPath: root.appendingPathComponent(".tgitconfig").path) { continue }
+                    let arguments = ["config"] + scope + ["--unset-all", "--", key]
+                    let result = try run(arguments, successfulExitCodes: 0...5, cancellation: cancellation)
+                    guard result.exitCode == 0 || result.exitCode == 5 else { throw GitFailure(arguments: arguments, code: result.exitCode, message: result.text) }
+                }
+            } catch {
+                try cancellation?.check()
+                throw GitConfigurationFailure.save(key: key, detail: error.localizedDescription)
+            }
+        }
+    }
+}

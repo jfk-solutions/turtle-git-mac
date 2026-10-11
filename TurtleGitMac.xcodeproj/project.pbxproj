@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		B73104000000000000000001 /* HistoryFileCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73104000000000000000002 /* HistoryFileCache.swift */; };
 		B73102000000000000000009 /* SettingsTransaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7310200000000000000000A /* SettingsTransaction.swift */; };
 		B73102000000000000000007 /* SettingsNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73102000000000000000008 /* SettingsNavigation.swift */; };
 		B73102000000000000000005 /* GitConfigurationPermissions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73102000000000000000006 /* GitConfigurationPermissions.swift */; };
@@ -334,6 +335,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		B73104000000000000000002 /* HistoryFileCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryFileCache.swift; sourceTree = "<group>"; };
 		B7310200000000000000000A /* SettingsTransaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsTransaction.swift; sourceTree = "<group>"; };
 		B73102000000000000000008 /* SettingsNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsNavigation.swift; sourceTree = "<group>"; };
 		B73102000000000000000006 /* GitConfigurationPermissions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitConfigurationPermissions.swift; sourceTree = "<group>"; };
@@ -877,6 +879,7 @@
 				553B03B8CB0E867E812A6B53 /* ReferenceLogDiff.swift */,
 				C3343365A5D1715F6611CABA /* RemoteSettings.swift */,
 				B73102000000000000000002 /* GitConfiguration.swift */,
+				B73104000000000000000002 /* HistoryFileCache.swift */,
 				1541756F953A41D68C44D74B /* RemoteTags.swift */,
 				AA5AD057FE8CA1C91988DA6E /* Removal.swift */,
 				BA121F2E317F86B146016B4E /* Rename.swift */,
@@ -1343,6 +1346,7 @@
 				DF224DF655B4A741AE3BDC97 /* ReferenceLogDiff.swift in Sources */,
 				9EAA76B0018911240EAC2639 /* RemoteSettings.swift in Sources */,
 				B73102000000000000000001 /* GitConfiguration.swift in Sources */,
+				B73104000000000000000001 /* HistoryFileCache.swift in Sources */,
 				C1AC88672C3BE1B0E0F66493 /* RemoteTags.swift in Sources */,
 				A395BF473AA34B992F2BBAB1 /* Removal.swift in Sources */,
 				B5EF4E8582D92A364C726BD5 /* Rename.swift in Sources */,
