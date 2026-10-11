@@ -1344,3 +1344,53 @@ Windows flashing is adapted to a visible macOS status notice; VoiceOver announce
 full child context commands and complete signed Finder/App Store acceptance remain
 pending. The earlier complete Core-suite checkpoint is unchanged; no new full-suite
 result is claimed for this app-only change.
+
+## Revision-list Find follow-up (October 11)
+
+Both lists now expose Find after Copy to clipboard and before the single-row
+Show branches command, matching `GitLogListBase.cpp`'s `ID_FINDENTRY` position.
+The bundled `filteredit.ico` is the exact pinned `IDI_FILTEREDIT` artwork, with
+provenance and the existing application-context icon preference. Find appears
+for single and multiple selections.
+
+Each originating list owns an independent modeless native `CFindDlg` replacement,
+shared with Log. The layout follows `TortoiseLoglistCommon.rc2`'s `IDD_FIND`:
+Full text search with Search for, Match case and Regular Expression, Find/Cancel
+on the right, then Ref (Click it then go to), the original reference-type icons
+and Filter. Inspected actual light/dark window captures are on the public site.
+All labels and controls fit in these captures; minimum-size, physical input and
+accessibility acceptance remain separately outstanding.
+
+The existing rich history matcher searches the originating displayed batch,
+including metadata and lazy changed paths, instead of reopening the main Log or
+searching only subjects. It uses the packaged C++ regular-expression matcher.
+Context Find resets its cursor to the captured selection and focuses an already
+open dialog; ordinary selection and Cmd+F retain the list's cursor. Reference
+navigation resolves the peeled Git hash. Shift+Return scrolls and applies the
+existing italic highlight without changing selection. Navigation issued while
+another tab is visible stays pending for its originating list, using the existing
+per-list navigation IDs. Closing/reopening retains the cursor.
+
+Busy work, Quit/cancellation confirmation and competing owned modal sheets gate
+search and navigation. A Find error sheet blocks conflicting Sync actions and
+normal parent closure; forced owner closure ends its sheet and cancels owned
+reads. Each Find is removed independently on Cancel; closed callbacks cannot
+navigate the parent. Parent model changes update availability in both dialogs.
+The shared native Find uses a visible wrap/no-match status instead of Windows'
+window flashing.
+
+The native revision-list fixture passed with system Git 2.50.1 and packaged Git
+2.55.0, then passed again while taking captures with both engines. It checks
+menu order/original icon, a captured Out action invoked on In, independent
+windows/cursors, subject/email/path/regex/case searches, reference hits/misses,
+Shift highlight and italic traits in both appearances, actual reload blocking,
+error acknowledgement, retained cursor, independent Cancel and parent closure.
+It retains the existing comparison, clipboard, source-menu, unchanged-state and
+owned-read checks. The standalone receiver explicitly supplies the Debug app's
+actual packaged regex helper because its executable is not itself an app bundle.
+All receivers were reaped. Three focused MenuIcon tests passed; Debug and unsigned
+AppStore builds and bundle audits passed with all 121 pinned icon resources.
+
+These checks do not certify Sync/Find or complete application parity. Physical
+menus/keyboard/pointer and VoiceOver, signed repository grants, remaining
+revision commands and complete Finder/App Store acceptance remain open.

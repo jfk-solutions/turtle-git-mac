@@ -13,6 +13,8 @@ optional MX probe skipped**, in 874.897 seconds with Swift 6.3.3 and system Git
 comparison helper and the existing Core integration tests. No Core sources or
 Core tests changed while the suite ran; simultaneous native app work is verified
 separately. See [the checkpoint record](qa/core-full-range-log-checkpoint-2026-10-11.json).
+The later Sync Find icon/resource addition passed all three `MenuIconTests`;
+it is outside that complete-suite checkpoint.
 This result does not establish native UI parity, hosted CI, signed Finder or
 App Store acceptance. The earlier dated checkpoints below retain their original
 scope and limitations.

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import AppKit
+import Combine
 import SwiftUI
 import TurtleGitCore
 
@@ -230,6 +231,8 @@ private struct SynchronizationProgressDialog: View {
     private(set) var historyReferenceController: BranchTagWindowController?
     var configureHistoryContainingReferences: (CommitContainingReferencesWindowController) -> Void = { _ in }
     private(set) var historyContainingReferences: [UUID: CommitContainingReferencesWindowController] = [:]
+    private(set) var historyFind: [Int: RevisionGraphFindController] = [:]
+    private var historyFindAvailability: AnyCancellable?
     var configureOptions: (FetchWindowController) -> Void = { _ in }
     var configurePushOptions: (PushWindowController) -> Void = { _ in }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
@@ -296,7 +299,15 @@ private struct SynchronizationProgressDialog: View {
                 owner.beginSheet(child.window!)
             }
         }
-        model.historyReferencesBlocking = { [weak self] in self?.historyContainingReferences.values.contains { $0.hasBlockingChild } == true }
+        model.historyReferencesBlocking = { [weak self] in
+            guard let self else { return false }
+            return self.historyContainingReferences.values.contains { $0.hasBlockingChild }
+                || self.historyFind.values.contains { $0.acknowledgingFailure || $0.window?.attachedSheet != nil }
+        }
+        model.onHistoryFind = { [weak self] tab, index in self?.showHistoryFind(sourceTab: tab, selectionIndex: index) }
+        historyFindAvailability = model.objectWillChange.sink { [weak self] _ in
+            DispatchQueue.main.async { [weak self] in self?.historyFind.values.forEach { $0.updateAvailability() } }
+        }
         model.onHistoryContainingReferences = { [weak self] hash, sourceTab in
             guard let self, !self.model.closed, !self.model.busy, !self.model.confirmingQuit,
                   !self.model.confirmingCancellation, !self.model.hasBlockingChild,
@@ -588,9 +599,51 @@ private struct SynchronizationProgressDialog: View {
         model.saveHistory()
         return true
     }
+    private var canHistoryFind: Bool {
+        !model.closed && !model.busy && !model.confirmingQuit && !model.confirmingCancellation
+            && !model.hasBlockingChild && window?.attachedSheet == nil
+    }
+    func showHistoryFind(sourceTab: Int, selectionIndex: Int? = nil, regexExecutable: URL? = nil) {
+        guard [0, 4].contains(sourceTab), canHistoryFind, let parent = window else { return }
+        // ID_FINDENTRY resets the originating list's search cursor even when
+        // focusing its already-open CFindDlg.
+        if let selectionIndex { model.historyFindIndex[sourceTab] = max(0, selectionIndex) }
+        if let child = historyFind[sourceTab] { child.window?.makeKeyAndOrderFront(nil); return }
+        let child = RevisionGraphFindController(repository: model.repository, access: model.access, preferences: model.preferences, regexExecutable: regexExecutable)
+        historyFind[sourceTab] = child
+        child.logSnapshot = { [weak model] in
+            guard let model else { return [] }
+            return sourceTab == 4 ? (model.incomingCommits ?? []) : (model.outgoing?.commits ?? [])
+        }
+        child.searchIndex = { [weak model] in model?.historyFindIndex[sourceTab] ?? 0 }
+        child.didFindIndex = { [weak model] in model?.historyFindIndex[sourceTab] = $0 }
+        child.logDateSettings = .load(defaults: model.preferences)
+        child.canSearch = { [weak self] in self?.canHistoryFind == true }
+        child.navigate = { [weak self, weak child] hash, select in
+            guard let self, let child, !child.closed, self.canHistoryFind else { return }
+            let entries = sourceTab == 4 ? (self.model.incomingCommits ?? []) : (self.model.outgoing?.commits ?? [])
+            guard entries.contains(where: { $0.hash == hash }) else { return }
+            if !select { self.model.historyHighlights[sourceTab] = hash }
+            self.model.historyNavigation[sourceTab] = (UUID(), hash, select)
+        }
+        child.modalChanged = { [weak model] in model?.objectWillChange.send() }
+        child.onClosed = { [weak self, weak child, weak parent] in
+            if let window = child?.window { parent?.removeChildWindow(window) }
+            guard let self, self.historyFind[sourceTab] === child else { return }
+            self.historyFind.removeValue(forKey: sourceTab); self.model.objectWillChange.send()
+        }
+        if let window = child.window {
+            window.alphaValue = parent.alphaValue; window.appearance = parent.appearance
+            parent.addChildWindow(window, ordered: .above); window.center(); window.orderFront(nil); window.makeFirstResponder(child.searchBox)
+        }
+        child.updateAvailability(); child.loadReferences()
+    }
     func windowWillClose(_ notification: Notification) {
         model.invalidate()
         model.detachRebase()
+        historyFindAvailability = nil
+        let findDialogs = Array(historyFind.values); historyFind.removeAll()
+        findDialogs.forEach { $0.close() }
         let references = Array(historyContainingReferences.values); historyContainingReferences.removeAll()
         references.forEach { $0.close() }
         if let child = historyReferenceController {
@@ -944,6 +997,8 @@ enum SynchronizationHistoryDiff {
     var onHistoryLog: ((String) -> Void)?
     var onHistoryLogRange: ((HistoryRevisionRange) -> Void)?
     var onHistoryContainingReferences: ((String, Int) -> Void)?
+    var onHistoryFind: ((Int, Int?) -> Void)?
+    var historyFindIndex: [Int: Int] = [:]
     var historyReferencesBlocking: () -> Bool = { false }
     @Published var historyNavigation: [Int: (id: UUID, hash: String, select: Bool)] = [:]
     var handledHistoryNavigation: [Int: UUID] = [:]
@@ -1784,6 +1839,7 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
         table.delegate = context.coordinator; table.dataSource = context.coordinator
         table.target = context.coordinator; table.doubleAction = #selector(Coordinator.activateRevision)
         table.onReturn = { [weak coordinator = context.coordinator] in coordinator?.activateParentComparison() ?? false }
+        table.onFind = { [weak coordinator = context.coordinator] in coordinator?.findHistory() ?? false }
         let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true; scroll.documentView = table
         return scroll
     }
@@ -1837,6 +1893,18 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
         private var revisionActionAvailable: Bool {
             !model.closed && !model.busy && !model.confirmingQuit && !model.confirmingCancellation && !model.hasBlockingChild && model.window?.attachedSheet == nil
         }
+        func findHistory() -> Bool {
+            guard sourceTab == model.tab, revisionActionAvailable, let action = model.onHistoryFind, table != nil else { return false }
+            action(sourceTab, nil); return true
+        }
+        private final class FindTarget: NSObject {
+            let tab: Int, index: Int
+            init(tab: Int, index: Int) { self.tab = tab; self.index = index }
+        }
+        @objc func historyFind(_ sender: NSMenuItem) {
+            guard revisionActionAvailable, let target = sender.representedObject as? FindTarget else { return }
+            model.onHistoryFind?(target.tab, target.index)
+        }
         private final class RangeTarget: NSObject {
             let range: HistoryRevisionRange
             init(_ range: HistoryRevisionRange) { self.range = range }
@@ -1886,6 +1954,7 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
             guard sourceTab == model.tab, let table else { return }
             let entries = table.selectedRowIndexes.compactMap { model.historyEntries.indices.contains($0) ? model.historyEntries[$0] : nil }
             guard !entries.isEmpty else { return }
+            model.historyFindIndex[sourceTab] = max(0, table.selectedRow)
             let clipboard = NSMenu(title: "Copy to clipboard"); clipboard.autoenablesItems = false
             let available = !model.closed && !model.busy && !model.confirmingQuit && !model.hasBlockingChild
             let pointed = (table as? HistoryTableView)?.contextReference
@@ -1993,6 +2062,10 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
             }
             let parent = NSMenuItem(title: "Copy to clipboard", action: nil, keyEquivalent: "")
             parent.image = MenuIcon.copy.contextImage(defaults: model.preferences); parent.submenu = clipboard; menu.addItem(parent)
+            let find = NSMenuItem(title: "Find", action: #selector(historyFind(_:)), keyEquivalent: "")
+            find.target = self; find.isEnabled = revisionActionAvailable && model.onHistoryFind != nil
+            find.image = MenuIcon.historyFind.contextImage(defaults: model.preferences)
+            find.representedObject = FindTarget(tab: sourceTab, index: max(0, table.selectedRow)); menu.addItem(find)
             if entries.count == 1, let entry = entries.first {
                 let item = NSMenuItem(title: "Show branches this commit is on", action: #selector(historyContainingReferences(_:)), keyEquivalent: "")
                 item.target = self; item.isEnabled = revisionActionAvailable && model.onHistoryContainingReferences != nil

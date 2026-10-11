@@ -20,6 +20,7 @@ public enum MenuIcon: String, CaseIterable {
     case turtle = "TortoiseSmall", status = "menushowchanged", commit = "menucommit", log = "menulog"
     case blame = "TortoiseGitBlame"
     case revisionGraph = "menurevisiongraph", showBranches = "showbranches"
+    case historyFind = "filteredit"
     case bisect = "menubisect", bisectReset = "menubisectreset", bisectGood = "thumb_up", bisectBad = "thumb_down"
     case patch = "menupatch", sendMail = "menusendmail"
     case repositoryBrowser = "menurepobrowse", executableOverlay = "executableovl", symlinkOverlay = "symlinkovl", externalOverlay = "externalovl"

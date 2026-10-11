@@ -98,8 +98,10 @@ require review; a dialog count is not a count of all upstream UI.
 
 The latest complete local SwiftPM suite passed **980 tests, zero failures**, with
 one optional MX probe skipped, on October 11, 2026. The system Git 2.50.1 / Swift
-6.3.3 process exited normally after 874.897 seconds. It covers the current Core
-and Core tests, including generated change-set comparison, but not native app UI.
+6.3.3 process exited normally after 874.897 seconds. It covers the recorded Core
+checkpoint, including generated change-set comparison, but not native app UI.
+The later Sync Find icon/resource addition passed the three focused MenuIcon
+tests; the complete suite has not been rerun for that addition.
 See [the complete Core checkpoint](qa/core-full-range-log-checkpoint-2026-10-11.json).
 Recent Sync native checks, unsigned builds and bundle audits have separate
 workflow records; these do not expand the Core result's scope.

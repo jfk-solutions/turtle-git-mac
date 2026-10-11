@@ -2997,7 +2997,17 @@ final class HistoryTableView: NSTableView {
     var contextReference: (row: Int, name: String)?
     var contextExtendedMenu = false
     var onReturn: (() -> Bool)?
+    var onFind: (() -> Bool)?
+    private func performFind(_ event: NSEvent) -> Bool {
+        event.modifierFlags.intersection([.shift, .command, .control, .option]) == .command
+            && event.charactersIgnoringModifiers?.lowercased() == "f" && onFind?() == true
+    }
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if performFind(event) { return true }
+        return super.performKeyEquivalent(with: event)
+    }
     override func keyDown(with event: NSEvent) {
+        if performFind(event) { return }
         if [36, 76].contains(event.keyCode), event.modifierFlags.intersection([.command, .control]).isEmpty,
            onReturn?() == true { return }
         super.keyDown(with: event)

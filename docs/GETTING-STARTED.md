@@ -160,6 +160,15 @@ a reference to highlight the commit in italics while keeping the selection.
 If its commit is outside that list, the reference dialog explains that it is not
 visible; your selection remains unchanged.
 
+Choose **Find** from a commit list's context menu, or press **Cmd+F** with that
+list focused. Incoming and outgoing lists keep separate Find windows and search
+positions. Search includes commit text, metadata and changed paths; Match case
+and Regular Expression refine it. Click a reference to navigate to its commit.
+**Shift+Return** highlights a text match without changing the selected rows.
+If you switch tabs while a Find window is open, its results still belong to its
+original list. See the [light Find capture](site/assets/sync-find-light.png) and
+[dark Find capture](site/assets/sync-find-dark.png).
+
 The existing [light Sync screenshot](site/assets/git-synchronization-light.png)
 and [dark Sync screenshot](site/assets/git-synchronization-dark.png) show native
 windows at earlier development checkpoints. See [Sync parity](SYNCHRONIZATION-PARITY.md)

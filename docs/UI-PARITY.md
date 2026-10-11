@@ -199,3 +199,14 @@ checks from remaining physical, live-operation and signed acceptance.
 [Dialog sizes and positions](DIALOG-GEOMETRY.md) maps native frame persistence
 and Saved Data reset to the source, with Core/headless verification and physical,
 mode-specific and signed gaps. Evidence: [checkpoint](qa/dialog-geometry-2026-10-08.json).
+
+## Shared Sync Find consumer (October 11)
+
+Sync In/Out now use the same native Find dialog as Log and Revision Graph,
+with the source's menu position, original filter icon and independent list-owned
+cursors/windows. Subject, metadata, path, regex/case, reference and Shift-highlight
+routes, busy/error gates and forced parent closure have native two-engine checks.
+Actual light/dark Find window captures were inspected and added to the site.
+The source dialog/control inventory remains partial; these checks do not establish
+full physical, accessibility, signed or all-consumer parity. See
+[Sync parity](SYNCHRONIZATION-PARITY.md#revision-list-find-follow-up-october-11).

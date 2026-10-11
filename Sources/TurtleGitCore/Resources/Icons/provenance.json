@@ -602,6 +602,11 @@
       "asset": "showbranches.ico",
       "source": "src/Resources/showbranches.ico",
       "sha256": "57e5fe5a75af13786c6c98a2e0d12585e65eec3ceba0c7e53216a03e32b08d9d"
+    },
+    {
+      "asset": "filteredit.ico",
+      "source": "src/Resources/filteredit.ico",
+      "sha256": "69d3d2bced56918219f6baffcabd30a2aca38114d8d11e9f3cd8da995f660e0f"
     }
   ]
 }

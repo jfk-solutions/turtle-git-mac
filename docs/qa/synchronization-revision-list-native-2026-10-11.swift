@@ -17,6 +17,150 @@ struct SynchronizationRevisionListVerification {
         window.contentView!.layoutSubtreeIfNeeded()
         return descendants(window.contentView!).compactMap { $0 as? NSTableView }.first { $0.tableColumn(withIdentifier: .init("actions")) != nil }!
     }
+    @MainActor static func verifyFind(_ owner: SynchronizationWindowController, outgoing: [LogEntry], incoming: [LogEntry]) async throws {
+        let model = owner.model, window = owner.window!
+        // This receiver is not an app bundle. Use the real Debug app's
+        // packaged C++ matcher in the production controller's injectable route.
+        let project = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let app = Bundle(url: project.appendingPathComponent("build/Build/Products/Debug/TurtleGitMac.app"))!
+        let matcher = try IssueRegexRuntime.executable(bundle: app)
+        let originalFindRoute = model.onHistoryFind
+        defer { model.onHistoryFind = originalFindRoute }
+        model.onHistoryFind = { [weak owner] tab, index in owner?.showHistoryFind(sourceTab: tab, selectionIndex: index, regexExecutable: matcher) }
+        func menu(_ indexes: IndexSet) -> NSMenu {
+            let list = table(window); list.selectRowIndexes(indexes, byExtendingSelection: false)
+            let menu = list.menu!; menu.delegate?.menuNeedsUpdate?(menu); return menu
+        }
+        func invoke(_ item: NSMenuItem) { precondition(item.isEnabled && NSApp.sendAction(item.action!, to: item.target, from: item)) }
+        func key(_ window: NSWindow, text: String, modifiers: NSEvent.ModifierFlags, code: UInt16) -> NSEvent {
+            NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: modifiers, timestamp: 0, windowNumber: window.windowNumber, context: nil, characters: text, charactersIgnoringModifiers: text, isARepeat: false, keyCode: code)!
+        }
+        model.tab = 0; try await settle { table(window).numberOfRows == outgoing.count }
+        let single = menu(IndexSet(integer: 0)), capturedFind = single.items.first { $0.title == "Find" }!
+        let capturedTarget = capturedFind.target // Retain the originating coordinator across tab replacement.
+        precondition(capturedFind.image != nil)
+        let titles = single.items.map(\.title)
+        precondition(titles.firstIndex(of: "Find")! == titles.firstIndex(of: "Copy to clipboard")! + 1)
+        precondition(titles.firstIndex(of: "Show branches this commit is on")! == titles.firstIndex(of: "Find")! + 1)
+        precondition(menu(IndexSet([0, 1])).items.filter { $0.title == "Find" }.count == 1)
+        single.delegate?.menuDidClose?(single)
+        model.tab = 4; try await settle { table(window).numberOfRows == incoming.count }
+        let incomingBefore = model.historyNavigation[4]?.id
+        precondition(NSApp.sendAction(capturedFind.action!, to: capturedTarget, from: capturedFind))
+        let outFind = owner.historyFind[0]!, outWindow = outFind.window!
+        precondition(outWindow.parent === window && outWindow.alphaValue == window.alphaValue && outFind.searchIndex() == 0)
+        try await settle { !outFind.loadingReferences }
+        precondition(outFind.references.contains("refs/heads/main") && outFind.references.contains("refs/remotes/origin/main"))
+        if CommandLine.arguments.count > 3 {
+            let output = URL(fileURLWithPath: CommandLine.arguments[3])
+            try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
+            let appearance = outWindow.appearance
+            for (theme, name) in [("light", NSAppearance.Name.aqua), ("dark", .darkAqua)] {
+                outWindow.appearance = NSAppearance(named: name)
+                outWindow.contentView!.layoutSubtreeIfNeeded(); outWindow.contentView!.displayIfNeeded()
+                try await Task.sleep(nanoseconds: 250_000_000)
+                guard let pixels = CGWindowListCreateImage(.null, .optionIncludingWindow, CGWindowID(outWindow.windowNumber), [.boundsIgnoreFraming, .bestResolution]) else { preconditionFailure("Find capture unavailable") }
+                try NSBitmapImageRep(cgImage: pixels).representation(using: .png, properties: [:])!.write(to: output.appendingPathComponent("sync-find-" + theme + ".png"))
+            }
+            outWindow.appearance = appearance
+        }
+        let rootIndex = outgoing.firstIndex { $0.subject == "Root" }!
+        outFind.searchBox.stringValue = "Root"; outFind.findNext()
+        try await settle { !outFind.busy && model.historyNavigation[0]?.hash == outgoing[rootIndex].hash }
+        precondition(model.tab == 4 && model.historyNavigation[4]?.id == incomingBefore)
+        let selectedIncoming = table(window).selectedRowIndexes
+        outFind.searchReference("refs/heads/remote-root")
+        try await settle { !outFind.busy }
+        precondition(outFind.status.stringValue.contains("No further match") && table(window).selectedRowIndexes == selectedIncoming)
+        // A separate Find belongs to In Commits; Cmd+F does not reset the cursor.
+        let inTable = table(window) as! HistoryTableView
+        precondition(inTable.performKeyEquivalent(with: key(window, text: "f", modifiers: .command, code: 3)))
+        let inFind = owner.historyFind[4]!
+        precondition(inFind !== outFind && owner.historyFind.count == 2)
+        try await settle { !inFind.loadingReferences }
+        inFind.searchBox.stringValue = "Root"; inFind.findNext(); try await settle { !inFind.busy }
+        precondition(inFind.status.stringValue.contains("No further match"))
+        inFind.searchReference("refs/heads/side")
+        try await settle { !inFind.busy && model.historyNavigation[4]?.hash == incoming.first { $0.subject.hasPrefix("Side parent") }?.hash }
+        model.tab = 0
+        try await settle { table(window).numberOfRows == outgoing.count && table(window).selectedRowIndexes == IndexSet(integer: rootIndex) }
+        let outTable = table(window) as! HistoryTableView
+        // Context Find focuses the same window and resets to its captured row.
+        invoke(menu(IndexSet(integer: 0)).items.first { $0.title == "Find" }!)
+        precondition(owner.historyFind[0] === outFind && outFind.searchIndex() == 0)
+        outFind.matchCase.state = .on; outFind.searchBox.stringValue = "root"; outFind.findNext()
+        try await settle { !outFind.busy }; precondition(outFind.status.stringValue.contains("No further match"))
+        // LOGFILTER_ALL concatenates the subject with body/metadata/paths, so
+        // a whole-corpus end anchor would not match a subject by itself.
+        outFind.matchCase.state = .off; outFind.regex.state = .on; outFind.searchBox.stringValue = "^Main sec[o]nd"; outFind.findNext()
+        let secondIndex = outgoing.firstIndex { $0.subject == "Main second" }!
+        try await settle { !outFind.busy }
+        precondition(!outFind.status.stringValue.contains("No further match"), outFind.status.stringValue)
+        precondition(!outFind.acknowledgingFailure, "Regex search unexpectedly presented an error sheet")
+        try await settle { !outFind.busy && outTable.selectedRowIndexes == IndexSet(integer: secondIndex) }
+        precondition(model.preferences.bool(forKey: "LogDialog.FindRegex"))
+        outFind.regex.state = .off; outFind.searchBox.stringValue = "qa@example.invalid"; outFind.findNext()
+        try await settle { !outFind.busy && model.historyFindIndex[0] == secondIndex + 1 }
+        // A changed-path search must use the complete history corpus, not just subjects.
+        owner.showHistoryFind(sourceTab: 0, selectionIndex: 0)
+        outFind.searchBox.stringValue = "tracked.txt"; outFind.findNext()
+        let mergeIndex = outgoing.firstIndex { $0.subject == "Merge" }!
+        try await settle { !outFind.busy && outTable.selectedRowIndexes == IndexSet(integer: mergeIndex) }
+        owner.showHistoryFind(sourceTab: 0, selectionIndex: 0)
+        outFind.searchBox.stringValue = "Root"
+        outWindow.sendEvent(key(outWindow, text: "\r", modifiers: .shift, code: 36))
+        try await settle { !outFind.busy && model.historyHighlights[0] == outgoing[rootIndex].hash && model.handledHistoryNavigation[0] == model.historyNavigation[0]?.id }
+        precondition(outTable.selectedRowIndexes == IndexSet(integer: mergeIndex))
+        let coordinator = outTable.delegate as! SynchronizationHistoryTable.Coordinator
+        for appearance in [NSAppearance.Name.aqua, .darkAqua] {
+            window.appearance = NSAppearance(named: appearance)
+            let rendered = coordinator.tableView(outTable, viewFor: outTable.tableColumn(withIdentifier: .init("message")), row: rootIndex) as! NSTableCellView
+            precondition(NSFontManager.shared.traits(of: rendered.textField!.font!).contains(.italicFontMask))
+        }
+        // Ordinary row selection and keyboard reopening retain Find's cursor.
+        outTable.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
+        let retained = outFind.searchIndex()
+        precondition(outTable.performKeyEquivalent(with: key(window, text: "f", modifiers: .command, code: 3)) && outFind.searchIndex() == retained)
+        model.reload(); precondition(model.busy)
+        try await settle { !outFind.searchBox.isEnabled && !inFind.searchBox.isEnabled }
+        outFind.findNext(); precondition(!outFind.busy)
+        try await settle { !model.busy && outFind.searchBox.isEnabled && inFind.searchBox.isEnabled }
+        outFind.searchReference("refs/heads/not-a-real-find-reference")
+        try await settle { outWindow.attachedSheet != nil }
+        precondition(outFind.acknowledgingFailure && model.hasBlockingChild && !owner.windowShouldClose(window))
+        let sheet = outWindow.attachedSheet!
+        let ok = descendants(sheet.contentView!).compactMap { $0 as? NSButton }.first { $0.title == "OK" }!
+        ok.performClick(nil); try await settle { !outFind.acknowledgingFailure && outWindow.attachedSheet == nil && !model.hasBlockingChild }
+        outFind.cancelButton.performClick(nil); try await settle { owner.historyFind[0] == nil }
+        precondition(outFind.closed && outWindow.parent == nil && owner.historyFind[4] === inFind)
+        let navigation = model.historyNavigation[0]?.id
+        outFind.navigate(outgoing[0].hash, true); precondition(model.historyNavigation[0]?.id == navigation)
+        precondition(outTable.performKeyEquivalent(with: key(window, text: "f", modifiers: .command, code: 3)))
+        let reopened = owner.historyFind[0]!
+        precondition(reopened !== outFind && reopened.searchIndex() == retained)
+        reopened.close(); inFind.close(); precondition(owner.historyFind.isEmpty)
+        // Parent closure force-closes both independently owned modeless dialogs.
+        let closing = SynchronizationWindowController(repository: model.repository, access: nil, preferences: model.preferences)
+        closing.showWindow(nil); try await settle { !closing.model.busy && !closing.model.hasBlockingChild }
+        closing.showHistoryFind(sourceTab: 0); closing.showHistoryFind(sourceTab: 4)
+        let children = Array(closing.historyFind.values); precondition(children.count == 2)
+        try await settle { children.allSatisfy { !$0.loadingReferences } }
+        let failing = closing.historyFind[0]!
+        // Initial native combo/focus handoffs may schedule another reload;
+        // wait for the actual search gate after both windows have loaded.
+        try await settle { failing.canSearch() }
+        failing.searchReference("refs/heads/not-a-real-find-reference")
+        precondition(failing.busy, "Find error search did not start: canSearch=\(failing.canSearch()), loading=\(failing.loadingReferences), parentBusy=\(closing.model.busy), parentBlocked=\(closing.model.hasBlockingChild)")
+        try await settle { !failing.busy }
+        precondition(failing.acknowledgingFailure, "Find error was not acknowledged: status=\(failing.status.stringValue), canSearch=\(failing.canSearch()), parentBusy=\(closing.model.busy), parentBlocked=\(closing.model.hasBlockingChild)")
+        try await settle { failing.acknowledgingFailure && failing.window?.attachedSheet != nil }
+        precondition(!closing.windowShouldClose(closing.window!))
+        closing.close(); precondition(closing.model.closed && closing.historyFind.isEmpty && children.allSatisfy { $0.closed && $0.window?.parent == nil && $0.window?.attachedSheet == nil })
+        let closedNavigation = closing.model.historyNavigation
+        children.forEach { $0.navigate(outgoing[0].hash, true) }
+        precondition(closing.model.historyNavigation.count == closedNavigation.count)
+        print("PASS: Sync Find context order/icon, captured origin, two-list independence, subject/metadata/path/regex/case search, Shift highlight, cursor, error ownership and cleanup")
+    }
     @MainActor static func verifyComparisonSelectionCases(root: URL, git: URL, preferences: UserDefaults) async throws {
         try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
         let repo = GitRepository(root:root,executable:git)
@@ -236,6 +380,7 @@ struct SynchronizationRevisionListVerification {
         let headTraits = NSFontManager.shared.traits(of:highlightedHead.textField!.font!)
         precondition(incomingRows[0].isHead && headTraits.contains(.boldFontMask) && headTraits.contains(.italicFontMask) && native.selectedRowIndexes == IndexSet(integer:incomingRows.count - 1))
         incomingChild.close(); precondition(owner.historyContainingReferences.isEmpty)
+        try await verifyFind(owner, outgoing: rows, incoming: incomingRows)
         model.tab = 0; try await settle { table(owner.window!).numberOfRows == rows.count }
         native = table(owner.window!)
         precondition(!menu(IndexSet([0,1])).items.contains { $0.title == "Show branches this commit is on" })
