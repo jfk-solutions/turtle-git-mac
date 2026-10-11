@@ -1,4 +1,5 @@
 import AppKit
+import Darwin
 import TurtleGitCore
 
 @main struct SynchronizationVerification {
@@ -212,7 +213,11 @@ import TurtleGitCore
         _ = try await repo.run(["config", "branch.main.rebase", "false"]); _ = try await repo.run(["config", "pull.ff", "false"])
         try Data("local conflict\n".utf8).write(to: clientRoot.appendingPathComponent("file")); try await repo.stage(["file"]); _ = try await repo.commit(message: "local conflict")
         try Data("remote conflict\n".utf8).write(to: authorRoot.appendingPathComponent("file")); try await author.stage(["file"]); _ = try await author.commit(message: "remote conflict"); _ = try await author.run(["push", "origin", "main"])
+        var hints = 0
+        preferences.removeObject(forKey: MergeProgressWindowModel.conflictHintPreference)
+        model.presentConflictHint = { hints += 1; return true }
         model.performPullAction(.pull); try await settle { !model.busy }
+        precondition(hints == 1 && preferences.bool(forKey: MergeProgressWindowModel.conflictHintPreference))
         precondition(!model.commandSucceeded && model.tab == 6 && model.conflicts.contains { $0.path == "file" })
         _ = try await repo.run(["merge", "--abort"])
         try Data("dirty checkout work\n".utf8).write(to: clientRoot.appendingPathComponent("file"))
@@ -260,6 +265,148 @@ import TurtleGitCore
         precondition(blocked.closed && !blocked.busy && blocked.commandOutput == closedOutput && refsAfterClose == refsBeforeClose)
         precondition(blockedProgress.sheetParent == nil && !blockedProgress.isVisible && !blockedController.model.confirmingCancellation)
         print("PASS: native Pull separate checkout, original incoming baseline/graph/files, tracking Yes/No/Cancel suppression, branch Abort, actual preserve-merges handoff callback, conflict results, failed-checkout dismissal and forced running-checkout cleanup with late cancellation replies")
+    }
+    @MainActor static func verifyShiftOptions(root: URL, preferences: UserDefaults) async throws {
+        let git = URL(fileURLWithPath: CommandLine.arguments[2]), directory = root.appendingPathComponent("shift-options-fixture")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let parent = GitRepository(root: directory, executable: git), server = directory.appendingPathComponent("server.git"), authorRoot = directory.appendingPathComponent("author"), clientRoot = directory.appendingPathComponent("client")
+        _ = try await parent.run(["init", "--template=", "--bare", "-b", "main", server.path]); _ = try await parent.run(["init", "--template=", "-b", "main", authorRoot.path])
+        let author = GitRepository(root: authorRoot, executable: git)
+        for (key, value) in [("user.name", "Shift QA"), ("user.email", "qa@example.invalid"), ("commit.gpgsign", "false"), ("core.hooksPath", "/dev/null")] { _ = try await author.run(["config", key, value]) }
+        try Data("base\n".utf8).write(to: authorRoot.appendingPathComponent("file")); try await author.stage(["file"]); _ = try await author.commit(message: "base")
+        _ = try await author.run(["remote", "add", "origin", server.path]); _ = try await author.run(["push", "-u", "origin", "main"])
+        _ = try await parent.run(["clone", "--template=", "--", server.path, clientRoot.path])
+        let repo = GitRepository(root: clientRoot, executable: git)
+        for (key, value) in [("user.name", "Shift QA"), ("user.email", "qa@example.invalid"), ("commit.gpgsign", "false"), ("core.hooksPath", "/dev/null"), ("pull.rebase", "false"), ("pull.ff", "only")] { _ = try await repo.run(["config", key, value]) }
+        func hash(_ repository: GitRepository) async throws -> String { String(decoding: try await repository.run(["rev-parse", "HEAD"]).stdout, as: UTF8.self).trimmingCharacters(in: .newlines) }
+        let base = try await hash(repo)
+        let owner = SynchronizationWindowController(repository: repo, access: nil, preferences: preferences)
+        owner.window!.alphaValue = 0; owner.showWindow(nil); defer { owner.close() }
+        var configured = 0
+        owner.configureOptions = { child in
+            configured += 1
+            precondition(child.model.repository === repo)
+            child.model.sshSettings.enabled = false
+            child.presentFetchProgress = { parent, progress in progress.alphaValue = 0; parent.beginSheet(progress); return true }
+            child.presentPullProgress = { parent, progress in progress.alphaValue = 0; parent.beginSheet(progress); return true }
+        }
+        let model = owner.model; model.sshSettings.enabled = false
+        try await settle { !model.busy && model.outgoing != nil }
+        model.remote = "origin"; model.remoteBranch = "main"; model.localBranch = "main"
+        let before = try await repo.run(["show-ref"]).stdout
+        precondition(!model.busy && !model.hasBlockingChild && owner.window?.attachedSheet == nil)
+        model.fetch(.fetch, shift: true)
+        try await settle { (owner.optionsController != nil && !owner.optionsController!.model.busy) || model.commandCompleted }
+        precondition(owner.optionsController != nil, "Options did not open: \(model.commandOutput)")
+        let cancelled = owner.optionsController!
+        precondition(configured == 1 && !cancelled.model.isPull && cancelled.model.options.remote == "origin" && cancelled.window?.sheetParent === owner.window)
+        precondition(!owner.windowShouldClose(owner.window!))
+        cancelled.model.cancel()
+        try await settle { model.commandCompleted && !model.busy }
+        let afterCancel = try await repo.run(["show-ref"]).stdout
+        precondition(before == afterCancel && model.incomingUpToDate && owner.optionsController == nil && cancelled.window?.sheetParent == nil)
+
+        _ = try await repo.run(["config", "pull.rebase", "true"])
+        model.remoteBranch = ""
+        model.fetch(.pull, shift: true)
+        try await settle { owner.optionsController != nil && !owner.optionsController!.model.busy }
+        let configuredPull = owner.optionsController!
+        precondition(configuredPull.model.isPull && configuredPull.model.configuredRebase)
+        configuredPull.model.cancel()
+        try await settle { model.commandCompleted && !model.busy }
+        _ = try await repo.run(["config", "pull.rebase", "false"])
+        model.remoteBranch = "main"
+
+        // URL selection is not forwarded; full Fetch uses its own named default.
+        model.remote = server.path
+        model.fetch(.fetch, shift: true)
+        try await settle { owner.optionsController != nil && !owner.optionsController!.model.busy }
+        let fetch = owner.optionsController!
+        precondition(!fetch.model.options.arbitraryURL && fetch.model.options.remote == "origin")
+        try Data("incoming\n".utf8).write(to: authorRoot.appendingPathComponent("incoming")); try await author.stage(["incoming"]); _ = try await author.commit(message: "incoming"); _ = try await author.run(["push", "origin", "main"])
+        let target = try await hash(author)
+        fetch.model.options.branch = "main"; fetch.model.launchRebase = false; fetch.model.fetch()
+        try await settle { fetch.fetchProgressController != nil && !fetch.fetchProgressController!.model.busy }
+        precondition(fetch.fetchProgressController!.model.success)
+        fetch.fetchProgressController!.model.close()
+        try await settle { model.commandCompleted && !model.busy }
+        let fetchedHead = try await hash(repo)
+        precondition(fetchedHead == base && model.incomingUpToDate && model.referenceChanges.contains { $0.name.rawValue == "refs/remotes/origin/main" && $0.newHash == target } && model.commandOutput.isEmpty)
+
+        // Pull switches first, then opens unpreset full options and compares
+        // against the original branch's HEAD after the child is dismissed.
+        _ = try await repo.run(["switch", "-c", "other"])
+        try Data("other\n".utf8).write(to: clientRoot.appendingPathComponent("other")); try await repo.stage(["other"]); _ = try await repo.commit(message: "other baseline")
+        let baseline = try await hash(repo)
+        model.remote = "origin"; model.localBranch = "main"; model.remoteBranch = "main"
+        model.confirmCheckout = { branch in precondition(branch == "main"); return true }
+        model.fetch(.pull, shift: true)
+        try await settle { owner.optionsController != nil && !owner.optionsController!.model.busy }
+        let pull = owner.optionsController!
+        let checkedOut = try await hash(repo)
+        precondition(checkedOut == base && pull.model.isPull && pull.model.options.remote == "origin")
+        pull.model.launchRebase = false; pull.model.options.branch = "main"; pull.model.fastForwardOnly = true; pull.model.fetch()
+        try await settle { pull.progressController != nil && !pull.progressController!.model.busy }
+        precondition(pull.progressController!.model.success)
+        pull.progressController!.model.close()
+        try await settle { model.commandCompleted && !model.busy }
+        let pulled = try await hash(repo)
+        precondition(pulled == target && model.incomingComparison.snapshot?.from == .revision(baseline) && model.incomingComparison.snapshot?.to == .revision(target) && model.incomingCommits?.contains { $0.subject == "incoming" } == true)
+
+        _ = try await repo.run(["config", "pull.ff", "false"])
+        try Data("local conflict\n".utf8).write(to: clientRoot.appendingPathComponent("file")); try await repo.stage(["file"]); _ = try await repo.commit(message: "local conflict")
+        try Data("remote conflict\n".utf8).write(to: authorRoot.appendingPathComponent("file")); try await author.stage(["file"]); _ = try await author.commit(message: "remote conflict"); _ = try await author.run(["push", "origin", "main"])
+        model.fetch(.pull, shift: true)
+        try await settle { owner.optionsController != nil && !owner.optionsController!.model.busy }
+        let conflictPull = owner.optionsController!
+        conflictPull.model.launchRebase = false; conflictPull.model.options.branch = "main"; conflictPull.model.fastForwardOnly = false
+        conflictPull.model.fetch()
+        try await settle { conflictPull.progressController != nil && !conflictPull.progressController!.model.busy }
+        precondition(!conflictPull.progressController!.model.success)
+        // Child hint suppression was set by the preceding ordinary Pull check.
+        precondition(preferences.bool(forKey: MergeProgressWindowModel.conflictHintPreference))
+        conflictPull.progressController!.model.close()
+        try await settle { model.commandCompleted && !model.busy }
+        precondition(model.tab == 6 && model.conflicts.contains { $0.path == "file" } && model.incomingComparison.snapshot == nil)
+        _ = try await repo.run(["merge", "--abort"])
+
+        let output = model.commandOutput, refs = model.referenceChanges.count, selectedTab = model.tab
+        model.fetch(.fetchAndRebase, shift: true)
+        precondition(owner.optionsController == nil && !model.busy && model.commandOutput == output && model.referenceChanges.count == refs && model.tab == selectedTab && preferences.integer(forKey: "TurtleGit.Sync." + clientRoot.path + ".pullAction") == 2)
+        // Forced parent closure ends the owned options sheet and resumes exactly
+        // once, without publishing a late refresh into the invalidated parent.
+        model.fetch(.fetch, shift: true)
+        try await settle { owner.optionsController != nil && !owner.optionsController!.model.busy }
+        let orphan = owner.optionsController!, closedOutput = model.commandOutput
+        owner.close()
+        try await Task.sleep(nanoseconds: 50_000_000)
+        precondition(model.closed && !model.busy && model.commandOutput == closedOutput && owner.optionsController == nil && orphan.window?.sheetParent == nil && orphan.window?.isVisible == false)
+        let shim = directory.appendingPathComponent("qa-shift-git"), marker = directory.appendingPathComponent("fetch-running")
+        func quote(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\"'\"'") + "'" }
+        let script = "#!/bin/sh\nif [ \"$4\" = fetch ]; then\nprintf '%s\\n' \"$$\" > " + quote(marker.path) + "\nwhile :; do sleep 1; done\nfi\nexec " + quote(git.path) + " \"$@\"\n"
+        try Data(script.utf8).write(to: shim); try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: shim.path)
+        let blockedOwner = SynchronizationWindowController(repository: GitRepository(root: clientRoot, executable: shim), access: nil, preferences: preferences)
+        blockedOwner.window!.alphaValue = 0; blockedOwner.showWindow(nil); defer { blockedOwner.close() }
+        blockedOwner.configureOptions = { child in
+            child.model.sshSettings.enabled = false
+            child.presentFetchProgress = { parent, progress in progress.alphaValue = 0; parent.beginSheet(progress); return true }
+        }
+        let blocked = blockedOwner.model; blocked.sshSettings.enabled = false
+        try await settle { !blocked.busy && blocked.outgoing != nil }
+        blocked.remote = "origin"; blocked.remoteBranch = "main"; blocked.localBranch = "main"
+        let refsBeforeClose = try await repo.run(["show-ref"]).stdout
+        blocked.fetch(.fetch, shift: true)
+        try await settle { blockedOwner.optionsController != nil && !blockedOwner.optionsController!.model.busy }
+        let blockedChild = blockedOwner.optionsController!
+        blockedChild.model.options.branch = "main"; blockedChild.model.launchRebase = false; blockedChild.model.fetch()
+        try await settle { FileManager.default.fileExists(atPath: marker.path) && blockedChild.fetchProgressController != nil }
+        let progress = blockedChild.fetchProgressController!, pid = pid_t(try String(contentsOf: marker, encoding: .utf8).trimmingCharacters(in: .newlines))!
+        precondition(progress.model.busy)
+        blockedOwner.close(); let stoppedOutput = blocked.commandOutput
+        try await settle { kill(pid, 0) == -1 && errno == ESRCH }
+        let refsAfterClose = try await repo.run(["show-ref"]).stdout
+        precondition(blocked.closed && !blocked.busy && blocked.commandOutput == stoppedOutput && refsAfterClose == refsBeforeClose && blockedOwner.optionsController == nil && blockedChild.window?.sheetParent == nil && progress.window?.sheetParent == nil && !progress.model.busy)
+        print("PASS: Shift Fetch/Pull real owned options and progress, named remote vs URL defaults, cancelled child, conflict results, reference refresh, original pre-checkout incoming baseline, ignored Shift variants and forced parent cleanup")
     }
     @MainActor static func verifyFetchAndRebase(root: URL, preferences: UserDefaults) async throws {
         let git = URL(fileURLWithPath: CommandLine.arguments[2]), directory = root.appendingPathComponent("fetch-rebase-fixture")
@@ -442,6 +589,7 @@ import TurtleGitCore
         try await verifyTransport(repo: repo, root: root, preferences: preferences)
         try await verifyPull(root: root, preferences: preferences)
         try await verifyFetchAndRebase(root: root, preferences: preferences)
+        try await verifyShiftOptions(root: root, preferences: preferences)
         print("PASS: native Sync tracking controls, exact Unicode choices, graph-first table, changes and pinned comparison snapshot, divergence/Force, unknown states, Quit fences, owner invalidation and read-only preservation")
     }
 }

@@ -730,6 +730,9 @@ import TurtleGitCore
         controller.model.onReferenceLog = { [weak self] reference in self?.showReferenceLog(repository: repository, access: access, reference: reference) }
         controller.model.onReferenceCompare = { [weak self] old, new in self?.showRevisionComparison(repository: repository, access: access, from: .revision(old), to: .revision(new)) }
         controller.model.onResolve = { [weak self] paths in self?.showResolve(repository: repository, access: access, paths: paths, quick: nil) }
+        controller.configureOptions = { [weak self] child in
+            self?.configureFetchInteractions(child, repository: repository, access: access, followUp: PullFollowUp())
+        }
         controller.model.runRebase = { [weak self, weak controller] target, autoStart, preserve in
             guard let self, let controller, !controller.model.closed, let owner = controller.window,
                   owner.attachedSheet == nil, self.rebaseWindows[key] == nil else { throw SynchronizationFailure.invalidInput }

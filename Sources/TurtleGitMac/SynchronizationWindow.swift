@@ -148,6 +148,8 @@ private struct SynchronizationProgressDialog: View {
     private var cancellationAlert: NSAlert?
     private var pullAlert: NSAlert?
     private var commandProgress: SynchronizationProgressController?
+    private(set) var optionsController: FetchWindowController?
+    var configureOptions: (FetchWindowController) -> Void = { _ in }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
         model = SynchronizationWindowModel(repository: repository, access: access, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1050, height: 660), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
@@ -155,6 +157,35 @@ private struct SynchronizationProgressDialog: View {
         window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 860, height: 500)
         window.contentViewController = NSHostingController(rootView: SynchronizationDialog(model: model))
         super.init(window: window); window.delegate = self; model.window = window
+        model.runOptions = { [weak self] isPull, remote in
+            guard let self, !self.model.closed, let owner = self.window, owner.attachedSheet == nil else { throw OperationCancellationFailure.cancelled }
+            await withCheckedContinuation { continuation in
+                let child = FetchWindowController(repository: repository, access: access, isPull: isPull, preferences: preferences)
+                self.configureOptions(child)
+                var dismissed = false
+                child.onClosed = { [weak self, weak child] in
+                    guard !dismissed else { return }; dismissed = true
+                    if let window = child?.window { window.sheetParent?.endSheet(window) }
+                    self?.optionsController = nil
+                    continuation.resume()
+                }
+                self.optionsController = child
+                child.window?.alphaValue = owner.alphaValue
+                child.model.load(remote: remote, allRemotes: false)
+                owner.beginSheet(child.window!)
+            }
+        }
+        model.presentConflictHint = { [weak self] in
+            guard let self, !self.model.closed, let window = self.window, window.attachedSheet == nil else { return false }
+            let alert = NSAlert(); alert.alertStyle = .informational; alert.messageText = "TurtleGit"
+            alert.informativeText = MergeProgressWindowModel.conflictHint
+            alert.addButton(withTitle: "OK"); alert.showsSuppressionButton = true
+            alert.suppressionButton?.title = "Don't show this message again"
+            self.pullAlert = alert
+            _ = await alert.beginSheetModal(for: window)
+            if self.pullAlert === alert { self.pullAlert = nil }
+            return alert.suppressionButton?.state == .on
+        }
         model.confirmCheckout = { [weak self] branch in
             guard let self, !self.model.closed, let window = self.window, window.attachedSheet == nil else { return false }
             let alert = NSAlert(); alert.messageText = "Pull into a different local branch?"
@@ -251,6 +282,7 @@ private struct SynchronizationProgressDialog: View {
     func windowWillClose(_ notification: Notification) {
         model.invalidate()
         model.detachRebase()
+        optionsController?.close(); optionsController = nil
         commandProgress?.abortPresentation(); commandProgress = nil
         if let alert = pullAlert, window?.attachedSheet === alert.window { window?.endSheet(alert.window, returnCode: .abort) }
         pullAlert = nil
@@ -300,6 +332,8 @@ private struct SynchronizationProgressDialog: View {
     var presentRebasePrompt: (FetchRebasePrompt) async -> FetchRebaseAnswer = { prompt in FetchRebaseAnswer(value: prompt.answers[prompt.defaultIndex], suppress: false) }
     var runRebase: (String, Bool, Bool) async throws -> Void = { _, _, _ in throw SynchronizationFailure.invalidInput }
     var detachRebase: () -> Void = {}
+    var presentConflictHint: () async -> Bool = { false }
+    var runOptions: (Bool, String?) async throws -> Void = { _, _ in throw SynchronizationFailure.invalidInput }
     var onResolve: ([String]) -> Void = { _ in }
     var displayedComparison: RevisionComparisonWindowModel { tab == 5 ? incomingComparison : comparison }
     var historyEntries: [LogEntry] { tab == 4 ? (incomingCommits ?? []) : (outgoing?.commits ?? []) }
@@ -420,7 +454,7 @@ private struct SynchronizationProgressDialog: View {
             }
         }
     }
-    func performPullAction(_ action: SynchronizationTransportAction? = nil) { fetch(action ?? pullAction) }
+    func performPullAction(_ action: SynchronizationTransportAction? = nil, shift: Bool = NSEvent.modifierFlags.contains(.shift)) { fetch(action ?? pullAction, shift: shift) }
     private func rebaseAnswer(_ prompt: FetchRebasePrompt, request: OperationCancellation) async throws -> Int {
         guard !closed, token === request, !request.isCancelled else { throw OperationCancellationFailure.cancelled }
         if let saved = preferences.object(forKey: prompt.rawValue) as? Int, prompt.answers.contains(saved) { return saved }
@@ -430,13 +464,14 @@ private struct SynchronizationProgressDialog: View {
         if answer.suppress { preferences.set(value, forKey: prompt.rawValue) }
         return value
     }
-    /// CLI entries of the source Pull split control; Shift routing is pending.
-    func fetch(_ action: SynchronizationTransportAction = .fetch) {
+    /// Shift opens the full Pull/Fetch options; other split entries ignore Shift.
+    func fetch(_ action: SynchronizationTransportAction = .fetch, shift: Bool = false) {
         guard [.pull, .fetch, .fetchAndRebase, .fetchAllBranches, .remoteUpdate, .prune].contains(action),
               !closed, !confirmingQuit, !confirmingCancellation, !busy, !hasBlockingChild, window?.attachedSheet == nil else { return }
         pullAction = action
         let actionIndex = action == .pull ? 0 : action == .fetch ? 1 : action == .fetchAndRebase ? 2 : action == .fetchAllBranches ? 3 : action == .remoteUpdate ? 4 : 5
         preferences.set(actionIndex, forKey: historyKey + ".pullAction")
+        if shift && action != .pull && action != .fetch { return }
         let operationID = UUID(); transportID = operationID
         let request = OperationCancellation(); token = request; busy = true; transportRunning = true
         cancelling = false; commandCompleted = false; commandSucceeded = false; referenceChanges = []
@@ -455,7 +490,7 @@ private struct SynchronizationProgressDialog: View {
             var incomingRevision: String?
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let plan = try await repository.synchronizationTransportPlan(options, cancellation: request)
+                let plan = try await (shift ? repository.synchronizationOptionsPlan(options, cancellation: request) : repository.synchronizationTransportPlan(options, cancellation: request))
                 oldHead = plan.oldHead
                 var checkout: SynchronizationPullCheckout?
                 if action == .pull {
@@ -486,49 +521,67 @@ private struct SynchronizationProgressDialog: View {
                 oldReferences = try await repository.synchronizationReferenceSnapshot(cancellation: request)
                 guard !closed, token === request else { return }
                 if request.isCancelled { throw OperationCancellationFailure.cancelled }
-                let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
-                let operation = Task {
-                    defer { continuation.finish() }
-                    if let checkout {
-                        return try await repository.synchronize(checkout, cancellation: request,
+                if shift {
+                    // The options dialog owns its own command/progress. Pull has
+                    // already switched the selected branch; Fetch receives only
+                    // a named remote, never the URL from this dialog.
+                    if let preparation = coordinator?.preparation, action != .remoteUpdate {
+                        _ = try await preparation(plan.transportRemotes, request)
+                    }
+                    guard !closed, token === request, !request.isCancelled else { throw OperationCancellationFailure.cancelled }
+                    let preset = action == .fetch && !options.remote.contains("/") && !options.remote.contains("\\") ? options.remote : nil
+                    try await runOptions(action == .pull, preset)
+                    guard !closed, token === request, !request.isCancelled else { throw OperationCancellationFailure.cancelled }
+                    let entries = try await repository.status(refreshIndex: false, cancellation: request).filter { $0.state == .conflicted }
+                    guard !closed, token === request else { return }
+                    if entries.isEmpty { incomingRevision = "HEAD" }
+                    // Conflicts are loaded below, after refreshing references.
+                    commandSucceeded = true
+                } else {
+                    let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
+                    let operation = Task {
+                        defer { continuation.finish() }
+                        if let checkout {
+                            return try await repository.synchronize(checkout, cancellation: request,
+                                onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }, prepareTransport: coordinator?.preparation)
+                        }
+                        return try await repository.synchronize(plan, cancellation: request,
                             onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }, prepareTransport: coordinator?.preparation)
                     }
-                    return try await repository.synchronize(plan, cancellation: request,
-                        onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }, prepareTransport: coordinator?.preparation)
-                }
-                for await _ in updates { consume(parser.processPending(), parser: parser, request: request) }
-                consume(parser.processPending(), parser: parser, request: request)
-                consume(parser.finish(), parser: parser, request: request)
-                let result = try await operation.value
-                guard !closed, token === request else { return }
-                if !outputState.hasOutput { commandOutput = result.command.text }
-                var followUpSucceeded = true
-                if action == .pull, let target = result.rebaseTarget, result.rebaseMode != .none {
-                    try await runRebase(target, true, result.rebaseMode == .preserveMerges)
+                    for await _ in updates { consume(parser.processPending(), parser: parser, request: request) }
+                    consume(parser.processPending(), parser: parser, request: request)
+                    consume(parser.finish(), parser: parser, request: request)
+                    let result = try await operation.value
                     guard !closed, token === request else { return }
-                    incomingRevision = "HEAD"
-                } else if action == .pull { incomingRevision = "HEAD" }
-                else if action == .fetchAndRebase, let target = result.rebaseTarget {
-                    let unchanged = plan.oldRemoteHash != nil && plan.oldRemoteHash == target
-                    if unchanged, try await rebaseAnswer(.unchanged, request: request) == 7 { incomingRevision = target }
-                    else {
-                        let state = try await repository.synchronizationRebaseState(target: target, cancellation: request)
-                        let choice = state.canFastForward ? try await rebaseAnswer(.fastForward, request: request) : 2
-                        if choice == 1 {
-                            guard let performFastForward else { throw SynchronizationFailure.invalidInput }
-                            let merge = await performFastForward(state, request)
-                            guard !closed, token === request else { return }
-                            if case .failure(let error) = merge { followUpSucceeded = false; self.error = error.localizedDescription; commandOutput += "\nFast-forward failed.\n" + error.localizedDescription }
-                            incomingRevision = "HEAD"
-                        } else if choice == 2 {
-                            try await repository.validateSynchronizationRebaseState(state, cancellation: request)
-                            try await runRebase(target, false, false)
-                            guard !closed, token === request else { return }; incomingRevision = "HEAD"
+                    if !outputState.hasOutput { commandOutput = result.command.text }
+                    var followUpSucceeded = true
+                    if action == .pull, let target = result.rebaseTarget, result.rebaseMode != .none {
+                        try await runRebase(target, true, result.rebaseMode == .preserveMerges)
+                        guard !closed, token === request else { return }
+                        incomingRevision = "HEAD"
+                    } else if action == .pull { incomingRevision = "HEAD" }
+                    else if action == .fetchAndRebase, let target = result.rebaseTarget {
+                        let unchanged = plan.oldRemoteHash != nil && plan.oldRemoteHash == target
+                        if unchanged, try await rebaseAnswer(.unchanged, request: request) == 7 { incomingRevision = target }
+                        else {
+                            let state = try await repository.synchronizationRebaseState(target: target, cancellation: request)
+                            let choice = state.canFastForward ? try await rebaseAnswer(.fastForward, request: request) : 2
+                            if choice == 1 {
+                                guard let performFastForward else { throw SynchronizationFailure.invalidInput }
+                                let merge = await performFastForward(state, request)
+                                guard !closed, token === request else { return }
+                                if case .failure(let error) = merge { followUpSucceeded = false; self.error = error.localizedDescription; commandOutput += "\nFast-forward failed.\n" + error.localizedDescription }
+                                incomingRevision = "HEAD"
+                            } else if choice == 2 {
+                                try await repository.validateSynchronizationRebaseState(state, cancellation: request)
+                                try await runRebase(target, false, false)
+                                guard !closed, token === request else { return }; incomingRevision = "HEAD"
+                            }
+                            // Abort keeps the successful Fetch and reference results.
                         }
-                        // Abort keeps the successful Fetch and reference results.
                     }
+                    commandSucceeded = followUpSucceeded
                 }
-                commandSucceeded = followUpSucceeded
             } catch {
                 guard !closed, token === request else { return }
                 let message: String
@@ -555,7 +608,7 @@ private struct SynchronizationProgressDialog: View {
                 }
                 guard !closed, token === inspection else { return }
             }
-            if let oldHead, action == .pull || incomingRevision != nil {
+            if let oldHead, action == .pull || shift || incomingRevision != nil {
                 let inspection = OperationCancellation(); token = inspection
                 do {
                     if let incomingRevision {
@@ -566,6 +619,11 @@ private struct SynchronizationProgressDialog: View {
                     } else if oldReferences != nil {
                         let entries = try await repository.status(refreshIndex: false, cancellation: inspection).filter { $0.state == .conflicted }
                         guard !closed, token === inspection else { return }; conflicts = entries; tab = entries.isEmpty ? 2 : 6
+                        if !entries.isEmpty, !preferences.bool(forKey: MergeProgressWindowModel.conflictHintPreference) {
+                            let suppress = await presentConflictHint()
+                            guard !closed, token === inspection, !inspection.isCancelled else { return }
+                            if suppress { preferences.set(true, forKey: MergeProgressWindowModel.conflictHintPreference) }
+                        }
                     }
                 } catch {
                     guard !closed, token === inspection else { return }

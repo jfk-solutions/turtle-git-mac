@@ -492,4 +492,33 @@ final class SynchronizationTransportTests: XCTestCase {
         }
     }
 
+    func testOptionsPlanKeepsCheckoutBaselineWithoutExecutingTransportOrRebaseValidation() async throws {
+        let f = try await fixture(); defer { try? FileManager.default.removeItem(at: f.directory) }
+        _ = try await f.client.run(["config", "pull.rebase", "true"])
+        let refs = try await f.client.run(["show-ref"]).stdout
+        let index = try Data(contentsOf: f.client.root.appendingPathComponent(".git/index"))
+        var value = options(.pull); value.remoteBranch = ""
+        let plan = try await f.client.synchronizationOptionsPlan(value)
+        XCTAssertEqual(plan.oldHead, f.base); XCTAssertNil(plan.checkoutBranch)
+        XCTAssertEqual(plan.arguments, []); XCTAssertEqual(plan.rebaseMode, .none)
+        let checkpoint = try await f.client.synchronizationPullCheckout(plan)
+        XCTAssertNil(checkpoint.command)
+        do { _ = try await f.client.synchronize(plan); XCTFail("options plan executed transport") } catch SynchronizationFailure.invalidInput {}
+        do { _ = try await f.client.synchronize(checkpoint); XCTFail("options checkout continued into transport") } catch SynchronizationFailure.invalidInput {}
+        do { _ = try await f.client.synchronizationTransportPlan(value); XCTFail("normal configured Pull omitted branch") } catch SynchronizationTransportFailure.rebaseBranchRequired {}
+        let after = try await f.client.run(["show-ref"]).stdout
+        XCTAssertEqual(refs, after); XCTAssertEqual(index, try Data(contentsOf: f.client.root.appendingPathComponent(".git/index")))
+        _ = try await f.client.run(["switch", "-c", "other"])
+        let switchPlan = try await f.client.synchronizationOptionsPlan(value)
+        XCTAssertEqual(switchPlan.oldHead, f.base); XCTAssertEqual(switchPlan.checkoutBranch, "main")
+        do { _ = try await f.client.synchronizationPullCheckout(switchPlan); XCTFail("unapproved options checkout") } catch SynchronizationTransportFailure.checkoutNotAuthorized {}
+        _ = try await f.client.synchronizationPullCheckout(switchPlan, checkoutAuthorized: true)
+        let branch = try await f.client.branch(); XCTAssertEqual(branch, "main")
+        for action in [SynchronizationTransportAction.fetchAndRebase, .fetchAllBranches, .remoteUpdate, .prune, .push] {
+            do { _ = try await f.client.synchronizationOptionsPlan(options(action)); XCTFail("unsupported options action") } catch SynchronizationFailure.invalidInput {}
+        }
+        let cancelled = OperationCancellation(); cancelled.cancel()
+        do { _ = try await f.client.synchronizationOptionsPlan(options(.fetch), cancellation: cancelled); XCTFail("cancelled options plan") } catch OperationCancellationFailure.cancelled {}
+    }
+
 }

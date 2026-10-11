@@ -113,6 +113,7 @@ public struct SynchronizationTransportPlan: Sendable {
     public let deletesDestination: Bool
     fileprivate let currentBranch: String
     fileprivate let rebaseReference: String?
+    fileprivate let optionsOnly: Bool
 }
 public struct SynchronizationTransportResult: Sendable {
     public let command: GitResult
@@ -271,7 +272,13 @@ extension GitRepository {
     public func synchronizationTransportPlan(_ input: SynchronizationTransportOptions, cancellation: OperationCancellation? = nil) throws -> SynchronizationTransportPlan {
         try buildSynchronizationTransportPlan(input, cancellation: cancellation, checkoutCompleted: false)
     }
-    private func buildSynchronizationTransportPlan(_ input: SynchronizationTransportOptions, cancellation: OperationCancellation?, checkoutCompleted: Bool) throws -> SynchronizationTransportPlan {
+    /// Shift options preflight retains the approved checkout and old HEAD, but
+    /// cannot execute transport: the full native options dialog selects it.
+    public func synchronizationOptionsPlan(_ input: SynchronizationTransportOptions, cancellation: OperationCancellation? = nil) throws -> SynchronizationTransportPlan {
+        guard input.action == .pull || input.action == .fetch else { throw SynchronizationFailure.invalidInput }
+        return try buildSynchronizationTransportPlan(input, cancellation: cancellation, checkoutCompleted: false, optionsOnly: true)
+    }
+    private func buildSynchronizationTransportPlan(_ input: SynchronizationTransportOptions, cancellation: OperationCancellation?, checkoutCompleted: Bool, optionsOnly: Bool = false) throws -> SynchronizationTransportPlan {
         try cancellation?.check()
         guard ![input.localBranch, input.remote, input.remoteBranch].contains(where: { $0.contains("\0") }), !input.remote.isEmpty else { throw SynchronizationFailure.invalidInput }
         var options = input
@@ -294,7 +301,7 @@ extension GitRepository {
             // stays attached. After checkout/authentication, use the actual HEAD
             // branch: post-checkout hooks may change configuration or attachment.
             let rebaseBranch = checkout.map { target in catalog.localBranches.contains { GitReferenceName.equal($0, target) } ? target : "" } ?? catalog.currentBranch
-            if !rebaseBranch.isEmpty {
+            if !optionsOnly, !rebaseBranch.isEmpty {
                 func configuration(_ key: String) throws -> String? {
                     let value = try run(["config", "--get", key], successfulExitCodes: 0...1, cancellation: cancellation)
                     return value.exitCode == 0 ? String(decoding: value.stdout, as: UTF8.self).trimmingCharacters(in: .newlines) : nil
@@ -317,7 +324,7 @@ extension GitRepository {
             }
             // Source validates this after the separate checkout step. Do not
             // reject before a planned checkout whose hook can change the mode.
-            if checkout == nil && mode != .none && options.remoteBranch.isEmpty { throw SynchronizationTransportFailure.rebaseBranchRequired }
+            if !optionsOnly && checkout == nil && mode != .none && options.remoteBranch.isEmpty { throw SynchronizationTransportFailure.rebaseBranchRequired }
         }
         let fetching = [.fetch, .fetchAndRebase, .fetchAllBranches].contains(options.action) || options.action == .pull && mode != .none
         var oldRemote: String?, args: [String], reference: String?
@@ -361,7 +368,7 @@ extension GitRepository {
         }
         guard !args.contains(where: { $0.contains("\0") }) else { throw SynchronizationFailure.invalidInput }
         try cancellation?.check()
-        return SynchronizationTransportPlan(root: root, options: options, arguments: args,
+        return SynchronizationTransportPlan(root: root, options: options, arguments: optionsOnly ? [] : args,
             transportRemotes: options.action == .remoteUpdate ? catalog.remotes : [options.remote], oldHead: head,
             oldRemoteHash: oldRemote, checkoutBranch: checkout,
             checkoutArguments: checkout.map { branch in
@@ -371,7 +378,7 @@ extension GitRepository {
                 return ["switch", local ? "--no-guess" : "--detach", "--", branch]
             }, rebaseMode: mode,
             deletesDestination: pushing && options.action != .pushNotes && source.hasPrefix(":"),
-            currentBranch: catalog.currentBranch, rebaseReference: reference)
+            currentBranch: catalog.currentBranch, rebaseReference: reference, optionsOnly: optionsOnly)
     }
     /// Executes the source CLI command. Project hooks, tracking questions and
     /// native post-fetch Rebase choices remain the caller's owned workflow.
@@ -410,6 +417,7 @@ extension GitRepository {
                                         checkoutAuthorized: Bool, deletionAuthorized: Bool, cancellation: OperationCancellation?,
                                         onOutput: (@Sendable (GitOutputChunk) -> Void)?, prepareTransport: SSHTransportPreparation?) async throws -> SynchronizationTransportResult {
         let token = cancellation ?? OperationCancellation(); try token.check()
+        guard !plan.optionsOnly else { throw SynchronizationFailure.invalidInput }
         guard plan.root == root else { throw SynchronizationTransportFailure.repositoryChanged }
         guard !plan.deletesDestination || deletionAuthorized else { throw SynchronizationTransportFailure.deletionNotAuthorized }
         guard plan.checkoutBranch == nil || checkoutAuthorized else { throw SynchronizationTransportFailure.checkoutNotAuthorized }
