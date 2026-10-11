@@ -1,0 +1,81 @@
+{
+  "date": "2026-10-12",
+  "scope": "Native Context Menu/Context Menu 2 settings and Finder policy integration",
+  "source": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_catalog": {
+    "entries": 55,
+    "implemented_finder_groups": 39,
+    "unavailable_finder_groups": 16,
+    "oracle": "docs/upstream-context-menu-settings.json"
+  },
+  "native_build": {
+    "configuration": "Debug arm64",
+    "exit_code": 0,
+    "log": "build/qa/context-menu-native-2026-10-11.log",
+    "diagnostics": "Final incremental build emitted no diagnostics; this does not establish a warning-free full build."
+  },
+  "core_tests": {
+    "filter": "FinderContextMenuSettingsTests|FinderMenuSettingsTests|FinderShellRulesTests|FinderCreationMenuTests|FinderOverlayIconBatchTests|MenuIconTests",
+    "tests": 23,
+    "failures": 0,
+    "seconds": 0.484,
+    "log": "build/qa/context-menu-core-2026-10-11.log"
+  },
+  "actual_receivers": {
+    "finder_menu_builder": {
+      "exit_code": 0,
+      "script": "scripts/test-finder-menu.py",
+      "log": "build/qa/context-menu-builder-2026-10-11.log",
+      "coverage": [
+        "Default/direct placement and Shift-only source defaults",
+        "Grouped Ignore routing and original icons",
+        "All-direct empty-submenu omission and flat toolbar",
+        "Exclusion before captured paths, mixed selection and Shift exclusion enforcement",
+        "Hide-unversioned membership and Shift exception",
+        "Existing source condition/order/metadata/submodule/Abort Merge builder matrix"
+      ]
+    },
+    "settings": {
+      "exit_code": 0,
+      "script": "scripts/test-context-menu-settings.py",
+      "log": "build/qa/context-menu-settings-receiver-2026-10-11.log",
+      "coverage": [
+        "Deferred edit, Cancel, page-specific Restore Default and Apply",
+        "Publication failure retains dirty draft and local preferences",
+        "Unsigned shared-cache absence retains local preferences with explanation",
+        "Advanced/current icon choice and saved menu-policy preservation",
+        "Actual shared Settings transaction validation and Apply"
+      ]
+    }
+  },
+  "previews": {
+    "kind": "Offscreen renders of actual native page views; no installed app or windows displayed",
+    "files": [
+      "docs/site/assets/context-menu-light.png",
+      "docs/site/assets/context-menu-dark.png",
+      "docs/site/assets/context-menu-2-light.png",
+      "docs/site/assets/context-menu-2-dark.png"
+    ],
+    "dimensions": [
+      1560,
+      1560
+    ],
+    "visually_inspected": true
+  },
+  "fixed_during_grouped_validation": [
+    "Windows RC requests Tag.ico while tracked file is tag.ico; bundle fallback now uses canonical lowercase spelling",
+    "Old builder test assumed an empty submenu header; source behavior omits it, and receiver now accepts an empty menu",
+    "Native Select/deselect all control had excessive vertical expansion; fixed intrinsic sizing and re-rendered previews"
+  ],
+  "installed_app_launches": 0,
+  "remaining": [
+    "16 unavailable Finder command routes and full shell integration",
+    "Finder drag context menu requires an alternative integration surface",
+    "Physical Settings navigation/focus/keyboard/mouse/window acceptance",
+    "Installed Finder Shift gestures and notification propagation",
+    "Signed App Group/sandbox/App Store acceptance",
+    "Symlink/nested-mount/multi-level missing-path case identity",
+    "Full port and dialog certification"
+  ],
+  "session_log_date": "2026-10-11"
+}

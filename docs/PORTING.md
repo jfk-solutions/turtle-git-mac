@@ -514,3 +514,17 @@ ignored status; untracked files keep Add eligibility. One grouped native build
 exited 0 and 34 focused tests passed, zero failures, with no app launch. Native
 Finder/UI/signed acceptance and complete source certification remain open; see
 `qa/finder-icons-batch-2026-10-11.json` and FINDER-OVERLAY-SETTINGS-PARITY.md.
+
+### Context Menu settings continuation, 2026-10-11
+
+Added the two upstream Context Menu pages with all 55 source list entries,
+original command icons/labels/64-bit IDs, page-specific defaults and one shared
+Apply/Cancel draft. Implemented commands can move to Finder's main menu, stay in
+the TurtleGit submenu or require Shift. Hide-unversioned and source-specific
+path exclusions now apply before command capture, including mixed selections.
+Grouped Ignore/Bisect/Merge commands share source preference IDs; empty submenus
+are omitted. The toolbar remains flat. Advanced icon preferences preserve saved
+menu policy and stale page drafts re-read the current icon choice on Apply.
+Unavailable Finder commands and drag-menu integration remain explicit. See
+CONTEXT-MENU-SETTINGS-PARITY.md for the source comparison, validation and remaining
+native/signed acceptance. The full port remains incomplete.

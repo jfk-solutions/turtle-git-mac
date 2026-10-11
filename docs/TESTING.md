@@ -300,6 +300,7 @@ python3 scripts/test-worktree-dialog.py
 python3 scripts/test-advanced-settings.py
 python3 scripts/test-add-dialog.py
 python3 scripts/test-finder-menu.py
+python3 scripts/test-context-menu-settings.py
 ```
 
 These receivers create temporary executables and repository fixtures. They use

@@ -1432,6 +1432,31 @@
       "asset": "OverlaySets/XPStyle/ReadOnlyIcon.ico",
       "source": "src/Resources/Icons/XPStyle/ReadOnlyIcon.ico",
       "sha256": "7f3bf72822f95353cc930e6be2fca80979e6a8f97e548e0ef68cabf7bc9fbefc"
+    },
+    {
+      "asset": "misc.ico",
+      "source": "src/Resources/misc.ico",
+      "sha256": "b60927f11d092d9a46dd5924a28aac6a3cac2681631138f9972a72a074b9f6f9"
+    },
+    {
+      "asset": "menulfs.ico",
+      "source": "src/Resources/menulfs.ico",
+      "sha256": "27ecc86ef4f40c9c43d52687bd5fb1f1bbf977d3e2a57c35b7a0b407ea673e0e"
+    },
+    {
+      "asset": "menuabout.ico",
+      "source": "src/Resources/menuabout.ico",
+      "sha256": "8d7f7abd5c6acdf85c51854771ecc52a499b4e703f4797a8e5fdc5ed0f84230f"
+    },
+    {
+      "asset": "menudaemon.ico",
+      "source": "src/Resources/menudaemon.ico",
+      "sha256": "71d31ecf602ee992dacedf0e1bcfff862c7217e43c39db9b921082c53e390faa"
+    },
+    {
+      "asset": "menurelocate.ico",
+      "source": "src/Resources/menurelocate.ico",
+      "sha256": "cb98188825377f233a581505a63a5fbacc5ad7e4219a7289dd6e0ee231595758"
     }
   ]
 }

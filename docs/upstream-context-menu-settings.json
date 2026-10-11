@@ -1,0 +1,401 @@
+{
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "rows": [
+    {
+      "command": "Clone",
+      "key": "Clone",
+      "mask": "0x0000002000000000",
+      "title": "Clone...",
+      "icon": "menucheckout"
+    },
+    {
+      "command": "Pull",
+      "key": "Pull",
+      "mask": "0x0000000800000000",
+      "title": "Pull...",
+      "icon": "pull1"
+    },
+    {
+      "command": "Fetch",
+      "key": "Fetch",
+      "mask": "0x0000040000000000",
+      "title": "Fetch...",
+      "icon": "menuupdate"
+    },
+    {
+      "command": "Push",
+      "key": "Push",
+      "mask": "0x0000001000000000",
+      "title": "Push...",
+      "icon": "Push"
+    },
+    {
+      "command": "Sync",
+      "key": "Sync",
+      "mask": "0x0000000000000002",
+      "title": "Sync...",
+      "icon": "menurelocate"
+    },
+    {
+      "command": "Commit",
+      "key": "Commit",
+      "mask": "0x0000000000000004",
+      "title": "Commit...",
+      "icon": "menucommit"
+    },
+    {
+      "command": "SVNDCommit",
+      "key": "SVNDCommit",
+      "mask": "0x0000000010000000",
+      "title": "SVN DCommit...",
+      "icon": "menucommit"
+    },
+    {
+      "command": "SVNRebase",
+      "key": "SVNRebase",
+      "mask": "0x0000000008000000",
+      "title": "SVN Rebase",
+      "icon": "menurebase"
+    },
+    {
+      "command": "SVNDFetch",
+      "key": "SVNFetch",
+      "mask": "0x0080000000000000",
+      "title": "SVN Fetch",
+      "icon": "menuupdate"
+    },
+    {
+      "command": "SVNIgnore",
+      "key": "SVNIgnore",
+      "mask": "0x0000000040000000",
+      "title": "Import SVN Ignore ...",
+      "icon": "menuignore"
+    },
+    {
+      "command": "Diff",
+      "key": "Diff",
+      "mask": "0x0000000000010000",
+      "title": "Diff",
+      "icon": "menucompare"
+    },
+    {
+      "command": "DiffLater",
+      "key": "DiffLater",
+      "mask": "0x0000020000000000",
+      "title": "Diff later",
+      "icon": "menucompare"
+    },
+    {
+      "command": "PrevDiff",
+      "key": "PrevDiff",
+      "mask": "0x0000000200000000",
+      "title": "Diff with previous version",
+      "icon": "menucompare"
+    },
+    {
+      "command": "Log",
+      "key": "Log",
+      "mask": "0x0000000000020000",
+      "title": "Show log",
+      "icon": "menulog"
+    },
+    {
+      "command": "LogSubmoduleFolder",
+      "key": "LogSubmodule",
+      "mask": "0x0000000100000000",
+      "title": "Show log of this folder",
+      "icon": "menulog"
+    },
+    {
+      "command": "RefLog",
+      "key": "RefLog",
+      "mask": "0x0000000000400000",
+      "title": "Show RefLog",
+      "icon": "menulog"
+    },
+    {
+      "command": "RefBrowser",
+      "key": "RefBrowser",
+      "mask": "0x0000000000080000",
+      "title": "Browse References",
+      "icon": "menurepobrowse"
+    },
+    {
+      "command": "Daemon",
+      "key": "Daemon",
+      "mask": "0x0200000000000000",
+      "title": "Daemon",
+      "icon": "menudaemon"
+    },
+    {
+      "command": "RevisionGraph",
+      "key": "RevisionGraph",
+      "mask": "0x0100000000000000",
+      "title": "Revision graph",
+      "icon": "menurevisiongraph"
+    },
+    {
+      "command": "RepoBrowse",
+      "key": "RepoBrowser",
+      "mask": "0x0000000001000000",
+      "title": "Repo-browser",
+      "icon": "menurepobrowse"
+    },
+    {
+      "command": "ShowChanged",
+      "key": "ShowChanged",
+      "mask": "0x0000000000100000",
+      "title": "Check for modifications",
+      "icon": "menushowchanged"
+    },
+    {
+      "command": "Rebase",
+      "key": "Rebase",
+      "mask": "0x0000080000000000",
+      "title": "Rebase...",
+      "icon": "menurebase"
+    },
+    {
+      "command": "StashSave",
+      "key": "StashSave",
+      "mask": "0x0000100000000000",
+      "title": "Stash changes",
+      "icon": "menushelve"
+    },
+    {
+      "command": "StashApply",
+      "key": "StashApply",
+      "mask": "0x0000200000000000",
+      "title": "Stash Apply",
+      "icon": "menuunshelve"
+    },
+    {
+      "command": "StashPop",
+      "key": "StashPop",
+      "mask": "0x0002000000000000",
+      "title": "Stash Pop",
+      "icon": "menuunshelve"
+    },
+    {
+      "command": "StashList",
+      "key": "StashList",
+      "mask": "0x0000400000000000",
+      "title": "Stash List",
+      "icon": "menulog"
+    },
+    {
+      "command": "BisectStart",
+      "key": "Bisect",
+      "mask": "0x0008000000000000",
+      "title": "Bisect start",
+      "icon": "menubisect"
+    },
+    {
+      "command": "ConflictEditor",
+      "key": "Conflicteditor",
+      "mask": "0x0000000000040000",
+      "title": "Edit conflicts",
+      "icon": "menuconflict"
+    },
+    {
+      "command": "Resolve",
+      "key": "Resolve",
+      "mask": "0x0000000000000040",
+      "title": "Resolve...",
+      "icon": "menuresolve"
+    },
+    {
+      "command": "Rename",
+      "key": "Rename",
+      "mask": "0x0000000000004000",
+      "title": "Rename...",
+      "icon": "menurename"
+    },
+    {
+      "command": "Remove",
+      "key": "Remove",
+      "mask": "0x0000000000002000",
+      "title": "Delete",
+      "icon": "menudelete"
+    },
+    {
+      "command": "RemoveKeep",
+      "key": "RemoveKeep",
+      "mask": "0x0000000004000000",
+      "title": "Delete (keep local)",
+      "icon": "menudelete"
+    },
+    {
+      "command": "Revert",
+      "key": "Revert",
+      "mask": "0x0000000000000010",
+      "title": "Revert...",
+      "icon": "menurevert"
+    },
+    {
+      "command": "Cleanup",
+      "key": "Cleanup",
+      "mask": "0x0000000000000020",
+      "title": "Clean up...",
+      "icon": "menucleanup"
+    },
+    {
+      "command": "LFSMenu",
+      "key": "LFS",
+      "mask": "0x1000000000000000",
+      "title": "LFS",
+      "icon": "menulfs"
+    },
+    {
+      "command": "Switch",
+      "key": "Switch",
+      "mask": "0x0000000000000080",
+      "title": "Switch/Checkout...",
+      "icon": "menuswitch"
+    },
+    {
+      "command": "Merge",
+      "key": "Merge",
+      "mask": "0x0000000000001000",
+      "title": "Merge...",
+      "icon": "menumerge"
+    },
+    {
+      "command": "Branch",
+      "key": "Branch",
+      "mask": "0x0000000000000800",
+      "title": "Create Branch...",
+      "icon": "menucopy"
+    },
+    {
+      "command": "Tag",
+      "key": "Tag",
+      "mask": "0x0000004000000000",
+      "title": "Create Tag...",
+      "icon": "Tag"
+    },
+    {
+      "command": "Export",
+      "key": "Export",
+      "mask": "0x0000000000000200",
+      "title": "Export...",
+      "icon": "menuexport"
+    },
+    {
+      "command": "CreateRepo",
+      "key": "CreateRepo",
+      "mask": "0x0000000000000400",
+      "title": "Create repository here...",
+      "icon": "menucreaterepos"
+    },
+    {
+      "command": "Add",
+      "key": "Add",
+      "mask": "0x0000000000000008",
+      "title": "Add...",
+      "icon": "menuadd"
+    },
+    {
+      "command": "Blame",
+      "key": "Blame",
+      "mask": "0x0000000000800000",
+      "title": "Blame",
+      "icon": "TortoiseGitBlame"
+    },
+    {
+      "command": "IgnoreSub",
+      "key": "Ignore",
+      "mask": "0x0000000000200000",
+      "title": "Add to ignore list",
+      "icon": "menuignore"
+    },
+    {
+      "command": "Worktree",
+      "key": "Worktree",
+      "mask": "0x0400000000000000",
+      "title": "Worktrees",
+      "icon": "menucopy"
+    },
+    {
+      "command": "SubmoduleAdd",
+      "key": "SubmoduleAdd",
+      "mask": "0x0000800000000000",
+      "title": "Submodule Add...",
+      "icon": "menuadd"
+    },
+    {
+      "command": "SubmoduleUpdate",
+      "key": "SubmoduleUpdate",
+      "mask": "0x0000000000008000",
+      "title": "Submodule Update...",
+      "icon": "menuupdate"
+    },
+    {
+      "command": "SubmoduleSync",
+      "key": "SubmoduleSync",
+      "mask": "0x0001000000000000",
+      "title": "Submodule Sync",
+      "icon": "menusync"
+    },
+    {
+      "command": "FormatPatch",
+      "key": "FormatPatch",
+      "mask": "0x0000008000000000",
+      "title": "Create Patch Serial...",
+      "icon": "menudiff"
+    },
+    {
+      "command": "ImportPatch",
+      "key": "ImportPatch",
+      "mask": "0x0000010000000000",
+      "title": "Apply Patch Serial...",
+      "icon": "menupatch"
+    },
+    {
+      "command": "ApplyPatch",
+      "key": "ApplyPatch",
+      "mask": "0x0000000002000000",
+      "title": "Review/apply single patch...",
+      "icon": "menupatch"
+    },
+    {
+      "command": "Sendmail",
+      "key": "Sendmail",
+      "mask": "0x0000000000000100",
+      "title": "Send Mail...",
+      "icon": "menusendmail"
+    },
+    {
+      "command": "Settings",
+      "key": "Settings",
+      "mask": "0x2000000000000000",
+      "title": "Settings",
+      "icon": "menusettings"
+    },
+    {
+      "command": "Help",
+      "key": "Help",
+      "mask": "0x4000000000000000",
+      "title": "Help",
+      "icon": "menuhelp"
+    },
+    {
+      "command": "About",
+      "key": "About",
+      "mask": "0x8000000000000000",
+      "title": "About",
+      "icon": "menuabout"
+    }
+  ],
+  "defaultTop": [
+    "Sync",
+    "CreateRepo",
+    "Clone",
+    "Commit"
+  ],
+  "defaultExtended": [
+    "SVNIgnore",
+    "StashApply",
+    "SubmoduleSync"
+  ]
+}

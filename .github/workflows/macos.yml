@@ -295,6 +295,8 @@ jobs:
         run: python3 scripts/test-add-dialog.py
       - name: Native Finder menu builder without extension activation
         run: python3 scripts/test-finder-menu.py
+      - name: Native Context Menu settings transactions and page previews
+        run: python3 scripts/test-context-menu-settings.py
       - name: Patch mail preparation with packaged Git
         run: TURTLEGIT_SEND_PATCH_TEST_GIT="$PWD/build/git-runtime/Git/bin/git" swift test --filter PatchMail
       - name: Sandboxed App Store configuration (unsigned compilation)

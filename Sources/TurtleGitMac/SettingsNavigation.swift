@@ -7,8 +7,8 @@ import TurtleGitCore
 /// Pending pages are tracked in the inventory, rather than shown as empty panes.
 enum SettingsPageID: String {
     case general, dialogs, dialogs2, dialogs3, colors1, colors2, colors3, commit, alternativeEditor, git, remote, email, diff
-    case credential, network, overlays, overlayHandlers, overlayIcons, mergeTool, mergeEditor, savedData, blame, unifiedDiff, advanced
-    var applyOrder: Int { let pages: [SettingsPageID] = [.general, .dialogs, .dialogs2, .dialogs3, .colors1, .colors2, .colors3, .commit, .alternativeEditor, .overlays, .overlayHandlers, .overlayIcons, .git, .remote, .credential, .network, .email, .diff, .mergeTool, .mergeEditor, .savedData, .blame, .unifiedDiff, .advanced]; return pages.firstIndex(of: self)! }
+    case credential, network, contextMenu, contextMenu2, overlays, overlayHandlers, overlayIcons, mergeTool, mergeEditor, savedData, blame, unifiedDiff, advanced
+    var applyOrder: Int { let pages: [SettingsPageID] = [.general, .contextMenu, .contextMenu2, .dialogs, .dialogs2, .dialogs3, .colors1, .colors2, .colors3, .commit, .alternativeEditor, .overlays, .overlayHandlers, .overlayIcons, .git, .remote, .credential, .network, .email, .diff, .mergeTool, .mergeEditor, .savedData, .blame, .unifiedDiff, .advanced]; return pages.firstIndex(of: self)! }
 }
 private final class SettingsPageNode: NSObject {
     let id: SettingsPageID, title: String, icon: MenuIcon
@@ -28,6 +28,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     private let workspace: RepositoryModel, appearance: AppAppearance
     private let appearanceDraft: SettingsAppearanceDraft
     private let overlayDraft = FinderOverlaySettingsModel()
+    private let contextMenuDraft = FinderContextMenuSettingsModel()
     private let outline = NSOutlineView()
     private let content = NSView()
     private let busyShield = SettingsBusyShield()
@@ -112,6 +113,8 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         repositoryPath = workspace.root?.path
         roots = [
             SettingsPageNode(.general, "General", .settingsGeneral, children: [
+                SettingsPageNode(.contextMenu, "Context Menu", .settingsContextMenu),
+                SettingsPageNode(.contextMenu2, "Context Menu 2", .settingsContextMenu),
                 SettingsPageNode(.dialogs, "Dialogs 1", .settingsDialogs),
                 SettingsPageNode(.dialogs2, "Dialogs 2", .settingsDialogs),
                 SettingsPageNode(.dialogs3, "Dialogs 3", .settingsDialogs),
@@ -171,6 +174,8 @@ struct SettingsNavigation: NSViewControllerRepresentable {
             case .overlays: controller = host(FinderOverlaySettingsPage(model: overlayDraft))
             case .overlayHandlers: controller = host(FinderOverlaySettingsPage(model: overlayDraft, handlersOnly: true))
             case .overlayIcons: controller = host(FinderOverlaySettingsPage(model: overlayDraft, iconsOnly: true))
+            case .contextMenu: controller = host(FinderContextMenuSettingsPage(model: contextMenuDraft))
+            case .contextMenu2: controller = host(FinderContextMenuSettingsPage(model: contextMenuDraft, extendedOnly: true))
             case .email: controller = host(EmailSettingsPage())
             case .diff: controller = host(DiffToolSettings())
             case .mergeTool: controller = host(MergeToolSettings())

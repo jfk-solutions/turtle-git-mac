@@ -261,3 +261,11 @@ version and view effective environment variables. AppStore builds keep the
 bundled engine. See [General settings](GENERAL-SETTINGS-PARITY.md) for behavior,
 remaining upstream application controls and combined validation scope. The
 previous grouped Debug build/four tests do not cover this continuation.
+
+
+Context Menu continuation (2026-10-11): General now includes Context Menu and
+Context Menu 2, sharing one retained draft and transaction participant. Both
+source catalogs/controls are present, with unavailable command routes disabled.
+Placement, Shift-only visibility, Hide-unversioned and path exclusion preferences
+are consumed by the actual Finder builder. See CONTEXT-MENU-SETTINGS-PARITY.md;
+physical navigation/focus/keyboard/signed acceptance remains open.

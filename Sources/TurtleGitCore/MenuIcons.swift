@@ -47,6 +47,7 @@ public enum MenuIcon: String, CaseIterable {
     case settingsCredential = "gitcredential"
     case settingsNetwork = "proxy"
     case settingsOverlays = "Overlays"
+    case settingsContextMenu = "misc"
     case skipWorktreeOverlay = "status-skip-worktree", assumeUnchangedOverlay = "status-assume-unchanged"
     case settingsSavedData = "saveddata", settingsUnifiedDiff = "TortoiseUDiff", settingsColors = "lookandfeel"
     case open = "open", explore = "explorer", export = "menuexport", editor = "notepad"
@@ -85,6 +86,21 @@ public enum MenuIcon: String, CaseIterable {
     }
     public func contextImage(size: CGFloat = 16, defaults: UserDefaults = .standard) -> NSImage? {
         MenuPresentationSettings.applicationContextIcons(defaults: defaults) ? image(size: size) : nil
+    }
+    public static func originalImage(resource: String, size: CGFloat = 16) -> NSImage? {
+        #if SWIFT_PACKAGE
+        let bundle = Bundle.main.resourceURL.flatMap { Bundle(url: $0.appendingPathComponent("TurtleGitMac_TurtleGitCore.bundle")) } ?? Bundle.module
+        #else
+        let bundle = Bundle(for: IconResourceBundle.self)
+        #endif
+        // The upstream shell RC requests Tag.ico but the tracked filename is
+        // tag.ico. Preserve that Windows resource spelling without duplicating
+        // files that cannot coexist on a case-insensitive macOS volume.
+        guard let url = bundle.url(forResource: resource, withExtension: "ico", subdirectory: "Icons")
+            ?? bundle.url(forResource: resource.lowercased(), withExtension: "ico", subdirectory: "Icons"), let image = NSImage(contentsOf: url) else { return nil }
+        image.size = NSSize(width: size, height: size)
+        image.isTemplate = ["menulog", "menuhelp"].contains(resource)
+        return image
     }
     /// The upstream ribbon uses BI_RGB 32-bit BMPs with straight BGRA alpha.
     /// AppKit treats their fourth byte as padding, rendering transparent areas black.

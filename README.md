@@ -71,6 +71,12 @@ matching group access. Build and launch the app, enable **TurtleGit Finder** in
 System Settings' extension controls, then open a repository in the app to
 register its monitored folder. The settings location depends on macOS version.
 
+Settings → General → **Context Menu** controls which commands appear directly
+in Finder's menu. **Context Menu 2** chooses commands that require Shift.
+The first page also supports path exclusions and hiding outside-repository menus.
+Unavailable commands remain disabled. See the
+[source comparison and validation](docs/CONTEXT-MENU-SETTINGS-PARITY.md).
+
 Signed activation and badge rendering remain unverified. Finder Sync controls
 badge placement and menu insertion. Badges apply to registered repository
 folders. Only the current repository refreshes every five seconds while the app

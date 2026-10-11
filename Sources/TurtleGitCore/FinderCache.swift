@@ -18,10 +18,25 @@ public enum FinderIntegration {
 /// Presentation preferences are independent of repository status and app menus.
 public struct FinderMenuSettings: Codable, Equatable, Sendable {
     public var showIcons: Bool
+    public var topLevelMask = FinderMenuEntry.defaultTopMask
+    public var extendedOnlyMask = FinderMenuEntry.defaultExtendedMask
+    public var hideForUnversioned = false
+    public var excludedPaths = ""
     public init(showIcons: Bool = true) { self.showIcons = showIcons }
+    private enum CodingKeys: String, CodingKey { case showIcons, topLevelMask, extendedOnlyMask, hideForUnversioned, excludedPaths }
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(showIcons: try values.decodeIfPresent(Bool.self, forKey: .showIcons) ?? true)
+        topLevelMask = try values.decodeIfPresent(UInt64.self, forKey: .topLevelMask) ?? FinderMenuEntry.defaultTopMask
+        extendedOnlyMask = try values.decodeIfPresent(UInt64.self, forKey: .extendedOnlyMask) ?? FinderMenuEntry.defaultExtendedMask
+        hideForUnversioned = try values.decodeIfPresent(Bool.self, forKey: .hideForUnversioned) ?? false
+        excludedPaths = try values.decodeIfPresent(String.self, forKey: .excludedPaths) ?? ""
+    }
     public static var sharedURL: URL? { FinderIntegration.container?.appendingPathComponent("menu-settings.json") }
     public static func from(defaults: UserDefaults = .standard) -> Self {
-        Self(showIcons: (defaults.object(forKey: "ShowContextMenuIcons") as? NSNumber)?.boolValue ?? true)
+        var settings = defaults.data(forKey: "TurtleGit.FinderMenuSettings").flatMap { try? JSONDecoder().decode(Self.self, from: $0) } ?? Self()
+        settings.showIcons = (defaults.object(forKey: "ShowContextMenuIcons") as? NSNumber)?.boolValue ?? true
+        return settings
     }
     public static func read(from url: URL? = sharedURL) -> Self {
         guard let url, let data = try? Data(contentsOf: url),
@@ -29,10 +44,45 @@ public struct FinderMenuSettings: Codable, Equatable, Sendable {
         return settings
     }
     @discardableResult public func write(to url: URL? = sharedURL) throws -> Bool {
+        guard valid else { throw GitConfigurationFailure.invalidValue }
         guard let url else { return false }
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try JSONEncoder().encode(self).write(to: url, options: .atomic)
         return true
+    }
+    public var valid: Bool {
+        !excludedPaths.contains("\0") && excludedPaths.replacingOccurrences(of: "\r", with: "").split(separator: "\n").allSatisfy {
+            $0.hasPrefix("/") || $0 == "~" || $0.hasPrefix("~/") || $0 == "~*" || $0 == "$HOME" || $0.hasPrefix("$HOME/") || $0 == "$HOME*"
+        }
+    }
+    public func save(to defaults: UserDefaults = .standard) throws {
+        guard valid else { throw GitConfigurationFailure.invalidValue }
+        defaults.set(try JSONEncoder().encode(self), forKey: "TurtleGit.FinderMenuSettings")
+    }
+    public func visible(_ entry: FinderMenuEntry, extended: Bool) -> Bool { extended || extendedOnlyMask & entry.mask == 0 }
+    public func firstLevel(_ entry: FinderMenuEntry) -> Bool { topLevelMask & entry.mask != 0 }
+    public mutating func set(_ entry: FinderMenuEntry, checked: Bool, extendedOnly: Bool) {
+        if extendedOnly { extendedOnlyMask = checked ? extendedOnlyMask | entry.mask : extendedOnlyMask & ~entry.mask }
+        else { topLevelMask = checked ? topLevelMask | entry.mask : topLevelMask & ~entry.mask }
+    }
+    public func allowsPath(_ path: String, caseSensitive: Bool = true) -> Bool {
+        for line in excludedPaths.replacingOccurrences(of: "\r", with: "").split(separator: "\n") {
+            var pattern = String(line)
+            let prefix = pattern.hasSuffix("*"), descendants = pattern.hasSuffix("/")
+            if prefix { pattern.removeLast() }
+            if pattern == "~" || pattern.hasPrefix("~/") { pattern = FileManager.default.homeDirectoryForCurrentUser.path + pattern.dropFirst() }
+            if pattern == "$HOME" || pattern.hasPrefix("$HOME/") { pattern = FileManager.default.homeDirectoryForCurrentUser.path + pattern.dropFirst(5) }
+            // Unlike overlay rules, a bare path excludes only that exact path.
+            // A terminal '*' is a spelling prefix; '/' includes directory children.
+            let candidate = caseSensitive ? path : path.lowercased(), filter = caseSensitive ? pattern : pattern.lowercased()
+            if prefix && candidate.hasPrefix(filter) { return false }
+            if descendants && (candidate.hasPrefix(filter) || candidate == String(filter.dropLast())) { return false }
+            if !prefix && !descendants && candidate == filter { return false }
+        }
+        return true
+    }
+    public func allowsMenu(flags: FinderShellFlags, extended: Bool) -> Bool {
+        extended || !hideForUnversioned || !flags.intersection([.inGit, .inVersionedFolder, .folderInGit, .bare, .inaccessible]).isEmpty
     }
 }
 
@@ -458,6 +508,7 @@ public enum FinderShellRules {
             let root = snapshot?.roots.sorted { $0.count > $1.count }.first { root in
                 path.path == root || path.path.hasPrefix(root.hasSuffix("/") ? root : root + "/")
             }
+            if root == nil, directory, FinderCreationMenuContext.read(directory: path, snapshot: snapshot, extended: extended).inaccessible { flags.insert(.inaccessible) }
             let metadata = root.flatMap { snapshot?.repositories[$0] }
             let bare = metadata?.bare ?? root.map { FinderCreationMenuContext.read(directory: URL(fileURLWithPath: $0, isDirectory: true), snapshot: snapshot, extended: false).bare } ?? false
             if let root, !bare {

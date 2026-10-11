@@ -127,6 +127,18 @@ enum FinderMenuBuilder {
         func image(_ icon: MenuIcon) -> NSImage? { settings.showIcons ? icon.image() : nil }
         let menu = NSMenu(title: "TurtleGit")
         if paths.contains(where: { $0.pathComponents.contains(".git") }) { return menu }
+        let originalPaths = paths
+        let paths = paths.filter { path in
+            let knownRoot = snapshot?.roots.sorted { $0.count > $1.count }.first { root in path.path == root || path.path.hasPrefix(root + "/") }
+            let fallback = knownRoot.map { URL(fileURLWithPath: $0) } ?? path.deletingLastPathComponent()
+            let sensitive = (try? path.resourceValues(forKeys: [.volumeSupportsCaseSensitiveNamesKey]).volumeSupportsCaseSensitiveNames)
+                ?? (try? fallback.resourceValues(forKeys: [.volumeSupportsCaseSensitiveNamesKey]).volumeSupportsCaseSensitiveNames) ?? true
+            return settings.allowsPath(path.standardizedFileURL.path, caseSensitive: sensitive)
+        }
+        if !originalPaths.isEmpty && paths.isEmpty { return menu }
+        let shellFlags = FinderShellRules.flags(paths: paths, snapshot: snapshot, extended: extended)
+        guard settings.allowsMenu(flags: shellFlags, extended: extended) else { return menu }
+        let creationDirectory = creationDirectory.flatMap { paths.contains($0) ? $0 : nil }
         let submenu = NSMenu(title: "TurtleGit")
         submenu.autoenablesItems = false
         let creationActions = creationDirectory.map {
@@ -137,7 +149,6 @@ enum FinderMenuBuilder {
             item.image = image(action.icon); item.target = target
             item.representedObject = FinderMenuCommand(action: action, paths: creationDirectory.map { [$0] } ?? []); submenu.addItem(item)
         }
-        let shellFlags = FinderShellRules.flags(paths: paths, snapshot: snapshot, extended: extended)
         let knownRepository = paths.contains { path in snapshot?.roots.contains { path.path == $0 || path.path.hasPrefix($0 + "/") } == true }
         if !submenu.items.isEmpty && knownRepository { submenu.addItem(.separator()) }
         for action in RepositoryAction.allCases.filter({ $0 != .clone && $0 != .initialize && $0 != .worktreeCreate && $0 != .editConflict && $0 != .reset && $0 != .diffLater && $0 != .clearComparisonMark && !$0.isIgnore && $0.resolveChoice == nil }) {
@@ -175,8 +186,22 @@ enum FinderMenuBuilder {
             item.target = target; item.image = image(.compare); item.representedObject = FinderMenuCommand(action: .diffLater, paths: paths)
             submenu.addItem(.separator()); submenu.addItem(item)
         }
+        for item in submenu.items {
+            guard let action = FinderShellMenuLayout.action(item), let entry = FinderMenuEntry.entry(for: action) else { continue }
+            if !settings.visible(entry, extended: extended) { submenu.removeItem(item) }
+        }
         FinderShellMenuLayout.arrange(submenu)
         if toolbar { return submenu }
+        let firstLevel = NSMenu(title: "TurtleGit")
+        for item in submenu.items {
+            guard let action = FinderShellMenuLayout.action(item), let entry = FinderMenuEntry.entry(for: action), settings.firstLevel(entry) else { continue }
+            submenu.removeItem(item); item.title = "Git " + item.title; firstLevel.addItem(item)
+        }
+        FinderShellMenuLayout.arrange(firstLevel)
+        FinderShellMenuLayout.arrange(submenu)
+        for item in firstLevel.items { firstLevel.removeItem(item); menu.addItem(item) }
+        if submenu.items.isEmpty { return menu }
+        if !menu.items.isEmpty { menu.addItem(.separator()) }
         let parent = NSMenuItem(title: "TurtleGit", action: nil, keyEquivalent: "")
         parent.image = image(.turtle)
         parent.submenu = submenu; menu.addItem(parent)

@@ -142,6 +142,8 @@ for baseline and update rules.
 
 - [Appearance and color parity](APPEARANCE.md)
 - [Application context-menu icon preference](CONTEXT-MENU-ICONS-PARITY.md)
+- [Finder Context Menu and Context Menu 2 settings](CONTEXT-MENU-SETTINGS-PARITY.md)
+- [Finder overlay settings and original icon sets](FINDER-OVERLAY-SETTINGS-PARITY.md)
 - [Advanced Settings port audit](ADVANCED-SETTINGS-PARITY.md)
 - [EditorConfig integration audit](EDITORCONFIG-PARITY.md)
 - [Issue tracker integration audit](ISSUE-TRACKER-PARITY.md)
