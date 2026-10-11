@@ -1,0 +1,34 @@
+{
+  "date": "2026-10-11",
+  "status": "workflow-dependency-order-corrected-hosted-execution-pending",
+  "problem": "The clean macOS workflow used build/git-runtime/Git/bin/git in Synchronization and Log tests before running build-git-runtime.py.",
+  "change": "Move the existing single pinned Git build before Git integration tests and the Debug application build; preserve every other step and command.",
+  "verification": {
+    "single_build": true,
+    "all_other_step_text_unchanged": true,
+    "explicit_bundled_git_consumer_lines": [
+      248,
+      250,
+      270,
+      272,
+      288,
+      299,
+      301
+    ],
+    "build_precedes_debug_embedding": true
+  },
+  "hosted_observation": {
+    "run": 38115392662,
+    "checkpoint": "b3e28f616208ec9e2af79f1ca7a379b74858c72e",
+    "job_status": "queued",
+    "runner_name": "",
+    "labels": [
+      "macos-15"
+    ]
+  },
+  "limits": [
+    "Queued job has no assigned runner; API observation does not establish the reason for the queue.",
+    "Workflow ordering was verified locally; no hosted run of the corrected order has completed.",
+    "Existing local runtime/build audits do not substitute for clean hosted execution."
+  ]
+}

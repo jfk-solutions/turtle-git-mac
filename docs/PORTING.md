@@ -339,3 +339,13 @@ roles from pending review to partial. This is an inventory correction, not a new
 completed dialog: modal comparison, Quit/forced-close cancellation and separate
 options/progress windows still need work. See
 [the owner audit](qa/merge-abort-owner-audit-2026-10-10.json).
+
+## Hosted Git runtime dependency order (October 11, 2026)
+
+The macOS workflow now builds pinned universal Git before the Debug application
+and all tests that explicitly select the bundled executable. Previously the
+Synchronization and Log checks appeared before that build, which left their
+Git path absent on a clean checkout. The move preserves all other steps.
+Local ordering checks pass; hosted execution remains pending. The observed
+prior macOS job was queued with no assigned runner, whose cause is not yet
+established. See [ordering verification and hosted limits](qa/ci-git-runtime-order-2026-10-11.json).
