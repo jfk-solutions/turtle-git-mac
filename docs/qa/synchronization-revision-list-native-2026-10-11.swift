@@ -142,6 +142,26 @@ struct SynchronizationRevisionListVerification {
         precondition(captured.last!.0 == .revision(missingParent) && captured.last!.1 == .revision(merge.hash))
         let afterMetadataRefs = try await repo.run(["show-ref"]).stdout, afterMetadataConfig = try Data(contentsOf:root.appendingPathComponent(".git/config")), afterMetadataIndex = try Data(contentsOf:root.appendingPathComponent(".git/index"))
         precondition(afterMetadataRefs == narrowedRefs && afterMetadataConfig == config && afterMetadataIndex == index)
+        // Exercise real creation only in this dedicated disposable menu repository.
+        owner.configureHistoryReference = { child in
+            if child.model.isTag { child.model.onSwitch = { _, done in done() } }
+        }
+        let headBeforeCreation = try await repo.run(["rev-parse","HEAD"]).stdout
+        for (isTag,name) in [(false,"sync-menu-branch"),(true,"sync-menu-tag")] {
+            let index = model.historyEntries.firstIndex { $0.hash == merge.hash }!
+            let item = menu(IndexSet(integer:index)).items.first { $0.title == (isTag ? "Create tag at this version…" : "Create branch at this version…") }!
+            _ = menu(IndexSet(integer:0)); invoke(item)
+            let child = owner.historyReferenceController!
+            try await settle { !child.model.busy && !child.model.chooser.busy }
+            precondition(child.window!.sheetParent === owner.window && child.model.chooser.revision == merge.hash)
+            child.model.options.name = name; child.model.switchAfterCreation = false; child.model.pushAfterCreation = false
+            child.model.create()
+            try await settle { owner.historyReferenceController == nil && !model.busy }
+            let createdHash = try await repo.run(["rev-parse",isTag ? "refs/tags/" + name : "refs/heads/" + name]).text.trimmingCharacters(in:.newlines)
+            precondition(createdHash == merge.hash && model.historyEntries.first { $0.hash == merge.hash }!.references.contains { $0.name == (isTag ? "refs/tags/" : "refs/heads/") + name }, "Created \(name) at \(createdHash), expected \(merge.hash); refreshed refs \(model.historyEntries.first { $0.hash == merge.hash }!.references.map(\.name))")
+        }
+        let headAfterCreation = try await repo.run(["rev-parse","HEAD"]).stdout, configAfterCreation = try Data(contentsOf:root.appendingPathComponent(".git/config")), indexAfterCreation = try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        precondition(headBeforeCreation == headAfterCreation && configAfterCreation == config && indexAfterCreation == index)
         owner.close(); precondition(model.closed && !owner.window!.isVisible)
     }
     @MainActor static func main() async throws {
@@ -162,6 +182,8 @@ struct SynchronizationRevisionListVerification {
         _ = try await repo.run(["remote","add","origin",root.appendingPathComponent("no-server.git").path])
         _ = try await repo.run(["update-ref","refs/remotes/origin/main",base])
         _ = try await repo.run(["config","branch.main.remote","origin"]); _ = try await repo.run(["config","branch.main.merge","refs/heads/main"])
+        _ = try await repo.run(["update-ref","refs/remotes/alpha/topic","HEAD"])
+        _ = try await repo.run(["update-ref","refs/remotes/zeta/other","HEAD"])
         let refs = try await repo.run(["show-ref"]).stdout, index = try Data(contentsOf:root.appendingPathComponent(".git/index")), config = try Data(contentsOf:root.appendingPathComponent(".git/config"))
         let suite = "TurtleGit.Sync.Revisions.QA." + UUID().uuidString, preferences = UserDefaults(suiteName:suite)!
         defer { preferences.removePersistentDomain(forName:suite) }
@@ -244,6 +266,44 @@ struct SynchronizationRevisionListVerification {
             viewer.close(); precondition(model.comparison.unifiedWindows.isEmpty)
         }
         native.selectRowIndexes(IndexSet(integersIn:0..<2),byExtendingSelection:false)
+        var browser: RepositoryBrowserWindowController?
+        model.onHistoryBrowseRepository = { hash in
+            let child = RepositoryBrowserWindowController(repository:repo,access:nil,revision:hash)
+            browser = child; child.showWindow(nil)
+        }
+        native.selectRowIndexes(IndexSet(integer:0),byExtendingSelection:false)
+        let browse = comparisonItem("Browse repository")
+        precondition(browse.image != nil)
+        native.selectRowIndexes(IndexSet(integer:1),byExtendingSelection:false); invoke(browse)
+        try await settle { browser?.model.busy == false }
+        precondition(browser!.model.snapshot?.objectID == rows[0].hash)
+        browser!.close(); browser = nil
+        let productionCreation = model.onHistoryCreateReference
+        var creationTarget: (Bool,String)?
+        model.onHistoryCreateReference = { creationTarget = ($0,$1) }
+        native.selectRowIndexes(IndexSet(integer:0),byExtendingSelection:false)
+        let remote = rows[0].references.first { $0.name.hasPrefix("refs/remotes/") }!.name
+        invoke(comparisonItem("Create branch at this version…")); precondition(creationTarget?.0 == false && creationTarget?.1 == remote)
+        (native as! HistoryTableView).contextReference = (0,"refs/remotes/zeta/other")
+        invoke(comparisonItem("Create branch at this version…")); precondition(creationTarget?.1 == "refs/remotes/zeta/other")
+        invoke(comparisonItem("Create tag at this version…")); precondition(creationTarget?.0 == true && creationTarget?.1 == remote)
+        (native as! HistoryTableView).contextReference = nil
+        model.onHistoryCreateReference = productionCreation
+        native.selectRowIndexes(IndexSet(integer:1),byExtendingSelection:false)
+        for title in ["Create branch at this version…","Create tag at this version…"] {
+            let item = comparisonItem(title); precondition(item.image != nil)
+            native.selectRowIndexes(IndexSet(integer:0),byExtendingSelection:false); invoke(item)
+            let child = owner.historyReferenceController!
+            try await settle { !child.model.busy && !child.model.chooser.busy }
+            precondition(child.window!.sheetParent === window && model.creatingHistoryReference && model.hasBlockingChild)
+            precondition(child.model.chooser.revision == rows[1].hash && !child.model.useHead)
+            precondition(child.model.isTag == (title == "Create tag at this version…"))
+            child.close(); precondition(owner.historyReferenceController == nil && !model.creatingHistoryReference && window.attachedSheet == nil)
+            native.selectRowIndexes(IndexSet(integer:1),byExtendingSelection:false)
+        }
+        native.selectRowIndexes(IndexSet(integersIn:0..<2),byExtendingSelection:false)
+        native.menu!.delegate?.menuNeedsUpdate?(native.menu!)
+        precondition(!native.menu!.items.contains { $0.title == "Browse repository" || $0.title.hasPrefix("Create branch") || $0.title.hasPrefix("Create tag") })
         let capturedHashes = copyItem("Hashes")
         native.selectRowIndexes(IndexSet(integer:0),byExtendingSelection:false)
         invoke(capturedHashes); precondition(clipboard.string(forType:.string) == rows.map(\.hash).joined(separator:"\n"), "Menu payload must preserve the captured selection")
@@ -371,9 +431,14 @@ struct SynchronizationRevisionListVerification {
         precondition(!diffing.busy && diffing.comparison.unifiedWindows.isEmpty && diffing.error == nil, "An owned unified read must not open a viewer after owner close")
         let finalRefs = try await repo.run(["show-ref"]).stdout, finalIndex = try Data(contentsOf:root.appendingPathComponent(".git/index")), finalConfig = try Data(contentsOf:root.appendingPathComponent(".git/config"))
         precondition(refs == finalRefs && index == finalIndex && config == finalConfig)
+        model.onHistoryCreateReference?(false,entry.hash)
+        let ownedReference = owner.historyReferenceController!
+        try await settle { !ownedReference.model.busy && !ownedReference.model.chooser.busy }
         owner.close(); precondition(model.closed && !model.busy && !window.isVisible)
+        precondition(owner.historyReferenceController == nil && !ownedReference.window!.isVisible && !model.creatingHistoryReference)
+
         try await verifyComparisonSelectionCases(root:root.appendingPathExtension("comparison-menu-cases"),git:repo.executable,preferences:preferences)
-        print("PASS: native Sync source columns, original action icons, annotated/current/tracking ref labels, issue IDs, date/full-message settings, independent column toggles/reset, both lists/themes/sizes, clipboard menus/captured multi-selection/source text formats/full metadata/pointed names, native revision comparison menus/captured targets/owner guards/real comparison snapshots/root omission/merge parents/source captions/contiguous and disjoint selection/off-list parent menu updates/owned parent metadata cancellation/unified diff source bytes/all merge modes/no-extra notice/owned read-only viewers, owned action and clipboard cancellation/late-callback fencing and unchanged Git state")
+        print("PASS: native Sync source columns, original action icons, annotated/current/tracking ref labels, issue IDs, date/full-message settings, independent column toggles/reset, both lists/themes/sizes, clipboard menus/captured multi-selection/source text formats/full metadata/pointed names, native revision comparison menus/captured targets/owner guards/real comparison snapshots/root omission/merge parents/source captions/contiguous and disjoint selection/off-list parent menu updates/owned parent metadata cancellation/unified diff source bytes/all merge modes/no-extra notice/owned read-only viewers/native browse/remote suggestions/owned reference sheets/real branch and tag creation/refresh, owned action and clipboard cancellation/late-callback fencing and unchanged Git state")
     }
 }
 @_cdecl("turtlegit_history_main") func bootstrap() -> Int32 {

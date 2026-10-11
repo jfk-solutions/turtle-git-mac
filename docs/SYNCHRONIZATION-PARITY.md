@@ -1122,3 +1122,33 @@ clipboard, columns and lifecycle assertions are retained. Physical menu tracking
 external-viewer launch/Shift acceptance, keyboard/accessibility, signed sandbox
 and full revision-command/UI parity remain open. Source libgit2-specific output
 behavior is not reproduced; this port uses the source CLI command semantics.
+
+### Browse and create references from revision menus (2026-10-11)
+
+A single selected Sync revision now offers Browse repository and, except the stash
+reference tip, Create branch/tag at this version. Browse captures the commit hash
+and routes through RepositoryModel's existing native repository browser. Branch/tag
+menus use original icons and the source remote recommendation: a pointed remote
+label is honored for branch creation; otherwise both commands prefer the first
+remote reference, falling back to the commit hash. Multi-selection omits these
+commands. Busy, Quit, cancellation, active child and attached-sheet guards apply
+again when a captured menu action is delivered.
+
+Branch/tag creation is an owned Sync sheet, with the existing native reference
+chooser and RepositoryModel interaction hooks. The parent blocks conflicting
+actions while it is open; forced parent closure invalidates and closes the child.
+Successful creation refreshes outgoing commits and reference badges. The native
+fixture exposed an ordering issue: the standalone BranchTag path reports success
+after closing, whereas its native switch handoff reports before closing. Sync now
+refreshes for either order without refreshing a closed parent.
+
+System and bundled Git both passed actual browser loading, captured selection,
+remote/pointed/tag recommendation, creation sheet prefill/cancel, multi-selection
+gates and forced parent cleanup. A dedicated disposable repository also creates
+a real branch and tag at the captured merge commit, covering both callback orders
+and verifying the refreshed reference labels. HEAD, index and configuration stay
+unchanged during those creations; the two new refs are intentional fixture effects.
+Existing comparison, unified diff, parent metadata, clipboard and lifecycle checks
+remain in the fixture. Physical menu tracking, stash-specific menu scenarios, remote
+tracking creation, picker/switch/push post-actions and signed acceptance remain open.
+Other Sync revision commands and full application parity are still incomplete.

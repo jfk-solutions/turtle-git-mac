@@ -226,6 +226,8 @@ private struct SynchronizationProgressDialog: View {
     private var emailAlert: NSAlert?
     private(set) var branchPicker: ReferenceBrowserWindowController?
     var configureBranchPicker: (ReferenceBrowserWindowModel) -> Void = { _ in }
+    var configureHistoryReference: (BranchTagWindowController) -> Void = { _ in }
+    private(set) var historyReferenceController: BranchTagWindowController?
     var configureOptions: (FetchWindowController) -> Void = { _ in }
     var configurePushOptions: (PushWindowController) -> Void = { _ in }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
@@ -291,6 +293,30 @@ private struct SynchronizationProgressDialog: View {
                 child.model.load(remote: remote, allRemotes: false)
                 owner.beginSheet(child.window!)
             }
+        }
+        model.onHistoryCreateReference = { [weak self] isTag, revision in
+            guard let self, !self.model.closed, !self.model.busy, !self.model.confirmingQuit,
+                  !self.model.hasBlockingChild, let owner = self.window, owner.attachedSheet == nil,
+                  self.historyReferenceController == nil else { return }
+            let child = BranchTagWindowController(repository: self.model.repository, access: self.model.access, isTag: isTag, preferences: self.model.preferences)
+            self.configureHistoryReference(child)
+            var created = false
+            let onCreated = child.model.onCreated
+            child.model.onCreated = { [weak self] output in
+                created = true; onCreated(output)
+                // The standalone creation path reports after closing; the native
+                // switch handoff reports before closing. Refresh once for either.
+                if let self, self.historyReferenceController == nil, !self.model.closed { self.model.refresh() }
+            }
+            child.onClosed = { [weak self, weak child] in
+                guard let self else { return }
+                if let window = child?.window, window.sheetParent === self.window { self.window?.endSheet(window) }
+                self.historyReferenceController = nil; self.model.creatingHistoryReference = false
+                if created && !self.model.closed { self.model.refresh() }
+            }
+            self.historyReferenceController = child; self.model.creatingHistoryReference = true
+            child.model.load(revision: revision)
+            owner.beginSheet(child.window!)
         }
         model.presentHistoryNotice = { [weak self] message in
             guard let self, !self.model.closed, let window = self.window, window.attachedSheet == nil else { return }
@@ -531,6 +557,11 @@ private struct SynchronizationProgressDialog: View {
     func windowWillClose(_ notification: Notification) {
         model.invalidate()
         model.detachRebase()
+        if let child = historyReferenceController {
+            child.model.invalidate()
+            if let window = child.window, window.sheetParent === self.window { self.window?.endSheet(window) }
+            child.close(); historyReferenceController = nil; model.creatingHistoryReference = false
+        }
         optionsController?.close(); optionsController = nil
         pushOptionsController?.close(); pushOptionsController = nil
         if let child = branchPicker {
@@ -852,8 +883,11 @@ enum SynchronizationHistoryDiff {
     var onReferenceLog: (String) -> Void = { _ in }
     var onReferenceCompare: (String, String) -> Void = { _, _ in }
     var onHistoryCompare: ((ComparisonRevision, ComparisonRevision) -> Void)?
+    var onHistoryBrowseRepository: ((String) -> Void)?
+    var onHistoryCreateReference: ((Bool, String) -> Void)?
+    @Published var creatingHistoryReference = false
     var hasBlockingChild: Bool {
-        emailingPatches || importingPatches || choosingBranch || managingRemotes || NSApp.modalWindow != nil || [comparison, incomingComparison].contains { child in
+        creatingHistoryReference || emailingPatches || importingPatches || choosingBranch || managingRemotes || NSApp.modalWindow != nil || [comparison, incomingComparison].contains { child in
             child.busy || child.comparisonWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil } || child.unifiedWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil }
         }
     }
@@ -1723,6 +1757,21 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
             let from: ComparisonRevision, to: ComparisonRevision
             init(from: ComparisonRevision, to: ComparisonRevision) { self.from = from; self.to = to }
         }
+        private final class RevisionTarget: NSObject {
+            let revision: String, isTag: Bool
+            init(_ revision: String, isTag: Bool = false) { self.revision = revision; self.isTag = isTag }
+        }
+        private var revisionActionAvailable: Bool {
+            !model.closed && !model.busy && !model.confirmingQuit && !model.confirmingCancellation && !model.hasBlockingChild && model.window?.attachedSheet == nil
+        }
+        @objc func browseHistory(_ sender: NSMenuItem) {
+            guard revisionActionAvailable, let target = sender.representedObject as? RevisionTarget else { return }
+            model.onHistoryBrowseRepository?(target.revision)
+        }
+        @objc func createHistoryReference(_ sender: NSMenuItem) {
+            guard revisionActionAvailable, let target = sender.representedObject as? RevisionTarget else { return }
+            model.onHistoryCreateReference?(target.isTag, target.revision)
+        }
         private final class DiffTarget: NSObject {
             let diff: SynchronizationHistoryDiff
             init(_ diff: SynchronizationHistoryDiff) { self.diff = diff }
@@ -1799,6 +1848,25 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
             } else if entries.count == 2 || table.selectedRowIndexes.last! - table.selectedRowIndexes.first! + 1 == entries.count {
                 comparisonItem("Compare revisions", from: .revision(entries.last!.hash), to: .revision(entries.first!.hash), in: menu)
                 if entries.count == 2 { diffItem("Show changes as unified diff", diff: .revisions(entries.last!.hash, entries.first!.hash), in: menu) }
+            }
+            if entries.count == 1, let entry = entries.first {
+                if !menu.items.isEmpty { menu.addItem(.separator()) }
+                let browse = NSMenuItem(title: "Browse repository", action: #selector(browseHistory(_:)), keyEquivalent: "")
+                browse.target = self; browse.isEnabled = revisionActionAvailable && model.onHistoryBrowseRepository != nil
+                browse.image = MenuIcon.repositoryBrowser.contextImage(defaults: model.preferences); browse.representedObject = RevisionTarget(entry.hash); menu.addItem(browse)
+                if !entry.references.contains(where: { $0.name == "refs/stash" }) {
+                    let remote = entry.references.first { $0.name.hasPrefix("refs/remotes/") }?.name
+                    for isTag in [false, true] {
+                        // Source only uses a pointed remote label for branch creation;
+                        // otherwise both commands prefer the first remote for tracking.
+                        let pointedRemote = !isTag ? pointed?.name : nil
+                        let revision = pointedRemote.flatMap { name in entry.references.contains { $0.name == name && name.hasPrefix("refs/remotes/") } ? name : nil } ?? remote ?? entry.hash
+                        let item = NSMenuItem(title: isTag ? "Create tag at this version…" : "Create branch at this version…", action: #selector(createHistoryReference(_:)), keyEquivalent: "")
+                        item.target = self; item.isEnabled = revisionActionAvailable && model.onHistoryCreateReference != nil
+                        item.image = (isTag ? MenuIcon.tag : .branch).contextImage(defaults: model.preferences)
+                        item.representedObject = RevisionTarget(revision, isTag: isTag); menu.addItem(item)
+                    }
+                }
             }
             if !menu.items.isEmpty { menu.addItem(.separator()) }
             for kind in SynchronizationHistoryCopy.allCases {
