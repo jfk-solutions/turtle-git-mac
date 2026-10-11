@@ -1,0 +1,80 @@
+{
+  "date": "2026-10-11",
+  "checkpoint": "325aaeb81716f05d4519644f2fefeee51f6778ef",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "status": "partial-native",
+  "implemented": [
+    "Fetch, Fetch All, Remote Update and Cleanup stale remote branches from an original-icon split control.",
+    "Retained selectable native Command Log with Copy/Copy All original-icon context menu, shared stream parser and percentage/work presentation.",
+    "Captured private SSH coordinator and owned passphrase presentation; SSH autoload preference.",
+    "Transport close/input guards, cancellation confirmation identities, forced-owner cancellation, late-publication suppression and outgoing/repository refresh."
+  ],
+  "verification": {
+    "native": {
+      "engines": [
+        "system Git 2.50.1",
+        "packaged Git 2.55.0"
+      ],
+      "exit": 0,
+      "log": "build/qa/synchronization-native-fetch-verified-2026-10-11.log",
+      "real_git_scope": "Private local bare server and author/client repositories: all four actions, failed Fetch, tracking/outgoing refresh, selected-remote pruning, preserved HEAD/raw index. Actual hidden controller and retained output text view; original Copy icon and Aqua/Dark Aqua layout.",
+      "cancellation_scope": "Private executable shim intercepts Fetch after Git global arguments, emits progress and waits. Checks Keep Running then Cancel, completed-operation late reply, force-close late reply, unchanged refs and suppressed publication.",
+      "ssh_scope": "Settings/coordinator/passphrase routing compiled; autoload disabled during local transports. No encrypted-key or server authentication exercised.",
+      "physical_input": "Not exercised; native handlers invoked programmatically.",
+      "actual_confirmation_sheet": "Cancellation decisions injected; displayed NSAlert interaction not exercised."
+    },
+    "builds_and_bundle_audits": [
+      {
+        "step": "debug-build",
+        "exit": 0,
+        "log": "build/qa/synchronization-native-fetch-debug-build-final-2026-10-11.log"
+      },
+      {
+        "step": "store-build",
+        "exit": 0,
+        "log": "build/qa/synchronization-native-fetch-store-build-final-2026-10-11.log"
+      },
+      {
+        "step": "debug-audit",
+        "exit": 0,
+        "log": "build/qa/synchronization-native-fetch-debug-audit-final-2026-10-11.log"
+      },
+      {
+        "step": "store-audit",
+        "exit": 0,
+        "log": "build/qa/synchronization-native-fetch-store-audit-final-2026-10-11.log"
+      }
+    ],
+    "full_suite": "Not rerun; Core unchanged from the preceding three-engine focused transport checkpoint.",
+    "unsigned_only": true,
+    "cleanup": {
+      "owned_app_receiver_wrapper_or_build_processes": []
+    }
+  },
+  "fixture_corrections": [
+    "Initial shim checked first argv, but GitRepository prepends global literal-pathspec and -C arguments; final shim checks command at fourth argv. Timeout was a fixture error.",
+    "Diagnostic preflight used an internal Core check API; final native code uses the public cancellation flag/failure."
+  ],
+  "remaining": [
+    "Full source Pull split default/order, Pull/Fetch & Rebase/Compare Tags and Shift options routing.",
+    "Push variants and project hooks/tracking questions; separate checkout/progress/replan and native Rebase decisions.",
+    "Incoming, conflicts, reference changes, full outgoing menus/columns/history and remaining Submodule/Stash/Patch split controls.",
+    "Actual encrypted-key/network/authenticated transport, complete rendered light/dark and physical/accessibility acceptance.",
+    "Full Finder activation and signed sandbox/App Store/distribution acceptance; complete application port."
+  ],
+  "sources_sha256": {
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "01d05b01e4663ca27432e45b1cf7405c2b0ba47155cc12a8cce81277264bce3b",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "9da9a76605d9cea7dc8688bd0e4a2d536b1c5b02098af1facfa826838dd9f0b4",
+    "docs/qa/synchronization-native-2026-10-11.swift": "2dd34e717ec1eedad9f2ac35bb2ccf45be4e883de72d0d67567b884d2b813c4c",
+    "scripts/test-synchronization-dialog.py": "b6702a89fd88fc3f0f388bce39577de592f3ed2c022706e258bcdae291aa5c0f",
+    ".github/workflows/macos.yml": "5bc2649fefb9bbd556884d9d8df16fb81d47dc62b21c5cf44fa8396635762f6c",
+    "Sources/TurtleGitCore/Synchronization.swift": "64ec15616d2b70fdf03b2b646aa506bbe636fed15a8c7969c5cd7aa832bebea1"
+  },
+  "logs_sha256": {
+    "build/qa/synchronization-native-fetch-verified-2026-10-11.log": "b1e21a0f400430b5a131438e5376fcbdd58d93050b6c06de57722397cc77e1bd",
+    "build/qa/synchronization-native-fetch-debug-build-final-2026-10-11.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/synchronization-native-fetch-store-build-final-2026-10-11.log": "8b7e42e41011f64b89af2a34249c0e6a736fce554184bf57a0f657922d209930",
+    "build/qa/synchronization-native-fetch-debug-audit-final-2026-10-11.log": "24ca57407aa4866a2edcdd9d94faeeb4e6dd8437dabcf17822d88808d657d11d",
+    "build/qa/synchronization-native-fetch-store-audit-final-2026-10-11.log": "5795d4bc5a2d81eafb755c4dcab6e527eaf22d1098ce2a9ae17fd12bcca3ce30"
+  }
+}

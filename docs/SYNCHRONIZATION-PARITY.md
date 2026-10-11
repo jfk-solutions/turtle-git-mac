@@ -38,7 +38,8 @@ The snapshots do not authorize transport operations.
 
 `SynchronizationTransportOptions` and its immutable plan cover Pull, Fetch,
 Fetch & Rebase, Fetch All, Remote Update, Prune, Push, Push Tags and Push Notes.
-These APIs are not wired to the native Synchronization buttons yet.
+Fetch, Fetch All, Remote Update and Prune are wired to the native window.
+Pull, Fetch & Rebase and Push variants still require their native owned workflows.
 
 The source CLI rules are preserved: matching pull tracking omits an explicit
 branch; configured Pull rebase performs Fetch and defers the native rebase
@@ -96,6 +97,29 @@ ordinary close. App Store reads require the retained repository grant. Quit
 confirmation fences controls and comparison requests. Physical interaction,
 complete source columns/context menus and displayed theme acceptance are pending.
 
+## Native Fetch transport
+
+The Fetch split control exposes Fetch, Fetch All, Remote Update and Cleanup stale
+remote branches with original icons. The Command Log tab retains streamed output
+in the shared selectable native text view, including its Copy/Copy All icon menu
+and completion styling. Percentage/work text uses the shared Git output parser.
+The Auto-load SSH key control captures a private transport coordinator per
+operation; its passphrase sheet belongs to the synchronization window.
+
+Controls and ordinary close are fenced while transport runs. Cancel honors
+ConfirmKillProcess and uses a one-shot request identity; a reply after completion
+or forced owner closure cannot cancel another request. Closing the owner cancels
+its token, suppresses later publication and closes owned confirmation UI.
+Completion refreshes the outgoing projection and the repository's other views,
+including after cancellation or failure because Git may already have updated
+references. Fetch does not populate incoming HEAD tabs. These four actions do not
+run Pull/Push tracking questions or Push project hooks.
+
+The Fetch control is an incremental part of the source Pull split control. Pull,
+Fetch & Rebase, Shift options routing, Compare Tags, reference-change tabs and the
+other split controls remain to be ported. This does not establish complete native
+Synchronization parity or authenticated network/physical/signed acceptance.
+
 ## Verification scope
 
 Five real-Git tests cover equal/ahead/missing/URL states, incoming and unchanged
@@ -122,10 +146,19 @@ audits pass. This does not verify native transport controls, real network
 authentication, the full test suite or signed distribution; see the
 [transport QA record](qa/synchronization-transport-2026-10-11.json).
 
+The extended native receiver verifies the four Fetch actions against private local
+servers using system and packaged Git, selectable command output, unchanged HEAD
+and raw index, failed Fetch, pruning scope, cancellation choices, completed-request
+late replies and forced-owner closure. Cancellation uses a controlled executable
+shim; confirmation decisions are injected. SSH/network authentication and physical
+input remain untested. See the
+[native Fetch QA record](qa/synchronization-native-fetch-2026-10-11.json).
+
 ## Remaining full port
 
 - Remaining source layout: owned branch choosers, remote history saving/deletion,
-  Manage, SSH-key controls, full tab control and status/progress.
+  Manage, full tab control and complete status/progress placement. SSH controls
+  exist for four Fetch actions; encrypted-key/network acceptance remains pending.
 - Incoming Log/changes, reference changes and conflict lists; complete outgoing
   columns/refs/sorting and context menus, persistence and light/dark acceptance.
 - Pull/Fetch/Rebase/Fetch All/Remote Update/Prune/Compare Tags, Push/Tags/Notes,
