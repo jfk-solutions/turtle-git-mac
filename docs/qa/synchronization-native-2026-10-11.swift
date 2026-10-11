@@ -138,6 +138,7 @@ import TurtleGitCore
         let git = URL(fileURLWithPath: CommandLine.arguments[2])
         let directory = root.appendingPathComponent("pull-fixture")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
         let parent = GitRepository(root: directory, executable: git)
         let server = directory.appendingPathComponent("server 雪.git"), authorRoot = directory.appendingPathComponent("author"), clientRoot = directory.appendingPathComponent("client")
         _ = try await parent.run(["init", "--template=", "--bare", "-b", "main", server.path])
@@ -649,8 +650,9 @@ import TurtleGitCore
         print("PASS: native Sync Fetch & Rebase unchanged No/suppression with ahead HEAD, separate fast-forward Merge, Abort without incoming, unchanged Yes then manual Rebase, actual owned Rebase controller fast-forward/divergent replay, stale Merge refusal, source action persistence and pinned incoming results")
     }
     @MainActor static func verifyTags(root: URL, preferences: UserDefaults) async throws {
-        let git = URL(fileURLWithPath: CommandLine.arguments[2]), directory = root.appendingPathComponent("qa-tags")
+        let git = URL(fileURLWithPath: CommandLine.arguments[2]), directory = root.deletingLastPathComponent().appendingPathComponent("qa-tags-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
         let parent = GitRepository(root: directory, executable: git), serverRoot = directory.appendingPathComponent("server 雪.git"), clientRoot = directory.appendingPathComponent("client")
         _ = try await parent.run(["clone", "--bare", "--template=", "--", root.path, serverRoot.path])
         _ = try await parent.run(["clone", "--template=", "--", serverRoot.path, clientRoot.path])
@@ -669,6 +671,35 @@ import TurtleGitCore
         let owner = SynchronizationWindowController(repository: repo, access: nil, preferences: preferences)
         owner.window!.alphaValue = 0; owner.showWindow(nil); defer { owner.close() }
         let model = owner.model; model.sshSettings.enabled = false
+        preferences.set(0, forKey: "AutoCloseGitProgress")
+        defer { preferences.removeObject(forKey: "AutoCloseGitProgress") }
+        var errors = [String](), operations = [String](), compactSizes = [NSSize](), deletionOutput = [String]()
+        let realErrorPresenter = model.presentTagError
+        model.presentTagError = { errors.append($0) }
+        let originalOperation = model.performTagOperation
+        model.performTagOperation = { operation, token in
+            switch operation {
+            case .tags: operations.append("load")
+            case .tag(let action, _, _, _): operations.append(action.title)
+            default: preconditionFailure("unexpected tag operation")
+            }
+            var observer: Task<Void, Never>?
+            var observed: SynchronizationProgressController?
+            if case .tag(.deleteRemote, _, _, _) = operation {
+                observer = Task { @MainActor in
+                    do {
+                        try await settle { owner.commandProgress != nil }
+                        let child = owner.commandProgress!; observed = child
+                        precondition(child.model.operation.compactProgress && !child.model.operation.loadingTags && !child.window!.styleMask.contains(.resizable))
+                        compactSizes.append(child.window!.contentLayoutRect.size)
+                    } catch { preconditionFailure("compact deletion observation failed") }
+                }
+            }
+            let result = await originalOperation(operation, token)
+            await observer?.value
+            if let observed { deletionOutput.append(observed.model.output) }
+            return result
+        }
         try await settle { !model.busy && model.outgoing != nil }
         model.compareTags(shift: true)
         precondition(model.compareTagsSelected && !model.busy && !model.comparingTags && preferences.integer(forKey: "TurtleGit.Sync." + clientRoot.path + ".pullAction") == 6)
@@ -728,17 +759,55 @@ import TurtleGitCore
         let pushed = try await hash(server, "refs/tags/v2"); precondition(pushed == head)
         var confirmed = false, confirmationName = "", confirmationRemote = ""
         model.confirmTagDeletion = { _, row, snapshot in confirmationName = row.tag.rawValue; confirmationRemote = snapshot.remote; return confirmed }
+        operations.removeAll()
         send(menu("remote^{}").items.first { $0.title == "Delete local tag" }!); try await settle { !model.busy }
+        precondition(operations.isEmpty && owner.commandProgress == nil)
         let stillPresent = try await hash(repo, "refs/tags/remote"); precondition(!stillPresent.isEmpty && confirmationName == "remote" && confirmationRemote == "origin")
         confirmed = true
         send(menu("remote^{}").items.first { $0.title == "Delete local tag" }!); try await settle { !model.busy }
-        precondition(model.tagSnapshot!.rows.first { $0.name.rawValue == "remote" }!.kind == .onlyRemote)
+        precondition(model.tagSnapshot!.rows.first { $0.name.rawValue == "remote" }!.kind == .onlyRemote && operations.isEmpty && owner.commandProgress == nil)
         try await settleTable()
+        let beforeFailedDelete = model.tagSnapshot!.rows
+        let hooks = directory.appendingPathComponent("reject-hooks")
+        try FileManager.default.createDirectory(at: hooks, withIntermediateDirectories: true)
+        let hook = hooks.appendingPathComponent("pre-receive")
+        try Data("#!/bin/sh\nprintf 'Tag QA rejects deletion\\n' >&2\nexit 1\n".utf8).write(to: hook)
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: hook.path)
+        _ = try await server.run(["config", "core.hooksPath", hooks.path])
+        // The system Git local receiver caches the client's hook configuration
+        // before entering the bare server. Pin the receive command's hook path
+        // explicitly so this fixture exercises a real server rejection.
+        func quoted(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\"'\"'") + "'" }
+        let receiveCommand = quoted(git.path) + " -c core.hooksPath=" + quoted(hooks.path) + " receive-pack"
+        _ = try await repo.run(["config", "remote.origin.receivepack", receiveCommand])
+        let hookConfig = try await server.run(["config", "--show-origin", "core.hooksPath"]).text.trimmingCharacters(in: .newlines)
+        let remoteURL = try await repo.run(["remote", "get-url", "origin"]).text.trimmingCharacters(in: .newlines)
         send(menu("v2").items.first { $0.title == "Delete tag on remote" }!); try await settle { !model.busy }
-        let deleted = try await server.run(["for-each-ref", "refs/tags/v2"]).stdout; precondition(deleted.isEmpty)
+        precondition(model.error != nil && errors.count == 1 && model.tagSnapshot!.rows == beforeFailedDelete && operations == ["Delete tag on remote"], "remote deletion: error=\(model.error ?? "nil"); alerts=\(errors.count); snapshotSame=\(model.tagSnapshot?.rows == beforeFailedDelete); operations=\(operations); hooks=\(hookConfig); remote=\(remoteURL); expected=\(server.root.path); output=\(deletionOutput)")
+        _ = try await server.run(["config", "core.hooksPath", "/dev/null"])
+        _ = try await repo.run(["config", "--unset", "remote.origin.receivepack"])
+        operations.removeAll()
+        send(menu("v2").items.first { $0.title == "Delete tag on remote" }!); try await settle { !model.busy }
+        let deleted = try await server.run(["for-each-ref", "refs/tags/v2"]).stdout; precondition(deleted.isEmpty && operations == ["Delete tag on remote"] && compactSizes.count == 2 && compactSizes.allSatisfy { $0.width < 600 && $0.height < 250 })
         let finalHead = try await hash(repo, "HEAD"), finalIndex = try Data(contentsOf: clientRoot.appendingPathComponent(".git/index")), finalConfig = try Data(contentsOf: clientRoot.appendingPathComponent(".git/config"))
-        precondition(finalHead == head && index == finalIndex && config == finalConfig && changed == 5)
+        precondition(finalHead == head && index == finalIndex && config == finalConfig && changed == 6)
         model.refresh(); try await settle { !model.busy }; precondition(model.tab == 7 && model.tagSnapshot != nil)
+        // Source AutoCloseGitProgress 1/2 closes a successful tag command with
+        // no post-actions, but still retains failed Fetch output for Close.
+        for policy in [1, 2] {
+            preferences.set(policy, forKey: "AutoCloseGitProgress")
+            let tag = "auto-" + String(policy)
+            _ = try await repo.run(["tag", tag, head]); model.refresh(); try await settle { !model.busy }; try await settleTable()
+            send(menu(tag).items.first { $0.title == "Push" }!); try await settle { !model.busy }; try await settleTable()
+            let pushed = try await hash(server, "refs/tags/" + tag)
+            precondition(pushed == head && owner.commandProgress == nil)
+        }
+        send(menu("different").items.first { $0.title == "Fetch" }!); try await closeCommand()
+        precondition(model.error != nil && errors.count == 1 && changed == 9)
+        model.remote = directory.appendingPathComponent("missing-server.git").path; model.compareTags(); try await settle { !model.busy }
+        precondition(model.error != nil && model.tagSnapshot == nil && errors.count == 2 && owner.commandProgress == nil)
+        model.remote = "origin"; model.refresh(); try await settle { !model.busy }; precondition(model.error == nil && model.tagSnapshot != nil)
+        preferences.set(0, forKey: "AutoCloseGitProgress")
         let restored = SynchronizationWindowModel(repository: repo, access: nil, preferences: preferences); precondition(restored.compareTagsSelected && restored.pullActionTitle == "Compare Tags")
         model.reload(); try await settle { !model.busy }; precondition(model.tab == 0 && !model.comparingTags && model.tagSnapshot == nil)
         // Both loading and a write own their cancellation/process group, and
@@ -763,7 +832,15 @@ import TurtleGitCore
             let refsAfterClose = try await repo.run(["show-ref"]).stdout
             precondition(blocked.closed && !blocked.busy && !progress.model.busy && progress.window?.sheetParent == nil && blockedOwner.commandProgress == nil && refsAfterClose == refsBeforeClose)
         }
-        print("PASS: native Compare Tags six columns, raw/friendly entries, natural/reversed sorting, full-hash Log/Compare routes, source icon menus and visibility settings, Hide unchanged, Shift persistence, real non-force failure/Fetch/Push/confirmed friendly deletions, owned progress/refill, HEAD/index/config preservation and forced load/write cleanup")
+        // Exercise the actual owned native error sheet and force-close fence.
+        model.presentTagError = realErrorPresenter
+        model.remote = directory.appendingPathComponent("missing-error-owner.git").path; model.compareTags()
+        try await settle { owner.window!.attachedSheet != nil && owner.commandProgress == nil }
+        let alertWindow = owner.window!.attachedSheet!
+        precondition(model.busy && alertWindow.alphaValue == 0 && !owner.windowShouldClose(owner.window!))
+        owner.close(); try await settle { alertWindow.sheetParent == nil && !alertWindow.isVisible }
+        precondition(model.closed && !model.busy && owner.commandProgress == nil)
+        print("PASS: native Compare Tags six columns, raw/friendly entries, natural/reversed sorting, full-hash Log/Compare routes, source icon menus and visibility settings, Hide unchanged, Shift persistence, real non-force failure/Fetch/Push/confirmed friendly deletions, manual/automatic output close, inline local deletion, compact remote deletion with same-window refill/error, loading error handoff and actual owned error-sheet cleanup, HEAD/index/config preservation and forced load/write cleanup")
     }
 
     @MainActor static func main() async throws {
