@@ -39,6 +39,7 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git', type=Path, action='append')
 selection = parser.add_mutually_exclusive_group()
 selection.add_argument('--push-only', action='store_true', help='Run the native Push fixture only.')
+selection.add_argument('--branches-only', action='store_true', help='Run the native local/remote branch picker fixture only.')
 selection.add_argument('--manage-only', action='store_true', help='Run the native Manage Remote settings fixture only.')
 selection.add_argument('--stash-only', action='store_true', help='Run the native Stash fixture only.')
 selection.add_argument('--submodules-only', action='store_true', help='Run the native Submodule fixture only.')
@@ -61,6 +62,7 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-sync-native-') as temporary:
     if args.tags_only: environment['TURTLEGIT_SYNC_TAGS_ONLY'] = '1'
     if args.push_only: environment['TURTLEGIT_SYNC_PUSH_ONLY'] = '1'
     if args.submodules_only: environment['TURTLEGIT_SYNC_SUBMODULES_ONLY'] = '1'
+    if args.branches_only: environment['TURTLEGIT_SYNC_BRANCHES_ONLY'] = '1'
     if args.manage_only: environment['TURTLEGIT_SYNC_MANAGE_ONLY'] = '1'
     if args.stash_only: environment['TURTLEGIT_SYNC_STASH_ONLY'] = '1'
     for index, git in enumerate(args.git or [Path('/usr/bin/git')]):

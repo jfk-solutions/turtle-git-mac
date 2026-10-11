@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import Foundation
 
-public enum ReferenceBrowserScope: Sendable { case all, remotes }
+public enum ReferenceBrowserScope: Sendable { case all, heads, remotes }
 public enum ReferenceBrowserMergeFilter: String, CaseIterable, Sendable { case all = "All", merged = "Only merged", unmerged = "Only unmerged" }
 public struct BrowserReference: Sendable {
     public let name: GitReferenceName
@@ -93,6 +93,7 @@ extension GitRepository {
         var arguments = ["for-each-ref", "--sort=refname", "--format=" + atoms.map { "%(" + $0 + ")" }.joined(separator: "%00") + "%00"]
         if filter != .all { arguments += [filter == .merged ? "--merged=HEAD" : "--no-merged=HEAD"] }
         if scope == .remotes { arguments.append("refs/remotes/") }
+        else if scope == .heads { arguments.append("refs/heads/") }
         let bytes = try run(arguments, cancellation: cancellation).stdout
         let values = String(decoding: bytes, as: UTF8.self).components(separatedBy: "\0")
         var records: [[String]] = []

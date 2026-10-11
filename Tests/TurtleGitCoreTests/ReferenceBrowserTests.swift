@@ -216,6 +216,9 @@ final class ReferenceBrowserTests: XCTestCase {
         _ = try await repo.run(["tag", "release"]); _ = try await repo.run(["update-ref", "refs/notes/custom", "HEAD"])
         let head = try await repo.run(["rev-parse", "HEAD"]).stdout, index = try Data(contentsOf: root.appendingPathComponent(".git/index")), file = try Data(contentsOf: root.appendingPathComponent("file"))
         for (key, value) in [("description", "keep me"), ("pushRemote", "other"), ("rebase", "true")] { _ = try await repo.run(["config", "branch.main." + key, value]) }
+        let local = try await repo.referenceBrowser(scope: .heads)
+        XCTAssertEqual(local.references.map(\.name), ["refs/heads/main"])
+        XCTAssertFalse(local.folders.contains("refs/remotes")); XCTAssertFalse(local.folders.contains("refs/tags")); XCTAssertFalse(local.folders.contains("refs/notes"))
         let remote = try await repo.referenceBrowser(scope: .remotes)
         XCTAssertEqual(remote.references.map(\.name), ["refs/remotes/origin/HEAD", "refs/remotes/origin/main"])
         XCTAssertFalse(remote.folders.contains("refs/heads")); XCTAssertFalse(remote.folders.contains("refs/tags"))

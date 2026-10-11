@@ -1213,6 +1213,78 @@ import TurtleGitCore
         print("PASS: native Sync Stash direct commands/conflict tab/Shift routes, retained failed command output on inspection failure, actual standalone Shift Save options and progress after Sync closure, private preferences, forced options/progress sheet cleanup, before/after reference-read process reaping and suppressed late replies")
     }
 
+    @MainActor static func verifyBranchPickers(root: URL, preferences: UserDefaults) async throws {
+        let directory = root.appendingPathComponent("qa-sync-branches-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let selected = URL(fileURLWithPath: CommandLine.arguments[2])
+        let source = GitRepository(root: root, executable: selected)
+        _ = try await source.run(["clone", "--no-hardlinks", "--template=", "--", root.path, directory.path])
+        let shim = directory.appendingPathComponent("branch-git"), marker = directory.appendingPathComponent("branch-pid"), enable = directory.appendingPathComponent("branch-stall")
+        func quote(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\"'\"'") + "'" }
+        let environment = GitRuntime.environment(executable: selected).sorted { $0.key < $1.key }.map { "export " + $0.key + "=" + quote($0.value) }.joined(separator: "\n")
+        let script = "#!/bin/sh\n" + environment + "\nif [ -f " + quote(enable.path) + " ]; then\nfor argument; do\nif [ \"$argument\" = for-each-ref ]; then\nprintf '%s\\n' \"$$\" > " + quote(marker.path) + "\nwhile :; do sleep 1; done\nfi\ndone\nfi\nexec " + quote(selected.path) + " \"$@\"\n"
+        try Data(script.utf8).write(to: shim); try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: shim.path)
+        let repo = GitRepository(root: directory, executable: shim)
+        _ = try await repo.run(["config", "core.precomposeunicode", "false"])
+        _ = try await repo.run(["branch", "topic/雪"])
+        _ = try await repo.run(["config", "branch.topic/雪.remote", "origin"])
+        _ = try await repo.run(["config", "branch.topic/雪.merge", "refs/heads/feature/雪"])
+        _ = try await repo.run(["update-ref", "refs/remotes/origin/feature/雪", "HEAD"])
+        _ = try await repo.run(["remote", "add", "mirror", root.path])
+        _ = try await repo.run(["update-ref", "refs/remotes/mirror/review/deep/雪", "HEAD"])
+        _ = try await repo.run(["tag", "release"]); _ = try await repo.run(["update-ref", "refs/notes/qa", "HEAD"])
+        let head = try await repo.run(["rev-parse", "HEAD"]).stdout, refs = try await repo.run(["show-ref"]).stdout
+        let index = try Data(contentsOf: directory.appendingPathComponent(".git/index")), config = try Data(contentsOf: directory.appendingPathComponent(".git/config"))
+        let owner = SynchronizationWindowController(repository: repo, access: nil, preferences: preferences)
+        owner.window!.alphaValue = 0; owner.showWindow(nil); defer { owner.close() }
+        let model = owner.model; var configured = 0
+        owner.configureBranchPicker = { _ in configured += 1 }
+        try await settle { !model.busy && model.outgoing != nil }
+        model.force = true; model.remoteBranch = "typed-before-choice"
+        model.confirmingQuit = true; model.browseBranch(.local); precondition(owner.branchPicker == nil)
+        model.confirmingQuit = false; model.browseBranch(.local)
+        let local = owner.branchPicker!
+        precondition(model.choosingBranch && model.hasBlockingChild && !owner.windowShouldClose(owner.window!))
+        precondition(local.window!.sheetParent === owner.window && local.window!.alphaValue == 0)
+        model.browseBranch(.remote); model.manageRemotes(); model.stash(.save, shift: false)
+        precondition(owner.branchPicker === local && owner.remoteSettingsController == nil && !model.transportRunning)
+        try await settle { !local.model.busy && local.model.snapshot != nil }
+        precondition(local.model.scope == .heads && local.model.snapshot!.references.allSatisfy { $0.name.rawValue.hasPrefix("refs/heads/") })
+        local.model.setFolder("refs/heads"); local.model.selected = "refs/heads/topic/雪"; precondition(local.model.canAccept)
+        local.model.accept(); try await settle { owner.branchPicker == nil && !model.busy }
+        precondition(local.model.closed && !model.choosingBranch && owner.window!.attachedSheet == nil)
+        precondition(model.localBranch == "topic/雪" && model.remote == "origin" && model.remoteBranch == "feature/雪" && model.force)
+        model.browseBranch(.remote); let remote = owner.branchPicker!
+        try await settle { !remote.model.busy && remote.model.snapshot != nil }
+        precondition(remote.model.scope == .remotes && remote.model.snapshot!.references.allSatisfy { $0.name.rawValue.hasPrefix("refs/remotes/") })
+        remote.model.setFolder("refs/remotes/mirror"); remote.model.selected = "refs/remotes/mirror/review/deep/雪"
+        precondition(remote.model.canAccept); remote.model.accept()
+        try await settle { owner.branchPicker == nil && !model.busy }
+        precondition(model.localBranch == "topic/雪" && model.remote == "mirror" && model.remoteWasSelected && model.remoteBranch == "review/deep/雪" && model.force)
+        precondition(model.branchHistory.contains("review/deep/雪") && configured == 2)
+        for target in [SynchronizationBranchTarget.local, .remote] {
+            let before = [model.localBranch, model.remote, model.remoteBranch]
+            model.browseBranch(target); let cancelled = owner.branchPicker!
+            try await settle { !cancelled.model.busy }; cancelled.model.cancel()
+            try await settle { owner.branchPicker == nil }
+            precondition(before == [model.localBranch, model.remote, model.remoteBranch] && !model.busy && cancelled.model.closed)
+        }
+        model.applyBranchSelection("refs/tags/release", target: .local)
+        model.applyBranchSelection("refs/heads/main", target: .remote)
+        precondition(model.localBranch == "topic/雪" && model.remote == "mirror" && model.remoteBranch == "review/deep/雪" && !model.busy)
+        let finalHead = try await repo.run(["rev-parse", "HEAD"]).stdout, finalRefs = try await repo.run(["show-ref"]).stdout
+        let finalIndex = try Data(contentsOf: directory.appendingPathComponent(".git/index")), finalConfig = try Data(contentsOf: directory.appendingPathComponent(".git/config"))
+        precondition(finalHead == head && finalRefs == refs && index == finalIndex && config == finalConfig)
+        try Data().write(to: enable); model.browseBranch(.remote); let blocked = owner.branchPicker!
+        try await settle { FileManager.default.fileExists(atPath: marker.path) }
+        let pid = pid_t(try String(contentsOf: marker).trimmingCharacters(in: .newlines))!
+        owner.close(); try await settle { kill(pid, 0) == -1 }
+        let state = kill(pid, 0), processError = errno
+        precondition(state == -1 && processError == ESRCH && model.closed && blocked.model.closed && !blocked.model.busy)
+        precondition(owner.branchPicker == nil && !model.choosingBranch && owner.window!.attachedSheet == nil && blocked.window!.sheetParent == nil)
+        blocked.model.accept(); model.browseBranch(.local); precondition(owner.branchPicker == nil)
+        print("PASS: native Sync owned local/remote branch pickers, heads/remote scopes, Unicode tracking and split mapping, preserved Force, Cancel without changes, blocked parent/duplicate/Quit routes, read-only refs/index/config and forced reader reaping")
+    }
     @MainActor static func verifyManage(root: URL, preferences: UserDefaults) async throws {
         let directory = root.appendingPathComponent("qa-sync-manage-" + UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -1318,12 +1390,13 @@ import TurtleGitCore
         _ = try await repo.run(["init", "-b", "main"])
         for (key, value) in [("user.name", "Sync QA"), ("user.email", "qa@example.invalid"), ("commit.gpgsign", "false"), ("core.hooksPath", "/dev/null")] { _ = try await repo.run(["config", key, value]) }
         try Data("base\n".utf8).write(to: root.appendingPathComponent("file")); try await repo.stage(["file"]); _ = try await repo.commit(message: "base")
-        if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_TAGS_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_PUSH_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_SUBMODULES_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_STASH_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_MANAGE_ONLY"] == "1" {
+        if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_TAGS_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_PUSH_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_SUBMODULES_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_STASH_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_MANAGE_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_BRANCHES_ONLY"] == "1" {
             try Data("second\n".utf8).write(to: root.appendingPathComponent("file")); try await repo.stage(["file"]); _ = try await repo.commit(message: "second")
             let suite = "TurtleGit.Tags.QA." + UUID().uuidString, preferences = UserDefaults(suiteName: suite)!
             defer { preferences.removePersistentDomain(forName: suite) }
             DialogGeometry.install(preferences: preferences)
-            if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_MANAGE_ONLY"] == "1" { try await verifyManage(root:root,preferences:preferences) }
+            if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_BRANCHES_ONLY"] == "1" { try await verifyBranchPickers(root:root,preferences:preferences) }
+            else if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_MANAGE_ONLY"] == "1" { try await verifyManage(root:root,preferences:preferences) }
             else if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_STASH_ONLY"] == "1" { try await verifyStash(root:root,preferences:preferences) }
             else if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_SUBMODULES_ONLY"] == "1" { try await verifySubmodules(root: root, preferences: preferences) }
             else if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_PUSH_ONLY"] == "1" { try await verifyPush(root: root, preferences: preferences) }
@@ -1402,6 +1475,7 @@ import TurtleGitCore
         try await verifySubmodules(root: root, preferences: preferences)
         try await verifyStash(root: root, preferences: preferences)
         try await verifyManage(root: root, preferences: preferences)
+        try await verifyBranchPickers(root: root, preferences: preferences)
         print("PASS: native Sync tracking controls, exact Unicode choices, graph-first table, changes and pinned comparison snapshot, divergence/Force, unknown states, Quit fences, owner invalidation and read-only preservation")
     }
 }

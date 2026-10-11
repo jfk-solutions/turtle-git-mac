@@ -221,6 +221,8 @@ private struct SynchronizationProgressDialog: View {
     private(set) var optionsController: FetchWindowController?
     private(set) var pushOptionsController: PushWindowController?
     private(set) var remoteSettingsController: RemoteSettingsWindowController?
+    private(set) var branchPicker: ReferenceBrowserWindowController?
+    var configureBranchPicker: (ReferenceBrowserWindowModel) -> Void = { _ in }
     var configureOptions: (FetchWindowController) -> Void = { _ in }
     var configurePushOptions: (PushWindowController) -> Void = { _ in }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
@@ -407,9 +409,29 @@ private struct SynchronizationProgressDialog: View {
                 reply(response == .alertSecondButtonReturn)
             }
         }
+        model.onBrowseBranch = { [weak self] target in self?.showBranchPicker(target) }
         model.onManageRemotes = { [weak self] in self?.showRemoteSettings() }
         model.comparison.window = window; model.incomingComparison.window = window; window.center()
         DialogGeometry.attach(window, identifier: "SyncDlg", legacyName: "SyncDlg")
+    }
+    func showBranchPicker(_ target: SynchronizationBranchTarget) {
+        guard !model.closed, !model.confirmingQuit, !model.busy, !model.hasBlockingChild,
+              let owner = window, owner.attachedSheet == nil, branchPicker == nil else { return }
+        owner.makeFirstResponder(nil)
+        let initial = target == .local ? model.localBranch : model.remoteBranch
+        let child = ReferenceBrowserWindowController(repository: model.repository, access: model.access, initial: initial,
+            preferences: model.preferences, scope: target == .local ? .heads : .remotes) { [weak self] reference in
+                guard let self else { return }
+                self.branchPicker = nil; self.model.choosingBranch = false
+                if let reference { self.model.applyBranchSelection(reference, target: target) }
+            }
+        branchPicker = child; model.choosingBranch = true; configureBranchPicker(child.model)
+        child.onClosed = { [weak self, weak child] in
+            guard let self, let child, self.branchPicker === child else { return }
+            self.branchPicker = nil; self.model.choosingBranch = false
+        }
+        guard let window = child.window else { child.abandonPresentation(); branchPicker = nil; model.choosingBranch = false; return }
+        window.alphaValue = owner.alphaValue; owner.beginSheet(window); child.model.load()
     }
     func showRemoteSettings() {
         guard !model.closed, !model.confirmingQuit, !model.busy, !model.hasBlockingChild,
@@ -446,6 +468,10 @@ private struct SynchronizationProgressDialog: View {
         model.detachRebase()
         optionsController?.close(); optionsController = nil
         pushOptionsController?.close(); pushOptionsController = nil
+        if let child = branchPicker {
+            if let window = child.window, window.sheetParent === self.window { self.window?.endSheet(window) }
+            child.abandonPresentation(); branchPicker = nil; model.choosingBranch = false
+        }
         remoteSettingsController?.close(); remoteSettingsController = nil; model.managingRemotes = false
         commandProgress?.abortPresentation(); commandProgress = nil
         if let alert = pullAlert, window?.attachedSheet === alert.window { window?.endSheet(alert.window, returnCode: .abort) }
@@ -459,6 +485,8 @@ private struct SynchronizationProgressDialog: View {
         onClosed()
     }
 }
+
+enum SynchronizationBranchTarget { case local, remote }
 
 @MainActor final class SynchronizationWindowModel: ObservableObject {
     let repository: GitRepository
@@ -564,6 +592,8 @@ private struct SynchronizationProgressDialog: View {
     private(set) var closed = false
     var onLog: (String) -> Void = { _ in }
     var onCommit: () -> Void = {}
+    var onBrowseBranch: (SynchronizationBranchTarget) -> Void = { _ in }
+    @Published var choosingBranch = false
     var onManageRemotes: () -> Void = {}
     @Published var managingRemotes = false
     var onStashOptions: () -> Void = {}
@@ -573,7 +603,7 @@ private struct SynchronizationProgressDialog: View {
     var onReferenceLog: (String) -> Void = { _ in }
     var onReferenceCompare: (String, String) -> Void = { _, _ in }
     var hasBlockingChild: Bool {
-        managingRemotes || NSApp.modalWindow != nil || [comparison, incomingComparison].contains { child in
+        choosingBranch || managingRemotes || NSApp.modalWindow != nil || [comparison, incomingComparison].contains { child in
             child.busy || child.comparisonWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil } || child.unifiedWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil }
         }
     }
@@ -664,6 +694,25 @@ private struct SynchronizationProgressDialog: View {
     func performPullAction(_ action: SynchronizationTransportAction? = nil, shift: Bool = NSEvent.modifierFlags.contains(.shift)) {
         if action == nil, compareTagsSelected { compareTags(shift: shift) }
         else { fetch(action ?? pullAction, shift: shift) }
+    }
+    func browseBranch(_ target: SynchronizationBranchTarget) {
+        guard !closed, !confirmingQuit, !busy, !hasBlockingChild, window?.attachedSheet == nil else { return }
+        onBrowseBranch(target)
+    }
+    func applyBranchSelection(_ reference: String, target: SynchronizationBranchTarget) {
+        guard !closed, !confirmingQuit, !transportRunning, !hasBlockingChild else { return }
+        switch target {
+        case .local:
+            guard let branch = GitReferenceName.removingPrefix("refs/heads/", from: reference), !branch.isEmpty else { return }
+            localBranch = branch; reload(selectTracking: true)
+        case .remote:
+            guard let name = GitReferenceName.removingPrefix("refs/remotes/", from: reference),
+                  let slash = name.firstIndex(of: "/"), slash != name.startIndex else { return }
+            let branch = String(name[name.index(after: slash)...]); guard !branch.isEmpty else { return }
+            remote = String(name[..<slash]); remoteWasSelected = true; remoteBranch = branch
+            if !branchHistory.contains(where: { GitReferenceName.equal($0, branch) }) { branchHistory.append(branch) }
+            reload()
+        }
     }
     func manageRemotes() {
         guard !closed, !confirmingQuit, !busy, !hasBlockingChild, window?.attachedSheet == nil else { return }
@@ -1108,8 +1157,10 @@ private struct SynchronizationDialog: View {
                         Picker("Local Branch", selection: Binding(get: { GitReferenceName(model.localBranch) }, set: { model.localBranch = $0.rawValue; model.reload(selectTracking: true) })) {
                             ForEach(model.localBranches.map { GitReferenceName($0) }, id: \.self) { Text($0.rawValue).tag($0) }
                         }.labelsHidden()
+                        Button("…") { model.browseBranch(.local) }.accessibilityLabel("Browse local branches")
                         Text("Remote Branch:")
                         FetchHistoryCombo(value: edit(\.remoteBranch), choices: model.branchHistory, label: "Remote Branch")
+                        Button("…") { model.browseBranch(.remote) }.accessibilityLabel("Browse remote branches")
                     }
                     HStack {
                         Text("Remote URL:")

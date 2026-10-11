@@ -718,6 +718,7 @@ import TurtleGitCore
         let key = repository.root.path, access = activeAccess
         if let existing = synchronizationWindows[key] { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
         let controller = SynchronizationWindowController(repository: repository, access: access)
+        controller.configureBranchPicker = { [weak self] model in self?.configureReferenceBrowser(model, repository: repository, access: access) }
         configureRevisionComparisonInteractions(controller.model.comparison, repository: repository, access: access)
         configureRevisionComparisonInteractions(controller.model.incomingComparison, repository: repository, access: access)
         controller.configurePushOptions = { [weak self] child in self?.configurePushInteractions(child, repository: repository, access: access) }
