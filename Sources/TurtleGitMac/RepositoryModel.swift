@@ -719,6 +719,11 @@ import TurtleGitCore
         if let existing = synchronizationWindows[key] { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
         let controller = SynchronizationWindowController(repository: repository, access: access)
         configureRevisionComparisonInteractions(controller.model.comparison, repository: repository, access: access)
+        controller.model.onTransportFinished = { [weak self] text in
+            guard let self else { return }
+            self.output = text; self.refreshRepositoryLogs(repository.root)
+            if self.root?.path == repository.root.path { Task { await self.refresh() } }
+        }
         controller.model.onLog = { [weak self] revision in self?.showLog(repository: repository, access: access, paths: [], endRevision: revision) }
         controller.model.onCommit = { [weak self] in self?.showCommitDialog(repository: repository, access: access, paths: []) }
         controller.onClosed = { [weak self] in self?.synchronizationWindows.removeValue(forKey: key) }

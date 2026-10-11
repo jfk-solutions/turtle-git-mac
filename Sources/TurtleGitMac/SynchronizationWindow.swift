@@ -6,6 +6,7 @@ import TurtleGitCore
 @MainActor final class SynchronizationWindowController: NSWindowController, NSWindowDelegate {
     let model: SynchronizationWindowModel
     var onClosed: () -> Void = {}
+    private var cancellationAlert: NSAlert?
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
         model = SynchronizationWindowModel(repository: repository, access: access, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1050, height: 660), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
@@ -13,12 +14,28 @@ import TurtleGitCore
         window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 860, height: 500)
         window.contentViewController = NSHostingController(rootView: SynchronizationDialog(model: model))
         super.init(window: window); window.delegate = self; model.window = window
+        model.sshSettings.present = { [weak self] prompt in
+            guard let self, !self.model.closed, !self.model.confirmingQuit, let window = self.window, window.attachedSheet == nil else { return false }
+            guard let child = prompt.window else { return false }
+            window.makeFirstResponder(nil); window.beginSheet(child); return true
+        }
+        model.confirmCancellation = { [weak self] reply in
+            guard let self, !self.model.closed, let window = self.window, window.attachedSheet == nil else { reply(false); return }
+            let alert = NSAlert(); alert.messageText = "Cancel synchronization?"
+            alert.informativeText = "Git may have already updated remote-tracking references."
+            alert.addButton(withTitle: "Keep Running"); alert.addButton(withTitle: "Cancel Operation")
+            self.cancellationAlert = alert
+            alert.beginSheetModal(for: window) { [weak self, weak alert] response in
+                if self?.cancellationAlert === alert { self?.cancellationAlert = nil }
+                reply(response == .alertSecondButtonReturn)
+            }
+        }
         model.comparison.window = window; window.center()
         DialogGeometry.attach(window, identifier: "SyncDlg", legacyName: "SyncDlg")
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard !model.hasBlockingChild, sender.attachedSheet == nil else { return false }
+        guard !model.transportRunning, !model.confirmingCancellation, !model.hasBlockingChild, sender.attachedSheet == nil else { return false }
         if let child = model.comparison.comparisonWindows.values.first(where: { $0.model.dirty }) {
             child.window?.makeKeyAndOrderFront(nil); child.window?.performClose(nil); return false
         }
@@ -26,6 +43,8 @@ import TurtleGitCore
     }
     func windowWillClose(_ notification: Notification) {
         model.invalidate()
+        if let alert = cancellationAlert, window?.attachedSheet === alert.window { window?.endSheet(alert.window, returnCode: .abort) }
+        cancellationAlert = nil
         Array(model.comparison.comparisonWindows.values).forEach { $0.close() }
         Array(model.comparison.unifiedWindows.values).forEach { $0.close() }
         onClosed()
@@ -37,6 +56,7 @@ import TurtleGitCore
     let access: RepositoryAccessLease?
     let preferences: UserDefaults
     let comparison: RevisionComparisonWindowModel
+    let sshSettings: SSHTransportSettings
     weak var window: NSWindow?
     @Published private(set) var localBranches: [String] = []
     @Published private(set) var remotes: [String] = []
@@ -58,6 +78,18 @@ import TurtleGitCore
     @Published private(set) var graph: [CommitGraphRow] = []
     @Published private(set) var busy = false
     @Published private(set) var error: String?
+    @Published private(set) var transportRunning = false
+    @Published private(set) var confirmingCancellation = false
+    @Published private(set) var cancelling = false
+    @Published private(set) var commandOutput = ""
+    @Published private(set) var commandSucceeded = false
+    @Published private(set) var commandCompleted = false
+    @Published private(set) var percentage: Int?
+    @Published private(set) var currentWork = ""
+    var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
+    var onTransportFinished: (String) -> Void = { _ in }
+    private var outputState: GitProgressOutputState
+    private var cancellationQuestion: UUID?
     private var token: OperationCancellation?
     private(set) var closed = false
     var onLog: (String) -> Void = { _ in }
@@ -72,11 +104,15 @@ import TurtleGitCore
     private var historyKey: String { "TurtleGit.Sync." + repository.root.path }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
         self.repository = repository; self.access = access; self.preferences = preferences
+        sshSettings = SSHTransportSettings(repository: repository)
+        outputState = GitProgressOutputState(preferences: preferences)
         comparison = RevisionComparisonWindowModel(repository: repository, access: access, from: .revision("HEAD"), to: .revision("HEAD"))
         branchHistory = preferences.stringArray(forKey: historyKey + ".branches") ?? []
         urlHistory = preferences.stringArray(forKey: historyKey + ".urls") ?? []
+        sshSettings.load(preferences, key: historyKey + ".autoload")
     }
     var status: String {
+        if transportRunning { return cancelling ? "Cancelling…" : (currentWork.isEmpty ? "Running Git…" : currentWork) }
         if busy { return "Loading…" }
         if let error { return error }
         switch outgoing?.disposition {
@@ -88,9 +124,9 @@ import TurtleGitCore
         case nil: return ""
         }
     }
-    func invalidate() { closed = true; token?.cancel(); token = nil; comparison.invalidate(); busy = false }
+    func invalidate() { closed = true; token?.cancel(); token = nil; comparison.invalidate(); busy = false; confirmingCancellation = false; cancellationQuestion = nil }
     func reload(selectTracking: Bool = false, initial: Bool = false) {
-        guard !closed, !confirmingQuit, !hasBlockingChild else { return }
+        guard !closed, !confirmingQuit, !transportRunning, !hasBlockingChild else { return }
         token?.cancel()
         let request = OperationCancellation(); token = request; busy = true; error = nil
         outgoing = nil; graph = []; fileSelection = []; comparison.snapshot = nil
@@ -115,6 +151,74 @@ import TurtleGitCore
                 self.error = error.localizedDescription
             }
         }
+    }
+    /// Non-integrating entries of SyncDlg's Pull split button. Pull and
+    /// Fetch & Rebase require their own checkout/tracking/Rebase workflow.
+    func fetch(_ action: SynchronizationTransportAction = .fetch) {
+        guard [.fetch, .fetchAllBranches, .remoteUpdate, .prune].contains(action),
+              !closed, !confirmingQuit, !busy, !hasBlockingChild, window?.attachedSheet == nil else { return }
+        let request = OperationCancellation(); token = request; busy = true; transportRunning = true
+        cancelling = false; commandCompleted = false; commandSucceeded = false
+        outputState.reset(); commandOutput = ""; percentage = nil; currentWork = ""; error = nil; tab = 2
+        var options = SynchronizationTransportOptions(action: action)
+        options.localBranch = localBranch; options.remote = remote; options.remoteBranch = remoteBranch; options.force = force
+        let factory = sshSettings.capture()
+        sshSettings.save(preferences, key: historyKey + ".autoload")
+        Task {
+            let coordinator = factory?(); defer { coordinator?.close() }
+            defer { if token === request { token = nil; busy = false; transportRunning = false } }
+            let parser = GitCliOutputParser(limit: outputState.limit)
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let plan = try await repository.synchronizationTransportPlan(options, cancellation: request)
+                guard !closed, token === request else { return }
+                if request.isCancelled { throw OperationCancellationFailure.cancelled }
+                let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
+                let operation = Task {
+                    defer { continuation.finish() }
+                    return try await repository.synchronize(plan, cancellation: request,
+                        onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }, prepareTransport: coordinator?.preparation)
+                }
+                for await _ in updates { consume(parser.processPending(), parser: parser, request: request) }
+                consume(parser.processPending(), parser: parser, request: request)
+                consume(parser.finish(), parser: parser, request: request)
+                let result = try await operation.value
+                guard !closed, token === request else { return }
+                if !outputState.hasOutput { commandOutput = result.command.text }
+                commandSucceeded = true
+            } catch {
+                guard !closed, token === request else { return }
+                let message: String
+                if request.isCancelled { message = "Synchronization cancelled." }
+                else if let failure = error as? GitFailure, outputState.hasOutput { message = "Git command failed (\(failure.code))." }
+                else { message = error.localizedDescription }
+                commandOutput += (commandOutput.isEmpty || commandOutput.hasSuffix("\n") ? "" : "\n") + message
+                self.error = message
+            }
+            guard !closed, token === request else { return }
+            commandCompleted = true; cancelling = false; transportRunning = false; busy = false; token = nil
+            onTransportFinished(commandOutput)
+            // Fetch completion refreshes outgoing projection, not incoming HEAD.
+            // A cancelled/failed Git command can still have updated references.
+            reload()
+        }
+    }
+    private func consume(_ emission: GitCliOutputParser.Emission, parser: GitCliOutputParser, request: OperationCancellation) {
+        guard !closed, token === request else { return }
+        outputState.consume(emission, parser: parser)
+        commandOutput = outputState.output; percentage = outputState.percentage; currentWork = outputState.currentWork
+    }
+    func cancelTransport() {
+        guard !closed, !confirmingQuit, transportRunning, !cancelling, !confirmingCancellation, let request = token else { return }
+        if preferences.bool(forKey: "ConfirmKillProcess") {
+            let question = UUID(); cancellationQuestion = question; confirmingCancellation = true
+            confirmCancellation { [weak self] accepted in
+                guard let self, !self.closed, self.cancellationQuestion == question else { return }
+                self.cancellationQuestion = nil; self.confirmingCancellation = false
+                guard self.token === request, self.transportRunning else { return }
+                if accepted { self.cancelling = true; request.cancel() }
+            }
+        } else { cancelling = true; request.cancel() }
     }
     func compareFiles(unified: Bool) {
         guard !closed, !confirmingQuit, !busy, outgoing?.comparison != nil, !fileSelection.isEmpty else { return }
@@ -144,14 +248,21 @@ private struct SynchronizationDialog: View {
                         Text("Remote URL:")
                         FetchHistoryCombo(value: edit(\.remote), choices: model.remoteChoices, label: "Remote URL")
                     }
+                    HStack { SSHAutoloadToggle(settings: model.sshSettings); Spacer() }
                     Toggle("Force", isOn: Binding(get: { model.force }, set: { model.force = $0; model.reload() }))
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }.padding(6)
-            }.disabled(model.hasBlockingChild)
+            }.disabled(model.transportRunning || model.hasBlockingChild)
             Picker("Changes", selection: $model.tab) {
-                Text("Outgoing Commits").tag(0); Text("Outgoing Changes").tag(1)
+                Text("Outgoing Commits").tag(0); Text("Outgoing Changes").tag(1); Text("Command Log").tag(2)
             }.pickerStyle(.segmented)
-            if model.tab == 0 {
+            if model.tab == 2 {
+                SubmoduleProgressOutputView(text: model.commandOutput, completed: model.commandCompleted, success: model.commandSucceeded, preferences: model.preferences)
+                if model.transportRunning {
+                    if let value = model.percentage { ProgressView(value: Double(value), total: 100) }
+                    else { ProgressView().progressViewStyle(.linear) }
+                }
+            } else if model.tab == 0 {
                 SynchronizationHistoryTable(model: model)
             } else {
                 SynchronizationFiles(model: model)
@@ -162,11 +273,25 @@ private struct SynchronizationDialog: View {
                 }
             }
             HStack {
+                HStack(spacing: 0) {
+                    Button { model.fetch() } label: { CommandLabel(title: "Fetch", icon: .fetch) }
+                    Menu {
+                        Button { model.fetch(.fetch) } label: { CommandLabel(title: "Fetch", icon: .fetch) }
+                        Button { model.fetch(.fetchAllBranches) } label: { CommandLabel(title: "Fetch All", icon: .fetch) }
+                        Button { model.fetch(.remoteUpdate) } label: { CommandLabel(title: "Remote Update", icon: .fetch) }
+                        Button { model.fetch(.prune) } label: { CommandLabel(title: "Cleanup stale remote branches", icon: .clean) }
+                    } label: { Image(systemName: "chevron.down").accessibilityLabel("Fetch actions") }.menuStyle(.borderlessButton).fixedSize()
+                }.disabled(model.busy || model.hasBlockingChild)
                 Button { model.onLog(model.localBranch) } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(model.busy || model.localBranch.isEmpty)
                 Button { model.onCommit() } label: { CommandLabel(title: "Commit", icon: .commit) }.disabled(model.busy)
-                Button("Refresh") { model.reload() }.disabled(model.hasBlockingChild)
+                Button("Refresh") { model.reload() }.disabled(model.transportRunning || model.hasBlockingChild)
                 Spacer()
-                Button("Close") { model.window?.performClose(nil) }.keyboardShortcut(.defaultAction)
+                if model.transportRunning {
+                    Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancelTransport() }
+                        .keyboardShortcut(.cancelAction).disabled(model.cancelling || model.confirmingCancellation)
+                } else {
+                    Button("Close") { model.window?.performClose(nil) }.keyboardShortcut(.defaultAction)
+                }
             }
             HStack {
                 if model.busy { ProgressView().controlSize(.small) }
