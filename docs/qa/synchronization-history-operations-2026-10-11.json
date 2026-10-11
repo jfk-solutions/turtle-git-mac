@@ -1,0 +1,83 @@
+{
+  "date": "2026-10-11",
+  "status": "partial-sync-history-operation-routing-two-engine-verified",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_contracts": [
+    "GitLogListBase.cpp 1952\u20132087 single-row command order, HEAD/stash/working-tree/merge conditions and Express local branch submenu",
+    "GitLogListBase.cpp 2170\u20132190 Cherry Pick single/multiple captions and exclusions",
+    "GitLogListAction.cpp 546\u2013586 Switch/Reset target rules; 724\u2013780 Cherry Pick/Rebase; 1104\u20131119 Merge reference preference",
+    "TortoiseLoglistCommon.rc2 source captions"
+  ],
+  "verification": {
+    "debug_build_exit_code": 0,
+    "unsigned_appstore_build_exit_code": 0,
+    "debug_bundle_audit_exit_code": 0,
+    "unsigned_appstore_bundle_audit_exit_code": 0,
+    "inventory_exit_code": 0,
+    "native_exit_code": 0,
+    "receivers_reaped": [
+      84967,
+      86489
+    ],
+    "command": "python3 scripts/test-synchronization-history.py --revision-list --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+    "scope": [
+      "source captions and original icons for Merge/Reset/full Switch/Rebase/Cherry Pick",
+      "captured row targets after selection changes",
+      "single/multiple Cherry Pick callback payloads and preferred Rebase upstream",
+      "HEAD exclusions and Reset inclusion",
+      "real owned Merge/Reset/Switch options presets, duplicate rejection and Cancel cleanup",
+      "Express Switch source inline/submenu branch candidates, iconless children, captured short target",
+      "actual Express Switch using canonical reference and restore original branch",
+      "byte-identical index after cancelled options; refs/HEAD and staged patch restored after intentional Express Switch (index stat bytes may be rewritten)",
+      "existing revision list, Find, Export and comparison fixture checks retained"
+    ],
+    "failures_resolved": [
+      "Initial fixture observed SwitchProgress before its asynchronous start; now waits for terminal success/output",
+      "Second check exposed short-name/canonical-reference integration mismatch; Sync Express constructs explicit branch CheckoutOptions using refs/heads prefix"
+    ],
+    "failed_receivers_reaped": [
+      81523,
+      82792
+    ],
+    "limitations": [
+      "Rebase/Cherry Pick routing checked through callbacks; no claim of complete replay dialog or execution coverage",
+      "No new physical input, screenshots, signed sandbox acceptance or full underlying dialog certification",
+      "Bare/stash/merge exclusions inspected against source; exhaustive native condition matrix remains open",
+      "Reset prepareReset preflight still lacks an operation cancellation parameter; forced closure fences apply but full preflight process cancellation remains open",
+      "Hidden zero-size NSSplitView warnings remain in fixture output",
+      "Full Core suite not rerun for UI routing; earlier checkpoint scope unchanged",
+      "GitHub Pages at ef7feec succeeded; macOS run 38165026039 pending when inspected; no hosted green claim"
+    ],
+    "logs": {
+      "sync-operation-batch-debug-final": {
+        "path": "build/qa/sync-operation-batch-debug-final-2026-10-11.log",
+        "sha256": "e4f26b2feeee44e0680f7c2aa02d051023490ade93b0f53441f1157742dedc1c"
+      },
+      "sync-operation-batch-store-final": {
+        "path": "build/qa/sync-operation-batch-store-final-2026-10-11.log",
+        "sha256": "373580a54e4c2118af5951b8da4c5ac25ba27e5ce9681b7d1fd691972703099a"
+      },
+      "sync-operation-batch-native-canonical": {
+        "path": "build/qa/sync-operation-batch-native-canonical-2026-10-11.log",
+        "sha256": "9694059eab5a1b0c53910c9c7adaf7a128a19ad4a5aaa346c153f8cbc05f2f68"
+      },
+      "sync-operation-batch-debug-audit-final": {
+        "path": "build/qa/sync-operation-batch-debug-audit-final-2026-10-11.log",
+        "sha256": "f6874a395191e17601f5f1474d01ad4b2f07b245fc64cb0baae3a3465d18fe36"
+      },
+      "sync-operation-batch-store-audit-final": {
+        "path": "build/qa/sync-operation-batch-store-audit-final-2026-10-11.log",
+        "sha256": "025a02cda9b547f00533c3ecf90f6728fded47e69020e7f2e148177609ad59cb"
+      },
+      "sync-operation-batch-inventory-final": {
+        "path": "build/qa/sync-operation-batch-inventory-final-2026-10-11.log",
+        "sha256": "52981590368eaae1026346b74a03dbeaaf4f4b2d1da27e234c4d285eb0ac568a"
+      }
+    }
+  },
+  "open": [
+    "Remaining source history commands including Revert/Edit Notes/bisect/combine/patch operations",
+    "Complete source-control audits of Merge/Reset/Switch/Rebase",
+    "App Store signing, sandbox execution and distribution acceptance"
+  ]
+}

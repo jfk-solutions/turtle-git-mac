@@ -213,6 +213,10 @@ private struct SynchronizationProgressDialog: View {
     }
 }
 
+enum SynchronizationHistoryOperation: Equatable {
+    case merge(String), reset(String), checkout(String), switchBranch(String)
+}
+
 @MainActor final class SynchronizationWindowController: NSWindowController, NSWindowDelegate {
     let model: SynchronizationWindowModel
     var onClosed: () -> Void = {}
@@ -230,6 +234,8 @@ private struct SynchronizationProgressDialog: View {
     var configureHistoryReference: (BranchTagWindowController) -> Void = { _ in }
     private(set) var historyReferenceController: BranchTagWindowController?
     private(set) var historyExportController: ExportWindowController?
+    private(set) var historyOperationController: NSWindowController?
+    var configureHistoryOperation: (NSWindowController) -> Void = { _ in }
     var configureHistoryContainingReferences: (CommitContainingReferencesWindowController) -> Void = { _ in }
     private(set) var historyContainingReferences: [UUID: CommitContainingReferencesWindowController] = [:]
     private(set) var historyFind: [Int: RevisionGraphFindController] = [:]
@@ -305,6 +311,7 @@ private struct SynchronizationProgressDialog: View {
             return self.historyContainingReferences.values.contains { $0.hasBlockingChild }
                 || self.historyFind.values.contains { $0.acknowledgingFailure || $0.window?.attachedSheet != nil }
         }
+        model.onHistoryOperation = { [weak self] action in self?.showHistoryOperation(action) }
         model.onHistoryFind = { [weak self] tab, index in self?.showHistoryFind(sourceTab: tab, selectionIndex: index) }
         model.onHistoryExport = { [weak self] revision in
             guard let self, !self.model.closed, !self.model.busy, !self.model.confirmingQuit,
@@ -655,9 +662,53 @@ private struct SynchronizationProgressDialog: View {
         }
         child.updateAvailability(); child.loadReferences()
     }
+    private func showHistoryOperation(_ action: SynchronizationHistoryOperation) {
+        guard !model.closed, !model.busy, !model.confirmingQuit, !model.confirmingCancellation,
+              !model.hasBlockingChild, historyOperationController == nil,
+              let owner = window, owner.attachedSheet == nil else { return }
+        let child: NSWindowController
+        let start: () -> Void
+        switch action {
+        case .merge(let revision):
+            let options = MergeWindowController(repository: model.repository, access: model.access, preferences: model.preferences)
+            child = options; start = { options.model.load(revision: revision) }
+        case .reset(let revision):
+            let options = ResetWindowController(repository: model.repository, access: model.access, revision: revision, preferences: model.preferences)
+            child = options; start = { options.model.load() }
+        case .checkout(let revision):
+            let options = SwitchWindowController(repository: model.repository, access: model.access, revision: revision, preferences: model.preferences)
+            child = options; start = { options.model.load(revision: revision) }
+        case .switchBranch(let reference):
+            var options = CheckoutOptions(); options.target = .branch; options.revision = "refs/heads/" + reference
+            let result = SwitchProgressWindowModel(repository: model.repository, access: model.access, options: options, preferences: model.preferences)
+            child = SwitchProgressWindowController(model: result); start = { result.start() }
+        }
+        historyOperationController = child; model.operatingHistory = true
+        let finished: () -> Void = { [weak self, weak child, weak owner] in
+            if let window = child?.window, window.sheetParent === owner { owner?.endSheet(window) }
+            guard let self, self.historyOperationController === child else { return }
+            self.historyOperationController = nil; self.model.operatingHistory = false
+            if !self.model.closed { self.model.refresh() }
+        }
+        switch child {
+        case let child as MergeWindowController: child.onClosed = finished
+        case let child as ResetWindowController: child.onClosed = finished
+        case let child as SwitchWindowController: child.onClosed = finished
+        case let child as SwitchProgressWindowController: child.onClosed = finished
+        default: break
+        }
+        configureHistoryOperation(child)
+        guard let window = child.window else { child.close(); finished(); return }
+        window.alphaValue = owner.alphaValue; window.appearance = owner.appearance
+        owner.beginSheet(window); start()
+    }
     func windowWillClose(_ notification: Notification) {
         model.invalidate()
         model.detachRebase()
+        if let child = historyOperationController {
+            if let window = child.window, window.sheetParent === self.window { self.window?.endSheet(window, returnCode: .abort) }
+            child.close(); historyOperationController = nil; model.operatingHistory = false
+        }
         historyFindAvailability = nil
         let findDialogs = Array(historyFind.values); historyFind.removeAll()
         findDialogs.forEach { $0.close() }
@@ -1022,6 +1073,24 @@ enum SynchronizationHistoryDiff {
     var onHistoryFind: ((Int, Int?) -> Void)?
     var onHistoryExport: ((String) -> Void)?
     @Published var exportingHistory = false
+    var onHistoryOperation: ((SynchronizationHistoryOperation) -> Void)?
+    var runHistoryReplay: ((String?, [String]?) async throws -> Void)?
+    @Published var operatingHistory = false
+    @Published private(set) var historyCurrentBranch = ""
+    @Published private(set) var historyHead = ""
+    @Published private(set) var historyBare = false
+    @Published private(set) var historyMergeActive = false
+    func replayHistory(upstream: String?, commits: [String]?) {
+        guard !closed, !busy, !confirmingQuit, !confirmingCancellation, !hasBlockingChild,
+              window?.attachedSheet == nil, let runHistoryReplay else { return }
+        operatingHistory = true
+        Task { [weak self] in
+            do { try await runHistoryReplay(upstream, commits) }
+            catch { if let self, !self.closed { self.error = error.localizedDescription } }
+            guard let self else { return }; self.operatingHistory = false
+            if !self.closed { self.refresh() }
+        }
+    }
     var historyFindIndex: [Int: Int] = [:]
     var historyReferencesBlocking: () -> Bool = { false }
     @Published var historyNavigation: [Int: (id: UUID, hash: String, select: Bool)] = [:]
@@ -1030,7 +1099,7 @@ enum SynchronizationHistoryDiff {
     var onHistoryCreateReference: ((Bool, String) -> Void)?
     @Published var creatingHistoryReference = false
     var hasBlockingChild: Bool {
-        historyReferencesBlocking() || exportingHistory || creatingHistoryReference || emailingPatches || importingPatches || choosingBranch || managingRemotes || NSApp.modalWindow != nil || [comparison, incomingComparison].contains { child in
+        historyReferencesBlocking() || operatingHistory || exportingHistory || creatingHistoryReference || emailingPatches || importingPatches || choosingBranch || managingRemotes || NSApp.modalWindow != nil || [comparison, incomingComparison].contains { child in
             child.busy || child.comparisonWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil } || child.unifiedWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil }
         }
     }
@@ -1116,8 +1185,13 @@ enum SynchronizationHistoryDiff {
                 guard !closed, token === request, !request.isCancelled else { return }
                 let references = try await repository.historyReferenceContext(cancellation: request)
                 let properties = try await repository.issueTrackerProperties(cancellation: request)
+                let bare = try await repository.isBare(cancellation: request)
+                let mergeActive = try await repository.logMergeActive(cancellation: request)
+                let head = try await repository.run(["rev-parse", "--verify", "HEAD"], successfulExitCodes: 0...128, cancellation: request)
                 guard !closed, token === request, !request.isCancelled else { return }
                 historyReferenceContext = references; historyIssueProperties = properties
+                historyBare = bare; historyMergeActive = mergeActive; historyCurrentBranch = catalog.currentBranch
+                historyHead = head.exitCode == 0 ? head.text.trimmingCharacters(in: .newlines) : ""
                 historyActionFailures = []
                 outgoing = projection; graph = CommitGraph.layout(projection.commits); comparison.snapshot = projection.comparison
                 // Native control edits never write Git configuration or refs.
@@ -1933,6 +2007,22 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
             guard revisionActionAvailable, let target = sender.representedObject as? RevisionTarget else { return }
             model.onHistoryExport?(target.revision)
         }
+        private final class OperationTarget: NSObject {
+            let action: SynchronizationHistoryOperation
+            init(_ action: SynchronizationHistoryOperation) { self.action = action }
+        }
+        private final class ReplayTarget: NSObject {
+            let upstream: String?, commits: [String]?
+            init(upstream: String? = nil, commits: [String]? = nil) { self.upstream = upstream; self.commits = commits }
+        }
+        @objc func historyOperation(_ sender: NSMenuItem) {
+            guard revisionActionAvailable, let target = sender.representedObject as? OperationTarget else { return }
+            model.onHistoryOperation?(target.action)
+        }
+        @objc func historyReplay(_ sender: NSMenuItem) {
+            guard revisionActionAvailable, let target = sender.representedObject as? ReplayTarget else { return }
+            model.replayHistory(upstream: target.upstream, commits: target.commits)
+        }
         private final class RangeTarget: NSObject {
             let range: HistoryRevisionRange
             init(_ range: HistoryRevisionRange) { self.range = range }
@@ -2000,6 +2090,16 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
                 item.image = MenuIcon.compare.contextImage(defaults: model.preferences)
                 item.representedObject = DiffTarget(diff); targetMenu.addItem(item)
             }
+            func operationItem(_ title: String, _ action: SynchronizationHistoryOperation, _ icon: MenuIcon, in targetMenu: NSMenu) {
+                let item = NSMenuItem(title: title, action: #selector(historyOperation(_:)), keyEquivalent: "")
+                item.target = self; item.isEnabled = revisionActionAvailable && model.onHistoryOperation != nil
+                item.image = icon.contextImage(defaults: model.preferences); item.representedObject = OperationTarget(action); targetMenu.addItem(item)
+            }
+            func replayItem(_ title: String, _ target: ReplayTarget, _ icon: MenuIcon) {
+                let item = NSMenuItem(title: title, action: #selector(historyReplay(_:)), keyEquivalent: "")
+                item.target = self; item.isEnabled = revisionActionAvailable && model.runHistoryReplay != nil
+                item.image = icon.contextImage(defaults: model.preferences); item.representedObject = target; menu.addItem(item)
+            }
             if entries.count == 1, let entry = entries.first {
                 comparisonItem("Compare with working tree", from: .revision(entry.hash), to: .workingTree, in: menu)
                 if entry.parents.count == 1, let parent = entry.parents.first {
@@ -2065,6 +2165,30 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
                 let browse = NSMenuItem(title: "Browse repository", action: #selector(browseHistory(_:)), keyEquivalent: "")
                 browse.target = self; browse.isEnabled = revisionActionAvailable && model.onHistoryBrowseRepository != nil
                 browse.image = MenuIcon.repositoryBrowser.contextImage(defaults: model.preferences); browse.representedObject = RevisionTarget(entry.hash); menu.addItem(browse)
+                if !stash && !model.historyBare {
+                    let isHead = entry.hash == model.historyHead
+                    if !isHead && !model.historyMergeActive {
+                        operationItem("Merge to \"" + model.historyCurrentBranch + "\"…", .merge(pointed?.name ?? entry.references.first?.name ?? entry.hash), .merge, in: menu)
+                    }
+                    operationItem("Reset \"" + model.historyCurrentBranch + "\" to this…", .reset(entry.hash), .reset, in: menu)
+                    let branches = (pointed.map { [$0.name] } ?? entry.references.map(\.name)).filter { $0.hasPrefix("refs/heads/") && $0 != "refs/heads/" + model.historyCurrentBranch }
+                    if branches.count == 1 {
+                        let reference = branches[0], short = String(reference.dropFirst("refs/heads/".count))
+                        operationItem("Switch/Checkout to \"" + short + "\"", .switchBranch(short), .checkout, in: menu)
+                    } else if branches.count > 1 {
+                        let submenu = NSMenu(); submenu.autoenablesItems = false
+                        for reference in branches {
+                            let short = String(reference.dropFirst("refs/heads/".count))
+                            operationItem(short, .switchBranch(short), .checkout, in: submenu)
+                            submenu.items.last?.image = nil
+                        }
+                        let item = NSMenuItem(title: "Switch/Checkout to", action: nil, keyEquivalent: "")
+                        item.image = MenuIcon.checkout.contextImage(defaults: model.preferences); item.submenu = submenu; menu.addItem(item)
+                    }
+                    if !isHead {
+                        operationItem("Switch/Checkout to this…", .checkout(pointed?.name ?? entry.references.first { $0.name.hasPrefix("refs/remotes/") }?.name ?? entry.hash), .checkout, in: menu)
+                    }
+                }
                 if !entry.references.contains(where: { $0.name == "refs/stash" }) {
                     let remote = entry.references.first { $0.name.hasPrefix("refs/remotes/") }?.name
                     for isTag in [false, true] {
@@ -2078,11 +2202,18 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
                         item.representedObject = RevisionTarget(revision, isTag: isTag); menu.addItem(item)
                     }
                 }
+                if !stash && !model.historyBare && !model.historyMergeActive && entry.hash != model.historyHead {
+                    let upstream = entry.references.first { $0.name.hasPrefix("refs/heads/") }.map { String($0.name.dropFirst("refs/heads/".count)) } ?? entry.references.first?.name ?? entry.hash
+                    replayItem("Rebase \"" + model.historyCurrentBranch + "\" onto this…", ReplayTarget(upstream: upstream), .rebase)
+                }
                 let export = NSMenuItem(title: "Export this version…", action: #selector(historyExport(_:)), keyEquivalent: "")
                 export.target = self; export.isEnabled = revisionActionAvailable && model.onHistoryExport != nil
                 export.image = MenuIcon.export.contextImage(defaults: model.preferences)
                 export.representedObject = RevisionTarget(entry.references.first { $0.name.hasPrefix("refs/tags/") }?.name ?? entry.hash)
                 menu.addItem(export)
+            }
+            if !model.historyBare && !model.historyMergeActive && entries.first?.hash != model.historyHead {
+                replayItem(entries.count > 1 ? "Cherry Pick selected commits…" : "Cherry Pick this commit…", ReplayTarget(commits: entries.map(\.hash)), .cherryPick)
             }
             if !menu.items.isEmpty { menu.addItem(.separator()) }
             for kind in SynchronizationHistoryCopy.allCases {

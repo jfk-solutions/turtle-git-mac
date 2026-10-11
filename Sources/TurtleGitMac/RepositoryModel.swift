@@ -559,15 +559,8 @@ import TurtleGitCore
         controller.model.onLog = { [weak self] revision in self?.showLog(repository: repository, access: access, paths: [path], endRevision: revision) }
         deleteConflictWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showReset(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, mode: ResetMode? = nil, completion: (() -> Void)? = nil) {
-        let root = repository.root, key = root.path + "\0" + (revision.map { $0 + "\0" + UUID().uuidString } ?? "")
-        if revision == nil, let existing = resetWindows[key] {
-            if let completion { let previous = existing.model.onReset; existing.model.onReset = { output in previous(output); completion() } }
-            existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return
-        }
-        let controller = ResetWindowController(repository: repository, access: access, revision: revision)
-        if let mode { controller.model.mode = mode }
-        controller.onClosed = { [weak self] in self?.resetWindows.removeValue(forKey: key) }
+    private func configureResetInteractions(_ controller: ResetWindowController, repository: GitRepository, access: RepositoryAccessLease?, completion: (() -> Void)? = nil) {
+        let root = repository.root
         controller.configureReferencePicker = { [weak self] model in
             self?.configureReferenceBrowser(model, repository: repository, access: access)
         }
@@ -591,6 +584,17 @@ import TurtleGitCore
             case .retry: break
             }
         }
+    }
+    private func showReset(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, mode: ResetMode? = nil, completion: (() -> Void)? = nil) {
+        let root = repository.root, key = root.path + "\0" + (revision.map { $0 + "\0" + UUID().uuidString } ?? "")
+        if revision == nil, let existing = resetWindows[key] {
+            if let completion { let previous = existing.model.onReset; existing.model.onReset = { output in previous(output); completion() } }
+            existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return
+        }
+        let controller = ResetWindowController(repository: repository, access: access, revision: revision)
+        if let mode { controller.model.mode = mode }
+        controller.onClosed = { [weak self] in self?.resetWindows.removeValue(forKey: key) }
+        configureResetInteractions(controller, repository: repository, access: access, completion: completion)
         resetWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showResolve(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], quick: ResolveChoice?) {
@@ -762,6 +766,28 @@ import TurtleGitCore
             await withCheckedContinuation { continuation in
                 self.showRebase(repository: repository, access: access, upstream: target, autoStart: autoStart, preserveMerges: preserve,
                     afterFetch: true, owner: owner, onDismissed: { continuation.resume() })
+            }
+        }
+        controller.model.runHistoryReplay = { [weak self, weak controller] upstream, commits in
+            guard let self, let controller, !controller.model.closed, let owner = controller.window,
+                  owner.attachedSheet == nil, self.rebaseWindows[key] == nil else { throw SynchronizationFailure.invalidInput }
+            await withCheckedContinuation { continuation in
+                self.showRebase(repository: repository, access: access, upstream: upstream, cherryPick: commits,
+                    fromLog: true, owner: owner, onDismissed: { continuation.resume() })
+            }
+        }
+        controller.configureHistoryOperation = { [weak self] child in
+            switch child {
+            case let child as MergeWindowController: self?.configureMergeInteractions(child, repository: repository, access: access)
+            case let child as ResetWindowController: self?.configureResetInteractions(child, repository: repository, access: access)
+            case let child as SwitchWindowController: self?.configureSwitchInteractions(child, repository: repository, access: access)
+            case let child as SwitchProgressWindowController:
+                child.model.onFinished = { [weak self] output, _ in
+                    self?.refreshRepositoryLogs(repository.root); self?.statusWindows[key]?.model.reload(); self?.commitWindows[key]?.model.reload()
+                    if self?.root == repository.root { self?.output = output; Task { await self?.refresh() } }
+                }
+                child.model.onPostAction = { [weak self] action, branch in self?.performSwitchPostAction(action, previousBranch: branch, repository: repository, access: access) }
+            default: break
             }
         }
         controller.model.detachRebase = { [weak self, weak controller] in

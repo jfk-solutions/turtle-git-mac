@@ -117,7 +117,9 @@ import TurtleGitCore
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !model.showingModifiedFiles && !model.showingCommitPicker && !model.showingReferencePicker && !model.busy && !model.confirmingHard && model.progress == nil && !model.chooser.busy && sender.attachedSheet == nil }
     func windowWillClose(_ notification: Notification) {
-        closed = true; model.invalidateInitialModeFocus(); model.invalidateReferenceSelection()
+        closed = true; model.invalidate()
+        if let sheet = window?.attachedSheet { window?.endSheet(sheet, returnCode: .abort); sheet.close() }
+        progressController?.close(); progressController = nil
         referencePicker?.close(); referencePicker = nil; referencePickerRequest = nil
         commitPicker?.close(); commitPicker = nil; commitPickerRequest = nil; model.finishCommitPicker()
         modifiedComparison?.close(); modifiedComparison = nil
@@ -141,7 +143,7 @@ import TurtleGitCore
     var onPostAction: ((ResetPostAction) -> Void)?
     var onChanged: (String) -> Void = { _ in }
     func finish(_ result: ResetProgressWindowModel) {
-        guard progress === result, !result.busy, !result.confirmingCancellation else { return }
+        guard !invalidated, progress === result, !result.busy, !result.confirmingCancellation else { return }
         progress = nil; result.invalidate(); busy = false; error = nil
         if result.success { close(); onReset(result.output) }
     }
@@ -207,34 +209,55 @@ import TurtleGitCore
     init(repository: GitRepository, access: RepositoryAccessLease?, revision: String?, preferences: UserDefaults = .standard) {
         chooser = SwitchWindowModel(repository: repository, access: access); self.access = access; initialRevision = revision; self.preferences = preferences
     }
+    private var invalidated = false
+    private var loadCancellation: OperationCancellation?
+    private var loadTask: Task<Void, Never>?
+    private var resetCancellation: OperationCancellation?
+    func invalidate() {
+        invalidated = true; loadCancellation?.cancel(); loadTask?.cancel(); loadCancellation = nil; loadTask = nil
+        resetCancellation?.cancel(); resetCancellation = nil
+        chooser.invalidate(); progress?.invalidate(); progress = nil; busy = false; confirmingHard = false
+        invalidateInitialModeFocus(); invalidateReferenceSelection()
+    }
     func load() {
-        guard !busy, !showingReferencePicker, !showingCommitPicker, !showingModifiedFiles else { return }; busy = true; chooser.load(revision: initialRevision)
-        Task {
-            defer { busy = false }
-            do { currentBranch = try await chooser.repository.branch(); bare = try await chooser.repository.isBare(); if bare { mode = .soft } }
-            catch { self.error = error.localizedDescription }
+        guard !invalidated, !busy, !showingReferencePicker, !showingCommitPicker, !showingModifiedFiles else { return }
+        busy = true; chooser.load(revision: initialRevision)
+        let request = OperationCancellation(), repository = chooser.repository
+        loadCancellation = request
+        loadTask = Task { [weak self, access] in
+            _ = access
+            do {
+                let branch = try await repository.branch(cancellation: request), bare = try await repository.isBare(cancellation: request)
+                guard let self, !self.invalidated, self.loadCancellation === request, !request.isCancelled else { return }
+                self.currentBranch = branch; self.bare = bare; if bare { self.mode = .soft }
+            } catch {
+                guard let self, !self.invalidated, self.loadCancellation === request, !request.isCancelled else { return }
+                self.error = error.localizedDescription
+            }
+            guard let self, self.loadCancellation === request else { return }
+            self.loadCancellation = nil; self.loadTask = nil; self.busy = false
         }
     }
     private func validateAccess() throws {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(chooser.repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     func reset() {
-        guard !busy, !showingReferencePicker, !showingCommitPicker, !showingModifiedFiles, !confirmingHard, progress == nil, !chooser.busy else { return }; busy = true
+        guard !invalidated, !busy, !showingReferencePicker, !showingCommitPicker, !showingModifiedFiles, !confirmingHard, progress == nil, !chooser.busy else { return }; busy = true
         let revision = chooser.revision, mode = mode
         Task {
             do {
                 try validateAccess()
                 let plan = try await chooser.repository.prepareReset(to: revision, mode: mode)
-                busy = false
+                guard !invalidated else { return }; busy = false
                 if mode == .hard {
                     confirmingHard = true
                     confirmHard(plan) { [weak self] accepted in guard let self, self.confirmingHard else { return }; self.confirmingHard = false; if accepted { self.apply(plan) } }
                 } else { apply(plan) }
-            } catch { self.error = error.localizedDescription; busy = false }
+            } catch { if !invalidated { self.error = error.localizedDescription; busy = false } }
         }
     }
     func apply(_ plan: ResetPlan) {
-        guard !busy, !showingReferencePicker, !showingCommitPicker, !showingModifiedFiles, !confirmingHard, progress == nil else { return }; busy = true; error = nil
+        guard !invalidated, !busy, !showingReferencePicker, !showingCommitPicker, !showingModifiedFiles, !confirmingHard, progress == nil else { return }; busy = true; error = nil
         do { try validateAccess() } catch { self.error = error.localizedDescription; busy = false; return }
         if let onProgress {
             let result = ResetProgressWindowModel(repository: chooser.repository, plan: plan, preferences: preferences)
@@ -243,10 +266,19 @@ import TurtleGitCore
             result.onPostAction = { [weak self] action in self?.onPostAction?(action) }
             progress = result; onProgress(result); result.start()
         } else {
-            Task {
-                defer { busy = false }
-                do { let output = try await chooser.repository.reset(plan); onChanged(output); onReset(output); close() }
-                catch { self.error = error.localizedDescription }
+            let request = OperationCancellation(); resetCancellation = request
+            Task { [weak self, access, repository = chooser.repository] in
+                _ = access
+                do {
+                    let output = try await repository.reset(plan, cancellation: request)
+                    guard let self, !self.invalidated, self.resetCancellation === request, !request.isCancelled else { return }
+                    self.onChanged(output); self.onReset(output); self.close()
+                } catch {
+                    guard let self, !self.invalidated, self.resetCancellation === request, !request.isCancelled else { return }
+                    self.error = error.localizedDescription
+                }
+                guard let self, self.resetCancellation === request else { return }
+                self.resetCancellation = nil; self.busy = false
             }
         }
     }

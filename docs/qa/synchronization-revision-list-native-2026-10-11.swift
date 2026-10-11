@@ -161,6 +161,107 @@ struct SynchronizationRevisionListVerification {
         precondition(closing.model.historyNavigation.count == closedNavigation.count)
         print("PASS: Sync Find context order/icon, captured origin, two-list independence, subject/metadata/path/regex/case search, Shift highlight, cursor, error ownership and cleanup")
     }
+    @MainActor static func verifyHistoryOperations(_ owner: SynchronizationWindowController, root: URL) async throws {
+        let model = owner.model, window = owner.window!, repo = model.repository
+        model.tab = 0
+        try await settle { !model.busy && !model.hasBlockingChild && table(window).numberOfRows == model.historyEntries.count }
+        let rows = model.historyEntries
+        let row = rows.firstIndex { $0.hash != model.historyHead }!
+        let entry = rows[row], branch = model.historyCurrentBranch
+        let refs = try await repo.run(["show-ref"]).stdout
+        let head = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        func menu(_ indexes: IndexSet) -> NSMenu {
+            let list = table(window); list.selectRowIndexes(indexes, byExtendingSelection: false)
+            let menu = list.menu!; menu.delegate?.menuNeedsUpdate?(menu); return menu
+        }
+        func invoke(_ item: NSMenuItem) { precondition(item.isEnabled && NSApp.sendAction(item.action!, to: item.target, from: item)) }
+        let originalOperation = model.onHistoryOperation, originalReplay = model.runHistoryReplay
+        var operations: [SynchronizationHistoryOperation] = [], replays: [(String?, [String]?)] = []
+        model.onHistoryOperation = { operations.append($0) }
+        model.runHistoryReplay = { replays.append(($0, $1)) }
+        let single = menu(IndexSet(integer: row))
+        let merge = single.items.first { $0.title == "Merge to \"" + branch + "\"…" }!
+        let reset = single.items.first { $0.title == "Reset \"" + branch + "\" to this…" }!
+        let checkout = single.items.first { $0.title == "Switch/Checkout to this…" }!
+        let rebase = single.items.first { $0.title == "Rebase \"" + branch + "\" onto this…" }!
+        let cherry = single.items.first { $0.title == "Cherry Pick this commit…" }!
+        let capturedTarget = merge.target
+        precondition([merge, reset, checkout, rebase, cherry].allSatisfy { $0.image != nil })
+        _ = menu(IndexSet(integer: (row + 1) % rows.count))
+        invoke(merge); invoke(reset); invoke(checkout)
+        precondition(capturedTarget != nil)
+        precondition(operations == [.merge(entry.references.first?.name ?? entry.hash), .reset(entry.hash), .checkout(entry.references.first { $0.name.hasPrefix("refs/remotes/") }?.name ?? entry.hash)])
+        invoke(rebase); try await settle { !model.operatingHistory && !model.busy }
+        let upstream = entry.references.first { $0.name.hasPrefix("refs/heads/") }.map { String($0.name.dropFirst(11)) } ?? entry.references.first?.name ?? entry.hash
+        precondition(replays.count == 1 && replays[0].0 == upstream && replays[0].1 == nil)
+        invoke(cherry); try await settle { !model.operatingHistory && !model.busy }
+        precondition(replays.count == 2 && replays[1].0 == nil && replays[1].1 == [entry.hash])
+        let nonHead = model.historyEntries.indices.filter { model.historyEntries[$0].hash != model.historyHead }
+        let selection = IndexSet(nonHead.prefix(2))
+        let expected = selection.map { model.historyEntries[$0].hash }
+        let multi = menu(selection)
+        precondition(!multi.items.contains { $0.title == "Switch/Checkout to this…" })
+        invoke(multi.items.first { $0.title == "Cherry Pick selected commits…" }!)
+        try await settle { !model.operatingHistory && !model.busy }
+        precondition(replays.last!.1 == expected)
+        if let headRow = model.historyEntries.firstIndex(where: { $0.hash == model.historyHead }) {
+            let titles = menu(IndexSet(integer: headRow)).items.map(\.title)
+            precondition(!titles.contains("Switch/Checkout to this…") && !titles.contains("Cherry Pick this commit…") && titles.contains("Reset \"" + branch + "\" to this…"))
+        }
+        // Express Switch includes local branches even on HEAD, excludes the
+        // checked-out branch, and places multiple candidates in an iconless submenu.
+        let expressRow = model.historyEntries.firstIndex { $0.references.contains { $0.name == "refs/heads/sync-menu-branch" } }!
+        let expressMenu = menu(IndexSet(integer: expressRow))
+        let expectedBranches = model.historyEntries[expressRow].references.filter { $0.name.hasPrefix("refs/heads/") && $0.name != "refs/heads/" + branch }.map { String($0.name.dropFirst(11)) }
+        if expectedBranches.count == 1 {
+            invoke(expressMenu.items.first { $0.title == "Switch/Checkout to \"" + expectedBranches[0] + "\"" }!)
+            precondition(operations.last == .switchBranch(expectedBranches[0]))
+        } else {
+            let submenu = expressMenu.items.first { $0.title == "Switch/Checkout to" }!.submenu!
+            precondition(submenu.items.map(\.title) == expectedBranches && submenu.items.allSatisfy { $0.image == nil })
+            invoke(submenu.items.first { $0.title == "sync-menu-branch" }!)
+            precondition(operations.last == .switchBranch("sync-menu-branch"))
+        }
+        model.onHistoryOperation = originalOperation; model.runHistoryReplay = originalReplay
+        // Exercise the real owned options controllers without mutating this fixture.
+        for action in [SynchronizationHistoryOperation.merge(entry.hash), .reset(entry.hash), .checkout(entry.hash)] {
+            model.onHistoryOperation?(action)
+            let child = owner.historyOperationController!
+            precondition(child.window!.sheetParent === window && model.hasBlockingChild && !owner.windowShouldClose(window))
+            model.onHistoryOperation?(.reset(entry.hash))
+            precondition(owner.historyOperationController === child)
+            switch child {
+            case let child as MergeWindowController:
+                try await settle { !child.model.busy }; precondition(child.model.revision == entry.hash); child.model.close()
+            case let child as ResetWindowController:
+                try await settle { !child.model.busy && !child.model.chooser.busy }; precondition(child.model.chooser.revision == entry.hash); child.model.close()
+            case let child as SwitchWindowController:
+                try await settle { !child.model.busy }; precondition(child.model.revision == entry.hash); child.model.close()
+            default: preconditionFailure("Unexpected Sync operation controller")
+            }
+            try await settle { owner.historyOperationController == nil && !model.busy && !model.hasBlockingChild && window.attachedSheet == nil }
+        }
+        let canceledIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        precondition(index == canceledIndex)
+        let staged = try await repo.run(["diff", "--cached", "--binary"]).stdout
+        model.onHistoryOperation?(.switchBranch("sync-menu-branch"))
+        let progress = owner.historyOperationController as! SwitchProgressWindowController
+        try await settle { !progress.model.busy && (progress.model.success || !progress.model.output.isEmpty) }
+        precondition(progress.model.success && progress.window!.sheetParent === window, progress.model.output)
+        let switchedBranch = try await repo.branch()
+        precondition(switchedBranch == "sync-menu-branch")
+        progress.close()
+        try await settle { owner.historyOperationController == nil && !model.busy }
+        _ = try await repo.run(["switch", branch])
+        model.refresh(); try await settle { !model.busy && model.historyCurrentBranch == branch }
+        let afterRefs = try await repo.run(["show-ref"]).stdout, afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let afterIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let afterStaged = try await repo.run(["diff", "--cached", "--binary"]).stdout
+        precondition(refs == afterRefs && head == afterHead && staged == afterStaged)
+        _ = afterIndex // Git may rewrite index stat data during the intentional switch.
+        print("PASS: Sync Merge/Reset/Checkout/Rebase/Cherry Pick source captions/icons, captured targets, single/multiple selection, HEAD exclusion, real owned options presets, Express branch submenu and actual switch/restore, duplicate guard, Cancel cleanup and unchanged refs/HEAD/index")
+    }
     @MainActor static func verifyExport(_ owner: SynchronizationWindowController, root: URL, git: URL, preferences: UserDefaults) async throws {
         let model = owner.model, repo = model.repository, window = owner.window!
         // The preceding off-list-parent test deliberately narrowed origin/main
@@ -709,6 +810,7 @@ struct SynchronizationRevisionListVerification {
         }
         let headAfterCreation = try await repo.run(["rev-parse","HEAD"]).stdout, configAfterCreation = try Data(contentsOf:root.appendingPathComponent(".git/config")), indexAfterCreation = try Data(contentsOf:root.appendingPathComponent(".git/index"))
         precondition(headBeforeCreation == headAfterCreation && configAfterCreation == config && indexAfterCreation == index)
+        try await verifyHistoryOperations(owner, root: root)
         try await verifyExport(owner, root: root, git: git, preferences: preferences)
         native = table(owner.window!)
         let finalContaining = menu(IndexSet(integer:0)).items.first { $0.title == "Show branches this commit is on" }!

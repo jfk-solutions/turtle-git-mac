@@ -1455,3 +1455,43 @@ signed repository/chooser acceptance remain open. The previous layout captures
 retain their rendering scope; these changes affect picker routing, not the options
 layout. Verification is recorded separately in
 [the picker record](qa/export-version-pickers-2026-10-11.json).
+
+
+### History operation batch
+
+The single-row history menu now routes Merge, Reset, full Switch/Checkout and
+Express Switch to the existing native dialogs/progress. Merge uses the clicked
+reference label, or the first reference, before falling back to the selected
+commit. Reset always presets the full selected hash. Full Switch prefers the
+clicked label, otherwise a remote reference, otherwise the hash. Express Switch
+includes local branches other than the checked-out branch; multiple candidates
+use an iconless child submenu as upstream does. Captions use the actual current
+branch rather than the Sync Local Branch selection.
+
+Rebase opens the existing replay dialog with a preferred short local branch,
+otherwise the first reference or hash. Cherry Pick captures the selected displayed
+commits in list order and delegates to the existing replay workflow. HEAD,
+working-tree, merge-in-progress and stash exclusions follow the source command
+conditions. Original menu icons are retained.
+
+Sync owns the options/progress sheets, blocks duplicate actions and refreshes
+when the child closes. Workspace picker and post-action configuration is shared
+with the existing top-level dialogs. Reset now invalidates startup reads and
+progress on forced closure, and fences standalone execution callbacks.
+
+This adds command routing, not certification of the underlying dialogs. Revert,
+Edit Notes and the remaining upstream history actions are still open, as are
+physical input, signed/sandboxed execution and complete replay-dialog parity.
+Batch verification is recorded in
+[the operation record](qa/synchronization-history-operations-2026-10-11.json).
+
+
+### Remaining history workflow group
+
+Continue the next implementation batch across the whole group before another
+native build/check: source Revert single/multiple/merge-parent menus and progress,
+completion-to-Commit handoff, Edit Notes with shared native editor and conflict
+checks, source bisect/combine selection conditions and remaining patch actions.
+Retain the original source ordering and icons, captured row/reference targets,
+owned cancellation and repository refresh. Underlying replay, Merge, Reset and
+Checkout dialogs still require their separate complete source-control audits.
