@@ -187,6 +187,40 @@ import Darwin
         try require(entry.isEnabled && entry.image != nil && NSApp.sendAction(entry.action!, to: entry.target, from: entry))
         try await wait { parent.containingReferences.count == 1 && parent.containingReferences.values.first?.busy == false }
         let owned = parent.containingReferences.values.first!; try require(owned.window!.parent === parent.window && owned.window!.alphaValue == 0 && owned.snapshot?.hash == base)
+        let headHash = String(decoding:head,as:UTF8.self).trimmingCharacters(in:.newlines)
+        let revisionPainter = table.delegate as! RevisionTable.Coordinator
+        func text(_ column: String, hash: String) -> NSTextField {
+            let row = parent.model.entries.firstIndex { $0.hash == hash }!
+            return (revisionPainter.tableView(table,viewFor:table.tableColumn(withIdentifier:.init(column)),row:row) as! NSTableCellView).textField!
+        }
+        for appearance in [NSAppearance.Name.aqua,.darkAqua] {
+            parent.window!.appearance = NSAppearance(named:appearance)
+            owned.onNavigate(base,false)
+            try await wait { parent.model.highlightedRevision == base }
+            try require(parent.model.selected == [base])
+            for column in ["message","hash","author","date"] {
+                let field = text(column,hash:base)
+                try require(NSFontManager.shared.traits(of:field.font!).contains(.italicFontMask) && !field.drawsBackground)
+            }
+            owned.onNavigate(headHash,false)
+            try await wait { parent.model.highlightedRevision == headHash }
+            for column in ["message","hash","author","date"] {
+                let traits = NSFontManager.shared.traits(of:text(column,hash:headHash).font!)
+                try require(traits.contains(.boldFontMask) && traits.contains(.italicFontMask))
+            }
+            revisionPainter.logFont = .monospacedSystemFont(ofSize:14,weight:.regular)
+            let configured = text("hash",hash:headHash)
+            try require(configured.font!.pointSize == 14 && NSFontManager.shared.traits(of:configured.font!).contains(.italicFontMask))
+            revisionPainter.logFont = nil
+        }
+        parent.window!.appearance = nil
+        parent.model.searchFields = [.subject,.messages]; parent.model.search = "Next"; parent.model.reload()
+        try await wait { !parent.model.busy && revisionPainter.searchHighlights[headHash]?["message"] != nil }
+        owned.onNavigate(headHash,false)
+        try await wait { parent.model.highlightedRevision == headHash }
+        let searched = text("message",hash:headHash), range = (searched.stringValue as NSString).range(of:"Next")
+        try require(range.location != NSNotFound && searched.attributedStringValue.attribute(.foregroundColor,at:range.location,effectiveRange:nil) != nil && !searched.drawsBackground)
+        try require(NSFontManager.shared.traits(of:searched.font!).contains(.italicFontMask))
         parent.close(); try require(owned.closed && parent.containingReferences.isEmpty)
         let afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout, afterRefs = try await repo.run(["show-ref"]).stdout
         let afterIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")), afterConfig = try Data(contentsOf: root.appendingPathComponent(".git/config")), afterBytes = try Data(contentsOf: file)

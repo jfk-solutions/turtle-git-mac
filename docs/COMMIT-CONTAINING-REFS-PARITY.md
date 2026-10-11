@@ -133,3 +133,13 @@ pass native checks with both engines: failed completion is cached without blocki
 a valid typed commit; F5 retries; replacement and close reject an obsolete reply.
 The completion-read counter stays unchanged for ordinary queries. Final native
 checkpoint: `dc2d8d5c71a860b798bcb84a41ef6a2c239048cc`.
+
+
+### Log navigation highlight (2026-10-11)
+
+The owned Log parent now uses upstream italic/bold-italic navigation styling,
+including the default hash column. Its extended native receiver checks actual
+reference navigation alongside configured fonts and live search-match coloring.
+See [Log highlight evidence](qa/log-reference-highlight-2026-10-11.json) for the
+scope. The containing-reference window layout and physical gesture/signed
+acceptance remain partial; these checks do not certify either dialog complete.

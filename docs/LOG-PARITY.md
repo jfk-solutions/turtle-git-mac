@@ -2095,3 +2095,29 @@ Log search uses the complete `LOGFILTER_ALL` corpus, including notes, configured
 issue IDs, annotated tags and changed paths against every merge parent, together
 with literal/regex history, reference navigation and Shift selection preservation.
 See [Find in Log Messages](LOG-FIND.md) for behavior and remaining acceptance.
+
+
+### Reference-navigation highlight font traits (2026-10-11)
+
+The pinned GitLogListBase custom-draw path renders m_highlight in italics, using
+bold italics when it is also HEAD. Native Log now follows those font traits rather
+than filling the row's text fields yellow. It preserves configured Log fonts,
+reference badge colors and search-match foregrounds. The default monospaced hash
+column also keeps HEAD boldness and highlighted italics; previously its font reset
+removed those traits. Reference badges inherit the italic highlight alongside the
+subject and metadata columns.
+
+System and bundled Git passed the native containing-references receiver: actual
+owned Log navigation, normal and HEAD italic/bold-italic in message/hash/author/date
+cells, configured monospaced font sizing and simultaneous real “Next” search match
+coloring. Light/dark appearance settings were exercised through cell font/property
+checks, not pixel-level screenshot comparison. Original child menu/picker/filter,
+stale-reply, close and repository-preservation assertions remain. Both receivers
+were reaped. The driver now links freshly built app objects and always applies
+bounded owned-process cleanup, retaining capture options and its PASS sentinel.
+
+The first fixture attempts failed to compile because HistorySearchFields has no
+.all member and the app's LogSearchSelection helper is private. The final fixture
+uses public subject/message flags and passed both engines. These fixture fixes
+changed no production search behavior. No new complete Core-suite, physical Shift
+or double-click, full Log-menu, signed Finder or App Store acceptance is claimed.

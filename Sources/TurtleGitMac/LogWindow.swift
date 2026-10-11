@@ -2682,9 +2682,16 @@ struct RevisionTable: NSViewRepresentable {
             text.lineBreakMode = .byTruncatingTail; text.maximumNumberOfLines = 1
             if let logFont { text.font = entry.isHead ? NSFontManager.shared.convert(logFont, toHaveTrait: .boldFontMask) : logFont }
             else { text.font = .systemFont(ofSize: 12, weight: entry.isHead ? .bold : .regular) }
-            if model.highlightedRevision == entry.hash { text.drawsBackground = true; text.backgroundColor = NSColor.systemYellow.withAlphaComponent(0.3) }
+            if model.highlightedRevision == entry.hash, let font = text.font {
+                text.font = NSFontManager.shared.convert(font, toHaveTrait: .italicFontMask)
+            }
             switch column?.identifier.rawValue {
-            case "hash": text.stringValue = entry.hash; if logFont == nil { text.font = .monospacedSystemFont(ofSize: 11, weight: .regular) }
+            case "hash":
+                text.stringValue = entry.hash
+                if logFont == nil {
+                    let font = NSFont.monospacedSystemFont(ofSize: 11, weight: entry.isHead ? .bold : .regular)
+                    text.font = model.highlightedRevision == entry.hash ? NSFontManager.shared.convert(font, toHaveTrait: .italicFontMask) : font
+                }
             case "email": text.stringValue = entry.email
             case "committer": text.stringValue = entry.committer
             case "committerEmail": text.stringValue = entry.committerEmail
@@ -2699,7 +2706,8 @@ struct RevisionTable: NSViewRepresentable {
                     let reference = badge.reference
                     let color = LogPalette.native(LogColorRole.reference(reference, goodTerm: model.bisectGoodTerm, badTerm: model.bisectBadTerm), preferences: model.colorPreferences)
                     let foreground = NSColor(name: nil) { _ in LogPalette.foreground(background: color) }
-                    let badgeFont = logFont ?? NSFont.systemFont(ofSize: 11, weight: .medium)
+                    let baseBadgeFont = logFont ?? NSFont.systemFont(ofSize: 11, weight: .medium)
+                    let badgeFont = model.highlightedRevision == entry.hash ? NSFontManager.shared.convert(baseBadgeFont, toHaveTrait: .italicFontMask) : baseBadgeFont
                     let attributes: [NSAttributedString.Key: Any] = [.backgroundColor: color, .foregroundColor: foreground, .font: badgeFont]
                     let start = badges.length
                     badges.append(NSAttributedString(string: " ", attributes: attributes))
