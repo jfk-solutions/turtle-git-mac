@@ -142,12 +142,7 @@ private enum MergeSourceSide {
     func find(_ action: NSTextFinder.Action) {
         guard let text = activeText else { return }
         findText = text
-        if action == .showFindInterface, text.selectedRange().length > 0 {
-            let selection = NSMenuItem(); selection.tag = NSTextFinder.Action.setSearchString.rawValue
-            text.performTextFinderAction(selection)
-        }
-        let sender = NSMenuItem(); sender.tag = action.rawValue
-        text.performTextFinderAction(sender)
+        MergeFindInterface.perform(action, in: text)
     }
     override func cancelOperation(_ sender: Any?) {
         if let text = findText ?? activeText, text.enclosingScrollView?.isFindBarVisible == true {
@@ -663,6 +658,7 @@ private struct MergeEditor: NSViewRepresentable {
         view.mergeUseSpaces = useSpaces; view.mergeSmartTab = smartTab
         if editable { (view.window as? TextConflictNSWindow)?.mergedText = view }
         view.isEditable = editable && !model.busy && !model.confirmingQuit; view.model = model
+        view.mergeFindController?.updateGates()
         let range = view.selectedRange()
         if !view.string.utf8.elementsEqual(text.utf8) { view.string = text; view.setSelectedRange(NSRange(location: min(range.location, (text as NSString).length), length: 0)) }
         let entire = NSRange(location: 0, length: (text as NSString).length)
@@ -725,7 +721,7 @@ private struct MergeEditor: NSViewRepresentable {
 @MainActor protocol MergeContextMenuProviding {
     func mergeContextMenu(defaults: UserDefaults, pasteboard: NSPasteboard) -> NSMenu
 }
-private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying {
+private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying, MergeFindProviding {
     var chooseNavigationLine: (NSWindow, Int) async -> Int? = MergeLineNumberPrompt.choose
     var navigationPending = false
     var navigationCells: [MergeSourceCell]? { sourceCells }
@@ -742,6 +738,25 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
     var mergeEditable = false
     var sourceSide: MergeSourceSide?
     var sourceCells: [MergeSourceCell]?
+    var mergeFindController: MergeFindWindowController?
+    var mergeFindDefaults: UserDefaults { model?.comparisonDefaults ?? .standard }
+    var mergeFindAllowed: Bool { model?.busy == false && model?.confirmingQuit == false && window?.attachedSheet == nil }
+    var mergeFindWritable: Bool { mergeFindAllowed && mergeEditable && isEditable }
+    var mergeFindLines: [MergeFindLine] {
+        if let sourceCells { return MergeFindLine.displayCells(sourceCells) }
+        return MergeFindLine.document(string, states: model?.sourceComparison?.resultLocator?.states(for: string, conflicts: model?.blocks.map(\.range) ?? []) ?? [])
+    }
+    func replaceFindMatches(_ ranges: [NSRange], with replacement: String) -> Bool {
+        guard mergeFindWritable, !ranges.isEmpty else { return false }
+        let value = NSMutableString(string: string)
+        guard ranges.allSatisfy({ NSMaxRange($0) <= value.length }) else { return false }
+        for range in ranges.reversed() { value.replaceCharacters(in: range, with: replacement) }
+        let delta = ranges.dropLast().reduce(0) { $0 + (replacement as NSString).length - $1.length }
+        replaceMergeBlock(NSRange(location: 0, length: (string as NSString).length), with: value as String, actionName: ranges.count == 1 ? "Replace" : "Replace All")
+        setSelectedRange(NSRange(location: ranges.last!.location + delta + (replacement as NSString).length, length: 0))
+        scrollRangeToVisible(selectedRange())
+        return true
+    }
     let whitespaceRenderer = MergeWhitespaceRenderer()
     override func draw(_ dirtyRect: NSRect) { super.draw(dirtyRect); whitespaceRenderer.draw(in: self, dirtyRect: dirtyRect) }
     override func writeSelection(to pboard: NSPasteboard, type: NSPasteboard.PasteboardType) -> Bool {

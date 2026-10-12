@@ -15,7 +15,7 @@ src/Resources/TortoiseMergeENG.rc,IDD_FILEPATCHES,File patches,pending-review
 src/Resources/TortoiseMergeENG.rc,IDD_OPENDLG,TortoiseGitMerge,pending-review
 src/Resources/TortoiseMergeENG.rc,IDD_SETMAINPAGE,General,partial
 src/Resources/TortoiseMergeENG.rc,IDD_SETCOLORPAGE,Colors,partial
-src/Resources/TortoiseMergeENG.rc,IDD_FIND,Find,pending-review
+src/Resources/TortoiseMergeENG.rc,IDD_FIND,Find,partial-native-replacement
 src/Resources/TortoiseMergeENG.rc,IDD_ENCODING,Encoding,pending-review
 src/Resources/TortoiseMergeENG.rc,IDD_GOTO,Go To Line,pending-review
 src/Resources/TortoiseMergeENG.rc,IDD_REGEXFILTERS,Regex Filters,partial-native-replacement

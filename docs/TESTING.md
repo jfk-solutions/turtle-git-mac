@@ -1115,3 +1115,13 @@ second receiver. `--lfs-only` remains available for an actual LFS failure.
 framework contents, target/compiler and flags. The options batch and its
 `--whitespace-only`, `--general-only`, and `--about-only` modes use the same binary.
 No app assertions or receiver coverage are skipped by these caches.
+
+
+## Merge Find/Replace batch
+
+After the framework build, run `swift test --filter MergeFindTests` and
+`python3 scripts/test-native-merge-regex.py --find-only` for this family. The
+native receiver is also included in the grouped LFS/mail CI receiver. It uses
+private two-pane files and a private three-pane Git conflict, keeps original
+files/index unchanged and closes all owned Find/editor windows. No installed
+app, public server or live Keychain is used. See [Find parity](MERGE-FIND-PARITY.md).

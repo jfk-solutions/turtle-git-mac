@@ -292,6 +292,8 @@
 		FED983DAC1D3DA69EF249094 /* SubmoduleSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6627A941719314D5D2976D6E /* SubmoduleSync.swift */; };
 		FF0E5C4AB3547674CE31C89B /* PatchPageSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A93F4AB3BFC676A7095AACC /* PatchPageSetup.swift */; };
 		A39F01E117C945ACB8258001 /* Synchronization.swift in Sources */ = {isa = PBXBuildFile; fileRef = A39F01E117C945ACB8258002 /* Synchronization.swift */; };
+		F3BB1C814B7C00BE944DEB77 /* MergeFind.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34A1C80806367C1334A115C1 /* MergeFind.swift */; };
+		6D035E4FEDCAF3CDC5F247D0 /* MergeFindWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15C31E3C0CC998152AB576A6 /* MergeFindWindow.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -649,6 +651,8 @@
 		FF512B23E2DBAC7E83B73747 /* CommitPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitPreferences.swift; sourceTree = "<group>"; };
 		FFA8ABAE7D9E9C611A3AA3BF /* SSHIdentityAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHIdentityAccess.swift; sourceTree = "<group>"; };
 		A39F01E117C945ACB8258002 /* Synchronization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Synchronization.swift; sourceTree = "<group>"; };
+		34A1C80806367C1334A115C1 /* MergeFind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeFind.swift; sourceTree = "<group>"; };
+		15C31E3C0CC998152AB576A6 /* MergeFindWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeFindWindow.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -721,6 +725,7 @@
 				26B86A4879EF89058692598F /* ExportWindow.swift */,
 				BA3DD76CCC2D1B2E7E5BEA21 /* FetchWindow.swift */,
 				A142607F55CD34E13938FD40 /* FileComparisonWindow.swift */,
+				15C31E3C0CC998152AB576A6 /* MergeFindWindow.swift */,
 				72211FE8450E694C1BC89AB3 /* FormatPatchWindow.swift */,
 				E6D400F85AE92690112D0E35 /* GitProgressOutputState.swift */,
 				B42ABD92C8384F1E8D882437 /* IgnoreWindow.swift */,
@@ -935,6 +940,7 @@
 				2F72591A0815973F2BD6B984 /* MergeLineEndings.swift */,
 				8D6B27BE15EAF8BC2A39D565 /* MergeMessageHistory.swift */,
 				5260D6BC21ED253CE64034DD /* MergeSourceComparison.swift */,
+				34A1C80806367C1334A115C1 /* MergeFind.swift */,
 				F7809458AF943456197C0AC7 /* MergeWhitespace.swift */,
 				8ABC9104B3F3E555FB47EC46 /* MessageCaretPosition.swift */,
 				28A4137E7CE7A36F8A8E6F58 /* MessageCodeScanner.swift */,
@@ -1437,6 +1443,7 @@
 				F84451AECD5756E3E03BCF2D /* MergeLineEndings.swift in Sources */,
 				2006DACDA67B90A4E15DCE8A /* MergeMessageHistory.swift in Sources */,
 				FDE4E41C91986D637B861330 /* MergeSourceComparison.swift in Sources */,
+				F3BB1C814B7C00BE944DEB77 /* MergeFind.swift in Sources */,
 				AFCF01F6659A02AC371A90B8 /* MergeWhitespace.swift in Sources */,
 				EF0A14E185D835D3BAB7033E /* MessageCaretPosition.swift in Sources */,
 				B46406E18DBC3B1E7292BD5A /* MessageCodeScanner.swift in Sources */,
@@ -1561,6 +1568,7 @@
 				C8FEE2A6E0B1D5FDE647F228 /* ExportWindow.swift in Sources */,
 				D4DC9BE706E4DFFB73154A96 /* FetchWindow.swift in Sources */,
 				70EA762F97100350401F85ED /* FileComparisonWindow.swift in Sources */,
+				6D035E4FEDCAF3CDC5F247D0 /* MergeFindWindow.swift in Sources */,
 				889A5713EF2EFE553723715F /* FormatPatchWindow.swift in Sources */,
 				CE62DD0C90CCBA058B0F7C1C /* GitProgressOutputState.swift in Sources */,
 				174E45FA66A5BAED1EAEF918 /* IgnoreWindow.swift in Sources */,

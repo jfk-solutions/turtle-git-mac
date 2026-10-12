@@ -704,8 +704,22 @@ import TurtleGitCore
     }
     func find(_ action: NSTextFinder.Action) {
         let text = scrolls.values.compactMap { $0.documentView as? NSTextView }.first { $0.window?.firstResponder === $0 }
-            ?? (scrolls[false]?.documentView as? NSTextView)
-        let item = NSMenuItem(); item.tag = action.rawValue; text?.performTextFinderAction(item)
+            ?? (scrolls[activeBase]?.documentView as? NSTextView)
+        if let text { MergeFindInterface.perform(action, in: text) }
+    }
+    func replaceFindMatches(_ ranges: [NSRange], cells: [MergeSourceCell], base: Bool, replacement: String) -> Bool {
+        guard canTransfer(toBase: base), let actions = editorActions[base], !ranges.isEmpty else { return false }
+        do {
+            let sourceRanges = try ranges.map { try FileComparisonEditing.sourceRange($0, cells: cells) }
+            let value = NSMutableString(string: draftText(base: base))
+            guard sourceRanges.allSatisfy({ NSMaxRange($0) <= value.length }) else { return false }
+            for range in sourceRanges.reversed() { value.replaceCharacters(in: range, with: replacement) }
+            activatePane(base: base)
+            let delta = sourceRanges.dropLast().reduce(0) { $0 + (replacement as NSString).length - $1.length }
+            let caret = sourceRanges.last!.location + delta + (replacement as NSString).length
+            actions.replace(value as String, caret, nil)
+            return true
+        } catch { self.error = error.localizedDescription; return false }
     }
 }
 private struct FileComparisonDialog: View {
@@ -864,6 +878,7 @@ struct FileComparisonEditor: NSViewRepresentable {
             renderer.removal = base; renderer.highlightEndings = model.showInlineDiff
         }
         view.isEditable = model.editingEnabled && model.editableBase == base && !model.busy && !model.confirmingQuit
+        (view as? FileComparisonTextView)?.mergeFindController?.updateGates()
         let value = Self.attributed(cells, font: view.font!, model: model, base: base)
         (view as? FileComparisonTextView)?.missingOffsets = Self.missingOffsets(cells, model: model, base: base)
         view.needsDisplay = true
@@ -990,7 +1005,7 @@ struct FileComparisonEditor: NSViewRepresentable {
 @MainActor protocol ComparisonContextMenuProviding {
     func comparisonContextMenu(defaults: UserDefaults, pasteboard: NSPasteboard) -> NSMenu
 }
-private final class FileComparisonTextView: NSTextView, NSMenuDelegate, ComparisonContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying {
+private final class FileComparisonTextView: NSTextView, NSMenuDelegate, ComparisonContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying, MergeFindProviding {
     var chooseNavigationLine: (NSWindow, Int) async -> Int? = MergeLineNumberPrompt.choose
     var navigationPending = false
     var navigationCells: [MergeSourceCell]? { sourceCells }
@@ -1007,6 +1022,15 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
     weak var model: FileComparisonWindowModel?
     var baseSide = false
     var sourceCells: [MergeSourceCell] = []
+    var mergeFindController: MergeFindWindowController?
+    var mergeFindDefaults: UserDefaults { model?.comparisonDefaults ?? .standard }
+    var mergeFindAllowed: Bool { model?.busy == false && model?.confirmingQuit == false && model?.filtering == false && window?.attachedSheet == nil }
+    var mergeFindWritable: Bool { mergeFindAllowed && isEditable }
+    var mergeFindLines: [MergeFindLine] { MergeFindLine.displayCells(sourceCells) }
+    func replaceFindMatches(_ ranges: [NSRange], with replacement: String) -> Bool {
+        guard mergeFindWritable else { return false }
+        return model?.replaceFindMatches(ranges, cells: sourceCells, base: baseSide, replacement: replacement) == true
+    }
     let whitespaceRenderer = MergeWhitespaceRenderer()
     var missingOffsets: [Int] = []
     func menuDidClose(_ menu: NSMenu) {

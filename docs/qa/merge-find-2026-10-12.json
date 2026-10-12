@@ -1,0 +1,61 @@
+{
+  "date": "2026-10-12",
+  "baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Native TortoiseMerge Find/Replace family in two-pane comparison and three-pane conflict editor",
+  "implementation": [
+    "Modeless pane-local AppKit dialog with source field/button/checkbox arrangement",
+    "Case/whole-word/modified-only/direction/Count/literal UTF-16 search",
+    "Find wrapping and colored status",
+    "25-entry case-sensitive untrimmed search/replacement histories and source session/persistence behavior",
+    "Source-safe Replace/Replace All with one Undo group and no Save/staging",
+    "Owned close, readonly/busy/sheet gates and original Find menu icon"
+  ],
+  "validation": {
+    "core": {
+      "command": "swift test --filter MergeFindTests",
+      "tests": 8,
+      "failures": 0,
+      "seconds": 0.019,
+      "full_suite_run": false
+    },
+    "app_build": {
+      "initial_exit": 0,
+      "final_exit": 0,
+      "reason_for_final": "Source audit corrected history limit from 50 to upstream 25 and empty/newline history rules",
+      "configuration": "Debug, arm64, unsigned, macOS13 deployment",
+      "existing_zero_exit_diagnostic_noise": true
+    },
+    "native": {
+      "compilations": 2,
+      "initial": "Fixture wrongly assumed working-file destination starts readonly; production defaults to editable. No feature assertion weakened. Explicitly disabled editing before readonly check.",
+      "final": "Passed actual two/three-pane editors, Count/modified-filter/wrap, readonly/busy gates, source-gap exclusion, Unicode Replace All, single Undo/Redo, owner closure and unchanged disk/index",
+      "focused_repeat_only": true,
+      "full_options_batch_run": false,
+      "main_app_launched": false,
+      "public_endpoints": false,
+      "live_keychain": false,
+      "owned_processes_remaining": 0
+    },
+    "screenshots": {
+      "accepted": 0,
+      "rejected": 2,
+      "reason": "Offscreen AppKit capture missing static labels and buttons; removed rather than publish invalid screenshots"
+    },
+    "docs": "Python scripts parsed, site generated, diff whitespace clean",
+    "hosted_new_workflow_verified": false
+  },
+  "remaining": [
+    "Physical keyboard/menu/VoiceOver acceptance",
+    "Light/dark full native screenshots and minimum-size visual review",
+    "Signed App Store/Finder acceptance",
+    "Search highlighting painting in every pane",
+    "Exact rare Unicode Windows case-conversion behavior",
+    "Source pane-relative Find geometry"
+  ],
+  "inventory": {
+    "total_dialogs": 130,
+    "partial": 58,
+    "pending": 72,
+    "certified_complete": 0
+  }
+}
