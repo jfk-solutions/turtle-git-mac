@@ -27,7 +27,7 @@ macOS 13.
 | Single-patch review | Native before/after review, checked-file application, edited saves, exact-byte clipboard copy/review and confirmed target matching against plain directories or Git subfolders; app/Finder entry | Full TortoiseGitMerge behavior, Open/Finder clipboard integration and signed acceptance; [source audit](docs/REVIEW-PATCH-PARITY.md) |
 | SVN integration | DCommit choices/stash flow, Fetch comparisons, fetch-then-Rebase and Ignore destinations; private universal Perl/Subversion runtime | Native/signed authentication, full physical UI acceptance and distribution review; [source audit](docs/SVN-PARITY.md) |
 | Git daemon | Native warning/progress, server URLs, owned cancellation and app/Finder entry | Signed sandbox, firewall and LAN/IPv6 acceptance; [source audit](docs/DAEMON-PARITY.md) |
-| Finder | Embedded Finder Sync extension, status snapshot/badges and selection-based context-menu routing | Signed end-to-end activation, independent background cache and invalidation |
+| Finder | Embedded Finder Sync extension, status snapshot/badges, selection-based context-menu routing and event-driven active-workspace refresh | Signed end-to-end activation, independent background cache and invalidation |
 
 [Getting started](docs/GETTING-STARTED.md) explains the first workflows, including
 how checked-file commits differ from staging mode. The checkbox is named

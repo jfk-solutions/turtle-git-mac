@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		B73167000000000000000006 /* RepositoryFileEvents.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73167000000000000000007 /* RepositoryFileEvents.swift */; };
 		B73167000000000000000004 /* RepositoryBrowserContentsTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73167000000000000000005 /* RepositoryBrowserContentsTable.swift */; };
 		B73167000000000000000001 /* BlameSyntax.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73167000000000000000002 /* BlameSyntax.swift */; };
 		B73105000000000000000001 /* ProjectDialogSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73105000000000000000002 /* ProjectDialogSettings.swift */; };
@@ -377,6 +378,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		B73167000000000000000007 /* RepositoryFileEvents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryFileEvents.swift; sourceTree = "<group>"; };
 		B73167000000000000000005 /* RepositoryBrowserContentsTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryBrowserContentsTable.swift; sourceTree = "<group>"; };
 		B73167000000000000000002 /* BlameSyntax.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlameSyntax.swift; sourceTree = "<group>"; };
 		B73105000000000000000002 /* ProjectDialogSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectDialogSettings.swift; sourceTree = "<group>"; };
@@ -971,6 +973,7 @@
 				28A4137E7CE7A36F8A8E6F58 /* MessageCodeScanner.swift */,
 				22371C45A6813F87FD610EE6 /* MessageCodeSymbols.swift */,
 				B73167000000000000000002 /* BlameSyntax.swift */,
+				B73167000000000000000007 /* RepositoryFileEvents.swift */,
 				B73164000000000000000002 /* ClientHooks.swift */,
 				C27AB4988402DE898554EF19 /* MessageCodeText.swift */,
 				3329485A1DA9D2066A853483 /* MessageCompletion.swift */,
@@ -1496,6 +1499,7 @@
 				B46406E18DBC3B1E7292BD5A /* MessageCodeScanner.swift in Sources */,
 				B96A74776BF83BB313347BBB /* MessageCodeSymbols.swift in Sources */,
 				B73167000000000000000001 /* BlameSyntax.swift in Sources */,
+				B73167000000000000000006 /* RepositoryFileEvents.swift in Sources */,
 				B73164000000000000000001 /* ClientHooks.swift in Sources */,
 				A99C16FB42C7E89CA9B6AEC3 /* MessageCodeText.swift in Sources */,
 				91E94E7DF08198646C691752 /* MessageCompletion.swift in Sources */,

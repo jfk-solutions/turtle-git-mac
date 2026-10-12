@@ -207,3 +207,5 @@ are not recursively audited.
 [Merge Colors settings](MERGE-COLORS-PARITY.md): source palette rows, independent light/dark drafts, Restore Default and live renderer integration.
 
 [Native About dialog family](ABOUT-PARITY.md): app and tool About windows, bundled runtime reports, original attribution and local license access.
+
+- [Filesystem event monitoring and remaining cache-service work](FINDER-EVENTS-PARITY.md)

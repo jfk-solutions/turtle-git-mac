@@ -63,3 +63,8 @@ still require work.
 
 Evidence is recorded in
 [the verification record](qa/finder-submodule-tree-2026-10-06.json).
+
+The October 13 [event-monitoring batch](FINDER-EVENTS-PARITY.md) replaces the
+foreground active-workspace timer with FSEvents, including Git/common directories,
+busy deferral and callback retirement. The independent cache service and physical/
+signed Finder acceptance remain open.

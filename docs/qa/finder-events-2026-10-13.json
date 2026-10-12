@@ -1,0 +1,77 @@
+{
+  "date": "2026-10-13",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Working/Git/common-dir FSEvents monitoring instead of five-second polling",
+    "Debounced busy/Quit pending refresh and close/switch retirement",
+    "Non-writing foreground status and private snapshot/notification native verification"
+  ],
+  "source": [
+    "src/TGitCache/DirectoryWatcher.cpp change queue/block/lock notifications",
+    "macOS SDK CoreServices FSEvents.h CFTypes/context ownership and dispatch stream contract"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/finder-events-build-2026-10-13.log",
+      "notes": "Existing warnings and exit-0/no-output diagnostics; not a clean-log claim"
+    },
+    "core": {
+      "initial": "Four checks ran: three passed; actual-event assertions failed on canonical path spelling.",
+      "initial_log": "build/qa/finder-events-core-2026-10-13.log",
+      "affected_first": "Observed correct events but String path comparison still failed; Cocoa URL normalization was required.",
+      "affected_first_log": "build/qa/finder-events-core-affected-2026-10-13.log",
+      "affected_final": {
+        "exit": 0,
+        "tests": 1,
+        "log": "build/qa/finder-events-core-affected2-2026-10-13.log"
+      },
+      "passing_scope": "Three unchanged initial checks plus the corrected actual-event check. Cache/Submodule filter names did not select additional classes; no broad Finder suite is claimed."
+    },
+    "native": {
+      "state": "passed",
+      "initial_failure": "Linked Open succeeded but a fixture compared directory-hinted URLs with different trailing slashes; corrected to exact repository paths.",
+      "initial_logs": [
+        "build/qa/finder-events-native-2026-10-13.log",
+        "build/qa/finder-events-native-diagnostic-2026-10-13.log"
+      ],
+      "owned_failed_receivers_reaped": [
+        15558,
+        15792
+      ],
+      "exit": 0,
+      "cases": 2,
+      "engines": [
+        "system Git",
+        "packaged Git"
+      ],
+      "final_log": "build/qa/finder-events-native-final-2026-10-13.log",
+      "owned_receivers_reaped": [
+        15943,
+        16056
+      ],
+      "all_receivers_independently_absent": true
+    },
+    "appstore": {
+      "exit": 0,
+      "log": "build/qa/finder-events-appstore-2026-10-13.log",
+      "signed": false,
+      "notes": "No full runtime/bundle audit repeated; no runtime recipes or embedded helper resources changed."
+    },
+    "website": {
+      "exit": 0,
+      "output": "build/site"
+    }
+  },
+  "limits": [
+    "Active-workspace monitoring only; independent service and watched-root management remain open",
+    "No physical Finder activation, signed grants, root removal/mount/drop or App Store acceptance",
+    "Foreground in-flight cancellation and lock-aware/scalable crawler invalidation remain incomplete"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/RepositoryFileEvents.swift": "56b9e9bf3cfba31c3acfb33a78c813c3ed868a1d87e3fc698a6194fc21c21e1b",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "74ba74245511aae1edc70b6134e8f9de77b1eb89993ea66c6bc19207f51075ae",
+    "Tests/TurtleGitCoreTests/RepositoryFileEventTests.swift": "94afce5e1e9be32485f9293a55009c5ab563ba3f3d5f6ae91b180d09af131f6a",
+    "docs/qa/finder-events-native-2026-10-13.swift": "c91dbc80fd681b9b7d253f11a2e6f207d7f5f0d246662e958dff9e1fbe2fbaf7"
+  }
+}

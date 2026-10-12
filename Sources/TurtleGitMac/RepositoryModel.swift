@@ -88,8 +88,8 @@ import TurtleGitCore
     @Published var entries: [StatusEntry] = []
     @Published var selection = Set<String>()
     @Published var output = "Open a repository to get started."
-    @Published var busy = false
-    @Published var confirmingQuit = false
+    @Published var busy = false { didSet { if !busy { eventRefresh?.kick() } } }
+    @Published var confirmingQuit = false { didSet { if !confirmingQuit { eventRefresh?.kick() } } }
     @Published var error: String?
     @Published var section = RepositoryAction.status
     @Published var dialog: RepositoryAction?
@@ -173,7 +173,37 @@ import TurtleGitCore
     private var removeWindows: [String: RemoveWindowController] = [:]
     private var adoptionGeneration = 0
     private var cloneKeyAccess: [String: RepositoryAccessLease] = [:]
-    private var timer: Timer?
+    private let repositoryFactory:((URL) throws -> GitRepository)?
+    private let snapshotWriter:@Sendable (FinderSnapshot) throws -> Bool
+    var notifyFinder:()->Void = { DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderIntegration.notification),object:nil) }
+    private let monitoringEnabled:Bool
+    private var fileMonitor:RepositoryFileEventMonitor?
+    private var eventRefresh:RepositoryEventRefresh?
+    private var watchIdentity=UUID()
+    private var watchPaths:[URL]=[]
+    private func stopFileMonitoring() {
+        watchIdentity=UUID();fileMonitor?.stop();fileMonitor=nil;watchPaths=[];eventRefresh?.retire();eventRefresh=nil
+    }
+    private func monitorFiles(_ directories:[URL]) {
+        guard monitoringEnabled,watchPaths != directories else { return }
+        stopFileMonitoring()
+        let permitted=directories.filter { !GitRuntime.isAppStoreBuild || activeAccess?.contains($0)==true }
+        guard !permitted.isEmpty else { return }
+        let identity=watchIdentity
+        let refresh=RepositoryEventRefresh(available:{ [weak self] in
+            self?.repository != nil && self?.busy==false && self?.confirmingQuit==false
+        },refresh:{ [weak self] in await self?.refresh(refreshStatus:true) })
+        do {
+            let monitor=try RepositoryFileEventMonitor(roots:permitted) { [weak self] events in
+                guard !events.isEmpty else { return }
+                Task { @MainActor [weak self] in
+                    guard let self,self.watchIdentity==identity else { return }
+                    self.eventRefresh?.invalidate()
+                }
+            }
+            eventRefresh=refresh;fileMonitor=monitor;watchPaths=directories
+        } catch { refresh.retire();finderStatus="Filesystem monitoring unavailable: "+error.localizedDescription }
+    }
     private var cacheStates: [String: FileState] = [:]
     private var cacheOverlayEntries: [String: FileState]?
     private var cacheIndexFlags: [String: FinderIndexFlags]?
@@ -202,8 +232,10 @@ import TurtleGitCore
         return eligible && (!action.ignoresByExtension || selected.contains { !($0.path as NSString).pathExtension.isEmpty })
     }
 
-    init(startMonitoring: Bool = true) {
-        guard startMonitoring else { return }
+    init(startMonitoring: Bool = true,initializePreferences:Bool = true,repositoryFactory:((URL) throws -> GitRepository)? = nil,snapshotWriter:@escaping @Sendable (FinderSnapshot) throws -> Bool = { try $0.write() }) {
+        self.repositoryFactory=repositoryFactory;self.snapshotWriter=snapshotWriter
+        monitoringEnabled=startMonitoring
+        guard startMonitoring && initializePreferences else { return }
         do { _ = try FinderMenuSettings.from().write() }
         catch { finderStatus = "Finder menu preferences unavailable: " + error.localizedDescription }
         do { _ = try FinderOverlaySettings.from().write() }
@@ -220,9 +252,7 @@ import TurtleGitCore
                 cacheIndexFlags = snapshot.indexFlags
             }
         }
-        timer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
-            Task { @MainActor in if let self, !self.busy, !self.confirmingQuit, self.root != nil { await self.refresh(refreshStatus: false) } }
-        }
+
     }
     func configureSettingsRemote(_ model: RemoteSettingsWindowModel) {
         let repository = model.repository, access = model.access
@@ -238,7 +268,7 @@ import TurtleGitCore
         return (try makeRepository(FileManager.default.homeDirectoryForCurrentUser), nil, false)
     }
     private func makeRepository(_ url: URL) throws -> GitRepository {
-        GitRepository(root: url, executable: try GitRuntime.executable())
+        try repositoryFactory?(url) ?? GitRepository(root:url,executable:GitRuntime.executable())
     }
     func chooseRepository(preferred: URL? = nil) {
         guard !busy, !confirmingQuit else { return }
@@ -266,6 +296,7 @@ import TurtleGitCore
     }
     func closeRepository() {
         guard !busy, !confirmingQuit else { return }
+        stopFileMonitoring()
         adoptionGeneration += 1; hasGitSVN = false; bare = false; mergeActive = false
         repository = nil; activeAccess = nil; root = nil; entries = []; selection = []
         branch = ""; message = ""; output = "Open a repository to get started."
@@ -276,6 +307,7 @@ import TurtleGitCore
     }
     private func openSession(_ lease: RepositoryAccessLease, selected: FinderRequest? = nil, action: RepositoryAction? = nil, actionPaths: [String]? = nil, onOpened: (() -> Void)? = nil) {
         guard !busy, !confirmingQuit else { return }
+        stopFileMonitoring()
         adoptionGeneration += 1
         busy = true
         Task {
@@ -318,7 +350,11 @@ import TurtleGitCore
                     activate(action, paths: paths)
                 }
                 onOpened?()
-            } catch { self.error = error.localizedDescription; busy = false }
+            } catch {
+                self.error=error.localizedDescription
+                if monitoringEnabled,let repository,let directories=try? await repository.finderWatchDirectories() { monitorFiles(directories) }
+                busy=false
+            }
         }
     }
     func refresh(refreshStatus: Bool = true) async {
@@ -330,7 +366,8 @@ import TurtleGitCore
     private func reload() async throws {
         guard let repository, let root else { return }
         bare = try await repository.isBare()
-        entries = bare ? [] : try await repository.status()
+        if monitoringEnabled { monitorFiles(try await repository.finderWatchDirectories()) }
+        entries = bare ? [] : try await repository.status(refreshIndex:false)
         conflictRebase = bare ? false : try await repository.conflictIsRebase()
         submodules = bare ? [] : try await repository.submodulePaths()
         selection.formIntersection(Set(entries.map(\.id)))
@@ -349,9 +386,10 @@ import TurtleGitCore
         cacheOverlayEntries = cached.overlayEntries
         cacheIndexFlags = cached.indexFlags
         do {
-            let written = try await Task.detached(operation: { try cached.write() }).value
+            let writer=snapshotWriter
+            let written = try await Task.detached(operation:{ try writer(cached) }).value
             finderStatus = written ? (children.failures.isEmpty ? "Finder cache updated" : "Finder cache updated; \(children.failures.count) submodule scan(s) failed: " + children.failures.sorted { $0.key < $1.key }.map { $0.key + ": " + $0.value }.joined(separator: "; ")) : "Finder cache unavailable: App Group access required"
-            if written { DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderIntegration.notification), object: nil) }
+            if written { notifyFinder() }
         } catch { finderStatus = "Finder cache unavailable: " + error.localizedDescription }
     }
     func perform(_ operation: @escaping (GitRepository) async throws -> String) {

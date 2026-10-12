@@ -1475,3 +1475,12 @@ No/Yes/late Reset ownership, captured file/folder promises after branch movement
 and owner closure, destination collision preservation and staging cleanup. The
 capture case uses only its owned window and existing screen-recording access.
 Promise delegate delivery does not establish physical Finder drag acceptance.
+
+`RepositoryFileEventTests` checks real dispatch FSEvents plus refresh coalescing,
+retirement and linked Git-dir discovery. FSEvents may report `/private/var` while
+Cocoa URLs normalize the same location as `/var`; compare normalized URLs for
+exact event targets. The cached native receiver `--only finder-events` drives the
+production workspace model with a private snapshot writer and notification hook.
+It verifies real edits, busy/Quit release, unchanged HEAD/index, monitor retirement
+and shared-admin linked-worktree changes with both engines. It does not activate
+Finder or write App Group data, and makes no signed integration claim.
