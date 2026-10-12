@@ -252,3 +252,9 @@ ASCII files when opening or reloading. It defaults off, matching upstream.
 BOMs and valid non-ASCII UTF-8 retain their formats. Applying it does not recode
 an open draft. The initial legacy adapter is Windows-1252; see
 [default encoding parity](MERGE-DEFAULT-ENCODING-PARITY.md).
+
+Choose **View → Wrap long lines** in a comparison or merge viewer to wrap text
+to the pane width. The choice is saved and horizontal scrolling is disabled
+while wrapped. Corresponding source rows remain vertically aligned; resizing
+reflows them. File bytes and logical edit/Find/Undo offsets stay unchanged. See
+[wrapping parity](MERGE-WRAPPING-PARITY.md) for remaining acceptance.

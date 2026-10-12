@@ -235,6 +235,12 @@ import TurtleGitCore
     @Published var error: String?
     @Published var difference = -1
     @Published var showLineNumbers = MergeEditorPreferences.load().showLineNumbers
+    @Published private(set) var wrapLines = UserDefaults.standard.bool(forKey: "TurtleGitMerge.WrapLines")
+    let lineWrapping = MergeLineWrapping()
+    func setWrapLines(_ value: Bool) {
+        guard !retired, !busy, !confirmingQuit else { return }
+        wrapLines = value; comparisonDefaults.set(value, forKey: "TurtleGitMerge.WrapLines")
+    }
     @Published var showLineDiffBar = UserDefaults.standard.object(forKey: "TurtleGitMerge.LineDiff") == nil || UserDefaults.standard.bool(forKey: "TurtleGitMerge.LineDiff") {
         didSet { comparisonDefaults.set(showLineDiffBar, forKey: "TurtleGitMerge.LineDiff") }
     }
@@ -312,6 +318,7 @@ import TurtleGitCore
         let general = MergeGeneralPreferences.load(from: comparisonDefaults)
         if general != generalPreferences { generalPreferences = general; inlineCache = [:] }
         showLineDiffBar = comparisonDefaults.object(forKey: "TurtleGitMerge.LineDiff") == nil || comparisonDefaults.bool(forKey: "TurtleGitMerge.LineDiff")
+        wrapLines = comparisonDefaults.bool(forKey: "TurtleGitMerge.WrapLines")
         locatorPreferences = .load(from: comparisonDefaults)
         whitespaceDisplay = .load(from: comparisonDefaults)
         let options = MergeComparisonOptions.load(from: comparisonDefaults)
@@ -589,6 +596,7 @@ import TurtleGitCore
         snapshot = images.snapshot; path = images.destination?.path ?? images.base?.path ?? "Images"
     }
     func retireImageLoader() {
+        lineWrapping.retire()
         patchCancellation?.cancel(); patchCancellation = nil; patchRequest = nil
         formatRequest = nil; previewRow = nil
         retired = true; regexCancellation?.cancel(); regexCancellation = nil; regexList?.retire(); regexList = nil
@@ -632,6 +640,7 @@ import TurtleGitCore
     }
     func load() {
         guard !retired, !busy, !confirmingQuit else { return }
+        wrapLines = comparisonDefaults.bool(forKey: "TurtleGitMerge.WrapLines")
         if !loadedPaneMode { onePaneMode = OnePaneFileComparison.defaultEnabled(from: comparisonDefaults); loadedPaneMode = true }
         if dirty {
             let alert = NSAlert(); alert.messageText = "Save changes to “\(unsavedFilesDescription)” before reloading?"
@@ -955,7 +964,7 @@ private struct FileComparisonDialog: View {
                 Toggle("Line numbers", isOn: $model.showLineNumbers)
             }.toggleStyle(.checkbox).padding(.horizontal, 10).padding(.bottom, 8)
             HStack {
-                MergeViewControls(preferences: model.locatorPreferences, apply: model.setLocatorPreferences, whitespace: model.whitespaceDisplay, applyWhitespace: model.setWhitespaceDisplay).disabled(model.busy || model.confirmingQuit)
+                MergeViewControls(preferences: model.locatorPreferences, apply: model.setLocatorPreferences, whitespace: model.whitespaceDisplay, applyWhitespace: model.setWhitespaceDisplay, wrapLines: model.wrapLines, applyWrap: model.setWrapLines).disabled(model.busy || model.confirmingQuit)
                 MergeComparisonControls(options: model.comparisonOptions, apply: model.setComparisonOptions, supportsComments: model.supportsComments).disabled(model.busy || model.confirmingQuit)
                 Menu {
                     Button { model.selectRegexFilter(nil) } label: {
@@ -1047,7 +1056,7 @@ struct FileComparisonEditor: NSViewRepresentable {
         view.backgroundColor = MergePalette.color(MergeSourceState.normal)
         view.insertionPointColor = MergePalette.foreground(.normal)
         view.font = model.generalPreferences.nativeFont
-        DispatchQueue.main.async { model.refreshLocatorViewport() }
+        if !model.wrapLines { DispatchQueue.main.async { model.refreshLocatorViewport() } }
         // Hosting can deliver a previously captured View value after an edit.
         // Read the current alignment and preserve the selection in source
         // coordinates before replacing attributed display text.
@@ -1075,6 +1084,8 @@ struct FileComparisonEditor: NSViewRepresentable {
             let range = NSRange(location: start, length: max(0, end - start))
             if view.selectedRange() != range { view.setSelectedRange(range) }
         }
+        model.lineWrapping.geometryChanged = { [weak model] in model?.refreshLocatorViewport() }
+        model.lineWrapping.update(scroll, key: base ? "Base" : "Mine", aligned: !model.onePaneActive && !model.singleFileMode, enabled: model.wrapLines)
         scroll.rulersVisible = model.showLineNumbers
         (scroll.verticalRulerView as? MergeLineRuler)?.sourceNumbers = cells.map(\.lineNumber)
         (scroll.verticalRulerView as? MergeLineRuler)?.updateMetrics(for: view)

@@ -781,3 +781,9 @@ loads. Legacy Windows-1252 input can load/save losslessly; generic Core callers
 retain their original detection defaults. See
 [default encoding parity](MERGE-DEFAULT-ENCODING-PARITY.md) for locale/malformed
 and remaining load-caller acceptance.
+
+Merge viewers now provide saved long-line wrapping, native width/font/tab
+reflow, horizontal-scroll gates and shared wrapped heights across aligned
+source rows. Combined/result panes retain logical editing offsets. See
+[wrapping parity](MERGE-WRAPPING-PARITY.md); full result-row alignment,
+unchanged-section collapse and physical/large-file acceptance remain open.

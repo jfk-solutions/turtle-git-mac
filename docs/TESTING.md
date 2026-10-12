@@ -1221,3 +1221,10 @@ adaptation, exact CP1252 save and canonical/legacy preference precedence.
 for actual checkbox Apply/Cancel, open-versus-reload format behavior, legacy
 two/three-pane decoding and exact standalone output with inputs retained.
 `--default-encoding-only` shares the app-object cache for an actual failure.
+
+`merge-wrapping-native-2026-10-12.swift` joins the grouped Merge/LFS-mail receiver
+for actual TextKit wrapping, shared source-row height geometry, resizing,
+scrollbar gates/persistence, unchanged text/selection/history/comparison/files,
+combined/three-pane reflow and retirement. `--wrapping-only` shares the built-app
+object cache for an actual wrapping failure. Native-only changes do not trigger
+a full Core rerun.

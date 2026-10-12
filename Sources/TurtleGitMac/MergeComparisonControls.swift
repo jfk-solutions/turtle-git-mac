@@ -37,8 +37,12 @@ struct MergeViewControls: View {
     let apply: (MergeLocatorPreferences) -> Void
     let whitespace: MergeWhitespaceDisplayPreferences
     let applyWhitespace: (MergeWhitespaceDisplayPreferences) -> Void
+    var wrapLines = false
+    var applyWrap: (Bool) -> Void = { _ in }
     var body: some View {
         Menu("View") {
+            Toggle("Wrap long lines", isOn: Binding(get: { wrapLines }, set: applyWrap))
+            Divider()
             Toggle("Show Whitespaces", isOn: Binding(get: { whitespace.visible }, set: { var next = whitespace; next.visible = $0; applyWhitespace(next) }))
             Toggle("Line-ending icons", isOn: Binding(get: { whitespace.endingIcons }, set: { var next = whitespace; next.endingIcons = $0; applyWhitespace(next) }))
             Divider()
@@ -289,4 +293,98 @@ struct MergeLocatorBar: NSViewRepresentable {
             }
         }
     }
+}
+
+/// TextKit wrapping with source-style shared row heights across aligned panes.
+@MainActor final class MergeLineWrapping {
+    private final class Entry {
+        weak var scroll: NSScrollView?
+        var aligned: Bool
+        var enabled: Bool
+        var applied: Bool?
+        var observers: [NSObjectProtocol] = []
+        init(scroll: NSScrollView, aligned: Bool, enabled: Bool) { self.scroll = scroll; self.aligned = aligned; self.enabled = enabled }
+        deinit { for observer in observers { NotificationCenter.default.removeObserver(observer) } }
+    }
+    private var entries: [String: Entry] = [:]
+    private var queued = false, applying = false, retired = false
+    var geometryChanged: () -> Void = {}
+    private(set) var alignedHeights: [CGFloat] = []
+    func update(_ scroll: NSScrollView, key: String, aligned: Bool, enabled: Bool) {
+        guard !retired else { return }
+        if entries[key]?.scroll !== scroll {
+            let entry = Entry(scroll: scroll, aligned: aligned, enabled: enabled)
+            scroll.contentView.postsFrameChangedNotifications = true
+            for (name, object) in [(NSView.frameDidChangeNotification, scroll.contentView as AnyObject), (NSTextStorage.didProcessEditingNotification, (scroll.documentView as? NSTextView)?.textStorage as AnyObject?)] {
+                guard let object else { continue }
+                entry.observers.append(NotificationCenter.default.addObserver(forName: name, object: object, queue: .main) { [weak self] _ in
+                    MainActor.assumeIsolated { self?.schedule() }
+                })
+            }
+            entries[key] = entry
+        }
+        entries[key]?.aligned = aligned; entries[key]?.enabled = enabled
+        schedule()
+    }
+    private func schedule() {
+        guard !retired, !queued, !applying else { return }; queued = true
+        DispatchQueue.main.async { [weak self] in guard let self else { return }; self.queued = false; self.apply() }
+    }
+    private func apply() {
+        guard !retired, !applying else { return }; applying = true; defer { applying = false }
+        let visible = entries.values.compactMap { entry -> (Entry, NSScrollView, NSTextView)? in
+            guard let scroll = entry.scroll, let view = scroll.documentView as? NSTextView, view.window != nil else { return nil }
+            return (entry, scroll, view)
+        }
+        var measured: [(NSTextView, [NSRange], [CGFloat])] = []
+        alignedHeights = []
+        for (entry, scroll, view) in visible {
+            guard let storage = view.textStorage, let layout = view.layoutManager, let container = view.textContainer else { continue }
+            let width = scroll.contentSize.width; guard width > 32 else { continue }
+            let wrappingChanged = entry.applied != entry.enabled; entry.applied = entry.enabled
+            scroll.hasHorizontalScroller = !entry.enabled
+            view.isHorizontallyResizable = !entry.enabled
+            view.autoresizingMask = entry.enabled ? [.width] : []
+            container.widthTracksTextView = entry.enabled
+            container.lineBreakMode = .byWordWrapping
+            view.maxSize = NSSize(width: entry.enabled ? width : CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+            if entry.enabled { view.setFrameSize(NSSize(width: width, height: max(view.frame.height, scroll.contentSize.height))) }
+            container.containerSize = NSSize(width: entry.enabled ? max(1, width - 2 * view.textContainerInset.width) : CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+            if wrappingChanged && scroll.contentView.bounds.minX != 0 {
+                var point = scroll.contentView.bounds.origin; point.x = 0; scroll.contentView.scroll(to: point); scroll.reflectScrolledClipView(scroll.contentView)
+            }
+            let ranges = MergeLineEndings.lineRanges(in: view.string)
+            storage.beginEditing()
+            for range in ranges {
+                let paragraph = (storage.attribute(.paragraphStyle, at: range.location, effectiveRange: nil) as? NSParagraphStyle)?.mutableCopy() as? NSMutableParagraphStyle ?? NSMutableParagraphStyle()
+                paragraph.paragraphSpacing = 0; storage.addAttribute(.paragraphStyle, value: paragraph, range: range)
+            }
+            storage.endEditing(); layout.ensureLayout(for: container)
+            if entry.enabled && entry.aligned {
+                let minimum = layout.defaultLineHeight(for: view.font ?? NSFont.monospacedSystemFont(ofSize: 10, weight: .regular))
+                let heights = ranges.map { range -> CGFloat in
+                    let glyphs = layout.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
+                    return max(minimum, layout.boundingRect(forGlyphRange: glyphs, in: container).height)
+                }
+                measured.append((view, ranges, heights))
+            }
+            view.needsDisplay = true; scroll.verticalRulerView?.needsDisplay = true
+        }
+        if measured.count > 1 {
+            let count = measured.map { $0.1.count }.max() ?? 0
+            alignedHeights = (0..<count).map { index in measured.map { $0.2.indices.contains(index) ? $0.2[index] : 0 }.max() ?? 0 }
+            for (view, ranges, heights) in measured {
+                guard let storage = view.textStorage else { continue }
+                storage.beginEditing()
+                for (index, range) in ranges.enumerated() {
+                    let padding = max(0, alignedHeights[index] - heights[index]); guard padding > 0.1 else { continue }
+                    let paragraph = (storage.attribute(.paragraphStyle, at: range.location, effectiveRange: nil) as? NSParagraphStyle)?.mutableCopy() as? NSMutableParagraphStyle ?? NSMutableParagraphStyle()
+                    paragraph.paragraphSpacing = padding; storage.addAttribute(.paragraphStyle, value: paragraph, range: range)
+                }
+                storage.endEditing(); view.layoutManager?.ensureLayout(for: view.textContainer!); view.needsDisplay = true
+            }
+        }
+        geometryChanged()
+    }
+    func retire() { retired = true; entries = [:]; alignedHeights = []; geometryChanged = {} }
 }

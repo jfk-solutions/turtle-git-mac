@@ -1,0 +1,67 @@
+{
+  "date": "2026-10-12",
+  "baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Merge long-line wrapping and shared source-row heights",
+  "implemented": [
+    "Saved Wrap long lines control in both native viewers, source false default",
+    "TextKit width/font/tab word wrapping; horizontal scrollbars gated by mode",
+    "Offsets reset only on actual wrapping changes",
+    "Maximum intrinsic row heights shared across aligned two-file/source panes",
+    "Combined/single-file/result panes wrap independently",
+    "Frame/storage observer-driven reflow and post-layout locator geometry refresh",
+    "No inserted padding text or changed source/edit/Find/Undo offsets",
+    "Owned queued work and observers retire with the viewer"
+  ],
+  "validation": {
+    "core": "Not rerun: native rendering/preferences/layout only; existing Core text transformations unchanged",
+    "app_builds": {
+      "count": 2,
+      "exits": [
+        0,
+        0
+      ],
+      "configuration": "Debug arm64 unsigned macOS13 deployment",
+      "existing_zero_exit_diagnostic_noise": true
+    },
+    "native": {
+      "command": "python3 scripts/test-native-merge-regex.py --options-batch",
+      "exit": 0,
+      "families": 16,
+      "frontend_compilations": 1,
+      "receiver_processes": 1,
+      "app_sources_recompiled_by_receiver": false,
+      "wrapping_cases": [
+        "Default/persistence and actual widthTracksTextView/horizontal-scroll gates",
+        "Wrapped Unicode/tab long row grows geometrically",
+        "Successor row positions match across asymmetric source panes",
+        "Narrower window resizes/reflows both aligned rows",
+        "Text/selection/Undo/alignment generation unchanged",
+        "Unwrapping restores original logical row geometry",
+        "Combined one-pane and all three merge panes wrap/unwarp",
+        "Retired preference dispatch rejected",
+        "Saved Base/Mine bytes unchanged"
+      ],
+      "private_files_preferences_only": true,
+      "installed_app_launched": false,
+      "owned_windows_helpers_closed": true
+    },
+    "site_build_exit": 0,
+    "python_scripts_parsed": true,
+    "new_screenshots": "None; physical whole-window styling remains unverified"
+  },
+  "remaining": [
+    "Unchanged-section collapse/projection",
+    "Complete source-to-result row alignment in three-pane marker layouts",
+    "Exact source/Unicode word boundary equivalence",
+    "Continuation/background styles and active-caret visibility",
+    "Long-scroll anchoring, high contrast and large-file performance",
+    "Physical light/dark/keyboard/VoiceOver and signed/minimum-OS acceptance",
+    "Complete hosted CI and App Store acceptance"
+  ],
+  "inventory": {
+    "dialogs": 130,
+    "partial": 62,
+    "pending_review": 68,
+    "certified_complete": 0
+  }
+}

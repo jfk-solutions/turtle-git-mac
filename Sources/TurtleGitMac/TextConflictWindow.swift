@@ -218,6 +218,12 @@ private enum MergeSourceSide {
     @Published private(set) var comparisonOptions = MergeComparisonOptions.load()
     var comparisonDefaults: UserDefaults = .standard
     @Published private(set) var generalPreferences = MergeGeneralPreferences.load()
+    @Published private(set) var wrapLines = UserDefaults.standard.bool(forKey: "TurtleGitMerge.WrapLines")
+    let lineWrapping = MergeLineWrapping()
+    func setWrapLines(_ value: Bool) {
+        guard !retired, !busy, !confirmingQuit else { return }
+        wrapLines = value; comparisonDefaults.set(value, forKey: "TurtleGitMerge.WrapLines")
+    }
     @Published private(set) var whitespaceDisplay = MergeWhitespaceDisplayPreferences.load()
     func setWhitespaceDisplay(_ value: MergeWhitespaceDisplayPreferences) {
         guard !busy, !confirmingQuit, !retired else { return }
@@ -278,6 +284,7 @@ private enum MergeSourceSide {
         load(filterName: name)
     }
     func retire() {
+        lineWrapping.retire()
         retired = true; loadGeneration += 1; loadCancellation?.cancel(); loadCancellation = nil
         regexList?.retire(); regexList = nil
         editorConfigRequests = [:]
@@ -406,6 +413,7 @@ private enum MergeSourceSide {
             guard let self else { return }
             let next = MergeEditorPreferences.load()
             self.locatorPreferences = .load(from: self.comparisonDefaults)
+            self.wrapLines = self.comparisonDefaults.bool(forKey: "TurtleGitMerge.WrapLines")
             self.whitespaceDisplay = .load(from: self.comparisonDefaults)
             self.generalPreferences = .load(from: self.comparisonDefaults)
             if next.tabWidth != self.editorPreferences.tabWidth || next.useSpaces != self.editorPreferences.useSpaces || next.smartTab != self.editorPreferences.smartTab {
@@ -473,6 +481,7 @@ private enum MergeSourceSide {
         comparisonOptions = options; if changingOptions { options.save(to: comparisonDefaults) }; pendingComparisonOptions = nil
         regexFilterName = filter?.name
         selectedConflict = 0; caret = NSRange(location: 0, length: 0); selectionRequest = nil
+        wrapLines = comparisonDefaults.bool(forKey: "TurtleGitMerge.WrapLines")
         generalPreferences = .load(from: comparisonDefaults)
         let ranges = MergeLineEndings.lineRanges(in: result)
         let firstChanged = comparison.resultLocator?.states.firstIndex { $0 != .normal && $0 != .filtered && $0 != .empty }
@@ -626,7 +635,7 @@ private struct TextConflictDialog: View {
                 Button { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegitmerge/tmerge-dug-conflicts.html")!) } label: { CommandLabel(title: "Help", icon: .help) }
             }.padding(9)
             HStack {
-                MergeViewControls(preferences: model.locatorPreferences, apply: model.setLocatorPreferences, whitespace: model.whitespaceDisplay, applyWhitespace: model.setWhitespaceDisplay)
+                MergeViewControls(preferences: model.locatorPreferences, apply: model.setLocatorPreferences, whitespace: model.whitespaceDisplay, applyWhitespace: model.setWhitespaceDisplay, wrapLines: model.wrapLines, applyWrap: model.setWrapLines)
                 MergeComparisonControls(options: model.comparisonOptions, apply: model.setComparisonOptions, supportsComments: model.supportsComments)
                 Menu("Regex Filter: " + (model.regexFilterName ?? "No Filter")) {
                     Button { model.selectRegexFilter(nil) } label: {
@@ -727,7 +736,7 @@ private struct MergeEditor: NSViewRepresentable {
         view.backgroundColor = MergePalette.color(MergeSourceState.normal)
         view.insertionPointColor = MergePalette.foreground(.normal)
         view.font = model.generalPreferences.nativeFont
-        DispatchQueue.main.async { model.refreshLocatorViewport() }
+        if !model.wrapLines { DispatchQueue.main.async { model.refreshLocatorViewport() } }
         scroll.rulersVisible = model.editorPreferences.showLineNumbers
         view.setMergeTabWidth(tabWidth)
         view.mergeUseSpaces = useSpaces; view.mergeSmartTab = smartTab
@@ -752,6 +761,8 @@ private struct MergeEditor: NSViewRepresentable {
                 offset += length
             }
         }
+        model.lineWrapping.geometryChanged = { [weak model] in model?.refreshLocatorViewport() }
+        model.lineWrapping.update(scroll, key: label, aligned: sourceCells != nil, enabled: model.wrapLines)
         view.sourceCells = sourceCells
         let other = sourceSide.flatMap { side in model.sourceComparison?.rows.map { side == .mine ? $0.theirs : $0.mine } }
         view.whitespaceRenderer.update(text: text, cells: sourceCells, otherCells: other, preferences: model.whitespaceDisplay)
