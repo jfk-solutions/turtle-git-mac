@@ -60,6 +60,7 @@ import TurtleGitCore
                 Button { model.showClipboardPatch() } label: { CommandLabel(title: "Review Clipboard Patch…", icon: .patch) }.disabled(model.busy || model.confirmingQuit)
                 Button { model.showReviewPatch(files: []) } label: { CommandLabel(title: RepositoryAction.reviewPatch.title, icon: RepositoryAction.reviewPatch.icon) }.disabled(model.busy || model.confirmingQuit)
                 Button { model.showMergeOpen() } label: { CommandLabel(title: "Open in TurtleGitMerge…", icon: .open) }.disabled(model.busy || model.confirmingQuit)
+                Button { model.showIssueRegexTester() } label: { CommandLabel(title: "Bugtraq Regex Tester…", icon: .settings) }.disabled(model.busy || model.confirmingQuit)
                 Button("Load Images…") { model.showLoadImages() }.disabled(model.busy || model.confirmingQuit)
                 Menu("Open Recent") {
                     ForEach(model.recentRepositories) { saved in

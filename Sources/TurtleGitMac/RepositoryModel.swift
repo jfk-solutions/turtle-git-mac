@@ -3,6 +3,26 @@ import SwiftUI
 import TurtleGitCore
 
 @MainActor final class RepositoryModel: ObservableObject {
+    private var issueTester: IssueRegexTesterController?
+    private var issueTesterRequest: OperationCancellation?
+    func showIssueRegexTester() {
+        guard !busy, !confirmingQuit else { return }
+        if let issueTester { issueTester.showWindow(nil); issueTester.window?.makeKeyAndOrderFront(nil); return }
+        guard issueTesterRequest == nil else { return }
+        let request=OperationCancellation(),repository=repository,access=activeAccess;issueTesterRequest=request
+        Task {
+            defer{if issueTesterRequest === request {issueTesterRequest=nil};withExtendedLifetime(access){}}
+            do {
+                if GitRuntime.isAppStoreBuild,let repository {guard access?.hasSecurityScope==true,access?.contains(repository.root)==true else{throw RepositoryAccessFailure.securityScopeUnavailable}}
+                let properties:IssueTrackerProperties
+                if let repository {properties=try await repository.issueTrackerProperties(cancellation:request)} else{properties=IssueTrackerProperties()}
+                guard issueTesterRequest === request,!confirmingQuit else{return}
+                let controller=IssueRegexTesterController(model:IssueRegexTesterModel(check:properties.checkExpression,extract:properties.extractionExpression))
+                controller.completed={ [weak self,weak controller] _ in if self?.issueTester === controller {self?.issueTester=nil} }
+                issueTester=controller;controller.showWindow(nil);controller.window?.makeKeyAndOrderFront(nil)
+            } catch {if !request.isCancelled {self.error=error.localizedDescription}}
+        }
+    }
     private var mergeOpener: MergeOpenWindowController?
     func showMergeOpen() {
         guard !busy, !confirmingQuit, workspaceWindow?.attachedSheet == nil else { return }

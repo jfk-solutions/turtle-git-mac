@@ -1157,7 +1157,7 @@ checks three-pane format acceptance. See [format parity](MERGE-FORMAT-PARITY.md)
 Build Debug once, then run `python3 scripts/test-native-reference-batch.py` for
 folders, comparisons, batch/single deletion, Switch/Fetch/Create Branch/Merge
 routes and Merge reference/Log pickers. The driver links the existing app objects
-and seventeen receiver families, including Network, Credential, Tool settings, Overlays, Email, Commit progress, SVN and external Merge lifecycle, in one compilation. It uses an explicit native AppKit run loop and
+and eighteen receiver families, including Network, Credential, Tool settings, Overlays, Email, Commit progress, SVN, the issue regex tester and external Merge lifecycle, in one compilation. It uses an explicit native AppKit run loop and
 caches by object files, imported modules/framework, fixtures and compiler/flags.
 It does not recompile the whole SwiftUI app for each case.
 
@@ -1316,3 +1316,11 @@ color, source copy menu icons/order, private Copy/Copy All preserving selection,
 disabled timing footer, error completion and Retry state. It keeps the existing
 private workflow/lifecycle/scope assertions. Neither the general pasteboard nor
 a public SVN transport is used.
+
+
+`--only issue-regex-tester` hosts the new native Bugtraq tester using the embedded
+Debug C++ helper, private preferences/pasteboard and no Git configuration writes.
+It verifies sample highlighting, actual Cut/Copy/Paste and context icons,
+single/two-expression matching/UTF-16 positions, invalid fallback and recovery,
+expression return and stale/retired provider/Quit fences. Core, physical menu
+entry/field focus and signed helper/grants remain separate acceptance scopes.

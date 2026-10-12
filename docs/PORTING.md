@@ -97,7 +97,7 @@ owned loading/command progress. Native Push variants and owned Shift Push option
 controls, full visual matching and signed acceptance are still pending. See
 [Synchronization parity](SYNCHRONIZATION-PARITY.md).
 Across the 130 inventoried dialogs:
-71 dialogs have partial implementations and 59 await review. No dialog is certified complete.
+72 dialogs have partial implementations and 58 await review. No dialog is certified complete.
 See [the reference dialog audit](COMMIT-CONTAINING-REFS-PARITY.md).
 
 Log commit ordering now has the source’s four-choice native sheet, deferred
@@ -868,3 +868,13 @@ Merge: links, colored prefixes, completion metadata and original-icon copy menus
 Actual native log checks with both Git engines cover private clipboard behavior,
 light/dark warning colors and error/Retry state, alongside the existing SVN
 workflow checks. Physical/signed/public SVN acceptance remains open.
+
+
+The Bugtraq Regex Tester now has a native editable sample, source-order Message
+part/Bug-ID fields, C++ ECMAScript highlighting and OK/Cancel expression return.
+File → Bugtraq Regex Tester opens the utility with current repository expressions
+when available; it does not write configuration. Invalid edits retain the last
+valid expressions for styling current text. Owned debounce/helper work is fenced
+against editing/closure and counted for Quit. The dialog is a partial replacement;
+the full Issue Tracker configuration page/parent Apply integration and plugin
+providers remain open. See [the issue audit](ISSUE-TRACKER-PARITY.md).

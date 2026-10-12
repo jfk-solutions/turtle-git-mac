@@ -228,3 +228,53 @@ message and selected working contents. The QA app quit normally. See
 See [Commit parity](COMMIT-PARITY.md) for the broader dialog audit. Original
 source references are [ProjectProperties.cpp](https://github.com/TortoiseGit/TortoiseGit/blob/7338078f8ddd924b8cddee35f512f2286072136d/src/TortoiseProc/ProjectProperties.cpp)
 and the [official integration manual](https://tortoisegit.org/docs/tortoisegit/tgit-dug-bugtracker.html).
+
+
+## Native Bugtraq Regex Tester — 2026-10-12
+
+Ported BugtraqRegexTestDlg.cpp/.h and IDD_BUGTRAQREGEXTESTER's control order:
+editable source sample above Message part expression and Bug-ID expression,
+then OK/Cancel. The sample is the pinned source resource. The native text view
+uses the shared log font, UTF-16 issue runs, system light/dark issue colors and
+underlining. Its plain-text Cut/Copy/Paste/Select All context menu honors app icon
+preferences, using the original Copy icon and macOS symbols for the other editing
+actions. Native clipboard injection keeps QA separate from the general clipboard.
+
+The existing C++ ECMAScript helper validates and extracts matches off the main
+thread; no ICU/Foundation grammar replaces it. An empty first field still
+validates the second field while producing no issue runs. Invalid edits report
+the helper error and restyle current sample text with the last valid expression
+pair, retaining source behavior rather than publishing old offsets for new text.
+A debounce, captured generation and cancellation token reject superseded or
+retired results even when an injected provider ignores cancellation. Active
+matcher requests fence app Quit until they finish; closing cancels owned work.
+OK returns trimmed expressions once, including source-style acceptance of an
+invalid draft, and Cancel/closure return no draft once.
+
+The File-menu utility seeds from the current repository's existing issue
+properties, or starts empty without a repository. It explicitly does not persist
+configuration. The reusable controller's result callback is ready for the missing
+Issue Tracker Settings page; that page and parent Apply integration are still
+open. File-menu configuration seeding and signed grants are compiled/wired but
+not native-dispatch acceptance. The tester is partial-native-replacement, not
+certified complete. Field-specific invalid-regex adornment, complete SciEdit
+commands/spelling, physical focus/keyboard/layout and signed invocation remain
+open. The original C++ engine's libc++/MSVC edge differences also remain open.
+
+The first Debug build failed on a main-actor model used as a default argument.
+Construction now occurs inside the controller initializer; the corrected build
+exited 0. XcodeGen initially regenerated unrelated manual references and omitted
+the app's existing exported diff type; those changes were restored, and the
+checked project adds only four new source references. The generator spec now
+also retains the existing diff type, verified with resolved JSON versus the
+Info.plist. No new type or document behavior was introduced.
+
+The object-linked native receiver passed, then an expanded native Cut/Paste check
+also passed. Total: two receiver compilations/processes, both reaped. Checks cover
+the real sample control/highlight/private clipboard/menu icons/light-dark hosts,
+single/two-expression real-helper matching, Unicode/UTF-16 positions, invalid
+recovery/current-text fallback styling, empty-first-field validation, trimmed
+OK/Cancel, ignored-cancellation late-result/newer-preview/retirement fences and
+Quit accounting. Core was unchanged and was not rerun; neither the complete
+eighteen-family group nor physical/signed UI was exercised. No screenshot is
+claimed. See `qa/issue-regex-tester-native-2026-10-12.json`.

@@ -1,0 +1,46 @@
+{
+  "date": "2026-10-12",
+  "baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Native Bugtraq Regex Tester utility and reusable result controller",
+  "validation": {
+    "initial_build_error": "Main actor-isolated model initializer in default argument",
+    "corrected_debug_build_exit": 0,
+    "native_exits": [
+      0,
+      0
+    ],
+    "receiver_compilations": 2,
+    "owned_receivers_reaped": true,
+    "expanded_second_run": "Actual native Cut/Paste model updates",
+    "private_preferences_and_clipboard": true,
+    "real_bundled_cpp_matcher": true,
+    "git_config_or_general_clipboard_writes": false,
+    "core_or_full_group_rerun": false,
+    "xcodegen_resolved_diff_type_matches_retained_info": true,
+    "new_screenshots": false
+  },
+  "checks": [
+    "Source sample and actual editable native issue highlighting",
+    "Single/two-expression ECMAScript and UTF-16 Unicode positions",
+    "Invalid expression fallback uses current text with prior valid pair",
+    "Empty first field still validates second",
+    "Native private Cut/Copy/Paste and context icons",
+    "Aqua/Dark Aqua hosts",
+    "Trimmed once-only OK/Cancel result",
+    "Superseded/retired ignoring-cancellation providers cannot publish",
+    "Matcher operation count/Quit guard"
+  ],
+  "inventory": {
+    "dialogs": 130,
+    "partial": 72,
+    "pending_review": 58,
+    "certified_complete": 0
+  },
+  "remaining": [
+    "Full Issue Tracker Settings and parent Apply integration",
+    "Tracker plugins and platform provider adaptation",
+    "Native File-menu config seeding dispatch/signed grants",
+    "Field-specific invalid adornment and full SciEdit commands",
+    "Physical focus/keyboard/layout, screenshots and signed helper execution"
+  ]
+}
