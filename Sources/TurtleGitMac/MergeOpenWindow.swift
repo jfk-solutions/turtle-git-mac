@@ -1,10 +1,24 @@
 import AppKit
 import TurtleGitCore
 
+@MainActor final class MergeOpenPathField: NSTextField {
+    var acceptURL: (URL) -> Bool = { _ in false }
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        isEnabled && sender.draggingPasteboard.canReadObject(forClasses:[NSURL.self], options:[.urlReadingFileURLsOnly:true]) ? .copy : []
+    }
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        acceptDrop(from:sender.draggingPasteboard)
+    }
+    func acceptDrop(from pasteboard: NSPasteboard) -> Bool {
+        guard isEnabled, let urls = pasteboard.readObjects(forClasses:[NSURL.self], options:[.urlReadingFileURLsOnly:true]) as? [URL], urls.count == 1 else { return false }
+        return acceptURL(urls[0])
+    }
+}
+
 /// Native IDD_OPENDLG: preserves both groups while radio controls their gates.
-@MainActor final class MergeOpenWindowController: NSWindowController, NSWindowDelegate {
+@MainActor final class MergeOpenWindowController: NSWindowController, NSWindowDelegate, NSTextFieldDelegate {
     enum Slot: Int, CaseIterable { case base, theirs, mine, diff, directory }
-    let base = NSTextField(), theirs = NSTextField(), mine = NSTextField(), diff = NSTextField(), directory = NSTextField()
+    let base = MergeOpenPathField(), theirs = MergeOpenPathField(), mine = MergeOpenPathField(), diff = MergeOpenPathField(), directory = MergeOpenPathField()
     let merging = NSButton(radioButtonWithTitle: "Merging", target: nil, action: nil)
     let apply = NSButton(radioButtonWithTitle: "Apply unified diff", target: nil, action: nil)
     let clipboard = NSButton(checkboxWithTitle: "Use Unified Diff from clipboard", target: nil, action: nil)
@@ -15,6 +29,12 @@ import TurtleGitCore
     private let preferences: UserDefaults
     private let pasteboard: NSPasteboard
     private var picker: NSOpenPanel?
+    private var clipboardMonitor: Timer?
+    private var ownerObserver: NSObjectProtocol?
+    private var clipboardChangeCount = -1
+    private var clipboardFormatAvailable = false
+    var monitoringClipboard: Bool { clipboardMonitor != nil }
+    private var completionPrefixes: [ObjectIdentifier:String] = [:]
     private var retired = false
     private(set) var busy = false
     var requiresScopes = GitRuntime.isAppStoreBuild
@@ -34,6 +54,10 @@ import TurtleGitCore
             let box = NSBox(); box.title = title
             var rows: [[NSView]] = []
             for (slot, label, field) in entries {
+                if let pathField = field as? MergeOpenPathField {
+                    pathField.registerForDraggedTypes([.fileURL]); pathField.acceptURL = { [weak self] in self?.acceptPath($0, slot:slot) == true }
+                }
+                field.delegate = self
                 field.setAccessibilityLabel(label); field.maximumNumberOfLines = 1
                 (field.cell as? NSTextFieldCell)?.usesSingleLineMode = true; (field.cell as? NSTextFieldCell)?.isScrollable = true
                 field.widthAnchor.constraint(equalToConstant: 370).isActive = true
@@ -62,6 +86,59 @@ import TurtleGitCore
         setMode(MergeOpenMode(rawValue: preferences.integer(forKey: "TurtleGitMerge.OpenRadio")) ?? .merging)
         DialogGeometry.attach(window, identifier: "TurtleGitMerge.Open", legacyName: "OpenDlg")
     }
+    deinit {
+        clipboardMonitor?.invalidate()
+        if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) }
+    }
+    func acceptPath(_ url: URL, slot: Slot) -> Bool {
+        guard !retired, !busy, field(slot).isEnabled, url.isFileURL else { return false }
+        var folder: ObjCBool = false
+        guard FileManager.default.fileExists(atPath:url.path,isDirectory:&folder), folder.boolValue == (slot == .directory) else { return false }
+        let lease = RepositoryAccessLease(url:url)
+        if requiresScopes && !lease.hasSecurityScope {
+            field(slot).stringValue = url.path; browse(slot,authorize:url); return true
+        }
+        grants.append(lease); field(slot).stringValue = url.path; status.stringValue = ""; return true
+    }
+    func completionCandidates(for text: String, directoryOnly: Bool = false) -> [String] {
+        guard !retired, !busy, !text.isEmpty, !text.contains("\0") else { return [] }
+        let expanded = (text as NSString).expandingTildeInPath
+        let folder = expanded.hasSuffix("/") ? URL(fileURLWithPath:expanded) : URL(fileURLWithPath:expanded).deletingLastPathComponent()
+        guard !requiresScopes || grants.contains(where:{ $0.hasSecurityScope && $0.contains(folder) }) else { return [] }
+        let prefix = expanded.hasSuffix("/") ? "" : (expanded as NSString).lastPathComponent
+        guard let names = try? FileManager.default.contentsOfDirectory(atPath:folder.path) else { return [] }
+        return names.filter { $0.hasPrefix(prefix) }.sorted { $0.localizedStandardCompare($1) == .orderedAscending }.prefix(100).compactMap { name in
+            let url = folder.appendingPathComponent(name); var directory: ObjCBool = false
+            guard FileManager.default.fileExists(atPath:url.path,isDirectory:&directory), !directoryOnly || directory.boolValue else { return nil }
+            let full = url.path + (directory.boolValue ? "/" : "")
+            if text.hasPrefix("~"), full.hasPrefix(NSHomeDirectory()+"/") { return "~" + full.dropFirst(NSHomeDirectory().count) }
+            return full
+        }
+    }
+    func control(_ control: NSControl, textView: NSTextView, completions words: [String], forPartialWordRange range: NSRange, indexOfSelectedItem index: UnsafeMutablePointer<Int>) -> [String] {
+        guard let slot = Slot.allCases.first(where:{ field($0) === control }), field(slot).isEnabled, NSMaxRange(range) <= (textView.string as NSString).length else { return [] }
+        let prefix = (textView.string as NSString).substring(to:NSMaxRange(range))
+        index.pointee = -1
+        return completionCandidates(for:prefix,directoryOnly:slot == .directory).compactMap {
+            let value = $0 as NSString; return range.location <= value.length ? value.substring(from:range.location) : nil
+        }
+    }
+    func controlTextDidChange(_ notification: Notification) {
+        guard let field = notification.object as? NSTextField, field.isEnabled else { return }
+        let id = ObjectIdentifier(field), value = field.stringValue
+        guard completionPrefixes[id] != value else { return }; completionPrefixes[id] = value
+        DispatchQueue.main.async { [weak self, weak field] in
+            guard let self, !self.retired, !self.busy, let field, field.stringValue == value, let editor = field.currentEditor() as? NSTextView else { return }
+            editor.complete(nil)
+        }
+    }
+    func pollClipboard() {
+        guard !retired else { return }
+        let count = pasteboard.changeCount
+        let available = pasteboard.availableType(from:[PatchClipboard.unifiedDiff,PatchClipboard.legacyUnifiedDiff,.string]) != nil
+        guard count != clipboardChangeCount || available != clipboardFormatAvailable else { return }
+        clipboardChangeCount = count; clipboardFormatAvailable = available; updateGates()
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     func setMode(_ mode: MergeOpenMode) {
         guard !retired, !busy else { return }
@@ -76,7 +153,7 @@ import TurtleGitCore
             field.isEnabled = active; browseButtons[slot]?.isEnabled = active
         }
         // Do not read clipboard contents while polling native controls.
-        clipboard.isEnabled = enabled && !mergingMode && pasteboard.availableType(from: [PatchClipboard.unifiedDiff, PatchClipboard.legacyUnifiedDiff, .string]) != nil
+        clipboard.isEnabled = enabled && !mergingMode && (clipboard.state == .on || pasteboard.availableType(from: [PatchClipboard.unifiedDiff, PatchClipboard.legacyUnifiedDiff, .string]) != nil)
         ok.isEnabled = enabled
     }
     private func field(_ slot: Slot) -> NSTextField { [base, theirs, mine, diff, directory][slot.rawValue] }
@@ -128,9 +205,22 @@ import TurtleGitCore
             close()
         } catch { status.stringValue = error.localizedDescription }
     }
-    func present(parent: NSWindow?) { if let parent, let window { parent.beginSheet(window) } else { showWindow(nil) }; window?.makeFirstResponder(mode == .merging ? base : diff) }
+    func present(parent: NSWindow?) {
+        guard !retired else { return }
+        if let parent, let window {
+            if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) }
+            ownerObserver = NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:parent,queue:.main) { [weak self] _ in MainActor.assumeIsolated { self?.close() } }
+            parent.beginSheet(window)
+        } else { showWindow(nil) }
+        if clipboardMonitor == nil {
+            clipboardMonitor = Timer.scheduledTimer(withTimeInterval:0.5,repeats:true) { [weak self] _ in MainActor.assumeIsolated { self?.pollClipboard() } }
+        }
+        pollClipboard(); window?.makeFirstResponder(mode == .merging ? base : diff)
+    }
     func windowWillClose(_ notification: Notification) {
         guard !retired else { return }; retired = true
+        clipboardMonitor?.invalidate(); clipboardMonitor = nil
+        if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver); self.ownerObserver = nil }
         picker?.cancel(nil); picker = nil
         if let window, let parent = window.sheetParent { parent.endSheet(window) }
         onClosed()

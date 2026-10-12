@@ -33,9 +33,15 @@ cases passed initially; the remaining directory URL assertion passed after its
 focused fixture correction. The Save As correction passed two additional
 backend cases and the focused native Open receiver; its first-save/cancel and
 input preservation checks passed. See the [dated QA record](qa/merge-open-2026-10-12.json).
-Standalone three-file inputs currently must be distinct; alias support remains
-open. Physical picker/drop/path-autocompletion acceptance, clipboard change
-monitoring, full light/dark captures, source File/Open replacement of an existing
+Shared input paths are supported. Explicitly saving to an input updates its
+snapshot for subsequent Save/Save As, empty deletion/recreation and Reload.
+Atomic hard-link replacement keeps untouched linked inputs at their old baseline. Path fields accept file URL drops with file/directory gates and retained grants.
+Native filesystem completion preserves tilde paths, limits suggestions and avoids
+enumerating unauthorized folders in App Store mode. A dialog-owned clipboard
+monitor checks format metadata and change count without reading clipboard bytes;
+it stops on close. Owner closure cancels the picker and fences late responses.
+
+Physical picker/drop/path-autocompletion acceptance, full light/dark captures, source File/Open replacement of an existing
 editor rather than a separate window, exact single-pane toolbar pruning and
 signed App Store acceptance remain pending. The directory patch-review list is
 implemented by the existing patch workflow and still has its own parity gaps.
@@ -43,3 +49,11 @@ implemented by the existing patch workflow and still has its own parity gaps.
 The [upstream Open manual](https://tortoisegit.org/docs/tortoisegitmerge/tmerge-dug-open.html)
 confirms the unnamed three-file output. First Save and Save As Cancel leave
 inputs/output routing unchanged; later Save reuses the selected output.
+
+The lifecycle follow-up passed all 11 Open backend cases and four targeted
+snapshot checks after refinement. Its final native receiver passed dropped
+URLs, completion, actual metadata timer/owner closure and repeated output-to-input
+saves. A format can be added without changing macOS pasteboard ownership count,
+so monitoring checks both count and advertised formats, never contents. See the
+[lifecycle QA record](qa/merge-open-lifecycle-2026-10-12.json) for failures, repairs
+and exact scope. Case-insensitive pathname variants still need volume acceptance.

@@ -1135,3 +1135,8 @@ build. The native receiver is included in the shared CI compilation. Checks use
 private source files, clipboard/preferences and injected picker replies; the
 standalone three-pane editor loads/saves without Git initialization. See
 [Open parity](MERGE-OPEN-PARITY.md).
+
+The Open follow-up batch adds private native drop-pasteboard, completion and
+clipboard-metadata checks to the same receiver, plus Core input/output aliases,
+hard-link replacement, delete/recreation, Reload and permission-change fences.
+Run those with `MergeOpenTests` and `--open-only` after implementing the batch.

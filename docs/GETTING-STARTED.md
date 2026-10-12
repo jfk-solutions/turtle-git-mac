@@ -183,3 +183,23 @@ The existing [light Sync screenshot](site/assets/git-synchronization-light.png)
 and [dark Sync screenshot](site/assets/git-synchronization-dark.png) show native
 windows at earlier development checkpoints. See [Sync parity](SYNCHRONIZATION-PARITY.md)
 for the tested commands and remaining UI, Finder and signed acceptance work.
+
+## Standalone comparison and merging
+
+Choose **Tools → Open in TurtleGitMerge…** without needing a repository.
+Use **Merging** and select Base, Their and My files. Two selected files open a
+comparison; three open a three-pane merge. You can drop a file onto a path field
+or use **Browse…**. Path suggestions follow accessible folders; App Store builds
+require file/folder authorization for paths outside the app container.
+
+Three-file results start unnamed. **Save** asks for a destination; later Save
+uses that file. **Save As…** chooses another destination, and Cancel keeps the
+current one. Inputs stay unchanged unless you explicitly select an input file
+as the output. Shared input paths are supported. If another program changes an
+input or an already-saved output, reload/review the changes before saving again.
+
+Choose **Apply unified diff** for a patch file and target directory, or select
+**Use Unified Diff from clipboard**. The checkbox follows clipboard format
+availability without reading clipboard text until OK. If clipboard contents
+are cleared while selected, you can uncheck it and choose a patch file. See
+[Merge Open parity](MERGE-OPEN-PARITY.md) for current validation and limitations.

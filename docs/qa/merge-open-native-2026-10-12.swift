@@ -16,6 +16,40 @@ struct MergeOpenNativeVerification {
         defer { prefs.removePersistentDomain(forName:suite); pasteboard.releaseGlobally(); try? FileManager.default.removeItem(at:root) }
         let base = root.appendingPathComponent("base.txt"), theirs = root.appendingPathComponent("theirs.txt"), mine = root.appendingPathComponent("mine.txt")
         for (url,text) in [(base,"a\nb\nc\n"),(theirs,"a\nb\nC\n"),(mine,"a\nB\nc\n")] { try Data(text.utf8).write(to:url) }
+        let dropBoard = NSPasteboard(name:NSPasteboard.Name("TurtleGitMergeOpenDrop-" + UUID().uuidString))
+        defer { dropBoard.releaseGlobally() }
+        let paths = MergeOpenWindowController(preferences:prefs,pasteboard:pasteboard)
+        defer { paths.close() }
+        paths.setMode(.merging)
+        dropBoard.writeObjects([mine as NSURL]); try require(paths.mine.acceptDrop(from:dropBoard) && paths.mine.stringValue == mine.path)
+        try require(!paths.directory.acceptDrop(from:dropBoard))
+        paths.setMode(.applyUnifiedDiff)
+        dropBoard.clearContents(); dropBoard.writeObjects([root as NSURL])
+        try require(paths.directory.acceptDrop(from:dropBoard) && paths.directory.stringValue == root.path)
+        try require(!paths.diff.acceptDrop(from:dropBoard))
+        let candidates = paths.completionCandidates(for:root.path + "/mi")
+        try require(candidates == [mine.path])
+        try require(paths.completionCandidates(for:root.path + "/mi",directoryOnly:true).isEmpty)
+        let ungranted = MergeOpenWindowController(preferences:prefs,pasteboard:pasteboard)
+        defer { ungranted.close() }; ungranted.requiresScopes = true
+        try require(ungranted.completionCandidates(for:root.path + "/mi").isEmpty)
+        paths.pollClipboard(); try require(!paths.clipboard.isEnabled)
+        pasteboard.setData(Data("diff --git a/a b/a\n".utf8),forType:PatchClipboard.unifiedDiff)
+        paths.pollClipboard(); try require(paths.clipboard.isEnabled)
+        paths.clipboard.state = .on
+        pasteboard.clearContents(); paths.pollClipboard(); try require(paths.clipboard.isEnabled && !paths.diff.isEnabled)
+        paths.clipboard.state = .off; paths.updateGates(); try require(!paths.clipboard.isEnabled && paths.diff.isEnabled)
+        paths.close(); try require(paths.completionCandidates(for:root.path + "/mi").isEmpty)
+        let parent = NSWindow(contentRect:NSRect(x:0,y:0,width:700,height:600),styleMask:[.titled],backing:.buffered,defer:false)
+        parent.isReleasedWhenClosed = false; defer { parent.close() }
+        let watched = MergeOpenWindowController(preferences:prefs,pasteboard:pasteboard)
+        defer { watched.close() }; watched.setMode(.applyUnifiedDiff); watched.present(parent:parent)
+        parent.orderOut(nil); watched.window?.orderOut(nil)
+        try require(watched.monitoringClipboard && watched.window?.sheetParent === parent)
+        pasteboard.setData(Data("diff --git a/a b/a\n".utf8),forType:PatchClipboard.unifiedDiff)
+        try await wait { watched.clipboard.isEnabled }
+        parent.close(); try require(!watched.monitoringClipboard && watched.window?.sheetParent == nil)
+        pasteboard.clearContents()
         let opener = MergeOpenWindowController(preferences:prefs,pasteboard:pasteboard)
         defer { opener.close() }
         try require(opener.mode == .merging && opener.base.isEnabled && !opener.diff.isEnabled && !opener.clipboard.isEnabled)
@@ -66,6 +100,13 @@ struct MergeOpenNativeVerification {
         merge.model.chooseStandaloneOutput = { _,_ in nil }; merge.model.export()
         try await wait { !merge.model.busy }
         try require(merge.model.workingMergeOutput == resultFile)
+        merge.model.chooseStandaloneOutput = { _,_ in mine }; merge.model.export()
+        try await wait { !merge.model.busy }
+        try require(merge.model.workingMergeOutput == mine && merge.model.error == nil)
+        merge.model.result = "another result\n"; merge.model.save(markResolved:false)
+        try await wait { !merge.model.busy }
+        let aliasSaved = try Data(contentsOf:mine)
+        try require(aliasSaved == Data("another result\n".utf8) && !merge.model.dirty && merge.model.error == nil)
         merge.window?.close(); try await wait { MergeRegexOperations.activeRequests == 0 }
         print("Merge Open: native source radio/field/clipboard gates, captured private patch, mode Apply/Cancel, invalid path, expired picker, standalone three-pane load/save/dirty and no Git initialization passed. All owned windows closed.")
     }

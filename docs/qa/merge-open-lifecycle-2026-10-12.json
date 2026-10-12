@@ -1,0 +1,74 @@
+{
+  "date": "2026-10-12",
+  "baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Complete related Open lifecycle/input-output alias batch; physical/signed acceptance remains partial",
+  "changes": [
+    "Native file URL drops and file/directory/disabled-field gates",
+    "Retained drop permissions and authorization fallback",
+    "Tilde-aware native filesystem completion with bounded suggestions and authorization guard",
+    "Dialog-owned clipboard metadata timer and parent-close cleanup",
+    "Checked clipboard option remains editable after formats disappear",
+    "Shared source paths, hard-link atomic replacement and output aliases",
+    "Own writes update expected input/output snapshots; external edits/mode changes remain fenced",
+    "Post-write reads do not adopt external contents as a new baseline"
+  ],
+  "validation": {
+    "core_initial": {
+      "class": "MergeOpenTests",
+      "tests": 11,
+      "failures": 0,
+      "seconds": 0.321
+    },
+    "core_after_snapshot_refinement": {
+      "tests": 4,
+      "failures": 0,
+      "seconds": 0.257,
+      "scope": "Shared aliases, hard links and Save As source/output fences"
+    },
+    "app_builds": {
+      "initial_exit": 0,
+      "snapshot_refinement_exit": 0,
+      "clipboard_metadata_fix_exit": 0,
+      "configuration": "Debug arm64 unsigned macOS13 target"
+    },
+    "native": {
+      "command": "python3 scripts/test-native-merge-regex.py --open-only",
+      "compilations": 3,
+      "final_exit": 0,
+      "first_failure": "Fixture incorrectly treated a dropped folder as unauthorized; fresh controller with no grants now verifies completion guard",
+      "second_failure": "Native clipboard format addition did not change ownership changeCount; monitor now checks both count and format metadata",
+      "metadata_probe": "Isolated AppKit probe: before count0/availablefalse, setData true, after count0/availabletrue; private pasteboard only",
+      "final_cases": [
+        "File drop and folder drop with correct field gates",
+        "Completion candidates and folder-only/unauthorized/closed guards",
+        "Clipboard changes including unchanged changeCount",
+        "Checked option can be unticked after clipboard loss",
+        "Actual dialog-owned timer updates and parent-close stops it",
+        "Original Open options/clipboard capture/Cancel/missing path/late picker checks",
+        "Standalone unnamed output Save As/Cancel/current destination retention",
+        "Subsequent explicit output-to-input Save and dirty state"
+      ],
+      "stderr": "AppKit printed sandbox_extension_consume warnings while reading private drag pasteboard URLs; assertions passed. This does not establish signed sandbox behavior",
+      "all_owned_windows_closed": true,
+      "owned_processes_remaining": 0,
+      "main_app_launched": false
+    },
+    "full_core_suite_run": false,
+    "full_native_options_batch_repeated": false,
+    "hosted_new_commit_verified": false,
+    "new_screenshots_published": 0
+  },
+  "remaining": [
+    "Physical drag gestures and automatic completion popover/keyboard acceptance",
+    "Light/dark/minimum-size/VoiceOver captures and visual comparison",
+    "Source File/Open replacement of existing viewer and exact single-pane toolbar pruning",
+    "Signed App Store picker/drop/file replacement/backup and Finder acceptance",
+    "Case-insensitive pathname variants need physical volume acceptance"
+  ],
+  "inventory": {
+    "total": 130,
+    "partial": 59,
+    "pending": 71,
+    "certified_complete": 0
+  }
+}
