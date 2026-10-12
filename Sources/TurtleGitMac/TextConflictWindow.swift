@@ -156,8 +156,9 @@ private enum MergeSourceSide {
 @MainActor final class TextConflictWindowController: NSWindowController, NSWindowDelegate {
     let model: TextConflictWindowModel
     var onClosed: () -> Void = {}
-    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, workingMerge: WorkingTextMerge? = nil, permissions: [RepositoryAccessLease] = []) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, workingMerge: WorkingTextMerge? = nil, permissions: [RepositoryAccessLease] = [], preferences: UserDefaults = .standard) {
         model = TextConflictWindowModel(repository: repository, access: access, path: path)
+        model.comparisonDefaults = preferences
         model.workingMerge = workingMerge; model.workingMergePermissions = permissions
         let window = TextConflictNSWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 780), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(path) – TurtleGitMerge"; window.isReleasedWhenClosed = false
@@ -461,9 +462,9 @@ private enum MergeSourceSide {
                     guard workingMergePermissions.contains(where: { $0.hasSecurityScope && $0.contains(url) }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
                 }
             }
-            next = try await workingMerge.read(engine: engine, cancellation: cancellation)
+            next = try await workingMerge.read(engine: engine, mergePreferUTF8: ComparisonTextEncoding.preferUTF8(from: comparisonDefaults), cancellation: cancellation)
         }
-        else { next = try await repository.textConflictDocument(path: path, engine: engine, cancellation: cancellation) }
+        else { next = try await repository.textConflictDocument(path: path, engine: engine, mergePreferUTF8: ComparisonTextEncoding.preferUTF8(from: comparisonDefaults), cancellation: cancellation) }
         guard !retired, generation == nil || generation == loadGeneration else { return }
         guard let comparison = next.mergeSources else { throw SubversionMergeDiffFailure.invalidOutput }
         resetHistory()

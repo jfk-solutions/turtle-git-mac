@@ -331,7 +331,7 @@ import UniformTypeIdentifiers
         options.parseUnversioned = defaults.bool(forKey: "AutocompleteParseUnversioned")
         options.maximumBytes = defaults.object(forKey: "AutocompleteParseMaxSize") as? Int ?? 300000
         options.timeoutSeconds = UInt32(clamping: defaults.object(forKey: "AutocompleteParseTimeout") as? Int ?? 5)
-        options.useUTF8 = defaults.bool(forKey: "Merge.UseUTF8")
+        options.useUTF8 = ComparisonTextEncoding.preferUTF8(from: defaults)
         let locallyIgnored = Set(indexFlagFiles.filter { $0.assumeUnchanged || $0.skipWorktree }.map { $0.entry.path })
         let rows = StatusListGroups.rows(entries: visibleEntries, changelists: changelists, locallyIgnored: locallyIgnored)
         let sources = rows.compactMap(\.entry).map { MessageCodeScanner.Source(path: $0.path, state: $0.state) }

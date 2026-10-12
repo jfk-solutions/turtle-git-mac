@@ -246,3 +246,9 @@ Two-view transfer commands are disabled because the opposite pane is hidden.
 Mark/Unmark actions belong to the two-pane right view. The combined popup orders
 clipboard commands before format choices. See
 [one-pane context parity](MERGE-ONE-PANE-CONTEXT-PARITY.md).
+
+**Merge Editor → Misc → Default to UTF-8 encoding** controls detection for
+ASCII files when opening or reloading. It defaults off, matching upstream.
+BOMs and valid non-ASCII UTF-8 retain their formats. Applying it does not recode
+an open draft. The initial legacy adapter is Windows-1252; see
+[default encoding parity](MERGE-DEFAULT-ENCODING-PARITY.md).

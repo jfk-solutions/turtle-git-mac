@@ -1213,3 +1213,11 @@ nine encoding order/action identity, readonly omission and retired clipboard/
 editing guards with saved inputs unchanged. `--one-pane-context-only` uses the
 same app-object receiver cache for an actual context failure. No user clipboard
 or installed app is used.
+
+`MergeDefaultEncodingTests` exercises the source ASCII/short-file classifier,
+Unicode BOMs/non-ASCII UTF-8, legacy/binary/malformed bytes, metadata-preserving
+adaptation, exact CP1252 save and canonical/legacy preference precedence.
+`merge-default-encoding-native-2026-10-12.swift` joins the Merge/LFS-mail batch
+for actual checkbox Apply/Cancel, open-versus-reload format behavior, legacy
+two/three-pane decoding and exact standalone output with inputs retained.
+`--default-encoding-only` shares the app-object cache for an actual failure.

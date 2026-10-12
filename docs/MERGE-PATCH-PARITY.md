@@ -32,7 +32,8 @@ The source command does not request `--binary`; binary differences produce Git's
 diagnostic rather than an applicable binary payload. This behavior is retained.
 
 The combined one-pane workflow/default is now implemented; see
-[one-pane parity](MERGE-ONE-PANE-PARITY.md). Default to UTF-8 remains open. Windows Ribbon preferences require a native toolbar adaptation.
+[one-pane parity](MERGE-ONE-PANE-PARITY.md). Default to UTF-8 now follows the source classifier; see
+[default encoding parity](MERGE-DEFAULT-ENCODING-PARITY.md). Windows Ribbon preferences require a native toolbar adaptation.
 The Colors page now has native per-channel Automatic/More colors controls,
 independent palette drafts and Restore Default. See [Colors parity](MERGE-COLORS-PARITY.md)
 for panel lifecycle and remaining theme/physical acceptance. Exact physical

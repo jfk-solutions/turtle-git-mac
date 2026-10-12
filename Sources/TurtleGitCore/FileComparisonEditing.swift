@@ -48,6 +48,28 @@ public enum ComparisonTextEncoding: String, CaseIterable, Sendable {
         text.removeFirst()
         return text
     }
+    /// Reuse the source CheckUnicodeType classifier; decoding remains lossless.
+    /// CP_ACP has no macOS equivalent, so ASCII/legacy uses the existing CP1252 adapter.
+    public static func detectMerge(_ bytes: Data, preferUTF8: Bool) -> ComparisonTextEncoding? {
+        let value: Self
+        switch MessageCodeText.detect(bytes, useUTF8: preferUTF8) {
+        case .binary: return nil
+        case .ascii: value = .windows1252
+        case .utf8: value = .utf8
+        case .utf8BOM: value = .utf8BOM
+        case .utf16LE: value = .utf16LE
+        case .utf16BE: value = .utf16BE
+        case .utf16LEBOM: value = .utf16LEBOM
+        case .utf16BEBOM: value = .utf16BEBOM
+        case .utf32LE: value = .utf32LE
+        case .utf32BE: value = .utf32BE
+        }
+        return value.decode(bytes) == nil ? nil : value
+    }
+    public static func preferUTF8(from defaults: UserDefaults = .standard) -> Bool {
+        if defaults.object(forKey: "TurtleGitMerge.UseUTF8") != nil { return defaults.bool(forKey: "TurtleGitMerge.UseUTF8") }
+        return defaults.bool(forKey: "Merge.UseUTF8") // prior completion-scanner preference
+    }
     public static func detect(_ bytes: Data) -> ComparisonTextEncoding? {
         for value in [Self.utf32LE, .utf32BE, .utf16LEBOM, .utf16BEBOM, .utf8BOM] {
             if bytes.starts(with: value.bom) { return value.decode(bytes) == nil ? nil : value }

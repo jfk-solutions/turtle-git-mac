@@ -129,21 +129,25 @@ public enum TextConflictFailure: LocalizedError {
     }
 }
 extension GitRepository {
-    public func textConflictDocument(path: String, engine: SubversionMergeConfiguration? = nil, cancellation: OperationCancellation? = nil) throws -> TextConflictDocument {
+    public func textConflictDocument(path: String, engine: SubversionMergeConfiguration? = nil, mergePreferUTF8: Bool? = nil, cancellation: OperationCancellation? = nil) throws -> TextConflictDocument {
         try cancellation?.check()
         guard let entry = try conflicts(paths: [path], cancellation: cancellation).first(where: { $0.path == path }) else { throw ResolveFailure.stale }
         guard !entry.isSubmodule, [2, 3].allSatisfy({ stage in entry.stages.contains { $0.number == stage && ["100644", "100755"].contains($0.mode) } }),
               entry.stages.allSatisfy({ ["100644", "100755"].contains($0.mode) }) else { throw TextConflictFailure.unsupported }
         try validateConflicts([entry], using: .current, cancellation: cancellation)
+        func detect(_ data: Data) -> ComparisonTextEncoding? {
+            if let mergePreferUTF8 { return ComparisonTextEncoding.detectMerge(data, preferUTF8: mergePreferUTF8) }
+            return ComparisonTextEncoding.detect(data)
+        }
         func text(_ data: Data) throws -> String {
-            guard let encoding = ComparisonTextEncoding.detect(data), let text = encoding.decode(data) else { throw TextConflictFailure.encoding }
+            guard let encoding = detect(data), let text = encoding.decode(data) else { throw TextConflictFailure.encoding }
             return text
         }
         var sourceEncodings: [Int: ComparisonTextEncoding] = [:]
         func content(_ stage: Int) throws -> String {
             guard let object = entry.stages.first(where: { $0.number == stage })?.object else { return "" }
             let data = try run(["cat-file", "blob", object], cancellation: cancellation).stdout
-            sourceEncodings[stage] = ComparisonTextEncoding.detect(data)
+            sourceEncodings[stage] = detect(data)
             return try text(data)
         }
         let rebase = try conflictIsRebase(cancellation: cancellation), mineStage = rebase ? 3 : 2, theirsStage = rebase ? 2 : 3
@@ -165,7 +169,7 @@ extension GitRepository {
             let merged = try run(["merge-file", "-p", "--diff3", "--marker-size=7", "-L", "Mine", "-L", "Base", "-L", "Theirs", "--", temporary.appendingPathComponent("mine").path, temporary.appendingPathComponent("base").path, temporary.appendingPathComponent("theirs").path], successfulExitCodes: 0...127, cancellation: cancellation)
             result = try text(merged.stdout)
         }
-        let encoding = working.flatMap(ComparisonTextEncoding.detect) ?? sourceEncodings[mineStage] ?? .utf8
+        let encoding = working.flatMap(detect) ?? sourceEncodings[mineStage] ?? .utf8
         var document = TextConflictDocument(entry: entry, base: base, mine: mine, theirs: theirs, mineStage: mineStage, theirsStage: theirsStage, initialResult: result, generatedResult: result, workingContents: working, permissions: permissions, encoding: encoding, baseEncoding: sourceEncodings[1], mineEncoding: sourceEncodings[mineStage], theirsEncoding: sourceEncodings[theirsStage])
         document.mergeSources = sources; return document
     }
@@ -234,14 +238,15 @@ public actor WorkingTextMerge {
         guard [base, theirs, mine].allSatisfy({ $0.isFileURL && !$0.path.contains("\0") }) else { throw TextConflictFailure.unsupported }
         baseURL = base.standardizedFileURL; theirsURL = theirs.standardizedFileURL; mineURL = mine.standardizedFileURL
     }
-    private func source(_ url: URL) throws -> ComparisonFileContent {
-        let value = try WorkingFileComparison.workingContent(at: url)
+    private func source(_ url: URL, mergePreferUTF8: Bool?) throws -> ComparisonFileContent {
+        let raw = try WorkingFileComparison.workingContent(at: url)
+        let value = mergePreferUTF8.map { raw.usingMergeEncoding(preferUTF8: $0) } ?? raw
         guard value.mode != "120000", value.text != nil, value.encoding != nil else { throw TextConflictFailure.encoding }
         return value
     }
-    public func read(engine: SubversionMergeConfiguration, cancellation: OperationCancellation? = nil) throws -> TextConflictDocument {
+    public func read(engine: SubversionMergeConfiguration, mergePreferUTF8: Bool? = nil, cancellation: OperationCancellation? = nil) throws -> TextConflictDocument {
         try cancellation?.check()
-        let base = try source(baseURL), theirs = try source(theirsURL), mine = try source(mineURL)
+        let base = try source(baseURL, mergePreferUTF8: mergePreferUTF8), theirs = try source(theirsURL, mergePreferUTF8: mergePreferUTF8), mine = try source(mineURL, mergePreferUTF8: mergePreferUTF8)
         let presentation = try SubversionMergePresentation(plan: engine.plan(base: base.text!, mine: mine.text!, theirs: theirs.text!, cancellation: cancellation))
         try cancellation?.check()
         for (url, content) in [(baseURL,base), (theirsURL,theirs), (mineURL,mine)] {

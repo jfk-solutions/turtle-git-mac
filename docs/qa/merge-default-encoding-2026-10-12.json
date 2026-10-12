@@ -1,0 +1,75 @@
+{
+  "date": "2026-10-12",
+  "baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Source Default to UTF-8 preference and native Merge encoding detection",
+  "implemented": [
+    "Native General Default to UTF-8 checkbox with source false default and shared Apply/Cancel",
+    "Reuse source MessageCodeText CheckUnicodeType classifier for editor and completion scanning",
+    "ASCII preference and original short-file classification quirks",
+    "BOM/non-ASCII Unicode detection, strict malformed/binary rejection",
+    "Existing Windows1252 legacy adapter now usable in native two/three-pane loads",
+    "Merge-specific decoding opt-in leaves generic Core defaults unchanged",
+    "Preference captured at load/reload; open formats are not silently relabeled",
+    "Explicit encoding metadata/bytes retained through save",
+    "Canonical preference with prior scanner-key fallback",
+    "Preferences supplied before standalone conflict window loads"
+  ],
+  "validation": {
+    "core": {
+      "command": "swift test --filter MergeDefaultEncodingTests",
+      "initial_build_exit": 1,
+      "initial_reason": "Adapted load value redeclared the same local name; corrected before any new tests executed",
+      "tests": 4,
+      "failures": 0,
+      "seconds": 0.009,
+      "full_suite_run": false,
+      "cases": [
+        "ASCII/short-file/source defaults and generic compatibility",
+        "Unicode BOM/non-ASCII UTF8/legacy/binary/malformed bytes",
+        "Metadata-preserving legacy document adaptation and exact CP1252 save",
+        "Canonical/legacy preference precedence"
+      ]
+    },
+    "app_build": {
+      "exit": 0,
+      "configuration": "Debug arm64 unsigned macOS13 target",
+      "existing_zero_exit_diagnostic_noise": true
+    },
+    "native": {
+      "command": "python3 scripts/test-native-merge-regex.py --options-batch",
+      "exit": 0,
+      "families": 15,
+      "frontend_compilations": 1,
+      "receiver_processes": 1,
+      "app_sources_recompiled_by_receiver": false,
+      "cases": [
+        "Actual General checkbox Apply/Cancel",
+        "UTF8-enabled ASCII open",
+        "Preference Apply does not relabel an open pane",
+        "Reload applies source ASCII/Windows1252 default",
+        "Real legacy two-pane decode/metadata",
+        "Real standalone three-pane legacy decode/metadata",
+        "Exact CP1252 saved output with original inputs retained"
+      ],
+      "private_preferences_files_only": true,
+      "installed_app_launched": false,
+      "owned_windows_helpers_closed": true
+    },
+    "site_build_exit": 0,
+    "python_scripts_parsed": true,
+    "new_screenshots": "None; physical source-page/format interaction remains unverified"
+  },
+  "remaining": [
+    "Windows ACP locale equivalence and other legacy code pages",
+    "Exact malformed Unicode compatibility",
+    "All load callers and physical settings/format acceptance",
+    "Signed/minimum-OS and complete hosted CI",
+    "App Store distribution acceptance"
+  ],
+  "inventory": {
+    "dialogs": 130,
+    "partial": 62,
+    "pending_review": 68,
+    "certified_complete": 0
+  }
+}

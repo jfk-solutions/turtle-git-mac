@@ -574,7 +574,8 @@ import TurtleGitCore
     }
     init(patchComparison: WorkingTreePatchFileComparison, access: RepositoryAccessLease?, preferences: UserDefaults) {
         repository = nil; self.access = access; snapshot = patchComparison.snapshot; path = patchComparison.document.destination.path
-        document = patchComparison.editingDocument; drafts = FileComparisonDrafts(patchComparison.editingDocument)
+        let value = patchComparison.editingDocument.usingMergeEncoding(preferUTF8: ComparisonTextEncoding.preferUTF8(from: preferences))
+        document = value; drafts = FileComparisonDrafts(value)
         drafts?.setEditing(false, base: false); showInlineDiff = false
         editorPreferences = .load(from: preferences); showLineNumbers = editorPreferences.showLineNumbers
         editorConfigEnabled = [true: editorPreferences.enableEditorConfig, false: editorPreferences.enableEditorConfig]
@@ -671,11 +672,12 @@ import TurtleGitCore
                     externalOpened = try await DiffToolApplication.open(value, root: snapshot.root, permissions: workingPermissions + [access].compactMap { $0 }, alternate: alternateTool)
                     guard !externalOpened, !retired else { return }
                 }
-                document = value
+                let adapted = value.usingMergeEncoding(preferUTF8: ComparisonTextEncoding.preferUTF8(from: comparisonDefaults))
+                document = adapted
                 imagePresentation.openImages = { [weak self] in self?.chooseImageFiles() }
-                imageComparison = standaloneImages == nil ? ImageComparisonDocument(value) : ImageComparisonDocument(base: ComparisonImage(bytes: value.base.bytes), destination: ComparisonImage(bytes: value.destination.bytes))
+                imageComparison = standaloneImages == nil ? ImageComparisonDocument(adapted) : ImageComparisonDocument(base: ComparisonImage(bytes: adapted.base.bytes), destination: ComparisonImage(bytes: adapted.destination.bytes))
                 window?.title = "\(standaloneImages == nil ? path : (standaloneImages?.destination?.path ?? standaloneImages?.base?.path ?? "Images")) – " + (imageComparison == nil ? "TurtleGitMerge" : "TurtleGitIDiff")
-                drafts = imageComparison == nil ? FileComparisonDrafts(value) : nil
+                drafts = imageComparison == nil ? FileComparisonDrafts(adapted) : nil
                 activeBase = drafts?.preferredBase ?? false
                 selectEditorActions()
                 rebuildAlignment(); resetHistory(); selectionRequest = nil

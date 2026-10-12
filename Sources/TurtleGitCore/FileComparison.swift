@@ -13,9 +13,16 @@ public struct ComparisonFileContent: Sendable {
         self.path = path; self.revision = revision; self.bytes = bytes; self.mode = mode; self.permissions = permissions
         self.encoding = encoding ?? ComparisonTextEncoding.detect(bytes)
     }
+    public func usingMergeEncoding(preferUTF8: Bool) -> Self {
+        Self(path: path, revision: revision, bytes: bytes, mode: mode, permissions: permissions,
+             encoding: ComparisonTextEncoding.detectMerge(bytes, preferUTF8: preferUTF8), isDeleted: isDeleted)
+    }
     public var text: String? { isDeleted ? "" : encoding?.decode(bytes) }
 }
 public struct FileComparisonDocument: Sendable {
+    public func usingMergeEncoding(preferUTF8: Bool) -> Self {
+        Self(base: base.usingMergeEncoding(preferUTF8: preferUTF8), destination: destination.usingMergeEncoding(preferUTF8: preferUTF8))
+    }
     public let base: ComparisonFileContent
     public let destination: ComparisonFileContent
 }

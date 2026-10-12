@@ -26,7 +26,7 @@ struct MergeFormatNativeVerification {
         owner.window?.endSheet(prompt.alert.window,returnCode:.alertSecondButtonReturn); prompt.alert.window.close()
         model.chooseFormat = { _,_,_ in nil }; model.showFormatDialog(base:false)
         try await Task.sleep(nanoseconds:30_000_000)
-        precondition(model.encoding(base:false) == .utf8 && model.draftText(base:false) == String(decoding:bytes,as:UTF8.self))
+        precondition(model.encoding(base:false) == .windows1252 && model.draftText(base:false) == String(decoding:bytes,as:UTF8.self))
         model.chooseFormat = { _,_,_ in .init(encoding:.utf16BEBOM,ending:.crlf) }; model.showFormatDialog(base:false)
         try await TwoPaneEngineVerification.wait { !model.filtering && model.encoding(base:false) == .utf16BEBOM }
         precondition(model.draftText(base:false) == "first\r\nsecond\r\nlast")

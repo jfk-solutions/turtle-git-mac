@@ -774,3 +774,10 @@ commands retain their own pasteboard/editor context. Source-ordered encoding
 menus dispatch by format identity. See
 [context parity](MERGE-ONE-PANE-CONTEXT-PARITY.md); physical popup/full-menu
 acceptance remains open.
+
+Merge General's Default to UTF-8 control now shares the source detector with
+completion scanning and feeds two-pane, Git conflict and standalone three-way
+loads. Legacy Windows-1252 input can load/save losslessly; generic Core callers
+retain their original detection defaults. See
+[default encoding parity](MERGE-DEFAULT-ENCODING-PARITY.md) for locale/malformed
+and remaining load-caller acceptance.
