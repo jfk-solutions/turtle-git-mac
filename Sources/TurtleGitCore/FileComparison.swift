@@ -7,11 +7,13 @@ public struct ComparisonFileContent: Sendable {
     public let mode: String?
     public let permissions: Int?
     public let encoding: ComparisonTextEncoding?
-    init(path: String, revision: ComparisonRevision, bytes: Data, mode: String?, permissions: Int? = nil, encoding: ComparisonTextEncoding? = nil) {
+    public let isDeleted: Bool
+    init(path: String, revision: ComparisonRevision, bytes: Data, mode: String?, permissions: Int? = nil, encoding: ComparisonTextEncoding? = nil, isDeleted: Bool = false) {
+        self.isDeleted = isDeleted
         self.path = path; self.revision = revision; self.bytes = bytes; self.mode = mode; self.permissions = permissions
         self.encoding = encoding ?? ComparisonTextEncoding.detect(bytes)
     }
-    public var text: String? { encoding?.decode(bytes) }
+    public var text: String? { isDeleted ? "" : encoding?.decode(bytes) }
 }
 public struct FileComparisonDocument: Sendable {
     public let base: ComparisonFileContent
@@ -241,10 +243,10 @@ public struct WorkingFileComparison: Sendable {
     public func read() throws -> FileComparisonDocument {
         return FileComparisonDocument(base: try Self.workingContent(at: base), destination: try Self.workingContent(at: destination))
     }
-    public func save(_ document: FileComparisonDocument, base editingBase: Bool, text: String, encoding: ComparisonTextEncoding? = nil) throws -> FileComparisonDocument {
+    public func save(_ document: FileComparisonDocument, base editingBase: Bool, text: String, encoding: ComparisonTextEncoding? = nil, options: MergeFileSaveOptions = .init()) throws -> FileComparisonDocument {
         guard document.base.path == base.path, document.destination.path == destination.path else { throw RevisionComparisonFailure.selection }
         let original = editingBase ? document.base : document.destination
-        let saved = try FileComparisonEditing.saveWorkingContent(at: editingBase ? base : destination, original: original, text: text, encoding: encoding)
+        let saved = try FileComparisonEditing.saveWorkingContent(at: editingBase ? base : destination, original: original, text: text, encoding: encoding, options: options)
         return FileComparisonDocument(base: editingBase ? saved : document.base, destination: editingBase ? document.destination : saved)
     }
 }
@@ -254,10 +256,10 @@ public struct HistoricalWorkingFileComparison: Sendable {
     public let workingFile: URL
     public let snapshot: RevisionComparisonSnapshot
     public let path: String
-    public func saveBase(_ document: FileComparisonDocument, text: String, encoding: ComparisonTextEncoding? = nil) throws -> FileComparisonDocument {
+    public func saveBase(_ document: FileComparisonDocument, text: String, encoding: ComparisonTextEncoding? = nil, options: MergeFileSaveOptions = .init()) throws -> FileComparisonDocument {
         guard document.base.path == workingFile.path, document.destination.path == path,
               document.destination.revision == snapshot.to else { throw RevisionComparisonFailure.selection }
-        let saved = try FileComparisonEditing.saveWorkingContent(at: workingFile, original: document.base, text: text, encoding: encoding)
+        let saved = try FileComparisonEditing.saveWorkingContent(at: workingFile, original: document.base, text: text, encoding: encoding, options: options)
         return FileComparisonDocument(base: saved, destination: document.destination)
     }
 }

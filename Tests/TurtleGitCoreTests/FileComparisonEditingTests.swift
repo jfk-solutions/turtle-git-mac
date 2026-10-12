@@ -347,3 +347,87 @@ final class FileComparisonEditingTests: XCTestCase {
         XCTAssertEqual(try FileManager.default.destinationOfSymbolicLink(atPath: location.path), "/outside/repository")
     }
 }
+
+final class MergeFileSaveTests: XCTestCase {
+    func testWorkingBackupsDeletionRecreationAndStaleSnapshots() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let before = root.appendingPathComponent("base"), mine = root.appendingPathComponent("mine"), backup = root.appendingPathComponent("mine.bak")
+        let bytes = try ComparisonTextEncoding.utf16LEBOM.encode("雪🦎\r\noriginal")
+        try bytes.write(to: before); try bytes.write(to: mine)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: mine.path)
+        let pair = try WorkingFileComparison(base: before, destination: mine)
+        var document = try pair.read()
+        document = try pair.save(document, base: false, text: "new\r\n", options: .init(backupOriginal: true))
+        XCTAssertEqual(try Data(contentsOf: backup), bytes)
+        XCTAssertEqual((try FileManager.default.attributesOfItem(atPath: backup.path)[.posixPermissions] as? NSNumber)?.intValue, 0o755)
+        let savedBytes = try Data(contentsOf: mine)
+        document = try pair.save(document, base: false, text: "", options: .init(backupOriginal: true, emptyResult: .delete))
+        XCTAssertTrue(document.destination.isDeleted); XCTAssertEqual(document.destination.text, "")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: mine.path)); XCTAssertEqual(try Data(contentsOf: backup), savedBytes)
+        var drafts = FileComparisonDrafts(document)
+        XCTAssertTrue(drafts.canEdit(base: false)); XCTAssertFalse(drafts.isDirty(base: false))
+        try drafts.update(text: "recreated", base: false)
+        document = try pair.save(document, base: false, text: "recreated", options: .init(backupOriginal: true))
+        XCTAssertFalse(document.destination.isDeleted)
+        XCTAssertEqual(try Data(contentsOf: mine), try ComparisonTextEncoding.utf16LEBOM.encode("recreated"))
+        XCTAssertEqual(try Data(contentsOf: backup), savedBytes)
+        let captured = document
+        try Data("external".utf8).write(to: mine)
+        XCTAssertThrowsError(try pair.save(captured, base: false, text: "ours", options: .init(backupOriginal: true)))
+        XCTAssertEqual(try Data(contentsOf: backup), savedBytes)
+    }
+    func testNonemptyDeletionAndBackupTargetFailurePreserveOriginal() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let before = root.appendingPathComponent("base"), mine = root.appendingPathComponent("mine"), backup = root.appendingPathComponent("mine.bak")
+        try Data("original".utf8).write(to: before); try Data("original".utf8).write(to: mine)
+        let pair = try WorkingFileComparison(base: before, destination: mine), document = try pair.read()
+        XCTAssertThrowsError(try pair.save(document, base: false, text: "nonempty", options: .init(emptyResult: .delete)))
+        try FileManager.default.createDirectory(at: backup, withIntermediateDirectories: false)
+        XCTAssertThrowsError(try pair.save(document, base: false, text: "new", options: .init(backupOriginal: true)))
+        XCTAssertEqual(try Data(contentsOf: mine), Data("original".utf8))
+        try FileManager.default.removeItem(at: backup)
+        try FileManager.default.createSymbolicLink(at: backup, withDestinationURL: before)
+        XCTAssertThrowsError(try pair.save(document, base: false, text: "new", options: .init(backupOriginal: true)))
+        XCTAssertEqual(try Data(contentsOf: before), Data("original".utf8))
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: root.path).sorted(), ["base", "mine", "mine.bak"])
+    }
+    func testEmptyKeepRetainsRequestedBOMAndDoesNotEnableBackupsByDefault() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let before = root.appendingPathComponent("base"), mine = root.appendingPathComponent("mine")
+        try Data("base".utf8).write(to: before); try Data("mine".utf8).write(to: mine)
+        let pair = try WorkingFileComparison(base: before, destination: mine)
+        let saved = try pair.save(pair.read(), base: false, text: "", encoding: .utf8BOM)
+        XCTAssertFalse(saved.destination.isDeleted); XCTAssertEqual(try Data(contentsOf: mine), Data([0xef, 0xbb, 0xbf]))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: mine.path + ".bak"))
+        let suite = "TurtleGit.Backup." + UUID().uuidString, defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        XCTAssertFalse(MergeFileSaveOptions.backupEnabled(from: defaults))
+        MergeFileSaveOptions.saveBackupPreference(true, to: defaults); XCTAssertTrue(MergeFileSaveOptions.backupEnabled(from: defaults))
+    }
+    func testDeletedConflictStageFailureKeepsBackupAndRetriesDeletion() async throws {
+        let (root, repo, path) = try await ConflictResolutionTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let location = root.appendingPathComponent(path), lock = root.appendingPathComponent(".git/index.lock")
+        let document = try await repo.textConflictDocument(path: path), original = try Data(contentsOf: location)
+        let head = try await repo.run(["rev-parse", "HEAD"]).stdout, refs = try await repo.run(["show-ref"]).stdout
+        let index = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+        try Data().write(to: lock)
+        var captured: TextConflictDocument?
+        do { _ = try await repo.saveTextConflict(document, result: "", markResolved: true, options: .init(backupOriginal: true, emptyResult: .delete)); XCTFail("Staged with locked index") }
+        catch let failure as TextConflictSaveFailure { captured = failure.savedDocument; XCTAssertNil(failure.savedDocument.workingContents) }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: location.path)); XCTAssertEqual(try Data(contentsOf: URL(fileURLWithPath: location.path + ".bak")), original)
+        let unchangedIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout; XCTAssertEqual(unchangedIndex, index)
+        try FileManager.default.removeItem(at: lock)
+        _ = try await repo.saveTextConflict(XCTUnwrap(captured), result: "", markResolved: true, options: .init(backupOriginal: true, emptyResult: .delete))
+        let conflicts = try await repo.conflicts(); XCTAssertTrue(conflicts.isEmpty)
+        let afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout, afterRefs = try await repo.run(["show-ref"]).stdout
+        XCTAssertEqual(afterHead, head); XCTAssertEqual(afterRefs, refs)
+        XCTAssertEqual(try Data(contentsOf: URL(fileURLWithPath: location.path + ".bak")), original)
+    }
+}

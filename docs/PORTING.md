@@ -12,6 +12,10 @@ The merge locator batch adds colored Left/Bottom/Right stripes, viewport trackin
 nonselecting navigation, an optional fish-eye lens and saved native View/Settings
 controls in both viewers. See [locator parity](MERGE-LOCATOR-PARITY.md).
 
+The merge Save batch adds Backup original file and the source empty-result
+Delete/Keep workflow to both viewers, including absent-file recreation and
+deleted conflict staging retry. See [save workflow parity](MERGE-SAVE-WORKFLOWS-PARITY.md).
+
 The target is complete behavioral parity, with native macOS windows and Finder
 integration. This first implementation establishes the architecture and common
 workflows. It does **not** represent the complete port or reproduce all upstream

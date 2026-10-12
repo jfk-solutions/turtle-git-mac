@@ -169,7 +169,7 @@ extension GitRepository {
         var document = TextConflictDocument(entry: entry, base: base, mine: mine, theirs: theirs, mineStage: mineStage, theirsStage: theirsStage, initialResult: result, generatedResult: result, workingContents: working, permissions: permissions, encoding: encoding, baseEncoding: sourceEncodings[1], mineEncoding: sourceEncodings[mineStage], theirsEncoding: sourceEncodings[theirsStage])
         document.mergeSources = sources; return document
     }
-    public func saveTextConflict(_ document: TextConflictDocument, result: String, markResolved: Bool, encoding: ComparisonTextEncoding? = nil) throws -> TextConflictDocument {
+    public func saveTextConflict(_ document: TextConflictDocument, result: String, markResolved: Bool, encoding: ComparisonTextEncoding? = nil, options: MergeFileSaveOptions = .init()) throws -> TextConflictDocument {
         try validateConflicts([document.entry], using: .current)
         if markResolved && MergeText.hasMarkers(result) { throw TextConflictFailure.markers }
         guard !result.utf8.contains(0) else { throw TextConflictFailure.encoding }
@@ -181,9 +181,14 @@ extension GitRepository {
         if current != nil && !FileManager.default.isWritableFile(atPath: location.path) { throw TextConflictFailure.readOnly }
         let selectedEncoding = encoding ?? document.encoding
         let contents = try selectedEncoding.encode(result)
-        try contents.write(to: location, options: .atomic)
-        try FileManager.default.setAttributes([.posixPermissions: document.permissions], ofItemAtPath: location.path)
-        var saved = TextConflictDocument(entry: document.entry, base: document.base, mine: document.mine, theirs: document.theirs, mineStage: document.mineStage, theirsStage: document.theirsStage, initialResult: result, generatedResult: document.generatedResult, workingContents: contents, permissions: document.permissions, encoding: selectedEncoding, baseEncoding: document.baseEncoding, mineEncoding: document.mineEncoding, theirsEncoding: document.theirsEncoding)
+        guard options.emptyResult != .delete || result.isEmpty else { throw MergeFileSaveFailure.nonemptyDeletion }
+        let deleting = options.emptyResult == .delete
+        try MergeWorkingFileSave.write(at: location, original: current, permissions: document.permissions, bytes: contents,
+                                       delete: deleting, backup: options.backupOriginal) {
+            let (bytes, mode) = try self.conflictWorkingSnapshot(location)
+            guard bytes == current, mode == permissions else { throw TextConflictFailure.changedWorkingFile }
+        }
+        var saved = TextConflictDocument(entry: document.entry, base: document.base, mine: document.mine, theirs: document.theirs, mineStage: document.mineStage, theirsStage: document.theirsStage, initialResult: result, generatedResult: document.generatedResult, workingContents: deleting ? nil : contents, permissions: document.permissions, encoding: selectedEncoding, baseEncoding: document.baseEncoding, mineEncoding: document.mineEncoding, theirsEncoding: document.theirsEncoding)
         saved.mergeSources = document.mergeSources
         if markResolved {
             do { _ = try run(["add", "-f", "--", document.entry.path]) }

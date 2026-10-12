@@ -168,7 +168,7 @@ private enum MergeSourceSide {
         hosting.sizingOptions = [.minSize]
         window.contentViewController = hosting
         window.setContentSize(NSSize(width: 1120, height: 780))
-        super.init(window: window); window.delegate = self; window.center(); model.close = { [weak window] in window?.close() }
+        super.init(window: window); window.delegate = self; window.center(); model.window = window; model.close = { [weak window] in window?.close() }
 
 
         DialogGeometry.attach(window, identifier: "TurtleGit.TextConflict", legacyName: "TurtleGit.TextConflict")
@@ -436,8 +436,10 @@ private enum MergeSourceSide {
         else { result = contents }
         selectedConflict = 0
     }
+    var chooseEmptyResult: ((String) async -> MergeEmptyResult)?
+    weak var window: NSWindow?
     func save(markResolved: Bool, closeAfter: Bool = false, reloadAfter: Bool = false, completion: ((Bool) -> Void)? = nil) {
-        guard !busy, let document else { completion?(false); return }
+        guard !busy, !confirmingQuit, !retired, window?.attachedSheet == nil, let document else { completion?(false); return }
         if !markResolved && MergeText.hasMarkers(result) {
             let alert = NSAlert(); alert.alertStyle = .warning; alert.messageText = "Save with unresolved conflict markers?"
             alert.addButton(withTitle: "Cancel"); alert.addButton(withTitle: "Save")
@@ -450,7 +452,14 @@ private enum MergeSourceSide {
             defer { busy = false; loadCancellation = nil; MergeRegexOperations.activeRequests -= 1; completion?(saved) }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                self.document = try await repository.saveTextConflict(document, result: text, markResolved: markResolved, encoding: outputEncoding)
+                let choice: MergeEmptyResult
+                if text.isEmpty {
+                    if let chooseEmptyResult { choice = await chooseEmptyResult(path) }
+                    else { choice = await MergeEmptyResultPrompt.choose(window: window, path: path) }
+                }
+                else { choice = .keep }
+                let options = MergeFileSaveOptions(backupOriginal: MergeFileSaveOptions.backupEnabled(from: comparisonDefaults), emptyResult: choice)
+                self.document = try await repository.saveTextConflict(document, result: text, markResolved: markResolved, encoding: outputEncoding, options: options)
                 onChanged(markResolved ? "Resolved: " + path : "Saved merged result: " + path)
                 if markResolved || closeAfter { close() }
                 else if reloadAfter { try await reloadDocument(filterName: regexFilterName, cancellation: loadCancellation) }

@@ -253,11 +253,11 @@ public enum FileComparisonEditing {
 
 }
 extension GitRepository {
-    public func saveComparisonFile(_ snapshot: RevisionComparisonSnapshot, document: FileComparisonDocument, base: Bool, text: String, encoding: ComparisonTextEncoding? = nil) throws -> FileComparisonDocument {
+    public func saveComparisonFile(_ snapshot: RevisionComparisonSnapshot, document: FileComparisonDocument, base: Bool, text: String, encoding: ComparisonTextEncoding? = nil, options: MergeFileSaveOptions = .init()) throws -> FileComparisonDocument {
         let original = base ? document.base : document.destination
         guard snapshot.root == root, snapshot.files.contains(where: { $0.path == document.destination.path }),
               original.revision == .workingTree, ["100644", "100755"].contains(original.mode ?? ""), original.permissions != nil else { throw FileComparisonEditFailure.unsupported }
-        let saved = try FileComparisonEditing.saveWorkingContent(at: restoreLocation(original.path), original: original, text: text, encoding: encoding)
+        let saved = try FileComparisonEditing.saveWorkingContent(at: restoreLocation(original.path), original: original, text: text, encoding: encoding, options: options)
         return FileComparisonDocument(base: base ? saved : document.base, destination: base ? document.destination : saved)
     }
 }
@@ -265,25 +265,28 @@ extension GitRepository {
 
 extension FileComparisonEditing {
     /// Same byte/permission checks for repository and standalone working files.
-    public static func saveWorkingContent(at location: URL, original: ComparisonFileContent, text: String, encoding: ComparisonTextEncoding? = nil) throws -> ComparisonFileContent {
+    public static func saveWorkingContent(at location: URL, original: ComparisonFileContent, text: String, encoding: ComparisonTextEncoding? = nil, options: MergeFileSaveOptions = .init()) throws -> ComparisonFileContent {
         guard location.isFileURL, original.revision == .workingTree,
               ["100644", "100755"].contains(original.mode ?? ""), let permissions = original.permissions else { throw FileComparisonEditFailure.unsupported }
+        guard options.emptyResult != .delete || text.isEmpty else { throw MergeFileSaveFailure.nonemptyDeletion }
         let manager = FileManager.default
         func validate() throws {
+            if original.isDeleted {
+                do { _ = try manager.attributesOfItem(atPath: location.path); throw FileComparisonEditFailure.changed }
+                catch let failure as CocoaError where failure.code == .fileNoSuchFile || failure.code == .fileReadNoSuchFile { return }
+            }
             guard let attributes = try? manager.attributesOfItem(atPath: location.path), attributes[.type] as? FileAttributeType == .typeRegular,
                   (attributes[.posixPermissions] as? NSNumber)?.intValue == permissions,
                   (try? Data(contentsOf: location)) == original.bytes else { throw FileComparisonEditFailure.changed }
             guard permissions & 0o222 != 0, manager.isWritableFile(atPath: location.path) else { throw FileComparisonEditFailure.readOnly }
         }
         try validate()
-        let bytes = try FileComparisonEditing.encoded(text, like: original, encoding: encoding)
-        let temporary = location.deletingLastPathComponent().appendingPathComponent(".TurtleGitDiff-" + UUID().uuidString)
-        defer { try? manager.removeItem(at: temporary) }
-        try bytes.write(to: temporary, options: .withoutOverwriting)
-        try manager.setAttributes([.posixPermissions: permissions], ofItemAtPath: temporary.path)
-        try validate()
-        guard Darwin.rename(temporary.path, location.path) == 0 else { throw CocoaError(.fileWriteUnknown) }
-        return ComparisonFileContent(path: original.path, revision: original.revision, bytes: bytes, mode: original.mode, permissions: permissions, encoding: encoding ?? original.encoding)
+        let bytes = try original.isDeleted ? (encoding ?? original.encoding ?? .utf8).encode(text) : FileComparisonEditing.encoded(text, like: original, encoding: encoding)
+        let deleting = options.emptyResult == .delete
+        try MergeWorkingFileSave.write(at: location, original: original.isDeleted ? nil : original.bytes, permissions: permissions,
+                                       bytes: bytes, delete: deleting, backup: options.backupOriginal, validate: validate)
+        return ComparisonFileContent(path: original.path, revision: original.revision, bytes: deleting ? Data() : bytes,
+                                     mode: original.mode, permissions: permissions, encoding: encoding ?? original.encoding, isDeleted: deleting)
     }
 }
 
@@ -342,5 +345,50 @@ public struct FileComparisonDrafts {
         guard let pane = panes[base] else { throw RevisionComparisonFailure.selection }
         if canEdit(base: base), let text = pane.text { return try FileComparisonEditing.encoded(text, like: pane.content, encoding: pane.encoding) }
         return pane.content.bytes
+    }
+}
+
+public enum MergeEmptyResult: Sendable, Equatable { case keep, delete }
+public struct MergeFileSaveOptions: Sendable {
+    public var backupOriginal: Bool
+    public var emptyResult: MergeEmptyResult
+    public init(backupOriginal: Bool = false, emptyResult: MergeEmptyResult = .keep) { self.backupOriginal = backupOriginal; self.emptyResult = emptyResult }
+    public static func backupEnabled(from defaults: UserDefaults = .standard) -> Bool { defaults.bool(forKey: "TurtleGitMerge.Backup") }
+    public static func saveBackupPreference(_ value: Bool, to defaults: UserDefaults = .standard) { defaults.set(value, forKey: "TurtleGitMerge.Backup") }
+}
+public enum MergeFileSaveFailure: LocalizedError {
+    case nonemptyDeletion, backupTarget
+    public var errorDescription: String? {
+        switch self {
+        case .nonemptyDeletion: return "Only an empty result can delete the working file."
+        case .backupTarget: return "The .bak path is not a regular file. Move it before saving with Backup original file enabled."
+        }
+    }
+}
+/// Stage the new bytes and permissions before touching the current file. Unlike
+/// the Windows MoveFileEx path, a failed preparation leaves the original intact.
+/// Backups retain captured bytes/mode and replace only a regular .bak sibling.
+enum MergeWorkingFileSave {
+    static func write(at location: URL, original: Data?, permissions: Int, bytes: Data, delete: Bool, backup: Bool, validate: () throws -> Void) throws {
+        let manager = FileManager.default
+        let temporary = location.deletingLastPathComponent().appendingPathComponent(".TurtleGitSave-" + UUID().uuidString)
+        let backupTemporary = location.deletingLastPathComponent().appendingPathComponent(".TurtleGitBackup-" + UUID().uuidString)
+        defer { try? manager.removeItem(at: temporary); try? manager.removeItem(at: backupTemporary) }
+        if !delete {
+            try bytes.write(to: temporary, options: .withoutOverwriting)
+            try manager.setAttributes([.posixPermissions: permissions], ofItemAtPath: temporary.path)
+        }
+        try validate()
+        if backup, let original {
+            let target = URL(fileURLWithPath: location.path + ".bak")
+            if let attributes = try? manager.attributesOfItem(atPath: target.path), attributes[.type] as? FileAttributeType != .typeRegular { throw MergeFileSaveFailure.backupTarget }
+            try original.write(to: backupTemporary, options: .withoutOverwriting)
+            try manager.setAttributes([.posixPermissions: permissions], ofItemAtPath: backupTemporary.path)
+            try validate()
+            guard Darwin.rename(backupTemporary.path, target.path) == 0 else { throw CocoaError(.fileWriteUnknown) }
+        }
+        try validate()
+        if delete { if original != nil { try manager.removeItem(at: location) } }
+        else { guard Darwin.rename(temporary.path, location.path) == 0 else { throw CocoaError(.fileWriteUnknown) } }
     }
 }

@@ -1,0 +1,69 @@
+{
+  "date": "2026-10-12",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Backup original file and empty-result Delete/Keep across both native Save owners, recreation and conflict-deletion retry",
+  "implementationThenGroupedValidation": true,
+  "initialBuildFailure": "Missing weak three-pane window reference for the owned save sheet; fixed before tests ran.",
+  "core": {
+    "tests": 43,
+    "failures": 0,
+    "seconds": 14.08,
+    "log": "build/qa/merge-save-workflows-core-repair-2026-10-12.log",
+    "checks": [
+      "backup bytes and executable mode",
+      "backup replacement",
+      "empty Delete and encoding-preserving recreation",
+      "stale working snapshots",
+      "nonempty deletion refusal",
+      "directory/symlink backup refusal",
+      "temporary cleanup",
+      "empty Keep and BOM",
+      "private Backup preference",
+      "real conflict deletion with index-lock retry",
+      "HEAD/refs preserved",
+      "existing comparison/conflict/engine cases"
+    ]
+  },
+  "build": {
+    "exitCode": 0,
+    "configuration": "Debug",
+    "architecture": "arm64",
+    "signed": false,
+    "log": "build/qa/merge-save-workflows-build-repair-2026-10-12.log",
+    "notes": "Existing exit-zero diagnostic noise remains."
+  },
+  "native": {
+    "exitCode": 0,
+    "frontendCompilations": 1,
+    "receiverProcesses": 1,
+    "log": "build/qa/merge-save-workflows-native-2026-10-12.log",
+    "checks": [
+      "actual two-pane empty Keep writes selected BOM",
+      "original backup before Keep",
+      "Delete updates explicit absent-file capture",
+      "backup replacement before Delete",
+      "native Unicode recreation retains UTF-16 BOM",
+      "recreation preserves prior backup",
+      "actual three-pane Delete keeps unresolved stages until explicit resolution",
+      "resolution retries from absent working snapshot",
+      "deletion retry retains original backup",
+      "existing regex/comment/locator/Unicode/Undo/save/cancellation paths"
+    ],
+    "saveChoices": "Injected decisions in production native owners; physical sheet not exercised",
+    "ownedWindowsClosed": true,
+    "ownedHelpersExited": true,
+    "installedApplicationLaunched": false,
+    "physicalInput": false
+  },
+  "remainingAcceptance": [
+    "physical sheet Delete/Cancel/Escape",
+    "Settings Apply/Cancel interaction",
+    "failure and sheet/Quit UI",
+    "cross-platform empty-format edges",
+    "minimum-OS execution",
+    "signed sandbox/Finder and App Store",
+    "hosted CI success",
+    "complete application parity"
+  ],
+  "completePortCertified": false
+}

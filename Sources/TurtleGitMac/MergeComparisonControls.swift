@@ -154,3 +154,21 @@ struct MergeLocatorBar: NSViewRepresentable {
     override func accessibilityPerformIncrement() -> Bool { guard enabled, map.lineCount > 0 else { return false }; navigate(min(map.lineCount - 1, viewport.rows.upperBound)); return true }
     override func accessibilityPerformDecrement() -> Bool { guard enabled, map.lineCount > 0 else { return false }; navigate(max(0, viewport.rows.lowerBound - max(1, viewport.rows.count))); return true }
 }
+
+@MainActor enum MergeEmptyResultPrompt {
+    static func choose(window: NSWindow?, path: String) async -> MergeEmptyResult {
+        let alert = NSAlert(); alert.alertStyle = .warning
+        alert.messageText = "File is empty."
+        alert.informativeText = "Delete “\((path as NSString).lastPathComponent)” or keep the empty file?"
+        alert.addButton(withTitle: "Delete")
+        alert.addButton(withTitle: "Cancel — Keep Empty File")
+        alert.buttons.last?.keyEquivalent = "\u{1b}"
+        let response: NSApplication.ModalResponse
+        if let window {
+            response = await withCheckedContinuation { continuation in
+                alert.beginSheetModal(for: window) { continuation.resume(returning: $0) }
+            }
+        } else { response = alert.runModal() }
+        return response == .alertFirstButtonReturn ? .delete : .keep
+    }
+}

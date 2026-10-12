@@ -141,6 +141,21 @@ import TurtleGitCore
         try await wait { MergeRegexOperations.activeRequests == 0 }
         precondition(stalled.model.document == nil && stalled.model.error == nil)
         stalled.window?.close()
+        let emptyOwner = TextConflictWindowController(repository: repository, access: nil, path: "sample.cpp"), empty = emptyOwner.model
+        empty.comparisonDefaults = defaults; empty.commentProfileURL = root.appendingPathComponent("ignorecomments.txt")
+        empty.load(); try await wait { !empty.busy }
+        precondition(empty.document != nil && empty.error == nil)
+        let beforeEmpty = try Data(contentsOf: file)
+        MergeFileSaveOptions.saveBackupPreference(true, to: defaults)
+        empty.chooseEmptyResult = { _ in .delete }; empty.result = ""; empty.save(markResolved: false)
+        try await wait { !empty.busy }
+        precondition(empty.error == nil && empty.document?.workingContents == nil && !FileManager.default.fileExists(atPath: file.path))
+        let originalBackup = try Data(contentsOf: URL(fileURLWithPath: file.path + ".bak"))
+        precondition(originalBackup == beforeEmpty)
+        empty.save(markResolved: true); try await wait { !empty.busy }
+        let deletedConflicts = try await repository.conflicts(), preservedBackup = try Data(contentsOf: URL(fileURLWithPath: file.path + ".bak"))
+        precondition(deletedConflicts.isEmpty && preservedBackup == beforeEmpty && empty.error == nil)
+        emptyOwner.window?.close(); try await wait { MergeRegexOperations.activeRequests == 0 }
         print("Three-pane Subversion integration: production panes/result, green regex rows, original Mine preference, Cancel/Undo, No Filter, discard and Save-before-Reload, unchanged Git state before Save, explicit resolution, HEAD preservation and standard Close cancellation passed. Owned windows/helpers closed; private repository/preferences only.")
     }
 }

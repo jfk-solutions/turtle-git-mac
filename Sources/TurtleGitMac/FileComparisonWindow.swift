@@ -577,6 +577,7 @@ import TurtleGitCore
     }
     func saveAll(completion: ((Bool) -> Void)? = nil) { save(sides: drafts?.dirtySides ?? [], completion: completion) }
     var chooseMarkedSave: () async -> FileComparisonEditing.MarkedSaveChoice? = { nil }
+    var chooseEmptyResult: ((String) async -> MergeEmptyResult)?
     func installMarkedSavePrompt() {
         chooseMarkedSave = { [weak self] in
             guard let window = self?.window, window.attachedSheet == nil else { return nil }
@@ -599,7 +600,7 @@ import TurtleGitCore
         }
     }
     private func save(sides: [Bool], completion: ((Bool) -> Void)?) {
-        guard !busy, document != nil else { completion?(false); return }
+        guard !busy, !confirmingQuit, !retired, window?.attachedSheet == nil, document != nil else { completion?(false); return }
         busy = true
         Task {
             var saved = false
@@ -615,19 +616,27 @@ import TurtleGitCore
                         actions.resolveForSave(text)
                     }
                     guard let document, let text = drafts?.text(base: base) else { throw FileComparisonEditFailure.unsupported }
+                    let choice: MergeEmptyResult
+                    if text.isEmpty {
+                        let savePath = base ? document.base.path : document.destination.path
+                        if let chooseEmptyResult { choice = await chooseEmptyResult(savePath) }
+                        else { choice = await MergeEmptyResultPrompt.choose(window: window, path: savePath) }
+                    }
+                    else { choice = .keep }
+                    let options = MergeFileSaveOptions(backupOriginal: MergeFileSaveOptions.backupEnabled(from: comparisonDefaults), emptyResult: choice)
                     let result: FileComparisonDocument
                     if let historicalWorkingComparison {
                         try validateHistoricalWorkingAccess(historicalWorkingComparison)
                         guard base else { throw FileComparisonEditFailure.unsupported }
                         guard try authorizeWorkingReplacement(at: historicalWorkingComparison.workingFile) else { return }
-                        result = try historicalWorkingComparison.saveBase(document, text: text, encoding: drafts?.encoding(base: base))
+                        result = try historicalWorkingComparison.saveBase(document, text: text, encoding: drafts?.encoding(base: base), options: options)
                     } else if let workingComparison {
                         try validateWorkingAccess(workingComparison)
                         guard try authorizeWorkingReplacement(at: base ? workingComparison.base : workingComparison.destination) else { return }
-                        result = try workingComparison.save(document, base: base, text: text, encoding: drafts?.encoding(base: base))
+                        result = try workingComparison.save(document, base: base, text: text, encoding: drafts?.encoding(base: base), options: options)
                     } else if let repository {
                         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                        result = try await repository.saveComparisonFile(snapshot, document: document, base: base, text: text, encoding: drafts?.encoding(base: base))
+                        result = try await repository.saveComparisonFile(snapshot, document: document, base: base, text: text, encoding: drafts?.encoding(base: base), options: options)
                     } else { throw RevisionComparisonFailure.selection }
                     self.document = result
                     try drafts?.didSave(base ? result.base : result.destination, base: base)
@@ -685,7 +694,7 @@ private struct FileComparisonDialog: View {
                 MergeFormatControls(label: base ? "Base" : "Mine", encoding: model.encoding(base: base) ?? content?.encoding, text: content?.text == nil ? nil : model.draftText(base: base), editable: model.canTransfer(toBase: base), changeEncoding: { model.changeEncoding($0, base: base) }, changeEnding: { model.changeLineEnding($0, base: base) })
                 Spacer()
                 MergeTabControls(label: base ? "Base" : "Mine", tabWidth: model.tabWidth(base: base), useSpaces: model.useSpaces(base: base), smartTab: model.smartTab(base: base), changeWidth: { model.tabWidths[base] = $0 }, changeSpaces: { model.spacePanes[base] = $0 }, changeSmart: { model.smartTabPanes[base] = $0 }, editorConfigEnabled: model.editorConfigEnabled[base] == true, editorConfigLoaded: model.editorConfigLoaded[base] == true, changeEditorConfig: { model.setEditorConfig($0, base: base) }).disabled(model.busy || model.confirmingQuit || model.editorConfigLoading.contains(base))
-                Text("\(content?.mode ?? "Absent") · \(content?.bytes.count ?? 0) saved bytes").font(.caption).foregroundStyle(.secondary)
+                Text("\(content?.isDeleted == true ? "Deleted" : content?.mode ?? "Absent") · \(content?.bytes.count ?? 0) saved bytes").font(.caption).foregroundStyle(.secondary)
             }
         }.padding(8).frame(minWidth: 300, maxWidth: .infinity, maxHeight: .infinity)
     }

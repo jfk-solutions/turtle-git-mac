@@ -103,7 +103,7 @@ is implemented, but native attempts encountered inaccessible scroll targets and
 no-window observations; it remains unverified. Character-level differences, syntax coloring, whitespace
 and EOL/encoding controls, folding, full locator overlay acceptance, source editing, complete ribbon
 and menus, standalone two-file comparison, external tools, binary/image merging,
-empty-result Delete/Keep, backup files, complete reload/open workflows and selection
+physical empty-result Delete/Keep and backup acceptance, complete reload/open workflows and selection
 mapping from source-pane block menus remain pending. EOF block choices now use original source ending metadata for the unchanged
 final conflict; broader edited-marker and encoding combinations need checks. Full native keyboard/Undo/Redo, save/close/export/error/rebase,
 resize and signed Finder/sandbox acceptance remain partial until verified.
@@ -602,3 +602,5 @@ menu order/grouping beyond these entries, all whitespace/format state variants,
 and signed sandbox acceptance remain pending. This is partial context-menu parity.
 
 The native locator bar is now integrated in both viewers, with engine result colors, scroll navigation and source appearance defaults. See [locator parity](MERGE-LOCATOR-PARITY.md) for grouped checks and the remaining physical/complete-overlay scope.
+
+Backup original file and empty-result Delete/Keep now share a guarded save layer across both viewers. Deleted conflict snapshots retain staging retry state. See [save workflows](MERGE-SAVE-WORKFLOWS-PARITY.md) for source adaptations, evidence and remaining acceptance.

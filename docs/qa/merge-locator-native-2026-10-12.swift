@@ -57,6 +57,32 @@ struct MergeLocatorVerification {
         try await TwoPaneEngineVerification.wait { locate(controller.window?.contentView) != nil }
         let finalBase = try Data(contentsOf: base), finalMine = try Data(contentsOf: mine)
         precondition(finalBase == Data(before.utf8) && finalMine == Data(after.utf8))
+        // Empty-result save choices run through the production native owner.
+        MergeFileSaveOptions.saveBackupPreference(true, to: defaults)
+        var choices: [String] = []
+        model.chooseEmptyResult = { path in choices.append(path); return .keep }
+        guard let editor = TwoPaneEngineVerification.editors(controller.window?.contentView).first(where: { $0.isEditable }) else { preconditionFailure("Missing writable pane") }
+        editor.insertText("", replacementRange: NSRange(location: 0, length: (editor.string as NSString).length))
+        try await TwoPaneEngineVerification.settled(model)
+        model.changeEncoding(.utf8BOM, base: false); model.save()
+        try await TwoPaneEngineVerification.settled(model)
+        let kept = try Data(contentsOf: mine), firstBackup = try Data(contentsOf: URL(fileURLWithPath: mine.path + ".bak"))
+        precondition(kept == Data([0xef, 0xbb, 0xbf]) && firstBackup == Data(after.utf8))
+        precondition(!model.dirty && choices == [mine.path])
+        // A format-only edit makes the empty draft dirty again before Delete.
+        model.changeEncoding(.utf16LEBOM, base: false)
+        model.chooseEmptyResult = { path in choices.append(path); return .delete }; model.save()
+        try await TwoPaneEngineVerification.settled(model)
+        precondition(!FileManager.default.fileExists(atPath: mine.path) && model.document?.destination.isDeleted == true && !model.dirty)
+        let deletedBackup = try Data(contentsOf: URL(fileURLWithPath: mine.path + ".bak"))
+        precondition(deletedBackup == kept && choices.count == 2)
+        // The captured absent file can be recreated without replacing its backup.
+        guard let recreatedEditor = TwoPaneEngineVerification.editors(controller.window?.contentView).first(where: { $0.isEditable }) else { preconditionFailure("Missing deleted-file editor") }
+        recreatedEditor.insertText("recreated 🦎", replacementRange: NSRange(location: 0, length: (recreatedEditor.string as NSString).length))
+        try await TwoPaneEngineVerification.settled(model); model.save(); try await TwoPaneEngineVerification.settled(model)
+        let recreated = try Data(contentsOf: mine), retainedBackup = try Data(contentsOf: URL(fileURLWithPath: mine.path + ".bak"))
+        let expectedRecreated = try ComparisonTextEncoding.utf16LEBOM.encode("recreated 🦎")
+        precondition(recreated == expectedRecreated && retainedBackup == kept && choices.count == 2)
         controller.window?.close()
         try await TwoPaneEngineVerification.wait { MergeRegexOperations.activeRequests == 0 }
         print("Native locator: actual engine state stripes, viewport scrolling, unchanged selections/history/files, stale busy dispatch refusal, accessibility navigation, visibility persistence, recreation and light/dark NSView captures passed. Owned window closed.")
