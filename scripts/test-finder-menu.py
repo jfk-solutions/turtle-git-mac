@@ -24,7 +24,7 @@ import TurtleGitCore
             .lfs: "LFSMenu", .sendMail: "Sendmail",
             .synchronize: "Sync", .previousDiff: "PrevDiff", .logSubmodule: "LogSubmoduleFolder", .blame: "Blame", .editConflict: "ConflictEditor", .settings: "Settings", .help: "Help", .about: "About",
             .add: "Add", .clone: "Clone", .pull: "Pull", .fetch: "Fetch", .push: "Push", .commit: "Commit",
-            .diff: "Diff", .diffLater: "DiffLater", .log: "Log", .revisionGraph: "RevisionGraph", .reflog: "RefLog", .referenceBrowser: "RefBrowser", .repositoryBrowser: "RepoBrowse",
+            .diff: "Diff", .diffLater: "DiffLater", .log: "Log", .daemon: "Daemon", .revisionGraph: "RevisionGraph", .reflog: "RefLog", .referenceBrowser: "RefBrowser", .repositoryBrowser: "RepoBrowse",
             .bisectStart: "BisectStart", .bisectGood: "BisectGood", .bisectBad: "BisectBad", .bisectSkip: "BisectSkip", .bisectReset: "BisectReset",
             .status: "ShowChanged", .rebase: "Rebase", .stash: "StashSave", .stashApply: "StashApply",
             .stashPop: "StashPop", .stashList: "StashList", .resolve: "Resolve", .mergeAbort: "MergeAbort", .rename: "Rename",
@@ -259,7 +259,7 @@ import TurtleGitCore
         precondition(!items(make([tracked], settings: allCommands())).contains { FinderShellMenuLayout.action($0) == .sendMail })
         print("Actual Finder LFS/Send Mail: cached marker, folder/file nested commands, original icons and selectors, captured URL paths, first-level/Shift/icon policies and outside-repository patch/extended mail gates passed.")
         let trackedActions = rootActions(make([tracked], settings: allCommands()))
-        precondition(trackedActions == [.commit, .diff, .diffLater, .previousDiff, .blame, .log, .revisionGraph, .status, .stash, .rename, .remove, .removeKeep, .ignoreDelete], "Unchanged tracked file must have source file commands, not folder commands or Revert")
+        precondition(trackedActions == [.commit, .diff, .diffLater, .previousDiff, .blame, .log, .daemon, .revisionGraph, .status, .stash, .rename, .remove, .removeKeep, .ignoreDelete], "Unchanged tracked file must have source file commands, not folder commands or Revert")
         let addedFile = folder.appendingPathComponent("added.txt"); try Data().write(to: addedFile)
         let addedSnapshot = FinderSnapshot(roots: [folder.path], states: [addedFile.path: .added], repositories: [folder.path: FinderRepositoryMetadata()])
         let addedMenu = FinderMenuBuilder.make(paths: [addedFile], snapshot: addedSnapshot, settings: allCommands(), comparisonMark: nil, target: target, actionSelector: selector)
@@ -331,8 +331,8 @@ import TurtleGitCore
         precondition(!trackedActions.contains(.export) && !multiple.contains(.export))
         let bareMenu = metadataMenu(FinderRepositoryMetadata(bare: true))
         verifyOrder(bareMenu)
-        precondition(rootActions(bareMenu) == [.fetch, .push, .log, .revisionGraph, .reflog, .referenceBrowser, .repositoryBrowser, .export, .worktreeList])
-        print("Actual metadata menu receiver: absent/present stash and .gitmodules, merge/bisect exclusions and nine bare-root Git commands plus utilities follow source repository clauses while preserving groups. Cached facts only; fresh signed handoff remains pending.")
+        precondition(rootActions(bareMenu) == [.fetch, .push, .log, .daemon, .revisionGraph, .reflog, .referenceBrowser, .repositoryBrowser, .export, .worktreeList])
+        print("Actual metadata menu receiver: absent/present stash and .gitmodules, merge/bisect exclusions and ten bare-root Git commands plus utilities follow source repository clauses while preserving groups. Cached facts only; fresh signed handoff remains pending.")
         let unrelated = outside.appendingPathComponent("plain.txt"); try Data().write(to: unrelated)
         let outsideFileMenu = FinderMenuBuilder.make(paths: [unrelated], snapshot: nil, settings: allCommands(),
             comparisonMark: nil, target: target, actionSelector: selector)

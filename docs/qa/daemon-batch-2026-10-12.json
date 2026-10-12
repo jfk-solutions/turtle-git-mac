@@ -1,0 +1,15 @@
+{
+  "date": "2026-10-12",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Git daemon warning/progress/lifecycle, app and Finder handoff",
+  "implementationThenGroupedValidation": true,
+  "build": {"configuration": "Debug", "architecture": "arm64", "exitCode": 0, "signed": false, "log": "build/qa/daemon-native-2026-10-12.log", "notes": "Existing warnings and exit-zero compiler diagnostics; separate native receiver compilation also succeeded."},
+  "core": {"tests": 40, "failures": 0, "seconds": 4.901, "log": "build/qa/daemon-core-2026-10-12.log", "realGit": ["loopback clone", "port reuse after cancellation", "occupied port", "pre-cancelled start", "HEAD/index preservation", "worker cleanup on natural exit and cancellation"]},
+  "finder": {"exitCode": 0, "implementedRootEntries": 56, "sourceConditionCommands": 59, "log": "build/qa/daemon-finder-2026-10-12.log", "installedExtensionActivated": false},
+  "native": {"exitCode": 0, "compilations": 1, "receiverProcesses": 1, "log": "build/qa/daemon-receivers-2026-10-12.log", "daemonTransport": "injected", "mailTransport": "owned loopback SMTP", "checks": ["warning before start", "remember only Proceed", "Abort", "duplicate Proceed", "readiness across chunks", "bounded output under flooding", "Cancel and close after exit", "forced-close cancellation", "Quit blocked through process cleanup", "existing LFS/mail receiver checks"], "installedApplicationLaunched": false},
+  "availableFinderGroups": 50,
+  "catalogFinderGroups": 55,
+  "remainingUnavailableFinderGroups": ["SVN DCommit", "SVN Rebase", "SVN Fetch", "SVN Ignore", "Review Patch"],
+  "remainingAcceptance": ["physical source comparison light/dark", "signed Finder/bookmark handoff", "firewall prompts", "LAN/IPv6 serving", "bundled helper sandbox inheritance", "App Store acceptance", "complete application/dialog parity"],
+  "completePortCertified": false
+}

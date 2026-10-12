@@ -70,6 +70,8 @@ import TurtleGitCore
     private var revertProgressWindows: [UUID: RevertProgressWindowController] = [:]
     private var addWindows: [String: AddWindowController] = [:]
     private var addUnifiedWindows: [String: PatchWindowController] = [:]
+    private var daemonWindows: [String: GitDaemonWindowController] = [:]
+    var daemonPresentation: ((GitDaemonWindowController) -> Void)?
     private var lfsLocksWindows: [String: LFSLocksWindowController] = [:]
     private var lfsFileOperations: [UUID: LFSFileOperationController] = [:]
     private var finderMailWorkflows: [UUID: SendMailWorkflow] = [:]
@@ -318,6 +320,7 @@ import TurtleGitCore
         guard !confirmingQuit else { return }
         guard !bare || !action.requiresWorkingTree else { error = "\(action.title) requires a working tree. This repository is bare."; return }
         switch action {
+        case .daemon: showDaemon()
         case .lfs: error = "Choose an operation from the Git LFS submenu."
         case .lfsLocks: showLFSLocks()
         case .lfsLock, .lfsUnlock:
@@ -768,6 +771,17 @@ import TurtleGitCore
                 controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
             } catch { self.error = error.localizedDescription }
         }
+    }
+    func showDaemon() {
+        guard !busy, !confirmingQuit, let repository else { return }
+        let key = repository.root.path
+        if let existing = daemonWindows[key] { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
+        let controller = GitDaemonWindowController(repository: repository, access: activeAccess)
+        controller.onClosed = { [weak self] in self?.daemonWindows.removeValue(forKey: key) }
+        daemonWindows[key] = controller
+        if let daemonPresentation { daemonPresentation(controller) }
+        else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
+        controller.model.begin()
     }
     func showLFSLocks() {
         guard !busy, !confirmingQuit, !bare, let repository else { return }

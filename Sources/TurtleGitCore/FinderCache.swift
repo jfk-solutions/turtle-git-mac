@@ -162,7 +162,7 @@ public struct FinderRepositoryMetadata: Codable, Equatable, Sendable {
     /// Repository-wide clauses only; path/status clauses remain separate.
     public func allows(_ action: RepositoryAction) -> Bool {
         if action.isApplicationUtility || action == .sendMail { return true }
-        if bare { return [.fetch, .push, .log, .revisionGraph, .reflog, .referenceBrowser, .repositoryBrowser, .export, .worktreeList].contains(action) }
+        if bare { return [.fetch, .push, .log, .daemon, .revisionGraph, .reflog, .referenceBrowser, .repositoryBrowser, .export, .worktreeList].contains(action) }
         if [.pull, .merge, .rebase, .synchronize].contains(action) && (bisectActive || mergeActive) { return false }
         if action == .bisectStart && (bisectActive || mergeActive) { return false }
         if action.bisectOperation != nil && !bisectActive { return false }
@@ -293,12 +293,13 @@ public struct FinderSnapshot: Codable, Sendable {
 }
 
 public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
-    case lfs, lfsLocks, lfsLock, lfsUnlock, sendMail
+    case daemon, lfs, lfsLocks, lfsLock, lfsUnlock, sendMail
     case synchronize, blame, previousDiff, logSubmodule, settings, help, about
     case status, commit, add, revert, clean, submoduleAdd, submoduleUpdate, submoduleSync, log, revisionGraph, referenceBrowser, repositoryBrowser, export, bisect, bisectStart, bisectGood, bisectBad, bisectSkip, bisectReset, formatPatch, importPatch, requestPull, worktreeCreate, worktreeList, diff, diffLater, clearComparisonMark, pull, push, fetch, branch, tag, switchBranch, merge, mergeAbort, rebase, stash, stashApply, stashPop, stashList, reflog, clone, initialize, rename, remove, removeKeep, ignore, ignoreMask, ignoreDelete, ignoreDeleteMask, resolve, resolveCurrent, resolveMine, resolveTheirs, reset, editConflict
     public var id: String { rawValue }
     public var title: String {
         switch self {
+        case .daemon: return "Daemon"
         case .lfs: return "LFS"
         case .lfsLocks: return "Show locked files"
         case .lfsLock: return "Lock"
@@ -492,6 +493,7 @@ public enum FinderShellRules {
         .diff: [.init([.inGit, .onlyOne], []), .init([.two], [.folder]), .init([], []), .init([], [])],
         .diffLater: [.init([.onlyOne], [.folder]), .init([], []), .init([], []), .init([], [])],
         .log: [.init([.inGit, .onlyOne], [.added]), .init([.folder, .folderInGit, .onlyOne], [.added]), .init([.folderInGit, .onlyOne], [.added]), .init([.bare], [])],
+        .daemon: [.init([.inGit, .onlyOne], [.added]), .init([.folder, .folderInGit, .onlyOne], [.added]), .init([.folderInGit, .onlyOne], [.added]), .init([.bare], [])],
         .revisionGraph: [.init([.inGit, .onlyOne], [.added]), .init([.folder, .folderInGit, .onlyOne], [.added]), .init([.folderInGit, .onlyOne], [.added]), .init([.bare], [])],
         .reflog: [.init([.folderInGit, .onlyOne], []), .init([.bare], []), .init([], []), .init([], [])],
         .referenceBrowser: [.init([.folderInGit, .onlyOne], []), .init([.bare], []), .init([], []), .init([], [])],

@@ -1569,6 +1569,45 @@
           "no": []
         }
       ]
+    },
+    "daemon": {
+      "command": "Daemon",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_INGIT",
+            "ITEMIS_ONLYONE"
+          ],
+          "no": [
+            "ITEMIS_ADDED"
+          ]
+        },
+        {
+          "yes": [
+            "ITEMIS_FOLDER",
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_ONLYONE"
+          ],
+          "no": [
+            "ITEMIS_ADDED"
+          ]
+        },
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_ONLYONE"
+          ],
+          "no": [
+            "ITEMIS_ADDED"
+          ]
+        },
+        {
+          "yes": [
+            "ITEMIS_BAREREPO"
+          ],
+          "no": []
+        }
+      ]
     }
   },
   "additionalSources": {

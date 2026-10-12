@@ -554,3 +554,17 @@ Apply chooses a target working repository with owned-sheet/late-reply fencing.
 The catalog exposes 49 groups; six remain unavailable. Native LFS/mail receivers
 now compile once and run together. See FINDER-LFS-MAIL-PARITY.md for exact source,
 validation and remaining signed/physical/patch-review acceptance.
+
+
+## Git daemon batch — 2026-10-12
+
+Daemon now uses the upstream warning/remember-choice and serving defaults, with
+a native progress window, URLs, bounded output, cancellation and process-tree
+cleanup. App and Finder commands share one window per root, including bare
+repositories, source icon/conditions/order and menu preference mapping. The
+catalog now exposes 50 of 55 groups; four SVN groups and Review Patch remain
+unavailable. Incoming-network entitlement is configured, with signed sandbox,
+physical layout, firewall and LAN/IPv6 acceptance still open. See
+[DAEMON-PARITY.md](DAEMON-PARITY.md). Validation is grouped after the complete
+implementation batch, using loopback-only real Git serving and native receiver
+fixtures; no installed app or Finder extension is activated.

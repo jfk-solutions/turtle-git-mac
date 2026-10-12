@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Compile native receivers once, then run LFS and mail checks in one process.
+"""Compile native receivers once, then run daemon, LFS and mail checks in one process.
 
-LFS uses injected responses. Mail uses only a private loopback SMTP fixture.
+Daemon and LFS use injected responses. Mail uses only a private loopback SMTP fixture.
 No installed app, Finder extension, real mail client or public server is invoked.
 """
 from pathlib import Path
@@ -31,11 +31,15 @@ with tempfile.TemporaryDirectory(prefix='TurtleGitLFSMailNativeBatch-') as tempo
                     .replace('@main struct', 'struct', 1)
                     .replace('NSApplication.shared.setActivationPolicy(.prohibited)', 'NSApplication.shared.setActivationPolicy(.prohibited); unsetenv("GIT_AUTHOR_NAME"); unsetenv("GIT_AUTHOR_EMAIL"); setenv("GIT_AUTHOR_NAME", "", 1); setenv("GIT_AUTHOR_EMAIL", "", 1)')
                     .replace('guard CommandLine.arguments.count == 3, let port = Int(CommandLine.arguments[2]) else', 'guard let port = (try JSONSerialization.jsonObject(with: Data(contentsOf: root.appendingPathComponent("ready.json"))) as? [String: Any])?["port"] as? Int else'))
+    daemon = folder / 'DaemonReceiver.swift'
+    daemon.write_text((root / 'docs/qa/daemon-native-2026-10-12.swift').read_text())
     main = folder / 'Main.swift'
     main.write_text('''import AppKit
 import Foundation
 @main struct NativeBatch {
     @MainActor static func main() async throws {
+        NSApplication.shared.setActivationPolicy(.prohibited)
+        try await DaemonNativeVerification.verify()
         try await LFSLocksVerification.main()
         let fixture = URL(fileURLWithPath: CommandLine.arguments[1])
         try Data().write(to: fixture.appendingPathComponent("lfs-done"))
@@ -51,7 +55,7 @@ import Foundation
     digest = hashlib.sha256()
     digest.update((platform.machine() + '-apple-macos13.0/swift5/WMO-Onone/testing-receiver-v2').encode())
     digest.update(subprocess.check_output(['xcrun', 'swiftc', '--version']))
-    for source in [*map(Path, sources), copy, lfs, mail, main, products / 'TurtleGitCore.framework/TurtleGitCore']:
+    for source in [*map(Path, sources), copy, lfs, mail, daemon, main, products / 'TurtleGitCore.framework/TurtleGitCore']:
         digest.update(source.name.encode()); digest.update(source.read_bytes())
     cache = root / 'build/qa/native-receivers'; cache.mkdir(parents=True, exist_ok=True)
     executable = cache / ('lfs-mail-' + digest.hexdigest())
@@ -59,7 +63,7 @@ import Foundation
         staging = folder / 'verify'
         subprocess.run(['xcrun', 'swiftc', '-whole-module-optimization', '-Onone', '-parse-as-library', '-swift-version', '5',
                         '-target', platform.machine() + '-apple-macos13.0', '-I', str(products), '-F', str(products),
-                        *sources, str(copy), str(lfs), str(mail), str(main), '-framework', 'TurtleGitCore', '-o', str(staging)], cwd=root, check=True)
+                        *sources, str(copy), str(lfs), str(mail), str(daemon), str(main), '-framework', 'TurtleGitCore', '-o', str(staging)], cwd=root, check=True)
         staging.replace(executable)
         print('Native receiver compiled once for this source/framework/toolchain.', flush=True)
     else: print('Reusing native receiver for unchanged source/framework/toolchain.', flush=True)
@@ -85,7 +89,7 @@ import Foundation
         for part in state['parts'][1:]:
             assert part['filename'] == '2.patch'
             assert base64.b64decode(part['payload']) == (mail_fixture / 'expected-attachment').read_bytes()
-        print('Grouped native LFS/mail receiver: one compilation, one verification process; private SMTP MIME verified and owned resources cleaned.')
+        print('Grouped native daemon/LFS/mail receiver: one compilation, one verification process; private SMTP MIME verified and owned resources cleaned.')
     finally:
         if receiver.poll() is None: receiver.terminate()
         receiver.wait(timeout=10)

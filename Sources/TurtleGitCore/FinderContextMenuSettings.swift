@@ -256,6 +256,7 @@ public enum FinderMenuEntry: String, CaseIterable, Sendable {
         switch action {
         case .lfs, .lfsLocks, .lfsLock, .lfsUnlock: return .lfs
         case .sendMail: return .sendMail
+        case .daemon: return .daemon
         case .synchronize: return .sync
         case .blame: return .blame
         case .previousDiff: return .prevDiff
@@ -308,7 +309,7 @@ public enum FinderMenuEntry: String, CaseIterable, Sendable {
     }
     public var availableInFinder: Bool {
         switch self {
-        case .svndCommit, .svnRebase, .svnFetch, .svnIgnore, .daemon, .applyPatch: return false
+        case .svndCommit, .svnRebase, .svnFetch, .svnIgnore, .applyPatch: return false
         default: return true
         }
     }

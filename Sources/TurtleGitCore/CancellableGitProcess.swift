@@ -5,7 +5,7 @@ import Darwin
 /// Cancellation targets that group while its leader PID is still unreaped, so
 /// helper children stop too and the numeric ID cannot be reused by another job.
 enum CancellableGitProcess {
-    static func run(executable: URL, arguments: [String], environment: [String: String], output: Int32, error: Int32, cancellation: OperationCancellation? = nil, pollOutput: (() -> Void)? = nil) throws -> Int32 {
+    static func run(executable: URL, arguments: [String], environment: [String: String], output: Int32, error: Int32, cancellation: OperationCancellation? = nil, pollOutput: (() -> Void)? = nil, terminateDescendantsOnExit: Bool = false) throws -> Int32 {
         try cancellation?.check()
         func check(_ code: Int32) throws {
             guard code == 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(code)) }
@@ -54,7 +54,7 @@ enum CancellableGitProcess {
         func exitCode() -> Int32 { status & 0x7f == 0 ? (status >> 8) & 0xff : 128 + (status & 0x7f) }
         // Ordinary commands block on their own PID without a Foundation run-loop
         // termination notification. Preserve Process.terminationStatus for signals.
-        if cancellation == nil && pollOutput == nil {
+        if cancellation == nil && pollOutput == nil && !terminateDescendantsOnExit {
             while waitpid(pid, &status, 0) < 0 {
                 if errno != EINTR { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
             }
@@ -73,6 +73,21 @@ enum CancellableGitProcess {
                     if errno != EINTR { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
                 }
                 return exitCode()
+            }
+            if terminateDescendantsOnExit {
+                // Observe an exited leader without reaping it. Its PID still
+                // reserves the group ID while remaining workers are killed.
+                var info = siginfo_t()
+                let observed = waitid(P_PID, id_t(pid), &info, WEXITED | WNOHANG | WNOWAIT)
+                if observed < 0 && errno != EINTR { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
+                if observed == 0 && info.si_pid == pid {
+                    kill(-pid, SIGKILL)
+                    while waitpid(pid, &status, 0) < 0 {
+                        if errno != EINTR { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
+                    }
+                    return exitCode()
+                }
+                usleep(10_000); continue
             }
             let waited = waitpid(pid, &status, WNOHANG)
             if waited == pid { return exitCode() }
