@@ -82,34 +82,37 @@ public enum RepositoryBrowserListing {
     }
 }
 extension GitRepository {
-    public func browseRepository(revision: String = "HEAD", directory: String = "") throws -> RepositoryBrowserSnapshot {
+    public func browseRepository(revision: String = "HEAD", directory: String = "", cancellation: OperationCancellation? = nil) throws -> RepositoryBrowserSnapshot {
+        try cancellation?.check()
         guard RepositoryBrowserListing.validPath(directory, allowRoot: true) else { throw RepositoryBrowserFailure.directory }
         guard !revision.isEmpty, !revision.utf8.contains(0) else { throw RepositoryBrowserFailure.revision }
-        let bare = try isBare()
-        if revision == "HEAD", try run(["rev-parse", "--verify", "--quiet", "HEAD"], successfulExitCodes: 0...1).exitCode == 1 {
+        let bare = try isBare(cancellation: cancellation)
+        if revision == "HEAD", try run(["rev-parse", "--verify", "--quiet", "HEAD"], successfulExitCodes: 0...1, cancellation: cancellation).exitCode == 1 {
             // An unborn symbolic HEAD has an empty browser, not an invalid-revision alert.
-            let ref = try run(["symbolic-ref", "--quiet", "HEAD"]).text.trimmingCharacters(in: .newlines)
-            guard try run(["show-ref", "--verify", "--quiet", ref], successfulExitCodes: 0...1).exitCode == 1 else { throw RepositoryBrowserFailure.revision }
+            let ref = try run(["symbolic-ref", "--quiet", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+            guard try run(["show-ref", "--verify", "--quiet", ref], successfulExitCodes: 0...1, cancellation: cancellation).exitCode == 1 else { throw RepositoryBrowserFailure.revision }
             return RepositoryBrowserSnapshot(root: root, revision: revision, objectID: nil, treeID: nil, directory: "", bare: bare, entries: [])
         }
-        let object = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{}"]).text.trimmingCharacters(in: .newlines)
+        let object = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
         let tree: String
-        do { tree = try run(["rev-parse", "--verify", "--end-of-options", object + "^{tree}"]).text.trimmingCharacters(in: .newlines) }
-        catch { throw RepositoryBrowserFailure.revision }
-        return try browseRepositoryTree(revision: revision, objectID: object, treeID: tree, directory: directory, bare: bare)
+        do { tree = try run(["rev-parse", "--verify", "--end-of-options", object + "^{tree}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) }
+        catch { try cancellation?.check(); throw RepositoryBrowserFailure.revision }
+        return try browseRepositoryTree(revision: revision, objectID: object, treeID: tree, directory: directory, bare: bare, cancellation: cancellation)
     }
-    public func browseRepositoryDirectory(_ snapshot: RepositoryBrowserSnapshot, directory: String) throws -> RepositoryBrowserSnapshot {
+    public func browseRepositoryDirectory(_ snapshot: RepositoryBrowserSnapshot, directory: String, cancellation: OperationCancellation? = nil) throws -> RepositoryBrowserSnapshot {
+        try cancellation?.check()
         guard snapshot.root == root, RepositoryBrowserListing.validPath(directory, allowRoot: true),
               let tree = snapshot.treeID, let object = snapshot.objectID else { throw RepositoryBrowserFailure.directory }
-        return try browseRepositoryTree(revision: snapshot.revision, objectID: object, treeID: tree, directory: directory, bare: snapshot.bare)
+        return try browseRepositoryTree(revision: snapshot.revision, objectID: object, treeID: tree, directory: directory, bare: snapshot.bare, cancellation: cancellation)
     }
-    private func browseRepositoryTree(revision: String, objectID: String, treeID: String, directory: String, bare: Bool) throws -> RepositoryBrowserSnapshot {
+    private func browseRepositoryTree(revision: String, objectID: String, treeID: String, directory: String, bare: Bool, cancellation: OperationCancellation?) throws -> RepositoryBrowserSnapshot {
+        try cancellation?.check()
         let subtree: String
         do {
-            subtree = directory.isEmpty ? treeID : try run(["rev-parse", "--verify", "--end-of-options", treeID + ":" + directory]).text.trimmingCharacters(in: .newlines)
-            guard try run(["cat-file", "-t", subtree]).text == "tree\n" else { throw RepositoryBrowserFailure.directory }
-        } catch { throw RepositoryBrowserFailure.directory }
-        let entries = try RepositoryBrowserListing.parse(run(["ls-tree", "-z", "-l", subtree, "--"]).stdout, directory: directory)
+            subtree = directory.isEmpty ? treeID : try run(["rev-parse", "--verify", "--end-of-options", treeID + ":" + directory], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+            guard try run(["cat-file", "-t", subtree], cancellation: cancellation).text == "tree\n" else { throw RepositoryBrowserFailure.directory }
+        } catch { try cancellation?.check(); throw RepositoryBrowserFailure.directory }
+        let entries = try RepositoryBrowserListing.parse(run(["ls-tree", "-z", "-l", subtree, "--"], cancellation: cancellation).stdout, directory: directory)
         return RepositoryBrowserSnapshot(root: root, revision: revision, objectID: objectID, treeID: treeID, directory: directory, bare: bare, entries: entries)
     }
     /// Export a displayed item, or the displayed directory when entry is nil.
@@ -126,7 +129,7 @@ extension GitRepository {
         var count = 0
         func writeFile(_ listing: RepositoryBrowserSnapshot, _ value: RepositoryBrowserEntry, to url: URL) throws {
             try cancellation?.check()
-            let content = try repositoryBrowserFile(listing, entry: value)
+            let content = try repositoryBrowserFile(listing, entry: value, cancellation: cancellation)
             try cancellation?.check()
             try manager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
             try content.bytes.write(to: url, options: .withoutOverwriting)
@@ -140,7 +143,7 @@ extension GitRepository {
                 if value.kind == .submodule { continue }
                 let destination = url.appendingPathComponent(value.name)
                 if value.kind == .directory {
-                    try writeDirectory(browseRepositoryDirectory(snapshot, directory: value.path), to: destination)
+                    try writeDirectory(browseRepositoryDirectory(snapshot, directory: value.path, cancellation: cancellation), to: destination)
                 } else { try writeFile(listing, value, to: destination) }
             }
         }
@@ -150,7 +153,7 @@ extension GitRepository {
             let destination = container.appendingPathComponent(name)
             if let entry, entry.kind != .directory { try writeFile(snapshot, entry, to: destination) }
             else {
-                let listing = try entry.map { try browseRepositoryDirectory(snapshot, directory: $0.path) } ?? snapshot
+                let listing = try entry.map { try browseRepositoryDirectory(snapshot, directory: $0.path, cancellation: cancellation) } ?? snapshot
                 try writeDirectory(listing, to: destination)
             }
             try cancellation?.check()
@@ -160,31 +163,34 @@ extension GitRepository {
     }
     /// Resolve the child checkout at the gitlink displayed by this pinned tree.
     /// Availability may be false; this never initializes or fetches a submodule.
-    public func repositoryBrowserSubmodule(_ snapshot: RepositoryBrowserSnapshot, entry: RepositoryBrowserEntry) throws -> SubmoduleComparison {
+    public func repositoryBrowserSubmodule(_ snapshot: RepositoryBrowserSnapshot, entry: RepositoryBrowserEntry, cancellation: OperationCancellation? = nil) throws -> SubmoduleComparison {
+        try cancellation?.check()
         guard snapshot.root == root, !snapshot.bare, snapshot.entries.contains(entry),
               entry.kind == .submodule, let object = snapshot.objectID else { throw RepositoryBrowserFailure.selection }
-        let result = try submoduleComparison(path: entry.path, from: object, to: object)
+        let result = try submoduleComparison(path: entry.path, from: object, to: object, cancellation: cancellation)
         guard result.from.revision == entry.objectID else { throw RepositoryBrowserFailure.selection }
         return result
     }
     /// Restore one displayed ordinary file to the pinned browser revision,
     /// updating both index and working tree like RepositoryBrowser.cpp checkout.
     /// The caller sequences files and decides Continue/Cancel after each error.
-    public func revertRepositoryBrowserFile(_ snapshot: RepositoryBrowserSnapshot, entry: RepositoryBrowserEntry) throws {
-        guard snapshot.root == root, !snapshot.bare, try !isBare(),
+    public func revertRepositoryBrowserFile(_ snapshot: RepositoryBrowserSnapshot, entry: RepositoryBrowserEntry, cancellation: OperationCancellation? = nil) throws {
+        try cancellation?.check()
+        guard snapshot.root == root, !snapshot.bare, try !isBare(cancellation: cancellation),
               snapshot.entries.contains(entry), ![.directory, .submodule].contains(entry.kind),
               RepositoryBrowserListing.validPath(entry.path, allowRoot: false),
               let object = snapshot.objectID, [40, 64].contains(object.count), object.allSatisfy(\.isHexDigit) else { throw RepositoryBrowserFailure.selection }
         _ = try restoreLocation(entry.path)
         // This is a pinned hexadecimal object ID, never a command-line option.
         // Older supported Git versions do not accept checkout --end-of-options.
-        _ = try run(["checkout", object, "--", entry.path])
+        _ = try run(["checkout", object, "--", entry.path], cancellation: cancellation)
     }
-    public func repositoryBrowserFile(_ snapshot: RepositoryBrowserSnapshot, entry: RepositoryBrowserEntry) throws -> ComparisonFileContent {
+    public func repositoryBrowserFile(_ snapshot: RepositoryBrowserSnapshot, entry: RepositoryBrowserEntry, cancellation: OperationCancellation? = nil) throws -> ComparisonFileContent {
+        try cancellation?.check()
         guard snapshot.root == root, snapshot.entries.contains(entry), entry.kind != .directory, let object = snapshot.objectID else { throw RepositoryBrowserFailure.selection }
         if entry.kind == .submodule {
             return ComparisonFileContent(path: entry.path + ".txt", revision: .revision(object), bytes: Data(("Subproject commit " + entry.objectID).utf8), mode: "100644")
         }
-        return ComparisonFileContent(path: entry.path, revision: .revision(object), bytes: try run(["cat-file", "blob", entry.objectID]).stdout, mode: entry.mode)
+        return ComparisonFileContent(path: entry.path, revision: .revision(object), bytes: try run(["cat-file", "blob", entry.objectID], cancellation: cancellation).stdout, mode: entry.mode)
     }
 }

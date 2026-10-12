@@ -8,6 +8,13 @@ import UniformTypeIdentifiers
 private final class RepositoryBrowserNativeWindow: NSWindow {
     weak var model: RepositoryBrowserWindowModel?
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if attachedSheet == nil, firstResponder is NSTableView, event.modifierFlags.contains(.command),
+           event.modifierFlags.intersection([.control,.option]).isEmpty {
+            if event.charactersIgnoringModifiers?.lowercased() == "a", let model, model.active, !model.busy, !model.mutating {
+                model.selection = Set(model.entries.map(\.id)); return true
+            }
+            if event.charactersIgnoringModifiers?.lowercased() == "c" { model?.copy(); return true }
+        }
         if attachedSheet == nil, event.keyCode == 96 { model?.refresh(); return true }
         if attachedSheet == nil, [36, 76].contains(event.keyCode), !event.modifierFlags.contains(.option), firstResponder is NSTableView {
             if let model, model.selected.count == 1, let entry = model.selected.first { model.open(entry) }
@@ -20,6 +27,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     let model: RepositoryBrowserWindowModel
     var onClosed: () -> Void = {}
     private var picker: LogWindowController?
+    private var ownedSheet: NSWindow?
     init(repository: GitRepository, access: RepositoryAccessLease?, revision: String) {
         model = RepositoryBrowserWindowModel(repository: repository, access: access, revision: revision)
         let window = RepositoryBrowserNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 650), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
@@ -31,59 +39,90 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         window.center()
         model.close = { [weak window] in window?.performClose(nil) }
         model.chooseRevision = { [weak self] in self?.chooseRevision() }
-        model.presentFile = { [weak self] content, action in
-            DispatchQueue.main.async { [weak self] in self?.presentFile(content, action: action) }
-        }
-        model.handleRevertFailure = { [weak window] message in
-            guard let window, window.attachedSheet == nil else { return false }
+        model.presentFile = { [weak self] content, action in self?.presentFile(content,action:action) }
+        model.handleRevertFailure = { [weak self] message in
+            guard let self, self.model.active, let window=self.window, window.attachedSheet == nil else { return false }
             let alert = NSAlert(); alert.messageText = "Could not revert file"
             alert.informativeText = message; alert.alertStyle = .warning
-            alert.addButton(withTitle: "Continue"); alert.addButton(withTitle: "Cancel")
+            alert.addButton(withTitle:"Continue"); alert.addButton(withTitle:"Cancel")
+            self.ownedSheet = alert.window
             return await withCheckedContinuation { continuation in
-                alert.beginSheetModal(for: window) { continuation.resume(returning: $0 == .alertFirstButtonReturn) }
+                alert.beginSheetModal(for:window) { [weak self] response in
+                    if self?.ownedSheet === alert.window { self?.ownedSheet = nil }
+                    continuation.resume(returning:self?.model.active == true && response == .alertFirstButtonReturn)
+                }
             }
         }
-        model.showRevertResult = { [weak window] message in
-            guard let window, window.attachedSheet == nil else { return }
+        model.showRevertResult = { [weak self] message in
+            guard let self, self.model.active, let window=self.window, window.attachedSheet == nil else { return }
             let alert = NSAlert(); alert.messageText = "Revert to this revision"; alert.informativeText = message
-            alert.addButton(withTitle: "OK"); alert.beginSheetModal(for: window)
+            alert.addButton(withTitle:"OK"); self.ownedSheet = alert.window
+            alert.beginSheetModal(for:window) { [weak self] _ in
+                if self?.ownedSheet === alert.window { self?.ownedSheet = nil }
+            }
+        }
+        model.offerSubmoduleUpdate = { [weak self] entry in
+            guard let self, self.model.active, let window=self.window, window.attachedSheet == nil else { return }
+            let identity = self.model.generation
+            let alert=NSAlert(); alert.messageText="Update submodule?"
+            alert.informativeText="Revision " + entry.objectID + " is unavailable in submodule “" + entry.path + "”. Update the submodule to browse it."
+            alert.addButton(withTitle:"Update"); alert.addButton(withTitle:"Cancel"); self.ownedSheet=alert.window
+            alert.beginSheetModal(for:window) { [weak self] response in
+                guard let self else { return }
+                if self.ownedSheet === alert.window { self.ownedSheet=nil }
+                guard self.model.active, self.model.generation == identity, response == .alertFirstButtonReturn else { return }
+                self.model.onSubmoduleUpdate(entry.path)
+            }
         }
         model.refresh()
 
         DialogGeometry.attach(window, identifier: "TurtleGit.RepositoryBrowser", legacyName: "TurtleGit.RepositoryBrowser")
     }
     private func chooseRevision() {
-        guard let window, window.attachedSheet == nil else { return }
+        guard model.active, let window, window.attachedSheet == nil else { return }
         let controller = LogWindowController(repository: model.repository, access: model.access, onChoose: { [weak self] entry in
-            self?.picker = nil
-            if let entry { self?.model.revision = entry.hash; self?.model.refresh() }
+            guard let self, self.model.active else { return }
+            self.picker = nil
+            if let entry { self.model.revision = entry.hash; self.model.refresh() }
         })
         controller.model.endRevision = model.snapshot?.objectID; controller.model.reload()
         picker = controller
         if let child = controller.window { window.beginSheet(child) }
     }
     private func presentFile(_ content: ComparisonFileContent, action: RepositoryBrowserWindowModel.FileAction) {
-        guard let window, window.attachedSheet == nil else { return }
+        guard model.active, let window, window.attachedSheet == nil else { return }
         if action == .save {
             let panel = NSSavePanel(); panel.title = "Save revision to…"
             panel.nameFieldStringValue = (content.path as NSString).lastPathComponent
-            panel.beginSheetModal(for: window) { [weak model] response in
-                guard response == .OK, let url = panel.url else { return }
-                do { try content.bytes.write(to: url, options: .atomic) } catch { model?.error = error.localizedDescription }
+            let identity = model.generation; ownedSheet = panel
+            panel.beginSheetModal(for:window) { [weak self] response in
+                guard let self else { return }
+                if self.ownedSheet === panel { self.ownedSheet = nil }
+                guard self.model.active, self.model.generation == identity, response == .OK, let url=panel.url else { return }
+                do { try content.bytes.write(to:url,options:.atomic) } catch { self.model.error = error.localizedDescription }
             }
         } else if action == .openWith {
             let panel = NSOpenPanel(); panel.title = "Open With"; panel.prompt = "Open"
             panel.allowedContentTypes = [.applicationBundle]; panel.directoryURL = URL(fileURLWithPath: "/Applications")
-            panel.beginSheetModal(for: window) { [weak self] response in
-                if response == .OK, let app = panel.url { self?.open(content, action: action, application: app) }
+            let identity = model.generation; ownedSheet = panel
+            panel.beginSheetModal(for:window) { [weak self] response in
+                guard let self else { return }
+                if self.ownedSheet === panel { self.ownedSheet = nil }
+                guard self.model.active, self.model.generation == identity else { return }
+                if response == .OK, let app=panel.url { self.open(content,action:action,application:app) }
             }
         } else { open(content, action: action) }
     }
     private func open(_ content: ComparisonFileContent, action: RepositoryBrowserWindowModel.FileAction, application: URL? = nil) {
+        guard model.active else { return }
         do {
+            let identity = model.generation
             let preview = try HistoricalFilePreview.create(content); HistoricalPreviewFiles.retain(preview)
             let failed: @MainActor @Sendable (String?) -> Void = { [weak model] error in
-                if let error { HistoricalPreviewFiles.discard(preview.file); model?.error = error }
+                if let error {
+                    HistoricalPreviewFiles.discard(preview.file)
+                    if model?.active == true && model?.generation == identity { model?.error = error }
+                }
             }
             if action == .alternativeEditor { AlternativeEditor.open(preview.file, completion: failed) }
             else if let application {
@@ -96,7 +135,16 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         } catch { model.error = error.localizedDescription }
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { sender.attachedSheet == nil && !model.mutating && !model.confirmingQuit }
-    func windowWillClose(_ notification: Notification) { model.invalidate(); onClosed() }
+    func windowWillClose(_ notification: Notification) {
+        model.invalidate()
+        if let sheet=ownedSheet, window?.attachedSheet === sheet { window?.endSheet(sheet,returnCode:.cancel); sheet.orderOut(nil) }
+        ownedSheet = nil
+        if let picker {
+            if let child=picker.window, window?.attachedSheet === child { window?.endSheet(child,returnCode:.cancel) }
+            picker.close(); self.picker = nil
+        }
+        onClosed()
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class RepositoryBrowserWindowModel: ObservableObject {
@@ -114,20 +162,35 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     @Published var error: String?
     @Published var comparisonMark: PreparedFileComparisonMark?
     private var lastImportedWorkingMark: UUID?
-    private var generation = UUID()
+    private(set) var generation = UUID()
     private var loads = Set<String>()
     private var listings: [String: RepositoryBrowserSnapshot] = [:]
     private var requestedDirectory = ""
-    private var active = true
+    private(set) var active = true
+    private(set) static var activeOperations = 0
+    private var requests: [UUID: OperationCancellation] = [:]
+    private var openRequest: UUID?
+    private func startRequest() -> (UUID, OperationCancellation) {
+        let id = UUID(), cancellation = OperationCancellation()
+        requests[id] = cancellation; Self.activeOperations += 1
+        return (id, cancellation)
+    }
+    private func finishRequest(_ id: UUID) {
+        if requests.removeValue(forKey:id) != nil { Self.activeOperations -= 1 }
+        if openRequest == id { openRequest = nil }
+    }
+    private func cancelRequests() { requests.values.forEach { $0.cancel() } }
     var handleRevertFailure: (String) async -> Bool = { _ in false }
     var showRevertResult: (String) -> Void = { _ in }
     var onChanged: () -> Void = {}
     var close: () -> Void = {}
     var chooseRevision: () -> Void = {}
+    var offerSubmoduleUpdate: (RepositoryBrowserEntry) -> Void = { _ in }
+    var onSubmoduleUpdate: (String) -> Void = { _ in }
     var onLog: (String, String) -> Void = { _, _ in }
     var onBlame: (String, String) -> Void = { _, _ in }
     var onCompare: (String, String) -> Void = { _, _ in }
-    var onSubmodule: (RepositoryBrowserSnapshot, RepositoryBrowserEntry, Bool) -> Void = { _, _, _ in }
+    var onSubmodule: (SubmoduleComparison, RepositoryBrowserEntry, Bool) -> Void = { _, _, _ in }
     var onPreparedFileCompare: ((PreparedFileComparisonMark, PreparedFileComparisonMark) -> Void)?
     enum FileAction { case open, openWith, alternativeEditor, save }
     var presentFile: (ComparisonFileContent, FileAction) -> Void = { _, _ in }
@@ -149,7 +212,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         return "Showing \(values.filter { ![.directory, .submodule].contains($0.kind) }.count) files, \(values.filter { $0.kind == .submodule }.count) submodules and \(values.filter { $0.kind == .directory }.count) folders, \(values.count) items in total"
     }
     func sizeText(_ entry: RepositoryBrowserEntry) -> String { entry.size.map { ByteCountFormatter.string(fromByteCount: $0, countStyle: .file) } ?? "" }
-    func invalidate() { active = false; generation = UUID() }
+    func invalidate() { active = false; generation = UUID(); cancelRequests() }
     func canReuseForRevision(_ requestedRevision: String) -> Bool {
         active && !busy && !mutating && !confirmingQuit && revision == requestedRevision && snapshot?.revision == requestedRevision && snapshot?.directory == ""
     }
@@ -158,55 +221,83 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     }
     func refresh() {
         guard active, !mutating, !confirmingQuit else { return }
-        let token = UUID(); generation = token; busy = true
-        let value = revision, directory = snapshot?.directory ?? ""
-        Task { [weak self, repository, access] in
-            guard let self else { return }
-            defer { if self.generation == token { self.busy = false }; withExtendedLifetime(access) {} }
+        cancelRequests()
+        let identity = UUID(); generation = identity; busy = true; error = nil; loads = []
+        let value = revision, directory = snapshot?.directory ?? "", retainedSelection = selection
+        var wanted = expanded
+        var parent = directory
+        while !parent.isEmpty { wanted.insert(parent); parent = (parent as NSString).deletingLastPathComponent }
+        wanted.insert("")
+        let ordered = wanted.sorted { lhs, rhs in
+            let a=lhs.split(separator:"/").count, b=rhs.split(separator:"/").count
+            return a == b ? lhs < rhs : a < b
+        }
+        let (request, cancellation) = startRequest()
+        Task { [self, repository, access] in
+            defer { finishRequest(request); if active && generation == identity { busy = false }; withExtendedLifetime(access) {} }
             do {
-                try self.validateAccess()
-                let root = try await repository.browseRepository(revision: value)
-                let current = directory.isEmpty || root.treeID == nil ? root : (try? await repository.browseRepositoryDirectory(root, directory: directory)) ?? root
-                guard self.active, self.generation == token else { return }
-                self.directories = ["": root.entries]; self.loads = []; self.listings = ["": root]; self.listings[current.directory] = current; self.requestedDirectory = current.directory
-                self.snapshot = current; self.directories[current.directory] = current.entries
-                self.expanded = [""]; self.selection = []
-            } catch { if self.active && self.generation == token { self.error = error.localizedDescription } }
+                try validateAccess()
+                let root = try await repository.browseRepository(revision:value, cancellation:cancellation)
+                var restored = ["":root]
+                if root.treeID != nil {
+                    for path in ordered where !path.isEmpty {
+                        if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
+                        let ancestor = (path as NSString).deletingLastPathComponent
+                        guard let listing = restored[ancestor], listing.entries.contains(where: { $0.path == path && $0.kind == .directory }) else { continue }
+                        do { restored[path] = try await repository.browseRepositoryDirectory(root,directory:path,cancellation:cancellation) }
+                        catch { if cancellation.isCancelled { throw OperationCancellationFailure.cancelled } /* A removed directory falls back to its surviving ancestor. */ }
+                    }
+                }
+                if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
+                guard active, generation == identity else { return }
+                var currentPath = directory
+                while restored[currentPath] == nil && !currentPath.isEmpty { currentPath = (currentPath as NSString).deletingLastPathComponent }
+                let current = restored[currentPath] ?? root
+                directories = restored.mapValues(\.entries); listings = restored; requestedDirectory = current.directory
+                snapshot = current; expanded = wanted.intersection(Set(restored.keys)); expanded.insert("")
+                selection = retainedSelection.intersection(Set(current.entries.map(\.id)))
+            } catch { if active && generation == identity && !cancellation.isCancelled { self.error = error.localizedDescription } }
         }
     }
     func loadDirectory(_ path: String, select: Bool) {
-        guard active, !busy, !confirmingQuit, let snapshot, snapshot.treeID != nil else { return }
-        let token = generation
+        guard active, !busy, !mutating, !confirmingQuit, let snapshot, snapshot.treeID != nil else { return }
+        let identity = generation
         if select { requestedDirectory = path }
         if let cached = listings[path] {
             if select { self.snapshot = cached; selection = [] }
             return
         }
         guard !loads.contains(path) else { return }; loads.insert(path)
-        Task { [weak self, repository, access] in
-            guard let self else { return }
-            defer { if self.generation == token { self.loads.remove(path) }; withExtendedLifetime(access) {} }
+        let (request, cancellation) = startRequest()
+        Task { [self, repository, access] in
+            defer { finishRequest(request); if active && generation == identity { loads.remove(path) }; withExtendedLifetime(access) {} }
             do {
-                try self.validateAccess()
-                let result = try await repository.browseRepositoryDirectory(snapshot, directory: path)
-                guard self.active, self.generation == token else { return }
-                self.directories[path] = result.entries; self.listings[path] = result
-                if self.requestedDirectory == path { self.snapshot = result; self.selection = [] }
-            } catch { if self.active && self.generation == token { self.error = error.localizedDescription } }
+                try validateAccess()
+                let result = try await repository.browseRepositoryDirectory(snapshot,directory:path,cancellation:cancellation)
+                if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
+                guard active, generation == identity else { return }
+                directories[path] = result.entries; listings[path] = result
+                if requestedDirectory == path { self.snapshot = result; selection = [] }
+            } catch { if active && generation == identity && !cancellation.isCancelled { self.error = error.localizedDescription } }
         }
     }
     func open(_ entry: RepositoryBrowserEntry, action: FileAction = .open) {
-        guard active, !busy, !confirmingQuit, let snapshot, snapshot.entries.contains(entry) else { return }
+        guard active, !busy, !mutating, !confirmingQuit, let snapshot, snapshot.entries.contains(entry) else { return }
         do { try validateAccess() } catch { self.error = error.localizedDescription; return }
-        if entry.kind == .directory { expanded.insert(entry.path); loadDirectory(entry.path, select: true); return }
-        if entry.kind == .submodule && action == .open && !snapshot.bare { onSubmodule(snapshot, entry, false); return }
-        Task { [weak self, repository, access] in
+        if entry.kind == .directory { expanded.insert(entry.path); loadDirectory(entry.path,select:true); return }
+        if entry.kind == .submodule && action == .open && !snapshot.bare { loadSubmodule(snapshot,entry:entry,showLog:false); return }
+        if let openRequest { requests[openRequest]?.cancel() }
+        let (request,cancellation) = startRequest(), identity = generation
+        openRequest = request
+        Task { [self, repository, access] in
+            defer { finishRequest(request); withExtendedLifetime(access) {} }
             do {
-                guard let self else { return }; try self.validateAccess()
-                let content = try await repository.repositoryBrowserFile(snapshot, entry: entry)
-                guard self.active else { return }; self.presentFile(content, action)
-            } catch { self?.error = error.localizedDescription }
-            withExtendedLifetime(access) {}
+                try validateAccess()
+                let content = try await repository.repositoryBrowserFile(snapshot,entry:entry,cancellation:cancellation)
+                if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
+                guard active, generation == identity, openRequest == request else { return }
+                presentFile(content,action)
+            } catch { if active && generation == identity && openRequest == request && !cancellation.isCancelled { self.error = error.localizedDescription } }
         }
     }
     func dragProvider(_ entry: RepositoryBrowserEntry? = nil, directory: String? = nil) -> NSItemProvider? {
@@ -221,30 +312,49 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         guard active, !busy, !confirmingQuit, let snapshot, snapshot.entries.contains(entry), entry.kind == .submodule else { return }
         do { try validateAccess() } catch { self.error = error.localizedDescription; return }
         guard !snapshot.bare else { error = "This bare repository has no child working checkout. Open an initialized working repository to show submodule history."; return }
-        onSubmodule(snapshot, entry, true)
+        loadSubmodule(snapshot,entry:entry,showLog:true)
+    }
+    private func loadSubmodule(_ snapshot: RepositoryBrowserSnapshot, entry: RepositoryBrowserEntry, showLog: Bool) {
+        let (request,cancellation) = startRequest(), identity = generation
+        busy = true
+        Task { [self,repository,access] in
+            defer { finishRequest(request); if active && generation == identity { busy = false }; withExtendedLifetime(access) {} }
+            do {
+                let module = try await repository.repositoryBrowserSubmodule(snapshot,entry:entry,cancellation:cancellation)
+                if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
+                guard active, generation == identity else { return }
+                onSubmodule(module,entry,showLog)
+            } catch { if active && generation == identity && !cancellation.isCancelled { self.error = error.localizedDescription } }
+        }
     }
     func revert(_ entries: [RepositoryBrowserEntry]) {
-        guard active, !busy, !confirmingQuit, let snapshot, !snapshot.bare, !entries.isEmpty,
+        guard active, !busy, !mutating, !confirmingQuit, let snapshot, !snapshot.bare, !entries.isEmpty,
               Set(entries.map(\.id)).count == entries.count,
-              entries.allSatisfy({ snapshot.entries.contains($0) && ![.directory, .submodule].contains($0.kind) }) else { return }
+              entries.allSatisfy({ snapshot.entries.contains($0) && ![.directory,.submodule].contains($0.kind) }) else { return }
         do { try validateAccess() } catch { self.error = error.localizedDescription; return }
+        cancelRequests()
+        let (request,cancellation) = startRequest(), identity = generation
         busy = true; mutating = true
         Task { [self, repository, access] in
+            defer { finishRequest(request); mutating = false; busy = false; withExtendedLifetime(access) {} }
             var restored = 0, failed = 0, attempted = 0
             for entry in entries {
+                guard active, generation == identity, !cancellation.isCancelled else { break }
                 attempted += 1
                 do {
                     try validateAccess()
-                    try await repository.revertRepositoryBrowserFile(snapshot, entry: entry)
+                    try await repository.revertRepositoryBrowserFile(snapshot,entry:entry,cancellation:cancellation)
                     restored += 1
                 } catch {
+                    guard active, generation == identity, !cancellation.isCancelled else { break }
                     failed += 1
-                    if !(await handleRevertFailure(entry.path + "\n\n" + error.localizedDescription)) { break }
+                    let proceed = await handleRevertFailure(entry.path + "\n\n" + error.localizedDescription)
+                    guard active, generation == identity, !cancellation.isCancelled, proceed else { break }
                 }
             }
-            mutating = false; busy = false; onChanged()
+            guard active, generation == identity, !cancellation.isCancelled else { return }
+            onChanged()
             showRevertResult("\(restored) file(s) reverted to \(snapshot.revision)." + (failed == 0 ? "" : "\n\(failed) file(s) failed. \(entries.count - attempted) file(s) were not attempted."))
-            withExtendedLifetime(access) {}
         }
     }
     func importWorkingComparisonMark(_ access: WorkingComparisonAccess?) {
@@ -262,9 +372,10 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
               snapshot.entries.contains(entry), ![.directory, .submodule].contains(entry.kind) else { return }
         onPreparedFileCompare?(comparisonMark, PreparedFileComparisonMark(path: entry.path, revision: revision))
     }
-    func copy(hashes: Bool = false) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(selected.map { hashes ? $0.objectID : $0.name }.joined(separator: "\n"), forType: .string)
+    func copy(hashes: Bool = false, pasteboard: NSPasteboard = .general) {
+        guard active, !busy, !mutating, !confirmingQuit else { return }
+        pasteboard.clearContents()
+        pasteboard.setString(selected.map { hashes ? $0.objectID : $0.name }.joined(separator: "\n"), forType: .string)
     }
 }
 
@@ -371,29 +482,34 @@ private struct RepositoryFolderRow: View {
     let path: String
     let name: String
     var body: some View {
-        DisclosureGroup(isExpanded: Binding(get: { model.expanded.contains(path) }, set: { expanded in
-            if expanded { model.expanded.insert(path); model.loadDirectory(path, select: false) }
-            else { model.expanded.remove(path) }
-        })) {
-            if let children = model.directories[path] {
-                ForEach(RepositoryBrowserListing.sorted(children).filter { $0.kind == .directory }) { entry in
-                    AnyView(RepositoryFolderRow(model: model, path: entry.path, name: entry.name))
-                }
-            } else { ProgressView().controlSize(.small) }
-        } label: {
-            Button { model.loadDirectory(path, select: true) } label: {
-                HStack(spacing: 5) {
-                    Image(nsImage: NSWorkspace.shared.icon(for: .folder)).resizable().frame(width: 16, height: 16)
-                    Text(verbatim: name).lineLimit(1)
-                }.padding(3).background(model.snapshot?.directory == path ? Color.accentColor.opacity(0.2) : Color.clear)
-            }.buttonStyle(.plain).onDrag { model.dragProvider(directory: path) ?? NSItemProvider() }.contextMenu {
-                TurtleGitContextMenu {
-                    if let revision = model.snapshot?.objectID {
-                        Button { model.onLog(path, revision) } label: { CommandLabel(title: "Show log", icon: .log) }
-                        Button {
-                            NSPasteboard.general.clearContents(); NSPasteboard.general.setString(name, forType: .string)
-                        } label: { CommandLabel(title: "Copy to clipboard", icon: .copy) }
+        if let children = model.directories[path], !children.contains(where: { $0.kind == .directory }) {
+            folderButton.padding(.leading,18)
+        } else {
+            DisclosureGroup(isExpanded:Binding(get:{ model.expanded.contains(path) },set:{ expanded in
+                if expanded { model.expanded.insert(path); model.loadDirectory(path,select:false) }
+                else { model.expanded.remove(path) }
+            })) {
+                if let children=model.directories[path] {
+                    ForEach(RepositoryBrowserListing.sorted(children).filter { $0.kind == .directory }) { entry in
+                        AnyView(RepositoryFolderRow(model:model,path:entry.path,name:entry.name))
                     }
+                } else { ProgressView().controlSize(.small) }
+            } label: { folderButton }
+        }
+    }
+    private var folderButton: some View {
+        Button { model.loadDirectory(path,select:true) } label: {
+            HStack(spacing:5) {
+                Image(nsImage:NSWorkspace.shared.icon(for:.folder)).resizable().frame(width:16,height:16)
+                Text(verbatim:name).lineLimit(1)
+            }.padding(3).background(model.snapshot?.directory == path ? Color.accentColor.opacity(0.2) : Color.clear)
+        }.buttonStyle(.plain).onDrag { model.dragProvider(directory:path) ?? NSItemProvider() }.contextMenu {
+            TurtleGitContextMenu {
+                if let revision=model.snapshot?.objectID {
+                    Button { model.onLog(path,revision) } label: { CommandLabel(title:"Show log",icon:.log) }
+                    Button {
+                        NSPasteboard.general.clearContents(); NSPasteboard.general.setString(name,forType:.string)
+                    } label: { CommandLabel(title:"Copy to clipboard",icon:.copy) }
                 }
             }
         }

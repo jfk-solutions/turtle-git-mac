@@ -1460,3 +1460,10 @@ test-owned windows with existing screen-recording permission. Wrapping tests
 cover real TextKit and table geometry, resize, preserved private clipboard/range,
 logical context/navigation, preference and unchanged repository bytes. No Core
 suite rerun is needed for these native-only changes.
+
+The Repository Browser lifecycle family is part of the cached reference receiver
+(`--only repository-browser`). It combines real nested-folder refresh/fallback,
+private Copy, pinned child lookup, multi-file Continue/Cancel and duplicate guards,
+owned root/tree/blob/checkout process cancellation and reaping, Quit lifetime,
+and actual file/failure-sheet forced closure. The relevant Core group is
+`RepositoryBrowserTests|SubmoduleComparisonTests`; CI still runs the full suite.

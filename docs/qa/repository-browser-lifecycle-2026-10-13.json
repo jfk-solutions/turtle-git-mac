@@ -1,0 +1,73 @@
+{
+  "date": "2026-10-13",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Browser refresh ancestors/selection and removed-folder fallback",
+    "Root/tree/blob/export/restore/submodule cancellation",
+    "Owned native file/update/failure/result sheets and late reply fences",
+    "Multi-file Revert Continue/Cancel, keyboard selection/copy and Quit lifetime"
+  ],
+  "source": [
+    "src/TortoiseProc/RepositoryBrowser.cpp Refresh/ReadTree/Revert/Open/Save/PreTranslateMessage"
+  ],
+  "adaptation": "Pinned upstream Refresh resets to root; native refresh retains surviving current folder/expansion/selection deliberately.",
+  "validation": {
+    "initial_build": "Failed: native model called internal Core cancellation.check; changed native boundaries to public isCancelled check.",
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/browser-lifecycle-build-final2-2026-10-13.log",
+      "notes": "Existing warnings/no-output exit-0 compiler diagnostic; not a clean-log claim"
+    },
+    "core": {
+      "exit": 0,
+      "tests": 22,
+      "scope": "RepositoryBrowserTests and SubmoduleComparisonTests",
+      "log": "build/qa/browser-lifecycle-core-final2-2026-10-13.log"
+    },
+    "native": {
+      "exit": 0,
+      "cases": 2,
+      "engines": [
+        "system Git",
+        "packaged Git"
+      ],
+      "log": "build/qa/browser-lifecycle-native-2026-10-13.log",
+      "owned_receivers_reaped": [
+        9115,
+        9296
+      ],
+      "independently_absent": true,
+      "scope": "Real nested refresh/fallback, captured child lookup, private clipboard, partial multi-file restores, four blocked Git phases with process reaping, Quit and actual Save/OpenWith/failure-sheet retirement"
+    },
+    "initial_compiler_failure": "Second attempt triggered Swift 6.4 assertion while type-checking shadowed catch error assignment; explicit self.error fixes it.",
+    "appstore": {
+      "exit": 0,
+      "log": "build/qa/browser-lifecycle-appstore-2026-10-13.log",
+      "signed": false
+    },
+    "website": {
+      "exit": 0,
+      "output": "build/site"
+    },
+    "appstore_bundle": {
+      "exit": 0,
+      "log": "build/qa/browser-lifecycle-appstore-audit-2026-10-13.log",
+      "require_git": true,
+      "signed_acceptance": false
+    }
+  },
+  "limits": [
+    "Full visual/keyboard/pointer/accessibility acceptance remains incomplete",
+    "Column choices, multi-row/tree/root drag interoperability, invalid UTF-8 policy and tree-object command handoffs remain open",
+    "Focused local checks do not establish full hosted CI, physical Finder or signed/App Store acceptance",
+    "Partially completed restore effects are retained; cancellation is not rollback"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/RepositoryBrowser.swift": "ea69aace13b68b5d58b04914dc99ac786dbb58b23f5375817b91dbac36f7b5fe",
+    "Sources/TurtleGitCore/SubmoduleComparison.swift": "3b412f5782a85384f9deac67b662bff4583ff7e8c97ea075ea089e2ff55d8c27",
+    "Sources/TurtleGitMac/RepositoryBrowserWindow.swift": "1247cbaf52e48669c37a9d118517cb27407ac48033c01c1b99913c32a60c1141",
+    "Sources/TurtleGitMac/RepositoryBrowserDrag.swift": "2ebfa406cfd276e76b73b277214d1572b0dc68317683259598b2a31b5bd28272",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "bf5f0fdcd0cf05b0a5cb91c999883c95e2896268fae115323fca0f9822c5b18e",
+    "docs/qa/repository-browser-lifecycle-native-2026-10-13.swift": "54af013ba5b2ae6199442d86e8dd9ad8df30492aa1d2bef9a4db544e5523150b"
+  }
+}

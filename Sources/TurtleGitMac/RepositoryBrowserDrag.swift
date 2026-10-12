@@ -43,7 +43,7 @@ import UniformTypeIdentifiers
         do {
             if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
             let current: RepositoryBrowserSnapshot
-            if let directory { current = try await repository.browseRepositoryDirectory(snapshot, directory: directory) }
+            if let directory { current = try await repository.browseRepositoryDirectory(snapshot, directory: directory, cancellation: cancellation) }
             else { current = snapshot }
             let export = try await repository.exportRepositoryBrowser(current, entry: entry, cancellation: cancellation)
             RepositoryBrowserExportFiles.retain(export)

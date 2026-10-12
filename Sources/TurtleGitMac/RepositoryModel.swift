@@ -1570,34 +1570,19 @@ import TurtleGitCore
         }
         controller.model.importWorkingComparisonMark(try? comparisonMarkStore.acquire(requireSecurityScope: GitRuntime.isAppStoreBuild))
         controller.model.onPreparedFileCompare = { [weak self] marked, current in self?.showPreparedFileComparison(repository: repository, access: access, marked: marked, current: current) }
-        controller.model.onSubmodule = { [weak self, weak model = controller.model, weak window = controller.window] snapshot, entry, showLog in
-            guard model?.busy == false, model?.confirmingQuit == false else { return }
-            model?.busy = true
-            Task {
-                defer { model?.busy = false; withExtendedLifetime(access) {} }
-                do {
-                    if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                    let module = try await repository.repositoryBrowserSubmodule(snapshot, entry: entry)
-                    guard let model, let window, window.isVisible else { return }
-                    guard let checkout = module.checkout, module.from.available else {
-                        if showLog {
-                            model.error = "Cannot show submodule history at " + entry.objectID + ". The child repository is not initialized or the revision is unavailable."
-                            return
-                        }
-                        guard window.attachedSheet == nil else { return }
-                        let alert = NSAlert(); alert.messageText = "Update submodule?"
-                        alert.informativeText = "Revision " + entry.objectID + " is unavailable in submodule “" + entry.path + "”. Update the submodule to browse it."
-                        alert.addButton(withTitle: "Update"); alert.addButton(withTitle: "Cancel")
-                        alert.beginSheetModal(for: window) { [weak self] response in
-                            if response == .alertFirstButtonReturn { self?.showSubmoduleUpdate(repository: repository, access: access, scope: [], selected: [entry.path]) }
-                        }
-                        return
-                    }
-                    let child = GitRepository(root: checkout, executable: repository.executable)
-                    if showLog { self?.showLog(repository: child, access: access, paths: [], endRevision: entry.objectID) }
-                    else { self?.showRepositoryBrowser(repository: child, access: access, revision: entry.objectID) }
-                } catch { model?.error = error.localizedDescription }
+        controller.model.onSubmoduleUpdate = { [weak self] path in
+            self?.showSubmoduleUpdate(repository:repository,access:access,scope:[],selected:[path])
+        }
+        controller.model.onSubmodule = { [weak self,weak model=controller.model] module,entry,showLog in
+            guard let model, model.active else { return }
+            guard let checkout=module.checkout, module.from.available else {
+                if showLog { model.error="Cannot show submodule history at " + entry.objectID + ". The child repository is not initialized or the revision is unavailable." }
+                else { model.offerSubmoduleUpdate(entry) }
+                return
             }
+            let child=GitRepository(root:checkout,executable:repository.executable)
+            if showLog { self?.showLog(repository:child,access:access,paths:[],endRevision:entry.objectID) }
+            else { self?.showRepositoryBrowser(repository:child,access:access,revision:entry.objectID) }
         }
         browserWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }

@@ -215,8 +215,8 @@ See [structured evidence](qa/repository-browser-2026-10-05.json).
 
 ## Remaining parity work
 
-- Native multi-file Revert menu and partial-success Continue/Cancel acceptance;
-  the per-file backend, single-file recovery and rejection cases are verified.
+- Physical multi-file Revert pointer/menu acceptance; the later lifecycle batch
+  adds grouped native real Continue/Cancel and duplicate-operation checks.
 - Actual Finder and other-app drops, multi-selected row drags, tree/root drag
   acceptance and file-object clipboard interoperability. Native historical item
   representations and file/folder receivers are implemented and checked.
@@ -227,11 +227,11 @@ See [structured evidence](qa/repository-browser-2026-10-05.json).
 - Complete Open With, alternative editor, Save, Blame and working comparison
   acceptance from this window, plus imported Finder comparison marks.
 - Persistent column choices, divider/frame restoration, full keyboard selection,
-  accessibility and large repositories. Known-empty folders still show disclosure
-  arrows; revision refresh can collapse ancestors of the retained current folder.
+  accessibility and large repositories. False disclosure arrows for loaded leaf
+  folders and refresh ancestry are addressed by the October 13 lifecycle batch.
 - Native dark appearance, signed Finder invocation and Store security scopes.
-- Full cancellation of underlying Git reads; closed-window generation guards
-  prevent late results from publishing but do not terminate an in-flight command.
+- Full signed/physical cancellation acceptance; the October 13 lifecycle batch
+  adds Git token propagation, process reaping and closed-window request ownership.
 - Invalid UTF-8 path bytes and nonstandard tree modes need a defined native policy.
 
 The source inventory keeps this dialog and command files partial. The complete
@@ -254,3 +254,54 @@ receiver inside its owned temporary directory and runs it once with a bounded
 60-second timeout. This is the script invoked by the macOS GitHub Actions workflow;
 local execution does not establish hosted CI success. No GUI app/Finder instance
 is launched by this receiver.
+
+## Browser navigation and operation ownership — October 13, 2026
+
+This batch follows RepositoryBrowser.cpp Refresh, ReadTree, the Open/Save/Revert
+menu branches, per-file Continue/Cancel and Enter/F5/Select All routes. Upstream
+Refresh returns to root. The native browser deliberately retains its current
+folder, loaded expanded ancestors and still-present selected paths, extending its
+existing folder-retention behavior. Changed revisions rebuild those ancestors
+from the new pinned tree; removed folders fall back to the nearest surviving
+ancestor. Known-loaded folders without child directories no longer show a false
+disclosure arrow. Command-A and Command-C work in the contents table.
+
+Root resolution, tree reads, blob Open/Save, recursive exports, per-file restore,
+and submodule metadata now pass cancellation into every Git process. Refresh
+cancels superseded reads; owner retirement cancels all owned requests. Request
+counts retain Quit protection until the process actually settles, including after
+a closed browser leaves the visible-window registry. Superseded and closed
+results cannot display files, errors, completion summaries or refresh callbacks.
+The data APIs retain default arguments for existing callers.
+
+Submodule Open/Log reads are now owned by the browser model, with captured pinned
+entries. Missing-child Update offers, Open With, Save and per-file failure/result
+sheets are owned by the controller and ended on forced closure. Modal replies
+check the owner's lifetime and revision generation before writing or handing off.
+Completed files in a partially cancelled restore remain restored; cancellation
+does not claim rollback. Ordinary close remains blocked during mutations/sheets.
+Historical item providers can outlive the browser by design; receiver cancellation
+now reaches directory traversal and each blob read as well as the export loop.
+
+Multi-file Revert retains source ordering, one Continue/Cancel question per failed
+file, duplicate-operation exclusion and a summary of restored/failed/unattempted
+files. Native verification exercises real index-lock failures and subsequent
+success, rather than replacing Git with a successful stub. Validation is recorded
+in `qa/repository-browser-lifecycle-2026-10-13.json` after execution.
+
+Column-choice persistence, multi-row/tree/root drag interoperability, invalid path
+byte policy, tree-object Log/Blame handoffs, full visual/accessibility acceptance,
+physical Finder and signed sandbox/App Store acceptance remain open. This batch
+does not establish complete Repository Browser or application parity.
+
+The Debug build and 22 focused Core tests passed. The grouped native browser
+receiver passed with system and packaged Git, including four live blocked-process
+phases on each engine and actual owned file/failure-sheet retirement. Both
+receivers were reaped and independently checked absent. Earlier compile attempts
+failed on an internal cancellation API and a shadowed error assignment (the
+latter triggered a Swift compiler assertion); both were corrected before the
+passing run. Physical pointer/menu acceptance and signed acceptance remain open.
+
+The unsigned App Store build and its `--require-git` bundle audit passed. The
+website build passed. This does not establish signed sandbox execution, App Store
+review or a complete hosted CI run.

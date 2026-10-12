@@ -245,6 +245,26 @@ final class RepositoryBrowserTests: XCTestCase {
         let foreign = RepositoryBrowserEntry(path: file.path, name: file.name, mode: file.mode, objectID: String(repeating: "f", count: 40), size: file.size)
         do { _ = try await repo.exportRepositoryBrowser(snapshot, entry: foreign); XCTFail("Foreign blob exported") } catch is RepositoryBrowserFailure {}
     }
+    func testCancellationReachesEveryBrowserOperationWithoutMutatingRepository() async throws {
+        let (root,repo,_) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at:root) }
+        try FileManager.default.createDirectory(at:root.appendingPathComponent("nested"),withIntermediateDirectories:true)
+        try Data("nested bytes\n".utf8).write(to:root.appendingPathComponent("nested/file"))
+        try await repo.stage(["nested/file"]); _ = try await repo.commit(message:"Nested")
+        let snapshot=try await repo.browseRepository(), nested=try await repo.browseRepositoryDirectory(snapshot,directory:"nested")
+        let entry=try XCTUnwrap(nested.entries.first), token=OperationCancellation();token.cancel()
+        let head=try await repo.run(["rev-parse","HEAD"]).stdout,index=try Data(contentsOf:root.appendingPathComponent(".git/index")),file=try Data(contentsOf:root.appendingPathComponent("nested/file"))
+        do { _ = try await repo.browseRepository(cancellation:token);XCTFail("Root cancellation lost") } catch is OperationCancellationFailure {}
+        do { _ = try await repo.browseRepositoryDirectory(snapshot,directory:"nested",cancellation:token);XCTFail("Directory cancellation lost") } catch is OperationCancellationFailure {}
+        do { _ = try await repo.repositoryBrowserFile(nested,entry:entry,cancellation:token);XCTFail("Blob cancellation lost") } catch is OperationCancellationFailure {}
+        do { try await repo.revertRepositoryBrowserFile(nested,entry:entry,cancellation:token);XCTFail("Restore cancellation lost") } catch is OperationCancellationFailure {}
+        do { _ = try await repo.exportRepositoryBrowser(nested,cancellation:token);XCTFail("Export cancellation lost") } catch is OperationCancellationFailure {}
+        do { _ = try await repo.repositoryBrowserSubmodule(nested,entry:entry,cancellation:token);XCTFail("Submodule cancellation lost") } catch is OperationCancellationFailure {}
+        do { _ = try await repo.submoduleComparison(path:entry.path,cancellation:token);XCTFail("Child cancellation lost") } catch is OperationCancellationFailure {}
+        let afterHead=try await repo.run(["rev-parse","HEAD"]).stdout
+        XCTAssertEqual(head,afterHead);XCTAssertEqual(index,try Data(contentsOf:root.appendingPathComponent(".git/index")));XCTAssertEqual(file,try Data(contentsOf:root.appendingPathComponent("nested/file")))
+    }
+
     func testSortingAndMalformedTreeRecords() throws {
         let oid = String(repeating: "a", count: 40)
         let bytes = Data(("100644 blob " + oid + " 20\tfile2.txt\0" + "040000 tree " + oid + " -\tfolder\0" + "100644 blob " + oid + " 1\tfile10.txt\0").utf8)
