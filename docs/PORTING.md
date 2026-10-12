@@ -670,3 +670,13 @@ engine errors clear alignment instead of silently using the projection. The
 batch includes native typing, Unicode selection, Undo/Redo, marked Save and
 encoding/EOL preservation checks. Source-engine resolved children, full options,
 complete captures and physical/signed acceptance remain open.
+
+## Resolved-child metadata and source padding — 2026-10-12
+
+Protocol 2 exports Subversion's resolved children with their parent IDs and
+validates side partitions, containment and repeated parent Base ranges. The
+source rendering follows DiffData.cpp's first-child padding rule; parent result
+blocks remain unresolved, including shared child lines. This corrects the earlier
+assumption that the source split those parents into smaller resolved results.
+Original numbered lines and block choices are preserved. Full source option,
+segmentation, physical/signed and visual-capture acceptance remain open.

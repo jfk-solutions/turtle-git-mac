@@ -94,8 +94,8 @@ and corrected by recomputing selection against the current buffer.
 
 ## Remaining upstream behavior
 
-Three-pane alignment now uses the pinned Subversion engine. Resolved child
-regions and complete upstream options remain pending, so exact segmentation of
+Three-pane alignment now uses the pinned Subversion engine. Resolved-child metadata and first-child padding are now implemented; complete
+upstream options and broader segmentation acceptance remain pending, so exact segmentation of
 complex/repeated/adjacent changes still needs broader source comparison. Two-pane comparisons now request Subversion too, retaining only a temporary
 coordinate projection during editing; source equivalence and native acceptance
 remain partial. Synchronized vertical source scrolling

@@ -77,8 +77,12 @@ public struct SubversionMergePresentation: Sendable {
                 }
                 output += mineText; continue
             }
-            for offset in 0..<segment.base.count {
-                let removed = MergeSourceCell(text: plan.base[segment.base.lowerBound + offset], lineNumber: nil, state: .removed)
+            // DiffData's conflict loop pads the removed Base section using
+            // the first resolved child's overlapping Mine/Theirs lengths.
+            // It still treats the complete parent as unresolved.
+            let resolvedPadding = segment.kind == .conflict ? segment.resolved.first.flatMap { child in child.mine.flatMap { mine in child.theirs.map { min(mine.count, $0.count) } } } ?? 0 : 0
+            for offset in 0..<max(segment.base.count, resolvedPadding) {
+                let removed = MergeSourceCell(text: offset < segment.base.count ? plan.base[segment.base.lowerBound + offset] : "", lineNumber: nil, state: .removed)
                 rows.append(.init(
                     mine: segment.kind == .latest ? cell(plan.mine, segment.mine.lowerBound + offset, .normal) : removed,
                     theirs: segment.kind == .modified ? cell(theirs, segment.theirs.lowerBound + offset, .normal) : removed))

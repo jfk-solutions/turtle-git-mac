@@ -51,10 +51,25 @@ final class SubversionMergePresentationTests: XCTestCase {
         XCTAssertEqual(identical.sources.rows.map(\.mine.state), [.removed, .added])
         let added = try presentation("", "mine\n", "theirs\nmore\n")
         XCTAssertEqual(MergeText.conflicts(in: added.result).count, 1)
-        XCTAssertEqual(added.sources.rows[1].mine.state, .conflicted)
-        XCTAssertNil(added.sources.rows[1].mine.lineNumber)
+        XCTAssertEqual(added.sources.rows.last?.mine.state, .conflicted)
+        XCTAssertNil(added.sources.rows.last?.mine.lineNumber)
         XCTAssertEqual(added.sources.rows.compactMap { $0.mine.lineNumber == nil ? nil : $0.mine.text }.joined(), "mine\n")
         XCTAssertEqual(added.sources.rows.compactMap { $0.theirs.lineNumber == nil ? nil : $0.theirs.text }.joined(), "theirs\nmore\n")
+    }
+    func testResolvedFirstChildPadsRemovedBaseWithoutResolvingSharedParent() throws {
+        let mine = "shared1\nshared2\nmine\n", theirs = "shared1\nshared2\ntheirs\n"
+        let value = try presentation("base\n", mine, theirs)
+        XCTAssertEqual(value.sources.rows.count, 5)
+        XCTAssertEqual(value.sources.rows[0].mine.text, "base\n")
+        XCTAssertEqual(value.sources.rows[1].mine.text, "")
+        XCTAssertEqual(value.sources.rows[1].mine.state, .removed)
+        XCTAssertNil(value.sources.rows[1].mine.lineNumber)
+        XCTAssertEqual(value.sources.rows.compactMap { $0.mine.lineNumber == nil ? nil : $0.mine.text }.joined(), mine)
+        XCTAssertEqual(value.sources.rows.compactMap { $0.theirs.lineNumber == nil ? nil : $0.theirs.text }.joined(), theirs)
+        let blocks = MergeText.conflicts(in: value.result)
+        XCTAssertEqual(blocks.count, 1)
+        XCTAssertEqual(blocks[0].mine, mine); XCTAssertEqual(blocks[0].theirs, theirs)
+        XCTAssertEqual(blocks[0].replacement(.mineThenTheirs), mine + theirs)
     }
     func testFilteredCommonChoosesOriginalMineAndRetainsGreenSourceRows() throws {
         let filter = MergeRegexFilter(name: "Versions", expression: "[0-9]+", replacement: "")

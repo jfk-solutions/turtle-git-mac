@@ -12,9 +12,15 @@
 
 static size_t records;
 static int failed;
+static long resolved_parent = -1;
+static size_t roots;
+static __typeof__(&svn_diff_output2) output_api;
+static const svn_diff_output_fns_t callbacks;
 static svn_error_t *emit(const char *kind, apr_off_t os, apr_off_t ol,
                          apr_off_t ms, apr_off_t ml, apr_off_t ts, apr_off_t tl) {
     if (++records > 1000000) { failed = 1; return NULL; }
+    if (resolved_parent >= 0) printf("resolved\t%ld\t", resolved_parent);
+    else ++roots;
     printf("%s\t%lld\t%lld\t%lld\t%lld\t%lld\t%lld\n", kind,
            (long long)os, (long long)ol, (long long)ms, (long long)ml, (long long)ts, (long long)tl);
     return NULL;
@@ -25,11 +31,16 @@ CALLBACK(modified, "modified")
 CALLBACK(latest, "latest")
 CALLBACK(same_change, "same")
 static svn_error_t *conflict(void *baton, apr_off_t os, apr_off_t ol, apr_off_t ms, apr_off_t ml, apr_off_t ts, apr_off_t tl, svn_diff_t *resolved) {
-    (void)baton; (void)resolved;
-    // Keep the top-level region. The caller may request resolved children in
-    // a later protocol version; do not flatten away the conflict container.
-    return emit("conflict", os, ol, ms, ml, ts, tl);
+    (void)baton;
+    emit("conflict", os, ol, ms, ml, ts, tl);
+    if (resolved && resolved_parent < 0) {
+        resolved_parent = (long)roots - 1;
+        svn_error_t *error = output_api(resolved, NULL, &callbacks, NULL, NULL);
+        resolved_parent = -1; return error;
+    }
+    return NULL;
 }
+static const svn_diff_output_fns_t callbacks = {common, modified, latest, same_change, conflict};
 static int read_input(const char *path, svn_string_t *value) {
     FILE *file = fopen(path, "rb"); if (!file) return 0;
     if (fseek(file, 0, SEEK_END) || ftell(file) < 0) { fclose(file); return 0; }
@@ -80,8 +91,8 @@ int main(int argc, char **argv) {
     svn_error_t *error = count == 2 ? p_svn_diff_mem_string_diff(&diff, &inputs[0], &inputs[1], options, pool)
         : p_svn_diff_mem_string_diff3(&diff, &inputs[0], &inputs[1], &inputs[2], options, pool);
     if (!error) {
-        const svn_diff_output_fns_t callbacks = {common, modified, latest, same_change, conflict};
-        printf("svn-diff\t1\t%d\n", count);
+        output_api = p_svn_diff_output2;
+        printf("svn-diff\t2\t%d\n", count);
         error = p_svn_diff_output2(diff, NULL, &callbacks, NULL, NULL);
     }
     if (error) { fprintf(stderr, "Subversion diff failed (%ld).\n", (long)error->apr_err); p_svn_error_clear(error); }

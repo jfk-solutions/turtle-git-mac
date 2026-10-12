@@ -40,11 +40,17 @@ Original-text source selections and marked/edited annotations are remapped when
 Subversion publishes an alignment. Original source data and saved encoding/EOL
 choices remain independent of comparison keys.
 
-Remaining: resolved child conflict regions, complete
+Resolved children are now exported as validated metadata. Subversion repeats
+the parent Base range for each child while Mine/Theirs partition the parent
+sides. The renderer follows DiffData.cpp: the first child supplies removed-Base
+padding, and the parent remains unresolved. Shared child lines do not become
+automatically resolved result blocks.
+
+Remaining: complete
 upstream options and EOL normalization, literal-marker handling, full libsvn
 segmentation equivalence, native layout, physical and signed App Store acceptance.
-The current protocol deliberately retains top-level conflict containers; it does
-not yet export Subversion's resolved child graph. This is a backend foundation
+Protocol 2 retains top-level conflict containers and their resolved children,
+validating containment, side partitions and repeated Base ranges. This is a backend foundation
 and native three-pane integration for the complete port, not certification of
 the full replacement editor.
 
@@ -66,3 +72,19 @@ caret-handoff bug was repaired; the fixture's unmarked-save expectation was
 also corrected. Original UTF-16 Base bytes and executable permissions remained
 unchanged. See `qa/two-pane-engine-integration-2026-10-12.json`. Physical input,
 complete captures and signed acceptance remain open.
+
+Subversion 1.14.5 has a repeated-line EOF edge case: a resolved child can extend
+one token beyond a parent side, followed by a `-1` child length. Protocol 2 keeps
+those bounded raw starts/lengths for diagnostics. Its source-indexable ranges
+are nil for such children. Valid parent ranges remain authoritative for all
+result text and source reconstruction; padding uses only a valid first child.
+No negative length is converted into a Swift range or used to index a source.
+
+Resolved-child validation: the initial grouped run passed the 21 existing
+conflict/source tests but found two engine/presentation failures. The EOF case
+above was repaired, and the old add/add fixture was updated for the source's
+new display-only padding row. All 16 engine/presentation cases then passed,
+including original-source reconstruction and intact parent block choices.
+The embedded protocol-2 adapter passed on arm64 and x86_64. See
+`qa/resolved-children-2026-10-12.json`; a clean rerun of the whole expanded group
+is not claimed. No frontend code changed in this batch.

@@ -34,6 +34,26 @@ final class SubversionMergeDiffTests: XCTestCase {
         XCTAssertEqual(conflict.segments[1].mine, 1..<2)
         XCTAssertEqual(conflict.segments[1].theirs, 1..<2)
     }
+    func testResolvedChildrenPartitionSidesAndRepeatParentBaseRange() throws {
+        let value = try plan("base\n", "shared1\nshared2\nmine\n", "shared1\nshared2\ntheirs\n")
+        let parent = try XCTUnwrap(value.segments.first)
+        XCTAssertEqual(parent.kind, .conflict)
+        XCTAssertEqual(parent.resolved.map(\.kind), [.same, .conflict])
+        XCTAssertEqual(parent.resolved.map(\.base), [0..<1, 0..<1])
+        XCTAssertEqual(parent.resolved.map(\.mine), [0..<2, 2..<3])
+        XCTAssertEqual(parent.resolved.map(\.theirs), [0..<2, 2..<3])
+        XCTAssertTrue(value.hasConflicts)
+    }
+    func testRepeatedLineChildEOFSentinelCannotIndexOriginalSources() throws {
+        let value = try plan("", "a\na\n", "b\na\nb")
+        let parent = try XCTUnwrap(value.segments.first)
+        XCTAssertEqual(parent.mine, 0..<2)
+        let sentinel = try XCTUnwrap(parent.resolved.last)
+        XCTAssertEqual(sentinel.mineStart, 3); XCTAssertEqual(sentinel.mineLength, -1)
+        XCTAssertNil(sentinel.mine)
+        XCTAssertEqual(value.mine.joined(), "a\na\n")
+        XCTAssertTrue(value.hasConflicts)
+    }
     func testFilteredThreeWayRemovesOnlyKeyDifferencesAndRetainsOriginals() throws {
         let filter = MergeRegexFilter(name: "Versions", expression: "[0-9]+", replacement: "")
         let base = "version 12\r\nbase\r\n", mine = "version 81\r\nmine\r\n", theirs = "version 90\r\ntheirs\r\n"
@@ -79,7 +99,7 @@ final class SubversionMergeDiffTests: XCTestCase {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: folder) }
         let fake = folder.appendingPathComponent("fake")
-        try Data("#!/bin/sh\nprintf 'svn-diff\\t1\\t2\\ncommon\\t0\\t99\\t0\\t99\\t0\\t0\\n'\n".utf8).write(to: fake)
+        try Data("#!/bin/sh\nprintf 'svn-diff\\t2\\t2\\ncommon\\t0\\t99\\t0\\t99\\t0\\t0\\n'\n".utf8).write(to: fake)
         try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: fake.path)
         XCTAssertThrowsError(try SubversionMergeDiff.plan(base: "a", mine: "a", executable: fake, runtimeRoot: runtime))
     }

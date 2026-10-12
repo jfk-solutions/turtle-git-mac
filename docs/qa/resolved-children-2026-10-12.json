@@ -1,0 +1,14 @@
+{
+  "date": "2026-10-12",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Subversion resolved-child metadata, protocol 2, upstream parent-conflict padding",
+  "implementationThenGroupedValidation": true,
+  "sourceBehavior": "DiffData.cpp uses the first resolved child's lengths for padding; it keeps the parent unresolved. The implementation preserves that behavior rather than splitting shared child lines into resolved result blocks.",
+  "core": {"initial": {"tests": 36, "failures": 2, "seconds": 14.247, "log": "build/qa/resolved-children-core-2026-10-12.log"}, "repair": {"tests": 16, "failures": 0, "seconds": 1.916, "log": "build/qa/resolved-children-repair-2026-10-12.log"}, "unchangedLegacyCasesPassedInitially": 21, "repairs": ["Pinned Subversion repeated-line graph contains one-past-EOF and -1 child length; preserve raw diagnostic metadata with nil indexable range", "Add/add fixture's gap moved after the upstream-style removed padding row"], "checks": ["child kinds and repeated parent Base ranges", "side partitions", "bounded raw EOF metadata", "parent range/source coverage", "first-child padding", "original Mine/Theirs reconstruction", "one unresolved parent", "unchanged block choices", "existing conflict/source cases"], "fullExpandedGroupCleanRerun": false},
+  "runtime": {"exitCode": 0, "architectures": ["arm64", "x86_64"], "deployment": "macOS 13", "log": "build/qa/resolved-children-runtime-2026-10-12.log"},
+  "build": {"configuration": "Debug", "architecture": "arm64", "exitCode": 0, "signed": false, "log": "build/qa/resolved-children-build-2026-10-12.log", "notes": "Existing exit-zero diagnostics remain."},
+  "embedded": {"exitCode": 0, "executedArchitectures": ["arm64", "x86_64"], "log": "build/qa/resolved-children-bundle-2026-10-12.log", "checks": ["actual embedded protocol 2", "resolved parent ID/ranges", "shared app Subversion libraries"], "applicationLaunched": false, "ownedHelpersExited": true},
+  "remoteCI": {"previousRun": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38199319588", "observedState": "SVN passed, main running Git integration tests, no failed steps when checked", "successfulRemoteRerun": "Not established"},
+  "remainingAcceptance": ["complete source segmentation/options acceptance", "whitespace/case/comment/EOL controls", "literal marker representation", "complete visual captures", "physical source comparison", "signed sandbox/dynamic loading", "minimum-OS execution", "remote CI success", "full application parity"],
+  "completePortCertified": false
+}

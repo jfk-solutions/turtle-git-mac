@@ -2,11 +2,27 @@
 import Foundation
 
 public enum SubversionDiffKind: String, Sendable { case common, modified, latest, same, conflict }
+public struct SubversionResolvedSegment: Sendable, Equatable {
+    public let kind: SubversionDiffKind
+    public let base: Range<Int>
+    public let mineStart: Int
+    public let mineLength: Int
+    public let theirsStart: Int
+    public let theirsLength: Int
+    /// Subversion 1.14.5 can report a one-past-EOF token followed by -1 length
+    /// in repeated-line child graphs. Retain raw metadata but never index with it.
+    public let mine: Range<Int>?
+    public let theirs: Range<Int>?
+}
 public struct SubversionDiffSegment: Sendable, Equatable {
     public let kind: SubversionDiffKind
     public let base: Range<Int>
     public let mine: Range<Int>
     public let theirs: Range<Int>
+    public let resolved: [SubversionResolvedSegment]
+    public init(kind: SubversionDiffKind, base: Range<Int>, mine: Range<Int>, theirs: Range<Int>, resolved: [SubversionResolvedSegment] = []) {
+        self.kind = kind; self.base = base; self.mine = mine; self.theirs = theirs; self.resolved = resolved
+    }
 }
 public struct SubversionDiffPlan: Sendable {
     public let segments: [SubversionDiffSegment]
@@ -94,11 +110,38 @@ public enum SubversionMergeDiff {
         try token.check()
         guard let text = String(data: output, encoding: .utf8) else { throw SubversionMergeDiffFailure.invalidOutput }
         let records = text.split(separator: "\n")
-        guard records.first == "svn-diff\t1\t\(sources.count)" else { throw SubversionMergeDiffFailure.invalidOutput }
+        guard records.first == "svn-diff\t2\t\(sources.count)" else { throw SubversionMergeDiffFailure.invalidOutput }
         let counts = lines.map(\.count) + (sources.count == 2 ? [0] : [])
         var ends = [0, 0, 0], segments: [SubversionDiffSegment] = []
         for record in records.dropFirst() {
             let fields = record.split(separator: "\t")
+            if fields.first == "resolved" {
+                guard sources.count == 3, fields.count == 9, let parentID = Int(fields[1]), parentID == segments.count - 1,
+                      parentID >= 0, let kind = SubversionDiffKind(rawValue: String(fields[2])), [.same, .conflict].contains(kind) else { throw SubversionMergeDiffFailure.invalidOutput }
+                let parent = segments[parentID], values = fields.dropFirst(3).compactMap { Int($0) }
+                guard parent.kind == .conflict, values.count == 6 else { throw SubversionMergeDiffFailure.invalidOutput }
+                let previous = parent.resolved.last
+                var ranges: [Range<Int>?] = []
+                for index in 0..<3 {
+                    let enclosing = [parent.base, parent.mine, parent.theirs][index]
+                    let start = values[index * 2], count = values[index * 2 + 1]
+                    // Subversion repeats the complete parent Base range for
+                    // each resolved child; only Mine/Theirs form partitions.
+                    if index == 0 { guard start == enclosing.lowerBound, count == enclosing.count else { throw SubversionMergeDiffFailure.invalidOutput } }
+                    else {
+                        guard start >= enclosing.lowerBound, start <= enclosing.upperBound + 1,
+                              count >= -1, count <= enclosing.count + 1,
+                              start + count >= enclosing.lowerBound, start + count <= enclosing.upperBound + 1 else { throw SubversionMergeDiffFailure.invalidOutput }
+                        let expected = previous.map { index == 1 ? $0.mineStart + $0.mineLength : $0.theirsStart + $0.theirsLength } ?? enclosing.lowerBound
+                        guard start == expected else { throw SubversionMergeDiffFailure.invalidOutput }
+                    }
+                    ranges.append(count >= 0 && start <= enclosing.upperBound && count <= enclosing.upperBound - start ? start..<start + count : nil)
+                }
+                guard values[3] != 0 || values[5] != 0, kind != .same || values[3] == values[5] else { throw SubversionMergeDiffFailure.invalidOutput }
+                let child = SubversionResolvedSegment(kind: kind, base: parent.base, mineStart: values[2], mineLength: values[3], theirsStart: values[4], theirsLength: values[5], mine: ranges[1], theirs: ranges[2])
+                segments[parentID] = .init(kind: parent.kind, base: parent.base, mine: parent.mine, theirs: parent.theirs, resolved: parent.resolved + [child])
+                continue
+            }
             guard fields.count == 7, let kind = SubversionDiffKind(rawValue: String(fields[0])) else { throw SubversionMergeDiffFailure.invalidOutput }
             let values = fields.dropFirst().compactMap { Int($0) }
             guard values.count == 6 else { throw SubversionMergeDiffFailure.invalidOutput }
@@ -118,6 +161,10 @@ public enum SubversionMergeDiff {
             segments.append(.init(kind: kind, base: ranges[0], mine: ranges[1], theirs: ranges[2]))
         }
         guard ends == counts else { throw SubversionMergeDiffFailure.invalidOutput }
+        for parent in segments where !parent.resolved.isEmpty {
+            guard let last = parent.resolved.last, last.mineStart + last.mineLength == parent.mine.upperBound,
+                  last.theirsStart + last.theirsLength == parent.theirs.upperBound else { throw SubversionMergeDiffFailure.invalidOutput }
+        }
         return .init(segments: segments, base: lines[0], mine: lines[1], theirs: lines.count == 3 ? lines[2] : nil)
     }
 }

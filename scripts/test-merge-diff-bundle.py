@@ -19,6 +19,6 @@ with tempfile.TemporaryDirectory(prefix='TurtleGitMergeBundle-') as temporary:
         file.write_text(''.join(line.encode().hex() + '\n' for line in text.splitlines(keepends=True)))
     for prefix in prefixes:
         output = subprocess.check_output(prefix + [str(helper), str(runtime), '3'] + list(map(str, files)), text=True, timeout=10)
-        assert output == 'svn-diff\t1\t3\ncommon\t0\t1\t0\t1\t0\t1\nconflict\t1\t1\t1\t1\t1\t1\ncommon\t2\t1\t2\t1\t2\t1\n', output
+        assert output == 'svn-diff\t2\t3\ncommon\t0\t1\t0\t1\t0\t1\nconflict\t1\t1\t1\t1\t1\t1\nresolved\t1\tconflict\t1\t1\t1\t1\t1\t1\ncommon\t2\t1\t2\t1\t2\t1\n', output
         print('Embedded Subversion diff3 ranges and shared-library loading passed: ' + (' '.join(prefix) if prefix else 'native CPU'))
 print('Owned helper processes exited; no application windows or repository writes.')
