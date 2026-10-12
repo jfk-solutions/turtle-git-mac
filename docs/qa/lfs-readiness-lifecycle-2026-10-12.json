@@ -1,0 +1,82 @@
+{
+  "date": "2026-10-12",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Awaited native list-position/selection restoration before refresh readiness",
+    "Once-only restore completion on replacement and teardown",
+    "Standalone LFS query/progress retirement and retained cancellation effects",
+    "Commit/Working Tree forced owner closure and current-child completion guards",
+    "Quit guard through retired operation settlement"
+  ],
+  "source": [
+    "src/TortoiseProc/LFSLocksDlg.cpp LocksThread/OnBnClickedUnLock",
+    "src/TortoiseProc/ProgressCommands/LFSSetLockedProgressCommand.cpp",
+    "Shared GitStatusListCtrl scroll/selection restoration"
+  ],
+  "validation": {
+    "debug_build": {
+      "exit": 0,
+      "log": "build/qa/lfs-readiness-lifecycle-build-2026-10-12.log"
+    },
+    "core": "Not rerun: no Core source changes; native lifecycle/bridge batch only",
+    "native": {
+      "initial_exit": 1,
+      "initial_reason": "New fixture assertion contained map(.path) instead of a valid Swift closure/key path. Compilation failed before launching a receiver. Assertion corrected without an app rebuild.",
+      "status": "passed across grouped run and affected retry",
+      "command": "python3 scripts/test-native-lfs-mail-batch.py",
+      "log": "build/qa/lfs-readiness-lifecycle-native-2026-10-12-fixture-repair.log",
+      "full_group_exit": 1,
+      "full_group_owned_pid": 92094,
+      "full_group_receiver_reaped": true,
+      "completed_phases_before_teardown_failure": [
+        "MergeRegexNativeVerification",
+        "ThreePaneEngineVerification",
+        "TwoPaneEngineVerification",
+        "MergeFindNativeVerification",
+        "MergeOpenNativeVerification",
+        "MergeFormatNativeVerification",
+        "MergeLineDiffNativeVerification",
+        "MergePatchNativeVerification",
+        "MergeColorsNativeVerification",
+        "MergeOnePaneNativeVerification",
+        "MergeOnePaneContextVerification",
+        "MergeDefaultEncodingVerification",
+        "MergeWrappingVerification",
+        "ClipboardTargetNativeVerification",
+        "ReviewPatchNativeVerification",
+        "DaemonNativeVerification"
+      ],
+      "full_group_reason": "All LFS assertions, including new retirement checks, completed, then SIGSEGV in objc_release at verifyRetirement cleanup. New manually created fixture NSWindow required isReleasedWhenClosed=false; corrected fixture only.",
+      "crash_evidence": "macOS crash report lfs-mail-80cac5b5bb71dfb6ed5aa9d314801c2d5ecce8f7befd8b40e3d53c7-2026-10-12-234702.ips: EXC_BAD_ACCESS, objc_release, static LFSLocksVerification.verifyRetirement.",
+      "affected_retry_command": "python3 scripts/test-native-lfs-mail-batch.py --lfs-mail-only",
+      "affected_retry_log": "build/qa/lfs-readiness-lifecycle-native-2026-10-12-teardown-repair.log",
+      "affected_retry_exit": 0,
+      "affected_retry_receiver_pid": 93066,
+      "affected_retry_smtp_pid": 93515,
+      "affected_retry_owned_processes_reaped": true,
+      "affected_retry_phases": [
+        "LFSLocksVerification",
+        "SendPatchVerification"
+      ],
+      "native_assertions_retained": true,
+      "deadline_changes": "none",
+      "notes": "The passing SMTP run contains sandbox_extension_consume diagnostics from native framework scope fixtures; unsigned checks do not establish signed sandbox acceptance."
+    },
+    "hosted_baseline": {
+      "run": 38306249252,
+      "commit": "fd27870",
+      "result": "failure",
+      "job": 115004070940,
+      "step": 48,
+      "assertion": "LFSReceiver.swift generated line 61: model/native selection binding did not settle; SMTP not started",
+      "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38306249252"
+    }
+  },
+  "limits": [
+    "Hosted Intel/older-SDK acceptance requires a new complete CI result",
+    "Providers are injected; no real LFS server or authenticated lock transport",
+    "Signed sandbox, physical Finder and displayed acceptance remain incomplete",
+    "Per-file effects completed before cancellation are retained; no rollback claimed",
+    "Entire TortoiseGit port remains incomplete"
+  ]
+}

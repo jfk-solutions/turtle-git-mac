@@ -15,6 +15,7 @@ import AppKit
         if SSHKeyGenerationModel.activeOperations > 0 { return .terminateCancel }
         if NetworkSettingsModel.activeSaves > 0 { return .terminateCancel }
         if EmailSettingsModel.activeOperations > 0 { return .terminateCancel }
+        if LFSLocksWindowModel.activeOperations > 0 { return .terminateCancel }
         if StashRestoreWindowModel.activeOperations > 0 { return .terminateCancel }
         if ClientHookProcessPool.shared.activeScripts > 0 { return .terminateCancel }
         if HookSettingsModel.activeSaves > 0 { return .terminateCancel }

@@ -57,7 +57,9 @@ import TurtleGitCore
                 return ids.indices.contains(index) ? ids[index] : nil
             })
         }
-        try await settle { model.selection == ["2"] && selectedIDs() == ["2"] }
+        try await settle(diagnostic: {
+            print("LFS SELECTION DIAGNOSTIC", model.selection, selectedIDs(), model.busy, locksProbe().itemIDs ?? [], model.rows.map(\.id)); fflush(stdout)
+        }) { model.selection == ["2"] && selectedIDs() == ["2"] }
         for (index,column) in LFSLocksWindowModel.columns.enumerated() {
             for ascending in [true,false] {
                 let old = table.sortDescriptors, prototype = table.tableColumns[index + 1].sortDescriptorPrototype!
@@ -745,6 +747,7 @@ import TurtleGitCore
         resolve.model.busy = false; resolve.window?.close()
         let resolveAfterIndex = try Data(contentsOf: resolveRoot.appendingPathComponent(".git/index"))
         precondition(resolveAfterIndex == resolveIndex)
+        try await verifyRetirement(repository: repository, defaults: defaults)
         let afterHead = try await repository.run(["rev-parse", "HEAD"]).stdout
         let afterIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
         let afterFile = try Data(contentsOf: root.appendingPathComponent("tracked"))
@@ -752,4 +755,103 @@ import TurtleGitCore
         precondition(afterFile == Data("retained\n".utf8))
         print("PASS: hidden native LFS Locks window/table, original lock/unlock artwork, checked targets/select-all, injected mixed per-file outcomes and refresh, captured force retry targets, actual progress-sheet ownership and Quit refusal, busy/confirmation guards, refresh failure and cancellation with retained completed results. HEAD/raw index/working contents retained; owned window/sheet closed. Commit and Working Tree selection gating, Lock/Unlock captured routing and attached progress/Force retry validated. No real LFS server/helper or physical input acceptance claimed.")
     }
+    @MainActor static func verifyRetirement(repository: GitRepository, defaults: UserDefaults) async throws {
+        // Ready means that native position/selection restoration has finished.
+        // A new selection made after refresh must survive subsequent run loops.
+        let ready = LFSLocksWindowController(repository:repository,access:nil,defaults:defaults)
+        defer { ready.close() }
+        ready.model.query = { _ in [LFSLock(id:"r1",path:"tracked",owner:"QA")] }
+        await ready.model.refresh()
+        ready.model.selection = ["r1"]
+        try await settle {
+            let table = descendants(ready.window!.contentView!).compactMap { $0 as? NSTableView }.first
+            return table?.selectedRowIndexes == IndexSet(integer:0) && ready.model.selection == ["r1"]
+        }
+        for _ in 0..<5 { try await Task.sleep(nanoseconds:10_000_000) }
+        precondition(ready.model.selection == ["r1"] && !ready.model.busy)
+        // A forced-close query ignores the token and returns late. It still
+        // must not repopulate the retired view, restore selection or save prefs.
+        let queried = LFSLocksWindowController(repository:repository,access:nil,defaults:defaults)
+        var queryReply:CheckedContinuation<[LFSLock],Error>?, queryToken:OperationCancellation?
+        queried.model.query = { token in queryToken = token; return try await withCheckedThrowingContinuation { queryReply = $0 } }
+        let querying = Task { await queried.model.refresh() }
+        try await settle { queryReply != nil }
+        var queryClosed = 0; queried.onClosed = { queryClosed += 1 }
+        queried.close(); queried.close()
+        precondition(queryToken?.isCancelled == true && queried.model.retired && queryClosed == 1)
+        precondition(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApplication.shared) == .terminateCancel)
+        queryReply?.resume(returning:[LFSLock(id:"late",path:"tracked",owner:"Late")]); queryReply = nil
+        await querying.value
+        precondition(queried.model.locks.isEmpty && queried.model.checked.isEmpty && queried.model.error == nil)
+        await queried.model.refresh(); precondition(queried.model.locks.isEmpty)
+        // Retire shared progress after one reported result; later success must
+        // not replace it or route Pull, even if the provider ignores Cancel.
+        let operation = LFSFileOperationController(repository:repository,access:nil)
+        var batchReply:CheckedContinuation<LFSBatchResult,Error>?, batchToken:OperationCancellation?
+        var report: (@Sendable (LFSFileResult) -> Void)?, pulls = 0, operationClosed = 0
+        operation.model.onPullAfterLock = { pulls += 1 }
+        operation.onClosed = { operationClosed += 1 }
+        operation.standalonePresentation = { _ in }
+        operation.model.lockChange = { _,token,emit in
+            batchToken = token; report = emit
+            emit(LFSFileResult(path:"tracked",success:true,output:"completed before close"))
+            return try await withCheckedThrowingContinuation { batchReply = $0 }
+        }
+        precondition(operation.present(paths:["tracked"],locked:true))
+        try await settle { batchReply != nil && operation.model.results.count == 1 }
+        operation.close(); operation.close()
+        precondition(operation.model.retired && batchToken?.isCancelled == true && operationClosed == 1)
+        precondition(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApplication.shared) == .terminateCancel)
+        report?(LFSFileResult(path:"late",success:true,output:"discarded"))
+        batchReply?.resume(returning:LFSBatchResult(files:[LFSFileResult(path:"late",success:true,output:"discarded final")]))
+        batchReply = nil
+        try await settle { !operation.model.busy && LFSLocksWindowModel.activeOperations == 0 }
+        precondition(pulls == 0 && operationClosed == 1 && operation.model.results.map { $0.path } == ["tracked"] && operation.model.error == nil)
+        precondition(!operation.present(paths:["tracked"],locked:true))
+        // Forced Commit/Working Tree owner closure retires the actual child,
+        // detaches its sheet, and suppresses its normal reload/Pull callbacks.
+        for commitMode in [true,false] {
+            let commit = commitMode ? CommitWindowController(repository:repository,access:nil,defaults:defaults) : nil
+            let status = commitMode ? nil : StatusWindowController(repository:repository,access:nil,defaults:defaults)
+            let owner:NSWindowController = commitMode ? commit! : status!
+            var child:LFSFileOperationController?, reply:CheckedContinuation<LFSBatchResult,Error>?, token:OperationCancellation?
+            var changed = 0, routedPull = 0
+            let factory:(GitRepository,RepositoryAccessLease?) -> LFSFileOperationController = { repo,access in
+                let controller = LFSFileOperationController(repository:repo,access:access); child = controller
+                controller.model.lockChange = { _,ownedToken,_ in token = ownedToken; return try await withCheckedThrowingContinuation { reply = $0 } }
+                return controller
+            }
+            let accepted:Bool
+            if let commit {
+                commit.makeLFSOperation = factory; commit.model.busy = true
+                commit.model.refreshPartial = { changed += 1 }; commit.onPullAfterLFSLock = { routedPull += 1 }
+                accepted = commit.model.onLFSOperation(["tracked"],true)
+            } else {
+                status!.makeLFSOperation = factory; status!.model.busy = true
+                status!.model.onChanged = { changed += 1 }; status!.onPullAfterLFSLock = { routedPull += 1 }
+                accepted = status!.model.onLFSOperation(["tracked"],true)
+            }
+            precondition(accepted)
+            try await settle { reply != nil && owner.window?.attachedSheet != nil }
+            owner.close()
+            precondition(child?.model.retired == true && token?.isCancelled == true && owner.window?.attachedSheet == nil)
+            reply?.resume(returning:LFSBatchResult(files:[LFSFileResult(path:"tracked",success:true,output:"late success")]))
+            reply = nil
+            try await settle { child?.model.busy == false && LFSLocksWindowModel.activeOperations == 0 }
+            precondition(changed == 0 && routedPull == 0 && child?.model.results.isEmpty == true)
+        }
+        // Superseded/teardown restoration callbacks each finish once and cannot
+        // run their old scroll/selection work against a replacement table.
+        let host = NSWindow(contentRect:NSRect(x:0,y:0,width:100,height:100),styleMask:[.titled],backing:.buffered,defer:false)
+        host.isReleasedWhenClosed = false
+        let probe = CommitFileInteraction.Probe(); host.contentView?.addSubview(probe)
+        var first = 0, second = 0
+        probe.restoreListPosition(ids:["missing"],enabled:true) { first += 1 }
+        probe.restoreListPosition(ids:[],enabled:false) { second += 1 }
+        probe.stopObserving(); probe.stopObserving(); host.close()
+        try await Task.sleep(nanoseconds:20_000_000)
+        precondition(first == 1 && second == 1)
+        print("LFS readiness/retirement: completed selection restore, forced query close, shared operation late output/results/Pull fences, once-only close, retired present and restoration teardown passed."); fflush(stdout)
+    }
+
 }

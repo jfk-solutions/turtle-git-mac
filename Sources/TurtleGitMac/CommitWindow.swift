@@ -48,14 +48,15 @@ import UniformTypeIdentifiers
             if let child = controller.window { window.beginSheet(child) }
         }
         model.onLFSOperation = { [weak self, weak window] paths, locked in
-            guard let self, let window, window.attachedSheet == nil, self.lfsOperation == nil else { return false }
+            guard let self, !self.closingCommit, let window, window.attachedSheet == nil, self.lfsOperation == nil else { return false }
             let progress = self.makeLFSOperation(repository, access)
-            progress.model.onPullAfterLock = { [weak self] in self?.onPullAfterLFSLock() }
-            progress.onClosed = { [weak self] in
-                guard let self else { return }
+            progress.model.onPullAfterLock = { [weak self] in guard let self, !self.closingCommit else { return }; self.onPullAfterLFSLock() }
+            progress.onClosed = { [weak self, weak progress] in
+                guard let self, !self.closingCommit, self.lfsOperation === progress else { return }
                 self.lfsOperation = nil; self.model.busy = false; self.model.reload(); self.model.refreshPartial()
             }
-            self.lfsOperation = progress; progress.present(owner: window, paths: paths, locked: locked)
+            self.lfsOperation = progress
+            guard progress.present(owner: window, paths: paths, locked: locked) else { self.lfsOperation = nil; return false }
             return true
         }
         model.showPartial = { [weak self] staged in self?.showPartial(staged: staged) }
@@ -168,7 +169,7 @@ import UniformTypeIdentifiers
     }
     func setQuitConfirmation(_ pending: Bool) { model.confirmingQuit = pending; partial?.model.confirmingQuit = pending }
     func windowWillClose(_ notification: Notification) {
-        closingCommit = true; model.invalidateForClose()
+        closingCommit = true; model.invalidateForClose(); lfsOperation?.close(); lfsOperation = nil
         if let child = historyWindow {
             historyWindow = nil; window?.endSheet(child); child.orderOut(nil); child.close()
         }

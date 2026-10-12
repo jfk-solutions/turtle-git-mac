@@ -93,23 +93,35 @@ struct CommitFileInteraction: NSViewRepresentable {
         }
         private var listPosition: ListPosition?
         private var positionGeneration = UUID()
+        private var positionCompletion: (() -> Void)?
+        private func finishListPosition() { let reply = positionCompletion; positionCompletion = nil; reply?() }
+
+        func cancelListPosition() { positionGeneration = UUID(); listPosition = nil; finishListPosition() }
         func storeListPosition() {
-            positionGeneration = UUID()
+            positionGeneration = UUID(); finishListPosition()
             guard let table = configuredTable, let scroll = table.enclosingScrollView else { listPosition = nil; return }
             let mark = focusedPath?.wrappedValue.flatMap { id in itemIDs?.firstIndex(of: id) }
             listPosition = ListPosition(origin: scroll.contentView.bounds.origin, selectedIndex: table.selectedRowIndexes.first, focusedIndex: mark)
         }
-        func restoreListPosition(ids: [String], enabled: Bool) {
+        func restoreListPosition(ids: [String], enabled: Bool, completion: @escaping () -> Void = {}) {
+            finishListPosition()
             let position = listPosition; listPosition = nil
-            let generation = positionGeneration
-            DispatchQueue.main.async { [weak self] in self?.applyListPosition(position, ids: ids, enabled: enabled, generation: generation, remaining: 1000) }
+            positionGeneration = UUID(); let generation = positionGeneration
+            var answered = false
+            let reply = { guard !answered else { return }; answered = true; completion() }
+            positionCompletion = reply
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { reply(); return }
+                self.applyListPosition(position, ids: ids, enabled: enabled, generation: generation, remaining: 1000)
+            }
         }
         private func applyListPosition(_ position: ListPosition?, ids: [String], enabled: Bool, generation: UUID, remaining: Int) {
-            guard positionGeneration == generation, let table = configuredTable, let scroll = table.enclosingScrollView else { return }
-            guard table.numberOfRows == ids.count && itemIDs == ids else {
-                if remaining > 0 { DispatchQueue.main.asyncAfter(deadline: .now() + 0.005) { [weak self] in
+            guard positionGeneration == generation else { return }
+            guard let table = configuredTable, let scroll = table.enclosingScrollView,
+                  table.numberOfRows == ids.count && itemIDs == ids else {
+                if remaining > 0 && window != nil { DispatchQueue.main.asyncAfter(deadline: .now() + 0.005) { [weak self] in
                     self?.applyListPosition(position, ids: ids, enabled: enabled, generation: generation, remaining: remaining - 1)
-                } }
+                } } else { finishListPosition() }
                 return
             }
             scroll.layoutSubtreeIfNeeded(); table.layoutSubtreeIfNeeded()
@@ -121,6 +133,12 @@ struct CommitFileInteraction: NSViewRepresentable {
                 table.deselectAll(nil); focusedPath?.wrappedValue = nil; scroll.contentView.scroll(to: .zero)
             }
             scroll.reflectScrolledClipView(scroll.contentView)
+            // Give the SwiftUI selection binding the same run-loop turn before
+            // callers expose the list as ready for a new selection.
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.positionGeneration == generation else { return }
+                self.finishListPosition()
+            }
         }
         private var trackingHeader = false
         private var draggingHeader = false
@@ -274,7 +292,7 @@ struct CommitFileInteraction: NSViewRepresentable {
             }
         }
         func stopObserving() {
-            positionGeneration = UUID(); listPosition = nil
+            cancelListPosition()
             if let monitor { NSEvent.removeMonitor(monitor) }
             monitor = nil
             if let menuObserver { NotificationCenter.default.removeObserver(menuObserver) }

@@ -29,6 +29,7 @@ struct StatusRow: Identifiable {
     var onClosed: () -> Void = {}
     var onPullAfterLFSLock: () -> Void = {}
     private var lfsOperation: LFSFileOperationController?
+    private var closingStatus = false
     var makeLFSOperation: (GitRepository, RepositoryAccessLease?) -> LFSFileOperationController = { LFSFileOperationController(repository: $0, access: $1) }
     init(repository: GitRepository, access: RepositoryAccessLease?, defaults: UserDefaults = .standard) {
         model = StatusWindowModel(repository: repository, access: access, defaults: defaults)
@@ -42,14 +43,15 @@ struct StatusRow: Identifiable {
         model.close = { [weak window] in window?.performClose(nil) }
         model.savePatch = { [weak self] text in self?.savePatch(text) }
         model.onLFSOperation = { [weak self, weak window] paths, locked in
-            guard let self, let window, window.attachedSheet == nil, self.lfsOperation == nil else { return false }
+            guard let self, !self.closingStatus, let window, window.attachedSheet == nil, self.lfsOperation == nil else { return false }
             let progress = self.makeLFSOperation(repository, access)
-            progress.model.onPullAfterLock = { [weak self] in self?.onPullAfterLFSLock() }
-            progress.onClosed = { [weak self] in
-                guard let self else { return }
+            progress.model.onPullAfterLock = { [weak self] in guard let self, !self.closingStatus else { return }; self.onPullAfterLFSLock() }
+            progress.onClosed = { [weak self, weak progress] in
+                guard let self, !self.closingStatus, self.lfsOperation === progress else { return }
                 self.lfsOperation = nil; self.model.busy = false; self.model.reload(); self.model.onChanged()
             }
-            self.lfsOperation = progress; progress.present(owner: window, paths: paths, locked: locked)
+            self.lfsOperation = progress
+            guard progress.present(owner: window, paths: paths, locked: locked) else { self.lfsOperation = nil; return false }
             return true
         }
 
@@ -70,7 +72,11 @@ struct StatusRow: Identifiable {
         if model.cancelLFSOwnerQuery() { return false }
         return !model.busy && !model.confirmingQuit && !model.unifiedViewerBusy && sender.attachedSheet == nil
     }
-    func windowWillClose(_ notification: Notification) { model.unifiedWindow?.close(); onClosed() }
+    func windowWillClose(_ notification: Notification) {
+        guard !closingStatus else { return }; closingStatus = true
+        model.cancelLFSOwnerQuery(); lfsOperation?.close(); lfsOperation = nil
+        model.unifiedWindow?.close(); onClosed()
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 

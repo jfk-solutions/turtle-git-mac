@@ -1423,3 +1423,16 @@ build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git` for th
 combined family. The legacy stash driver delegates to that cache. CI's default
 reference batch includes the same case; it no longer compiles/runs a duplicate
 standalone Stash restore receiver.
+
+The LFS readiness/lifetime batch uses the existing grouped
+`python3 scripts/test-native-lfs-mail-batch.py` receiver after one Debug build.
+It preserves the earlier Merge/Patch/daemon phases that precede the hosted LFS
+failure and the private SMTP MIME assertions afterward. LFS coverage now also
+holds providers across forced-close queries/progress/Commit/Working Tree owners
+and verifies rejected late results/Pull plus once-only native restoration cleanup.
+No full Core rerun is required for these native-only changes.
+
+For a failure inside LFS or before SMTP readiness, `--lfs-mail-only` reruns
+those affected phases and keeps the private SMTP/MIME checks; the default CI
+command still runs all preceding grouped phases. This does not relax assertions
+or increase their deadlines.

@@ -97,6 +97,7 @@ struct NativeBatch {
         NSApplication.shared.setActivationPolicy(.prohibited)
         if CommandLine.arguments.contains("--email-only") { try await phase("EmailSettingsVerification") { try await EmailSettingsVerification.verify() }; return }
         if CommandLine.arguments.contains("--lfs-only") { try await phase("LFSLocksVerification") { try await LFSLocksVerification.main() }; return }
+        if !CommandLine.arguments.contains("--lfs-mail-only") {
         try await phase("MergeRegexNativeVerification") { try await MergeRegexNativeVerification.verify(parser: URL(fileURLWithPath: CommandLine.arguments[5])) }
         try await phase("ThreePaneEngineVerification") { try await ThreePaneEngineVerification.verify(configuration: SubversionMergeConfiguration.bundled()) }
         try await phase("TwoPaneEngineVerification") { try await TwoPaneEngineVerification.verify() }
@@ -113,6 +114,7 @@ struct NativeBatch {
         try await phase("ClipboardTargetNativeVerification") { try await ClipboardTargetNativeVerification.verify() }
         try await phase("ReviewPatchNativeVerification") { try await ReviewPatchNativeVerification.verify() }
         try await phase("DaemonNativeVerification") { try await DaemonNativeVerification.verify() }
+        }
         try await phase("LFSLocksVerification") { try await LFSLocksVerification.main() }
         let fixture = URL(fileURLWithPath: CommandLine.arguments[1])
         try Data().write(to: fixture.appendingPathComponent("lfs-done"))
@@ -176,7 +178,7 @@ struct NativeBatch {
             close_receiver(receiver)
             print('Owned native receiver reaped: ' + str(receiver.pid), flush=True)
         raise SystemExit(0)
-    receiver = subprocess.Popen([str(executable), str(mail_fixture), '0', str(lfs_fixture), '/usr/bin/git', str(products / 'TurtleGitMac.app/Contents/Helpers/IssueRegex/issue-regex')], cwd=root, env=environment, start_new_session=True)
+    receiver = subprocess.Popen([str(executable), str(mail_fixture), '0', str(lfs_fixture), '/usr/bin/git', str(products / 'TurtleGitMac.app/Contents/Helpers/IssueRegex/issue-regex'), *(['--lfs-mail-only'] if '--lfs-mail-only' in sys.argv else [])], cwd=root, env=environment, start_new_session=True)
     server = None
     try:
         deadline = time.monotonic() + 120

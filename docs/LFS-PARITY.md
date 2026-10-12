@@ -262,3 +262,34 @@ receiver covers duplicate gates, Quit and once-only Close cleanup with injected
 responses. See FINDER-LFS-MAIL-PARITY.md and
 `qa/finder-lfs-mail-batch-2026-10-12.json`; physical/signed/real-server acceptance
 remains incomplete.
+
+## List readiness and operation ownership (October 12, 2026)
+
+Refresh now remains busy until the native table has adopted the replacement
+rows and finished the requested scroll/highlight restoration. The bridge reports
+completion once, including superseded requests, missing tables and teardown.
+This aligns native list readiness with the source LocksThread completion order
+and prevents pending restoration from overwriting a subsequent row selection.
+The original positional selection/checkbox semantics and source columns remain.
+
+Forced closure retires standalone Locks queries and shared Lock/Unlock progress.
+It cancels their tokens, detaches their owned sheets, and rejects later provider
+results, streamed rows, errors and Pull follow-ups. Commit and Working Tree close
+and retire their LFS children, and completion callbacks check the current child
+identity and owner state before refreshing. Normal result review still refreshes
+once after dismissal; Force retry retains its captured targets. Cancellation
+reports completed server changes as retained. A model-wide active-operation
+count prevents application Quit before retired queries/operations settle.
+
+The hosted failure at `fd27870` occurred in the LFS selection-binding assertion
+before Send Mail began; the preceding grouped Merge/Patch/daemon phases passed.
+The assertion and its sorting checks are retained, with additional diagnostics.
+This implementation batch adds late query/result/Pull, owner-close and bridge
+teardown checks. The unsigned Debug build passed. Preceding grouped Merge/Patch/daemon phases
+passed, then LFS checks passed before a new fixture cleanup crash. Correcting
+that fixture's NSWindow release ownership allowed the affected LFS/mail retry
+to pass, including loopback SMTP and MIME assertions. Assertions and deadlines
+were retained; owned receiver/server processes were reaped. No Core suite was
+repeated for this native-only batch. See [actual results and failures](qa/lfs-readiness-lifecycle-2026-10-12.json).
+Actual LFS servers,
+signed sandbox runtime and displayed light/dark acceptance remain unverified.
