@@ -86,7 +86,7 @@ public enum MenuIcon: String, CaseIterable {
         let isRibbon = ribbon.contains(self)
         guard let url = bundle.url(forResource: rawValue, withExtension: isRibbon ? "bmp" : "ico", subdirectory: "Icons"),
               let image = isRibbon ? Self.ribbonImage(at: url) : NSImage(contentsOf: url) else { return nil }
-        image.size = NSSize(width: size, height: size); image.isTemplate = [.cherryPick, .log, .help].contains(self)
+        image.size = NSSize(width: size, height: size); image.isTemplate = [.cherryPick, .log, .help, .settingsHooks].contains(self)
         return image
     }
     public func contextImage(size: CGFloat = 16, defaults: UserDefaults = .standard) -> NSImage? {

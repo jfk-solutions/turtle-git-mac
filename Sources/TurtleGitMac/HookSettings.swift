@@ -171,7 +171,7 @@ private struct HookConfigurationDialog: View {
             HStack { Text("Hook Type:"); Spacer(); Picker("Hook Type",selection:$draft.hook.type) { ForEach(ClientHookType.allCases,id:\.self) { Text($0.title).tag($0) } }.labelsHidden().frame(width:230) }
             Toggle("Run for this repository",isOn:Binding(get:{draft.hook.local},set:draft.setLocal)).disabled(draft.root == nil)
             Text("Run when working tree path is under:")
-            HStack { TextField("",text:$draft.hook.path).accessibilityLabel("Working tree path"); Button("…") { browse(false) } }.disabled(draft.hook.local)
+            HStack { TextField("",text:Binding(get:{draft.hook.local ? "local" : draft.hook.path},set:{if !draft.hook.local { draft.hook.path = $0 }})).accessibilityLabel("Working tree path"); Button("…") { browse(false) } }.disabled(draft.hook.local)
             Text("Command Line To Execute:")
             HStack { TextField("",text:$draft.hook.command).accessibilityLabel("Command line to execute"); Button("…") { browse(true) } }
             Toggle("Wait for the script to finish",isOn:$draft.hook.wait)
@@ -192,7 +192,7 @@ private struct HookConfigurationDialog: View {
         VStack(alignment:.leading,spacing:12) {
             Table(model.hooks,selection:$model.selection) {
                 TableColumn("Hook Type") { hook in HStack { Toggle("",isOn:Binding(get:{model.hooks.first { $0.id == hook.id }?.enabled ?? hook.enabled},set:{model.setEnabled(hook.id,$0)})).labelsHidden().accessibilityLabel("Enable " + hook.type.title); Text(hook.type.rawValue).onTapGesture(count:2) { model.selection = [hook.id]; model.configure() } } }
-                TableColumn("Working Tree Path") { Text($0.local ? "local" : $0.path) }
+                TableColumn("Path") { Text($0.local ? "local" : $0.path) }
                 TableColumn("Command Line") { Text($0.command) }
                 TableColumn("Wait") { Text($0.wait ? "true" : "false") }.width(55)
                 TableColumn("Show") { Text($0.show ? "show" : "hide") }.width(55)

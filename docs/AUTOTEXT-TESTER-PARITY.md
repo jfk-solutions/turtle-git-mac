@@ -29,3 +29,13 @@ Remaining acceptance: physical keyboard/VoiceOver review, exact font/spacing
 comparison against a running Windows dialog, signed sandbox execution and the
 complete upstream autocompletion configuration/editing workflow. This dialog is
 partial, not certified complete.
+
+
+Actual Aqua/Dark Aqua compositor captures were compared with the pinned resource
+control order. They exposed an NSHostingController fitting-width collapse, missed
+by data/control tests. Window minimum/maximum constraints alone did not prevent
+that programmatic resize. The fixed SwiftUI host frame and explicit content size
+now retain the intended 660 × 640 point dialog. The focused receiver checks actual
+content bounds, and the capture case rejects collapsed PNG dimensions. Reviewed
+images show both editors, full labels, Scan, results, timing and Exit. See the
+utility capture record; physical/signed and full visual certification remain open.

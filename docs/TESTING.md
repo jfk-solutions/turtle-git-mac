@@ -1404,3 +1404,14 @@ in the related grouped check. This follow-up is native-only: one Debug build, no
 Core rerun. An initial ReCommit fixture lacked a checked file; its selection was
 corrected before the final four system/packaged-Git checks passed. Both compilations
 use the existing object-linked cache. All owned receivers and scripts settled.
+
+
+`--only utility-captures` is a local capture-only case, excluded from the default
+CI families alongside `issue-captures`. It uses private sample hook configuration,
+preferences and pasteboard, the packaged C++ Autotext helper, and owned compositor
+window captures in both themes. It executes no hook script. Review the six images
+before publishing. Existing screen-capture permission is required and is not
+changed. The actual fixed Autotext content bounds are now checked by its regular
+native receiver. No full Core or Hook workflow rerun was performed for these
+presentation changes. See the capture record for the rejected narrow images and
+final focused pass; no visual certification is inferred.

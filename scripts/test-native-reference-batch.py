@@ -33,6 +33,7 @@ CASES = {
     'autotext-tester': 'AutotextTesterVerification',
     'issue-regex-tester': 'IssueRegexTesterVerification',
     'issue-tracker-settings': 'IssueTrackerSettingsVerification',
+    'utility-captures': 'UtilityDialogCapture',
     'issue-captures': 'IssueTrackerCapture',
 }
 parser = argparse.ArgumentParser(description=__doc__)
@@ -53,7 +54,7 @@ with tempfile.TemporaryDirectory(prefix='TurtleGitReferenceNativeBatch-') as tem
     sources = []
     for case in CASES:
         source = directory / (case + '.swift')
-        fixture = root / ('docs/qa/client-hooks-native-2026-10-12.swift' if case == 'client-hooks' else 'docs/qa/autotext-tester-native-2026-10-12.swift' if case == 'autotext-tester' else 'docs/qa/issue-tracker-captures-2026-10-12.swift' if case == 'issue-captures' else 'docs/qa/issue-tracker-settings-native-2026-10-12.swift' if case == 'issue-tracker-settings' else 'docs/qa/issue-regex-tester-native-2026-10-12.swift' if case == 'issue-regex-tester' else 'docs/qa/svn-native-2026-10-12.swift' if case == 'svn-workflow' else 'docs/qa/commit-progress-native-2026-10-08.swift' if case == 'commit-progress' else 'docs/qa/email-settings-native-2026-10-10.swift' if case == 'email-settings' else 'docs/qa/overlay-settings-native-2026-10-12.swift' if case == 'overlay-settings' else 'docs/qa/external-merge-lifecycle-native-2026-10-12.swift' if case == 'external-merge-lifecycle' else 'docs/qa/tool-settings-native-2026-10-12.swift' if case == 'tool-settings' else 'docs/qa/credential-settings-native-2026-10-12.swift' if case == 'credential-settings' else 'docs/qa/network-settings-native-2026-10-12.swift' if case == 'network-settings' else 'docs/qa/merge-pickers-native-2026-10-09.swift' if case == 'merge-pickers' else 'docs/qa/reference-' + case + '-native-2026-10-09.swift')
+        fixture = root / ('docs/qa/utility-captures-2026-10-12.swift' if case == 'utility-captures' else 'docs/qa/client-hooks-native-2026-10-12.swift' if case == 'client-hooks' else 'docs/qa/autotext-tester-native-2026-10-12.swift' if case == 'autotext-tester' else 'docs/qa/issue-tracker-captures-2026-10-12.swift' if case == 'issue-captures' else 'docs/qa/issue-tracker-settings-native-2026-10-12.swift' if case == 'issue-tracker-settings' else 'docs/qa/issue-regex-tester-native-2026-10-12.swift' if case == 'issue-regex-tester' else 'docs/qa/svn-native-2026-10-12.swift' if case == 'svn-workflow' else 'docs/qa/commit-progress-native-2026-10-08.swift' if case == 'commit-progress' else 'docs/qa/email-settings-native-2026-10-10.swift' if case == 'email-settings' else 'docs/qa/overlay-settings-native-2026-10-12.swift' if case == 'overlay-settings' else 'docs/qa/external-merge-lifecycle-native-2026-10-12.swift' if case == 'external-merge-lifecycle' else 'docs/qa/tool-settings-native-2026-10-12.swift' if case == 'tool-settings' else 'docs/qa/credential-settings-native-2026-10-12.swift' if case == 'credential-settings' else 'docs/qa/network-settings-native-2026-10-12.swift' if case == 'network-settings' else 'docs/qa/merge-pickers-native-2026-10-09.swift' if case == 'merge-pickers' else 'docs/qa/reference-' + case + '-native-2026-10-09.swift')
         source.write_text('@testable import TurtleGitMac\n' + fixture.read_text().replace('@main struct', 'struct', 1))
         sources.append(source)
     svn_fixture = directory / 'SVNFixture.swift'
@@ -112,7 +113,7 @@ struct SVNWorkflowVerification {
     for key in ['GIT_AUTHOR_NAME', 'GIT_AUTHOR_EMAIL', 'GIT_COMMITTER_NAME', 'GIT_COMMITTER_EMAIL']:
         environment.pop(key, None)
     for index, git in enumerate(args.git or [Path('/usr/bin/git')]):
-        for case in args.only or [case for case in CASES if case != 'issue-captures']:
+        for case in args.only or [case for case in CASES if case not in ['issue-captures', 'utility-captures']]:
             fixture = directory / (str(index) + '-' + case); fixture.mkdir()
             command = [str(executable), str(fixture), str(git.resolve()), case]
             print('Checking ' + case + ' with ' + str(git), flush=True)

@@ -154,6 +154,11 @@ connect the six Commit/Push/Rebase hook points, including repository approval an
 owned background execution. Alternate routes and visual/signed acceptance remain
 open.
 
+Reviewed native [Hook Scripts](docs/site/assets/hook-settings-dark.png),
+[Configure Hook Scripts](docs/site/assets/hook-config-dark.png) and
+[Autotext Tester](docs/site/assets/autotext-tester-dark.png) screenshots now include
+both themes. See [their source comparison and scope](docs/qa/utility-captures-2026-10-12.json).
+
 The static site source is `docs/site`; `python3 scripts/build-site.py` builds
 `build/site`. See [website and screenshot maintenance](docs/WEBSITE.md).
 

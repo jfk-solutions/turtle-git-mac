@@ -37,6 +37,7 @@ import TurtleGitCore
             (view as? IssueRegexSampleTextView).map { [$0] } ?? view.subviews.flatMap { editors($0) }
         }
         try await wait { controller.window?.contentView.map { editors($0).count == 2 } ?? false }
+        try require(controller.window!.contentView!.bounds.width >= 600 && controller.window!.contentView!.bounds.height >= 600,"Fixed Autotext window collapsed below usable source layout")
         let widgets = editors(controller.window!.contentView!), input = widgets.first { $0.isEditable }!, output = widgets.first { !$0.isEditable }!
         try require(input.string == model.content && output.string == model.result,"Native controls differ from model")
         input.setSelectedRange(NSRange(location:0,length:2)); input.copy(nil)

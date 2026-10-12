@@ -1,0 +1,101 @@
+{
+  "date": "2026-10-12",
+  "sourceCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "comparedSources": [
+    "doc/images/en/SettingsHooks.png",
+    "doc/images/en/SettingsHookEdit.png",
+    "IDD_SETTINGSHOOKS",
+    "IDD_SETTINGSHOOKCONFIG",
+    "IDD_AUTOTEXTTESTDLG",
+    "Settings.cpp hooks/bugtraqconfig tree"
+  ],
+  "assets": [
+    {
+      "file": "autotext-tester-dark.png",
+      "width": 1320,
+      "height": 1344,
+      "sha256": "1e0a8c7c518b5bda05c1a8f40f8934214dfa86ab57ad52d4d7e1bbfcd78b1132",
+      "visuallyReviewed": true
+    },
+    {
+      "file": "autotext-tester-light.png",
+      "width": 1320,
+      "height": 1344,
+      "sha256": "b2fa769104f731e65754da236d52049b64ddae44dcd8c54ae75c61b430c080ea",
+      "visuallyReviewed": true
+    },
+    {
+      "file": "hook-config-dark.png",
+      "width": 1380,
+      "height": 612,
+      "sha256": "51dbb2c028d7b5d93c96cc03a8d2590b86a509a7956d70b971f289c060383fb3",
+      "visuallyReviewed": true
+    },
+    {
+      "file": "hook-config-light.png",
+      "width": 1380,
+      "height": 612,
+      "sha256": "6578ea8d9a5edd29a59b6003180c6223ecf8651ce0269edb200245762db93c06",
+      "visuallyReviewed": true
+    },
+    {
+      "file": "hook-settings-dark.png",
+      "width": 2000,
+      "height": 1264,
+      "sha256": "f4b2f76bfaedaa691eec963be0e70996491534706b868b41b66f44074d10c28a",
+      "visuallyReviewed": true
+    },
+    {
+      "file": "hook-settings-light.png",
+      "width": 2000,
+      "height": 1264,
+      "sha256": "7092ece8c6ab5bf9f6face5c73fca935c5c6570e0e756d15b2905298222fecb5",
+      "visuallyReviewed": true
+    }
+  ],
+  "capture": "Actual compositor windows via screencapture -x -o -l ownedWindowNumber; no raster edits",
+  "privacy": "Private repository/configuration/preferences/pasteboard. No hook script execution. Autotext packaged C++ helper only.",
+  "presentationChanges": [
+    "Issue Tracker Config nested under Hook Scripts",
+    "Source Path column caption",
+    "Disabled local field uses symbolic local display without changing real root",
+    "Original monochrome hook glyph template-tinted for dark contrast",
+    "Fixed Autotext host frame prevents fitting-width collapse"
+  ],
+  "attempts": [
+    {
+      "buildLog": "build/qa/utility-captures-build-2026-10-12.log",
+      "exit": 0,
+      "receiverPID": 80839,
+      "captureExit": 0,
+      "rejected": "Autotext images 132x1154; black hook glyph lacked dark contrast"
+    },
+    {
+      "buildLog": "build/qa/utility-captures-build-repair-2026-10-12.log",
+      "exit": 0,
+      "receiverPID": 81689,
+      "captureExit": 1,
+      "failure": "Dimension guard rejected narrow Autotext; window min/max constraints did not prevent NSHosting fitting resize"
+    },
+    {
+      "buildLog": "build/qa/utility-captures-build-final-2026-10-12.log",
+      "exit": 0,
+      "receiverPIDs": [
+        82507,
+        82544
+      ],
+      "validation": "Six refreshed captures visually reviewed; focused Autotext native case and actual bounds guard passed"
+    }
+  ],
+  "frontends": 3,
+  "ownedReceivers": 4,
+  "allOwnedWindowsHelpersRetiredAndReceiversReaped": true,
+  "coreSuiteRuns": 0,
+  "fullHookWorkflowReruns": 0,
+  "limitations": [
+    "Hook settings captured in dedicated page host with shared footer, not full navigation tree",
+    "Native font/control/table styling differs from Windows",
+    "No physical menus/keyboard/VoiceOver or signed sandbox acceptance",
+    "No whole-port UI certification or hosted CI proof"
+  ]
+}

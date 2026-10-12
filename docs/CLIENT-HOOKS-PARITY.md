@@ -90,3 +90,21 @@ Windows inversion need adjustment. Native ordinary/amend flags, ReCommit, Start
 closure, missing executable/malformed command choices and cancellation/retired
 replies passed the focused receiver. No full Windows behavioral certification is
 inferred. See `qa/client-hooks-failures-native-2026-10-12.json`.
+
+
+## Native layout review
+
+Compared the pinned SettingsHooks.png / SettingsHookEdit.png and corresponding
+resources with actual native compositor captures in Aqua/Dark Aqua. The five
+columns and Remove/Edit/Copy/Add order are retained. The Path header now uses the
+source caption; local configuration displays the source's disabled `local`
+placeholder while retaining the real root in the model. Issue Tracker Config is
+now a child of Hook Scripts in the settings tree, matching Settings.cpp. The
+original monochrome hook image uses native template tinting for dark contrast.
+
+Six related utility images are published with the capture record. The Hook page
+image uses a dedicated private host with shared footer, not the full navigation
+tree. Configure controls preserve Enable/type/repository/path/command/Wait/Hide/
+OK/Cancel/Help order. Native fonts, rounded fields and alternating table styling
+are macOS adaptations. Window resize, physical keyboard/VoiceOver and signed
+acceptance are not certified by these images.

@@ -65,9 +65,10 @@ import TurtleGitCore
         let model = model ?? AutotextTesterModel(); self.model = model
         let window = NSWindow(contentRect: NSRect(x:0,y:0,width:660,height:640), styleMask:[.titled,.closable], backing:.buffered, defer:false)
         window.title = "Autotext Tester – TurtleGit for Mac"; window.isReleasedWhenClosed = false
+        window.contentMinSize = NSSize(width:660,height:640); window.contentMaxSize = window.contentMinSize
         super.init(window:window); window.delegate = self
-        window.contentViewController = NSHostingController(rootView:AutotextTesterDialog(model:model,exit:{[weak self] in self?.close()}))
-        window.center()
+        window.contentViewController = NSHostingController(rootView:AutotextTesterDialog(model:model,exit:{[weak self] in self?.close()}).frame(width:660,height:640))
+        window.setContentSize(NSSize(width:660,height:640)); window.center()
     }
     required init?(coder:NSCoder) { fatalError("init(coder:) is not supported") }
     override func close() { model.retire(); super.close() }
