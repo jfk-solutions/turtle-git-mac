@@ -177,7 +177,8 @@ import TurtleGitCore
         return eligible && (!action.ignoresByExtension || selected.contains { !($0.path as NSString).pathExtension.isEmpty })
     }
 
-    init() {
+    init(startMonitoring: Bool = true) {
+        guard startMonitoring else { return }
         do { _ = try FinderMenuSettings.from().write() }
         catch { finderStatus = "Finder menu preferences unavailable: " + error.localizedDescription }
         do { _ = try FinderOverlaySettings.from().write() }
@@ -823,12 +824,19 @@ import TurtleGitCore
         guard !confirmingQuit else { return }
         let key = repository.root.path
         if let existing = svnWindows[key] {
-            if existing.model.busy || existing.model.phase == .options || existing.window?.attachedSheet != nil { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
+            if existing.model.busy || existing.model.phase == .options || existing.window?.attachedSheet != nil {
+                if existing.model.operation != operation { error = "Finish " + existing.model.title + " before starting another SVN operation." }
+                if let svnPresentation { svnPresentation(existing) } else { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil) }
+                return
+            }
             existing.window?.close()
         }
         if operation == .rebase, let existing = rebaseWindows[key] { existing.window?.makeKeyAndOrderFront(nil); error = "Close the existing Rebase dialog before starting SVN Rebase."; return }
         let controller = SVNWindowController(repository: repository, access: access, operation: operation)
-        controller.onClosed = { [weak self] in self?.svnWindows.removeValue(forKey: key) }
+        controller.onClosed = { [weak self, weak controller] in
+            guard let self, let controller, self.svnWindows[key] === controller else { return }
+            self.svnWindows.removeValue(forKey: key)
+        }
         controller.model.onChanged = { [weak self] in
             self?.refreshRepositoryLogs(repository.root)
             if self?.root == repository.root { Task { await self?.refresh() } }

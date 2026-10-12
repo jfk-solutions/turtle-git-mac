@@ -73,3 +73,43 @@ and injected SVN responses, alongside the existing daemon/review/LFS/mail checks
 The runtime separately passed real local SVN clone/fetch/dcommit/show-ignore/
 create-ignore with build-prefix fallbacks hidden. No installed app or Finder
 extension was activated. See [the dated record](qa/svn-batch-2026-10-12.json).
+
+
+## Scoped window ownership and retirement — 2026-10-12
+
+SVN state publication now rechecks owner lifetime after runtime, metadata,
+transport, stash and Rebase awaits. Retirement freezes phase/status/output/error
+and fetched presentation while operation accounting still settles. The output
+pump stops publishing after retirement. Late stash/restore/Rebase responses cannot
+start further work or publish a completion callback. Cancel owns one pending
+question, captures its original cancellation token and cannot cancel a later
+request. Retry waits for the pending cancellation question to settle.
+
+The native controller owns each question/continuation. Closing dismisses and
+answers its question once; an injected or native late Yes is ignored. An old
+controller's close callback cannot remove a newer cached SVN window. Scoped
+opening retains the passed repository/executable/access lease even while another
+main-window repository is busy. Reusing options for a different operation now
+reports which SVN operation must finish instead of silently showing the wrong
+workflow. Same-operation reuse remains available. Private RepositoryModel
+construction can skip startup monitoring/publication for bounded native receivers;
+production startup keeps its existing default.
+
+Two Debug builds exited 0: the lifecycle implementation, then the added scoped
+presenter/monitoring seam. The first native run passed the preceding lifecycle
+checks but failed a fixture URL-equality precondition. The final check requires
+exact captured repository identity and its canonical root/executable/lease,
+retaining the options-state requirement and adding diagnostics. The failed process
+was reaped; its private SVN fixture directory was identified and removed.
+
+The corrected receiver passed with system and bundled Git, using private real
+Git repositories and injected SVN responses. It retains Fetch range, DCommit
+choices/remember/stash/pop, Ignore output and fast-forward checks, and adds frozen
+retired presentation, owned prompt settlement/duplicate refusal, duplicate/late
+Cancel fences, captured scope under another busy workspace, same-operation reuse,
+conflicting-operation refusal and replacement after closure. Totals: two native
+receiver compilations, three processes (one initial failed check, two final
+passes), all reaped. No Core/full seventeen-family group was rerun. SVN now shares
+the app-object cache and is removed from the legacy LFS/mail default group. No
+public SVN transport, physical sheet/window/keyboard or signed security-scope
+acceptance is claimed. See `qa/svn-scoped-lifecycle-native-2026-10-12.json`.

@@ -853,3 +853,11 @@ folders passed. The Comparison/Fetch/Create Branch fixture audit corrected
 incomplete PID publication and added bounded failure cleanup while retaining the
 original assertions. All three focused families passed with both Git engines;
 newer CI remains unverified. See the Reference Browser audit and scoped QA record.
+
+
+SVN workflows now freeze retired presentation and own their prompt/cancellation
+lifetimes. Scoped window checks retain the Commit repository/executable/lease
+under a different busy workspace and cover options reuse/conflicting operations.
+Final private native checks passed with both Git engines after correcting an
+initial fixture URL-equality assertion. Actual SVN authentication, physical UI
+and signed App Store acceptance remain open; see the SVN audit.

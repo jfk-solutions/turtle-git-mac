@@ -12,6 +12,7 @@ import TurtleGitCore
     let operation: GitSVNOperation
     @Published private(set) var phase = Phase.loading
     @Published private(set) var busy = false
+    @Published private(set) var confirmingCancellation = false
     @Published var removeEmptyDirectories = false
     @Published var remember = false
     @Published var ignoreDestination = GitSVNIgnoreDestination.exclude
@@ -51,12 +52,14 @@ import TurtleGitCore
         guard !opened, !retired else { return }; opened = true
         launch {
             try self.checkAccess(); try await self.repository.checkGitSVNRuntime(cancellation: self.token)
+            try self.checkAccess()
             guard try await self.repository.finderMetadata().hasGitSVN else { throw GitSVNFailure.remote }
             guard try await !self.repository.isBare() else { throw FinderCommandFailure.selection }
+            try self.checkAccess()
             if self.operation == .dcommit {
                 if let type = try await self.repository.svnCommitType(cancellation: self.token) {
-                    self.removeEmptyDirectories = type; try await self.execute()
-                } else { self.phase = .options }
+                    try self.checkAccess(); self.removeEmptyDirectories = type; try await self.execute()
+                } else { try self.checkAccess(); self.phase = .options }
             } else if self.operation == .ignore { self.phase = .options }
             else { try await self.execute() }
         }
@@ -66,7 +69,7 @@ import TurtleGitCore
         launch { try await self.execute() }
     }
     func retry() {
-        guard !busy, !retired, phase == .finished, error != nil else { return }
+        guard !busy, !retired, !confirmingCancellation, phase == .finished, error != nil else { return }
         token = OperationCancellation(); parser = GitCliOutputParser(limit: visible.limit); visible.reset(); output = ""; error = nil
         launch { try await self.execute() }
     }
@@ -81,52 +84,59 @@ import TurtleGitCore
         }
         Task {
             defer {
-                pump?.cancel(); pump = nil; drain(); visible.consume(parser.finish(), parser: parser); output = visible.output
+                pump?.cancel(); pump = nil
+                if !retired { drain(); visible.consume(parser.finish(), parser: parser); output = visible.output }
                 busy = false; Self.activeOperations -= 1
                 if closeAfterCancel && !retired { close() }
             }
             do { try await action() }
             catch {
+                guard !retired else { return }
                 if token.isCancelled { status = "Operation cancelled. Any created stash remains available." }
                 else { self.error = error.localizedDescription; status = "\(title) failed." }
                 phase = .finished
             }
         }
     }
-    private func drain() { visible.consume(parser.processPending(), parser: parser); output = visible.output }
+    private func drain() { guard !retired else { return }; visible.consume(parser.processPending(), parser: parser); output = visible.output }
     private func execute() async throws {
         try checkAccess(); try await repository.checkGitSVNRuntime(cancellation: token)
-        phase = .progress; status = "\(title) is running…"; error = nil
+        try checkAccess(); phase = .progress; status = "\(title) is running…"; error = nil
         let parser = parser
         let emit: @Sendable (GitOutputChunk) -> Void = { parser.appendChunk($0.data) }
         if operation == .dcommit || operation == .rebase {
             if operation == .dcommit && remember { try await repository.rememberSVNCommitType(removeEmptyDirectories: removeEmptyDirectories, cancellation: token) }
-            if try await repository.svnTrackedChanges(cancellation: token) {
-                guard await confirmStash() else { phase = .finished; status = "Aborted. Working changes were retained."; return }
-                try checkAccess()
+            let dirty = try await repository.svnTrackedChanges(cancellation: token); try checkAccess()
+            if dirty {
+                let accepted = await confirmStash(); try checkAccess()
+                guard accepted else { phase = .finished; status = "Aborted. Working changes were retained."; return }
                 let stash = try await repository.svnStash(cancellation: token)
+                try checkAccess()
                 if stash.created { stashHash = stash.current; onChanged() }
             }
         }
         switch operation {
         case .dcommit:
             _ = try await repository.svnDCommit(removeEmptyDirectories: removeEmptyDirectories, cancellation: token, onOutput: emit)
-            status = "SVN DCommit completed."; onChanged(); try await restoreCreatedStash()
+            try checkAccess(); status = "SVN DCommit completed."; onChanged(); try await restoreCreatedStash()
         case .fetch:
-            fetched = try await repository.svnFetch(cancellation: token, onOutput: emit)
+            let result = try await repository.svnFetch(cancellation: token, onOutput: emit)
+            try checkAccess(); fetched = result
             status = fetched?.changed == true ? "SVN Fetch completed. Review the fetched changes." : "Everything is up to date."
             onChanged()
         case .rebase:
             let head = try await repository.run(["rev-parse", "--verify", "HEAD"], cancellation: token).text.trimmingCharacters(in: .newlines)
-            let result = try await repository.svnFetch(cancellation: token, onOutput: emit); fetched = result
-            switch try await repository.svnRebasePlan(result, cancellation: token) {
+            let result = try await repository.svnFetch(cancellation: token, onOutput: emit); try checkAccess(); fetched = result
+            let plan = try await repository.svnRebasePlan(result, cancellation: token); try checkAccess()
+            switch plan {
             case .upToDate: status = "Everything is up to date."; await confirmInformation(status)
             case .fastForward(let hash):
                 _ = try await repository.svnFastForward(to: hash, expectedHead: head, cancellation: token, onOutput: emit)
-                status = "Fast-forward completed."; onChanged(); await confirmInformation(status)
+                try checkAccess(); status = "Fast-forward completed."; onChanged(); await confirmInformation(status)
             case .rebase(let reference):
                 status = "Continue in the Rebase dialog."
-                guard !retired, await openRebase(reference) else { phase = .finished; status = "Rebase was not completed. Any created stash was retained."; return }
+                let completed = await openRebase(reference); try checkAccess()
+                guard completed else { phase = .finished; status = "Rebase was not completed. Any created stash was retained."; return }
                 status = "Rebase completed."; onChanged()
             }
             try await restoreCreatedStash()
@@ -141,20 +151,24 @@ import TurtleGitCore
                 }
             }
             let result = try await repository.svnImportIgnore(ignoreDestination, excludeAccess: excludeAccess, cancellation: token, onOutput: emit)
+            try checkAccess()
             if ignoreDestination == .exclude { parser.appendChunk(Data(("\n" + result).utf8)) }; status = "SVN ignore patterns imported."; onChanged()
         }
-        phase = .finished
+        try checkAccess(); phase = .finished
     }
     private func restoreCreatedStash() async throws {
-        guard let hash = stashHash, !retired, await confirmPop() else { return }
+        guard let hash = stashHash, !retired else { return }
+        let accepted = await confirmPop(); try checkAccess(); guard accepted else { return }
         let result = try await repository.svnPopCreatedStash(hash, cancellation: token)
-        parser.appendChunk(Data(result.utf8)); stashHash = nil; onChanged()
+        try checkAccess(); parser.appendChunk(Data(result.utf8)); stashHash = nil; onChanged()
     }
     func cancel(closeWhenStopped: Bool = false) {
-        guard !retired else { return }
+        guard !retired, !confirmingCancellation else { return }
         if !busy { close(); return }
+        let request = token; confirmingCancellation = true
         Task {
-            guard await confirmCancel(), !retired, busy else { return }
+            defer { confirmingCancellation = false }
+            guard await confirmCancel(), !retired, token === request, busy else { return }
             closeAfterCancel = closeWhenStopped; token.cancel(); status = "Cancelling…"
         }
     }
@@ -168,6 +182,10 @@ import TurtleGitCore
 @MainActor final class SVNWindowController: NSWindowController, NSWindowDelegate {
     let model: SVNWindowModel
     var onClosed: () -> Void = {}
+    private var retired = false
+    private var question: NSAlert?
+    private var reply: ((Bool) -> Void)?
+    var presentQuestion: ((NSAlert, NSWindow, @escaping (NSApplication.ModalResponse) -> Void) -> Void)?
     init(repository: GitRepository, access: RepositoryAccessLease?, operation: GitSVNOperation, preferences: UserDefaults = .standard) {
         model = SVNWindowModel(repository: repository, access: access, operation: operation, preferences: preferences)
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 740, height: 460), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
@@ -175,27 +193,39 @@ import TurtleGitCore
         window.contentViewController = NSHostingController(rootView: SVNDialog(model: model))
         super.init(window: window); window.delegate = self; window.center()
         model.close = { [weak self] in self?.window?.close() }
-        func ask(_ message: String, yes: String, no: String) async -> Bool {
-            guard window.attachedSheet == nil else { return false }
-            let alert = NSAlert(); alert.messageText = message; alert.informativeText = repository.root.path
-            alert.addButton(withTitle: yes); alert.addButton(withTitle: no)
-            return await withCheckedContinuation { continuation in alert.beginSheetModal(for: window) { continuation.resume(returning: $0 == .alertFirstButtonReturn) } }
-        }
-        model.confirmInformation = { message in
-            guard window.attachedSheet == nil else { return }
-            let alert = NSAlert(); alert.messageText = message; alert.informativeText = repository.root.path; alert.addButton(withTitle: "OK")
-            _ = await withCheckedContinuation { continuation in alert.beginSheetModal(for: window) { continuation.resume(returning: $0) } }
-        }
-        model.confirmStash = { await ask("Your working tree contains changes. Stash them before continuing?", yes: "Stash", no: "Abort") }
-        model.confirmPop = { await ask("Restore the stashed changes now?", yes: "Yes", no: "No") }
-        model.confirmCancel = { await ask("Abort the running Git operation?", yes: "Abort", no: "Keep Running") }
+        model.confirmInformation = { [weak self] message in _ = await self?.ask(message, yes: "OK", no: nil) }
+        model.confirmStash = { [weak self] in await self?.ask("Your working tree contains changes. Stash them before continuing?", yes: "Stash", no: "Abort") ?? false }
+        model.confirmPop = { [weak self] in await self?.ask("Restore the stashed changes now?", yes: "Yes", no: "No") ?? false }
+        model.confirmCancel = { [weak self] in await self?.ask("Abort the running Git operation?", yes: "Abort", no: "Keep Running") ?? false }
         DialogGeometry.attach(window, identifier: "SVN." + operation.rawValue)
+    }
+    func ask(_ message: String, yes: String, no: String?) async -> Bool {
+        guard !retired, question == nil, let window, window.attachedSheet == nil else { return false }
+        let alert = NSAlert(); alert.messageText = message; alert.informativeText = model.repository.root.path
+        alert.addButton(withTitle: yes); if let no { alert.addButton(withTitle: no) }; question = alert
+        return await withCheckedContinuation { continuation in
+            var answered = false
+            let finish: (Bool) -> Void = { value in guard !answered else { return }; answered = true; continuation.resume(returning: value) }
+            reply = finish
+            let response: (NSApplication.ModalResponse) -> Void = { [weak self] result in
+                guard let self, self.question === alert, !self.retired else { finish(false); return }
+                self.question = nil; self.reply = nil; finish(result == .alertFirstButtonReturn)
+            }
+            if let presentQuestion { presentQuestion(alert, window, response) }
+            else { alert.beginSheetModal(for: window, completionHandler: response) }
+        }
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         guard sender.attachedSheet == nil else { return false }
         if model.busy { model.cancel(closeWhenStopped: true); return false }; return true
     }
     func windowWillClose(_ notification: Notification) {
+        guard !retired else { return }
+        retired = true
+        let alert = question; question = nil
+        if let alert, let parent = alert.window.sheetParent { parent.endSheet(alert.window, returnCode: .abort) }
+        alert?.window.orderOut(nil)
+        let finish = reply; reply = nil; finish?(false)
         model.retire()
         if let child = window?.attachedSheet {
             window?.endSheet(child, returnCode: .abort)

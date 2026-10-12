@@ -1,0 +1,43 @@
+{
+  "date": "2026-10-12",
+  "scope": "SVN captured scope, window reuse, questions and retirement",
+  "validation": {
+    "debug_build_exits": [
+      0,
+      0
+    ],
+    "initial_native": "Failed fixture-root URL equality precondition after earlier lifecycle checks",
+    "repair": "Require exact repository actor identity, canonical root, executable, access lease and options phase; diagnostic on failure",
+    "final_native_engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "final_native_exits": [
+      0,
+      0
+    ],
+    "receiver_compilations": 2,
+    "receiver_processes": 3,
+    "owned_processes_reaped": true,
+    "owned_windows_closed": true,
+    "failed_private_fixture_directory_removed": true,
+    "public_svn_or_live_authentication": false,
+    "core_or_full_group_rerun": false
+  },
+  "checks": [
+    "Existing Fetch/DCommit/stash/Ignore/fast-forward cases retained",
+    "Retired phase/status/output/error frozen",
+    "Owned prompt settles once on close and rejects late Yes",
+    "Duplicate Cancel suppressed and late response fenced",
+    "Scoped repository actor/executable/lease retained under other busy workspace",
+    "Same-operation options reuse",
+    "Conflicting-operation refusal",
+    "New window after closure"
+  ],
+  "remaining": [
+    "Physical window/sheet/keyboard and full visual matching",
+    "Public SVN transport/authentication and real divergent Rebase/stash conflicts",
+    "Signed common-directory/security scope acceptance",
+    "Full hosted CI and App Store distribution"
+  ]
+}

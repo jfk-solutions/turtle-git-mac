@@ -2021,3 +2021,11 @@ the group, and CI no longer compiles/runs it separately. Actual SVN submission,
 physical conditional menu activation, scoped SVN receiving-window/grant
 acceptance and signed distribution remain open. No new screenshot or full
 Commit/dialog certification is claimed.
+
+
+The later scoped SVN native checkpoint verifies exact repository/executable/lease
+retention under another busy main-window repository, same-operation options reuse,
+conflicting-operation refusal and replacement after closure. It uses private Git
+and injected SVN responses, rather than an actual remote submission. See
+[SVN workflow acceptance](SVN-PARITY.md). Physical Commit menu activation and
+signed handoff remain open.

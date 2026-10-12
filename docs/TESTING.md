@@ -1157,7 +1157,7 @@ checks three-pane format acceptance. See [format parity](MERGE-FORMAT-PARITY.md)
 Build Debug once, then run `python3 scripts/test-native-reference-batch.py` for
 folders, comparisons, batch/single deletion, Switch/Fetch/Create Branch/Merge
 routes and Merge reference/Log pickers. The driver links the existing app objects
-and sixteen receiver families, including Network, Credential, Tool settings, Overlays, Email, Commit progress and external Merge lifecycle, in one compilation. It uses an explicit native AppKit run loop and
+and seventeen receiver families, including Network, Credential, Tool settings, Overlays, Email, Commit progress, SVN and external Merge lifecycle, in one compilation. It uses an explicit native AppKit run loop and
 caches by object files, imported modules/framework, fixtures and compiler/flags.
 It does not recompile the whole SwiftUI app for each case.
 
@@ -1299,3 +1299,12 @@ and recover/reap only private fixture helpers with bounded cleanup. The existing
 assertions remain. Focus actual failures with repeatable `--only comparison`,
 `--only fetch` and `--only create-branch` plus desired `--git` paths; this does not
 require recompiling app sources or running Core.
+
+
+The `svn-workflow` case links the existing native SVN receiver and private Core
+SVN fixture into the app-object cache, setting its selected Git from `--git`. It
+checks Fetch/DCommit/Ignore/Rebase, retirement and owned questions/Cancel, plus
+captured repository/executable/lease and window reuse. Workspace startup
+monitoring/publication is disabled only in this private receiver. CI runs SVN
+once in this group; legacy LFS/mail no longer compiles or runs its fixture. No
+public SVN server or signed grant is exercised.
