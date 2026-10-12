@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-12",
+  "baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Native Advanced tool associations and Diff/Merge Settings transactions",
+  "validation": {
+    "debug_build_exit": 0,
+    "native_exit": 0,
+    "frontend_compilations": 1,
+    "receiver_processes": 1,
+    "owned_receiver_reaped": true,
+    "private_preferences": true,
+    "actual_tool_launch": false,
+    "core_changed_or_rerun": false,
+    "full_reference_group_rerun": false,
+    "new_screenshots": false
+  },
+  "remaining": [
+    "Restore Defaults COM script macOS equivalents",
+    "Physical double-click/keyboard/sheets and full appearance",
+    "Actual receiving-app arguments and edits",
+    "Wait cancellation and exit-code trust",
+    "Bookmark renewal and signed sandbox acceptance"
+  ],
+  "inventory": {
+    "dialogs": 130,
+    "partial": 67,
+    "pending_review": 63,
+    "certified_complete": 0
+  }
+}

@@ -97,7 +97,7 @@ owned loading/command progress. Native Push variants and owned Shift Push option
 controls, full visual matching and signed acceptance are still pending. See
 [Synchronization parity](SYNCHRONIZATION-PARITY.md).
 Across the 130 inventoried dialogs:
-64 dialogs have partial implementations and 66 await review. No dialog is certified complete.
+67 dialogs have partial implementations and 63 await review. No dialog is certified complete.
 See [the reference dialog audit](COMMIT-CONTAINING-REFS-PARITY.md).
 
 Log commit ordering now has the source’s four-choice native sheet, deferred
@@ -803,3 +803,13 @@ with system and bundled Git, covering helper resets/chains, scoped copy,
 confirmation choices, Remove, None and lifecycle. The Credential resource is
 classified as partial; physical layout, production Keychain and signed acceptance
 remain open. See [Credential audit](CREDENTIAL-SETTINGS-PARITY.md).
+
+
+Advanced external tool associations now use a native AppKit table with sorted
+Extension/Program columns, visible argument templates, double-click Edit routing
+and source-style next/previous selection after Remove. Diff/Merge parent settings
+share an explicit draft/validation/persistence model. Private native checks cover
+association editing and shared Settings Apply/Cancel; actual receiving-app launch,
+Windows-script replacement, exit-code trust and signed grants remain open. The
+Advanced, association editor and Merge Tool resources are partial replacements,
+not certified complete. See [Tool settings audit](DIFF-TOOLS-PARITY.md).

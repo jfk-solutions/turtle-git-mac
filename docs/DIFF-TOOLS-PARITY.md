@@ -107,3 +107,37 @@ working-file mutation. See `docs/qa/settings-dialogs-tools-batch-2026-10-11.json
 No application instances were launched. This evidence does not validate actual
 receiving-app behavior, native sheets/layout, blocking mode or signed sandbox
 permissions. Those checks and source exit-code trust remain open.
+
+
+## Native association and parent Settings batch — 2026-10-12
+
+Compared SetProgsAdvDlg's sorted columns, Add/Edit, double-click handler and
+selection after Remove with the native controls. Advanced now uses an AppKit
+NSTableView with single selection and the same next-row/previous-last-row removal
+rule. Program cells include arguments and a full tooltip. Double-click routes
+the clicked row to Edit; empty-area clicks do nothing. Editing keeps a separate
+draft; Cancel preserves the list. Accepted extensions normalize and retain their
+identity/selection when sorting moves the row. Duplicate/invalid entries cannot
+replace another association. Merge Add uses the four merge file placeholders.
+Parent Diff/Merge pages use a shared observable draft model with private-domain
+injection, validation, Apply and Cancel; failed persistence retains the draft.
+
+Debug Xcode build exited 0. One object-linked native receiver compilation/process
+passed and was reaped. The receiver checked sorted native columns, row selection,
+double-action wiring and argument display; model Add/Edit/Cancel/duplicate
+refusal, next/previous Remove selection and merge Add defaults; both parent pages
+registered with SettingsTransaction and persisted to a private UserDefaults
+domain on Apply; validation failure and Cancel restored the saved draft; injected
+persistence failure retained pending edits. Aqua/Dark Aqua hosts were constructed.
+No receiving application launched, no signed grant was exercised, and no new
+screenshot or physical double-click/sheet acceptance is claimed. Core selection/
+argument/stage APIs were unchanged; their recorded four-test checkpoint was not
+rerun. The full twelve-family receiver group was not rerun.
+
+The Windows Restore Defaults button calls SetupDiffScripts for installed COM
+document tools. Its macOS script/tool equivalents are not implemented, so this
+control remains open; clearing all associations would not reproduce it. Actual
+tool argument delivery/working-file edits, wait cancellation and exit status,
+bookmark renewal, image Shift parity, owned native sheets and App Store sandbox
+acceptance also remain open. Advanced, association editor and Merge Tool inventory
+resources are now partial-native-replacement; no dialog is certified complete.
