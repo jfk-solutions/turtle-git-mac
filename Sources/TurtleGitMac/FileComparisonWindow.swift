@@ -104,6 +104,11 @@ import TurtleGitCore
     var engineConfiguration: SubversionMergeConfiguration?
     @Published private(set) var comparisonOptions = MergeComparisonOptions.load()
     var comparisonDefaults: UserDefaults = .standard
+    @Published private(set) var whitespaceDisplay = MergeWhitespaceDisplayPreferences.load()
+    func setWhitespaceDisplay(_ value: MergeWhitespaceDisplayPreferences) {
+        guard !busy, !confirmingQuit, !retired else { return }
+        whitespaceDisplay = value; value.save(to: comparisonDefaults)
+    }
     @Published private(set) var locatorPreferences = MergeLocatorPreferences.load()
     @Published private(set) var locatorViewport = MergeLocatorViewport()
     var locatorMap: MergeLocatorMap {
@@ -227,6 +232,7 @@ import TurtleGitCore
     func smartTab(base: Bool) -> Bool { smartTabPanes[base] ?? editorPreferences.smartTab }
     func refreshPreferences() {
         locatorPreferences = .load(from: comparisonDefaults)
+        whitespaceDisplay = .load(from: comparisonDefaults)
         let options = MergeComparisonOptions.load(from: comparisonDefaults)
         if options != comparisonOptions { comparisonOptions = options; rebuildFilterAlignment() }
         let next = MergeEditorPreferences.load()
@@ -729,7 +735,7 @@ private struct FileComparisonDialog: View {
                 Toggle("Line numbers", isOn: $model.showLineNumbers)
             }.toggleStyle(.checkbox).padding(.horizontal, 10).padding(.bottom, 8)
             HStack {
-                MergeLocatorControls(preferences: model.locatorPreferences, apply: model.setLocatorPreferences).disabled(model.busy || model.confirmingQuit)
+                MergeViewControls(preferences: model.locatorPreferences, apply: model.setLocatorPreferences, whitespace: model.whitespaceDisplay, applyWhitespace: model.setWhitespaceDisplay).disabled(model.busy || model.confirmingQuit)
                 MergeComparisonControls(options: model.comparisonOptions, apply: model.setComparisonOptions, supportsComments: model.supportsComments).disabled(model.busy || model.confirmingQuit)
                 Menu {
                     Button { model.selectRegexFilter(nil) } label: {
@@ -823,6 +829,11 @@ struct FileComparisonEditor: NSViewRepresentable {
         let cells = model.alignment?.rows.map { base ? $0.base : $0.destination } ?? self.cells
         context.coordinator.cells = cells; context.coordinator.base = base
         (view as? FileComparisonTextView)?.sourceCells = cells
+        if let renderer = (view as? MergeWhitespaceDisplaying)?.whitespaceRenderer {
+            renderer.update(text: cells.map(\.displayText).joined(separator: "\n") + (cells.isEmpty ? "" : "\n"), cells: cells,
+                            otherCells: model.alignment?.rows.map { base ? $0.destination : $0.base }, preferences: model.whitespaceDisplay)
+            renderer.removal = base; renderer.highlightEndings = model.showInlineDiff
+        }
         view.isEditable = model.editingEnabled && model.editableBase == base && !model.busy && !model.confirmingQuit
         let value = Self.attributed(cells, font: view.font!, model: model, base: base)
         (view as? FileComparisonTextView)?.missingOffsets = Self.missingOffsets(cells, model: model, base: base)
@@ -948,7 +959,7 @@ struct FileComparisonEditor: NSViewRepresentable {
 @MainActor protocol ComparisonContextMenuProviding {
     func comparisonContextMenu(defaults: UserDefaults, pasteboard: NSPasteboard) -> NSMenu
 }
-private final class FileComparisonTextView: NSTextView, NSMenuDelegate, ComparisonContextMenuProviding, MergeLineNavigationProviding {
+private final class FileComparisonTextView: NSTextView, NSMenuDelegate, ComparisonContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying {
     var chooseNavigationLine: (NSWindow, Int) async -> Int? = MergeLineNumberPrompt.choose
     var navigationPending = false
     var navigationCells: [MergeSourceCell]? { sourceCells }
@@ -965,6 +976,7 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
     weak var model: FileComparisonWindowModel?
     var baseSide = false
     var sourceCells: [MergeSourceCell] = []
+    let whitespaceRenderer = MergeWhitespaceRenderer()
     var missingOffsets: [Int] = []
     func menuDidClose(_ menu: NSMenu) {
         guard let model, model.activeBase == baseSide, !model.busy, !model.confirmingQuit,
@@ -991,6 +1003,7 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
     }
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
+        whitespaceRenderer.draw(in: self, dirtyRect: dirtyRect)
         guard let layoutManager, let textContainer else { return }
         MergePalette.inlineRemoved.setFill()
         for offset in missingOffsets where offset < (string as NSString).length {

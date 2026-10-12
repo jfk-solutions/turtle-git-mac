@@ -25,11 +25,16 @@ struct MergeComparisonControls: View {
 
 import AppKit
 
-struct MergeLocatorControls: View {
+struct MergeViewControls: View {
     let preferences: MergeLocatorPreferences
     let apply: (MergeLocatorPreferences) -> Void
+    let whitespace: MergeWhitespaceDisplayPreferences
+    let applyWhitespace: (MergeWhitespaceDisplayPreferences) -> Void
     var body: some View {
         Menu("View") {
+            Toggle("Show Whitespaces", isOn: Binding(get: { whitespace.visible }, set: { var next = whitespace; next.visible = $0; applyWhitespace(next) }))
+            Toggle("Line-ending icons", isOn: Binding(get: { whitespace.endingIcons }, set: { var next = whitespace; next.endingIcons = $0; applyWhitespace(next) }))
+            Divider()
             Toggle("Locator bar", isOn: Binding(get: { preferences.visible }, set: { var next = preferences; next.visible = $0; apply(next) }))
             Toggle("Use fish-eye in locator bar", isOn: Binding(get: { preferences.fishEye }, set: { var next = preferences; next.fishEye = $0; apply(next) }))
         }.fixedSize()
@@ -170,5 +175,105 @@ struct MergeLocatorBar: NSViewRepresentable {
             }
         } else { response = alert.runModal() }
         return response == .alertFirstButtonReturn ? .delete : .keep
+    }
+}
+
+@MainActor protocol MergeWhitespaceDisplaying { var whitespaceRenderer: MergeWhitespaceRenderer { get } }
+/// Draws source whitespace symbols over glyphs. No attributed-string characters,
+/// selection offsets, clipboard values or original ending metadata are replaced.
+@MainActor final class MergeWhitespaceRenderer {
+    private var text = "", cells: [String]?, others: [String]?
+    private(set) var markers: [MergeWhitespaceMarker] = []
+    private(set) var preferences = MergeWhitespaceDisplayPreferences()
+    var highlightEndings = true, removal = false
+    private var icons: [MergeLineEnding: NSImage] = [:]
+    private var darkIcons: [MergeLineEnding: NSImage] = [:]
+    func update(text: String, cells: [MergeSourceCell]?, otherCells: [MergeSourceCell]?, preferences: MergeWhitespaceDisplayPreferences) {
+        let raw = cells?.map(\.text), other = otherCells?.map(\.text)
+        if !self.text.utf8.elementsEqual(text.utf8) || self.cells != raw || others != other {
+            self.text = text; self.cells = raw; others = other
+            markers = MergeWhitespaceDisplay.markers(text: text, cells: cells, otherCells: otherCells)
+        }
+        self.preferences = preferences
+    }
+    func draw(in view: NSTextView, dirtyRect: NSRect) {
+        guard preferences.visible, let layout = view.layoutManager, let container = view.textContainer else { return }
+        let origin = view.textContainerOrigin
+        let rect = dirtyRect.offsetBy(dx: -origin.x, dy: -origin.y)
+        let visibleGlyphs = layout.glyphRange(forBoundingRect: rect, in: container)
+        let visible = layout.characterRange(forGlyphRange: visibleGlyphs, actualGlyphRange: nil)
+        var low = 0, high = markers.count
+        while low < high { let mid = (low + high) / 2; if markers[mid].offset < visible.location { low = mid + 1 } else { high = mid } }
+        let advance = (" " as NSString).size(withAttributes: [.font: view.font ?? NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)]).width
+        let textLength = (view.string as NSString).length
+        for marker in markers[low...] {
+            if marker.offset > NSMaxRange(visible) { break }
+            guard marker.offset < textLength else { continue }
+            let glyphs = layout.glyphRange(forCharacterRange: NSRange(location: marker.offset, length: 1), actualCharacterRange: nil)
+            guard glyphs.location < layout.numberOfGlyphs else { continue }
+            let fragment = layout.lineFragmentRect(forGlyphAt: glyphs.location, effectiveRange: nil)
+            let point = layout.location(forGlyphAt: glyphs.location)
+            let box = layout.boundingRect(forGlyphRange: glyphs, in: container)
+            let frame = NSRect(x: fragment.minX + point.x + origin.x, y: fragment.minY + origin.y,
+                               width: max(advance, box.width), height: fragment.height)
+            guard frame.intersects(dirtyRect) else { continue }
+            NSColor.secondaryLabelColor.setStroke(); NSColor.secondaryLabelColor.setFill()
+            let path = NSBezierPath(); path.lineWidth = 1
+            func line(_ x: CGFloat, _ y: CGFloat, _ a: CGFloat, _ b: CGFloat) { path.move(to: NSPoint(x: x, y: y)); path.line(to: NSPoint(x: a, y: b)) }
+            let x = frame.minX, y = frame.midY, right = x + advance - 1
+            switch marker.kind {
+            case .space: NSRect(x: x + advance / 2 - 1, y: y, width: 2, height: 2).fill()
+            case .tab:
+                let end = frame.maxX - 2
+                line(x + 2, y, end, y); line(end - 3, y - 3, end, y); line(end - 3, y + 3, end, y); path.stroke()
+            case .ending(let style, let changed):
+                if preferences.endingIcons {
+                    let icon: MenuIcon?
+                    switch style { case .cr: icon = .mergeEndingCR; case .lf: icon = .mergeEndingLF; case .crlf: icon = .mergeEndingCRLF; default: icon = nil }
+                    if let icon {
+                        let target = NSRect(x: x, y: frame.minY, width: frame.height, height: frame.height)
+                        if changed && highlightEndings { (removal ? MergePalette.inlineRemoved : MergePalette.inlineAdded).setFill(); target.fill() }
+                        if icons[style] == nil { icons[style] = icon.image(size: frame.height) }
+                        let dark = view.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+                        if dark, darkIcons[style] == nil, let original = icons[style] {
+                            // Classic ICO masks become hard to see on dark
+                            // AppKit backgrounds. Preserve the original alpha
+                            // silhouette and use the native marker foreground.
+                            var foreground = NSColor(calibratedWhite: 0.7, alpha: 1)
+                            view.effectiveAppearance.performAsCurrentDrawingAppearance {
+                                if let resolved = NSColor.secondaryLabelColor.usingColorSpace(.sRGB) { foreground = resolved.withAlphaComponent(1) }
+                            }
+                            let tint = foreground
+                            darkIcons[style] = NSImage(size: original.size, flipped: false) { bounds in
+                                original.draw(in: bounds)
+                                tint.setFill(); bounds.fill(using: .sourceAtop)
+                                return true
+                            }
+                        }
+                        (dark ? darkIcons[style] : icons[style])?.draw(in: target, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+                    }
+                    continue // The source icon mode draws CR/LF/CRLF only.
+                }
+                switch style {
+                case .crlf:
+                    line(right, frame.minY + 1, right, y)
+                    fallthrough
+                case .cr:
+                    line(right, y, x, y); line(x + 4, y + 4, x, y); line(x + 4, y - 4, x, y)
+                case .lfcr:
+                    let middle = x + advance / 2, bottom = frame.maxY - 1
+                    line(right, y - 2, middle, y - 2); line(middle, y - 2, middle, bottom)
+                    line(middle - 4, bottom - 4, middle, bottom); line(middle + 4, bottom - 4, middle, bottom)
+                case .verticalTab, .formFeed, .nextLine, .lineSeparator, .paragraphSeparator:
+                    line(dirtyRect.minX, frame.maxY - 1, dirtyRect.maxX, frame.maxY - 1)
+                    line(right, frame.maxY - advance - 2, x, frame.maxY - 2)
+                    line(x + 5, frame.maxY - 2, x, frame.maxY - 2); line(x + 1, frame.maxY - 6, x, frame.maxY - 2)
+                case .lf:
+                    line(right, frame.maxY - advance, x, frame.maxY - 1)
+                    line(x + 5, frame.maxY - 2, x, frame.maxY - 1); line(x + 1, frame.maxY - 6, x, frame.maxY - 1)
+                }
+                path.stroke()
+            }
+        }
     }
 }

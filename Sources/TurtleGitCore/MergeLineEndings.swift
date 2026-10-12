@@ -9,6 +9,8 @@ public enum MergeLineEnding: String, CaseIterable, Sendable {
 /// Line boundaries shared by conflict parsing and explicit ending conversion.
 /// UTF-16 offsets match AppKit; text and missing final endings remain intact.
 public enum MergeLineEndings {
+    public struct Boundary: Sendable { public let range: NSRange; public let style: MergeLineEnding }
+    public static func boundaries(in text: String) -> [Boundary] { endings(in: text).map { Boundary(range: $0.range, style: $0.style) } }
     private struct Ending { let range: NSRange; let style: MergeLineEnding }
     private static func endings(in text: String) -> [Ending] {
         let units = Array(text.utf16)

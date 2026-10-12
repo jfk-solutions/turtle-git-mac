@@ -200,6 +200,11 @@ private enum MergeSourceSide {
     var engineConfiguration: SubversionMergeConfiguration?
     @Published private(set) var comparisonOptions = MergeComparisonOptions.load()
     var comparisonDefaults: UserDefaults = .standard
+    @Published private(set) var whitespaceDisplay = MergeWhitespaceDisplayPreferences.load()
+    func setWhitespaceDisplay(_ value: MergeWhitespaceDisplayPreferences) {
+        guard !busy, !confirmingQuit, !retired else { return }
+        whitespaceDisplay = value; value.save(to: comparisonDefaults)
+    }
     @Published private(set) var locatorPreferences = MergeLocatorPreferences.load()
     @Published private(set) var locatorViewport = MergeLocatorViewport()
     private weak var locatorResultScroll: NSScrollView?
@@ -356,6 +361,7 @@ private enum MergeSourceSide {
             guard let self else { return }
             let next = MergeEditorPreferences.load()
             self.locatorPreferences = .load(from: self.comparisonDefaults)
+            self.whitespaceDisplay = .load(from: self.comparisonDefaults)
             if next.tabWidth != self.editorPreferences.tabWidth || next.useSpaces != self.editorPreferences.useSpaces || next.smartTab != self.editorPreferences.smartTab {
                 self.tabWidths = [:]; self.spacePanes = [:]; self.smartTabPanes = [:]
                 self.editorPreferences = next
@@ -543,7 +549,7 @@ private struct TextConflictDialog: View {
                 Button { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegitmerge/tmerge-dug-conflicts.html")!) } label: { CommandLabel(title: "Help", icon: .help) }
             }.padding(9)
             HStack {
-                MergeLocatorControls(preferences: model.locatorPreferences, apply: model.setLocatorPreferences)
+                MergeViewControls(preferences: model.locatorPreferences, apply: model.setLocatorPreferences, whitespace: model.whitespaceDisplay, applyWhitespace: model.setWhitespaceDisplay)
                 MergeComparisonControls(options: model.comparisonOptions, apply: model.setComparisonOptions, supportsComments: model.supportsComments)
                 Menu("Regex Filter: " + (model.regexFilterName ?? "No Filter")) {
                     Button { model.selectRegexFilter(nil) } label: {
@@ -666,6 +672,10 @@ private struct MergeEditor: NSViewRepresentable {
             }
         }
         view.sourceCells = sourceCells
+        let other = sourceSide.flatMap { side in model.sourceComparison?.rows.map { side == .mine ? $0.theirs : $0.mine } }
+        view.whitespaceRenderer.update(text: text, cells: sourceCells, otherCells: other, preferences: model.whitespaceDisplay)
+        view.whitespaceRenderer.removal = sourceSide == .theirs
+        view.needsDisplay = true
         (scroll.verticalRulerView as? MergeLineRuler)?.sourceNumbers = sourceCells?.map(\.lineNumber)
         scroll.verticalRulerView?.needsDisplay = true
     }
@@ -704,7 +714,7 @@ private struct MergeEditor: NSViewRepresentable {
 @MainActor protocol MergeContextMenuProviding {
     func mergeContextMenu(defaults: UserDefaults, pasteboard: NSPasteboard) -> NSMenu
 }
-private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeLineNavigationProviding {
+private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying {
     var chooseNavigationLine: (NSWindow, Int) async -> Int? = MergeLineNumberPrompt.choose
     var navigationPending = false
     var navigationCells: [MergeSourceCell]? { sourceCells }
@@ -721,6 +731,8 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
     var mergeEditable = false
     var sourceSide: MergeSourceSide?
     var sourceCells: [MergeSourceCell]?
+    let whitespaceRenderer = MergeWhitespaceRenderer()
+    override func draw(_ dirtyRect: NSRect) { super.draw(dirtyRect); whitespaceRenderer.draw(in: self, dirtyRect: dirtyRect) }
     override func writeSelection(to pboard: NSPasteboard, type: NSPasteboard.PasteboardType) -> Bool {
         guard let sourceCells else { return super.writeSelection(to: pboard, type: type) }
         guard type == .string, let text = try? MergeSourceComparison.clipboardText(selectedRange(), cells: sourceCells), !text.isEmpty else { return false }

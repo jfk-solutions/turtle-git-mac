@@ -1,0 +1,92 @@
+{
+  "date": "2026-10-12",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Whitespace/EOL overlays and saved controls in both native merge viewers",
+  "implementationThenGroupedValidation": true,
+  "core": {
+    "tests": 34,
+    "failures": 0,
+    "seconds": 1.66,
+    "log": "build/qa/merge-whitespace-display-core-2026-10-12.log"
+  },
+  "build": {
+    "exitCode": 0,
+    "configuration": "Debug",
+    "architecture": "arm64",
+    "signed": false,
+    "log": "build/qa/merge-whitespace-display-build-contrast-2026-10-12.log",
+    "notes": "Existing exit-zero diagnostic noise remains."
+  },
+  "native": {
+    "combinedExitCode": 0,
+    "combinedLog": "build/qa/merge-whitespace-display-native-final-2026-10-12.log",
+    "focusedExitCode": 0,
+    "focusedLog": "build/qa/merge-whitespace-display-native-contrast-2026-10-12.log",
+    "frontendCompilationAttempts": 4,
+    "receiverProcesses": 3,
+    "oneCompileFailure": "NSRectFillUsingOperation import; corrected to NSRect.fill(using:)",
+    "visualRepairs": [
+      "dark icon contrast",
+      "capture resolved view appearance tint before NSImage callback"
+    ],
+    "checks": [
+      "three-pane display preference propagation",
+      "original CRLF versus LF",
+      "space/tab markers",
+      "no synthetic gap/EOF markers",
+      "shape/icon light/dark rendering",
+      "persistence and stale busy refusal",
+      "unchanged text/selection/Undo/generation/files",
+      "existing comparison/backup/Delete/resolution/cancellation checks"
+    ],
+    "ownedWindowsClosed": true,
+    "ownedHelpersExited": true,
+    "installedApplicationLaunched": false,
+    "physicalInput": false
+  },
+  "bundle": {
+    "exitCode": 0,
+    "originalIconResources": 294,
+    "log": "build/qa/merge-whitespace-display-bundle-2026-10-12.log"
+  },
+  "captures": [
+    {
+      "file": "docs/site/assets/merge-whitespace-shapes-light.png",
+      "width": 880,
+      "height": 260,
+      "scope": "Actual native source NSTextView component",
+      "visuallyInspected": true
+    },
+    {
+      "file": "docs/site/assets/merge-whitespace-shapes-dark.png",
+      "width": 880,
+      "height": 260,
+      "scope": "Actual native source NSTextView component",
+      "visuallyInspected": true
+    },
+    {
+      "file": "docs/site/assets/merge-whitespace-icons-light.png",
+      "width": 880,
+      "height": 260,
+      "scope": "Actual native source NSTextView component",
+      "visuallyInspected": true
+    },
+    {
+      "file": "docs/site/assets/merge-whitespace-icons-dark.png",
+      "width": 880,
+      "height": 260,
+      "scope": "Actual native source NSTextView component",
+      "visuallyInspected": true
+    }
+  ],
+  "remainingAcceptance": [
+    "physical menu/Settings interaction",
+    "rare ending/long-line/high-contrast/resize geometry",
+    "full three-pane inline differences",
+    "wrapping/folding",
+    "minimum-OS and signed sandbox/Finder/App Store",
+    "hosted CI success",
+    "full application parity"
+  ],
+  "completePortCertified": false
+}

@@ -199,3 +199,5 @@ are not recursively audited.
 [Merge save workflows](MERGE-SAVE-WORKFLOWS-PARITY.md): Backup original file, empty-result Delete/Keep, deleted-file recreation and exact deletion resolution retry.
 
 [CI runtime reuse](CI-RUNTIME-CACHES.md): exact prepared dependency caches with mandatory validation; hosted timing/hits remain pending.
+
+[Merge whitespace display](MERGE-WHITESPACE-DISPLAY-PARITY.md): source space/tab/EOL shapes and original ending icons in both viewers, with saved View/Settings controls.

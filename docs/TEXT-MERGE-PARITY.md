@@ -604,3 +604,5 @@ and signed sandbox acceptance remain pending. This is partial context-menu parit
 The native locator bar is now integrated in both viewers, with engine result colors, scroll navigation and source appearance defaults. See [locator parity](MERGE-LOCATOR-PARITY.md) for grouped checks and the remaining physical/complete-overlay scope.
 
 Backup original file and empty-result Delete/Keep now share a guarded save layer across both viewers. Deleted conflict snapshots retain staging retry state. See [save workflows](MERGE-SAVE-WORKFLOWS-PARITY.md) for source adaptations, evidence and remaining acceptance.
+
+Both viewers now display source whitespace/EOL symbols and the original CR/LF/CRLF icons without changing buffers. Saved View/Settings controls retain the source defaults. See [whitespace display parity](MERGE-WHITESPACE-DISPLAY-PARITY.md) for source mapping and remaining acceptance.

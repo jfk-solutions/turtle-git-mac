@@ -13,6 +13,7 @@ struct MergeEditorSettings: View {
     @State private var draft = MergeEditorPreferences.load()
     @State private var comparison = MergeComparisonOptions.load()
     @State private var locator = MergeLocatorPreferences.load()
+    @State private var whitespaceDisplay = MergeWhitespaceDisplayPreferences.load()
     @State private var backupOriginal = MergeFileSaveOptions.backupEnabled()
     @State private var tabSize = String(MergeEditorPreferences.load().tabWidth)
     @State private var profileText = ""
@@ -26,7 +27,7 @@ struct MergeEditorSettings: View {
     }
     private var changed: Bool {
         guard let width = validWidth else { return true }
-        return MergeEditorPreferences(tabWidth: width, useSpaces: draft.useSpaces, smartTab: draft.smartTab, showLineNumbers: draft.showLineNumbers, enableEditorConfig: draft.enableEditorConfig, autoAdd: draft.autoAdd) != .load() || comparison != .load() || locator != .load() || backupOriginal != MergeFileSaveOptions.backupEnabled() || profileText != savedProfileText
+        return MergeEditorPreferences(tabWidth: width, useSpaces: draft.useSpaces, smartTab: draft.smartTab, showLineNumbers: draft.showLineNumbers, enableEditorConfig: draft.enableEditorConfig, autoAdd: draft.autoAdd) != .load() || comparison != .load() || locator != .load() || whitespaceDisplay != .load() || backupOriginal != MergeFileSaveOptions.backupEnabled() || profileText != savedProfileText
     }
     private var validationError: String? {
         if validWidth == nil { return "Enter a tab size from 1 to 1000." }
@@ -40,6 +41,8 @@ struct MergeEditorSettings: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Toggle("Backup original file", isOn: $backupOriginal)
                     Toggle("Show line numbers", isOn: $draft.showLineNumbers)
+                    Toggle("Show Whitespaces", isOn: $whitespaceDisplay.visible)
+                    Toggle("Use icons for CR, LF and CRLF", isOn: $whitespaceDisplay.endingIcons)
                     Toggle("Show locator bar", isOn: $locator.visible)
                     Toggle("Use fish-eye in locator bar", isOn: $locator.fishEye)
                     HStack {
@@ -87,6 +90,7 @@ struct MergeEditorSettings: View {
         .onChange(of: tabSize) { _ in transaction?.notify() }
         .onChange(of: comparison) { _ in transaction?.notify() }
         .onChange(of: locator) { _ in transaction?.notify() }
+        .onChange(of: whitespaceDisplay) { _ in transaction?.notify() }
         .onChange(of: backupOriginal) { _ in transaction?.notify() }
         .onChange(of: profileText) { _ in transaction?.notify() }
         .sheet(isPresented: $editingProfiles) {
@@ -123,7 +127,7 @@ struct MergeEditorSettings: View {
             let alert = NSAlert(); alert.messageText = "Comment profiles were not saved"
             alert.informativeText = error.localizedDescription; alert.runModal(); return false
         }
-        draft.tabWidth = width; draft.save(); comparison.save(); locator.save()
+        draft.tabWidth = width; draft.save(); comparison.save(); locator.save(); whitespaceDisplay.save()
         MergeFileSaveOptions.saveBackupPreference(backupOriginal)
         NotificationCenter.default.post(name: .mergeEditorPreferencesChanged, object: nil); return true
     }
@@ -132,7 +136,7 @@ struct MergeEditorSettings: View {
         catch { return error.localizedDescription }
     }
     private func restore() {
-        draft = .load(); comparison = .load(); locator = .load(); tabSize = String(draft.tabWidth)
+        draft = .load(); comparison = .load(); locator = .load(); whitespaceDisplay = .load(); tabSize = String(draft.tabWidth)
         backupOriginal = MergeFileSaveOptions.backupEnabled()
         do { profileText = try MergeCommentProfileFile.text(); savedProfileText = profileText; profileError = nil }
         catch { profileError = error.localizedDescription }

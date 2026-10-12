@@ -111,3 +111,46 @@ public enum MergeWhitespace {
         !applying(command, to: text, tabWidth: tabWidth).utf8.elementsEqual(text.utf8)
     }
 }
+
+public struct MergeWhitespaceDisplayPreferences: Equatable, Sendable {
+    public var visible: Bool
+    public var endingIcons: Bool
+    public init(visible: Bool = true, endingIcons: Bool = false) { self.visible = visible; self.endingIcons = endingIcons }
+    public static func load(from defaults: UserDefaults = .standard) -> Self {
+        Self(visible: defaults.object(forKey: "TurtleGitMerge.ViewWhitespaces") == nil ? true : defaults.bool(forKey: "TurtleGitMerge.ViewWhitespaces"),
+             endingIcons: defaults.bool(forKey: "TurtleGitMerge.IconLFs"))
+    }
+    public func save(to defaults: UserDefaults = .standard) {
+        defaults.set(visible, forKey: "TurtleGitMerge.ViewWhitespaces"); defaults.set(endingIcons, forKey: "TurtleGitMerge.IconLFs")
+    }
+}
+public struct MergeWhitespaceMarker: Equatable, Sendable {
+    public enum Kind: Equatable, Sendable { case space, tab, ending(MergeLineEnding, changed: Bool) }
+    public let offset: Int
+    public let kind: Kind
+}
+/// Display-only UTF-16 coordinates. Aligned rows use captured original endings,
+/// never the synthetic LF added to show a gap or an unended final source line.
+public enum MergeWhitespaceDisplay {
+    public static func markers(text: String, cells: [MergeSourceCell]? = nil, otherCells: [MergeSourceCell]? = nil) -> [MergeWhitespaceMarker] {
+        var markers: [MergeWhitespaceMarker] = []
+        for (offset, unit) in text.utf16.enumerated() {
+            if unit == 32 { markers.append(.init(offset: offset, kind: .space)) }
+            else if unit == 9 { markers.append(.init(offset: offset, kind: .tab)) }
+        }
+        if let cells {
+            var offset = 0
+            for (index, cell) in cells.enumerated() {
+                let contentLength = cell.displayText.utf16.count
+                if let ending = MergeLineEndings.boundaries(in: cell.text).last?.style {
+                    let other = otherCells.flatMap { $0.indices.contains(index) ? MergeLineEndings.boundaries(in: $0[index].text).last?.style : nil }
+                    markers.append(.init(offset: offset + contentLength, kind: .ending(ending, changed: other != nil && other != ending)))
+                }
+                offset += contentLength + 1
+            }
+        } else {
+            markers += MergeLineEndings.boundaries(in: text).map { .init(offset: $0.range.location, kind: .ending($0.style, changed: false)) }
+        }
+        return markers.sorted { $0.offset < $1.offset }
+    }
+}

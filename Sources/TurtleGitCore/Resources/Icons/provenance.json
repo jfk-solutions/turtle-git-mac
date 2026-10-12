@@ -1457,6 +1457,24 @@
       "asset": "menurelocate.ico",
       "source": "src/Resources/menurelocate.ico",
       "sha256": "cb98188825377f233a581505a63a5fbacc5ad7e4219a7289dd6e0ee231595758"
+    },
+    {
+      "asset": "LineEndingCR.ico",
+      "source": "src/Resources/LineEndingCR.ico",
+      "sha256": "9a058ef97fa1b52f60cc248098a1eed65a68d0d4a137a2674594adcb54116238",
+      "blob": "1e03e5d1fc07f5535553db51fccf845d351e3d9e"
+    },
+    {
+      "asset": "LineEndingLF.ico",
+      "source": "src/Resources/LineEndingLF.ico",
+      "sha256": "1cef1f8aab27e6bea7d7eb5496568f2e59cfedaed43e87d0d8469719957475a1",
+      "blob": "b52e70aafe0d9bf024fd6d3264c9ea903bf0e9c1"
+    },
+    {
+      "asset": "LineEndingCRLF.ico",
+      "source": "src/Resources/LineEndingCRLF.ico",
+      "sha256": "6df7d7ba2f0c844c4c747306a18abc53174aead1c7ca0c44e53fb74891ee8013",
+      "blob": "2da40371db64f721c814cac2b69e980d3b08316b"
     }
   ]
 }

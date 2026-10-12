@@ -82,3 +82,32 @@ final class MergeWhitespaceTests: XCTestCase {
         XCTAssertEqual(MergeWhitespace.applying(.spacesToTabs, to: " \t \t X"), "\t\t X")
     }
 }
+
+final class MergeWhitespaceDisplayTests: XCTestCase {
+    func testOriginalEndingsAndSyntheticGapsUseDisplayOffsets() {
+        let cells: [MergeSourceCell] = [.init(text: "雪🦎 \t\r\n", lineNumber: 1, state: .normal), .init(text: "", lineNumber: nil, state: .empty), .init(text: "last", lineNumber: 2, state: .normal)]
+        let other: [MergeSourceCell] = [.init(text: "other\n", lineNumber: 1, state: .normal), .init(text: "", lineNumber: nil, state: .empty), .init(text: "last", lineNumber: 2, state: .normal)]
+        let display = cells.map(\.displayText).joined(separator: "\n") + "\n"
+        let markers = MergeWhitespaceDisplay.markers(text: display, cells: cells, otherCells: other)
+        XCTAssertEqual(markers.map(\.offset), [3, 4, 5])
+        XCTAssertEqual(markers.map(\.kind), [.space, .tab, .ending(.crlf, changed: true)])
+        XCTAssertEqual(cells.map(\.text), ["雪🦎 \t\r\n", "", "last"])
+    }
+    func testAllNineEndingsAndMissingEndingAreRetainedWithoutTextMutation() {
+        for ending in MergeLineEnding.allCases {
+            let text = "a\u{00a0} \t" + ending.rawValue + "tail"
+            let markers = MergeWhitespaceDisplay.markers(text: text)
+            XCTAssertEqual(markers.map(\.offset), [2, 3, 4])
+            XCTAssertEqual(markers.map(\.kind), [.space, .tab, .ending(ending, changed: false)])
+            XCTAssertEqual(MergeWhitespaceDisplay.markers(text: "unended"), [])
+        }
+        XCTAssertEqual(MergeWhitespaceDisplay.markers(text: "e\u{301} 🦎\t").map(\.offset), [2, 5])
+    }
+    func testWhitespaceSourceDefaultsAndIsolatedPersistence() {
+        let suite = "TurtleGit.Whitespace." + UUID().uuidString, defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        XCTAssertEqual(MergeWhitespaceDisplayPreferences.load(from: defaults), .init(visible: true, endingIcons: false))
+        let icons = MergeWhitespaceDisplayPreferences(visible: false, endingIcons: true)
+        icons.save(to: defaults); XCTAssertEqual(MergeWhitespaceDisplayPreferences.load(from: defaults), icons)
+    }
+}

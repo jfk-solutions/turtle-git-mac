@@ -8,6 +8,10 @@ import TurtleGitCore
         if let text = view as? NSTextView, text.isEditable, !text.isFieldEditor { return text }
         return view.subviews.compactMap { editableView($0) }.first
     }
+    @MainActor static func textViews(_ view: NSView?) -> [NSTextView] {
+        guard let view else { return [] }
+        return (view as? NSTextView).map { [$0] } ?? view.subviews.flatMap { textViews($0) }
+    }
     @MainActor static func wait(_ condition: () -> Bool) async throws {
         for _ in 0..<1000 { if condition() { return }; try await Task.sleep(nanoseconds: 10_000_000) }
         preconditionFailure("Timed out waiting for three-pane engine work")
@@ -77,6 +81,13 @@ import TurtleGitCore
         try await Task.sleep(nanoseconds: 150_000_000)
         try await wait { !model.busy }
         try await wait { editableView(controller.window?.contentView) != nil }
+        model.setWhitespaceDisplay(.init(visible: false, endingIcons: true))
+        try await wait {
+            let views = textViews(controller.window?.contentView)
+            return views.count >= 3 && views.allSatisfy { ($0 as? MergeWhitespaceDisplaying)?.whitespaceRenderer.preferences.visible == false }
+        }
+        precondition(MergeWhitespaceDisplayPreferences.load(from: defaults) == .init(visible: false, endingIcons: true))
+        model.setWhitespaceDisplay(.init())
         if let screenshots, let window = controller.window {
             try await capture(window, to: screenshots, dark: false); try await capture(window, to: screenshots, dark: true)
         }
