@@ -1156,7 +1156,7 @@ checks three-pane format acceptance. See [format parity](MERGE-FORMAT-PARITY.md)
 Build Debug once, then run `python3 scripts/test-native-reference-batch.py` for
 folders, comparisons, batch/single deletion, Switch/Fetch/Create Branch/Merge
 routes and Merge reference/Log pickers. The driver links the existing app objects
-and twelve receiver families, including Network, Credential and Tool settings, in one compilation. It uses an explicit native AppKit run loop and
+and thirteen receiver families, including Network, Credential, Tool settings and external Merge lifecycle, in one compilation. It uses an explicit native AppKit run loop and
 caches by object files, imported modules/framework, fixtures and compiler/flags.
 It does not recompile the whole SwiftUI app for each case.
 
@@ -1260,3 +1260,11 @@ Run `python3 scripts/test-native-reference-batch.py --only tool-settings` after 
 Debug build. It uses the existing object cache and one owned process; no actual
 tool app is launched. Physical sheets/gestures and signed receiving-app acceptance
 remain separate.
+
+
+The `external-merge-lifecycle` case uses mock termination notifications and
+private Git conflicts to check caller-close/task cancellation, exactly-once
+observer cleanup, late completion/prompt fencing, No index preservation, exact
+working-file staging and stale-stage refusal. It closes owned windows and uses
+the same object-linked cache. Run with `--only external-merge-lifecycle`; add
+`--git` for each desired engine. No external app is launched or killed.

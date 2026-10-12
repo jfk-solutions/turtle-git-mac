@@ -24,6 +24,7 @@ CASES = {
     'network-settings': 'NetworkSettingsVerification',
     'credential-settings': 'CredentialSettingsVerification',
     'tool-settings': 'ToolSettingsVerification',
+    'external-merge-lifecycle': 'ExternalMergeLifecycleVerification',
 }
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git', type=Path, action='append')
@@ -43,7 +44,7 @@ with tempfile.TemporaryDirectory(prefix='TurtleGitReferenceNativeBatch-') as tem
     sources = []
     for case in CASES:
         source = directory / (case + '.swift')
-        fixture = root / ('docs/qa/tool-settings-native-2026-10-12.swift' if case == 'tool-settings' else 'docs/qa/credential-settings-native-2026-10-12.swift' if case == 'credential-settings' else 'docs/qa/network-settings-native-2026-10-12.swift' if case == 'network-settings' else 'docs/qa/merge-pickers-native-2026-10-09.swift' if case == 'merge-pickers' else 'docs/qa/reference-' + case + '-native-2026-10-09.swift')
+        fixture = root / ('docs/qa/external-merge-lifecycle-native-2026-10-12.swift' if case == 'external-merge-lifecycle' else 'docs/qa/tool-settings-native-2026-10-12.swift' if case == 'tool-settings' else 'docs/qa/credential-settings-native-2026-10-12.swift' if case == 'credential-settings' else 'docs/qa/network-settings-native-2026-10-12.swift' if case == 'network-settings' else 'docs/qa/merge-pickers-native-2026-10-09.swift' if case == 'merge-pickers' else 'docs/qa/reference-' + case + '-native-2026-10-09.swift')
         source.write_text('@testable import TurtleGitMac\n' + fixture.read_text().replace('@main struct', 'struct', 1))
         sources.append(source)
     main = directory / 'Main.swift'

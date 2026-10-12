@@ -813,3 +813,10 @@ association editing and shared Settings Apply/Cancel; actual receiving-app launc
 Windows-script replacement, exit-code trust and signed grants remain open. The
 Advanced, association editor and Merge Tool resources are partial replacements,
 not certified complete. See [Tool settings audit](DIFF-TOOLS-PARITY.md).
+
+
+Blocking external Merge launches now own their wait/confirmation lifecycle.
+Caller close and cancellation release TurtleGit's wait, preserve the external
+application, and fence late Mark Resolved responses. Private native checks with
+both Git engines verify exact working-byte staging and stale-stage refusal.
+Actual external app/KVO/signed acceptance remains open; see the Tool audit.

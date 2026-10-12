@@ -298,6 +298,86 @@ struct MergeToolSettings: View {
     }
 }
 
+/// Owns only TurtleGit's wait and confirmation, never the external application.
+@MainActor final class ExternalMergeSession {
+    private(set) var retired = false
+    private weak var owner: NSWindow?
+    private var ownerObserver: NSObjectProtocol?
+    private var stopObservation: (() -> Void)?
+    private var answer: ((Bool) -> Void)?
+    private var alert: NSAlert?
+    var presentConfirmation: ((NSWindow, NSAlert, @escaping (NSApplication.ModalResponse) -> Void) -> Void)?
+    init(owner: NSWindow?) {
+        self.owner = owner
+        if let owner {
+            ownerObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: owner, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.retire() }
+            }
+        }
+    }
+    func retire() {
+        guard !retired else { return }; retired = true
+        let stop = stopObservation; stopObservation = nil; stop?()
+        if let alert, let parent = alert.window.sheetParent { parent.endSheet(alert.window, returnCode: .abort) }
+        alert?.window.orderOut(nil); alert = nil
+        let reply = answer; answer = nil; reply?(false)
+        if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) }; ownerObserver = nil
+    }
+    /// The returned cleanup is called once, including synchronous completion.
+    func wait(observe: (@escaping () -> Void) -> (() -> Void)) async -> Bool {
+        guard !retired, !Task.isCancelled else { retire(); return false }
+        guard answer == nil else { return false }
+        return await withTaskCancellationHandler(operation: {
+            await withCheckedContinuation { continuation in
+                var finished = false
+                let finish: (Bool) -> Void = { [weak self] value in
+                    guard !finished else { return }; finished = true
+                    let stop = self?.stopObservation; self?.stopObservation = nil; self?.answer = nil; stop?()
+                    continuation.resume(returning: value)
+                }
+                answer = finish
+                let stop = observe { [weak self] in finish(self?.retired == false) }
+                if finished { stop() } else { stopObservation = stop }
+            }
+        }, onCancel: { Task { @MainActor [weak self] in self?.retire() } })
+    }
+    func wait(for application: NSRunningApplication) async -> Bool {
+        await wait { finish in
+            if application.isTerminated { finish(); return {} }
+            let observation = application.observe(\.isTerminated, options: [.new]) { _, change in
+                if change.newValue == true { DispatchQueue.main.async { finish() } }
+            }
+            if application.isTerminated { finish() }
+            return { observation.invalidate() }
+        }
+    }
+    func confirmResolution(path: String) async -> Bool {
+        guard !retired, !Task.isCancelled, answer == nil, let owner, owner.isVisible, owner.attachedSheet == nil else { return false }
+        let question = NSAlert(); question.messageText = "Was the merge of “" + path + "” successful?"
+        question.addButton(withTitle: "Mark Resolved"); question.addButton(withTitle: "No")
+        question.buttons[0].keyEquivalent = ""; question.buttons[1].keyEquivalent = "\r"; alert = question
+        return await withTaskCancellationHandler(operation: {
+            await withCheckedContinuation { continuation in
+                var finished = false
+                let reply: (Bool) -> Void = { [weak self] value in
+                    guard !finished else { return }; finished = true; self?.answer = nil; self?.alert = nil
+                    continuation.resume(returning: value)
+                }
+                answer = reply
+                let response: (NSApplication.ModalResponse) -> Void = { [weak self, weak owner] result in
+                    reply(result == .alertFirstButtonReturn && self?.retired == false && owner?.isVisible == true)
+                }
+                if let presentConfirmation { presentConfirmation(owner, question, response) }
+                else { question.beginSheetModal(for: owner, completionHandler: response) }
+            }
+        }, onCancel: { Task { @MainActor [weak self] in self?.retire() } })
+    }
+    func resolveIfConfirmed(repository: GitRepository, entry: ConflictEntry, path: String) async throws {
+        guard await confirmResolution(path: path), !retired, !Task.isCancelled else { return }
+        _ = try await repository.resolveConflicts([entry], using: .current)
+    }
+}
+
 @MainActor enum MergeToolApplication {
     private static var previews: [URL] = []
     private(set) static var activeRequests = 0
@@ -307,7 +387,11 @@ struct MergeToolSettings: View {
         guard let program = try settings.selected(path: path, alternate: alternate) else { return false }
         guard !settings.trustExitCode else { throw NSError(domain: "TurtleGit.MergeTools", code: 1, userInfo: [NSLocalizedDescriptionKey: "This application does not expose an exit code. Turn off Trust the exit code in Merge Tool settings."]) }
         guard !GitRuntime.isAppStoreBuild || (access?.hasSecurityScope == true && access?.contains(repository.root) == true) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+        let session = ExternalMergeSession(owner: owner)
+        defer { session.retire() }
         let input = try await repository.externalMergeInputs(path: path)
+        try Task.checkCancellation()
+        guard !session.retired else { return true }
         guard !GitRuntime.isAppStoreBuild || access?.contains(input.result) == true else { throw RepositoryAccessFailure.securityScopeUnavailable }
         let target: URL
         if let bookmark = program.bookmark { target = try SystemRepositoryBookmarkProvider().resolve(bookmark).url }
@@ -335,32 +419,10 @@ struct MergeToolSettings: View {
                 }
             }
             previews.append(folder)
-            if settings.blockWhileMerging {
-                await waitForTermination(app)
-                if let owner, owner.isVisible, owner.attachedSheet == nil {
-                    let question = NSAlert(); question.messageText = "Was the merge of “" + path + "” successful?"
-                    question.addButton(withTitle: "Mark Resolved"); question.addButton(withTitle: "No")
-                    question.buttons[0].keyEquivalent = ""; question.buttons[1].keyEquivalent = "\r"
-                    let answer = await withCheckedContinuation { continuation in question.beginSheetModal(for: owner) { continuation.resume(returning: $0) } }
-                    if answer == .alertFirstButtonReturn { _ = try await repository.resolveConflicts([input.entry], using: .current) }
-                }
+            if settings.blockWhileMerging, !session.retired {
+                if await session.wait(for: app) { try await session.resolveIfConfirmed(repository: repository, entry: input.entry, path: path) }
             }
             return true
         } catch { if !previews.contains(folder) { try? manager.removeItem(at: folder) }; throw error }
-    }
-    private static func waitForTermination(_ application: NSRunningApplication) async {
-        if application.isTerminated { return }
-        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            var observation: NSKeyValueObservation?
-            var finished = false
-            func finish() {
-                guard !finished else { return }; finished = true
-                observation?.invalidate(); observation = nil; continuation.resume()
-            }
-            observation = application.observe(\.isTerminated, options: [.new]) { _, change in
-                if change.newValue == true { DispatchQueue.main.async { finish() } }
-            }
-            if application.isTerminated { finish() }
-        }
     }
 }

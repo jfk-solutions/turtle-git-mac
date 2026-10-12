@@ -1,0 +1,36 @@
+{
+  "date": "2026-10-12",
+  "baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "External Merge wait, caller retirement and resolution confirmation",
+  "validation": {
+    "debug_build_exit": 0,
+    "native_exit": 0,
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "frontend_compilations": 1,
+    "owned_processes": 2,
+    "owned_processes_reaped": true,
+    "owned_windows_closed": true,
+    "real_git_conflicts": true,
+    "mock_tool_completion": true,
+    "external_tool_launched_or_killed": false,
+    "core_or_full_reference_group_rerun": false
+  },
+  "checks": [
+    "Synchronous completion observer cleanup",
+    "Caller close releases wait once",
+    "Task cancellation releases wait once",
+    "Late termination/prompt cannot accept resolution",
+    "No default and exact index preservation",
+    "Mark Resolved stages exact working bytes",
+    "Stale captured stages rejected without index mutation"
+  ],
+  "remaining": [
+    "Actual NSWorkspace and receiving-app arguments/edits",
+    "Real app KVO termination and physical sheets",
+    "Exit-code trust and command-line tool support",
+    "Signed sandbox/App Store grants"
+  ]
+}

@@ -141,3 +141,28 @@ tool argument delivery/working-file edits, wait cancellation and exit status,
 bookmark renewal, image Shift parity, owned native sheets and App Store sandbox
 acceptance also remain open. Advanced, association editor and Merge Tool inventory
 resources are now partial-native-replacement; no dialog is certified complete.
+
+
+## External Merge session lifecycle — 2026-10-12
+
+The blocking launch now creates an owned session before reading conflict inputs.
+Caller closure retires the session; a late input read cannot launch another tool.
+After an authorized launch, closure releases TurtleGit's wait without terminating
+the external app. Successful-launch input copies remain retained by the existing
+preview registry. Task cancellation likewise releases the wait and owned prompt.
+The session owns the termination observer, close notification and confirmation
+reply, disposes observations once and fences late replies. A closed caller cannot
+be reused to accept an old Mark Resolved response. No is the default key action;
+accepted resolution still validates the captured conflict stages through Core.
+This supersedes the earlier unowned-wait cancellation gap only.
+
+Debug build exited 0. The new object-linked native lifecycle receiver passed with
+system and bundled Git, one compilation and two reaped processes. Mock completion
+checks covered synchronous termination, caller-close and task cancellation, once-
+only cleanup, late termination and late prompt responses. Private real Git
+conflicts verified No preserves index bytes, Mark Resolved stages exact working
+bytes and an already-resolved captured entry is rejected without index changes.
+Owned windows were closed. Tool apps were neither launched nor killed; actual
+NSWorkspace argument delivery, real tool KVO termination, physical owned sheets,
+receiving-app edits, signed grants and exit-code trust remain open. Native-only
+changes did not rerun Core or the complete thirteen-case group.
