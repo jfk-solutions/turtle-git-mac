@@ -63,7 +63,7 @@ import TurtleGitCore
         let filter = MergeRegexFilter(name: "Ignore version numbers", expression: "[0-9]+", replacement: "")
         try MergeRegexFilters.save([filter], defaults: defaults)
         let controller = TextConflictWindowController(repository: repository, access: nil, path: "sample.txt"), model = controller.model
-        model.regexDefaults = defaults; model.refreshRegexFilters(); model.load()
+        model.comparisonDefaults = defaults; model.regexDefaults = defaults; model.refreshRegexFilters(); model.load()
         try await wait { !model.busy && model.document != nil }
         precondition(model.document?.mergeSources != nil && model.blocks.count == 1 && !model.dirty)
         model.selectRegexFilter(filter.name); try await wait { !model.busy }
@@ -83,7 +83,13 @@ import TurtleGitCore
         precondition(model.dirty && model.canUndo)
         model.chooseReload = { .cancel }; model.selectRegexFilter(nil)
         precondition(model.regexFilterName == filter.name && model.dirty && model.result.hasSuffix("manual edit\n"))
+        let originalOptions = model.comparisonOptions
+        model.setComparisonOptions(.init(whitespace: .ignoreAll, ignoreCase: true, ignoreEndings: false))
+        precondition(model.comparisonOptions == originalOptions && MergeComparisonOptions.load(from: defaults) == originalOptions)
         model.undo(); precondition(model.result == generated && !model.dirty)
+        let requestedOptions = MergeComparisonOptions(whitespace: .ignoreChanges, ignoreCase: true, ignoreEndings: false)
+        model.setComparisonOptions(requestedOptions); try await wait { !model.busy }
+        precondition(model.comparisonOptions == requestedOptions && MergeComparisonOptions.load(from: defaults) == requestedOptions)
         model.selectRegexFilter(nil); try await wait { !model.busy }
         try await wait { editableView(controller.window?.contentView) != nil }
         precondition(model.regexFilterName == nil && model.sourceComparison?.rows[0].mine.state != .filtered && !model.canUndo)

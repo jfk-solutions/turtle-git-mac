@@ -71,6 +71,7 @@ public enum SubversionMergeDiff {
     /// endings one engine token and keeps byte/EOL distinctions explicit.
     public static func plan(base: String, mine: String, theirs: String? = nil, filter: MergeRegexFilter? = nil,
                             executable: URL? = nil, runtimeRoot: URL? = nil, regexExecutable: URL? = nil,
+                            options: MergeComparisonOptions = .exact,
                             cancellation: OperationCancellation? = nil) throws -> SubversionDiffPlan {
         let token = cancellation ?? OperationCancellation(); try token.check()
         let helper = try executable ?? Self.executable(), runtime = try runtimeRoot ?? Self.runtimeRoot()
@@ -78,15 +79,15 @@ public enum SubversionMergeDiff {
         let sources = [base, mine] + (theirs.map { [$0] } ?? [])
         let lines = sources.map(MergeRegexFilters.lines)
         let all = lines.flatMap { $0 }
-        let transformed: [String]
+        let contents = all.map(MergeLineEndings.droppingFinalEnding)
+        let replacements: [String]
         if let filter {
-            let content = all.map(MergeLineEndings.droppingFinalEnding)
-            let replacements = try MergeRegexFilters.transformed(content, filter: filter, executable: regexExecutable, cancellation: token)
-            transformed = zip(all, replacements).map { original, replaced in
-                let endingOffset = (MergeLineEndings.droppingFinalEnding(original) as NSString).length
-                return replaced + (original as NSString).substring(from: endingOffset)
-            }
-        } else { transformed = all }
+            replacements = try MergeRegexFilters.transformed(contents, filter: filter, executable: regexExecutable, cancellation: token)
+        } else { replacements = contents }
+        let transformed = zip(all, replacements).map { original, replaced in
+            let endingOffset = (MergeLineEndings.droppingFinalEnding(original) as NSString).length
+            return options.key(content: replaced, ending: (original as NSString).substring(from: endingOffset))
+        }
         let directory = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGitMergeDiff-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         defer { try? FileManager.default.removeItem(at: directory) }

@@ -680,3 +680,14 @@ blocks remain unresolved, including shared child lines. This corrects the earlie
 assumption that the source split those parents into smaller resolved results.
 Original numbered lines and block choices are preserved. Full source option,
 segmentation, physical/signed and visual-capture acceptance remain open.
+
+## Comparison options and settings batch — 2026-10-12
+
+Both comparison workflows now expose source whitespace choices, Ignore line
+endings and Ignore case, with saved defaults in Merge Editor settings. Defaults
+retain source IgnoreEOL=true, case-sensitive and compare-whitespace behavior.
+Original text/encodings stay separate from normalized keys. Three-pane changes
+use the dirty reload transaction and persist only on success; two-pane changes
+preserve drafts and recompute with existing cancellation/selection gates.
+Comment profiles, Unicode locale equivalence and physical/signed acceptance
+remain open; see MERGE-COMPARISON-OPTIONS-PARITY.md.

@@ -6,17 +6,19 @@ public struct SubversionMergeConfiguration: Sendable {
     public var runtimeRoot: URL
     public var regexExecutable: URL?
     public var filter: MergeRegexFilter?
-    public init(executable: URL, runtimeRoot: URL, regexExecutable: URL? = nil, filter: MergeRegexFilter? = nil) {
+    public var options: MergeComparisonOptions
+    public init(executable: URL, runtimeRoot: URL, regexExecutable: URL? = nil, filter: MergeRegexFilter? = nil, options: MergeComparisonOptions = .exact) {
         self.executable = executable; self.runtimeRoot = runtimeRoot; self.regexExecutable = regexExecutable; self.filter = filter
+        self.options = options
     }
     public static func bundled(filter: MergeRegexFilter? = nil) throws -> Self {
         let bundle = SubversionMergeDiff.applicationBundle()
         return .init(executable: try SubversionMergeDiff.executable(bundle: bundle), runtimeRoot: try SubversionMergeDiff.runtimeRoot(bundle: bundle),
-                     regexExecutable: filter == nil ? nil : try IssueRegexRuntime.executable(bundle: bundle), filter: filter)
+                     regexExecutable: filter == nil ? nil : try IssueRegexRuntime.executable(bundle: bundle), filter: filter, options: .load())
     }
     public func plan(base: String, mine: String, theirs: String? = nil, cancellation: OperationCancellation? = nil) throws -> SubversionDiffPlan {
         try SubversionMergeDiff.plan(base: base, mine: mine, theirs: theirs, filter: filter, executable: executable, runtimeRoot: runtimeRoot,
-                                    regexExecutable: regexExecutable, cancellation: cancellation)
+                                    regexExecutable: regexExecutable, options: options, cancellation: cancellation)
     }
 }
 public struct SubversionComparisonPresentation: Sendable {

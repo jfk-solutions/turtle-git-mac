@@ -33,8 +33,12 @@ import TurtleGitCore
         try MergeRegexFilters.save([filter], defaults: defaults)
         let comparison = try WorkingFileComparison(base: base, destination: destination)
         let controller = FileComparisonWindowController(comparison: comparison, permissions: []), model = controller.model
-        model.regexDefaults = defaults; model.load(); try await settled(model)
+        model.comparisonDefaults = defaults; model.regexDefaults = defaults; model.load(); try await settled(model)
         precondition(model.error == nil && model.alignment?.differences == [0..<1, 2..<3])
+        let requestedOptions = MergeComparisonOptions(whitespace: .ignoreChanges, ignoreCase: true, ignoreEndings: false)
+        model.setComparisonOptions(requestedOptions); try await settled(model)
+        precondition(model.comparisonOptions == requestedOptions && MergeComparisonOptions.load(from: defaults) == requestedOptions)
+        model.setComparisonOptions(.exact); try await settled(model)
         model.refreshRegexFilters(); model.selectRegexFilter(filter.name); try await settled(model)
         precondition(model.alignment?.rows[0].base.state == .filtered && model.alignment?.differences == [2..<3])
         model.selectRegexFilter(nil); model.selectRegexFilter(filter.name); model.selectRegexFilter(nil)

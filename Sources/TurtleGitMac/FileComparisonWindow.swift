@@ -102,6 +102,12 @@ import TurtleGitCore
     @Published private(set) var filtering = false
     var regexExecutable: URL?
     var engineConfiguration: SubversionMergeConfiguration?
+    @Published private(set) var comparisonOptions = MergeComparisonOptions.load()
+    var comparisonDefaults: UserDefaults = .standard
+    func setComparisonOptions(_ value: MergeComparisonOptions) {
+        guard !busy, !confirmingQuit, !retired else { return }
+        comparisonOptions = value; value.save(to: comparisonDefaults); rebuildFilterAlignment()
+    }
     struct AlignmentSelection { let id = UUID(); let sourceRange: NSRange }
     @Published var alignmentSelections: [Bool: AlignmentSelection] = [:]
     var regexDefaults: UserDefaults = .standard
@@ -195,6 +201,8 @@ import TurtleGitCore
     func useSpaces(base: Bool) -> Bool { spacePanes[base] ?? editorPreferences.useSpaces }
     func smartTab(base: Bool) -> Bool { smartTabPanes[base] ?? editorPreferences.smartTab }
     func refreshPreferences() {
+        let options = MergeComparisonOptions.load(from: comparisonDefaults)
+        if options != comparisonOptions { comparisonOptions = options; rebuildFilterAlignment() }
         let next = MergeEditorPreferences.load()
         if next.tabWidth != editorPreferences.tabWidth || next.useSpaces != editorPreferences.useSpaces || next.smartTab != editorPreferences.smartTab {
             tabWidths = [:]; spacePanes = [:]; smartTabPanes = [:]
@@ -483,7 +491,7 @@ import TurtleGitCore
         let current = alignmentGeneration, token = OperationCancellation()
         let configuration = Result { () throws -> SubversionMergeConfiguration in
             var value = try engineConfiguration ?? SubversionMergeConfiguration.bundled(filter: filter)
-            value.filter = filter; value.regexExecutable = regexExecutable ?? value.regexExecutable
+            value.filter = filter; value.options = comparisonOptions; value.regexExecutable = regexExecutable ?? value.regexExecutable
             return value
         }
         filtering = true; regexCancellation = token
@@ -680,6 +688,7 @@ private struct FileComparisonDialog: View {
                 Toggle("Line numbers", isOn: $model.showLineNumbers)
             }.toggleStyle(.checkbox).padding(.horizontal, 10).padding(.bottom, 8)
             HStack {
+                MergeComparisonControls(options: model.comparisonOptions, apply: model.setComparisonOptions).disabled(model.busy || model.confirmingQuit)
                 Menu {
                     Button { model.selectRegexFilter(nil) } label: {
                         if model.regexFilterName == nil { Label("No Filter", systemImage: "checkmark") } else { Text("No Filter") }

@@ -12,6 +12,7 @@
 		B73119000000000000000001 /* FinderOverlaySettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73119000000000000000002 /* FinderOverlaySettings.swift */; };
 		B73128000000000000000001 /* PatchClipboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73128000000000000000002 /* PatchClipboard.swift */; };
 		B73130000000000000000001 /* MergeRegexFilterWindows.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73130000000000000000002 /* MergeRegexFilterWindows.swift */; };
+		B73135000000000000000001 /* MergeComparisonControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73135000000000000000002 /* MergeComparisonControls.swift */; };
 		B73126000000000000000001 /* SVNWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73126000000000000000002 /* SVNWindow.swift */; };
 		B73124000000000000000001 /* ReviewPatchWorkflow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73124000000000000000002 /* ReviewPatchWorkflow.swift */; };
 		B73123000000000000000001 /* GitDaemonWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73123000000000000000002 /* GitDaemonWindow.swift */; };
@@ -33,6 +34,7 @@
 		B73129000000000000000001 /* MergeRegexFilters.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73129000000000000000002 /* MergeRegexFilters.swift */; };
 		B73131000000000000000001 /* SubversionMergeDiff.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73131000000000000000002 /* SubversionMergeDiff.swift */; };
 		B73133000000000000000001 /* SubversionMergePresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73133000000000000000002 /* SubversionMergePresentation.swift */; };
+		B73134000000000000000001 /* MergeComparisonOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73134000000000000000002 /* MergeComparisonOptions.swift */; };
 		B73125000000000000000001 /* GitSVN.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73125000000000000000002 /* GitSVN.swift */; };
 		B73122000000000000000001 /* GitDaemon.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73122000000000000000002 /* GitDaemon.swift */; };
 		B73120000000000000000001 /* FinderContextMenuSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73120000000000000000002 /* FinderContextMenuSettings.swift */; };
@@ -368,6 +370,7 @@
 		B73119000000000000000002 /* FinderOverlaySettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderOverlaySettings.swift; sourceTree = "<group>"; };
 		B73128000000000000000002 /* PatchClipboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchClipboard.swift; sourceTree = "<group>"; };
 		B73130000000000000000002 /* MergeRegexFilterWindows.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeRegexFilterWindows.swift; sourceTree = "<group>"; };
+		B73135000000000000000002 /* MergeComparisonControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeComparisonControls.swift; sourceTree = "<group>"; };
 		B73126000000000000000002 /* SVNWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SVNWindow.swift; sourceTree = "<group>"; };
 		B73124000000000000000002 /* ReviewPatchWorkflow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewPatchWorkflow.swift; sourceTree = "<group>"; };
 		B73123000000000000000002 /* GitDaemonWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitDaemonWindow.swift; sourceTree = "<group>"; };
@@ -389,6 +392,7 @@
 		B73129000000000000000002 /* MergeRegexFilters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeRegexFilters.swift; sourceTree = "<group>"; };
 		B73131000000000000000002 /* SubversionMergeDiff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubversionMergeDiff.swift; sourceTree = "<group>"; };
 		B73133000000000000000002 /* SubversionMergePresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubversionMergePresentation.swift; sourceTree = "<group>"; };
+		B73134000000000000000002 /* MergeComparisonOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeComparisonOptions.swift; sourceTree = "<group>"; };
 		B73125000000000000000002 /* GitSVN.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitSVN.swift; sourceTree = "<group>"; };
 		B73122000000000000000002 /* GitDaemon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitDaemon.swift; sourceTree = "<group>"; };
 		B73120000000000000000002 /* FinderContextMenuSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderContextMenuSettings.swift; sourceTree = "<group>"; };
@@ -756,6 +760,7 @@
 				B73119000000000000000002 /* FinderOverlaySettings.swift */,
 				B73128000000000000000002 /* PatchClipboard.swift */,
 				B73130000000000000000002 /* MergeRegexFilterWindows.swift */,
+				B73135000000000000000002 /* MergeComparisonControls.swift */,
 				B73126000000000000000002 /* SVNWindow.swift */,
 				B73124000000000000000002 /* ReviewPatchWorkflow.swift */,
 				B73123000000000000000002 /* GitDaemonWindow.swift */,
@@ -955,6 +960,7 @@
 				B73129000000000000000002 /* MergeRegexFilters.swift */,
 				B73131000000000000000002 /* SubversionMergeDiff.swift */,
 				B73133000000000000000002 /* SubversionMergePresentation.swift */,
+				B73134000000000000000002 /* MergeComparisonOptions.swift */,
 				B73125000000000000000002 /* GitSVN.swift */,
 				B73122000000000000000002 /* GitDaemon.swift */,
 				B73120000000000000000002 /* FinderContextMenuSettings.swift */,
@@ -1455,6 +1461,7 @@
 				B73129000000000000000001 /* MergeRegexFilters.swift in Sources */,
 				B73131000000000000000001 /* SubversionMergeDiff.swift in Sources */,
 				B73133000000000000000001 /* SubversionMergePresentation.swift in Sources */,
+				B73134000000000000000001 /* MergeComparisonOptions.swift in Sources */,
 				B73125000000000000000001 /* GitSVN.swift in Sources */,
 				B73122000000000000000001 /* GitDaemon.swift in Sources */,
 				B73120000000000000000001 /* FinderContextMenuSettings.swift in Sources */,
@@ -1591,6 +1598,7 @@
 				B73119000000000000000001 /* FinderOverlaySettings.swift in Sources */,
 				B73128000000000000000001 /* PatchClipboard.swift in Sources */,
 				B73130000000000000000001 /* MergeRegexFilterWindows.swift in Sources */,
+				B73135000000000000000001 /* MergeComparisonControls.swift in Sources */,
 				B73126000000000000000001 /* SVNWindow.swift in Sources */,
 				B73124000000000000000001 /* ReviewPatchWorkflow.swift in Sources */,
 				B73123000000000000000001 /* GitDaemonWindow.swift in Sources */,

@@ -11,6 +11,7 @@ struct MergeEditorSettings: View {
     @State private var windowReference = MergeSettingsWindowReference()
     @State private var initialized = false
     @State private var draft = MergeEditorPreferences.load()
+    @State private var comparison = MergeComparisonOptions.load()
     @State private var tabSize = String(MergeEditorPreferences.load().tabWidth)
     private var validWidth: Int? {
         guard let width = Int(tabSize), (1...1000).contains(width) else { return nil }
@@ -18,7 +19,7 @@ struct MergeEditorSettings: View {
     }
     private var changed: Bool {
         guard let width = validWidth else { return true }
-        return MergeEditorPreferences(tabWidth: width, useSpaces: draft.useSpaces, smartTab: draft.smartTab, showLineNumbers: draft.showLineNumbers, enableEditorConfig: draft.enableEditorConfig, autoAdd: draft.autoAdd) != .load()
+        return MergeEditorPreferences(tabWidth: width, useSpaces: draft.useSpaces, smartTab: draft.smartTab, showLineNumbers: draft.showLineNumbers, enableEditorConfig: draft.enableEditorConfig, autoAdd: draft.autoAdd) != .load() || comparison != .load()
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -38,6 +39,12 @@ struct MergeEditorSettings: View {
                     }
                     Toggle("Add new files to Git after saving a patched result", isOn: $draft.autoAdd)
                     Toggle("Enable EditorConfig", isOn: $draft.enableEditorConfig)
+                    Divider()
+                    Picker("Whitespace comparison:", selection: $comparison.whitespace) {
+                        ForEach(MergeWhitespaceComparison.allCases, id: \.rawValue) { Text($0.title).tag($0) }
+                    }
+                    Toggle("Ignore line endings (recommended)", isOn: $comparison.ignoreEndings)
+                    Toggle("Ignore case changes", isOn: $comparison.ignoreCase)
                     if validWidth == nil { Text("Enter a tab size from 1 to 1000.").font(.caption).foregroundStyle(.red) }
                 }.padding(8)
             }
@@ -49,21 +56,22 @@ struct MergeEditorSettings: View {
                 Button("Cancel") { restore(); windowReference.window?.performClose(nil) }
                 Button("Apply") {
                     guard let width = validWidth else { return }
-                    draft.tabWidth = width; draft.save()
+                    draft.tabWidth = width; draft.save(); comparison.save()
                     NotificationCenter.default.post(name: .mergeEditorPreferencesChanged, object: nil)
                 }.disabled(!changed || validWidth == nil)
             } }
         }.padding(20).background(MergeSettingsWindowProbe(reference: windowReference).frame(width: 0, height: 0)).onAppear { if !initialized { initialized = true; restore() } }
         .onChange(of: tabSize) { _ in transaction?.notify() }
+        .onChange(of: comparison) { _ in transaction?.notify() }
         .settingsParticipant("mergeEditor", page: .mergeEditor, value: draft,
             modified: { changed }, validate: { validWidth == nil ? "Enter a tab size from 1 to 1000." : nil },
             apply: { applyDraft() }, cancel: restore)
     }
     private func applyDraft() -> Bool {
-        guard let width = validWidth else { return false }; draft.tabWidth = width; draft.save()
+        guard let width = validWidth else { return false }; draft.tabWidth = width; draft.save(); comparison.save()
         NotificationCenter.default.post(name: .mergeEditorPreferencesChanged, object: nil); return true
     }
-    private func restore() { draft = .load(); tabSize = String(draft.tabWidth) }
+    private func restore() { draft = .load(); comparison = .load(); tabSize = String(draft.tabWidth) }
 }
 private final class MergeSettingsWindowReference { weak var window: NSWindow? }
 private struct MergeSettingsWindowProbe: NSViewRepresentable {

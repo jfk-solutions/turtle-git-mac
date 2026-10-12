@@ -46,8 +46,9 @@ sides. The renderer follows DiffData.cpp: the first child supplies removed-Base
 padding, and the parent remains unresolved. Shared child lines do not become
 automatically resolved result blocks.
 
-Remaining: complete
-upstream options and EOL normalization, literal-marker handling, full libsvn
+Whitespace/case/EOL choices now use saved source defaults; see
+[comparison options](MERGE-COMPARISON-OPTIONS-PARITY.md). Remaining: comment
+profiles and complete source option/EOL acceptance, literal-marker handling, full libsvn
 segmentation equivalence, native layout, physical and signed App Store acceptance.
 Protocol 2 retains top-level conflict containers and their resolved children,
 validating containment, side partitions and repeated Base ranges. This is a backend foundation

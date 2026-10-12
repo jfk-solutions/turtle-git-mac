@@ -188,4 +188,6 @@ are not recursively audited.
 
 [Merge regex filters](MERGE-REGEX-FILTERS-PARITY.md): native list/editor, ECMAScript comparison keys and filtered-row colors; remaining three-pane and acceptance work.
 
-[Subversion merge engine](SUBVERSION-MERGE-ENGINE.md): bundled diff2/diff3 adapter and original-text source mapping; editor integration remains open.
+[Subversion merge engine](SUBVERSION-MERGE-ENGINE.md): bundled diff2/diff3 adapter and original-text source mapping and native pane integration; full source acceptance remains open.
+
+[Merge comparison options](MERGE-COMPARISON-OPTIONS-PARITY.md): whitespace/case/EOL controls and saved source defaults; comment profiles and full acceptance remain open.

@@ -1,0 +1,12 @@
+{
+  "date": "2026-10-12",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Whitespace/case/EOL comparison controls, source defaults and Merge Editor settings",
+  "implementationThenGroupedValidation": true,
+  "defaults": {"whitespace": "compare", "ignoreCase": false, "ignoreEndings": true},
+  "core": {"tests": 28, "failures": 0, "seconds": 2.888, "log": "build/qa/comparison-options-core-2026-10-12.log", "checks": ["private persistence and invalid whitespace fallback", "whitespace runs versus absence", "ASCII normalization and non-ASCII space retention", "Unicode lowercase rather than full case folding", "original filtered rows", "nine ending styles and no-final-newline distinction", "combined option keys", "original block transfer with target EOL", "existing engine/regex/preference cases"]},
+  "build": {"configuration": "Debug", "architecture": "arm64", "exitCode": 0, "signed": false, "log": "build/qa/comparison-options-build-2026-10-12.log", "notes": "Existing exit-zero diagnostics remain."},
+  "native": {"exitCode": 0, "compilations": 1, "receiverProcesses": 1, "log": "build/qa/comparison-options-native-2026-10-12.log", "checks": ["three-pane dirty Cancel retains prior option/preferences", "successful option regeneration persists", "two-pane choices persist", "existing native typing/Unicode selection/Undo/Redo", "marked-save semantics and exact BOM/CRLF bytes", "three-pane Save-before-Reload and explicit resolution", "started adapter cancellation", "owned cleanup"], "physicalInput": false, "settingsApplyControls": "Compiled; physical settings transaction not exercised in this receiver", "installedApplicationLaunched": false, "ownedWindowsClosed": true, "ownedHelpersExited": true},
+  "remainingAcceptance": ["comment-language profiles and lexer", "Windows locale/Unicode lowercase equivalence", "source whitespace visibility classifications", "full EOL/regex edge behavior", "physical settings/menu interaction", "complete visual captures", "signed helper/sandbox", "minimum-OS execution", "remote CI success", "full application parity"],
+  "completePortCertified": false
+}

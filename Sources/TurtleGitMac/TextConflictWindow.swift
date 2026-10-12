@@ -198,6 +198,13 @@ private enum MergeSourceSide {
     @Published private(set) var regexFilterName: String?
     var regexDefaults: UserDefaults = .standard
     var engineConfiguration: SubversionMergeConfiguration?
+    @Published private(set) var comparisonOptions = MergeComparisonOptions.load()
+    var comparisonDefaults: UserDefaults = .standard
+    private var pendingComparisonOptions: MergeComparisonOptions?
+    func setComparisonOptions(_ value: MergeComparisonOptions) {
+        guard !busy, !confirmingQuit, !retired else { return }
+        pendingComparisonOptions = value; load()
+    }
     enum ReloadDecision { case save, discard, cancel }
     var chooseReload: (() -> ReloadDecision)?
     private var loadGeneration = 0, retired = false
@@ -345,9 +352,9 @@ private enum MergeSourceSide {
                 }
             }
             switch decision {
-            case .save: save(markResolved: false) { [weak self] saved in if saved { self?.load(filterName: filterName) } }; return
+            case .save: save(markResolved: false) { [weak self] saved in if saved { self?.load(filterName: filterName) } else { self?.pendingComparisonOptions = nil } }; return
             case .discard: break
-            case .cancel: return
+            case .cancel: pendingComparisonOptions = nil; return
             }
         }
         busy = true; preparing = true
@@ -357,19 +364,22 @@ private enum MergeSourceSide {
             defer { busy = false; preparing = false; loadCancellation = nil; MergeRegexOperations.activeRequests -= 1 }
             do {
                 try await reloadDocument(filterName: filterName, cancellation: token, generation: generation)
-            } catch { if !retired, loadGeneration == generation { self.error = error.localizedDescription } }
+            } catch { if !retired, loadGeneration == generation { pendingComparisonOptions = nil; self.error = error.localizedDescription } }
         }
     }
     private func reloadDocument(filterName: String?, cancellation: OperationCancellation? = nil, generation: Int? = nil) async throws {
         let requested = filterName
         let filter = regexFilters.first { $0.name == requested }
         var engine = try engineConfiguration ?? SubversionMergeConfiguration.bundled(filter: filter)
-        engine.filter = filter
+        let changingOptions = pendingComparisonOptions != nil
+        let options = pendingComparisonOptions ?? MergeComparisonOptions.load(from: comparisonDefaults)
+        engine.filter = filter; engine.options = options
         let next = try await repository.textConflictDocument(path: path, engine: engine, cancellation: cancellation)
         guard !retired, generation == nil || generation == loadGeneration else { return }
         guard let comparison = next.mergeSources else { throw SubversionMergeDiffFailure.invalidOutput }
         resetHistory()
         document = next; sourceComparison = comparison; result = next.initialResult; encoding = next.encoding
+        comparisonOptions = options; if changingOptions { options.save(to: comparisonDefaults) }; pendingComparisonOptions = nil
         regexFilterName = filter?.name
         selectedConflict = 0; caret = NSRange(location: 0, length: 0); selectionRequest = nil
         selectConflict(0)
@@ -494,6 +504,7 @@ private struct TextConflictDialog: View {
                 Button { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegitmerge/tmerge-dug-conflicts.html")!) } label: { CommandLabel(title: "Help", icon: .help) }
             }.padding(9)
             HStack {
+                MergeComparisonControls(options: model.comparisonOptions, apply: model.setComparisonOptions)
                 Menu("Regex Filter: " + (model.regexFilterName ?? "No Filter")) {
                     Button { model.selectRegexFilter(nil) } label: {
                         if model.regexFilterName == nil { Label("No Filter", systemImage: "checkmark") } else { Text("No Filter") }
