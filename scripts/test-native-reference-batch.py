@@ -1,0 +1,97 @@
+#!/usr/bin/env python3
+"""Link reference-family QA once against the built app; run owned bounded receivers."""
+import argparse
+import ast
+import hashlib
+import os
+from pathlib import Path
+import platform
+import signal
+import subprocess
+import tempfile
+import time
+
+CASES = {
+    'folders': 'ReferenceFolderVerification',
+    'comparison': 'ReferenceComparisonVerification',
+    'batch-delete': 'BatchReferenceDeleteVerification',
+    'delete': 'ReferenceDeleteVerification',
+    'switch': 'ReferenceSwitchVerification',
+    'fetch': 'ReferenceFetchVerification',
+    'create-branch': 'ReferenceCreateBranchVerification',
+    'merge': 'ReferenceMergeVerification',
+}
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--git', type=Path, action='append')
+parser.add_argument('--only', choices=CASES, action='append')
+args = parser.parse_args()
+root = Path(__file__).resolve().parent.parent
+products = root / 'build/Build/Products/Debug'
+objects = sorted((root / 'build/Build/Intermediates.noindex/TurtleGitMac.build/Debug/TurtleGitMac.build/Objects-normal' / platform.machine()).glob('*.o'))
+if not objects or not (products / 'TurtleGitMac.swiftmodule').exists():
+    raise SystemExit('Build TurtleGitMac Debug before running reference QA.')
+driver = ast.parse((root / 'scripts/test-synchronization-dialog.py').read_text())
+helper = next(n for n in driver.body if isinstance(n, ast.FunctionDef) and n.name == 'close_receiver')
+cleanup = {'os': os, 'signal': signal, 'time': time, 'subprocess': subprocess}
+exec(compile(ast.Module(body=[helper], type_ignores=[]), '<owned reference receiver cleanup>', 'exec'), cleanup)
+with tempfile.TemporaryDirectory(prefix='TurtleGitReferenceNativeBatch-') as temporary:
+    directory = Path(temporary)
+    sources = []
+    for case in CASES:
+        source = directory / (case + '.swift')
+        fixture = root / ('docs/qa/reference-' + case + '-native-2026-10-09.swift')
+        source.write_text('@testable import TurtleGitMac\n' + fixture.read_text().replace('@main struct', 'struct', 1))
+        sources.append(source)
+    main = directory / 'Main.swift'
+    branches = '\n'.join('        case "' + case + '": await ' + name + '.main()' for case, name in CASES.items())
+    main.write_text('''import AppKit
+@_cdecl("turtlegit_reference_batch_main") func bootstrap() -> Int32 {
+    NSApplication.shared.setActivationPolicy(.prohibited)
+    Task { @MainActor in
+        switch CommandLine.arguments[3] {
+''' + branches + '''
+        default: exit(2)
+        }
+        exit(0)
+    }
+    NSApplication.shared.run(); return 0
+}
+''')
+    digest = hashlib.sha256()
+    digest.update((platform.machine() + '/macos13/swift5/WMO-Onone/reference-objects-v1').encode())
+    digest.update(subprocess.check_output(['xcrun', 'swiftc', '--version']))
+    imports = [products / 'TurtleGitMac.swiftmodule', products / 'TurtleGitCore.framework']
+    inputs = [*objects, *sources, main]
+    for imported in imports:
+        inputs += sorted(p for p in imported.rglob('*') if p.is_file() and not p.is_symlink())
+    for source in inputs:
+        digest.update(source.name.encode()); digest.update(source.read_bytes())
+    cache = root / 'build/qa/native-receivers'; cache.mkdir(parents=True, exist_ok=True)
+    executable = cache / ('reference-' + digest.hexdigest())
+    if not executable.exists():
+        staging = directory / 'reference-receiver'
+        subprocess.run(['xcrun', 'swiftc', '-whole-module-optimization', '-Onone', '-parse-as-library', '-swift-version', '5',
+                        '-target', platform.machine() + '-apple-macos13.0', '-I', str(products), '-F', str(products),
+                        *map(str, sources), str(main), *map(str, objects), '-framework', 'TurtleGitCore',
+                        '-Xlinker', '-rpath', '-Xlinker', str(products), '-Xlinker', '-e', '-Xlinker', '_turtlegit_reference_batch_main',
+                        '-o', str(staging)], cwd=root, check=True, timeout=300)
+        staging.replace(executable)
+        print('Reference receivers linked once to the current Debug app objects.', flush=True)
+    else:
+        print('Reusing reference receiver for unchanged objects/modules/fixtures/toolchain.', flush=True)
+    environment = os.environ.copy()
+    environment.update(DYLD_FRAMEWORK_PATH=str(products), GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM='1')
+    for key in ['GIT_AUTHOR_NAME', 'GIT_AUTHOR_EMAIL', 'GIT_COMMITTER_NAME', 'GIT_COMMITTER_EMAIL']:
+        environment.pop(key, None)
+    for index, git in enumerate(args.git or [Path('/usr/bin/git')]):
+        for case in args.only or CASES:
+            fixture = directory / (str(index) + '-' + case); fixture.mkdir()
+            command = [str(executable), str(fixture), str(git.resolve()), case]
+            print('Checking ' + case + ' with ' + str(git), flush=True)
+            receiver = subprocess.Popen(command, cwd=root, env=environment, start_new_session=True)
+            try:
+                code = receiver.wait(timeout=300)
+                if code: raise subprocess.CalledProcessError(code, command)
+            finally:
+                cleanup['close_receiver'](receiver)
+                print('Owned receiver reaped: ' + str(receiver.pid), flush=True)

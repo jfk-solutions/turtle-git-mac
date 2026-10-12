@@ -1148,3 +1148,20 @@ Run `swift test --filter MergeFormatSelectionTests`, then the shared native
 `--options-batch` after the Debug framework build. `--format-only` isolates the
 format sheet/two-pane receiver after an actual failure. The Open receiver also
 checks three-pane format acceptance. See [format parity](MERGE-FORMAT-PARITY.md).
+
+## Grouped reference-family native receivers
+
+Build Debug once, then run `python3 scripts/test-native-reference-batch.py` for
+folders, comparisons, batch/single deletion and Switch/Fetch/Create Branch/Merge
+routes. The driver links the existing app objects and eight unchanged receiver
+families in one compilation. It uses an explicit native AppKit run loop and
+caches by object files, imported modules/framework, fixtures and compiler/flags.
+It does not recompile the whole SwiftUI app for each case.
+
+Receivers run serially with independent private repositories/preferences. Each
+has a 300-second timeout and owned process-group cleanup/reaping on every exit.
+Compilation also has a 300-second limit. `--only batch-delete` (or another case)
+is for an actual failure; `--git` remains repeatable for engine-specific checks.
+The older `test-reference-*.py` commands delegate to the same cache and retain
+all original fixture assertions. Batch deletion now publishes helper PID markers
+atomically, matching the already-repaired single-deletion fixture.

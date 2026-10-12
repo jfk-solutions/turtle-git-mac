@@ -1,0 +1,62 @@
+{
+  "date": "2026-10-12",
+  "scope": "Reference-family verification compilation and owned-process lifecycle; no new application dialog claim",
+  "observed_ci": {
+    "run": 38245882762,
+    "commit": "e6bb8b3",
+    "job": 114802897011,
+    "status": "in_progress",
+    "step": "Native reference-browser batch deletion",
+    "job_log": "Unavailable while live (BlobNotFound); not evidence that the job stopped"
+  },
+  "implemented": [
+    "Eight receiver families linked once against current Debug app objects with explicit AppKit run loop",
+    "Cache includes objects, imported modules/framework, receiver sources and toolchain/flags",
+    "300-second compilation and per-receiver bounds",
+    "Serial private repositories/preferences and owned group cleanup/reaping",
+    "Eight legacy CLI wrappers retain --git arguments and delegate to shared cache",
+    "CI replaces eight separate reference compilations with one grouped step",
+    "Batch-deletion PID marker published by atomic rename, matching single-deletion repair"
+  ],
+  "validation": {
+    "default_engine": "/usr/bin/git",
+    "default_receivers_passed": [
+      "folders",
+      "comparison",
+      "batch-delete",
+      "delete",
+      "switch",
+      "fetch",
+      "create-branch",
+      "merge"
+    ],
+    "bundled_engine": "build/git-runtime/Git/bin/git",
+    "bundled_receivers_passed": [
+      "batch-delete"
+    ],
+    "native_compilations": 1,
+    "native_receiver_processes": 9,
+    "bundled_run_reused_cached_binary": true,
+    "all_receivers_reaped": true,
+    "owned_processes_remaining": 0,
+    "workflow_yaml": "Ruby YAML parsed grouped step",
+    "python_syntax": "Shared driver and eight wrappers parsed",
+    "static_site": "Generated successfully",
+    "full_core_suite_run": false,
+    "app_build_run": false,
+    "main_app_launched": false,
+    "application_sources_changed": false,
+    "hosted_new_workflow_verified": false
+  },
+  "remaining": [
+    "Hosted full workflow result after push",
+    "Physical menus/keyboard/layout/signed sandbox/Finder acceptance",
+    "Other older standalone CI receivers still compile app sources separately; they need consolidation in related batches"
+  ],
+  "inventory": {
+    "total": 130,
+    "partial": 61,
+    "pending": 69,
+    "certified_complete": 0
+  }
+}

@@ -259,24 +259,10 @@ jobs:
         run: python3 scripts/test-submodule-update-progress.py
       - name: Native submodule progress output controls
         run: python3 scripts/test-submodule-progress-output.py
-      - name: Native reference-browser folders
-        run: python3 scripts/test-reference-folders.py
-      - name: Native reference-browser comparisons
-        run: python3 scripts/test-reference-comparison.py
-      - name: Native reference-browser batch deletion
-        run: python3 scripts/test-reference-batch-delete.py
-      - name: Native reference-browser deletion
-        run: python3 scripts/test-reference-delete.py
-      - name: Native reference-browser Switch dialog route
-        run: python3 scripts/test-reference-switch.py
+      - name: Grouped native reference folders, comparisons, deletion and action routes
+        run: python3 scripts/test-native-reference-batch.py
       - name: Native Pull forced cleanup
         run: python3 scripts/test-pull-cleanup.py
-      - name: Native reference-browser Fetch route
-        run: python3 scripts/test-reference-fetch.py
-      - name: Native reference-browser Create Branch route
-        run: python3 scripts/test-reference-create-branch.py
-      - name: Native reference-browser Merge dialog route
-        run: python3 scripts/test-reference-merge.py
       - name: Native Merge all-reference and Log pickers
         run: python3 scripts/test-merge-pickers.py
       - name: Native Merge forced cleanup
