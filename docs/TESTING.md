@@ -1415,3 +1415,11 @@ changed. The actual fixed Autotext content bounds are now checked by its regular
 native receiver. No full Core or Hook workflow rerun was performed for these
 presentation changes. See the capture record for the rejected narrow images and
 final focused pass; no visual certification is inferred.
+
+The cached reference receiver now includes Stash Apply/Pop and replay-stash
+checks. After one Debug build, use `python3 scripts/test-native-reference-batch.py
+--only stash-restore --only client-hooks --git /usr/bin/git --git
+build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git` for this
+combined family. The legacy stash driver delegates to that cache. CI's default
+reference batch includes the same case; it no longer compiles/runs a duplicate
+standalone Stash restore receiver.

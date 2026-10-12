@@ -15,6 +15,7 @@ public struct StashSaveResult: Sendable {
 public struct StashRestoreResult: Sendable {
     public let output: String
     public let conflicted: Bool
+    public init(output: String, conflicted: Bool) { self.output = output; self.conflicted = conflicted }
 }
 public enum StashFailure: LocalizedError {
     case combination, message
@@ -26,9 +27,26 @@ public enum StashFailure: LocalizedError {
     }
 }
 extension GitRepository {
+    /// TortoiseGit checks tracked index/worktree changes before replay; untracked
+    /// files alone do not trigger its Stash/Abort question.
+    public func replayStashCondition(cherryPick: Bool, cancellation: OperationCancellation? = nil) throws -> (dirty: Bool, automatic: Bool) {
+        try cancellation?.check()
+        let staged = try run(["diff", "--cached", "--quiet", "HEAD", "--"], successfulExitCodes: 0...1, cancellation: cancellation).exitCode != 0
+        let working = try run(["diff", "--quiet", "--"], successfulExitCodes: 0...1, cancellation: cancellation).exitCode != 0
+        let automatic: Bool
+        if cherryPick { automatic = false }
+        else {
+            let config = try run(["config", "--bool", "--get", "rebase.autostash"], successfulExitCodes: 0...1, cancellation: cancellation)
+            automatic = config.exitCode == 0 && config.text.trimmingCharacters(in: .whitespacesAndNewlines) == "true"
+        }
+        try cancellation?.check()
+        return (staged || working, automatic)
+    }
+
     /// Apply retains the stash; Pop lets Git drop it only after successful application.
     /// Neither operation requests --index, matching TortoiseGit's default workflow.
-    public func restoreStash(pop: Bool, reference: String? = nil) throws -> StashRestoreResult {
+    public func restoreStash(pop: Bool, reference: String? = nil, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> StashRestoreResult {
+        try cancellation?.check()
         var args = ["stash", pop ? "pop" : "apply"]
         if let reference, !reference.isEmpty {
             guard !reference.contains("\0") else { throw GitFailure(arguments: args, code: 1, message: "The stash reference cannot contain a NUL character.") }
@@ -37,16 +55,18 @@ extension GitRepository {
             if ref.hasPrefix("refs/") { ref.removeFirst(5) }
             if ref.hasPrefix("stash{") { ref = "stash@" + ref.dropFirst(5) }
             // Resolve separately so a selected reference cannot become a Git option.
-            let hash = try run(["rev-parse", "--verify", "--end-of-options", ref + "^{commit}"]).text.trimmingCharacters(in: .newlines)
+            let hash = try run(["rev-parse", "--verify", "--end-of-options", ref + "^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+            try cancellation?.check()
             args.append(hash)
         }
         do {
-            return StashRestoreResult(output: try run(args).text, conflicted: false)
+            return StashRestoreResult(output: try run(args, cancellation: cancellation, onOutput: onOutput).text, conflicted: false)
         } catch let failure as GitFailure {
             // A merge conflict is a recoverable result, not a completed clean apply.
             // Confirm actual unmerged entries rather than trusting output text alone.
             if failure.code == 1 && failure.message.contains("CONFLICT") {
-                if try status().contains(where: { $0.state == .conflicted }) {
+                try cancellation?.check()
+                if try status(cancellation: cancellation).contains(where: { $0.state == .conflicted }) {
                     return StashRestoreResult(output: failure.message, conflicted: true)
                 }
             }

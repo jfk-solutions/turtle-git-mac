@@ -71,8 +71,9 @@ the temporary source plan is removed. Continue/Skip/Abort return output, exit st
 and state through `rev-parse --git-path`, including linked-worktree isolation.
 The engine supports amending an Edit stop. Squash now pauses for a native multiline
 message editor and captures the upstream first/latest/current author-date setting.
-See [Squash workflow](REBASE-SQUASH.md). Autostash is disabled; dirty starts leave
-staged contents intact and report Git's error.
+See [Squash workflow](REBASE-SQUASH.md). Git's implicit autostash stays disabled
+in the replay engine; the native dialog explicitly owns Save/Pop and questions
+according to `rebase.autostash`, as described in the stash workflow audit.
 
 ## Evidence
 
@@ -104,7 +105,7 @@ not current visual, behavior or accessibility parity.
 - Remaining advanced Cherry Pick options, displayed patch-becomes-empty interaction and custom structural merge plans.
 - Remaining reword/author editing and complete conflict/resolution menus and tabs.
 - Remaining row targeting/shortcuts and drag reordering, customizable columns and persisted layout. Action and move shortcuts now have headless native coverage; displayed acceptance remains pending.
-- Hooks, signing/editor/authentication prompts, stash restoration, streaming progress,
+- Broader hook, signing/editor/authentication, reopened-session stash restoration, streaming progress,
   cancellation, failures and signed sandbox/editor validation.
 - Broader native light/dark/contrast, keyboard, resizing and accessibility QA.
 
@@ -195,3 +196,7 @@ then offers Merge/Rebase/Abort for an ancestor target. Answers can be remembered
 Configured automatic Pull/Rebase skips those prompts. Actual ff-only Merge and
 retained dirty/conflicted failures are recorded in the Fetch decision QA; native
 Rebase factory/editor acceptance and full workflow parity remain pending.
+
+Tracked dirty-tree Stash/Abort, effective `rebase.autostash`, Cherry Pick's manual
+question, post-save Pre-rebase hooks, and owned Done/Abort/completion restoration
+are now implemented together. See [stash workflow and remaining limits](STASH-PARITY.md#replay-stash-and-applypop-ownership-october-12-2026).

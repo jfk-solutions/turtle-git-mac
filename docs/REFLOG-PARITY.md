@@ -75,7 +75,9 @@ Apply, inspection and Delete Abort checks above were completed.
 - Native multi-selection Delete execution, Clear execution, clipboard verification
   and stale-view error recovery. Core deletion tests do not prove these UI paths.
 - Saved column widths/order, sorting, saved geometry, minimum-size and dark-mode QA.
-- Log working-tree/stash menus, selected Pop and branch-from-stash workflows.
+- Broader Log working-tree/stash-menu acceptance. Selected Pop and
+  branch-from-stash are absent from the pinned source RefLog menu and are not
+  parity requirements.
 - Signed Finder invocation, multi-repository scope QA and sandbox runtime verification.
 
 ## Changed Files revision chooser

@@ -7,6 +7,9 @@ import TurtleGitCore
     var onClosed: () -> Void = {}
     private var logPicker: LogWindowController?
     private var splitCommitPicker: CommitWindowController?
+    private var stashRestore: StashRestoreWindowController?
+    private var stashAlert: NSAlert?
+
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
         model = RebaseWindowModel(repository: repository, access: access, messageDefaults: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1040, height: 720), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
@@ -29,6 +32,28 @@ import TurtleGitCore
             if let child = picker.window { window.beginSheet(child) } else { self.logPicker = nil; self.model.pickingCommits = false }
         }
         model.showSplitSelection = { [weak self] split, message in self?.showSplitSelection(split, message: message) }
+        model.chooseStashBeforeReplay = { [weak self] in
+            await self?.askStash(message: "Your working tree is not clean", detail: "Stash tracked changes before starting? Untracked and ignored files will remain in the working tree.", save: true) ?? false
+        }
+        model.chooseRestoreReplayStash = { [weak self] in
+            await self?.askStash(message: "Restore stashed changes?", detail: "Do you want to pop the changes saved before this replay?", save: false) ?? false
+        }
+        model.restoreReplayStash = { [weak self] mode in
+            guard let self, let window = self.window, window.attachedSheet == nil else { return }
+            await withCheckedContinuation { continuation in
+                let child = StashRestoreWindowController(repository: repository, access: access, pop: true, showChanges: mode, preferences: preferences)
+                self.stashRestore = child
+                child.onChanged = { [weak model = self.model] text in model?.output += text + "\n"; model?.onChanged() }
+                child.onViewChanges = { [weak model = self.model] in model?.onShowStatus() }
+                child.onClosed = { [weak self, weak child] in
+                    if let sheet = child?.window { sheet.sheetParent?.endSheet(sheet); sheet.orderOut(nil) }
+                    if self?.stashRestore === child { self?.stashRestore = nil }
+                    continuation.resume()
+                }
+                if let sheet = child.window { window.beginSheet(sheet); child.start() }
+                else { child.close() }
+            }
+        }
         model.chooseAnotherSplit = { [weak window] in
             guard let window, window.attachedSheet == nil else { return false }
             let alert = NSAlert(); alert.messageText = "Add another commit?"; alert.addButton(withTitle: "No"); alert.addButton(withTitle: "Yes")
@@ -70,6 +95,16 @@ import TurtleGitCore
 
         DialogGeometry.attach(window, identifier: "RebaseWindowController")
     }
+    private func askStash(message: String, detail: String, save: Bool) async -> Bool {
+        guard !model.retired, let window, window.attachedSheet == nil, stashAlert == nil else { return false }
+        let alert = NSAlert(); alert.messageText = message; alert.informativeText = detail; alert.alertStyle = .warning
+        let yes = alert.addButton(withTitle: save ? "Stash" : "Yes"); alert.addButton(withTitle: save ? "Abort" : "No")
+        yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
+        stashAlert = alert
+        let response = await alert.beginSheetModal(for: window)
+        if stashAlert === alert { stashAlert = nil }
+        return !model.retired && response == .alertFirstButtonReturn
+    }
     private func showSplitSelection(_ split: RebaseSplitState, message: String) {
         guard let window, window.attachedSheet == nil, splitCommitPicker == nil else { model.splitSelectionClosed(committed: false); return }
         let child = CommitWindowController(repository: model.repository, access: model.repositoryAccess)
@@ -86,8 +121,12 @@ import TurtleGitCore
         commit.loadReplaySplit(split, message: message)
         if let sheet = child.window { window.beginSheet(sheet) } else { splitCommitPicker = nil; model.splitSelectionClosed(committed: false) }
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && !model.selectingSplit && sender.attachedSheet == nil }
-    func windowWillClose(_ notification: Notification) { model.clientHooks.retire(); logPicker?.close(); logPicker = nil; splitCommitPicker?.close(); splitCommitPicker = nil; onClosed() }
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard !model.busy, !model.selectingSplit, !(model.active && model.hasReplayStash), sender.attachedSheet == nil else { return false }
+        if !model.active && model.hasReplayStash { model.finishReplay(); return false }
+        return true
+    }
+    func windowWillClose(_ notification: Notification) { model.retire(); if let alert = stashAlert { window?.endSheet(alert.window, returnCode: .abort); alert.window.orderOut(nil) }; stashAlert = nil; stashRestore?.close(); stashRestore = nil; logPicker?.close(); logPicker = nil; splitCommitPicker?.close(); splitCommitPicker = nil; onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class RebaseWindowModel: ObservableObject {
@@ -141,6 +180,33 @@ import TurtleGitCore
     var showSplitSelection: (RebaseSplitState, String) -> Void = { _, _ in }
     var configureCommitSelection: (CommitWindowModel) -> Void = { _ in }
     var chooseAnotherSplit: () async -> Bool = { false }
+    private(set) var retired = false
+    @Published private(set) var hasReplayStash = false
+    private var replayStashAutomatic = false
+    private var replayPreparationCancellation: OperationCancellation?
+    var chooseStashBeforeReplay: () async -> Bool = { false }
+    var chooseRestoreReplayStash: () async -> Bool = { false }
+    var restoreReplayStash: (Int) async -> Void = { _ in }
+    func retire() { retired = true; replayPreparationCancellation?.cancel(); clientHooks.retire() }
+    func finishReplay(after: (() -> Void)? = nil) {
+        guard !retired, !busy, !active, !selectingSplit, !pickingCommits else { return }
+        // Preserve immediate completion routing when there is no stash question
+        // or restore operation to await.
+        if !hasReplayStash { if let after { after() } else { close() }; return }
+        busy = true
+        Task {
+            if hasReplayStash {
+                let restore = replayStashAutomatic ? true : await chooseRestoreReplayStash()
+                guard !retired else { busy = false; return }
+                // Once-only, including No: source clears m_bStashed after this choice.
+                hasReplayStash = false
+                if restore { await restoreReplayStash(replayStashAutomatic ? 0 : 1) }
+            }
+            busy = false
+            guard !retired else { return }
+            if let after { after() } else { close() }
+        }
+    }
     var close: () -> Void = {}
     var onChanged: () -> Void = {}
     var onShowStatus: () -> Void = {}
@@ -234,16 +300,20 @@ import TurtleGitCore
     }
     func performCompletionAction(_ action: RebaseCompletionAction) {
         guard canPerformCompletionAction(action) else { return }
-        switch action {
-        case .log: let callback = onCompletedLog; close(); callback?()
-        case .push: let callback = onCompletedPush; close(); callback?("HEAD")
-        case .mail:
-            guard let preset = FormatPatchPreset(startRevision: options.upstream, endRevision: options.branch) else { return }
-            let callback = onCompletedMail; close(); callback?(preset)
-        case .restart: load()
-        case .rebase: load(upstream: options.upstream, autoStart: completionAutoStart, preserveMerges: options.preserveMerges)
+        finishReplay { [weak self] in
+            guard let self else { return }
+            switch action {
+            case .log: let callback = self.onCompletedLog; self.close(); callback?()
+            case .push: let callback = self.onCompletedPush; self.close(); callback?("HEAD")
+            case .mail:
+                guard let preset = FormatPatchPreset(startRevision: self.options.upstream, endRevision: self.options.branch) else { return }
+                let callback = self.onCompletedMail; self.close(); callback?(preset)
+            case .restart: self.load()
+            case .rebase: self.load(upstream: self.options.upstream, autoStart: self.completionAutoStart, preserveMerges: self.options.preserveMerges)
+            }
         }
     }
+
     var canStart: Bool { editable && plan != nil && plan?.disposition != .upToDate && plan?.disposition != .equal && plan?.entries.first(where: { $0.action != .skip })?.action != .squash }
     var primaryActionTitle: String {
         if finished { return "Done" }
@@ -326,6 +396,11 @@ import TurtleGitCore
         }
     }
     func load(upstream: String? = nil, autoStart: Bool = false, preserveMerges: Bool = false, cherryPick: [String]? = nil) {
+        guard !retired else { return }
+        if hasReplayStash && !active && !busy {
+            finishReplay { [weak self] in self?.load(upstream: upstream, autoStart: autoStart, preserveMerges: preserveMerges, cherryPick: cherryPick) }
+            return
+        }
         guard !busy, !pickingCommits, !selectingSplit else {
             if upstream != nil || cherryPick != nil { pendingLoad = (upstream, autoStart, preserveMerges, cherryPick) }
             return
@@ -496,18 +571,32 @@ import TurtleGitCore
         else { execute(action) }
     }
     func execute(_ action: String) {
-        guard !busy, !pickingCommits, !selectingSplit, action != "start" || canStart else { return }
+        guard !retired, !busy, !pickingCommits, !selectingSplit, action != "start" || canStart else { return }
         let snapshot = plan; busy = true; tab = 2
+        let preparation = OperationCancellation(); replayPreparationCancellation = preparation
         Task {
-            var followRecovery = false, followEmpty = false
+            var followRecovery = false, followEmpty = false, finishingReplay = false
             var skippedID = action == "skip" ? state?.stoppedEntryID : nil
-            defer { busy = false; if followEmpty { execute("continue") } else if followRecovery { resumeConflictSelection(afterCommit: true) } else { loadPendingHandoff() } }
+            defer { replayPreparationCancellation = nil; if !finishingReplay { busy = false }; if followEmpty { execute("continue") } else if followRecovery { resumeConflictSelection(afterCommit: true) } else { loadPendingHandoff() } }
             do {
                 try requireAccess()
                 let result: RebaseExecution
                 switch action {
                 case "start": guard let snapshot, let executable = editorExecutable else { throw RebaseFailure.plan }
-                    _ = try await clientHooks.run(.preRebase, repository: repository, access: access, upstream: snapshot.options.upstream, rebasedBranch: snapshot.options.branch, allowContinue: true)
+                    let condition = try await repository.replayStashCondition(cherryPick: snapshot.options.isCherryPick, cancellation: preparation)
+                    if condition.dirty {
+                        let accepted = condition.automatic ? true : await chooseStashBeforeReplay()
+                        guard !retired, accepted else { return }
+                        let saved = try await repository.saveStash(StashSaveOptions(), cancellation: preparation)
+                        guard !retired else { return }
+                        output += saved.output + "\n"; onChanged()
+                        if saved.created { hasReplayStash = true; replayStashAutomatic = condition.automatic }
+                    }
+                    guard !retired else { return }
+                    if !snapshot.options.isCherryPick {
+                        _ = try await clientHooks.run(.preRebase, repository: repository, access: access, upstream: snapshot.options.upstream, rebasedBranch: snapshot.options.branch, cancellation: preparation, allowContinue: true)
+                    }
+                    guard !retired else { return }
                     replayRows = snapshot.entries; result = try await repository.startRebase(snapshot, editorExecutable: executable, afterFetch: completionAfterFetch, autoStart: completionAutoStart, fromLog: completionFromLog)
                 case "abort": result = try await repository.abortRebase()
                 case "skip": result = try await repository.skipRebase()
@@ -533,6 +622,7 @@ import TurtleGitCore
                         else { result = try await repository.commitRebaseConflictSelection(message: text, paths: paths, expected: captured, expectedHead: head, allowEmpty: empty) }
                     } else { result = try await repository.continueRebase(squashMessage: state?.squashMessage == nil ? nil : text, editMessage: state?.isEditPause == true ? text : nil) }
                 }
+                guard !retired else { return }
                 output += result.output + "\n"; state = result.state; finished = result.exitCode == 0 && !result.state.active; completedSuccessfully = finished && action != "abort"; completion = action == "abort" ? "\(operationTitle) aborted" : "\(operationTitle) finished"
                 if result.exitCode == 0, let skippedID { replayRows = replayRows.map { var row = $0; if row.id == skippedID { row.action = .skip }; return row } }
                 if finished, action != "abort" { replayRows = replayRows.map { var row = $0; row.progress = .completed; return row } }
@@ -543,8 +633,9 @@ import TurtleGitCore
                 else if fileRecovery { tab = 0; if result.exitCode != 0 && !followEmpty { error = result.output } }
                 else if result.exitCode != 0 { error = result.output }
                 onChanged()
+                if action == "abort", finished { busy = false; finishingReplay = true; finishReplay(); return }
                 if action == "continue", state?.split?.conflictRecovery == true { followRecovery = true }
-            } catch { self.error = error.localizedDescription }
+            } catch { if !retired { self.error = error.localizedDescription } }
         }
     }
     var canSplit: Bool { !busy && !selectingSplit && state?.canSplit == true }
@@ -761,8 +852,8 @@ struct RebaseDialog: View {
                     }
                 }
                 Spacer()
-                Button(model.primaryActionTitle) { if model.finished { model.close() } else { model.request(model.active ? "continue" : "start") } }.keyboardShortcut(.defaultAction).disabled(!model.finished && !model.active && !model.canStart)
-                Button(model.active || model.isCherryPick ? "Abort" : "Cancel") { if model.active { model.request("abort") } else { model.close() } }.keyboardShortcut(.cancelAction)
+                Button(model.primaryActionTitle) { if model.finished { model.finishReplay() } else { model.request(model.active ? "continue" : "start") } }.keyboardShortcut(.defaultAction).disabled(!model.finished && !model.active && !model.canStart)
+                Button(model.active || model.isCherryPick ? "Abort" : "Cancel") { if model.active { model.request("abort") } else { model.finishReplay() } }.keyboardShortcut(.cancelAction)
                 Button("Help") { NSWorkspace.shared.open(model.helpURL) }
             }
         }.padding(12).disabled(model.busy || model.selectingSplit)

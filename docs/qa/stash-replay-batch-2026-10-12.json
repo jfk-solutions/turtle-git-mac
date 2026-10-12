@@ -1,0 +1,87 @@
+{
+  "date": "2026-10-12",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Apply/Pop cancellation, confirmation and owned process/window lifetime",
+    "Tracked dirty-tree manual/automatic replay save",
+    "Rebase/Cherry Pick hook order and gating",
+    "Done/Abort/completion-command restoration and owned native Pop sheet"
+  ],
+  "source": [
+    "src/TortoiseProc/AppUtils.cpp StashApply/StashPop",
+    "src/TortoiseProc/RebaseDlg.cpp CheckRebaseCondition/CheckRestoreStash/OnBnClickedContinue/OnBnClickedRebasePostButton"
+  ],
+  "validation": {
+    "debug_build": {
+      "initial_exit": 65,
+      "reason": "Explicit self.model capture required inside restore continuation",
+      "repaired_exit": 0,
+      "sheet_repair_exit": 0,
+      "completion_compatibility_exit": 0
+    },
+    "core": {
+      "initial_exit": 1,
+      "reason": "Swift Package app compilation hit the same capture error",
+      "repaired_exit": 0,
+      "suite": "StashRestoreTests",
+      "tests": 7,
+      "failures": 0,
+      "log": "build/qa/stash-replay-core-2026-10-12-repair.log"
+    },
+    "native": {
+      "status": "passed",
+      "initial_exit": 1,
+      "reason": "Owned receiver assertion timed out; adding call-site diagnostics without removing assertions",
+      "initial_owned_pid": 84873,
+      "initial_reaped": true,
+      "diagnostic_exit": 1,
+      "diagnostic_owned_pid": 85185,
+      "diagnostic_reaped": true,
+      "diagnostic_reason": "Cancellation notice acknowledgement finished while AppKit still reported its sheet attached, blocking the controller close guard. Fixed close guard uses ownedAlert state.",
+      "grouped_repair_exit": 0,
+      "grouped_cases": [
+        "stash-restore",
+        "client-hooks"
+      ],
+      "engines": [
+        "system Git",
+        "packaged Git"
+      ],
+      "grouped_owned_pids": [
+        86205,
+        86935,
+        87414,
+        88142
+      ],
+      "grouped_receivers_reaped": true,
+      "compatibility_review": "Existing Rebase completion tests expect immediate routes without a pending stash. Retained that behavior and added regression assertions; affected Stash/replay cases running again, Core and Hooks not repeated.",
+      "final_affected_exit": 0,
+      "final_affected_cases": [
+        "stash-restore"
+      ],
+      "final_owned_pids": [
+        89397,
+        90169
+      ],
+      "final_receivers_reaped": true,
+      "final_log": "build/qa/stash-replay-native-2026-10-12-completion.log"
+    },
+    "hosted_ci": {
+      "run": 38306249252,
+      "commit": "fd27870",
+      "conclusion": "failure",
+      "job": 115004070940,
+      "failing_step": 48,
+      "reason": "LFS native selection binding did not settle at generated receiver line 61 (source fixture line 60); all preceding grouped phases completed; SMTP not started",
+      "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38306249252"
+    }
+  },
+  "limits": [
+    "Displayed appearance/keyboard and signed sandbox acceptance not established",
+    "Pending replay stash ownership does not survive process restart",
+    "Latest Pop follows upstream semantics; no external stash-writer lock",
+    "Native Apply/Pop cancellation is an explicit adaptation beyond synchronous upstream cancellation handling",
+    "Focused checks do not certify full app parity or hosted CI",
+    "Restore mode currently retains the automatic choice from Save; upstream re-reads rebase.autostash before restoration. Mid-session config changes remain pending."
+  ]
+}

@@ -1473,7 +1473,7 @@ import TurtleGitCore
         let root = repository.root, key = repository.root.path + (pop ? ":pop" : ":apply:" + (reference ?? "latest")) + ":show:" + String(showChanges)
         if let existing = stashRestoreWindows[key] { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
         let controller = StashRestoreWindowController(repository: repository, access: access, pop: pop, reference: reference, showChanges: showChanges)
-        controller.onClosed = { [weak self] in self?.stashRestoreWindows.removeValue(forKey: key) }
+        controller.onClosed = { [weak self, weak controller] in if self?.stashRestoreWindows[key] === controller { self?.stashRestoreWindows.removeValue(forKey: key) } }
         controller.onChanged = { [weak self] output in
             self?.referenceLogWindows[root.path]?.model.reload()
             self?.statusWindows[root.path]?.model.reload(); self?.refreshRepositoryLogs(root)

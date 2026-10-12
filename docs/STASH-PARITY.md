@@ -83,9 +83,10 @@ were verified; no conflict prompt image is published.
 
 ## Remaining
 
-- Physical progress/sheet/cancellation acceptance, live output streaming, and downstream Pull follow-through flags (subsequent Pop/Push choices).
+- Displayed progress/sheet/cancellation acceptance and signed deployment. Apply/Pop use the source system-spinner workflow; a live output pane is not provided upstream.
 - RefLog now provides native list, selected Apply, inspection and guarded Drop/Clear.
-  Selected Pop, branch-from-stash and broader deletion/recovery QA remain pending.
+  Broader deletion/recovery QA remains pending. The pinned source does not offer
+  selected Pop or branch-from-stash in this menu; they are not parity requirements.
   See REFLOG-PARITY.md.
 - Explicit user-data guard matching the upstream pre-dialog flow.
 - Native Continue suppression persistence/relaunch and window-close invariants,
@@ -151,10 +152,10 @@ entries by Core; conflict Pop retains the stash.
 The controller/model also accept the source showChanges modes: Pop 0 is silent
 on clean success but asks on conflict; Pop >1 shows an OK notice; Apply 0 shows
 an OK notice and nonzero asks. Existing menu/follow-up callers continue to use
-default 1. Rebase automatic-stash integration is still pending; accepting its
-mode here does not establish that caller's completion workflow. System progress
-remains non-interruptible here, as the audited source's Git Run is synchronous
-and does not consult its system-progress cancellation state. AutoCloseGitProgress
+default 1. Rebase now supplies mode 0 for automatic restoration and mode 1 for manually
+requested restoration, as described below. Upstream Git Run is synchronous
+and does not consult its system-progress cancellation state; native cancellation
+is an explicit macOS adaptation. AutoCloseGitProgress
 and Retry are not applied to these source result questions.
 
 The spinner window blocks normal close and application Quit while running or
@@ -211,3 +212,44 @@ checkpoint. Broader UI/physical/signed acceptance remains separate.
 Focused checks passed on system Git 2.50.1, Git 2.39.5 and packaged Git
 2.55.0; native Stash checks passed on system and packaged Git. Both unsigned
 builds and bundle audits passed. See [verification scope and limits](qa/stash-reference-cancellation-2026-10-11.json).
+
+## Replay stash and Apply/Pop ownership (October 12, 2026)
+
+The replay family now checks tracked index/worktree changes before Start.
+Rebase honors Git's effective `rebase.autostash` Boolean; Cherry Pick always
+asks Stash/Abort even when that setting is enabled. Save excludes untracked and
+ignored files and precedes the client Pre-rebase hook. Cherry Pick omits that
+hook. Declining the question leaves the repository unchanged. A hook failure
+retains the saved draft and allows restoration when leaving the window.
+
+Done, successful Abort and completion commands first restore the saved changes:
+automatic mode supplies Pop mode 0 (clean success is silent; conflicts ask),
+manual mode asks Yes/No and supplies mode 1 after Yes. No retains the stash.
+Restart/new replay intent also resolves the previous pending save first.
+The native Rebase controller owns and awaits its Pop sheet before closing or
+launching the destination. Ownership is in memory, matching upstream's
+`m_bStashed`; recovery across process termination remains unimplemented. This
+is not a lock against concurrent external stash writers: latest Pop semantics
+match upstream. Active replay with an owned stash must use Abort/Done before
+ordinary close.
+
+Apply/Pop retain the source spinner and result questions, with a native Cancel
+control. Cancel honors ConfirmKillProcess, defaults its confirmation to No,
+terminates the owned process group, and waits for the operation to settle.
+A cancelled operation reports retained effects rather than claiming rollback.
+Forced owner closure ends only its alerts and cancels work; retired completions
+cannot refresh views, save answers or open another window. Quit remains blocked
+until owned restore work settles. Core also passes cancellation through selected
+reference resolution and conflict-status inspection. These source comparisons
+do not establish displayed or signed acceptance; batch validation is recorded
+separately after execution.
+
+This batch passed seven focused Core checks and grouped Stash/replay plus client
+hook checks with system and packaged Git. A native acknowledgement/close race
+was found and repaired; affected replay checks then passed again, including
+existing immediate completion routes when there is no pending stash. All owned
+receivers were reaped. See [actual results and limits](qa/stash-replay-batch-2026-10-12.json).
+The restoration mode currently retains the automatic choice from Save; upstream
+re-reads `rebase.autostash` before restoration. Mid-session configuration changes
+remain an explicit parity gap. Hosted CI still fails its separate LFS native
+selection assertion; these focused passes do not establish a green full run.
