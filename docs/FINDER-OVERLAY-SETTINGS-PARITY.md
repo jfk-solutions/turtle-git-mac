@@ -98,3 +98,37 @@ also recognizes those roots, preventing extended-menu Initialize there. Untracke
 files retain their Add eligibility and are not classified as versioned. Raw cached
 status remains unchanged; narrow tests do not prove complete context-menu parity. The full port and
 inventory certification remain incomplete.
+
+
+## Native shared Overlay pages — 2026-10-12
+
+Compared the source main groups, six optional handler controls, and Icon Set's
+List/Symbols selector and Apply behavior. The native pages now scroll so the
+main controls remain reachable at a smaller window height. The list preview has
+a bounded scrolling area; Symbols retain the existing grid. Handler artwork
+uses the selected set rather than a fixed status icon. Path editors have named
+accessibility labels. All pages still share one Settings participant and draft.
+
+The model captures a validated policy for publication/local persistence, then
+notifies Finder only after both succeed. Invalid input cannot invoke publication.
+Publication failure retains unsaved fields and leaves local settings unchanged.
+An unsigned local-only save has a separate informational notice; failures display
+as errors. Cancel clears both messages and restores all shared fields. Preferences,
+publication and notification adapters are injectable while production uses the
+existing signed App Group and distributed notification.
+
+Debug build exited 0. One object-linked native receiver compilation/process
+passed and was reaped. Three private hosts at 760 × 530 were constructed in Aqua
+and Dark Aqua, with native scrolling surfaces present. Shared Settings Apply,
+Cancel and invalid-policy refusal, private atomic file publication/readback and
+path-rule precedence, notification-after-preferences-save, failed-publication
+draft retention and unsigned save/notice/no-notification behavior passed. No
+Finder extension was activated; user preferences and App Group data were not
+changed. Core projection/asset APIs were unchanged and their prior grouped
+checks were not rerun. No full fourteen-case group or new screenshot is claimed.
+
+The three source resources are now partial-native-replacement. Physical controls/
+keyboard/VoiceOver and complete visual matching, Symbols switching, actual Finder
+refresh/notification/volume boundaries, watched-root management and signed
+sandbox/App Store acceptance remain open. Windows registry/elevation/overlay-slot
+controls still require macOS adaptation; no dialog is certified complete.

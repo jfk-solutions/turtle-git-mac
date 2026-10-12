@@ -97,7 +97,7 @@ owned loading/command progress. Native Push variants and owned Shift Push option
 controls, full visual matching and signed acceptance are still pending. See
 [Synchronization parity](SYNCHRONIZATION-PARITY.md).
 Across the 130 inventoried dialogs:
-67 dialogs have partial implementations and 63 await review. No dialog is certified complete.
+70 dialogs have partial implementations and 60 await review. No dialog is certified complete.
 See [the reference dialog audit](COMMIT-CONTAINING-REFS-PARITY.md).
 
 Log commit ordering now has the source’s four-choice native sheet, deferred
@@ -820,3 +820,12 @@ Caller close and cancellation release TurtleGit's wait, preserve the external
 application, and fence late Mark Resolved responses. Private native checks with
 both Git engines verify exact working-byte staging and stale-stage refusal.
 Actual external app/KVO/signed acceptance remains open; see the Tool audit.
+
+
+Overlay settings now scroll within small native hosts; handler rows use the
+selected source icon set. Shared draft validation, publication and unsigned
+notices have private native acceptance across all three pages. Publication failure
+retains the draft without saving local preferences or notifying Finder. Icon
+Overlays, Overlay Handlers and Icon Set are partial native replacements; signed
+extension refresh, mount handling and full physical layout remain open. See
+[Overlay settings audit](FINDER-OVERLAY-SETTINGS-PARITY.md).

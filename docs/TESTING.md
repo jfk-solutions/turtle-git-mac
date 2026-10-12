@@ -1156,7 +1156,7 @@ checks three-pane format acceptance. See [format parity](MERGE-FORMAT-PARITY.md)
 Build Debug once, then run `python3 scripts/test-native-reference-batch.py` for
 folders, comparisons, batch/single deletion, Switch/Fetch/Create Branch/Merge
 routes and Merge reference/Log pickers. The driver links the existing app objects
-and thirteen receiver families, including Network, Credential, Tool settings and external Merge lifecycle, in one compilation. It uses an explicit native AppKit run loop and
+and fourteen receiver families, including Network, Credential, Tool settings, Overlays and external Merge lifecycle, in one compilation. It uses an explicit native AppKit run loop and
 caches by object files, imported modules/framework, fixtures and compiler/flags.
 It does not recompile the whole SwiftUI app for each case.
 
@@ -1268,3 +1268,11 @@ observer cleanup, late completion/prompt fencing, No index preservation, exact
 working-file staging and stale-stage refusal. It closes owned windows and uses
 the same object-linked cache. Run with `--only external-merge-lifecycle`; add
 `--git` for each desired engine. No external app is launched or killed.
+
+
+The `overlay-settings` case hosts all three shared Overlay pages in light/dark
+and exercises Settings Apply/Cancel/validation, private atomic policy publication,
+notification ordering, rule readback, publication failure and unsigned local-save
+notice behavior. Use `--only overlay-settings` after a Debug build. It injects a
+private preferences domain/publication URL/notification counter and never changes
+the user's App Group or activates Finder. Signed/live refresh acceptance is open.

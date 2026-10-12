@@ -1,0 +1,37 @@
+{
+  "date": "2026-10-12",
+  "baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Shared native Overlay/Handlers/Icon Set Settings and publication",
+  "validation": {
+    "debug_build_exit": 0,
+    "native_exit": 0,
+    "frontend_compilations": 1,
+    "receiver_processes": 1,
+    "owned_receiver_reaped": true,
+    "owned_windows_closed": true,
+    "private_preferences_and_publication": true,
+    "user_group_or_finder_activation_used": false,
+    "core_or_full_group_rerun": false,
+    "new_screenshots": false
+  },
+  "checks": [
+    "Three 760x530 Aqua/Dark Aqua hosts with scrolling",
+    "Shared Settings Apply/Cancel/validation",
+    "Atomic private JSON publication and path-rule readback",
+    "Notification after local save",
+    "Failure preserves unsaved draft/local preferences",
+    "Unsigned local save notice without notification"
+  ],
+  "inventory": {
+    "dialogs": 130,
+    "partial": 70,
+    "pending_review": 60,
+    "certified_complete": 0
+  },
+  "remaining": [
+    "Physical keyboard/VoiceOver/layout and Symbols switch",
+    "Actual signed Finder refresh and notifications",
+    "Volume boundaries and watched-root management",
+    "Signed sandbox and App Store acceptance"
+  ]
+}

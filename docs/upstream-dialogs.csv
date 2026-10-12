@@ -29,8 +29,8 @@ src/Resources/TortoiseProcENG.rc,IDD_PROMPT,Authentication,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_RENAME,Rename - TortoiseGit,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_REPOSITORY_BROWSER,Repository Browser,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSMAIN,General,pending-review
-src/Resources/TortoiseProcENG.rc,IDD_SETTINGSOVERLAY,Icon Overlays,pending-review
-src/Resources/TortoiseProcENG.rc,IDD_SETTINGSOVERLAYHANDLERS,Overlay Handlers,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SETTINGSOVERLAY,Icon Overlays,partial-native-replacement
+src/Resources/TortoiseProcENG.rc,IDD_SETTINGSOVERLAYHANDLERS,Overlay Handlers,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSPROXY,Network,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSMTP,Email,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_SVNPROGRESS,Progress,partial
@@ -43,7 +43,7 @@ src/Resources/TortoiseProcENG.rc,IDD_CHECKFORUPDATES,Check For Updates - Tortois
 src/Resources/TortoiseProcENG.rc,IDD_REVERT,Revert,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_LFS_LOCKS,LFS Locks,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_STATGRAPH,Statistics,partial-native-replacement
-src/Resources/TortoiseProcENG.rc,IDD_SETOVERLAYICONS,Icon Set,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SETOVERLAYICONS,Icon Set,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSPROGSDIFF,Diff Viewer,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSPROGSMERGE,Merge Tool,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSLOOKANDFEEL,Context Menu,pending-review
