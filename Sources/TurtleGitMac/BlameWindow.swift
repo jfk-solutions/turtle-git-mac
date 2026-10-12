@@ -12,8 +12,8 @@ private struct BlameParentMenuTarget {
     let model: BlameWindowModel
     var onClosed: () -> Void = {}
     private var findWindow: BlameFindWindowController?
-    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, revision: String, options: GitBlameOptions = GitBlamePreferences.load()) {
-        model = BlameWindowModel(repository: repository, access: access, path: path, revision: revision, options: options)
+    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, revision: String, options: GitBlameOptions = GitBlamePreferences.load(), preferences: UserDefaults = .standard) {
+        model = BlameWindowModel(repository: repository, access: access, path: path, revision: revision, options: options, labelDefaults: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 700), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(path) at \(revision.prefix(7)) – Blame – TurtleGit"
         window.minSize = NSSize(width: 820, height: 400); window.isReleasedWhenClosed = false
@@ -25,11 +25,12 @@ private struct BlameParentMenuTarget {
     }
     private func showFind() {
         if let findWindow, findWindow.window?.isVisible == true { findWindow.showWindow(nil); findWindow.window?.makeKeyAndOrderFront(nil); return }
+        if let selected = model.selectedSourceText?(), !selected.isEmpty { model.find = selected }
         findWindow = BlameFindWindowController(model: model)
         if let window, let panel = findWindow?.window { window.addChildWindow(panel, ordered: .above); panel.center() }
         findWindow?.showWindow(nil); findWindow?.window?.makeKeyAndOrderFront(nil)
     }
-    func windowWillClose(_ notification: Notification) { findWindow?.close(); model.onFind = nil; model.invalidate(); onClosed() }
+    func windowWillClose(_ notification: Notification) { findWindow?.close(); model.retireSourceView?(); model.retireSourceView = nil; model.onFind = nil; model.invalidate(); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
@@ -37,6 +38,28 @@ private struct BlameParentMenuTarget {
     let repository: GitRepository, path: String
     let fullCommitMessageOnLogLine: Bool
     private let access: RepositoryAccessLease?
+    private let labelDefaults: UserDefaults
+    @Published private(set) var marginFields = Set<BlameMarginField>()
+    func setMargin(_ field: BlameMarginField, visible: Bool) {
+        guard !busy else { return }
+        if visible { marginFields.insert(field) } else { marginFields.remove(field) }
+        labelDefaults.set(visible, forKey:"Blame." + field.rawValue)
+    }
+    func marginText(_ id: String, row: Int) -> String {
+        guard lines.indices.contains(row) else { return "" }; let line = lines[row]
+        let repeated = row > 0 && lines[row - 1].hash == line.hash
+        switch id {
+        case "revision":
+            if repeated { return "" }
+            if marginFields.contains(.logID) { return ranks[line.hash].map { String(historyCount - $0) } ?? "0" }
+            return String(line.hash.prefix(8))
+        case "author": return repeated ? "" : line.author
+        case "date": return repeated ? "" : DateFormatter.localizedString(from:line.date,dateStyle:.short,timeStyle:.short)
+        case "filename": return repeated && lines[row - 1].filename == line.filename ? "" : line.filename
+        case "original": return String(line.originalLine)
+        default: return String(line.number)
+        }
+    }
     private var revision: String
     private var generation = 0
     private var pendingLine: Int?
@@ -91,11 +114,19 @@ private struct BlameParentMenuTarget {
     private var origins: [String: GitBlameLine] = [:]
     var historyCount = 0
     var onFind: (() -> Void)?
+    var onGoTo: (() -> Void)?
     var onLog: ((String, String) -> Void)?
     var onChanges: ((RevisionComparisonSnapshot) -> Void)?
     var onPrevious: ((String, String, Int, GitBlameOptions) -> Void)?
     var firstVisibleSourceRow: (() -> Int?)?
     var scrollSourceRowToTop: ((Int) -> Void)?
+    var selectedSourceText: (() -> String)?
+    var retireSourceView: (() -> Void)?
+    @Published private(set) var sourceNavigationSerial = 0
+    private(set) var sourceNavigation: (line: Int, wholeLine: Bool, includeBreak: Bool)?
+    func requestSourceNavigation(line: Int, wholeLine: Bool, includeBreak: Bool = false) {
+        sourceNavigation = (line, wholeLine, includeBreak); sourceNavigationSerial += 1
+    }
     private(set) var appliedOptions = GitBlameOptions()
     var lines: [GitBlameLine] { snapshot?.lines ?? [] }
     private func line(_ number: Int?) -> GitBlameLine? {
@@ -128,7 +159,8 @@ private struct BlameParentMenuTarget {
         return 0
     }
     init(repository: GitRepository, access: RepositoryAccessLease?, path: String, revision: String, options: GitBlameOptions = GitBlameOptions(), labelDefaults: UserDefaults = .standard) {
-        self.repository = repository; self.access = access; self.path = path; self.revision = revision
+        self.repository = repository; self.access = access; self.path = path; self.revision = revision; self.labelDefaults = labelDefaults
+        marginFields = Set(BlameMarginField.allCases.filter { labelDefaults.object(forKey:"Blame." + $0.rawValue) as? Bool ?? ($0 == .author) })
         self.fullCommitMessageOnLogLine = labelDefaults.bool(forKey: "FullCommitMessageOnLogLine")
         let search = GitBlameFindPreferences.load(); find = search.text; matchCase = search.matchCase
         setControls(options); appliedOptions = options
@@ -188,7 +220,7 @@ private struct BlameParentMenuTarget {
         guard !busy, canShowCompleteLog, showCompleteLog, followRenames != enabled else { return }
         followRenames = enabled; GitBlamePreferences.update { $0.followRenames = enabled }; reload(saveThresholds: true)
     }
-    func invalidate() { generation += 1; parentGeneration += 1; clipboardGeneration += 1; copyingLog = false; firstVisibleSourceRow = nil; scrollSourceRowToTop = nil }
+    func invalidate() { generation += 1; parentGeneration += 1; clipboardGeneration += 1; copyingLog = false; firstVisibleSourceRow = nil; scrollSourceRowToTop = nil; selectedSourceText = nil; sourceNavigation = nil }
     func prepareParentMenu(number: Int, completion: @escaping () -> Void) {
         selection = number; loadParents(completion: completion)
     }
@@ -291,6 +323,7 @@ private struct BlameParentMenuTarget {
         }
         selection = lines[result.row].number
         let number = lines[result.row].number
+        requestSourceNavigation(line: number, wholeLine: true, includeBreak: true)
         navigationMessage = result.wrapped ? "Wrapped to line \(number)." : "Line \(number)"
     }
     func applyFind(text: String, matchCase: Bool, previous: Bool) {
@@ -300,7 +333,7 @@ private struct BlameParentMenuTarget {
     }
     func goToLine(_ requested: Int) {
         guard let number = GitBlameNavigation.targetLine(requested, lineCount: lines.count) else { return }
-        selection = number; navigationMessage = "Line \(number)"
+        selection = number; requestSourceNavigation(line: number, wholeLine: true); navigationMessage = "Line \(number)"
     }
     func navigateChange(previous: Bool) {
         guard !busy, let start = firstVisibleSourceRow?(), let scrollSourceRowToTop else { return }
@@ -341,6 +374,11 @@ private struct BlameDialog: View {
                 Button("Previous") { model.findLine(previous: true) }.keyboardShortcut("g", modifiers: [.command, .shift])
                 Button("Next") { model.findLine(previous: false) }.keyboardShortcut("g", modifiers: .command)
                 Spacer()
+                Menu("View") {
+                    ForEach(BlameMarginField.allCases, id:\.self) { field in
+                        Toggle(field.title, isOn:Binding(get:{ model.marginFields.contains(field) },set:{ model.setMargin(field,visible:$0) }))
+                    }
+                }
                 Button("Go To Line…") { showingGoToLine = true }.keyboardShortcut("l", modifiers: .command)
             }.disabled(model.busy)
             if model.busy { ProgressView("Reading annotations…").controlSize(.small) }
@@ -372,7 +410,8 @@ private struct BlameDialog: View {
                 Text("\(line.summary)\nOrigin: \(line.filename), line \(line.originalLine)").font(.system(size: 11)).textSelection(.enabled)
             }
             Text("\(model.lines.count) lines • \(model.snapshot?.encoding.rawValue ?? "") • \(model.navigationMessage)").font(.system(size: 11)).foregroundStyle(.secondary)
-        }.padding(12).sheet(isPresented: $showingGoToLine) {
+        }.padding(12).onAppear { model.onGoTo = { showingGoToLine = true } }
+        .onDisappear { model.onGoTo = nil }.sheet(isPresented: $showingGoToLine) {
             BlameGoToLineDialog { requested in model.goToLine(requested) }
         }.onReceive(NotificationCenter.default.publisher(for: .blamePreferencesChanged)) { _ in model.applyPreferences() }
     }
@@ -604,6 +643,13 @@ private struct BlameHistoryTable: NSViewRepresentable {
     }
 }
 
+enum BlameMarginField: String, CaseIterable {
+    case logID = "ShowLogID", author = "ShowAuthor", date = "ShowDate", filename = "ShowFilename", original = "ShowOriginalLineNumber"
+    var title: String {
+        switch self { case .logID: return "Show log ID"; case .author: return "Show author"; case .date: return "Show date"; case .filename: return "Show filename"; case .original: return "Show original line number" }
+    }
+}
+
 private struct BlameTable: NSViewRepresentable {
     @ObservedObject var model: BlameWindowModel
     @Environment(\.colorScheme) private var colorScheme
@@ -623,19 +669,32 @@ private struct BlameTable: NSViewRepresentable {
             let number = row.map { $0 + 1 }
             if model.hoveredLine != number { model.hoveredLine = number }
         }
-        table.rowHeight = 22; table.intercellSpacing = NSSize(width: 6, height: 0)
+        table.rowHeight = 22; table.intercellSpacing = .zero
+        table.headerView = nil
         table.columnAutoresizingStyle = .noColumnAutoresizing; table.allowsMultipleSelection = false
         table.target = context.coordinator; table.doubleAction = #selector(Coordinator.showLog)
-        for (id, title, width) in [("revision", "Revision", 100.0), ("author", "Author", 150), ("date", "Date", 145), ("line", "Line", 55), ("source", "Source", 1500)] {
+        for (id, title, width) in [("revision", "Revision", 90.0), ("author", "Author", 130), ("date", "Date", 145), ("filename", "Filename", 180), ("original", "Original line", 65), ("line", "Line", 45)] {
             let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id)); column.title = title; column.width = width; column.minWidth = 40; table.addTableColumn(column)
         }
         table.setAccessibilityLabel("Annotated source")
         let menu = NSMenu(); menu.delegate = context.coordinator; table.menu = menu
         context.coordinator.table = table
         let container = BlameSourceContainer()
+        container.editor.delegate = context.coordinator
+        container.editor.onContextMenu = { [weak coordinator = context.coordinator] row, event in
+            guard let coordinator, let table = coordinator.table, coordinator.model.lines.indices.contains(row), !coordinator.model.busy else { return }
+            coordinator.model.prepareParentMenu(number: row + 1) { [weak coordinator] in
+                guard let coordinator, let menu = coordinator.table?.menu, let editor = coordinator.container?.editor,
+                      editor.window?.isVisible == true else { return }
+                NSMenu.popUpContextMenu(menu, with: event, for: editor)
+            }
+            table.needsDisplay = true
+        }
+        context.coordinator.container = container
         let scroll = container.scroll
-        scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true; scroll.autohidesScrollers = true; scroll.documentView = table
+        scroll.hasVerticalScroller = false; scroll.hasHorizontalScroller = true; scroll.autohidesScrollers = true; scroll.documentView = table
         container.locator.table = table
+        container.installNavigation(model)
         model.firstVisibleSourceRow = { [weak table] in
             guard let table else { return nil }
             let rows = table.rows(in: visibleBlameSourceRect(table))
@@ -654,21 +713,35 @@ private struct BlameTable: NSViewRepresentable {
         let coordinator = context.coordinator; coordinator.model = model
         guard let table = coordinator.table else { return }
         coordinator.updating = true
+        for column in table.tableColumns {
+            switch column.identifier.rawValue {
+            case "author": column.isHidden = !model.marginFields.contains(.author)
+            case "date": column.isHidden = !model.marginFields.contains(.date)
+            case "filename": column.isHidden = !model.marginFields.contains(.filename)
+            case "original": column.isHidden = !model.marginFields.contains(.original)
+            default: break
+            }
+        }
         if coordinator.revision != model.snapshot?.revision || coordinator.presentation != model.presentation {
             coordinator.revision = model.snapshot?.revision
             coordinator.presentation = model.presentation
             table.rowHeight = max(22, model.sourceFont.ascender - model.sourceFont.descender + model.sourceFont.leading + 6)
-            let width = model.lines.reduce(CGFloat(600)) { max($0, model.displayedSource($1).size().width + 24) }
-            table.tableColumns.last?.width = width
         }
+        container.installNavigation(model)
+        container.updateSource(model)
         let viewportOrigin = container.scroll.contentView.bounds.origin
         table.reloadData()
+        table.setFrameSize(NSSize(width:table.tableColumns.filter { !$0.isHidden }.reduce(CGFloat(0)) { $0 + $1.width },height:table.frame.height))
         container.scroll.contentView.scroll(to: viewportOrigin)
         container.scroll.reflectScrolledClipView(container.scroll.contentView)
         if let number = model.selection {
             let row = number - 1
             if table.selectedRow != row { table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false); table.scrollRowToVisible(row) }
         } else { table.deselectAll(nil) }
+        if coordinator.navigationSerial != model.sourceNavigationSerial, let request = model.sourceNavigation {
+            coordinator.navigationSerial = model.sourceNavigationSerial
+            container.selectSourceLine(request.line, wholeLine: request.wholeLine, includeBreak: request.includeBreak)
+        }
         container.locator.presentation = model.presentation
         container.locator.ranks = model.lines.map { model.ranks[$0.hash] }
         container.locator.historyCount = model.historyCount
@@ -676,9 +749,15 @@ private struct BlameTable: NSViewRepresentable {
         container.locator.needsDisplay = true
         coordinator.updating = false
     }
-    @MainActor final class Coordinator: NSObject, NSTableViewDelegate, NSTableViewDataSource, NSMenuDelegate {
+    static func dismantleNSView(_ container: BlameSourceContainer, coordinator: Coordinator) {
+        container.retire(); coordinator.model.selectedSourceText = nil
+        coordinator.model.firstVisibleSourceRow = nil; coordinator.model.scrollSourceRowToTop = nil
+    }
+    @MainActor final class Coordinator: NSObject, NSTableViewDelegate, NSTableViewDataSource, NSMenuDelegate, NSTextViewDelegate {
         var model: BlameWindowModel
         weak var table: NSTableView?
+        weak var container: BlameSourceContainer?
+        var navigationSerial = 0
         var updating = false
         var revision: String?
         var presentation: GitBlamePresentation?
@@ -686,19 +765,18 @@ private struct BlameTable: NSViewRepresentable {
         func numberOfRows(in tableView: NSTableView) -> Int { model.lines.count }
         func tableViewSelectionDidChange(_ notification: Notification) {
             guard !updating, let table else { return }; model.selection = table.selectedRow >= 0 ? table.selectedRow + 1 : nil
+            if table.selectedRow >= 0 { container?.selectSourceLine(table.selectedRow + 1, wholeLine: true) }
+        }
+        func textViewDidChangeSelection(_ notification: Notification) {
+            guard !updating, let container, !container.settingSelection,
+                  let row = container.sourceRow(at: container.editor.selectedRange().location) else { return }
+            if model.selection != row + 1 { model.selection = row + 1 }
         }
         func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
             guard row < model.lines.count else { return nil }; let line = model.lines[row]
             let id = tableColumn?.identifier.rawValue ?? "source"
-            let value: String
-            switch id {
-            case "revision": value = String(line.hash.prefix(8))
-            case "author": value = line.author
-            case "date": value = DateFormatter.localizedString(from: line.date, dateStyle: .short, timeStyle: .short)
-            case "line": value = String(line.number)
-            default: value = model.displayedSource(line).string
-            }
-            let label = NSTextField(labelWithString: value); label.font = id == "source" || id == "revision" ? .monospacedSystemFont(ofSize: 12, weight: .regular) : .systemFont(ofSize: 12)
+            let value = model.marginText(id, row:row)
+            let label = NSTextField(labelWithString: value); label.font = model.sourceFont
             if id == "source" { label.attributedStringValue = model.displayedSource(line) }
             label.lineBreakMode = .byClipping; label.maximumNumberOfLines = 1
             label.toolTip = "\(line.hash)\n\(line.author)\n\(line.summary)\n\(line.filename):\(line.originalLine)"
@@ -709,23 +787,7 @@ private struct BlameTable: NSViewRepresentable {
             let view = BlameRowView()
             guard row < model.lines.count else { return view }
             let dark = tableView.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-            let color = model.presentation.ageColor(rank: model.ranks[model.lines[row].hash], historyCount: model.historyCount, dark: dark, enabled: model.colorAge)
-            view.ageColor = NSColor(srgbRed: CGFloat((color >> 16) & 255) / 255, green: CGFloat((color >> 8) & 255) / 255, blue: CGFloat(color & 255) / 255, alpha: 1)
-            if !model.colorAge || model.ranks[model.lines[row].hash] == nil {
-                view.ageColor = dark ? NSColor(srgbRed: 32.0 / 255, green: 32.0 / 255, blue: 32.0 / 255, alpha: 1) : .white
-            }
-            switch model.highlightKind(model.lines[row]) {
-            case 1: view.ageColor = dark ? NSColor(srgbRed: 0, green: 30.0 / 255, blue: 80.0 / 255, alpha: 1) : .selectedContentBackgroundColor
-            case 2:
-                let selected = dark ? NSColor(srgbRed: 0, green: 30.0 / 255, blue: 80.0 / 255, alpha: 1) : .selectedContentBackgroundColor
-                let highlightText = dark ? NSColor(srgbRed: 240.0 / 255, green: 240.0 / 255, blue: 240.0 / 255, alpha: 1) : .white
-                view.ageColor = selected.blended(withFraction: dark ? 0.15 : 0.35, of: highlightText) ?? selected
-            case 3, 4:
-                let percentage = model.highlightKind(model.lines[row]) == 3 ? 20 : 10
-                let level = ((dark ? 240 : 0) * percentage + (dark ? 32 : 255) * (100 - percentage)) / 100
-                view.ageColor = NSColor(srgbRed: CGFloat(level) / 255, green: CGFloat(level) / 255, blue: CGFloat(level) / 255, alpha: 1)
-            default: break
-            }
+            view.ageColor = blameSourceBackground(model, line:model.lines[row], dark:dark)
             view.revisionHighlighted = [1, 2].contains(model.highlightKind(model.lines[row]))
             return view
         }
@@ -761,6 +823,12 @@ private struct BlameTable: NSViewRepresentable {
                 let item = NSMenuItem(title: title, action: action, keyEquivalent: ""); item.target = self; item.image = icon.contextImage()
                 item.representedObject = selectedLine.hash; menu.addItem(item)
             }
+            menu.addItem(.separator())
+            let copy = NSMenuItem(title: "Copy", action: #selector(copySelectedSource(_:)), keyEquivalent: "")
+            copy.target = self; copy.image = MenuIcon.copy.contextImage()
+            copy.isEnabled = (container?.editor.selectedRange().length ?? 0) > 0; menu.addItem(copy)
+            let all = NSMenuItem(title: "Select All", action: #selector(selectAllSource(_:)), keyEquivalent: "")
+            all.target = self; all.isEnabled = !model.lines.isEmpty; menu.addItem(all)
         }
         @objc func showLog() { if let line = model.selectedLine { model.showLog(line) } }
         @objc func showChanges(_ sender: NSMenuItem) {
@@ -776,6 +844,8 @@ private struct BlameTable: NSViewRepresentable {
         }
         @objc func copyRevision() { if let line = model.selectedLine { model.copy(line.hash) } }
         @objc func copySource() { if let line = model.selectedLine { model.copy(line.source) } }
+        @objc func copySelectedSource(_ sender: Any?) { container?.editor.copy(sender) }
+        @objc func selectAllSource(_ sender: Any?) { container?.editor.selectAll(sender) }
     }
 }
 
@@ -794,14 +864,14 @@ private final class BlameTableView: NSTableView {
         let point = convert(event.locationInWindow, from: nil), row = row(at: point), column = column(at: point)
         if event.modifierFlags.contains(.control) { onContextMenu(row, event); return }
         super.mouseDown(with: event)
-        if event.clickCount == 1, row >= 0, (0...2).contains(column) { onMarginClick(row, event.modifierFlags.contains(.command)) }
+        if event.clickCount == 1, row >= 0, tableColumns.indices.contains(column), tableColumns[column].identifier.rawValue != "line" { onMarginClick(row, event.modifierFlags.contains(.command)) }
     }
     override func rightMouseDown(with event: NSEvent) {
         onContextMenu(row(at: convert(event.locationInWindow, from: nil)), event)
     }
     override func mouseMoved(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil), row = row(at: point), column = column(at: point)
-        onHover(row >= 0 && (0...2).contains(column) ? row : nil)
+        onHover(row >= 0 && tableColumns.indices.contains(column) && tableColumns[column].identifier.rawValue != "line" ? row : nil)
         super.mouseMoved(with: event)
     }
     override func mouseExited(with event: NSEvent) { onHover(nil); super.mouseExited(with: event) }
@@ -831,24 +901,277 @@ private final class BlameSourceScrollView: NSScrollView {
 private final class BlameSourceContainer: NSView {
     let scroll = BlameSourceScrollView()
     let locator = BlameLocatorView()
+    let sourceScroll = BlameSourceScrollView()
+    let editor = BlameSourceTextView()
+    private let sourceHeading = NSTextField(labelWithString: "Source")
+    private let annotationHeading = NSView()
+    private var ranges: [NSRange] = []
+    private var lineLengths: [Int] = []
+    private var synchronizing = false
+    private(set) var settingSelection = false
+    private var retired = false
+    private var renderedRevision: String?
+    private var renderedEncoding: GitBlameEncoding?
+    private var renderedPresentation: GitBlamePresentation?
+    private var renderedLineCount = -1
+    private var gutterWidth: CGFloat = 270
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
-        addSubview(locator); addSubview(scroll)
+        addSubview(locator); addSubview(scroll); addSubview(sourceScroll)
+        addSubview(annotationHeading); addSubview(sourceHeading)
+        sourceHeading.font = .systemFont(ofSize: 11)
+        annotationHeading.wantsLayer = true; annotationHeading.layer?.masksToBounds = true
+        editor.isEditable = false; editor.isSelectable = true; editor.isRichText = false
+        editor.isAutomaticQuoteSubstitutionEnabled = false; editor.isAutomaticDashSubstitutionEnabled = false
+        editor.isAutomaticTextReplacementEnabled = false; editor.isAutomaticSpellingCorrectionEnabled = false
+        editor.isContinuousSpellCheckingEnabled = false; editor.isGrammarCheckingEnabled = false
+        editor.isHorizontallyResizable = true; editor.isVerticallyResizable = true
+        editor.autoresizingMask = []
+        editor.textContainerInset = NSSize(width: 6, height: 0)
+        editor.textContainer?.widthTracksTextView = false; editor.textContainer?.heightTracksTextView = false
+        editor.textContainer?.containerSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        editor.layoutManager?.usesFontLeading = false
+        editor.setAccessibilityLabel("Blame source text")
+        sourceScroll.hasVerticalScroller = true; sourceScroll.hasHorizontalScroller = true
+        sourceScroll.autohidesScrollers = true; sourceScroll.documentView = editor
         locator.scroll = scroll
-        scroll.onScroll = { [weak locator] in locator?.needsDisplay = true }
+        scroll.onScroll = { [weak self] in self?.synchronize(fromSource: false) }
+        sourceScroll.onScroll = { [weak self] in self?.synchronize(fromSource: true) }
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+    func retire() {
+        retired = true; editor.delegate = nil; editor.onContextMenu = { _,_ in }
+        editor.retired = true; editor.isSelectable = false
+        editor.onFind = {}; editor.onFindNext = { _ in }; editor.onGoTo = {}
+        scroll.onScroll = {}; sourceScroll.onScroll = {}
+    }
+    func installNavigation(_ model: BlameWindowModel) {
+        guard !retired else { return }
+        model.selectedSourceText = { [weak self] in
+            guard let self, !self.retired else { return "" }
+            let range = self.editor.selectedRange(), text = self.editor.string as NSString
+            guard range.location != NSNotFound, NSMaxRange(range) <= text.length else { return "" }
+            return text.substring(with: range)
+        }
+        model.retireSourceView = { [weak self] in self?.retire() }
+        editor.onFind = { [weak model] in model?.onFind?() }
+        editor.onFindNext = { [weak model] previous in model?.findLine(previous: previous) }
+        editor.onGoTo = { [weak model] in model?.onGoTo?() }
+        model.firstVisibleSourceRow = { [weak self] in
+            guard let self, !self.ranges.isEmpty, !self.retired else { return nil }
+            return min(self.ranges.count - 1, max(0, Int(self.sourceScroll.contentView.bounds.minY / self.editor.lineHeight)))
+        }
+        model.scrollSourceRowToTop = { [weak self] row in
+            guard let self, !self.retired, self.ranges.indices.contains(row) else { return }
+            var origin = self.sourceScroll.contentView.bounds.origin
+            origin.y = CGFloat(row) * self.editor.lineHeight
+            self.sourceScroll.contentView.scroll(to: self.sourceScroll.contentView.constrainBoundsRect(NSRect(origin: origin, size: self.sourceScroll.contentView.bounds.size)).origin)
+            self.sourceScroll.reflectScrolledClipView(self.sourceScroll.contentView)
+        }
+    }
+    func sourceRow(at offset: Int) -> Int? {
+        guard !retired, !ranges.isEmpty, offset >= 0, offset <= (editor.string as NSString).length else { return nil }
+        var low = 0, high = ranges.count
+        while low < high {
+            let middle = (low + high) / 2
+            if ranges[middle].location <= offset { low = middle + 1 } else { high = middle }
+        }
+        return max(0, low - 1)
+    }
+    func selectSourceLine(_ number: Int, wholeLine: Bool, includeBreak: Bool = false) {
+        let row = number - 1
+        guard !retired, ranges.indices.contains(row) else { return }
+        let range = NSRange(location: ranges[row].location, length: wholeLine ? (includeBreak ? ranges[row].length : lineLengths[row]) : 0)
+        settingSelection = true; editor.setSelectedRange(range); settingSelection = false
+        editor.window?.makeFirstResponder(editor)
+        editor.scrollRangeToVisible(range)
+    }
+    func updateSource(_ model: BlameWindowModel) {
+        guard !retired else { return }
+        if let table = scroll.documentView as? NSTableView {
+            gutterWidth = table.tableColumns.filter { !$0.isHidden }.reduce(CGFloat(0)) { $0 + $1.width }
+            annotationHeading.subviews.forEach { $0.removeFromSuperview() }
+            for column in table.tableColumns where !column.isHidden {
+                let label = NSTextField(labelWithString:column.identifier.rawValue == "revision" && model.marginFields.contains(.logID) ? "Log ID" : column.title)
+                label.font = .systemFont(ofSize:11); label.maximumNumberOfLines = 1
+                label.frame.size = NSSize(width:column.width,height:22); annotationHeading.addSubview(label)
+            }
+            layoutAnnotationHeading()
+            needsLayout = true
+        }
+        let changed = renderedRevision != model.snapshot?.revision || renderedEncoding != model.snapshot?.encoding ||
+            renderedPresentation != model.presentation || renderedLineCount != model.lines.count
+        let selected = editor.selectedRange()
+        if changed {
+            renderedRevision = model.snapshot?.revision; renderedEncoding = model.snapshot?.encoding
+            renderedPresentation = model.presentation; renderedLineCount = model.lines.count
+            editor.lineHeight = max(22, model.sourceFont.ascender - model.sourceFont.descender + model.sourceFont.leading + 6)
+            var contents = ""; ranges = []; lineLengths = []
+            let decoded = model.snapshot.flatMap { String(data: $0.contents, encoding: String.Encoding(rawValue: $0.encoding.id)) }
+            let trailingBreak = decoded?.hasSuffix("\n") == true
+            var location = 0
+            for (row, line) in model.lines.enumerated() {
+                let text = model.displayedSource(line).string
+                let count = (text as NSString).length
+                let separator = row < model.lines.count - 1 || trailingBreak ? "\n" : ""
+                ranges.append(NSRange(location: location, length: count + separator.utf16.count)); lineLengths.append(count)
+                contents += text + separator; location += count + separator.utf16.count
+            }
+            let sameText = editor.string == contents
+            let paragraph = NSMutableParagraphStyle()
+            paragraph.minimumLineHeight = editor.lineHeight; paragraph.maximumLineHeight = editor.lineHeight
+            paragraph.tabStops = []
+            paragraph.defaultTabInterval = (" " as NSString).size(withAttributes: [.font:model.sourceFont]).width * CGFloat(model.presentation.tabSize)
+            paragraph.lineBreakMode = .byClipping
+            settingSelection = true
+            editor.textStorage?.setAttributedString(NSAttributedString(string:contents, attributes:[.font:model.sourceFont, .paragraphStyle:paragraph, .foregroundColor:NSColor.labelColor]))
+            if sameText, selected.location != NSNotFound, NSMaxRange(selected) <= location { editor.setSelectedRange(selected) }
+            else { editor.setSelectedRange(NSRange(location:0,length:0)) }
+            settingSelection = false
+            let width = model.lines.reduce(CGFloat(300)) { max($0, model.displayedSource($1).size().width + 24) }
+            editor.frame.size = NSSize(width:max(width,sourceScroll.contentSize.width), height:max(CGFloat(ranges.count) * editor.lineHeight,sourceScroll.contentSize.height))
+        }
+        let dark = effectiveAppearance.bestMatch(from:[.aqua,.darkAqua]) == .darkAqua
+        editor.rowColors = model.lines.map { line in blameSourceBackground(model, line:line, dark:dark) }
+        editor.textStorage?.beginEditing()
+        if let storage = editor.textStorage, storage.length > 0 {
+            storage.addAttribute(.foregroundColor,value:NSColor.labelColor,range:NSRange(location:0,length:storage.length))
+            for (row,line) in model.lines.enumerated() where [1,2].contains(model.highlightKind(line)) && ranges.indices.contains(row) {
+                storage.addAttribute(.foregroundColor,value:NSColor.alternateSelectedControlTextColor,range:ranges[row])
+            }
+        }
+        editor.textStorage?.endEditing(); editor.needsDisplay = true
+    }
+    private func synchronize(fromSource: Bool) {
+        guard !retired, !synchronizing else { return }; synchronizing = true
+        let origin = (fromSource ? sourceScroll : scroll).contentView.bounds.origin
+        let target = fromSource ? scroll : sourceScroll
+        var next = target.contentView.bounds.origin; next.y = origin.y
+        target.contentView.scroll(to: target.contentView.constrainBoundsRect(NSRect(origin:next,size:target.contentView.bounds.size)).origin)
+        target.reflectScrolledClipView(target.contentView); locator.needsDisplay = true
+        layoutAnnotationHeading()
+        synchronizing = false
+    }
+    private func layoutAnnotationHeading() {
+        var x = -scroll.contentView.bounds.minX + 2
+        for label in annotationHeading.subviews { label.frame.origin = NSPoint(x:x,y:0); x += label.frame.width }
+    }
     override func layout() {
         super.layout()
         locator.frame = NSRect(x: 0, y: 0, width: 10, height: bounds.height)
-        let frame = NSRect(x: 10, y: 0, width: max(0, bounds.width - 10), height: bounds.height)
-        let resized = scroll.frame.size != frame.size
-        scroll.frame = frame
-        scroll.tile()
-        if resized, let table = scroll.documentView as? NSTableView, table.selectedRow >= 0 {
-            table.scrollRowToVisible(table.selectedRow)
-        }
+        let gutter = min(gutterWidth, max(150, bounds.width * 0.55)), height = max(0,bounds.height - 22)
+        annotationHeading.frame = NSRect(x:10,y:height,width:gutter,height:22)
+        sourceHeading.frame = NSRect(x:16 + gutter,y:height,width:max(0,bounds.width - gutter - 16),height:22)
+        scroll.frame = NSRect(x:10,y:0,width:gutter,height:height)
+        sourceScroll.frame = NSRect(x:10 + gutter,y:0,width:max(0,bounds.width - gutter - 10),height:height)
+        scroll.tile(); sourceScroll.tile()
+        let extra = max(0,scroll.contentSize.height - sourceScroll.contentSize.height)
+        if extra > 0 { scroll.frame.origin.y += extra; scroll.frame.size.height -= extra; scroll.tile() }
+        editor.frame.size.width = max(editor.frame.width,sourceScroll.contentSize.width)
+        editor.frame.size.height = max(CGFloat(ranges.count) * editor.lineHeight,sourceScroll.contentSize.height)
+        synchronize(fromSource:true)
         locator.needsDisplay = true
+    }
+}
+
+private final class BlameSourceTextView: NSTextView {
+    var retired = false
+    var lineHeight: CGFloat = 22
+    var rowColors: [NSColor] = []
+    var onContextMenu: (Int,NSEvent) -> Void = { _,_ in }
+    var onFind: () -> Void = {}
+    var onFindNext: (Bool) -> Void = { _ in }
+    var onGoTo: () -> Void = {}
+    private var focusObservers: [NSObjectProtocol] = []
+    func updateSelectionColor() {
+        var attributes = selectedTextAttributes
+        attributes[.foregroundColor] = window?.isKeyWindow == true && window?.firstResponder === self ? NSColor.selectedTextColor : NSColor.unemphasizedSelectedTextColor
+        selectedTextAttributes = attributes
+    }
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        focusObservers.forEach { NotificationCenter.default.removeObserver($0) }; focusObservers = []
+        if let window {
+            for name in [NSWindow.didBecomeKeyNotification,NSWindow.didResignKeyNotification] {
+                focusObservers.append(NotificationCenter.default.addObserver(forName:name,object:window,queue:.main) { [weak self] _ in self?.updateSelectionColor() })
+            }
+        }
+        updateSelectionColor()
+    }
+    override func becomeFirstResponder() -> Bool { let accepted = super.becomeFirstResponder(); updateSelectionColor(); return accepted }
+    override func resignFirstResponder() -> Bool {
+        let accepted = super.resignFirstResponder()
+        var attributes = selectedTextAttributes; attributes[.foregroundColor] = NSColor.unemphasizedSelectedTextColor; selectedTextAttributes = attributes
+        return accepted
+    }
+    deinit { focusObservers.forEach { NotificationCenter.default.removeObserver($0) } }
+    override func copy(_ sender: Any?) {
+        guard !retired, selectedRange().length > 0 else { return }
+        NSPasteboard.general.clearContents()
+        _ = writeSelection(to:NSPasteboard.general,types:[.string])
+    }
+    override func selectAll(_ sender: Any?) { guard !retired else { return }; super.selectAll(sender) }
+    override func writeSelection(to pboard: NSPasteboard, types: [NSPasteboard.PasteboardType]) -> Bool {
+        guard !retired, isSelectable else { return false }
+        let text = string as NSString
+        let ranges = selectedRanges.map { $0.rangeValue }.filter { $0.location != NSNotFound && $0.length > 0 && NSMaxRange($0) <= text.length }
+        guard !ranges.isEmpty else { return false }
+        let contents = ranges.map { text.substring(with:$0) }.joined(separator:"\n")
+        var written = false
+        for type in types where type == .string || type.rawValue == "NSStringPboardType" { written = pboard.setString(contents,forType:type) || written }
+        return written
+    }
+    override func writeSelection(to pboard: NSPasteboard, type: NSPasteboard.PasteboardType) -> Bool {
+        writeSelection(to:pboard,types:[type])
+    }
+    override func keyDown(with event: NSEvent) {
+        guard !retired else { return }
+        let flags = event.modifierFlags.intersection([.command,.control,.option,.shift])
+        if flags.contains(.command), !flags.contains(.control), !flags.contains(.option) {
+            switch event.charactersIgnoringModifiers?.lowercased() {
+            case "f": onFind(); return
+            case "g": onFindNext(flags.contains(.shift)); return
+            case "l": onGoTo(); return
+            default: break
+            }
+        }
+        super.keyDown(with:event)
+    }
+    override func drawBackground(in rect: NSRect) {
+        super.drawBackground(in:rect)
+        guard lineHeight > 0 else { return }
+        let first = max(0,Int(rect.minY / lineHeight)), last = min(rowColors.count,Int(ceil(rect.maxY / lineHeight)))
+        guard first < last else { return }
+        for row in first..<last {
+            rowColors[row].setFill()
+            NSRect(x:0,y:CGFloat(row) * lineHeight,width:bounds.width,height:lineHeight).intersection(rect).fill()
+        }
+    }
+    override func rightMouseDown(with event: NSEvent) {
+        guard !retired else { return }
+        let point = convert(event.locationInWindow,from:nil)
+        onContextMenu(max(0,Int(point.y / lineHeight)),event)
+    }
+    override func mouseDown(with event: NSEvent) {
+        guard !retired else { return }
+        if event.modifierFlags.contains(.control) { rightMouseDown(with:event); return }
+        super.mouseDown(with:event)
+    }
+}
+
+@MainActor private func blameSourceBackground(_ model: BlameWindowModel, line: GitBlameLine, dark: Bool) -> NSColor {
+    let value = model.presentation.ageColor(rank:model.ranks[line.hash],historyCount:model.historyCount,dark:dark,enabled:model.colorAge)
+    let color = NSColor(srgbRed:CGFloat((value >> 16) & 255) / 255,green:CGFloat((value >> 8) & 255) / 255,blue:CGFloat(value & 255) / 255,alpha:1)
+    switch model.highlightKind(line) {
+    case 1: return dark ? NSColor(srgbRed:0,green:30.0/255,blue:80.0/255,alpha:1) : .selectedContentBackgroundColor
+    case 2:
+        let selected = dark ? NSColor(srgbRed:0,green:30.0/255,blue:80.0/255,alpha:1) : .selectedContentBackgroundColor
+        return selected.blended(withFraction:dark ? 0.15 : 0.35,of:dark ? NSColor(srgbRed:240.0/255,green:240.0/255,blue:240.0/255,alpha:1) : .white) ?? selected
+    case 3,4:
+        let percentage = model.highlightKind(line) == 3 ? 20 : 10
+        let level = ((dark ? 240 : 0) * percentage + (dark ? 32 : 255) * (100 - percentage)) / 100
+        return NSColor(srgbRed:CGFloat(level)/255,green:CGFloat(level)/255,blue:CGFloat(level)/255,alpha:1)
+    default: return model.colorAge && model.ranks[line.hash] != nil ? color : dark ? NSColor(srgbRed:32.0/255,green:32.0/255,blue:32.0/255,alpha:1) : .white
     }
 }
 

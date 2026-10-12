@@ -880,9 +880,9 @@ This is partial functionality and native dialog fidelity.
 
 - Remaining native modifier/multi-revision acceptance, full locator acceptance and complete revision-log layout;
   pointer-hover and dark sticky native acceptance.
-- Syntax highlighting, source selection and native editor scrolling behavior.
+- Upstream syntax lexers, source folding and remaining editor scrolling acceptance.
 - Remaining modeless Find/Go To Line acceptance, menu shortcuts, match highlighting and
-  revision/block navigation.
+  revision/block navigation and displayed Find feedback.
 - Clipboard presentation/localized dates, export commands and remaining original
   menu icons.
 - Complete Blame settings layout, revision chooser, font preview drawing,
@@ -911,3 +911,45 @@ The hidden native receiver checks actual HEAD snapshot bytes in a real Blame
 controller while the working file differs, moved HEAD, historical dispatch and
 the class/busy/selection guards. It closes the owned controller. Root dispatch is
 injected; displayed menus, appearance, keyboard and signed access remain pending.
+
+## Native source editor and margin commands (October 13, 2026)
+
+The source pane now uses an actual read-only NSTextView beside the annotation
+margin, with synchronized vertical scrolling and independent horizontal
+scrolling. Character/word/multi-line selection and native Copy/Select All operate
+on displayed source text. CR/BOM stripping follows the existing display policy;
+the final LF is preserved according to the decoded pinned blob. Original file,
+index and commit bytes are not written. Font/tab/theme and margin changes retain
+an existing character range. Closing the owner retires editor/menu callbacks.
+
+The locator and annotations retain the existing age, revision/author highlight
+and hover colors. A View menu exposes Show log ID, Show author, Show date,
+Show filename and Show original line number. Defaults follow the source:
+only author is enabled. Repeated revisions suppress duplicate metadata, while
+line numbers and requested original lines remain visible. Log IDs count from
+the oldest entry, with unknown entries shown as 0. Native preferences are
+app-private; no Windows registry migration is claimed.
+
+Command-F opens the owned Find panel and prefills a fresh panel from selected
+source text. Command-G/Shift-Command-G search next/previous; Command-L opens
+Go To Line. The pinned DoSearch selects the complete matching line, including
+its line break; GotoLine selects its content without the line break. The native
+editor now follows that distinction. Context menus retain captured previous/
+changes/log/revision actions and original icons, with source Copy/Select All.
+
+The source comparison includes TortoiseGitBlameView.cpp SetupLexer, DoSearch,
+GotoLine, OnEditFind, GetBlameWidth, gutter drawing and View switches, plus
+`doc/images/en/TortoiseBlame.png`. This batch does not port Lexilla syntax
+lexers, folding, or the source's native no-match message/wrap flashing.
+Those remain gaps, along with source column sizing, full menu order,
+accessibility, signed deployment and displayed acceptance. Validation and
+captures are recorded after execution rather than inferred from the controls.
+
+Debug builds and native source checks passed. The first clipboard assertions
+failed in AppKit's default writer and were corrected with explicit plain-text
+export. Initial captures found heading/scrollbar/contrast issues; those were
+repaired and recaptured. Native checks passed on system and packaged Git, with
+final layout checks on packaged Git. Both final PNGs (2500 × 1764) were inspected
+individually and published. All owned receivers/windows were retired; no Core
+suite was repeated for these native-only changes. See [actual scope, failed
+checks and reviewed captures](qa/blame-source-editor-2026-10-13.json).

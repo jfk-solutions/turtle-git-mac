@@ -1436,3 +1436,11 @@ For a failure inside LFS or before SMTP readiness, `--lfs-mail-only` reruns
 those affected phases and keeps the private SMTP/MIME checks; the default CI
 command still runs all preceding grouped phases. This does not relax assertions
 or increase their deadlines.
+
+After a Debug build, the cached reference receiver includes `--only blame-source`
+for native source selection, pinned display bytes, private clipboard, font/theme
+range retention, margin persistence, synchronized scrolling, Find/Go To Line,
+keyboard and retired editor guards. Run against both system and packaged Git.
+`--only blame-captures` is an optional displayed capture with existing screen
+recording permission; it is excluded from default CI. Inspect both images before
+publication. No Core rerun is needed for this native-only viewer batch.

@@ -1,0 +1,89 @@
+{
+  "date": "2026-10-13",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Native continuous read-only Blame source editor with character/multi-line selection",
+    "Two-way vertical scroll coupling, independent horizontal position and age/locator colors",
+    "Whole-line Find/Go To selection, fresh Find prefill and native Command-F/G/L routing",
+    "Five persisted source margin switches and repeated revision grouping",
+    "Retired editor/menu copy/navigation fences"
+  ],
+  "source": [
+    "src/TortoiseGitBlame/TortoiseGitBlameView.cpp DoSearch/GotoLine/OnEditFind/GetBlameWidth/View switches",
+    "doc/images/en/TortoiseBlame.png"
+  ],
+  "validation": {
+    "debug_build": {
+      "exit": 0,
+      "log": "build/qa/blame-source-editor-build-2026-10-13.log",
+      "notes": "Existing warnings and SwiftCompile exit-0/no-output diagnostic present; not a clean-log claim",
+      "copy_repair_exit": 0,
+      "header_repair_exit": 0,
+      "final_layout_exit": 0
+    },
+    "core": "No Core source changes; not rerun",
+    "native": {
+      "status": "passed",
+      "command": "python3 scripts/test-native-reference-batch.py --only blame-source --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "log": "build/qa/blame-source-editor-native-2026-10-13.log",
+      "initial_exit": 1,
+      "initial_owned_pid": 95168,
+      "declared_pasteboard_retry_exit": 1,
+      "declared_pasteboard_owned_pid": 95274,
+      "failed_receivers_reaped": true,
+      "reason": "NSTextView super.writeSelection returned false for a valid {39,3} Unicode selection, also after declaring pasteboard types. Native source view now implements explicit read-only plain-text export for single/multiple UTF-16 ranges and both writeSelection variants.",
+      "fixture_adjustment": "Added a genuinely long source line so the horizontal scroll assertion proves an overflowing document.",
+      "current_log": "build/qa/blame-source-editor-native-2026-10-13-copy-repair.log",
+      "copy_repair_exit": 0,
+      "copy_repair_owned_pids": [
+        96073,
+        96106
+      ],
+      "copy_repair_receivers_reaped": true,
+      "final_layout_exit": 0,
+      "final_affected_engine": "packaged Git",
+      "final_owned_pids": [
+        97779,
+        97811
+      ],
+      "final_receivers_reaped": true,
+      "final_log": "build/qa/blame-source-editor-native-2026-10-13-final-layout.log"
+    },
+    "captures": {
+      "initial_exit": 0,
+      "initial_owned_pid": 96161,
+      "initial_receiver_reaped": true,
+      "initial_visual_review": "Both images inspected and rejected for misaligned annotation headings, redundant gutter scrollbar and same-author fixture obscuring age/commit contrast. Not published.",
+      "final_status": "passed and individually visually reviewed",
+      "published": [
+        {
+          "file": "docs/site/assets/blame-source-editor-light.png",
+          "width": 2500,
+          "height": 1764,
+          "sha256": "2e5b54e8882b0495b4838de2f4fe5d27344b0394ce076dba2effb29b800bf237",
+          "visually_inspected": true
+        },
+        {
+          "file": "docs/site/assets/blame-source-editor-dark.png",
+          "width": 2500,
+          "height": 1764,
+          "sha256": "d70d2793314b6791a76e7ddf6209c723a43616fe84bd10ba0257caba4738dd70",
+          "visually_inspected": true
+        }
+      ],
+      "comparison": "Compared pinned TortoiseBlame.png for locator, margin/source placement, repeated revisions, yellow age/blue commit colors, graph-before-log and properties. Source toolbar and syntax-lexer differences remain explicit."
+    },
+    "website": {
+      "exit": 0,
+      "log": "build/qa/blame-source-site-2026-10-13.log",
+      "assets": "Both reviewed PNGs required by build-site and linked in README/gallery"
+    }
+  },
+  "limits": [
+    "Lexilla syntax lexers and folding remain unported",
+    "No-match modal/wrap flash and broader menus/toolbar remain incomplete",
+    "Exact source column sizing/date localization, signed sandbox and VoiceOver acceptance remain pending",
+    "Displayed text normalizes BOM/CRLF as existing viewer did; raw blob bytes are retained",
+    "Entire port remains incomplete"
+  ]
+}
