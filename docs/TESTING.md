@@ -1205,3 +1205,11 @@ The grouped Merge/LFS-mail receivers include `merge-one-pane-native-2026-10-12.s
 for saved default, one actual editor, locator/navigation, removed selection,
 native typing/Undo/Redo, exact BOM/EOL Save with Base retained, mode Save/Cancel/Discard, combined Replace All/Tab with single Undo,
 and roundtrip/persistence/retired guards. `--one-pane-only` shares the object cache.
+
+The Merge/LFS-mail batch includes `merge-one-pane-context-native-2026-10-12.swift`:
+actual left-role menus, hidden-opposite/model guards, source command ordering,
+removed Copy, private pasteboard capture across menus, real Cut/Paste/Undo,
+nine encoding order/action identity, readonly omission and retired clipboard/
+editing guards with saved inputs unchanged. `--one-pane-context-only` uses the
+same app-object receiver cache for an actual context failure. No user clipboard
+or installed app is used.

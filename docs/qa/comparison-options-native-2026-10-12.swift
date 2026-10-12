@@ -4,6 +4,7 @@ import TurtleGitCore
 @main struct ComparisonOptionsVerification {
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
+        if CommandLine.arguments.contains("--one-pane-context-only") { try await MergeOnePaneContextVerification.verify(); return }
         if CommandLine.arguments.contains("--one-pane-only") { try await MergeOnePaneNativeVerification.verify(); return }
         if CommandLine.arguments.contains("--colors-only") { try await MergeColorsNativeVerification.verify(); return }
         if CommandLine.arguments.contains("--patch-only") { try await MergePatchNativeVerification.verify(); return }
@@ -26,6 +27,7 @@ import TurtleGitCore
         try await MergePatchNativeVerification.verify()
         try await MergeColorsNativeVerification.verify()
         try await MergeOnePaneNativeVerification.verify()
+        try await MergeOnePaneContextVerification.verify()
         print("Comparison option receivers passed together: three-pane dirty Cancel/persistence, two-pane preference choices, existing Undo/save/cancellation paths; one frontend compilation and one process.")
     }
 }

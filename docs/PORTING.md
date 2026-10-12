@@ -767,3 +767,10 @@ native editor with Mine edits, removed-row payload retention, Save/Undo/Redo,
 mode-switch dirty prompts, a saved General default and combined locator/navigation.
 See [one-pane parity](MERGE-ONE-PANE-PARITY.md) for state/menu/physical acceptance
 that remains open.
+
+The one-pane context menu now follows the source left-view role. Hidden-opposite
+transfer operations are gated, right-view mark actions are omitted, and clipboard
+commands retain their own pasteboard/editor context. Source-ordered encoding
+menus dispatch by format identity. See
+[context parity](MERGE-ONE-PANE-CONTEXT-PARITY.md); physical popup/full-menu
+acceptance remains open.

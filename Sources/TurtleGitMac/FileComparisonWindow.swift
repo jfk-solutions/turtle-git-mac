@@ -330,7 +330,7 @@ import TurtleGitCore
         get { drafts?.editingEnabled(base: activeBase) == true }
         set { drafts?.setEditing(newValue, base: activeBase) }
     }
-    func canEdit(base: Bool) -> Bool { drafts?.canEdit(base: base) == true }
+    func canEdit(base: Bool) -> Bool { !retired && drafts?.canEdit(base: base) == true }
     func draftText(base: Bool) -> String { drafts?.text(base: base) ?? "" }
     func updateDraft(_ text: String, base: Bool) {
         do { try drafts?.update(text: text, base: base) } catch { self.error = error.localizedDescription }
@@ -360,30 +360,32 @@ import TurtleGitCore
     var redo: () -> Void = {}
     var canTransfer: Bool { canTransfer(toBase: activeBase) }
     func canTransfer(toBase base: Bool) -> Bool { drafts?.editingEnabled(base: base) == true && alignment != nil && !busy && !confirmingQuit && !filtering }
+    var contextCommandsAllowed: Bool { !retired && !busy && !confirmingQuit && window?.attachedSheet == nil }
+    var oppositeViewCommandsAllowed: Bool { !onePaneActive && contextCommandsAllowed }
     var transferRows: Range<Int>? { selectedRows ?? alignment.flatMap { $0.differences.indices.contains(difference) ? $0.differences[difference] : nil } }
     func useOtherBlock(_ choice: FileComparisonEditing.BlockChoice = .other, targetBase: Bool? = nil) {
         let base = targetBase ?? activeBase
-        guard canTransfer(toBase: base), let alignment, let rows = transferRows else { return }
+        guard !onePaneActive, canTransfer(toBase: base), let alignment, let rows = transferRows else { return }
         do { let edit = try FileComparisonEditing.takingOtherRows(alignment, rows: rows, targetBase: base, choice: choice); editorActions[base]?.replace(edit.text, edit.caret, choice == .other ? rows : nil) }
         catch { self.error = error.localizedDescription }
     }
     func useOtherFile(targetBase: Bool? = nil) {
         let base = targetBase ?? activeBase
-        guard canTransfer(toBase: base), let alignment else { return }
+        guard !onePaneActive, canTransfer(toBase: base), let alignment else { return }
         if alignment.rows.isEmpty { editorActions[base]?.replace("", 0, nil); return }
         do { let edit = try FileComparisonEditing.takingOtherRows(alignment, rows: alignment.rows.indices, targetBase: base); editorActions[base]?.replace(edit.text, 0, alignment.rows.indices) }
         catch { self.error = error.localizedDescription }
     }
     func markBlock(_ marked: Bool, targetBase: Bool? = nil) {
         let base = targetBase ?? activeBase
-        guard canTransfer(toBase: base), let rows = transferRows else { return }
+        guard !onePaneActive, canTransfer(toBase: base), let rows = transferRows else { return }
         var value = annotations(base: base)
         if marked { value.marked.formUnion(rows) } else { value.marked.subtract(rows) }
         editorActions[base]?.annotate(value)
     }
     func leaveOnlyMarked(targetBase: Bool? = nil) {
         let base = targetBase ?? activeBase
-        guard canTransfer(toBase: base), let alignment else { return }
+        guard !onePaneActive, canTransfer(toBase: base), let alignment else { return }
         do { editorActions[base]?.keep(try FileComparisonEditing.leavingOnlyMarked(alignment, targetBase: base, annotations: annotations(base: base))) }
         catch { self.error = error.localizedDescription }
     }
@@ -973,8 +975,8 @@ private struct FileComparisonDialog: View {
                     Button { model.useOtherBlock() } label: { CommandLabel(title: "Use other block", icon: .mergeUseTheirs) }
                     Button { model.useOtherBlock(.currentThenOther) } label: { CommandLabel(title: "Use both blocks, this one first", icon: .mergeMineThenTheirs) }
                     Button { model.useOtherBlock(.otherThenCurrent) } label: { CommandLabel(title: "Use both blocks, this one last", icon: .mergeTheirsThenMine) }
-                } label: { CommandLabel(title: "Use other block", icon: .mergeUseTheirs) }.disabled(!model.canTransfer || model.transferRows == nil)
-                Button { model.useOtherFile() } label: { CommandLabel(title: "Use other file", icon: .mergeUseTheirs) }.disabled(!model.canTransfer)
+                } label: { CommandLabel(title: "Use other block", icon: .mergeUseTheirs) }.disabled(!model.oppositeViewCommandsAllowed || !model.canTransfer || model.transferRows == nil)
+                Button { model.useOtherFile() } label: { CommandLabel(title: "Use other file", icon: .mergeUseTheirs) }.disabled(!model.oppositeViewCommandsAllowed || !model.canTransfer)
                 Spacer()
             }.padding(.horizontal, 10).padding(.bottom, 8)
             Divider()
@@ -1304,9 +1306,10 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
         let end = FileComparisonEditing.displayOffset(sourceOffset: NSMaxRange(selection), cells: sourceCells)
         setSelectedRange(NSRange(location: start, length: max(0, end - start)))
     }
-    override func copy(_ sender: Any?) {
-        guard let text = try? (model?.onePaneActive == true ? MergeSourceComparison.clipboardText(selectedRange(), cells: sourceCells) : FileComparisonEditing.selectedText(selectedRange(), cells: sourceCells)), !text.isEmpty else { return }
-        NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
+    override func copy(_ sender: Any?) { copySelection(to: .general) }
+    fileprivate func copySelection(to pasteboard: NSPasteboard) {
+        guard model?.contextCommandsAllowed == true, window != nil, let text = try? (model?.onePaneActive == true ? MergeSourceComparison.clipboardText(selectedRange(), cells: sourceCells) : FileComparisonEditing.selectedText(selectedRange(), cells: sourceCells)), !text.isEmpty else { return }
+        pasteboard.clearContents(); pasteboard.setString(text, forType: .string)
     }
     override func menu(for event: NSEvent) -> NSMenu? {
         guard model != nil else { return super.menu(for: event) }
@@ -1315,12 +1318,14 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
     func comparisonContextMenu(defaults: UserDefaults, pasteboard: NSPasteboard) -> NSMenu {
         guard let model else { return NSMenu() }
         model.updateSelection(selectedRange(), cells: sourceCells)
-        let menu = NSMenu(); menu.autoenablesItems = false; menu.delegate = self
+        let menu = ComparisonClipboardMenu(); menu.autoenablesItems = false; menu.delegate = self
+        let clipboard = ComparisonClipboardCommands(view: self, pasteboard: pasteboard); menu.clipboard = clipboard
         func add(_ title: String, _ action: Selector, _ icon: NSImage?, _ enabled: Bool) {
             let item = NSMenuItem(title: title, action: action, keyEquivalent: ""); item.target = self; item.image = MenuPresentationSettings.applicationContextIcons(defaults: defaults) ? icon : nil; item.isEnabled = enabled; menu.addItem(item)
         }
-        let block = model.canTransfer(toBase: false) && model.transferRows != nil
-        add(baseSide ? "Use this block" : "Use other block", #selector(useBlock), MenuIcon.mergeUseTheirs.image(), block)
+        let displayLeft = baseSide || model.onePaneActive
+        let block = model.oppositeViewCommandsAllowed && model.canTransfer(toBase: false) && model.transferRows != nil
+        add(displayLeft ? "Use this block" : "Use other block", #selector(useBlock), MenuIcon.mergeUseTheirs.image(), block)
         add("Use both blocks, this one first", #selector(useThisFirst), MenuIcon.mergeMineThenTheirs.image(), block)
         add("Use both blocks, this one last", #selector(useThisLast), MenuIcon.mergeTheirsThenMine.image(), block)
         if !model.onePaneActive && model.canTransfer(toBase: true) {
@@ -1330,7 +1335,7 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
             add(baseSide ? "Use right block" : "Use this block on left", #selector(replaceByRight), MenuIcon.mergeUseTheirs.image(), leftBlock)
             add(baseSide ? "Append right block" : "Append this block to left", #selector(appendRight), MenuIcon.mergeMineThenTheirs.image(), leftBlock)
         }
-        if !baseSide {
+        if !baseSide && !model.onePaneActive {
             menu.addItem(.separator())
             if let rows = model.transferRows {
                 let marks = model.annotations(base: false).marked
@@ -1339,10 +1344,22 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
             }
             add("Leave only marked blocks", #selector(leaveOnlyMarked), MenuIcon.mergeMarked.image(), model.canTransfer(toBase: false))
         }
-        add(baseSide ? "Use this whole file" : "Use other file", #selector(useFile), MenuIcon.mergeUseTheirs.image(), model.canTransfer(toBase: false))
+        add(displayLeft ? "Use this whole file" : "Use other file", #selector(useFile), MenuIcon.mergeUseTheirs.image(), model.oppositeViewCommandsAllowed && model.canTransfer(toBase: false))
         if model.canTransfer(toBase: true) {
             add(baseSide ? "Use other file" : "Use this whole file", #selector(useRightFile), MenuIcon.mergeUseTheirs.image(), true)
         }
+        func clipboardItems() {
+            menu.addItem(.separator())
+            add("Copy", #selector(ComparisonClipboardCommands.copySelection(_:)), MenuIcon.copy.image(), model.contextCommandsAllowed && selectedRange().length > 0)
+            menu.items.last?.target = clipboard; menu.items.last?.representedObject = clipboard
+            if !model.onePaneActive || isEditable && model.canTransfer(toBase: baseSide) {
+                add("Cut", #selector(ComparisonClipboardCommands.cutSelection(_:)), NSImage(systemSymbolName: "scissors", accessibilityDescription: nil), isEditable && model.canTransfer(toBase: baseSide) && selectedRange().length > 0)
+                menu.items.last?.target = clipboard; menu.items.last?.representedObject = clipboard
+                add("Paste", #selector(ComparisonClipboardCommands.pasteSelection(_:)), MenuIcon.mergePaste.image(), isEditable && model.canTransfer(toBase: baseSide) && pasteboard.availableType(from: [.string]) != nil)
+                menu.items.last?.target = clipboard; menu.items.last?.representedObject = clipboard
+            }
+        }
+        if model.onePaneActive { clipboardItems() }
         if model.canTransfer(toBase: baseSide) {
             menu.addItem(.separator())
             let text = model.draftText(base: baseSide), width = model.tabWidth(base: baseSide)
@@ -1362,9 +1379,9 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
             let item = NSMenuItem(title: "End of Line Style", action: nil, keyEquivalent: "")
             item.submenu = endings; menu.addItem(item)
             let encodings = NSMenu(title: "File Encoding"); encodings.autoenablesItems = false
-            for (index, encoding) in ComparisonTextEncoding.allCases.enumerated() {
+            for (index, encoding) in (model.onePaneActive ? MergeFormatSelection.encodings : ComparisonTextEncoding.allCases).enumerated() {
                 let choice = NSMenuItem(title: encoding.rawValue, action: #selector(changeEncoding(_:)), keyEquivalent: "")
-                choice.target = self; choice.tag = index; choice.state = model.encoding(base: baseSide) == encoding ? .on : .off
+                choice.target = self; choice.tag = index; choice.representedObject = encoding.rawValue; choice.state = model.encoding(base: baseSide) == encoding ? .on : .off
                 encodings.addItem(choice)
             }
             let encodingItem = NSMenuItem(title: "File Encoding", action: nil, keyEquivalent: "")
@@ -1377,10 +1394,7 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
         add("Save As…", #selector(exportPane), MenuIcon.mergeSaveAs.image(), !model.busy && !model.confirmingQuit)
         add("Undo", #selector(undoEdit), MenuIcon.mergeUndo.image(), model.canUndo && !model.busy && !model.confirmingQuit)
         add("Redo", #selector(redoEdit), MenuIcon.mergeRedo.image(), model.canRedo && !model.busy && !model.confirmingQuit)
-        menu.addItem(.separator())
-        add("Copy", #selector(copyFromContext), MenuIcon.copy.image(), selectedRange().length > 0)
-        add("Cut", #selector(cutSelection), NSImage(systemSymbolName: "scissors", accessibilityDescription: nil), isEditable && model.canTransfer(toBase: baseSide) && selectedRange().length > 0)
-        add("Paste", #selector(pasteFromContext), MenuIcon.mergePaste.image(), isEditable && model.canTransfer(toBase: baseSide) && pasteboard.availableType(from: [.string]) != nil)
+        if !model.onePaneActive { clipboardItems() }
         return menu
     }
     @objc private func useBlock() { model?.useOtherBlock(targetBase: false) }
@@ -1392,8 +1406,8 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
     @objc private func appendRight() { model?.useOtherBlock(.currentThenOther, targetBase: true) }
     @objc private func useRightFile() { model?.useOtherFile(targetBase: true) }
     @objc private func changeEncoding(_ sender: NSMenuItem) {
-        guard ComparisonTextEncoding.allCases.indices.contains(sender.tag) else { return }
-        model?.changeEncoding(ComparisonTextEncoding.allCases[sender.tag], base: baseSide)
+        guard let raw = sender.representedObject as? String, let encoding = ComparisonTextEncoding(rawValue: raw) else { return }
+        model?.changeEncoding(encoding, base: baseSide)
     }
     @objc private func changeWhitespace(_ sender: NSMenuItem) {
         guard MergeWhitespaceCommand.allCases.indices.contains(sender.tag) else { return }
@@ -1409,14 +1423,26 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
     @objc private func exportPane() { model?.export(base: baseSide) }
     @objc private func undoEdit() { model?.undo() }
     @objc private func redoEdit() { model?.redo() }
-    @objc private func copyFromContext() { copy(nil) }
-    @objc private func pasteFromContext() {
-        guard isEditable, model?.canTransfer(toBase: baseSide) == true else { return }
-        paste(nil)
+
+}
+
+@MainActor private final class ComparisonClipboardMenu: NSMenu {
+    var clipboard: ComparisonClipboardCommands?
+}
+@MainActor private final class ComparisonClipboardCommands: NSObject {
+    private weak var view: FileComparisonTextView?
+    private let pasteboard: NSPasteboard
+    init(view: FileComparisonTextView, pasteboard: NSPasteboard) { self.view = view; self.pasteboard = pasteboard }
+    @objc func copySelection(_ sender: Any?) { view?.copySelection(to: pasteboard) }
+    @objc func cutSelection(_ sender: Any?) {
+        guard let view, view.window != nil, view.isEditable, view.model?.contextCommandsAllowed == true,
+              view.model?.canTransfer(toBase: view.baseSide) == true, view.selectedRange().length > 0 else { return }
+        view.copySelection(to: pasteboard); view.insertText("", replacementRange: view.selectedRange())
     }
-    @objc private func cutSelection() {
-        guard isEditable, model?.canTransfer(toBase: baseSide) == true else { return }
-        copy(nil); insertText("", replacementRange: selectedRange())
+    @objc func pasteSelection(_ sender: Any?) {
+        guard let view, view.window != nil, view.isEditable, view.model?.contextCommandsAllowed == true,
+              view.model?.canTransfer(toBase: view.baseSide) == true, let text = pasteboard.string(forType: .string) else { return }
+        view.insertText(text, replacementRange: view.selectedRange())
     }
 }
 

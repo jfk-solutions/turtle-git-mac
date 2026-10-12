@@ -240,3 +240,9 @@ Removed lines precede added lines. The combined editor saves Mine and leaves
 untouched removed lines out of the result. Switching with unsaved edits offers
 Save/Don’t Save/Cancel. Set the default in **Merge Editor → Misc → Use one-pane
 view as default for 2-file diff**. See [one-pane parity](MERGE-ONE-PANE-PARITY.md).
+
+In a combined comparison, Copy includes removed text; Cut/Paste edit Mine.
+Two-view transfer commands are disabled because the opposite pane is hidden.
+Mark/Unmark actions belong to the two-pane right view. The combined popup orders
+clipboard commands before format choices. See
+[one-pane context parity](MERGE-ONE-PANE-CONTEXT-PARITY.md).

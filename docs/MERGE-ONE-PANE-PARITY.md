@@ -36,7 +36,7 @@ command gate. Retirement and attached-sheet/busy states fence mode changes.
 
 Remaining: the Mac editor recomputes Subversion alignment after typing; upstream
 retains its in-place Edited row presentation until reload. Full moved/filtered
-state aliases, one-pane-specific block/context semantics and menu ordering, source whitespace line
+state aliases, exact full context-menu contents/physical acceptance, source whitespace line
 number variants, physical switch/Save prompts, clipboard/Find/indent acceptance,
 light/dark whole-window screenshots, large-file and signed/minimum-OS acceptance
 remain open. This batch does not certify complete TortoiseMerge parity.
@@ -54,3 +54,10 @@ native combined Replace All/Tab and Save/Cancel/Discard mode switches. See
 [the batch record](qa/merge-one-pane-2026-10-12.json).
 Test-owned processes/windows/helpers and the verified failed-startup fixture
 were cleaned up. No installed app, user repository or clipboard was used.
+
+
+The context audit now identifies the source combined pane as the left view,
+disables hidden-opposite transfer commands and removes right-only mark actions.
+Clipboard menu targets capture their pasteboard and support actual combined
+Copy/Cut/Paste/Undo without affecting a newer menu. See
+[one-pane context parity](MERGE-ONE-PANE-CONTEXT-PARITY.md).
