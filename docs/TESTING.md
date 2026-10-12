@@ -1484,3 +1484,11 @@ production workspace model with a private snapshot writer and notification hook.
 It verifies real edits, busy/Quit release, unchanged HEAD/index, monitor retirement
 and shared-admin linked-worktree changes with both engines. It does not activate
 Finder or write App Group data, and makes no signed integration claim.
+
+`FinderCollectionTests|FinderSubmoduleScanTests|FinderRepositoryMetadataTests|FinderSubmoduleMetadataTests`
+is the grouped collector check. New cases assert raw root/child/nested index bytes,
+not just staged content, and cancel nine live Git read phases after atomic PID
+publication. Cancellation cannot produce a partial child-failure collection.
+The existing cached `--only finder-events` native case now also creates a real
+registered child, edits it externally and verifies an event-published modified
+badge with exact child index bytes retained, using both Git engines.

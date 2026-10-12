@@ -365,30 +365,20 @@ import TurtleGitCore
     }
     private func reload() async throws {
         guard let repository, let root else { return }
-        bare = try await repository.isBare()
-        if monitoringEnabled { monitorFiles(try await repository.finderWatchDirectories()) }
-        entries = bare ? [] : try await repository.status(refreshIndex:false)
-        conflictRebase = bare ? false : try await repository.conflictIsRebase()
-        submodules = bare ? [] : try await repository.submodulePaths()
+        let token=OperationCancellation()
+        let collected=try await repository.collectFinderRepository(authorizedRoot:activeAccess?.url ?? root,cancellation:token,watchReady:{ [weak self] directories in await self?.monitorFiles(directories) })
+        bare=collected.bare;entries=collected.entries;conflictRebase=collected.conflictIsRebase;submodules=collected.submodules
         selection.formIntersection(Set(entries.map(\.id)))
-        branch = try await repository.branch()
-        let tracked = bare ? [] : try await repository.trackedPaths()
-        let metadata = try await repository.finderMetadata(knownBare: bare)
-        hasGitSVN = metadata.hasGitSVN
-        mergeActive = metadata.mergeActive
-        var snapshot = FinderSnapshot.build(root: root, tracked: tracked, changes: entries)
-        snapshot.indexFlags = bare ? [:] : try await repository.finderIndexFlags()
-        snapshot.repositories[root.path] = metadata
-        let children = bare ? FinderSubmoduleScan() : try await repository.finderSubmoduleSnapshots(authorizedRoot: activeAccess?.url ?? root)
-        var cached = FinderSnapshot(roots: monitoredRoots, states: cacheStates, repositories: cacheRepositories, overlayEntries: cacheOverlayEntries, indexFlags: cacheIndexFlags)
-        cached.replaceSubtree(root: root, snapshots: [snapshot] + children.snapshots)
+        branch=collected.branch;hasGitSVN=collected.metadata.hasGitSVN;mergeActive=collected.metadata.mergeActive
+        var cached=FinderSnapshot(roots:monitoredRoots,states:cacheStates,repositories:cacheRepositories,overlayEntries:cacheOverlayEntries,indexFlags:cacheIndexFlags)
+        cached.replaceSubtree(root:root,snapshots:collected.snapshots)
         monitoredRoots = cached.roots; cacheStates = cached.states; cacheRepositories = cached.repositories
         cacheOverlayEntries = cached.overlayEntries
         cacheIndexFlags = cached.indexFlags
         do {
             let writer=snapshotWriter
             let written = try await Task.detached(operation:{ try writer(cached) }).value
-            finderStatus = written ? (children.failures.isEmpty ? "Finder cache updated" : "Finder cache updated; \(children.failures.count) submodule scan(s) failed: " + children.failures.sorted { $0.key < $1.key }.map { $0.key + ": " + $0.value }.joined(separator: "; ")) : "Finder cache unavailable: App Group access required"
+            finderStatus = written ? (collected.failures.isEmpty ? "Finder cache updated" : "Finder cache updated; \(collected.failures.count) submodule scan(s) failed: " + collected.failures.sorted { $0.key < $1.key }.map { $0.key + ": " + $0.value }.joined(separator: "; ")) : "Finder cache unavailable: App Group access required"
             if written { notifyFinder() }
         } catch { finderStatus = "Finder cache unavailable: " + error.localizedDescription }
     }

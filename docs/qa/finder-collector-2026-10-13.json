@@ -1,0 +1,63 @@
+{
+  "date": "2026-10-13",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "One reusable Sendable Finder collection",
+    "Complete root/child metadata/status/config/tracked/index cancellation",
+    "Optional-index-write suppression across recursive scans",
+    "Watch-before-status native handoff and registered child event publication"
+  ],
+  "source": [
+    "TGitCache directory watcher/crawler invalidation and existing native FinderCache projection",
+    "Git status GIT_OPTIONAL_LOCKS=0 read policy"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/finder-collector-build-2026-10-13.log",
+      "notes": "Existing warnings and exit-0/no-output diagnostics; not a clean-log claim"
+    },
+    "core": {
+      "exit": 0,
+      "tests": 16,
+      "log": "build/qa/finder-collector-core-2026-10-13.log",
+      "scope": "FinderCollectionTests, FinderSubmoduleScanTests, FinderRepositoryMetadataTests, FinderSubmoduleMetadataTests; nine actual root/child cancellation phases and raw nested index preservation"
+    },
+    "native": {
+      "exit": 0,
+      "cases": 2,
+      "engines": [
+        "system Git",
+        "packaged Git"
+      ],
+      "log": "build/qa/finder-collector-native-2026-10-13.log",
+      "owned_receivers_reaped": [
+        19508,
+        19747
+      ],
+      "independently_absent": true
+    },
+    "appstore": {
+      "exit": 0,
+      "log": "build/qa/finder-collector-appstore-2026-10-13.log",
+      "signed": false
+    },
+    "website": {
+      "exit": 0,
+      "output": "build/site"
+    },
+    "runtime_audit": "Not repeated: no runtime recipes, entitlements or helper resources changed."
+  },
+  "limits": [
+    "Independent cache service, watched-root management and cross-process publisher remain incomplete",
+    "No physical/signed Finder or App Store acceptance",
+    "Foreground Close/Quit remain blocked while busy; no new visible cancellation UI is claimed"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/FinderCache.swift": "6f494e0f0edad9ab68b7d9978fc7f4c770f0cdfebd4affd1d7d4b5e452cde28d",
+    "Sources/TurtleGitCore/GitRepository.swift": "36554f65aae22fc34100b36cd3c22238c1bd6bc3664c8772bc456c4823eeb32b",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "f511055199ec232d14773343ac8e9cb92f43e28e60f87a17c84900adbf348bac",
+    "Tests/TurtleGitCoreTests/FinderCollectionTests.swift": "e04baee68ae10d65fe2d6a5d8db90ebc46954f5040e15a22c7a27b4a9749eb5f",
+    "docs/qa/finder-events-native-2026-10-13.swift": "77863d1843bba3a96a225dc8143eba10ef4861fa6486a9ee9fe9cd3c922a0956"
+  }
+}

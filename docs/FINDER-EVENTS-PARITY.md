@@ -67,3 +67,8 @@ Two native model cases passed with system and packaged Git. Both failed and
 passing receivers were reaped and independently verified absent. The website
 build passed. No full runtime audit, Finder activation or signed deployment was
 repeated/established by these focused results.
+
+The later [collector batch](FINDER-COLLECTOR-PARITY.md) adds cancellation across
+the complete metadata/recursive read chain and removes optional child-index writes.
+It establishes watches before the first status read through a watch-ready handoff.
+The independent service and signed/physical acceptance remain open.

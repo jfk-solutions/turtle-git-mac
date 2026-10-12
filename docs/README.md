@@ -209,3 +209,5 @@ are not recursively audited.
 [Native About dialog family](ABOUT-PARITY.md): app and tool About windows, bundled runtime reports, original attribution and local license access.
 
 - [Filesystem event monitoring and remaining cache-service work](FINDER-EVENTS-PARITY.md)
+
+- [Cancellable Finder cache collector](FINDER-COLLECTOR-PARITY.md)

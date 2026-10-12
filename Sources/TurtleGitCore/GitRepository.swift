@@ -50,12 +50,13 @@ public actor GitRepository {
         }
         return result
     }
-    public func discoverRoot() throws -> URL {
+    public func discoverRoot(cancellation:OperationCancellation? = nil) throws -> URL {
         let result: GitResult
-        do { result = try run(["rev-parse", "--show-toplevel"]) }
+        do { result = try run(["rev-parse", "--show-toplevel"],cancellation:cancellation) }
         catch let original as GitFailure {
-            guard (try? isBare()) == true else { throw original }
-            result = try run(["rev-parse", "--absolute-git-dir"])
+            try cancellation?.check()
+            guard (try? isBare(cancellation:cancellation)) == true else { try cancellation?.check();throw original }
+            result = try run(["rev-parse", "--absolute-git-dir"],cancellation:cancellation)
         }
         // Only remove Git's final LF: spaces and embedded newlines can be part of a path.
         var bytes = result.stdout
@@ -66,8 +67,8 @@ public actor GitRepository {
     }
     public func isBare(cancellation: OperationCancellation? = nil) throws -> Bool { try run(["rev-parse", "--is-bare-repository"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) == "true" }
     public func status(refreshIndex: Bool = true, cancellation: OperationCancellation? = nil) throws -> [StatusEntry] { StatusEntry.parse(try run(["status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignored"], environmentOverrides: refreshIndex ? [:] : ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation).stdout) }
-    public func trackedPaths() throws -> [String] {
-        try run(["ls-files", "-z"]).stdout.split(separator: 0).map { String(decoding: $0, as: UTF8.self) }
+    public func trackedPaths(cancellation:OperationCancellation? = nil) throws -> [String] {
+        try run(["ls-files", "-z"],cancellation:cancellation).stdout.split(separator: 0).map { String(decoding: $0, as: UTF8.self) }
     }
     public func branch(cancellation: OperationCancellation? = nil) throws -> String { try run(["branch", "--show-current"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) }
     public func log() throws -> [LogEntry] {

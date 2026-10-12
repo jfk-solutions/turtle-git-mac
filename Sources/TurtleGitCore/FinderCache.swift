@@ -179,15 +179,16 @@ public struct FinderRepositoryMetadata: Codable, Equatable, Sendable {
 
 extension GitRepository {
     /// Runs only in the containing app; linked-worktree markers use its own Git dir.
-    public func finderMetadata(knownBare: Bool? = nil) throws -> FinderRepositoryMetadata {
-        let bare = try knownBare ?? isBare()
-        var bytes = try run(["rev-parse", "--absolute-git-dir"]).stdout
+    public func finderMetadata(knownBare: Bool? = nil,cancellation:OperationCancellation? = nil) throws -> FinderRepositoryMetadata {
+        try cancellation?.check()
+        let bare = try knownBare ?? isBare(cancellation:cancellation)
+        var bytes = try run(["rev-parse", "--absolute-git-dir"],cancellation:cancellation).stdout
         if bytes.last == 10 { bytes.removeLast() }
         let directory = URL(fileURLWithPath: String(decoding: bytes, as: UTF8.self), isDirectory: true)
         let fm = FileManager.default
-        let stash = try run(["show-ref", "--verify", "--quiet", "refs/stash"], successfulExitCodes: 0...1).exitCode == 0
-        let lfs = bare ? false : try hasLFS()
-        var commonBytes = try run(["rev-parse", "--git-common-dir"]).stdout
+        let stash = try run(["show-ref", "--verify", "--quiet", "refs/stash"], successfulExitCodes: 0...1,cancellation:cancellation).exitCode == 0
+        let lfs = bare ? false : try hasLFS(cancellation:cancellation)
+        var commonBytes = try run(["rev-parse", "--git-common-dir"],cancellation:cancellation).stdout
         if commonBytes.last == 10 { commonBytes.removeLast() }
         let commonPath = String(decoding: commonBytes, as: UTF8.self)
         let common = commonPath.hasPrefix("/") ? URL(fileURLWithPath: commonPath) : root.appendingPathComponent(commonPath)
@@ -196,7 +197,7 @@ extension GitRepository {
             bisectActive: fm.fileExists(atPath: directory.appendingPathComponent("BISECT_START").path),
             mergeActive: fm.fileExists(atPath: directory.appendingPathComponent("MERGE_HEAD").path),
             hasStash: stash, hasSubmoduleConfig: !bare && fm.fileExists(atPath: root.appendingPathComponent(".gitmodules").path),
-            submoduleParentRoot: bare ? nil : try registeredSubmoduleParent()?.path, hasLFS: lfs, hasGitSVN: svn)
+            submoduleParentRoot: bare ? nil : try registeredSubmoduleParent(cancellation:cancellation)?.path, hasLFS: lfs, hasGitSVN: svn)
     }
 }
 
@@ -636,35 +637,38 @@ public struct FinderSubmoduleScan: Sendable {
 
 extension GitRepository {
     /// Foreground app refresh only. Finder consumes the resulting cache without Git.
-    public func finderSubmoduleSnapshots(authorizedRoot: URL) async throws -> FinderSubmoduleScan {
+    public func finderSubmoduleSnapshots(authorizedRoot: URL,cancellation:OperationCancellation? = nil) async throws -> FinderSubmoduleScan {
+        try cancellation?.check()
         guard RepositoryAccessLease.pathIsContained(root, by: authorizedRoot) else {
             throw RepositoryAccessFailure.securityScopeUnavailable
         }
-        return await scanFinderSubmodules(authorizedRoot: authorizedRoot, ancestors: [])
+        return try await scanFinderSubmodules(authorizedRoot:authorizedRoot,ancestors:[],cancellation:cancellation)
     }
-    private func configuredFinderSubmodulePaths() throws -> Set<String> {
+    private func configuredFinderSubmodulePaths(cancellation:OperationCancellation?) throws -> Set<String> {
         let modules = root.appendingPathComponent(".gitmodules")
         guard FileManager.default.fileExists(atPath: modules.path) else { return [] }
         guard (try FileManager.default.attributesOfItem(atPath: modules.path)[.type] as? FileAttributeType) == .typeRegular else {
             throw SubmoduleComparisonFailure.unsafeCheckout
         }
-        let names = try run(["config", "--no-includes", "--null", "--file", modules.path, "--name-only", "--get-regexp", "^submodule\\..*\\.path$"], successfulExitCodes: 0...1).stdout.split(separator: 0)
+        let names = try run(["config", "--no-includes", "--null", "--file", modules.path, "--name-only", "--get-regexp", "^submodule\\..*\\.path$"], successfulExitCodes:0...1,cancellation:cancellation).stdout.split(separator: 0)
         var paths = Set<String>()
         for name in names {
-            let values = try run(["config", "--no-includes", "--null", "--file", modules.path, "--get-all", String(decoding: name, as: UTF8.self)], successfulExitCodes: 0...1).stdout.split(separator: 0)
+            let values = try run(["config", "--no-includes", "--null", "--file", modules.path, "--get-all", String(decoding: name, as: UTF8.self)], successfulExitCodes:0...1,cancellation:cancellation).stdout.split(separator: 0)
             paths.formUnion(values.map { String(decoding: $0, as: UTF8.self) })
         }
         return paths
     }
-    private func scanFinderSubmodules(authorizedRoot: URL, ancestors: Set<String>) async -> FinderSubmoduleScan {
+    private func scanFinderSubmodules(authorizedRoot: URL, ancestors:Set<String>,cancellation:OperationCancellation?) async throws -> FinderSubmoduleScan {
+        try cancellation?.check()
         var result = FinderSubmoduleScan()
         let canonical = root.resolvingSymlinksInPath().path
         guard !ancestors.contains(canonical) else { return result }
         let visited = ancestors.union([canonical])
         let paths: Set<String>
-        do { paths = try configuredFinderSubmodulePaths() }
-        catch { result.failures[root.path] = error.localizedDescription; return result }
+        do { paths = try configuredFinderSubmodulePaths(cancellation:cancellation) }
+        catch { try cancellation?.check();result.failures[root.path] = error.localizedDescription; return result }
         for path in paths.sorted() {
+            try cancellation?.check()
             var failurePath = root.appendingPathComponent(path).path
             do {
                 let location = try restoreLocation(path)
@@ -674,20 +678,20 @@ extension GitRepository {
                 guard FileManager.default.fileExists(atPath: location.path, isDirectory: &directory) else { continue }
                 guard directory.boolValue else { throw SubmoduleComparisonFailure.unsafeCheckout }
                 let child = GitRepository(root: location, executable: executable)
-                let discovered = try await child.discoverRoot()
+                let discovered = try await child.discoverRoot(cancellation:cancellation)
                 // An uninitialized directory inherits its parent's root; it is not a child repository.
-                guard discovered.path == location.path, try await !child.isBare() else { continue }
-                let metadata = try await child.finderMetadata(knownBare: false)
+                guard discovered.path == location.path, try await !child.isBare(cancellation:cancellation) else { continue }
+                let metadata = try await child.finderMetadata(knownBare:false,cancellation:cancellation)
                 guard metadata.submoduleParentRoot == root.path else { continue }
-                let tracked = try await child.trackedPaths(), changes = try await child.status()
+                let tracked = try await child.trackedPaths(cancellation:cancellation), changes = try await child.status(refreshIndex:false,cancellation:cancellation)
                 var snapshot = FinderSnapshot.build(root: location, tracked: tracked, changes: changes)
-                snapshot.indexFlags = try await child.finderIndexFlags()
+                snapshot.indexFlags = try await child.finderIndexFlags(cancellation:cancellation)
                 snapshot.repositories[location.path] = metadata
                 result.snapshots.append(snapshot)
-                let nested = await child.scanFinderSubmodules(authorizedRoot: authorizedRoot, ancestors: visited)
+                let nested = try await child.scanFinderSubmodules(authorizedRoot:authorizedRoot,ancestors:visited,cancellation:cancellation)
                 result.snapshots.append(contentsOf: nested.snapshots)
                 result.failures.merge(nested.failures) { _, latest in latest }
-            } catch { result.failures[failurePath] = error.localizedDescription }
+            } catch { try cancellation?.check();result.failures[failurePath] = error.localizedDescription }
         }
         return result
     }
@@ -726,5 +730,41 @@ extension FinderSnapshot {
             repositories.merge(snapshot.repositories.filter { contains($0.key) }) { _, latest in latest }
         }
         updated = Date()
+    }
+}
+
+/// One cancellable, non-writing cache collection, also suitable for a future service.
+public struct FinderRepositoryCollection:Sendable {
+    public let root:URL
+    public let bare:Bool
+    public let entries:[StatusEntry]
+    public let branch:String
+    public let conflictIsRebase:Bool
+    public let submodules:Set<String>
+    public let metadata:FinderRepositoryMetadata
+    public let watchDirectories:[URL]
+    public let snapshots:[FinderSnapshot]
+    public let failures:[String:String]
+}
+extension GitRepository {
+    public func collectFinderRepository(authorizedRoot:URL,cancellation:OperationCancellation? = nil,watchReady:(@Sendable ([URL]) async -> Void)? = nil) async throws -> FinderRepositoryCollection {
+        try cancellation?.check()
+        guard RepositoryAccessLease.pathIsContained(root,by:authorizedRoot) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+        let bare=try isBare(cancellation:cancellation)
+        let watch=try finderWatchDirectories(cancellation:cancellation)
+        await watchReady?(watch)
+        try cancellation?.check()
+        let entries=try bare ? [] : status(refreshIndex:false,cancellation:cancellation)
+        let conflict=try bare ? false : conflictIsRebase(cancellation:cancellation)
+        let submodules=try bare ? Set<String>() : submodulePaths(cancellation:cancellation)
+        let branch=try self.branch(cancellation:cancellation)
+        let tracked=try bare ? [] : trackedPaths(cancellation:cancellation)
+        let metadata=try finderMetadata(knownBare:bare,cancellation:cancellation)
+        var base=FinderSnapshot.build(root:root,tracked:tracked,changes:entries)
+        base.indexFlags=try bare ? [:] : finderIndexFlags(cancellation:cancellation)
+        base.repositories[root.path]=metadata
+        let children=try await bare ? FinderSubmoduleScan() : finderSubmoduleSnapshots(authorizedRoot:authorizedRoot,cancellation:cancellation)
+        try cancellation?.check()
+        return FinderRepositoryCollection(root:root,bare:bare,entries:entries,branch:branch,conflictIsRebase:conflict,submodules:submodules,metadata:metadata,watchDirectories:watch,snapshots:[base]+children.snapshots,failures:children.failures)
     }
 }

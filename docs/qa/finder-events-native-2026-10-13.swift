@@ -55,6 +55,22 @@ import TurtleGitCore
         let linkedHead=try await child.run(["rev-parse","HEAD"]).stdout
         try require(linkedHead==head,"Shared-admin notification moved child HEAD")
         model.closeRepository()
-        print("Finder events: actual working-file edits and burst coalescing publish snapshots/notifications, busy and Quit deferral, non-writing status reads, close retirement, and linked-worktree shared-admin changes passed. Private snapshots only; no Finder activation or user preferences changed.")
+        // Registered child scans must also avoid optional index writes.
+        let source=root.appendingPathComponent("child-source"),sourceRepo=GitRepository(root:source,executable:engine)
+        try FileManager.default.createDirectory(at:source,withIntermediateDirectories:true)
+        _ = try await sourceRepo.run(["init","-b","main"])
+        for (key,value) in [("user.name","Child QA"),("user.email","child@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")] { _ = try await sourceRepo.run(["config",key,value]) }
+        try Data("child baseline\n".utf8).write(to:source.appendingPathComponent("child-file"));try await sourceRepo.stage(["child-file"]);_ = try await sourceRepo.commit(message:"Child baseline")
+        _ = try await repo.run(["-c","protocol.file.allow=always","submodule","add","--",source.path,"module"])
+        try await repo.stage([".gitmodules","module"]);_ = try await repo.commit(message:"Register child")
+        let checkout=root.appendingPathComponent("module"),moduleRepo=GitRepository(root:checkout,executable:engine)
+        var indexPath=try await moduleRepo.run(["rev-parse","--path-format=absolute","--git-path","index"]).stdout
+        if indexPath.last==10 { indexPath.removeLast() };let childIndex=URL(fileURLWithPath:String(decoding:indexPath,as:UTF8.self)),rawIndex=try Data(contentsOf:childIndex)
+        model.open(root);try await wait { !model.busy && model.root?.path==root.path }
+        try Data("child changed\n".utf8).write(to:checkout.appendingPathComponent("child-file"))
+        try await wait { !model.busy && snapshots.snapshot().last?.states[checkout.appendingPathComponent("child-file").path] == .modified }
+        try require(try Data(contentsOf:childIndex)==rawIndex,"Automatic child scan wrote its index")
+        model.closeRepository()
+        print("Finder events: actual working-file edits and burst coalescing publish snapshots/notifications, busy and Quit deferral, non-writing status reads, close retirement, linked-worktree shared-admin changes, and registered child edits with exact index-byte preservation passed. Private snapshots only; no Finder activation or user preferences changed.")
     }
 }
