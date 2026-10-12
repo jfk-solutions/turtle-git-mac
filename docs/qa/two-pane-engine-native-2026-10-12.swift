@@ -33,7 +33,7 @@ import TurtleGitCore
         try MergeRegexFilters.save([filter], defaults: defaults)
         let comparison = try WorkingFileComparison(base: base, destination: destination)
         let controller = FileComparisonWindowController(comparison: comparison, permissions: []), model = controller.model
-        model.comparisonDefaults = defaults; model.regexDefaults = defaults; model.load(); try await settled(model)
+        model.commentProfileURL = folder.appendingPathComponent("ignorecomments.txt"); model.comparisonDefaults = defaults; model.regexDefaults = defaults; model.load(); try await settled(model)
         precondition(model.error == nil && model.alignment?.differences == [0..<1, 2..<3])
         let requestedOptions = MergeComparisonOptions(whitespace: .ignoreChanges, ignoreCase: true, ignoreEndings: false)
         model.setComparisonOptions(requestedOptions); try await settled(model)
@@ -85,27 +85,38 @@ import TurtleGitCore
         let commentBaseBytes = Data("value; // base\r\n".utf8), commentMineBytes = Data("value; // mine\r\n".utf8)
         try commentBaseBytes.write(to: commentBase); try commentMineBytes.write(to: commentMine)
         let comments = FileComparisonWindowModel(comparison: try WorkingFileComparison(base: commentBase, destination: commentMine), permissions: [])
-        comments.comparisonDefaults = defaults; comments.load(); try await settled(comments)
+        comments.commentProfileURL = folder.appendingPathComponent("ignorecomments.txt"); comments.comparisonDefaults = defaults; comments.load(); try await settled(comments)
         precondition(comments.supportsComments && comments.alignment?.differences.isEmpty == false)
         var commentOptions = MergeComparisonOptions.exact; commentOptions.ignoreComments = true
         comments.setComparisonOptions(commentOptions); try await settled(comments)
         precondition(comments.alignment?.differences.isEmpty == true && comments.alignment?.rows[0].base.state == .filtered)
         let originalComments = try Data(contentsOf: commentBase), retainedComments = try Data(contentsOf: commentMine)
         precondition(originalComments == commentBaseBytes && retainedComments == commentMineBytes)
-        comments.retireImageLoader(); try await wait { MergeRegexOperations.activeRequests == 0 }
         // A missing engine must show a failure, never an apparently completed
         // Swift comparison. No hosted window is needed for this error path.
         let failed = FileComparisonWindowModel(comparison: comparison, permissions: [])
+        let profilesFile = comments.commentProfileURL
+        let originalProfiles = try MergeCommentProfileFile.text(at: profilesFile)
+        try MergeCommentProfileFile.save("cpp=##,/*,*/\n", at: profilesFile, expected: originalProfiles)
+        comments.load(); try await settled(comments)
+        precondition(comments.supportsComments && comments.alignment?.differences.isEmpty == false)
+        try MergeCommentProfileFile.save("swift=//,/*,*/\n", at: profilesFile, expected: "cpp=##,/*,*/\n")
+        comments.load(); try await settled(comments)
+        precondition(!comments.supportsComments && comments.alignment?.differences.isEmpty == false)
+        try MergeCommentProfileFile.save(originalProfiles, at: profilesFile, expected: "swift=//,/*,*/\n")
+        comments.load(); try await settled(comments)
+        precondition(comments.supportsComments && comments.alignment?.differences.isEmpty == true)
+        comments.retireImageLoader(); try await wait { MergeRegexOperations.activeRequests == 0 }
         var configuration = try SubversionMergeConfiguration.bundled()
         configuration.executable = folder.appendingPathComponent("missing-adapter")
-        failed.engineConfiguration = configuration; failed.load(); try await settled(failed)
+        failed.commentProfileURL = folder.appendingPathComponent("ignorecomments.txt"); failed.engineConfiguration = configuration; failed.load(); try await settled(failed)
         precondition(failed.error != nil && failed.alignment == nil); failed.retireImageLoader()
         let slow = folder.appendingPathComponent("slow-adapter")
         try Data("#!/bin/sh\nprintf started > \"$0.started\"\n/bin/sleep 2\nexit 1\n".utf8).write(to: slow)
         try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: slow.path)
         configuration.executable = slow
         let retired = FileComparisonWindowModel(comparison: comparison, permissions: [])
-        retired.engineConfiguration = configuration; retired.load()
+        retired.commentProfileURL = folder.appendingPathComponent("ignorecomments.txt"); retired.engineConfiguration = configuration; retired.load()
         try await wait { FileManager.default.fileExists(atPath: slow.appendingPathExtension("started").path) }
         retired.retireImageLoader(); try await wait { MergeRegexOperations.activeRequests == 0 }
         precondition(retired.error == nil)

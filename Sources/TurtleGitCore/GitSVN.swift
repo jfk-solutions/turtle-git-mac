@@ -72,7 +72,10 @@ extension GitRepository {
     public func svnFastForward(to hash: String, expectedHead: String, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
         guard try svnHash("HEAD", cancellation: cancellation) == expectedHead, try !svnTrackedChanges(cancellation: cancellation),
               hash.count == 40 || hash.count == 64, hash.allSatisfy({ $0.isASCII && $0.isHexDigit }) else { throw GitSVNFailure.changed }
-        return try run(["reset", "--hard", "--end-of-options", hash, "--"], cancellation: cancellation, onOutput: onOutput).text
+        // The target is an already validated full object ID. Reset's option
+        // parser differs across Git versions; no revision disambiguator is
+        // needed here, and older versions reject --end-of-options in this form.
+        return try run(["reset", "--hard", hash, "--"], cancellation: cancellation, onOutput: onOutput).text
     }
     public func svnStash(cancellation: OperationCancellation? = nil) throws -> StashSaveResult {
         let previous = try run(["rev-parse", "--verify", "--quiet", "refs/stash"], successfulExitCodes: 0...1, cancellation: cancellation)

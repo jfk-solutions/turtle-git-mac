@@ -13,13 +13,24 @@ struct MergeEditorSettings: View {
     @State private var draft = MergeEditorPreferences.load()
     @State private var comparison = MergeComparisonOptions.load()
     @State private var tabSize = String(MergeEditorPreferences.load().tabWidth)
+    @State private var profileText = ""
+    @State private var savedProfileText = ""
+    @State private var profileError: String?
+    @State private var editingProfiles = false
+    @State private var sheetProfileText = ""
     private var validWidth: Int? {
         guard let width = Int(tabSize), (1...1000).contains(width) else { return nil }
         return width
     }
     private var changed: Bool {
         guard let width = validWidth else { return true }
-        return MergeEditorPreferences(tabWidth: width, useSpaces: draft.useSpaces, smartTab: draft.smartTab, showLineNumbers: draft.showLineNumbers, enableEditorConfig: draft.enableEditorConfig, autoAdd: draft.autoAdd) != .load() || comparison != .load()
+        return MergeEditorPreferences(tabWidth: width, useSpaces: draft.useSpaces, smartTab: draft.smartTab, showLineNumbers: draft.showLineNumbers, enableEditorConfig: draft.enableEditorConfig, autoAdd: draft.autoAdd) != .load() || comparison != .load() || profileText != savedProfileText
+    }
+    private var validationError: String? {
+        if validWidth == nil { return "Enter a tab size from 1 to 1000." }
+        if let profileError { return profileError }
+        do { try MergeCommentProfileFile.validate(profileText); return nil }
+        catch { return error.localizedDescription }
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -45,6 +56,15 @@ struct MergeEditorSettings: View {
                     }
                     Toggle("Ignore line endings (recommended)", isOn: $comparison.ignoreEndings)
                     Toggle("Ignore case changes", isOn: $comparison.ignoreCase)
+                    HStack {
+                        Toggle("Ignore comments", isOn: $comparison.ignoreComments)
+                        Spacer()
+                        Button("Edit Comment Profiles…") { sheetProfileText = profileText; editingProfiles = true }
+                            .disabled(profileError != nil)
+                    }
+                    Text("Custom profiles replace the built-in extension list. Open comparisons use them on reload.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    if let profileError { Text(profileError).font(.caption).foregroundStyle(.red) }
                     if validWidth == nil { Text("Enter a tab size from 1 to 1000.").font(.caption).foregroundStyle(.red) }
                 }.padding(8)
             }
@@ -55,23 +75,59 @@ struct MergeEditorSettings: View {
                 Spacer()
                 Button("Cancel") { restore(); windowReference.window?.performClose(nil) }
                 Button("Apply") {
-                    guard let width = validWidth else { return }
-                    draft.tabWidth = width; draft.save(); comparison.save()
-                    NotificationCenter.default.post(name: .mergeEditorPreferencesChanged, object: nil)
-                }.disabled(!changed || validWidth == nil)
+                    _ = applyDraft()
+                }.disabled(!changed || validationError != nil)
             } }
         }.padding(20).background(MergeSettingsWindowProbe(reference: windowReference).frame(width: 0, height: 0)).onAppear { if !initialized { initialized = true; restore() } }
         .onChange(of: tabSize) { _ in transaction?.notify() }
         .onChange(of: comparison) { _ in transaction?.notify() }
+        .onChange(of: profileText) { _ in transaction?.notify() }
+        .sheet(isPresented: $editingProfiles) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Comment Profiles").font(.headline)
+                Text("One definition per line: extensions=line marker,block start,block end. Separate extensions with commas. Spaces in markers are significant.")
+                TextEditor(text: $sheetProfileText).font(.system(.body, design: .monospaced))
+                    .border(Color.secondary.opacity(0.4))
+                Text("Example: swift=//,/*,*/     SQL uses a space after --.")
+                    .font(.caption).foregroundStyle(.secondary)
+                if let message = sheetValidationError { Text(message).font(.caption).foregroundStyle(.red) }
+                HStack {
+                    Button("Restore Defaults") { sheetProfileText = MergeCommentProfiles.bundledText() }
+                    Spacer()
+                    Button("Cancel") { editingProfiles = false }.keyboardShortcut(.cancelAction)
+                    Button("OK") { profileText = sheetProfileText; editingProfiles = false }
+                        .keyboardShortcut(.defaultAction).disabled(sheetValidationError != nil)
+                }
+            }.padding(20).frame(width: 740, height: 480)
+        }
         .settingsParticipant("mergeEditor", page: .mergeEditor, value: draft,
-            modified: { changed }, validate: { validWidth == nil ? "Enter a tab size from 1 to 1000." : nil },
+            modified: { changed }, validate: { validationError },
             apply: { applyDraft() }, cancel: restore)
     }
     private func applyDraft() -> Bool {
-        guard let width = validWidth else { return false }; draft.tabWidth = width; draft.save(); comparison.save()
+        guard let width = validWidth, validationError == nil else { return false }
+        do {
+            if profileText != savedProfileText {
+                try MergeCommentProfileFile.save(profileText, expected: savedProfileText)
+                savedProfileText = profileText
+            }
+        } catch {
+            // A failed write must not save the other preferences or notify open panes.
+            let alert = NSAlert(); alert.messageText = "Comment profiles were not saved"
+            alert.informativeText = error.localizedDescription; alert.runModal(); return false
+        }
+        draft.tabWidth = width; draft.save(); comparison.save()
         NotificationCenter.default.post(name: .mergeEditorPreferencesChanged, object: nil); return true
     }
-    private func restore() { draft = .load(); comparison = .load(); tabSize = String(draft.tabWidth) }
+    private var sheetValidationError: String? {
+        do { try MergeCommentProfileFile.validate(sheetProfileText); return nil }
+        catch { return error.localizedDescription }
+    }
+    private func restore() {
+        draft = .load(); comparison = .load(); tabSize = String(draft.tabWidth)
+        do { profileText = try MergeCommentProfileFile.text(); savedProfileText = profileText; profileError = nil }
+        catch { profileError = error.localizedDescription }
+    }
 }
 private final class MergeSettingsWindowReference { weak var window: NSWindow? }
 private struct MergeSettingsWindowProbe: NSViewRepresentable {

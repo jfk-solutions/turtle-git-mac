@@ -63,7 +63,7 @@ import TurtleGitCore
         let filter = MergeRegexFilter(name: "Ignore version numbers", expression: "[0-9]+", replacement: "")
         try MergeRegexFilters.save([filter], defaults: defaults)
         let controller = TextConflictWindowController(repository: repository, access: nil, path: "sample.cpp"), model = controller.model
-        model.comparisonDefaults = defaults; model.regexDefaults = defaults; model.refreshRegexFilters(); model.load()
+        model.commentProfileURL = root.appendingPathComponent("ignorecomments.txt"); model.comparisonDefaults = defaults; model.regexDefaults = defaults; model.refreshRegexFilters(); model.load()
         try await wait { !model.busy && model.document != nil }
         precondition(model.document?.mergeSources != nil && model.blocks.count == 1 && !model.dirty && model.supportsComments)
         model.selectRegexFilter(filter.name); try await wait { !model.busy }
@@ -101,6 +101,17 @@ import TurtleGitCore
         precondition(model.regexFilterName == filter.name && !model.result.contains("discard me"))
         let afterWorking = try Data(contentsOf: file), afterIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
         precondition(afterWorking == working && afterIndex == index)
+        let originalProfiles = try MergeCommentProfileFile.text(at: model.commentProfileURL)
+        try MergeCommentProfileFile.save("swift=//,/*,*/\n", at: model.commentProfileURL, expected: originalProfiles)
+        replace(model.result + "retained profile edit\n"); model.chooseReload = { .cancel }
+        let beforeProfileReload = model.result; model.load()
+        precondition(model.result == beforeProfileReload && model.supportsComments)
+        model.chooseReload = { .discard }; model.load(); try await wait { !model.busy }
+        precondition(!model.supportsComments && model.error == nil)
+        try MergeCommentProfileFile.save(originalProfiles, at: model.commentProfileURL, expected: "swift=//,/*,*/\n")
+        model.load(); try await wait { !model.busy }
+        precondition(model.supportsComments && model.error == nil)
+        try await wait { editableView(controller.window?.contentView) != nil }
         model.choose(.mine); precondition(!MergeText.hasMarkers(model.result) && model.dirty)
         model.chooseReload = { .save }; model.selectRegexFilter(nil); try await wait { !model.busy }
         try await wait { editableView(controller.window?.contentView) != nil }
@@ -121,7 +132,7 @@ import TurtleGitCore
         try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: slow.path)
         var stalledConfiguration = configuration; stalledConfiguration.executable = slow
         let stalled = TextConflictWindowController(repository: repository, access: nil, path: "sample.cpp")
-        stalled.model.engineConfiguration = stalledConfiguration; stalled.model.load()
+        stalled.model.commentProfileURL = root.appendingPathComponent("ignorecomments.txt"); stalled.model.engineConfiguration = stalledConfiguration; stalled.model.load()
         precondition(stalled.model.preparing); stalled.window?.performClose(nil)
         try await wait { MergeRegexOperations.activeRequests == 0 }
         precondition(stalled.model.document == nil && stalled.model.error == nil)

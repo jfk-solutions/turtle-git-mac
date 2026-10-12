@@ -48,10 +48,10 @@ final class FinderCreationMenuTests: XCTestCase {
         try Data().write(to: other.appendingPathComponent(".git"))
         XCTAssertTrue(FinderCreationMenuContext.read(directory: other, snapshot: nil, extended: false).inaccessible)
     }
-    func testOnlyCreationRequestsCanOmitPaths() throws {
+    func testCreationAndApplicationUtilitiesCanOmitPaths() throws {
         for action in RepositoryAction.allCases {
             let request = FinderRequest(action: action, paths: [])
-            if action == .clone || action == .initialize {
+            if action == .clone || action == .initialize || action.isApplicationUtility {
                 let url = try XCTUnwrap(request.url)
                 XCTAssertEqual(FinderRequest(url: url)?.action, action)
                 XCTAssertEqual(FinderRequest(url: url)?.paths, [])

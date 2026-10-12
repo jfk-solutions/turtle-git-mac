@@ -22,21 +22,76 @@ public struct MergeCommentProfiles: Sendable {
         }
     }
     private final class Anchor: NSObject {}
-    public static func bundled() -> Self {
+    public static func bundledText() -> String {
         #if SWIFT_PACKAGE
         let bundle = Bundle.module
         #else
         let bundle = Bundle(for: Anchor.self)
         #endif
         let file = bundle.resourceURL?.appendingPathComponent("Completion/ignorecomments.txt")
-        return Self(text: file.flatMap { try? String(contentsOf: $0, encoding: .utf8) } ?? "")
+        return file.flatMap { try? String(contentsOf: $0, encoding: .utf8) } ?? ""
     }
+    public static func bundled() -> Self { Self(text: bundledText()) }
     /// Source chooses Base, then Mine, then Theirs extension. Keep tokens
     /// literal, including SQL's required space after its -- line marker.
     public func tokens(paths: [String]) -> MergeCommentTokens? {
         paths.lazy.compactMap { profiles[($0 as NSString).pathExtension.lowercased()] }.first
     }
     public func tokens(fileExtension: String) -> MergeCommentTokens? { profiles[fileExtension.lowercased()] }
+}
+
+/// The upstream AppData ignorecomments.txt is a complete replacement of the
+/// built-in definitions. Use Application Support on macOS (inside the sandbox
+/// container in Store builds), never a file from the repository being compared.
+public enum MergeCommentProfileFile {
+    public static let maximumBytes = 128 * 1024
+    public static var url: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("TurtleGitMerge", isDirectory: true).appendingPathComponent("ignorecomments.txt")
+    }
+    public static func text(at file: URL = url) throws -> String {
+        guard FileManager.default.fileExists(atPath: file.path) else { return MergeCommentProfiles.bundledText() }
+        let handle = try FileHandle(forReadingFrom: file)
+        defer { try? handle.close() }
+        let data = try handle.read(upToCount: maximumBytes + 1) ?? Data()
+        guard data.count <= maximumBytes else { throw MergeCommentProfileFileFailure.tooLarge }
+        guard let text = String(data: data, encoding: .utf8) else { throw MergeCommentProfileFileFailure.encoding }
+        return text
+    }
+    public static func load(at file: URL = url) throws -> MergeCommentProfiles {
+        let value = try text(at: file); try validate(value); return MergeCommentProfiles(text: value)
+    }
+    /// Keep token whitespace literal: '-- ' and '--' have different meanings.
+    /// Non-definition lines are allowed, just as in the upstream reader.
+    public static func validate(_ text: String) throws {
+        guard text.utf8.count <= maximumBytes else { throw MergeCommentProfileFileFailure.tooLarge }
+        guard !text.contains("\0") else { throw MergeCommentProfileFileFailure.invalid(line: 0) }
+        for (index, raw) in text.components(separatedBy: .newlines).enumerated() {
+            guard let equals = raw.firstIndex(of: "=") else { continue }
+            let names = raw[..<equals].split(separator: ",")
+            let fields = raw[raw.index(after: equals)...].split(separator: ",", maxSplits: 2, omittingEmptySubsequences: false)
+            guard !names.isEmpty, fields.count == 3, fields[1].isEmpty == fields[2].isEmpty else {
+                throw MergeCommentProfileFileFailure.invalid(line: index + 1)
+            }
+        }
+    }
+    public static func save(_ text: String, at file: URL = url, expected: String) throws {
+        try validate(text)
+        guard try Self.text(at: file) == expected else { throw MergeCommentProfileFileFailure.changed }
+        try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data(text.utf8).write(to: file, options: .atomic)
+    }
+}
+public enum MergeCommentProfileFileFailure: LocalizedError {
+    case tooLarge, encoding, invalid(line: Int), changed
+    public var errorDescription: String? {
+        switch self {
+        case .tooLarge: return "Comment profiles must be smaller than 128 KiB."
+        case .encoding: return "Save ignorecomments.txt as UTF-8."
+        case .invalid(let line): return "Invalid comment profile\(line > 0 ? " on line \(line)" : ""). Use extensions=line marker,block start,block end, with both block markers or neither."
+        case .changed: return "Comment profiles changed outside Settings. Close and reopen this page before applying your changes."
+        }
+    }
 }
 public enum MergeCommentStripping {
     /// Literal UTF-16 port of the source's fast quote-count heuristic. It is

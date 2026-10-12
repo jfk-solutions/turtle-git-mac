@@ -1,0 +1,64 @@
+{
+  "date": "2026-10-12",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Application Support comment profile overrides, transactional native editor, both viewer reload paths and selection preservation",
+  "implementationThenGroupedValidation": true,
+  "core": {
+    "tests": 28,
+    "failures": 0,
+    "seconds": 2.482,
+    "log": "build/qa/comment-profile-file-core-2026-10-12.log",
+    "checks": [
+      "custom map replaces bundled definitions",
+      "SQL literal space",
+      "missing file does not write",
+      "atomic UTF-8 save and Restore Defaults",
+      "invalid pairs/UTF-8/NUL/size refusal",
+      "stale external edit rejection",
+      "malformed profile can be repaired",
+      "existing engine/options/presentation cases"
+    ]
+  },
+  "native": {
+    "finalExitCode": 0,
+    "log": "build/qa/comment-profile-file-native-final-2026-10-12.log",
+    "checks": [
+      "both production viewers",
+      "custom marker affects comparison keys",
+      "unknown extension disables Ignore Comments after reload",
+      "restoring built-in profiles restores comparison",
+      "three-pane dirty Cancel retains captured support and result",
+      "discard reload captures new support",
+      "native Unicode selection across authoritative alignment updates",
+      "Undo/Redo/save/cancellation and repository preservation"
+    ],
+    "initialFailures": [
+      "two attempts exposed existing Unicode selection collapse in the two-pane hosting update"
+    ],
+    "repair": "Consume applied caret and alignment requests once; preserve source-coordinate selection and read current model alignment rather than a captured view snapshot. No repeated full Core suite.",
+    "frontendCompilations": 3,
+    "receiverProcesses": 3,
+    "installedApplicationLaunched": false,
+    "physicalInput": false,
+    "ownedWindowsClosed": true,
+    "ownedHelpersExited": true,
+    "failedFixtureLeftoversVerifiedAndRemoved": true
+  },
+  "remainingAcceptance": [
+    "physical Settings editor/keyboard/Apply/Cancel",
+    "full visual comparison",
+    "signed sandbox and Finder",
+    "minimum-OS execution",
+    "hosted CI success",
+    "full application parity"
+  ],
+  "completePortCertified": false,
+  "build": {
+    "configuration": "Debug",
+    "architecture": "arm64",
+    "exitCode": 0,
+    "signed": false,
+    "log": "build/qa/comment-profile-file-build-final-2026-10-12.log",
+    "notes": "Existing exit-zero diagnostic noise remains."
+  }
+}

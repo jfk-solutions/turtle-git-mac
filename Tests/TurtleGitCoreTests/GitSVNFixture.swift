@@ -5,7 +5,8 @@ enum GitSVNFixture {
     static func create() async throws -> (URL, GitRepository, String, String) {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitSVN-雪\n-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        let real = GitRepository(root: root)
+        let git = URL(fileURLWithPath: ProcessInfo.processInfo.environment["TURTLEGIT_SVN_TEST_GIT"] ?? "/usr/bin/git")
+        let real = GitRepository(root: root, executable: git)
         _ = try await real.run(["init", "-b", "main"])
         _ = try await real.run(["config", "user.name", "SVN QA"]); _ = try await real.run(["config", "user.email", "qa@example.invalid"])
         _ = try await real.run(["config", "commit.gpgsign", "false"]); _ = try await real.run(["config", "core.hooksPath", "/dev/null"])
@@ -20,7 +21,7 @@ enum GitSVNFixture {
         try FileManager.default.createDirectory(at: root.appendingPathComponent(".git/svn"), withIntermediateDirectories: true)
         try Data().write(to: root.appendingPathComponent(".git/svn/.metadata"))
         let wrapper = root.appendingPathComponent(".git/svn-qa-git")
-        let script = #"""
+        var script = #"""
         #!/usr/bin/python3
         import sys,os,json,pathlib,subprocess
         args=sys.argv[1:]; offset=args.index('-C'); root=pathlib.Path(args[offset+1]); command=args[offset+2:]
@@ -40,6 +41,9 @@ enum GitSVNFixture {
         if command==['svn','create-ignore']: (root/'.gitignore').write_text('created*\n');sys.exit(0)
         sys.exit(2)
         """#
+        let encodedGit = Data(git.path.utf8).base64EncodedString()
+        script = script.replacingOccurrences(of: "'/usr/bin/git'", with: "real_git")
+        script = script.replacingOccurrences(of: "#!/usr/bin/python3\n", with: "#!/usr/bin/python3\nimport base64\nreal_git = base64.b64decode('" + encodedGit + "').decode('utf-8')\n")
         try Data(script.utf8).write(to: wrapper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: wrapper.path)
         return (root, GitRepository(root: root, executable: wrapper), old, next)
     }

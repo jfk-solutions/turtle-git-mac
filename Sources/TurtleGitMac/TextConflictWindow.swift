@@ -201,7 +201,8 @@ private enum MergeSourceSide {
     @Published private(set) var comparisonOptions = MergeComparisonOptions.load()
     var comparisonDefaults: UserDefaults = .standard
     private var pendingComparisonOptions: MergeComparisonOptions?
-    private let commentProfiles = MergeCommentProfiles.bundled()
+    var commentProfileURL = MergeCommentProfileFile.url
+    private var commentProfiles = MergeCommentProfiles.bundled()
     var supportsComments: Bool { commentProfiles.tokens(paths: [path]) != nil }
     func setComparisonOptions(_ value: MergeComparisonOptions) {
         guard !busy, !confirmingQuit, !retired else { return }
@@ -375,12 +376,14 @@ private enum MergeSourceSide {
         var engine = try engineConfiguration ?? SubversionMergeConfiguration.bundled(filter: filter)
         let changingOptions = pendingComparisonOptions != nil
         let options = pendingComparisonOptions ?? MergeComparisonOptions.load(from: comparisonDefaults)
-        engine.filter = filter; engine.options = options; engine.commentTokens = commentProfiles.tokens(paths: [path])
+        let profiles = try MergeCommentProfileFile.load(at: commentProfileURL)
+        engine.filter = filter; engine.options = options; engine.commentTokens = profiles.tokens(paths: [path])
         let next = try await repository.textConflictDocument(path: path, engine: engine, cancellation: cancellation)
         guard !retired, generation == nil || generation == loadGeneration else { return }
         guard let comparison = next.mergeSources else { throw SubversionMergeDiffFailure.invalidOutput }
         resetHistory()
         document = next; sourceComparison = comparison; result = next.initialResult; encoding = next.encoding
+        commentProfiles = profiles
         comparisonOptions = options; if changingOptions { options.save(to: comparisonDefaults) }; pendingComparisonOptions = nil
         regexFilterName = filter?.name
         selectedConflict = 0; caret = NSRange(location: 0, length: 0); selectionRequest = nil

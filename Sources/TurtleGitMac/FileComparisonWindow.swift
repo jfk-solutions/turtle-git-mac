@@ -104,7 +104,9 @@ import TurtleGitCore
     var engineConfiguration: SubversionMergeConfiguration?
     @Published private(set) var comparisonOptions = MergeComparisonOptions.load()
     var comparisonDefaults: UserDefaults = .standard
-    private let commentProfiles = MergeCommentProfiles.bundled()
+    var commentProfileURL = MergeCommentProfileFile.url
+    private var commentProfiles = MergeCommentProfiles.bundled()
+    private var reloadCommentProfiles = true
     private var commentTokens: MergeCommentTokens? {
         document.flatMap { commentProfiles.tokens(paths: [$0.base.path, $0.destination.path]) }
     }
@@ -440,6 +442,7 @@ import TurtleGitCore
             default: return
             }
         }
+        reloadCommentProfiles = true
         busy = true
         Task {
             var externalOpened = false
@@ -495,6 +498,10 @@ import TurtleGitCore
         let filter = regexFilters.first(where: { $0.name == regexFilterName })
         let current = alignmentGeneration, token = OperationCancellation()
         let configuration = Result { () throws -> SubversionMergeConfiguration in
+            if reloadCommentProfiles {
+                commentProfiles = try MergeCommentProfileFile.load(at: commentProfileURL)
+                reloadCommentProfiles = false
+            }
             var value = try engineConfiguration ?? SubversionMergeConfiguration.bundled(filter: filter)
             value.filter = filter; value.options = comparisonOptions; value.commentTokens = commentTokens; value.regexExecutable = regexExecutable ?? value.regexExecutable
             return value
@@ -770,6 +777,12 @@ struct FileComparisonEditor: NSViewRepresentable {
     }
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let view = scroll.documentView as? NSTextView else { return }
+        // Hosting can deliver a previously captured View value after an edit.
+        // Read the current alignment and preserve the selection in source
+        // coordinates before replacing attributed display text.
+        let previousCells = (view as? FileComparisonTextView)?.sourceCells ?? context.coordinator.cells
+        let sourceSelection = try? FileComparisonEditing.sourceRange(view.selectedRange(), cells: previousCells)
+        let cells = model.alignment?.rows.map { base ? $0.base : $0.destination } ?? self.cells
         context.coordinator.cells = cells; context.coordinator.base = base
         (view as? FileComparisonTextView)?.sourceCells = cells
         view.isEditable = model.editingEnabled && model.editableBase == base && !model.busy && !model.confirmingQuit
@@ -778,11 +791,18 @@ struct FileComparisonEditor: NSViewRepresentable {
         view.needsDisplay = true
         if !view.string.utf8.elementsEqual(value.string.utf8) { view.textStorage?.setAttributedString(value) }
         else { value.enumerateAttributes(in: NSRange(location: 0, length: value.length)) { attributes, range, _ in view.textStorage?.setAttributes(attributes, range: range) } }
+        if let sourceSelection {
+            let start = min(FileComparisonEditing.displayOffset(sourceOffset: sourceSelection.location, cells: cells), value.length)
+            let end = min(FileComparisonEditing.displayOffset(sourceOffset: NSMaxRange(sourceSelection), cells: cells), value.length)
+            let range = NSRange(location: start, length: max(0, end - start))
+            if view.selectedRange() != range { view.setSelectedRange(range) }
+        }
         scroll.rulersVisible = model.showLineNumbers
         (scroll.verticalRulerView as? MergeLineRuler)?.sourceNumbers = cells.map(\.lineNumber)
         (scroll.verticalRulerView as? MergeLineRuler)?.markedRows = model.annotations(base: base).marked
         scroll.verticalRulerView?.needsDisplay = true
-        if let selection = model.alignmentSelections[base] {
+        if let selection = model.alignmentSelections[base], context.coordinator.appliedSelection != selection.id {
+            context.coordinator.appliedSelection = selection.id
             let start = FileComparisonEditing.displayOffset(sourceOffset: selection.sourceRange.location, cells: cells)
             let end = FileComparisonEditing.displayOffset(sourceOffset: NSMaxRange(selection.sourceRange), cells: cells)
             view.setSelectedRange(NSRange(location: min(start, value.length), length: max(0, min(end, value.length) - min(start, value.length))))
@@ -823,6 +843,7 @@ struct FileComparisonEditor: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(model: model) }
     @MainActor final class Coordinator: NSObject, NSTextViewDelegate {
         let model: FileComparisonWindowModel
+        var appliedSelection: UUID?
         weak var scroll: NSScrollView?
         var cells: [MergeSourceCell] = []
         var base = false
@@ -875,6 +896,10 @@ struct FileComparisonEditor: NSViewRepresentable {
                 (view as? FileComparisonTextView)?.missingOffsets = FileComparisonEditor.missingOffsets(cells, model: model, base: base)
                 if model.activeBase == base {
                     view.setSelectedRange(NSRange(location: min(FileComparisonEditing.displayOffset(sourceOffset: caret, cells: cells), (view.string as NSString).length), length: 0))
+                    // The native editor has consumed this edit's caret. Do not
+                    // replay it during a later hosting update after the user
+                    // has selected another range.
+                    if model.selectionRequest == caret { model.selectionRequest = nil }
                 }
             }
             DispatchQueue.main.async { self.updateUndoState() }

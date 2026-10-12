@@ -95,7 +95,13 @@ final class MenuIconTests: XCTestCase {
         XCTAssertEqual(RepositoryAction.referenceBrowser.icon, RepositoryAction.repositoryBrowser.icon)
         XCTAssertEqual(RepositoryAction.submoduleAdd.icon, RepositoryAction.add.icon)
         XCTAssertEqual(RepositoryAction.submoduleSync.icon, .sync)
-        let distinctActions = RepositoryAction.allCases.filter { ![.lfsLocks, .lfsLock, .lfsUnlock, .previousDiff, .logSubmodule, .referenceBrowser, .submoduleAdd, .requestPull, .bisectStart, .bisectSkip, .worktreeCreate, .worktreeList, .diffLater, .clearComparisonMark, .submoduleUpdate, .stashApply, .stashList, .reflog, .removeKeep, .ignoreMask, .ignoreDelete, .ignoreDeleteMask, .resolveCurrent, .resolveMine, .resolveTheirs].contains($0) }
+        // The source deliberately reuses these icons for the newly ported routes.
+        XCTAssertEqual(RepositoryAction.svnDCommit.icon, RepositoryAction.commit.icon)
+        XCTAssertEqual(RepositoryAction.svnRebase.icon, RepositoryAction.rebase.icon)
+        XCTAssertEqual(RepositoryAction.svnFetch.icon, RepositoryAction.fetch.icon)
+        XCTAssertEqual(RepositoryAction.svnIgnore.icon, RepositoryAction.ignore.icon)
+        XCTAssertEqual(RepositoryAction.reviewPatch.icon, RepositoryAction.importPatch.icon)
+        let distinctActions = RepositoryAction.allCases.filter { ![.svnDCommit, .svnRebase, .svnFetch, .svnIgnore, .reviewPatch, .lfsLocks, .lfsLock, .lfsUnlock, .previousDiff, .logSubmodule, .referenceBrowser, .submoduleAdd, .requestPull, .bisectStart, .bisectSkip, .worktreeCreate, .worktreeList, .diffLater, .clearComparisonMark, .submoduleUpdate, .stashApply, .stashList, .reflog, .removeKeep, .ignoreMask, .ignoreDelete, .ignoreDeleteMask, .resolveCurrent, .resolveMine, .resolveTheirs].contains($0) }
         XCTAssertEqual(Set(distinctActions.map { $0.icon.rawValue }).count, distinctActions.count)
     }
 }

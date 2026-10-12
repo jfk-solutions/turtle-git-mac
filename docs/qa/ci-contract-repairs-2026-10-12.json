@@ -1,0 +1,33 @@
+{
+  "date": "2026-10-12",
+  "failedRun": 38199319588,
+  "failedCommit": "19c3def",
+  "scope": "Ten actual Core failures in GitHub CI",
+  "fixes": [
+    "Finder catalog expectations reflect 55 available command groups",
+    "Settings/Help/About application utilities may omit selection paths",
+    "Five intentional upstream icon aliases are explicit",
+    "SVN fast-forward reset omits unnecessary --end-of-options after validating the full object ID"
+  ],
+  "validation": {
+    "systemGit": {
+      "tests": 25,
+      "failures": 0,
+      "seconds": 20.448,
+      "log": "build/qa/ci-contract-repairs-2026-10-12.log"
+    },
+    "pinnedGit": {
+      "tests": 4,
+      "failures": 0,
+      "seconds": 3.923,
+      "log": "build/qa/ci-svn-pinned-2026-10-12.log"
+    },
+    "appBuild": {
+      "log": "build/qa/ci-contract-repairs-build-2026-10-12.log",
+      "configuration": "Debug",
+      "signed": false
+    }
+  },
+  "ci": "Focused packaged-Git SVN check added after the normal full suite; hosted success still pending",
+  "completePortCertified": false
+}

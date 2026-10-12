@@ -3,6 +3,47 @@ import XCTest
 
 final class MergeCommentProfilesTests: XCTestCase {
     private let c = MergeCommentTokens(line: "//", blockStart: "/*", blockEnd: "*/")
+    func testCustomFileReplacesProfilesAndPreservesLiteralTokens() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let file = root.appendingPathComponent("ignorecomments.txt")
+        let original = try MergeCommentProfileFile.text(at: file)
+        XCTAssertEqual(original, MergeCommentProfiles.bundledText())
+        XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))
+        let custom = "swift=//,/*,*/\nsql=-- ,/*,*/\nplain=,,\n"
+        try MergeCommentProfileFile.save(custom, at: file, expected: original)
+        XCTAssertEqual(try Data(contentsOf: file), Data(custom.utf8))
+        let profiles = try MergeCommentProfileFile.load(at: file)
+        XCTAssertEqual(profiles.tokens(fileExtension: "swift"), c)
+        XCTAssertEqual(profiles.tokens(fileExtension: "sql")?.line, "-- ")
+        XCTAssertNil(profiles.tokens(fileExtension: "cpp"))
+        XCTAssertEqual(profiles.tokens(fileExtension: "plain"), .init(line: "", blockStart: "", blockEnd: ""))
+        try MergeCommentProfileFile.save(original, at: file, expected: custom)
+        XCTAssertEqual(try MergeCommentProfileFile.load(at: file).tokens(fileExtension: "cpp"), c)
+    }
+    func testMalformedOversizeAndChangedProfilesCannotOverwriteFile() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let file = root.appendingPathComponent("ignorecomments.txt")
+        let original = try MergeCommentProfileFile.text(at: file)
+        let current = "swift=//,/*,*/"
+        try MergeCommentProfileFile.save(current, at: file, expected: original)
+        for bad in ["swift=//,/*,", "swift=//", "=//,,", "swift=//,,\0", String(repeating: "x", count: MergeCommentProfileFile.maximumBytes + 1)] {
+            XCTAssertThrowsError(try MergeCommentProfileFile.save(bad, at: file, expected: current))
+            XCTAssertEqual(try MergeCommentProfileFile.text(at: file), current)
+        }
+        XCTAssertThrowsError(try MergeCommentProfileFile.save("sql=-- ,,", at: file, expected: original))
+        XCTAssertEqual(try MergeCommentProfileFile.text(at: file), current)
+        // Invalid external edits remain readable in Settings so they can be repaired.
+        try Data("swift=//,/*,".utf8).write(to: file)
+        XCTAssertEqual(try MergeCommentProfileFile.text(at: file), "swift=//,/*,")
+        XCTAssertThrowsError(try MergeCommentProfileFile.load(at: file))
+        try MergeCommentProfileFile.save(current, at: file, expected: "swift=//,/*,")
+        try Data([0xff]).write(to: file)
+        XCTAssertThrowsError(try MergeCommentProfileFile.load(at: file))
+        try Data(repeating: 65, count: MergeCommentProfileFile.maximumBytes + 1).write(to: file)
+        XCTAssertThrowsError(try MergeCommentProfileFile.load(at: file))
+    }
     func testPinnedProfilesAndSourceExtensionPrecedence() throws {
         let profiles = MergeCommentProfiles.bundled()
         XCTAssertEqual(profiles.tokens(fileExtension: "CPP"), c)

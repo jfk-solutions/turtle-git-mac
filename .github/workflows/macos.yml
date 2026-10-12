@@ -102,6 +102,10 @@ jobs:
         run: python3 scripts/test-git-runtime-deployment.py --runtime build/git-runtime/Git
       - name: Git integration tests
         run: swift test
+      - name: SVN command compatibility with pinned Git
+        env:
+          TURTLEGIT_SVN_TEST_GIT: ${{ github.workspace }}/build/git-runtime/Git/bin/git
+        run: swift test --skip-build --filter GitSVNTests
       - name: Native historical file and folder item-provider receivers
         run: scripts/verify-browser-item-provider.sh
       - name: Application and embedded Finder extension

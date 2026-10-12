@@ -1,9 +1,32 @@
 # Testing TurtleGit for Mac
 
+## Development batch cadence
+
+Implement a complete related feature group across Core, native dialogs, Finder
+routing where relevant, resources and documentation before validating it. Do not
+run the full suite on a timer or after each file/control edit. Run one grouped
+set of relevant Core checks, one app build and one combined native receiver at
+the end of the batch. Broaden validation only for a concrete failure or unresolved
+cross-feature risk; use focused repairs for failures. The full suite belongs to
+CI and release milestones. Close every test-owned window/process after its checks,
+and reuse compiled native receivers when sources have not changed.
+
+
 Run commands from the repository root. The checked-in
 [macOS workflow](../.github/workflows/macos.yml) defines the hosted CI sequence.
 Local success does not establish that a hosted run passed, that dialogs match
 TortoiseGit visually, or that the app is ready for distribution.
+
+## GitHub CI repair, 12 October 2026
+
+Run 38199319588 reached 1,063 Core tests and reported ten failures: stale Finder
+catalog/empty-selection/icon assertions and a real SVN fast-forward reset parser
+incompatibility. The contracts now reflect the implemented command set and
+intentional source-icon aliases; reset uses a validated full object ID without
+the unnecessary `--end-of-options`. The focused repair passed 25 tests with system
+Git and four SVN tests with packaged Git. CI now checks the SVN commands with both
+executables. Hosted success is still pending. See
+[the repair record](qa/ci-contract-repairs-2026-10-12.json).
 
 ## Latest complete local Core checkpoint
 
