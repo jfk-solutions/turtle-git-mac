@@ -22,6 +22,7 @@ CASES = {
     'merge': 'ReferenceMergeVerification',
     'merge-pickers': 'MergePickerVerification',
     'network-settings': 'NetworkSettingsVerification',
+    'credential-settings': 'CredentialSettingsVerification',
 }
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git', type=Path, action='append')
@@ -41,7 +42,7 @@ with tempfile.TemporaryDirectory(prefix='TurtleGitReferenceNativeBatch-') as tem
     sources = []
     for case in CASES:
         source = directory / (case + '.swift')
-        fixture = root / ('docs/qa/network-settings-native-2026-10-12.swift' if case == 'network-settings' else 'docs/qa/merge-pickers-native-2026-10-09.swift' if case == 'merge-pickers' else 'docs/qa/reference-' + case + '-native-2026-10-09.swift')
+        fixture = root / ('docs/qa/credential-settings-native-2026-10-12.swift' if case == 'credential-settings' else 'docs/qa/network-settings-native-2026-10-12.swift' if case == 'network-settings' else 'docs/qa/merge-pickers-native-2026-10-09.swift' if case == 'merge-pickers' else 'docs/qa/reference-' + case + '-native-2026-10-09.swift')
         source.write_text('@testable import TurtleGitMac\n' + fixture.read_text().replace('@main struct', 'struct', 1))
         sources.append(source)
     main = directory / 'Main.swift'
@@ -91,7 +92,7 @@ with tempfile.TemporaryDirectory(prefix='TurtleGitReferenceNativeBatch-') as tem
             command = [str(executable), str(fixture), str(git.resolve()), case]
             print('Checking ' + case + ' with ' + str(git), flush=True)
             case_environment = environment.copy()
-            if case == 'network-settings':
+            if case in ['network-settings', 'credential-settings']:
                 case_environment['GIT_CONFIG_GLOBAL'] = str(fixture / 'global.config')
                 case_environment['XDG_CONFIG_HOME'] = str(fixture / 'xdg')
             receiver = subprocess.Popen(command, cwd=root, env=case_environment, start_new_session=True)

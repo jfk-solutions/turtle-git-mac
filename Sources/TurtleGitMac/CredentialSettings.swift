@@ -16,6 +16,12 @@ import TurtleGitCore
     @Published var mode = "advanced"
     private var savedMode = "advanced"
     private var saved = GitCredentialDraft()
+    private var savedDestination: GitConfigurationSource = .global
+    var authorizeFile: ((URL) async -> Bool)?
+    var confirmAction: ((String, String, String) async -> Bool)?
+    var readCredentials: ((OperationCancellation?) async throws -> GitCredentialSnapshot)?
+    var writeCredential: ((GitCredentialDraft, URL, GitCredentialSnapshot?) async throws -> Void)?
+    var openPasswordManager: (() -> Bool)?
     private var generation = UUID()
     private var token: OperationCancellation?
     private var active = false
@@ -29,9 +35,9 @@ import TurtleGitCore
     weak var window: NSWindow?
     init(repository: GitRepository, access: RepositoryAccessLease?, localAvailable: Bool) {
         self.repository = repository; self.access = access; self.localAvailable = localAvailable
-        destination = localAvailable ? .local : .global
+        destination = localAvailable ? .local : .global; savedDestination = destination
     }
-    var modified: Bool { mode != savedMode || mode == "advanced" && draft != saved }
+    var modified: Bool { mode != savedMode || mode == "advanced" && (draft != saved || destination != savedDestination) }
     var group: GitCredentialGroup? { snapshot?.groups.first { $0.id == selected } }
     var target: URL? {
         if let group, group.url == draft.url,
@@ -48,6 +54,7 @@ import TurtleGitCore
         if !saving { busy = false }
     }
     private func permission(_ file: URL) async -> Bool {
+        if let authorizeFile { return await authorizeFile(file) }
         if GitConfigurationPermissions.authorized(file) { return true }
         guard active, let window, window.attachedSheet == nil else { return false }
         let chooser = NSOpenPanel(); chooser.canChooseDirectories = true; chooser.canChooseFiles = false; chooser.canCreateDirectories = true
@@ -66,6 +73,7 @@ import TurtleGitCore
         }
     }
     private func confirm(_ title: String, detail: String, action: String) async -> Bool {
+        if let confirmAction { return await confirmAction(title, detail, action) }
         guard active, let window, window.attachedSheet == nil else { return false }
         let alert = NSAlert(); alert.messageText = title; alert.informativeText = detail
         alert.addButton(withTitle: "Cancel"); alert.addButton(withTitle: action); self.alert = alert
@@ -82,6 +90,19 @@ import TurtleGitCore
     private func checkAccess() throws {
         if GitRuntime.isAppStoreBuild && localAvailable && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
+    private func read(_ token: OperationCancellation? = nil) async throws -> GitCredentialSnapshot {
+        if let readCredentials { return try await readCredentials(token) }
+        return try await repository.credentialConfiguration(cancellation: token)
+    }
+    var validationError: String? {
+        if busy || snapshot == nil { return "Finish loading the credential configuration first." }
+        if mode == "advanced" { return modified && (!draft.valid || !writable) ? "Choose a writable configuration file and enter a credential helper." : nil }
+        if mode == "none" { return nil }
+        let parts = mode.split(separator: ":", maxSplits: 1).map(String.init)
+        guard parts.count == 2, helpers.contains(parts[1]),
+              parts[0] == "global" || parts[0] == "local" && localAvailable || parts[0] == "system" && files?.system != nil else { return "Choose an available credential helper and configuration scope." }
+        return nil
+    }
     func refresh() {
         guard active, !busy else { return }
         busy = true; error = nil; let request = UUID(), token = OperationCancellation(); generation = request; self.token = token
@@ -94,7 +115,8 @@ import TurtleGitCore
                 for file in [files.global, files.xdg, files.system].compactMap({ $0 }) {
                     guard await permission(file), active, generation == request else { return }
                 }
-                let snapshot = try await repository.credentialConfiguration(cancellation: token)
+                let snapshot = try await read(token)
+                guard active, generation == request, !token.isCancelled else { return }
                 let configuration = try await repository.firstStartConfiguration(cancellation: token)
                 guard active, generation == request, !token.isCancelled else { return }
                 self.snapshot = snapshot; helpers = configuration.helpers.filter { !$0.isEmpty }
@@ -117,28 +139,29 @@ import TurtleGitCore
         selected = group.id
         destination = group.scope == "local" || group.scope == "worktree" ? .local : group.scope == "system" ? .system : .global
         var draft = GitCredentialDraft(); draft.url = group.url; draft.helpers = group.helpers; draft.username = group.username; draft.useHTTPPath = group.useHTTPPath
-        self.draft = draft; saved = draft
+        self.draft = draft; saved = draft; savedDestination = destination
     }
     func select(_ id: String?) {
-        guard !busy, id == nil || id != selected else { return }
+        guard active, !busy, id == nil || id != selected else { return }
+        let request = generation
         Task {
-            if draft != saved, !(await confirm("Discard unsaved helper changes?", detail: "Select Add New/Save or Apply to save the current fields before selecting another helper.", action: "Discard")) { return }
-            guard active else { return }
+            if draft != saved || destination != savedDestination, !(await confirm("Discard unsaved helper changes?", detail: "Select Add New/Save or Apply to save the current fields before selecting another helper.", action: "Discard")) { return }
+            guard active, generation == request else { return }
             if let group = snapshot?.groups.first(where: { $0.id == id }) { load(group) }
-            else { selected = nil; draft = GitCredentialDraft(); saved = draft }
+            else { selected = nil; draft = GitCredentialDraft(); saved = draft; savedDestination = destination }
         }
     }
-    func cancelDraft() { guard !busy else { return }; draft = saved; mode = savedMode }
+    func cancelDraft() { guard !busy else { return }; draft = saved; destination = savedDestination; mode = savedMode }
     func save() { Task { _ = await apply() } }
     func applyForSettings(owner: NSWindow?) async -> Bool {
-        let wasActive = active; active = true; if window == nil { window = owner }
-        defer { active = wasActive }; return await apply()
+        let wasActive = active, request = generation; active = true; if window == nil { window = owner }
+        defer { if generation == request { active = wasActive } }; return await apply()
     }
     func apply() async -> Bool {
         if mode != "advanced" { return await applySimple() }
-        if draft == saved { savedMode = mode; return true }
+        if draft == saved && destination == savedDestination { savedMode = mode; return true }
         guard active, !busy, draft.valid, let file = target else { error = "Choose a configuration file and enter a credential helper."; return false }
-        let value = draft, request = generation
+        let value = draft, destination = destination, request = generation
         busy = true; saving = true; Self.activeSaves += 1
         defer { busy = false; saving = false; Self.activeSaves -= 1 }
         do {
@@ -147,16 +170,18 @@ import TurtleGitCore
                 guard await confirm("Replace the credential helper?", detail: "The helper configuration for \(value.url.isEmpty ? "all URLs" : value.url) in \(file.path) will be replaced. Other credential URLs remain unchanged.", action: "Save") else { return false }
             }
             guard await permission(file), active, generation == request else { return false }
-            try await repository.saveCredential(value, file: file, expected: snapshot)
-            let snapshot = try await repository.credentialConfiguration()
+            if let writeCredential { try await writeCredential(value, file, snapshot) } else { try await repository.saveCredential(value, file: file, expected: snapshot) }
             guard active, generation == request else { return true }
-            self.snapshot = snapshot; saved = value; savedMode = mode
+            let snapshot = try await read()
+            guard active, generation == request else { return true }
+            self.snapshot = snapshot; saved = value; savedDestination = destination; savedMode = mode
             if let group = snapshot.groups.first(where: { $0.file == file && $0.url == value.url }) { load(group) }
             return true
-        } catch { if active { self.error = error.localizedDescription }; return false }
+        } catch { if active, generation == request { self.error = error.localizedDescription }; return false }
     }
     private func applySimple() async -> Bool {
         guard active, !busy, let snapshot else { return false }
+        if let validationError { error = validationError; return false }
         let mode = mode, request = generation
         let parts = mode.split(separator: ":", maxSplits: 1).map(String.init)
         let helper = mode == "none" ? nil : parts.last
@@ -171,25 +196,30 @@ import TurtleGitCore
             var files = snapshot.groups.compactMap(\.file); if let file, helper != nil { files.append(file) }
             for file in Set(files) { guard await permission(file), active, generation == request else { return false } }
             try await repository.simplifyCredentials(expected: snapshot, helper: helper, file: file)
-            let result = try await repository.credentialConfiguration()
             guard active, generation == request else { return true }
-            self.snapshot = result; savedMode = mode; selected = nil; draft = GitCredentialDraft(); saved = draft; return true
-        } catch { if active { self.error = error.localizedDescription }; return false }
+            let result = try await read()
+            guard active, generation == request else { return true }
+            self.snapshot = result; savedMode = mode; selected = nil; draft = GitCredentialDraft(); saved = draft; savedDestination = destination; return true
+        } catch { if active, generation == request { self.error = error.localizedDescription }; return false }
     }
     func remove() {
         guard active, !busy, let group, let file = group.file else { return }
+        let request = generation
         busy = true; saving = true; Self.activeSaves += 1
         Task {
             defer { busy = false; saving = false; Self.activeSaves -= 1 }
             do {
-                guard await confirm("Remove this credential configuration?", detail: "Remove \(group.url.isEmpty ? "default credentials" : group.url) from \(file.path). Stored passwords in Keychain remain available.", action: "Remove"), await permission(file), active else { return }
+                guard await confirm("Remove this credential configuration?", detail: "Remove \(group.url.isEmpty ? "default credentials" : group.url) from \(file.path). Stored passwords in Keychain remain available.", action: "Remove"), await permission(file), active, generation == request else { return }
                 try checkAccess(); try await repository.removeCredential(group, expected: snapshot)
-                let snapshot = try await repository.credentialConfiguration()
-                guard active else { return }; self.snapshot = snapshot; selected = nil; draft = GitCredentialDraft(); saved = draft
-            } catch { if active { self.error = error.localizedDescription } }
+                guard active, generation == request else { return }
+                let snapshot = try await read()
+                guard active, generation == request else { return }; self.snapshot = snapshot; selected = nil; draft = GitCredentialDraft(); saved = draft; savedDestination = destination
+            } catch { if active, generation == request { self.error = error.localizedDescription } }
         }
     }
     func openKeychain() {
+        guard active, !busy else { return }
+        if let openPasswordManager { if !openPasswordManager() { error = "Keychain Access is unavailable on this Mac." }; return }
         guard let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.keychainaccess") else { error = "Keychain Access is unavailable on this Mac."; return }
         NSWorkspace.shared.openApplication(at: app, configuration: NSWorkspace.OpenConfiguration(), completionHandler: nil)
     }
@@ -254,11 +284,12 @@ struct CredentialSettingsPage: View {
         .background(CredentialWindowCapture(model: model).frame(width: 0, height: 0))
         .onAppear {
             model.activate()
-            transaction?.register("credential", participant: .init(page: .credential, modified: { model.modified }, validate: { model.busy ? "Finish the credential operation first." : model.mode == "advanced" && model.modified && !model.draft.valid ? "Enter a credential helper." : nil }, apply: { await model.applyForSettings(owner: transaction?.window) }, cancel: model.cancelDraft))
+            transaction?.register("credential", participant: .init(page: .credential, modified: { model.modified }, validate: { model.validationError }, apply: { await model.applyForSettings(owner: transaction?.window) }, cancel: model.cancelDraft))
         }
         .onChange(of: model.draft) { _ in transaction?.notify() }
         .onChange(of: model.busy) { _ in transaction?.notify() }
         .onChange(of: model.mode) { _ in transaction?.notify() }
+        .onChange(of: model.destination) { _ in transaction?.notify() }
         .onDisappear { model.deactivate() }
     }
 }

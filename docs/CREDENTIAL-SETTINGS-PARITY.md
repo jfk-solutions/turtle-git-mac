@@ -80,3 +80,31 @@ partial-write failures and signed sandbox acceptance remain open. Logs and
 limitations are in `qa/authentication-settings-batch-2026-10-11.json`.
 This supersedes the uncompiled/untested statements above. Full-port and inventory
 certification remain unchanged.
+
+
+## Native scoped saves and lifecycle checkpoint — 2026-10-12
+
+Config type changes now count as unsaved edits, including changes with identical
+helper fields. Cancel restores the saved destination. Explicit Save copies the
+captured draft into the chosen destination without deleting the original group.
+Settings validation rejects unavailable simple helper/scope choices. Late reads,
+selection confirmations and errors are fenced by the page generation; authorized
+Apply completion after closure does not reactivate the page or reload credentials.
+Password-manager routing and file/confirmation/read/write seams allow private
+native checks while retaining the production adapters.
+
+Debug build exited 0. Eight AuthenticationSettingsBatchTests passed with zero
+failures in 3.206 seconds. One cached object-linked receiver compilation ran two
+owned processes, one each with system and bundled Git; both exited 0 and were
+reaped. Checks covered ordered helper reset/chain import, destination-only copy
+and Cancel, accepted/rejected replacement/discard/removal, unknown-key retention,
+simple None and unavailable helper validation, forced-close Apply, retired read,
+Aqua/Dark Aqua host construction and injected password-manager failure. Private
+global/XDG configuration and repositories were used; no credential helper, user
+Keychain or network was invoked. No full Core/reference suite was rerun.
+
+The resource is now partial-native-replacement, not certified complete. Physical
+layout/keyboard/selection acceptance, real owned sheets, all helper availability
+variants, includes/worktree/no-repository native flows, partial-write native
+failures, production Keychain and signed sandbox/App Store acceptance remain open.
+No new screenshot or full hosted CI pass is claimed.

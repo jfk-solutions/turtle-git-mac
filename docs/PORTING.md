@@ -97,7 +97,7 @@ owned loading/command progress. Native Push variants and owned Shift Push option
 controls, full visual matching and signed acceptance are still pending. See
 [Synchronization parity](SYNCHRONIZATION-PARITY.md).
 Across the 130 inventoried dialogs:
-63 dialogs have partial implementations and 67 await review. No dialog is certified complete.
+64 dialogs have partial implementations and 66 await review. No dialog is certified complete.
 See [the reference dialog audit](COMMIT-CONTAINING-REFS-PARITY.md).
 
 Log commit ordering now has the source’s four-choice native sheet, deferred
@@ -794,3 +794,12 @@ Settings validation/Cancel. Forced deactivation no longer reactivates after
 Apply, and late reads cannot touch the password cache. The Network resource is
 reviewed as a partial native replacement; production Keychain/physical/signed
 acceptance remains open. See [Network parity](NETWORK-SETTINGS-PARITY.md).
+
+
+Credential settings now retain destination-only draft edits and restore the scope
+on Cancel. Captured saves and read/selection responses are fenced on retirement;
+Settings Apply does not reactivate a closed page. Private native receivers passed
+with system and bundled Git, covering helper resets/chains, scoped copy,
+confirmation choices, Remove, None and lifecycle. The Credential resource is
+classified as partial; physical layout, production Keychain and signed acceptance
+remain open. See [Credential audit](CREDENTIAL-SETTINGS-PARITY.md).

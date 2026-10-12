@@ -1156,7 +1156,7 @@ checks three-pane format acceptance. See [format parity](MERGE-FORMAT-PARITY.md)
 Build Debug once, then run `python3 scripts/test-native-reference-batch.py` for
 folders, comparisons, batch/single deletion, Switch/Fetch/Create Branch/Merge
 routes and Merge reference/Log pickers. The driver links the existing app objects
-and ten receiver families, including Network settings, in one compilation. It uses an explicit native AppKit run loop and
+and eleven receiver families, including Network and Credential settings, in one compilation. It uses an explicit native AppKit run loop and
 caches by object files, imported modules/framework, fixtures and compiler/flags.
 It does not recompile the whole SwiftUI app for each case.
 
@@ -1237,3 +1237,13 @@ failure/retention, Settings validation/Cancel, hidden light/dark layout, capture
 SSH Apply after forced close and late read/cache fencing. No user global config,
 network or live Keychain is touched. Use `--only network-settings` for an actual
 Network failure; the complete group uses the same object/fixture/module cache.
+
+
+Credential settings use the same object-linked reference receiver cache. Run
+`python3 scripts/test-native-reference-batch.py --only credential-settings` after
+a Debug build. Each Git executable gets private global/XDG configuration and a
+private repository. The receiver checks helper chains, destination-only saves,
+Cancel and confirmation decisions, removal, simple None, retired read/save
+responses and light/dark hosting. Password-manager routing is injected; no user
+Keychain or credential helper is launched. This is not signed or physical UI
+acceptance.
