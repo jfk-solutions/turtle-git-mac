@@ -226,7 +226,7 @@ See [structured evidence](qa/repository-browser-2026-10-05.json).
   tree objects, while existing helpers generally expect commits.
 - Complete Open With, alternative editor, Save, Blame and working comparison
   acceptance from this window, plus imported Finder comparison marks.
-- Persistent column choices, divider/frame restoration, full keyboard selection,
+- Complete physical column/divider/frame acceptance, full keyboard selection,
   accessibility and large repositories. False disclosure arrows for loaded leaf
   folders and refresh ancestry are addressed by the October 13 lifecycle batch.
 - Native dark appearance, signed Finder invocation and Store security scopes.
@@ -305,3 +305,50 @@ passing run. Physical pointer/menu acceptance and signed acceptance remain open.
 The unsigned App Store build and its `--require-git` bundle audit passed. The
 website build passed. This does not establish signed sandbox execution, App Store
 review or a complete hosted CI run.
+
+## Native contents table and historical multi-row drag — October 13, 2026
+
+RepositoryBrowser.cpp supplies three columns through ColumnManager (version 6):
+Name, Extension and Size. The native contents list now uses NSTableView with
+multiple selection, a source-ordered file menu, original context artwork, header
+sorting, right-aligned sizes and executable/symlink/gitlink badges. Right-clicking
+an unselected row targets that row; clicking an already-selected row retains the
+multi-selection. Double-click and the existing window Enter/Command-A/Command-C
+routes operate on the same selection model.
+
+The header saves visibility, physical order and native widths independently under
+RepositoryBrowser.Columns. Name remains visible; missing/incompatible settings
+restore defaults, unknown columns and invalid widths are rejected, duplicates
+are normalized, and widths are bounded. Divider double-click fits content; Shift
+includes the heading. Reset asks No/Yes through the owned controller sheet;
+parallel/reset/refresh changes are blocked, and retired answers cannot rewrite
+preferences. Native defaults are sized for macOS controls rather than Windows
+DPI pixels. Full pixel/keyboard/accessibility acceptance remains separate.
+
+Each selected ordinary row supplies a separate NSFilePromiseProvider. Folder
+rows deliver their hierarchy; file rows preserve pinned bytes and modes. Providers
+retain their immutable snapshot, item and security-scope lease independently of
+the browser. Native promises write only to the supplied receiver URL, stage an
+owned temporary sibling, refuse an existing destination and remove staging on
+failure. Exported temporary trees are discarded after delivery; active deliveries
+retain the application's existing Quit protection. Existing root/tree providers
+remain available. Gitlink rows are not yet promised as standalone items.
+
+The SDK delegate contract and pinned upstream multi-selection/recursive drag
+implementation were reviewed. Private delegate deliveries establish historical
+bytes, ownership and collision preservation, not actual Finder/other-app drag
+interoperability or signed sandbox destination access. Validation and inspected
+captures are recorded in `qa/repository-browser-table-2026-10-13.json`.
+
+Twelve focused Core tests and four grouped native table/lifetime checks passed
+with system and packaged Git. Both actual 2000-by-1364 captures were individually
+reviewed against the pinned source screenshot: tree/list split, Path/Revision,
+three-column header, size alignment, selection and footer/buttons in both themes.
+Native menu conditions, original command artwork, persistence/reset and pinned
+promise deliveries were checked separately. Physical drag/session and full
+menu/keyboard/accessibility acceptance remain open. All owned receivers were
+reaped and independently verified absent.
+
+Debug and unsigned App Store builds passed, as did the website build. The prior
+bundle/runtime audit was not repeated for this table/persistence/promise batch.
+Signed destination grants and App Store acceptance remain unverified.

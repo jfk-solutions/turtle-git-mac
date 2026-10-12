@@ -265,6 +265,17 @@ final class RepositoryBrowserTests: XCTestCase {
         XCTAssertEqual(head,afterHead);XCTAssertEqual(index,try Data(contentsOf:root.appendingPathComponent(".git/index")));XCTAssertEqual(file,try Data(contentsOf:root.appendingPathComponent("nested/file")))
     }
 
+    func testNativeColumnsNormalizeAndPersistIndependentLayout() throws {
+        let suite="TurtleGit.Browser.Columns.QA."+UUID().uuidString,preferences=try XCTUnwrap(UserDefaults(suiteName:suite))
+        defer { preferences.removePersistentDomain(forName:suite) }
+        XCTAssertEqual(RepositoryBrowserColumns.load(preferences),RepositoryBrowserColumns())
+        let value=RepositoryBrowserColumns(visible:["size","foreign"],order:["size","size","foreign","extension"],widths:["name":350,"extension":Double.infinity,"size":20000,"foreign":50])
+        XCTAssertEqual(value.visible,["name","size"]);XCTAssertEqual(value.order,["size","extension","name"]);XCTAssertEqual(value.widths,["name":350,"size":10000])
+        value.save(preferences);XCTAssertEqual(RepositoryBrowserColumns.load(preferences),value)
+        XCTAssertNil(preferences.object(forKey:"Commit.FileColumns"))
+        preferences.set(5,forKey:"RepositoryBrowser.Columns.Version");XCTAssertEqual(RepositoryBrowserColumns.load(preferences),RepositoryBrowserColumns())
+    }
+
     func testSortingAndMalformedTreeRecords() throws {
         let oid = String(repeating: "a", count: 40)
         let bytes = Data(("100644 blob " + oid + " 20\tfile2.txt\0" + "040000 tree " + oid + " -\tfolder\0" + "100644 blob " + oid + " 1\tfile10.txt\0").utf8)

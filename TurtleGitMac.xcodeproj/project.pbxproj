@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		B73167000000000000000004 /* RepositoryBrowserContentsTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73167000000000000000005 /* RepositoryBrowserContentsTable.swift */; };
 		B73167000000000000000001 /* BlameSyntax.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73167000000000000000002 /* BlameSyntax.swift */; };
 		B73105000000000000000001 /* ProjectDialogSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73105000000000000000002 /* ProjectDialogSettings.swift */; };
 		B73117000000000000000001 /* NetworkSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73117000000000000000002 /* NetworkSettings.swift */; };
@@ -376,6 +377,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		B73167000000000000000005 /* RepositoryBrowserContentsTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryBrowserContentsTable.swift; sourceTree = "<group>"; };
 		B73167000000000000000002 /* BlameSyntax.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlameSyntax.swift; sourceTree = "<group>"; };
 		B73105000000000000000002 /* ProjectDialogSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectDialogSettings.swift; sourceTree = "<group>"; };
 		B73117000000000000000002 /* NetworkSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkSettings.swift; sourceTree = "<group>"; };
@@ -847,6 +849,7 @@
 				2876A33D450C599B1B1AED5D /* UnifiedDiffViewerSettings.swift */,
 				5D08A34234EAA3FC6585226F /* WorktreeCreateWindow.swift */,
 				9B6A308CF3E486ADD7497BD1 /* WorktreeListTable.swift */,
+				B73167000000000000000005 /* RepositoryBrowserContentsTable.swift */,
 				1669C286FA69F91FFFF7C002 /* WorktreeListWindow.swift */,
 			);
 			name = TurtleGitMac;
@@ -1720,6 +1723,7 @@
 				1CF4C1812C13221DE3927E15 /* UnifiedDiffViewerSettings.swift in Sources */,
 				37FF0ADA08C102C423B8A3C0 /* WorktreeCreateWindow.swift in Sources */,
 				2B851665B4C4A9C890BF3324 /* WorktreeListTable.swift in Sources */,
+				B73167000000000000000004 /* RepositoryBrowserContentsTable.swift in Sources */,
 				83F67572608DE1A6E12AC47E /* WorktreeListWindow.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

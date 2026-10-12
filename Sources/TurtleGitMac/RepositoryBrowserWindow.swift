@@ -28,8 +28,8 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     var onClosed: () -> Void = {}
     private var picker: LogWindowController?
     private var ownedSheet: NSWindow?
-    init(repository: GitRepository, access: RepositoryAccessLease?, revision: String) {
-        model = RepositoryBrowserWindowModel(repository: repository, access: access, revision: revision)
+    init(repository: GitRepository, access: RepositoryAccessLease?, revision: String, preferences:UserDefaults = .standard) {
+        model = RepositoryBrowserWindowModel(repository: repository, access: access, revision: revision, preferences:preferences)
         let window = RepositoryBrowserNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 650), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = repository.root.lastPathComponent + " – Repository Browser – TurtleGit"
         window.contentMinSize = NSSize(width: 760, height: 440); window.isReleasedWhenClosed = false
@@ -72,6 +72,17 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
                 if self.ownedSheet === alert.window { self.ownedSheet=nil }
                 guard self.model.active, self.model.generation == identity, response == .alertFirstButtonReturn else { return }
                 self.model.onSubmoduleUpdate(entry.path)
+            }
+        }
+        model.confirmResetColumns = { [weak self] in
+            guard let self,self.model.active,let window=self.window,window.attachedSheet==nil else { return false }
+            let alert=NSAlert();alert.messageText="Reset columns?";alert.informativeText="Restore the default Repository Browser columns, order and widths?"
+            alert.addButton(withTitle:"No");alert.addButton(withTitle:"Yes");self.ownedSheet=alert.window
+            return await withCheckedContinuation { continuation in
+                alert.beginSheetModal(for:window) { [weak self] response in
+                    if self?.ownedSheet === alert.window { self?.ownedSheet=nil }
+                    continuation.resume(returning:self?.model.active == true && response == .alertSecondButtonReturn)
+                }
             }
         }
         model.refresh()
@@ -187,6 +198,25 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     var chooseRevision: () -> Void = {}
     var offerSubmoduleUpdate: (RepositoryBrowserEntry) -> Void = { _ in }
     var onSubmoduleUpdate: (String) -> Void = { _ in }
+    let preferences:UserDefaults
+    @Published private(set) var columns:RepositoryBrowserColumns
+    @Published private(set) var confirmingColumns=false
+    var confirmResetColumns: () async -> Bool = { false }
+    var canEditColumns:Bool { active && !busy && !mutating && !confirmingQuit && !confirmingColumns }
+    func saveColumns(_ value:RepositoryBrowserColumns) {
+        guard canEditColumns else { return }
+        columns=RepositoryBrowserColumns(visible:value.visible,order:value.order,widths:value.widths);columns.save(preferences)
+    }
+    func requestResetColumns() {
+        guard canEditColumns else { return };confirmingColumns=true
+        let identity=generation,(request,cancellation)=startRequest()
+        Task { [self] in
+            defer { confirmingColumns=false;finishRequest(request) }
+            let accepted=await confirmResetColumns()
+            guard active,generation==identity,!cancellation.isCancelled,accepted else { return }
+            columns=RepositoryBrowserColumns();columns.save(preferences)
+        }
+    }
     var onLog: (String, String) -> Void = { _, _ in }
     var onBlame: (String, String) -> Void = { _, _ in }
     var onCompare: (String, String) -> Void = { _, _ in }
@@ -194,7 +224,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     var onPreparedFileCompare: ((PreparedFileComparisonMark, PreparedFileComparisonMark) -> Void)?
     enum FileAction { case open, openWith, alternativeEditor, save }
     var presentFile: (ComparisonFileContent, FileAction) -> Void = { _, _ in }
-    init(repository: GitRepository, access: RepositoryAccessLease?, revision: String) { self.repository = repository; self.access = access; self.revision = revision }
+    init(repository: GitRepository, access: RepositoryAccessLease?, revision: String, preferences:UserDefaults = .standard) { self.repository = repository; self.access = access; self.revision = revision; self.preferences=preferences;self.columns = .load(preferences) }
     var entries: [RepositoryBrowserEntry] {
         let first = sortOrder.first
         let column: RepositoryBrowserSort = first?.keyPath == \RepositoryBrowserEntry.fileExtension ? .fileExtension : first?.keyPath == \RepositoryBrowserEntry.sizeSort ? .size : .name
@@ -220,7 +250,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     func refresh() {
-        guard active, !mutating, !confirmingQuit else { return }
+        guard active, !mutating, !confirmingQuit, !confirmingColumns else { return }
         cancelRequests()
         let identity = UUID(); generation = identity; busy = true; error = nil; loads = []
         let value = revision, directory = snapshot?.directory ?? "", retainedSelection = selection
@@ -260,7 +290,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         }
     }
     func loadDirectory(_ path: String, select: Bool) {
-        guard active, !busy, !mutating, !confirmingQuit, let snapshot, snapshot.treeID != nil else { return }
+        guard active, !busy, !mutating, !confirmingQuit, !confirmingColumns, let snapshot, snapshot.treeID != nil else { return }
         let identity = generation
         if select { requestedDirectory = path }
         if let cached = listings[path] {
@@ -282,7 +312,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         }
     }
     func open(_ entry: RepositoryBrowserEntry, action: FileAction = .open) {
-        guard active, !busy, !mutating, !confirmingQuit, let snapshot, snapshot.entries.contains(entry) else { return }
+        guard active, !busy, !mutating, !confirmingQuit, !confirmingColumns, let snapshot, snapshot.entries.contains(entry) else { return }
         do { try validateAccess() } catch { self.error = error.localizedDescription; return }
         if entry.kind == .directory { expanded.insert(entry.path); loadDirectory(entry.path,select:true); return }
         if entry.kind == .submodule && action == .open && !snapshot.bare { loadSubmodule(snapshot,entry:entry,showLog:false); return }
@@ -301,7 +331,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         }
     }
     func dragProvider(_ entry: RepositoryBrowserEntry? = nil, directory: String? = nil) -> NSItemProvider? {
-        guard active, !busy, !confirmingQuit, let snapshot, snapshot.objectID != nil,
+        guard active, !busy, !confirmingQuit, !confirmingColumns, let snapshot, snapshot.objectID != nil,
               entry.map({ snapshot.entries.contains($0) && $0.kind != .submodule }) ?? true else { return nil }
         do { try validateAccess() } catch { self.error = error.localizedDescription; return nil }
         let folder = directory != nil || entry == nil || entry?.kind == .directory
@@ -309,7 +339,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         return RepositoryBrowserDrag.provider(repository: repository, access: access, snapshot: snapshot, entry: entry, directory: directory, name: name, folder: folder)
     }
     func showSubmoduleLog(_ entry: RepositoryBrowserEntry) {
-        guard active, !busy, !confirmingQuit, let snapshot, snapshot.entries.contains(entry), entry.kind == .submodule else { return }
+        guard active, !busy, !confirmingQuit, !confirmingColumns, let snapshot, snapshot.entries.contains(entry), entry.kind == .submodule else { return }
         do { try validateAccess() } catch { self.error = error.localizedDescription; return }
         guard !snapshot.bare else { error = "This bare repository has no child working checkout. Open an initialized working repository to show submodule history."; return }
         loadSubmodule(snapshot,entry:entry,showLog:true)
@@ -328,7 +358,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         }
     }
     func revert(_ entries: [RepositoryBrowserEntry]) {
-        guard active, !busy, !mutating, !confirmingQuit, let snapshot, !snapshot.bare, !entries.isEmpty,
+        guard active, !busy, !mutating, !confirmingQuit, !confirmingColumns, let snapshot, !snapshot.bare, !entries.isEmpty,
               Set(entries.map(\.id)).count == entries.count,
               entries.allSatisfy({ snapshot.entries.contains($0) && ![.directory,.submodule].contains($0.kind) }) else { return }
         do { try validateAccess() } catch { self.error = error.localizedDescription; return }
@@ -363,17 +393,17 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         comparisonMark = PreparedFileComparisonMark(path: access.file.path, revision: "", workingAccess: access)
     }
     func markForComparison(_ entry: RepositoryBrowserEntry) {
-        guard active, !busy, !confirmingQuit, let snapshot, let revision = snapshot.objectID,
+        guard active, !busy, !confirmingQuit, !confirmingColumns, let snapshot, let revision = snapshot.objectID,
               snapshot.entries.contains(entry), ![.directory, .submodule].contains(entry.kind) else { return }
         comparisonMark = PreparedFileComparisonMark(path: entry.path, revision: revision)
     }
     func compareWithMarkedFile(_ entry: RepositoryBrowserEntry) {
-        guard active, !busy, !confirmingQuit, let snapshot, let revision = snapshot.objectID, let comparisonMark,
+        guard active, !busy, !confirmingQuit, !confirmingColumns, let snapshot, let revision = snapshot.objectID, let comparisonMark,
               snapshot.entries.contains(entry), ![.directory, .submodule].contains(entry.kind) else { return }
         onPreparedFileCompare?(comparisonMark, PreparedFileComparisonMark(path: entry.path, revision: revision))
     }
     func copy(hashes: Bool = false, pasteboard: NSPasteboard = .general) {
-        guard active, !busy, !mutating, !confirmingQuit else { return }
+        guard active, !busy, !mutating, !confirmingQuit, !confirmingColumns else { return }
         pasteboard.clearContents()
         pasteboard.setString(selected.map { hashes ? $0.objectID : $0.name }.joined(separator: "\n"), forType: .string)
     }
@@ -397,66 +427,7 @@ private struct RepositoryBrowserDialog: View {
                     }.padding(6).frame(maxWidth: .infinity, alignment: .leading)
                 }.disabled(model.busy).accessibilityLabel("Repository folders")
             } right: {
-                Table(of: RepositoryBrowserEntry.self, selection: $model.selection, sortOrder: $model.sortOrder) {
-                    TableColumn("Name", value: \.name) { entry in
-                        HStack(spacing: 6) {
-                            Image(nsImage: browserIcon(entry)).resizable().frame(width: 16, height: 16).overlay {
-                                if let overlay = overlay(entry)?.image() { Image(nsImage: overlay).resizable().frame(width: 16, height: 16) }
-                            }
-                            Text(verbatim: entry.name)
-                        }.help(entry.path + "\n" + entry.objectID)
-                    }.width(min: 160, ideal: 310)
-                    TableColumn("Extension", value: \.fileExtension).width(min: 70, ideal: 100)
-                    TableColumn("Size", value: \.sizeSort) { entry in Text(model.sizeText(entry)).frame(maxWidth: .infinity, alignment: .trailing) }.width(min: 70, ideal: 100)
-                } rows: {
-                    ForEach(model.entries) { entry in TableRow(entry).itemProvider { model.dragProvider(entry) } }
-                }.contextMenu(forSelectionType: String.self) { ids in
-                    TurtleGitContextMenu {
-                        let values = model.entries.filter { ids.contains($0.id) }
-                        if values.count == 1, let entry = values.first, let revision = model.snapshot?.objectID {
-                            Button { model.open(entry) } label: { CommandLabel(title: "Open", icon: .open) }
-                            if entry.kind != .directory {
-                                Button { model.open(entry, action: .openWith) } label: { CommandLabel(title: "Open With…", icon: .open) }
-                                Button { model.open(entry, action: .alternativeEditor) } label: { CommandLabel(title: "View revision with alternative editor", icon: .editor) }
-                            }
-                            Divider()
-                            if entry.kind != .directory && model.snapshot?.bare == false {
-                                Button { model.onCompare(entry.path, revision) } label: { CommandLabel(title: "Compare with working tree", icon: .compare) }
-                                Divider()
-                            }
-                            Button { model.onLog(entry.path, revision) } label: { CommandLabel(title: "Show log", icon: .log) }
-                            if entry.kind == .submodule {
-                                Button { model.showSubmoduleLog(entry) } label: { CommandLabel(title: "Show submodule log", icon: .log) }
-                            }
-                            if ![.directory, .submodule].contains(entry.kind) {
-                                if model.snapshot?.bare == false {
-                                    Button { model.onBlame(entry.path, revision) } label: { CommandLabel(title: "Blame", icon: .blame) }
-                                }
-                                Divider()
-                                Button { model.open(entry, action: .save) } label: { CommandLabel(title: "Save revision to…", icon: .saveAs) }
-
-                            }
-                            Divider()
-                        }
-                        if !values.isEmpty && model.snapshot?.bare == false && values.allSatisfy({ ![.directory, .submodule].contains($0.kind) }) {
-                            Button { model.revert(values) } label: { CommandLabel(title: "Revert to this revision", icon: .revert) }
-                            Divider()
-                        }
-                        if values.count == 1, let entry = values.first, ![.directory, .submodule].contains(entry.kind) {
-                            Button { model.markForComparison(entry) } label: { CommandLabel(title: "Mark for comparison", icon: .compare) }
-                            if let mark = model.comparisonMark {
-                                Button { model.compareWithMarkedFile(entry) } label: { CommandLabel(title: "Compare with " + mark.label(for: entry.path), icon: .compare) }.disabled(model.onPreparedFileCompare == nil)
-                            }
-                            Divider()
-                        }
-                        if !values.isEmpty {
-                            Button { model.selection = ids; model.copy() } label: { CommandLabel(title: "Copy to clipboard", icon: .copy) }
-                            Button { model.selection = ids; model.copy(hashes: true) } label: { CommandLabel(title: "Copy hash", icon: .copy) }
-                        }
-                    }
-                } primaryAction: { ids in
-                    if ids.count == 1, let entry = model.entries.first(where: { ids.contains($0.id) }) { model.open(entry) }
-                }.disabled(model.busy).accessibilityLabel("Repository contents")
+                RepositoryBrowserContentsTable(model:model)
             }.border(Color.secondary.opacity(0.4))
             HStack {
                 Text(model.info).font(.caption).frame(maxWidth: .infinity, alignment: .leading)

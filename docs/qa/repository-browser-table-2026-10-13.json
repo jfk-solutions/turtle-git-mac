@@ -1,0 +1,77 @@
+{
+  "date": "2026-10-13",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Native three-column contents table and saved version-6 visibility/order/widths",
+    "Header fitting and owned No/Yes/late Reset",
+    "Native context menus, original icons, sorting/multi-selection and pinned handoffs",
+    "Per-row historical file/folder promises retaining captured revision and permission lease after owner closes"
+  ],
+  "source": [
+    "RepositoryBrowser.cpp ColumnManager definitions/ShowContextMenu/OnLvnColumnclickRepoList/OnLvnBegindragRepolist",
+    "doc/images/en/RepoBrowser.png",
+    "macOS SDK AppKit NSFilePromiseProvider.h supplied-URL/delegate lifetime contract"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/browser-table-build-2026-10-13.log",
+      "notes": "Existing warnings and exit-0/no-output diagnostics; not a clean-log claim"
+    },
+    "core": {
+      "exit": 0,
+      "tests": 12,
+      "scope": "RepositoryBrowserTests",
+      "log": "build/qa/browser-table-core-2026-10-13.log"
+    },
+    "native": {
+      "exit": 0,
+      "cases": 4,
+      "engines": [
+        "system Git",
+        "packaged Git"
+      ],
+      "scope": "Repository Browser table and lifecycle cases",
+      "log": "build/qa/browser-table-native-2026-10-13.log",
+      "owned_receivers_reaped": [
+        12711,
+        12861,
+        12902,
+        13047
+      ],
+      "independently_absent": true
+    },
+    "captures": {
+      "exit": 0,
+      "log": "build/qa/browser-table-capture-2026-10-13.log",
+      "owned_receiver_reaped": 13154,
+      "review": "Both captures individually inspected against pinned RepoBrowser.png; native tree/list split, three-column header, size alignment, selection, footer/buttons and light/dark checked. Complete visual parity is not established.",
+      "sha256": {
+        "light": "a203d3e14ecb015562950b26782c69e3de5b0d67bff441adb90c6245609291a2",
+        "dark": "d4376d215fe442626b21fc66ce8477fa42537efccaf1fefa50bb39b505acd3b0"
+      }
+    },
+    "appstore": {
+      "exit": 0,
+      "log": "build/qa/browser-table-appstore-2026-10-13.log",
+      "signed": false,
+      "notes": "Bundle/runtime audit was not repeated; this batch changes native table/persistence/promise code, with no runtime/resource recipe changes."
+    },
+    "website": {
+      "exit": 0,
+      "output": "build/site"
+    }
+  },
+  "limits": [
+    "Promise delegate delivery is checked against private destinations; actual Finder/other-app drag/drop, signed sandbox permission and cancellation acceptance remain open",
+    "Gitlink drag behavior remains excluded; root/tree interoperability still uses the existing item provider",
+    "Full visual/keyboard/accessibility acceptance, invalid UTF-8 path policy and tree-object Log/Blame handoffs remain incomplete",
+    "Focused local checks do not prove full hosted CI or App Store acceptance"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/RepositoryBrowser.swift": "d6c4191e4446a0e9d4742e47e9ca84512f59444c5c07f1db1cae06b13f81be46",
+    "Sources/TurtleGitMac/RepositoryBrowserContentsTable.swift": "dc395ced2b2c71329a8773c5ae2d948e655b72e63cc9db5b98108a5b0cf1b98a",
+    "Sources/TurtleGitMac/RepositoryBrowserDrag.swift": "6ed20678482439a26c7db2209ea433013ef94e88a17fbc1b7ea0e2dd25f229d3",
+    "Sources/TurtleGitMac/RepositoryBrowserWindow.swift": "0cb9e39727735f2501e9b0cfc7cf52bddb3a75f397b318722f510475e41e445c"
+  }
+}

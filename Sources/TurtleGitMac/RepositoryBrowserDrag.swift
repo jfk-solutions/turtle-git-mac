@@ -51,3 +51,37 @@ import UniformTypeIdentifiers
         } catch { completion(nil, false, error) }
     }
 }
+
+/// A native list drag promises one independently named historical item per row.
+/// The provider retains its delegate; delivery intentionally survives owner close.
+@MainActor final class RepositoryBrowserFilePromise: NSObject, NSFilePromiseProviderDelegate {
+    let repository:GitRepository
+    let access:RepositoryAccessLease?
+    let snapshot:RepositoryBrowserSnapshot
+    let entry:RepositoryBrowserEntry
+    init(repository:GitRepository,access:RepositoryAccessLease?,snapshot:RepositoryBrowserSnapshot,entry:RepositoryBrowserEntry) {
+        self.repository=repository;self.access=access;self.snapshot=snapshot;self.entry=entry
+    }
+    func provider() -> NSFilePromiseProvider {
+        let type=entry.kind == .directory ? UTType.folder : UTType(filenameExtension:(entry.name as NSString).pathExtension) ?? .data
+        let provider=NSFilePromiseProvider(fileType:type.identifier,delegate:self);provider.userInfo=self;return provider
+    }
+    func filePromiseProvider(_ filePromiseProvider:NSFilePromiseProvider,fileNameForType fileType:String) -> String { entry.name }
+    func operationQueue(for filePromiseProvider:NSFilePromiseProvider) -> OperationQueue { .main }
+    nonisolated func filePromiseProvider(_ filePromiseProvider:NSFilePromiseProvider,writePromiseTo url:URL,completionHandler:@escaping (Error?)->Void) {
+        Task { @MainActor [self] in
+            RepositoryBrowserExportFiles.activeLoads += 1
+            defer { RepositoryBrowserExportFiles.activeLoads -= 1;withExtendedLifetime(access) {} }
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let export=try await repository.exportRepositoryBrowser(snapshot,entry:entry)
+                defer { export.discard() }
+                let staging=url.deletingLastPathComponent().appendingPathComponent(".turtlegit-promise-"+UUID().uuidString)
+                defer { try? FileManager.default.removeItem(at:staging) }
+                try FileManager.default.copyItem(at:export.item,to:staging)
+                try FileManager.default.moveItem(at:staging,to:url)
+                completionHandler(nil)
+            } catch { completionHandler(error) }
+        }
+    }
+}

@@ -1467,3 +1467,11 @@ private Copy, pinned child lookup, multi-file Continue/Cancel and duplicate guar
 owned root/tree/blob/checkout process cancellation and reaping, Quit lifetime,
 and actual file/failure-sheet forced closure. The relevant Core group is
 `RepositoryBrowserTests|SubmoduleComparisonTests`; CI still runs the full suite.
+
+Repository Browser's cached native group also has `--only repository-browser-table`
+and optional `--only repository-browser-table-captures`. The table case checks
+real AppKit column/menu/selection/sort dispatch, private version-6 preferences,
+No/Yes/late Reset ownership, captured file/folder promises after branch movement
+and owner closure, destination collision preservation and staging cleanup. The
+capture case uses only its owned window and existing screen-recording access.
+Promise delegate delivery does not establish physical Finder drag acceptance.

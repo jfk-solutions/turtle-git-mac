@@ -194,3 +194,27 @@ extension GitRepository {
         return ComparisonFileContent(path: entry.path, revision: .revision(object), bytes: try run(["cat-file", "blob", entry.objectID], cancellation: cancellation).stdout, mode: entry.mode)
     }
 }
+
+/// Native persistence for RepositoryBrowser.cpp's three-column ColumnManager.
+public struct RepositoryBrowserColumns: Equatable, Sendable {
+    public static let names = ["name", "extension", "size"]
+    public var visible: Set<String>
+    public var order: [String]
+    public var widths: [String:Double]
+    public init(visible:Set<String> = Set(Self.names),order:[String] = Self.names,widths:[String:Double] = [:]) {
+        self.visible=visible.intersection(Self.names).union(["name"])
+        var seen=Set<String>();self.order=(order+Self.names).filter { Self.names.contains($0) && seen.insert($0).inserted }
+        self.widths=widths.filter { Self.names.contains($0.key) && $0.value.isFinite && $0.value>=24 }.mapValues { min(10000,$0) }
+    }
+    public static func load(_ preferences:UserDefaults,key:String = "RepositoryBrowser.Columns") -> Self {
+        guard preferences.integer(forKey:key+".Version")==6 else { return Self() }
+        var widths:[String:Double]=[:]
+        for (name,value) in preferences.dictionary(forKey:key+".Widths") ?? [:] { if let number=value as? NSNumber { widths[name]=number.doubleValue } }
+        return Self(visible:Set(preferences.stringArray(forKey:key) ?? names),order:preferences.stringArray(forKey:key+".Order") ?? names,widths:widths)
+    }
+    public func save(_ preferences:UserDefaults,key:String = "RepositoryBrowser.Columns") {
+        let normalized=Self(visible:visible,order:order,widths:widths)
+        preferences.set(6,forKey:key+".Version");preferences.set(Self.names.filter { normalized.visible.contains($0) },forKey:key)
+        preferences.set(normalized.order,forKey:key+".Order");preferences.set(normalized.widths,forKey:key+".Widths")
+    }
+}
