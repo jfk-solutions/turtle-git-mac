@@ -392,3 +392,10 @@ Focused lifecycle groups and the full 24-group native regression passed with
 system and packaged Git. Both unsigned builds, bundle audits, inventory and
 site checks passed. The actual driver cleanup passed a forced timeout with
 TERM refusal. See [verification scope and corrected attempts](qa/import-patch-lifecycle-native-2026-10-11.json).
+
+
+The 2026-10-12 [single-patch directory-target batch](REVIEW-PATCH-PARITY.md) adds
+the standalone app/Finder route and ordinary-folder/nested-folder support to
+this existing review/editor. It retains separate `git am` serial import and its
+working-repository requirement. Earlier dated constraints remain historical
+records; the new audit lists the current implementation and remaining gates.

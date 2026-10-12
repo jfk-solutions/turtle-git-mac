@@ -1608,6 +1608,35 @@
           "no": []
         }
       ]
+    },
+    "reviewPatch": {
+      "command": "ApplyPatch",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_PATCHFILE",
+            "ITEMIS_ONLYONE"
+          ],
+          "no": []
+        },
+        {
+          "yes": [
+            "ITEMIS_EXTENDED",
+            "ITEMIS_ONLYONE"
+          ],
+          "no": [
+            "ITEMIS_FOLDER"
+          ]
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
     }
   },
   "additionalSources": {

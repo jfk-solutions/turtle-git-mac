@@ -21,7 +21,7 @@ import TurtleGitCore
         struct SourceOrder: Decodable { let groups: [[String]] }
         let sourceOrder = try JSONDecoder().decode(SourceOrder.self, from: Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[2])))
         let mapping: [RepositoryAction: String] = [
-            .lfs: "LFSMenu", .sendMail: "Sendmail",
+            .lfs: "LFSMenu", .reviewPatch: "ApplyPatch", .sendMail: "Sendmail",
             .synchronize: "Sync", .previousDiff: "PrevDiff", .logSubmodule: "LogSubmoduleFolder", .blame: "Blame", .editConflict: "ConflictEditor", .settings: "Settings", .help: "Help", .about: "About",
             .add: "Add", .clone: "Clone", .pull: "Pull", .fetch: "Fetch", .push: "Push", .commit: "Commit",
             .diff: "Diff", .diffLater: "DiffLater", .log: "Log", .daemon: "Daemon", .revisionGraph: "RevisionGraph", .reflog: "RefLog", .referenceBrowser: "RefBrowser", .repositoryBrowser: "RepoBrowse",
@@ -256,6 +256,21 @@ import TurtleGitCore
             let mail = items(menu).first { FinderShellMenuLayout.action($0) == .sendMail }!
             precondition((mail.representedObject as! FinderMenuCommand).request.paths == selected && mail.image != nil)
         }
+        for (selected, extended) in [([patchFile], false), ([tracked], true)] {
+            let menu = FinderMenuBuilder.make(paths: selected, snapshot: nil, settings: allCommands(), comparisonMark: nil, target: target, actionSelector: selector, extended: extended)
+            let item = items(menu).first { FinderShellMenuLayout.action($0) == .reviewPatch }!
+            let request = (item.representedObject as! FinderMenuCommand).request
+            precondition(request.paths == selected && item.image != nil && FinderRequest(url: request.url!)?.action == .reviewPatch)
+        }
+        let severalPatches = FinderMenuBuilder.make(paths: [patchFile, tracked], snapshot: nil, settings: allCommands(), comparisonMark: nil, target: target, actionSelector: selector, extended: true)
+        precondition(!items(severalPatches).contains { FinderShellMenuLayout.action($0) == .reviewPatch })
+        var reviewPolicy = allCommands(); reviewPolicy.topLevelMask = FinderMenuEntry.applyPatch.mask
+        let topReview = FinderMenuBuilder.make(paths: [patchFile], snapshot: nil, settings: reviewPolicy, comparisonMark: nil, target: target, actionSelector: selector)
+        precondition(topReview.items.contains { FinderShellMenuLayout.action($0) == .reviewPatch && $0.title.hasPrefix("Git ") })
+        reviewPolicy.showIcons = false
+        let noIcon = FinderMenuBuilder.make(paths: [patchFile], snapshot: nil, settings: reviewPolicy, comparisonMark: nil, target: target, actionSelector: selector)
+        precondition(items(noIcon).allSatisfy { $0.image == nil })
+        print("Finder Review Patch: single patch and Extended file clauses, captured Unicode/newline request, original artwork, first-level placement and icon suppression passed.")
         precondition(!items(make([tracked], settings: allCommands())).contains { FinderShellMenuLayout.action($0) == .sendMail })
         print("Actual Finder LFS/Send Mail: cached marker, folder/file nested commands, original icons and selectors, captured URL paths, first-level/Shift/icon policies and outside-repository patch/extended mail gates passed.")
         let trackedActions = rootActions(make([tracked], settings: allCommands()))

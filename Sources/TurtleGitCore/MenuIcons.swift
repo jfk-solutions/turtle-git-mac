@@ -198,6 +198,7 @@ extension RepositoryAction {
         case .lfsLocks: return .repositoryBrowser
         case .lfsLock: return .lock
         case .lfsUnlock: return .unlock
+        case .reviewPatch: return .patch
         case .sendMail: return .sendMail
         case .synchronize: return .synchronize
         case .blame: return .blame

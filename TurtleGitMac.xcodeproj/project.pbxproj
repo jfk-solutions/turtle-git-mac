@@ -10,6 +10,7 @@
 		B73105000000000000000001 /* ProjectDialogSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73105000000000000000002 /* ProjectDialogSettings.swift */; };
 		B73117000000000000000001 /* NetworkSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73117000000000000000002 /* NetworkSettings.swift */; };
 		B73119000000000000000001 /* FinderOverlaySettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73119000000000000000002 /* FinderOverlaySettings.swift */; };
+		B73124000000000000000001 /* ReviewPatchWorkflow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73124000000000000000002 /* ReviewPatchWorkflow.swift */; };
 		B73123000000000000000001 /* GitDaemonWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73123000000000000000002 /* GitDaemonWindow.swift */; };
 		B73121000000000000000001 /* FinderContextMenuSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73121000000000000000002 /* FinderContextMenuSettings.swift */; };
 		B73115000000000000000001 /* SSHKeyGenerationWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73115000000000000000002 /* SSHKeyGenerationWindow.swift */; };
@@ -357,6 +358,7 @@
 		B73105000000000000000002 /* ProjectDialogSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectDialogSettings.swift; sourceTree = "<group>"; };
 		B73117000000000000000002 /* NetworkSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkSettings.swift; sourceTree = "<group>"; };
 		B73119000000000000000002 /* FinderOverlaySettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderOverlaySettings.swift; sourceTree = "<group>"; };
+		B73124000000000000000002 /* ReviewPatchWorkflow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewPatchWorkflow.swift; sourceTree = "<group>"; };
 		B73123000000000000000002 /* GitDaemonWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitDaemonWindow.swift; sourceTree = "<group>"; };
 		B73121000000000000000002 /* FinderContextMenuSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderContextMenuSettings.swift; sourceTree = "<group>"; };
 		B73115000000000000000002 /* SSHKeyGenerationWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHKeyGenerationWindow.swift; sourceTree = "<group>"; };
@@ -736,6 +738,7 @@
 				B73105000000000000000002 /* ProjectDialogSettings.swift */,
 				B73117000000000000000002 /* NetworkSettings.swift */,
 				B73119000000000000000002 /* FinderOverlaySettings.swift */,
+				B73124000000000000000002 /* ReviewPatchWorkflow.swift */,
 				B73123000000000000000002 /* GitDaemonWindow.swift */,
 				B73121000000000000000002 /* FinderContextMenuSettings.swift */,
 				B73115000000000000000002 /* SSHKeyGenerationWindow.swift */,
@@ -1537,6 +1540,7 @@
 				B73105000000000000000001 /* ProjectDialogSettings.swift in Sources */,
 				B73117000000000000000001 /* NetworkSettings.swift in Sources */,
 				B73119000000000000000001 /* FinderOverlaySettings.swift in Sources */,
+				B73124000000000000000001 /* ReviewPatchWorkflow.swift in Sources */,
 				B73123000000000000000001 /* GitDaemonWindow.swift in Sources */,
 				B73121000000000000000001 /* FinderContextMenuSettings.swift in Sources */,
 				B73115000000000000000001 /* SSHKeyGenerationWindow.swift in Sources */,

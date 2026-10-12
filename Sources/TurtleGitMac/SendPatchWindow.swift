@@ -266,6 +266,7 @@ final class ApplicationMailContext: @unchecked Sendable {
     let model: SendPatchWindowModel
     var onClosed: () -> Void = {}
     private var patch: PatchWindowController?
+    private var reviewPreparation: ReviewPatchWorkflow?
     private var targetPicker: NSOpenPanel?
     private var targetGeneration = 0
     private var choosingTarget = false, retired = false
@@ -285,7 +286,7 @@ final class ApplicationMailContext: @unchecked Sendable {
             else { EmailSettingsWindowController.present(preferences: preferences) }
         }
         if let repository {
-            model.childActive = { [weak self] in self?.choosingTarget == true || self?.window?.attachedSheet != nil || self?.patch?.model.busy == true || self?.patch?.window?.attachedSheet != nil }
+            model.childActive = { [weak self] in self?.reviewPreparation != nil || self?.choosingTarget == true || self?.window?.attachedSheet != nil || self?.patch?.model.busy == true || self?.patch?.window?.attachedSheet != nil }
             let open: (URL, Bool) -> Void = { [weak self] file, alternate in
                 guard let self else { return }
                 self.model.loadPatch(file) { [weak self] bytes in
@@ -307,6 +308,18 @@ final class ApplicationMailContext: @unchecked Sendable {
                 guard let self else { return }
                 do {
                     let grants = try self.model.fileGrants(for: [file])
+                    if choosePatchTarget {
+                        let workflow = ReviewPatchWorkflow(file: file, target: nil, grants: grants, executable: repository.executable, preferences: preferences)
+                        self.reviewPreparation = workflow; self.model.objectWillChange.send()
+                        workflow.presentation = { controller in
+                            if let presentation { presentation(controller) }
+                            else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
+                        }
+                        workflow.onFinished = { [weak self] in self?.reviewPreparation = nil; self?.model.objectWillChange.send() }
+                        if let presentation { presentation(workflow) }
+                        else { workflow.showWindow(nil); workflow.window?.makeKeyAndOrderFront(nil) }
+                        workflow.start(); return
+                    }
                     self.model.loadPatch(file) { [weak self] bytes in
                         self?.withPatchTarget(repository: repository, access: repositoryAccess, choose: choosePatchTarget, preferred: file.deletingLastPathComponent()) { target, access in
                             SendPatchCommandWindows.review(bytes: bytes, file: file, repository: target, access: access,
@@ -361,6 +374,7 @@ final class ApplicationMailContext: @unchecked Sendable {
         retired = true; targetGeneration += 1
         if let panel = targetPicker { window?.endSheet(panel, returnCode: .cancel); panel.close() }
         targetPicker = nil; choosingTarget = false
+        reviewPreparation?.cancel(); reviewPreparation = nil
         model.invalidate(); patch?.close(); patch = nil; onClosed()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }

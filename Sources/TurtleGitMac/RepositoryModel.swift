@@ -74,6 +74,10 @@ import TurtleGitCore
     var daemonPresentation: ((GitDaemonWindowController) -> Void)?
     private var lfsLocksWindows: [String: LFSLocksWindowController] = [:]
     private var lfsFileOperations: [UUID: LFSFileOperationController] = [:]
+    private var reviewPatchWorkflows: [UUID: ReviewPatchWorkflow] = [:]
+    var reviewPatchPreferences: UserDefaults = .standard
+    var reviewPatchPreparation: ((ReviewPatchWorkflow) -> Void)?
+    var reviewPatchPresentation: ((WorkingTreePatchWindowController) -> Void)?
     private var finderMailWorkflows: [UUID: SendMailWorkflow] = [:]
     var finderMailPresentation: ((NSWindowController) -> Void)?
     private var addProgressWindows: [UUID: AddProgressWindowController] = [:]
@@ -320,6 +324,8 @@ import TurtleGitCore
         guard !confirmingQuit else { return }
         guard !bare || !action.requiresWorkingTree else { error = "\(action.title) requires a working tree. This repository is bare."; return }
         switch action {
+        case .reviewPatch:
+            showReviewPatch(files: (paths.isEmpty ? selectedPaths : paths).map { repository?.root.appendingPathComponent($0) }.compactMap { $0 })
         case .daemon: showDaemon()
         case .lfs: error = "Choose an operation from the Git LFS submenu."
         case .lfsLocks: showLFSLocks()
@@ -819,6 +825,36 @@ import TurtleGitCore
     /// Send Mail captures file grants and does not change the app's checkout.
     /// A known first-file repository supplies local sender identity; otherwise
     /// an owned no-repository context supplies Git's global identity.
+    func showReviewPatch(files: [URL]) {
+        guard !busy, !confirmingQuit else { return }
+        guard files.count <= 1 else { error = "Select one patch file to review."; return }
+        let first = files.first
+        let knownRoot = first.flatMap { first in
+            FinderSnapshot.read()?.roots.sorted { $0.count > $1.count }.first { first.path == $0 || first.path.hasPrefix($0 + "/") }
+                ?? root.flatMap { first.path == $0.path || first.path.hasPrefix($0.path + "/") ? $0.path : nil }
+        }
+        let patchFile = first.flatMap { ["patch", "diff"].contains($0.pathExtension.lowercased()) ? $0 : nil }
+        let target = knownRoot != nil ? first?.deletingLastPathComponent() : first == nil ? root : nil
+        var grants: [RepositoryAccessLease] = []
+        if let activeAccess { grants.append(activeAccess) }
+        if GitRuntime.isAppStoreBuild, let store = accessStore {
+            for saved in store.repositories {
+                if let lease = try? store.acquire(saved.id, requireSecurityScope: true),
+                   first.map({ lease.contains($0) }) == true || target.map({ lease.contains($0) }) == true { grants.append(lease) }
+            }
+        }
+        do {
+            let workflow = ReviewPatchWorkflow(file: patchFile, target: target, preferred: first?.deletingLastPathComponent() ?? root,
+                grants: grants, executable: try GitRuntime.executable(), preferences: reviewPatchPreferences)
+            let id = UUID(); reviewPatchWorkflows[id] = workflow
+            workflow.presentation = reviewPatchPresentation
+            workflow.onFinished = { [weak self] in self?.reviewPatchWorkflows.removeValue(forKey: id) }
+            if let reviewPatchPreparation { reviewPatchPreparation(workflow) }
+            else { workflow.showWindow(nil); workflow.window?.makeKeyAndOrderFront(nil) }
+            workflow.start()
+        } catch { self.error = error.localizedDescription }
+    }
+
     private func showFinderSendMail(files: [URL]) {
         guard !busy, !confirmingQuit, !files.isEmpty else { return }
         let first = files[0]
@@ -2124,6 +2160,7 @@ import TurtleGitCore
             guard canChangeSettingsContext() else { return }
         } else if action.isApplicationUtility { activate(action); return }
         guard !busy else { return }
+        if action == .reviewPatch { showReviewPatch(files: request.paths); return }
         if action == .sendMail { showFinderSendMail(files: request.paths); return }
         if action == .clearComparisonMark { clearComparisonMark(); return }
         if action == .diffLater {

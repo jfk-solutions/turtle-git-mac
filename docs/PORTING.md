@@ -568,3 +568,19 @@ physical layout, firewall and LAN/IPv6 acceptance still open. See
 [DAEMON-PARITY.md](DAEMON-PARITY.md). Validation is grouped after the complete
 implementation batch, using loopback-only real Git serving and native receiver
 fixtures; no installed app or Finder extension is activated.
+
+
+## Single-patch review and directory-target batch — 2026-10-12
+
+The missing Review/apply single patch Finder group now routes to native owned
+patch/target choosers and the existing before/after editor without adopting a
+repository or applying on launch. Source artwork, single-file/Extended clauses,
+placement before Send Mail and shared menu preferences are retained. Directory
+mode supports plain targets and nested Git folders, anchors patch paths via
+disposable administration, preserves the real index during application and
+avoids initializing Git in ordinary folders. Edited new files auto-add only
+when the target is a Git working tree. Outside-repository Send Mail Review uses
+the same workflow; serial import still chooses a working Git repository.
+The Finder catalog now exposes 51 of 55 groups; the four SVN groups remain
+unavailable. Full clipboard/path-guessing/TortoiseGitMerge behavior, physical
+layout and signed acceptance remain open; see REVIEW-PATCH-PARITY.md.

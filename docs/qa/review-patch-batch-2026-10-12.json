@@ -1,0 +1,15 @@
+{
+  "date": "2026-10-12",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Standalone app/Finder single-patch review and ordinary/nested directory targets",
+  "implementationThenGroupedValidation": true,
+  "build": {"configuration": "Debug", "architecture": "arm64", "exitCode": 0, "signed": false, "log": "build/qa/review-patch-native-2026-10-12.log", "notes": "Existing compiler warnings and exit-zero diagnostic noise; the independent native receiver compilation succeeded."},
+  "core": {"tests": 46, "failures": 0, "seconds": 16.547, "log": "build/qa/review-patch-core-2026-10-12.log", "checks": ["plain-directory binary and rename review", "checked subset", "plain edited-result save", "no Git initialization in plain target", "nested Git folder path anchoring", "real index unchanged during application", "optional edited new-file auto-add into real index", "unchanged HEAD", "stale-input rejection", "unsafe path checks", "existing working-tree patch review tests", "Finder source condition and request checks"]},
+  "finder": {"exitCode": 0, "implementedRootEntries": 57, "sourceConditionCommands": 60, "log": "build/qa/review-patch-finder-2026-10-12.log", "checks": ["single-patch and Extended single-file clauses", "Unicode/newline request", "original patch icon", "source ordering", "first-level placement", "icon suppression", "multiple-selection exclusion"], "installedExtensionActivated": false},
+  "native": {"exitCode": 0, "compilations": 1, "receiverProcesses": 1, "log": "build/qa/review-patch-receivers-2026-10-12.log", "checks": ["actual RepositoryModel Finder URL handoff outside Git", "unchanged app repository context", "plain-folder before/after comparison", "checked-file application", "edited result save", "dirty-close guard", "source patch preservation", "no Git initialization", "duplicate start rejected", "late target response fenced after closure", "existing daemon/LFS/mail fixtures"], "chooserResponses": "injected", "patchOperations": "real Git on disposable files", "mailTransport": "owned loopback SMTP", "installedApplicationLaunched": false},
+  "availableFinderGroups": 51,
+  "catalogFinderGroups": 55,
+  "remainingUnavailableFinderGroups": ["SVN DCommit", "SVN Rebase", "SVN Fetch", "SVN Ignore"],
+  "remainingAcceptance": ["physical source layout comparison", "automatic patch-path guessing", "source clipboard patch integration", "complete TortoiseGitMerge formats and conflicts", "large-patch performance", "signed Finder/bookmark/sandbox behavior", "full application parity", "distribution and App Store acceptance"],
+  "completePortCertified": false
+}

@@ -161,7 +161,7 @@ public struct FinderRepositoryMetadata: Codable, Equatable, Sendable {
     }
     /// Repository-wide clauses only; path/status clauses remain separate.
     public func allows(_ action: RepositoryAction) -> Bool {
-        if action.isApplicationUtility || action == .sendMail { return true }
+        if action.isApplicationUtility || [.sendMail, .reviewPatch].contains(action) { return true }
         if bare { return [.fetch, .push, .log, .daemon, .revisionGraph, .reflog, .referenceBrowser, .repositoryBrowser, .export, .worktreeList].contains(action) }
         if [.pull, .merge, .rebase, .synchronize].contains(action) && (bisectActive || mergeActive) { return false }
         if action == .bisectStart && (bisectActive || mergeActive) { return false }
@@ -293,12 +293,13 @@ public struct FinderSnapshot: Codable, Sendable {
 }
 
 public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
-    case daemon, lfs, lfsLocks, lfsLock, lfsUnlock, sendMail
+    case reviewPatch, daemon, lfs, lfsLocks, lfsLock, lfsUnlock, sendMail
     case synchronize, blame, previousDiff, logSubmodule, settings, help, about
     case status, commit, add, revert, clean, submoduleAdd, submoduleUpdate, submoduleSync, log, revisionGraph, referenceBrowser, repositoryBrowser, export, bisect, bisectStart, bisectGood, bisectBad, bisectSkip, bisectReset, formatPatch, importPatch, requestPull, worktreeCreate, worktreeList, diff, diffLater, clearComparisonMark, pull, push, fetch, branch, tag, switchBranch, merge, mergeAbort, rebase, stash, stashApply, stashPop, stashList, reflog, clone, initialize, rename, remove, removeKeep, ignore, ignoreMask, ignoreDelete, ignoreDeleteMask, resolve, resolveCurrent, resolveMine, resolveTheirs, reset, editConflict
     public var id: String { rawValue }
     public var title: String {
         switch self {
+        case .reviewPatch: return "Review/apply single patch…"
         case .daemon: return "Daemon"
         case .lfs: return "LFS"
         case .lfsLocks: return "Show locked files"
@@ -475,6 +476,7 @@ public enum FinderShellRules {
         .lfsLocks: [.init([.folderInGit, .onlyOne], []), .init([], []), .init([], []), .init([], [])],
         .lfsLock: [.init([.inGit, .inVersionedFolder], [.folder]), .init([], []), .init([], []), .init([], [])],
         .lfsUnlock: [.init([.inGit, .inVersionedFolder], [.folder]), .init([], []), .init([], []), .init([], [])],
+        .reviewPatch: [.init([.patchFile, .onlyOne], []), .init([.extended, .onlyOne], [.folder]), .init([], []), .init([], [])],
         .sendMail: [.init([.patchFile], []), .init([.extended], [.folder]), .init([], []), .init([], [])],
         .synchronize: [.init([.folderInGit, .onlyOne], [.bisect, .merge]), .init([], []), .init([], []), .init([], [])],
         .previousDiff: [.init([.inGit, .onlyOne], [.added]), .init([], []), .init([], []), .init([], [])],

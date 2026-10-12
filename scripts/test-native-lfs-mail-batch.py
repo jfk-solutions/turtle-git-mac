@@ -33,12 +33,15 @@ with tempfile.TemporaryDirectory(prefix='TurtleGitLFSMailNativeBatch-') as tempo
                     .replace('guard CommandLine.arguments.count == 3, let port = Int(CommandLine.arguments[2]) else', 'guard let port = (try JSONSerialization.jsonObject(with: Data(contentsOf: root.appendingPathComponent("ready.json"))) as? [String: Any])?["port"] as? Int else'))
     daemon = folder / 'DaemonReceiver.swift'
     daemon.write_text((root / 'docs/qa/daemon-native-2026-10-12.swift').read_text())
+    review = folder / 'ReviewReceiver.swift'
+    review.write_text((root / 'docs/qa/review-patch-native-2026-10-12.swift').read_text())
     main = folder / 'Main.swift'
     main.write_text('''import AppKit
 import Foundation
 @main struct NativeBatch {
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
+        try await ReviewPatchNativeVerification.verify()
         try await DaemonNativeVerification.verify()
         try await LFSLocksVerification.main()
         let fixture = URL(fileURLWithPath: CommandLine.arguments[1])
@@ -55,7 +58,7 @@ import Foundation
     digest = hashlib.sha256()
     digest.update((platform.machine() + '-apple-macos13.0/swift5/WMO-Onone/testing-receiver-v2').encode())
     digest.update(subprocess.check_output(['xcrun', 'swiftc', '--version']))
-    for source in [*map(Path, sources), copy, lfs, mail, daemon, main, products / 'TurtleGitCore.framework/TurtleGitCore']:
+    for source in [*map(Path, sources), copy, lfs, mail, daemon, review, main, products / 'TurtleGitCore.framework/TurtleGitCore']:
         digest.update(source.name.encode()); digest.update(source.read_bytes())
     cache = root / 'build/qa/native-receivers'; cache.mkdir(parents=True, exist_ok=True)
     executable = cache / ('lfs-mail-' + digest.hexdigest())
@@ -63,7 +66,7 @@ import Foundation
         staging = folder / 'verify'
         subprocess.run(['xcrun', 'swiftc', '-whole-module-optimization', '-Onone', '-parse-as-library', '-swift-version', '5',
                         '-target', platform.machine() + '-apple-macos13.0', '-I', str(products), '-F', str(products),
-                        *sources, str(copy), str(lfs), str(mail), str(daemon), str(main), '-framework', 'TurtleGitCore', '-o', str(staging)], cwd=root, check=True)
+                        *sources, str(copy), str(lfs), str(mail), str(daemon), str(review), str(main), '-framework', 'TurtleGitCore', '-o', str(staging)], cwd=root, check=True)
         staging.replace(executable)
         print('Native receiver compiled once for this source/framework/toolchain.', flush=True)
     else: print('Reusing native receiver for unchanged source/framework/toolchain.', flush=True)

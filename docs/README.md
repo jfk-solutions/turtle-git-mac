@@ -135,6 +135,7 @@ for baseline and update rules.
 - [Finder repository metadata and command availability](FINDER-REPOSITORY-METADATA-PARITY.md)
 - [Finder menu selection dispatch](FINDER-SELECTION-PARITY.md)
 - [Finder command handoffs and native Settings ownership](FINDER-COMMAND-HANDOFF-PARITY.md)
+- [Review/apply single patch and ordinary-folder targets](REVIEW-PATCH-PARITY.md)
 - [Git daemon warning, progress and process ownership](DAEMON-PARITY.md)
 - [Finder LFS submenu and Send Mail handoff](FINDER-LFS-MAIL-PARITY.md)
 - [Finder registered submodule roots](FINDER-SUBMODULE-ROOT-PARITY.md)

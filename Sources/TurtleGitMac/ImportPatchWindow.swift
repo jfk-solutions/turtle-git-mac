@@ -608,8 +608,8 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     var onClosed: () -> Void = {}
     private var approvedClose = false
     var activeOperation: Bool { model.busy || model.confirmingQuit || model.draftDecisionPending || model.previewDocument.busy || model.editor?.exporting == true || window?.attachedSheet != nil }
-    init(repository: GitRepository, access: RepositoryAccessLease?, fileAccess: RepositoryAccessLease?, bytes: Data, title: String, preferences: UserDefaults = .standard) {
-        model = WorkingTreePatchWindowModel(repository: repository, access: access, fileAccess: fileAccess, bytes: bytes, preferences: preferences)
+    init(repository: GitRepository, access: RepositoryAccessLease?, fileAccess: RepositoryAccessLease?, bytes: Data, title: String, preferences: UserDefaults = .standard, directoryMode: Bool = false, isGitWorkingTree: Bool = true) {
+        model = WorkingTreePatchWindowModel(repository: repository, access: access, fileAccess: fileAccess, bytes: bytes, preferences: preferences, directoryMode: directoryMode, isGitWorkingTree: isGitWorkingTree)
         let window = WorkingTreePatchNativeWindow(contentRect: .init(x: 0, y: 0, width: 1100, height: 720), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "\(title) – Review Patch – TurtleGitMerge"; window.isReleasedWhenClosed = false
         let host = NSHostingController(rootView: WorkingTreePatchDialog(model: model)); host.sizingOptions = []
@@ -642,6 +642,8 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
 @MainActor final class WorkingTreePatchWindowModel: ObservableObject {
     enum DraftChoice { case save, discard, cancel }
     let repository: GitRepository
+    let directoryMode: Bool
+    let isGitWorkingTree: Bool
     private let preferences: UserDefaults
     private let access: RepositoryAccessLease?
     private let fileAccess: RepositoryAccessLease?
@@ -683,7 +685,8 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     var parentActive: () -> Bool = { false }
     var editable: Bool { !busy && editor?.exporting != true && !confirmingQuit && !draftDecisionPending && !previewDocument.busy && !parentActive() }
     var canApply: Bool { canReplaceComparison && !requiresRefresh && selectedReview?.canApply == true && !selected.isEmpty }
-    init(repository: GitRepository, access: RepositoryAccessLease?, fileAccess: RepositoryAccessLease?, bytes: Data, preferences: UserDefaults = .standard) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, fileAccess: RepositoryAccessLease?, bytes: Data, preferences: UserDefaults = .standard, directoryMode: Bool = false, isGitWorkingTree: Bool = true) {
+        self.directoryMode = directoryMode; self.isGitWorkingTree = isGitWorkingTree
         self.repository = repository; self.access = access; self.fileAccess = fileAccess; self.bytes = bytes; self.preferences = preferences
         previewDocument = PatchWindowModel(repository: repository, access: access, appearancePreferences: preferences)
         previewDocument.setReadOnlyDiff(bytes); previewDocument.refreshAvailable = false
@@ -709,7 +712,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         }
     }
     private func load(reverse: Bool, strip: Int) async throws {
-        let next = try await repository.reviewWorkingTreePatch(bytes, reversed: reverse, stripCount: strip)
+        let next = try await repository.reviewWorkingTreePatch(bytes, reversed: reverse, stripCount: strip, directoryMode: directoryMode, isGitWorkingTree: isGitWorkingTree)
         review = next; requiresRefresh = false
         selected = Set(next.files.filter { !appliedPaths.contains($0.pathBytes) }.map(\.id))
         try await validateSelection()
