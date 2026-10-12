@@ -104,6 +104,24 @@ import TurtleGitCore
     var engineConfiguration: SubversionMergeConfiguration?
     @Published private(set) var comparisonOptions = MergeComparisonOptions.load()
     var comparisonDefaults: UserDefaults = .standard
+    @Published private(set) var locatorPreferences = MergeLocatorPreferences.load()
+    @Published private(set) var locatorViewport = MergeLocatorViewport()
+    var locatorMap: MergeLocatorMap {
+        MergeLocatorMap(columns: [alignment?.rows.map { $0.base.state } ?? [], [], alignment?.rows.map { $0.destination.state } ?? []])
+    }
+    func setLocatorPreferences(_ value: MergeLocatorPreferences) {
+        guard !retired, !busy, !confirmingQuit else { return }
+        locatorPreferences = value; value.save(to: comparisonDefaults)
+    }
+    func scrollLocator(to row: Int) {
+        guard !retired, !busy, !filtering, !confirmingQuit else { return }
+        for scroll in scrolls.values { MergeLocatorScrolling.scroll(scroll, to: row) }
+        refreshLocatorViewport()
+    }
+    func refreshLocatorViewport() {
+        let value = MergeLocatorScrolling.viewport(scrolls[true] ?? scrolls[false])
+        if value != locatorViewport { locatorViewport = value }
+    }
     var commentProfileURL = MergeCommentProfileFile.url
     private var commentProfiles = MergeCommentProfiles.bundled()
     private var reloadCommentProfiles = true
@@ -208,6 +226,7 @@ import TurtleGitCore
     func useSpaces(base: Bool) -> Bool { spacePanes[base] ?? editorPreferences.useSpaces }
     func smartTab(base: Bool) -> Bool { smartTabPanes[base] ?? editorPreferences.smartTab }
     func refreshPreferences() {
+        locatorPreferences = .load(from: comparisonDefaults)
         let options = MergeComparisonOptions.load(from: comparisonDefaults)
         if options != comparisonOptions { comparisonOptions = options; rebuildFilterAlignment() }
         let next = MergeEditorPreferences.load()
@@ -620,8 +639,9 @@ import TurtleGitCore
     func remapOtherAnnotations(from old: FileComparisonAlignment, to new: FileComparisonAlignment, changedBase: Bool) {
         drafts?.remapAnnotations(from: old, to: new, base: !changedBase)
     }
-    func register(_ scroll: NSScrollView, base: Bool) { scrolls[base] = scroll; onRegisterScroll(scroll, base) }
+    func register(_ scroll: NSScrollView, base: Bool) { scrolls[base] = scroll; onRegisterScroll(scroll, base); refreshLocatorViewport() }
     func scrolled(_ source: NSScrollView) {
+        defer { refreshLocatorViewport() }
         guard !synchronizing else { return }; synchronizing = true; defer { synchronizing = false }
         for target in scrolls.values where target !== source {
             var point = target.contentView.bounds.origin; point.y = source.contentView.bounds.origin.y
@@ -700,6 +720,7 @@ private struct FileComparisonDialog: View {
                 Toggle("Line numbers", isOn: $model.showLineNumbers)
             }.toggleStyle(.checkbox).padding(.horizontal, 10).padding(.bottom, 8)
             HStack {
+                MergeLocatorControls(preferences: model.locatorPreferences, apply: model.setLocatorPreferences).disabled(model.busy || model.confirmingQuit)
                 MergeComparisonControls(options: model.comparisonOptions, apply: model.setComparisonOptions, supportsComments: model.supportsComments).disabled(model.busy || model.confirmingQuit)
                 Menu {
                     Button { model.selectRegexFilter(nil) } label: {
@@ -726,7 +747,14 @@ private struct FileComparisonDialog: View {
                 Spacer()
             }.padding(.horizontal, 10).padding(.bottom, 8)
             Divider()
-            HSplitView { pane(base: true); pane(base: false) }
+            HStack(spacing: 0) {
+                if model.locatorPreferences.visible {
+                    MergeLocatorBar(map: model.locatorMap, viewport: model.locatorViewport, fishEye: model.locatorPreferences.fishEye,
+                                    enabled: !model.busy && !model.filtering && !model.confirmingQuit, navigate: model.scrollLocator)
+                        .frame(width: 44).help("Left and right file overview; click or drag to scroll")
+                }
+                HSplitView { pane(base: true); pane(base: false) }
+            }
             Divider()
             HStack {
                 if model.busy { ProgressView().controlSize(.small) }
@@ -777,6 +805,7 @@ struct FileComparisonEditor: NSViewRepresentable {
     }
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let view = scroll.documentView as? NSTextView else { return }
+        DispatchQueue.main.async { model.refreshLocatorViewport() }
         // Hosting can deliver a previously captured View value after an edit.
         // Read the current alignment and preserve the selection in source
         // coordinates before replacing attributed display text.

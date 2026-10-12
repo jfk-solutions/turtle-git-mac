@@ -8,6 +8,10 @@ protection. Both viewers capture profiles on reload; the three-pane editor
 retains its dirty Save/discard/Cancel workflow. See
 [comment comparison parity](MERGE-COMMENTS-PARITY.md).
 
+The merge locator batch adds colored Left/Bottom/Right stripes, viewport tracking,
+nonselecting navigation, an optional fish-eye lens and saved native View/Settings
+controls in both viewers. See [locator parity](MERGE-LOCATOR-PARITY.md).
+
 The target is complete behavioral parity, with native macOS windows and Finder
 integration. This first implementation establishes the architecture and common
 workflows. It does **not** represent the complete port or reproduce all upstream

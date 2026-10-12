@@ -12,6 +12,7 @@ struct MergeEditorSettings: View {
     @State private var initialized = false
     @State private var draft = MergeEditorPreferences.load()
     @State private var comparison = MergeComparisonOptions.load()
+    @State private var locator = MergeLocatorPreferences.load()
     @State private var tabSize = String(MergeEditorPreferences.load().tabWidth)
     @State private var profileText = ""
     @State private var savedProfileText = ""
@@ -24,7 +25,7 @@ struct MergeEditorSettings: View {
     }
     private var changed: Bool {
         guard let width = validWidth else { return true }
-        return MergeEditorPreferences(tabWidth: width, useSpaces: draft.useSpaces, smartTab: draft.smartTab, showLineNumbers: draft.showLineNumbers, enableEditorConfig: draft.enableEditorConfig, autoAdd: draft.autoAdd) != .load() || comparison != .load() || profileText != savedProfileText
+        return MergeEditorPreferences(tabWidth: width, useSpaces: draft.useSpaces, smartTab: draft.smartTab, showLineNumbers: draft.showLineNumbers, enableEditorConfig: draft.enableEditorConfig, autoAdd: draft.autoAdd) != .load() || comparison != .load() || locator != .load() || profileText != savedProfileText
     }
     private var validationError: String? {
         if validWidth == nil { return "Enter a tab size from 1 to 1000." }
@@ -37,6 +38,8 @@ struct MergeEditorSettings: View {
             GroupBox("General") {
                 VStack(alignment: .leading, spacing: 12) {
                     Toggle("Show line numbers", isOn: $draft.showLineNumbers)
+                    Toggle("Show locator bar", isOn: $locator.visible)
+                    Toggle("Use fish-eye in locator bar", isOn: $locator.fishEye)
                     HStack {
                         Toggle("Use spaces", isOn: $draft.useSpaces)
                         Spacer()
@@ -81,6 +84,7 @@ struct MergeEditorSettings: View {
         }.padding(20).background(MergeSettingsWindowProbe(reference: windowReference).frame(width: 0, height: 0)).onAppear { if !initialized { initialized = true; restore() } }
         .onChange(of: tabSize) { _ in transaction?.notify() }
         .onChange(of: comparison) { _ in transaction?.notify() }
+        .onChange(of: locator) { _ in transaction?.notify() }
         .onChange(of: profileText) { _ in transaction?.notify() }
         .sheet(isPresented: $editingProfiles) {
             VStack(alignment: .leading, spacing: 12) {
@@ -116,7 +120,7 @@ struct MergeEditorSettings: View {
             let alert = NSAlert(); alert.messageText = "Comment profiles were not saved"
             alert.informativeText = error.localizedDescription; alert.runModal(); return false
         }
-        draft.tabWidth = width; draft.save(); comparison.save()
+        draft.tabWidth = width; draft.save(); comparison.save(); locator.save()
         NotificationCenter.default.post(name: .mergeEditorPreferencesChanged, object: nil); return true
     }
     private var sheetValidationError: String? {
@@ -124,7 +128,7 @@ struct MergeEditorSettings: View {
         catch { return error.localizedDescription }
     }
     private func restore() {
-        draft = .load(); comparison = .load(); tabSize = String(draft.tabWidth)
+        draft = .load(); comparison = .load(); locator = .load(); tabSize = String(draft.tabWidth)
         do { profileText = try MergeCommentProfileFile.text(); savedProfileText = profileText; profileError = nil }
         catch { profileError = error.localizedDescription }
     }

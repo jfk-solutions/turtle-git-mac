@@ -101,7 +101,7 @@ coordinate projection during editing; source equivalence and native acceptance
 remain partial. Synchronized vertical source scrolling
 is implemented, but native attempts encountered inaccessible scroll targets and
 no-window observations; it remains unverified. Character-level differences, syntax coloring, whitespace
-and EOL/encoding controls, folding, locator bar, source editing, complete ribbon
+and EOL/encoding controls, folding, full locator overlay acceptance, source editing, complete ribbon
 and menus, standalone two-file comparison, external tools, binary/image merging,
 empty-result Delete/Keep, backup files, complete reload/open workflows and selection
 mapping from source-pane block menus remain pending. EOF block choices now use original source ending metadata for the unchanged
@@ -114,7 +114,7 @@ file. The initial capture exposed a scrolled line number drawing into the pane
 heading; converting text coordinates into ruler coordinates and clipping its
 visible area corrected it in both verified captures. The upstream three-pane
 screenshot was visually inspected: pane order matches. Aligned source rows and richer color distinctions have now
-been added; exact diff3 segmentation, locator strip and full toolbar remain outstanding. Show Base subsequently worked in the current native dark build and displayed
+been added; exact diff3 segmentation, full locator overlay acceptance and toolbar remain outstanding. Show Base subsequently worked in the current native dark build and displayed
 the exact original contents alongside both sides. A manual-edit/close-cancellation
 check encountered AX selection/observation failures and remains unverified.
 
@@ -600,3 +600,5 @@ Core tests; unsigned bundles retain the original asset and provenance. Physical
 menu tracking, keyboard clipboard dispatch, actual Cut/Paste operations, source
 menu order/grouping beyond these entries, all whitespace/format state variants,
 and signed sandbox acceptance remain pending. This is partial context-menu parity.
+
+The native locator bar is now integrated in both viewers, with engine result colors, scroll navigation and source appearance defaults. See [locator parity](MERGE-LOCATOR-PARITY.md) for grouped checks and the remaining physical/complete-overlay scope.

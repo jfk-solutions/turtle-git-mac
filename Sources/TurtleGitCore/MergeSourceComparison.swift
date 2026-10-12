@@ -22,8 +22,10 @@ public struct MergeSourceRow: Sendable {
 /// part of the editable result, and filtering numbered cells recovers each source.
 public struct MergeSourceComparison: Sendable {
     public let rows: [MergeSourceRow]
-    public init(rows: [MergeSourceRow]) { self.rows = rows }
+    public let resultLocator: MergeLocatorResult?
+    public init(rows: [MergeSourceRow], resultLocator: MergeLocatorResult? = nil) { self.rows = rows; self.resultLocator = resultLocator }
     public init(base: String, mine: String, theirs: String) {
+        resultLocator = nil
         let baseLines = Self.lines(base), mineLines = Self.lines(mine), theirLines = Self.lines(theirs)
         let mineHunks = Self.hunks(base: baseLines, side: mineLines, mine: true)
         let theirHunks = Self.hunks(base: baseLines, side: theirLines, mine: false)
@@ -175,4 +177,77 @@ public struct MergeSourceComparison: Sendable {
         return result
     }
     private static func sameBytes(_ first: String, _ second: String) -> Bool { first.utf8.elementsEqual(second.utf8) }
+}
+
+/// LocatorBar.cpp compresses consecutive state runs and scales all panes by the
+/// longest view. Three stripes are Left, Bottom, Right, also in two-pane mode.
+public struct MergeLocatorMap: Sendable {
+    public struct Run: Equatable, Sendable {
+        public let rows: Range<Int>
+        public let state: MergeSourceState
+    }
+    public let columns: [[Run]]
+    public let lineCount: Int
+    public init(columns: [[MergeSourceState]]) {
+        lineCount = columns.map(\.count).max() ?? 0
+        self.columns = columns.map { states in
+            var runs: [Run] = [], start = 0
+            for index in states.indices {
+                if index + 1 == states.count || states[index + 1] != states[index] {
+                    runs.append(Run(rows: start..<index + 1, state: states[index])); start = index + 1
+                }
+            }
+            return runs
+        }
+    }
+    public func row(at fraction: Double) -> Int {
+        guard lineCount > 0, fraction.isFinite else { return 0 }
+        return min(lineCount - 1, max(0, Int((min(1, max(0, fraction)) * Double(lineCount)).rounded(.down))))
+    }
+}
+public struct MergeLocatorPreferences: Equatable, Sendable {
+    public var visible: Bool
+    public var fishEye: Bool
+    public init(visible: Bool = true, fishEye: Bool = true) { self.visible = visible; self.fishEye = fishEye }
+    public static func load(from defaults: UserDefaults = .standard) -> Self {
+        Self(visible: defaults.object(forKey: "TurtleGitMerge.LocatorBar") == nil ? true : defaults.bool(forKey: "TurtleGitMerge.LocatorBar"),
+             fishEye: defaults.object(forKey: "TurtleGitMerge.UseFishEye") == nil ? true : defaults.bool(forKey: "TurtleGitMerge.UseFishEye"))
+    }
+    public func save(to defaults: UserDefaults = .standard) {
+        defaults.set(visible, forKey: "TurtleGitMerge.LocatorBar"); defaults.set(fishEye, forKey: "TurtleGitMerge.UseFishEye")
+    }
+}
+/// Initial result colors come from the actual Subversion presentation. During
+/// editing, retain the unchanged prefix/suffix and mark the edited middle added;
+/// conflict ranges override those colors. This never changes result text.
+public struct MergeLocatorResult: Sendable {
+    public let text: String
+    public let states: [MergeSourceState]
+    public init(text: String, spans: [(Range<Int>, MergeSourceState)]) {
+        self.text = text
+        var cursor = 0
+        states = MergeLineEndings.lineRanges(in: text).map { line in
+            while cursor < spans.count && spans[cursor].0.upperBound <= line.location { cursor += 1 }
+            return cursor < spans.count ? spans[cursor].1 : .normal
+        }
+    }
+    public func states(for result: String, conflicts: [NSRange]) -> [MergeSourceState] {
+        let original = MergeRegexFilters.lines(text), current = MergeRegexFilters.lines(result)
+        var prefix = 0, suffix = 0
+        while prefix < min(original.count, current.count), original[prefix].utf8.elementsEqual(current[prefix].utf8) { prefix += 1 }
+        while suffix < min(original.count, current.count) - prefix,
+              original[original.count - suffix - 1].utf8.elementsEqual(current[current.count - suffix - 1].utf8) { suffix += 1 }
+        let ranges = MergeLineEndings.lineRanges(in: result)
+        var conflict = 0
+        return ranges.enumerated().map { index, range in
+            while conflict < conflicts.count && NSMaxRange(conflicts[conflict]) <= range.location { conflict += 1 }
+            if conflict < conflicts.count && NSIntersectionRange(range, conflicts[conflict]).length > 0 { return .conflicted }
+            if index < prefix { return states.indices.contains(index) ? states[index] : .normal }
+            if index >= current.count - suffix {
+                let old = original.count - (current.count - index)
+                return states.indices.contains(old) ? states[old] : .normal
+            }
+            return .added
+        }
+    }
 }

@@ -192,4 +192,6 @@ are not recursively audited.
 
 [Merge comparison options](MERGE-COMPARISON-OPTIONS-PARITY.md): whitespace/case/EOL controls and saved source defaults; full acceptance remains open.
 
-[Comment comparison](MERGE-COMMENTS-PARITY.md): pinned language profiles and source heuristic in both viewers; profile overrides and complete acceptance remain open.
+[Comment comparison](MERGE-COMMENTS-PARITY.md): pinned language profiles and source heuristic in both viewers; native profile editing/overrides are implemented; complete acceptance remains open.
+
+[Merge locator bar](MERGE-LOCATOR-PARITY.md): native colored overview, viewport/navigation and saved view settings in both editors; remaining acceptance is recorded.

@@ -66,6 +66,10 @@ import TurtleGitCore
         model.commentProfileURL = root.appendingPathComponent("ignorecomments.txt"); model.comparisonDefaults = defaults; model.regexDefaults = defaults; model.refreshRegexFilters(); model.load()
         try await wait { !model.busy && model.document != nil }
         precondition(model.document?.mergeSources != nil && model.blocks.count == 1 && !model.dirty && model.supportsComments)
+        precondition(model.locatorMap.columns.count == 3 && model.locatorMap.columns[1].contains { $0.state == .conflicted })
+        model.setLocatorPreferences(.init(visible: false, fishEye: false))
+        precondition(MergeLocatorPreferences.load(from: defaults) == .init(visible: false, fishEye: false))
+        model.setLocatorPreferences(.init())
         model.selectRegexFilter(filter.name); try await wait { !model.busy }
         precondition(model.regexFilterName == filter.name && model.sourceComparison?.rows[0].mine.state == .filtered)
         precondition(model.result.hasPrefix("version 2\n") && model.blocks.count == 1)

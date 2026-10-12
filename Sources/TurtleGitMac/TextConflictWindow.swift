@@ -200,6 +200,29 @@ private enum MergeSourceSide {
     var engineConfiguration: SubversionMergeConfiguration?
     @Published private(set) var comparisonOptions = MergeComparisonOptions.load()
     var comparisonDefaults: UserDefaults = .standard
+    @Published private(set) var locatorPreferences = MergeLocatorPreferences.load()
+    @Published private(set) var locatorViewport = MergeLocatorViewport()
+    private weak var locatorResultScroll: NSScrollView?
+    var locatorMap: MergeLocatorMap {
+        let states = sourceComparison?.resultLocator?.states(for: result, conflicts: blocks.map(\.range)) ?? []
+        return MergeLocatorMap(columns: [sourceComparison?.rows.map { $0.theirs.state } ?? [], states, sourceComparison?.rows.map { $0.mine.state } ?? []])
+    }
+    func setLocatorPreferences(_ value: MergeLocatorPreferences) {
+        guard !retired, !busy, !confirmingQuit else { return }
+        locatorPreferences = value; value.save(to: comparisonDefaults)
+    }
+    func registerLocatorResult(_ scroll: NSScrollView) { locatorResultScroll = scroll }
+    func refreshLocatorViewport() {
+        let primary = sourceScrolls.first { $0.key.hasPrefix("Theirs") }?.value.view ?? locatorResultScroll
+        let value = MergeLocatorScrolling.viewport(primary)
+        if value != locatorViewport { locatorViewport = value }
+    }
+    func scrollLocator(to row: Int) {
+        guard !retired, !busy, !confirmingQuit else { return }
+        for reference in sourceScrolls.values { if let scroll = reference.view { MergeLocatorScrolling.scroll(scroll, to: row) } }
+        if let locatorResultScroll { MergeLocatorScrolling.scroll(locatorResultScroll, to: row) }
+        refreshLocatorViewport()
+    }
     private var pendingComparisonOptions: MergeComparisonOptions?
     var commentProfileURL = MergeCommentProfileFile.url
     private var commentProfiles = MergeCommentProfiles.bundled()
@@ -301,8 +324,9 @@ private enum MergeSourceSide {
     var onChanged: (String) -> Void = { _ in }
     private var sourceScrolls: [String: WeakMergeScroll] = [:]
     private var synchronizingScroll = false
-    func registerSourceScroll(_ scroll: NSScrollView, label: String) { sourceScrolls[label] = WeakMergeScroll(scroll) }
+    func registerSourceScroll(_ scroll: NSScrollView, label: String) { sourceScrolls[label] = WeakMergeScroll(scroll); refreshLocatorViewport() }
     func sourceDidScroll(_ scroll: NSScrollView) {
+        defer { refreshLocatorViewport() }
         guard !synchronizingScroll else { return }
         synchronizingScroll = true; defer { synchronizingScroll = false }
         for reference in sourceScrolls.values {
@@ -331,6 +355,7 @@ private enum MergeSourceSide {
         preferencesSubscription = NotificationCenter.default.publisher(for: .mergeEditorPreferencesChanged).sink { [weak self] _ in
             guard let self else { return }
             let next = MergeEditorPreferences.load()
+            self.locatorPreferences = .load(from: self.comparisonDefaults)
             if next.tabWidth != self.editorPreferences.tabWidth || next.useSpaces != self.editorPreferences.useSpaces || next.smartTab != self.editorPreferences.smartTab {
                 self.tabWidths = [:]; self.spacePanes = [:]; self.smartTabPanes = [:]
                 self.editorPreferences = next
@@ -509,6 +534,7 @@ private struct TextConflictDialog: View {
                 Button { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegitmerge/tmerge-dug-conflicts.html")!) } label: { CommandLabel(title: "Help", icon: .help) }
             }.padding(9)
             HStack {
+                MergeLocatorControls(preferences: model.locatorPreferences, apply: model.setLocatorPreferences)
                 MergeComparisonControls(options: model.comparisonOptions, apply: model.setComparisonOptions, supportsComments: model.supportsComments)
                 Menu("Regex Filter: " + (model.regexFilterName ?? "No Filter")) {
                     Button { model.selectRegexFilter(nil) } label: {
@@ -524,13 +550,20 @@ private struct TextConflictDialog: View {
                 Spacer()
             }.padding(.horizontal, 10).padding(.bottom, 6)
             if let document = model.document {
-                VSplitView {
+                HStack(spacing: 0) {
+                    if model.locatorPreferences.visible {
+                        MergeLocatorBar(map: model.locatorMap, viewport: model.locatorViewport, fishEye: model.locatorPreferences.fishEye,
+                                        enabled: !model.busy && !model.confirmingQuit, navigate: model.scrollLocator)
+                            .frame(width: 44).help("Theirs, merged result, and Mine overview; click or drag to scroll")
+                    }
+                    VSplitView {
                     HSplitView {
                         pane(document.theirsStage == 2 ? "Theirs — Branch being rebased onto" : "Theirs", text: document.theirs, cells: model.sourceComparison?.rows.map(\.theirs), side: .theirs)
                         pane(document.mineStage == 3 ? "Mine — Branch being rebased" : "Mine", text: document.mine, cells: model.sourceComparison?.rows.map(\.mine), side: .mine)
                         if model.showBase { pane("Base", text: document.base) }
                     }
                     pane("Merged · \(model.path)", text: model.result, editable: true)
+                    }
                 }
                 HStack {
                     Text(model.blocks.isEmpty ? (MergeText.hasMarkers(model.result) ? "Incomplete conflict markers" : "No remaining conflicts") : "Conflict \(min(model.selectedConflict + 1, model.blocks.count)) of \(model.blocks.count)").foregroundStyle(model.blocks.isEmpty ? Color.secondary : .red)
@@ -589,11 +622,17 @@ private struct MergeEditor: NSViewRepresentable {
         scroll.borderType = .bezelBorder; scroll.findBarPosition = .belowContent; view.usesFindBar = true; view.isIncrementalSearchingEnabled = true
         scroll.documentView = view
         if sourceCells != nil { context.coordinator.attachSourceScroll(scroll, label: label) }
+        if editable {
+            model.registerLocatorResult(scroll)
+            scroll.contentView.postsBoundsChangedNotifications = true
+            NotificationCenter.default.addObserver(context.coordinator, selector: #selector(Coordinator.locatorScrolled(_:)), name: NSView.boundsDidChangeNotification, object: scroll.contentView)
+        }
         scroll.hasVerticalRuler = true; scroll.rulersVisible = model.editorPreferences.showLineNumbers; scroll.verticalRulerView = MergeLineRuler(scrollView: scroll, orientation: .verticalRuler)
         return scroll
     }
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let view = scroll.documentView as? MergeTextView else { return }
+        DispatchQueue.main.async { model.refreshLocatorViewport() }
         scroll.rulersVisible = model.editorPreferences.showLineNumbers
         view.setMergeTabWidth(tabWidth)
         view.mergeUseSpaces = useSpaces; view.mergeSmartTab = smartTab
@@ -632,6 +671,7 @@ private struct MergeEditor: NSViewRepresentable {
             scroll.contentView.postsBoundsChangedNotifications = true
             NotificationCenter.default.addObserver(self, selector: #selector(sourceScrolled(_:)), name: NSView.boundsDidChangeNotification, object: scroll.contentView)
         }
+        @objc func locatorScrolled(_ notification: Notification) { model.refreshLocatorViewport() }
         @objc private func sourceScrolled(_ notification: Notification) { if let sourceScroll { model.sourceDidScroll(sourceScroll) } }
         deinit { NotificationCenter.default.removeObserver(self) }
         func textDidChange(_ notification: Notification) {

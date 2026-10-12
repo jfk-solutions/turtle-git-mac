@@ -23,7 +23,7 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-merge-regex-native-') as temp
     sources = sorted(str(p) for p in (root / 'Sources/TurtleGitMac').glob('*.swift') if p != app)
     additional = []
     if args.options_batch:
-        for name in ['three-pane-engine-native-2026-10-12.swift', 'two-pane-engine-native-2026-10-12.swift']:
+        for name in ['three-pane-engine-native-2026-10-12.swift', 'two-pane-engine-native-2026-10-12.swift', 'merge-locator-native-2026-10-12.swift']:
             receiver = folder / name
             receiver.write_text((root / 'docs/qa' / name).read_text().replace('@main struct', 'struct', 1))
             additional.append(str(receiver))

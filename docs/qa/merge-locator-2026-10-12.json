@@ -1,0 +1,69 @@
+{
+  "date": "2026-10-12",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Native merge locator across both viewers, Subversion result colors, viewport/navigation, fish-eye and settings",
+  "implementationThenGroupedValidation": true,
+  "core": {
+    "tests": 40,
+    "failures": 0,
+    "seconds": 2.652,
+    "log": "build/qa/merge-locator-core-2026-10-12.log"
+  },
+  "build": {
+    "exitCode": 0,
+    "configuration": "Debug",
+    "architecture": "arm64",
+    "signed": false,
+    "log": "build/qa/merge-locator-build-2026-10-12.log",
+    "notes": "Existing exit-zero diagnostic noise remains."
+  },
+  "native": {
+    "exitCode": 0,
+    "frontendCompilations": 1,
+    "receiverProcesses": 1,
+    "log": "build/qa/merge-locator-native-2026-10-12.log",
+    "checks": [
+      "both production viewers",
+      "actual Subversion source and result states",
+      "locator viewport navigation",
+      "selection/Undo/files preserved",
+      "busy and stale dispatch refusal",
+      "accessibility navigation",
+      "saved visibility and recreation",
+      "existing dirty Cancel/regex/comment profiles/Unicode/save/resolution/cancellation checks"
+    ],
+    "ownedWindowsClosed": true,
+    "ownedHelpersExited": true,
+    "installedApplicationLaunched": false,
+    "physicalInput": false
+  },
+  "captures": [
+    {
+      "file": "docs/site/assets/merge-locator-light.png",
+      "width": 88,
+      "height": 1111,
+      "scope": "Actual two-pane locator NSView component",
+      "visuallyInspected": true
+    },
+    {
+      "file": "docs/site/assets/merge-locator-dark.png",
+      "width": 88,
+      "height": 1111,
+      "scope": "Actual two-pane locator NSView component",
+      "visuallyInspected": true
+    }
+  ],
+  "remainingAcceptance": [
+    "physical drag and hover lens",
+    "keyboard/VoiceOver",
+    "three-pane scroll and captures",
+    "resize/large documents/high contrast",
+    "Settings Apply/Cancel interaction",
+    "find/marked-word/folded overlays",
+    "full result/source alignment",
+    "signed sandbox/Finder/App Store",
+    "hosted CI success",
+    "full application parity"
+  ],
+  "completePortCertified": false
+}

@@ -40,6 +40,7 @@ final class SubversionMergePresentationTests: XCTestCase {
         let base = "head\nfirst\nmiddle\nsecond\nlast", mine = "head\nMINE\nmiddle\nsecond\nlast", theirs = "head\nfirst\nmiddle\nTHEIRS\nlast"
         let value = try presentation(base, mine, theirs)
         XCTAssertEqual(value.result, "head\nMINE\nmiddle\nTHEIRS\nlast")
+        XCTAssertEqual(value.sources.resultLocator?.states, [.normal, .added, .normal, .added, .normal])
         XCTAssertEqual(value.sources.rows.compactMap { $0.mine.lineNumber == nil ? nil : $0.mine.text }.joined(), mine)
         XCTAssertEqual(value.sources.rows.compactMap { $0.theirs.lineNumber == nil ? nil : $0.theirs.text }.joined(), theirs)
         XCTAssertTrue(value.sources.rows.contains { $0.mine.state == .removed && $0.theirs.state == .normal })
@@ -51,6 +52,8 @@ final class SubversionMergePresentationTests: XCTestCase {
         XCTAssertEqual(identical.sources.rows.map(\.mine.state), [.removed, .added])
         let added = try presentation("", "mine\n", "theirs\nmore\n")
         XCTAssertEqual(MergeText.conflicts(in: added.result).count, 1)
+        XCTAssertEqual(added.sources.resultLocator?.states.count, MergeRegexFilters.lines(added.result).count)
+        XCTAssertTrue(added.sources.resultLocator?.states.allSatisfy { $0 == .conflicted } == true)
         XCTAssertEqual(added.sources.rows.last?.mine.state, .conflicted)
         XCTAssertNil(added.sources.rows.last?.mine.lineNumber)
         XCTAssertEqual(added.sources.rows.compactMap { $0.mine.lineNumber == nil ? nil : $0.mine.text }.joined(), "mine\n")
@@ -120,5 +123,37 @@ final class SubversionMergePresentationTests: XCTestCase {
         let stages = try await repository.conflicts(), afterHead = try await repository.run(["rev-parse", "HEAD"]).stdout
         XCTAssertTrue(stages.isEmpty); XCTAssertEqual(afterHead, head)
         XCTAssertEqual(try Data(contentsOf: file), Data(result.utf8))
+    }
+}
+
+final class MergeLocatorTests: XCTestCase {
+    func testLocatorCompressesActualRowsAndUsesLongestPane() {
+        let map = MergeLocatorMap(columns: [[.normal, .normal, .removed, .removed, .empty], [], [.normal, .added]])
+        XCTAssertEqual(map.lineCount, 5)
+        XCTAssertEqual(map.columns[0].map(\.rows), [0..<2, 2..<4, 4..<5])
+        XCTAssertEqual(map.columns[0].map(\.state), [.normal, .removed, .empty])
+        XCTAssertTrue(map.columns[1].isEmpty)
+        XCTAssertEqual(map.row(at: -2), 0); XCTAssertEqual(map.row(at: 0.5), 2)
+        XCTAssertEqual(map.row(at: 2), 4); XCTAssertEqual(map.row(at: .nan), 0)
+        XCTAssertEqual(MergeLocatorMap(columns: []).row(at: 1), 0)
+    }
+    func testLocatorRetainsInitialEngineColorsTracksEditsAndConflicts() {
+        let text = "雪🦎\r\nadded\r\ntail", first = "雪🦎\r\n".utf16.count, added = "added\r\n".utf16.count
+        let result = MergeLocatorResult(text: text, spans: [(0..<first, .filtered), (first..<first + added, .added), (first + added..<text.utf16.count, .normal)])
+        XCTAssertEqual(result.states, [.filtered, .added, .normal])
+        XCTAssertEqual(result.states(for: text, conflicts: []), result.states)
+        let changed = "雪🦎\r\nmanual\r\nextra\r\ntail"
+        XCTAssertEqual(result.states(for: changed, conflicts: []), [.filtered, .added, .added, .normal])
+        let range = (changed as NSString).range(of: "manual\r\nextra\r\n")
+        XCTAssertEqual(result.states(for: changed, conflicts: [range]), [.filtered, .conflicted, .conflicted, .normal])
+        XCTAssertEqual(result.states(for: "", conflicts: []), [])
+    }
+    func testSourceDefaultsAndSavedLocatorChoicesUsePrivatePreferences() {
+        let suite = "TurtleGit.Locator." + UUID().uuidString, defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        XCTAssertEqual(MergeLocatorPreferences.load(from: defaults), .init(visible: true, fishEye: true))
+        let hidden = MergeLocatorPreferences(visible: false, fishEye: false)
+        hidden.save(to: defaults); XCTAssertEqual(MergeLocatorPreferences.load(from: defaults), hidden)
+        MergeLocatorPreferences().save(to: defaults); XCTAssertEqual(MergeLocatorPreferences.load(from: defaults), .init())
     }
 }

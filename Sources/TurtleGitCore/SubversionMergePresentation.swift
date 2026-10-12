@@ -61,6 +61,12 @@ public struct SubversionMergePresentation: Sendable {
     public init(plan: SubversionDiffPlan) throws {
         guard let theirs = plan.theirs else { throw SubversionMergeDiffFailure.invalidOutput }
         var rows: [MergeSourceRow] = [], output = ""
+        var spans: [(Range<Int>, MergeSourceState)] = [], outputLength = 0
+        func append(_ text: String, state: MergeSourceState) {
+            let count = text.utf16.count
+            if count > 0 { spans.append((outputLength..<outputLength + count, state)); outputLength += count }
+            output += text
+        }
         func cell(_ source: [String], _ index: Int, _ state: MergeSourceState) -> MergeSourceCell {
             .init(text: source[index], lineNumber: index + 1, state: state)
         }
@@ -79,7 +85,11 @@ public struct SubversionMergePresentation: Sendable {
                     let state: MergeSourceState = equal(plan.base[b], plan.mine[m]) && equal(plan.mine[m], theirs[t]) ? .normal : .filtered
                     rows.append(.init(mine: cell(plan.mine, m, state), theirs: cell(theirs, t, state)))
                 }
-                output += mineText; continue
+                for offset in 0..<segment.mine.count {
+                    let m = segment.mine.lowerBound + offset, b = segment.base.lowerBound + offset, t = segment.theirs.lowerBound + offset
+                    append(plan.mine[m], state: equal(plan.base[b], plan.mine[m]) && equal(plan.mine[m], theirs[t]) ? .normal : .filtered)
+                }
+                continue
             }
             // DiffData's conflict loop pads the removed Base section using
             // the first resolved child's overlapping Mine/Theirs lengths.
@@ -100,13 +110,13 @@ public struct SubversionMergePresentation: Sendable {
             }
             switch segment.kind {
             case .common: break
-            case .modified, .same: output += mineText
-            case .latest: output += theirsText
+            case .modified, .same: append(mineText, state: .added)
+            case .latest: append(theirsText, state: .added)
             case .conflict:
-                output = separated(output)
-                output += "<<<<<<< Mine\n" + separated(mineText) + "||||||| Base\n" + separated(baseText) + "=======\n" + separated(theirsText) + ">>>>>>> Theirs\n"
+                let separator = separated(output).utf16.count > outputLength ? "\n" : ""
+                append(separator + "<<<<<<< Mine\n" + separated(mineText) + "||||||| Base\n" + separated(baseText) + "=======\n" + separated(theirsText) + ">>>>>>> Theirs\n", state: .conflicted)
             }
         }
-        sources = MergeSourceComparison(rows: rows); result = output
+        sources = MergeSourceComparison(rows: rows, resultLocator: MergeLocatorResult(text: output, spans: spans)); result = output
     }
 }

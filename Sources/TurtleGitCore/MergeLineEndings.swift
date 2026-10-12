@@ -40,7 +40,7 @@ public enum MergeLineEndings {
         }
         return result
     }
-    static func lineRanges(in text: String) -> [NSRange] {
+    public static func lineRanges(in text: String) -> [NSRange] {
         var start = 0, ranges: [NSRange] = []
         for ending in endings(in: text) {
             let end = NSMaxRange(ending.range)
