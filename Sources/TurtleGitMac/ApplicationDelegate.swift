@@ -14,6 +14,7 @@ import AppKit
         if CredentialSettingsModel.activeSaves > 0 { return .terminateCancel }
         if SSHKeyGenerationModel.activeOperations > 0 { return .terminateCancel }
         if NetworkSettingsModel.activeSaves > 0 { return .terminateCancel }
+        if EmailSettingsModel.activeOperations > 0 { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? SynchronizationWindowController }).contains(where: { $0.model.busy || $0.model.hasBlockingChild || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? RevisionGraphWindowController }).contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? MergeAbortWindowController }).contains(where: { $0.model.busy || $0.model.hasChild || $0.model.confirmingCancellation || $0.window?.attachedSheet != nil }) { return .terminateCancel }

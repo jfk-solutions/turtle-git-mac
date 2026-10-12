@@ -1,0 +1,37 @@
+{
+  "date": "2026-10-12",
+  "baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Shared Email Settings ownership, credential lifecycle and cached receiver",
+  "validation": {
+    "debug_build_exit": 0,
+    "native_exit": 0,
+    "frontend_compilations": 1,
+    "owned_processes": 1,
+    "owned_process_reaped": true,
+    "owned_windows_closed": true,
+    "private_preferences_and_simulated_security": true,
+    "live_keychain_mail_network": false,
+    "core_or_full_group_rerun": false
+  },
+  "checks": [
+    "Existing Email source/gates/ports/Store/Clear/errors/late retirement and native Login checks retained",
+    "Existing simulated Keychain adapter checks retained",
+    "Shared Apply rejects pending credential operation before option persistence",
+    "Quit refused during credential operation",
+    "Apply after completion saves options",
+    "Cancel preserves immediate credential changes",
+    "Operation count returns to zero"
+  ],
+  "inventory": {
+    "dialogs": 130,
+    "partial": 71,
+    "pending_review": 59,
+    "certified_complete": 0
+  },
+  "remaining": [
+    "Full physical Settings host and credential sheets",
+    "Production Keychain and signed sandbox",
+    "Direct MX/Mail delivery acceptance",
+    "Complete source visual parity"
+  ]
+}

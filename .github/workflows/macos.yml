@@ -209,7 +209,7 @@ jobs:
         run: python3 scripts/validate-app-bundle.py build/Build/Products/Debug/TurtleGitMac.app
       - name: Verify embedded Subversion merge adapter and shared libraries
         run: python3 scripts/test-merge-diff-bundle.py build/Build/Products/Debug/TurtleGitMac.app
-      - name: Grouped native LFS, Email settings and Send Mail receivers with one compilation
+      - name: Grouped native LFS and Send Mail receivers with one compilation
         run: python3 scripts/test-native-lfs-mail-batch.py
       - name: Configured SMTP through built frameworks with private loopback server
         run: python3 scripts/test-configured-smtp.py
@@ -259,7 +259,7 @@ jobs:
         run: python3 scripts/test-submodule-update-progress.py
       - name: Native submodule progress output controls
         run: python3 scripts/test-submodule-progress-output.py
-      - name: Grouped native reference folders, comparisons, deletion, actions, Merge pickers, Network, Credential, Tools, Overlays and external Merge lifecycle
+      - name: Grouped native reference folders, comparisons, deletion, actions, Merge pickers, Network, Credential, Tools, Overlays, Email and external Merge lifecycle
         run: python3 scripts/test-native-reference-batch.py
       - name: Native Pull forced cleanup
         run: python3 scripts/test-pull-cleanup.py

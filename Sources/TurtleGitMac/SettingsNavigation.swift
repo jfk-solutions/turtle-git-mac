@@ -30,6 +30,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     let globalOnly: Bool
     private let appearanceDraft: SettingsAppearanceDraft
     private let overlayDraft = FinderOverlaySettingsModel()
+    private let emailDraft = EmailSettingsModel()
     private let contextMenuDraft = FinderContextMenuSettingsModel()
     private let outline = NSOutlineView()
     private let content = NSView()
@@ -94,7 +95,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         transaction.window = window
         window.title = globalOnly ? "Global Settings – TurtleGit for Mac" : "Settings – TurtleGit for Mac"
     }
-    var canDismiss: Bool { !transaction.busy && remote?.busy != true && remote?.hasChild != true && GitConfigurationSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSaves == 0 && NetworkSettingsModel.activeSaves == 0 && view.window?.attachedSheet == nil }
+    var canDismiss: Bool { !emailDraft.busy && !transaction.busy && remote?.busy != true && remote?.hasChild != true && GitConfigurationSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSaves == 0 && NetworkSettingsModel.activeSaves == 0 && view.window?.attachedSheet == nil }
     func updateRepository() {
         guard !globalOnly, isViewLoaded, workspace.root?.path != repositoryPath else { return }
         // A captured Remote model belongs to the repository that created it.
@@ -152,7 +153,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     @objc private func cancelSettings() { guard canDismiss else { return }; view.window?.makeFirstResponder(nil); transaction.cancel(); view.window?.performClose(nil) }
     private func host<V: View>(_ view: V) -> NSViewController { NSHostingController(rootView: view.environment(\.settingsTransaction, transaction)) }
     private func show(_ page: SettingsPageID) {
-        guard view.window?.attachedSheet == nil, remote?.busy != true, remote?.hasChild != true, GitConfigurationSettingsModel.activeSaves == 0, CredentialSettingsModel.activeSaves == 0, NetworkSettingsModel.activeSaves == 0 else { return }
+        guard !emailDraft.busy, view.window?.attachedSheet == nil, remote?.busy != true, remote?.hasChild != true, GitConfigurationSettingsModel.activeSaves == 0, CredentialSettingsModel.activeSaves == 0, NetworkSettingsModel.activeSaves == 0 else { return }
         if current != nil && selected == page { return }
         view.window?.makeFirstResponder(nil)
         let controller: NSViewController
@@ -178,7 +179,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
             case .overlayIcons: controller = host(FinderOverlaySettingsPage(model: overlayDraft, iconsOnly: true))
             case .contextMenu: controller = host(FinderContextMenuSettingsPage(model: contextMenuDraft))
             case .contextMenu2: controller = host(FinderContextMenuSettingsPage(model: contextMenuDraft, extendedOnly: true))
-            case .email: controller = host(EmailSettingsPage())
+            case .email: controller = host(EmailSettingsPage(model: emailDraft))
             case .diff: controller = host(DiffToolSettings())
             case .mergeTool: controller = host(MergeToolSettings())
             case .mergeEditor: controller = host(MergeEditorSettings())
@@ -214,7 +215,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         current = controller; selected = page; heading.stringValue = nodes.first(where: { $0.id == page })?.title ?? page.rawValue
     }
     func invalidate() {
-        transaction.invalidate()
+        transaction.invalidate(); emailDraft.invalidate()
         remote?.invalidate(); remote = nil
         if let window = view.window, let delegateProxy, window.delegate === delegateProxy { window.delegate = delegateProxy.original }
         delegateProxy = nil; current?.view.removeFromSuperview(); current?.removeFromParent(); current = nil; cache.removeAll()

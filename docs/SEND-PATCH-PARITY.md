@@ -749,3 +749,33 @@ its physical/signed selection remains pending. The grouped native receiver also
 passed prior options/progress/MIME fixtures against only private loopback SMTP.
 See FINDER-LFS-MAIL-PARITY.md and its QA record for exact evidence and remaining
 pure-folder review, Finder and App Store acceptance.
+
+
+## Email Settings ownership and cached native receiver — 2026-10-12
+
+SettingsNavigation now retains the Email model explicitly across page switches
+and invalidates it when the host retires. Credential operations block page
+changes/ordinary close and are counted globally for Quit protection until the
+captured operation finishes. The Settings participant reports busy credentials
+before validating the port; busy changes notify the property sheet. Immediate
+Store/Clear behavior remains separate from option Apply/Cancel, matching source.
+
+The Debug build exited 0. The existing Email native receiver, including simulated
+production Security API branches, now links against built app objects in the
+reference-family group rather than recompiling the app in a separate Email check.
+It passed in one compilation/process; owned windows and the process were closed.
+New checks hold credential storage, assert Quit refusal and shared Apply's busy
+validation without writing options, then finish storage and Apply the options.
+Shared Cancel restores options while retaining the immediate login change.
+The operation count returns to zero. Existing source defaults/gates, UInt32 port
+limits, immediate Store/Clear, errors/late invalidation, private password exclusion,
+read-only native Login/light-dark hosts and Keychain namespace/update/add/delete/
+metadata/error checks remain in the receiver. No live Keychain, mail or network
+was invoked. Core and the complete fifteen-case group were not rerun.
+
+CI runs Email once in the object-linked group; the LFS/mail default group no
+longer repeats its checks. Its explicit legacy `--email-only` focus remains
+available, while `test-email-settings.py` delegates to the new group. Email's
+resource is partial-native-replacement, not certified complete. Full Settings
+host interaction, credential sheets/keyboard/VoiceOver, real Keychain and signed
+sandbox acceptance, direct MX/Mail delivery and complete visual parity remain open.

@@ -97,7 +97,6 @@ import TurtleGitCore
         try await ReviewPatchNativeVerification.verify()
         try await DaemonNativeVerification.verify()
         try await LFSLocksVerification.main()
-        try await EmailSettingsVerification.verify()
         let fixture = URL(fileURLWithPath: CommandLine.arguments[1])
         try Data().write(to: fixture.appendingPathComponent("lfs-done"))
         for _ in 0..<1000 {

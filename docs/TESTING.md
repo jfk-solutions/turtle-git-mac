@@ -1105,11 +1105,12 @@ Follow the implementation-first workflow in [AGENTS.md](../AGENTS.md): finish a
 related feature family before grouped validation; repeat only an affected check
 when a failure needs repair. There is no scheduled five-minute test cycle.
 
-`test-email-settings.py` delegates to `test-native-lfs-mail-batch.py --email-only`
-and uses the real app/settings sources in the shared compilation. Its former
-Email-only source subset omitted the settings transaction dependencies. CI now
-runs Email settings within the existing LFS/mail slot rather than compiling a
-second receiver. `--lfs-only` remains available for an actual LFS failure.
+`test-email-settings.py` now delegates to
+`test-native-reference-batch.py --only email-settings` after a Debug build. It
+links the actual app objects/settings dependencies into the existing cache. CI
+runs Email once in this group; the LFS/mail default group no longer repeats it.
+Its legacy `--email-only` focus remains available, and `--lfs-only` remains
+available for an actual LFS failure.
 
 After building Debug, `test-native-merge-regex.py` links QA to the existing app
 objects instead of recompiling the SwiftUI app. Its cache includes objects, app
@@ -1156,7 +1157,7 @@ checks three-pane format acceptance. See [format parity](MERGE-FORMAT-PARITY.md)
 Build Debug once, then run `python3 scripts/test-native-reference-batch.py` for
 folders, comparisons, batch/single deletion, Switch/Fetch/Create Branch/Merge
 routes and Merge reference/Log pickers. The driver links the existing app objects
-and fourteen receiver families, including Network, Credential, Tool settings, Overlays and external Merge lifecycle, in one compilation. It uses an explicit native AppKit run loop and
+and fifteen receiver families, including Network, Credential, Tool settings, Overlays, Email and external Merge lifecycle, in one compilation. It uses an explicit native AppKit run loop and
 caches by object files, imported modules/framework, fixtures and compiler/flags.
 It does not recompile the whole SwiftUI app for each case.
 
@@ -1276,3 +1277,9 @@ notification ordering, rule readback, publication failure and unsigned local-sav
 notice behavior. Use `--only overlay-settings` after a Debug build. It injects a
 private preferences domain/publication URL/notification counter and never changes
 the user's App Group or activates Finder. Signed/live refresh acceptance is open.
+
+
+The Email receiver additionally holds credential work while checking shared
+Settings busy validation and app Quit refusal, then verifies Apply and Cancel
+after completion. Private preferences and simulated Security APIs are retained;
+there is no live Keychain/mail/network or full-suite acceptance claim.

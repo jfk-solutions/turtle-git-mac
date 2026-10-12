@@ -97,7 +97,7 @@ owned loading/command progress. Native Push variants and owned Shift Push option
 controls, full visual matching and signed acceptance are still pending. See
 [Synchronization parity](SYNCHRONIZATION-PARITY.md).
 Across the 130 inventoried dialogs:
-70 dialogs have partial implementations and 60 await review. No dialog is certified complete.
+71 dialogs have partial implementations and 59 await review. No dialog is certified complete.
 See [the reference dialog audit](COMMIT-CONTAINING-REFS-PARITY.md).
 
 Log commit ordering now has the source’s four-choice native sheet, deferred
@@ -829,3 +829,12 @@ retains the draft without saving local preferences or notifying Finder. Icon
 Overlays, Overlay Handlers and Icon Set are partial native replacements; signed
 extension refresh, mount handling and full physical layout remain open. See
 [Overlay settings audit](FINDER-OVERLAY-SETTINGS-PARITY.md).
+
+
+Email Settings now has explicit model ownership in the shared Settings host;
+credential work blocks page switches/dismissal and app Quit. Forced host
+retirement invalidates its model, fencing late credential responses. The existing
+private Email receiver now joins the object-linked group and additionally checks
+shared Apply/Cancel/busy validation and Quit gating. Email is a partial native
+replacement; real Keychain, physical credential sheets and mail/signed acceptance
+remain open. See [Email audit](SEND-PATCH-PARITY.md).

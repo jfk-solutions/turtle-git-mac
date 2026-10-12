@@ -144,8 +144,32 @@ private final class SecurityProbe: @unchecked Sendable {
         let count = probe.calls.count
         do { try await keychain.store(login: "ignored", password: "ignored"); throw CheckFailure(description: "Update failure swallowed") } catch is SMTPKeychainFailure { }
         try require(probe.calls.count == count + 1 && probe.calls.last == "update", "Access failure must not Add or Delete")
+        // Shared property-sheet Apply must not race an immediate credential write.
+        let participantStore = PrivateCredentials(), participant = EmailSettingsModel(preferences: prefs, credentials: participantStore)
+        let transaction = SettingsTransaction()
+        let participantWindow = NSWindow(contentRect: NSRect(x:0,y:0,width:760,height:700),styleMask:[.titled],backing:.buffered,defer:false)
+        participantWindow.isReleasedWhenClosed = false
+        let participantHost = NSHostingView(rootView: EmailSettingsPage(model: participant).environment(\.settingsTransaction,transaction))
+        participantWindow.contentView = participantHost; participantHost.layoutSubtreeIfNeeded()
+        defer { transaction.invalidate(); participant.invalidate(); participantWindow.contentView=nil; participantWindow.close() }
+        try await Task.sleep(nanoseconds:50_000_000); try await settle(participant)
+        participant.delivery = .configured; participant.authenticate = true; participant.server = "transaction.example.invalid"
+        await participantStore.hold(); participant.storeCredentials(login:"transaction login",password:"private transaction password")
+        try require(participant.busy && EmailSettingsModel.activeOperations > 0 && participant.validationError == "Finish the credential operation first.","Credential operation lacks shared lifecycle gate")
+        let delegate = TurtleGitApplicationDelegate()
+        try require(delegate.applicationShouldTerminate(NSApplication.shared) == .terminateCancel,"Quit accepted pending credential operation")
+        transaction.apply(closeAfter:false)
+        for _ in 0..<1000 { if !transaction.busy { break }; try await Task.sleep(nanoseconds:10_000_000) }
+        try require(transaction.error == "Finish the credential operation first." && EmailConfiguration(preferences:prefs).server != participant.server,"Shared Apply raced credential storage")
+        await participantStore.release(); try await settle(participant)
+        transaction.apply(closeAfter:false)
+        for _ in 0..<1000 { if !transaction.busy { break }; try await Task.sleep(nanoseconds:10_000_000) }
+        try require(transaction.error == nil && !participant.changed && participant.login == "transaction login" && EmailConfiguration(preferences:prefs).server == participant.server,"Shared Apply did not persist after credential completion")
+        participant.server = "discard.example.invalid";transaction.cancel()
+        try require(!participant.changed && participant.server == "transaction.example.invalid" && participant.login == "transaction login","Shared Cancel rolled back immediate credentials or retained draft")
+        try require(EmailSettingsModel.activeOperations == 0,"Credential operation count leaked")
         model.invalidate()
-        print("Email settings: source defaults/gates, Apply/Cancel, UInt32 ports, immediate credentials, captured async work/error/late-close, private preference exclusion, read-only native Login and hidden light/dark layout passed. Simulated Security API namespace/update/add/delete/metadata/error branches passed. No live Keychain, mail, network or main app.")
+        print("Email settings: source defaults/gates, Apply/Cancel, UInt32 ports, immediate credentials, captured async work/error/late-close, private preference exclusion, read-only native Login and hidden light/dark layout passed. Shared Settings busy validation, Apply/Cancel and Quit gating passed. Simulated Security API namespace/update/add/delete/metadata/error branches passed. No live Keychain, mail, network or main app.")
         print("Private suite cleaned: " + suite)
     }
     static func main() async { do { try await verify() } catch { fputs("Email settings QA failed: \(error)\n", stderr); exit(1) } }

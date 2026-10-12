@@ -134,6 +134,7 @@ actor SMTPKeychainStore: SMTPCredentialStore, SMTPTransportCredentialSource {
 }
 
 @MainActor final class EmailSettingsModel: ObservableObject {
+    private(set) static var activeOperations = 0
     @Published var delivery: EmailDelivery
     @Published var server: String
     @Published var port: String
@@ -162,6 +163,11 @@ actor SMTPKeychainStore: SMTPCredentialStore, SMTPTransportCredentialSource {
     var changed: Bool {
         delivery != baseline.delivery || server != baseline.server || port != String(baseline.port) || encryption != baseline.encryption || authenticate != baseline.authenticate
     }
+    var validationError: String? {
+        if invalidated { return "The Email settings page has closed." }
+        if busy { return "Finish the credential operation first." }
+        return validPort ? nil : "Enter a whole port number from 0 to 4294967295."
+    }
     var canApply: Bool { !invalidated && !busy && changed && validPort }
     func apply() {
         guard canApply, let number = UInt32(port) else { return }
@@ -179,8 +185,9 @@ actor SMTPKeychainStore: SMTPCredentialStore, SMTPTransportCredentialSource {
     func invalidate() { invalidated = true; generation = UUID(); busy = false }
     private func perform(_ operation: @escaping @Sendable (any SMTPCredentialStore) async throws -> String) {
         guard !invalidated, !busy else { return }
-        let request = UUID(); generation = request; busy = true; pendingOperations += 1; error = nil
+        let request = UUID(); generation = request; busy = true; pendingOperations += 1; Self.activeOperations += 1; error = nil
         Task { [weak self, credentials] in
+            defer { Self.activeOperations -= 1 }
             let result: Result<String, Error>
             do { result = .success(try await operation(credentials)) } catch { result = .failure(error) }
             guard let self else { return }
@@ -248,8 +255,8 @@ actor SMTPKeychainStore: SMTPCredentialStore, SMTPTransportCredentialSource {
             } }
         }.padding(20).disabled(model.busy)
             .settingsParticipant("email", page: .email,
-                value: [String(describing: model.delivery), model.server, model.port, String(describing: model.encryption), String(model.authenticate)],
-                modified: { model.changed }, validate: { model.validPort ? nil : "Enter a whole port number from 0 to 4294967295." },
+                value: [String(describing: model.delivery), model.server, model.port, String(describing: model.encryption), String(model.authenticate), String(model.busy)],
+                modified: { model.changed }, validate: { model.validationError },
                 apply: { model.apply(); return model.error == nil && !model.changed }, cancel: model.discard)
             .onAppear { model.refreshCredentials() }
             .sheet(isPresented: $credentialSheet) { SMTPCredentialSheet(login: model.login) { login, password in model.storeCredentials(login: login, password: password) } }
