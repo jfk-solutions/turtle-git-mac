@@ -659,3 +659,14 @@ retain engine source rows across saves; staged/working/HEAD checks pass. The old
 Swift compiler's Remote Settings nested-defer actor error from CI was repaired.
 Resolved children, two-pane conversion and physical/signed acceptance remain
 open. Offscreen capture omitted SwiftUI toolbar text; those images were rejected.
+
+## Two-pane engine and editing integration — 2026-10-12
+
+Two-pane ordinary/filtered comparisons now request Subversion ranges while
+retaining immediate native editing coordinates. Debounced requests cancel stale
+work, preserve source selections and remap annotations before publishing the
+authoritative result. Transfers/navigation/inline diff wait for completion;
+engine errors clear alignment instead of silently using the projection. The
+batch includes native typing, Unicode selection, Undo/Redo, marked Save and
+encoding/EOL preservation checks. Source-engine resolved children, full options,
+complete captures and physical/signed acceptance remain open.

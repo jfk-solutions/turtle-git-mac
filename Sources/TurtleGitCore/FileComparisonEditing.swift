@@ -213,7 +213,7 @@ public enum FileComparisonEditing {
         // at column zero of the next row. Clamp the synthetic final row to EOF.
         return row(range.location)..<(row(NSMaxRange(range)) + 1)
     }
-    private static func sourceRange(_ range: NSRange, cells: [MergeSourceCell]) throws -> NSRange {
+    public static func sourceRange(_ range: NSRange, cells: [MergeSourceCell]) throws -> NSRange {
         let displayLength = cells.reduce(0) { $0 + ($1.displayText as NSString).length + 1 }
         guard range.location >= 0, range.length >= 0, range.location <= displayLength, range.length <= displayLength - range.location else { throw FileComparisonEditFailure.range }
         func sourceOffset(_ offset: Int) -> Int {

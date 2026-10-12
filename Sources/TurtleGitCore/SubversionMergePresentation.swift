@@ -14,9 +14,39 @@ public struct SubversionMergeConfiguration: Sendable {
         return .init(executable: try SubversionMergeDiff.executable(bundle: bundle), runtimeRoot: try SubversionMergeDiff.runtimeRoot(bundle: bundle),
                      regexExecutable: filter == nil ? nil : try IssueRegexRuntime.executable(bundle: bundle), filter: filter)
     }
-    public func plan(base: String, mine: String, theirs: String, cancellation: OperationCancellation? = nil) throws -> SubversionDiffPlan {
+    public func plan(base: String, mine: String, theirs: String? = nil, cancellation: OperationCancellation? = nil) throws -> SubversionDiffPlan {
         try SubversionMergeDiff.plan(base: base, mine: mine, theirs: theirs, filter: filter, executable: executable, runtimeRoot: runtimeRoot,
                                     regexExecutable: regexExecutable, cancellation: cancellation)
+    }
+}
+public struct SubversionComparisonPresentation: Sendable {
+    public let alignment: FileComparisonAlignment
+    public init(plan: SubversionDiffPlan) throws {
+        guard plan.theirs == nil else { throw SubversionMergeDiffFailure.invalidOutput }
+        var rows: [FileComparisonRow] = [], differences: [Range<Int>] = []
+        func cell(_ lines: [String], _ index: Int, _ state: MergeSourceState) -> MergeSourceCell {
+            .init(text: lines[index], lineNumber: index + 1, state: state)
+        }
+        let gap = MergeSourceCell(text: "", lineNumber: nil, state: .empty)
+        for segment in plan.segments {
+            switch segment.kind {
+            case .common:
+                for offset in 0..<segment.base.count {
+                    let a = segment.base.lowerBound + offset, b = segment.mine.lowerBound + offset
+                    let state: MergeSourceState = plan.base[a].utf8.elementsEqual(plan.mine[b].utf8) ? .normal : .filtered
+                    rows.append(.init(base: cell(plan.base, a, state), destination: cell(plan.mine, b, state)))
+                }
+            case .modified:
+                let start = rows.count
+                for offset in 0..<max(segment.base.count, segment.mine.count) {
+                    rows.append(.init(base: offset < segment.base.count ? cell(plan.base, segment.base.lowerBound + offset, .removed) : gap,
+                                      destination: offset < segment.mine.count ? cell(plan.mine, segment.mine.lowerBound + offset, .added) : gap))
+                }
+                differences.append(start..<rows.count)
+            default: throw SubversionMergeDiffFailure.invalidOutput
+            }
+        }
+        alignment = FileComparisonAlignment(rows: rows, differences: differences)
     }
 }
 /// Follows DiffData.cpp's common, identical-change, one-side-change and conflict

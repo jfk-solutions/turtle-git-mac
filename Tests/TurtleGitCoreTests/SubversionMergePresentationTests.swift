@@ -10,6 +10,32 @@ final class SubversionMergePresentationTests: XCTestCase {
     private func presentation(_ base: String, _ mine: String, _ theirs: String, filter: MergeRegexFilter? = nil) throws -> SubversionMergePresentation {
         try .init(plan: configuration(filter).plan(base: base, mine: mine, theirs: theirs))
     }
+    func testTwoPaneSubversionPresentationRetainsRowsGapsAndTransferBytes() throws {
+        let base = "head\r\nold\r\nlast", destination = "head\r\nnew\r\nextra\r\nlast"
+        let value = try SubversionComparisonPresentation(plan: configuration().plan(base: base, mine: destination)).alignment
+        XCTAssertEqual(value.rows.compactMap { $0.base.lineNumber == nil ? nil : $0.base.text }.joined(), base)
+        XCTAssertEqual(value.rows.compactMap { $0.destination.lineNumber == nil ? nil : $0.destination.text }.joined(), destination)
+        XCTAssertEqual(value.differences, [1..<3])
+        XCTAssertEqual(value.rows[2].base.state, .empty)
+        let edit = try FileComparisonEditing.takingOtherRows(value, rows: value.differences[0], targetBase: true)
+        XCTAssertEqual(edit.text, destination)
+        let display = value.rows.map { $0.destination.displayText + "\n" }.joined() as NSString
+        let range = display.range(of: "extra")
+        XCTAssertEqual(try FileComparisonEditing.sourceRange(range, cells: value.rows.map(\.destination)), (destination as NSString).range(of: "extra"))
+    }
+    func testTwoPaneFilteredKeysAndRepeatedLinesKeepOriginalContentAndAnnotationNumbers() throws {
+        let filter = MergeRegexFilter(name: "Versions", expression: "[0-9]+", replacement: "")
+        let base = "stamp 12\na\na\nold\na", destination = "stamp 81\na\na\nnew\na"
+        let value = try SubversionComparisonPresentation(plan: configuration(filter).plan(base: base, mine: destination)).alignment
+        XCTAssertEqual(value.rows[0].base.state, .filtered)
+        XCTAssertEqual(value.differences, [3..<4])
+        XCTAssertEqual(value.rows.map(\.base.text).joined(), base)
+        XCTAssertEqual(value.rows.map(\.destination.text).joined(), destination)
+        let projection = FileComparisonAlignment(base: base, destination: destination)
+        let marks = FileComparisonEditing.Annotations(marked: [3], edited: [3])
+        let remapped = marks.remapped(from: projection, to: value, targetBase: false, typing: false)
+        XCTAssertEqual(remapped.marked, [3]); XCTAssertEqual(remapped.edited, [3])
+    }
     func testIndependentChangesAndOriginalSourceReconstruction() throws {
         let base = "head\nfirst\nmiddle\nsecond\nlast", mine = "head\nMINE\nmiddle\nsecond\nlast", theirs = "head\nfirst\nmiddle\nTHEIRS\nlast"
         let value = try presentation(base, mine, theirs)

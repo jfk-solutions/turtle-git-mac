@@ -76,6 +76,7 @@ public struct FileComparisonRow: Sendable {
 public struct FileComparisonAlignment: Sendable {
     public let rows: [FileComparisonRow]
     public let differences: [Range<Int>]
+    init(rows: [FileComparisonRow], differences: [Range<Int>]) { self.rows = rows; self.differences = differences }
     public init(base: String, destination: String, baseKeys: [String]? = nil, destinationKeys: [String]? = nil) {
         func lines(_ text: String) -> [String] {
             let source = text as NSString

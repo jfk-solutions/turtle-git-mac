@@ -15,7 +15,9 @@ are persisted in the app's preference domain; the active filter is window-local.
 An empty name is rejected to keep the native named menu usable.
 
 Comparison windows provide No Filter, the named filters and Edit Filters with
-checkmarks. Applying a filter uses the existing bundled C++ helper's default
+checkmarks. Both ordinary and filtered two-pane results now use pinned Subversion
+ranges; the Swift projection is temporary coordinate support during editing,
+with comparison-dependent commands gated until completion. Applying a filter uses the existing bundled C++ helper's default
 ECMAScript `std::wregex` and `std::regex_replace`, retaining Windows UTF-16 units
 and capture/replacement semantics. Expressions are compiled once per batch and
 applied separately to each line. A bounded framed protocol retains empty records,

@@ -101,6 +101,9 @@ import TurtleGitCore
     @Published private(set) var regexFilterName: String?
     @Published private(set) var filtering = false
     var regexExecutable: URL?
+    var engineConfiguration: SubversionMergeConfiguration?
+    struct AlignmentSelection { let id = UUID(); let sourceRange: NSRange }
+    @Published var alignmentSelections: [Bool: AlignmentSelection] = [:]
     var regexDefaults: UserDefaults = .standard
     private var regexCancellation: OperationCancellation?
     private var regexList: MergeRegexFilterListController?
@@ -221,7 +224,7 @@ import TurtleGitCore
     private var inlineGeneration = -1
     private var cachedWordMode = false
     func inlineDifference(_ index: Int) -> MergeInlineComparison? {
-        guard showInlineDiff, let alignment, alignment.rows.indices.contains(index), alignment.rows[index].changed else { return nil }
+        guard !filtering, showInlineDiff, let alignment, alignment.rows.indices.contains(index), alignment.rows[index].changed else { return nil }
         if inlineGeneration != alignmentGeneration || cachedWordMode != inlineWordDiff {
             inlineCache = [:]; inlineGeneration = alignmentGeneration; cachedWordMode = inlineWordDiff
         }
@@ -467,27 +470,50 @@ import TurtleGitCore
     func rebuildAlignment() {
         guard let document else { return }
         regexCancellation?.cancel(); regexCancellation = nil; filtering = false
+        alignmentSelections = [:]
         alignmentGeneration += 1; selectedRows = nil
         let a = drafts?.text(base: true) ?? document.base.text
         let b = drafts?.text(base: false) ?? document.destination.text
+        // Immediate projection supports native text/Undo coordinate updates.
+        // It is unverified while filtering is true; transfers, navigation and
+        // inline comparison are gated until Subversion publishes its ranges.
         alignment = a.flatMap { old in b.map { FileComparisonAlignment(base: old, destination: $0) } }
-        guard let a, let b, let filter = regexFilters.first(where: { $0.name == regexFilterName }), !retired else { return }
-        let current = alignmentGeneration, executable = regexExecutable, token = OperationCancellation()
+        guard let a, let b, imageComparison == nil, !retired else { return }
+        let filter = regexFilters.first(where: { $0.name == regexFilterName })
+        let current = alignmentGeneration, token = OperationCancellation()
+        let configuration = Result { () throws -> SubversionMergeConfiguration in
+            var value = try engineConfiguration ?? SubversionMergeConfiguration.bundled(filter: filter)
+            value.filter = filter; value.regexExecutable = regexExecutable ?? value.regexExecutable
+            return value
+        }
         filtering = true; regexCancellation = token
         MergeRegexOperations.activeRequests += 1
         Task {
             defer { MergeRegexOperations.activeRequests -= 1 }
-            let result = await Task.detached { Result { try MergeRegexFilters.alignment(base: a, destination: b, filter: filter, executable: executable, cancellation: token) } }.value
+            // Editing uses an immediate coordinate projection. Debounce the
+            // authoritative engine request so typing does not spawn a helper
+            // for every intermediate keystroke; stale requests never publish.
+            try? await Task.sleep(nanoseconds: 60_000_000)
+            guard !retired, alignmentGeneration == current, !token.isCancelled else { return }
+            let result = await Task.detached { Result { try SubversionComparisonPresentation(plan: configuration.get().plan(base: a, mine: b, cancellation: token)).alignment } }.value
             guard !retired, alignmentGeneration == current else { return }
             filtering = false; regexCancellation = nil
             switch result {
             case .success(let value):
+                var selections: [Bool: AlignmentSelection] = [:]
+                for (side, scroll) in scrolls {
+                    if let text = scroll.documentView as? FileComparisonTextView,
+                       let source = try? FileComparisonEditing.sourceRange(text.selectedRange(), cells: text.sourceCells) {
+                        selections[side] = .init(sourceRange: source)
+                    }
+                }
                 if let previous = alignment {
                     drafts?.remapAnnotations(from: previous, to: value, base: true)
                     drafts?.remapAnnotations(from: previous, to: value, base: false)
                 }
                 alignment = value; difference = -1; selectedRows = nil; inlineCache = [:]
-            case .failure(let failure): regexFilterName = nil; error = failure.localizedDescription
+                alignmentSelections = selections
+            case .failure(let failure): alignment = nil; regexFilterName = nil; error = failure.localizedDescription
             }
         }
     }
@@ -666,7 +692,7 @@ private struct FileComparisonDialog: View {
                     Divider(); Button("Edit Filters…") { model.manageRegexFilters() }
                 } label: { Text("Regex Filter: " + (model.regexFilterName ?? "No Filter")) }
                 .fixedSize().disabled(model.busy || model.confirmingQuit)
-                if model.filtering { ProgressView().controlSize(.small); Text("Filtering…").font(.caption) }
+                if model.filtering { ProgressView().controlSize(.small); Text("Comparing…").font(.caption) }
                 Spacer()
             }.padding(.horizontal, 10).padding(.bottom, 8)
             HStack {
@@ -683,7 +709,7 @@ private struct FileComparisonDialog: View {
             Divider()
             HStack {
                 if model.busy { ProgressView().controlSize(.small) }
-                Text(model.alignment.map { "\($0.differences.count) difference(s)" } ?? "").font(.caption)
+                Text(model.filtering ? "Comparing…" : model.alignment.map { "\($0.differences.count) difference(s)" } ?? "").font(.caption)
                 Spacer(); Text(model.dirty ? "Modified · working file not saved" : model.editingEnabled && model.editableBase != nil ? "Editing working file" : "Read-only comparison").font(.caption).foregroundStyle(.secondary)
             }.padding(8)
         }
@@ -742,6 +768,12 @@ struct FileComparisonEditor: NSViewRepresentable {
         (scroll.verticalRulerView as? MergeLineRuler)?.sourceNumbers = cells.map(\.lineNumber)
         (scroll.verticalRulerView as? MergeLineRuler)?.markedRows = model.annotations(base: base).marked
         scroll.verticalRulerView?.needsDisplay = true
+        if let selection = model.alignmentSelections[base] {
+            let start = FileComparisonEditing.displayOffset(sourceOffset: selection.sourceRange.location, cells: cells)
+            let end = FileComparisonEditing.displayOffset(sourceOffset: NSMaxRange(selection.sourceRange), cells: cells)
+            view.setSelectedRange(NSRange(location: min(start, value.length), length: max(0, min(end, value.length) - min(start, value.length))))
+            DispatchQueue.main.async { if model.alignmentSelections[base]?.id == selection.id { model.alignmentSelections.removeValue(forKey: base) } }
+        }
         if model.editableBase == base, let caret = model.selectionRequest {
             let offset = FileComparisonEditing.displayOffset(sourceOffset: caret, cells: cells)
             view.setSelectedRange(NSRange(location: min(offset, (view.string as NSString).length), length: 0))
@@ -794,6 +826,14 @@ struct FileComparisonEditor: NSViewRepresentable {
         func textViewDidChangeSelection(_ notification: Notification) {
             guard let view = notification.object as? NSTextView else { return }
             let range = view.selectedRange(), cells = cells, generation = model.alignmentGeneration
+            // A user's new selection supersedes the caret requested by the
+            // preceding edit. Clear it synchronously before a queued hosting
+            // update can collapse that selection while the engine is pending.
+            if let caret = model.selectionRequest,
+               let source = try? FileComparisonEditing.sourceRange(range, cells: cells),
+               source.length > 0 || source.location != caret {
+                model.selectionRequest = nil
+            }
             DispatchQueue.main.async { if self.model.activeBase == self.base, self.model.alignmentGeneration == generation, view.selectedRange() == range { self.model.updateSelection(range, cells: cells) } }
         }
         func updateUndoState() { guard model.activeBase == base else { return }; model.canUndo = history.canUndo; model.canRedo = history.canRedo }

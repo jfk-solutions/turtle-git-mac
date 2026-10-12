@@ -1,0 +1,14 @@
+{
+  "date": "2026-10-12",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Subversion-backed two-pane ordinary/filtered comparisons and native editing integration",
+  "implementationThenGroupedValidation": true,
+  "core": {"tests": 52, "failures": 0, "seconds": 9.300, "log": "build/qa/two-pane-engine-core-2026-10-12.log", "checks": ["Subversion source rows/gaps", "original-byte block transfers", "source selection mapping", "filtered repeated-line annotation remapping", "existing comparison/editing/regex/engine tests"]},
+  "build": {"configuration": "Debug", "architecture": "arm64", "exitCode": 0, "signed": false, "log": "build/qa/two-pane-engine-build-2026-10-12.log", "notes": "Existing exit-zero diagnostic noise remains. A focused rebuild followed the native caret-handoff repair; the unchanged Core suite was not repeated."},
+  "native": {"exitCode": 0, "log": "build/qa/two-pane-engine-native-2026-10-12.log", "checks": ["ordinary and filtered production comparison ranges", "superseded filter requests rejected", "Unicode typing", "selection retained across authoritative alignment", "pending transfer refused", "native Undo/Redo", "marked rows", "Include reverts unmarked differences", "exact UTF-8 BOM/CRLF save", "UTF-16 BOM executable Base untouched", "missing engine clears comparison", "started slow adapter cancellation and late-reply fencing"], "repairs": ["A pending edit caret request overwrote a later selection; clear it synchronously when the native selection supersedes it", "Fixture expected an unmarked stamp difference to survive Include; corrected to upstream marked/manual-row semantics"], "physicalInput": false, "installedApplicationLaunched": false, "ownedWindowsClosed": true, "ownedHelpersExited": true},
+  "editingProjection": "Immediate Swift coordinate projection remains only while comparison is pending. Confirmed rows come from Subversion. Transfer/navigation/inline results wait; errors clear alignment rather than reporting the projection as complete.",
+  "cleanup": "Failed-fixture private directories and preference domains were removed after checking exact UUID namespaces and sample contents; successful fixture resources cleaned by the receiver.",
+  "remoteCI": {"previousCommit": "19c3def", "run": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38199319588", "observedState": "SVN job passed; main job running Git integration tests, no failed steps when checked", "successfulRemoteRerun": "Not established", "newCombinedReceiver": "Focused body verified locally; new combined wrapper not yet run remotely"},
+  "remainingAcceptance": ["resolved three-way child regions", "full upstream whitespace/case/comment/EOL options", "complete visual captures", "physical keyboard/menu/source comparison", "signed sandbox/dynamic loading", "minimum-OS execution", "remote CI success", "full application parity"],
+  "completePortCertified": false
+}
