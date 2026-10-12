@@ -203,3 +203,13 @@ Choose **Apply unified diff** for a patch file and target directory, or select
 availability without reading clipboard text until OK. If clipboard contents
 are cleared while selected, you can uncheck it and choose a patch file. See
 [Merge Open parity](MERGE-OPEN-PARITY.md) for current validation and limitations.
+
+
+## Text encoding and line endings
+
+In an editable comparison or merged-result pane, choose **Encoding…** beside
+its format indicators. Choose the output encoding and EOL, then OK. **Auto**
+preserves mixed endings and unended final lines. Cancel changes nothing. The
+chooser edits the draft; use Save or Save As to write it. A format that cannot
+represent the text without loss is rejected. Go To Line uses the source file's
+numbered lines, excludes alignment gaps and is unavailable for one-line panes.

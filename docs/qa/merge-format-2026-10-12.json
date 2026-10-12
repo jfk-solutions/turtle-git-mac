@@ -1,0 +1,77 @@
+{
+  "date": "2026-10-12",
+  "baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Encoding/EOL dialog in both viewers and source Go To resource audit",
+  "implemented": [
+    "Nine encodings and ten EOL choices in source order",
+    "Pane name and transactional OK/Cancel native sheet",
+    "Auto preserves mixed endings and missing final terminator",
+    "Validate complete converted text before changing text/encoding",
+    "Duplicate prompt and retired/reloaded/changed-context fencing",
+    "Both viewers retain original inline selectors and add Encoding dialog entry",
+    "Native Go To title/OK labels; source one-line exclusion retained",
+    "Three-pane Close/Quit now refuses an attached sheet"
+  ],
+  "validation": {
+    "core": {
+      "class": "MergeFormatSelectionTests",
+      "tests": 3,
+      "failures": 0,
+      "seconds": 0.002,
+      "full_suite_run": false
+    },
+    "app_builds": {
+      "initial_exit": 0,
+      "resource_alignment_exit": 0,
+      "sheet_guard_exit": 0,
+      "configuration": "Debug arm64 unsigned macOS13 target",
+      "existing_zero_exit_output_noise": true
+    },
+    "native": {
+      "command": "python3 scripts/test-native-merge-regex.py --options-batch",
+      "frontend_attempts": 2,
+      "executed_receiver_processes": 1,
+      "initial_failure": "QA referenced settle instead of existing settled helper; compilation stopped before running any receiver",
+      "final_exit": 0,
+      "families": [
+        "Three-pane",
+        "Two-pane",
+        "Locator",
+        "Whitespace/colors",
+        "General settings",
+        "About",
+        "Find",
+        "Open",
+        "Encoding/Go To"
+      ],
+      "format_cases": [
+        "Original nine/ten native popup choices",
+        "Auto and Cancel",
+        "Two-pane UTF-16BE BOM plus CRLF acceptance with original files unchanged",
+        "Three-pane Auto UTF-16BE BOM and explicit CRLF acceptance",
+        "Retired two-pane reply ignored",
+        "Actual attached sheet refuses Close and app Quit",
+        "Source one-line Go To exclusion"
+      ],
+      "owned_windows_closed": true,
+      "owned_helpers_remaining": 0,
+      "main_app_launched": false
+    },
+    "source_audit": "BaseView::OnEditGotoline intentionally refuses last source line number zero (one-line pane); initial validator adjustment was reverted before final native check",
+    "site": "Generated static site and clean diff whitespace",
+    "new_screenshots_published": 0,
+    "hosted_new_commit_verified": false
+  },
+  "remaining": [
+    "Physical popup/keyboard/menu/VoiceOver and light/dark/minimum-size captures",
+    "Full legacy input codepage compatibility; ASCII output is explicit Windows-1252",
+    "Encoding metadata not grouped into text Undo step",
+    "Signed App Store and Finder acceptance"
+  ],
+  "inventory": {
+    "total_dialogs": 130,
+    "partial": 61,
+    "pending": 69,
+    "certified_complete": 0
+  }
+}

@@ -107,6 +107,12 @@ struct MergeOpenNativeVerification {
         try await wait { !merge.model.busy }
         let aliasSaved = try Data(contentsOf:mine)
         try require(aliasSaved == Data("another result\n".utf8) && !merge.model.dirty && merge.model.error == nil)
+        let originalResult = merge.model.result
+        merge.model.chooseFormat = { _,_,_ in .init(encoding:.utf16BEBOM) }; merge.model.showFormatDialog()
+        try await wait { merge.model.encoding == .utf16BEBOM }
+        try require(merge.model.result == originalResult)
+        merge.model.chooseFormat = { _,_,_ in .init(encoding:.utf8,ending:.crlf) }; merge.model.showFormatDialog()
+        try await wait { merge.model.encoding == .utf8 && merge.model.result == "another result\r\n" }
         merge.window?.close(); try await wait { MergeRegexOperations.activeRequests == 0 }
         print("Merge Open: native source radio/field/clipboard gates, captured private patch, mode Apply/Cancel, invalid path, expired picker, standalone three-pane load/save/dirty and no Git initialization passed. All owned windows closed.")
     }

@@ -1140,3 +1140,11 @@ The Open follow-up batch adds private native drop-pasteboard, completion and
 clipboard-metadata checks to the same receiver, plus Core input/output aliases,
 hard-link replacement, delete/recreation, Reload and permission-change fences.
 Run those with `MergeOpenTests` and `--open-only` after implementing the batch.
+
+
+## Merge Encoding and Go To
+
+Run `swift test --filter MergeFormatSelectionTests`, then the shared native
+`--options-batch` after the Debug framework build. `--format-only` isolates the
+format sheet/two-pane receiver after an actual failure. The Open receiver also
+checks three-pane format acceptance. See [format parity](MERGE-FORMAT-PARITY.md).

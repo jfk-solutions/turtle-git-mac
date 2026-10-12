@@ -38,6 +38,7 @@ struct MergeFormatControls: View {
     let editable: Bool
     let changeEncoding: (ComparisonTextEncoding) -> Void
     let changeEnding: (MergeLineEnding) -> Void
+    var showFormatDialog: (() -> Void)? = nil
     private var styles: Set<MergeLineEnding> { text.map(MergeLineEndings.styles) ?? [] }
     private var endingTitle: String {
         guard text != nil else { return "—" }
@@ -48,6 +49,7 @@ struct MergeFormatControls: View {
     var body: some View {
         HStack(spacing: 8) {
             if editable {
+                if let showFormatDialog { Button("Encoding…", action:showFormatDialog).accessibilityLabel("\(label) encoding and line endings") }
                 Menu(encoding?.rawValue ?? "—") {
                     ForEach(ComparisonTextEncoding.allCases, id: \.rawValue) { value in
                         Button { changeEncoding(value) } label: {
@@ -170,6 +172,7 @@ private enum MergeSourceSide {
         DialogGeometry.attach(window, identifier: "TurtleGit.TextConflict", legacyName: "TurtleGit.TextConflict")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard sender.attachedSheet == nil else { return false }
         if model.preparing { return true }
         guard !model.busy, !model.confirmingQuit else { return false }
         guard model.dirty else { return true }
@@ -365,6 +368,25 @@ private enum MergeSourceSide {
             else { previous = document.workingContents.flatMap { document.encoding.decode($0) } ?? "" }
             return !result.utf8.elementsEqual(previous.utf8) || encoding != (workingMergeOutput != nil ? standaloneSavedEncoding ?? document.encoding : document.encoding)
         } ?? false
+    }
+    private var formatPending = false
+    var chooseFormat: (NSWindow, String, MergeFormatSelection) async -> MergeFormatSelection? = MergeFormatPrompt.choose
+    func showFormatDialog() {
+        guard !formatPending, !busy, !confirmingQuit, !retired, let document, let window, window.attachedSheet == nil else { return }
+        let original = result, originalEncoding = encoding, generation = loadGeneration
+        formatPending = true
+        Task {
+            defer { formatPending = false }
+            guard let choice = await chooseFormat(window,"Merged",.initial(encoding:originalEncoding,text:original)),
+                  generation == loadGeneration, !busy, !confirmingQuit, !retired, result.utf8.elementsEqual(original.utf8), encoding == originalEncoding, self.document?.entry == document.entry else { return }
+            do {
+                let converted = try choice.applying(to:original)
+                if !converted.utf8.elementsEqual(original.utf8) {
+                    if let replaceEntireResult { replaceEntireResult(converted) } else { result = converted }
+                }
+                encoding = choice.encoding
+            } catch { self.error = error.localizedDescription }
+        }
     }
     func changeEncoding(_ value: ComparisonTextEncoding) {
         guard !busy, !confirmingQuit, document != nil else { return }
@@ -581,7 +603,7 @@ private struct TextConflictDialog: View {
             HStack { Text(title).font(.headline); Spacer(); if editable { Text(model.dirty ? "Modified" : "").font(.caption).foregroundStyle(.secondary) } }.padding(7).background(Color(nsColor: .controlBackgroundColor))
             MergeEditor(model: model, text: displayed, label: title, editable: editable, sourceCells: cells, sourceSide: side, tabWidth: tabWidth, useSpaces: useSpaces, smartTab: smartTab).frame(minWidth: 220, minHeight: 120)
             HStack {
-                MergeFormatControls(label: title, encoding: encoding, text: text, editable: editable && !model.busy && !model.confirmingQuit, changeEncoding: model.changeEncoding, changeEnding: model.changeLineEnding)
+                MergeFormatControls(label: title, encoding: encoding, text: text, editable: editable && !model.busy && !model.confirmingQuit, changeEncoding: model.changeEncoding, changeEnding: model.changeLineEnding, showFormatDialog:model.showFormatDialog)
                 Spacer()
                 MergeTabControls(label: title, tabWidth: tabWidth, useSpaces: useSpaces, smartTab: smartTab, changeWidth: { model.tabWidths[title] = $0 }, changeSpaces: { model.spacePanes[title] = $0 }, changeSmart: { model.smartTabPanes[title] = $0 }, editorConfigEnabled: model.editorConfigEnabled[title] == true, editorConfigLoaded: model.editorConfigLoaded[title] == true, changeEditorConfig: { model.setEditorConfig($0, pane: title) }).disabled(model.busy || model.confirmingQuit || model.editorConfigLoading.contains(title))
             }.padding(.horizontal, 7).padding(.vertical, 3).background(Color(nsColor: .controlBackgroundColor))

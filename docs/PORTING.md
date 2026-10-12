@@ -28,6 +28,10 @@ The Merge Colors page adds native light/dark foreground/background controls,
 selective defaults and shared palette updates across text panes, locator and
 whitespace rendering. See [Colors parity](MERGE-COLORS-PARITY.md).
 
+The Encoding/Go To batch adds the source nine/ten-choice native format sheet in
+both viewers, atomic draft validation and source navigation bounds.
+See [format dialog parity](MERGE-FORMAT-PARITY.md).
+
 The native Merge Open dialog routes one/two standalone files, three-file merges
 and unified patches/clipboard bytes through retained file permissions.
 See [Open parity](MERGE-OPEN-PARITY.md).
@@ -93,7 +97,7 @@ owned loading/command progress. Native Push variants and owned Shift Push option
 controls, full visual matching and signed acceptance are still pending. See
 [Synchronization parity](SYNCHRONIZATION-PARITY.md).
 Across the 130 inventoried dialogs:
-59 dialogs have partial implementations and 71 await review. No dialog is certified complete.
+61 dialogs have partial implementations and 69 await review. No dialog is certified complete.
 See [the reference dialog audit](COMMIT-CONTAINING-REFS-PARITY.md).
 
 Log commit ordering now has the source’s four-choice native sheet, deferred

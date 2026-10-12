@@ -314,6 +314,23 @@ import TurtleGitCore
         catch { self.error = error.localizedDescription }
     }
     func encoding(base: Bool) -> ComparisonTextEncoding? { drafts?.encoding(base: base) }
+    private var formatRequest: UUID?
+    var chooseFormat: (NSWindow, String, MergeFormatSelection) async -> MergeFormatSelection? = MergeFormatPrompt.choose
+    func showFormatDialog(base: Bool) {
+        guard formatRequest == nil, canTransfer(toBase:base), let window, window.attachedSheet == nil, let originalEncoding = encoding(base:base) else { return }
+        let original = draftText(base:base), request = UUID(), generation = alignmentGeneration
+        formatRequest = request
+        Task {
+            defer { if formatRequest == request { formatRequest = nil } }
+            guard let choice = await chooseFormat(window,base ? "Base" : "Mine",.initial(encoding:originalEncoding,text:original)),
+                  formatRequest == request, alignmentGeneration == generation, canTransfer(toBase:base), draftText(base:base).utf8.elementsEqual(original.utf8), encoding(base:base) == originalEncoding else { return }
+            do {
+                let converted = try choice.applying(to:original)
+                if !converted.utf8.elementsEqual(original.utf8) { editorActions[base]?.replace(converted,0,nil) }
+                try drafts?.setEncoding(choice.encoding,base:base)
+            } catch { self.error = error.localizedDescription }
+        }
+    }
     func changeEncoding(_ value: ComparisonTextEncoding, base: Bool) {
         guard canTransfer(toBase: base) else { return }
         do { try drafts?.setEncoding(value, base: base) } catch { self.error = error.localizedDescription }
@@ -425,6 +442,7 @@ import TurtleGitCore
         snapshot = images.snapshot; path = images.destination?.path ?? images.base?.path ?? "Images"
     }
     func retireImageLoader() {
+        formatRequest = nil
         retired = true; regexCancellation?.cancel(); regexCancellation = nil; regexList?.retire(); regexList = nil
         imageLoader?.retire(); imageLoader = nil
     }
@@ -738,7 +756,7 @@ private struct FileComparisonDialog: View {
                 else { ScrollView { Text("Binary or unsupported text encoding · \(content.bytes.count) bytes\n\n" + content.bytes.prefix(4096).enumerated().map { ($0.offset % 16 == 0 ? "\n" : " ") + String(format: "%02X", $0.element) }.joined()).font(.system(.caption, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) } }
             } else { Color(nsColor: .textBackgroundColor) }
             HStack {
-                MergeFormatControls(label: base ? "Base" : "Mine", encoding: model.encoding(base: base) ?? content?.encoding, text: content?.text == nil ? nil : model.draftText(base: base), editable: model.canTransfer(toBase: base), changeEncoding: { model.changeEncoding($0, base: base) }, changeEnding: { model.changeLineEnding($0, base: base) })
+                MergeFormatControls(label: base ? "Base" : "Mine", encoding: model.encoding(base: base) ?? content?.encoding, text: content?.text == nil ? nil : model.draftText(base: base), editable: model.canTransfer(toBase: base), changeEncoding: { model.changeEncoding($0, base: base) }, changeEnding: { model.changeLineEnding($0, base: base) }, showFormatDialog:{ model.showFormatDialog(base:base) })
                 Spacer()
                 MergeTabControls(label: base ? "Base" : "Mine", tabWidth: model.tabWidth(base: base), useSpaces: model.useSpaces(base: base), smartTab: model.smartTab(base: base), changeWidth: { model.tabWidths[base] = $0 }, changeSpaces: { model.spacePanes[base] = $0 }, changeSmart: { model.smartTabPanes[base] = $0 }, editorConfigEnabled: model.editorConfigEnabled[base] == true, editorConfigLoaded: model.editorConfigLoaded[base] == true, changeEditorConfig: { model.setEditorConfig($0, base: base) }).disabled(model.busy || model.confirmingQuit || model.editorConfigLoading.contains(base))
                 Text("\(content?.isDeleted == true ? "Deleted" : content?.mode ?? "Absent") · \(content?.bytes.count ?? 0) saved bytes").font(.caption).foregroundStyle(.secondary)
@@ -1203,9 +1221,9 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
     init(limit: Int) {
         self.limit = limit
         super.init()
-        alert.messageText = "Go to Line"
+        alert.messageText = "Go To Line"
         alert.informativeText = "Line number (1 – \(limit))"
-        alert.addButton(withTitle: "Go"); alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: "OK"); alert.addButton(withTitle: "Cancel")
         alert.buttons[0].isEnabled = false
         field.placeholderString = "Line number"; field.setAccessibilityLabel("Line number (1 – \(limit))")
         field.delegate = self; alert.accessoryView = field
@@ -1258,5 +1276,34 @@ extension MergeLineNavigationProviding where Self: NSTextView {
             guard let range, NSMaxRange(range) <= (string as NSString).length else { return }
             window.makeFirstResponder(self); setSelectedRange(range); scrollRangeToVisible(range)
         }
+    }
+}
+
+/// Transactional native Encoding/EOL chooser shared by both Merge viewers.
+@MainActor final class MergeFormatPrompt {
+    let alert = NSAlert()
+    let encoding = NSPopUpButton(), ending = NSPopUpButton()
+    let endings: [MergeLineEnding?] = [nil,.crlf,.lf,.cr,.lfcr,.verticalTab,.formFeed,.nextLine,.lineSeparator,.paragraphSeparator]
+    init(pane: String, selection: MergeFormatSelection) {
+        alert.messageText = pane + " Encoding"
+        alert.addButton(withTitle:"OK"); alert.addButton(withTitle:"Cancel")
+        encoding.addItems(withTitles:MergeFormatSelection.encodings.map(\.rawValue))
+        encoding.selectItem(at:MergeFormatSelection.encodings.firstIndex(of:selection.encoding) ?? 7)
+        ending.addItems(withTitles:endings.map { $0?.menuTitle ?? "Auto" })
+        ending.selectItem(at:endings.firstIndex(where:{ $0 == selection.ending }) ?? 0)
+        let grid = NSGridView(views:[[NSTextField(labelWithString:pane),NSView()], [NSTextField(labelWithString:"Encoding"),encoding], [NSTextField(labelWithString:"EOL"),ending]])
+        grid.columnSpacing = 14; grid.rowSpacing = 10
+        encoding.widthAnchor.constraint(equalToConstant:240).isActive = true
+        grid.frame = NSRect(origin:.zero,size:grid.fittingSize)
+        encoding.setAccessibilityLabel(pane + " encoding"); ending.setAccessibilityLabel(pane + " line endings")
+        alert.accessoryView = grid; alert.window.initialFirstResponder = encoding
+    }
+    var selection: MergeFormatSelection {
+        .init(encoding:MergeFormatSelection.encodings[max(0,encoding.indexOfSelectedItem)], ending:endings[max(0,ending.indexOfSelectedItem)])
+    }
+    static func choose(window: NSWindow, pane: String, selection: MergeFormatSelection) async -> MergeFormatSelection? {
+        let prompt = MergeFormatPrompt(pane:pane,selection:selection)
+        let response = await withCheckedContinuation { continuation in prompt.alert.beginSheetModal(for:window) { continuation.resume(returning:$0) } }
+        return response == .alertFirstButtonReturn ? prompt.selection : nil
     }
 }

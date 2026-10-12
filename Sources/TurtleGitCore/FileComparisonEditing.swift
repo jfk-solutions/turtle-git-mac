@@ -392,3 +392,20 @@ enum MergeWorkingFileSave {
         else { guard Darwin.rename(temporary.path, location.path) == 0 else { throw CocoaError(.fileWriteUnknown) } }
     }
 }
+
+/// IDD_ENCODING order and AutoLine semantics, independent of native controls.
+public struct MergeFormatSelection: Equatable, Sendable {
+    public var encoding: ComparisonTextEncoding
+    public var ending: MergeLineEnding?
+    public static let encodings: [ComparisonTextEncoding] = [.windows1252,.utf16LE,.utf16BE,.utf16LEBOM,.utf16BEBOM,.utf32LE,.utf32BE,.utf8,.utf8BOM]
+    public init(encoding: ComparisonTextEncoding, ending: MergeLineEnding? = nil) { self.encoding = encoding; self.ending = ending }
+    public static func initial(encoding: ComparisonTextEncoding, text: String) -> Self {
+        let styles = MergeLineEndings.styles(in:text)
+        return .init(encoding:encoding,ending:styles.count == 1 ? styles.first : nil)
+    }
+    public func applying(to text: String) throws -> String {
+        let value = ending.map { MergeLineEndings.converting(text,to:$0) } ?? text
+        _ = try encoding.encode(value)
+        return value
+    }
+}
