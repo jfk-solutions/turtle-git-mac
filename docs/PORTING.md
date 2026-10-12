@@ -887,3 +887,11 @@ configuration and Cancel restores unsaved values. The original Bugtraq icon is
 bundled with provenance. Focused Core and native checks passed; provider execution,
 physical/signed acceptance and Windows association adaptation remain open. See
 [Issue tracker audit](ISSUE-TRACKER-PARITY.md).
+
+
+Reviewed compositor captures now document Issue Tracker Config and Regex Tester
+in both themes on GitHub Pages and README. The page uses a dedicated native host
+with shared footer, not the complete Settings navigation window. Source field/
+group order was compared with the pinned screenshot/resource; full physical and
+signed parity remain open. Visual review corrected repeated placeholders in empty fields and refreshed the
+captures after a passing Debug build. Core/behavior suites were not rerun.

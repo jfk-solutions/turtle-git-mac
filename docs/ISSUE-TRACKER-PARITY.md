@@ -332,3 +332,35 @@ The resource is partial-native-replacement, not certified complete. See
 `qa/issue-tracker-settings-native-2026-10-12.json`. Physical focus/layout/help,
 no-repository/signed permissions, source plugin association/effective registry
 fallback, system saving and complete tracker integration remain open.
+
+
+## Displayed light/dark capture review — 2026-10-12
+
+Four compositor captures now show the actual Issue Tracker Config page and Regex
+Tester in Aqua/Dark Aqua. The Settings page uses a dedicated native host and shared
+transaction footer; the full Settings navigation tree is absent. Private draft
+values and the original source sample were used; the matcher is the actual C++
+helper. No screenshot pixels were generated, edited or reconstructed.
+
+Reviewed the final captures against the pinned Windows
+`doc/images/en/SettingsIssueTrackerConfig.png` and both resource layouts. The
+source scope order, BugTraq field order, inheritance/boolean controls, regex/Test,
+provider group, Save-to and tester sample/expression/button order are present.
+Native rounded controls, system sizing/spacing and the provider-availability
+caption differ intentionally for macOS. The native page is scrollable and its
+standalone capture is wider than the source page. These images do not establish
+full navigation, minimum-size/focus/keyboard, field-specific invalid adornment,
+help, plugin or signed behavior.
+
+AppKit cacheDisplay first produced incomplete SwiftUI/black captures; those were
+rejected and are not published. A compositor pass was readable but inactive, so
+the final pass explicitly activated only the owned windows and cleared field
+focus. All four final images were viewed and inspected before copying unchanged
+to the site. Four capture-only receiver compilations/processes ran during this
+render/visual repair, all exited 0 and were reaped; all owned windows/helper work retired.
+Visual review also removed repeated placeholders from empty fields, retaining
+accessibility labels and matching the source blank boxes. Its Debug build exited
+0 and the displayed captures were refreshed and reviewed. No Core or behavioral
+suite was rerun for this presentation-only change. The optional capture case is
+excluded from the default CI group and requires local window-capture permission.
+See `qa/issue-tracker-captures-2026-10-12.json` for final dimensions and hashes.

@@ -1,0 +1,62 @@
+{
+  "date": "2026-10-12",
+  "baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Actual native Issue Tracker page and Regex Tester compositor captures",
+  "source_comparison": [
+    "doc/images/en/SettingsIssueTrackerConfig.png",
+    "IDD_SETTINGSBUGTRAQ_CONFIG",
+    "IDD_BUGTRAQREGEXTESTER"
+  ],
+  "validation": {
+    "capture_runs": 4,
+    "receiver_compilations": 4,
+    "receiver_process_exits": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "owned_receivers_windows_helpers_retired": true,
+    "first_appkit_capture": "Rejected incomplete SwiftUI/black surfaces; not published",
+    "first_compositor_pass": "Readable but inactive; superseded",
+    "final_compositor_pass": "Activated owned windows, blurred fields, all four images visually inspected",
+    "image_pixels_edited_or_generated": false,
+    "private_git_config_and_drafts": true,
+    "default_ci_runs_capture": false,
+    "presentation_debug_build_exit": 0,
+    "core_or_behavioral_suite_rerun": false,
+    "visual_fix": "Blank field placeholders now match the source; accessibility labels retained"
+  },
+  "assets": [
+    {
+      "path": "docs/site/assets/issue-tracker-config-light.png",
+      "sha256": "a6f6686c0b3d332b47555905078c2ed64f987b6a43f1ab5f0ff7174a6df6d9b6",
+      "width": 1640,
+      "height": 1624
+    },
+    {
+      "path": "docs/site/assets/issue-tracker-config-dark.png",
+      "sha256": "69be3d6c279784199873e6d181ba93bd455ae011d5882c7601a02f614042b217",
+      "width": 1640,
+      "height": 1624
+    },
+    {
+      "path": "docs/site/assets/issue-regex-tester-light.png",
+      "sha256": "06b2e5d5c1b4162dc7f1a9698e89d928bc0e75ab903496d6fd1e92be04f14601",
+      "width": 1120,
+      "height": 824
+    },
+    {
+      "path": "docs/site/assets/issue-regex-tester-dark.png",
+      "sha256": "203642392899e10434da598b93bf35dd9f768abdeb75b0b4d615f74659d8d421",
+      "width": 1120,
+      "height": 824
+    }
+  ],
+  "limitations": [
+    "Settings page has dedicated host/shared footer; full navigation tree absent",
+    "Complete physical keyboard/focus/minimum size/help not covered",
+    "Invalid-regex field adornment and plugin execution remain open",
+    "Signed grants and full App Store acceptance remain open"
+  ]
+}

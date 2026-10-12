@@ -138,6 +138,13 @@ The Log and Commit [light](docs/site/assets/commit-light.png) /
 [partial staging](docs/site/assets/partial-staging.png) document previous
 checkpoints. Screenshots do not establish parity for every dialog.
 
+The new Issue Tracker Config [light](docs/site/assets/issue-tracker-config-light.png) /
+[dark](docs/site/assets/issue-tracker-config-dark.png) page and Regex Tester
+[light](docs/site/assets/issue-regex-tester-light.png) /
+[dark](docs/site/assets/issue-regex-tester-dark.png) captures use dedicated private
+native hosts. See [their source comparison and capture scope](docs/qa/issue-tracker-captures-2026-10-12.json).
+The Settings page capture includes its shared footer, not the full navigation tree.
+
 The static site source is `docs/site`; `python3 scripts/build-site.py` builds
 `build/site`. See [website and screenshot maintenance](docs/WEBSITE.md).
 

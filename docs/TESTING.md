@@ -1333,3 +1333,13 @@ paths. It uses private global/XDG config, a repository and context injection;
 checks shared Apply/Cancel, inheritance, owned tester draft flow, icon decode and
 late confirmation/Quit fences. Tracker plugins and physical/signed access are not
 exercised.
+
+
+`--only issue-captures` is an optional local artifact-generation case and is
+excluded from the default nineteen-family CI run. It uses private configuration,
+drafts and helper input, displays only its owned windows and captures their
+compositor output in both themes. It requires existing screen-capture permission;
+it does not grant permissions. Review images before publishing. AppKit
+cacheDisplay omits SwiftUI surfaces on the current host and must not be treated
+as a complete screenshot. This case performs capture/settlement, not the complete
+behavioral checks.

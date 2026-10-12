@@ -202,7 +202,7 @@ import TurtleGitCore
     private func identity(_ key:IssueTrackerStringKey)->GitConfigurationIdentity {model.draft.fields[key] ?? GitConfigurationIdentity()}
     private func text(_ key:IssueTrackerStringKey)->Binding<String> {Binding(get:{identity(key).value},set:{var value=identity(key);value.value=$0;model.draft.fields[key]=value})}
     private func inherit(_ key:IssueTrackerStringKey)->Binding<Bool> {Binding(get:{identity(key).inherit},set:{var value=identity(key);value.inherit=$0;model.draft.fields[key]=value})}
-    private func field(_ key:IssueTrackerStringKey,title:String?=nil)->some View {HStack{Text(title ?? key.rawValue).frame(width:180,alignment:.leading);TextField(title ?? key.rawValue,text:text(key)).disabled(!model.editable || identity(key).inherit);Toggle("inherit",isOn:inherit(key)).disabled(!model.editable)}}
+    private func field(_ key:IssueTrackerStringKey,title:String?=nil)->some View {HStack{Text(title ?? key.rawValue).frame(width:180,alignment:.leading);TextField("",text:text(key)).accessibilityLabel(title ?? key.rawValue).disabled(!model.editable || identity(key).inherit);Toggle("inherit",isOn:inherit(key)).disabled(!model.editable)}}
     private func boolean(_ title:String,value:Binding<GitConfigurationBoolean>)->some View {HStack{Text(title).frame(width:180,alignment:.leading);Picker(title,selection:value){ForEach(GitConfigurationBoolean.allCases,id:\.self){Text($0.rawValue.isEmpty ? " ":$0.rawValue).tag($0)}}.labelsHidden().frame(width:120).disabled(!model.editable);Spacer()}}
 }
 private struct IssueTrackerWindowProbe:NSViewRepresentable {
