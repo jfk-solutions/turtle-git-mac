@@ -1188,3 +1188,12 @@ publishes its entries. Hosted job `114802897011` failed the immediate row-count
 assertion. A bounded wait now reports actual model/native/graph counts on failure.
 `test-merge-pickers.py` delegates to the reference cache, and CI runs it once in
 that group rather than compiling a separate app-source receiver.
+
+The grouped Merge options and LFS/mail receivers include
+`merge-colors-native-2026-10-12.swift`. It exercises all 17 source channels,
+native dropdown/default swatches and RGB custom actions, alpha exclusion,
+independent palette drafts, selective Restore Default, Settings Apply/Cancel,
+actual light/dark control bounds and shared-panel ownership/retirement. Private
+preferences and owned windows/panels isolate the check from the user's app.
+Use `--colors-only` only for an actual Colors failure; it shares the built-app
+object cache with the options batch. No new Core tests mirror these controls.

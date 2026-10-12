@@ -212,50 +212,176 @@ private struct MergeSettingsWindowProbe: NSViewRepresentable {
     }
 }
 
-/// SetColorPage's source rows, with independent native light/dark editing.
-struct MergeColorsSettings: View {
-    @State private var draft = MergeColorPreferences.load()
-    @State private var dark = false
+/// SetColorPage keeps both palettes as drafts until Apply.
+@MainActor final class MergeColorsSettingsModel: ObservableObject {
+    let preferences: UserDefaults
+    @Published private(set) var draft: MergeColorPreferences
+    @Published var dark: Bool
+    @Published private(set) var error: String?
+    init(preferences: UserDefaults = .standard, dark: Bool? = nil) {
+        self.preferences = preferences; draft = .load(from: preferences)
+        self.dark = dark ?? (NSApplication.shared.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua)
+    }
+    var changed: Bool { draft != .load(from: preferences) }
+    func color(_ role: MergeColorRole, foreground: Bool) -> UInt32 {
+        let colors = draft.colors(role, dark: dark)
+        return foreground ? colors.foreground : colors.background
+    }
+    func automatic(_ role: MergeColorRole, foreground: Bool) -> UInt32 {
+        let colors = MergeColorPreferences.standard(role, dark: dark)
+        return foreground ? colors.foreground : colors.background
+    }
+    func setColor(_ value: UInt32, role: MergeColorRole, foreground: Bool) {
+        guard value <= 0xffffff, foreground ? role.supportsForeground : role.supportsBackground else { return }
+        var colors = draft.colors(role, dark: dark)
+        if foreground { colors.foreground = value } else { colors.background = value }
+        if dark { draft.dark[role] = colors } else { draft.light[role] = colors }
+        error = nil
+    }
+    func restoreDefault() { draft.restore(dark: dark); error = nil }
+    func discard() { draft = .load(from: preferences); error = nil }
+    func apply() -> Bool {
+        do {
+            try draft.save(to: preferences); MergePalette.reload(defaults: preferences)
+            NotificationCenter.default.post(name: .mergeEditorPreferencesChanged, object: nil)
+            error = nil; return true
+        } catch { self.error = error.localizedDescription; return false }
+    }
+}
+
+@MainActor struct MergeColorsSettings: View {
+    @StateObject private var model: MergeColorsSettingsModel
     @Environment(\.settingsTransaction) private var transaction
     private let rows: [MergeColorRole] = [.normal, .added, .removed, .modified, .conflicted, .resolved, .empty, .filtered]
-    private func binding(_ role: MergeColorRole, foreground: Bool) -> Binding<Color> {
-        Binding(get: {
-            let colors = draft.colors(role, dark: dark), rgb = foreground ? colors.foreground : colors.background
-            return Color(.sRGB, red: Double(rgb >> 16 & 255) / 255, green: Double(rgb >> 8 & 255) / 255, blue: Double(rgb & 255) / 255, opacity: 1)
-        }, set: { color in
-            guard let rgb = NSColor(color).usingColorSpace(.sRGB) else { return }
-            func channel(_ value: CGFloat) -> UInt32 { UInt32(min(255, max(0, Int((value * 255).rounded())))) }
-            let value = channel(rgb.redComponent) << 16 | channel(rgb.greenComponent) << 8 | channel(rgb.blueComponent)
-            var colors = draft.colors(role, dark: dark)
-            if foreground { colors.foreground = value } else { colors.background = value }
-            if dark { draft.dark[role] = colors } else { draft.light[role] = colors }
-        })
+    init(model: MergeColorsSettingsModel? = nil) { _model = StateObject(wrappedValue: model ?? MergeColorsSettingsModel()) }
+    private func swatch(_ role: MergeColorRole, foreground: Bool) -> some View {
+        NativeMergeColorChoice(value: model.color(role, foreground: foreground), automatic: model.automatic(role, foreground: foreground),
+            label: ([MergeColorRole.inlineAdded, .inlineRemoved].contains(role) ? "Inline " : "") + role.title + (foreground ? " foreground" : " background"), identifier: role.rawValue + (foreground ? ".foreground" : ".background"),
+            changed: { model.setColor($0, role: role, foreground: foreground) })
+            .frame(width: 76, height: 26)
     }
     private func row(_ role: MergeColorRole) -> some View {
         HStack {
             Text(role.title).frame(width: 140, alignment: .leading)
-            if role.supportsForeground { ColorPicker(role.title + " foreground", selection: binding(role, foreground: true), supportsOpacity: false).labelsHidden().frame(maxWidth: .infinity) }
-            else { Color.clear.frame(maxWidth: .infinity) }
-            if role.supportsBackground { ColorPicker(role.title + " background", selection: binding(role, foreground: false), supportsOpacity: false).labelsHidden().frame(maxWidth: .infinity) }
-            else { Color.clear.frame(maxWidth: .infinity) }
+            HStack { if role.supportsForeground { swatch(role, foreground: true) } }.frame(maxWidth: .infinity)
+            HStack { if role.supportsBackground { swatch(role, foreground: false) } }.frame(maxWidth: .infinity)
         }
-    }
-    private func apply() -> Bool {
-        do { try draft.save(); MergePalette.reload(); NotificationCenter.default.post(name: .mergeEditorPreferencesChanged, object: nil); return true }
-        catch { return false }
     }
     var body: some View {
         ScrollView { VStack(alignment: .leading, spacing: 16) {
-            Picker("Palette", selection: $dark) { Text("Light").tag(false); Text("Dark").tag(true) }.pickerStyle(.segmented)
+            NativeMergePaletteChoice(dark: $model.dark).frame(height: 26)
             HStack { Text(" ").frame(width: 140); Text("Foreground").frame(maxWidth: .infinity); Text("Background").frame(maxWidth: .infinity) }
             GroupBox("Line differences") { VStack(spacing: 10) { ForEach(rows, id: \.self) { row($0) } }.padding(8) }
             GroupBox("Inline differences") { VStack(spacing: 10) { row(.inlineAdded); row(.inlineRemoved) }.padding(8) }
             GroupBox("Misc") { row(.whitespace).padding(8) }
-            HStack { Spacer(); Button("Restore Default") { draft.restore(dark: dark) } }
-            Text("Palette edits apply to open merge panes, locator stripes and whitespace markers when you choose Apply. App appearance is controlled in General.").font(.caption).foregroundStyle(.secondary)
-            if transaction == nil { HStack { Spacer(); Button("Cancel") { draft = .load() }; Button("Apply") { _ = apply() }.disabled(draft == .load()) } }
+            HStack { Spacer(); Button("Restore Default") { model.restoreDefault() } }
+            Text("Use each swatch’s menu for Automatic or More colors. Apply updates open merge panes, locator stripes and whitespace markers. App appearance is controlled in General.").font(.caption).foregroundStyle(.secondary)
+            if let error = model.error { Text(error).foregroundStyle(.red) }
+            if transaction == nil { HStack { Spacer(); Button("Cancel") { model.discard() }; Button("Apply") { _ = model.apply() }.disabled(!model.changed) } }
         }.padding(20) }
-        .settingsParticipant("mergeColors", page: .mergeColors, value: draft, modified: { draft != .load() }, apply: { apply() }, cancel: { draft = .load() })
+        .settingsParticipant("mergeColors", page: .mergeColors, value: model.draft, modified: { model.changed }, apply: { model.apply() }, cancel: { model.discard() })
+    }
+}
+
+private struct NativeMergePaletteChoice: NSViewRepresentable {
+    @Binding var dark: Bool
+    func makeNSView(context: Context) -> NSSegmentedControl {
+        let control = NSSegmentedControl(labels: ["Light", "Dark"], trackingMode: .selectOne, target: context.coordinator, action: #selector(Coordinator.choose(_:)))
+        control.identifier = NSUserInterfaceItemIdentifier("MergeColors.Palette"); control.setAccessibilityLabel("Palette to edit")
+        return control
+    }
+    func updateNSView(_ control: NSSegmentedControl, context: Context) { context.coordinator.binding = $dark; control.selectedSegment = dark ? 1 : 0 }
+    func makeCoordinator() -> Coordinator { Coordinator(binding: $dark) }
+    final class Coordinator: NSObject {
+        var binding: Binding<Bool>
+        init(binding: Binding<Bool>) { self.binding = binding }
+        @objc func choose(_ control: NSSegmentedControl) { binding.wrappedValue = control.selectedSegment == 1 }
+    }
+}
+
+private struct NativeMergeColorChoice: NSViewRepresentable {
+    let value: UInt32, automatic: UInt32
+    let label: String, identifier: String
+    let changed: (UInt32) -> Void
+    func makeNSView(context: Context) -> MergeColorChoiceView { MergeColorChoiceView() }
+    func updateNSView(_ view: MergeColorChoiceView, context: Context) {
+        view.configure(value: value, automatic: automatic, label: label, identifier: identifier, changed: changed)
+    }
+    static func dismantleNSView(_ view: MergeColorChoiceView, coordinator: ()) { view.retire() }
+}
+
+/// A native color well plus the source Automatic/More colors dropdown.
+@MainActor final class MergeColorChoiceView: NSView {
+    let well = MergeSettingsColorWell()
+    let arrow = NSButton()
+    let choices = NSMenu()
+    private var automatic: UInt32 = 0
+    private var changed: ((UInt32) -> Void)?
+    private var ownerObserver: NSObjectProtocol?
+    var presentPanel: (NSColorPanel) -> Void = { $0.orderFront(nil) }
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        well.target = self; well.action = #selector(colorChanged(_:))
+        arrow.title = "▾"; arrow.bezelStyle = .rounded; arrow.target = self; arrow.action = #selector(showChoices(_:))
+        addSubview(well); addSubview(arrow)
+        let automaticItem = NSMenuItem(title: "Automatic", action: #selector(useAutomatic(_:)), keyEquivalent: "")
+        automaticItem.target = self; choices.addItem(automaticItem); choices.addItem(.separator())
+        let custom = NSMenuItem(title: "More colors…", action: #selector(moreColors(_:)), keyEquivalent: "")
+        custom.target = self; choices.addItem(custom)
+    }
+    convenience init() { self.init(frame: .zero) }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+    override func layout() {
+        super.layout(); well.frame = NSRect(x: 0, y: 1, width: max(0, bounds.width - 20), height: bounds.height - 2)
+        arrow.frame = NSRect(x: bounds.width - 20, y: 0, width: 20, height: bounds.height)
+    }
+    private static func color(_ rgb: UInt32) -> NSColor { NSColor(srgbRed: CGFloat(rgb >> 16 & 255) / 255, green: CGFloat(rgb >> 8 & 255) / 255, blue: CGFloat(rgb & 255) / 255, alpha: 1) }
+    func configure(value: UInt32, automatic: UInt32, label: String, identifier: String, changed: @escaping (UInt32) -> Void) {
+        self.automatic = automatic; self.changed = changed
+        self.identifier = NSUserInterfaceItemIdentifier("MergeColors." + identifier)
+        well.color = Self.color(value); well.setAccessibilityLabel(label)
+        well.identifier = NSUserInterfaceItemIdentifier("MergeColors." + identifier + ".well")
+        arrow.identifier = NSUserInterfaceItemIdentifier("MergeColors." + identifier + ".choices")
+        arrow.setAccessibilityLabel(label + " choices"); choices.title = label
+        choices.items.first?.state = value == automatic ? .on : .off
+        let image = NSImage(size: NSSize(width: 16, height: 16), flipped: false) { rect in Self.color(automatic).setFill(); rect.fill(); return true }
+        choices.items.first?.image = image
+    }
+    @objc private func colorChanged(_ sender: Any?) {
+        guard let changed, let color = well.color.usingColorSpace(.sRGB) else { return }
+        func channel(_ value: CGFloat) -> UInt32 { UInt32(min(255, max(0, Int((value * 255).rounded())))) }
+        let rgb = channel(color.redComponent) << 16 | channel(color.greenComponent) << 8 | channel(color.blueComponent)
+        well.color = Self.color(rgb); changed(rgb)
+    }
+    @objc private func useAutomatic(_ sender: Any?) { guard let changed else { return }; well.color = Self.color(automatic); changed(automatic) }
+    @objc private func moreColors(_ sender: Any?) { guard changed != nil else { return }; well.activate(true); presentPanel(.shared) }
+    @objc private func showChoices(_ sender: Any?) { guard changed != nil else { return }; choices.popUp(positioning: nil, at: NSPoint(x: bounds.minX, y: bounds.minY), in: self) }
+    private func closeOwnedPanel() { if well.isActive { well.deactivate(); NSColorPanel.shared.orderOut(nil) } }
+    override func viewWillMove(toWindow newWindow: NSWindow?) { if newWindow == nil { closeOwnedPanel() }; super.viewWillMove(toWindow: newWindow) }
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) }; ownerObserver = nil
+        if let window {
+            ownerObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.retire() }
+            }
+        }
+    }
+    func retire() { choices.cancelTracking(); closeOwnedPanel(); changed = nil; well.target = nil; arrow.target = nil; well.isEnabled = false; arrow.isEnabled = false }
+    deinit { if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) } }
+}
+
+@MainActor final class MergeSettingsColorWell: NSColorWell {
+    private var previousAlpha: Bool?
+    override func activate(_ exclusive: Bool) {
+        super.activate(exclusive)
+        if previousAlpha == nil { previousAlpha = NSColorPanel.shared.showsAlpha }
+        NSColorPanel.shared.showsAlpha = false
+    }
+    override func deactivate() {
+        let active = isActive; super.deactivate()
+        if active, let previousAlpha { NSColorPanel.shared.showsAlpha = previousAlpha }
+        previousAlpha = nil
     }
 }
 

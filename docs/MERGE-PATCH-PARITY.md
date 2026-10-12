@@ -33,8 +33,8 @@ diagnostic rather than an applicable binary payload. This behavior is retained.
 
 Remaining General controls include Default to UTF-8 and the combined one-pane
 default. Windows Ribbon preferences require a native toolbar adaptation.
-The Colors page already has source role/channel rows, independent light/dark
-palettes and whole-palette Restore Default; individual Automatic color buttons
-and source theme-switch behavior still require adaptation. Exact physical
+The Colors page now has native per-channel Automatic/More colors controls,
+independent palette drafts and Restore Default. See [Colors parity](MERGE-COLORS-PARITY.md)
+for panel lifecycle and remaining theme/physical acceptance. Exact physical
 page/menu layout, save-panel overwrite/grant acceptance and signed Store
 sandbox acceptance remain open. Focused checks do not certify the full family.

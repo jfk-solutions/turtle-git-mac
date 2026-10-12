@@ -227,3 +227,10 @@ in TortoiseMerge. In **Settings → Diff Viewer → Merge Editor → Diffing**, 
 **Context lines for patches** (-1 for Git's default, 0 for no context, up to 1000).
 Apply saves the setting; Cancel discards changes. See
 [Create patch parity](MERGE-PATCH-PARITY.md) for scope and remaining acceptance.
+
+In **Settings → Diff Viewer → Merge Editor → Colors**, choose Light or Dark
+and use a swatch's dropdown for **Automatic** or **More colors…**. Automatic
+restores that foreground/background channel; Restore Default restores the
+selected palette. Both palettes remain drafts until Apply. Cancel discards
+both. The custom picker accepts RGB colors, with opacity excluded. See
+[Merge Colors parity](MERGE-COLORS-PARITY.md) for remaining acceptance.

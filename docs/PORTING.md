@@ -755,3 +755,9 @@ are now wired to the two-file Create patch file workflow, native File command
 and owned Save panel. Git no-index output retains saved bytes/modes and quoted
 comparison names, independently of unsaved drafts and display filters. See
 [Create patch parity](MERGE-PATCH-PARITY.md); General and Colors remain partial.
+
+Merge Colors now has all 17 source color channels with native wells,
+Automatic/More colors menus, selected-channel/palette restore, independent
+Light/Dark drafts and shared Settings Apply/Cancel. Owned color panels release
+on page/window closure and fence late actions. See
+[Colors parity](MERGE-COLORS-PARITY.md); physical/full-page acceptance remains open.

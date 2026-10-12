@@ -1,0 +1,78 @@
+{
+  "date": "2026-10-12",
+  "baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Native Merge Colors controls and transactional palette/panel lifecycle",
+  "implemented": [
+    "Exactly 17 source supported foreground/background channels",
+    "Native AppKit wells with Automatic/More colors dropdowns",
+    "Default swatch and Automatic checkmark per role/channel/palette",
+    "sRGB byte conversion with alpha excluded",
+    "Initial palette follows app appearance; separate Light/Dark drafts retained",
+    "Selected-palette Restore Default; shared Settings Apply/Cancel",
+    "Apply refreshes shared immutable renderer palette; no file changes",
+    "Shared-panel alpha restoration and owned close/detach/retirement",
+    "Late menu actions fenced; inactive picker does not close another owner",
+    "Accessible role/channel labels and distinct inline labels"
+  ],
+  "validation": {
+    "core": "Not rerun: only native controls/model and harness/docs changed; existing Core palette storage retained",
+    "app_builds": [
+      {
+        "exit": 65,
+        "reason": "Initial NSColorWell.activate argument label did not match imported API; corrected before native execution"
+      },
+      {
+        "exit": 0,
+        "configuration": "Debug arm64, unsigned, macOS13 deployment target",
+        "existing_zero_exit_diagnostic_noise": true
+      }
+    ],
+    "native": {
+      "command": "python3 scripts/test-native-merge-regex.py --options-batch",
+      "exit": 0,
+      "families": 12,
+      "frontend_attempts": 1,
+      "app_sources_recompiled_by_receiver": false,
+      "receiver_processes": 1,
+      "colors_cases": [
+        "17 channel controls and unsupported-channel absence",
+        "Actual native Automatic/More colors menus and default swatches",
+        "Individual foreground restore preserving background and opposite palette",
+        "Native custom RGBA action produces opaque exact RGB",
+        "Native palette switch and menu defaults follow rendered palette",
+        "Cancel preserves persisted values and restores both drafts",
+        "Selected-palette Restore Default and transaction Apply",
+        "Actual control bounds under Aqua/Dark Aqua",
+        "Shared color panel RGB-only ownership, close cleanup and alpha restore",
+        "Late Automatic action does not change retired draft",
+        "Inactive retired control preserves other color-well owner"
+      ],
+      "private_preferences_only": true,
+      "installed_app_launched": false,
+      "owned_window_panel_helpers_closed": true
+    },
+    "site_build_exit": 0,
+    "python_scripts_parsed": true,
+    "new_screenshots": "None; prior reviewed site captures retained"
+  },
+  "prior_renderer_evidence": "docs/qa/merge-colors-2026-10-12.json is preserved unchanged",
+  "remaining": [
+    "Source global theme-switch checkbox adaptation",
+    "Physical dropdown/color-panel/VoiceOver interactions",
+    "Exact spacing and full-page light/dark captures",
+    "All editor color state aliases and resolved/edited three-pane presentation",
+    "High contrast/large-file, signed/minimum-OS and App Store acceptance",
+    "Complete hosted CI confirmation"
+  ],
+  "inventory": {
+    "dialogs": 130,
+    "partial": 62,
+    "pending_review": 68,
+    "certified_complete": 0
+  },
+  "hosted_status_observed": {
+    "b15e5e5": "in_progress",
+    "9368fde": "pending",
+    "full_pass_claimed": false
+  }
+}
