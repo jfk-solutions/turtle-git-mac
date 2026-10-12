@@ -41,6 +41,8 @@ private struct BlameParentMenuTarget {
     private let access: RepositoryAccessLease?
     private let labelDefaults: UserDefaults
     @Published private(set) var syntaxEnabled = true
+    @Published private(set) var wrapLongLines = false
+    func setWrapLongLines(_ value: Bool) { guard !busy else { return }; wrapLongLines = value; labelDefaults.set(value,forKey:"Blame.WrapLongLines") }
     @Published var syntaxWorking = false
     @Published var syntaxError: String?
     var syntaxExecutable: URL? = BlameSyntax.executable()
@@ -175,6 +177,7 @@ private struct BlameParentMenuTarget {
         self.repository = repository; self.access = access; self.path = path; self.revision = revision; self.labelDefaults = labelDefaults
         marginFields = Set(BlameMarginField.allCases.filter { labelDefaults.object(forKey:"Blame." + $0.rawValue) as? Bool ?? ($0 == .author) })
         syntaxEnabled = labelDefaults.object(forKey:"Blame.EnableLexer") as? Bool ?? !NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
+        wrapLongLines = labelDefaults.bool(forKey:"Blame.WrapLongLines")
         self.fullCommitMessageOnLogLine = labelDefaults.bool(forKey: "FullCommitMessageOnLogLine")
         let search = GitBlameFindPreferences.load(); find = search.text; matchCase = search.matchCase
         setControls(options); appliedOptions = options
@@ -361,41 +364,48 @@ private struct BlameDialog: View {
     @State private var showingGoToLine = false
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Toggle("Ignore whitespace", isOn: Binding(get: { model.ignoreWhitespace }, set: { model.setIgnoreWhitespace($0) }))
-                Toggle("Only consider first parents on blame", isOn: Binding(get: { model.onlyFirstParent }, set: { model.setOnlyFirstParent($0) }))
-                Button("Reload") { model.reload(saveThresholds: true) }
-                Spacer(); Toggle("Colorize by age", isOn: $model.colorAge)
-            }.disabled(model.busy)
-            HStack {
-                Picker("Detect moved or copied lines", selection: Binding(get: { model.detectionMode }, set: { model.setDetectionMode($0) })) {
-                    ForEach(GitBlameDetectionMode.allCases) { mode in Text(mode.title).tag(mode) }
-                }.frame(maxWidth: 420)
-                Text("Within a file:")
-                TextField("Characters within a file", text: $model.withinFileCharacters).frame(width: 65).disabled(model.detectionMode != .withinFile)
-                Text("Between files:")
-                TextField("Characters between files", text: $model.betweenFileCharacters).frame(width: 65).disabled(!model.detectionMode.betweenFiles)
-            }.disabled(model.busy)
-            HStack {
-                Picker("Encoding", selection: Binding(get: { model.sourceEncoding }, set: { model.setEncoding($0) })) {
-                    Text("Automatic").tag(GitBlameEncoding?.none)
-                    ForEach(GitBlameEncoding.available) { encoding in Text(encoding.rawValue).tag(Optional(encoding)) }
-                }.frame(maxWidth: 450)
+            HStack(spacing:8) {
+                Button { model.reload(saveThresholds:true) } label: { CommandLabel(title:"Reload",icon:.refresh) }
+                Button { model.navigateChange(previous:true) } label: { CommandLabel(title:"Previous change",icon:.jumpUp) }.disabled(model.selectedLogHashes.isEmpty)
+                Button { model.navigateChange(previous:false) } label: { CommandLabel(title:"Next change",icon:.jumpDown) }.disabled(model.selectedLogHashes.isEmpty)
+                Button { model.onFind?() } label: { CommandLabel(title:"Find…",icon:.mergeFind) }.keyboardShortcut("f",modifiers:.command)
                 Spacer()
-            }.disabled(model.busy)
-            HStack {
-                Button("Find…") { model.onFind?() }.keyboardShortcut("f", modifiers: .command)
-                Button("Previous") { model.findLine(previous: true) }.keyboardShortcut("g", modifiers: [.command, .shift])
-                Button("Next") { model.findLine(previous: false) }.keyboardShortcut("g", modifiers: .command)
-                Spacer()
-                Menu("View") {
-                    Toggle("Syntax highlighting", isOn:Binding(get:{ model.syntaxEnabled },set:{ model.setSyntaxEnabled($0) }))
+                Menu("Edit") {
+                    Button { NSApp.sendAction(Selector(("copy:")),to:nil,from:nil) } label: { CommandLabel(title:"Copy",icon:.copy) }
+                    Button { model.onFind?() } label: { CommandLabel(title:"Find…",icon:.mergeFind) }
+                    Button("Find Next") { model.findLine(previous:false) }.keyboardShortcut("g",modifiers:.command)
+                    Button("Find Previous") { model.findLine(previous:true) }.keyboardShortcut("g",modifiers:[.command,.shift])
+                    Button("Go To Line…") { showingGoToLine=true }.keyboardShortcut("l",modifiers:.command)
                     Divider()
-                    ForEach(BlameMarginField.allCases, id:\.self) { field in
-                        Toggle(field.title, isOn:Binding(get:{ model.marginFields.contains(field) },set:{ model.setMargin(field,visible:$0) }))
+                    Picker("Encode",selection:Binding(get:{model.sourceEncoding},set:{model.setEncoding($0)})) {
+                        Text("Automatic").tag(GitBlameEncoding?.none)
+                        ForEach(GitBlameEncoding.available) { encoding in Text(encoding.rawValue).tag(Optional(encoding)) }
                     }
                 }
-                Button("Go To Line…") { showingGoToLine = true }.keyboardShortcut("l", modifiers: .command)
+                Menu("View") {
+                    Button("Next") { model.navigateChange(previous:false) }.disabled(model.selectedLogHashes.isEmpty)
+                    Button("Previous") { model.navigateChange(previous:true) }.disabled(model.selectedLogHashes.isEmpty)
+                    Divider()
+                    ForEach(BlameMarginField.allCases,id:\.self) { field in
+                        Toggle(field.title,isOn:Binding(get:{model.marginFields.contains(field)},set:{model.setMargin(field,visible:$0)}))
+                    }
+                    Divider()
+                    Picker("Detect moved or copied lines",selection:Binding(get:{model.detectionMode},set:{model.setDetectionMode($0)})) {
+                        ForEach(GitBlameDetectionMode.allCases) { mode in Text(mode.title).tag(mode) }
+                    }
+                    Toggle("Ignore whitespace",isOn:Binding(get:{model.ignoreWhitespace},set:{model.setIgnoreWhitespace($0)}))
+                    Divider()
+                    Toggle("Show complete log",isOn:Binding(get:{model.canShowCompleteLog && model.showCompleteLog},set:{model.setShowCompleteLog($0)})).disabled(!model.canShowCompleteLog)
+                    Toggle("Follow renames",isOn:Binding(get:{model.canShowCompleteLog && model.showCompleteLog && model.followRenames},set:{model.setFollowRenames($0)})).disabled(!model.canShowCompleteLog || !model.showCompleteLog)
+                    Toggle("Only consider first parents on blame",isOn:Binding(get:{model.onlyFirstParent},set:{model.setOnlyFirstParent($0)}))
+                    Divider()
+                    Toggle("Color by age, continuous",isOn:$model.colorAge)
+                    Toggle("Enable syntax highlighting",isOn:Binding(get:{model.syntaxEnabled},set:{model.setSyntaxEnabled($0)}))
+                    Toggle("Properties",isOn:$model.showProperties)
+                    Divider()
+                    Toggle("Wrap long lines",isOn:Binding(get:{model.wrapLongLines},set:{model.setWrapLongLines($0)}))
+                }
+                Button { SettingsPresentationService.shared.show() } label: { CommandLabel(title:"Settings…",icon:.settings) }
             }.disabled(model.busy)
             if model.busy { ProgressView("Reading annotations…").controlSize(.small) }
             if model.syntaxWorking { ProgressView("Coloring source…").controlSize(.small) }
@@ -403,16 +413,6 @@ private struct BlameDialog: View {
             if model.loadingParents { ProgressView("Reading previous revisions…").controlSize(.small) }
             if model.copyingLog { ProgressView("Reading log message for clipboard…").controlSize(.small) }
             if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
-            HStack {
-                Toggle("Show complete log", isOn: Binding(get: { model.canShowCompleteLog && model.showCompleteLog }, set: { model.setShowCompleteLog($0) })).disabled(!model.canShowCompleteLog)
-                Toggle("Follow renames", isOn: Binding(get: { model.canShowCompleteLog && model.showCompleteLog && model.followRenames }, set: { model.setFollowRenames($0) })).disabled(!model.canShowCompleteLog || !model.showCompleteLog)
-                Button("Previous change") { model.navigateChange(previous: true) }
-                    .help("Show previous change of selected commits").disabled(model.selectedLogHashes.isEmpty)
-                Button("Next change") { model.navigateChange(previous: false) }
-                    .help("Show next change of selected commits").disabled(model.selectedLogHashes.isEmpty)
-                Spacer()
-                Toggle("Properties", isOn: $model.showProperties)
-            }.disabled(model.busy)
             HSplitView {
                 VSplitView {
                     BlameTable(model: model).frame(minHeight: 90, maxHeight: .infinity)
@@ -673,7 +673,7 @@ private struct BlameTable: NSViewRepresentable {
     @Environment(\.colorScheme) private var colorScheme
     func makeCoordinator() -> Coordinator { Coordinator(model) }
     func makeNSView(context: Context) -> BlameSourceContainer {
-        let table = BlameTableView(); table.delegate = context.coordinator; table.dataSource = context.coordinator
+        let table = BlameTableView(); table.style = .plain; table.delegate = context.coordinator; table.dataSource = context.coordinator
         table.onMarginClick = { [weak coordinator = context.coordinator] row, additive in coordinator?.model.highlight(row, additive: additive) }
         table.onContextMenu = { [weak coordinator = context.coordinator] row, event in
             guard let coordinator, coordinator.table != nil, coordinator.model.lines.indices.contains(row), !coordinator.model.busy else { return }
@@ -781,6 +781,10 @@ private struct BlameTable: NSViewRepresentable {
         var presentation: GitBlamePresentation?
         init(_ model: BlameWindowModel) { self.model = model }
         func numberOfRows(in tableView: NSTableView) -> Int { model.lines.count }
+        func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
+            guard let rectangles = container?.editor.rowRectangles, rectangles.indices.contains(row) else { return tableView.rowHeight }
+            return rectangles[row].height
+        }
         func tableViewSelectionDidChange(_ notification: Notification) {
             guard !updating, let table else { return }; model.selection = table.selectedRow >= 0 ? table.selectedRow + 1 : nil
             if table.selectedRow >= 0 { container?.selectSourceLine(table.selectedRow + 1, wholeLine: true) }
@@ -799,7 +803,8 @@ private struct BlameTable: NSViewRepresentable {
             label.lineBreakMode = .byClipping; label.maximumNumberOfLines = 1
             label.toolTip = "\(line.hash)\n\(line.author)\n\(line.summary)\n\(line.filename):\(line.originalLine)"
             label.textColor = [1, 2].contains(model.highlightKind(line)) ? .alternateSelectedControlTextColor : .labelColor
-            return label
+            let cell = BlameMetadataCell(label:label, lineHeight:tableView.rowHeight)
+            return cell
         }
         func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
             let view = BlameRowView()
@@ -895,6 +900,21 @@ private final class BlameTableView: NSTableView {
     override func mouseExited(with event: NSEvent) { onHover(nil); super.mouseExited(with: event) }
 }
 
+private final class BlameMetadataCell: NSView {
+    let label: NSTextField
+    let lineHeight: CGFloat
+    init(label: NSTextField, lineHeight: CGFloat) {
+        self.label = label; self.lineHeight = lineHeight
+        super.init(frame:.zero); addSubview(label)
+    }
+    required init?(coder:NSCoder) { fatalError("init(coder:) is not supported") }
+    override func layout() {
+        super.layout()
+        // Attribution appears on the first visual line of a wrapped source row.
+        label.frame = NSRect(x:0,y:max(0,bounds.height-lineHeight),width:bounds.width,height:lineHeight)
+    }
+}
+
 private func visibleBlameSourceRect(_ table: NSTableView) -> NSRect {
     var viewport = table.visibleRect
     if let header = table.headerView {
@@ -940,6 +960,9 @@ private final class BlameSourceContainer: NSView {
     private var syntaxToken: OperationCancellation?
     private var syntaxTask: Task<Void,Never>?
     private var syntaxGeneration = 0
+    private var wrapped = false
+    private var reflowing = false
+    private var desiredSourceWidth: CGFloat = 300
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         addSubview(locator); addSubview(scroll); addSubview(sourceScroll)
@@ -985,12 +1008,13 @@ private final class BlameSourceContainer: NSView {
         editor.onGoTo = { [weak model] in model?.onGoTo?() }
         model.firstVisibleSourceRow = { [weak self] in
             guard let self, !self.ranges.isEmpty, !self.retired else { return nil }
-            return min(self.ranges.count - 1, max(0, Int(self.sourceScroll.contentView.bounds.minY / self.editor.lineHeight)))
+            return self.editor.sourceRow(atY:self.sourceScroll.contentView.bounds.minY)
         }
         model.scrollSourceRowToTop = { [weak self] row in
             guard let self, !self.retired, self.ranges.indices.contains(row) else { return }
             var origin = self.sourceScroll.contentView.bounds.origin
-            origin.y = CGFloat(row) * self.editor.lineHeight
+            guard self.editor.rowRectangles.indices.contains(row) else { return }
+            origin.y = self.editor.rowRectangles[row].minY
             self.sourceScroll.contentView.scroll(to: self.sourceScroll.contentView.constrainBoundsRect(NSRect(origin: origin, size: self.sourceScroll.contentView.bounds.size)).origin)
             self.sourceScroll.reflectScrolledClipView(self.sourceScroll.contentView)
         }
@@ -1026,7 +1050,11 @@ private final class BlameSourceContainer: NSView {
             needsLayout = true
         }
         let changed = renderedRevision != model.snapshot?.revision || renderedEncoding != model.snapshot?.encoding ||
-            renderedPresentation != model.presentation || renderedLineCount != model.lines.count
+            renderedPresentation != model.presentation || renderedLineCount != model.lines.count || wrapped != model.wrapLongLines
+        wrapped = model.wrapLongLines
+        sourceScroll.hasHorizontalScroller = !wrapped
+        editor.isHorizontallyResizable = !wrapped
+        editor.textContainer?.widthTracksTextView = wrapped
         let selected = editor.selectedRange()
         if changed {
             renderedRevision = model.snapshot?.revision; renderedEncoding = model.snapshot?.encoding
@@ -1048,14 +1076,13 @@ private final class BlameSourceContainer: NSView {
             paragraph.minimumLineHeight = editor.lineHeight; paragraph.maximumLineHeight = editor.lineHeight
             paragraph.tabStops = []
             paragraph.defaultTabInterval = (" " as NSString).size(withAttributes: [.font:model.sourceFont]).width * CGFloat(model.presentation.tabSize)
-            paragraph.lineBreakMode = .byClipping
+            paragraph.lineBreakMode = wrapped ? .byWordWrapping : .byClipping
             settingSelection = true
             editor.textStorage?.setAttributedString(NSAttributedString(string:contents, attributes:[.font:model.sourceFont, .paragraphStyle:paragraph, .foregroundColor:NSColor.labelColor]))
             if sameText, selected.location != NSNotFound, NSMaxRange(selected) <= location { editor.setSelectedRange(selected) }
             else { editor.setSelectedRange(NSRange(location:0,length:0)) }
             settingSelection = false
-            let width = model.lines.reduce(CGFloat(300)) { max($0, model.displayedSource($1).size().width + 24) }
-            editor.frame.size = NSSize(width:max(width,sourceScroll.contentSize.width), height:max(CGFloat(ranges.count) * editor.lineHeight,sourceScroll.contentSize.height))
+            desiredSourceWidth = model.lines.reduce(CGFloat(300)) { max($0, model.displayedSource($1).size().width + 24) }
         }
         requestSyntax(model)
         let dark = effectiveAppearance.bestMatch(from:[.aqua,.darkAqua]) == .darkAqua
@@ -1077,7 +1104,45 @@ private final class BlameSourceContainer: NSView {
                 storage.addAttribute(.foregroundColor,value:NSColor.alternateSelectedControlTextColor,range:ranges[row])
             }
         }
-        editor.textStorage?.endEditing(); editor.needsDisplay = true
+        editor.textStorage?.endEditing(); reflowSource(); editor.needsDisplay = true
+    }
+    private func reflowSource() {
+        guard !retired, !reflowing, let manager=editor.layoutManager, let textContainer=editor.textContainer else { return }
+        reflowing=true; defer { reflowing=false }
+        let origin=sourceScroll.contentView.bounds.origin
+        let first=editor.sourceRow(atY:origin.y)
+        let within=first.flatMap { editor.rowRectangles.indices.contains($0) ? origin.y-editor.rowRectangles[$0].minY : nil } ?? 0
+        let width=wrapped ? max(30,sourceScroll.contentSize.width) : max(desiredSourceWidth,sourceScroll.contentSize.width)
+        editor.frame.size.width=width
+        textContainer.containerSize=NSSize(width:wrapped ? max(1,width-editor.textContainerInset.width*2) : CGFloat.greatestFiniteMagnitude,height:CGFloat.greatestFiniteMagnitude)
+        manager.ensureLayout(for:textContainer)
+        var rectangles:[NSRect]=[]
+        for range in ranges {
+            let glyphs=manager.glyphRange(forCharacterRange:range,actualCharacterRange:nil)
+            let rectangle:NSRect
+            if glyphs.length > 0 {
+                let begin=manager.lineFragmentRect(forGlyphAt:glyphs.location,effectiveRange:nil)
+                let end=manager.lineFragmentRect(forGlyphAt:NSMaxRange(glyphs)-1,effectiveRange:nil)
+                rectangle=NSRect(x:0,y:begin.minY,width:width,height:max(editor.lineHeight,end.maxY-begin.minY))
+            } else {
+                let fragment=manager.extraLineFragmentRect
+                rectangle=NSRect(x:0,y:fragment.minY,width:width,height:max(editor.lineHeight,fragment.height))
+            }
+            rectangles.append(rectangle)
+        }
+        let changed=rectangles != editor.rowRectangles
+        editor.rowRectangles=rectangles
+        editor.frame.size.height=max(rectangles.last?.maxY ?? 0,sourceScroll.contentSize.height)
+        if changed, let table=scroll.documentView as? NSTableView {
+            table.noteHeightOfRows(withIndexesChanged:IndexSet(integersIn:0..<table.numberOfRows))
+            table.needsLayout=true
+        }
+        if let first, rectangles.indices.contains(first) {
+            var next=origin;next.y=rectangles[first].minY+min(within,max(0,rectangles[first].height-1))
+            if wrapped { next.x=0 }
+            sourceScroll.contentView.scroll(to:sourceScroll.contentView.constrainBoundsRect(NSRect(origin:next,size:sourceScroll.contentView.bounds.size)).origin)
+        }
+        sourceScroll.reflectScrolledClipView(sourceScroll.contentView)
     }
     private func requestSyntax(_ model: BlameWindowModel) {
         if !model.syntaxEnabled {
@@ -1131,8 +1196,7 @@ private final class BlameSourceContainer: NSView {
         scroll.tile(); sourceScroll.tile()
         let extra = max(0,scroll.contentSize.height - sourceScroll.contentSize.height)
         if extra > 0 { scroll.frame.origin.y += extra; scroll.frame.size.height -= extra; scroll.tile() }
-        editor.frame.size.width = max(editor.frame.width,sourceScroll.contentSize.width)
-        editor.frame.size.height = max(CGFloat(ranges.count) * editor.lineHeight,sourceScroll.contentSize.height)
+        reflowSource()
         synchronize(fromSource:true)
         locator.needsDisplay = true
     }
@@ -1172,6 +1236,13 @@ private final class BlameSourceTextView: NSTextView {
     var retired = false
     var lineHeight: CGFloat = 22
     var rowColors: [NSColor] = []
+    var rowRectangles: [NSRect] = []
+    func sourceRow(atY y:CGFloat) -> Int? {
+        guard !rowRectangles.isEmpty else { return nil }
+        var low=0,high=rowRectangles.count
+        while low < high { let middle=(low+high)/2; if rowRectangles[middle].minY <= y { low=middle+1 } else { high=middle } }
+        return max(0,low-1)
+    }
     var onContextMenu: (Int,NSEvent) -> Void = { _,_ in }
     var onFind: () -> Void = {}
     var onFindNext: (Bool) -> Void = { _ in }
@@ -1233,18 +1304,16 @@ private final class BlameSourceTextView: NSTextView {
     }
     override func drawBackground(in rect: NSRect) {
         super.drawBackground(in:rect)
-        guard lineHeight > 0 else { return }
-        let first = max(0,Int(rect.minY / lineHeight)), last = min(rowColors.count,Int(ceil(rect.maxY / lineHeight)))
-        guard first < last else { return }
-        for row in first..<last {
+        guard !rowColors.isEmpty, let first=sourceRow(atY:rect.minY), let end=sourceRow(atY:rect.maxY) else { return }
+        for row in first...min(end,rowColors.count-1) where rowRectangles.indices.contains(row) {
             rowColors[row].setFill()
-            NSRect(x:0,y:CGFloat(row) * lineHeight,width:bounds.width,height:lineHeight).intersection(rect).fill()
+            var background=rowRectangles[row];background.size.width=bounds.width;background.intersection(rect).fill()
         }
     }
     override func rightMouseDown(with event: NSEvent) {
         guard !retired else { return }
         let point = convert(event.locationInWindow,from:nil)
-        onContextMenu(max(0,Int(point.y / lineHeight)),event)
+        if let row=sourceRow(atY:point.y) { onContextMenu(row,event) }
     }
     override func mouseDown(with event: NSEvent) {
         guard !retired else { return }

@@ -1,0 +1,74 @@
+{
+  "date": "2026-10-13",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "SC_WRAP_WORD-equivalent native word wrapping and persisted source default off",
+    "Variable visual line geometry for attribution, age, context and logical navigation",
+    "Reflow/resize source-range and viewport anchor retention",
+    "Compact original-artwork command bar and source-grouped Edit/View controls"
+  ],
+  "source": [
+    "TortoiseGitBlameView.cpp constructor/OnViewWrapLongLines/OnDraw/OnSciPainted",
+    "Resources/TortoiseGitBlameENG.rc main File/Edit/View menu"
+  ],
+  "audit_correction": "Pinned source has no folding command; only fold-margin color initialization. Earlier folding backlog statements are superseded.",
+  "validation": {
+    "debug_build": {
+      "exit": 0,
+      "log": "build/qa/blame-wrap-build-2026-10-13.log",
+      "notes": "Existing warnings and exit-0/no-output SwiftCompile diagnostic; not a clean-log claim",
+      "final_log": "build/qa/blame-wrap-build-fix-2026-10-13.log"
+    },
+    "core": "Not rerun; native-only viewer/layout changes",
+    "native": {
+      "state": "passed",
+      "passed": [
+        "system Git: source editor and real Lexilla checks"
+      ],
+      "failure": "Wrapping alignment: automatic NSTableView style added a 5px top inset; changed attribution table to plain style. Affected checks pending.",
+      "owned_receivers_reaped": [
+        5064,
+        5095,
+        5122,
+        5244,
+        5315
+      ],
+      "logs": [
+        "build/qa/blame-wrap-native-2026-10-13.log",
+        "build/qa/blame-wrap-diagnostic-2026-10-13.log",
+        "build/qa/blame-wrap-diagnostic2-2026-10-13.log"
+      ],
+      "exit": 0,
+      "final_log": "build/qa/blame-wrap-native-final-2026-10-13.log",
+      "scope": "Six source/lexer/wrap native checks across system and packaged Git",
+      "final_owned_receivers_reaped": [
+        6154,
+        6194,
+        6221,
+        6258,
+        6291,
+        6318
+      ],
+      "final_owned_receivers_absent": true
+    },
+    "captures": {
+      "state": "passed",
+      "initial_failure": "Delayed hidden context-menu lookup reached presentation after capture made the owned window visible; sampled AppKit menu tracking and terminated the owned receiver group. Fixture now waits for that lookup before capture.",
+      "initial_receiver_reaped": 6369,
+      "diagnostic": "build/qa/blame-wrap-capture-sample-2026-10-13.txt",
+      "exit": 0,
+      "final_log": "build/qa/blame-wrap-capture-final-2026-10-13.log",
+      "final_receiver_reaped": 6506,
+      "review": "Both actual captures individually inspected: wrapped line and following logical annotation alignment, compact toolbar and source selection visible in light/dark. Full window parity not established.",
+      "assets": {
+        "light": "45dc9bd924016135ae20573a172cffbbd26e4bc6b0ea01086c27ffb8d613910d",
+        "dark": "a78ee8487e6990de6be77cec17e1cf06553788ceb01127e833d1b97b153e9872"
+      }
+    }
+  },
+  "limits": [
+    "Full macOS application-menu/File/Open/docking/status-bar adaptation remains incomplete",
+    "Exact regional encoding hierarchy, Find modal/wrap feedback, signed and physical acceptance remain open",
+    "Whole TortoiseGit port remains incomplete"
+  ]
+}

@@ -1452,3 +1452,11 @@ The Core cases use the real four pinned engines across ten extension groups,
 Unicode/multiline ranges, source case/no-extension rules, malformed output and
 owned cancellation/input cleanup. Native cases verify palette, enable/disable
 range retention, dark transform, late retirement and Quit ownership.
+
+The native wrapping/menu batch uses cached reference cases `--only blame-source
+--only blame-lexilla --only blame-wrap` after a Debug build. The additional
+`--only blame-wrap-captures` case is excluded from default CI and captures only
+test-owned windows with existing screen-recording permission. Wrapping tests
+cover real TextKit and table geometry, resize, preserved private clipboard/range,
+logical context/navigation, preference and unchanged repository bytes. No Core
+suite rerun is needed for these native-only changes.

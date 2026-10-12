@@ -880,7 +880,8 @@ This is partial functionality and native dialog fidelity.
 
 - Remaining native modifier/multi-revision acceptance, full locator acceptance and complete revision-log layout;
   pointer-hover and dark sticky native acceptance.
-- Source folding, remaining lexer-style acceptance and editor scrolling acceptance.
+- Remaining lexer-style and editor scrolling acceptance. The pinned viewer has
+  no folding command; earlier folding entries were an audit error.
 - Remaining modeless Find/Go To Line acceptance, menu shortcuts, match highlighting and
   revision/block navigation and displayed Find feedback.
 - Clipboard presentation/localized dates, export commands and remaining original
@@ -940,7 +941,7 @@ changes/log/revision actions and original icons, with source Copy/Select All.
 The source comparison includes TortoiseGitBlameView.cpp SetupLexer, DoSearch,
 GotoLine, OnEditFind, GetBlameWidth, gutter drawing and View switches, plus
 `doc/images/en/TortoiseBlame.png`. This batch does not port Lexilla syntax
-lexers, folding, or the source's native no-match message/wrap flashing.
+lexers or the source's native no-match message/wrap flashing.
 Those remain gaps, along with source column sizing, full menu order,
 accessibility, signed deployment and displayed acceptance. Validation and
 captures are recorded after execution rather than inferred from the controls.
@@ -979,7 +980,7 @@ Native requests run off the main actor, retain generation/cancellation identity,
 and reject results/errors after replacement, disable or owner retirement. Quit
 waits for owned requests to settle. Failed syntax work reports a separate error
 while retaining the read-only source. Exact source-lexer colors do not establish
-full Scintilla parity: folding UI, embedded-language font/EOL-fill handling,
+full Scintilla parity: embedded-language font/EOL-fill handling,
 match/wrap feedback, high-contrast palette acceptance, large-file performance and
 signed runtime acceptance remain open. Validation follows the whole batch.
 
@@ -998,3 +999,38 @@ passed, including universal SMTP and Lexilla, source/licenses, inherited signing
 recipe and all existing bundled runtimes. This confirms packaging, not actual
 signing, App Store eligibility or physical sandbox acceptance. No test-owned
 receiver remains running.
+
+## Wrapping and compact source menus (October 13, 2026)
+
+Source review found a real Wrap Long Lines command (default off, SC_WRAP_WORD),
+but no folding command. Folding-margin color initialization does not establish
+a folding feature. Earlier folding backlog entries in this audit and historical
+QA records are superseded by this finding.
+
+Wrap now uses TextKit word wrapping and preserves source bytes/character ranges.
+Each logical line supplies a visual rectangle; the annotation table uses that
+height and draws metadata on its first visual row. Age colors, pointer context,
+logical scroll anchoring, Find/Go To Line and the locator use the same row model.
+Wrapping disables horizontal scrolling; disabling it restores the unwrapped
+layout. Resize reflows keep the logical viewport anchor. The app-private
+Blame.WrapLongLines preference follows the source's initial off choice.
+
+The native viewer now has one compact command bar with original artwork and
+Edit/View menus rather than five always-visible option rows. Edit groups Copy,
+Find/Find Next/Previous, Go To and Encode. View follows source grouping for block
+navigation, margin switches, move/copy detection, whitespace, complete log,
+renames/first parent, age/syntax colors and Wrap. Properties remains a native
+pane choice; appearance stays in the application's existing Appearance menu.
+Character thresholds are in the existing Blame Settings page, as upstream.
+Windows docking/status-bar behavior, the full app-menu/File/Open adaptation,
+exact regional encoding hierarchy, Find message/flash feedback and physical/
+signed acceptance remain open. Batch validation is recorded after execution.
+
+Wrapping batch validation: the Debug build succeeded, and six grouped native
+source/lexer/wrap checks passed across system and packaged Git. The initial
+alignment check exposed the automatic table style's five-pixel top inset; the
+plain attribution table style fixes the common source/annotation origin. Resize,
+continuation-line context, logical scroll anchors, Unicode clipboard, Go To/Find,
+range retention and disabling wrap were checked. Owned receivers were reaped
+and independently verified absent. Core was not rerun for this native-only batch.
+See `qa/blame-wrap-2026-10-13.json` for actual scope and limits.

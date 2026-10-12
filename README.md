@@ -137,7 +137,7 @@ synchronized annotations and the source View switches. Actual
 [light](docs/site/assets/blame-source-editor-light.png) /
 [dark](docs/site/assets/blame-source-editor-dark.png) captures and
 [verification limits](docs/qa/blame-source-editor-2026-10-13.json) document the
-October 13 batch. Folding and full Blame parity remain open.
+October 13 batch. Full Blame layout/menu and signed acceptance remain open.
 
 [Project website](https://jfk-solutions.github.io/turtle-git-mac/).
 
