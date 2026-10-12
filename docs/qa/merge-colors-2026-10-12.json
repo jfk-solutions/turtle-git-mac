@@ -1,0 +1,56 @@
+{
+  "date": "2026-10-12",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Native Merge Colors page, source light/dark palette store and shared renderer integration",
+  "implementationThenGroupedValidation": true,
+  "core": {
+    "tests": 21,
+    "failures": 0,
+    "seconds": 1.184,
+    "log": "build/qa/merge-colors-core-2026-10-12.log"
+  },
+  "build": {
+    "exitCode": 0,
+    "configuration": "Debug",
+    "architecture": "arm64",
+    "signed": false,
+    "log": "build/qa/merge-colors-build-srgb-2026-10-12.log",
+    "notes": "Existing exit-zero diagnostic noise remains."
+  },
+  "native": {
+    "focusedExitCode": 0,
+    "focusedLog": "build/qa/merge-colors-native-focused-2026-10-12.log",
+    "twoPaneExitCode": 0,
+    "twoPaneLog": "build/qa/merge-colors-two-pane-diagnostic-2026-10-12.log",
+    "initialCombinedExitCode": 1,
+    "initialCombinedLog": "build/qa/merge-colors-native-2026-10-12.log",
+    "checks": [
+      "actual supported-state custom background",
+      "actual normal foreground RGB",
+      "theme-specific restore",
+      "color updates preserve strings/selection/history/generation/files",
+      "existing two-pane Unicode/Undo/save/cancellation"
+    ],
+    "repair": "Calibrated RGB conversion changed source components; renderer now matches stored/picker sRGB. Direct AppKit conversion verified the mismatch.",
+    "physicalPickers": false,
+    "installedApplicationLaunched": false,
+    "ownedWindowsClosed": true,
+    "ownedHelpersExited": true
+  },
+  "inventory": {
+    "total": 130,
+    "partial": 53,
+    "pendingReview": 77,
+    "certifiedComplete": 0
+  },
+  "remainingAcceptance": [
+    "physical pickers/Apply/Cancel/Restore",
+    "full page/pane captures",
+    "all color aliases and resolved/edited result states",
+    "high contrast and large files",
+    "signed minimum-OS/Finder/App Store",
+    "hosted CI success",
+    "full application parity"
+  ],
+  "completePortCertified": false
+}

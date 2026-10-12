@@ -203,3 +203,5 @@ are not recursively audited.
 [Merge whitespace display](MERGE-WHITESPACE-DISPLAY-PARITY.md): source space/tab/EOL shapes and original ending icons in both viewers, with saved View/Settings controls.
 
 [Merge General settings](MERGE-GENERAL-SETTINGS-PARITY.md): native font preview/live metrics, configurable inline bound and source load-jump flags.
+
+[Merge Colors settings](MERGE-COLORS-PARITY.md): source palette rows, independent light/dark drafts, Restore Default and live renderer integration.

@@ -127,3 +127,55 @@ public struct MergeGeneralPreferences: Equatable, Sendable {
         return firstDifference ? difference : nil
     }
 }
+
+public enum MergeColorRole: String, CaseIterable, Codable, Hashable, Sendable {
+    case normal, added, removed, modified, conflicted, resolved, empty, filtered, inlineAdded, inlineRemoved, whitespace
+    public var title: String {
+        switch self { case .resolved: return "Conflict resolved"; case .inlineAdded: return "Added"; case .inlineRemoved: return "Removed"; case .whitespace: return "Whitespaces"; default: return rawValue.capitalized }
+    }
+    public var supportsForeground: Bool { ![Self.modified, .filtered, .inlineAdded, .inlineRemoved].contains(self) }
+    public var supportsBackground: Bool { self != .whitespace }
+}
+public struct MergeColorPreferences: Codable, Equatable, Sendable {
+    public var light: [MergeColorRole: UnifiedDiffColors]
+    public var dark: [MergeColorRole: UnifiedDiffColors]
+    public init() {
+        light = [:]; dark = [:]
+        for role in MergeColorRole.allCases { light[role] = Self.standard(role, dark: false); dark[role] = Self.standard(role, dark: true) }
+    }
+    public static func standard(_ role: MergeColorRole, dark: Bool) -> UnifiedDiffColors {
+        let background: UInt32
+        switch role {
+        case .normal: background = dark ? 0x202020 : 0xffffff
+        case .added: background = dark ? 0x535300 : 0xffff00
+        case .removed: background = dark ? 0x534221 : 0xffc864
+        case .modified: background = dark ? 0x505067 : 0xdcdcff
+        case .conflicted: background = dark ? 0x532121 : 0xff6464
+        case .resolved: background = dark ? 0x425342 : 0xc8ffc8
+        case .empty: background = dark ? 0x424242 : 0xc8c8c8
+        case .filtered: background = dark ? 0x495349 : 0xdcffdc
+        case .inlineAdded: background = dark ? 0x787832 : 0xffff96
+        case .inlineRemoved: background = dark ? 0x642828 : 0xc86464
+        case .whitespace: background = dark ? 0x202020 : 0xffffff
+        }
+        return UnifiedDiffColors(role == .whitespace ? (dark ? 0xaaaaaa : 0x808080) : (dark ? 0xdddddd : 0), background)
+    }
+    public func colors(_ role: MergeColorRole, dark: Bool) -> UnifiedDiffColors { (dark ? self.dark : light)[role] ?? Self.standard(role, dark: dark) }
+    public mutating func restore(dark: Bool) {
+        for role in MergeColorRole.allCases { if dark { self.dark[role] = Self.standard(role, dark: true) } else { light[role] = Self.standard(role, dark: false) } }
+    }
+    public static func load(from defaults: UserDefaults = .standard) -> Self {
+        guard let data = defaults.data(forKey: "TurtleGitMerge.Colors"), data.count < 65536,
+              let saved = try? JSONDecoder().decode(Self.self, from: data) else { return .init() }
+        var result = Self()
+        for role in MergeColorRole.allCases {
+            for dark in [false, true] {
+                let color = saved.colors(role, dark: dark)
+                guard color.foreground <= 0xffffff, color.background <= 0xffffff else { continue }
+                if dark { result.dark[role] = color } else { result.light[role] = color }
+            }
+        }
+        return result
+    }
+    public func save(to defaults: UserDefaults = .standard) throws { defaults.set(try JSONEncoder().encode(self), forKey: "TurtleGitMerge.Colors") }
+}

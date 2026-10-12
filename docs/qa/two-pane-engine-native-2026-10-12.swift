@@ -3,16 +3,21 @@ import Foundation
 import TurtleGitCore
 
 @main struct TwoPaneEngineVerification {
-    @MainActor static func wait(_ condition: () -> Bool) async throws {
+    @MainActor static func wait(_ condition: () -> Bool, line: UInt = #line, file: String = #fileID) async throws {
         for _ in 0..<1000 { if condition() { return }; try await Task.sleep(nanoseconds: 10_000_000) }
-        preconditionFailure("Timed out waiting for two-pane comparison")
+        preconditionFailure("Timed out waiting for two-pane comparison at \(file):\(line)")
     }
     @MainActor static func editors(_ view: NSView?) -> [NSTextView] {
         guard let view else { return [] }
         return (view as? NSTextView).map { [$0] } ?? view.subviews.flatMap { editors($0) }
     }
     @MainActor static func settled(_ model: FileComparisonWindowModel) async throws {
-        try await wait { !model.busy && !model.filtering && model.alignmentSelections.isEmpty }
+        var count = 0
+        try await wait {
+            count += 1
+            if count == 999 { print("Two-pane wait state: busy=\(model.busy), filtering=\(model.filtering), selections=\(model.alignmentSelections.keys), error=\(String(describing: model.error)), window=\(model.window != nil)"); fflush(stdout) }
+            return !model.busy && !model.filtering && model.alignmentSelections.isEmpty
+        }
     }
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)

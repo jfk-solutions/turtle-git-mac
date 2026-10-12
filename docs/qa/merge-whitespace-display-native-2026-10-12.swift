@@ -44,6 +44,24 @@ struct MergeWhitespaceDisplayVerification {
         precondition(model.alignmentGeneration == generation && !model.dirty && !model.canUndo)
         model.busy = true; model.setWhitespaceDisplay(.init()); model.busy = false
         precondition(model.whitespaceDisplay == .init(visible: false, endingIcons: true))
+        var colors = MergeColorPreferences()
+        colors.light[.filtered] = .init(0, 0x336699); colors.dark[.filtered] = .init(0xdddddd, 0x336699)
+        colors.light[.normal] = .init(0x112233, 0x445566); colors.dark[.normal] = .init(0x112233, 0x445566)
+        colors.dark[.whitespace] = .init(0xff00ff, 0)
+        try colors.save(to: defaults); MergePalette.reload(defaults: defaults)
+        defer { MergePalette.reload() }
+        NotificationCenter.default.post(name: .mergeEditorPreferencesChanged, object: nil)
+        try await TwoPaneEngineVerification.wait {
+            guard let color = left.textStorage?.attribute(.backgroundColor, at: 0, effectiveRange: nil) as? NSColor,
+                  let rgb = color.usingColorSpace(.sRGB) else { return false }
+            return abs(rgb.blueComponent - 0.6) < 0.01
+        }
+        let normalOffset = (left.string as NSString).range(of: "second").location
+        let foreground = (left.textStorage?.attribute(.foregroundColor, at: normalOffset, effectiveRange: nil) as? NSColor)?.usingColorSpace(.sRGB)
+        precondition(foreground != nil && abs(foreground!.redComponent - 17.0 / 255) < 0.01)
+        precondition(views.map(\.string) == strings && !model.dirty && !model.canUndo && model.alignmentGeneration == generation)
+        colors.restore(dark: true); try colors.save(to: defaults); MergePalette.reload(defaults: defaults)
+        NotificationCenter.default.post(name: .mergeEditorPreferencesChanged, object: nil)
         let finalBase = try Data(contentsOf: base), finalMine = try Data(contentsOf: mine)
         precondition(finalBase == Data(before.utf8) && finalMine == Data(after.utf8))
         controller.window?.close(); try await TwoPaneEngineVerification.wait { MergeRegexOperations.activeRequests == 0 }

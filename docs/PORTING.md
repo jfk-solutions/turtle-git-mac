@@ -24,6 +24,10 @@ The General settings batch adds native fixed-pitch font/size choices, live pane/
 ruler metrics, an inline-diff length bound and source load-navigation flags.
 See [General settings parity](MERGE-GENERAL-SETTINGS-PARITY.md).
 
+The Merge Colors page adds native light/dark foreground/background controls,
+selective defaults and shared palette updates across text panes, locator and
+whitespace rendering. See [Colors parity](MERGE-COLORS-PARITY.md).
+
 The target is complete behavioral parity, with native macOS windows and Finder
 integration. This first implementation establishes the architecture and common
 workflows. It does **not** represent the complete port or reproduce all upstream
@@ -77,7 +81,7 @@ owned loading/command progress. Native Push variants and owned Shift Push option
 controls, full visual matching and signed acceptance are still pending. See
 [Synchronization parity](SYNCHRONIZATION-PARITY.md).
 Across the 130 inventoried dialogs:
-50 dialogs are now partial and 80 await review. No dialog is certified complete.
+53 dialogs have partial implementations and 77 await review. No dialog is certified complete.
 See [the reference dialog audit](COMMIT-CONTAINING-REFS-PARITY.md).
 
 Log commit ordering now has the source’s four-choice native sheet, deferred

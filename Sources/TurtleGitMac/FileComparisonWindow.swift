@@ -846,6 +846,8 @@ struct FileComparisonEditor: NSViewRepresentable {
     }
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let view = scroll.documentView as? NSTextView else { return }
+        view.backgroundColor = MergePalette.color(MergeSourceState.normal)
+        view.insertionPointColor = MergePalette.foreground(.normal)
         view.font = model.generalPreferences.nativeFont
         DispatchQueue.main.async { model.refreshLocatorViewport() }
         // Hosting can deliver a previously captured View value after an edit.
@@ -911,7 +913,7 @@ struct FileComparisonEditor: NSViewRepresentable {
         let value = NSMutableAttributedString(string: "")
         for (index, cell) in cells.enumerated() {
             let diff = inline(index, model: model, base: base), offset = value.length
-            value.append(NSAttributedString(string: cell.displayText + "\n", attributes: [.font: font, .foregroundColor: NSColor.labelColor, .backgroundColor: diff == nil ? MergePalette.color(cell.state) : MergePalette.inlineCommon, .paragraphStyle: paragraph]))
+            value.append(NSAttributedString(string: cell.displayText + "\n", attributes: [.font: font, .foregroundColor: MergePalette.foreground(cell.state), .backgroundColor: diff == nil ? MergePalette.color(cell.state) : MergePalette.inlineCommon, .paragraphStyle: paragraph]))
             if let diff {
                 for range in base ? diff.base : diff.destination { value.addAttribute(.backgroundColor, value: base ? MergePalette.inlineRemoved : MergePalette.inlineAdded, range: NSRange(location: offset + range.location, length: range.length)) }
             }

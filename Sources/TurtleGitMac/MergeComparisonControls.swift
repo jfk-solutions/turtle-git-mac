@@ -111,7 +111,7 @@ struct MergeLocatorBar: NSViewRepresentable {
     }
     private var dark: Bool { effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua }
     private func paint() {
-        NSColor.textBackgroundColor.setFill(); bounds.fill()
+        MergePalette.color(MergeSourceState.normal).setFill(); bounds.fill()
         guard map.lineCount > 0 else { return }
         let scale = bounds.height / CGFloat(map.lineCount)
         let top = CGFloat(viewport.rows.lowerBound) * scale, bottom = CGFloat(viewport.rows.upperBound) * scale
@@ -195,6 +195,7 @@ struct MergeLocatorBar: NSViewRepresentable {
     var highlightEndings = true, removal = false
     private var icons: [MergeLineEnding: NSImage] = [:]
     private var darkIcons: [MergeLineEnding: NSImage] = [:]
+    private var colorRevision = -1
     func update(text: String, cells: [MergeSourceCell]?, otherCells: [MergeSourceCell]?, preferences: MergeWhitespaceDisplayPreferences) {
         let raw = cells?.map(\.text), other = otherCells?.map(\.text)
         if !self.text.utf8.elementsEqual(text.utf8) || self.cells != raw || others != other {
@@ -204,6 +205,7 @@ struct MergeLocatorBar: NSViewRepresentable {
         self.preferences = preferences
     }
     func draw(in view: NSTextView, dirtyRect: NSRect) {
+        if colorRevision != MergePalette.revision { colorRevision = MergePalette.revision; darkIcons = [:] }
         guard preferences.visible, let layout = view.layoutManager, let container = view.textContainer else { return }
         let origin = view.textContainerOrigin
         let rect = dirtyRect.offsetBy(dx: -origin.x, dy: -origin.y)
@@ -224,7 +226,7 @@ struct MergeLocatorBar: NSViewRepresentable {
             let frame = NSRect(x: fragment.minX + point.x + origin.x, y: fragment.minY + origin.y,
                                width: max(advance, box.width), height: fragment.height)
             guard frame.intersects(dirtyRect) else { continue }
-            NSColor.secondaryLabelColor.setStroke(); NSColor.secondaryLabelColor.setFill()
+            MergePalette.whitespace.setStroke(); MergePalette.whitespace.setFill()
             let path = NSBezierPath(); path.lineWidth = 1
             func line(_ x: CGFloat, _ y: CGFloat, _ a: CGFloat, _ b: CGFloat) { path.move(to: NSPoint(x: x, y: y)); path.line(to: NSPoint(x: a, y: b)) }
             let x = frame.minX, y = frame.midY, right = x + advance - 1
@@ -248,7 +250,7 @@ struct MergeLocatorBar: NSViewRepresentable {
                             // silhouette and use the native marker foreground.
                             var foreground = NSColor(calibratedWhite: 0.7, alpha: 1)
                             view.effectiveAppearance.performAsCurrentDrawingAppearance {
-                                if let resolved = NSColor.secondaryLabelColor.usingColorSpace(.sRGB) { foreground = resolved.withAlphaComponent(1) }
+                                if let resolved = MergePalette.whitespace.usingColorSpace(.sRGB) { foreground = resolved.withAlphaComponent(1) }
                             }
                             let tint = foreground
                             darkIcons[style] = NSImage(size: original.size, flipped: false) { bounds in

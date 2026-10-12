@@ -495,32 +495,33 @@ private enum MergeSourceSide {
     init(_ view: NSScrollView) { self.view = view }
 }
 enum MergePalette {
-    static var inlineAdded: NSColor { inlineColor(light: (255, 255, 150), dark: (120, 120, 50)) }
-    static var inlineRemoved: NSColor { inlineColor(light: (200, 100, 100), dark: (100, 40, 40)) }
-    static var inlineCommon: NSColor { inlineColor(light: (220, 220, 255), dark: (80, 80, 103)) }
-    private static func inlineColor(light: (Int, Int, Int), dark: (Int, Int, Int)) -> NSColor {
-        NSColor(name: nil) { appearance in
-            let rgb = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? dark : light
-            return NSColor(calibratedRed: CGFloat(rgb.0) / 255, green: CGFloat(rgb.1) / 255, blue: CGFloat(rgb.2) / 255, alpha: 1)
-        }
+    private final class Storage: @unchecked Sendable {
+        let lock = NSLock(); var value = MergeColorPreferences.load(); var revision = 0
+        func snapshot() -> (MergeColorPreferences, Int) { lock.lock(); defer { lock.unlock() }; return (value, revision) }
+        func replace(_ value: MergeColorPreferences) { lock.lock(); defer { lock.unlock() }; self.value = value; revision += 1 }
     }
-    static func color(_ state: MergeSourceState) -> NSColor {
-        if state == .normal { return .textBackgroundColor }
+    private static let storage = Storage()
+    static var revision: Int { storage.snapshot().1 }
+    static func reload(defaults: UserDefaults = .standard) { storage.replace(.load(from: defaults)) }
+    static func role(_ state: MergeSourceState) -> MergeColorRole {
+        switch state { case .normal: return .normal; case .removed: return .removed; case .added: return .added; case .conflicted: return .conflicted; case .empty: return .empty; case .filtered: return .filtered }
+    }
+    static func roleColor(_ role: MergeColorRole, foreground: Bool = false) -> NSColor {
+        let palette = storage.snapshot().0
         return NSColor(name: nil) { appearance in
-            let dark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-            let rgb: (Int, Int, Int)
-            switch state {
-            case .removed: rgb = dark ? (83, 66, 33) : (255, 200, 100)
-            case .added: rgb = dark ? (83, 83, 0) : (255, 255, 0)
-            case .conflicted: rgb = dark ? (83, 33, 33) : (255, 100, 100)
-            case .empty: rgb = dark ? (66, 66, 66) : (200, 200, 200)
-            case .filtered: rgb = dark ? (73, 83, 73) : (220, 255, 220)
-            case .normal: return .textBackgroundColor
-            }
-            return NSColor(calibratedRed: CGFloat(rgb.0) / 255, green: CGFloat(rgb.1) / 255, blue: CGFloat(rgb.2) / 255, alpha: 1)
+            let color = palette.colors(role, dark: appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua)
+            let rgb = foreground ? color.foreground : color.background
+            return NSColor(srgbRed: CGFloat((rgb >> 16) & 255) / 255, green: CGFloat((rgb >> 8) & 255) / 255, blue: CGFloat(rgb & 255) / 255, alpha: 1)
         }
     }
+    static func color(_ state: MergeSourceState) -> NSColor { roleColor(role(state)) }
+    static func foreground(_ state: MergeSourceState) -> NSColor { roleColor(role(state), foreground: true) }
+    static var inlineCommon: NSColor { roleColor(.modified) }
+    static var inlineAdded: NSColor { roleColor(.inlineAdded) }
+    static var inlineRemoved: NSColor { roleColor(.inlineRemoved) }
+    static var whitespace: NSColor { roleColor(.whitespace, foreground: true) }
 }
+
 private struct TextConflictDialog: View {
     @ObservedObject var model: TextConflictWindowModel
     func pane(_ title: String, text: String, editable: Bool = false, cells: [MergeSourceCell]? = nil, side: MergeSourceSide? = nil) -> some View {
@@ -653,6 +654,8 @@ private struct MergeEditor: NSViewRepresentable {
     }
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let view = scroll.documentView as? MergeTextView else { return }
+        view.backgroundColor = MergePalette.color(MergeSourceState.normal)
+        view.insertionPointColor = MergePalette.foreground(.normal)
         view.font = model.generalPreferences.nativeFont
         DispatchQueue.main.async { model.refreshLocatorViewport() }
         scroll.rulersVisible = model.editorPreferences.showLineNumbers
@@ -663,9 +666,9 @@ private struct MergeEditor: NSViewRepresentable {
         let range = view.selectedRange()
         if !view.string.utf8.elementsEqual(text.utf8) { view.string = text; view.setSelectedRange(NSRange(location: min(range.location, (text as NSString).length), length: 0)) }
         let entire = NSRange(location: 0, length: (text as NSString).length)
-        view.textStorage?.addAttributes([.foregroundColor: NSColor.labelColor, .backgroundColor: NSColor.textBackgroundColor, .font: model.generalPreferences.nativeFont, .paragraphStyle: view.defaultParagraphStyle ?? NSParagraphStyle.default], range: entire)
+        view.textStorage?.addAttributes([.foregroundColor: MergePalette.foreground(.normal), .backgroundColor: MergePalette.color(MergeSourceState.normal), .font: model.generalPreferences.nativeFont, .paragraphStyle: view.defaultParagraphStyle ?? NSParagraphStyle.default], range: entire)
         if editable {
-            for block in MergeText.conflicts(in: text) { view.textStorage?.addAttribute(.backgroundColor, value: MergePalette.color(.conflicted), range: block.range) }
+            for block in MergeText.conflicts(in: text) { view.textStorage?.addAttributes([.backgroundColor: MergePalette.color(MergeSourceState.conflicted), .foregroundColor: MergePalette.foreground(.conflicted)], range: block.range) }
             if let requested = model.selectionRequest, NSMaxRange(requested) <= entire.length {
                 view.setSelectedRange(requested); view.scrollRangeToVisible(requested)
                 DispatchQueue.main.async { if model.selectionRequest == requested { model.selectionRequest = nil } }
@@ -674,7 +677,7 @@ private struct MergeEditor: NSViewRepresentable {
             var offset = 0
             for cell in sourceCells {
                 let length = (cell.displayText as NSString).length + 1
-                view.textStorage?.addAttribute(.backgroundColor, value: MergePalette.color(cell.state), range: NSRange(location: offset, length: length))
+                view.textStorage?.addAttributes([.backgroundColor: MergePalette.color(cell.state), .foregroundColor: MergePalette.foreground(cell.state)], range: NSRange(location: offset, length: length))
                 offset += length
             }
         }

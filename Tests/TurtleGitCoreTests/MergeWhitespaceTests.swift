@@ -131,3 +131,27 @@ final class MergeGeneralPreferencesTests: XCTestCase {
         XCTAssertNil(MergeGeneralPreferences(firstDifference: false, firstConflict: false).initialTarget(difference: difference, conflict: conflict))
     }
 }
+
+final class MergeColorPreferencesTests: XCTestCase {
+    func testSourcePalettesAndSelectiveRestore() {
+        var palette = MergeColorPreferences()
+        XCTAssertEqual(palette.colors(.removed, dark: false).background, 0xffc864)
+        XCTAssertEqual(palette.colors(.filtered, dark: true).background, 0x495349)
+        XCTAssertEqual(palette.colors(.resolved, dark: false).background, 0xc8ffc8)
+        XCTAssertEqual(palette.colors(.inlineAdded, dark: false).background, 0xffff96)
+        palette.light[.added] = .init(0x123456, 0x654321); palette.dark[.added] = .init(0x333333, 0x444444)
+        palette.restore(dark: false)
+        XCTAssertEqual(palette.light, MergeColorPreferences().light); XCTAssertEqual(palette.dark[.added]?.background, 0x444444)
+        XCTAssertFalse(MergeColorRole.filtered.supportsForeground); XCTAssertFalse(MergeColorRole.whitespace.supportsBackground)
+    }
+    func testPrivatePersistenceAndMalformedDataFallback() throws {
+        let suite = "TurtleGit.MergeColors." + UUID().uuidString, defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var palette = MergeColorPreferences(); palette.light[.normal] = .init(0x112233, 0x445566)
+        try palette.save(to: defaults); XCTAssertEqual(MergeColorPreferences.load(from: defaults), palette)
+        palette.dark[.added] = .init(0xffffff01, 0); try palette.save(to: defaults)
+        XCTAssertEqual(MergeColorPreferences.load(from: defaults).dark[.added], MergeColorPreferences().dark[.added])
+        defaults.set(Data("invalid".utf8), forKey: "TurtleGitMerge.Colors")
+        XCTAssertEqual(MergeColorPreferences.load(from: defaults), .init())
+    }
+}

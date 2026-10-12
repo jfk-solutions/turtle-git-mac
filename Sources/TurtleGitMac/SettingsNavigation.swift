@@ -8,8 +8,8 @@ import Combine
 /// Pending pages are tracked in the inventory, rather than shown as empty panes.
 enum SettingsPageID: String {
     case general, dialogs, dialogs2, dialogs3, colors1, colors2, colors3, commit, alternativeEditor, git, remote, email, diff
-    case credential, network, contextMenu, contextMenu2, overlays, overlayHandlers, overlayIcons, mergeTool, mergeEditor, savedData, blame, unifiedDiff, advanced
-    var applyOrder: Int { let pages: [SettingsPageID] = [.general, .contextMenu, .contextMenu2, .dialogs, .dialogs2, .dialogs3, .colors1, .colors2, .colors3, .commit, .alternativeEditor, .overlays, .overlayHandlers, .overlayIcons, .git, .remote, .credential, .network, .email, .diff, .mergeTool, .mergeEditor, .savedData, .blame, .unifiedDiff, .advanced]; return pages.firstIndex(of: self)! }
+    case credential, network, contextMenu, contextMenu2, overlays, overlayHandlers, overlayIcons, mergeTool, mergeEditor, mergeColors, savedData, blame, unifiedDiff, advanced
+    var applyOrder: Int { let pages: [SettingsPageID] = [.general, .contextMenu, .contextMenu2, .dialogs, .dialogs2, .dialogs3, .colors1, .colors2, .colors3, .commit, .alternativeEditor, .overlays, .overlayHandlers, .overlayIcons, .git, .remote, .credential, .network, .email, .diff, .mergeTool, .mergeEditor, .mergeColors, .savedData, .blame, .unifiedDiff, .advanced]; return pages.firstIndex(of: self)! }
 }
 private final class SettingsPageNode: NSObject {
     let id: SettingsPageID, title: String, icon: MenuIcon
@@ -129,7 +129,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
             SettingsPageNode(.network, "Network", .settingsNetwork),
             SettingsPageNode(.overlays, "Icon Overlays", .settingsOverlays, children: [SettingsPageNode(.overlayIcons, "Icon Set", .settingsOverlays), SettingsPageNode(.overlayHandlers, "Overlay Handlers", .settingsOverlays)]),
             SettingsPageNode(.email, "Email", .sendMail),
-            SettingsPageNode(.diff, "Diff Viewer", .compare, children: [SettingsPageNode(.mergeTool, "Merge Tool", .merge), SettingsPageNode(.mergeEditor, "Merge Editor", .merge)]),
+            SettingsPageNode(.diff, "Diff Viewer", .compare, children: [SettingsPageNode(.mergeTool, "Merge Tool", .merge), SettingsPageNode(.mergeEditor, "Merge Editor", .merge, children: [SettingsPageNode(.mergeColors, "Colors", .settingsColors)])]),
             SettingsPageNode(.savedData, "Saved Data", .settingsSavedData), SettingsPageNode(.blame, "TortoiseGitBlame", .blame),
             SettingsPageNode(.unifiedDiff, "Unified Diff", .settingsUnifiedDiff), SettingsPageNode(.advanced, "Advanced", .settingsGeneral)
         ]
@@ -182,6 +182,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
             case .diff: controller = host(DiffToolSettings())
             case .mergeTool: controller = host(MergeToolSettings())
             case .mergeEditor: controller = host(MergeEditorSettings())
+            case .mergeColors: controller = host(MergeColorsSettings())
             case .savedData: controller = host(SavedDataSettingsPage())
             case .blame: controller = host(BlameSettings())
             case .unifiedDiff: controller = host(UnifiedDiffAppearanceSettings())

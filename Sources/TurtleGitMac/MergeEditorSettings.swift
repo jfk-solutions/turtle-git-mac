@@ -182,3 +182,50 @@ private struct MergeSettingsWindowProbe: NSViewRepresentable {
         override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); reference?.window = window }
     }
 }
+
+/// SetColorPage's source rows, with independent native light/dark editing.
+struct MergeColorsSettings: View {
+    @State private var draft = MergeColorPreferences.load()
+    @State private var dark = false
+    @Environment(\.settingsTransaction) private var transaction
+    private let rows: [MergeColorRole] = [.normal, .added, .removed, .modified, .conflicted, .resolved, .empty, .filtered]
+    private func binding(_ role: MergeColorRole, foreground: Bool) -> Binding<Color> {
+        Binding(get: {
+            let colors = draft.colors(role, dark: dark), rgb = foreground ? colors.foreground : colors.background
+            return Color(.sRGB, red: Double(rgb >> 16 & 255) / 255, green: Double(rgb >> 8 & 255) / 255, blue: Double(rgb & 255) / 255, opacity: 1)
+        }, set: { color in
+            guard let rgb = NSColor(color).usingColorSpace(.sRGB) else { return }
+            func channel(_ value: CGFloat) -> UInt32 { UInt32(min(255, max(0, Int((value * 255).rounded())))) }
+            let value = channel(rgb.redComponent) << 16 | channel(rgb.greenComponent) << 8 | channel(rgb.blueComponent)
+            var colors = draft.colors(role, dark: dark)
+            if foreground { colors.foreground = value } else { colors.background = value }
+            if dark { draft.dark[role] = colors } else { draft.light[role] = colors }
+        })
+    }
+    private func row(_ role: MergeColorRole) -> some View {
+        HStack {
+            Text(role.title).frame(width: 140, alignment: .leading)
+            if role.supportsForeground { ColorPicker(role.title + " foreground", selection: binding(role, foreground: true), supportsOpacity: false).labelsHidden().frame(maxWidth: .infinity) }
+            else { Color.clear.frame(maxWidth: .infinity) }
+            if role.supportsBackground { ColorPicker(role.title + " background", selection: binding(role, foreground: false), supportsOpacity: false).labelsHidden().frame(maxWidth: .infinity) }
+            else { Color.clear.frame(maxWidth: .infinity) }
+        }
+    }
+    private func apply() -> Bool {
+        do { try draft.save(); MergePalette.reload(); NotificationCenter.default.post(name: .mergeEditorPreferencesChanged, object: nil); return true }
+        catch { return false }
+    }
+    var body: some View {
+        ScrollView { VStack(alignment: .leading, spacing: 16) {
+            Picker("Palette", selection: $dark) { Text("Light").tag(false); Text("Dark").tag(true) }.pickerStyle(.segmented)
+            HStack { Text(" ").frame(width: 140); Text("Foreground").frame(maxWidth: .infinity); Text("Background").frame(maxWidth: .infinity) }
+            GroupBox("Line differences") { VStack(spacing: 10) { ForEach(rows, id: \.self) { row($0) } }.padding(8) }
+            GroupBox("Inline differences") { VStack(spacing: 10) { row(.inlineAdded); row(.inlineRemoved) }.padding(8) }
+            GroupBox("Misc") { row(.whitespace).padding(8) }
+            HStack { Spacer(); Button("Restore Default") { draft.restore(dark: dark) } }
+            Text("Palette edits apply to open merge panes, locator stripes and whitespace markers when you choose Apply. App appearance is controlled in General.").font(.caption).foregroundStyle(.secondary)
+            if transaction == nil { HStack { Spacer(); Button("Cancel") { draft = .load() }; Button("Apply") { _ = apply() }.disabled(draft == .load()) } }
+        }.padding(20) }
+        .settingsParticipant("mergeColors", page: .mergeColors, value: draft, modified: { draft != .load() }, apply: { apply() }, cancel: { draft = .load() })
+    }
+}
