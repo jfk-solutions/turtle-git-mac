@@ -48,6 +48,8 @@ with tempfile.TemporaryDirectory(prefix='TurtleGitLFSMailNativeBatch-') as tempo
     three_pane.write_text((root / 'docs/qa/three-pane-engine-native-2026-10-12.swift').read_text().replace('@main struct', 'struct', 1))
     two_pane = folder / 'TwoPaneEngineReceiver.swift'
     two_pane.write_text((root / 'docs/qa/two-pane-engine-native-2026-10-12.swift').read_text().replace('@main struct', 'struct', 1))
+    open_receiver = folder / 'MergeOpenReceiver.swift'
+    open_receiver.write_text((root / 'docs/qa/merge-open-native-2026-10-12.swift').read_text())
     find = folder / 'MergeFindReceiver.swift'
     find.write_text((root / 'docs/qa/merge-find-native-2026-10-12.swift').read_text())
     email = folder / 'EmailSettingsReceiver.swift'
@@ -65,6 +67,7 @@ import TurtleGitCore
         try await ThreePaneEngineVerification.verify(configuration: SubversionMergeConfiguration.bundled())
         try await TwoPaneEngineVerification.verify()
         try await MergeFindNativeVerification.verify()
+        try await MergeOpenNativeVerification.verify()
         try await ClipboardTargetNativeVerification.verify()
         try await SVNNativeVerification.verify()
         try await ReviewPatchNativeVerification.verify()
@@ -85,7 +88,7 @@ import TurtleGitCore
     digest = hashlib.sha256()
     digest.update((platform.machine() + '-apple-macos13.0/swift5/WMO-Onone/testing-receiver-v2').encode())
     digest.update(subprocess.check_output(['xcrun', 'swiftc', '--version']))
-    inputs = [*map(Path, sources), copy, lfs, mail, daemon, review, svn, svn_fixture, clipboard, regex, three_pane, two_pane, find, email, main]
+    inputs = [*map(Path, sources), copy, lfs, mail, daemon, review, svn, svn_fixture, clipboard, regex, three_pane, two_pane, open_receiver, find, email, main]
     framework = products / 'TurtleGitCore.framework'
     inputs += sorted(p for p in framework.rglob('*') if p.is_file() and not p.is_symlink())
     for source in inputs:
@@ -96,7 +99,7 @@ import TurtleGitCore
         staging = folder / 'verify'
         subprocess.run(['xcrun', 'swiftc', '-whole-module-optimization', '-Onone', '-parse-as-library', '-swift-version', '5',
                         '-target', platform.machine() + '-apple-macos13.0', '-I', str(products), '-F', str(products),
-                        *sources, str(copy), str(lfs), str(mail), str(daemon), str(review), str(svn), str(svn_fixture), str(clipboard), str(regex), str(three_pane), str(two_pane), str(find), str(email), str(main), '-framework', 'TurtleGitCore', '-o', str(staging)], cwd=root, check=True)
+                        *sources, str(copy), str(lfs), str(mail), str(daemon), str(review), str(svn), str(svn_fixture), str(clipboard), str(regex), str(three_pane), str(two_pane), str(open_receiver), str(find), str(email), str(main), '-framework', 'TurtleGitCore', '-o', str(staging)], cwd=root, check=True)
         staging.replace(executable)
         print('Native receiver compiled once for this source/framework/toolchain.', flush=True)
     else: print('Reusing native receiver for unchanged source/framework/toolchain.', flush=True)

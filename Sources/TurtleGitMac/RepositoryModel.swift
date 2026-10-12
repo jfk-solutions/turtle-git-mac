@@ -3,6 +3,37 @@ import SwiftUI
 import TurtleGitCore
 
 @MainActor final class RepositoryModel: ObservableObject {
+    private var mergeOpener: MergeOpenWindowController?
+    func showMergeOpen() {
+        guard !busy, !confirmingQuit, workspaceWindow?.attachedSheet == nil else { return }
+        if let mergeOpener { mergeOpener.window?.makeKeyAndOrderFront(nil); return }
+        let opener = MergeOpenWindowController(permissions: activeAccess.map { [$0] } ?? [])
+        mergeOpener = opener
+        opener.onAccepted = { [weak self] request, permissions in
+            guard let self else { return }
+            switch request {
+            case .compare(let base, let mine, let single):
+                let key = "open-" + UUID().uuidString
+                let controller = FileComparisonWindowController(comparison: try WorkingFileComparison(base: base, destination: mine), permissions: permissions)
+                controller.model.singleFileMode = single
+                controller.onClosed = { [weak self] in self?.fileComparisonWindows.removeValue(forKey: key) }
+                self.fileComparisonWindows[key] = controller; controller.showWindow(nil)
+            case .merge(let base, let theirs, let mine):
+                let key = "open-merge-" + UUID().uuidString
+                let workingMerge = try WorkingTextMerge(base: base, theirs: theirs, mine: mine)
+                let context = GitRepository(root: mine.deletingLastPathComponent(), executable: try GitRuntime.executable())
+                let controller = TextConflictWindowController(repository: context, access: nil, path: mine.lastPathComponent, workingMerge: workingMerge, permissions: permissions)
+                controller.onClosed = { [weak self] in self?.textConflictWindows.removeValue(forKey: key) }
+                self.textConflictWindows[key] = controller; controller.showWindow(nil)
+            case .patch(let file, let target, let bytes):
+                let workflow = ReviewPatchWorkflow(file: file, target: target, preferred: target ?? self.root, grants: permissions,
+                    executable: try GitRuntime.executable(), preferences: self.reviewPatchPreferences, clipboardBytes: bytes)
+                self.presentReview(workflow)
+            }
+        }
+        opener.onClosed = { [weak self] in self?.mergeOpener = nil }
+        opener.present(parent: workspaceWindow)
+    }
     func showLoadImages() {
         guard !busy, !confirmingQuit, imageLoader == nil, workspaceWindow?.attachedSheet == nil else { return }
         let loader = ImageLoadWindowController(leftPath: "", permissions: [])

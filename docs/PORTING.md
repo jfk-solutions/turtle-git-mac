@@ -28,6 +28,10 @@ The Merge Colors page adds native light/dark foreground/background controls,
 selective defaults and shared palette updates across text panes, locator and
 whitespace rendering. See [Colors parity](MERGE-COLORS-PARITY.md).
 
+The native Merge Open dialog routes one/two standalone files, three-file merges
+and unified patches/clipboard bytes through retained file permissions.
+See [Open parity](MERGE-OPEN-PARITY.md).
+
 The Merge Find/Replace family now uses native pane-local windows with the
 source search options, Count, Replace/Replace All and grouped Undo/Redo in both
 viewers. See [Find parity](MERGE-FIND-PARITY.md).
@@ -89,7 +93,7 @@ owned loading/command progress. Native Push variants and owned Shift Push option
 controls, full visual matching and signed acceptance are still pending. See
 [Synchronization parity](SYNCHRONIZATION-PARITY.md).
 Across the 130 inventoried dialogs:
-58 dialogs have partial implementations and 72 await review. No dialog is certified complete.
+59 dialogs have partial implementations and 71 await review. No dialog is certified complete.
 See [the reference dialog audit](COMMIT-CONTAINING-REFS-PARITY.md).
 
 Log commit ordering now has the source’s four-choice native sheet, deferred

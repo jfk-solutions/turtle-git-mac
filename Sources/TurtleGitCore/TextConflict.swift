@@ -205,3 +205,89 @@ extension GitRepository {
     }
 
 }
+
+/// Standalone three-file Merge: no repository discovery, index or Git operation.
+public actor WorkingTextMerge {
+    public nonisolated let baseURL: URL
+    public nonisolated let theirsURL: URL
+    public nonisolated let mineURL: URL
+    private var baseSnapshot: ComparisonFileContent?
+    private var theirsSnapshot: ComparisonFileContent?
+    public init(base: URL, theirs: URL, mine: URL) throws {
+        guard [base, theirs, mine].allSatisfy({ $0.isFileURL && !$0.path.contains("\0") }) else { throw TextConflictFailure.unsupported }
+        baseURL = base.standardizedFileURL; theirsURL = theirs.standardizedFileURL; mineURL = mine.standardizedFileURL
+        guard Set([baseURL.path, theirsURL.path, mineURL.path]).count == 3 else { throw TextConflictFailure.unsupported }
+    }
+    private func source(_ url: URL) throws -> ComparisonFileContent {
+        let value = try WorkingFileComparison.workingContent(at: url)
+        guard value.mode != "120000", value.text != nil, value.encoding != nil else { throw TextConflictFailure.encoding }
+        return value
+    }
+    public func read(engine: SubversionMergeConfiguration, cancellation: OperationCancellation? = nil) throws -> TextConflictDocument {
+        try cancellation?.check()
+        let base = try source(baseURL), theirs = try source(theirsURL), mine = try source(mineURL)
+        let presentation = try SubversionMergePresentation(plan: engine.plan(base: base.text!, mine: mine.text!, theirs: theirs.text!, cancellation: cancellation))
+        try cancellation?.check(); baseSnapshot = base; theirsSnapshot = theirs
+        var document = TextConflictDocument(entry: ConflictEntry(path: mineURL.lastPathComponent, stages: []),
+            base: base.text!, mine: mine.text!, theirs: theirs.text!, mineStage: 2, theirsStage: 3,
+            initialResult: presentation.result, generatedResult: presentation.result, workingContents: mine.bytes,
+            permissions: mine.permissions ?? 0o644, encoding: mine.encoding!, baseEncoding: base.encoding, mineEncoding: mine.encoding, theirsEncoding: theirs.encoding)
+        document.mergeSources = presentation.sources; return document
+    }
+    public func save(_ document: TextConflictDocument, result: String, encoding: ComparisonTextEncoding? = nil, options: MergeFileSaveOptions = .init()) throws -> TextConflictDocument {
+        guard document.entry.path == mineURL.lastPathComponent, let baseSnapshot, let theirsSnapshot,
+              !result.utf8.contains(0) else { throw TextConflictFailure.unsupported }
+        func validate() throws {
+            let currentBase = try source(baseURL), currentTheirs = try source(theirsURL)
+            guard currentBase.bytes == baseSnapshot.bytes, currentBase.permissions == baseSnapshot.permissions,
+                  currentTheirs.bytes == theirsSnapshot.bytes, currentTheirs.permissions == theirsSnapshot.permissions else { throw TextConflictFailure.changedWorkingFile }
+            let attributes: [FileAttributeKey: Any]?
+            do { attributes = try FileManager.default.attributesOfItem(atPath: mineURL.path) }
+            catch let error as CocoaError where error.code == .fileNoSuchFile || error.code == .fileReadNoSuchFile { attributes = nil }
+            if let attributes {
+                guard attributes[.type] as? FileAttributeType == .typeRegular,
+                      try Data(contentsOf: mineURL) == document.workingContents,
+                      (attributes[.posixPermissions] as? NSNumber)?.intValue == document.permissions else { throw TextConflictFailure.changedWorkingFile }
+            } else if document.workingContents != nil { throw TextConflictFailure.changedWorkingFile }
+        }
+        try validate()
+        if document.workingContents != nil && !FileManager.default.isWritableFile(atPath: mineURL.path) { throw TextConflictFailure.readOnly }
+        guard options.emptyResult != .delete || result.isEmpty else { throw MergeFileSaveFailure.nonemptyDeletion }
+        let selected = encoding ?? document.encoding, bytes = try selected.encode(result), deleting = options.emptyResult == .delete
+        try MergeWorkingFileSave.write(at: mineURL, original: document.workingContents, permissions: document.permissions,
+                                       bytes: bytes, delete: deleting, backup: options.backupOriginal, validate: validate)
+        var saved = TextConflictDocument(entry: document.entry, base: document.base, mine: document.mine, theirs: document.theirs,
+            mineStage: document.mineStage, theirsStage: document.theirsStage, initialResult: result, generatedResult: document.generatedResult,
+            workingContents: deleting ? nil : bytes, permissions: document.permissions, encoding: selected,
+            baseEncoding: document.baseEncoding, mineEncoding: document.mineEncoding, theirsEncoding: document.theirsEncoding)
+        saved.mergeSources = document.mergeSources; return saved
+    }
+}
+
+public enum MergeOpenMode: Int, Sendable { case merging = 0, applyUnifiedDiff = 1 }
+public enum MergeOpenRequest: Sendable {
+    case compare(base: URL, mine: URL, single: Bool)
+    case merge(base: URL, theirs: URL, mine: URL)
+    case patch(file: URL?, directory: URL?, clipboard: Data?)
+    public static func selection(mode: MergeOpenMode, base: String, theirs: String, mine: String,
+                                 diff: String, directory: String, clipboard: Data?) throws -> Self {
+        func url(_ value: String, folder: Bool = false) throws -> URL? {
+            guard !value.isEmpty else { return nil }
+            guard !value.contains("\0") else { throw RevisionComparisonFailure.selection }
+            let location = URL(fileURLWithPath: (value as NSString).expandingTildeInPath).standardizedFileURL
+            var isDirectory: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: location.path, isDirectory: &isDirectory), isDirectory.boolValue == folder else { throw RevisionComparisonFailure.selection }
+            return location
+        }
+        if mode == .applyUnifiedDiff {
+            let target = try url(directory, folder: true)
+            if let clipboard { guard !clipboard.isEmpty else { throw RevisionComparisonFailure.selection }; return .patch(file: nil, directory: target, clipboard: clipboard) }
+            return .patch(file: try url(diff), directory: target, clipboard: nil)
+        }
+        let baseURL = try url(base), theirsURL = try url(theirs), mineURL = try url(mine)
+        if let baseURL, let theirsURL, let mineURL { return .merge(base: baseURL, theirs: theirsURL, mine: mineURL) }
+        let files = [baseURL, theirsURL, mineURL].compactMap { $0 }
+        guard !files.isEmpty else { throw RevisionComparisonFailure.selection }
+        return .compare(base: files[0], mine: files.last!, single: files.count == 1)
+    }
+}

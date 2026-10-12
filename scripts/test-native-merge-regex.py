@@ -16,6 +16,7 @@ parser.add_argument('--whitespace-only', action='store_true')
 parser.add_argument('--general-only', action='store_true')
 parser.add_argument('--about-only', action='store_true')
 parser.add_argument('--find-only', action='store_true')
+parser.add_argument('--open-only', action='store_true')
 parser.add_argument('--screenshots', type=Path)
 args = parser.parse_args()
 root = Path(__file__).resolve().parent.parent
@@ -27,12 +28,12 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-merge-regex-native-') as temp
     copy.write_text(app.read_text().replace('@main struct', 'struct', 1))
     sources = sorted(str(p) for p in (root / 'Sources/TurtleGitMac').glob('*.swift') if p != app)
     additional = []
-    if args.options_batch or args.whitespace_only or args.general_only or args.about_only or args.find_only:
-        for name in ['three-pane-engine-native-2026-10-12.swift', 'two-pane-engine-native-2026-10-12.swift', 'merge-locator-native-2026-10-12.swift', 'merge-whitespace-display-native-2026-10-12.swift', 'merge-general-native-2026-10-12.swift', 'about-native-2026-10-12.swift', 'merge-find-native-2026-10-12.swift']:
+    if args.options_batch or args.whitespace_only or args.general_only or args.about_only or args.find_only or args.open_only:
+        for name in ['three-pane-engine-native-2026-10-12.swift', 'two-pane-engine-native-2026-10-12.swift', 'merge-locator-native-2026-10-12.swift', 'merge-whitespace-display-native-2026-10-12.swift', 'merge-general-native-2026-10-12.swift', 'about-native-2026-10-12.swift', 'merge-find-native-2026-10-12.swift', 'merge-open-native-2026-10-12.swift']:
             receiver = folder / name
             receiver.write_text((root / 'docs/qa' / name).read_text().replace('@main struct', 'struct', 1))
             additional.append(str(receiver))
-    primary = root / ('docs/qa/comparison-options-native-2026-10-12.swift' if args.options_batch or args.whitespace_only or args.general_only or args.about_only or args.find_only else 'docs/qa/two-pane-engine-native-2026-10-12.swift' if args.two_pane else 'docs/qa/three-pane-engine-native-2026-10-12.swift' if args.three_pane else 'docs/qa/merge-regex-native-2026-10-12.swift')
+    primary = root / ('docs/qa/comparison-options-native-2026-10-12.swift' if args.options_batch or args.whitespace_only or args.general_only or args.about_only or args.find_only or args.open_only else 'docs/qa/two-pane-engine-native-2026-10-12.swift' if args.two_pane else 'docs/qa/three-pane-engine-native-2026-10-12.swift' if args.three_pane else 'docs/qa/merge-regex-native-2026-10-12.swift')
     # Focused modes and the full options batch share the same executable. Rebuild
     # only after source, imported framework, architecture or compiler changes.
     digest = hashlib.sha256()
@@ -64,6 +65,7 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-merge-regex-native-') as temp
     if args.general_only: arguments.append('--general-only')
     if args.about_only: arguments.append('--about-only')
     if args.find_only: arguments.append('--find-only')
+    if args.open_only: arguments.append('--open-only')
     if args.screenshots: arguments.append(str(args.screenshots.resolve()))
     subprocess.run([str(executable), *arguments],
                    cwd=root, env=environment, check=True, timeout=60)

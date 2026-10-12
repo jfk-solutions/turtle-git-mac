@@ -154,8 +154,9 @@ private enum MergeSourceSide {
 @MainActor final class TextConflictWindowController: NSWindowController, NSWindowDelegate {
     let model: TextConflictWindowModel
     var onClosed: () -> Void = {}
-    init(repository: GitRepository, access: RepositoryAccessLease?, path: String) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, workingMerge: WorkingTextMerge? = nil, permissions: [RepositoryAccessLease] = []) {
         model = TextConflictWindowModel(repository: repository, access: access, path: path)
+        model.workingMerge = workingMerge; model.workingMergePermissions = permissions
         let window = TextConflictNSWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 780), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(path) – TurtleGitMerge"; window.isReleasedWhenClosed = false
         window.contentMinSize = NSSize(width: 860, height: 540)
@@ -185,6 +186,8 @@ private enum MergeSourceSide {
 }
 @MainActor final class TextConflictWindowModel: ObservableObject {
     let repository: GitRepository
+    var workingMerge: WorkingTextMerge?
+    var workingMergePermissions: [RepositoryAccessLease] = []
     let path: String
     private let access: RepositoryAccessLease?
     @Published var document: TextConflictDocument?
@@ -339,7 +342,12 @@ private enum MergeSourceSide {
         }
     }
     var blocks: [MergeConflictBlock] { MergeText.conflicts(in: result, document: document) }
-    var dirty: Bool { document.map { !result.utf8.elementsEqual($0.initialResult.utf8) || encoding != $0.encoding } ?? false }
+    var dirty: Bool {
+        document.map { document in
+            let previous = workingMerge == nil ? document.initialResult : document.workingContents.flatMap { document.encoding.decode($0) } ?? ""
+            return !result.utf8.elementsEqual(previous.utf8) || encoding != document.encoding
+        } ?? false
+    }
     func changeEncoding(_ value: ComparisonTextEncoding) {
         guard !busy, !confirmingQuit, document != nil else { return }
         do { _ = try value.encode(result); encoding = value }
@@ -406,7 +414,16 @@ private enum MergeSourceSide {
         let options = pendingComparisonOptions ?? MergeComparisonOptions.load(from: comparisonDefaults)
         let profiles = try MergeCommentProfileFile.load(at: commentProfileURL)
         engine.filter = filter; engine.options = options; engine.commentTokens = profiles.tokens(paths: [path])
-        let next = try await repository.textConflictDocument(path: path, engine: engine, cancellation: cancellation)
+        let next: TextConflictDocument
+        if let workingMerge {
+            if GitRuntime.isAppStoreBuild {
+                for url in [workingMerge.baseURL, workingMerge.theirsURL, workingMerge.mineURL] {
+                    guard workingMergePermissions.contains(where: { $0.hasSecurityScope && $0.contains(url) }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+                }
+            }
+            next = try await workingMerge.read(engine: engine, cancellation: cancellation)
+        }
+        else { next = try await repository.textConflictDocument(path: path, engine: engine, cancellation: cancellation) }
         guard !retired, generation == nil || generation == loadGeneration else { return }
         guard let comparison = next.mergeSources else { throw SubversionMergeDiffFailure.invalidOutput }
         resetHistory()
@@ -446,7 +463,7 @@ private enum MergeSourceSide {
     var chooseEmptyResult: ((String) async -> MergeEmptyResult)?
     weak var window: NSWindow?
     func save(markResolved: Bool, closeAfter: Bool = false, reloadAfter: Bool = false, completion: ((Bool) -> Void)? = nil) {
-        guard !busy, !confirmingQuit, !retired, window?.attachedSheet == nil, let document else { completion?(false); return }
+        guard !busy, !confirmingQuit, !retired, !markResolved || workingMerge == nil, window?.attachedSheet == nil, let document else { completion?(false); return }
         if !markResolved && MergeText.hasMarkers(result) {
             let alert = NSAlert(); alert.alertStyle = .warning; alert.messageText = "Save with unresolved conflict markers?"
             alert.addButton(withTitle: "Cancel"); alert.addButton(withTitle: "Save")
@@ -458,7 +475,7 @@ private enum MergeSourceSide {
             var saved = false
             defer { busy = false; loadCancellation = nil; MergeRegexOperations.activeRequests -= 1; completion?(saved) }
             do {
-                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                if workingMerge == nil && GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let choice: MergeEmptyResult
                 if text.isEmpty {
                     if let chooseEmptyResult { choice = await chooseEmptyResult(path) }
@@ -466,7 +483,15 @@ private enum MergeSourceSide {
                 }
                 else { choice = .keep }
                 let options = MergeFileSaveOptions(backupOriginal: MergeFileSaveOptions.backupEnabled(from: comparisonDefaults), emptyResult: choice)
-                self.document = try await repository.saveTextConflict(document, result: text, markResolved: markResolved, encoding: outputEncoding, options: options)
+                if let workingMerge {
+                    if GitRuntime.isAppStoreBuild {
+                        let target = workingMerge.mineURL
+                        guard workingMergePermissions.contains(where: { $0.hasSecurityScope && $0.contains(target) }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+                    }
+                    self.document = try await workingMerge.save(document, result: text, encoding: outputEncoding, options: options)
+                } else {
+                    self.document = try await repository.saveTextConflict(document, result: text, markResolved: markResolved, encoding: outputEncoding, options: options)
+                }
                 onChanged(markResolved ? "Resolved: " + path : "Saved merged result: " + path)
                 if markResolved || closeAfter { close() }
                 else if reloadAfter { try await reloadDocument(filterName: regexFilterName, cancellation: loadCancellation) }
@@ -539,7 +564,7 @@ private struct TextConflictDialog: View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
                 Button { model.save(markResolved: false) } label: { CommandLabel(title: "Save", icon: .mergeSave) }.keyboardShortcut("s", modifiers: .command)
-                Button { model.save(markResolved: true) } label: { CommandLabel(title: "Mark as resolved", icon: .mergeResolved) }.disabled(model.document == nil || MergeText.hasMarkers(model.result))
+                Button { model.save(markResolved: true) } label: { CommandLabel(title: "Mark as resolved", icon: .mergeResolved) }.disabled(model.workingMerge != nil || model.document == nil || MergeText.hasMarkers(model.result))
                 Button { model.export() } label: { CommandLabel(title: "Save As…", icon: .mergeSaveAs) }
                 Divider().frame(height: 20)
                 Button { model.selectConflict(model.selectedConflict - 1) } label: { CommandLabel(title: "Previous conflict", icon: .mergePreviousConflict) }.disabled(model.blocks.isEmpty || model.selectedConflict == 0)

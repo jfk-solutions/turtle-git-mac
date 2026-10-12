@@ -4,6 +4,7 @@ import TurtleGitCore
 @main struct ComparisonOptionsVerification {
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
+        if CommandLine.arguments.contains("--open-only") { try await MergeOpenNativeVerification.verify(); return }
         if CommandLine.arguments.contains("--find-only") { try await MergeFindNativeVerification.verify(); return }
         if CommandLine.arguments.contains("--about-only") { try await AboutNativeVerification.verify(); return }
         if CommandLine.arguments.contains("--general-only") { try await MergeGeneralVerification.verify(); return }
@@ -15,6 +16,7 @@ import TurtleGitCore
         try await MergeGeneralVerification.verify()
         try await AboutNativeVerification.verify()
         try await MergeFindNativeVerification.verify()
+        try await MergeOpenNativeVerification.verify()
         print("Comparison option receivers passed together: three-pane dirty Cancel/persistence, two-pane preference choices, existing Undo/save/cancellation paths; one frontend compilation and one process.")
     }
 }

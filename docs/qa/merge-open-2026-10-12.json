@@ -1,0 +1,75 @@
+{
+  "date": "2026-10-12",
+  "baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Native Merge Open, standalone three-file backend, app Tools entry and retained file grants",
+  "validation": {
+    "initial_build": "Compiler found cross-module actor-isolated immutable URL access; fixed with nonisolated immutable Sendable URL properties",
+    "final_build": {
+      "exit": 0,
+      "configuration": "Debug, arm64, unsigned macOS13 target",
+      "existing_zero_exit_output_diagnostics": true
+    },
+    "core": {
+      "selected_cases": 18,
+      "initial_run_passed": 17,
+      "initial_run_failed": 1,
+      "failure": "Directory URL trailing slash representation differed in fixture equality",
+      "focused_repeat_cases": 1,
+      "focused_repeat_failures": 0,
+      "full_suite_run": false,
+      "regression_classes": [
+        "MergeOpenTests",
+        "TextConflictTests"
+      ]
+    },
+    "native": {
+      "command": "python3 scripts/test-native-merge-regex.py --options-batch",
+      "compilations": 1,
+      "processes": 1,
+      "exit": 0,
+      "families": [
+        "Three-pane comparison options and saves",
+        "Two-pane comparison options and editing",
+        "Locator",
+        "Whitespace and colors",
+        "General settings",
+        "About",
+        "Find/Replace",
+        "Open/standalone Merge"
+      ],
+      "new_cases": [
+        "Source radio/field/clipboard gates",
+        "Private patch bytes captured at OK",
+        "Saved mode and Cancel behavior",
+        "Missing path error",
+        "Expired picker reply fenced",
+        "Real standalone three-pane load and dirty state",
+        "Save My without Git initialization",
+        "Mark as resolved refused in standalone mode"
+      ],
+      "closed_owned_windows": true,
+      "owned_helpers_remaining": 0,
+      "main_app_launched": false
+    },
+    "docs": "Site generated, script syntax checked and diff whitespace clean",
+    "signed_appstore_verified": false,
+    "physical_dialog_verified": false,
+    "new_screenshots_published": 0,
+    "hosted_new_commit_verified": false
+  },
+  "remaining": [
+    "Source inputs must be distinct for the standalone three-file actor; source alias support needs work",
+    "Physical App Tools route and patch handoff acceptance",
+    "Path drop/autocompletion and clipboard live change monitoring",
+    "Replace an existing viewer via File/Open after its Save prompt",
+    "Exact single-pane toolbar pruning",
+    "Light/dark/minimum-window/keyboard/VoiceOver visual acceptance",
+    "Signed sandbox file-picker, atomic sibling save/backup and Finder acceptance"
+  ],
+  "inventory": {
+    "total": 130,
+    "partial": 59,
+    "pending": 71,
+    "certified_complete": 0
+  }
+}

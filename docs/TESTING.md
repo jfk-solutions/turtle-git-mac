@@ -1125,3 +1125,13 @@ native receiver is also included in the grouped LFS/mail CI receiver. It uses
 private two-pane files and a private three-pane Git conflict, keeps original
 files/index unchanged and closes all owned Find/editor windows. No installed
 app, public server or live Keychain is used. See [Find parity](MERGE-FIND-PARITY.md).
+
+
+## Merge Open family
+
+Run `swift test --filter MergeOpenTests` after implementation, then
+`python3 scripts/test-native-merge-regex.py --open-only` after the Debug framework
+build. The native receiver is included in the shared CI compilation. Checks use
+private source files, clipboard/preferences and injected picker replies; the
+standalone three-pane editor loads/saves without Git initialization. See
+[Open parity](MERGE-OPEN-PARITY.md).

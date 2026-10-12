@@ -96,6 +96,7 @@ import TurtleGitCore
     private let alternateTool = NSEvent.modifierFlags.contains(.shift)
     private var externalAttempted = false, retired = false
     @Published var document: FileComparisonDocument?
+    var singleFileMode = false
     @Published var alignment: FileComparisonAlignment?
     @Published private(set) var regexFilters = MergeRegexFilters.load()
     @Published private(set) var regexFilterName: String?
@@ -808,7 +809,7 @@ private struct FileComparisonDialog: View {
                                     enabled: !model.busy && !model.filtering && !model.confirmingQuit, navigate: model.scrollLocator)
                         .frame(width: 44).help("Left and right file overview; click or drag to scroll")
                 }
-                HSplitView { pane(base: true); pane(base: false) }
+                HSplitView { if !model.singleFileMode { pane(base: true) }; pane(base: false) }
             }
             Divider()
             HStack {
