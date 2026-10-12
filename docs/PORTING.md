@@ -97,7 +97,7 @@ owned loading/command progress. Native Push variants and owned Shift Push option
 controls, full visual matching and signed acceptance are still pending. See
 [Synchronization parity](SYNCHRONIZATION-PARITY.md).
 Across the 130 inventoried dialogs:
-61 dialogs have partial implementations and 69 await review. No dialog is certified complete.
+62 dialogs have partial implementations and 68 await review. No dialog is certified complete.
 See [the reference dialog audit](COMMIT-CONTAINING-REFS-PARITY.md).
 
 Log commit ordering now has the source’s four-choice native sheet, deferred
@@ -744,3 +744,8 @@ combined native checks pass after the connected implementation; original profile
 packaging is verified. Source quote limitations are documented, with bounded
 cancellation added. Overrides and physical/signed acceptance remain open; see
 MERGE-COMMENTS-PARITY.md.
+
+The two-pane Merge viewer now has a source-style Line Diff Bar: saved visibility,
+Base/Mine pointer preview, forced inline/whitespace colors, original EOL markers
+and horizontal-scroll alignment. See [Line Diff Bar parity](MERGE-LINE-DIFF-PARITY.md).
+Physical whole-window layout and docking acceptance remain open.

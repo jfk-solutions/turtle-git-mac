@@ -30,7 +30,7 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-merge-regex-native-') as temp
     sources = sorted(str(p) for p in (root / 'Sources/TurtleGitMac').glob('*.swift') if p != app)
     additional = []
     if args.options_batch or args.whitespace_only or args.general_only or args.about_only or args.find_only or args.open_only or args.format_only:
-        for name in ['three-pane-engine-native-2026-10-12.swift', 'two-pane-engine-native-2026-10-12.swift', 'merge-locator-native-2026-10-12.swift', 'merge-whitespace-display-native-2026-10-12.swift', 'merge-general-native-2026-10-12.swift', 'about-native-2026-10-12.swift', 'merge-find-native-2026-10-12.swift', 'merge-open-native-2026-10-12.swift', 'merge-format-native-2026-10-12.swift']:
+        for name in ['three-pane-engine-native-2026-10-12.swift', 'two-pane-engine-native-2026-10-12.swift', 'merge-locator-native-2026-10-12.swift', 'merge-whitespace-display-native-2026-10-12.swift', 'merge-general-native-2026-10-12.swift', 'about-native-2026-10-12.swift', 'merge-find-native-2026-10-12.swift', 'merge-open-native-2026-10-12.swift', 'merge-format-native-2026-10-12.swift', 'merge-line-diff-native-2026-10-12.swift']:
             receiver = folder / name
             receiver.write_text((root / 'docs/qa' / name).read_text().replace('@main struct', 'struct', 1))
             additional.append(str(receiver))

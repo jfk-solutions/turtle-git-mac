@@ -205,16 +205,20 @@ struct MergeLocatorBar: NSViewRepresentable {
         self.preferences = preferences
     }
     func draw(in view: NSTextView, dirtyRect: NSRect) {
+        guard let layout = view.layoutManager, let container = view.textContainer else { return }
+        draw(layout: layout, container: container, origin: view.textContainerOrigin,
+             appearance: view.effectiveAppearance, font: view.font ?? NSFont.monospacedSystemFont(ofSize: 12, weight: .regular),
+             textLength: (view.string as NSString).length, dirtyRect: dirtyRect)
+    }
+    func draw(layout: NSLayoutManager, container: NSTextContainer, origin: NSPoint, appearance: NSAppearance, font: NSFont, textLength: Int, dirtyRect: NSRect) {
         if colorRevision != MergePalette.revision { colorRevision = MergePalette.revision; darkIcons = [:] }
-        guard preferences.visible, let layout = view.layoutManager, let container = view.textContainer else { return }
-        let origin = view.textContainerOrigin
+        guard preferences.visible else { return }
         let rect = dirtyRect.offsetBy(dx: -origin.x, dy: -origin.y)
         let visibleGlyphs = layout.glyphRange(forBoundingRect: rect, in: container)
         let visible = layout.characterRange(forGlyphRange: visibleGlyphs, actualGlyphRange: nil)
         var low = 0, high = markers.count
         while low < high { let mid = (low + high) / 2; if markers[mid].offset < visible.location { low = mid + 1 } else { high = mid } }
-        let advance = (" " as NSString).size(withAttributes: [.font: view.font ?? NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)]).width
-        let textLength = (view.string as NSString).length
+        let advance = (" " as NSString).size(withAttributes: [.font: font]).width
         for marker in markers[low...] {
             if marker.offset > NSMaxRange(visible) { break }
             guard marker.offset < textLength else { continue }
@@ -243,13 +247,13 @@ struct MergeLocatorBar: NSViewRepresentable {
                         let target = NSRect(x: x, y: frame.minY, width: frame.height, height: frame.height)
                         if changed && highlightEndings { (removal ? MergePalette.inlineRemoved : MergePalette.inlineAdded).setFill(); target.fill() }
                         if icons[style] == nil { icons[style] = icon.image(size: frame.height) }
-                        let dark = view.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+                        let dark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
                         if dark, darkIcons[style] == nil, let original = icons[style] {
                             // Classic ICO masks become hard to see on dark
                             // AppKit backgrounds. Preserve the original alpha
                             // silhouette and use the native marker foreground.
                             var foreground = NSColor(calibratedWhite: 0.7, alpha: 1)
-                            view.effectiveAppearance.performAsCurrentDrawingAppearance {
+                            appearance.performAsCurrentDrawingAppearance {
                                 if let resolved = MergePalette.whitespace.usingColorSpace(.sRGB) { foreground = resolved.withAlphaComponent(1) }
                             }
                             let tint = foreground

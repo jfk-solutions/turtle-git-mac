@@ -213,3 +213,10 @@ preserves mixed endings and unended final lines. Cancel changes nothing. The
 chooser edits the draft; use Save or Save As to write it. A format that cannot
 represent the text without loss is rejected. Go To Line uses the source file's
 numbered lines, excludes alignment gaps and is unavailable for one-line panes.
+
+In a two-file text comparison, enable **Line diff bar** to see Base above Mine
+beneath the panes. Move the pointer over a line to inspect its inline changes,
+spaces, tabs and original ending, even with the pane display options hidden.
+The bar follows the source font, colors, word mode and horizontal scroll positions.
+Its visibility is saved; one-file and ordinary three-pane views hide it. See
+[Line Diff Bar parity](MERGE-LINE-DIFF-PARITY.md) for remaining acceptance.

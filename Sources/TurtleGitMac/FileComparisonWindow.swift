@@ -177,6 +177,21 @@ import TurtleGitCore
     @Published var error: String?
     @Published var difference = -1
     @Published var showLineNumbers = MergeEditorPreferences.load().showLineNumbers
+    @Published var showLineDiffBar = UserDefaults.standard.object(forKey: "TurtleGitMerge.LineDiff") == nil || UserDefaults.standard.bool(forKey: "TurtleGitMerge.LineDiff") {
+        didSet { comparisonDefaults.set(showLineDiffBar, forKey: "TurtleGitMerge.LineDiff") }
+    }
+    @Published private(set) var previewRow: Int?
+    @Published private(set) var previewHorizontalOffsets: [Bool: CGFloat] = [:]
+    var lineDiffRow: FileComparisonRow? {
+        guard !retired, !singleFileMode, !filtering, let index = previewRow,
+              let alignment, alignment.rows.indices.contains(index) else { return nil }
+        return alignment.rows[index]
+    }
+    func previewLine(atRow index: Int?) {
+        guard !retired, !singleFileMode, !filtering, let index, let alignment,
+              alignment.rows.indices.contains(index) else { previewRow = nil; return }
+        previewRow = index
+    }
     @Published var showInlineDiff = true
     @Published var inlineWordDiff = false
     @Published var editorPreferences = MergeEditorPreferences.load()
@@ -238,6 +253,7 @@ import TurtleGitCore
     func refreshPreferences() {
         let general = MergeGeneralPreferences.load(from: comparisonDefaults)
         if general != generalPreferences { generalPreferences = general; inlineCache = [:] }
+        showLineDiffBar = comparisonDefaults.object(forKey: "TurtleGitMerge.LineDiff") == nil || comparisonDefaults.bool(forKey: "TurtleGitMerge.LineDiff")
         locatorPreferences = .load(from: comparisonDefaults)
         whitespaceDisplay = .load(from: comparisonDefaults)
         let options = MergeComparisonOptions.load(from: comparisonDefaults)
@@ -270,8 +286,8 @@ import TurtleGitCore
     private var inlineCache: [Int: InlineResult] = [:]
     private var inlineGeneration = -1
     private var cachedWordMode = false
-    func inlineDifference(_ index: Int) -> MergeInlineComparison? {
-        guard !filtering, showInlineDiff, let alignment, alignment.rows.indices.contains(index), alignment.rows[index].changed else { return nil }
+    func inlineDifference(_ index: Int, force: Bool = false) -> MergeInlineComparison? {
+        guard !filtering, (showInlineDiff || force), let alignment, alignment.rows.indices.contains(index), alignment.rows[index].changed else { return nil }
         if inlineGeneration != alignmentGeneration || cachedWordMode != inlineWordDiff {
             inlineCache = [:]; inlineGeneration = alignmentGeneration; cachedWordMode = inlineWordDiff
         }
@@ -356,6 +372,7 @@ import TurtleGitCore
     func updateSelection(_ range: NSRange, cells: [MergeSourceCell]) {
         guard let alignment else { return }
         selectedRows = try? FileComparisonEditing.selectedRows(range, cells: cells)
+        previewLine(atRow: selectedRows?.lowerBound)
         var cursor = 0, row = cells.count
         for (index, cell) in cells.enumerated() { cursor += (cell.displayText as NSString).length + 1; if range.location < cursor { row = index; break } }
         let index = alignment.differences.firstIndex { $0.contains(row) } ?? -1
@@ -442,7 +459,7 @@ import TurtleGitCore
         snapshot = images.snapshot; path = images.destination?.path ?? images.base?.path ?? "Images"
     }
     func retireImageLoader() {
-        formatRequest = nil
+        formatRequest = nil; previewRow = nil
         retired = true; regexCancellation?.cancel(); regexCancellation = nil; regexList?.retire(); regexList = nil
         imageLoader?.retire(); imageLoader = nil
     }
@@ -540,7 +557,7 @@ import TurtleGitCore
         guard let document else { return }
         regexCancellation?.cancel(); regexCancellation = nil; filtering = false
         alignmentSelections = [:]
-        alignmentGeneration += 1; selectedRows = nil
+        alignmentGeneration += 1; selectedRows = nil; previewRow = nil
         let a = drafts?.text(base: true) ?? document.base.text
         let b = drafts?.text(base: false) ?? document.destination.text
         // Immediate projection supports native text/Undo coordinate updates.
@@ -701,7 +718,7 @@ import TurtleGitCore
     }
     func register(_ scroll: NSScrollView, base: Bool) { scrolls[base] = scroll; queueInitialNavigation(base: base); onRegisterScroll(scroll, base); refreshLocatorViewport() }
     func scrolled(_ source: NSScrollView) {
-        defer { refreshLocatorViewport() }
+        defer { refreshLocatorViewport(); previewHorizontalOffsets = scrolls.mapValues { $0.contentView.bounds.minX } }
         guard !synchronizing else { return }; synchronizing = true; defer { synchronizing = false }
         for target in scrolls.values where target !== source {
             var point = target.contentView.bounds.origin; point.y = source.contentView.bounds.origin.y
@@ -791,6 +808,7 @@ private struct FileComparisonDialog: View {
                 Spacer()
                 Toggle("Inline diff", isOn: $model.showInlineDiff).disabled(model.alignment == nil)
                 Toggle("Word diff", isOn: $model.inlineWordDiff).disabled(!model.showInlineDiff || model.alignment == nil)
+                Toggle("Line diff bar", isOn: $model.showLineDiffBar).disabled(model.singleFileMode)
                 Toggle("Line numbers", isOn: $model.showLineNumbers)
             }.toggleStyle(.checkbox).padding(.horizontal, 10).padding(.bottom, 8)
             HStack {
@@ -828,6 +846,10 @@ private struct FileComparisonDialog: View {
                         .frame(width: 44).help("Left and right file overview; click or drag to scroll")
                 }
                 HSplitView { if !model.singleFileMode { pane(base: true) }; pane(base: false) }
+            }
+            if model.showLineDiffBar && !model.singleFileMode {
+                Divider()
+                MergeLineDiffBar(model: model).frame(height: MergeLineDiffPreview.lineHeight(model.generalPreferences.nativeFont) * 2)
             }
             Divider()
             HStack {
@@ -1024,7 +1046,7 @@ struct FileComparisonEditor: NSViewRepresentable {
 @MainActor protocol ComparisonContextMenuProviding {
     func comparisonContextMenu(defaults: UserDefaults, pasteboard: NSPasteboard) -> NSMenu
 }
-private final class FileComparisonTextView: NSTextView, NSMenuDelegate, ComparisonContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying, MergeFindProviding {
+private final class FileComparisonTextView: NSTextView, NSMenuDelegate, ComparisonContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying, MergeFindProviding, MergeLineDiffHoverProviding {
     var chooseNavigationLine: (NSWindow, Int) async -> Int? = MergeLineNumberPrompt.choose
     var navigationPending = false
     var navigationCells: [MergeSourceCell]? { sourceCells }
@@ -1041,6 +1063,34 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
     weak var model: FileComparisonWindowModel?
     var baseSide = false
     var sourceCells: [MergeSourceCell] = []
+    private var lineDiffTracking: NSTrackingArea?
+    override func updateTrackingAreas() {
+        if let lineDiffTracking { removeTrackingArea(lineDiffTracking) }
+        let area = NSTrackingArea(rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect], owner: self)
+        addTrackingArea(area); lineDiffTracking = area
+        super.updateTrackingAreas()
+    }
+    func previewLine(atDisplayOffset offset: Int?) {
+        guard let offset, offset >= 0 else { model?.previewLine(atRow: nil); return }
+        var start = 0
+        for (index, cell) in sourceCells.enumerated() {
+            let end = start + cell.displayText.utf16.count + 1
+            if offset < end { model?.previewLine(atRow: index); return }
+            start = end
+        }
+        model?.previewLine(atRow: nil)
+    }
+    override func mouseMoved(with event: NSEvent) {
+        guard let layoutManager, let textContainer else { return }
+        let point = convert(event.locationInWindow, from: nil)
+        let local = NSPoint(x: point.x - textContainerOrigin.x, y: point.y - textContainerOrigin.y)
+        let used = layoutManager.usedRect(for: textContainer)
+        guard local.y >= used.minY, local.y < used.maxY else { previewLine(atDisplayOffset: nil); return }
+        let offset = layoutManager.characterIndex(for: local, in: textContainer, fractionOfDistanceBetweenInsertionPoints: nil)
+        previewLine(atDisplayOffset: offset)
+    }
+    override func mouseExited(with event: NSEvent) { previewLine(atDisplayOffset: nil) }
+
     var mergeFindController: MergeFindWindowController?
     var mergeFindDefaults: UserDefaults { model?.comparisonDefaults ?? .standard }
     var mergeFindAllowed: Bool { model?.busy == false && model?.confirmingQuit == false && model?.filtering == false && window?.attachedSheet == nil }
@@ -1305,5 +1355,94 @@ extension MergeLineNavigationProviding where Self: NSTextView {
         let prompt = MergeFormatPrompt(pane:pane,selection:selection)
         let response = await withCheckedContinuation { continuation in prompt.alert.beginSheetModal(for:window) { continuation.resume(returning:$0) } }
         return response == .alertFirstButtonReturn ? prompt.selection : nil
+    }
+}
+
+@MainActor protocol MergeLineDiffHoverProviding {
+    func previewLine(atDisplayOffset offset: Int?)
+}
+
+private struct MergeLineDiffBar: NSViewRepresentable {
+    @ObservedObject var model: FileComparisonWindowModel
+    func makeNSView(context: Context) -> MergeLineDiffPreview { MergeLineDiffPreview() }
+    func updateNSView(_ view: MergeLineDiffPreview, context: Context) { view.update(model) }
+}
+
+/// Two TextKit lines, without additional editors, selection or focus ownership.
+@MainActor final class MergeLineDiffPreview: NSView {
+    private struct Line {
+        let storage: NSTextStorage
+        let layout: NSLayoutManager
+        let container: NSTextContainer
+        let renderer: MergeWhitespaceRenderer
+        let font: NSFont
+        let background: NSColor
+        let missing: [Int]
+        let horizontalOffset: CGFloat
+    }
+    private var lines: [Line] = []
+    private(set) var displayedStrings: [String] = []
+    var displayedAttributes: [NSAttributedString] { lines.map { NSAttributedString(attributedString: $0.storage) } }
+    var displayedMarkers: [[MergeWhitespaceMarker]] { lines.map { $0.renderer.markers } }
+    var horizontalOffsets: [CGFloat] { lines.map(\.horizontalOffset) }
+    static func lineHeight(_ font: NSFont) -> CGFloat { ceil(NSLayoutManager().defaultLineHeight(for: font)) + 4 }
+    override var isFlipped: Bool { true }
+    override var acceptsFirstResponder: Bool { false }
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        setAccessibilityElement(true); setAccessibilityRole(.staticText)
+        setAccessibilityLabel("Line diff bar, Base above Mine")
+    }
+    convenience init() { self.init(frame: .zero) }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+    func update(_ model: FileComparisonWindowModel) {
+        lines = []; displayedStrings = []
+        guard let row = model.lineDiffRow, let index = model.previewRow else {
+            setAccessibilityValue("No line under pointer"); needsDisplay = true; return
+        }
+        let diff = model.inlineDifference(index, force: true)
+        let font = model.generalPreferences.nativeFont
+        for base in [true, false] {
+            let cell = base ? row.base : row.destination, other = base ? row.destination : row.base
+            let paragraph = NSMutableParagraphStyle(); paragraph.tabStops = []
+            paragraph.defaultTabInterval = CGFloat(model.tabWidth(base: base)) * (" " as NSString).size(withAttributes: [.font: font]).width
+            let background = diff == nil ? MergePalette.color(cell.state) : MergePalette.inlineCommon
+            let storage = NSTextStorage(string: cell.displayText + "\n", attributes: [.font: font, .foregroundColor: MergePalette.foreground(cell.state), .backgroundColor: background, .paragraphStyle: paragraph])
+            if let diff {
+                for range in base ? diff.base : diff.destination {
+                    storage.addAttribute(.backgroundColor, value: base ? MergePalette.inlineRemoved : MergePalette.inlineAdded, range: range)
+                }
+            }
+            let layout = NSLayoutManager(), container = NSTextContainer(containerSize: NSSize(width: 10_000_000, height: Self.lineHeight(font)))
+            container.lineFragmentPadding = 0; layout.addTextContainer(container); storage.addLayoutManager(layout)
+            let renderer = MergeWhitespaceRenderer(); renderer.removal = base; renderer.highlightEndings = true
+            renderer.update(text: storage.string, cells: [cell], otherCells: [other], preferences: .init(visible: true, endingIcons: model.whitespaceDisplay.endingIcons))
+            lines.append(Line(storage: storage, layout: layout, container: container, renderer: renderer, font: font, background: background,
+                              missing: (base ? diff?.baseMissing : diff?.destinationMissing) ?? [], horizontalOffset: model.previewHorizontalOffsets[base] ?? 0))
+            displayedStrings.append(cell.displayText)
+        }
+        setAccessibilityValue("Base: " + displayedStrings[0] + "\nMine: " + displayedStrings[1]); needsDisplay = true
+    }
+    override func draw(_ dirtyRect: NSRect) {
+        MergePalette.color(.normal).setFill(); bounds.fill()
+        for (index, line) in lines.enumerated() {
+            let height = Self.lineHeight(line.font)
+            let rect = NSRect(x: 0, y: CGFloat(index) * height, width: bounds.width, height: height)
+            guard rect.intersects(dirtyRect) else { continue }
+            NSGraphicsContext.saveGraphicsState(); rect.clip()
+            line.background.setFill(); rect.fill()
+            let origin = NSPoint(x: 6 - line.horizontalOffset, y: rect.minY + 2)
+            let glyphs = line.layout.glyphRange(for: line.container)
+            line.layout.drawBackground(forGlyphRange: glyphs, at: origin)
+            line.layout.drawGlyphs(forGlyphRange: glyphs, at: origin)
+            line.renderer.draw(layout: line.layout, container: line.container, origin: origin, appearance: effectiveAppearance, font: line.font, textLength: line.storage.length, dirtyRect: rect.intersection(dirtyRect))
+            MergePalette.inlineRemoved.setFill()
+            for offset in line.missing where offset < line.storage.length {
+                let glyph = line.layout.glyphRange(forCharacterRange: NSRange(location: offset, length: 1), actualCharacterRange: nil)
+                let marker = line.layout.boundingRect(forGlyphRange: glyph, in: line.container).offsetBy(dx: origin.x, dy: origin.y)
+                NSRect(x: marker.minX, y: marker.minY, width: 2, height: marker.height).fill()
+            }
+            NSGraphicsContext.restoreGraphicsState()
+        }
     }
 }

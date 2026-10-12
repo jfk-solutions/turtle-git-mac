@@ -1165,3 +1165,9 @@ is for an actual failure; `--git` remains repeatable for engine-specific checks.
 The older `test-reference-*.py` commands delegate to the same cache and retain
 all original fixture assertions. Batch deletion now publishes helper PID markers
 atomically, matching the already-repaired single-deletion fixture.
+
+The grouped Merge options and LFS/mail receivers include
+`merge-line-diff-native-2026-10-12.swift`: saved visibility, UTF-16 hover mapping,
+Base/Mine ordering, independent inline/whitespace display, original EOL markers,
+light/dark TextKit rendering, unchanged text/selection/history/files, and
+exit/single-file/rebuild/retired guards. QA images are written under `build/qa`.

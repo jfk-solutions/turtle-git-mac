@@ -1,0 +1,72 @@
+{
+  "date": "2026-10-12",
+  "baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "TortoiseMerge LineDiffBar in native two-pane viewer",
+  "implemented": [
+    "Saved visibility with source true default",
+    "Base above Mine at hovered aligned row; caret selection preview",
+    "Independent forced inline and whitespace display with original EOL icons",
+    "Existing font/tab widths, source light/dark colors and pane horizontal offsets",
+    "No editor or selection/history/file mutations",
+    "Exit/invalid/rebuild/filtering/single-file/retired guards"
+  ],
+  "validation": {
+    "app_builds": [
+      {
+        "exit": 65,
+        "reason": "Shared renderer refactor omitted appearance parameter; corrected before native run"
+      },
+      {
+        "exit": 0,
+        "configuration": "unsigned Debug arm64, macOS13 target",
+        "existing_zero_exit_diagnostic_noise": true
+      }
+    ],
+    "core_tests": "Not rerun: native-only changes",
+    "native": {
+      "command": "python3 scripts/test-native-merge-regex.py --options-batch",
+      "frontend_attempts": 2,
+      "initial_failure": "Source edit during frontend compilation invalidated it; source restored before second attempt",
+      "executed_receiver_processes": 1,
+      "final_exit": 0,
+      "families": [
+        "Three-pane",
+        "Two-pane",
+        "Locator",
+        "Whitespace/colors",
+        "General",
+        "About",
+        "Find",
+        "Open",
+        "Encoding/Go To",
+        "Line Diff Bar"
+      ],
+      "private_repositories_preferences": true,
+      "owned_windows_helpers_closed": true,
+      "installed_app_launched": false
+    },
+    "screenshots": {
+      "reviewed": true,
+      "scope": "Actual focused NSView captures, not whole-window acceptance",
+      "files": [
+        "docs/site/assets/merge-line-diff-light.png",
+        "docs/site/assets/merge-line-diff-dark.png"
+      ]
+    },
+    "site_build_exit": 0
+  },
+  "remaining": [
+    "Physical pointer/keyboard/VoiceOver and minimum-size acceptance",
+    "Source docking and exact margins",
+    "Exceptional three-pane visibility",
+    "libsvn repeated-token inline tie parity",
+    "Signed Finder and distribution acceptance"
+  ],
+  "inventory": {
+    "dialogs": 130,
+    "partial": 62,
+    "pending_review": 68,
+    "certified_complete": 0
+  },
+  "hosted": "Latest prior commit b15e5e5 pending; older e6bb8b3 live job 114802897011 advanced to Native Merge all-reference and Log pickers; no complete hosted pass claimed"
+}
