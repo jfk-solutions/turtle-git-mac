@@ -108,3 +108,23 @@ layout/keyboard/selection acceptance, real owned sheets, all helper availability
 variants, includes/worktree/no-repository native flows, partial-write native
 failures, production Keychain and signed sandbox/App Store acceptance remain open.
 No new screenshot or full hosted CI pass is claimed.
+
+
+## Settings transaction and selection ownership — 2026-10-12
+
+Helper selection now owns a single pending operation, so repeated clicks cannot
+open overlapping discard prompts. Retirement releases that operation and fences
+its response even if the same page is activated again. Save and Remove check the
+captured generation before requesting permission following confirmation; advanced
+Apply also enforces the same writable-target restriction as the visible Save
+button. Simple replacement checks retirement before starting configuration writes.
+
+The Debug build exited 0. The expanded object-linked Credential receiver passed
+with both system and bundled Git, one compilation and two reaped processes. It
+also exercises the shared Settings participant: Apply, destination-only Cancel,
+invalid-helper validation and Cancel recovery. An actual external Git edit rejects
+stale native Apply and remains preserved. A held selection confirmation plus a
+second click creates only one confirmation; its accepted late response cannot
+replace the selected group or unsaved draft after deactivation/reactivation.
+This native-only extension did not rerun Core tests. Real native sheets, keyboard
+acceptance and signed deployment remain unverified.

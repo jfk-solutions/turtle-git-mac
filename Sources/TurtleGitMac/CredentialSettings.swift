@@ -144,7 +144,9 @@ import TurtleGitCore
     func select(_ id: String?) {
         guard active, !busy, id == nil || id != selected else { return }
         let request = generation
+        busy = true
         Task {
+            defer { if generation == request { busy = false } }
             if draft != saved || destination != savedDestination, !(await confirm("Discard unsaved helper changes?", detail: "Select Add New/Save or Apply to save the current fields before selecting another helper.", action: "Discard")) { return }
             guard active, generation == request else { return }
             if let group = snapshot?.groups.first(where: { $0.id == id }) { load(group) }
@@ -160,7 +162,7 @@ import TurtleGitCore
     func apply() async -> Bool {
         if mode != "advanced" { return await applySimple() }
         if draft == saved && destination == savedDestination { savedMode = mode; return true }
-        guard active, !busy, draft.valid, let file = target else { error = "Choose a configuration file and enter a credential helper."; return false }
+        guard active, !busy, draft.valid, writable, let file = target else { error = "Choose a configuration file and enter a credential helper."; return false }
         let value = draft, destination = destination, request = generation
         busy = true; saving = true; Self.activeSaves += 1
         defer { busy = false; saving = false; Self.activeSaves -= 1 }
@@ -169,6 +171,7 @@ import TurtleGitCore
             if let existing = snapshot?.groups.first(where: { $0.file == file && $0.url == value.url }), existing.helpers != value.helpers {
                 guard await confirm("Replace the credential helper?", detail: "The helper configuration for \(value.url.isEmpty ? "all URLs" : value.url) in \(file.path) will be replaced. Other credential URLs remain unchanged.", action: "Save") else { return false }
             }
+            guard active, generation == request else { return false }
             guard await permission(file), active, generation == request else { return false }
             if let writeCredential { try await writeCredential(value, file, snapshot) } else { try await repository.saveCredential(value, file: file, expected: snapshot) }
             guard active, generation == request else { return true }
@@ -193,6 +196,7 @@ import TurtleGitCore
             if !snapshot.entries.isEmpty {
                 guard await confirm("Replace credential configuration?", detail: "Simple configuration replaces all listed credential settings, including URL-specific helpers and usernames, with the selected default. Keychain passwords remain unchanged.", action: "Replace") else { return false }
             }
+            guard active, generation == request else { return false }
             var files = snapshot.groups.compactMap(\.file); if let file, helper != nil { files.append(file) }
             for file in Set(files) { guard await permission(file), active, generation == request else { return false } }
             try await repository.simplifyCredentials(expected: snapshot, helper: helper, file: file)
@@ -209,7 +213,8 @@ import TurtleGitCore
         Task {
             defer { busy = false; saving = false; Self.activeSaves -= 1 }
             do {
-                guard await confirm("Remove this credential configuration?", detail: "Remove \(group.url.isEmpty ? "default credentials" : group.url) from \(file.path). Stored passwords in Keychain remain available.", action: "Remove"), await permission(file), active, generation == request else { return }
+                guard await confirm("Remove this credential configuration?", detail: "Remove \(group.url.isEmpty ? "default credentials" : group.url) from \(file.path). Stored passwords in Keychain remain available.", action: "Remove"), active, generation == request else { return }
+                guard await permission(file), active, generation == request else { return }
                 try checkAccess(); try await repository.removeCredential(group, expected: snapshot)
                 guard active, generation == request else { return }
                 let snapshot = try await read()

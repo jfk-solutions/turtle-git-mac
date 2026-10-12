@@ -1247,3 +1247,7 @@ Cancel and confirmation decisions, removal, simple None, retired read/save
 responses and light/dark hosting. Password-manager routing is injected; no user
 Keychain or credential helper is launched. This is not signed or physical UI
 acceptance.
+
+The Credential receiver additionally checks the shared Settings transaction's
+Apply/Cancel/validation, external-edit stale-snapshot refusal, and exclusive
+selection confirmation ownership across retirement/reactivation.

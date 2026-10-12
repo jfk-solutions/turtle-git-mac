@@ -70,11 +70,43 @@ import TurtleGitCore
         displayed.authorizeFile={_ in true}; displayed.activate();try await wait {displayed.snapshot != nil && !displayed.busy}
         let window=NSWindow(contentRect:NSRect(x:0,y:0,width:820,height:650),styleMask:[.titled],backing:.buffered,defer:false)
         window.isReleasedWhenClosed=false
-        let host=NSHostingView(rootView:CredentialSettingsPage(model:displayed));window.contentView=host
-        defer {displayed.deactivate(); window.contentView=nil;window.close()}
+        let transaction=SettingsTransaction()
+        let host=NSHostingView(rootView:CredentialSettingsPage(model:displayed).environment(\.settingsTransaction,transaction));window.contentView=host
+        defer {transaction.invalidate();displayed.deactivate(); window.contentView=nil;window.close()}
         for name in [NSAppearance.Name.aqua,.darkAqua] {host.appearance=NSAppearance(named:name);host.layoutSubtreeIfNeeded()}
+        displayed.mode="advanced"; displayed.draft.helpers=["transaction-helper"]
+        try await wait {transaction.modified}
+        transaction.apply(closeAfter:false); try await wait {!transaction.busy && !displayed.busy}
+        try require(transaction.error==nil && !transaction.modified && displayed.selected != nil,"Settings Apply did not save credential participant")
+        let originalDestination=displayed.destination
+        displayed.destination = originalDestination == .local ? .global : .local
+        try await wait {transaction.modified};transaction.cancel()
+        try require(displayed.destination==originalDestination && !transaction.modified,"Settings Cancel lost destination draft")
+        displayed.draft.helpers=[];try await wait {transaction.modified}
+        transaction.apply(closeAfter:false);try await wait {!transaction.busy}
+        try require(transaction.error != nil && displayed.modified,"Settings validation accepted invalid helper")
+        transaction.cancel();try require(!transaction.modified,"Validation Cancel did not restore fields")
+        // External config edits invalidate a captured Apply without deleting either helper.
+        displayed.draft.username="stale draft"
+        _=try await repo.run(["config","--local","credential.external","external edit"])
+        let rejectedStale=await displayed.apply()
+        try require(!rejectedStale && displayed.modified && displayed.error != nil,"Stale Apply accepted")
+        let external=try await repo.run(["config","--local","--get","credential.external"])
+        try require(external.text.contains("external edit"),"Stale Apply removed external entry")
+        displayed.cancelDraft();displayed.refresh();try await wait {!displayed.busy}
+        // One pending selection owns the draft; a second click cannot start another sheet.
+        displayed.draft.username="retain after close"
+        var confirmation:CheckedContinuation<Bool,Never>?,confirmations=0
+        displayed.confirmAction={_,_,_ in confirmations += 1;return await withCheckedContinuation{confirmation=$0}}
+        let selectedBefore=displayed.selected
+        displayed.select(nil);displayed.select(nil);try await wait {confirmation != nil}
+        try require(displayed.busy && confirmations==1,"Parallel helper selections started duplicate confirmations")
+        displayed.deactivate();displayed.activate();confirmation?.resume(returning:true)
+        try await Task.sleep(nanoseconds:30_000_000)
+        try require(displayed.selected==selectedBefore && displayed.draft.username=="retain after close" && !displayed.busy,"Old selection reply mutated reactivated page")
+        displayed.confirmAction={_,_,_ in true};displayed.cancelDraft()
         var launches=0; displayed.openPasswordManager={launches += 1;return false};displayed.openKeychain()
         try require(launches==1 && displayed.error != nil,"Password manager failure routing differs")
-        print("Credential: scoped helper chains/reset, destination-only copy/Cancel, replacement/discard/remove confirmations, unknown key preservation, simple None/validation, forced-close Apply and late read fencing, light/dark host and injected password-manager routing passed. Private Git config only; no credential helper or user Keychain launched.")
+        print("Credential: scoped helper chains/reset, destination-only copy/Cancel, replacement/discard/remove confirmations, unknown key preservation, simple None/validation, Settings transaction Apply/Cancel/validation, stale external-edit rejection, serialized and retired selection confirmations, forced-close Apply and late read fencing, light/dark host and injected password-manager routing passed. Private Git config only; no credential helper or user Keychain launched.")
     }
 }
