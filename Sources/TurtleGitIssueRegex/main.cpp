@@ -87,14 +87,38 @@ static void styles(const std::wstring& checkUnits, const std::wstring& extractUn
     }
 }
 int main(int argc, char** argv) {
+    const bool mergeReplace = argc == 5 && std::string(argv[4]) == "--merge-replace";
     const bool styling = argc == 5 && std::string(argv[4]) == "--styles-utf8";
     const bool code = argc == 5 && std::string(argv[4]) == "--code-captures";
     const bool issueIDs = argc == 5 && std::string(argv[4]) == "--issue-ids";
     const bool logRanges = argc == 5 && (std::string(argv[4]) == "--log-ranges-case" || std::string(argv[4]) == "--log-ranges-insensitive");
     const bool logFilter = argc == 5 && (std::string(argv[4]) == "--log-case" || std::string(argv[4]) == "--log-insensitive");
-    if (argc != 4 && !styling && !code && !logFilter && !logRanges && !issueIDs) { std::cerr << "Expected check pattern, extraction pattern and message files.\n"; return 2; }
+    if (argc != 4 && !styling && !code && !logFilter && !logRanges && !issueIDs && !mergeReplace) { std::cerr << "Expected check pattern, extraction pattern and message files.\n"; return 2; }
     try {
-        const auto check = read_units(argv[1]), extract = read_units(argv[2]), text = read_units(argv[3], !code && !logFilter && !logRanges);
+        const auto check = read_units(argv[1]), extract = read_units(argv[2]), text = read_units(argv[3], !code && !logFilter && !logRanges && !mergeReplace);
+        if (mergeReplace) {
+            // CFileTextLines::LineRegex: one default ECMAScript wregex, applied
+            // independently to each line; Windows UTF-16 units and $ captures.
+            const std::wregex pattern(check);
+            size_t offset = 0, emitted = 0;
+            auto unit = [](unsigned value) { std::cout.put(value & 255); std::cout.put((value >> 8) & 255); };
+            while (offset < text.size()) {
+                if (text.size() - offset < 2) throw std::runtime_error("Invalid merge record header.");
+                const size_t length = static_cast<size_t>(text[offset]) | (static_cast<size_t>(text[offset + 1]) << 16);
+                offset += 2;
+                if (length > text.size() - offset) throw std::runtime_error("Invalid merge record length.");
+                auto value = text.substr(offset, length); offset += length;
+                // CString to LPCWSTR, as upstream LineRegex, stops at NUL.
+                const auto nul = value.find(L'\0'); if (nul != std::wstring::npos) value.resize(nul);
+                auto replaced = std::regex_replace(value, pattern, extract);
+                const auto resultNul = replaced.find(L'\0'); if (resultNul != std::wstring::npos) replaced.resize(resultNul);
+                if (replaced.size() > 8 * 1024 * 1024 || emitted + replaced.size() > 8 * 1024 * 1024)
+                    throw std::runtime_error("Filtered comparison is too large.");
+                emitted += replaced.size(); unit(replaced.size()); unit(replaced.size() >> 16);
+                for (auto ch : replaced) unit(ch);
+            }
+            return 0;
+        }
         if (logFilter || logRanges) {
             // FilterHelper validates one ECMAScript expression; invalid syntax
             // leaves the filter inactive, rather than using substring fallback.

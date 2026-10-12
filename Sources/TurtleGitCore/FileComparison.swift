@@ -69,21 +69,24 @@ public struct HistoricalFilePreview: Sendable {
 public struct FileComparisonRow: Sendable {
     public let base: MergeSourceCell
     public let destination: MergeSourceCell
-    public var changed: Bool { base.state != .normal || destination.state != .normal }
+    public var changed: Bool { [base.state, destination.state].contains { $0 != .normal && $0 != .filtered } }
 }
 /// Display alignment keeps original line numbers and line-ending differences.
 /// Source bytes remain in FileComparisonDocument; gaps never replace file data.
 public struct FileComparisonAlignment: Sendable {
     public let rows: [FileComparisonRow]
     public let differences: [Range<Int>]
-    public init(base: String, destination: String) {
+    public init(base: String, destination: String, baseKeys: [String]? = nil, destinationKeys: [String]? = nil) {
         func lines(_ text: String) -> [String] {
             let source = text as NSString
             return MergeLineEndings.lineRanges(in: text).map { source.substring(with: $0) }
         }
         let a = lines(base), b = lines(destination)
+        // Ignore invalid key shapes instead of risking source-line misalignment.
+        let ak = baseKeys?.count == a.count ? baseKeys! : a
+        let bk = destinationKeys?.count == b.count ? destinationKeys! : b
         var removed = Set<Int>(), inserted = Set<Int>()
-        for change in b.difference(from: a, by: { $0.utf8.elementsEqual($1.utf8) }) {
+        for change in bk.difference(from: ak, by: { $0.utf8.elementsEqual($1.utf8) }) {
             switch change { case .remove(let i, _, _): removed.insert(i); case .insert(let i, _, _): inserted.insert(i) }
         }
         var output: [FileComparisonRow] = [], groups: [Range<Int>] = [], i = 0, j = 0
@@ -102,7 +105,8 @@ public struct FileComparisonAlignment: Sendable {
                 }
                 groups.append(start..<output.count)
             } else {
-                output.append(FileComparisonRow(base: cell(a, i, .normal), destination: cell(b, j, .normal))); i += 1; j += 1
+                let state: MergeSourceState = a[i].utf8.elementsEqual(b[j].utf8) ? .normal : .filtered
+                output.append(FileComparisonRow(base: cell(a, i, state), destination: cell(b, j, state))); i += 1; j += 1
             }
         }
         rows = output; differences = groups

@@ -185,3 +185,5 @@ are not recursively audited.
   and range filtering; [source parity](REVISION-GRAPH-PARITY.md) and remaining work.
 
 - [Log commit ordering](LOG-ORDERING-PARITY.md) — native four-choice dialog, persistent Git walk order and remaining parity checks.
+
+[Merge regex filters](MERGE-REGEX-FILTERS-PARITY.md): native list/editor, ECMAScript comparison keys and filtered-row colors; remaining three-pane and acceptance work.

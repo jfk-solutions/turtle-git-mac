@@ -21,7 +21,7 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-send-patch-dialog-native-') a
     fixture = directory / 'fixture'; fixture.mkdir()
     environment = os.environ.copy(); environment['DYLD_FRAMEWORK_PATH'] = str(products)
     environment.update(GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM='1', GIT_AUTHOR_NAME='', GIT_AUTHOR_EMAIL='')
-    server = subprocess.Popen(['/usr/bin/python3', str(root / 'Tests/TurtleGitCoreTests/Fixtures/smtp_server.py'), str(fixture), 'normal'])
+    server = subprocess.Popen(['/usr/bin/python3', str(root / 'Tests/TurtleGitCoreTests/Fixtures/smtp_server.py'), str(fixture), 'normal', '60'])
     try:
         ready = fixture / 'ready.json'; deadline = time.monotonic() + 10
         while not ready.exists() and server.poll() is None and time.monotonic() < deadline: time.sleep(.01)

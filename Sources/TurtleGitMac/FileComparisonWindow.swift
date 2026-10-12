@@ -97,6 +97,37 @@ import TurtleGitCore
     private var externalAttempted = false, retired = false
     @Published var document: FileComparisonDocument?
     @Published var alignment: FileComparisonAlignment?
+    @Published private(set) var regexFilters = MergeRegexFilters.load()
+    @Published private(set) var regexFilterName: String?
+    @Published private(set) var filtering = false
+    var regexExecutable: URL?
+    var regexDefaults: UserDefaults = .standard
+    private var regexCancellation: OperationCancellation?
+    private var regexList: MergeRegexFilterListController?
+    func refreshRegexFilters() {
+        guard !retired else { return }
+        regexFilters = MergeRegexFilters.load(defaults: regexDefaults)
+        if let name = regexFilterName, !regexFilters.contains(where: { $0.name == name }) { regexFilterName = nil }
+        rebuildFilterAlignment()
+    }
+    func selectRegexFilter(_ name: String?) {
+        guard !busy, !confirmingQuit, !retired, name == nil || regexFilters.contains(where: { $0.name == name }) else { return }
+        regexFilterName = name; difference = -1; rebuildFilterAlignment()
+    }
+    private func rebuildFilterAlignment() {
+        let previous = alignment; rebuildAlignment()
+        if let previous, let alignment {
+            drafts?.remapAnnotations(from: previous, to: alignment, base: true)
+            drafts?.remapAnnotations(from: previous, to: alignment, base: false)
+        }
+    }
+    func manageRegexFilters() {
+        guard !busy, !confirmingQuit, !retired else { return }
+        if let regexList { regexList.showWindow(nil); regexList.window?.makeKeyAndOrderFront(nil); return }
+        let controller = MergeRegexFilterListController(defaults: regexDefaults); controller.executable = regexExecutable
+        controller.onClosed = { [weak self] in self?.regexList = nil; self?.refreshRegexFilters() }
+        regexList = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
     @Published var busy = false
     @Published var confirmingQuit = false
     @Published var error: String?
@@ -203,7 +234,7 @@ import TurtleGitCore
     var undo: () -> Void = {}
     var redo: () -> Void = {}
     var canTransfer: Bool { canTransfer(toBase: activeBase) }
-    func canTransfer(toBase base: Bool) -> Bool { drafts?.editingEnabled(base: base) == true && alignment != nil && !busy && !confirmingQuit }
+    func canTransfer(toBase base: Bool) -> Bool { drafts?.editingEnabled(base: base) == true && alignment != nil && !busy && !confirmingQuit && !filtering }
     var transferRows: Range<Int>? { selectedRows ?? alignment.flatMap { $0.differences.indices.contains(difference) ? $0.differences[difference] : nil } }
     func useOtherBlock(_ choice: FileComparisonEditing.BlockChoice = .other, targetBase: Bool? = nil) {
         let base = targetBase ?? activeBase
@@ -342,7 +373,10 @@ import TurtleGitCore
         repository = nil; access = nil; standaloneImages = images; workingPermissions = permissions
         snapshot = images.snapshot; path = images.destination?.path ?? images.base?.path ?? "Images"
     }
-    func retireImageLoader() { retired = true; imageLoader?.retire(); imageLoader = nil }
+    func retireImageLoader() {
+        retired = true; regexCancellation?.cancel(); regexCancellation = nil; regexList?.retire(); regexList = nil
+        imageLoader?.retire(); imageLoader = nil
+    }
     func chooseImageFiles() {
         guard !busy, !confirmingQuit, imageLoader == nil, let window, window.attachedSheet == nil else { return }
         let left = document?.base.path ?? ""
@@ -432,10 +466,30 @@ import TurtleGitCore
     }
     func rebuildAlignment() {
         guard let document else { return }
+        regexCancellation?.cancel(); regexCancellation = nil; filtering = false
         alignmentGeneration += 1; selectedRows = nil
         let a = drafts?.text(base: true) ?? document.base.text
         let b = drafts?.text(base: false) ?? document.destination.text
         alignment = a.flatMap { old in b.map { FileComparisonAlignment(base: old, destination: $0) } }
+        guard let a, let b, let filter = regexFilters.first(where: { $0.name == regexFilterName }), !retired else { return }
+        let current = alignmentGeneration, executable = regexExecutable, token = OperationCancellation()
+        filtering = true; regexCancellation = token
+        MergeRegexOperations.activeRequests += 1
+        Task {
+            defer { MergeRegexOperations.activeRequests -= 1 }
+            let result = await Task.detached { Result { try MergeRegexFilters.alignment(base: a, destination: b, filter: filter, executable: executable, cancellation: token) } }.value
+            guard !retired, alignmentGeneration == current else { return }
+            filtering = false; regexCancellation = nil
+            switch result {
+            case .success(let value):
+                if let previous = alignment {
+                    drafts?.remapAnnotations(from: previous, to: value, base: true)
+                    drafts?.remapAnnotations(from: previous, to: value, base: false)
+                }
+                alignment = value; difference = -1; selectedRows = nil; inlineCache = [:]
+            case .failure(let failure): regexFilterName = nil; error = failure.localizedDescription
+            }
+        }
     }
     /// Replacement uses a temporary sibling. A file bookmark alone is retained
     /// for reads; ask for its folder only when the user explicitly saves.
@@ -530,7 +584,7 @@ import TurtleGitCore
         }
     }
     func navigate(_ step: Int) {
-        guard let alignment, !alignment.differences.isEmpty else { return }
+        guard !filtering, let alignment, !alignment.differences.isEmpty else { return }
         difference = min(alignment.differences.count - 1, max(0, difference + step))
         let row = alignment.differences[difference].lowerBound
         for scroll in scrolls.values {
@@ -576,6 +630,7 @@ private struct FileComparisonDialog: View {
             } else { textBody }
         }.onAppear { model.load() }
         .onReceive(NotificationCenter.default.publisher(for: .mergeEditorPreferencesChanged)) { _ in model.refreshPreferences() }
+        .onReceive(NotificationCenter.default.publisher(for: .mergeRegexFiltersChanged)) { _ in model.refreshRegexFilters() }
         .alert("Comparison failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
     }
     private var textBody: some View {
@@ -598,6 +653,22 @@ private struct FileComparisonDialog: View {
                 Toggle("Word diff", isOn: $model.inlineWordDiff).disabled(!model.showInlineDiff || model.alignment == nil)
                 Toggle("Line numbers", isOn: $model.showLineNumbers)
             }.toggleStyle(.checkbox).padding(.horizontal, 10).padding(.bottom, 8)
+            HStack {
+                Menu {
+                    Button { model.selectRegexFilter(nil) } label: {
+                        if model.regexFilterName == nil { Label("No Filter", systemImage: "checkmark") } else { Text("No Filter") }
+                    }
+                    ForEach(model.regexFilters) { filter in
+                        Button { model.selectRegexFilter(filter.name) } label: {
+                            if model.regexFilterName == filter.name { Label(filter.name, systemImage: "checkmark") } else { Text(filter.name) }
+                        }
+                    }
+                    Divider(); Button("Edit Filters…") { model.manageRegexFilters() }
+                } label: { Text("Regex Filter: " + (model.regexFilterName ?? "No Filter")) }
+                .fixedSize().disabled(model.busy || model.confirmingQuit)
+                if model.filtering { ProgressView().controlSize(.small); Text("Filtering…").font(.caption) }
+                Spacer()
+            }.padding(.horizontal, 10).padding(.bottom, 8)
             HStack {
                 Menu {
                     Button { model.useOtherBlock() } label: { CommandLabel(title: "Use other block", icon: .mergeUseTheirs) }

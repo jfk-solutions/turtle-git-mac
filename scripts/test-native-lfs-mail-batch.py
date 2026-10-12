@@ -41,12 +41,15 @@ with tempfile.TemporaryDirectory(prefix='TurtleGitLFSMailNativeBatch-') as tempo
     svn_fixture.write_text((root / 'Tests/TurtleGitCoreTests/GitSVNFixture.swift').read_text().replace('@testable import TurtleGitCore', 'import TurtleGitCore'))
     clipboard = folder / 'ClipboardReceiver.swift'
     clipboard.write_text((root / 'docs/qa/clipboard-target-native-2026-10-12.swift').read_text())
+    regex = folder / 'MergeRegexReceiver.swift'
+    regex.write_text((root / 'docs/qa/merge-regex-native-2026-10-12.swift').read_text().replace('@main struct', 'struct', 1))
     main = folder / 'Main.swift'
     main.write_text('''import AppKit
 import Foundation
 @main struct NativeBatch {
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
+        try await MergeRegexNativeVerification.verify(parser: URL(fileURLWithPath: CommandLine.arguments[5]))
         try await ClipboardTargetNativeVerification.verify()
         try await SVNNativeVerification.verify()
         try await ReviewPatchNativeVerification.verify()
@@ -66,7 +69,7 @@ import Foundation
     digest = hashlib.sha256()
     digest.update((platform.machine() + '-apple-macos13.0/swift5/WMO-Onone/testing-receiver-v2').encode())
     digest.update(subprocess.check_output(['xcrun', 'swiftc', '--version']))
-    for source in [*map(Path, sources), copy, lfs, mail, daemon, review, svn, svn_fixture, clipboard, main, products / 'TurtleGitCore.framework/TurtleGitCore']:
+    for source in [*map(Path, sources), copy, lfs, mail, daemon, review, svn, svn_fixture, clipboard, regex, main, products / 'TurtleGitCore.framework/TurtleGitCore']:
         digest.update(source.name.encode()); digest.update(source.read_bytes())
     cache = root / 'build/qa/native-receivers'; cache.mkdir(parents=True, exist_ok=True)
     executable = cache / ('lfs-mail-' + digest.hexdigest())
@@ -74,7 +77,7 @@ import Foundation
         staging = folder / 'verify'
         subprocess.run(['xcrun', 'swiftc', '-whole-module-optimization', '-Onone', '-parse-as-library', '-swift-version', '5',
                         '-target', platform.machine() + '-apple-macos13.0', '-I', str(products), '-F', str(products),
-                        *sources, str(copy), str(lfs), str(mail), str(daemon), str(review), str(svn), str(svn_fixture), str(clipboard), str(main), '-framework', 'TurtleGitCore', '-o', str(staging)], cwd=root, check=True)
+                        *sources, str(copy), str(lfs), str(mail), str(daemon), str(review), str(svn), str(svn_fixture), str(clipboard), str(regex), str(main), '-framework', 'TurtleGitCore', '-o', str(staging)], cwd=root, check=True)
         staging.replace(executable)
         print('Native receiver compiled once for this source/framework/toolchain.', flush=True)
     else: print('Reusing native receiver for unchanged source/framework/toolchain.', flush=True)
@@ -83,7 +86,7 @@ import Foundation
     environment = os.environ.copy()
     environment.update(DYLD_FRAMEWORK_PATH=str(products), GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM='1')
     for variable in ['GIT_AUTHOR_NAME', 'GIT_AUTHOR_EMAIL', 'GIT_COMMITTER_NAME', 'GIT_COMMITTER_EMAIL']: environment.pop(variable, None)
-    receiver = subprocess.Popen([str(executable), str(mail_fixture), '0', str(lfs_fixture), '/usr/bin/git'], cwd=root, env=environment)
+    receiver = subprocess.Popen([str(executable), str(mail_fixture), '0', str(lfs_fixture), '/usr/bin/git', str(products / 'TurtleGitMac.app/Contents/Helpers/IssueRegex/issue-regex')], cwd=root, env=environment)
     server = None
     try:
         deadline = time.monotonic() + 90

@@ -1,6 +1,6 @@
 import Foundation
 
-public enum MergeSourceState: Sendable, Equatable { case normal, removed, added, conflicted, empty }
+public enum MergeSourceState: Sendable, Equatable { case normal, removed, added, conflicted, empty, filtered }
 
 public struct MergeSourceCell: Sendable {
     /// Original bytes represented by this line, including its line ending.

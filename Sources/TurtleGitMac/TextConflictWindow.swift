@@ -400,6 +400,7 @@ enum MergePalette {
             case .added: rgb = dark ? (83, 83, 0) : (255, 255, 0)
             case .conflicted: rgb = dark ? (83, 33, 33) : (255, 100, 100)
             case .empty: rgb = dark ? (66, 66, 66) : (200, 200, 200)
+            case .filtered: rgb = dark ? (73, 83, 73) : (220, 255, 220)
             case .normal: return .textBackgroundColor
             }
             return NSColor(calibratedRed: CGFloat(rgb.0) / 255, green: CGFloat(rgb.1) / 255, blue: CGFloat(rgb.2) / 255, alpha: 1)

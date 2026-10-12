@@ -624,3 +624,14 @@ at the batch boundary; repair actual failures with focused checks. Do not
 repeat broad suites after successful checks without new changes or unresolved
 evidence. Reuse native receiver compilation where possible and retire all
 test-owned windows/processes when verification ends.
+
+## Merge regex filters batch — 2026-10-12
+
+The native filter-list and Name/Regex/Replace editor dialogs now connect to
+two-pane comparisons, window-local filter selection, the bundled ECMAScript
+replacement engine and original light/dark green filtered-row colors. Comparison
+keys are separate from original source bytes and writable drafts. The complete
+batch includes persistence/cancel, validation errors, cancellation, stale-reply
+fencing, annotation remapping and owned-dialog cleanup before grouped checks.
+Three-pane filtering and complete source/signed acceptance remain open; see
+MERGE-REGEX-FILTERS-PARITY.md.

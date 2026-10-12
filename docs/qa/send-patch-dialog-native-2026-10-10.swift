@@ -711,7 +711,8 @@ private actor MailDraftProbe {
         guard let progress = shownProgress else { throw VerificationFailure(description: "Configured progress not presented") }
         let deliveryDeadline = Date().addingTimeInterval(15)
         while progress.model.busy && Date() < deliveryDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
-        try require(!progress.model.busy && progress.model.success && progress.model.accepted == 1 && progress.model.percentage == 100, "Actual Format options/progress/Git sender/SDK SMTP submission")
+        try require(!progress.model.busy && progress.model.success && progress.model.accepted == 1 && progress.model.percentage == 100,
+                    "Actual Format options/progress/Git sender/SDK SMTP submission: busy=\(progress.model.busy), success=\(progress.model.success), accepted=\(progress.model.accepted), percentage=\(progress.model.percentage), error=\(progress.model.error ?? "none")")
         try require(progress.window?.isVisible == false && format.model.composingMail, "Progress retained until user close without ordered windows")
         progress.window?.performClose(nil)
         try require(!format.model.composingMail && formatCloses == 1, "Final close releases Format parent once")

@@ -1,0 +1,13 @@
+{
+  "date": "2026-10-12",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Regex list/editor and named ECMAScript filters in two-pane comparisons",
+  "implementationThenGroupedValidation": true,
+  "runtime": {"exitCode": 0, "architectures": ["arm64", "x86_64"], "deployment": "macOS 13", "log": "build/qa/merge-regex-runtime-2026-10-12.log"},
+  "core": {"tests": 53, "failures": 0, "seconds": 12.897, "log": "build/qa/merge-regex-core-2026-10-12.log", "checks": ["ECMAScript capture/replacement/line boundaries", "UTF-16 Unicode and NUL behavior", "all nine ending styles", "filtered rows preserve text and numbers", "block transfer uses original text", "EOL differences and insertion gaps", "invalid regex and cancellation", "private persistence and case-insensitive overwrite", "existing expression/source/comparison/editing tests"]},
+  "build": {"configuration": "Debug", "architecture": "arm64", "exitCode": 0, "signed": false, "log": "build/qa/merge-regex-build-2026-10-12.log", "notes": "Existing diagnostics remain."},
+  "native": {"exitCode": 0, "compilations": 1, "receiverProcesses": 1, "log": "build/qa/merge-regex-native-2026-10-12.log", "checks": ["list draft Cancel", "OK persists", "rename/delete", "invalid regex then correction", "hidden production comparison controller", "green light/dark values", "original bytes retained", "writable draft recomputation", "stale filter reply rejected", "retired validation cleanup"], "installedApplicationLaunched": false, "physicalInput": false, "ownedWindowsClosed": true},
+  "remoteCI": {"latestPublishedCommit": "0b413ea849fd77fdea1ea6b5d5ba41942f32677f", "run": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38166140889", "conclusion": "failure", "failedStep": "Native Send Patch options and immutable preparation", "observedFailure": "Actual Format options/progress/Git sender/SDK SMTP submission assertion; preceding native view/review/client/direct checks passed", "logAccess": "GitHub connector", "currentState": "Current grouped runner already defers loopback server startup and uses 60-second accept instead of the failed revision's 15 seconds. Align standalone runner's timeout and add state diagnostics. Timeout causation and a successful remote rerun are not established."},
+  "remainingAcceptance": ["three-pane filtering", "complete libsvn segmentation", "INI interchange/presets", "MSVC/libc++ locale and regex edge cases", "unpaired-surrogate replacement", "physical layout and keyboard interaction", "signed helper/sandbox behavior", "remote CI wrapper run", "full application parity"],
+  "completePortCertified": false
+}
