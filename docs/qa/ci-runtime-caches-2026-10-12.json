@@ -1,0 +1,68 @@
+{
+  "date": "2026-10-12",
+  "scope": "Exact prepared runtime reuse for five remaining CI helper packages",
+  "keyContracts": {
+    "tests": 5,
+    "failures": 0,
+    "seconds": 0.728,
+    "checks": [
+      "deterministic keys",
+      "toolchain and architecture invalidation",
+      "every input changes only dependent keys",
+      "missing captured manifest/header refusal",
+      "Swift UI changes preserve helper keys",
+      "workflow restore/build/validate/save ordering and exact path/key matching"
+    ]
+  },
+  "workflowYaml": {
+    "jobs": 2,
+    "parsed": true
+  },
+  "runtimeAudits": [
+    {
+      "runtime": "editorconfig",
+      "exitCode": 0,
+      "log": "build/qa/ci-cache-editorconfig-2026-10-12.log"
+    },
+    {
+      "runtime": "issue-regex",
+      "exitCode": 0,
+      "log": "build/qa/ci-cache-issue-regex-2026-10-12.log"
+    },
+    {
+      "runtime": "openssh",
+      "exitCode": 0,
+      "log": "build/qa/ci-cache-openssh-2026-10-12.log"
+    },
+    {
+      "runtime": "git",
+      "exitCode": 0,
+      "log": "build/qa/ci-cache-git-2026-10-12.log"
+    },
+    {
+      "runtime": "merge-diff",
+      "exitCode": 0,
+      "log": "build/qa/ci-cache-merge-diff-2026-10-12.log"
+    }
+  ],
+  "runtimeRebuilds": 0,
+  "installedApplicationLaunched": false,
+  "observedHostedRun": {
+    "id": 38205276426,
+    "commit": "98038f7",
+    "svnJob": "success",
+    "mainStepAtObservation": "Build pinned universal Git runtime with source and licenses",
+    "newCacheWorkflowApplied": false
+  },
+  "hostedCacheHitsVerified": false,
+  "timingImprovementMeasured": false,
+  "fullHostedWorkflowSuccess": false,
+  "remainingAcceptance": [
+    "hosted exact cache restores/saves",
+    "cold versus warm CI timing",
+    "full hosted workflow success",
+    "signed sandbox/Finder/App Store",
+    "complete application parity"
+  ],
+  "completePortCertified": false
+}

@@ -28,6 +28,13 @@ Git and four SVN tests with packaged Git. CI now checks the SVN commands with bo
 executables. Hosted success is still pending. See
 [the repair record](qa/ci-contract-repairs-2026-10-12.json).
 
+## Prepared runtime caches
+
+CI now caches the remaining expensive pinned helper builds with exact toolchain/
+source/transitive keys and unconditional validation. Valid packages are saved
+before app tests, so later failures do not discard dependency build work. Full
+Core/native/embedding checks still run. See [runtime reuse](CI-RUNTIME-CACHES.md).
+
 ## Latest complete local Core checkpoint
 
 On October 11, 2026, `swift test` completed **980 tests, zero failures, one

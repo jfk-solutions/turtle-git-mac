@@ -197,3 +197,5 @@ are not recursively audited.
 [Merge locator bar](MERGE-LOCATOR-PARITY.md): native colored overview, viewport/navigation and saved view settings in both editors; remaining acceptance is recorded.
 
 [Merge save workflows](MERGE-SAVE-WORKFLOWS-PARITY.md): Backup original file, empty-result Delete/Keep, deleted-file recreation and exact deletion resolution retry.
+
+[CI runtime reuse](CI-RUNTIME-CACHES.md): exact prepared dependency caches with mandatory validation; hosted timing/hits remain pending.

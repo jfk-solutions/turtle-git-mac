@@ -57,10 +57,48 @@ jobs:
           echo "fingerprint=$turtlegit_toolchain_fingerprint" >> "$GITHUB_OUTPUT"
       - name: Pinned inventory regression
         run: python3 scripts/check-inventory-pin.py
+      - name: Runtime cache invalidation contracts
+        run: python3 scripts/test-ci-runtime-caches.py
+      - name: Capture editorconfig runtime cache key
+        id: editorconfig-key
+        run: python3 scripts/ci-runtime-cache-key.py editorconfig --toolchain '${{ steps.toolchain.outputs.fingerprint }}' --runner '${{ runner.os }}-${{ runner.arch }}' >> "$GITHUB_OUTPUT"
+      - name: Restore exact editorconfig runtime
+        id: editorconfig-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: build/editorconfig-runtime/EditorConfig
+          key: ${{ steps.editorconfig-key.outputs.key }}
       - name: Build and verify pinned universal EditorConfig parser
+        if: steps.editorconfig-cache.outputs.cache-hit != 'true'
         run: python3 scripts/build-editorconfig-runtime.py
+      - name: Validate prepared or restored editorconfig runtime
+        run: python3 scripts/validate-editorconfig-runtime.py build/editorconfig-runtime/EditorConfig
+      - name: Save validated editorconfig runtime
+        if: steps.editorconfig-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: build/editorconfig-runtime/EditorConfig
+          key: ${{ steps.editorconfig-cache.outputs.cache-primary-key }}
+      - name: Capture issue-regex runtime cache key
+        id: issue-regex-key
+        run: python3 scripts/ci-runtime-cache-key.py issue-regex --toolchain '${{ steps.toolchain.outputs.fingerprint }}' --runner '${{ runner.os }}-${{ runner.arch }}' >> "$GITHUB_OUTPUT"
+      - name: Restore exact issue-regex runtime
+        id: issue-regex-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: build/issue-regex-runtime/IssueRegex
+          key: ${{ steps.issue-regex-key.outputs.key }}
       - name: Build and verify universal C++ issue matcher
+        if: steps.issue-regex-cache.outputs.cache-hit != 'true'
         run: python3 scripts/build-issue-regex-runtime.py
+      - name: Validate prepared or restored issue-regex runtime
+        run: python3 scripts/validate-issue-regex-runtime.py build/issue-regex-runtime/IssueRegex
+      - name: Save validated issue-regex runtime
+        if: steps.issue-regex-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: build/issue-regex-runtime/IssueRegex
+          key: ${{ steps.issue-regex-cache.outputs.cache-primary-key }}
       - name: Restore exact graph runtime package
         id: graph-layout-cache
         uses: actions/cache/restore@v5
@@ -82,8 +120,26 @@ jobs:
           key: ${{ steps.graph-layout-cache.outputs.cache-primary-key }}
       - name: Verify Revision Graph helper embedding and ad-hoc signing branches
         run: python3 scripts/test-graph-layout-embedding.py
+      - name: Capture openssh runtime cache key
+        id: openssh-key
+        run: python3 scripts/ci-runtime-cache-key.py openssh --toolchain '${{ steps.toolchain.outputs.fingerprint }}' --runner '${{ runner.os }}-${{ runner.arch }}' >> "$GITHUB_OUTPUT"
+      - name: Restore exact openssh runtime
+        id: openssh-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: build/openssh-runtime/OpenSSH
+          key: ${{ steps.openssh-key.outputs.key }}
       - name: Build and verify pinned universal OpenSSH helpers
+        if: steps.openssh-cache.outputs.cache-hit != 'true'
         run: python3 scripts/build-openssh-runtime.py
+      - name: Validate prepared or restored openssh runtime
+        run: python3 scripts/validate-openssh-runtime.py build/openssh-runtime/OpenSSH
+      - name: Save validated openssh runtime
+        if: steps.openssh-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: build/openssh-runtime/OpenSSH
+          key: ${{ steps.openssh-cache.outputs.cache-primary-key }}
       - name: Verify OpenSSH embedding and both ad-hoc signing branches
         run: python3 scripts/test-openssh-embedding.py
       - uses: actions/download-artifact@v4
@@ -92,12 +148,48 @@ jobs:
           path: build/git-svn-runtime
       - name: Restore universal SVN payload
         run: tar -xzf build/git-svn-runtime/GitSVN.tar.gz -C build/git-svn-runtime
+      - name: Capture git runtime cache key
+        id: git-key
+        run: python3 scripts/ci-runtime-cache-key.py git --toolchain '${{ steps.toolchain.outputs.fingerprint }}' --runner '${{ runner.os }}-${{ runner.arch }}' >> "$GITHUB_OUTPUT"
+      - name: Restore exact git runtime
+        id: git-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: build/git-runtime/Git
+          key: ${{ steps.git-key.outputs.key }}
       - name: Build pinned universal Git runtime with source and licenses
+        if: steps.git-cache.outputs.cache-hit != 'true'
         run: python3 scripts/build-git-runtime.py
+      - name: Validate prepared or restored git runtime
+        run: python3 scripts/validate-git-runtime.py build/git-runtime/Git --require-lfs --require-svn
+      - name: Save validated git runtime
+        if: steps.git-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: build/git-runtime/Git
+          key: ${{ steps.git-cache.outputs.cache-primary-key }}
       - name: Verify real local SVN workflows with the pinned Git
         run: python3 scripts/validate-git-svn-runtime.py build/git-svn-runtime/GitSVN --git build/git-runtime/Git/bin/git
+      - name: Capture merge-diff runtime cache key
+        id: merge-diff-key
+        run: python3 scripts/ci-runtime-cache-key.py merge-diff --toolchain '${{ steps.toolchain.outputs.fingerprint }}' --runner '${{ runner.os }}-${{ runner.arch }}' >> "$GITHUB_OUTPUT"
+      - name: Restore exact merge-diff runtime
+        id: merge-diff-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: build/merge-diff-runtime/MergeDiff
+          key: ${{ steps.merge-diff-key.outputs.key }}
       - name: Build universal Subversion merge adapter sharing the pinned runtime
+        if: steps.merge-diff-cache.outputs.cache-hit != 'true'
         run: python3 scripts/build-merge-diff-runtime.py
+      - name: Validate prepared or restored merge-diff runtime
+        run: python3 scripts/validate-merge-diff-runtime.py build/merge-diff-runtime/MergeDiff
+      - name: Save validated merge-diff runtime
+        if: steps.merge-diff-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: build/merge-diff-runtime/MergeDiff
+          key: ${{ steps.merge-diff-cache.outputs.cache-primary-key }}
       - name: Verify per-slice Git and LFS macOS deployment targets
         run: python3 scripts/test-git-runtime-deployment.py --runtime build/git-runtime/Git
       - name: Git integration tests
