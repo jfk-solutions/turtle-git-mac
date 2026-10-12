@@ -4,8 +4,9 @@ import TurtleGitCore
 
 @main struct LFSLocksVerification {
     @MainActor static func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
-    @MainActor static func settle(line: Int = #line, _ condition: () -> Bool) async throws {
+    @MainActor static func settle(line: Int = #line, diagnostic: () -> Void = {}, _ condition: () -> Bool) async throws {
         for _ in 0..<1000 { if condition() { return }; try await Task.sleep(nanoseconds: 5_000_000) }
+        diagnostic()
         print("LFS WINDOW DIAGNOSTIC", line, NSApplication.shared.windows.map { ($0.title, $0.attachedSheet?.title ?? "none", $0.isVisible, descendants($0.contentView ?? NSView()).compactMap { $0 as? NSTableView }.map(\.numberOfRows)) }); fflush(stdout)
         preconditionFailure("LFS native condition did not settle at line \(line)")
     }
@@ -48,12 +49,23 @@ import TurtleGitCore
         precondition(table.tableColumns[2].isHidden && table.tableColumns[4].isHidden && table.tableColumns[5].isHidden)
         precondition(locksProbe().columnMenu().item(withTitle: "Status") == nil)
         model.selection = ["2"]
+        // Selection binding reaches AppKit asynchronously. Sorting before that
+        // transition finishes can feed the old native selection back to SwiftUI.
+        func selectedIDs() -> Set<String> {
+            Set(table.selectedRowIndexes.compactMap { index in
+                let ids = locksProbe().itemIDs ?? []
+                return ids.indices.contains(index) ? ids[index] : nil
+            })
+        }
+        try await settle { model.selection == ["2"] && selectedIDs() == ["2"] }
         for (index,column) in LFSLocksWindowModel.columns.enumerated() {
             for ascending in [true,false] {
                 let old = table.sortDescriptors, prototype = table.tableColumns[index + 1].sortDescriptorPrototype!
                 table.sortDescriptors = [prototype.ascending == ascending ? prototype : prototype.reversedSortDescriptor as! NSSortDescriptor]
                 table.dataSource!.tableView?(table, sortDescriptorsDidChange: old)
-                try await settle { model.sortOrder.first?.column == column && model.sortOrder.first?.order == (ascending ? .forward : .reverse) && locksProbe().itemIDs == model.rows.map(\.id) && model.selection == ["2"] }
+                try await settle(diagnostic: {
+                    print("LFS SORT DIAGNOSTIC", column, ascending, model.sortOrder, model.selection, selectedIDs(), locksProbe().itemIDs ?? [], model.rows.map(\.id)); fflush(stdout)
+                }) { model.sortOrder.first?.column == column && model.sortOrder.first?.order == (ascending ? .forward : .reverse) && locksProbe().itemIDs == model.rows.map(\.id) && model.selection == ["2"] && selectedIDs() == ["2"] }
                 precondition(model.checked == ["1","2"] && model.selection == ["2"])
                 if column == .fileSize { precondition(model.rows.first!.id == (ascending ? "1" : "2")) }
             }
@@ -499,6 +511,7 @@ import TurtleGitCore
         try await settle { ownerTable.tableColumns.count == 10 && ownerProbe().columnMenu().item(withTitle: "LFS Lock") != nil }
         let savedChecks = commit.model.checked
         commit.model.selection = [unusual]
+        try await settle { ownerProbe().enabled }
         let ownerItem = ownerProbe().columnMenu().item(withTitle: "LFS Lock")!
         _ = NSApplication.shared.sendAction(ownerItem.action!, to: ownerItem.target, from: ownerItem)
         try await settle { !commit.model.busy && commit.model.lfsOwnershipKnown }

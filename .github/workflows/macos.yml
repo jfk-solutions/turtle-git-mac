@@ -209,10 +209,8 @@ jobs:
         run: python3 scripts/validate-app-bundle.py build/Build/Products/Debug/TurtleGitMac.app
       - name: Verify embedded Subversion merge adapter and shared libraries
         run: python3 scripts/test-merge-diff-bundle.py build/Build/Products/Debug/TurtleGitMac.app
-      - name: Grouped native LFS and Send Mail receivers with one compilation
+      - name: Grouped native LFS, Email settings and Send Mail receivers with one compilation
         run: python3 scripts/test-native-lfs-mail-batch.py
-      - name: Native Email settings with private preferences and simulated Keychain
-        run: python3 scripts/test-email-settings.py
       - name: Configured SMTP through built frameworks with private loopback server
         run: python3 scripts/test-configured-smtp.py
       - name: Native bundled SSH encrypted-key loading and process cleanup

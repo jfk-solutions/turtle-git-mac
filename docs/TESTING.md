@@ -1072,13 +1072,15 @@ read process cleanup. The two-engine run passed;
 full-dialog acceptance separate.
 
 
-## Grouped native LFS and mail checkpoint
+## Grouped native LFS, Email settings and mail checkpoint
 
 After a Debug framework build, run `python3 scripts/test-native-lfs-mail-batch.py`
 for the combined section. It compiles all Mac receiver sources once, then runs
-the existing LFS and Send Patch verification drivers in one process. The LFS
-responses are injected. The private SMTP server starts only after LFS completes,
-with a bounded acceptance timeout and independent MIME assertions. The process,
+the existing LFS, Email settings and Send Patch verification drivers in one
+process. The LFS responses are injected. The private SMTP server starts only
+after LFS and Email settings complete, with a bounded acceptance timeout and
+independent MIME assertions. Email uses private preferences and simulated
+Security calls; no live Keychain is accessed. The process,
 server and private fixtures are cleaned on success or failure. The individual
 `test-lfs-locks.py` and `test-send-patch-dialog.py` scripts remain available for
 focused debugging; the CI native-mail slot now uses the grouped runner.
@@ -1095,3 +1097,21 @@ rebuild it. LFS fixture author variables are isolated from the subsequent mail
 fixture's intentional empty-author setup. The legacy unhosted Commit reload
 cancellation test explicitly approves the same production confirmation used by
 a hosted dialog and checks it is requested once.
+
+
+## Development batching and native compilation reuse
+
+Follow the implementation-first workflow in [AGENTS.md](../AGENTS.md): finish a
+related feature family before grouped validation; repeat only an affected check
+when a failure needs repair. There is no scheduled five-minute test cycle.
+
+`test-email-settings.py` delegates to `test-native-lfs-mail-batch.py --email-only`
+and uses the real app/settings sources in the shared compilation. Its former
+Email-only source subset omitted the settings transaction dependencies. CI now
+runs Email settings within the existing LFS/mail slot rather than compiling a
+second receiver. `--lfs-only` remains available for an actual LFS failure.
+
+`test-native-merge-regex.py` also caches its receiver by all sources, imported
+framework contents, target/compiler and flags. The options batch and its
+`--whitespace-only`, `--general-only`, and `--about-only` modes use the same binary.
+No app assertions or receiver coverage are skipped by these caches.

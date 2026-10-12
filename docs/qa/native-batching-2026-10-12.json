@@ -1,0 +1,28 @@
+{
+  "date": "2026-10-12",
+  "scope": "Development batching and CI native receiver compilation; no new dialog parity claim",
+  "changes": [
+    "Persist implementation-first batching in root AGENTS.md",
+    "Group Email settings into existing LFS/mail compilation and CI step",
+    "Keep focused Email wrapper using the shared cache",
+    "Cache Merge options batch/focused receivers by source/framework modules/toolchain",
+    "Await initial native selection before LFS sort assertions and enabled native Commit menu before owner-column action"
+  ],
+  "validation": {
+    "full_core_suite_run": false,
+    "main_app_launched": false,
+    "native_compilations": 2,
+    "initial_lfs": "Sort checks passed; failed later when Commit owner-column action ran before probe enabled",
+    "final_lfs": "Passed complete focused receiver after synchronization repair",
+    "email": "Passed private preferences, simulated Keychain and native light/dark layout using shared binary; no additional compiler invocation",
+    "merge_cache_contract": "Mocked compiler/runner in private temporary tree: batch and focused modes share binary; changing imported framework module invalidates cache; no native Merge receiver run",
+    "python_syntax": "Three changed Python scripts compiled successfully",
+    "owned_processes": "No remaining native receiver or main app process after verification",
+    "hosted_ci_verified": false,
+    "limitations": [
+      "Latest previously observed hosted run failed native LFS after 1096 Core tests passed",
+      "Older hosted Email compile failure repaired by using actual app/settings dependency set; full new hosted workflow not yet observed",
+      "Physical input, Finder and signed deployment not established by these receivers"
+    ]
+  }
+}

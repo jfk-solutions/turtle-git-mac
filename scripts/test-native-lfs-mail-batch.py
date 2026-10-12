@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compile native receivers once, then run daemon, LFS and mail checks in one process.
+"""Compile native receivers once, then run daemon, LFS, Email settings and mail checks.
 
 Daemon and LFS use injected responses. Mail uses only a private loopback SMTP fixture.
 No installed app, Finder extension, real mail client or public server is invoked.
@@ -48,6 +48,8 @@ with tempfile.TemporaryDirectory(prefix='TurtleGitLFSMailNativeBatch-') as tempo
     three_pane.write_text((root / 'docs/qa/three-pane-engine-native-2026-10-12.swift').read_text().replace('@main struct', 'struct', 1))
     two_pane = folder / 'TwoPaneEngineReceiver.swift'
     two_pane.write_text((root / 'docs/qa/two-pane-engine-native-2026-10-12.swift').read_text().replace('@main struct', 'struct', 1))
+    email = folder / 'EmailSettingsReceiver.swift'
+    email.write_text((root / 'docs/qa/email-settings-native-2026-10-10.swift').read_text().replace('@main struct', 'struct', 1))
     main = folder / 'Main.swift'
     main.write_text('''import AppKit
 import Foundation
@@ -55,6 +57,7 @@ import TurtleGitCore
 @main struct NativeBatch {
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
+        if CommandLine.arguments.contains("--email-only") { try await EmailSettingsVerification.verify(); return }
         if CommandLine.arguments.contains("--lfs-only") { try await LFSLocksVerification.main(); return }
         try await MergeRegexNativeVerification.verify(parser: URL(fileURLWithPath: CommandLine.arguments[5]))
         try await ThreePaneEngineVerification.verify(configuration: SubversionMergeConfiguration.bundled())
@@ -64,6 +67,7 @@ import TurtleGitCore
         try await ReviewPatchNativeVerification.verify()
         try await DaemonNativeVerification.verify()
         try await LFSLocksVerification.main()
+        try await EmailSettingsVerification.verify()
         let fixture = URL(fileURLWithPath: CommandLine.arguments[1])
         try Data().write(to: fixture.appendingPathComponent("lfs-done"))
         for _ in 0..<1000 {
@@ -78,7 +82,10 @@ import TurtleGitCore
     digest = hashlib.sha256()
     digest.update((platform.machine() + '-apple-macos13.0/swift5/WMO-Onone/testing-receiver-v2').encode())
     digest.update(subprocess.check_output(['xcrun', 'swiftc', '--version']))
-    for source in [*map(Path, sources), copy, lfs, mail, daemon, review, svn, svn_fixture, clipboard, regex, three_pane, two_pane, main, products / 'TurtleGitCore.framework/TurtleGitCore']:
+    inputs = [*map(Path, sources), copy, lfs, mail, daemon, review, svn, svn_fixture, clipboard, regex, three_pane, two_pane, email, main]
+    framework = products / 'TurtleGitCore.framework'
+    inputs += sorted(p for p in framework.rglob('*') if p.is_file() and not p.is_symlink())
+    for source in inputs:
         digest.update(source.name.encode()); digest.update(source.read_bytes())
     cache = root / 'build/qa/native-receivers'; cache.mkdir(parents=True, exist_ok=True)
     executable = cache / ('lfs-mail-' + digest.hexdigest())
@@ -86,7 +93,7 @@ import TurtleGitCore
         staging = folder / 'verify'
         subprocess.run(['xcrun', 'swiftc', '-whole-module-optimization', '-Onone', '-parse-as-library', '-swift-version', '5',
                         '-target', platform.machine() + '-apple-macos13.0', '-I', str(products), '-F', str(products),
-                        *sources, str(copy), str(lfs), str(mail), str(daemon), str(review), str(svn), str(svn_fixture), str(clipboard), str(regex), str(three_pane), str(two_pane), str(main), '-framework', 'TurtleGitCore', '-o', str(staging)], cwd=root, check=True)
+                        *sources, str(copy), str(lfs), str(mail), str(daemon), str(review), str(svn), str(svn_fixture), str(clipboard), str(regex), str(three_pane), str(two_pane), str(email), str(main), '-framework', 'TurtleGitCore', '-o', str(staging)], cwd=root, check=True)
         staging.replace(executable)
         print('Native receiver compiled once for this source/framework/toolchain.', flush=True)
     else: print('Reusing native receiver for unchanged source/framework/toolchain.', flush=True)
@@ -95,8 +102,9 @@ import TurtleGitCore
     environment = os.environ.copy()
     environment.update(DYLD_FRAMEWORK_PATH=str(products), GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM='1')
     for variable in ['GIT_AUTHOR_NAME', 'GIT_AUTHOR_EMAIL', 'GIT_COMMITTER_NAME', 'GIT_COMMITTER_EMAIL']: environment.pop(variable, None)
-    if '--lfs-only' in sys.argv:
-        subprocess.run([str(executable), str(mail_fixture), '0', str(lfs_fixture), '/usr/bin/git', str(products / 'TurtleGitMac.app/Contents/Helpers/IssueRegex/issue-regex'), '--lfs-only'], cwd=root, env=environment, check=True, timeout=120)
+    if '--lfs-only' in sys.argv or '--email-only' in sys.argv:
+        mode = '--email-only' if '--email-only' in sys.argv else '--lfs-only'
+        subprocess.run([str(executable), str(mail_fixture), '0', str(lfs_fixture), '/usr/bin/git', str(products / 'TurtleGitMac.app/Contents/Helpers/IssueRegex/issue-regex'), mode], cwd=root, env=environment, check=True, timeout=120)
         raise SystemExit(0)
     receiver = subprocess.Popen([str(executable), str(mail_fixture), '0', str(lfs_fixture), '/usr/bin/git', str(products / 'TurtleGitMac.app/Contents/Helpers/IssueRegex/issue-regex')], cwd=root, env=environment)
     server = None
