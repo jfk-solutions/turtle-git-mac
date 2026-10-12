@@ -1157,7 +1157,7 @@ checks three-pane format acceptance. See [format parity](MERGE-FORMAT-PARITY.md)
 Build Debug once, then run `python3 scripts/test-native-reference-batch.py` for
 folders, comparisons, batch/single deletion, Switch/Fetch/Create Branch/Merge
 routes and Merge reference/Log pickers. The driver links the existing app objects
-and nineteen receiver families, including Network, Credential, Tool settings, Overlays, Email, Commit progress, SVN, issue settings/tester and external Merge lifecycle, in one compilation. It uses an explicit native AppKit run loop and
+and twenty receiver families, including Network, Credential, Tool settings, Overlays, Email, Commit progress, SVN, issue settings/tester and external Merge lifecycle, in one compilation. It uses an explicit native AppKit run loop and
 caches by object files, imported modules/framework, fixtures and compiler/flags.
 It does not recompile the whole SwiftUI app for each case.
 
@@ -1336,10 +1336,21 @@ exercised.
 
 
 `--only issue-captures` is an optional local artifact-generation case and is
-excluded from the default nineteen-family CI run. It uses private configuration,
+excluded from the default twenty-family CI run. It uses private configuration,
 drafts and helper input, displays only its owned windows and captures their
 compositor output in both themes. It requires existing screen-capture permission;
 it does not grant permissions. Review images before publishing. AppKit
 cacheDisplay omits SwiftUI surfaces on the current host and must not be treated
 as a complete screenshot. This case performs capture/settlement, not the complete
 behavioral checks.
+
+
+`--only autotext-tester` exercises the packaged C++ engine through the actual
+native Autotext window: explicit Scan, capture-only sorted/deduplicated words,
+Unicode, invalid/empty expressions, source CString NUL boundary, UTF-16 content
+limit, editable/read-only controls, private Copy and guarded Cut/Paste, theme
+hosts, close/late-result fencing and Quit accounting. The related Regex Tester
+case covers the shared text-menu regression. `swift test --filter
+MessageCodeSymbolsTests` covers the Core matching API and pre-cancellation.
+No physical menu navigation, visual certification or signed sandbox acceptance
+is inferred from these checks.

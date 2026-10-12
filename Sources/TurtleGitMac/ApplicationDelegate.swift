@@ -15,6 +15,7 @@ import AppKit
         if SSHKeyGenerationModel.activeOperations > 0 { return .terminateCancel }
         if NetworkSettingsModel.activeSaves > 0 { return .terminateCancel }
         if EmailSettingsModel.activeOperations > 0 { return .terminateCancel }
+        if AutotextTesterModel.activeRequests > 0 { return .terminateCancel }
         if IssueRegexTesterModel.activeRequests > 0 { return .terminateCancel }
         if IssueTrackerSettingsModel.activeSaves > 0 { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? SynchronizationWindowController }).contains(where: { $0.model.busy || $0.model.hasBlockingChild || $0.window?.attachedSheet != nil }) { return .terminateCancel }

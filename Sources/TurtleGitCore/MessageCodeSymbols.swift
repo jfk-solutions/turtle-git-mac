@@ -31,12 +31,13 @@ public struct MessageCodeDefinitions: Sendable {
 public enum MessageCodeSymbols {
     /// All nonempty capture groups, using the upstream icase ECMAScript engine.
     /// Run off the main actor. The bounded helper contains pathological regexes.
-    public static func captures(in text: String, pattern: String, executable: URL? = nil) throws -> [String] {
-        try captureUnits(in: Array(text.utf16), pattern: pattern, executable: executable).map { String(decoding: $0, as: UTF16.self) }
+    public static func captures(in text: String, pattern: String, executable: URL? = nil, cancellation: OperationCancellation? = nil) throws -> [String] {
+        try captureUnits(in: Array(text.utf16), pattern: pattern, executable: executable, cancellation: cancellation).map { String(decoding: $0, as: UTF16.self) }
     }
-    public static func captureUnits(in units: [UInt16], pattern: String, executable: URL? = nil) throws -> [[UInt16]] {
+    public static func captureUnits(in units: [UInt16], pattern: String, executable: URL? = nil, cancellation: OperationCancellation? = nil) throws -> [[UInt16]] {
+        try cancellation?.check()
         guard !pattern.isEmpty else { return [] }
-        let data = try IssueRegexRuntime.capture(message: "", check: pattern, extract: "", executable: executable, mode: ["--code-captures"], messageUnits: units)
+        let data = try IssueRegexRuntime.capture(message: "", check: pattern, extract: "", executable: executable, mode: ["--code-captures"], messageUnits: units, cancellation: cancellation)
         guard let output = String(data: data, encoding: .utf8) else { throw IssueRegexFailure.failed("Invalid code capture output.") }
         let lines = output.split(separator: "\n")
         guard lines.first == "captures\tutf16" else { throw IssueRegexFailure.failed("Invalid code capture header.") }
@@ -47,6 +48,7 @@ public enum MessageCodeSymbols {
                   start <= units.count, length <= units.count - start else { throw IssueRegexFailure.failed("Invalid code capture range.") }
             values.insert(Array(units[start..<(start + length)]))
         }
+        try cancellation?.check()
         return values.sorted { $0.lexicographicallyPrecedes($1) }
     }
 }

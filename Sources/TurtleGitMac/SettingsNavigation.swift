@@ -365,6 +365,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
 private struct DialogsBehaviorSettings: View {
     @Environment(\.settingsTransaction) private var transaction
     @StateObject private var draft = DialogsBehaviorDraft()
+    @StateObject private var autotextTester = AutotextTesterOwner()
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
@@ -387,6 +388,7 @@ private struct DialogsBehaviorSettings: View {
                 GroupBox("Commit") {
                     VStack(alignment: .leading, spacing: 10) {
                         Toggle("Use auto-completion of file paths and keywords", isOn: draft.boolean("Autocompletion"))
+                        Button("Autotext Tester…", action: autotextTester.show)
                         Stepper("Timeout in seconds to stop auto-completion parsing: \(draft.integer("AutocompleteParseTimeout").wrappedValue)", value: draft.integer("AutocompleteParseTimeout"), in: 1...100)
                             .disabled(!draft.boolean("Autocompletion").wrappedValue)
                         Stepper("Max. items to keep in the log message history: \(draft.integer("MaxHistoryItems").wrappedValue)", value: draft.integer("MaxHistoryItems"), in: 1...100)
@@ -398,6 +400,7 @@ private struct DialogsBehaviorSettings: View {
                 Spacer()
             }.padding(20)
         }
+        .onDisappear { autotextTester.close() }
         .settingsParticipant("dialogs2", page: .dialogs2, value: draft.values, modified: { draft.modified }, validate: { draft.validationError },
             apply: { draft.apply(); return true }, cancel: draft.cancel)
     }

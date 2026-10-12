@@ -3,6 +3,11 @@ import SwiftUI
 import TurtleGitCore
 
 @MainActor final class RepositoryModel: ObservableObject {
+    private let autotextTester = AutotextTesterOwner()
+    func showAutotextTester() {
+        guard !busy, !confirmingQuit else { return }
+        autotextTester.show()
+    }
     private var issueTester: IssueRegexTesterController?
     private var issueTesterRequest: OperationCancellation?
     func showIssueRegexTester() {

@@ -1,0 +1,44 @@
+{
+  "date": "2026-10-12",
+  "sourceCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Autotext Tester native window, File/settings entry implementation, cancellable C++ capture API, shared read-only clipboard guards",
+  "builds": [
+    {
+      "log": "build/qa/autotext-build-2026-10-12.log",
+      "exit": 0
+    },
+    {
+      "log": "build/qa/autotext-build-final-2026-10-12.log",
+      "exit": 0,
+      "reason": "Final standalone File entry and close lifecycle changes"
+    }
+  ],
+  "core": {
+    "command": "swift test --filter MessageCodeSymbolsTests",
+    "tests": 5,
+    "failures": 0,
+    "seconds": 0.095
+  },
+  "native": {
+    "command": "python3 scripts/test-native-reference-batch.py --only autotext-tester --only issue-regex-tester --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+    "frontends": 1,
+    "cases": 4,
+    "exit": 0,
+    "ownedReceiverPIDs": [
+      65827,
+      65838,
+      65856,
+      65862
+    ],
+    "allReaped": true,
+    "clipboard": "private",
+    "preferences": "private"
+  },
+  "limitations": [
+    "Native theme hosts exercised without visual certification",
+    "File/settings controls implemented; physical navigation not exercised",
+    "No signed sandbox, VoiceOver, full Core suite or full hosted CI acceptance",
+    "Legacy autotexttest command-line spelling remains pending",
+    "Timing includes helper startup and IPC"
+  ]
+}

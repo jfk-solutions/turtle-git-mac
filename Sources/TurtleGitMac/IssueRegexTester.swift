@@ -149,13 +149,13 @@ struct IssueRegexSampleEditor: NSViewRepresentable {
     var clipboard:NSPasteboard = .general
     var preferences:UserDefaults = .standard
     override func copy(_ sender:Any?){let text=string as NSString,range=selectedRange();guard range.length>0,range.location<=text.length,range.length<=text.length-range.location else{return};clipboard.clearContents();clipboard.setString(text.substring(with:range),forType:.string)}
-    override func cut(_ sender:Any?){guard selectedRange().length>0 else{return};copy(sender);insertText("",replacementRange:selectedRange())}
-    override func paste(_ sender:Any?){guard let text=clipboard.string(forType:.string) else{return};insertText(text,replacementRange:selectedRange())}
+    override func cut(_ sender:Any?){guard isEditable, selectedRange().length>0 else{return};copy(sender);insertText("",replacementRange:selectedRange())}
+    override func paste(_ sender:Any?){guard isEditable, let text=clipboard.string(forType:.string) else{return};insertText(text,replacementRange:selectedRange())}
     override func menu(for event:NSEvent)->NSMenu? {sampleMenu()}
     func sampleMenu()->NSMenu {
         let menu=NSMenu();menu.autoenablesItems=false
         let icons=MenuPresentationSettings.applicationContextIcons(defaults:preferences)
-        for (title,action,enabled,icon) in [("Cut",#selector(cut(_:)),selectedRange().length>0,NSImage(systemSymbolName:"scissors",accessibilityDescription:nil)),("Copy",#selector(copy(_:)),selectedRange().length>0,MenuIcon.copy.image()),("Paste",#selector(paste(_:)),clipboard.string(forType:.string) != nil,NSImage(systemSymbolName:"doc.on.clipboard",accessibilityDescription:nil)),("Select All",#selector(selectAll(_:)),!string.isEmpty,NSImage(systemSymbolName:"selection.pin.in.out",accessibilityDescription:nil))] {
+        for (title,action,enabled,icon) in [("Cut",#selector(cut(_:)),isEditable && selectedRange().length>0,NSImage(systemSymbolName:"scissors",accessibilityDescription:nil)),("Copy",#selector(copy(_:)),selectedRange().length>0,MenuIcon.copy.image()),("Paste",#selector(paste(_:)),isEditable && clipboard.string(forType:.string) != nil,NSImage(systemSymbolName:"doc.on.clipboard",accessibilityDescription:nil)),("Select All",#selector(selectAll(_:)),!string.isEmpty,NSImage(systemSymbolName:"selection.pin.in.out",accessibilityDescription:nil))] {
             let item=NSMenuItem(title:title,action:action,keyEquivalent:"");item.target=self;item.isEnabled=enabled;item.image=icons ? icon:nil;menu.addItem(item)
         }
         return menu

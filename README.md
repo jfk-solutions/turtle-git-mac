@@ -145,6 +145,10 @@ The new Issue Tracker Config [light](docs/site/assets/issue-tracker-config-light
 native hosts. See [their source comparison and capture scope](docs/qa/issue-tracker-captures-2026-10-12.json).
 The Settings page capture includes its shared footer, not the full navigation tree.
 
+The native [Autotext Tester](docs/AUTOTEXT-TESTER-PARITY.md) now provides the
+source content/regex/Scan/results/timing workflow through File and Commit settings.
+Full visual and signed acceptance remain open.
+
 The static site source is `docs/site`; `python3 scripts/build-site.py` builds
 `build/site`. See [website and screenshot maintenance](docs/WEBSITE.md).
 

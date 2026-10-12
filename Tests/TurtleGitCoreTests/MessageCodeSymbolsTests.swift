@@ -22,6 +22,11 @@ final class MessageCodeSymbolsTests: XCTestCase {
         XCTAssertEqual(try MessageCodeSymbols.captures(in: "anything", pattern: "", executable: helper), [])
         XCTAssertThrowsError(try MessageCodeSymbols.captures(in: "name", pattern: "(?<=n)(ame)", executable: helper))
     }
+    func testCancellationBeforeEmptyAndNonemptyScans() throws {
+        let token = OperationCancellation(); token.cancel()
+        XCTAssertThrowsError(try MessageCodeSymbols.captures(in: "name", pattern: "", executable: helper, cancellation: token))
+        XCTAssertThrowsError(try MessageCodeSymbols.captures(in: "name", pattern: "(name)", executable: helper, cancellation: token))
+    }
     func testDefinitionOverrideAndUntrimmedEarlyKeys() {
         var definitions = MessageCodeDefinitions()
         definitions.overlay("# comment=skip\r\n.c, .cpp = (symbol)\r\n.h , .hpp=(header)\n.invalid=  \n")

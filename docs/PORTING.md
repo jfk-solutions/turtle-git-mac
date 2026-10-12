@@ -97,7 +97,7 @@ owned loading/command progress. Native Push variants and owned Shift Push option
 controls, full visual matching and signed acceptance are still pending. See
 [Synchronization parity](SYNCHRONIZATION-PARITY.md).
 Across the 130 inventoried dialogs:
-73 dialogs have partial implementations and 57 await review. No dialog is certified complete.
+74 dialogs have partial implementations and 56 await review. No dialog is certified complete.
 See [the reference dialog audit](COMMIT-CONTAINING-REFS-PARITY.md).
 
 Log commit ordering now has the source’s four-choice native sheet, deferred
@@ -895,3 +895,9 @@ with shared footer, not the complete Settings navigation window. Source field/
 group order was compared with the pinned screenshot/resource; full physical and
 signed parity remain open. Visual review corrected repeated placeholders in empty fields and refreshed the
 captures after a passing Debug build. Core/behavior suites were not rerun.
+
+## Autotext Tester
+
+The native content/regex/Scan/results/timing/Exit workflow and owned Settings
+entry point are implemented. It uses the original C++ capture engine. Physical
+and signed acceptance remain open. See [Autotext audit](AUTOTEXT-TESTER-PARITY.md).
