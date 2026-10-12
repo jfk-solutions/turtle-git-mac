@@ -165,15 +165,19 @@ import TurtleGitCore
         precondition(model.results.map(\.success) == [true, false] && model.locks == locksBeforeReview && model.checked == ["1","2"] && standaloneQueries == queriesBeforeReview)
         precondition(requests.count == 1 && !requests[0].1 && Set(requests[0].0) == ["file2.bin", "雪\t🦎.bin"])
         try await settle { window.attachedSheet != nil }
+        print("LFS checkpoint: mixed results sheet attached"); fflush(stdout)
         model.setChecked("1", false); model.selectAll(false); model.setForce(true)
         await model.refresh()
         precondition(!model.canUnlock && model.checked == ["1","2"] && !model.force && standaloneQueries == queriesBeforeReview)
         let delegate = TurtleGitApplicationDelegate()
         precondition(delegate.applicationShouldTerminate(NSApplication.shared) == .terminateCancel)
+        print("LFS checkpoint: forced retry starting"); fflush(stdout)
         await model.unlock(forceRetry: true)
+        print("LFS checkpoint: forced retry finished"); fflush(stdout)
         precondition(requests.count == 2 && requests[1].1 && requests[1].0 == requests[0].0)
         precondition(model.results.allSatisfy(\.success) && model.locks == locksBeforeReview && standaloneQueries == queriesBeforeReview)
         model.finishProgress(); try await settle { window.attachedSheet == nil && !model.busy }
+        print("LFS checkpoint: completed review closed/refreshed"); fflush(stdout)
         precondition(model.locks.isEmpty && standaloneQueries == queriesBeforeReview + 1)
         model.finishProgress(); precondition(standaloneQueries == queriesBeforeReview + 1)
         model.confirmingQuit = true; model.selectAll(true); model.setForce(true); await model.unlock(); await model.refresh()
@@ -201,6 +205,7 @@ import TurtleGitCore
         model.finishProgress(); try await settle { window.attachedSheet == nil && !model.busy }
         precondition(cancelledQueries == 2 && model.results.count == 1)
         window.close()
+        print("LFS checkpoint: cancellation review passed"); fflush(stdout)
         let reviewController = LFSLocksWindowController(repository: repository, access: nil, defaults: defaults)
         let reviewModel = reviewController.model
         reviewModel.query = { _ in [LFSLock(id: "review", path: "tracked", owner: "QA")] }; await reviewModel.refresh()
@@ -224,6 +229,7 @@ import TurtleGitCore
         reviewController.window?.close()
         // Source check memory is by path, not remote ID, survives disappearance
         // and failed refresh, and context operations reset only their targets.
+        print("LFS checkpoint: deferred refresh ownership passed"); fflush(stdout)
         let memoryModel = LFSLocksWindowModel(repository: repository, access: nil, defaults: defaults)
         var memoryReply = [LFSLock(id: "a", path: "file2.bin", owner: "QA"),LFSLock(id: "b", path: "雪\t🦎.bin", owner: "Other")]
         memoryModel.query = { _ in memoryReply }; await memoryModel.refresh()
@@ -255,6 +261,7 @@ import TurtleGitCore
         memoryModel.finishProgress()
         // Real AppKit viewport and row-index/focus-mark restoration across a
         // cleared/repopulated list; the setting disables position restoration.
+        print("LFS checkpoint: path check memory passed"); fflush(stdout)
         let positionController = LFSLocksWindowController(repository: repository, access: nil, defaults: defaults)
         let positionModel = positionController.model
         var positionReply = (0..<160).map { LFSLock(id: "before-\($0)", path: String(format: "position-%03d.bin",$0), owner: "QA") }

@@ -1367,3 +1367,29 @@ post-action behavior. Receivers use private preferences and repositories and
 stop owned hook work before exit. Signed grants, physical menus and full CI are
 separate acceptance scopes. See the 12 October QA record for initial compile and
 lifetime failures and the final focused passes.
+
+
+## Hosted LFS readiness failure and cached receiver repair
+
+The completed [macOS run at c75be61](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38296073311)
+passed Core/app checks and reached the grouped native receiver. Its 90-second
+pre-mail deadline expired after Merge/Patch/Daemon work and the LFS mixed-results
+diagnostic; SMTP was never started. The log does not prove the precise Intel
+stall or distinguish cumulative deadline exhaustion from event-loop handling.
+
+`test-native-lfs-mail-batch.py` now links fixtures against current Debug app
+objects/modules, rather than recompiling all SwiftUI app sources. Its cache
+includes objects, both modules/framework, fixtures, architecture, compiler and
+flags. A C bootstrap runs `NSApplication.run()` with verification on the main
+actor. Atomic phase checkpoints identify the active family, with 120 seconds per
+family and a 600-second overall pre-mail cap. Early exits and timeouts report the
+phase/status/PID. Existing assertions and SMTP MIME checks are retained. Compiler,
+receiver and loopback server use owned groups with bounded cleanup/reaping.
+
+The full grouped check passed locally, followed by an unchanged-cache
+`--lfs-only` pass. No app rebuild or Core rerun was needed for this driver/fixture
+change. The first fresh compile succeeded with the original synchronous wait;
+the subsequent compiler-group cleanup path is implemented but forced compilation
+timeouts were not exercised. This is not a completed hosted CI or signed LFS
+server/helper acceptance claim. See
+[QA record](qa/lfs-mail-driver-2026-10-12.json).

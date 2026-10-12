@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
-"""Compile native receivers once, then run daemon, LFS, Email settings and mail checks.
+"""Link native fixtures to built app objects; run grouped Merge/Patch/daemon/LFS/mail checks.
 
 Daemon and LFS use injected responses. Mail uses only a private loopback SMTP fixture.
 No installed app, Finder extension, real mail client or public server is invoked.
 """
 from pathlib import Path
+import ast
 import base64
 import hashlib
 import json
 import os
 import platform
+import signal
 import subprocess
 import tempfile
 import time
@@ -17,11 +19,16 @@ import sys
 
 root = Path(__file__).resolve().parent.parent
 products = root / 'build/Build/Products/Debug'
+driver = ast.parse((root / 'scripts/test-synchronization-dialog.py').read_text())
+cleanup_function = next(n for n in driver.body if isinstance(n, ast.FunctionDef) and n.name == 'close_receiver')
+cleanup = {'os': os, 'signal': signal, 'time': time, 'subprocess': subprocess}
+exec(compile(ast.Module(body=[cleanup_function], type_ignores=[]), '<owned native receiver cleanup>', 'exec'), cleanup)
+close_receiver = cleanup['close_receiver']
 with tempfile.TemporaryDirectory(prefix='TurtleGitLFSMailNativeBatch-') as temporary:
     folder = Path(temporary)
-    app = root / 'Sources/TurtleGitMac/TurtleGitMacApp.swift'
-    copy = folder / app.name
-    copy.write_text(app.read_text().replace('@main struct', 'struct', 1))
+    objects = sorted((root / 'build/Build/Intermediates.noindex/TurtleGitMac.build/Debug/TurtleGitMac.build/Objects-normal' / platform.machine()).glob('*.o'))
+    if not objects or not (products / 'TurtleGitMac.swiftmodule').exists():
+        raise SystemExit('Build TurtleGitMac Debug before running native LFS/mail QA.')
     lfs = folder / 'LFSReceiver.swift'
     lfs.write_text((root / 'docs/qa/lfs-locks-native-2026-10-08.swift').read_text()
                    .replace('@main struct', 'struct', 1)
@@ -66,61 +73,90 @@ with tempfile.TemporaryDirectory(prefix='TurtleGitLFSMailNativeBatch-') as tempo
     find.write_text((root / 'docs/qa/merge-find-native-2026-10-12.swift').read_text())
     email = folder / 'EmailSettingsReceiver.swift'
     email.write_text((root / 'docs/qa/email-settings-native-2026-10-10.swift').read_text().replace('@main struct', 'struct', 1))
+    fixtures = [lfs, mail, daemon, review, clipboard, regex, three_pane, two_pane, wrapping, default_encoding, one_pane_context, one_pane_receiver, colors_receiver, patch_receiver, line_diff_receiver, format_receiver, open_receiver, find, email]
+    for fixture in fixtures:
+        fixture.write_text('@testable import TurtleGitMac\n' + fixture.read_text())
     main = folder / 'Main.swift'
-    main.write_text('''import AppKit
+    main.write_text(r'''import AppKit
 import Foundation
 import TurtleGitCore
-@main struct NativeBatch {
+struct NativeBatch {
+    @MainActor static func phase(_ name:String, _ body:() async throws -> Void) async throws {
+        let file = URL(fileURLWithPath:CommandLine.arguments[1]).appendingPathComponent("phase.json")
+        try JSONSerialization.data(withJSONObject:["phase":name,"status":"running"]).write(to:file,options:.atomic)
+        print("Native phase started: " + name); fflush(stdout)
+        do { try await body() }
+        catch {
+            try? JSONSerialization.data(withJSONObject:["phase":name,"status":"failed","error":String(describing:error)]).write(to:file,options:.atomic)
+            throw error
+        }
+        try JSONSerialization.data(withJSONObject:["phase":name,"status":"completed"]).write(to:file,options:.atomic)
+        print("Native phase completed: " + name); fflush(stdout)
+    }
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
-        if CommandLine.arguments.contains("--email-only") { try await EmailSettingsVerification.verify(); return }
-        if CommandLine.arguments.contains("--lfs-only") { try await LFSLocksVerification.main(); return }
-        try await MergeRegexNativeVerification.verify(parser: URL(fileURLWithPath: CommandLine.arguments[5]))
-        try await ThreePaneEngineVerification.verify(configuration: SubversionMergeConfiguration.bundled())
-        try await TwoPaneEngineVerification.verify()
-        try await MergeFindNativeVerification.verify()
-        try await MergeOpenNativeVerification.verify()
-        try await MergeFormatNativeVerification.verify()
-        try await MergeLineDiffNativeVerification.verify()
-        try await MergePatchNativeVerification.verify()
-        try await MergeColorsNativeVerification.verify()
-        try await MergeOnePaneNativeVerification.verify()
-        try await MergeOnePaneContextVerification.verify()
-        try await MergeDefaultEncodingVerification.verify()
-        try await MergeWrappingVerification.verify()
-        try await ClipboardTargetNativeVerification.verify()
-        try await ReviewPatchNativeVerification.verify()
-        try await DaemonNativeVerification.verify()
-        try await LFSLocksVerification.main()
+        if CommandLine.arguments.contains("--email-only") { try await phase("EmailSettingsVerification") { try await EmailSettingsVerification.verify() }; return }
+        if CommandLine.arguments.contains("--lfs-only") { try await phase("LFSLocksVerification") { try await LFSLocksVerification.main() }; return }
+        try await phase("MergeRegexNativeVerification") { try await MergeRegexNativeVerification.verify(parser: URL(fileURLWithPath: CommandLine.arguments[5])) }
+        try await phase("ThreePaneEngineVerification") { try await ThreePaneEngineVerification.verify(configuration: SubversionMergeConfiguration.bundled()) }
+        try await phase("TwoPaneEngineVerification") { try await TwoPaneEngineVerification.verify() }
+        try await phase("MergeFindNativeVerification") { try await MergeFindNativeVerification.verify() }
+        try await phase("MergeOpenNativeVerification") { try await MergeOpenNativeVerification.verify() }
+        try await phase("MergeFormatNativeVerification") { try await MergeFormatNativeVerification.verify() }
+        try await phase("MergeLineDiffNativeVerification") { try await MergeLineDiffNativeVerification.verify() }
+        try await phase("MergePatchNativeVerification") { try await MergePatchNativeVerification.verify() }
+        try await phase("MergeColorsNativeVerification") { try await MergeColorsNativeVerification.verify() }
+        try await phase("MergeOnePaneNativeVerification") { try await MergeOnePaneNativeVerification.verify() }
+        try await phase("MergeOnePaneContextVerification") { try await MergeOnePaneContextVerification.verify() }
+        try await phase("MergeDefaultEncodingVerification") { try await MergeDefaultEncodingVerification.verify() }
+        try await phase("MergeWrappingVerification") { try await MergeWrappingVerification.verify() }
+        try await phase("ClipboardTargetNativeVerification") { try await ClipboardTargetNativeVerification.verify() }
+        try await phase("ReviewPatchNativeVerification") { try await ReviewPatchNativeVerification.verify() }
+        try await phase("DaemonNativeVerification") { try await DaemonNativeVerification.verify() }
+        try await phase("LFSLocksVerification") { try await LFSLocksVerification.main() }
         let fixture = URL(fileURLWithPath: CommandLine.arguments[1])
         try Data().write(to: fixture.appendingPathComponent("lfs-done"))
         for _ in 0..<1000 {
             if FileManager.default.fileExists(atPath: fixture.appendingPathComponent("ready.json").path) { break }
             try await Task.sleep(nanoseconds: 10_000_000)
         }
-        try await SendPatchVerification.verify()
+        try await phase("SendPatchVerification") { try await SendPatchVerification.verify() }
     }
 }
+
+@_cdecl("turtlegit_lfs_mail_batch_main") func bootstrap() -> Int32 {
+    NSApplication.shared.setActivationPolicy(.prohibited)
+    Task { @MainActor in
+        do { try await NativeBatch.main(); exit(0) }
+        catch { fputs("Native batch failed: \(error)\n",stderr); exit(1) }
+    }
+    NSApplication.shared.run(); return 0
+}
 ''')
-    sources = sorted(str(p) for p in (root / 'Sources/TurtleGitMac').glob('*.swift') if p != app)
     digest = hashlib.sha256()
-    digest.update((platform.machine() + '-apple-macos13.0/swift5/WMO-Onone/testing-receiver-v2').encode())
+    digest.update((platform.machine() + '-apple-macos13.0/swift5/WMO-Onone/lfs-mail-objects-v1').encode())
     digest.update(subprocess.check_output(['xcrun', 'swiftc', '--version']))
-    inputs = [*map(Path, sources), copy, lfs, mail, daemon, review, clipboard, regex, three_pane, two_pane, wrapping, default_encoding, one_pane_context, one_pane_receiver, colors_receiver, patch_receiver, line_diff_receiver, format_receiver, open_receiver, find, email, main]
-    framework = products / 'TurtleGitCore.framework'
-    inputs += sorted(p for p in framework.rglob('*') if p.is_file() and not p.is_symlink())
+    inputs = [*objects, *fixtures, main]
+    for imported in [products / 'TurtleGitCore.framework', products / 'TurtleGitMac.swiftmodule']:
+        inputs += sorted(p for p in imported.rglob('*') if p.is_file() and not p.is_symlink())
     for source in inputs:
         digest.update(source.name.encode()); digest.update(source.read_bytes())
     cache = root / 'build/qa/native-receivers'; cache.mkdir(parents=True, exist_ok=True)
     executable = cache / ('lfs-mail-' + digest.hexdigest())
     if not executable.exists():
         staging = folder / 'verify'
-        subprocess.run(['xcrun', 'swiftc', '-whole-module-optimization', '-Onone', '-parse-as-library', '-swift-version', '5',
+        compiler = subprocess.Popen(['xcrun', 'swiftc', '-whole-module-optimization', '-Onone', '-parse-as-library', '-swift-version', '5',
                         '-target', platform.machine() + '-apple-macos13.0', '-I', str(products), '-F', str(products),
-                        *sources, str(copy), str(lfs), str(mail), str(daemon), str(review), str(clipboard), str(regex), str(three_pane), str(two_pane), str(wrapping), str(default_encoding), str(one_pane_context), str(one_pane_receiver), str(colors_receiver), str(patch_receiver), str(line_diff_receiver), str(format_receiver), str(open_receiver), str(find), str(email), str(main), '-framework', 'TurtleGitCore', '-o', str(staging)], cwd=root, check=True)
+                        *map(str, fixtures), str(main), *map(str, objects), '-framework', 'TurtleGitCore', '-Xlinker', '-rpath', '-Xlinker', str(products), '-Xlinker', '-e', '-Xlinker', '_turtlegit_lfs_mail_batch_main', '-o', str(staging)], cwd=root, start_new_session=True)
+        try:
+            code = compiler.wait(timeout=300)
+            if code: raise subprocess.CalledProcessError(code, compiler.args)
+        finally:
+            close_receiver(compiler)
+            print('Owned fixture compiler reaped: ' + str(compiler.pid), flush=True)
         staging.replace(executable)
-        print('Native receiver compiled once for this source/framework/toolchain.', flush=True)
-    else: print('Reusing native receiver for unchanged source/framework/toolchain.', flush=True)
+        print('Native fixtures linked once to the current Debug app objects.', flush=True)
+    else: print('Reusing native receiver for unchanged objects/modules/fixtures/toolchain.', flush=True)
     mail_fixture = folder / 'mail'; mail_fixture.mkdir()
     lfs_fixture = folder / 'lfs'; lfs_fixture.mkdir()
     environment = os.environ.copy()
@@ -128,15 +164,38 @@ import TurtleGitCore
     for variable in ['GIT_AUTHOR_NAME', 'GIT_AUTHOR_EMAIL', 'GIT_COMMITTER_NAME', 'GIT_COMMITTER_EMAIL']: environment.pop(variable, None)
     if '--lfs-only' in sys.argv or '--email-only' in sys.argv:
         mode = '--email-only' if '--email-only' in sys.argv else '--lfs-only'
-        subprocess.run([str(executable), str(mail_fixture), '0', str(lfs_fixture), '/usr/bin/git', str(products / 'TurtleGitMac.app/Contents/Helpers/IssueRegex/issue-regex'), mode], cwd=root, env=environment, check=True, timeout=120)
+        receiver = subprocess.Popen([str(executable), str(mail_fixture), '0', str(lfs_fixture), '/usr/bin/git', str(products / 'TurtleGitMac.app/Contents/Helpers/IssueRegex/issue-regex'), mode], cwd=root, env=environment, start_new_session=True)
+        try:
+            try: code = receiver.wait(timeout=120)
+            except subprocess.TimeoutExpired as error:
+                phase_file = mail_fixture / 'phase.json'
+                phase = phase_file.read_text() if phase_file.exists() else 'not published'
+                raise RuntimeError('Focused native phase timed out: phase=' + phase + ', pid=' + str(receiver.pid)) from error
+            if code: raise subprocess.CalledProcessError(code, receiver.args)
+        finally:
+            close_receiver(receiver)
+            print('Owned native receiver reaped: ' + str(receiver.pid), flush=True)
         raise SystemExit(0)
-    receiver = subprocess.Popen([str(executable), str(mail_fixture), '0', str(lfs_fixture), '/usr/bin/git', str(products / 'TurtleGitMac.app/Contents/Helpers/IssueRegex/issue-regex')], cwd=root, env=environment)
+    receiver = subprocess.Popen([str(executable), str(mail_fixture), '0', str(lfs_fixture), '/usr/bin/git', str(products / 'TurtleGitMac.app/Contents/Helpers/IssueRegex/issue-regex')], cwd=root, env=environment, start_new_session=True)
     server = None
     try:
-        deadline = time.monotonic() + 90
-        while not (mail_fixture / 'lfs-done').exists() and receiver.poll() is None and time.monotonic() < deadline: time.sleep(.05)
-        if not (mail_fixture / 'lfs-done').exists(): raise RuntimeError('LFS receiver did not complete; mail server was not started')
-        server = subprocess.Popen(['/usr/bin/python3', str(root / 'Tests/TurtleGitCoreTests/Fixtures/smtp_server.py'), str(mail_fixture), 'normal', '60'])
+        deadline = time.monotonic() + 120
+        total_deadline = time.monotonic() + 600
+        current_phase = None
+        phase_file = mail_fixture / 'phase.json'
+        while not (mail_fixture / 'lfs-done').exists():
+            code = receiver.poll()
+            try: phase = json.loads(phase_file.read_text())
+            except (FileNotFoundError, json.JSONDecodeError): phase = None
+            if phase and phase['phase'] != current_phase:
+                current_phase = phase['phase']; deadline = time.monotonic() + 120
+                print('Waiting for native phase: ' + current_phase, flush=True)
+            if code is not None:
+                raise RuntimeError('Native receiver exited before SMTP readiness: exit=' + str(code) + ', phase=' + str(phase))
+            if time.monotonic() >= deadline or time.monotonic() >= total_deadline:
+                raise RuntimeError('Native phase timed out before SMTP readiness: phase=' + str(phase) + ', pid=' + str(receiver.pid))
+            time.sleep(.05)
+        server = subprocess.Popen(['/usr/bin/python3', str(root / 'Tests/TurtleGitCoreTests/Fixtures/smtp_server.py'), str(mail_fixture), 'normal', '60'], start_new_session=True)
         if receiver.wait(timeout=120) != 0: raise RuntimeError('Native batch receiver failed')
         assert server.wait(timeout=10) == 0
         state = json.loads((mail_fixture / 'result.json').read_text())
@@ -149,8 +208,8 @@ import TurtleGitCore
             assert base64.b64decode(part['payload']) == (mail_fixture / 'expected-attachment').read_bytes()
         print('Grouped native daemon/LFS/mail receiver: one compilation, one verification process; private SMTP MIME verified and owned resources cleaned.')
     finally:
-        if receiver.poll() is None: receiver.terminate()
-        receiver.wait(timeout=10)
+        close_receiver(receiver)
+        print('Owned native receiver reaped: ' + str(receiver.pid), flush=True)
         if server is not None:
-            if server.poll() is None: server.terminate()
-            server.wait(timeout=10)
+            close_receiver(server)
+            print('Owned SMTP fixture reaped: ' + str(server.pid), flush=True)

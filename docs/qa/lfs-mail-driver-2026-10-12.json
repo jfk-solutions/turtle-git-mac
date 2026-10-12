@@ -1,0 +1,68 @@
+{
+  "date": "2026-10-12",
+  "observedFailure": {
+    "run": 38296073311,
+    "commit": "c75be61",
+    "job": 114972867886,
+    "step": "Grouped native LFS and Send Mail receivers with one compilation",
+    "lastDiagnostic": "LFS mixed results before review/force retry",
+    "driverFailure": "LFS receiver did not complete; mail server was not started",
+    "deadlineSeconds": 90,
+    "cause": "Precise hosted stall not proven; deadline included all preceding Merge/Patch/Daemon families"
+  },
+  "changes": [
+    "Built Debug app object/module linking and cache",
+    "Native AppKit run loop bootstrap",
+    "Atomic phase checkpoints and phase-specific diagnostics",
+    "120-second per-family plus 600-second overall pre-mail bound",
+    "Bounded owned compiler/receiver/server group cleanup",
+    "LFS internal diagnostic checkpoints without assertion removal"
+  ],
+  "validation": {
+    "full": {
+      "command": "python3 scripts/test-native-lfs-mail-batch.py",
+      "exit": 0,
+      "freshFixtureCompilations": 1,
+      "completedPhases": [
+        "MergeRegexNativeVerification",
+        "ThreePaneEngineVerification",
+        "TwoPaneEngineVerification",
+        "MergeFindNativeVerification",
+        "MergeOpenNativeVerification",
+        "MergeFormatNativeVerification",
+        "MergeLineDiffNativeVerification",
+        "MergePatchNativeVerification",
+        "MergeColorsNativeVerification",
+        "MergeOnePaneNativeVerification",
+        "MergeOnePaneContextVerification",
+        "MergeDefaultEncodingVerification",
+        "MergeWrappingVerification",
+        "ClipboardTargetNativeVerification",
+        "ReviewPatchNativeVerification",
+        "DaemonNativeVerification",
+        "LFSLocksVerification",
+        "SendPatchVerification"
+      ],
+      "receiverPID": 73310,
+      "smtpPID": 74219,
+      "allOwnedProcessesReaped": true,
+      "smtp": "Private loopback MIME/body/ordered attachment/To/CC checks passed"
+    },
+    "focus": {
+      "command": "python3 scripts/test-native-lfs-mail-batch.py --lfs-only",
+      "exit": 0,
+      "cacheReused": true,
+      "receiverPID": 74390,
+      "reaped": true
+    },
+    "appBuilds": 0,
+    "coreSuiteRuns": 0
+  },
+  "limitations": [
+    "Full hosted pipeline remains unproven",
+    "No real LFS server/helper, physical gestures or signed Finder acceptance",
+    "Forced compiler/receiver timeout paths not exercised",
+    "First fresh compile succeeded using synchronous wait; added compiler-group path was not recompiled for validation",
+    "Existing sandbox extension diagnostic during mail checks did not fail the receiver"
+  ]
+}
