@@ -474,6 +474,7 @@ import UniformTypeIdentifiers
     var onPush: () -> Void = {}
     var onPull: () -> Void = {}
     var onCreateTag: () -> Void = {}
+    var onSVNDCommit: () -> Void = {}
     var onCommitProgress: ((CommitProgressWindowModel) -> Void)?
     @Published private(set) var commitProgress: CommitProgressWindowModel?
     enum CompletionAction: String, CaseIterable {
@@ -1141,6 +1142,7 @@ import UniformTypeIdentifiers
                         }
                     }
                 }
+                let isGitSVN = try await repository.finderMetadata(knownBare: false).hasGitSVN
                 let written = try await repository.prepareCommitMessageFile(text, stripComments: dialogDefaults.bool(forKey: "StripCommentedLines"), sanitize: dialogDefaults.object(forKey: "SanitizeCommitMsg") as? Bool ?? true)
                 text = written.contents; message = written.draft
                 let result = CommitProgressWindowModel(repository: repository, action: action, staging: staging, paths: paths, options: options, preferences: dialogDefaults, cancellable: replaySplit == nil && historyCombine == nil)
@@ -1167,7 +1169,7 @@ import UniformTypeIdentifiers
                 messageHistory?.add(written.draft)
                 if options.amend && !nonAmendMessage.isEmpty && nonAmendMessage != messageTemplate { messageHistory?.add(nonAmendMessage) }
                 if !result.isAbandoned { onCommitted(output) }
-                result.complete(output: output, success: true, cancelled: false, postActions: replaySplit == nil && historyCombine == nil ? [.push, .pull, .recommit, .createTag] : [])
+                result.complete(output: output, success: true, cancelled: false, postActions: replaySplit == nil && historyCombine == nil ? (isGitSVN ? [.svnDCommit, .push, .pull, .recommit, .createTag] : [.push, .pull, .recommit, .createTag]) : [])
                 if action != .commit || replaySplit != nil || historyCombine != nil || !presented || result.isAbandoned { result.choose(nil) }
                 selectedPostAction = await result.waitForChoice()
                 rememberCompletionAction(action)
@@ -1202,6 +1204,7 @@ import UniformTypeIdentifiers
                     if action == .push || selectedPostAction == .push { onPush() }
                     else if selectedPostAction == .pull { onPull() }
                     else if selectedPostAction == .createTag { onCreateTag() }
+                    else if selectedPostAction == .svnDCommit { onSVNDCommit() }
                 }
             } catch {
                 let commitError = error.localizedDescription
@@ -1834,9 +1837,9 @@ private struct StagingCheckbox: NSViewRepresentable {
 }
 
 enum CommitPostAction: String, CaseIterable, Hashable {
-    case push, pull, recommit, createTag
-    var title: String { switch self { case .push: return "Push…"; case .pull: return "Pull…"; case .recommit: return "ReCommit"; case .createTag: return "Create Tag…" } }
-    var icon: MenuIcon { switch self { case .push: return .push; case .pull: return .pull; case .recommit: return .commit; case .createTag: return .tag } }
+    case svnDCommit, push, pull, recommit, createTag
+    var title: String { switch self { case .svnDCommit: return "SVN DCommit…"; case .push: return "Push…"; case .pull: return "Pull…"; case .recommit: return "ReCommit"; case .createTag: return "Create Tag…" } }
+    var icon: MenuIcon { switch self { case .svnDCommit: return .commit; case .push: return .push; case .pull: return .pull; case .recommit: return .commit; case .createTag: return .tag } }
 }
 @MainActor final class CommitProgressWindowModel: ObservableObject {
     let repository: GitRepository

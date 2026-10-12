@@ -1,0 +1,33 @@
+{
+  "date": "2026-10-12",
+  "baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Conditional Commit SVN DCommit post-action and scoped native handoff",
+  "validation": {
+    "debug_build_exit": 0,
+    "native_exit": 0,
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "frontend_compilations": 1,
+    "owned_receiver_processes": 2,
+    "owned_receivers_reaped": true,
+    "existing_live_hook_cleanup_checks_retained": true,
+    "private_metadata_and_repositories": true,
+    "actual_svn_submission": false,
+    "core_or_full_group_rerun": false
+  },
+  "checks": [
+    "Real checked-file commit with private SVN metadata",
+    "SVN DCommit precedes Push/Pull/ReCommit/Create Tag",
+    "Normal repositories retain four actions",
+    "Duplicate choose triggers one DCommit callback",
+    "Existing commit/output/cancellation/private clipboard cases retained"
+  ],
+  "remaining": [
+    "Physical conditional menu activation",
+    "Native scoped SVN receiving-window and lease acceptance",
+    "Actual SVN submission",
+    "Signed sandbox/App Store acceptance"
+  ]
+}

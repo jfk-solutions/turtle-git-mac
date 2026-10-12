@@ -48,16 +48,22 @@ import Darwin
             return value
         }
         for action in CommitPostAction.allCases {
-            let repo = try await fixture(action.rawValue), model = try await owner(repo)
-            var results = 0, closes = 0, push = 0, pull = 0, tag = 0
+            let repo = try await fixture(action.rawValue)
+            if action == .svnDCommit {
+                let metadata = repo.root.appendingPathComponent(".git/svn/.metadata")
+                try FileManager.default.createDirectory(at: metadata.deletingLastPathComponent(), withIntermediateDirectories: true)
+                try Data().write(to: metadata)
+            }
+            let model = try await owner(repo)
+            var results = 0, closes = 0, push = 0, pull = 0, tag = 0, dcommit = 0
             model.onCommitted = { _ in results += 1 }; model.close = { closes += 1 }
-            model.onPush = { push += 1 }; model.onPull = { pull += 1 }; model.onCreateTag = { tag += 1 }
+            model.onSVNDCommit = { dcommit += 1 }; model.onPush = { push += 1 }; model.onPull = { pull += 1 }; model.onCreateTag = { tag += 1 }
             model.onCommitProgress = { _ in }
             model.commit(); try await wait { model.commitProgress?.busy == false }
             let progress = model.commitProgress!
             try require(progress.currentWork == "Success" && progress.completionRange != nil && progress.output.contains(" ms @ "), "Commit success missing completion styling/timing")
             try require(model.busy && !model.canCommit && results == 1 && closes == 0 && model.error == nil)
-            try require(progress.success && progress.postActions == [.push,.pull,.recommit,.createTag] && progress.paths == ["a 雪"] && !progress.staging)
+            try require(progress.success && progress.postActions == (action == .svnDCommit ? [.svnDCommit,.push,.pull,.recommit,.createTag] : [.push,.pull,.recommit,.createTag]) && progress.paths == ["a 雪"] && !progress.staging)
             model.message = "changed after snapshot"; model.checked = ["b"]; model.commit(.push)
             let selected = try await repo.run(["show","HEAD:a 雪"]).stdout
             let unchecked = try await repo.run(["show",":b"]).stdout
@@ -65,7 +71,7 @@ import Darwin
             let body = try await repo.run(["log","-1","--format=%B"]).text
             try require(selected == Data("selected\n".utf8) && unchecked == Data("unchecked index\n".utf8) && working == Data("unchecked working\n".utf8) && body.contains("progress message") && !body.contains("changed after snapshot"))
             progress.choose(action); progress.choose(action); try await wait { !model.busy }
-            try require(model.commitProgress == nil && results == 1 && push == (action == .push ? 1 : 0) && pull == (action == .pull ? 1 : 0) && tag == (action == .createTag ? 1 : 0))
+            try require(model.commitProgress == nil && results == 1 && push == (action == .push ? 1 : 0) && pull == (action == .pull ? 1 : 0) && tag == (action == .createTag ? 1 : 0) && dcommit == (action == .svnDCommit ? 1 : 0))
             if action == .recommit { try require(closes == 0 && model.message.isEmpty && !model.amend && !model.messageOnly && model.checked.contains("b")) }
             else { try require(closes == 1) }
         }

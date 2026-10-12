@@ -838,3 +838,11 @@ private Email receiver now joins the object-linked group and additionally checks
 shared Apply/Cancel/busy validation and Quit gating. Email is a partial native
 replacement; real Keychain, physical credential sheets and mail/signed acceptance
 remain open. See [Email audit](SEND-PATCH-PARITY.md).
+
+
+Commit progress now includes the source's conditional SVN DCommit action before
+Push/Pull/ReCommit/Create Tag for git-svn metadata. Its callback preserves the
+Commit repository/access context through the native SVN workflow. Both-engine
+private commit checks passed, including once-only selection and the existing
+cancellation/cleanup cases. Actual SVN submission, receiving-window/scoped grant
+acceptance and physical menus remain open; see the Commit audit.

@@ -772,6 +772,7 @@ import TurtleGitCore
         controller.model.onPush = { [weak self] in self?.showPush(repository: repository, access: access) }
         controller.model.onPull = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true, followUp: PullFollowUp(showPush: true)) }
         controller.model.onCreateTag = { [weak self] in self?.showReference(repository: repository, access: access, isTag: true) }
+        controller.model.onSVNDCommit = { [weak self] in self?.showSVN(.dcommit, repository: repository, access: access) }
         configureCommitInteractions(controller.model, repository: repository, access: access)
         commitWindows[root.path] = controller
         controller.model.reload(paths: paths)
@@ -816,7 +817,11 @@ import TurtleGitCore
     }
     func showSVN(_ operation: GitSVNOperation) {
         guard !busy, !confirmingQuit, !bare, let repository else { return }
-        let key = repository.root.path, access = activeAccess
+        showSVN(operation, repository: repository, access: activeAccess)
+    }
+    func showSVN(_ operation: GitSVNOperation, repository: GitRepository, access: RepositoryAccessLease?) {
+        guard !confirmingQuit else { return }
+        let key = repository.root.path
         if let existing = svnWindows[key] {
             if existing.model.busy || existing.model.phase == .options || existing.window?.attachedSheet != nil { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
             existing.window?.close()

@@ -1988,3 +1988,36 @@ the source key shared with Merge, falling back to `Commit.MaxHistoryItems` for
 existing installations. Dialogs 2 migrates the earlier key when no shared value
 exists. This later continuation is uncompiled/untested; older native QA applies
 to its recorded revision, not this new grouping or shared-key migration.
+
+
+## Conditional SVN DCommit post-action — 2026-10-12
+
+Compared CommitDlg's IsGitSVN-gated progress callback. Successful ordinary Commit
+now prepends SVN DCommit with the original Commit icon when the repository's
+shared Git administration directory has SVN metadata. Push, Pull, ReCommit and
+Create Tag retain their source order. Normal repositories keep those four actions;
+failed and split/combine workflows retain their existing post-action suppression.
+The footer choices remain Commit/ReCommit/Commit & Push.
+
+DCommit closes completed Commit progress through the existing once-only choice
+path, then calls the native SVN workflow using the Commit controller's captured
+repository/access lease. The SVN presenter now has a scoped overload; the main
+window action keeps its existing current-repository gate. Background main-window
+refresh cannot suppress the captured post-commit handoff. This does not submit
+anything automatically; the existing SVN options/confirmation workflow remains.
+
+Debug build exited 0. The expanded Commit progress receiver passed with system
+and bundled Git in one object-linked compilation and two reaped processes. It
+creates private SVN metadata for the DCommit case, performs a real checked-file
+commit, checks the five-action order, calls choose twice and observes exactly one
+DCommit callback. Normal cases retain the four-action order. Existing checked/
+staged commits, captured messages/unchecked bytes, other callbacks, ReCommit/
+footer behavior, hook rejection/retry/live cancellation, owned helper cleanup,
+bounded output/private clipboard and hidden Escape checks remain in the same
+receiver. No Core/full sixteen-family suite was rerun.
+
+The receiver now shares the built-app object cache; its old script delegates to
+the group, and CI no longer compiles/runs it separately. Actual SVN submission,
+physical conditional menu activation, scoped SVN receiving-window/grant
+acceptance and signed distribution remain open. No new screenshot or full
+Commit/dialog certification is claimed.

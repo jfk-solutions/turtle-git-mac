@@ -259,7 +259,7 @@ jobs:
         run: python3 scripts/test-submodule-update-progress.py
       - name: Native submodule progress output controls
         run: python3 scripts/test-submodule-progress-output.py
-      - name: Grouped native reference folders, comparisons, deletion, actions, Merge pickers, Network, Credential, Tools, Overlays, Email and external Merge lifecycle
+      - name: Grouped native reference folders, comparisons, deletion, actions, Merge pickers, Network, Credential, Tools, Overlays, Email, Commit progress and external Merge lifecycle
         run: python3 scripts/test-native-reference-batch.py
       - name: Native Pull forced cleanup
         run: python3 scripts/test-pull-cleanup.py
@@ -339,8 +339,6 @@ jobs:
         run: python3 scripts/test-commit-column-sorting.py
       - name: Native remembered Commit button actions
         run: python3 scripts/test-commit-last-action.py
-      - name: Native Commit progress and hook cancellation
-        run: python3 scripts/test-commit-progress.py
       - name: Native Fetch/Rebase decisions and fast-forward merge
         run: python3 scripts/test-fetch-rebase-decisions.py
       - name: Native Fetch and Pull live command output

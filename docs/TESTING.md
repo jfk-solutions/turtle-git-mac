@@ -1157,7 +1157,7 @@ checks three-pane format acceptance. See [format parity](MERGE-FORMAT-PARITY.md)
 Build Debug once, then run `python3 scripts/test-native-reference-batch.py` for
 folders, comparisons, batch/single deletion, Switch/Fetch/Create Branch/Merge
 routes and Merge reference/Log pickers. The driver links the existing app objects
-and fifteen receiver families, including Network, Credential, Tool settings, Overlays, Email and external Merge lifecycle, in one compilation. It uses an explicit native AppKit run loop and
+and sixteen receiver families, including Network, Credential, Tool settings, Overlays, Email, Commit progress and external Merge lifecycle, in one compilation. It uses an explicit native AppKit run loop and
 caches by object files, imported modules/framework, fixtures and compiler/flags.
 It does not recompile the whole SwiftUI app for each case.
 
@@ -1283,3 +1283,11 @@ The Email receiver additionally holds credential work while checking shared
 Settings busy validation and app Quit refusal, then verifies Apply and Cancel
 after completion. Private preferences and simulated Security APIs are retained;
 there is no live Keychain/mail/network or full-suite acceptance claim.
+
+
+`test-commit-progress.py` now delegates to the object-linked group with
+`--only commit-progress`; `--git` arguments are forwarded. CI runs it once in the
+group. Its private real commit cases include conditional SVN DCommit ordering and
+once-only callback, plus the existing output/cancellation/owned-helper checks.
+Fake SVN metadata enables the menu case without submitting to an SVN server.
+Physical menu and scoped native SVN receiver acceptance remain separate.
