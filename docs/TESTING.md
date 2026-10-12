@@ -1111,10 +1111,12 @@ Email-only source subset omitted the settings transaction dependencies. CI now
 runs Email settings within the existing LFS/mail slot rather than compiling a
 second receiver. `--lfs-only` remains available for an actual LFS failure.
 
-`test-native-merge-regex.py` also caches its receiver by all sources, imported
-framework contents, target/compiler and flags. The options batch and its
-`--whitespace-only`, `--general-only`, and `--about-only` modes use the same binary.
-No app assertions or receiver coverage are skipped by these caches.
+After building Debug, `test-native-merge-regex.py` links QA to the existing app
+objects instead of recompiling the SwiftUI app. Its cache includes objects, app
+and Core modules/framework, fixtures, target/compiler and flags. The options
+batch and focused modes (including `--patch-only`) share a binary. Receivers
+have bounded process-group cleanup/reaping on every exit. No app assertions or
+receiver coverage are skipped by these caches.
 
 
 ## Merge Find/Replace batch
@@ -1152,9 +1154,9 @@ checks three-pane format acceptance. See [format parity](MERGE-FORMAT-PARITY.md)
 ## Grouped reference-family native receivers
 
 Build Debug once, then run `python3 scripts/test-native-reference-batch.py` for
-folders, comparisons, batch/single deletion and Switch/Fetch/Create Branch/Merge
-routes. The driver links the existing app objects and eight unchanged receiver
-families in one compilation. It uses an explicit native AppKit run loop and
+folders, comparisons, batch/single deletion, Switch/Fetch/Create Branch/Merge
+routes and Merge reference/Log pickers. The driver links the existing app objects
+and nine receiver families in one compilation. It uses an explicit native AppKit run loop and
 caches by object files, imported modules/framework, fixtures and compiler/flags.
 It does not recompile the whole SwiftUI app for each case.
 
@@ -1171,3 +1173,18 @@ The grouped Merge options and LFS/mail receivers include
 Base/Mine ordering, independent inline/whitespace display, original EOL markers,
 light/dark TextKit rendering, unchanged text/selection/history/files, and
 exit/single-file/rebuild/retired guards. QA images are written under `build/qa`.
+
+`MergeUnifiedPatchTests` checks applicable quoted Unicode/control-character
+paths, CRLF/non-UTF-8 hunk bytes, context range/default/zero, mode-only changes,
+add/delete, symlink targets, binary diagnostic and cancellation semantics.
+The grouped native Merge/LFS-mail receivers include `merge-patch-native-2026-10-12.swift`
+for actual General context Apply/Cancel and invalid values, light/dark layout,
+File menu ownership/icon/gates, save cancellation, saved-file export with an
+unsaved draft, unchanged inputs/history and retired replies.
+
+The Merge picker fixture retains its ancestry, graph, native row-count and single
+selection assertions, but waits for the native table to render after the model
+publishes its entries. Hosted job `114802897011` failed the immediate row-count
+assertion. A bounded wait now reports actual model/native/graph counts on failure.
+`test-merge-pickers.py` delegates to the reference cache, and CI runs it once in
+that group rather than compiling a separate app-source receiver.

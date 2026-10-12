@@ -259,12 +259,10 @@ jobs:
         run: python3 scripts/test-submodule-update-progress.py
       - name: Native submodule progress output controls
         run: python3 scripts/test-submodule-progress-output.py
-      - name: Grouped native reference folders, comparisons, deletion and action routes
+      - name: Grouped native reference folders, comparisons, deletion, actions and Merge pickers
         run: python3 scripts/test-native-reference-batch.py
       - name: Native Pull forced cleanup
         run: python3 scripts/test-pull-cleanup.py
-      - name: Native Merge all-reference and Log pickers
-        run: python3 scripts/test-merge-pickers.py
       - name: Native Merge forced cleanup
         run: python3 scripts/test-merge-cleanup.py
       - name: Native tracked branch commands and remote-only picker

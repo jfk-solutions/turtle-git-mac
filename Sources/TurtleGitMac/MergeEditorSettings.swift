@@ -7,11 +7,14 @@ extension Notification.Name {
 }
 
 struct MergeEditorSettings: View {
+    private let preferences: UserDefaults
+    private let profileURL: URL
     @Environment(\.settingsTransaction) private var transaction
     @State private var windowReference = MergeSettingsWindowReference()
     @State private var initialized = false
     @State private var general = MergeGeneralPreferences.load()
     @State private var fontSize = String(MergeGeneralPreferences.load().fontSize)
+    @State private var patchContext = String(MergeUnifiedPatch.contextLines())
     @State private var maximumInline = String(MergeGeneralPreferences.load().maximumInlineLength)
     @State private var draft = MergeEditorPreferences.load()
     @State private var comparison = MergeComparisonOptions.load()
@@ -24,6 +27,15 @@ struct MergeEditorSettings: View {
     @State private var profileError: String?
     @State private var editingProfiles = false
     @State private var sheetProfileText = ""
+    init(defaults: UserDefaults = .standard, commentProfileURL: URL = MergeCommentProfileFile.url) {
+        preferences = defaults; profileURL = commentProfileURL
+        let general = MergeGeneralPreferences.load(from: defaults), editor = MergeEditorPreferences.load(from: defaults)
+        _general = State(initialValue: general); _fontSize = State(initialValue: String(general.fontSize))
+        _maximumInline = State(initialValue: String(general.maximumInlineLength)); _patchContext = State(initialValue: String(MergeUnifiedPatch.contextLines(from: defaults)))
+        _draft = State(initialValue: editor); _tabSize = State(initialValue: String(editor.tabWidth))
+        _comparison = State(initialValue: .load(from: defaults)); _locator = State(initialValue: .load(from: defaults))
+        _whitespaceDisplay = State(initialValue: .load(from: defaults)); _backupOriginal = State(initialValue: MergeFileSaveOptions.backupEnabled(from: defaults))
+    }
     private var validWidth: Int? {
         guard let width = Int(tabSize), (1...1000).contains(width) else { return nil }
         return width
@@ -36,9 +48,10 @@ struct MergeEditorSettings: View {
     }
     private var changed: Bool {
         guard let width = validWidth, validFontSize != nil, validInlineLength != nil else { return true }
-        return MergeEditorPreferences(tabWidth: width, useSpaces: draft.useSpaces, smartTab: draft.smartTab, showLineNumbers: draft.showLineNumbers, enableEditorConfig: draft.enableEditorConfig, autoAdd: draft.autoAdd) != .load() || generalDraft != .load() || comparison != .load() || locator != .load() || whitespaceDisplay != .load() || backupOriginal != MergeFileSaveOptions.backupEnabled() || profileText != savedProfileText
+        return MergeEditorPreferences(tabWidth: width, useSpaces: draft.useSpaces, smartTab: draft.smartTab, showLineNumbers: draft.showLineNumbers, enableEditorConfig: draft.enableEditorConfig, autoAdd: draft.autoAdd) != .load(from: preferences) || generalDraft != .load(from: preferences) || comparison != .load(from: preferences) || locator != .load(from: preferences) || whitespaceDisplay != .load(from: preferences) || backupOriginal != MergeFileSaveOptions.backupEnabled(from: preferences) || MergeUnifiedPatch.validatedContext(patchContext) != MergeUnifiedPatch.contextLines(from: preferences) || profileText != savedProfileText
     }
     private var validationError: String? {
+        if MergeUnifiedPatch.validatedContext(patchContext) == nil { return "Enter patch context lines from -1 (Git default) to 1000." }
         if validWidth == nil { return "Enter a tab size from 1 to 1000." }
         if validFontSize == nil { return "Enter a font size from 6 to 72 points." }
         if validInlineLength == nil { return "Enter an inline-diff line length from 0 to 100000." }
@@ -49,16 +62,12 @@ struct MergeEditorSettings: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             ScrollView { VStack(alignment: .leading, spacing: 16) {
-            GroupBox("General") {
+            GroupBox("Misc") {
                 VStack(alignment: .leading, spacing: 12) {
                     Toggle("Backup original file", isOn: $backupOriginal)
                     Toggle("Jump to first difference when loading", isOn: $general.firstDifference)
                     Toggle("Jump to first conflict when loading", isOn: $general.firstConflict).padding(.leading, 12).disabled(!general.firstDifference)
                     Toggle("Show line numbers", isOn: $draft.showLineNumbers)
-                    Toggle("Show Whitespaces", isOn: $whitespaceDisplay.visible)
-                    Toggle("Use icons for CR, LF and CRLF", isOn: $whitespaceDisplay.endingIcons)
-                    Toggle("Show locator bar", isOn: $locator.visible)
-                    Toggle("Use fish-eye in locator bar", isOn: $locator.fishEye)
                     HStack {
                         Toggle("Use spaces", isOn: $draft.useSpaces)
                         Spacer()
@@ -76,18 +85,35 @@ struct MergeEditorSettings: View {
                         Text("Font:"); NativeFixedFontChoice(value: $general.fontName).frame(height: 24)
                         NativeFontSizeChoice(value: $fontSize).frame(width: 75, height: 24)
                     }
+                }.padding(8)
+            }
+            GroupBox("Diffing") {
+                VStack(alignment: .leading, spacing: 12) {
                     HStack {
                         Text("Max line length for inline diffs:")
                         TextField("Max line length", text: $maximumInline).frame(width: 90)
                         Spacer()
                     }
                     if validFontSize == nil || validInlineLength == nil { Text(validationError ?? "").font(.caption).foregroundStyle(.red) }
-                    Divider()
+                    Toggle("Ignore line endings (recommended)", isOn: $comparison.ignoreEndings)
+                    Toggle("Ignore case changes", isOn: $comparison.ignoreCase)
+                    HStack {
+                        Text("Context lines for patches:")
+                        NativePatchContextField(value: $patchContext).frame(width: 90, height: 24)
+                        Text("-1 uses Git’s default").font(.caption).foregroundStyle(.secondary)
+                    }
+                    if MergeUnifiedPatch.validatedContext(patchContext) == nil { Text(validationError ?? "").font(.caption).foregroundStyle(.red) }
+                }.padding(8)
+            }
+            GroupBox("Additional comparison and view options") {
+                VStack(alignment: .leading, spacing: 12) {
+                    Toggle("Show Whitespaces", isOn: $whitespaceDisplay.visible)
+                    Toggle("Use icons for CR, LF and CRLF", isOn: $whitespaceDisplay.endingIcons)
+                    Toggle("Show locator bar", isOn: $locator.visible)
+                    Toggle("Use fish-eye in locator bar", isOn: $locator.fishEye)
                     Picker("Whitespace comparison:", selection: $comparison.whitespace) {
                         ForEach(MergeWhitespaceComparison.allCases, id: \.rawValue) { Text($0.title).tag($0) }
                     }
-                    Toggle("Ignore line endings (recommended)", isOn: $comparison.ignoreEndings)
-                    Toggle("Ignore case changes", isOn: $comparison.ignoreCase)
                     HStack {
                         Toggle("Ignore comments", isOn: $comparison.ignoreComments)
                         Spacer()
@@ -115,6 +141,7 @@ struct MergeEditorSettings: View {
         .onChange(of: tabSize) { _ in transaction?.notify() }
         .onChange(of: general) { _ in transaction?.notify() }
         .onChange(of: fontSize) { _ in transaction?.notify() }
+        .onChange(of: patchContext) { _ in transaction?.notify() }
         .onChange(of: maximumInline) { _ in transaction?.notify() }
         .onChange(of: comparison) { _ in transaction?.notify() }
         .onChange(of: locator) { _ in transaction?.notify() }
@@ -147,7 +174,7 @@ struct MergeEditorSettings: View {
         guard let width = validWidth, validationError == nil else { return false }
         do {
             if profileText != savedProfileText {
-                try MergeCommentProfileFile.save(profileText, expected: savedProfileText)
+                try MergeCommentProfileFile.save(profileText, at: profileURL, expected: savedProfileText)
                 savedProfileText = profileText
             }
         } catch {
@@ -155,9 +182,10 @@ struct MergeEditorSettings: View {
             let alert = NSAlert(); alert.messageText = "Comment profiles were not saved"
             alert.informativeText = error.localizedDescription; alert.runModal(); return false
         }
-        general = generalDraft; general.save()
-        draft.tabWidth = width; draft.save(); comparison.save(); locator.save(); whitespaceDisplay.save()
-        MergeFileSaveOptions.saveBackupPreference(backupOriginal)
+        preferences.set(MergeUnifiedPatch.validatedContext(patchContext)!, forKey: "TurtleGitMerge.ContextLines")
+        general = generalDraft; general.save(to: preferences)
+        draft.tabWidth = width; draft.save(to: preferences); comparison.save(to: preferences); locator.save(to: preferences); whitespaceDisplay.save(to: preferences)
+        MergeFileSaveOptions.saveBackupPreference(backupOriginal, to: preferences)
         NotificationCenter.default.post(name: .mergeEditorPreferencesChanged, object: nil); return true
     }
     private var sheetValidationError: String? {
@@ -165,10 +193,11 @@ struct MergeEditorSettings: View {
         catch { return error.localizedDescription }
     }
     private func restore() {
-        general = .load(); fontSize = String(general.fontSize); maximumInline = String(general.maximumInlineLength)
-        draft = .load(); comparison = .load(); locator = .load(); whitespaceDisplay = .load(); tabSize = String(draft.tabWidth)
-        backupOriginal = MergeFileSaveOptions.backupEnabled()
-        do { profileText = try MergeCommentProfileFile.text(); savedProfileText = profileText; profileError = nil }
+        patchContext = String(MergeUnifiedPatch.contextLines(from: preferences))
+        general = .load(from: preferences); fontSize = String(general.fontSize); maximumInline = String(general.maximumInlineLength)
+        draft = .load(from: preferences); comparison = .load(from: preferences); locator = .load(from: preferences); whitespaceDisplay = .load(from: preferences); tabSize = String(draft.tabWidth)
+        backupOriginal = MergeFileSaveOptions.backupEnabled(from: preferences)
+        do { profileText = try MergeCommentProfileFile.text(at: profileURL); savedProfileText = profileText; profileError = nil }
         catch { profileError = error.localizedDescription }
     }
 }
@@ -227,5 +256,27 @@ struct MergeColorsSettings: View {
             if transaction == nil { HStack { Spacer(); Button("Cancel") { draft = .load() }; Button("Apply") { _ = apply() }.disabled(draft == .load()) } }
         }.padding(20) }
         .settingsParticipant("mergeColors", page: .mergeColors, value: draft, modified: { draft != .load() }, apply: { apply() }, cancel: { draft = .load() })
+    }
+}
+
+/// Native edit control keeps source signed context values and stable accessibility.
+private struct NativePatchContextField: NSViewRepresentable {
+    @Binding var value: String
+    func makeNSView(context: Context) -> NSTextField {
+        let field = NSTextField(string: value); field.identifier = NSUserInterfaceItemIdentifier("MergePatchContext")
+        field.setAccessibilityIdentifier("MergePatchContext"); field.setAccessibilityLabel("Context lines for patches")
+        field.placeholderString = "-1…1000"; field.delegate = context.coordinator; return field
+    }
+    func updateNSView(_ field: NSTextField, context: Context) {
+        context.coordinator.binding = $value
+        if field.stringValue != value { field.stringValue = value }
+    }
+    func makeCoordinator() -> Coordinator { Coordinator(binding: $value) }
+    final class Coordinator: NSObject, NSTextFieldDelegate {
+        var binding: Binding<String>
+        init(binding: Binding<String>) { self.binding = binding }
+        func controlTextDidChange(_ notification: Notification) {
+            if let field = notification.object as? NSTextField { binding.wrappedValue = field.stringValue }
+        }
     }
 }

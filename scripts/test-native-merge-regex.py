@@ -2,6 +2,10 @@
 """One compilation and one focused native regex receiver; no installed app."""
 from pathlib import Path
 import os
+import ast
+import re
+import signal
+import time
 import hashlib
 import argparse
 import platform
@@ -18,31 +22,37 @@ parser.add_argument('--about-only', action='store_true')
 parser.add_argument('--find-only', action='store_true')
 parser.add_argument('--open-only', action='store_true')
 parser.add_argument('--format-only', action='store_true')
+parser.add_argument('--patch-only', action='store_true')
 parser.add_argument('--screenshots', type=Path)
 args = parser.parse_args()
 root = Path(__file__).resolve().parent.parent
 products = root / 'build/Build/Products/Debug'
 with tempfile.TemporaryDirectory(prefix='turtlegit-merge-regex-native-') as temporary:
     folder = Path(temporary)
-    app = root / 'Sources/TurtleGitMac/TurtleGitMacApp.swift'
-    copy = folder / app.name
-    copy.write_text(app.read_text().replace('@main struct', 'struct', 1))
-    sources = sorted(str(p) for p in (root / 'Sources/TurtleGitMac').glob('*.swift') if p != app)
+    objects = sorted((root / 'build/Build/Intermediates.noindex/TurtleGitMac.build/Debug/TurtleGitMac.build/Objects-normal' / platform.machine()).glob('*.o'))
+    if not objects or not (products / 'TurtleGitMac.swiftmodule').exists():
+        raise SystemExit('Build TurtleGitMac Debug before running Merge QA.')
     additional = []
-    if args.options_batch or args.whitespace_only or args.general_only or args.about_only or args.find_only or args.open_only or args.format_only:
-        for name in ['three-pane-engine-native-2026-10-12.swift', 'two-pane-engine-native-2026-10-12.swift', 'merge-locator-native-2026-10-12.swift', 'merge-whitespace-display-native-2026-10-12.swift', 'merge-general-native-2026-10-12.swift', 'about-native-2026-10-12.swift', 'merge-find-native-2026-10-12.swift', 'merge-open-native-2026-10-12.swift', 'merge-format-native-2026-10-12.swift', 'merge-line-diff-native-2026-10-12.swift']:
+    if args.options_batch or args.whitespace_only or args.general_only or args.about_only or args.find_only or args.open_only or args.format_only or args.patch_only:
+        for name in ['three-pane-engine-native-2026-10-12.swift', 'two-pane-engine-native-2026-10-12.swift', 'merge-locator-native-2026-10-12.swift', 'merge-whitespace-display-native-2026-10-12.swift', 'merge-general-native-2026-10-12.swift', 'about-native-2026-10-12.swift', 'merge-find-native-2026-10-12.swift', 'merge-open-native-2026-10-12.swift', 'merge-format-native-2026-10-12.swift', 'merge-line-diff-native-2026-10-12.swift', 'merge-patch-native-2026-10-12.swift']:
             receiver = folder / name
-            receiver.write_text((root / 'docs/qa' / name).read_text().replace('@main struct', 'struct', 1))
+            receiver.write_text('@testable import TurtleGitMac\n' + (root / 'docs/qa' / name).read_text().replace('@main struct', 'struct', 1))
             additional.append(str(receiver))
-    primary = root / ('docs/qa/comparison-options-native-2026-10-12.swift' if args.options_batch or args.whitespace_only or args.general_only or args.about_only or args.find_only or args.open_only or args.format_only else 'docs/qa/two-pane-engine-native-2026-10-12.swift' if args.two_pane else 'docs/qa/three-pane-engine-native-2026-10-12.swift' if args.three_pane else 'docs/qa/merge-regex-native-2026-10-12.swift')
-    # Focused modes and the full options batch share the same executable. Rebuild
-    # only after source, imported framework, architecture or compiler changes.
+    primary = root / ('docs/qa/comparison-options-native-2026-10-12.swift' if args.options_batch or args.whitespace_only or args.general_only or args.about_only or args.find_only or args.open_only or args.format_only or args.patch_only else 'docs/qa/two-pane-engine-native-2026-10-12.swift' if args.two_pane else 'docs/qa/three-pane-engine-native-2026-10-12.swift' if args.three_pane else 'docs/qa/merge-regex-native-2026-10-12.swift')
+    primary_text = primary.read_text()
+    primary_name = re.search(r'@main struct (\w+)', primary_text).group(1)
+    primary_copy = folder / 'Primary.swift'
+    primary_copy.write_text('@testable import TurtleGitMac\n' + primary_text.replace('@main struct', 'struct', 1))
+    bootstrap = folder / 'Bootstrap.swift'
+    bootstrap.write_text('import AppKit\n@_cdecl("turtlegit_merge_receiver_main") func bootstrap() -> Int32 {\n    NSApplication.shared.setActivationPolicy(.prohibited)\n    Task { @MainActor in\n        do { try await ' + primary_name + '.main(); exit(0) }\n        catch { fputs("FAIL: \\(error)\\n", stderr); exit(1) }\n    }\n    NSApplication.shared.run(); return 0\n}\n')
+    # Modes share a cache keyed by built objects, both modules, QA and toolchain.
     digest = hashlib.sha256()
-    digest.update((platform.machine() + '-apple-macos13.0/swift5/WMO-Onone/merge-receiver-v1').encode())
+    digest.update((platform.machine() + '-apple-macos13.0/swift5/WMO-Onone/merge-objects-v2').encode())
     digest.update(subprocess.check_output(['xcrun', 'swiftc', '--version']))
     framework = products / 'TurtleGitCore.framework'
-    inputs = [*map(Path, sources), copy, *map(Path, additional), primary]
-    inputs += sorted(p for p in framework.rglob('*') if p.is_file() and not p.is_symlink())
+    inputs = [*objects, *map(Path, additional), primary_copy, bootstrap]
+    for imported in [framework, products / 'TurtleGitMac.swiftmodule']:
+        inputs += sorted(p for p in imported.rglob('*') if p.is_file() and not p.is_symlink())
     for source in inputs:
         digest.update(source.name.encode()); digest.update(source.read_bytes())
     cache = root / 'build/qa/native-receivers'; cache.mkdir(parents=True, exist_ok=True)
@@ -51,10 +61,12 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-merge-regex-native-') as temp
         staging = folder / 'merge-regex-native-receiver'
         subprocess.run(['xcrun', 'swiftc', '-parse-as-library', '-swift-version', '5', '-whole-module-optimization', '-Onone',
                         '-target', platform.machine() + '-apple-macos13.0', '-I', str(products), '-F', str(products),
-                        *sources, str(copy), *additional, str(primary),
-                        '-framework', 'TurtleGitCore', '-o', str(staging)], cwd=root, check=True)
+                        *additional, str(primary_copy), str(bootstrap), *map(str, objects),
+                        '-framework', 'TurtleGitCore', '-Xlinker', '-rpath', '-Xlinker', str(products),
+                        '-Xlinker', '-e', '-Xlinker', '_turtlegit_merge_receiver_main',
+                        '-o', str(staging)], cwd=root, check=True, timeout=300)
         staging.replace(executable)
-        print('Native Merge receiver compiled once for this source/framework/toolchain.', flush=True)
+        print('Native Merge receiver linked once to current Debug app objects.', flush=True)
     else:
         print('Reusing native Merge receiver for unchanged source/framework/toolchain.', flush=True)
     environment = os.environ.copy(); environment['DYLD_FRAMEWORK_PATH'] = str(products)
@@ -68,6 +80,16 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-merge-regex-native-') as temp
     if args.find_only: arguments.append('--find-only')
     if args.open_only: arguments.append('--open-only')
     if args.format_only: arguments.append('--format-only')
+    if args.patch_only: arguments.append('--patch-only')
     if args.screenshots: arguments.append(str(args.screenshots.resolve()))
-    subprocess.run([str(executable), *arguments],
-                   cwd=root, env=environment, check=True, timeout=60)
+    driver = ast.parse((root / 'scripts/test-synchronization-dialog.py').read_text())
+    helper_node = next(node for node in driver.body if isinstance(node, ast.FunctionDef) and node.name == 'close_receiver')
+    cleanup = {'os': os, 'signal': signal, 'time': time, 'subprocess': subprocess}
+    exec(compile(ast.Module(body=[helper_node], type_ignores=[]), '<owned Merge receiver cleanup>', 'exec'), cleanup)
+    receiver = subprocess.Popen([str(executable), *arguments], cwd=root, env=environment, start_new_session=True)
+    try:
+        code = receiver.wait(timeout=60)
+        if code: raise subprocess.CalledProcessError(code, receiver.args)
+    finally:
+        cleanup['close_receiver'](receiver)
+        print('Owned Merge receiver reaped: ' + str(receiver.pid), flush=True)

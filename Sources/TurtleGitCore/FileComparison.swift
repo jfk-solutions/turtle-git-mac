@@ -278,3 +278,81 @@ extension GitRepository {
         return FileComparisonDocument(base: try WorkingFileComparison.workingContent(at: comparison.workingFile), destination: try historicalFile(revision: hash, path: comparison.path))
     }
 }
+
+/// TortoiseMerge's CreateUnifiedDiff uses Git's no-index diff, not the
+/// whitespace-filtered display plan. Inputs retain their saved bytes and mode.
+public enum MergeUnifiedPatch {
+    public static func validatedContext(_ text: String) -> Int? {
+        guard let value = Int(text.trimmingCharacters(in: .whitespaces)), (-1...1000).contains(value) else { return nil }
+        return value
+    }
+    public static func contextLines(from defaults: UserDefaults = .standard) -> Int {
+        guard defaults.object(forKey: "TurtleGitMerge.ContextLines") != nil else { return -1 }
+        let value = defaults.integer(forKey: "TurtleGitMerge.ContextLines")
+        return (-1...1000).contains(value) ? value : -1
+    }
+    public static func create(base: ComparisonFileContent, destination: ComparisonFileContent,
+                              baseLabel: String, destinationLabel: String, contextLines: Int = -1,
+                              executable: URL, cancellation: OperationCancellation? = nil) async throws -> Data {
+        guard (-1...1000).contains(contextLines), [baseLabel, destinationLabel].allSatisfy({ !$0.isEmpty && !$0.contains("\0") }) else { throw RevisionComparisonFailure.selection }
+        let token = cancellation ?? OperationCancellation(); try token.check()
+        let folder = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGitMergePatch-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+        defer { try? FileManager.default.removeItem(at: folder) }
+        func input(_ content: ComparisonFileContent, name: String) throws -> String {
+            if content.isDeleted { return "/dev/null" }
+            let file = folder.appendingPathComponent(name)
+            if content.mode == "120000" {
+                guard let target = String(data: content.bytes, encoding: .utf8), !target.contains("\0") else { throw RevisionComparisonFailure.selection }
+                try FileManager.default.createSymbolicLink(atPath: file.path, withDestinationPath: target)
+            } else {
+                try content.bytes.write(to: file, options: .withoutOverwriting)
+                try FileManager.default.setAttributes([.posixPermissions: content.mode == "100755" ? 0o755 : 0o644], ofItemAtPath: file.path)
+            }
+            return name
+        }
+        let left = try input(base, name: "before"), right = try input(destination, name: "after")
+        let git = GitRepository(root: folder, executable: executable)
+        var arguments = ["-c", "core.quotePath=true", "diff", "--no-index", "--no-ext-diff", "--no-textconv", "--no-color", "--src-prefix=a/", "--dst-prefix=b/"]
+        if contextLines >= 0 { arguments.append("--unified=\(contextLines)") }
+        arguments += ["--", left, right]
+        let output = try await git.run(arguments, successfulExitCodes: 0...1, cancellation: token).stdout
+        try token.check()
+        // Header paths must not expose temporary storage. Rewrite only headers;
+        // hunk bytes (including non-UTF-8 text) are never decoded or replaced.
+        let old = quotedPath("a/" + (base.isDeleted ? destinationLabel : baseLabel))
+        let new = quotedPath("b/" + (destination.isDeleted ? baseLabel : destinationLabel))
+        var result = Data(), inHeader = true
+        let lines = output.split(separator: 10, omittingEmptySubsequences: false)
+        for (index, raw) in lines.enumerated() {
+            var line = Data(raw)
+            if line.starts(with: Data("diff --git ".utf8)) { line = Data("diff --git \(old) \(new)".utf8); inHeader = true }
+            else if line.starts(with: Data("@@".utf8)) { inHeader = false }
+            else if inHeader {
+                if line == Data("--- a/before".utf8) || line == Data("--- a/after".utf8) { line = Data("--- \(old)".utf8) }
+                else if line == Data("+++ b/after".utf8) || line == Data("+++ b/before".utf8) { line = Data("+++ \(new)".utf8) }
+                else if line.starts(with: Data("Binary files ".utf8)) {
+                    line = Data("Binary files \(base.isDeleted ? "/dev/null" : old) and \(destination.isDeleted ? "/dev/null" : new) differ".utf8)
+                }
+            }
+            if index > 0 { result.append(10) }; result.append(line)
+        }
+        return result
+    }
+    /// Git C-style path quoting, including octal UTF-8 bytes.
+    private static func quotedPath(_ path: String) -> String {
+        let bytes = Array(path.utf8)
+        guard bytes.contains(where: { $0 <= 32 || $0 >= 127 || $0 == 34 || $0 == 92 }) else { return path }
+        return "\"" + bytes.map { byte -> String in
+            switch byte {
+            case 34: return "\\\""
+            case 92: return "\\\\"
+            case 9: return "\\t"
+            case 10: return "\\n"
+            case 13: return "\\r"
+            case 32...126: return String(UnicodeScalar(byte))
+            default: return String(format: "\\%03o", Int(byte))
+            }
+        }.joined() + "\""
+    }
+}

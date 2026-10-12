@@ -749,3 +749,9 @@ The two-pane Merge viewer now has a source-style Line Diff Bar: saved visibility
 Base/Mine pointer preview, forced inline/whitespace colors, original EOL markers
 and horizontal-scroll alignment. See [Line Diff Bar parity](MERGE-LINE-DIFF-PARITY.md).
 Physical whole-window layout and docking acceptance remain open.
+
+Merge General's source Misc/Diffing grouping and signed patch-context setting
+are now wired to the two-file Create patch file workflow, native File command
+and owned Save panel. Git no-index output retains saved bytes/modes and quoted
+comparison names, independently of unsaved drafts and display filters. See
+[Create patch parity](MERGE-PATCH-PARITY.md); General and Colors remain partial.

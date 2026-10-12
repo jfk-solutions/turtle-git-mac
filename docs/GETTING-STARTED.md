@@ -220,3 +220,10 @@ spaces, tabs and original ending, even with the pane display options hidden.
 The bar follows the source font, colors, word mode and horizontal scroll positions.
 Its visibility is saved; one-file and ordinary three-pane views hide it. See
 [Line Diff Bar parity](MERGE-LINE-DIFF-PARITY.md) for remaining acceptance.
+
+Choose **Create patch file** in a two-file comparison's toolbar or File menu to
+export a unified diff of the saved inputs. Unsaved pane edits are excluded, as
+in TortoiseMerge. In **Settings → Diff Viewer → Merge Editor → Diffing**, set
+**Context lines for patches** (-1 for Git's default, 0 for no context, up to 1000).
+Apply saves the setting; Cancel discards changes. See
+[Create patch parity](MERGE-PATCH-PARITY.md) for scope and remaining acceptance.

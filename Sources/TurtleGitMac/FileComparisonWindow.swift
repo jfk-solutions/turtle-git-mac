@@ -1,4 +1,5 @@
 import AppKit
+import UniformTypeIdentifiers
 import SwiftUI
 import TurtleGitCore
 
@@ -29,8 +30,26 @@ import TurtleGitCore
         return super.performKeyEquivalent(with: event)
     }
 }
-@MainActor final class FileComparisonWindowController: NSWindowController, NSWindowDelegate {
+@MainActor final class FileComparisonWindowController: NSWindowController, NSWindowDelegate, NSMenuItemValidation {
     let model: FileComparisonWindowModel
+    private weak var patchMenu: NSMenu?
+    private var patchMenuItem: NSMenuItem?
+    func windowDidBecomeKey(_ notification: Notification) {
+        removePatchMenu()
+        guard let menu = NSApplication.shared.mainMenu?.items.first(where: { $0.title == "File" })?.submenu else { return }
+        let item = NSMenuItem(title: "Create patch file", action: #selector(createPatchFile(_:)), keyEquivalent: "")
+        item.target = self; item.image = MenuIcon.patch.image(); menu.addItem(item)
+        patchMenu = menu; patchMenuItem = item
+    }
+    func windowDidResignKey(_ notification: Notification) { removePatchMenu() }
+    private func removePatchMenu() {
+        if let item = patchMenuItem, let menu = patchMenu, menu.items.contains(item) { menu.removeItem(item) }
+        patchMenuItem = nil; patchMenu = nil
+    }
+    @objc func createPatchFile(_ sender: Any?) { model.createUnifiedPatch() }
+    func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        item.action == #selector(createPatchFile(_:)) && model.canCreateUnifiedPatch
+    }
     var onClosed: () -> Void = {}
     convenience init(repository: GitRepository, access: RepositoryAccessLease?, snapshot: RevisionComparisonSnapshot, path: String) {
         self.init(model: FileComparisonWindowModel(repository: repository, access: access, snapshot: snapshot, path: path))
@@ -73,6 +92,7 @@ import TurtleGitCore
         }
     }
     func windowWillClose(_ notification: Notification) {
+        removePatchMenu()
         if let window = window as? FileComparisonNativeWindow { window.imageKeyModel?.presentation.retire(); window.imageKeyModel?.stopAllPlayback(); window.imageKeysRetired = true; window.imageKeyModel = nil; window.imageKeyOwner = nil }
         model.retireImageLoader(); model.resetHistory(); onClosed()
     }
@@ -403,6 +423,57 @@ import TurtleGitCore
             }
         } catch { self.error = error.localizedDescription }
     }
+    private var patchRequest: UUID?
+    private var patchCancellation: OperationCancellation?
+    var patchExecutable: URL?
+    var choosePatchLocation: (NSWindow, String, URL) async -> URL? = { window, name, directory in
+        let panel = NSSavePanel(); panel.title = "Create unified diff file"; panel.prompt = "Save"
+        panel.nameFieldStringValue = name; panel.directoryURL = directory; panel.canCreateDirectories = true
+        panel.allowedContentTypes = [UTType(filenameExtension: "diff") ?? .plainText, UTType(filenameExtension: "patch") ?? .plainText]
+        let response = await withCheckedContinuation { continuation in
+            panel.beginSheetModal(for: window) { continuation.resume(returning: $0) }
+        }
+        return response == .OK ? panel.url : nil
+    }
+    var canCreateUnifiedPatch: Bool { !retired && !singleFileMode && !busy && !exporting && !confirmingQuit && document != nil && window?.attachedSheet == nil }
+    func createUnifiedPatch() {
+        guard canCreateUnifiedPatch, let document, let window else { return }
+        let request = UUID(), cancellation = OperationCancellation()
+        patchRequest = request; patchCancellation = cancellation; exporting = true; busy = true
+        let context = MergeUnifiedPatch.contextLines(from: comparisonDefaults)
+        let generator = patchExecutable
+        func label(_ content: ComparisonFileContent) -> String {
+            content.path.hasPrefix("/") ? (content.path as NSString).lastPathComponent : content.path
+        }
+        Task {
+            defer {
+                if patchRequest == request { patchRequest = nil; patchCancellation = nil }
+                busy = false; exporting = false
+            }
+            do {
+                guard let target = await choosePatchLocation(window, label(document.destination) + ".diff", snapshot.root),
+                      !retired, patchRequest == request else { return }
+                let permission = RepositoryAccessLease(url: target)
+                guard !GitRuntime.isAppStoreBuild || permission.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let executable = try generator ?? GitRuntime.executable()
+                func savedContent(_ content: ComparisonFileContent) throws -> ComparisonFileContent {
+                    guard content.revision == .workingTree, !content.isDeleted else { return content }
+                    let file = content.path.hasPrefix("/") ? URL(fileURLWithPath: content.path) : snapshot.root.appendingPathComponent(content.path)
+                    return try WorkingFileComparison.workingContent(at: file)
+                }
+                let savedBase = try savedContent(document.base), savedDestination = try savedContent(document.destination)
+                let bytes = try await MergeUnifiedPatch.create(base: savedBase, destination: savedDestination,
+                    baseLabel: label(document.base), destinationLabel: label(document.destination), contextLines: context,
+                    executable: executable, cancellation: cancellation)
+                guard !cancellation.isCancelled else { return }
+                guard !retired, patchRequest == request else { return }
+                // Save-panel permission is retained until the atomic write finishes.
+                try withExtendedLifetime(permission) { try bytes.write(to: target, options: .atomic) }
+            } catch {
+                if !retired, patchRequest == request, !cancellation.isCancelled { self.error = error.localizedDescription }
+            }
+        }
+    }
     var editableBase: Bool? { drafts?.canEdit(base: activeBase) == true ? activeBase : nil }
     var editedFilePath: String { activeBase ? document?.base.path ?? path : document?.destination.path ?? path }
     var unsavedFilesDescription: String { drafts?.dirtyPaths.joined(separator: "”, “") ?? editedFilePath }
@@ -459,6 +530,7 @@ import TurtleGitCore
         snapshot = images.snapshot; path = images.destination?.path ?? images.base?.path ?? "Images"
     }
     func retireImageLoader() {
+        patchCancellation?.cancel(); patchCancellation = nil; patchRequest = nil
         formatRequest = nil; previewRow = nil
         retired = true; regexCancellation?.cancel(); regexCancellation = nil; regexList?.retire(); regexList = nil
         imageLoader?.retire(); imageLoader = nil
@@ -801,6 +873,7 @@ private struct FileComparisonDialog: View {
                 Button { model.navigate(-1) } label: { CommandLabel(title: "Previous difference", icon: .mergePreviousConflict) }.disabled(model.difference <= 0)
                 Button { model.navigate(1) } label: { CommandLabel(title: "Next difference", icon: .mergeNextConflict) }.disabled(model.alignment?.differences.isEmpty != false || model.difference >= (model.alignment?.differences.count ?? 0) - 1)
                 Button { model.find(.showFindInterface) } label: { CommandLabel(title: "Find", icon: .mergeFind) }.disabled(model.alignment == nil)
+                Button { model.createUnifiedPatch() } label: { CommandLabel(title: "Create patch file", icon: .patch) }.disabled(!model.canCreateUnifiedPatch)
                 Spacer()
             }.padding(10).disabled(model.busy || model.confirmingQuit)
             HStack {

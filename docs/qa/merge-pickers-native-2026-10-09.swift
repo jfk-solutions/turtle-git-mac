@@ -82,6 +82,11 @@ import TurtleGitCore
         guard let log=owner.commitPicker else { throw Failure(description:"Log picker missing") }; try await wait([log.window!]) { !log.model.busy && log.model.entries.count==2 }
         try require(log.model.selecting && !log.model.selectingMultiple && !log.model.canShowWorkingTree && !log.model.showWorkingTree && log.model.endRevision==prior && Set(log.model.entries.map(\.hash)) == [base,prior] && !log.model.entries.contains(where:{$0.hash==head || $0.hash==sibling}),"Log ancestry or selection mode differs")
         guard let table=find(HistoryTableView.self,log.window!.contentView!) else { throw Failure(description:"Native Log table missing") }
+        do {
+            try await wait([log.window!]) { table.numberOfRows == 2 && log.model.graph.count == 2 }
+        } catch {
+            throw Failure(description: "Log rendering did not settle: native rows=\(table.numberOfRows), model entries=\(log.model.entries.count), graph rows=\(log.model.graph.count), busy=\(log.model.busy)")
+        }
         try require(table.numberOfRows==2 && !table.allowsMultipleSelection && log.model.graph.count==2,"Log graph/table differs")
         let entry=log.model.entries.first(where:{$0.hash==base})!; log.model.select([base]); log.model.accept()
         try await wait([owner.window!]) { owner.model.pickerTarget == nil && owner.model.commitRevision==base }
