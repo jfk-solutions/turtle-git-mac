@@ -35,6 +35,25 @@ source/transitive keys and unconditional validation. Valid packages are saved
 before app tests, so later failures do not discard dependency build work. Full
 Core/native/embedding checks still run. See [runtime reuse](CI-RUNTIME-CACHES.md).
 
+## Native LFS transition checkpoints
+
+The grouped LFS/mail receiver now has a `--lfs-only` diagnosis mode using its
+same source/framework/toolchain cache. LFS sort checks wait for the native row-ID
+projection and selected rows; Commit's LFS-owner column width check waits for
+native column visibility/settings and saved width. Assertions retain their
+selection/checkbox/width requirements, with diagnostics on failure. The final
+focused receiver passed locally. The hosted line-111 failure has not been
+reproduced locally or confirmed repaired by a new hosted run. See
+[the repair record](qa/ci-lfs-transitions-2026-10-12.json).
+
+## Hosted Core checkpoint, 12 October 2026
+
+Commit `98038f7` passed the hosted full Core suite: **1,083 tests, zero failures,
+one skipped**, in 1,458.882 seconds, plus four packaged-Git SVN checks. The job
+later failed in the native LFS/mail receiver's selection assertion, so this is
+not a green full workflow. Later port batches need their own hosted checks. See
+[the authoritative checkpoint](qa/ci-core-checkpoint-2026-10-12.json).
+
 ## Latest complete local Core checkpoint
 
 On October 11, 2026, `swift test` completed **980 tests, zero failures, one

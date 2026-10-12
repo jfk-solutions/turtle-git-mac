@@ -1,0 +1,13 @@
+{
+  "date": "2026-10-12",
+  "commit": "98038f7",
+  "run": 38205276426,
+  "job": 114668081280,
+  "core": {"tests": 1083, "skipped": 1, "failures": 0, "seconds": 1458.882},
+  "packagedGitSVN": {"tests": 4, "failures": 0, "seconds": 6.266},
+  "workflowConclusion": "failure",
+  "laterFailure": "Grouped native LFS/mail receiver: LFSReceiver.swift checkbox/selection assertion at line 111",
+  "source": "Decoded authoritative GitHub workflow job log",
+  "latestTreeFullSuiteCertified": false,
+  "completePortCertified": false
+}

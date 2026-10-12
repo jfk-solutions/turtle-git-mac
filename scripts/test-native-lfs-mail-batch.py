@@ -13,6 +13,7 @@ import platform
 import subprocess
 import tempfile
 import time
+import sys
 
 root = Path(__file__).resolve().parent.parent
 products = root / 'build/Build/Products/Debug'
@@ -54,6 +55,7 @@ import TurtleGitCore
 @main struct NativeBatch {
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
+        if CommandLine.arguments.contains("--lfs-only") { try await LFSLocksVerification.main(); return }
         try await MergeRegexNativeVerification.verify(parser: URL(fileURLWithPath: CommandLine.arguments[5]))
         try await ThreePaneEngineVerification.verify(configuration: SubversionMergeConfiguration.bundled())
         try await TwoPaneEngineVerification.verify()
@@ -93,6 +95,9 @@ import TurtleGitCore
     environment = os.environ.copy()
     environment.update(DYLD_FRAMEWORK_PATH=str(products), GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM='1')
     for variable in ['GIT_AUTHOR_NAME', 'GIT_AUTHOR_EMAIL', 'GIT_COMMITTER_NAME', 'GIT_COMMITTER_EMAIL']: environment.pop(variable, None)
+    if '--lfs-only' in sys.argv:
+        subprocess.run([str(executable), str(mail_fixture), '0', str(lfs_fixture), '/usr/bin/git', str(products / 'TurtleGitMac.app/Contents/Helpers/IssueRegex/issue-regex'), '--lfs-only'], cwd=root, env=environment, check=True, timeout=120)
+        raise SystemExit(0)
     receiver = subprocess.Popen([str(executable), str(mail_fixture), '0', str(lfs_fixture), '/usr/bin/git', str(products / 'TurtleGitMac.app/Contents/Helpers/IssueRegex/issue-regex')], cwd=root, env=environment)
     server = None
     try:

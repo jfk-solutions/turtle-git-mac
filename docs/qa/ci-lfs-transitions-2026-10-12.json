@@ -1,0 +1,39 @@
+{
+  "date": "2026-10-12",
+  "scope": "Native LFS CI transition synchronization and diagnosis",
+  "failedHostedRun": 38205276426,
+  "failedHostedCommit": "98038f7",
+  "failedHostedJob": 114668081280,
+  "hostedFailure": "LFS checkbox/selection assertion, original line 111",
+  "applicationCoreSourcesChanged": false,
+  "changes": [
+    "wait for model/native row IDs and native selection after sorting",
+    "wait for native LFS-owner column settings before width capture",
+    "wait for saved width before recreation assertion",
+    "diagnostics retain original selected-ID/checkbox/width assertions",
+    "lfs-only mode reuses the grouped receiver without SMTP or other workflow runs"
+  ],
+  "validation": {
+    "finalExitCode": 0,
+    "log": "build/qa/ci-lfs-transition-final-2026-10-12.log",
+    "scope": "Complete focused LFS receiver, including Commit/Working Tree/Resolve/Browse and Finder LFS progress routes",
+    "git": "/usr/bin/git",
+    "networkEndpoints": "Injected LFS responses; no remote endpoint",
+    "initialHostedFailureLocallyReproduced": false,
+    "localIntermittentFailure": "LFS-owner width recreation assertion; passed after native settings checkpoints",
+    "applicationBuilds": 0,
+    "fullCoreSuiteRepeated": false,
+    "ownedWindowsClosed": true,
+    "ownedHelpersExited": true
+  },
+  "hostedRepairVerified": false,
+  "fullApplicationParityCertified": false,
+  "remainingAcceptance": [
+    "new hosted grouped native run",
+    "earlier shared receiver state interactions on Intel macOS",
+    "physical LFS selection/layout/progress",
+    "real remote LFS endpoint",
+    "signed Finder/sandbox/App Store",
+    "complete application parity"
+  ]
+}

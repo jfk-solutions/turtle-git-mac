@@ -53,7 +53,7 @@ import TurtleGitCore
                 let old = table.sortDescriptors, prototype = table.tableColumns[index + 1].sortDescriptorPrototype!
                 table.sortDescriptors = [prototype.ascending == ascending ? prototype : prototype.reversedSortDescriptor as! NSSortDescriptor]
                 table.dataSource!.tableView?(table, sortDescriptorsDidChange: old)
-                try await settle { model.sortOrder.first?.column == column && model.sortOrder.first?.order == (ascending ? .forward : .reverse) }
+                try await settle { model.sortOrder.first?.column == column && model.sortOrder.first?.order == (ascending ? .forward : .reverse) && locksProbe().itemIDs == model.rows.map(\.id) && model.selection == ["2"] }
                 precondition(model.checked == ["1","2"] && model.selection == ["2"])
                 if column == .fileSize { precondition(model.rows.first!.id == (ascending ? "1" : "2")) }
             }
@@ -108,7 +108,17 @@ import TurtleGitCore
         precondition(model.clipboardText(["1"], copy: .column(.path)) == "file2.bin\n")
         model.setColumn(.fileExtension, visible: true); model.setColumn(.lfsOwner, visible: true)
         model.setSortOrder([LFSFileSort(column: .path),LFSFileSort(column: .fileSize)]); precondition(model.sortOrder.count == 1)
-        model.toggleChecks(["1","2"], mark: "1"); precondition(model.checked.isEmpty && model.selection == ["2"])
+        // SwiftUI publishes model order before the native table applies it.
+        // Finish the column/sort transition before checking an unrelated toggle.
+        try await settle {
+            locksProbe().itemIDs == model.rows.map(\.id) && model.selection == ["2"] &&
+            table.selectedRowIndexes == IndexSet(model.rows.enumerated().compactMap { model.selection.contains($0.element.id) ? $0.offset : nil })
+        }
+        model.toggleChecks(["1","2"], mark: "1")
+        if !model.checked.isEmpty || model.selection != ["2"] {
+            print("LFS toggle diagnostic: checked=\(model.checked), selection=\(model.selection), busy=\(model.busy), progress=\(model.showingProgress), quit=\(model.confirmingQuit), native=\(table.selectedRowIndexes), rows=\(model.rows.map(\.id))"); fflush(stdout)
+        }
+        precondition(model.checked.isEmpty && model.selection == ["2"])
         model.toggleChecks(["1","2"], mark: "1"); precondition(model.checked == ["1","2"])
 
         func allCheckbox() -> NSButton {
@@ -499,9 +509,17 @@ import TurtleGitCore
         precondition(!ownerColumn.isHidden)
         let text = StatusListClipboard.text([lockedEntry], root: root, statistics: [:], copy: .column(.lfsOwner), lfsOwners: commit.model.lfsOwners)
         precondition(text == "Alice\n")
+        try await settle {
+            ownerProbe().enabled && ownerProbe().visibleColumns.contains(.lfsOwner) &&
+            ownerProbe().savedWidths == commit.model.fileColumns.widths
+        }
         ownerColumn.width = 217
         ownerProbe().rememberNativeColumnLayout(adjustedColumn: .lfsOwner)
+        try await settle { commit.model.fileColumns.widths[.lfsOwner] == 217 }
         let restored = CommitWindowModel(repository: repository, access: nil, unversionedDefaults: defaults, dialogDefaults: defaults)
+        if !restored.fileColumns.visible.contains(.lfsOwner) || restored.fileColumns.widths[.lfsOwner] != 217 {
+            print("LFS owner-width diagnostic: live=\(ownerColumn.width), max=\(ownerColumn.maxWidth), enabled=\(ownerProbe().enabled), busy=\(commit.model.busy), saved=\(commit.model.fileColumns.widths), restored=\(restored.fileColumns.widths), visible=\(restored.fileColumns.visible), nativeCount=\(ownerTable.numberOfRows)"); fflush(stdout)
+        }
         precondition(restored.fileColumns.visible.contains(.lfsOwner) && restored.fileColumns.widths[.lfsOwner] == 217)
         // Error and cancellation use an unhosted model to avoid showing the
         // production error alert during headless acceptance.
