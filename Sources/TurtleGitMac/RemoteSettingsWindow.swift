@@ -77,8 +77,13 @@ import TurtleGitCore
             defer { Self.activeOperations -= 1 }
             defer {
                 let completion = settingsCompletion; settingsCompletion = nil
-                defer { completion?(error == nil && changed.isEmpty && !closed) }
                 if token === request { token = nil; busy = false; updated(); if pendingClose, !closed { pendingClose = false; close() }; if let remote = pendingFetch, !closed { pendingFetch = nil; onFetch(remote) } }
+                // Read actor state in this scope. Older Swift compilers lose
+                // its isolation in the nested defer's Boolean autoclosures.
+                let succeeded = self.error == nil
+                let unchanged = self.changed.isEmpty
+                let open = !self.closed
+                completion?(succeeded && unchanged && open)
             }
             do { try checkAccess(); try await body(request) }
             catch { if live(request) { self.error = error.localizedDescription; updated() } }

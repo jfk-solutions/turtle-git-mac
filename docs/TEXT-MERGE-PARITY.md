@@ -6,6 +6,13 @@ block-choice handlers, BottomView.cpp, and the official
 [three-pane conflict guide](https://tortoisegit.org/docs/tortoisegitmerge/tmerge-dug-conflicts.html).
 This is a partial port of the editor, not full TortoiseGitMerge parity.
 
+Current engine integration (12 October 2026): native three-pane preparation now
+uses pinned Subversion diff3 ranges and original-text result generation, including
+regex filters and dirty reload/Undo/cancellation ownership. The earlier Git/Swift
+engine evidence below is historical; this update does not certify resolved child
+regions, the complete ribbon or physical/signed behavior. See
+[Subversion merge engine](SUBVERSION-MERGE-ENGINE.md).
+
 ## Native editor and dispatch
 
 Edit conflict and conflicted-file double-clicks in Commit, Working Tree and
@@ -33,7 +40,7 @@ implemented. Save As exports the current UTF-8 result through NSSavePanel.
 Normal merges display stage 2 as Mine and stage 3 as Theirs. Rebase reverses these
 roles, naming the branch being replayed and the branch being rebased onto.
 The index's original stage numbers remain unchanged. Add/add conflicts use an
-empty base. Opening regenerates a diff3 result from captured index blobs, as
+empty base. Opening regenerates a Subversion-backed result from captured index blobs, as
 upstream regenerates from its side files. Existing working contents are captured
 for save validation; they are not replaced on open. Reopening does not resume
 manual edits made in a previous editor session.
@@ -87,9 +94,10 @@ and corrected by recomputing selection against the current buffer.
 
 ## Remaining upstream behavior
 
-The source alignment is a Swift exact-byte line comparison, not the upstream
-libsvn diff3 engine. Exact segmentation of complex/repeated/adjacent changes still
-requires comparison against that engine. Synchronized vertical source scrolling
+Three-pane alignment now uses the pinned Subversion engine. Resolved child
+regions and complete upstream options remain pending, so exact segmentation of
+complex/repeated/adjacent changes still needs broader source comparison. Two-pane
+alignment remains a Swift exact-byte line comparison. Synchronized vertical source scrolling
 is implemented, but native attempts encountered inaccessible scroll targets and
 no-window observations; it remains unverified. Character-level differences, syntax coloring, whitespace
 and EOL/encoding controls, folding, locator bar, source editing, complete ribbon

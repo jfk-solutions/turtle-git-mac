@@ -29,13 +29,24 @@ public enum SubversionMergeDiffFailure: LocalizedError {
     }
 }
 public enum SubversionMergeDiff {
+    private final class FrameworkAnchor: NSObject {}
+    /// The app resolves its own sealed bundle. Standalone native receivers may
+    /// load Core from Xcode's product directory and use its companion app.
+    public static func applicationBundle() -> Bundle {
+        if Bundle.main.bundleURL.pathExtension == "app" { return .main }
+        let framework = Bundle(for: FrameworkAnchor.self)
+        let companion = framework.bundleURL.deletingLastPathComponent().appendingPathComponent("TurtleGitMac.app")
+        return Bundle(url: companion) ?? .main
+    }
     public static func executable(bundle: Bundle = .main) throws -> URL {
-        let path = bundle.bundleURL.appendingPathComponent("Contents/Helpers/MergeDiff/merge-diff")
+        let resolved = bundle === Bundle.main ? applicationBundle() : bundle
+        let path = resolved.bundleURL.appendingPathComponent("Contents/Helpers/MergeDiff/merge-diff")
         guard FileManager.default.isExecutableFile(atPath: path.path) else { throw SubversionMergeDiffFailure.runtimeMissing }
         return path
     }
     public static func runtimeRoot(bundle: Bundle = .main) throws -> URL {
-        let path = bundle.bundleURL.appendingPathComponent("Contents/Helpers/Git")
+        let resolved = bundle === Bundle.main ? applicationBundle() : bundle
+        let path = resolved.bundleURL.appendingPathComponent("Contents/Helpers/Git")
         guard FileManager.default.fileExists(atPath: path.appendingPathComponent("libexec/git-svn-runtime").path) else { throw SubversionMergeDiffFailure.runtimeMissing }
         return path
     }
@@ -99,6 +110,11 @@ public enum SubversionMergeDiff {
             }
             guard ranges.contains(where: { !$0.isEmpty }), sources.count == 3 || [.common, .modified].contains(kind) else { throw SubversionMergeDiffFailure.invalidOutput }
             if kind == .common { guard ranges[0].count == ranges[1].count && (sources.count == 2 || ranges[1].count == ranges[2].count) else { throw SubversionMergeDiffFailure.invalidOutput } }
+            if sources.count == 3 {
+                guard kind != .modified || ranges[0].count == ranges[2].count,
+                      kind != .latest || ranges[0].count == ranges[1].count,
+                      kind != .same || ranges[1].count == ranges[2].count else { throw SubversionMergeDiffFailure.invalidOutput }
+            }
             segments.append(.init(kind: kind, base: ranges[0], mine: ranges[1], theirs: ranges[2]))
         }
         guard ends == counts else { throw SubversionMergeDiffFailure.invalidOutput }

@@ -22,6 +22,7 @@ public struct MergeSourceRow: Sendable {
 /// part of the editable result, and filtering numbered cells recovers each source.
 public struct MergeSourceComparison: Sendable {
     public let rows: [MergeSourceRow]
+    public init(rows: [MergeSourceRow]) { self.rows = rows }
     public init(base: String, mine: String, theirs: String) {
         let baseLines = Self.lines(base), mineLines = Self.lines(mine), theirLines = Self.lines(theirs)
         let mineHunks = Self.hunks(base: baseLines, side: mineLines, mine: true)

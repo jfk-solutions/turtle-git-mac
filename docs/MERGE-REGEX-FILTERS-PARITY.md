@@ -35,7 +35,11 @@ and rejects late replies. Quit waits for helper cleanup. Definition changes
 refresh open comparisons. Source-based annotations are remapped when alignment
 changes. Original Add/Delete artwork is reused in context entries.
 
-Remaining: three-pane diff3 filtering, complete upstream libsvn segmentation,
+Three-pane filtering now uses the Subversion adapter and original-text result
+generation, with dirty Save/discard/Cancel and native Undo/Close checks. See
+[the engine integration](SUBVERSION-MERGE-ENGINE.md).
+
+Remaining: resolved child regions, complete upstream libsvn segmentation,
 INI import/export and preset distribution, all MSVC/libc++ regex/locale edge
 cases, replacements yielding unpaired UTF-16 (currently rejected), physical
 keyboard/menu/layout comparison, very large files, signed helper/sandbox

@@ -71,12 +71,12 @@ extension GitRepository {
         if let entries = try? await owner.conflicts(paths: [path]), entries.contains(where: { $0.path == path && $0.isSubmodule }) { return containing }
         return resolved
     }
-    public func conflicts(paths: [String] = []) throws -> [ConflictEntry] {
-        guard try !isBare() else { throw ResolveFailure.selection }
+    public func conflicts(paths: [String] = [], cancellation: OperationCancellation? = nil) throws -> [ConflictEntry] {
+        guard try !isBare(cancellation: cancellation) else { throw ResolveFailure.selection }
         let scope = paths.filter { $0 != "." }
         if !scope.isEmpty { do { _ = try RemovalRequest(paths: scope, keepLocal: true) } catch { throw ResolveFailure.outsideWorkingTree } }
         var entries: [String: [ConflictStage]] = [:]
-        for record in try run(["ls-files", "--unmerged", "-z"]).stdout.split(separator: 0) {
+        for record in try run(["ls-files", "--unmerged", "-z"], cancellation: cancellation).stdout.split(separator: 0) {
             let fields = record.split(separator: 9, maxSplits: 1)
             guard fields.count == 2 else { throw ResolveFailure.indexFormat }
             let header = String(decoding: fields[0], as: UTF8.self).split(separator: " ")
@@ -158,9 +158,9 @@ extension GitRepository {
         }
         return output.filter { !$0.isEmpty }.joined(separator: "\n")
     }
-    func validateConflicts(_ checked: [ConflictEntry], using choice: ResolveChoice) throws {
+    func validateConflicts(_ checked: [ConflictEntry], using choice: ResolveChoice, cancellation: OperationCancellation? = nil) throws {
         guard !checked.isEmpty, Set(checked.map(\.path)).count == checked.count else { throw ResolveFailure.selection }
-        let current = Dictionary(try conflicts().map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
+        let current = Dictionary(try conflicts(cancellation: cancellation).map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
         for entry in checked {
             do { _ = try RemovalRequest(paths: [entry.path], keepLocal: true) } catch { throw ResolveFailure.outsideWorkingTree }
             guard current[entry.path] == entry else { throw ResolveFailure.stale }

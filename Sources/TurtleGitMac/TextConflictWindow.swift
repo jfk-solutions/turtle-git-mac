@@ -174,6 +174,7 @@ private enum MergeSourceSide {
         DialogGeometry.attach(window, identifier: "TurtleGit.TextConflict", legacyName: "TurtleGit.TextConflict")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if model.preparing { return true }
         guard !model.busy, !model.confirmingQuit else { return false }
         guard model.dirty else { return true }
         let alert = NSAlert(); alert.messageText = "Save changes to “\(model.path)”?"
@@ -184,7 +185,7 @@ private enum MergeSourceSide {
         default: return false
         }
     }
-    func windowWillClose(_ notification: Notification) { onClosed() }
+    func windowWillClose(_ notification: Notification) { model.retire(); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class TextConflictWindowModel: ObservableObject {
@@ -193,12 +194,45 @@ private enum MergeSourceSide {
     private let access: RepositoryAccessLease?
     @Published var document: TextConflictDocument?
     @Published var sourceComparison: MergeSourceComparison?
+    @Published private(set) var regexFilters = MergeRegexFilters.load()
+    @Published private(set) var regexFilterName: String?
+    var regexDefaults: UserDefaults = .standard
+    var engineConfiguration: SubversionMergeConfiguration?
+    enum ReloadDecision { case save, discard, cancel }
+    var chooseReload: (() -> ReloadDecision)?
+    private var loadGeneration = 0, retired = false
+    private var loadCancellation: OperationCancellation?
+    private var regexList: MergeRegexFilterListController?
+    func manageRegexFilters() {
+        guard !busy, !confirmingQuit, !retired else { return }
+        if let regexList { regexList.showWindow(nil); regexList.window?.makeKeyAndOrderFront(nil); return }
+        let controller = MergeRegexFilterListController(defaults: regexDefaults)
+        controller.executable = engineConfiguration?.regexExecutable
+        controller.onClosed = { [weak self] in self?.regexList = nil; self?.refreshRegexFilters() }
+        regexList = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
+    func refreshRegexFilters() {
+        guard !retired else { return }
+        // Persist definitions without replacing manual edits. The active filter
+        // is re-evaluated on the next explicit selection or Reload.
+        regexFilters = MergeRegexFilters.load(defaults: regexDefaults)
+    }
+    func selectRegexFilter(_ name: String?) {
+        guard !busy, !confirmingQuit, !retired, name == nil || regexFilters.contains(where: { $0.name == name }) else { return }
+        load(filterName: name)
+    }
+    func retire() {
+        retired = true; loadGeneration += 1; loadCancellation?.cancel(); loadCancellation = nil
+        regexList?.retire(); regexList = nil
+        editorConfigRequests = [:]
+    }
     @Published var result = ""
     @Published var encoding: ComparisonTextEncoding = .utf8
     @Published var selectedConflict = 0
     @Published var caret = NSRange(location: 0, length: 0)
     @Published var selectionRequest: NSRange?
     @Published var busy = false
+    @Published private(set) var preparing = false
     @Published var confirmingQuit = false
     @Published var error: String?
     @Published var showBase = false
@@ -294,31 +328,49 @@ private enum MergeSourceSide {
             } else { self.editorPreferences = next }
         }
     }
-    func load() {
-        guard !busy else { return }
+    func load() { load(filterName: regexFilterName) }
+    private func load(filterName: String?) {
+        guard !busy, !confirmingQuit, !retired else { return }
         if dirty {
-            let alert = NSAlert(); alert.messageText = "Save changes to “\(path)” before reloading?"
-            alert.informativeText = "Reload regenerates the merged result from the current conflict stages."
-            alert.addButton(withTitle: "Save and Reload"); alert.addButton(withTitle: "Reload Without Saving"); alert.addButton(withTitle: "Cancel")
-            switch alert.runModal() {
-            case .alertFirstButtonReturn: save(markResolved: false, reloadAfter: true); return
-            case .alertSecondButtonReturn: break
-            default: return
+            let decision: ReloadDecision
+            if let chooseReload { decision = chooseReload() }
+            else {
+                let alert = NSAlert(); alert.messageText = "Save changes to “\(path)” before reloading?"
+                alert.informativeText = "Reload regenerates the merged result from the current conflict stages."
+                alert.addButton(withTitle: "Save and Reload"); alert.addButton(withTitle: "Reload Without Saving"); alert.addButton(withTitle: "Cancel")
+                switch alert.runModal() {
+                case .alertFirstButtonReturn: decision = .save
+                case .alertSecondButtonReturn: decision = .discard
+                default: decision = .cancel
+                }
+            }
+            switch decision {
+            case .save: save(markResolved: false) { [weak self] saved in if saved { self?.load(filterName: filterName) } }; return
+            case .discard: break
+            case .cancel: return
             }
         }
-        busy = true
+        busy = true; preparing = true
+        loadGeneration += 1; let generation = loadGeneration, token = OperationCancellation()
+        loadCancellation = token; MergeRegexOperations.activeRequests += 1
         Task {
-            defer { busy = false }
+            defer { busy = false; preparing = false; loadCancellation = nil; MergeRegexOperations.activeRequests -= 1 }
             do {
-                try await reloadDocument()
-            } catch { self.error = error.localizedDescription }
+                try await reloadDocument(filterName: filterName, cancellation: token, generation: generation)
+            } catch { if !retired, loadGeneration == generation { self.error = error.localizedDescription } }
         }
     }
-    private func reloadDocument() async throws {
-        let next = try await repository.textConflictDocument(path: path)
-        let comparison = await Task.detached { MergeSourceComparison(base: next.base, mine: next.mine, theirs: next.theirs) }.value
+    private func reloadDocument(filterName: String?, cancellation: OperationCancellation? = nil, generation: Int? = nil) async throws {
+        let requested = filterName
+        let filter = regexFilters.first { $0.name == requested }
+        var engine = try engineConfiguration ?? SubversionMergeConfiguration.bundled(filter: filter)
+        engine.filter = filter
+        let next = try await repository.textConflictDocument(path: path, engine: engine, cancellation: cancellation)
+        guard !retired, generation == nil || generation == loadGeneration else { return }
+        guard let comparison = next.mergeSources else { throw SubversionMergeDiffFailure.invalidOutput }
         resetHistory()
         document = next; sourceComparison = comparison; result = next.initialResult; encoding = next.encoding
+        regexFilterName = filter?.name
         selectedConflict = 0; caret = NSRange(location: 0, length: 0); selectionRequest = nil
         selectConflict(0)
         reloadEditorConfig()
@@ -352,15 +404,16 @@ private enum MergeSourceSide {
             guard alert.runModal() == .alertSecondButtonReturn else { completion?(false); return }
         }
         let text = result, outputEncoding = encoding; busy = true
+        loadCancellation = OperationCancellation(); MergeRegexOperations.activeRequests += 1
         Task {
             var saved = false
-            defer { busy = false; completion?(saved) }
+            defer { busy = false; loadCancellation = nil; MergeRegexOperations.activeRequests -= 1; completion?(saved) }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 self.document = try await repository.saveTextConflict(document, result: text, markResolved: markResolved, encoding: outputEncoding)
                 onChanged(markResolved ? "Resolved: " + path : "Saved merged result: " + path)
                 if markResolved || closeAfter { close() }
-                else if reloadAfter { try await reloadDocument() }
+                else if reloadAfter { try await reloadDocument(filterName: regexFilterName, cancellation: loadCancellation) }
                 saved = true
             } catch let failure as TextConflictSaveFailure {
                 self.document = failure.savedDocument; self.error = failure.localizedDescription; onChanged(failure.localizedDescription)
@@ -436,9 +489,24 @@ private struct TextConflictDialog: View {
                 Button { model.selectConflict(model.selectedConflict + 1) } label: { CommandLabel(title: "Next conflict", icon: .mergeNextConflict) }.disabled(model.blocks.isEmpty || model.selectedConflict >= model.blocks.count - 1)
                 Toggle("Show Base", isOn: $model.showBase).toggleStyle(.button)
                 Button { model.load() } label: { CommandLabel(title: "Reload", icon: .mergeReload) }.help("Reload the current conflict stages; offer to save an edited result first.")
+
                 Spacer()
                 Button { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegitmerge/tmerge-dug-conflicts.html")!) } label: { CommandLabel(title: "Help", icon: .help) }
             }.padding(9)
+            HStack {
+                Menu("Regex Filter: " + (model.regexFilterName ?? "No Filter")) {
+                    Button { model.selectRegexFilter(nil) } label: {
+                        if model.regexFilterName == nil { Label("No Filter", systemImage: "checkmark") } else { Text("No Filter") }
+                    }
+                    ForEach(model.regexFilters) { filter in
+                        Button { model.selectRegexFilter(filter.name) } label: {
+                            if model.regexFilterName == filter.name { Label(filter.name, systemImage: "checkmark") } else { Text(filter.name) }
+                        }
+                    }
+                    Divider(); Button("Edit Filters…") { model.manageRegexFilters() }
+                }.fixedSize()
+                Spacer()
+            }.padding(.horizontal, 10).padding(.bottom, 6)
             if let document = model.document {
                 VSplitView {
                     HSplitView {
@@ -461,6 +529,7 @@ private struct TextConflictDialog: View {
             } else { ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity) }
         }.disabled(model.busy || model.confirmingQuit).onAppear { model.load() }
         .alert("Merge editor operation failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
+        .onReceive(NotificationCenter.default.publisher(for: .mergeRegexFiltersChanged)) { _ in model.refreshRegexFilters() }
     }
 }
 private struct MergeEditor: NSViewRepresentable {

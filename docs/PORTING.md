@@ -646,3 +646,16 @@ actual embedded arm64/x86_64 loading passed after implementation. Current editor
 alignment and Git-generated result text are not switched yet; that integration
 and resolved conflict children remain necessary work for source parity. See
 SUBVERSION-MERGE-ENGINE.md.
+
+## Three-pane engine and regex integration — 2026-10-12
+
+Native conflict preparation now consumes Subversion ranges for source rows and
+result generation, preserving original Mine/Theirs text, removed Base rows,
+one-side gaps and filtered green rows. Window-local regex choices regenerate
+only through the dirty Save/discard/Cancel workflow. Native Undo, successful
+reload history reset, Save-before-Reload, explicit resolution and preparation
+Close cancellation passed after a complete implementation batch. Core snapshots
+retain engine source rows across saves; staged/working/HEAD checks pass. The older
+Swift compiler's Remote Settings nested-defer actor error from CI was repaired.
+Resolved children, two-pane conversion and physical/signed acceptance remain
+open. Offscreen capture omitted SwiftUI toolbar text; those images were rejected.

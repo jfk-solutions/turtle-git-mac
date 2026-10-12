@@ -108,6 +108,7 @@ public struct TextConflictDocument: Sendable {
     public let baseEncoding: ComparisonTextEncoding?
     public let mineEncoding: ComparisonTextEncoding?
     public let theirsEncoding: ComparisonTextEncoding?
+    public fileprivate(set) var mergeSources: MergeSourceComparison? = nil
 }
 public struct TextConflictSaveFailure: LocalizedError, Sendable {
     public let savedDocument: TextConflictDocument
@@ -128,11 +129,12 @@ public enum TextConflictFailure: LocalizedError {
     }
 }
 extension GitRepository {
-    public func textConflictDocument(path: String) throws -> TextConflictDocument {
-        guard let entry = try conflicts(paths: [path]).first(where: { $0.path == path }) else { throw ResolveFailure.stale }
+    public func textConflictDocument(path: String, engine: SubversionMergeConfiguration? = nil, cancellation: OperationCancellation? = nil) throws -> TextConflictDocument {
+        try cancellation?.check()
+        guard let entry = try conflicts(paths: [path], cancellation: cancellation).first(where: { $0.path == path }) else { throw ResolveFailure.stale }
         guard !entry.isSubmodule, [2, 3].allSatisfy({ stage in entry.stages.contains { $0.number == stage && ["100644", "100755"].contains($0.mode) } }),
               entry.stages.allSatisfy({ ["100644", "100755"].contains($0.mode) }) else { throw TextConflictFailure.unsupported }
-        try validateConflicts([entry], using: .current)
+        try validateConflicts([entry], using: .current, cancellation: cancellation)
         func text(_ data: Data) throws -> String {
             guard let encoding = ComparisonTextEncoding.detect(data), let text = encoding.decode(data) else { throw TextConflictFailure.encoding }
             return text
@@ -140,24 +142,32 @@ extension GitRepository {
         var sourceEncodings: [Int: ComparisonTextEncoding] = [:]
         func content(_ stage: Int) throws -> String {
             guard let object = entry.stages.first(where: { $0.number == stage })?.object else { return "" }
-            let data = try run(["cat-file", "blob", object]).stdout
+            let data = try run(["cat-file", "blob", object], cancellation: cancellation).stdout
             sourceEncodings[stage] = ComparisonTextEncoding.detect(data)
             return try text(data)
         }
-        let rebase = try conflictIsRebase(), mineStage = rebase ? 3 : 2, theirsStage = rebase ? 2 : 3
+        let rebase = try conflictIsRebase(cancellation: cancellation), mineStage = rebase ? 3 : 2, theirsStage = rebase ? 2 : 3
         let base = try content(1), mine = try content(mineStage), theirs = try content(theirsStage)
         let location = root.appendingPathComponent(path)
         let (working, workingPermissions) = try conflictWorkingSnapshot(location)
         if let working { _ = try text(working) }
         let permissions = workingPermissions ?? (entry.stages.first { $0.number == mineStage }?.mode == "100755" ? 0o755 : 0o644)
-        let temporary = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGitMerge-" + UUID().uuidString)
-        try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: temporary) }
-        for (name, value) in [("mine", mine), ("base", base), ("theirs", theirs)] { try Data(value.utf8).write(to: temporary.appendingPathComponent(name)) }
-        let merged = try run(["merge-file", "-p", "--diff3", "--marker-size=7", "-L", "Mine", "-L", "Base", "-L", "Theirs", "--", temporary.appendingPathComponent("mine").path, temporary.appendingPathComponent("base").path, temporary.appendingPathComponent("theirs").path], successfulExitCodes: 0...127)
-        let result = try text(merged.stdout)
+        let result: String
+        var sources: MergeSourceComparison?
+        if let engine {
+            let presentation = try SubversionMergePresentation(plan: engine.plan(base: base, mine: mine, theirs: theirs, cancellation: cancellation))
+            result = presentation.result; sources = presentation.sources
+        } else {
+            let temporary = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGitMerge-" + UUID().uuidString)
+            try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: true)
+            defer { try? FileManager.default.removeItem(at: temporary) }
+            for (name, value) in [("mine", mine), ("base", base), ("theirs", theirs)] { try Data(value.utf8).write(to: temporary.appendingPathComponent(name)) }
+            let merged = try run(["merge-file", "-p", "--diff3", "--marker-size=7", "-L", "Mine", "-L", "Base", "-L", "Theirs", "--", temporary.appendingPathComponent("mine").path, temporary.appendingPathComponent("base").path, temporary.appendingPathComponent("theirs").path], successfulExitCodes: 0...127, cancellation: cancellation)
+            result = try text(merged.stdout)
+        }
         let encoding = working.flatMap(ComparisonTextEncoding.detect) ?? sourceEncodings[mineStage] ?? .utf8
-        return TextConflictDocument(entry: entry, base: base, mine: mine, theirs: theirs, mineStage: mineStage, theirsStage: theirsStage, initialResult: result, generatedResult: result, workingContents: working, permissions: permissions, encoding: encoding, baseEncoding: sourceEncodings[1], mineEncoding: sourceEncodings[mineStage], theirsEncoding: sourceEncodings[theirsStage])
+        var document = TextConflictDocument(entry: entry, base: base, mine: mine, theirs: theirs, mineStage: mineStage, theirsStage: theirsStage, initialResult: result, generatedResult: result, workingContents: working, permissions: permissions, encoding: encoding, baseEncoding: sourceEncodings[1], mineEncoding: sourceEncodings[mineStage], theirsEncoding: sourceEncodings[theirsStage])
+        document.mergeSources = sources; return document
     }
     public func saveTextConflict(_ document: TextConflictDocument, result: String, markResolved: Bool, encoding: ComparisonTextEncoding? = nil) throws -> TextConflictDocument {
         try validateConflicts([document.entry], using: .current)
@@ -173,7 +183,8 @@ extension GitRepository {
         let contents = try selectedEncoding.encode(result)
         try contents.write(to: location, options: .atomic)
         try FileManager.default.setAttributes([.posixPermissions: document.permissions], ofItemAtPath: location.path)
-        let saved = TextConflictDocument(entry: document.entry, base: document.base, mine: document.mine, theirs: document.theirs, mineStage: document.mineStage, theirsStage: document.theirsStage, initialResult: result, generatedResult: document.generatedResult, workingContents: contents, permissions: document.permissions, encoding: selectedEncoding, baseEncoding: document.baseEncoding, mineEncoding: document.mineEncoding, theirsEncoding: document.theirsEncoding)
+        var saved = TextConflictDocument(entry: document.entry, base: document.base, mine: document.mine, theirs: document.theirs, mineStage: document.mineStage, theirsStage: document.theirsStage, initialResult: result, generatedResult: document.generatedResult, workingContents: contents, permissions: document.permissions, encoding: selectedEncoding, baseEncoding: document.baseEncoding, mineEncoding: document.mineEncoding, theirsEncoding: document.theirsEncoding)
+        saved.mergeSources = document.mergeSources
         if markResolved {
             do { _ = try run(["add", "-f", "--", document.entry.path]) }
             catch { throw TextConflictSaveFailure(savedDocument: saved, gitError: error.localizedDescription) }

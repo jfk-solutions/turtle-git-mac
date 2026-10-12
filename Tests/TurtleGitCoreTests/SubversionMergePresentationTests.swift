@@ -1,0 +1,83 @@
+import XCTest
+@testable import TurtleGitCore
+
+final class SubversionMergePresentationTests: XCTestCase {
+    private var root: URL { URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent() }
+    private func configuration(_ filter: MergeRegexFilter? = nil) -> SubversionMergeConfiguration {
+        .init(executable: root.appendingPathComponent("build/merge-diff-runtime/MergeDiff/merge-diff"), runtimeRoot: root.appendingPathComponent("build/git-runtime/Git"),
+              regexExecutable: root.appendingPathComponent("build/issue-regex-runtime/IssueRegex/issue-regex"), filter: filter)
+    }
+    private func presentation(_ base: String, _ mine: String, _ theirs: String, filter: MergeRegexFilter? = nil) throws -> SubversionMergePresentation {
+        try .init(plan: configuration(filter).plan(base: base, mine: mine, theirs: theirs))
+    }
+    func testIndependentChangesAndOriginalSourceReconstruction() throws {
+        let base = "head\nfirst\nmiddle\nsecond\nlast", mine = "head\nMINE\nmiddle\nsecond\nlast", theirs = "head\nfirst\nmiddle\nTHEIRS\nlast"
+        let value = try presentation(base, mine, theirs)
+        XCTAssertEqual(value.result, "head\nMINE\nmiddle\nTHEIRS\nlast")
+        XCTAssertEqual(value.sources.rows.compactMap { $0.mine.lineNumber == nil ? nil : $0.mine.text }.joined(), mine)
+        XCTAssertEqual(value.sources.rows.compactMap { $0.theirs.lineNumber == nil ? nil : $0.theirs.text }.joined(), theirs)
+        XCTAssertTrue(value.sources.rows.contains { $0.mine.state == .removed && $0.theirs.state == .normal })
+        XCTAssertTrue(value.sources.rows.contains { $0.mine.state == .normal && $0.theirs.state == .removed })
+    }
+    func testIdenticalChangesAddAddAndUnequalConflictsPreserveSources() throws {
+        let identical = try presentation("base\n", "changed\n", "changed\n")
+        XCTAssertEqual(identical.result, "changed\n")
+        XCTAssertEqual(identical.sources.rows.map(\.mine.state), [.removed, .added])
+        let added = try presentation("", "mine\n", "theirs\nmore\n")
+        XCTAssertEqual(MergeText.conflicts(in: added.result).count, 1)
+        XCTAssertEqual(added.sources.rows[1].mine.state, .conflicted)
+        XCTAssertNil(added.sources.rows[1].mine.lineNumber)
+        XCTAssertEqual(added.sources.rows.compactMap { $0.mine.lineNumber == nil ? nil : $0.mine.text }.joined(), "mine\n")
+        XCTAssertEqual(added.sources.rows.compactMap { $0.theirs.lineNumber == nil ? nil : $0.theirs.text }.joined(), "theirs\nmore\n")
+    }
+    func testFilteredCommonChoosesOriginalMineAndRetainsGreenSourceRows() throws {
+        let filter = MergeRegexFilter(name: "Versions", expression: "[0-9]+", replacement: "")
+        let value = try presentation("version 12\r\n", "version 81\r\n", "version 90\r\n", filter: filter)
+        XCTAssertEqual(value.result, "version 81\r\n")
+        XCTAssertEqual(value.sources.rows[0].mine.state, .filtered)
+        XCTAssertEqual(value.sources.rows[0].theirs.text, "version 90\r\n")
+        XCTAssertFalse(MergeText.hasMarkers(value.result))
+    }
+    func testEveryEndingCanDelimitConflictMarkersAndRetainsSourceText() throws {
+        for ending in MergeLineEnding.allCases {
+            let mine = "mine" + ending.rawValue, theirs = "theirs" + ending.rawValue
+            let value = try presentation("base" + ending.rawValue, mine, theirs)
+            let blocks = MergeText.conflicts(in: value.result)
+            XCTAssertEqual(blocks.count, 1)
+            XCTAssertEqual(blocks.first?.replacement(.mine), mine)
+            XCTAssertEqual(blocks.first?.replacement(.theirs), theirs)
+        }
+    }
+    func testEngineBackedDocumentAndSavePreserveRepositoryUntilExplicitResolution() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitEngineMerge-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let repository = GitRepository(root: folder, executable: URL(fileURLWithPath: "/usr/bin/git")), file = folder.appendingPathComponent("sample.txt")
+        _ = try await repository.run(["init", "-b", "main"])
+        for (key, value) in [("user.name", "Engine QA"), ("user.email", "engine@example.invalid"), ("commit.gpgsign", "false"), ("core.hooksPath", "/dev/null"), ("core.autocrlf", "false")] { _ = try await repository.run(["config", key, value]) }
+        try Data("version 1\nbase".utf8).write(to: file)
+        _ = try await repository.run(["add", "--", "sample.txt"]); _ = try await repository.run(["commit", "-m", "base"])
+        _ = try await repository.run(["checkout", "-b", "side"])
+        try Data("version 3\ntheirs".utf8).write(to: file); _ = try await repository.run(["commit", "-am", "theirs"])
+        _ = try await repository.run(["checkout", "main"])
+        try Data("version 2\nmine".utf8).write(to: file); _ = try await repository.run(["commit", "-am", "mine"])
+        _ = try await repository.run(["merge", "side"], successfulExitCodes: 0...1)
+        let head = try await repository.run(["rev-parse", "HEAD"]).stdout
+        let index = try Data(contentsOf: folder.appendingPathComponent(".git/index")), working = try Data(contentsOf: file)
+        let filter = MergeRegexFilter(name: "Versions", expression: "[0-9]+", replacement: "")
+        let document = try await repository.textConflictDocument(path: "sample.txt", engine: configuration(filter))
+        XCTAssertNotNil(document.mergeSources)
+        XCTAssertEqual(document.mergeSources?.rows[0].mine.state, .filtered)
+        XCTAssertEqual(try Data(contentsOf: file), working)
+        XCTAssertEqual(try Data(contentsOf: folder.appendingPathComponent(".git/index")), index)
+        let result = try MergeText.applying(.mine, block: 0, to: document.initialResult, document: document)
+        XCTAssertEqual(result, "version 2\nmine")
+        let saved = try await repository.saveTextConflict(document, result: result, markResolved: false)
+        XCTAssertNotNil(saved.mergeSources)
+        XCTAssertEqual(try Data(contentsOf: folder.appendingPathComponent(".git/index")), index)
+        _ = try await repository.saveTextConflict(saved, result: result, markResolved: true)
+        let stages = try await repository.conflicts(), afterHead = try await repository.run(["rev-parse", "HEAD"]).stdout
+        XCTAssertTrue(stages.isEmpty); XCTAssertEqual(afterHead, head)
+        XCTAssertEqual(try Data(contentsOf: file), Data(result.utf8))
+    }
+}
