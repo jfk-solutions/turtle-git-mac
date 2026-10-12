@@ -71,3 +71,10 @@ checked subset, edited save, dirty-close guard, source-file preservation and a
 late target reply after forced closure, alongside the existing daemon/LFS/mail
 fixtures. No installed app or Finder extension was activated. See
 [the dated record](qa/review-patch-batch-2026-10-12.json).
+
+
+The [clipboard/target-matching batch](PATCH-CLIPBOARD-TARGET-PARITY.md) adds
+explicit clipboard review, exact-byte Copy Patch and source-ordered target
+suggestions with confirmation. Its audit supersedes the earlier path-guessing
+and basic clipboard gaps for those implemented routes; broader source Open/
+Finder clipboard, format and physical/signed acceptance remain incomplete.

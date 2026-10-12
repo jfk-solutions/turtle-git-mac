@@ -857,6 +857,23 @@ import TurtleGitCore
     /// Send Mail captures file grants and does not change the app's checkout.
     /// A known first-file repository supplies local sender identity; otherwise
     /// an owned no-repository context supplies Git's global identity.
+    func showClipboardPatch(from pasteboard: NSPasteboard = .general) {
+        guard !busy, !confirmingQuit else { return }
+        guard let bytes = PatchClipboard.snapshot(from: pasteboard) else { error = "The clipboard does not contain a unified patch."; return }
+        do {
+            let workflow = ReviewPatchWorkflow(file: nil, target: root, preferred: root, grants: activeAccess.map { [$0] } ?? [],
+                executable: try GitRuntime.executable(), preferences: reviewPatchPreferences, clipboardBytes: bytes)
+            presentReview(workflow)
+        } catch { self.error = error.localizedDescription }
+    }
+    private func presentReview(_ workflow: ReviewPatchWorkflow) {
+        let id = UUID(); reviewPatchWorkflows[id] = workflow
+        workflow.presentation = reviewPatchPresentation
+        workflow.onFinished = { [weak self] in self?.reviewPatchWorkflows.removeValue(forKey: id) }
+        if let reviewPatchPreparation { reviewPatchPreparation(workflow) }
+        else { workflow.showWindow(nil); workflow.window?.makeKeyAndOrderFront(nil) }
+        workflow.start()
+    }
     func showReviewPatch(files: [URL]) {
         guard !busy, !confirmingQuit else { return }
         guard files.count <= 1 else { error = "Select one patch file to review."; return }
@@ -878,12 +895,7 @@ import TurtleGitCore
         do {
             let workflow = ReviewPatchWorkflow(file: patchFile, target: target, preferred: first?.deletingLastPathComponent() ?? root,
                 grants: grants, executable: try GitRuntime.executable(), preferences: reviewPatchPreferences)
-            let id = UUID(); reviewPatchWorkflows[id] = workflow
-            workflow.presentation = reviewPatchPresentation
-            workflow.onFinished = { [weak self] in self?.reviewPatchWorkflows.removeValue(forKey: id) }
-            if let reviewPatchPreparation { reviewPatchPreparation(workflow) }
-            else { workflow.showWindow(nil); workflow.window?.makeKeyAndOrderFront(nil) }
-            workflow.start()
+            presentReview(workflow)
         } catch { self.error = error.localizedDescription }
     }
 

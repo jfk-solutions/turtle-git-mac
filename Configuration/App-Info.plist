@@ -39,5 +39,18 @@
 	<true/>
 	<key>NSAppleEventsUsageDescription</key>
 	<string>TurtleGit prepares drafts in Apple Mail with your selected recipients, message and attachments. You review and send them in Mail.</string>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>org.turtlegit.unified-diff</string>
+			<key>UTTypeDescription</key>
+			<string>TurtleGit Unified Diff</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

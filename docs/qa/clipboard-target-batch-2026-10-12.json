@@ -1,0 +1,26 @@
+{
+  "date": "2026-10-12",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Original-byte patch clipboard, captured review source, upstream target matching and cancellation",
+  "implementationThenGroupedValidation": true,
+  "core": {
+    "initialRun": {"tests": 31, "failures": 1, "log": "build/qa/clipboard-target-core-2026-10-12.log"},
+    "repairRun": {"tests": 5, "failures": 0, "seconds": 0.334, "log": "build/qa/clipboard-target-matching-repair-2026-10-12.log"},
+    "unchangedCasesPassedInInitialRun": 26,
+    "repair": "Preserve caller path alias when suggesting a child; compare directory URL paths independently of trailing directory hints. No full 31-case clean rerun claimed."
+  },
+  "build": {"configuration": "Debug", "architecture": "arm64", "exitCode": 0, "signed": false, "log": "build/qa/clipboard-target-final-build-2026-10-12.log", "notes": "Existing diagnostics remain."},
+  "native": {
+    "log": "build/qa/clipboard-target-native-2026-10-12.log",
+    "finalResult": "Passed and owned resources cleaned; verification process exited",
+    "checks": ["exact original bytes in both valid macOS UTIs", "immutable snapshot across clipboard replacement", "no source-file chooser for clipboard", "suggested and selected target decisions", "p0 plain-directory review/application", "arbitrary prose rejection", "existing SVN/review/daemon/LFS/mail fixtures"],
+    "repairs": ["Windows TGIT_UNIFIEDDIFF is not a valid macOS pasteboard UTI; use qualified compatibility UTI", "Fixture compares directory paths rather than URL directory hints"],
+    "clipboard": "Private named pasteboard; user general clipboard untouched",
+    "chooserResponses": "Injected",
+    "patchOperations": "Real Git on disposable targets",
+    "mailTransport": "Owned loopback only",
+    "installedApplicationLaunched": false
+  },
+  "remainingAcceptance": ["Open dialog clipboard accessory", "Finder clipboard route", "complete mixed-prefix formats", "physical source layout comparison", "signed bookmark and target acceptance", "full application parity"],
+  "completePortCertified": false
+}

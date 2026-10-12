@@ -135,6 +135,7 @@ for baseline and update rules.
 - [Finder repository metadata and command availability](FINDER-REPOSITORY-METADATA-PARITY.md)
 - [Finder menu selection dispatch](FINDER-SELECTION-PARITY.md)
 - [Finder command handoffs and native Settings ownership](FINDER-COMMAND-HANDOFF-PARITY.md)
+- [Clipboard patches and target-folder matching](PATCH-CLIPBOARD-TARGET-PARITY.md)
 - [Review/apply single patch and ordinary-folder targets](REVIEW-PATCH-PARITY.md)
 - [SVN DCommit, Fetch, Rebase and Ignore](SVN-PARITY.md)
 - [Private universal Perl/Subversion runtime](GIT-SVN-RUNTIME.md)

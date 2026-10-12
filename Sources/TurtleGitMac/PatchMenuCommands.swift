@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import SwiftUI
+import TurtleGitCore
 
 /// Keeps shared app menus bound to the key diff window, including native panels.
 /// Repository, Settings and other editors must not act on a background diff.
@@ -31,6 +32,7 @@ import SwiftUI
         let enabled = controller.map { !$0.model.busy && !$0.model.confirmingQuit && $0.window?.attachedSheet == nil } ?? false
         if available != enabled { available = enabled }
     }
+    func copyPatch() { refresh(); guard available else { return }; current?.model.copyPatch() }
     func saveAs() { refresh(); guard available else { return }; current?.model.saveAs() }
     func printDiff() { refresh(); guard available else { return }; current?.model.printDiff() }
     func pageSetup() { refresh(); guard available else { return }; current?.model.pageSetup() }
@@ -40,6 +42,7 @@ struct PatchFileCommands: Commands {
     @ObservedObject var context: PatchMenuContext
     var body: some Commands {
         CommandGroup(after: .saveItem) {
+            Button { context.copyPatch() } label: { CommandLabel(title: "Copy Patch", icon: .copy) }.disabled(!context.available)
             Button("Save As…") { context.saveAs() }
                 .keyboardShortcut("s", modifiers: [.command, .shift]).disabled(!context.available)
         }

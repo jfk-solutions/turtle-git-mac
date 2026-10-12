@@ -226,9 +226,9 @@ extension GitRepository {
     /// Anchor single-patch paths to the chosen directory even when it is a
     /// nested Git folder. The disposable Git administration area never borrows
     /// or writes the real index, and is removed after each complete operation.
-    private func withPatchTarget<T>(_ bytes: Data, directoryMode: Bool, isGitWorkingTree: Bool, _ operation: (URL, ([String]) throws -> GitResult) throws -> T) throws -> T {
+    func withPatchTarget<T>(_ bytes: Data, directoryMode: Bool, isGitWorkingTree: Bool, cancellation: OperationCancellation? = nil, _ operation: (URL, ([String]) throws -> GitResult) throws -> T) throws -> T {
         try withWorkingTreePatch(bytes) { file in
-            if !directoryMode { return try operation(file, { try self.run($0) }) }
+            if !directoryMode { return try operation(file, { try self.run($0, cancellation: cancellation) }) }
             let temporary = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGitPatchTarget-" + UUID().uuidString)
             try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
             defer { try? FileManager.default.removeItem(at: temporary) }
@@ -236,13 +236,13 @@ extension GitRepository {
             let environment = ["GIT_DIR": gitDirectory, "GIT_COMMON_DIR": gitDirectory, "GIT_WORK_TREE": root.path,
                 "GIT_INDEX_FILE": gitDirectory + "/index", "GIT_OBJECT_DIRECTORY": gitDirectory + "/objects", "GIT_ALTERNATE_OBJECT_DIRECTORIES": ""]
             let location = ["--git-dir=" + gitDirectory, "--work-tree=" + root.path]
-            _ = try run(location + ["init", "--template=", "--object-format=sha1"], environmentOverrides: environment)
+            _ = try run(location + ["init", "--template=", "--object-format=sha1"], environmentOverrides: environment, cancellation: cancellation)
             var configuration: [String] = []
             for key in ["apply.whitespace", "apply.ignoreWhitespace", "core.whitespace"] {
-                let value = try run(["config"] + (isGitWorkingTree ? [] : ["--global"]) + ["--get", key], successfulExitCodes: 0...1)
+                let value = try run(["config"] + (isGitWorkingTree ? [] : ["--global"]) + ["--get", key], successfulExitCodes: 0...1, cancellation: cancellation)
                 if value.exitCode == 0 { configuration += ["-c", key + "=" + value.text.trimmingCharacters(in: .newlines)] }
             }
-            return try operation(file, { try self.run(location + configuration + $0, environmentOverrides: environment) })
+            return try operation(file, { try self.run(location + configuration + $0, environmentOverrides: environment, cancellation: cancellation) })
         }
     }
     private func withWorkingTreePatch<T>(_ bytes: Data, _ operation: (URL) throws -> T) throws -> T {

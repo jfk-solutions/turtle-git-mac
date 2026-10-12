@@ -604,3 +604,23 @@ Apple Silicon, transfers a permission-preserving tar payload, and retains the
 Intel main test job. Remote CI, signed inheritance/trust/credentials, physical
 dialog matching and release review remain open; see SVN-PARITY.md and
 GIT-SVN-RUNTIME.md.
+
+
+## Clipboard patch and target-matching batch — 2026-10-12
+
+The diff viewer copies original patch bytes into native/legacy custom formats,
+and File → Review Clipboard Patch captures that snapshot before its owned target
+chooser. Single-patch preparation now follows the upstream current/ancestor/
+immediate-child/directory matching order and strict one-third threshold, with
+Suggested/Selected/Cancel confirmation and permission-bounded searches. Git
+headers use p1 and plain unified paths p0. Preflight cancellation/late-reply
+fences retain the existing target grants and Quit ownership. Remaining Open
+accessory/Finder clipboard/format/physical/signed gates are recorded in
+PATCH-CLIPBOARD-TARGET-PARITY.md; the complete port remains active.
+
+Development cadence requested by the user: implement substantial connected
+feature batches before validation. Run one relevant grouped validation pass
+at the batch boundary; repair actual failures with focused checks. Do not
+repeat broad suites after successful checks without new changes or unresolved
+evidence. Reuse native receiver compilation where possible and retire all
+test-owned windows/processes when verification ends.

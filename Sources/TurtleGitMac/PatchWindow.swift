@@ -94,6 +94,10 @@ import UniformTypeIdentifiers
     var onApplied: () -> Void = {}
     init(repository: GitRepository, access: RepositoryAccessLease?, appearancePreferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.appearancePreferences = appearancePreferences }
     var exportDocument: UnifiedDiffDocument { readOnly ? originalDiff ?? UnifiedDiffDocument(bytes: Data(document.text.utf8)) : UnifiedDiffDocument(bytes: Data(document.text.utf8)) }
+    func copyPatch(to pasteboard: NSPasteboard = .general) {
+        guard !busy, !confirmingQuit else { return }
+        if !PatchClipboard.write(exportDocument, to: pasteboard) { error = "The patch could not be copied to the clipboard." }
+    }
     func setReadOnlyDiff(_ bytes: Data) {
         let source = UnifiedDiffDocument(bytes: bytes)
         readOnly = true; document = GitPatch(text: source.displayText); originalDiff = source
@@ -145,6 +149,7 @@ struct PatchDialog: View {
             HStack {
                 Text(model.readOnly ? model.comparisonTitle : model.staged ? (model.base == nil ? "HEAD → Index" : "Parent → Index") : "Index → Working tree").font(.headline)
                 Spacer(); if model.busy { ProgressView().controlSize(.small) }
+                Button { model.copyPatch() } label: { CommandLabel(title: "Copy Patch", icon: .copy) }.disabled(model.busy || model.exportDocument.bytes.isEmpty)
                 Button { model.saveAs() } label: { CommandLabel(title: "Save As…", icon: .saveAs) }.disabled(model.busy)
                 Button { model.printDiff() } label: { Label("Print…", systemImage: "printer") }.disabled(model.busy)
                 if model.refreshAvailable { Button("Refresh") { model.reload(paths: model.paths, staged: model.staged) }.disabled(model.busy) }

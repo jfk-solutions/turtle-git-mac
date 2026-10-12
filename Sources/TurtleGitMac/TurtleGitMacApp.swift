@@ -54,6 +54,7 @@ import TurtleGitCore
             }
             CommandGroup(after: .newItem) {
                 Button("Open Repository…") { model.chooseRepository() }.keyboardShortcut("o")
+                Button { model.showClipboardPatch() } label: { CommandLabel(title: "Review Clipboard Patch…", icon: .patch) }.disabled(model.busy || model.confirmingQuit)
                 Button { model.showReviewPatch(files: []) } label: { CommandLabel(title: RepositoryAction.reviewPatch.title, icon: RepositoryAction.reviewPatch.icon) }.disabled(model.busy || model.confirmingQuit)
                 Button("Load Images…") { model.showLoadImages() }.disabled(model.busy || model.confirmingQuit)
                 Menu("Open Recent") {
