@@ -14,6 +14,7 @@ struct MergeEditorSettings: View {
     @State private var initialized = false
     @State private var general = MergeGeneralPreferences.load()
     @State private var fontSize = String(MergeGeneralPreferences.load().fontSize)
+    @State private var onePaneDefault = false
     @State private var patchContext = String(MergeUnifiedPatch.contextLines())
     @State private var maximumInline = String(MergeGeneralPreferences.load().maximumInlineLength)
     @State private var draft = MergeEditorPreferences.load()
@@ -30,6 +31,7 @@ struct MergeEditorSettings: View {
     init(defaults: UserDefaults = .standard, commentProfileURL: URL = MergeCommentProfileFile.url) {
         preferences = defaults; profileURL = commentProfileURL
         let general = MergeGeneralPreferences.load(from: defaults), editor = MergeEditorPreferences.load(from: defaults)
+        _onePaneDefault = State(initialValue: OnePaneFileComparison.defaultEnabled(from: defaults))
         _general = State(initialValue: general); _fontSize = State(initialValue: String(general.fontSize))
         _maximumInline = State(initialValue: String(general.maximumInlineLength)); _patchContext = State(initialValue: String(MergeUnifiedPatch.contextLines(from: defaults)))
         _draft = State(initialValue: editor); _tabSize = State(initialValue: String(editor.tabWidth))
@@ -48,7 +50,7 @@ struct MergeEditorSettings: View {
     }
     private var changed: Bool {
         guard let width = validWidth, validFontSize != nil, validInlineLength != nil else { return true }
-        return MergeEditorPreferences(tabWidth: width, useSpaces: draft.useSpaces, smartTab: draft.smartTab, showLineNumbers: draft.showLineNumbers, enableEditorConfig: draft.enableEditorConfig, autoAdd: draft.autoAdd) != .load(from: preferences) || generalDraft != .load(from: preferences) || comparison != .load(from: preferences) || locator != .load(from: preferences) || whitespaceDisplay != .load(from: preferences) || backupOriginal != MergeFileSaveOptions.backupEnabled(from: preferences) || MergeUnifiedPatch.validatedContext(patchContext) != MergeUnifiedPatch.contextLines(from: preferences) || profileText != savedProfileText
+        return MergeEditorPreferences(tabWidth: width, useSpaces: draft.useSpaces, smartTab: draft.smartTab, showLineNumbers: draft.showLineNumbers, enableEditorConfig: draft.enableEditorConfig, autoAdd: draft.autoAdd) != .load(from: preferences) || generalDraft != .load(from: preferences) || comparison != .load(from: preferences) || locator != .load(from: preferences) || whitespaceDisplay != .load(from: preferences) || backupOriginal != MergeFileSaveOptions.backupEnabled(from: preferences) || MergeUnifiedPatch.validatedContext(patchContext) != MergeUnifiedPatch.contextLines(from: preferences) || onePaneDefault != OnePaneFileComparison.defaultEnabled(from: preferences) || profileText != savedProfileText
     }
     private var validationError: String? {
         if MergeUnifiedPatch.validatedContext(patchContext) == nil { return "Enter patch context lines from -1 (Git default) to 1000." }
@@ -67,6 +69,7 @@ struct MergeEditorSettings: View {
                     Toggle("Backup original file", isOn: $backupOriginal)
                     Toggle("Jump to first difference when loading", isOn: $general.firstDifference)
                     Toggle("Jump to first conflict when loading", isOn: $general.firstConflict).padding(.leading, 12).disabled(!general.firstDifference)
+                    Toggle("Use one-pane view as default for 2-file diff", isOn: $onePaneDefault)
                     Toggle("Show line numbers", isOn: $draft.showLineNumbers)
                     HStack {
                         Toggle("Use spaces", isOn: $draft.useSpaces)
@@ -141,6 +144,7 @@ struct MergeEditorSettings: View {
         .onChange(of: tabSize) { _ in transaction?.notify() }
         .onChange(of: general) { _ in transaction?.notify() }
         .onChange(of: fontSize) { _ in transaction?.notify() }
+        .onChange(of: onePaneDefault) { _ in transaction?.notify() }
         .onChange(of: patchContext) { _ in transaction?.notify() }
         .onChange(of: maximumInline) { _ in transaction?.notify() }
         .onChange(of: comparison) { _ in transaction?.notify() }
@@ -182,6 +186,7 @@ struct MergeEditorSettings: View {
             let alert = NSAlert(); alert.messageText = "Comment profiles were not saved"
             alert.informativeText = error.localizedDescription; alert.runModal(); return false
         }
+        preferences.set(onePaneDefault, forKey: "TurtleGitMerge.OnePane")
         preferences.set(MergeUnifiedPatch.validatedContext(patchContext)!, forKey: "TurtleGitMerge.ContextLines")
         general = generalDraft; general.save(to: preferences)
         draft.tabWidth = width; draft.save(to: preferences); comparison.save(to: preferences); locator.save(to: preferences); whitespaceDisplay.save(to: preferences)
@@ -193,6 +198,7 @@ struct MergeEditorSettings: View {
         catch { return error.localizedDescription }
     }
     private func restore() {
+        onePaneDefault = OnePaneFileComparison.defaultEnabled(from: preferences)
         patchContext = String(MergeUnifiedPatch.contextLines(from: preferences))
         general = .load(from: preferences); fontSize = String(general.fontSize); maximumInline = String(general.maximumInlineLength)
         draft = .load(from: preferences); comparison = .load(from: preferences); locator = .load(from: preferences); whitespaceDisplay = .load(from: preferences); tabSize = String(draft.tabWidth)

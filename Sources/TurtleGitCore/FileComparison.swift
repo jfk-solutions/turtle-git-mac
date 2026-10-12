@@ -356,3 +356,82 @@ public enum MergeUnifiedPatch {
         }.joined() + "\""
     }
 }
+
+/// DiffData's YourBaseBoth ordering: all removals in a changed region precede
+/// all additions. Original source row IDs remain available for block actions.
+public struct OnePaneFileComparison: Sendable {
+    public struct Row: Sendable {
+        public let cell: MergeSourceCell
+        public let alignmentRow: Int
+        public let base: Bool
+    }
+    public let rows: [Row]
+    public let differences: [Range<Int>]
+    public var cells: [MergeSourceCell] { rows.map(\.cell) }
+    public init(alignment: FileComparisonAlignment, options: MergeComparisonOptions = .init()) {
+        var output: [Row] = [], ranges: [Range<Int>] = [], index = 0
+        func append(_ cell: MergeSourceCell, at index: Int, base: Bool, state: MergeSourceState? = nil) {
+            guard cell.lineNumber != nil else { return }
+            output.append(Row(cell: MergeSourceCell(text: cell.text, lineNumber: base ? nil : cell.lineNumber, state: state ?? cell.state), alignmentRow: index, base: base))
+        }
+        let starts = Dictionary(uniqueKeysWithValues: alignment.differences.map { ($0.lowerBound, $0) })
+        while index < alignment.rows.count {
+            if let range = starts[index] {
+                let start = output.count
+                for row in range { append(alignment.rows[row].base, at: row, base: true, state: .removed) }
+                for row in range { append(alignment.rows[row].destination, at: row, base: false, state: .added) }
+                ranges.append(start..<output.count); index = range.upperBound
+            } else {
+                let row = alignment.rows[index]
+                let whitespace = MergeComparisonOptions(whitespace: options.whitespace)
+                let payloadDiffers = !row.base.displayText.utf8.elementsEqual(row.destination.displayText.utf8)
+                let whitespaceOnly = options.whitespace != .compare && whitespace.key(content: row.base.displayText, ending: "") == whitespace.key(content: row.destination.displayText, ending: "")
+                if payloadDiffers && !whitespaceOnly {
+                    append(row.base, at: index, base: true, state: .removed)
+                    append(row.destination, at: index, base: false, state: .added)
+                } else { append(row.destination, at: index, base: false, state: .normal) }
+                index += 1
+            }
+        }
+        rows = output; differences = ranges
+    }
+    /// Removed lines remain display-only unless the user edits that line. Such
+    /// edits retain its unselected payload, as the source Edited state does.
+    public func editingSource(for ranges: [NSRange]) throws -> (text: String, ranges: [NSRange]) {
+        let cells = self.cells, length = cells.reduce(0) { $0 + $1.displayText.utf16.count + 1 }
+        guard ranges.allSatisfy({ $0.location >= 0 && $0.length >= 0 && $0.location <= length && $0.length <= length - $0.location }) else { throw FileComparisonEditFailure.range }
+        var offsets: [Int] = [], offset = 0
+        for cell in cells { offsets.append(offset); offset += cell.displayText.utf16.count + 1 }
+        let touched = Set(rows.indices.filter { i in ranges.contains { range in
+            let rowRange = NSRange(location: offsets[i], length: cells[i].displayText.utf16.count + 1)
+            return range.length == 0 ? NSLocationInRange(range.location, rowRange) : NSIntersectionRange(range, rowRange).length > 0
+        } })
+        let included = rows.indices.filter { !rows[$0].base || touched.contains($0) }
+        let style = MergeLineEndings.predominantStyle(in: rows.filter { !$0.base }.map { $0.cell.text }.joined())
+        var source = "", sourceLength = 0, starts: [Int: Int] = [:]
+        source.reserveCapacity(included.reduce(0) { $0 + cells[$1].text.utf8.count })
+        for (position, index) in included.enumerated() {
+            starts[index] = sourceLength; source += cells[index].text; sourceLength += cells[index].text.utf16.count
+            if position < included.count - 1 && !MergeLineEndings.hasFinalEnding(cells[index].text) { source += style.rawValue; sourceLength += style.rawValue.utf16.count }
+        }
+        func map(_ position: Int) -> Int {
+            for index in rows.indices where position < offsets[index] + cells[index].displayText.utf16.count + 1 {
+                if let start = starts[index] { return start + min(position - offsets[index], cells[index].displayText.utf16.count) }
+                return included.first(where: { $0 > index }).flatMap { starts[$0] } ?? sourceLength
+            }
+            return sourceLength
+        }
+        return (source, ranges.map { let start = map($0.location); return NSRange(location: start, length: max(0, map(NSMaxRange($0)) - start)) })
+    }
+    public func applying(_ replacement: String, ranges: [NSRange]) throws -> (text: String, caret: Int) {
+        let edit = try editingSource(for: ranges)
+        guard zip(ranges, ranges.dropFirst()).allSatisfy({ NSMaxRange($0.0) <= $0.1.location }) else { throw FileComparisonEditFailure.range }
+        guard !ranges.isEmpty else { return (edit.text, 0) }
+        let style = MergeLineEndings.predominantStyle(in: edit.text), inserted = MergeLineEndings.converting(replacement, to: style)
+        let value = NSMutableString(string: edit.text)
+        for range in edit.ranges.reversed() { value.replaceCharacters(in: range, with: inserted) }
+        let delta = edit.ranges.dropLast().reduce(0) { $0 + inserted.utf16.count - $1.length }
+        return (value as String, edit.ranges.last!.location + delta + inserted.utf16.count)
+    }
+    public static func defaultEnabled(from defaults: UserDefaults = .standard) -> Bool { defaults.bool(forKey: "TurtleGitMerge.OnePane") }
+}

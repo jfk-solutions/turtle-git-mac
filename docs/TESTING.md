@@ -1197,3 +1197,11 @@ actual light/dark control bounds and shared-panel ownership/retirement. Private
 preferences and owned windows/panels isolate the check from the user's app.
 Use `--colors-only` only for an actual Colors failure; it shares the built-app
 object cache with the options batch. No new Core tests mirror these controls.
+
+`OnePaneFileComparisonTests` checks ordered regions/source-row mappings, removed
+payload edits excluding untouched removals, original CRLF/nonterminated Unicode
+results, multi-match replacement and filtered case/whitespace projection.
+The grouped Merge/LFS-mail receivers include `merge-one-pane-native-2026-10-12.swift`
+for saved default, one actual editor, locator/navigation, removed selection,
+native typing/Undo/Redo, exact BOM/EOL Save with Base retained, mode Save/Cancel/Discard, combined Replace All/Tab with single Undo,
+and roundtrip/persistence/retired guards. `--one-pane-only` shares the object cache.

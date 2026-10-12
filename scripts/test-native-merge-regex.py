@@ -24,6 +24,7 @@ parser.add_argument('--open-only', action='store_true')
 parser.add_argument('--format-only', action='store_true')
 parser.add_argument('--patch-only', action='store_true')
 parser.add_argument('--colors-only', action='store_true')
+parser.add_argument('--one-pane-only', action='store_true')
 parser.add_argument('--screenshots', type=Path)
 args = parser.parse_args()
 root = Path(__file__).resolve().parent.parent
@@ -34,12 +35,12 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-merge-regex-native-') as temp
     if not objects or not (products / 'TurtleGitMac.swiftmodule').exists():
         raise SystemExit('Build TurtleGitMac Debug before running Merge QA.')
     additional = []
-    if args.options_batch or args.whitespace_only or args.general_only or args.about_only or args.find_only or args.open_only or args.format_only or args.patch_only or args.colors_only:
-        for name in ['three-pane-engine-native-2026-10-12.swift', 'two-pane-engine-native-2026-10-12.swift', 'merge-locator-native-2026-10-12.swift', 'merge-whitespace-display-native-2026-10-12.swift', 'merge-general-native-2026-10-12.swift', 'about-native-2026-10-12.swift', 'merge-find-native-2026-10-12.swift', 'merge-open-native-2026-10-12.swift', 'merge-format-native-2026-10-12.swift', 'merge-line-diff-native-2026-10-12.swift', 'merge-patch-native-2026-10-12.swift', 'merge-colors-native-2026-10-12.swift']:
+    if args.options_batch or args.whitespace_only or args.general_only or args.about_only or args.find_only or args.open_only or args.format_only or args.patch_only or args.colors_only or args.one_pane_only:
+        for name in ['three-pane-engine-native-2026-10-12.swift', 'two-pane-engine-native-2026-10-12.swift', 'merge-locator-native-2026-10-12.swift', 'merge-whitespace-display-native-2026-10-12.swift', 'merge-general-native-2026-10-12.swift', 'about-native-2026-10-12.swift', 'merge-find-native-2026-10-12.swift', 'merge-open-native-2026-10-12.swift', 'merge-format-native-2026-10-12.swift', 'merge-line-diff-native-2026-10-12.swift', 'merge-patch-native-2026-10-12.swift', 'merge-colors-native-2026-10-12.swift', 'merge-one-pane-native-2026-10-12.swift']:
             receiver = folder / name
             receiver.write_text('@testable import TurtleGitMac\n' + (root / 'docs/qa' / name).read_text().replace('@main struct', 'struct', 1))
             additional.append(str(receiver))
-    primary = root / ('docs/qa/comparison-options-native-2026-10-12.swift' if args.options_batch or args.whitespace_only or args.general_only or args.about_only or args.find_only or args.open_only or args.format_only or args.patch_only or args.colors_only else 'docs/qa/two-pane-engine-native-2026-10-12.swift' if args.two_pane else 'docs/qa/three-pane-engine-native-2026-10-12.swift' if args.three_pane else 'docs/qa/merge-regex-native-2026-10-12.swift')
+    primary = root / ('docs/qa/comparison-options-native-2026-10-12.swift' if args.options_batch or args.whitespace_only or args.general_only or args.about_only or args.find_only or args.open_only or args.format_only or args.patch_only or args.colors_only or args.one_pane_only else 'docs/qa/two-pane-engine-native-2026-10-12.swift' if args.two_pane else 'docs/qa/three-pane-engine-native-2026-10-12.swift' if args.three_pane else 'docs/qa/merge-regex-native-2026-10-12.swift')
     primary_text = primary.read_text()
     primary_name = re.search(r'@main struct (\w+)', primary_text).group(1)
     primary_copy = folder / 'Primary.swift'
@@ -83,6 +84,7 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-merge-regex-native-') as temp
     if args.format_only: arguments.append('--format-only')
     if args.patch_only: arguments.append('--patch-only')
     if args.colors_only: arguments.append('--colors-only')
+    if args.one_pane_only: arguments.append('--one-pane-only')
     if args.screenshots: arguments.append(str(args.screenshots.resolve()))
     driver = ast.parse((root / 'scripts/test-synchronization-dialog.py').read_text())
     helper_node = next(node for node in driver.body if isinstance(node, ast.FunctionDef) and node.name == 'close_receiver')

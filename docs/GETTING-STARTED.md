@@ -234,3 +234,9 @@ restores that foreground/background channel; Restore Default restores the
 selected palette. Both palettes remain drafts until Apply. Cancel discards
 both. The custom picker accepts RGB colors, with opacity excluded. See
 [Merge Colors parity](MERGE-COLORS-PARITY.md) for remaining acceptance.
+
+In a two-file comparison, uncheck **Two-pane view** for a combined Base–Mine list.
+Removed lines precede added lines. The combined editor saves Mine and leaves
+untouched removed lines out of the result. Switching with unsaved edits offers
+Save/Don’t Save/Cancel. Set the default in **Merge Editor → Misc → Use one-pane
+view as default for 2-file diff**. See [one-pane parity](MERGE-ONE-PANE-PARITY.md).

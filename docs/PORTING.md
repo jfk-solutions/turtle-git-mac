@@ -761,3 +761,9 @@ Automatic/More colors menus, selected-channel/palette restore, independent
 Light/Dark drafts and shared Settings Apply/Cancel. Owned color panels release
 on page/window closure and fence late actions. See
 [Colors parity](MERGE-COLORS-PARITY.md); physical/full-page acceptance remains open.
+
+The combined Merge view now projects source removal/addition ordering into one
+native editor with Mine edits, removed-row payload retention, Save/Undo/Redo,
+mode-switch dirty prompts, a saved General default and combined locator/navigation.
+See [one-pane parity](MERGE-ONE-PANE-PARITY.md) for state/menu/physical acceptance
+that remains open.

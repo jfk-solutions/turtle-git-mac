@@ -1,0 +1,81 @@
+{
+  "date": "2026-10-12",
+  "baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Editable combined one-pane file comparison and saved default",
+  "implemented": [
+    "Removed-region-before-added-region projection with original row mappings",
+    "Native one-editor layout, both path/revision metadata and Mine format/Save As",
+    "Saved one-pane default in Merge General and accepted view-mode switches",
+    "Mine editing: edited removed-line payload retained; untouched removals excluded",
+    "Shared destination Undo/Redo/save with original BOM/endings and Base retained",
+    "Combined Find/Replace All and Tab/indent source coordinates",
+    "Combined locator, removal-first navigation, stable removed-row selections",
+    "Adjacent removed/added inline pairing and hidden line-diff bar",
+    "Create-patch gate follows two valid source views",
+    "Save/Don\u2019t Save/Cancel, reread/reset history and retired/busy/sheet guards"
+  ],
+  "validation": {
+    "core": {
+      "command": "swift test --filter OnePaneFileComparisonTests",
+      "tests": 4,
+      "failures": 0,
+      "seconds": 0.003,
+      "range_guard_followup_tests": 1,
+      "range_guard_followup_failures": 0,
+      "full_core_suite_run": false
+    },
+    "app_builds": {
+      "count": 3,
+      "exits": [
+        0,
+        0,
+        0
+      ],
+      "configuration": "Debug arm64 unsigned macOS13 deployment",
+      "existing_zero_exit_diagnostic_noise": true
+    },
+    "native": {
+      "receiver_processes": 4,
+      "frontend_compilations": 4,
+      "app_sources_recompiled_by_receivers": false,
+      "first_failure": "Saved private preference supplied after the window had started loading; preferences now injected before controller construction",
+      "second_failure": "Shared editor update path still read two-pane cells instead of the combined projection; repaired",
+      "focused_one_pane_retry_exit": 0,
+      "final_command": "python3 scripts/test-native-merge-regex.py --options-batch",
+      "final_exit": 0,
+      "final_families": 13,
+      "one_pane_cases": [
+        "One actual editor and saved default",
+        "Source region ordering and combined locator/navigation",
+        "Removed selection retained across display options",
+        "Native removed-line typing with untouched removals excluded",
+        "Undo/Redo",
+        "Exact UTF-8 BOM/CRLF save and UTF-16LE BOM Base unchanged",
+        "Cancel and Discard mode choices",
+        "Save-before-switch and persisted two-pane/one-pane roundtrip",
+        "Actual combined Find receiver Replace All including removed matches, single Undo",
+        "Removed-row Tab retains payload, single Undo",
+        "Retired view-mode request refusal"
+      ],
+      "owned_processes_windows_helpers_closed": true,
+      "failed_startup_fixture_verified_and_removed": true,
+      "user_repository_clipboard_installed_app_used": false
+    },
+    "site_build_exit": 0,
+    "new_screenshots": "None; whole-window appearance remains unverified"
+  },
+  "remaining": [
+    "In-place Edited-row presentation rather than reprojecting after typing",
+    "One-pane-specific block/context semantics and menu order",
+    "Moved/filtered aliases and source whitespace line-number variants",
+    "Physical prompts/clipboard/Find/indent/keyboard/VoiceOver acceptance",
+    "Light/dark whole-window captures, large-file and signed/minimum-OS acceptance",
+    "Complete hosted CI and App Store acceptance"
+  ],
+  "inventory": {
+    "dialogs": 130,
+    "partial": 62,
+    "pending_review": 68,
+    "certified_complete": 0
+  }
+}

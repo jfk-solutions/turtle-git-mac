@@ -57,8 +57,10 @@ import TurtleGitCore
     convenience init(images: ImageFileComparison, permissions: [RepositoryAccessLease]) {
         self.init(model: FileComparisonWindowModel(images: images, permissions: permissions))
     }
-    convenience init(comparison: WorkingFileComparison, permissions: [RepositoryAccessLease]) {
-        self.init(model: FileComparisonWindowModel(comparison: comparison, permissions: permissions))
+    convenience init(comparison: WorkingFileComparison, permissions: [RepositoryAccessLease], preferences: UserDefaults = .standard) {
+        let model = FileComparisonWindowModel(comparison: comparison, permissions: permissions)
+        model.comparisonDefaults = preferences
+        self.init(model: model)
     }
     convenience init(repository: GitRepository, access: RepositoryAccessLease?, comparison: HistoricalWorkingFileComparison, permission: RepositoryAccessLease) {
         self.init(model: FileComparisonWindowModel(repository: repository, access: access, comparison: comparison, permission: permission))
@@ -117,7 +119,41 @@ import TurtleGitCore
     private var externalAttempted = false, retired = false
     @Published var document: FileComparisonDocument?
     var singleFileMode = false
-    @Published var alignment: FileComparisonAlignment?
+    @Published var alignment: FileComparisonAlignment? { didSet { combinedCache = nil } }
+    @Published private(set) var onePaneMode = false
+    private var loadedPaneMode = false
+    private var combinedCache: OnePaneFileComparison?
+    var onePaneActive: Bool { onePaneMode && !singleFileMode && document?.base.text != nil && document?.destination.text != nil }
+    var combined: OnePaneFileComparison? {
+        guard let alignment else { return nil }
+        if combinedCache == nil { combinedCache = OnePaneFileComparison(alignment: alignment, options: comparisonOptions) }
+        return combinedCache
+    }
+    func displayCells(base: Bool) -> [MergeSourceCell] {
+        if onePaneActive, !base { return combined?.cells ?? [] }
+        return alignment?.rows.map { base ? $0.base : $0.destination } ?? []
+    }
+    var choosePaneSwitch: (String) -> NSApplication.ModalResponse = { description in
+        let alert = NSAlert(); alert.messageText = "Save changes to “" + description + "” before changing the view?"
+        alert.addButton(withTitle: "Save"); alert.addButton(withTitle: "Don’t Save"); alert.addButton(withTitle: "Cancel")
+        return alert.runModal()
+    }
+    func switchPaneMode(_ value: Bool) {
+        guard !retired, !busy, !filtering, !confirmingQuit, !singleFileMode, value != onePaneMode, window?.attachedSheet == nil else { return }
+        func switchAndReload() {
+            guard !retired, let document else { return }
+            drafts = FileComparisonDrafts(document); resetHistory(); scrolls.removeValue(forKey: true)
+            onePaneMode = value; loadedPaneMode = true; comparisonDefaults.set(value, forKey: "TurtleGitMerge.OnePane")
+            activatePane(base: false); load()
+        }
+        if dirty {
+            confirmingQuit = true; let answer = choosePaneSwitch(unsavedFilesDescription); confirmingQuit = false
+            guard !retired else { return }
+            if answer == .alertFirstButtonReturn { saveAll { saved in if saved { switchAndReload() } }; return }
+            guard answer == .alertSecondButtonReturn else { return }
+        }
+        switchAndReload()
+    }
     @Published private(set) var regexFilters = MergeRegexFilters.load()
     @Published private(set) var regexFilterName: String?
     @Published private(set) var filtering = false
@@ -127,6 +163,7 @@ import TurtleGitCore
     var comparisonDefaults: UserDefaults = .standard
     @Published private(set) var generalPreferences = MergeGeneralPreferences.load()
     private var pendingLoadNavigation = false
+    @Published var combinedScrollRow: Int?
     private var initialScrollRow: Int?
     private var initialScrollSides = Set<Bool>()
     @Published private(set) var whitespaceDisplay = MergeWhitespaceDisplayPreferences.load()
@@ -137,7 +174,8 @@ import TurtleGitCore
     @Published private(set) var locatorPreferences = MergeLocatorPreferences.load()
     @Published private(set) var locatorViewport = MergeLocatorViewport()
     var locatorMap: MergeLocatorMap {
-        MergeLocatorMap(columns: [alignment?.rows.map { $0.base.state } ?? [], [], alignment?.rows.map { $0.destination.state } ?? []])
+        if onePaneActive { return MergeLocatorMap(columns: [combined?.rows.map { $0.cell.state } ?? [], [], []]) }
+        return MergeLocatorMap(columns: [alignment?.rows.map { $0.base.state } ?? [], [], alignment?.rows.map { $0.destination.state } ?? []])
     }
     func setLocatorPreferences(_ value: MergeLocatorPreferences) {
         guard !retired, !busy, !confirmingQuit else { return }
@@ -149,7 +187,7 @@ import TurtleGitCore
         refreshLocatorViewport()
     }
     func refreshLocatorViewport() {
-        let value = MergeLocatorScrolling.viewport(scrolls[true] ?? scrolls[false])
+        let value = MergeLocatorScrolling.viewport(onePaneActive ? scrolls[false] : scrolls[true] ?? scrolls[false])
         if value != locatorViewport { locatorViewport = value }
     }
     var commentProfileURL = MergeCommentProfileFile.url
@@ -203,12 +241,12 @@ import TurtleGitCore
     @Published private(set) var previewRow: Int?
     @Published private(set) var previewHorizontalOffsets: [Bool: CGFloat] = [:]
     var lineDiffRow: FileComparisonRow? {
-        guard !retired, !singleFileMode, !filtering, let index = previewRow,
+        guard !retired, !singleFileMode, !onePaneActive, !filtering, let index = previewRow,
               let alignment, alignment.rows.indices.contains(index) else { return nil }
         return alignment.rows[index]
     }
     func previewLine(atRow index: Int?) {
-        guard !retired, !singleFileMode, !filtering, let index, let alignment,
+        guard !retired, !singleFileMode, !onePaneActive, !filtering, let index, let alignment,
               alignment.rows.indices.contains(index) else { previewRow = nil; return }
         previewRow = index
     }
@@ -379,6 +417,19 @@ import TurtleGitCore
     func indent(_ range: NSRange, cells: [MergeSourceCell], base: Bool, remove: Bool) -> NSRange? {
         guard activeBase == base, canTransfer(toBase: base) else { return nil }
         do {
+            if onePaneActive, !base, let combined {
+                let expanded = try combined.editingSource(for: [range]), source = expanded.ranges[0]
+                if let edit = MergeWhitespace.indentSelection(in: expanded.text, selection: source, tabWidth: tabWidth(base: false), useSpaces: useSpaces(base: false), smart: smartTab(base: false), remove: remove) {
+                    let text = (expanded.text as NSString).replacingCharacters(in: edit.range, with: edit.replacement)
+                    editorActions[false]?.type(text, edit.range.location + edit.replacement.utf16.count)
+                    return NSRange(location: edit.range.location, length: edit.replacement.utf16.count)
+                }
+                guard !remove else { return nil }
+                let remaining = (expanded.text as NSString).replacingCharacters(in: source, with: "")
+                let inserted = MergeWhitespace.tabInsertion(in: remaining, utf16Offset: source.location, tabWidth: tabWidth(base: false), useSpaces: useSpaces(base: false), smart: smartTab(base: false))
+                editorActions[false]?.type((remaining as NSString).replacingCharacters(in: NSRange(location: source.location, length: 0), with: inserted), source.location + inserted.utf16.count)
+                return NSRange(location: source.location + inserted.utf16.count, length: 0)
+            }
             guard let edit = try FileComparisonEditing.indentation(range, cells: cells, tabWidth: tabWidth(base: base), useSpaces: useSpaces(base: base), smart: smartTab(base: base), remove: remove) else { return nil }
             editorActions[base]?.type(edit.text, edit.selection.location)
             selectionRequest = nil
@@ -392,9 +443,14 @@ import TurtleGitCore
     func updateSelection(_ range: NSRange, cells: [MergeSourceCell]) {
         guard let alignment else { return }
         selectedRows = try? FileComparisonEditing.selectedRows(range, cells: cells)
+        if onePaneActive, let selection = selectedRows, let combined {
+            let mapped = selection.compactMap { combined.rows.indices.contains($0) ? combined.rows[$0].alignmentRow : nil }
+            selectedRows = mapped.min().flatMap { start in mapped.max().map { start..<($0 + 1) } }
+        }
         previewLine(atRow: selectedRows?.lowerBound)
         var cursor = 0, row = cells.count
         for (index, cell) in cells.enumerated() { cursor += (cell.displayText as NSString).length + 1; if range.location < cursor { row = index; break } }
+        if onePaneActive, let combined, combined.rows.indices.contains(row) { row = combined.rows[row].alignmentRow }
         let index = alignment.differences.firstIndex { $0.contains(row) } ?? -1
         if difference != index { difference = index }
     }
@@ -435,7 +491,7 @@ import TurtleGitCore
         }
         return response == .OK ? panel.url : nil
     }
-    var canCreateUnifiedPatch: Bool { !retired && !singleFileMode && !busy && !exporting && !confirmingQuit && document != nil && window?.attachedSheet == nil }
+    var canCreateUnifiedPatch: Bool { !retired && !singleFileMode && !onePaneActive && !busy && !exporting && !confirmingQuit && document != nil && window?.attachedSheet == nil }
     func createUnifiedPatch() {
         guard canCreateUnifiedPatch, let document, let window else { return }
         let request = UUID(), cancellation = OperationCancellation()
@@ -501,7 +557,7 @@ import TurtleGitCore
         undo = actions.undo; redo = actions.redo; actions.refresh()
     }
     func activatePane(base: Bool) {
-        guard !busy, !confirmingQuit, activeBase != base else { return }
+        guard !busy, !confirmingQuit, (!onePaneActive || !base), activeBase != base else { return }
         activeBase = base; selectedRows = nil; selectionRequest = nil; selectEditorActions()
     }
     func resetHistory() { for actions in editorActions.values { actions.reset() }; selectEditorActions() }
@@ -573,6 +629,7 @@ import TurtleGitCore
     }
     func load() {
         guard !retired, !busy, !confirmingQuit else { return }
+        if !loadedPaneMode { onePaneMode = OnePaneFileComparison.defaultEnabled(from: comparisonDefaults); loadedPaneMode = true }
         if dirty {
             let alert = NSAlert(); alert.messageText = "Save changes to “\(unsavedFilesDescription)” before reloading?"
             alert.addButton(withTitle: "Save and Reload"); alert.addButton(withTitle: "Reload Without Saving"); alert.addButton(withTitle: "Cancel")
@@ -584,7 +641,7 @@ import TurtleGitCore
         }
         reloadCommentProfiles = true
         generalPreferences = .load(from: comparisonDefaults); pendingLoadNavigation = generalPreferences.firstDifference
-        initialScrollRow = nil; initialScrollSides = []
+        initialScrollRow = nil; combinedScrollRow = nil; initialScrollSides = []
         busy = true
         Task {
             var externalOpened = false
@@ -786,6 +843,7 @@ import TurtleGitCore
             return sum + (cell.lineNumber == nil ? 0 : cell.text.utf16.count)
         }
         initialScrollSides.remove(base)
+        if onePaneActive, !base { combinedScrollRow = combined?.rows.firstIndex(where: { $0.alignmentRow >= row }); return }
         alignmentSelections[base] = .init(sourceRange: NSRange(location: offset, length: 0), scroll: true)
     }
     func register(_ scroll: NSScrollView, base: Bool) { scrolls[base] = scroll; queueInitialNavigation(base: base); onRegisterScroll(scroll, base); refreshLocatorViewport() }
@@ -801,7 +859,7 @@ import TurtleGitCore
     func navigate(_ step: Int) {
         guard !filtering, let alignment, !alignment.differences.isEmpty else { return }
         difference = min(alignment.differences.count - 1, max(0, difference + step))
-        let row = alignment.differences[difference].lowerBound
+        let row = onePaneActive ? combined?.differences[difference].lowerBound ?? 0 : alignment.differences[difference].lowerBound
         for scroll in scrolls.values {
             guard let text = scroll.documentView as? NSTextView else { continue }
             let lines = text.string.components(separatedBy: "\n")
@@ -818,6 +876,9 @@ import TurtleGitCore
     func replaceFindMatches(_ ranges: [NSRange], cells: [MergeSourceCell], base: Bool, replacement: String) -> Bool {
         guard canTransfer(toBase: base), let actions = editorActions[base], !ranges.isEmpty else { return false }
         do {
+            if onePaneActive, !base, let combined {
+                let edit = try combined.applying(replacement, ranges: ranges); actions.replace(edit.text, edit.caret, nil); return true
+            }
             let sourceRanges = try ranges.map { try FileComparisonEditing.sourceRange($0, cells: cells) }
             let value = NSMutableString(string: draftText(base: base))
             guard sourceRanges.allSatisfy({ NSMaxRange($0) <= value.length }) else { return false }
@@ -834,11 +895,15 @@ private struct FileComparisonDialog: View {
     @ObservedObject var model: FileComparisonWindowModel
     private func pane(base: Bool) -> some View {
         let content = base ? model.document?.base : model.document?.destination
+        let header: String
+        if model.onePaneActive, let document = model.document {
+            header = document.base.path + " : " + document.base.revision.label + " – " + document.destination.path + " : " + document.destination.revision.label
+        } else { header = (content?.path ?? model.path) + " : " + (content?.revision.label ?? (base ? model.snapshot.from.label : model.snapshot.to.label)) }
         return VStack(alignment: .leading, spacing: 5) {
-            Text(base ? "Base" : "Mine").font(.headline)
-            Text((content?.path ?? model.path) + " : " + (content?.revision.label ?? (base ? model.snapshot.from.label : model.snapshot.to.label))).font(.system(.caption, design: .monospaced)).lineLimit(1).help(content?.revision.label ?? "")
+            Text(model.onePaneActive ? "Base – Mine" : base ? "Base" : "Mine").font(.headline)
+            Text(header).font(.system(.caption, design: .monospaced)).lineLimit(1).help(header)
             if let alignment = model.alignment {
-                FileComparisonEditor(model: model, cells: alignment.rows.map { base ? $0.base : $0.destination }, base: base)
+                FileComparisonEditor(model: model, cells: model.displayCells(base: base), base: base)
             } else if let content {
                 if let text = content.text { FileComparisonEditor(model: model, cells: FileComparisonAlignment(base: text, destination: text).rows.map(\.base), base: base) }
                 else if let image = NSImage(data: content.bytes) { Image(nsImage: image).resizable().scaledToFit().frame(maxWidth: .infinity, maxHeight: .infinity) }
@@ -866,7 +931,7 @@ private struct FileComparisonDialog: View {
         VStack(spacing: 0) {
             HStack {
                 Button { model.save() } label: { CommandLabel(title: "Save", icon: .mergeSave) }.disabled(!model.activeDirty)
-                Menu { Button("Save left pane as…") { model.export(base: true) }; Button("Save right pane as…") { model.export(base: false) } } label: { CommandLabel(title: "Save As", icon: .mergeSaveAs) }.disabled(model.document == nil)
+                Menu { if !model.onePaneActive { Button("Save left pane as…") { model.export(base: true) } }; Button("Save right pane as…") { model.export(base: false) } } label: { CommandLabel(title: "Save As", icon: .mergeSaveAs) }.disabled(model.document == nil)
                 Button { model.undo() } label: { Image(nsImage: MenuIcon.mergeUndo.image() ?? NSImage()) }.help("Undo").accessibilityLabel("Undo").disabled(!model.canUndo)
                 Button { model.redo() } label: { Image(nsImage: MenuIcon.mergeRedo.image() ?? NSImage()) }.help("Redo").accessibilityLabel("Redo").disabled(!model.canRedo)
                 Button { model.load() } label: { CommandLabel(title: "Reload", icon: .mergeReload) }
@@ -881,7 +946,8 @@ private struct FileComparisonDialog: View {
                 Spacer()
                 Toggle("Inline diff", isOn: $model.showInlineDiff).disabled(model.alignment == nil)
                 Toggle("Word diff", isOn: $model.inlineWordDiff).disabled(!model.showInlineDiff || model.alignment == nil)
-                Toggle("Line diff bar", isOn: $model.showLineDiffBar).disabled(model.singleFileMode)
+                Toggle("Two-pane view", isOn: Binding(get: { !model.onePaneMode }, set: { model.switchPaneMode(!$0) })).disabled(model.singleFileMode || model.filtering || model.alignment == nil)
+                Toggle("Line diff bar", isOn: $model.showLineDiffBar).disabled(model.singleFileMode || model.onePaneActive)
                 Toggle("Line numbers", isOn: $model.showLineNumbers)
             }.toggleStyle(.checkbox).padding(.horizontal, 10).padding(.bottom, 8)
             HStack {
@@ -918,9 +984,9 @@ private struct FileComparisonDialog: View {
                                     enabled: !model.busy && !model.filtering && !model.confirmingQuit, navigate: model.scrollLocator)
                         .frame(width: 44).help("Left and right file overview; click or drag to scroll")
                 }
-                HSplitView { if !model.singleFileMode { pane(base: true) }; pane(base: false) }
+                HSplitView { if !model.singleFileMode && !model.onePaneActive { pane(base: true) }; pane(base: false) }
             }
-            if model.showLineDiffBar && !model.singleFileMode {
+            if model.showLineDiffBar && !model.singleFileMode && !model.onePaneActive {
                 Divider()
                 MergeLineDiffBar(model: model).frame(height: MergeLineDiffPreview.lineHeight(model.generalPreferences.nativeFont) * 2)
             }
@@ -981,14 +1047,15 @@ struct FileComparisonEditor: NSViewRepresentable {
         // Hosting can deliver a previously captured View value after an edit.
         // Read the current alignment and preserve the selection in source
         // coordinates before replacing attributed display text.
+        let oldDisplay = view.string
         let previousCells = (view as? FileComparisonTextView)?.sourceCells ?? context.coordinator.cells
         let sourceSelection = try? FileComparisonEditing.sourceRange(view.selectedRange(), cells: previousCells)
-        let cells = model.alignment?.rows.map { base ? $0.base : $0.destination } ?? self.cells
+        let cells = model.alignment == nil ? self.cells : model.displayCells(base: base)
         context.coordinator.cells = cells; context.coordinator.base = base
         (view as? FileComparisonTextView)?.sourceCells = cells
         if let renderer = (view as? MergeWhitespaceDisplaying)?.whitespaceRenderer {
             renderer.update(text: cells.map(\.displayText).joined(separator: "\n") + (cells.isEmpty ? "" : "\n"), cells: cells,
-                            otherCells: model.alignment?.rows.map { base ? $0.destination : $0.base }, preferences: model.whitespaceDisplay)
+                            otherCells: model.onePaneActive ? nil : model.alignment?.rows.map { base ? $0.destination : $0.base }, preferences: model.whitespaceDisplay)
             renderer.removal = base; renderer.highlightEndings = model.showInlineDiff
         }
         view.isEditable = model.editingEnabled && model.editableBase == base && !model.busy && !model.confirmingQuit
@@ -998,7 +1065,7 @@ struct FileComparisonEditor: NSViewRepresentable {
         view.needsDisplay = true
         if !view.string.utf8.elementsEqual(value.string.utf8) { view.textStorage?.setAttributedString(value) }
         else { value.enumerateAttributes(in: NSRange(location: 0, length: value.length)) { attributes, range, _ in view.textStorage?.setAttributes(attributes, range: range) } }
-        if let sourceSelection {
+        if let sourceSelection, !(model.onePaneActive && oldDisplay.utf8.elementsEqual(value.string.utf8)) {
             let start = min(FileComparisonEditing.displayOffset(sourceOffset: sourceSelection.location, cells: cells), value.length)
             let end = min(FileComparisonEditing.displayOffset(sourceOffset: NSMaxRange(sourceSelection), cells: cells), value.length)
             let range = NSRange(location: start, length: max(0, end - start))
@@ -1007,7 +1074,7 @@ struct FileComparisonEditor: NSViewRepresentable {
         scroll.rulersVisible = model.showLineNumbers
         (scroll.verticalRulerView as? MergeLineRuler)?.sourceNumbers = cells.map(\.lineNumber)
         (scroll.verticalRulerView as? MergeLineRuler)?.updateMetrics(for: view)
-        (scroll.verticalRulerView as? MergeLineRuler)?.markedRows = model.annotations(base: base).marked
+        (scroll.verticalRulerView as? MergeLineRuler)?.markedRows = model.onePaneActive ? Set((model.combined?.rows ?? []).enumerated().compactMap { model.annotations(base: false).marked.contains($0.element.alignmentRow) ? $0.offset : nil }) : model.annotations(base: base).marked
         scroll.verticalRulerView?.needsDisplay = true
         if let selection = model.alignmentSelections[base], context.coordinator.appliedSelection != selection.id {
             context.coordinator.appliedSelection = selection.id
@@ -1017,6 +1084,11 @@ struct FileComparisonEditor: NSViewRepresentable {
             if selection.scroll { view.scrollRangeToVisible(view.selectedRange()) }
             DispatchQueue.main.async { if model.alignmentSelections[base]?.id == selection.id { model.alignmentSelections.removeValue(forKey: base) } }
         }
+        if model.onePaneActive, !base, let row = model.combinedScrollRow {
+            let offset = cells.prefix(row).reduce(0) { $0 + $1.displayText.utf16.count + 1 }
+            view.setSelectedRange(NSRange(location: min(offset, value.length), length: 0)); view.scrollRangeToVisible(view.selectedRange())
+            DispatchQueue.main.async { if model.combinedScrollRow == row { model.combinedScrollRow = nil } }
+        }
         if model.editableBase == base, let caret = model.selectionRequest {
             let offset = FileComparisonEditing.displayOffset(sourceOffset: caret, cells: cells)
             view.setSelectedRange(NSRange(location: min(offset, (view.string as NSString).length), length: 0))
@@ -1025,13 +1097,23 @@ struct FileComparisonEditor: NSViewRepresentable {
         }
     }
     static func inline(_ row: Int, model: FileComparisonWindowModel, base: Bool) -> MergeInlineComparison? {
+        if model.onePaneActive, !base, model.showInlineDiff, let combined = model.combined, combined.rows.indices.contains(row) {
+            let current = combined.rows[row], neighbor = current.base ? row + 1 : row - 1
+            guard combined.rows.indices.contains(neighbor), combined.rows[neighbor].base != current.base,
+                  current.cell.state == (current.base ? .removed : .added),
+                  combined.rows[neighbor].cell.state == (current.base ? .added : .removed) else { return nil }
+            let old = current.base ? current.cell.displayText : combined.rows[neighbor].cell.displayText
+            let new = current.base ? combined.rows[neighbor].cell.displayText : current.cell.displayText
+            guard model.generalPreferences.inlineAllowed(baseLength: old.utf16.count, mineLength: new.utf16.count) else { return nil }
+            return MergeInlineComparison(base: old, destination: new, word: model.inlineWordDiff, maximumLength: model.generalPreferences.maximumInlineLength)
+        }
         guard let alignment = model.alignment, alignment.rows.indices.contains(row) else { return nil }
         return model.inlineDifference(row)
     }
     static func missingOffsets(_ cells: [MergeSourceCell], model: FileComparisonWindowModel, base: Bool) -> [Int] {
         var offset = 0, result: [Int] = []
         for (index, cell) in cells.enumerated() {
-            if let diff = inline(index, model: model, base: base) { result += (base ? diff.baseMissing : diff.destinationMissing).map { offset + $0 } }
+            if let diff = inline(index, model: model, base: base) { result += ((model.onePaneActive && !base ? model.combined?.rows[index].base == true : base) ? diff.baseMissing : diff.destinationMissing).map { offset + $0 } }
             offset += (cell.displayText as NSString).length + 1
         }
         return result
@@ -1044,7 +1126,8 @@ struct FileComparisonEditor: NSViewRepresentable {
             let diff = inline(index, model: model, base: base), offset = value.length
             value.append(NSAttributedString(string: cell.displayText + "\n", attributes: [.font: font, .foregroundColor: MergePalette.foreground(cell.state), .backgroundColor: diff == nil ? MergePalette.color(cell.state) : MergePalette.inlineCommon, .paragraphStyle: paragraph]))
             if let diff {
-                for range in base ? diff.base : diff.destination { value.addAttribute(.backgroundColor, value: base ? MergePalette.inlineRemoved : MergePalette.inlineAdded, range: NSRange(location: offset + range.location, length: range.length)) }
+                let removal = model.onePaneActive && !base ? model.combined?.rows[index].base == true : base
+                for range in removal ? diff.base : diff.destination { value.addAttribute(.backgroundColor, value: removal ? MergePalette.inlineRemoved : MergePalette.inlineAdded, range: NSRange(location: offset + range.location, length: range.length)) }
             }
         }
         return value
@@ -1062,7 +1145,9 @@ struct FileComparisonEditor: NSViewRepresentable {
         func textView(_ textView: NSTextView, shouldChangeTextIn affectedCharRange: NSRange, replacementString: String?) -> Bool {
             guard model.editingEnabled, model.editableBase == base, !model.busy, !model.confirmingQuit else { return false }
             do {
-                let edit = try FileComparisonEditing.applying(replacementString ?? "", range: affectedCharRange, cells: cells)
+                let edit: (text: String, caret: Int)
+                if model.onePaneActive, !base, let combined = model.combined { edit = try combined.applying(replacementString ?? "", ranges: [affectedCharRange]) }
+                else { edit = try FileComparisonEditing.applying(replacementString ?? "", range: affectedCharRange, cells: cells) }
                 replace(edit.text, caret: edit.caret, typing: true)
             } catch { model.error = error.localizedDescription }
             return false
@@ -1099,7 +1184,7 @@ struct FileComparisonEditor: NSViewRepresentable {
             if let restored { model.updateAnnotations(restored, base: base) }
             else if let oldAlignment, let alignment = model.alignment { model.updateAnnotations(next.remapped(from: oldAlignment, to: alignment, targetBase: base, typing: typing), base: base) }
             if let alignment = model.alignment, let view = scroll?.documentView as? NSTextView {
-                cells = alignment.rows.map { base ? $0.base : $0.destination }
+                cells = model.displayCells(base: base)
                 (view as? FileComparisonTextView)?.sourceCells = cells
                 view.textStorage?.setAttributedString(FileComparisonEditor.attributed(cells, font: view.font!, model: model, base: base))
                 (view as? FileComparisonTextView)?.missingOffsets = FileComparisonEditor.missingOffsets(cells, model: model, base: base)
@@ -1220,7 +1305,7 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
         setSelectedRange(NSRange(location: start, length: max(0, end - start)))
     }
     override func copy(_ sender: Any?) {
-        guard let text = try? FileComparisonEditing.selectedText(selectedRange(), cells: sourceCells), !text.isEmpty else { return }
+        guard let text = try? (model?.onePaneActive == true ? MergeSourceComparison.clipboardText(selectedRange(), cells: sourceCells) : FileComparisonEditing.selectedText(selectedRange(), cells: sourceCells)), !text.isEmpty else { return }
         NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
     }
     override func menu(for event: NSEvent) -> NSMenu? {
@@ -1238,7 +1323,7 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
         add(baseSide ? "Use this block" : "Use other block", #selector(useBlock), MenuIcon.mergeUseTheirs.image(), block)
         add("Use both blocks, this one first", #selector(useThisFirst), MenuIcon.mergeMineThenTheirs.image(), block)
         add("Use both blocks, this one last", #selector(useThisLast), MenuIcon.mergeTheirsThenMine.image(), block)
-        if model.canTransfer(toBase: true) {
+        if !model.onePaneActive && model.canTransfer(toBase: true) {
             menu.addItem(.separator())
             let leftBlock = model.transferRows != nil
             add(baseSide ? "Prepend right block" : "Prepend this block to left", #selector(prependRight), MenuIcon.mergeTheirsThenMine.image(), leftBlock)

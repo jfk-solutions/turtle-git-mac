@@ -31,8 +31,8 @@ never decoded, so legacy text and CRLF remain intact. Missing sides use
 The source command does not request `--binary`; binary differences produce Git's
 diagnostic rather than an applicable binary payload. This behavior is retained.
 
-Remaining General controls include Default to UTF-8 and the combined one-pane
-default. Windows Ribbon preferences require a native toolbar adaptation.
+The combined one-pane workflow/default is now implemented; see
+[one-pane parity](MERGE-ONE-PANE-PARITY.md). Default to UTF-8 remains open. Windows Ribbon preferences require a native toolbar adaptation.
 The Colors page now has native per-channel Automatic/More colors controls,
 independent palette drafts and Restore Default. See [Colors parity](MERGE-COLORS-PARITY.md)
 for panel lifecycle and remaining theme/physical acceptance. Exact physical
