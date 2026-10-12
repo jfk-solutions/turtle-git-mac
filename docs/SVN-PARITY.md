@@ -113,3 +113,33 @@ passes), all reaped. No Core/full seventeen-family group was rerun. SVN now shar
 the app-object cache and is removed from the legacy LFS/mail default group. No
 public SVN transport, physical sheet/window/keyboard or signed security-scope
 acceptance is claimed. See `qa/svn-scoped-lifecycle-native-2026-10-12.json`.
+
+
+## Native progress log and completion — 2026-10-12
+
+SVN progress now uses the shared AppKit read-only progress log instead of a plain
+SwiftUI Text surface. It inherits source-style bold warning/error prefixes,
+light/dark colors, clickable links, log font and context-menu icon preferences,
+Copy and Copy all information while preserving selection. SVN exposes captured
+progress percentage/work text and a source completion line/range with timing and
+locale preferences. Its existing bounded parser/output state remains the body
+owner; the completion line is appended through the common formatter. When a
+failure has no output, its diagnostic is included in the log. Retired models
+continue fencing all output and completion publication.
+
+Retry clears completion/success/work/percentage state and the previous fetched
+range before a new attempt, preventing stale Diff/Log handoffs. Preferences and
+pasteboard are retained through the model/controller; native QA uses a private
+pasteboard before the actual log is created, avoiding the general clipboard.
+
+Debug build exited 0. One object-linked receiver compilation ran the expanded
+SVN workflow with system and bundled Git; both passed and were reaped. The actual
+native output view displayed injected SVN warning/link output plus completion.
+Checks verified clickable attributed links, bold warning RGB colors under Aqua
+and Dark Aqua, colored successful completion, source copy menu/order/icons, exact
+private Copy/Copy All and retained selection, disabled completion timings, error
+exit-code completion and successful Retry reset. The prior complete private SVN
+workflow/lifecycle/scoped-window checks remain in the same receiver. No Core or
+full seventeen-family group was rerun. No physical pointer/keyboard, screenshot,
+public SVN authentication, signed grants or App Store acceptance is claimed.
+See `qa/svn-progress-native-2026-10-12.json`.

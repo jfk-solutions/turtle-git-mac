@@ -1,0 +1,41 @@
+{
+  "date": "2026-10-12",
+  "scope": "SVN native progress output/control integration",
+  "validation": {
+    "debug_build_exit": 0,
+    "native_exits": [
+      0,
+      0
+    ],
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "receiver_compilations": 1,
+    "owned_receivers": 2,
+    "owned_receivers_reaped": true,
+    "owned_windows_closed": true,
+    "private_pasteboard_and_preferences": true,
+    "injected_svn_and_real_private_git": true,
+    "general_clipboard_public_svn_used": false,
+    "core_or_full_group_rerun": false,
+    "new_screenshots": false
+  },
+  "checks": [
+    "Actual SVN native SubmoduleProgressTextView mounted",
+    "Attributed URL link",
+    "Bold Aqua/Dark Aqua warning RGB and successful footer color",
+    "Source Copy/Copy All menu order/icons",
+    "Exact private clipboard contents and retained selection",
+    "Success work/percentage/completion range and disabled timings",
+    "Error exit-code footer",
+    "Retry clears old completion/success then produces success",
+    "Prior lifecycle/scoped workflow assertions retained"
+  ],
+  "remaining": [
+    "Physical pointer/keyboard/appearance and screenshots",
+    "Broader native output limit/locale/font acceptance",
+    "Public SVN authentication and real conflict recovery",
+    "Signed scopes and App Store acceptance"
+  ]
+}

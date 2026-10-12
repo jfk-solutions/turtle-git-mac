@@ -20,6 +20,12 @@ import TurtleGitCore
     @Published private(set) var status = ""
     @Published private(set) var error: String?
     @Published private(set) var fetched: GitSVNFetchResult?
+    @Published private(set) var currentWork = ""
+    @Published private(set) var percentage: Int?
+    @Published private(set) var completionRange: NSRange?
+    @Published private(set) var success = false
+    let outputPreferences: UserDefaults
+    let outputClipboard: NSPasteboard
     var close: () -> Void = {}
     var confirmStash: () async -> Bool = { false }
     var confirmPop: () async -> Bool = { false }
@@ -40,8 +46,9 @@ import TurtleGitCore
     var title: String {
         switch operation { case .dcommit: return "SVN DCommit"; case .fetch: return "SVN Fetch"; case .rebase: return "SVN Rebase"; case .ignore: return "Import SVN Ignore" }
     }
-    init(repository: GitRepository, access: RepositoryAccessLease?, operation: GitSVNOperation, preferences: UserDefaults = .standard) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, operation: GitSVNOperation, preferences: UserDefaults = .standard, clipboard: NSPasteboard = .general) {
         self.repository = repository; self.access = access; self.operation = operation
+        outputPreferences = preferences; outputClipboard = clipboard
         visible = GitProgressOutputState(preferences: preferences); parser = GitCliOutputParser(limit: visible.limit)
     }
     private func checkAccess() throws {
@@ -70,12 +77,15 @@ import TurtleGitCore
     }
     func retry() {
         guard !busy, !retired, !confirmingCancellation, phase == .finished, error != nil else { return }
-        token = OperationCancellation(); parser = GitCliOutputParser(limit: visible.limit); visible.reset(); output = ""; error = nil
+        token = OperationCancellation(); parser = GitCliOutputParser(limit: visible.limit); visible.reset(); output = ""; error = nil; fetched = nil
         launch { try await self.execute() }
     }
     private func launch(_ action: @escaping () async throws -> Void) {
         guard !busy, !retired else { return }
-        busy = true; Self.activeOperations += 1
+        busy = true; success = false; completionRange = nil; currentWork = ""; percentage = nil
+        let startedAt = ProcessInfo.processInfo.systemUptime
+        var exitCode: Int32?
+        Self.activeOperations += 1
         pump = Task { [weak self] in
             while !Task.isCancelled {
                 self?.drain()
@@ -85,7 +95,13 @@ import TurtleGitCore
         Task {
             defer {
                 pump?.cancel(); pump = nil
-                if !retired { drain(); visible.consume(parser.finish(), parser: parser); output = visible.output }
+                if !retired {
+                    drain(); visible.consume(parser.finish(), parser: parser); output = visible.output
+                    if phase == .finished {
+                        let completion = SubmoduleProgressCompletion(success: success, cancelled: token.isCancelled, exitCode: exitCode, elapsed: ProcessInfo.processInfo.systemUptime - startedAt, preferences: outputPreferences)
+                        currentWork = completion.currentWork; percentage = 100; completionRange = completion.append(to: &output)
+                    }
+                }
                 busy = false; Self.activeOperations -= 1
                 if closeAfterCancel && !retired { close() }
             }
@@ -94,11 +110,14 @@ import TurtleGitCore
                 guard !retired else { return }
                 if token.isCancelled { status = "Operation cancelled. Any created stash remains available." }
                 else { self.error = error.localizedDescription; status = "\(title) failed." }
+                exitCode = (error as? GitFailure)?.code
+                drain()
+                if !visible.hasOutput { parser.appendChunk(Data(("error: " + (self.error ?? status) + "\n").utf8)) }
                 phase = .finished
             }
         }
     }
-    private func drain() { guard !retired else { return }; visible.consume(parser.processPending(), parser: parser); output = visible.output }
+    private func drain() { guard !retired else { return }; visible.consume(parser.processPending(), parser: parser); output = visible.output; currentWork = visible.currentWork; percentage = visible.percentage }
     private func execute() async throws {
         try checkAccess(); try await repository.checkGitSVNRuntime(cancellation: token)
         try checkAccess(); phase = .progress; status = "\(title) is running…"; error = nil
@@ -154,7 +173,7 @@ import TurtleGitCore
             try checkAccess()
             if ignoreDestination == .exclude { parser.appendChunk(Data(("\n" + result).utf8)) }; status = "SVN ignore patterns imported."; onChanged()
         }
-        try checkAccess(); phase = .finished
+        try checkAccess(); success = true; phase = .finished
     }
     private func restoreCreatedStash() async throws {
         guard let hash = stashHash, !retired else { return }
@@ -186,8 +205,8 @@ import TurtleGitCore
     private var question: NSAlert?
     private var reply: ((Bool) -> Void)?
     var presentQuestion: ((NSAlert, NSWindow, @escaping (NSApplication.ModalResponse) -> Void) -> Void)?
-    init(repository: GitRepository, access: RepositoryAccessLease?, operation: GitSVNOperation, preferences: UserDefaults = .standard) {
-        model = SVNWindowModel(repository: repository, access: access, operation: operation, preferences: preferences)
+    init(repository: GitRepository, access: RepositoryAccessLease?, operation: GitSVNOperation, preferences: UserDefaults = .standard, clipboard: NSPasteboard = .general) {
+        model = SVNWindowModel(repository: repository, access: access, operation: operation, preferences: preferences, clipboard: clipboard)
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 740, height: 460), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – \(model.title) – TurtleGit"; window.isReleasedWhenClosed = false; window.contentMinSize = .init(width: 600, height: 310)
         window.contentViewController = NSHostingController(rootView: SVNDialog(model: model))
@@ -261,8 +280,10 @@ private struct SVNDialog: View {
                 }
                 Spacer()
             } else {
-                ScrollView([.horizontal, .vertical]) { Text(model.output).font(.system(.body, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .topLeading) }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity).padding(8).background(Color(nsColor: .textBackgroundColor)).overlay(Rectangle().stroke(Color(nsColor: .separatorColor)))
+                Text(model.currentWork.isEmpty ? " " : model.currentWork).font(.caption).lineLimit(1).help(model.currentWork)
+                if let percentage = model.percentage { ProgressView(value: Double(percentage), total: 100) }
+                SubmoduleProgressOutputView(text: model.output, completed: !model.busy, completionRange: model.completionRange, success: model.success, preferences: model.outputPreferences, clipboard: model.outputClipboard)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 Text(model.error ?? model.status).foregroundStyle(model.error == nil ? Color.primary : Color.red).textSelection(.enabled)
             }
             HStack {

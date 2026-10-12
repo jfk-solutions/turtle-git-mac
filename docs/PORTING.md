@@ -861,3 +861,10 @@ under a different busy workspace and cover options reuse/conflicting operations.
 Final private native checks passed with both Git engines after correcting an
 initial fixture URL-equality assertion. Actual SVN authentication, physical UI
 and signed App Store acceptance remain open; see the SVN audit.
+
+
+SVN progress now shares the native styled output/control family with Commit and
+Merge: links, colored prefixes, completion metadata and original-icon copy menus.
+Actual native log checks with both Git engines cover private clipboard behavior,
+light/dark warning colors and error/Retry state, alongside the existing SVN
+workflow checks. Physical/signed/public SVN acceptance remains open.

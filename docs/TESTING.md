@@ -1308,3 +1308,11 @@ captured repository/executable/lease and window reuse. Workspace startup
 monitoring/publication is disabled only in this private receiver. CI runs SVN
 once in this group; legacy LFS/mail no longer compiles or runs its fixture. No
 public SVN server or signed grant is exercised.
+
+
+The SVN receiver now also checks its actual native progress text view: injected
+warning/link output, Aqua/Dark Aqua warning RGB/bold styling and successful footer
+color, source copy menu icons/order, private Copy/Copy All preserving selection,
+disabled timing footer, error completion and Retry state. It keeps the existing
+private workflow/lifecycle/scope assertions. Neither the general pasteboard nor
+a public SVN transport is used.
