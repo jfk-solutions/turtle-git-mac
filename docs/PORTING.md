@@ -691,3 +691,14 @@ use the dirty reload transaction and persist only on success; two-pane changes
 preserve drafts and recompute with existing cancellation/selection gates.
 Comment profiles, Unicode locale equivalence and physical/signed acceptance
 remain open; see MERGE-COMPARISON-OPTIONS-PARITY.md.
+
+## Comment profiles and comparison batch — 2026-10-12
+
+Pinned original profiles, extension precedence and the source UTF-16 comment
+heuristic now feed comparison keys before regex/whitespace/case conversion.
+Both viewers expose Ignore Comments only for supported extensions. Original
+text/bytes and existing dirty reload/save/Undo flows remain separate. Core and
+combined native checks pass after the connected implementation; original profile
+packaging is verified. Source quote limitations are documented, with bounded
+cancellation added. Overrides and physical/signed acceptance remain open; see
+MERGE-COMMENTS-PARITY.md.

@@ -15,8 +15,10 @@ public struct MergeComparisonOptions: Equatable, Sendable {
     public var whitespace: MergeWhitespaceComparison
     public var ignoreCase: Bool
     public var ignoreEndings: Bool
-    public init(whitespace: MergeWhitespaceComparison = .compare, ignoreCase: Bool = false, ignoreEndings: Bool = true) {
+    public var ignoreComments: Bool
+    public init(whitespace: MergeWhitespaceComparison = .compare, ignoreCase: Bool = false, ignoreEndings: Bool = true, ignoreComments: Bool = false) {
         self.whitespace = whitespace; self.ignoreCase = ignoreCase; self.ignoreEndings = ignoreEndings
+        self.ignoreComments = ignoreComments
     }
     /// Low-level engine callers keep explicit exact-byte comparison. App
     /// preferences default to the source's recommended IgnoreEOL=true.
@@ -24,12 +26,14 @@ public struct MergeComparisonOptions: Equatable, Sendable {
     public static func load(from defaults: UserDefaults = .standard) -> Self {
         .init(whitespace: MergeWhitespaceComparison(rawValue: defaults.integer(forKey: "TurtleGitMerge.IgnoreWS")) ?? .compare,
               ignoreCase: defaults.bool(forKey: "TurtleGitMerge.CaseInsensitive"),
-              ignoreEndings: defaults.object(forKey: "TurtleGitMerge.IgnoreEOL") == nil ? true : defaults.bool(forKey: "TurtleGitMerge.IgnoreEOL"))
+              ignoreEndings: defaults.object(forKey: "TurtleGitMerge.IgnoreEOL") == nil ? true : defaults.bool(forKey: "TurtleGitMerge.IgnoreEOL"),
+              ignoreComments: defaults.bool(forKey: "TurtleGitMerge.IgnoreComments"))
     }
     public func save(to defaults: UserDefaults = .standard) {
         defaults.set(whitespace.rawValue, forKey: "TurtleGitMerge.IgnoreWS")
         defaults.set(ignoreCase, forKey: "TurtleGitMerge.CaseInsensitive")
         defaults.set(ignoreEndings, forKey: "TurtleGitMerge.IgnoreEOL")
+        defaults.set(ignoreComments, forKey: "TurtleGitMerge.IgnoreComments")
     }
     /// Keys only; display/edit/save always use captured originals. ASCII
     /// whitespace follows svn_diff__normalize_buffer's non-EOL character set.

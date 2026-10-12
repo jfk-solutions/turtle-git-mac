@@ -1,0 +1,12 @@
+{
+  "date": "2026-10-12",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Pinned language comment profiles, source UTF-16 stripping and native Ignore Comments",
+  "implementationThenGroupedValidation": true,
+  "profile": {"source": "src/Resources/ignorecomments.txt", "sha256": "2380c17b4f1473d801a4d58f4de3e13e3891a84acf7f965abf860aa9292dad43", "unchangedOriginal": true, "actualFrameworkBytesVerified": true},
+  "core": {"tests": 26, "failures": 0, "seconds": 2.617, "log": "build/qa/comment-comparison-core-2026-10-12.log", "checks": ["pinned profiles", "extension precedence", "SQL literal marker space", "line/block/multiline state", "independent sources", "source quote-count limitations", "Unicode", "precancellation", "real engine keys before regex", "original sources retained", "existing options/engine/presentation cases"]},
+  "build": {"configuration": "Debug", "architecture": "arm64", "exitCode": 0, "signed": false, "log": "build/qa/comment-comparison-build-2026-10-12.log", "notes": "Existing exit-zero diagnostic noise remains."},
+  "native": {"exitCode": 0, "compilations": 1, "receiverProcesses": 1, "log": "build/qa/comment-comparison-native-2026-10-12.log", "checks": ["recognized C++ support", "Ignore Comments persistence", "comment-only differences become filtered rows", "actual original input bytes unchanged", "three-pane dirty Cancel and save/reload", "two-pane selection/Undo/marked-save", "existing helper cancellation and cleanup"], "physicalInput": false, "installedApplicationLaunched": false, "ownedWindowsClosed": true, "ownedHelpersExited": true},
+  "remainingAcceptance": ["profile override/editing", "exhaustive source heuristic edges", "physical menus/layout", "complete captures", "signed sandbox/bookmarks", "minimum-OS execution", "remote CI success", "full application parity"],
+  "completePortCertified": false
+}

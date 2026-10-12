@@ -48,11 +48,11 @@ import TurtleGitCore
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let suite = "TurtleGit.ThreePaneEngine." + UUID().uuidString, defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite); try? FileManager.default.removeItem(at: root) }
-        let repository = GitRepository(root: root, executable: URL(fileURLWithPath: "/usr/bin/git")), file = root.appendingPathComponent("sample.txt")
+        let repository = GitRepository(root: root, executable: URL(fileURLWithPath: "/usr/bin/git")), file = root.appendingPathComponent("sample.cpp")
         _ = try await repository.run(["init", "-b", "main"])
         for (key, value) in [("user.name", "Native engine QA"), ("user.email", "engine@example.invalid"), ("commit.gpgsign", "false"), ("core.hooksPath", "/dev/null"), ("core.autocrlf", "false")] { _ = try await repository.run(["config", key, value]) }
         try Data("version 1\nbase\nlast\n".utf8).write(to: file)
-        _ = try await repository.run(["add", "--", "sample.txt"]); _ = try await repository.run(["commit", "-m", "base"])
+        _ = try await repository.run(["add", "--", "sample.cpp"]); _ = try await repository.run(["commit", "-m", "base"])
         _ = try await repository.run(["checkout", "-b", "side"])
         try Data("version 3\ntheirs\nlast\n".utf8).write(to: file); _ = try await repository.run(["commit", "-am", "theirs"])
         _ = try await repository.run(["checkout", "main"])
@@ -62,10 +62,10 @@ import TurtleGitCore
         let head = try await repository.run(["rev-parse", "HEAD"]).stdout
         let filter = MergeRegexFilter(name: "Ignore version numbers", expression: "[0-9]+", replacement: "")
         try MergeRegexFilters.save([filter], defaults: defaults)
-        let controller = TextConflictWindowController(repository: repository, access: nil, path: "sample.txt"), model = controller.model
+        let controller = TextConflictWindowController(repository: repository, access: nil, path: "sample.cpp"), model = controller.model
         model.comparisonDefaults = defaults; model.regexDefaults = defaults; model.refreshRegexFilters(); model.load()
         try await wait { !model.busy && model.document != nil }
-        precondition(model.document?.mergeSources != nil && model.blocks.count == 1 && !model.dirty)
+        precondition(model.document?.mergeSources != nil && model.blocks.count == 1 && !model.dirty && model.supportsComments)
         model.selectRegexFilter(filter.name); try await wait { !model.busy }
         precondition(model.regexFilterName == filter.name && model.sourceComparison?.rows[0].mine.state == .filtered)
         precondition(model.result.hasPrefix("version 2\n") && model.blocks.count == 1)
@@ -87,7 +87,7 @@ import TurtleGitCore
         model.setComparisonOptions(.init(whitespace: .ignoreAll, ignoreCase: true, ignoreEndings: false))
         precondition(model.comparisonOptions == originalOptions && MergeComparisonOptions.load(from: defaults) == originalOptions)
         model.undo(); precondition(model.result == generated && !model.dirty)
-        let requestedOptions = MergeComparisonOptions(whitespace: .ignoreChanges, ignoreCase: true, ignoreEndings: false)
+        let requestedOptions = MergeComparisonOptions(whitespace: .ignoreChanges, ignoreCase: true, ignoreEndings: false, ignoreComments: true)
         model.setComparisonOptions(requestedOptions); try await wait { !model.busy }
         precondition(model.comparisonOptions == requestedOptions && MergeComparisonOptions.load(from: defaults) == requestedOptions)
         model.selectRegexFilter(nil); try await wait { !model.busy }
@@ -120,7 +120,7 @@ import TurtleGitCore
         try Data("#!/bin/sh\n/bin/sleep 2\nexit 1\n".utf8).write(to: slow)
         try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: slow.path)
         var stalledConfiguration = configuration; stalledConfiguration.executable = slow
-        let stalled = TextConflictWindowController(repository: repository, access: nil, path: "sample.txt")
+        let stalled = TextConflictWindowController(repository: repository, access: nil, path: "sample.cpp")
         stalled.model.engineConfiguration = stalledConfiguration; stalled.model.load()
         precondition(stalled.model.preparing); stalled.window?.performClose(nil)
         try await wait { MergeRegexOperations.activeRequests == 0 }

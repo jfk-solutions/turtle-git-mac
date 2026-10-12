@@ -12,6 +12,12 @@
       "source": "src/TortoiseGitSetup/include/autolist.txt",
       "blob": "4115a7a301b9a209613e7b458ee2215cd205f5d4",
       "sha256": "189c420ba9de79e77ae3d921b0d87ae21fa291c6dfe0c30203d4a8b6ffd7e1c0"
+    },
+    {
+      "asset": "ignorecomments.txt",
+      "source": "src/Resources/ignorecomments.txt",
+      "blob": "c42e8059abd5afa9cab07ff8759c03488f6a5700",
+      "sha256": "2380c17b4f1473d801a4d58f4de3e13e3891a84acf7f965abf860aa9292dad43"
     }
   ]
 }

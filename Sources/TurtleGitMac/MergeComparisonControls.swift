@@ -4,6 +4,7 @@ import TurtleGitCore
 struct MergeComparisonControls: View {
     let options: MergeComparisonOptions
     let apply: (MergeComparisonOptions) -> Void
+    var supportsComments = false
     private func changing(_ update: (inout MergeComparisonOptions) -> Void) {
         var next = options; update(&next); apply(next)
     }
@@ -17,6 +18,7 @@ struct MergeComparisonControls: View {
             Divider()
             Toggle("Ignore line endings", isOn: Binding(get: { options.ignoreEndings }, set: { value in changing { $0.ignoreEndings = value } }))
             Toggle("Ignore case changes", isOn: Binding(get: { options.ignoreCase }, set: { value in changing { $0.ignoreCase = value } }))
+            Toggle("Ignore Comments", isOn: Binding(get: { options.ignoreComments }, set: { value in changing { $0.ignoreComments = value } })).disabled(!supportsComments)
         }.fixedSize()
     }
 }

@@ -104,6 +104,11 @@ import TurtleGitCore
     var engineConfiguration: SubversionMergeConfiguration?
     @Published private(set) var comparisonOptions = MergeComparisonOptions.load()
     var comparisonDefaults: UserDefaults = .standard
+    private let commentProfiles = MergeCommentProfiles.bundled()
+    private var commentTokens: MergeCommentTokens? {
+        document.flatMap { commentProfiles.tokens(paths: [$0.base.path, $0.destination.path]) }
+    }
+    var supportsComments: Bool { commentTokens != nil }
     func setComparisonOptions(_ value: MergeComparisonOptions) {
         guard !busy, !confirmingQuit, !retired else { return }
         comparisonOptions = value; value.save(to: comparisonDefaults); rebuildFilterAlignment()
@@ -491,7 +496,7 @@ import TurtleGitCore
         let current = alignmentGeneration, token = OperationCancellation()
         let configuration = Result { () throws -> SubversionMergeConfiguration in
             var value = try engineConfiguration ?? SubversionMergeConfiguration.bundled(filter: filter)
-            value.filter = filter; value.options = comparisonOptions; value.regexExecutable = regexExecutable ?? value.regexExecutable
+            value.filter = filter; value.options = comparisonOptions; value.commentTokens = commentTokens; value.regexExecutable = regexExecutable ?? value.regexExecutable
             return value
         }
         filtering = true; regexCancellation = token
@@ -688,7 +693,7 @@ private struct FileComparisonDialog: View {
                 Toggle("Line numbers", isOn: $model.showLineNumbers)
             }.toggleStyle(.checkbox).padding(.horizontal, 10).padding(.bottom, 8)
             HStack {
-                MergeComparisonControls(options: model.comparisonOptions, apply: model.setComparisonOptions).disabled(model.busy || model.confirmingQuit)
+                MergeComparisonControls(options: model.comparisonOptions, apply: model.setComparisonOptions, supportsComments: model.supportsComments).disabled(model.busy || model.confirmingQuit)
                 Menu {
                     Button { model.selectRegexFilter(nil) } label: {
                         if model.regexFilterName == nil { Label("No Filter", systemImage: "checkmark") } else { Text("No Filter") }

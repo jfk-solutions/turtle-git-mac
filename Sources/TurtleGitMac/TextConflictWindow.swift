@@ -201,6 +201,8 @@ private enum MergeSourceSide {
     @Published private(set) var comparisonOptions = MergeComparisonOptions.load()
     var comparisonDefaults: UserDefaults = .standard
     private var pendingComparisonOptions: MergeComparisonOptions?
+    private let commentProfiles = MergeCommentProfiles.bundled()
+    var supportsComments: Bool { commentProfiles.tokens(paths: [path]) != nil }
     func setComparisonOptions(_ value: MergeComparisonOptions) {
         guard !busy, !confirmingQuit, !retired else { return }
         pendingComparisonOptions = value; load()
@@ -373,7 +375,7 @@ private enum MergeSourceSide {
         var engine = try engineConfiguration ?? SubversionMergeConfiguration.bundled(filter: filter)
         let changingOptions = pendingComparisonOptions != nil
         let options = pendingComparisonOptions ?? MergeComparisonOptions.load(from: comparisonDefaults)
-        engine.filter = filter; engine.options = options
+        engine.filter = filter; engine.options = options; engine.commentTokens = commentProfiles.tokens(paths: [path])
         let next = try await repository.textConflictDocument(path: path, engine: engine, cancellation: cancellation)
         guard !retired, generation == nil || generation == loadGeneration else { return }
         guard let comparison = next.mergeSources else { throw SubversionMergeDiffFailure.invalidOutput }
@@ -504,7 +506,7 @@ private struct TextConflictDialog: View {
                 Button { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegitmerge/tmerge-dug-conflicts.html")!) } label: { CommandLabel(title: "Help", icon: .help) }
             }.padding(9)
             HStack {
-                MergeComparisonControls(options: model.comparisonOptions, apply: model.setComparisonOptions)
+                MergeComparisonControls(options: model.comparisonOptions, apply: model.setComparisonOptions, supportsComments: model.supportsComments)
                 Menu("Regex Filter: " + (model.regexFilterName ?? "No Filter")) {
                     Button { model.selectRegexFilter(nil) } label: {
                         if model.regexFilterName == nil { Label("No Filter", systemImage: "checkmark") } else { Text("No Filter") }

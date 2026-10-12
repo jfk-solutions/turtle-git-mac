@@ -190,4 +190,6 @@ are not recursively audited.
 
 [Subversion merge engine](SUBVERSION-MERGE-ENGINE.md): bundled diff2/diff3 adapter and original-text source mapping and native pane integration; full source acceptance remains open.
 
-[Merge comparison options](MERGE-COMPARISON-OPTIONS-PARITY.md): whitespace/case/EOL controls and saved source defaults; comment profiles and full acceptance remain open.
+[Merge comparison options](MERGE-COMPARISON-OPTIONS-PARITY.md): whitespace/case/EOL controls and saved source defaults; full acceptance remains open.
+
+[Comment comparison](MERGE-COMMENTS-PARITY.md): pinned language profiles and source heuristic in both viewers; profile overrides and complete acceptance remain open.

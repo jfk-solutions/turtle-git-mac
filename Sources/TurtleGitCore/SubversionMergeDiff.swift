@@ -72,6 +72,7 @@ public enum SubversionMergeDiff {
     public static func plan(base: String, mine: String, theirs: String? = nil, filter: MergeRegexFilter? = nil,
                             executable: URL? = nil, runtimeRoot: URL? = nil, regexExecutable: URL? = nil,
                             options: MergeComparisonOptions = .exact,
+                            commentTokens: MergeCommentTokens? = nil,
                             cancellation: OperationCancellation? = nil) throws -> SubversionDiffPlan {
         let token = cancellation ?? OperationCancellation(); try token.check()
         let helper = try executable ?? Self.executable(), runtime = try runtimeRoot ?? Self.runtimeRoot()
@@ -79,7 +80,12 @@ public enum SubversionMergeDiff {
         let sources = [base, mine] + (theirs.map { [$0] } ?? [])
         let lines = sources.map(MergeRegexFilters.lines)
         let all = lines.flatMap { $0 }
-        let contents = all.map(MergeLineEndings.droppingFinalEnding)
+        let contents: [String]
+        if options.ignoreComments, let commentTokens {
+            // Each source has independent block-comment state. Comments are
+            // stripped before regex/whitespace/case, as FileTextLines::Save.
+            contents = try lines.flatMap { try MergeCommentStripping.strip($0.map(MergeLineEndings.droppingFinalEnding), tokens: commentTokens, cancellation: token) }
+        } else { contents = all.map(MergeLineEndings.droppingFinalEnding) }
         let replacements: [String]
         if let filter {
             replacements = try MergeRegexFilters.transformed(contents, filter: filter, executable: regexExecutable, cancellation: token)

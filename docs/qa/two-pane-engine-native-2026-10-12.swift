@@ -81,6 +81,18 @@ import TurtleGitCore
         let mode = try FileManager.default.attributesOfItem(atPath: base.path)[.posixPermissions] as? NSNumber
         precondition(mode?.intValue == 0o755)
         controller.window?.close(); try await wait { MergeRegexOperations.activeRequests == 0 }
+        let commentBase = folder.appendingPathComponent("base.cpp"), commentMine = folder.appendingPathComponent("mine.cpp")
+        let commentBaseBytes = Data("value; // base\r\n".utf8), commentMineBytes = Data("value; // mine\r\n".utf8)
+        try commentBaseBytes.write(to: commentBase); try commentMineBytes.write(to: commentMine)
+        let comments = FileComparisonWindowModel(comparison: try WorkingFileComparison(base: commentBase, destination: commentMine), permissions: [])
+        comments.comparisonDefaults = defaults; comments.load(); try await settled(comments)
+        precondition(comments.supportsComments && comments.alignment?.differences.isEmpty == false)
+        var commentOptions = MergeComparisonOptions.exact; commentOptions.ignoreComments = true
+        comments.setComparisonOptions(commentOptions); try await settled(comments)
+        precondition(comments.alignment?.differences.isEmpty == true && comments.alignment?.rows[0].base.state == .filtered)
+        let originalComments = try Data(contentsOf: commentBase), retainedComments = try Data(contentsOf: commentMine)
+        precondition(originalComments == commentBaseBytes && retainedComments == commentMineBytes)
+        comments.retireImageLoader(); try await wait { MergeRegexOperations.activeRequests == 0 }
         // A missing engine must show a failure, never an apparently completed
         // Swift comparison. No hosted window is needed for this error path.
         let failed = FileComparisonWindowModel(comparison: comparison, permissions: [])

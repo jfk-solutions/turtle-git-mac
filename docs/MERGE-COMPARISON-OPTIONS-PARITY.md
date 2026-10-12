@@ -29,7 +29,9 @@ Cancel or an engine failure retains the prior option/result. Preferences are
 saved only after successful three-pane regeneration. Saved settings become the
 defaults for subsequent explicit Reload and new windows.
 
-Remaining: comment-language profiles/lexer, full source Unicode locale behavior,
+Pinned comment profiles and source stripping now feed both viewers; see
+[comment comparison](MERGE-COMMENTS-PARITY.md). Remaining: profile overrides,
+full source Unicode locale behavior,
 source whitespace-difference visibility categories, all ending/regex edge cases,
 physical menu/settings interaction, complete visual captures, signed helper and
 App Store acceptance. This advances the complete port without certifying all
