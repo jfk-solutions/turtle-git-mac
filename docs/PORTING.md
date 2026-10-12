@@ -584,3 +584,23 @@ the same workflow; serial import still chooses a working Git repository.
 The Finder catalog now exposes 51 of 55 groups; the four SVN groups remain
 unavailable. Full clipboard/path-guessing/TortoiseGitMerge behavior, physical
 layout and signed acceptance remain open; see REVIEW-PATCH-PARITY.md.
+
+
+## SVN workflow/runtime batch — 2026-10-12
+
+All four remaining Finder groups now have native routes: source DCommit radio/
+remember/stash flow, Fetch with captured Diff/Log, source fetch/fast-forward/
+Rebase handoff and both Ignore destinations. The common svn/.metadata marker is
+cached with backward-compatible decoding, exact source clauses/order/icons and
+original preference masks. The catalog now has implementation routes for all
+55 groups; this does not certify full application/dialog/Finder parity.
+
+The previously disabled git-svn stub is replaced by a relocatable universal
+dispatcher and private per-CPU Perl/Subversion/Serf/OpenSSL runtime, with pinned
+sources, notices, reconstruction, hashes, contained dependencies and macOS 13
+deployment. Real private file:// clone/fetch/dcommit/ignore validation passed
+with build-prefix fallbacks hidden. CI builds the interpreter component on
+Apple Silicon, transfers a permission-preserving tar payload, and retains the
+Intel main test job. Remote CI, signed inheritance/trust/credentials, physical
+dialog matching and release review remain open; see SVN-PARITY.md and
+GIT-SVN-RUNTIME.md.

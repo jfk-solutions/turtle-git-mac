@@ -198,6 +198,10 @@ extension RepositoryAction {
         case .lfsLocks: return .repositoryBrowser
         case .lfsLock: return .lock
         case .lfsUnlock: return .unlock
+        case .svnDCommit: return .commit
+        case .svnRebase: return .rebase
+        case .svnFetch: return .fetch
+        case .svnIgnore: return .ignore
         case .reviewPatch: return .patch
         case .sendMail: return .sendMail
         case .synchronize: return .synchronize

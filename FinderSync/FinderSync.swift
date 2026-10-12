@@ -83,7 +83,7 @@ final class FinderMenuGroup: NSObject {
 enum FinderShellMenuLayout {
     static let groups: [[RepositoryAction]] = [
         [.clone, .pull, .fetch, .push, .synchronize],
-        [.commit],
+        [.commit, .svnDCommit, .svnRebase, .svnFetch, .svnIgnore],
         [.diff, .diffLater, .previousDiff],
         [.log, .logSubmodule, .reflog, .referenceBrowser, .daemon, .revisionGraph, .repositoryBrowser, .status, .rebase, .stash, .stashApply, .stashPop, .stashList],
         [.bisectStart, .bisectGood, .bisectBad, .bisectSkip, .bisectReset],

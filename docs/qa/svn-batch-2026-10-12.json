@@ -1,0 +1,16 @@
+{
+  "date": "2026-10-12",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Four SVN command workflows, cached Finder marker/rules and private universal Perl/Subversion runtime",
+  "implementationThenGroupedValidation": true,
+  "core": {"tests": 36, "failures": 0, "seconds": 8.167, "log": "build/qa/svn-core-2026-10-12.log", "transport": "private Git with injected SVN command responses"},
+  "build": {"configuration": "Debug", "architecture": "arm64", "exitCode": 0, "embeddedBuildExitCode": 0, "signed": false, "logs": ["build/qa/svn-native-build-2026-10-12.log", "build/qa/svn-embedded-build-2026-10-12.log"], "embeddedComponentManifestInspected": true},
+  "runtime": {"architectures": ["arm64", "x86_64"], "nativeFilesAudited": 179, "minimumMacOS": "13.0", "exitCode": 0, "transport": "disposable local file:// SVN repository", "originalBuildPrefixesHidden": true, "checks": ["contained aliases and dependencies", "payload hashes", "per-slice deployment", "clone", "fetch without changing HEAD/index", "DCommit", "show-ignore", "create-ignore"], "log": "build/qa/git-svn-runtime-validation-2026-10-12.log", "installedGitAuditExitCode": 0, "installedLog": "build/qa/git-svn-installed-validation-2026-10-12.log", "signing": "component ad-hoc only; Developer ID/App Store unproven"},
+  "finder": {"exitCode": 0, "rootEntries": 61, "conditionCommands": 64, "checks": ["all four source SVN groups", "common .metadata marker", "source order", "original icons", "merge/bisect exclusions", "existing menu/layout/cache checks"], "log": "build/qa/svn-finder-2026-10-12.log", "installedExtensionActivated": false},
+  "native": {"exitCode": 0, "compilations": 1, "receiverProcesses": 1, "log": "build/qa/svn-native-receivers-2026-10-12.log", "checks": ["captured Fetch range/actions", "DCommit radio/default/remember", "owned stash/pop prompts", "Ignore output", "fast-forward information", "duplicate start", "forced closure and Quit fence", "existing daemon/review/LFS/mail fixtures"], "SVNTransport": "injected", "GitOperations": "real private Git", "mailTransport": "owned loopback SMTP", "installedApplicationLaunched": false},
+  "ci": {"configurationUpdated": true, "SVNBuildHost": "standard Apple Silicon macos-15", "mainTestHost": "existing macos-15-intel", "archivePreservesAliasesAndPermissions": true, "freshRemoteRunVerified": false},
+  "availableFinderCatalogGroups": 55,
+  "finderCatalogGroups": 55,
+  "remainingAcceptance": ["physical resource/progress/post-action comparison", "actual divergent Rebase UI and stash conflicts", "authenticated HTTP/SVN/SSH", "credential and trust prompts", "signed sandbox/bookmark/common-directory inheritance", "minimum-system execution", "security-advisory/license/distribution review", "fresh remote CI", "complete application/dialog parity"],
+  "completePortCertified": false
+}

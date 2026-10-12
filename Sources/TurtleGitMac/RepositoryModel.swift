@@ -24,6 +24,7 @@ import TurtleGitCore
     var onAbout: () -> Void = {}
     @Published var root: URL?
     @Published var branch = ""
+    @Published var hasGitSVN = false
     @Published var bare = false
     @Published var conflictRebase = false
     @Published var mergeActive = false
@@ -70,6 +71,8 @@ import TurtleGitCore
     private var revertProgressWindows: [UUID: RevertProgressWindowController] = [:]
     private var addWindows: [String: AddWindowController] = [:]
     private var addUnifiedWindows: [String: PatchWindowController] = [:]
+    private var svnWindows: [String: SVNWindowController] = [:]
+    var svnPresentation: ((SVNWindowController) -> Void)?
     private var daemonWindows: [String: GitDaemonWindowController] = [:]
     var daemonPresentation: ((GitDaemonWindowController) -> Void)?
     private var lfsLocksWindows: [String: LFSLocksWindowController] = [:]
@@ -206,7 +209,7 @@ import TurtleGitCore
     }
     func closeRepository() {
         guard !busy, !confirmingQuit else { return }
-        adoptionGeneration += 1; bare = false; mergeActive = false
+        adoptionGeneration += 1; hasGitSVN = false; bare = false; mergeActive = false
         repository = nil; activeAccess = nil; root = nil; entries = []; selection = []
         branch = ""; message = ""; output = "Open a repository to get started."
     }
@@ -277,6 +280,7 @@ import TurtleGitCore
         branch = try await repository.branch()
         let tracked = bare ? [] : try await repository.trackedPaths()
         let metadata = try await repository.finderMetadata(knownBare: bare)
+        hasGitSVN = metadata.hasGitSVN
         mergeActive = metadata.mergeActive
         var snapshot = FinderSnapshot.build(root: root, tracked: tracked, changes: entries)
         snapshot.indexFlags = bare ? [:] : try await repository.finderIndexFlags()
@@ -324,6 +328,7 @@ import TurtleGitCore
         guard !confirmingQuit else { return }
         guard !bare || !action.requiresWorkingTree else { error = "\(action.title) requires a working tree. This repository is bare."; return }
         switch action {
+        case .svnDCommit, .svnRebase, .svnFetch, .svnIgnore: showSVN(action.svnOperation!)
         case .reviewPatch:
             showReviewPatch(files: (paths.isEmpty ? selectedPaths : paths).map { repository?.root.appendingPathComponent($0) }.compactMap { $0 })
         case .daemon: showDaemon()
@@ -777,6 +782,33 @@ import TurtleGitCore
                 controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
             } catch { self.error = error.localizedDescription }
         }
+    }
+    func showSVN(_ operation: GitSVNOperation) {
+        guard !busy, !confirmingQuit, !bare, let repository else { return }
+        let key = repository.root.path, access = activeAccess
+        if let existing = svnWindows[key] {
+            if existing.model.busy || existing.model.phase == .options || existing.window?.attachedSheet != nil { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
+            existing.window?.close()
+        }
+        if operation == .rebase, let existing = rebaseWindows[key] { existing.window?.makeKeyAndOrderFront(nil); error = "Close the existing Rebase dialog before starting SVN Rebase."; return }
+        let controller = SVNWindowController(repository: repository, access: access, operation: operation)
+        controller.onClosed = { [weak self] in self?.svnWindows.removeValue(forKey: key) }
+        controller.model.onChanged = { [weak self] in
+            self?.refreshRepositoryLogs(repository.root)
+            if self?.root == repository.root { Task { await self?.refresh() } }
+        }
+        controller.model.onCompare = { [weak self] from, to in self?.showRevisionComparison(repository: repository, access: access, from: .revision(from), to: .revision(to)) }
+        controller.model.onLog = { [weak self] result in self?.showLog(repository: repository, access: access, paths: [], revisionRange: HistoryRevisionRange(from: result.oldHash, to: result.newHash)) }
+        controller.model.onRepositoryLog = { [weak self] in self?.showLog(repository: repository, access: access, paths: []) }
+        controller.model.openRebase = { [weak self, weak controller] reference in
+            guard let self, let window = controller?.window, window.attachedSheet == nil, self.rebaseWindows[key] == nil else { return false }
+            return await withCheckedContinuation { continuation in
+                self.showRebase(repository: repository, access: access, upstream: String(reference.dropFirst("refs/".count)), owner: window, onResult: { continuation.resume(returning: $0) }, onRequestedLog: { [weak controller] in controller?.model.pendingRebaseLog = true })
+            }
+        }
+        svnWindows[key] = controller
+        if let svnPresentation { svnPresentation(controller) } else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
+        controller.model.load()
     }
     func showDaemon() {
         guard !busy, !confirmingQuit, let repository else { return }
@@ -1811,7 +1843,7 @@ import TurtleGitCore
         log.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
         }
     }
-    private func showRebase(repository: GitRepository, access: RepositoryAccessLease?, upstream: String? = nil, autoStart: Bool = false, preserveMerges: Bool = false, cherryPick: [String]? = nil, afterFetch: Bool = false, fromLog: Bool = false, owner: NSWindow? = nil, onDismissed: (() -> Void)? = nil) {
+    private func showRebase(repository: GitRepository, access: RepositoryAccessLease?, upstream: String? = nil, autoStart: Bool = false, preserveMerges: Bool = false, cherryPick: [String]? = nil, afterFetch: Bool = false, fromLog: Bool = false, owner: NSWindow? = nil, onDismissed: (() -> Void)? = nil, onResult: ((Bool) -> Void)? = nil, onRequestedLog: (() -> Void)? = nil) {
         let root = repository.root
         let existing = rebaseWindows[root.path]
         if let existing, existing.window?.sheetParent != nil { existing.window?.makeKeyAndOrderFront(nil); return }
@@ -1820,7 +1852,8 @@ import TurtleGitCore
         controller.onClosed = { [weak self, weak controller] in
             guard !dismissed else { return }; dismissed = true
             if let window = controller?.window { window.sheetParent?.endSheet(window) }
-            self?.rebaseWindows.removeValue(forKey: root.path); onDismissed?()
+            let completed = controller?.model.completedSuccessfully == true
+            self?.rebaseWindows.removeValue(forKey: root.path); onResult?(completed); onDismissed?()
         }
         controller.model.onChanged = { [weak self] in
             self?.refreshRepositoryLogs(root); self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
@@ -1838,7 +1871,7 @@ import TurtleGitCore
         controller.model.completionAfterFetch = afterFetch
         controller.model.completionFromLog = fromLog
         controller.model.completionAutoStart = autoStart
-        controller.model.onCompletedLog = { [weak self] in self?.showLog(repository: repository, access: access, paths: []) }
+        controller.model.onCompletedLog = onRequestedLog ?? { [weak self] in self?.showLog(repository: repository, access: access, paths: []) }
         controller.model.onCompletedPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
         controller.model.onCompletedMail = { [weak self] preset in self?.showFormatPatch(repository: repository, access: access, preset: preset, sendMail: true) }
         controller.model.configureCommitSelection = { [weak self] commit in self?.configureCommitInteractions(commit, repository: repository, access: access) }

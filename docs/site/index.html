@@ -202,6 +202,10 @@
     <h2>Review a single patch against a folder</h2>
     <p>Review/apply single patch now opens from Finder or the app’s File menu. Review before/after changes, apply checked files, or edit and save a patched result. Targets may be ordinary folders or nested Git folders; opening a review does not apply changes, and plain folders are not initialized as repositories. Outside-repository Send Mail Review uses the same workflow. Source clipboard integration, automatic path guessing, complete visual matching and signed integration remain in progress. <a href="@@REPOSITORY_URL@@/blob/main/docs/REVIEW-PATCH-PARITY.md">Source comparison and verification →</a></p>
   </section>
+  <section class="section">
+    <h2>Native SVN workflows with a private runtime</h2>
+    <p>SVN DCommit, Fetch, Rebase and Import Ignore now have app and Finder routes with the original icons and controls. The pinned private Perl/Subversion runtime builds for Apple Silicon and Intel, preserving ordinary-folder permissions and keeping users’ system installations unchanged. All 55 Finder catalog groups now have implementation routes. Full physical dialog matching, authenticated transports, signed integration and release acceptance remain in progress. <a href="@@REPOSITORY_URL@@/blob/main/docs/SVN-PARITY.md">Source comparison and remaining work →</a></p>
+  </section>
   <section id="build" class="build">
     <div><p class="eyebrow">For developers and early testing</p><h2>Build from source</h2><p>Requires macOS 13 or later, Xcode with the macOS SDK, and Git. The generated Xcode project includes the app and Finder extension.</p><pre><code>swift test
 ./scripts/build.sh

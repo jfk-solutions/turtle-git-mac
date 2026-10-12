@@ -259,3 +259,12 @@ permission, attachment access/import, account selection and Mac App Store review
 remain required acceptance work. Unsigned packaging/audit results prove only the
 configured metadata, not these runtime or distribution requirements. See
 [SEND-PATCH-PARITY.md](SEND-PATCH-PARITY.md).
+
+
+The 2026-10-12 [Git SVN component](GIT-SVN-RUNTIME.md) adds bundled Perl,
+Subversion bindings and Serf transport to the pinned Git package. Executable
+helpers receive inherited-sandbox signing; dylibs/XS bundles receive library
+signatures without executable entitlements. Local ad-hoc execution and contained
+loader paths are development evidence only; authenticated transport, minimum-
+OS runtime, signed bookmarks/Keychain/trust and security/license acceptance remain
+release gates.

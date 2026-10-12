@@ -1637,6 +1637,117 @@
           "no": []
         }
       ]
+    },
+    "svnDCommit": {
+      "command": "SVNDCommit",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_INGIT",
+            "ITEMIS_GITSVN"
+          ],
+          "no": [
+            "ITEMIS_BISECT",
+            "ITEMIS_MERGEACTIVE"
+          ]
+        },
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_GITSVN"
+          ],
+          "no": [
+            "ITEMIS_BISECT",
+            "ITEMIS_MERGEACTIVE"
+          ]
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "svnRebase": {
+      "command": "SVNRebase",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_GITSVN",
+            "ITEMIS_ONLYONE"
+          ],
+          "no": [
+            "ITEMIS_BISECT",
+            "ITEMIS_MERGEACTIVE"
+          ]
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "svnFetch": {
+      "command": "SVNDFetch",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_GITSVN",
+            "ITEMIS_ONLYONE"
+          ],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "svnIgnore": {
+      "command": "SVNIgnore",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_GITSVN",
+            "ITEMIS_ONLYONE"
+          ],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
     }
   },
   "additionalSources": {

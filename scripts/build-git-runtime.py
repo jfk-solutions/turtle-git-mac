@@ -30,6 +30,7 @@ def main():
     if platform.system() != 'Darwin': parser.error('Build on macOS with Xcode or Command Line Tools.')
     if args.jobs < 1 or args.jobs > 64: parser.error('Use 1 through 64 build jobs.')
     if args.output.exists(): parser.error('Output already exists; select a new output directory.')
+    svn_component = ROOT / 'build/git-svn-runtime/GitSVN'
     pin = json.loads((ROOT / 'Configuration/GitRuntime.json').read_text())
     cache = ROOT / 'build/git-source'; cache.mkdir(parents=True, exist_ok=True)
     archive = cache / ('git-' + pin['version'] + '.tar.xz')
@@ -85,10 +86,13 @@ def main():
         reconstruction = licenses / 'build'
         (reconstruction / 'scripts').mkdir(parents=True)
         (reconstruction / 'Configuration').mkdir()
-        for script in ['build-git-runtime.py', 'validate-git-runtime.py', 'test-git-runtime-deployment.py', 'git_lfs_runtime.py', 'prepare-git-lfs-runtime.py', 'validate-git-lfs-runtime.py']:
+        for script in ['build-git-runtime.py', 'validate-git-runtime.py', 'test-git-runtime-deployment.py', 'git_lfs_runtime.py', 'prepare-git-lfs-runtime.py', 'validate-git-lfs-runtime.py', 'build-git-svn-runtime.py', 'install-git-svn-runtime.py', 'validate-git-svn-runtime.py', 'validate_git_svn_support.py']:
             shutil.copy2(ROOT / 'scripts' / script, reconstruction / 'scripts' / script)
         shutil.copy2(ROOT / 'Configuration/GitRuntime.json', reconstruction / 'Configuration/GitRuntime.json')
         shutil.copy2(ROOT / 'Configuration/GitLFSRuntime.json', reconstruction / 'Configuration/GitLFSRuntime.json')
+        shutil.copy2(ROOT / 'Configuration/GitSVNRuntime.json', reconstruction / 'Configuration/GitSVNRuntime.json')
+        (reconstruction / 'Sources/GitSVNLauncher').mkdir(parents=True)
+        shutil.copy2(ROOT / 'Sources/GitSVNLauncher/main.c', reconstruction / 'Sources/GitSVNLauncher/main.c')
         shutil.copy2(tree / 'reftable/LICENSE', licenses / 'REFTable-LICENSE')
         shutil.copy2(tree / 'sha1dc/LICENSE.txt', licenses / 'SHA1DC-LICENSE.txt')
         (licenses / 'README.txt').write_text('The complete unmodified Git source archive and build scripts are included.\nTo rebuild, run: python3 build/scripts/build-git-runtime.py\nThe script verifies the pinned archive checksum and uses the macOS SDK.\nGit is GPL v2; retained third-party notices are also present in the source archive.\n')
@@ -97,7 +101,10 @@ def main():
              'features': ['local-git', 'https-system-libcurl', 'credential-osxkeychain'],
              'excluded': ['git-gui', 'gitk', 'perl-tools', 'python-tools', 'git-lfs']}, indent=2) + '\n')
         run(['/usr/bin/python3', ROOT / 'scripts/prepare-git-lfs-runtime.py', prepared])
-        run(['/usr/bin/python3', ROOT / 'scripts/validate-git-runtime.py', prepared, '--require-lfs'])
+        if not svn_component.exists():
+            run(['/usr/bin/python3', ROOT / 'scripts/build-git-svn-runtime.py', '--output', svn_component, '--architectures', *list(dict.fromkeys(args.architectures))])
+        run(['/usr/bin/python3', ROOT / 'scripts/install-git-svn-runtime.py', svn_component, prepared])
+        run(['/usr/bin/python3', ROOT / 'scripts/validate-git-runtime.py', prepared, '--require-lfs', '--require-svn'])
         args.output.parent.mkdir(parents=True, exist_ok=True)
         shutil.copytree(prepared, args.output, symlinks=True)
     print('Built pinned Git runtime: ' + str(args.output.resolve()))

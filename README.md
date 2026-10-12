@@ -24,6 +24,7 @@ macOS 13.
 | Comparison | Standalone Load Images, colored unified diff, two-file text comparison, native image panes with zoom/linked pan/alpha and XOR overlay, frame/page controls and playback, configurable transparency backgrounds and local Dark Mode, three-pane image conflict selection, and three-pane text conflict editor | Full upstream formats, format-specific animation and broader conflict controls, encodings, commands and layout parity |
 | Appearance and icons | Light/dark palettes, original upstream artwork in native menus and status lists | All-dialog visual comparison and signed Finder rendering |
 | Single-patch review | Native before/after review, checked-file application and edited saves against plain directories or Git subfolders; app/Finder entry | Full TortoiseGitMerge behavior, clipboard/path guessing and signed acceptance; [source audit](docs/REVIEW-PATCH-PARITY.md) |
+| SVN integration | DCommit choices/stash flow, Fetch comparisons, fetch-then-Rebase and Ignore destinations; private universal Perl/Subversion runtime | Native/signed authentication, full physical UI acceptance and distribution review; [source audit](docs/SVN-PARITY.md) |
 | Git daemon | Native warning/progress, server URLs, owned cancellation and app/Finder entry | Signed sandbox, firewall and LAN/IPv6 acceptance; [source audit](docs/DAEMON-PARITY.md) |
 | Finder | Embedded Finder Sync extension, status snapshot/badges and selection-based context-menu routing | Signed end-to-end activation, independent background cache and invalidation |
 

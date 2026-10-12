@@ -10,7 +10,7 @@ final class FinderShellRulesTests: XCTestCase {
         let fixture = try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: root.appendingPathComponent("docs/upstream-shell-menu-conditions.json")))
         XCTAssertEqual(fixture.upstreamCommit, "7338078f8ddd924b8cddee35f512f2286072136d")
         let tokens: [String: FinderShellFlags] = [
-            "ITEMIS_FOLDER": .folder, "ITEMIS_INGIT": .inGit, "ITEMIS_FOLDERINGIT": .folderInGit,
+            "ITEMIS_GITSVN": .gitSVN, "ITEMIS_FOLDER": .folder, "ITEMIS_INGIT": .inGit, "ITEMIS_FOLDERINGIT": .folderInGit,
             "ITEMIS_BAREREPO": .bare, "ITEMIS_INACCESSIBLE": .inaccessible, "ITEMIS_IGNORED": .ignored,
             "ITEMIS_EXTENDED": .extended, "ITEMIS_ONLYONE": .onlyOne, "ITEMIS_TWO": .two,
             "ITEMIS_WCROOT": .workingTreeRoot, "ITEMIS_BISECT": .bisect, "ITEMIS_MERGEACTIVE": .merge,
@@ -18,7 +18,7 @@ final class FinderShellRulesTests: XCTestCase {
             "ITEMIS_INVERSIONEDFOLDER": .inVersionedFolder, "ITEMIS_SUBMODULE": .submodule,
             "ITEMIS_PATCHFILE": .patchFile, "ITEMIS_DELETED": .deleted, "ITEMIS_STASH": .stash, "ITEMIS_SUBMODULECONTAINER": .submoduleContainer
         ]
-        XCTAssertEqual(fixture.rules.count, 60)
+        XCTAssertEqual(fixture.rules.count, 64)
         XCTAssertEqual(Set(fixture.rules.keys), Set(FinderShellRules.conditions.keys.map(\.rawValue)))
         func mask(_ names: [String]) throws -> FinderShellFlags {
             try names.reduce(into: FinderShellFlags()) { $0.formUnion(try XCTUnwrap(tokens[$1], $1)) }

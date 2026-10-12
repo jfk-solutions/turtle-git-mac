@@ -6,7 +6,37 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 jobs:
+  svn-runtime:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record SVN runtime toolchain key
+        id: svn-toolchain
+        run: |
+          /usr/bin/arch -x86_64 /usr/bin/true
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import hashlib, subprocess
+          data = subprocess.check_output(['xcrun', 'clang', '--version']) + subprocess.check_output(['xcrun', '--show-sdk-version'])
+          print('key=' + hashlib.sha256(data).hexdigest())
+          PY
+      - uses: actions/cache@v5
+        id: svn-cache
+        with:
+          path: build/git-svn-runtime/GitSVN
+          key: svn-macos15-arm64-${{ steps.svn-toolchain.outputs.key }}-${{ hashFiles('Configuration/GitSVNRuntime.json', 'Configuration/GitRuntime.json', 'Sources/GitSVNLauncher/main.c', 'scripts/build-git-svn-runtime.py', 'scripts/validate-git-svn-runtime.py', 'scripts/validate_git_svn_support.py', 'scripts/validate-git-runtime.py', 'scripts/git_lfs_runtime.py') }}
+      - name: Build pinned universal private Perl/Subversion runtime
+        if: steps.svn-cache.outputs.cache-hit != 'true'
+        run: python3 scripts/build-git-svn-runtime.py
+      - name: Verify SVN payload before transferring to Intel tests
+        run: python3 scripts/validate-git-svn-runtime.py build/git-svn-runtime/GitSVN --audit-only
+      - name: Preserve executable permissions and contained aliases
+        run: tar -czf build/git-svn-runtime/GitSVN.tar.gz -C build/git-svn-runtime GitSVN
+      - uses: actions/upload-artifact@v4
+        with:
+          name: universal-git-svn-runtime
+          path: build/git-svn-runtime/GitSVN.tar.gz
   build-and-test:
+    needs: svn-runtime
     runs-on: macos-15-intel
     steps:
       - uses: actions/checkout@v4
@@ -56,8 +86,16 @@ jobs:
         run: python3 scripts/build-openssh-runtime.py
       - name: Verify OpenSSH embedding and both ad-hoc signing branches
         run: python3 scripts/test-openssh-embedding.py
+      - uses: actions/download-artifact@v4
+        with:
+          name: universal-git-svn-runtime
+          path: build/git-svn-runtime
+      - name: Restore universal SVN payload
+        run: tar -xzf build/git-svn-runtime/GitSVN.tar.gz -C build/git-svn-runtime
       - name: Build pinned universal Git runtime with source and licenses
         run: python3 scripts/build-git-runtime.py
+      - name: Verify real local SVN workflows with the pinned Git
+        run: python3 scripts/validate-git-svn-runtime.py build/git-svn-runtime/GitSVN --git build/git-runtime/Git/bin/git
       - name: Verify per-slice Git and LFS macOS deployment targets
         run: python3 scripts/test-git-runtime-deployment.py --runtime build/git-runtime/Git
       - name: Git integration tests

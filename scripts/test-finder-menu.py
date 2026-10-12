@@ -21,6 +21,7 @@ import TurtleGitCore
         struct SourceOrder: Decodable { let groups: [[String]] }
         let sourceOrder = try JSONDecoder().decode(SourceOrder.self, from: Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[2])))
         let mapping: [RepositoryAction: String] = [
+            .svnDCommit: "SVNDCommit", .svnRebase: "SVNRebase", .svnFetch: "SVNDFetch", .svnIgnore: "SVNIgnore",
             .lfs: "LFSMenu", .reviewPatch: "ApplyPatch", .sendMail: "Sendmail",
             .synchronize: "Sync", .previousDiff: "PrevDiff", .logSubmodule: "LogSubmoduleFolder", .blame: "Blame", .editConflict: "ConflictEditor", .settings: "Settings", .help: "Help", .about: "About",
             .add: "Add", .clone: "Clone", .pull: "Pull", .fetch: "Fetch", .push: "Push", .commit: "Commit",
@@ -289,6 +290,13 @@ import TurtleGitCore
         precondition(FinderCreationMenuContext.read(directory: untrackedFolder, snapshot: snapshot, extended: true).actions == [.clone, .initialize])
         precondition(FinderMenuBuilder.make(paths: [tracked, admin], snapshot: snapshot, settings: allCommands(), comparisonMark: nil, target: target, actionSelector: selector).items.isEmpty)
         print("Actual path menu receiver: exact tracked/added/two-file command sets, untracked worktree-folder creation and mixed admin exclusion passed. Full submodule and selection classification remains pending.")
+        let svnRoot = metadataMenu(FinderRepositoryMetadata(hasGitSVN: true))
+        verifyOrder(svnRoot)
+        precondition([RepositoryAction.svnDCommit, .svnRebase, .svnFetch, .svnIgnore].allSatisfy { rootActions(svnRoot).contains($0) })
+        let svnMerge = metadataMenu(FinderRepositoryMetadata(mergeActive: true, hasGitSVN: true))
+        precondition(!rootActions(svnMerge).contains(.svnDCommit) && !rootActions(svnMerge).contains(.svnRebase))
+        precondition(rootActions(svnMerge).contains(.svnFetch) && rootActions(svnMerge).contains(.svnIgnore))
+        print("Finder SVN: cached .metadata marker exposes all four original-icon groups in source order; merge excludes DCommit/Rebase while retaining Fetch/Ignore.")
         let ordinary = metadataMenu(FinderRepositoryMetadata())
         verifyOrder(ordinary)
         precondition(!rootActions(ordinary).contains(.stashApply) && !rootActions(ordinary).contains(.stashPop) && !rootActions(ordinary).contains(.stashList) && !rootActions(ordinary).contains(.submoduleUpdate))

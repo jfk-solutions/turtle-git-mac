@@ -141,14 +141,15 @@ public struct FinderRepositoryMetadata: Codable, Equatable, Sendable {
     public var hasStash: Bool
     public var hasSubmoduleConfig: Bool
     public var hasLFS: Bool
+    public var hasGitSVN: Bool
     public var submoduleParentRoot: String?
     public init(bare: Bool = false, bisectActive: Bool = false, mergeActive: Bool = false,
-                hasStash: Bool = false, hasSubmoduleConfig: Bool = false, submoduleParentRoot: String? = nil, hasLFS: Bool = false) {
+                hasStash: Bool = false, hasSubmoduleConfig: Bool = false, submoduleParentRoot: String? = nil, hasLFS: Bool = false, hasGitSVN: Bool = false) {
         self.bare = bare; self.bisectActive = bisectActive; self.mergeActive = mergeActive
         self.hasStash = hasStash; self.hasSubmoduleConfig = hasSubmoduleConfig; self.submoduleParentRoot = submoduleParentRoot
-        self.hasLFS = hasLFS
+        self.hasLFS = hasLFS; self.hasGitSVN = hasGitSVN
     }
-    private enum CodingKeys: String, CodingKey { case bare, bisectActive, mergeActive, hasStash, hasSubmoduleConfig, submoduleParentRoot, hasLFS }
+    private enum CodingKeys: String, CodingKey { case bare, bisectActive, mergeActive, hasStash, hasSubmoduleConfig, submoduleParentRoot, hasLFS, hasGitSVN }
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         bare = try values.decode(Bool.self, forKey: .bare)
@@ -157,13 +158,15 @@ public struct FinderRepositoryMetadata: Codable, Equatable, Sendable {
         hasStash = try values.decode(Bool.self, forKey: .hasStash)
         hasSubmoduleConfig = try values.decode(Bool.self, forKey: .hasSubmoduleConfig)
         submoduleParentRoot = try values.decodeIfPresent(String.self, forKey: .submoduleParentRoot)
+        hasGitSVN = try values.decodeIfPresent(Bool.self, forKey: .hasGitSVN) ?? false
         hasLFS = try values.decodeIfPresent(Bool.self, forKey: .hasLFS) ?? false
     }
     /// Repository-wide clauses only; path/status clauses remain separate.
     public func allows(_ action: RepositoryAction) -> Bool {
         if action.isApplicationUtility || [.sendMail, .reviewPatch].contains(action) { return true }
         if bare { return [.fetch, .push, .log, .daemon, .revisionGraph, .reflog, .referenceBrowser, .repositoryBrowser, .export, .worktreeList].contains(action) }
-        if [.pull, .merge, .rebase, .synchronize].contains(action) && (bisectActive || mergeActive) { return false }
+        if action.svnOperation != nil && !hasGitSVN { return false }
+        if [.svnDCommit, .svnRebase, .pull, .merge, .rebase, .synchronize].contains(action) && (bisectActive || mergeActive) { return false }
         if action == .bisectStart && (bisectActive || mergeActive) { return false }
         if action.bisectOperation != nil && !bisectActive { return false }
         if action == .mergeAbort && !mergeActive { return false }
@@ -184,11 +187,16 @@ extension GitRepository {
         let fm = FileManager.default
         let stash = try run(["show-ref", "--verify", "--quiet", "refs/stash"], successfulExitCodes: 0...1).exitCode == 0
         let lfs = bare ? false : try hasLFS()
+        var commonBytes = try run(["rev-parse", "--git-common-dir"]).stdout
+        if commonBytes.last == 10 { commonBytes.removeLast() }
+        let commonPath = String(decoding: commonBytes, as: UTF8.self)
+        let common = commonPath.hasPrefix("/") ? URL(fileURLWithPath: commonPath) : root.appendingPathComponent(commonPath)
+        let svn = !bare && fm.fileExists(atPath: common.appendingPathComponent("svn/.metadata").path)
         return FinderRepositoryMetadata(bare: bare,
             bisectActive: fm.fileExists(atPath: directory.appendingPathComponent("BISECT_START").path),
             mergeActive: fm.fileExists(atPath: directory.appendingPathComponent("MERGE_HEAD").path),
             hasStash: stash, hasSubmoduleConfig: !bare && fm.fileExists(atPath: root.appendingPathComponent(".gitmodules").path),
-            submoduleParentRoot: bare ? nil : try registeredSubmoduleParent()?.path, hasLFS: lfs)
+            submoduleParentRoot: bare ? nil : try registeredSubmoduleParent()?.path, hasLFS: lfs, hasGitSVN: svn)
     }
 }
 
@@ -293,12 +301,17 @@ public struct FinderSnapshot: Codable, Sendable {
 }
 
 public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
+    case svnDCommit, svnRebase, svnFetch, svnIgnore
     case reviewPatch, daemon, lfs, lfsLocks, lfsLock, lfsUnlock, sendMail
     case synchronize, blame, previousDiff, logSubmodule, settings, help, about
     case status, commit, add, revert, clean, submoduleAdd, submoduleUpdate, submoduleSync, log, revisionGraph, referenceBrowser, repositoryBrowser, export, bisect, bisectStart, bisectGood, bisectBad, bisectSkip, bisectReset, formatPatch, importPatch, requestPull, worktreeCreate, worktreeList, diff, diffLater, clearComparisonMark, pull, push, fetch, branch, tag, switchBranch, merge, mergeAbort, rebase, stash, stashApply, stashPop, stashList, reflog, clone, initialize, rename, remove, removeKeep, ignore, ignoreMask, ignoreDelete, ignoreDeleteMask, resolve, resolveCurrent, resolveMine, resolveTheirs, reset, editConflict
     public var id: String { rawValue }
     public var title: String {
         switch self {
+        case .svnDCommit: return "SVN DCommit…"
+        case .svnRebase: return "SVN Rebase"
+        case .svnFetch: return "SVN Fetch"
+        case .svnIgnore: return "Import SVN Ignore…"
         case .reviewPatch: return "Review/apply single patch…"
         case .daemon: return "Daemon"
         case .lfs: return "LFS"
@@ -377,6 +390,9 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
     public var resolveChoice: ResolveChoice? {
         switch self { case .resolveCurrent: return .current; case .resolveMine: return .mine; case .resolveTheirs: return .theirs; default: return nil }
     }
+    public var svnOperation: GitSVNOperation? {
+        switch self { case .svnDCommit: return .dcommit; case .svnRebase: return .rebase; case .svnFetch: return .fetch; case .svnIgnore: return .ignore; default: return nil }
+    }
     public var isResolve: Bool { self == .resolve || self == .editConflict || resolveChoice != nil }
     public var isApplicationUtility: Bool { [.settings, .help, .about].contains(self) }
     public var allowsEmptySelection: Bool { isApplicationUtility || self == .clone || self == .initialize }
@@ -386,7 +402,7 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
     public var ignoresByExtension: Bool { self == .ignoreMask || self == .ignoreDeleteMask }
     public var removesWhenIgnoring: Bool { self == .ignoreDelete || self == .ignoreDeleteMask }
     public var requiresValue: Bool { [.branch, .tag, .switchBranch, .merge, .rebase, .stash, .clone].contains(self) }
-    public var requiresWorkingTree: Bool { [.lfs, .lfsLocks, .lfsLock, .lfsUnlock, .synchronize, .blame, .previousDiff, .logSubmodule, .status, .commit, .importPatch, .add, .revert, .clean, .submoduleAdd, .submoduleUpdate, .submoduleSync, .diff, .bisect, .bisectStart, .bisectGood, .bisectBad, .bisectSkip, .bisectReset, .pull, .switchBranch, .merge, .mergeAbort, .rebase, .stash, .stashApply, .stashPop, .stashList, .rename, .remove, .removeKeep, .ignore, .ignoreMask, .ignoreDelete, .ignoreDeleteMask, .resolve, .resolveCurrent, .resolveMine, .resolveTheirs, .editConflict].contains(self) }
+    public var requiresWorkingTree: Bool { [.svnDCommit, .svnRebase, .svnFetch, .svnIgnore, .lfs, .lfsLocks, .lfsLock, .lfsUnlock, .synchronize, .blame, .previousDiff, .logSubmodule, .status, .commit, .importPatch, .add, .revert, .clean, .submoduleAdd, .submoduleUpdate, .submoduleSync, .diff, .bisect, .bisectStart, .bisectGood, .bisectBad, .bisectSkip, .bisectReset, .pull, .switchBranch, .merge, .mergeAbort, .rebase, .stash, .stashApply, .stashPop, .stashList, .rename, .remove, .removeKeep, .ignore, .ignoreMask, .ignoreDelete, .ignoreDeleteMask, .resolve, .resolveCurrent, .resolveMine, .resolveTheirs, .editConflict].contains(self) }
     public var prompt: String {
         switch self {
         case .clone: return "Repository URL"
@@ -460,6 +476,7 @@ public struct FinderShellFlags: OptionSet, Sendable {
     public static let stash = Self(rawValue: 1 << 17)
     public static let submoduleContainer = Self(rawValue: 1 << 18)
     public static let deleted = Self(rawValue: 1 << 19)
+    public static let gitSVN = Self(rawValue: 1 << 21)
     public static let patchFile = Self(rawValue: 1 << 20)
 }
 public struct FinderShellCondition: Sendable {
@@ -472,6 +489,10 @@ public struct FinderShellCondition: Sendable {
 }
 public enum FinderShellRules {
     public static let conditions: [RepositoryAction: [FinderShellCondition]] = [
+        .svnDCommit: [.init([.inGit, .gitSVN], [.bisect, .merge]), .init([.folderInGit, .gitSVN], [.bisect, .merge]), .init([], []), .init([], [])],
+        .svnRebase: [.init([.folderInGit, .gitSVN, .onlyOne], [.bisect, .merge]), .init([], []), .init([], []), .init([], [])],
+        .svnFetch: [.init([.folderInGit, .gitSVN, .onlyOne], []), .init([], []), .init([], []), .init([], [])],
+        .svnIgnore: [.init([.folderInGit, .gitSVN, .onlyOne], []), .init([], []), .init([], []), .init([], [])],
         .lfs: [.init([.inVersionedFolder, .inGit], []), .init([], []), .init([], []), .init([], [])],
         .lfsLocks: [.init([.folderInGit, .onlyOne], []), .init([], []), .init([], []), .init([], [])],
         .lfsLock: [.init([.inGit, .inVersionedFolder], [.folder]), .init([], []), .init([], []), .init([], [])],
@@ -558,6 +579,7 @@ public enum FinderShellRules {
                     flags.insert(.workingTreeRoot)
                     if directory && metadata?.submoduleParentRoot != nil { flags.insert(.submodule) }
                 }
+                if metadata?.hasGitSVN == true { flags.insert(.gitSVN) }
                 if metadata?.hasStash != false { flags.insert(.stash) }
                 if metadata?.hasSubmoduleConfig != false { flags.insert(.submoduleContainer) }
                 if metadata?.mergeActive == true { flags.insert(.merge) }

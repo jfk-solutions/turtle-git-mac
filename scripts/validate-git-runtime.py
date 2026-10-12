@@ -58,6 +58,7 @@ def audit_deployment(path, architectures, maximum):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('runtime', type=pathlib.Path)
+    parser.add_argument('--require-svn', action='store_true', help='Require the private Perl/Subversion component.')
     parser.add_argument('--require-lfs', action='store_true', help='Require the pinned Git LFS component.')
     parser.add_argument('--https', action='store_true', help='Also verify a public HTTPS ls-remote with no user Git configuration.')
     args = parser.parse_args(); runtime = args.runtime.resolve()
@@ -70,11 +71,15 @@ def main():
     assert (source.parent / 'build/scripts/build-git-runtime.py').is_file()
     for required in ['bin/git', 'libexec/git-core/git-remote-https', 'libexec/git-core/git-credential-osxkeychain', 'share/git-core/templates']:
         assert (runtime / required).exists(), required
+    if args.require_svn: assert manifest.get('svn_component'), 'Private SVN runtime is missing'
+    if manifest.get('svn_component'):
+        subprocess.run(['/usr/bin/python3', pathlib.Path(__file__).with_name('validate-git-svn-runtime.py'), runtime, '--installed', '--audit-only'], check=True)
     binaries = 0
     for path in runtime.rglob('*'):
         if path.is_symlink():
             assert path.resolve().is_relative_to(runtime), 'Escaping runtime symlink: ' + str(path)
         elif path.is_file() and path.open('rb').read(4) in MACH:
+            if manifest.get('svn_component') and (path.is_relative_to(runtime / 'libexec/git-svn-runtime') or path == runtime / 'libexec/git-core/git-svn'): continue
             binaries += 1
             architectures = subprocess.check_output(['/usr/bin/lipo', '-archs', str(path)], text=True).split()
             assert set(architectures) == set(manifest['architectures']), str(path)

@@ -136,6 +136,8 @@ for baseline and update rules.
 - [Finder menu selection dispatch](FINDER-SELECTION-PARITY.md)
 - [Finder command handoffs and native Settings ownership](FINDER-COMMAND-HANDOFF-PARITY.md)
 - [Review/apply single patch and ordinary-folder targets](REVIEW-PATCH-PARITY.md)
+- [SVN DCommit, Fetch, Rebase and Ignore](SVN-PARITY.md)
+- [Private universal Perl/Subversion runtime](GIT-SVN-RUNTIME.md)
 - [Git daemon warning, progress and process ownership](DAEMON-PARITY.md)
 - [Finder LFS submenu and Send Mail handoff](FINDER-LFS-MAIL-PARITY.md)
 - [Finder registered submodule roots](FINDER-SUBMODULE-ROOT-PARITY.md)

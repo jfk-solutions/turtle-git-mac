@@ -53,9 +53,13 @@ public enum GitRuntime {
         // PATH selects our client only for Git's ordinary `ssh` lookup; no shell
         // command or global repository setting is injected.
         let sshPath = FileManager.default.isExecutableFile(atPath: sshBin.appendingPathComponent("ssh").path) ? sshBin.path + ":" : ""
-        return ["GIT_EXEC_PATH": runtime.appendingPathComponent("libexec/git-core").path,
+        var environment = ["GIT_EXEC_PATH": runtime.appendingPathComponent("libexec/git-core").path,
                 "GIT_TEMPLATE_DIR": runtime.appendingPathComponent("share/git-core/templates").path,
                 "PATH": sshPath + bin.path + ":" + extraPrefix + "/usr/bin:/bin:/usr/sbin:/sbin"]
+        if appStore, let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
+            environment["TURTLEGIT_SVN_CONFIG_DIR"] = support.appendingPathComponent("TurtleGit/SVN", isDirectory: true).path
+        }
+        return environment
     }
 }
 
