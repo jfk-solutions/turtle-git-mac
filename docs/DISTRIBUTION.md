@@ -268,3 +268,12 @@ signatures without executable entitlements. Local ad-hoc execution and contained
 loader paths are development evidence only; authenticated transport, minimum-
 OS runtime, signed bookmarks/Keychain/trust and security/license acceptance remain
 release gates.
+
+The merge adapter shares those same private Subversion/APR libraries. Build it
+after the pinned Git runtime with `scripts/build-merge-diff-runtime.py`; Xcode
+embeds its universal executable, source/license reconstruction and provenance,
+and configures inherited sandbox signing for App Store builds. A distribution
+bundle audit now requires both SVN and the adapter. Actual unsigned loading
+from the app bundle has been exercised on arm64 and x86_64; signed dynamic-library
+validation, sandbox execution and minimum-OS acceptance remain open. The adapter
+is a backend foundation and has not yet replaced the editor's current engine.

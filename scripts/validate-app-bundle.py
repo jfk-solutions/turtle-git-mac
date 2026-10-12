@@ -59,11 +59,15 @@ print(f'App, embedded Finder extension, licenses and all {len(manifest["assets"]
 
 if args.require_git:
     import subprocess
-    subprocess.run(['/usr/bin/python3', str(root / 'scripts/validate-git-runtime.py'), str(app / 'Contents/Helpers/Git'), '--require-lfs'], check=True)
+    subprocess.run(['/usr/bin/python3', str(root / 'scripts/validate-git-runtime.py'), str(app / 'Contents/Helpers/Git'), '--require-lfs', '--require-svn'], check=True)
 
 import subprocess
 subprocess.run(['/usr/bin/python3', str(root / 'scripts/validate-editorconfig-runtime.py'), str(app / 'Contents/Helpers/EditorConfig')], check=True)
 subprocess.run(['/usr/bin/python3', str(root / 'scripts/validate-issue-regex-runtime.py'), str(app / 'Contents/Helpers/IssueRegex')], check=True)
+if (app / 'Contents/Helpers/MergeDiff').is_dir():
+    subprocess.run(['/usr/bin/python3', str(root / 'scripts/validate-merge-diff-runtime.py'), str(app / 'Contents/Helpers/MergeDiff')], check=True)
+elif args.require_git:
+    raise RuntimeError('A distribution bundle requires the Subversion merge adapter.')
 subprocess.run(['/usr/bin/python3', str(root / 'scripts/validate-graph-layout-runtime.py'), str(app / 'Contents/Helpers/GraphLayout')], check=True)
 
 askpass_arguments = ['/usr/bin/python3', str(root / 'scripts/validate-ssh-askpass.py'), str(app / 'Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass')]

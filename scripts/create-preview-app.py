@@ -70,7 +70,7 @@ if legacy_resources.exists():
 subprocess.run(['codesign', '--force', '--deep', '--sign', '-', str(args.destination)], check=True)
 # Deep signing changes the bundled parser bytes. Update its provenance and
 # then reseal only the containing app so the helper signature stays intact.
-for helper, executable_name in [('EditorConfig', 'editorconfig'), ('IssueRegex', 'issue-regex')]:
+for helper, executable_name in [('EditorConfig', 'editorconfig'), ('IssueRegex', 'issue-regex'), ('MergeDiff', 'merge-diff')]:
     parser_runtime = args.destination / 'Contents/Helpers' / helper
     if not parser_runtime.is_dir():
         continue

@@ -31,6 +31,7 @@
 		B73118000000000000000001 /* FinderOverlaySettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73118000000000000000002 /* FinderOverlaySettings.swift */; };
 		B73127000000000000000001 /* PatchTargetMatching.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73127000000000000000002 /* PatchTargetMatching.swift */; };
 		B73129000000000000000001 /* MergeRegexFilters.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73129000000000000000002 /* MergeRegexFilters.swift */; };
+		B73131000000000000000001 /* SubversionMergeDiff.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73131000000000000000002 /* SubversionMergeDiff.swift */; };
 		B73125000000000000000001 /* GitSVN.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73125000000000000000002 /* GitSVN.swift */; };
 		B73122000000000000000001 /* GitDaemon.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73122000000000000000002 /* GitDaemon.swift */; };
 		B73120000000000000000001 /* FinderContextMenuSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73120000000000000000002 /* FinderContextMenuSettings.swift */; };
@@ -385,6 +386,7 @@
 		B73118000000000000000002 /* FinderOverlaySettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderOverlaySettings.swift; sourceTree = "<group>"; };
 		B73127000000000000000002 /* PatchTargetMatching.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchTargetMatching.swift; sourceTree = "<group>"; };
 		B73129000000000000000002 /* MergeRegexFilters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeRegexFilters.swift; sourceTree = "<group>"; };
+		B73131000000000000000002 /* SubversionMergeDiff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubversionMergeDiff.swift; sourceTree = "<group>"; };
 		B73125000000000000000002 /* GitSVN.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitSVN.swift; sourceTree = "<group>"; };
 		B73122000000000000000002 /* GitDaemon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitDaemon.swift; sourceTree = "<group>"; };
 		B73120000000000000000002 /* FinderContextMenuSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderContextMenuSettings.swift; sourceTree = "<group>"; };
@@ -949,6 +951,7 @@
 				B73118000000000000000002 /* FinderOverlaySettings.swift */,
 				B73127000000000000000002 /* PatchTargetMatching.swift */,
 				B73129000000000000000002 /* MergeRegexFilters.swift */,
+				B73131000000000000000002 /* SubversionMergeDiff.swift */,
 				B73125000000000000000002 /* GitSVN.swift */,
 				B73122000000000000000002 /* GitDaemon.swift */,
 				B73120000000000000000002 /* FinderContextMenuSettings.swift */,
@@ -1111,6 +1114,7 @@
 				C0FA93121C7653B8CED80394 /* Embed Frameworks */,
 				CEE1C93388E81BE0FC471865 /* Embed SSH passphrase helper */,
 				51D7E3DB4C35C2277F3C9C8D /* Embed C++ issue-matching runtime */,
+				B73132000000000000000001 /* Embed Subversion merge adapter */,
 				0C37184FA8C6B918D948A94E /* Embed pinned Revision Graph layout runtime */,
 				05E9103FE147A460078548D0 /* Embed pinned EditorConfig runtime */,
 				E1188D36737E73638718384D /* Embed pinned OpenSSH runtime */,
@@ -1278,6 +1282,25 @@
 			shellPath = /bin/sh;
 			shellScript = "/usr/bin/python3 \"$SRCROOT/scripts/embed-issue-regex-runtime.py\" \"$SRCROOT/build/issue-regex-runtime/IssueRegex\" \"$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME\"\n";
 		};
+		B73132000000000000000001 /* Embed Subversion merge adapter */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Embed Subversion merge adapter";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/usr/bin/python3 \"$SRCROOT/scripts/embed-merge-diff-runtime.py\" \"$SRCROOT/build/merge-diff-runtime/MergeDiff\" \"$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME\"\n";
+		};
 		C45E6CCF59E8F543668B15BE /* Embed pinned Git runtime for App Store */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -1427,6 +1450,7 @@
 				B73118000000000000000001 /* FinderOverlaySettings.swift in Sources */,
 				B73127000000000000000001 /* PatchTargetMatching.swift in Sources */,
 				B73129000000000000000001 /* MergeRegexFilters.swift in Sources */,
+				B73131000000000000000001 /* SubversionMergeDiff.swift in Sources */,
 				B73125000000000000000001 /* GitSVN.swift in Sources */,
 				B73122000000000000000001 /* GitDaemon.swift in Sources */,
 				B73120000000000000000001 /* FinderContextMenuSettings.swift in Sources */,

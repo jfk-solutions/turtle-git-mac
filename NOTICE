@@ -64,6 +64,14 @@ TortoiseGit src/TortoiseProc/ProjectProperties.cpp, copyright (C) 2003-2021,
 2023-2025 TortoiseGit, under GPL version 2 or later. Its UTF-16 process transport
 is implemented for macOS. Corresponding source, reconstruction and validation
 scripts, and the GPL license are bundled under Contents/Helpers/IssueRegex/.
+
+TurtleGitMergeDiff is TurtleGit's GPL-2.0-or-later adapter for Subversion's
+diff2/diff3 APIs. It shares the pinned Subversion/APR runtime packaged with
+GitSVN under Contents/Helpers/Git/libexec/git-svn-runtime/. Subversion/APR,
+Serf, OpenSSL, Perl and the Git SVN Perl modules retain their respective
+licenses; their source archives, notices and reconstruction recipes are under
+Contents/Helpers/Git/share/licenses/git-svn/. The merge adapter's own source,
+license and build recipe are under Contents/Helpers/MergeDiff/.
 See docs/ISSUE-TRACKER-PARITY.md for the pinned upstream audit and limitations.
 Its UTF-8 message styling adapts Utils/MiscUI/SciEdit.cpp::MarkEnteredBugID,
 copyright (C) 2009-2026 TortoiseGit and (C) 2003-2008, 2012-2020, 2025

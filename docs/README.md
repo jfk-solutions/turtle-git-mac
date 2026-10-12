@@ -187,3 +187,5 @@ are not recursively audited.
 - [Log commit ordering](LOG-ORDERING-PARITY.md) — native four-choice dialog, persistent Git walk order and remaining parity checks.
 
 [Merge regex filters](MERGE-REGEX-FILTERS-PARITY.md): native list/editor, ECMAScript comparison keys and filtered-row colors; remaining three-pane and acceptance work.
+
+[Subversion merge engine](SUBVERSION-MERGE-ENGINE.md): bundled diff2/diff3 adapter and original-text source mapping; editor integration remains open.

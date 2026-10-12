@@ -1,0 +1,13 @@
+{
+  "date": "2026-10-12",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Pinned Subversion diff2/diff3 adapter, Swift source mapping and shared app runtime packaging",
+  "implementationThenGroupedValidation": true,
+  "runtime": {"exitCode": 0, "architectures": ["arm64", "x86_64"], "deployment": "macOS 13", "log": "build/qa/subversion-merge-runtime-2026-10-12.log", "libraries": "Existing private GitSVN Subversion/APR; no duplicate payload", "audit": "Adapter provenance, source, system-only direct linkage and per-slice deployment; prior separate SVN audit covers dynamic libraries"},
+  "core": {"tests": 12, "failures": 0, "seconds": 2.085, "log": "build/qa/subversion-merge-core-2026-10-12.log", "checks": ["real two-way ranges and empty inputs", "three-way common/modified/latest/same/conflict types", "filtered three-way keys preserve originals", "all nine ending styles and Unicode/NUL", "newline-containing replacements retain one source token", "repeated/adjacent line coverage", "precancellation", "missing libraries", "malformed output bounds", "existing regex tests"]},
+  "build": {"configuration": "Debug", "architecture": "arm64", "exitCode": 0, "signed": false, "log": "build/qa/subversion-merge-build-2026-10-12.log", "notes": "Existing exit-zero diagnostic noise remains. The unsigned review bundle notice was updated after adding the adapter attribution."},
+  "embedded": {"exitCode": 0, "executedArchitectures": ["arm64", "x86_64"], "log": "build/qa/subversion-merge-bundle-2026-10-12.log", "checks": ["actual app-embedded helper", "actual app-shared Subversion libraries", "exact conflict ranges"], "applicationLaunched": false, "repositoryWrites": false, "ownedHelperProcessesExited": true},
+  "remoteCI": {"previousRun": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38195134418", "observedState": "svn-runtime job in progress, no failed steps when checked", "newAdapterPipeline": "Not yet run remotely"},
+  "remainingAcceptance": ["replace native pane alignment", "generate results from original-text segments", "three-pane regex workflow and Undo/dirty reload", "resolved child conflict graph", "complete upstream options and EOL normalization", "physical layouts", "signed sandbox/dynamic loading", "minimum-OS execution", "full app parity"],
+  "completePortCertified": false
+}

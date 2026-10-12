@@ -96,6 +96,8 @@ jobs:
         run: python3 scripts/build-git-runtime.py
       - name: Verify real local SVN workflows with the pinned Git
         run: python3 scripts/validate-git-svn-runtime.py build/git-svn-runtime/GitSVN --git build/git-runtime/Git/bin/git
+      - name: Build universal Subversion merge adapter sharing the pinned runtime
+        run: python3 scripts/build-merge-diff-runtime.py
       - name: Verify per-slice Git and LFS macOS deployment targets
         run: python3 scripts/test-git-runtime-deployment.py --runtime build/git-runtime/Git
       - name: Git integration tests
@@ -109,6 +111,8 @@ jobs:
           -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
       - name: Verify app, extension and original icon resources
         run: python3 scripts/validate-app-bundle.py build/Build/Products/Debug/TurtleGitMac.app
+      - name: Verify embedded Subversion merge adapter and shared libraries
+        run: python3 scripts/test-merge-diff-bundle.py build/Build/Products/Debug/TurtleGitMac.app
       - name: Grouped native LFS and Send Mail receivers with one compilation
         run: python3 scripts/test-native-lfs-mail-batch.py
       - name: Native Email settings with private preferences and simulated Keychain

@@ -46,6 +46,8 @@ The generated Xcode project is checked in; XcodeGen is optional unless changing
 `project.yml`.
 
 ```sh
+python3 scripts/build-git-runtime.py
+python3 scripts/build-merge-diff-runtime.py
 python3 scripts/build-editorconfig-runtime.py
 python3 scripts/build-issue-regex-runtime.py
 python3 scripts/build-graph-layout-runtime.py
@@ -55,8 +57,12 @@ swift test
 open build/Build/Products/Debug/TurtleGitMac.app
 ```
 
-The build script prepares the four helper runtimes before building the unsigned Debug app.
-The explicit helper commands above prepare them for the preceding tests.
+The build script prepares the editor, regex, graph and SSH helpers, plus the merge
+adapter when the Git/SVN runtime is present, before building the unsigned Debug
+app. The explicit commands above prepare the dependencies for the preceding
+tests. The initial pinned Git/SVN build can take substantially longer than app
+builds; it caches its components. Build its universal SVN payload on Apple Silicon
+with Rosetta, or restore the universal payload produced by CI.
 `swift run TurtleGitMac` is an alternative development launch; it does not embed
 the Finder extension or the EditorConfig, issue-matching, graph-layout and OpenSSH helpers.
 

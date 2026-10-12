@@ -635,3 +635,14 @@ batch includes persistence/cancel, validation errors, cancellation, stale-reply
 fencing, annotation remapping and owned-dialog cleanup before grouped checks.
 Three-pane filtering and complete source/signed acceptance remain open; see
 MERGE-REGEX-FILTERS-PARITY.md.
+
+## Subversion merge engine foundation — 2026-10-12
+
+The pinned Subversion diff2/diff3 APIs now have a universal native adapter, typed
+Swift source ranges, optional ECMAScript keys, original line retention, bounded
+cancellation/output validation, source/license reconstruction and app/CI build
+integration. It shares existing GitSVN libraries. Twelve focused Core tests and
+actual embedded arm64/x86_64 loading passed after implementation. Current editor
+alignment and Git-generated result text are not switched yet; that integration
+and resolved conflict children remain necessary work for source parity. See
+SUBVERSION-MERGE-ENGINE.md.
