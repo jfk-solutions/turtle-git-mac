@@ -52,10 +52,20 @@ struct MergeOpenNativeVerification {
         try await wait { !merge.model.busy && merge.model.document != nil }
         try require(merge.model.result == "a\nB\nC\n" && merge.model.dirty)
         merge.model.save(markResolved:true); try require(!merge.model.busy) // No index resolution in standalone mode.
+        merge.model.chooseStandaloneOutput = { _,_ in nil }
         merge.model.save(markResolved:false); try await wait { !merge.model.busy }
-        let saved = try Data(contentsOf:mine)
+        try require(merge.model.workingMergeOutput == nil && merge.model.dirty)
+        let resultFile = root.appendingPathComponent("result.txt")
+        merge.model.chooseStandaloneOutput = { _,_ in resultFile }
+        merge.model.save(markResolved:false); try await wait { !merge.model.busy }
+        let saved = try Data(contentsOf:resultFile)
         try require(saved == Data("a\nB\nC\n".utf8) && !merge.model.dirty && merge.model.error == nil)
+        let unchangedMine = try Data(contentsOf: mine)
+        try require(unchangedMine == Data("a\nB\nc\n".utf8) && merge.model.workingMergeOutput == resultFile)
         try require(!FileManager.default.fileExists(atPath:root.appendingPathComponent(".git").path))
+        merge.model.chooseStandaloneOutput = { _,_ in nil }; merge.model.export()
+        try await wait { !merge.model.busy }
+        try require(merge.model.workingMergeOutput == resultFile)
         merge.window?.close(); try await wait { MergeRegexOperations.activeRequests == 0 }
         print("Merge Open: native source radio/field/clipboard gates, captured private patch, mode Apply/Cancel, invalid path, expired picker, standalone three-pane load/save/dirty and no Git initialization passed. All owned windows closed.")
     }

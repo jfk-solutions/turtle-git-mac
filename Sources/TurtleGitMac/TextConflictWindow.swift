@@ -188,6 +188,21 @@ private enum MergeSourceSide {
     let repository: GitRepository
     var workingMerge: WorkingTextMerge?
     var workingMergePermissions: [RepositoryAccessLease] = []
+    private(set) var workingMergeOutput: URL?
+    private var standaloneSavedResult: String?
+    private var standaloneSavedEncoding: ComparisonTextEncoding?
+    var chooseStandaloneOutput: ((NSWindow?, String) async -> URL?)?
+    private func chooseMergeOutput() async -> URL? {
+        if let chooseStandaloneOutput { return await chooseStandaloneOutput(window, path) }
+        guard !retired, let window, window.attachedSheet == nil else { return nil }
+        let panel = NSSavePanel(); panel.nameFieldStringValue = "merged-" + (path as NSString).lastPathComponent
+        panel.title = "Save merged result"; panel.canCreateDirectories = true
+        let answer = await withCheckedContinuation { continuation in panel.beginSheetModal(for: window) { continuation.resume(returning: $0) } }
+        guard !retired, answer == .OK, let url = panel.url else { return nil }
+        let lease = RepositoryAccessLease(url: url)
+        guard !GitRuntime.isAppStoreBuild || lease.hasSecurityScope else { error = RepositoryAccessFailure.securityScopeUnavailable.localizedDescription; return nil }
+        workingMergePermissions.append(lease); return url
+    }
     let path: String
     private let access: RepositoryAccessLease?
     @Published var document: TextConflictDocument?
@@ -344,8 +359,11 @@ private enum MergeSourceSide {
     var blocks: [MergeConflictBlock] { MergeText.conflicts(in: result, document: document) }
     var dirty: Bool {
         document.map { document in
-            let previous = workingMerge == nil ? document.initialResult : document.workingContents.flatMap { document.encoding.decode($0) } ?? ""
-            return !result.utf8.elementsEqual(previous.utf8) || encoding != document.encoding
+            let previous: String
+            if workingMerge == nil { previous = document.initialResult }
+            else if workingMergeOutput != nil { previous = standaloneSavedResult ?? document.initialResult }
+            else { previous = document.workingContents.flatMap { document.encoding.decode($0) } ?? "" }
+            return !result.utf8.elementsEqual(previous.utf8) || encoding != (workingMergeOutput != nil ? standaloneSavedEncoding ?? document.encoding : document.encoding)
         } ?? false
     }
     func changeEncoding(_ value: ComparisonTextEncoding) {
@@ -462,7 +480,7 @@ private enum MergeSourceSide {
     }
     var chooseEmptyResult: ((String) async -> MergeEmptyResult)?
     weak var window: NSWindow?
-    func save(markResolved: Bool, closeAfter: Bool = false, reloadAfter: Bool = false, completion: ((Bool) -> Void)? = nil) {
+    func save(markResolved: Bool, closeAfter: Bool = false, reloadAfter: Bool = false, chooseNewOutput: Bool = false, completion: ((Bool) -> Void)? = nil) {
         guard !busy, !confirmingQuit, !retired, !markResolved || workingMerge == nil, window?.attachedSheet == nil, let document else { completion?(false); return }
         if !markResolved && MergeText.hasMarkers(result) {
             let alert = NSAlert(); alert.alertStyle = .warning; alert.messageText = "Save with unresolved conflict markers?"
@@ -475,6 +493,12 @@ private enum MergeSourceSide {
             var saved = false
             defer { busy = false; loadCancellation = nil; MergeRegexOperations.activeRequests -= 1; completion?(saved) }
             do {
+                let standaloneOutput: URL?
+                if workingMerge != nil {
+                    if let workingMergeOutput, !chooseNewOutput { standaloneOutput = workingMergeOutput }
+                    else { standaloneOutput = await chooseMergeOutput() }
+                    guard !retired, standaloneOutput != nil else { return }
+                } else { standaloneOutput = nil }
                 if workingMerge == nil && GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let choice: MergeEmptyResult
                 if text.isEmpty {
@@ -485,14 +509,16 @@ private enum MergeSourceSide {
                 let options = MergeFileSaveOptions(backupOriginal: MergeFileSaveOptions.backupEnabled(from: comparisonDefaults), emptyResult: choice)
                 if let workingMerge {
                     if GitRuntime.isAppStoreBuild {
-                        let target = workingMerge.mineURL
+                        let target = standaloneOutput!
                         guard workingMergePermissions.contains(where: { $0.hasSecurityScope && $0.contains(target) }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
                     }
-                    self.document = try await workingMerge.save(document, result: text, encoding: outputEncoding, options: options)
+                    self.document = try await workingMerge.saveTo(standaloneOutput!, document: document, result: text, encoding: outputEncoding, options: options)
+                    workingMergeOutput = standaloneOutput; standaloneSavedResult = text; standaloneSavedEncoding = outputEncoding
+                    window?.title = standaloneOutput!.lastPathComponent + " – TurtleGitMerge"
                 } else {
                     self.document = try await repository.saveTextConflict(document, result: text, markResolved: markResolved, encoding: outputEncoding, options: options)
                 }
-                onChanged(markResolved ? "Resolved: " + path : "Saved merged result: " + path)
+                onChanged(markResolved ? "Resolved: " + path : "Saved merged result: " + (workingMergeOutput?.path ?? path))
                 if markResolved || closeAfter { close() }
                 else if reloadAfter { try await reloadDocument(filterName: regexFilterName, cancellation: loadCancellation) }
                 saved = true
@@ -502,6 +528,7 @@ private enum MergeSourceSide {
         }
     }
     func export() {
+        if workingMerge != nil { save(markResolved: false, chooseNewOutput: true); return }
         let panel = NSSavePanel(); panel.nameFieldStringValue = (path as NSString).lastPathComponent
         panel.allowedContentTypes = [.plainText]; panel.canCreateDirectories = true
         guard panel.runModal() == .OK, let url = panel.url else { return }

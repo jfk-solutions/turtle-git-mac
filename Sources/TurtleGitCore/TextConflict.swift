@@ -213,6 +213,8 @@ public actor WorkingTextMerge {
     public nonisolated let mineURL: URL
     private var baseSnapshot: ComparisonFileContent?
     private var theirsSnapshot: ComparisonFileContent?
+    private var mineSnapshot: ComparisonFileContent?
+    private var outputSnapshots: [String: (Data?, Int)] = [:]
     public init(base: URL, theirs: URL, mine: URL) throws {
         guard [base, theirs, mine].allSatisfy({ $0.isFileURL && !$0.path.contains("\0") }) else { throw TextConflictFailure.unsupported }
         baseURL = base.standardizedFileURL; theirsURL = theirs.standardizedFileURL; mineURL = mine.standardizedFileURL
@@ -227,13 +229,48 @@ public actor WorkingTextMerge {
         try cancellation?.check()
         let base = try source(baseURL), theirs = try source(theirsURL), mine = try source(mineURL)
         let presentation = try SubversionMergePresentation(plan: engine.plan(base: base.text!, mine: mine.text!, theirs: theirs.text!, cancellation: cancellation))
-        try cancellation?.check(); baseSnapshot = base; theirsSnapshot = theirs
+        try cancellation?.check(); baseSnapshot = base; theirsSnapshot = theirs; mineSnapshot = mine
         var document = TextConflictDocument(entry: ConflictEntry(path: mineURL.lastPathComponent, stages: []),
             base: base.text!, mine: mine.text!, theirs: theirs.text!, mineStage: 2, theirsStage: 3,
             initialResult: presentation.result, generatedResult: presentation.result, workingContents: mine.bytes,
             permissions: mine.permissions ?? 0o644, encoding: mine.encoding!, baseEncoding: base.encoding, mineEncoding: mine.encoding, theirsEncoding: theirs.encoding)
         document.mergeSources = presentation.sources; return document
     }
+    /// Save As supplies an explicit output; the three input files stay untouched.
+    public func saveTo(_ output: URL, document: TextConflictDocument, result: String,
+                       encoding: ComparisonTextEncoding? = nil, options: MergeFileSaveOptions = .init()) throws -> TextConflictDocument {
+        let output = output.standardizedFileURL
+        guard output.isFileURL, !output.path.contains("\0"), let baseSnapshot, let theirsSnapshot, let mineSnapshot else { throw TextConflictFailure.unsupported }
+        func snapshot() throws -> (Data?, Int) {
+            do {
+                let attributes = try FileManager.default.attributesOfItem(atPath: output.path)
+                guard attributes[.type] as? FileAttributeType == .typeRegular else { throw TextConflictFailure.unsupported }
+                return (try Data(contentsOf: output), (attributes[.posixPermissions] as? NSNumber)?.intValue ?? document.permissions)
+            } catch let error as CocoaError where error.code == .fileNoSuchFile || error.code == .fileReadNoSuchFile { return (nil, document.permissions) }
+        }
+        let original = try outputSnapshots[output.path] ?? snapshot()
+        func validate() throws {
+            for (url, expected) in [(baseURL, baseSnapshot), (theirsURL, theirsSnapshot), (mineURL, mineSnapshot)] where url != output {
+                let actual = try source(url)
+                guard actual.bytes == expected.bytes, actual.permissions == expected.permissions else { throw TextConflictFailure.changedWorkingFile }
+            }
+            let current = try snapshot()
+            guard current.0 == original.0, current.1 == original.1 else { throw TextConflictFailure.changedWorkingFile }
+        }
+        guard !result.utf8.contains(0) else { throw TextConflictFailure.encoding }
+        guard options.emptyResult != .delete || result.isEmpty else { throw MergeFileSaveFailure.nonemptyDeletion }
+        try validate()
+        let selected = encoding ?? document.encoding, bytes = try selected.encode(result), deleting = options.emptyResult == .delete
+        try MergeWorkingFileSave.write(at: output, original: original.0, permissions: original.1, bytes: bytes,
+                                       delete: deleting, backup: options.backupOriginal, validate: validate)
+        outputSnapshots[output.path] = (deleting ? nil : bytes, original.1)
+        var saved = TextConflictDocument(entry: document.entry, base: document.base, mine: document.mine, theirs: document.theirs,
+            mineStage: document.mineStage, theirsStage: document.theirsStage, initialResult: result, generatedResult: document.generatedResult,
+            workingContents: deleting ? nil : bytes, permissions: original.1, encoding: selected,
+            baseEncoding: document.baseEncoding, mineEncoding: document.mineEncoding, theirsEncoding: document.theirsEncoding)
+        saved.mergeSources = document.mergeSources; return saved
+    }
+
     public func save(_ document: TextConflictDocument, result: String, encoding: ComparisonTextEncoding? = nil, options: MergeFileSaveOptions = .init()) throws -> TextConflictDocument {
         guard document.entry.path == mineURL.lastPathComponent, let baseSnapshot, let theirsSnapshot,
               !result.utf8.contains(0) else { throw TextConflictFailure.unsupported }
