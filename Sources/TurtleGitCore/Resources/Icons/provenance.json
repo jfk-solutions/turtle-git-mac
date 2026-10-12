@@ -1481,6 +1481,11 @@
       "source": "src/Resources/bugtraq.ico",
       "sha256": "8f337283e412ac5da93526d260c9398265e45192e309d8ea01be1e5a0d53134f",
       "blob": "e175d1b78cb7143cff55cb806aa4a8f141436751"
+    },
+    {
+      "asset": "hook.ico",
+      "source": "src/Resources/hook.ico",
+      "sha256": "90fd29efd9aa0f10c40169e413ce54c4801cc0c157b2656660055a752bc66305"
     }
   ]
 }

@@ -15,6 +15,8 @@ import AppKit
         if SSHKeyGenerationModel.activeOperations > 0 { return .terminateCancel }
         if NetworkSettingsModel.activeSaves > 0 { return .terminateCancel }
         if EmailSettingsModel.activeOperations > 0 { return .terminateCancel }
+        if ClientHookProcessPool.shared.activeScripts > 0 { return .terminateCancel }
+        if HookSettingsModel.activeSaves > 0 { return .terminateCancel }
         if AutotextTesterModel.activeRequests > 0 { return .terminateCancel }
         if IssueRegexTesterModel.activeRequests > 0 { return .terminateCancel }
         if IssueTrackerSettingsModel.activeSaves > 0 { return .terminateCancel }

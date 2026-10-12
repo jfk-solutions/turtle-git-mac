@@ -13,7 +13,7 @@ import TurtleGitCore
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 750, height: 590), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Push – TurtleGit"; window.minSize = NSSize(width: 720, height: 610); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: PushDialog(model: model).defaultAppStorage(preferences))
-        super.init(window: window); window.delegate = self; window.setContentSize(NSSize(width: 750, height: 590)); window.center()
+        super.init(window: window); model.clientHooks.windowProvider = { [weak window] in window?.attachedSheet ?? window }; window.delegate = self; window.setContentSize(NSSize(width: 750, height: 590)); window.center()
         model.close = { [weak self] in guard let self, !self.model.busy, self.model.progress == nil, self.window?.attachedSheet == nil else { return }; self.window?.close() }
         model.onProgress = { [weak self] result in
             guard let self, let window = self.window, window.attachedSheet == nil else { result.abandonPresentation(); return }
@@ -89,11 +89,13 @@ import TurtleGitCore
     let repository: GitRepository
     let sshSettings: SSHTransportSettings
     private var invalidated = false
-    func invalidate() { invalidated = true; cancellation?.cancel(); progress?.invalidate(); progress = nil; busy = false }
+    func invalidate() { clientHooks.retire(); invalidated = true; cancellation?.cancel(); progress?.invalidate(); progress = nil; busy = false }
     private let access: RepositoryAccessLease?
     var repositoryAccess: RepositoryAccessLease? { access }
     var settingsPreferences: UserDefaults { preferences }
     private let preferences: UserDefaults
+    lazy var clientHooks = ClientHookSession(preferences: preferences)
+    private var postHookFailure: String?
     @Published var options = PushOptions()
     @Published var remotes: [String] = []
     @Published var references: [CheckoutReference] = []
@@ -104,7 +106,7 @@ import TurtleGitCore
     var onPostAction: ((PushPostAction, PushOptions, URL?) -> Void)?
     func finish(_ result: PushProgressWindowModel) {
         guard progress === result, !result.busy, !confirmingCancellation else { return }
-        progress = nil; result.invalidate(); busy = false; error = nil; close()
+        progress = nil; result.invalidate(); busy = false; if let postHookFailure { error = postHookFailure; return }; error = nil; close()
     }
     @Published private(set) var cancelling = false
     @Published private(set) var confirmingCancellation = false
@@ -263,7 +265,7 @@ import TurtleGitCore
                 askToPush(destination.isEmpty ? "The local branch name and the remote branch name are empty.\nContinue?" : "The local branch/tag name is empty. This results in a remote removal.\nContinue?", allBranches: false, deletion: !destination.isEmpty); return
             }
         }
-        confirmation = nil
+        confirmation = nil; postHookFailure = nil
         var snapshot = options
         snapshot.showBranchRevisionNumber = preferences.bool(forKey: "ShowBranchRevisionNumber")
         snapshot.source = FetchDialogHistory.trim(snapshot.source); snapshot.destination = FetchDialogHistory.trim(snapshot.destination)
@@ -277,6 +279,8 @@ import TurtleGitCore
                 try await repository.validatePushOptions(snapshot, cancellation: token)
                 guard !token.isCancelled else { throw OperationCancellationFailure.cancelled }
                 guard !invalidated else { return }
+                _ = try await clientHooks.run(.prePush, repository: repository, access: access, cancellation: token, allowContinue: true)
+                guard !invalidated, !token.isCancelled else { return }
                 saveHistories(snapshot); sshSettings.save(preferences, key: key + ".autoload")
                 preferences.set(snapshot.allBranches, forKey: key + ".allBranches")
                 preferences.set(!snapshot.arbitraryURL && snapshot.allRemotes, forKey: key + ".allRemotes")
@@ -301,11 +305,19 @@ import TurtleGitCore
                 guard !token.isCancelled else { throw OperationCancellationFailure.cancelled }
                 cancellation = nil; cancelling = false; confirmingCancellation = false
                 guard !invalidated else { return }
+                do { _ = try await clientHooks.run(.postPush, repository: repository, access: access, cancellation: token) }
+                catch { postHookFailure = "The push succeeded, but its post-push hook failed.\n\n" + error.localizedDescription; self.error = postHookFailure }
+                guard !invalidated else { return }
                 onTransportResult(output, true); onPushed(output)
-                if let result { result.complete(output: output, success: true, cancelled: false) }
-                else { close() }
+                if let result { result.complete(output: output + (postHookFailure.map { "\n" + $0 } ?? ""), success: true, cancelled: false) }
+                else if postHookFailure == nil { close() }
                 } catch {
                     cancellation = nil; cancelling = false; confirmingCancellation = false
+                    guard !invalidated else { return }
+                    if !token.isCancelled {
+                        do { _ = try await clientHooks.run(.postPush, repository: repository, access: access, cancellation: token) }
+                        catch { postHookFailure = "The post-push hook also failed.\n\n" + error.localizedDescription }
+                    }
                     guard !invalidated else { return }
                     onTransportResult(error.localizedDescription, false)
                     if let result { result.complete(output: error.localizedDescription, success: false, cancelled: token.isCancelled, failure: error as? PushExecutionFailure) }

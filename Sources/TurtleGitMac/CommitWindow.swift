@@ -35,7 +35,7 @@ import UniformTypeIdentifiers
         window.title = "\(repository.root.lastPathComponent) – Commit – TurtleGit"
         window.minSize = NSSize(width: 900, height: 680); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: CommitDialog(model: model))
-        super.init(window: window); window.model = model; window.delegate = self; window.setContentSize(NSSize(width: 1000, height: 760)); window.center()
+        super.init(window: window); model.clientHooks.windowProvider = { [weak window] in window?.attachedSheet ?? window }; window.model = model; window.delegate = self; window.setContentSize(NSSize(width: 1000, height: 760)); window.center()
         model.close = { [weak self, weak window] in
             guard let self, self.partial?.model.busy != true, self.partial?.window?.attachedSheet == nil, !self.model.unifiedViewerBusy else { return }
             window?.close()
@@ -256,6 +256,7 @@ import UniformTypeIdentifiers
 @MainActor final class CommitWindowModel: ObservableObject {
     let repository: GitRepository
     let access: RepositoryAccessLease?
+    lazy var clientHooks = ClientHookSession(preferences: dialogDefaults)
     @Published var conflictRebase = false
     @Published var entries: [StatusEntry] = []
     @Published var indexFlagFiles: [WorkingTreeFile] = []
@@ -877,6 +878,10 @@ import UniformTypeIdentifiers
                         let separated = issueProperties.separateIssueLine(from: seed.message)
                         message = separated.message; issueID = separated.issueID
                     }
+                    if let hook = try await clientHooks.run(.startCommit, repository: repository, access: access, paths: scopePaths.isEmpty ? [repository.root.path] : scopePaths.map { repository.root.appendingPathComponent($0).path }, message: message, cancellation: token, allowContinue: true) {
+                        guard messageFocusAvailable, !token.isCancelled else { throw OperationCancellationFailure.cancelled }
+                        message = hook.message
+                    }
                     loadedMessage = true
                     if !seed.warnings.isEmpty { self.error = seed.warnings.joined(separator: "\n\n") }
                 }
@@ -983,6 +988,7 @@ import UniformTypeIdentifiers
         messageFocusAvailable = false; messageFocusRequest = 0; appliedMessageFocusRequest = 0
     }
     func invalidateForClose() {
+        clientHooks.retire()
         reloadCancellation?.cancel(); reloadTask?.cancel(); lfsOwnerCancellation?.cancel()
         reloadCancellation = nil; reloadTask = nil; lfsOwnerCancellation = nil
         pendingReloadCancel = false; busy = false
@@ -1128,6 +1134,7 @@ import UniformTypeIdentifiers
                     guard choice.0 else { busy = false; return }
                     if choice.1 { dialogDefaults.set(true, forKey: "CommitMessageContainsConflictHint") }
                 }
+                if let hook = try await clientHooks.run(.preCommit, repository: repository, access: access, paths: committedPaths.sorted().map { repository.root.appendingPathComponent($0).path }, message: text, allowContinue: true) { text = hook.message; message = text }
                 let prepared = text == rawMessage ? validation : try await repository.prepareIssueCommit(properties: properties, message: text, issueID: rawIssueID)
                 text = prepared.message; message = text
                 if !options.messageOnly {
@@ -1166,10 +1173,13 @@ import UniformTypeIdentifiers
                     result.consume(parser.processPending(), parser: parser); result.consume(parser.finish(), parser: parser)
                     output = try await operation.value
                 }
+                var postHookFailure: String?
+                do { _ = try await clientHooks.run(.postCommit, repository: repository, access: access, amend: options.amend) }
+                catch { postHookFailure = "The commit succeeded, but its post-commit hook failed.\n\n" + error.localizedDescription }
                 messageHistory?.add(written.draft)
                 if options.amend && !nonAmendMessage.isEmpty && nonAmendMessage != messageTemplate { messageHistory?.add(nonAmendMessage) }
                 if !result.isAbandoned { onCommitted(output) }
-                result.complete(output: output, success: true, cancelled: false, postActions: replaySplit == nil && historyCombine == nil ? (isGitSVN ? [.svnDCommit, .push, .pull, .recommit, .createTag] : [.push, .pull, .recommit, .createTag]) : [])
+                result.complete(output: output + (postHookFailure.map { "\n" + $0 } ?? ""), success: true, cancelled: false, postActions: replaySplit == nil && historyCombine == nil ? (isGitSVN ? [.svnDCommit, .push, .pull, .recommit, .createTag] : [.push, .pull, .recommit, .createTag]) : [])
                 if action != .commit || replaySplit != nil || historyCombine != nil || !presented || result.isAbandoned { result.choose(nil) }
                 selectedPostAction = await result.waitForChoice()
                 rememberCompletionAction(action)
@@ -1186,6 +1196,7 @@ import UniformTypeIdentifiers
                         busy = false; reload(); return
                     }
                 }
+                if let postHookFailure { self.error = postHookFailure; busy = false; reload(); return }
                 if action == .recommit || selectedPostAction == .recommit {
                     do {
                         let seed = try await repository.commitMessageSeed(includeOperationMessages: false)

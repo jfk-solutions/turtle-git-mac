@@ -1,0 +1,70 @@
+{
+  "date": "2026-10-12",
+  "sourceCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Hook Scripts configuration, source selection/payloads, owned execution, per-user approval, native settings and six Commit/Push/Rebase boundaries",
+  "builds": [
+    {
+      "log": "build/qa/client-hooks-build-2026-10-12.log",
+      "exit": 65,
+      "failure": "Settings route used private repository/access properties"
+    },
+    {
+      "log": "build/qa/client-hooks-build-repair-2026-10-12.log",
+      "exit": 65,
+      "failure": "Incorrect context helper name"
+    },
+    {
+      "log": "build/qa/client-hooks-build-final-2026-10-12.log",
+      "exit": 0
+    },
+    {
+      "log": "build/qa/client-hooks-build-lifetime-2026-10-12.log",
+      "exit": 0,
+      "diagnostics": "Existing following command failed with exit code 0 but produced no output diagnostics; actual build exit 0"
+    }
+  ],
+  "core": {
+    "command": "swift test --filter ClientHooksTests",
+    "tests": 5,
+    "failures": 0,
+    "seconds": 1.804,
+    "log": "build/qa/client-hooks-core-lifetime-2026-10-12.log",
+    "earlierAttempts": [
+      "Fixture required empty-string argument; compilation failed",
+      "App context helper name prevented package build",
+      "Initial five tests passed before lifetime regression; five final tests passed with disposal/caller-token assertion"
+    ]
+  },
+  "native": {
+    "command": "python3 scripts/test-native-reference-batch.py --only client-hooks --only commit-progress --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+    "finalCases": 4,
+    "exit": 0,
+    "frontendsIncludingRepair": 2,
+    "ownedReceiverPIDs": [
+      68734,
+      69801,
+      70116,
+      71364,
+      71681
+    ],
+    "allReaped": true,
+    "firstFailure": "Completed execution disposal cancelled caller token; fixed completion state before repeating affected group",
+    "finalLog": "build/qa/client-hooks-native-lifetime-2026-10-12.log",
+    "preferences": "private",
+    "repositories": "private",
+    "nonWait": "Pool cancellation settled before receiver exit"
+  },
+  "originalIcons": {
+    "asset": "hook.ico",
+    "source": "src/Resources/hook.ico",
+    "totalManifestAssets": 296
+  },
+  "limitations": [
+    "No full Core or full native matrix rerun",
+    "No visual screenshot certification or physical keyboard/VoiceOver review",
+    "No signed sandbox execution or real external script grant acceptance",
+    "Native Rebase boundary tested with failure before editor/history mutation",
+    "Alternate Merge/replay/Sync paths and pinned source edge cases remain open",
+    "No complete hosted CI pass claimed"
+  ]
+}

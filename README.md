@@ -149,6 +149,11 @@ The native [Autotext Tester](docs/AUTOTEXT-TESTER-PARITY.md) now provides the
 source content/regex/Scan/results/timing workflow through File and Commit settings.
 Full visual and signed acceptance remain open.
 
+The native [Hook Scripts settings and runtime](docs/CLIENT-HOOKS-PARITY.md) now
+connect the six Commit/Push/Rebase hook points, including repository approval and
+owned background execution. Alternate routes and visual/signed acceptance remain
+open.
+
 The static site source is `docs/site`; `python3 scripts/build-site.py` builds
 `build/site`. See [website and screenshot maintenance](docs/WEBSITE.md).
 

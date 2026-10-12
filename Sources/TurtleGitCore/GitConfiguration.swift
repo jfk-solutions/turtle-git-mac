@@ -402,3 +402,45 @@ extension GitRepository {
         try saveScopedProjectSettings(settings.values,destination:destination,hasRepository:hasRepository,cancellation:cancellation)
     }
 }
+
+
+extension GitRepository {
+    /// Source ProjectProperties uses the merged Git/.tgitconfig values. Disabled
+    /// local approval is stored separately per user, never in the shared file.
+    public func projectClientHooks(cancellation: OperationCancellation? = nil) throws -> [ClientHook] {
+        let values = try scopedProjectSettingsValues(pattern: ClientHookConfiguration.pattern, source: .effective, hasRepository: true, cancellation: cancellation)
+        var hooks: [ClientHook] = []
+        func boolean(_ key: String) throws -> Bool {
+            guard let value = values[key] else { return false }
+            switch value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+            case "true", "yes", "on", "1": return true
+            case "", "false", "no", "off", "0": return false
+            default:
+                guard let number = Int64(value.trimmingCharacters(in: .whitespacesAndNewlines)) else { throw ClientHookFailure.configuration("Invalid Boolean value for " + key) }
+                return number != 0
+            }
+        }
+        for type in ClientHookType.allCases {
+            try cancellation?.check()
+            let prefix = type.configurationPrefix
+            guard let command = values[prefix + "cmdline"], !command.isEmpty else { continue }
+            hooks.append(ClientHook(type: type, path: root.path, command: command,
+                wait: try boolean(prefix + "wait"), show: try boolean(prefix + "show"), local: true))
+        }
+        return hooks
+    }
+    public func saveProjectClientHooks(_ hooks: [ClientHook], cancellation: OperationCancellation? = nil) throws {
+        try ClientHookConfiguration.validate(hooks)
+        guard hooks.allSatisfy({ $0.local && $0.path == root.path }) else {
+            throw ClientHookFailure.configuration("Local hooks must belong to this repository.")
+        }
+        var values: [(String,String?)] = []
+        for type in ClientHookType.allCases {
+            let hook = hooks.first { $0.type == type }, prefix = type.configurationPrefix
+            values.append((prefix + "cmdline",hook?.command))
+            values.append((prefix + "wait",hook.map { $0.wait ? "true" : "false" }))
+            values.append((prefix + "show",hook.map { $0.show ? "true" : "false" }))
+        }
+        try saveScopedProjectSettings(values,destination:.project,hasRepository:true,cancellation:cancellation)
+    }
+}

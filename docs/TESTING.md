@@ -1157,7 +1157,7 @@ checks three-pane format acceptance. See [format parity](MERGE-FORMAT-PARITY.md)
 Build Debug once, then run `python3 scripts/test-native-reference-batch.py` for
 folders, comparisons, batch/single deletion, Switch/Fetch/Create Branch/Merge
 routes and Merge reference/Log pickers. The driver links the existing app objects
-and twenty receiver families, including Network, Credential, Tool settings, Overlays, Email, Commit progress, SVN, issue settings/tester and external Merge lifecycle, in one compilation. It uses an explicit native AppKit run loop and
+and twenty-one receiver families, including Network, Credential, Tool settings, Overlays, Email, Commit progress, SVN, issue settings/tester and external Merge lifecycle, in one compilation. It uses an explicit native AppKit run loop and
 caches by object files, imported modules/framework, fixtures and compiler/flags.
 It does not recompile the whole SwiftUI app for each case.
 
@@ -1336,7 +1336,7 @@ exercised.
 
 
 `--only issue-captures` is an optional local artifact-generation case and is
-excluded from the default twenty-family CI run. It uses private configuration,
+excluded from the default twenty-one-family CI run. It uses private configuration,
 drafts and helper input, displays only its owned windows and captures their
 compositor output in both themes. It requires existing screen-capture permission;
 it does not grant permissions. Review images before publishing. AppKit
@@ -1354,3 +1354,16 @@ case covers the shared text-menu regression. `swift test --filter
 MessageCodeSymbolsTests` covers the Core matching API and pre-cancellation.
 No physical menu navigation, visual certification or signed sandbox acceptance
 is inferred from these checks.
+
+
+`swift test --filter ClientHooksTests` verifies five Core cases including literal
+command parsing, source selection/configuration, all payload layouts, real cwd
+and commit-message mutation, private cleanup and cancelled leader reaping. After
+Debug is built, `--only client-hooks --only commit-progress` in the cached group
+checks shared Hook Scripts drafts and owned Configure sheets, remembered/late
+approval, actual Commit/Push/Rebase hook boundaries and non-wait Cancel/Quit.
+The existing Commit progress case verifies its unchanged cancellation/draft/
+post-action behavior. Receivers use private preferences and repositories and
+stop owned hook work before exit. Signed grants, physical menus and full CI are
+separate acceptance scopes. See the 12 October QA record for initial compile and
+lifetime failures and the final focused passes.

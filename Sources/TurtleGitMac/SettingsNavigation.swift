@@ -8,8 +8,8 @@ import Combine
 /// Pending pages are tracked in the inventory, rather than shown as empty panes.
 enum SettingsPageID: String {
     case general, dialogs, dialogs2, dialogs3, colors1, colors2, colors3, commit, alternativeEditor, git, remote, email, diff
-    case issueTracker, credential, network, contextMenu, contextMenu2, overlays, overlayHandlers, overlayIcons, mergeTool, mergeEditor, mergeColors, savedData, blame, unifiedDiff, advanced
-    var applyOrder: Int { let pages: [SettingsPageID] = [.general, .contextMenu, .contextMenu2, .dialogs, .dialogs2, .dialogs3, .colors1, .colors2, .colors3, .commit, .alternativeEditor, .overlays, .overlayHandlers, .overlayIcons, .git, .remote, .issueTracker, .credential, .network, .email, .diff, .mergeTool, .mergeEditor, .mergeColors, .savedData, .blame, .unifiedDiff, .advanced]; return pages.firstIndex(of: self)! }
+    case hooks, issueTracker, credential, network, contextMenu, contextMenu2, overlays, overlayHandlers, overlayIcons, mergeTool, mergeEditor, mergeColors, savedData, blame, unifiedDiff, advanced
+    var applyOrder: Int { let pages: [SettingsPageID] = [.general, .contextMenu, .contextMenu2, .dialogs, .dialogs2, .dialogs3, .colors1, .colors2, .colors3, .commit, .alternativeEditor, .overlays, .overlayHandlers, .overlayIcons, .git, .remote, .hooks, .issueTracker, .credential, .network, .email, .diff, .mergeTool, .mergeEditor, .mergeColors, .savedData, .blame, .unifiedDiff, .advanced]; return pages.firstIndex(of: self)! }
 }
 private final class SettingsPageNode: NSObject {
     let id: SettingsPageID, title: String, icon: MenuIcon
@@ -47,6 +47,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     private(set) var selected: SettingsPageID = .general
     private var repositoryPath: String?
     private var remote: RemoteSettingsWindowModel?
+    private var hooks: HookSettingsModel?
     private var delegateProxy: SettingsWindowDelegate?
     private var updating = false
     init(workspace: RepositoryModel, appearance: AppAppearance, globalOnly: Bool = false) { self.workspace = workspace; self.appearance = appearance; self.globalOnly = globalOnly; self.appearanceDraft = SettingsAppearanceDraft(appearance: appearance); super.init(nibName: nil, bundle: nil) }
@@ -95,10 +96,11 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         transaction.window = window
         window.title = globalOnly ? "Global Settings – TurtleGit for Mac" : "Settings – TurtleGit for Mac"
     }
-    var canDismiss: Bool { !emailDraft.busy && !transaction.busy && remote?.busy != true && remote?.hasChild != true && GitConfigurationSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSaves == 0 && NetworkSettingsModel.activeSaves == 0 && IssueTrackerSettingsModel.activeSaves == 0 && view.window?.attachedSheet == nil }
+    var canDismiss: Bool { !emailDraft.busy && !transaction.busy && remote?.busy != true && remote?.hasChild != true && GitConfigurationSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSaves == 0 && NetworkSettingsModel.activeSaves == 0 && IssueTrackerSettingsModel.activeSaves == 0 && HookSettingsModel.activeSaves == 0 && view.window?.attachedSheet == nil }
     func updateRepository() {
         guard !globalOnly, isViewLoaded, workspace.root?.path != repositoryPath else { return }
         // A captured Remote model belongs to the repository that created it.
+        hooks?.invalidate(); hooks = nil; cache.removeValue(forKey: .hooks); transaction.unregister("hooks")
         remote?.invalidate()
         if selected == .remote, let window = view.window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.close() }
         remote = nil; cache.removeValue(forKey: .remote); transaction.unregister("remote")
@@ -106,7 +108,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         transaction.unregister("credential"); cache.removeValue(forKey: .credential)
         transaction.unregister("network"); cache.removeValue(forKey: .network)
         cache.removeValue(forKey: .git); cache.removeValue(forKey: .dialogs3)
-        if [.remote, .git, .dialogs3, .issueTracker, .credential, .network].contains(selected) {
+        if [.remote, .git, .dialogs3, .hooks, .issueTracker, .credential, .network].contains(selected) {
             current?.view.removeFromSuperview(); current?.removeFromParent(); current = nil
             show(selected == .remote ? .git : selected)
         }
@@ -127,6 +129,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
                 SettingsPageNode(.commit, "Message Editor", .editor),
                 SettingsPageNode(.alternativeEditor, "Alternative Editor", .editor)]),
             SettingsPageNode(.git, "Git", .settingsGit, children: (globalOnly || workspace.root == nil ? [] : [SettingsPageNode(.remote, "Remote", .settingsRemote)]) + [SettingsPageNode(.credential, "Credential", .settingsCredential)]),
+            SettingsPageNode(.hooks, "Hook Scripts", .settingsHooks),
             SettingsPageNode(.issueTracker, "Issue Tracker Config", .settingsIssueTracker),
             SettingsPageNode(.network, "Network", .settingsNetwork),
             SettingsPageNode(.overlays, "Icon Overlays", .settingsOverlays, children: [SettingsPageNode(.overlayIcons, "Icon Set", .settingsOverlays), SettingsPageNode(.overlayHandlers, "Overlay Handlers", .settingsOverlays)]),
@@ -154,7 +157,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     @objc private func cancelSettings() { guard canDismiss else { return }; view.window?.makeFirstResponder(nil); transaction.cancel(); view.window?.performClose(nil) }
     private func host<V: View>(_ view: V) -> NSViewController { NSHostingController(rootView: view.environment(\.settingsTransaction, transaction)) }
     private func show(_ page: SettingsPageID) {
-        guard !emailDraft.busy, view.window?.attachedSheet == nil, remote?.busy != true, remote?.hasChild != true, GitConfigurationSettingsModel.activeSaves == 0, CredentialSettingsModel.activeSaves == 0, NetworkSettingsModel.activeSaves == 0, IssueTrackerSettingsModel.activeSaves == 0 else { return }
+        guard !emailDraft.busy, view.window?.attachedSheet == nil, remote?.busy != true, remote?.hasChild != true, GitConfigurationSettingsModel.activeSaves == 0, CredentialSettingsModel.activeSaves == 0, NetworkSettingsModel.activeSaves == 0, IssueTrackerSettingsModel.activeSaves == 0 && HookSettingsModel.activeSaves == 0 else { return }
         if current != nil && selected == page { return }
         view.window?.makeFirstResponder(nil)
         let controller: NSViewController
@@ -164,6 +167,10 @@ struct SettingsNavigation: NSViewControllerRepresentable {
             case .general: controller = host(GeneralSettings(appearance: appearanceDraft))
             case .colors1, .colors2, .colors3: controller = host(SourceColorSettings(page: page, appearance: appearanceDraft))
             case .dialogs: controller = host(LogDialogSettings())
+            case .hooks:
+                let draft = HookSettingsModel(); hooks = draft
+                guard let context = try? workspace.gitConfigurationContext(globalOnly: globalOnly) else { return }
+                controller = host(HookSettingsPage(model: draft, repository: context.localAvailable ? context.repository : nil, access: context.access))
             case .dialogs2: controller = host(DialogsBehaviorSettings())
             case .dialogs3: controller = host(ProjectDialogSettingsPage(workspace: workspace, globalOnly: globalOnly))
             case .commit: controller = host(CommitEditorSettings(editorOnly: true))
@@ -217,7 +224,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         current = controller; selected = page; heading.stringValue = nodes.first(where: { $0.id == page })?.title ?? page.rawValue
     }
     func invalidate() {
-        transaction.invalidate(); emailDraft.invalidate()
+        transaction.invalidate(); emailDraft.invalidate(); hooks?.invalidate(); hooks = nil
         remote?.invalidate(); remote = nil
         if let window = view.window, let delegateProxy, window.delegate === delegateProxy { window.delegate = delegateProxy.original }
         delegateProxy = nil; current?.view.removeFromSuperview(); current?.removeFromParent(); current = nil; cache.removeAll()

@@ -12,7 +12,7 @@ import TurtleGitCore
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1040, height: 720), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Rebase – TurtleGit"; window.minSize = NSSize(width: 930, height: 620); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: RebaseDialog(model: model))
-        super.init(window: window); window.delegate = self; window.center(); model.close = { [weak window] in window?.close() }
+        super.init(window: window); model.clientHooks.windowProvider = { [weak window] in window?.attachedSheet ?? window }; window.delegate = self; window.center(); model.close = { [weak window] in window?.close() }
         model.revisionMenuLog.window = window
         model.onModeChanged = { [weak window, weak model] in
             window?.title = "\(repository.root.lastPathComponent) – \(model?.operationTitle ?? "Rebase") – TurtleGit"
@@ -87,7 +87,7 @@ import TurtleGitCore
         if let sheet = child.window { window.beginSheet(sheet) } else { splitCommitPicker = nil; model.splitSelectionClosed(committed: false) }
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && !model.selectingSplit && sender.attachedSheet == nil }
-    func windowWillClose(_ notification: Notification) { logPicker?.close(); logPicker = nil; splitCommitPicker?.close(); splitCommitPicker = nil; onClosed() }
+    func windowWillClose(_ notification: Notification) { model.clientHooks.retire(); logPicker?.close(); logPicker = nil; splitCommitPicker?.close(); splitCommitPicker = nil; onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class RebaseWindowModel: ObservableObject {
@@ -95,6 +95,7 @@ import TurtleGitCore
     let fullCommitMessageOnLogLine: Bool
     private let access: RepositoryAccessLease?
     private let messageDefaults: UserDefaults
+    lazy var clientHooks = ClientHookSession(preferences: messageDefaults)
     var repositoryAccess: RepositoryAccessLease? { access }
     @Published var options = RebaseOptions()
     @Published var ontoEnabled = false
@@ -505,7 +506,9 @@ import TurtleGitCore
                 try requireAccess()
                 let result: RebaseExecution
                 switch action {
-                case "start": guard let snapshot, let executable = editorExecutable else { throw RebaseFailure.plan }; replayRows = snapshot.entries; result = try await repository.startRebase(snapshot, editorExecutable: executable, afterFetch: completionAfterFetch, autoStart: completionAutoStart, fromLog: completionFromLog)
+                case "start": guard let snapshot, let executable = editorExecutable else { throw RebaseFailure.plan }
+                    _ = try await clientHooks.run(.preRebase, repository: repository, access: access, upstream: snapshot.options.upstream, rebasedBranch: snapshot.options.branch, allowContinue: true)
+                    replayRows = snapshot.entries; result = try await repository.startRebase(snapshot, editorExecutable: executable, afterFetch: completionAfterFetch, autoStart: completionAutoStart, fromLog: completionFromLog)
                 case "abort": result = try await repository.abortRebase()
                 case "skip": result = try await repository.skipRebase()
                 default:

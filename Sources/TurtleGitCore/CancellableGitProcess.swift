@@ -5,7 +5,7 @@ import Darwin
 /// Cancellation targets that group while its leader PID is still unreaped, so
 /// helper children stop too and the numeric ID cannot be reused by another job.
 enum CancellableGitProcess {
-    static func run(executable: URL, arguments: [String], environment: [String: String], output: Int32, error: Int32, cancellation: OperationCancellation? = nil, pollOutput: (() -> Void)? = nil, terminateDescendantsOnExit: Bool = false) throws -> Int32 {
+    static func run(executable: URL, arguments: [String], environment: [String: String], output: Int32, error: Int32, cancellation: OperationCancellation? = nil, pollOutput: (() -> Void)? = nil, terminateDescendantsOnExit: Bool = false, workingDirectory: URL? = nil, didStart: (() -> Void)? = nil) throws -> Int32 {
         try cancellation?.check()
         func check(_ code: Int32) throws {
             guard code == 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(code)) }
@@ -32,6 +32,7 @@ enum CancellableGitProcess {
         defer { posix_spawn_file_actions_destroy(&actions) }
         try check(posix_spawnattr_init(&attributes))
         defer { posix_spawnattr_destroy(&attributes) }
+        if let workingDirectory { try check(posix_spawn_file_actions_addchdir_np(&actions, workingDirectory.path)) }
         try check(posix_spawn_file_actions_addopen(&actions, STDIN_FILENO, "/dev/null", O_RDONLY, 0))
         try check(posix_spawn_file_actions_adddup2(&actions, outputCopy, STDOUT_FILENO))
         try check(posix_spawn_file_actions_adddup2(&actions, errorCopy, STDERR_FILENO))
@@ -50,6 +51,7 @@ enum CancellableGitProcess {
                 try check(posix_spawn(&pid, executable.path, &actions, &attributes, argv, env))
             }
         }
+        didStart?()
         var status: Int32 = 0
         func exitCode() -> Int32 { status & 0x7f == 0 ? (status >> 8) & 0xff : 128 + (status & 0x7f) }
         // Ordinary commands block on their own PID without a Foundation run-loop

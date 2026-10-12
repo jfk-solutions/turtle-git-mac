@@ -97,7 +97,7 @@ owned loading/command progress. Native Push variants and owned Shift Push option
 controls, full visual matching and signed acceptance are still pending. See
 [Synchronization parity](SYNCHRONIZATION-PARITY.md).
 Across the 130 inventoried dialogs:
-74 dialogs have partial implementations and 56 await review. No dialog is certified complete.
+76 dialogs have partial implementations and 54 await review. No dialog is certified complete.
 See [the reference dialog audit](COMMIT-CONTAINING-REFS-PARITY.md).
 
 Log commit ordering now has the source’s four-choice native sheet, deferred
@@ -901,3 +901,13 @@ captures after a passing Debug build. Core/behavior suites were not rerun.
 The native content/regex/Scan/results/timing/Exit workflow and owned Settings
 entry point are implemented. It uses the original C++ capture engine. Physical
 and signed acceptance remain open. See [Autotext audit](AUTOTEXT-TESTER-PARITY.md).
+
+## Client Hook Scripts
+
+The native Hook Scripts list and configuration dialog retain source controls,
+with the original hook icon, global/project persistence, shared Apply/Cancel and
+per-user repository-script approval. Owned execution is connected to the six
+Commit/Push/Rebase boundaries and non-wait scripts remain cancellable through
+File. Focused Core/native checks pass; alternate routes, precise source edge
+cases and visual/signed acceptance remain open. See
+[Client Hooks audit](CLIENT-HOOKS-PARITY.md).
