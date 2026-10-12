@@ -41,6 +41,9 @@ import TurtleGitCore
             }
             CommandGroup(replacing: .appInfo) {
                 Button("About TurtleGit for Mac") { SettingsPresentationService.showAbout() }
+                Menu("About Tools") {
+                    ForEach(TurtleGitAboutTool.tools, id: \.self) { tool in Button("About " + tool.title) { TurtleGitAboutService.shared.show(tool) } }
+                }
             }
             CommandGroup(replacing: .help) {
                 Button("TurtleGit Help") { SettingsPresentationService.showHelp() }

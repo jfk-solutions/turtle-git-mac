@@ -5,10 +5,10 @@ ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc,IDD_SENDFULLDUMPDLG,@Title,pendi
 ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc,IDD_ASKSENDFULLDUMPDLG,@Title,pending-review
 ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc,IDD_SOLUTIONDLG,@Title,pending-review
 ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc,IDD_SENDASSERTREPORTDLG,@Title,pending-review
-src/Resources/TortoiseGitBlameENG.rc,IDD_ABOUTBOX,About TortoiseGitBlame,pending-review
+src/Resources/TortoiseGitBlameENG.rc,IDD_ABOUTBOX,About TortoiseGitBlame,partial-native-replacement
 src/Resources/TortoiseGitBlameENG.rc,IDD_GOTODLG,Go to line,partial
 src/Resources/TortoiseLoglistCommon.rc2,IDD_FIND,Find,partial-native-replacement
-src/Resources/TortoiseMergeENG.rc,IDD_ABOUT,About TortoiseGitMerge,pending-review
+src/Resources/TortoiseMergeENG.rc,IDD_ABOUT,About TortoiseGitMerge,partial-native-replacement
 src/Resources/TortoiseMergeENG.rc,IDD_DIFFLOCATOR,,pending-review
 src/Resources/TortoiseMergeENG.rc,IDD_LINEDIFF,,pending-review
 src/Resources/TortoiseMergeENG.rc,IDD_FILEPATCHES,File patches,pending-review
@@ -20,7 +20,7 @@ src/Resources/TortoiseMergeENG.rc,IDD_ENCODING,Encoding,pending-review
 src/Resources/TortoiseMergeENG.rc,IDD_GOTO,Go To Line,pending-review
 src/Resources/TortoiseMergeENG.rc,IDD_REGEXFILTERS,Regex Filters,partial-native-replacement
 src/Resources/TortoiseMergeENG.rc,IDD_REGEXFILTER,Regex Filter,partial-native-replacement
-src/Resources/TortoiseProcENG.rc,IDD_ABOUT,About TortoiseGit,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_ABOUT,About TortoiseGit,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_ADD,Add,native-partial
 src/Resources/TortoiseProcENG.rc,IDD_CHANGEDFILES,Working Tree,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_LOGMESSAGE,Log Messages,partial-workflow-replacement
@@ -124,7 +124,7 @@ src/Resources/TortoiseProcENG.rc,IDD_WORKTREE_CREATE,New Worktree,partial
 src/Resources/TortoiseProcENG.rc,IDD_WORKTREE_LIST,Worktree List,partial
 src/SshAskPass/SshAskPass.rc,IDD_ASK_PASSWORD,TortoiseGit -  git CLI stdin wrapper,pending-review
 src/TortoiseIDiff/TortoiseIDiff.rc,IDD_OPEN,Load Images,partial-native-replacement
-src/TortoiseIDiff/TortoiseIDiff.rc,IDD_ABOUT,TortoiseGitIDiff,pending-review
+src/TortoiseIDiff/TortoiseIDiff.rc,IDD_ABOUT,TortoiseGitIDiff,partial-native-replacement
 src/TortoisePlink/Windows/TortoisePlink.rc,IDD_LOGIN,TortoiseGitPlink,pending-review
 src/TortoiseShell/resourceshell.rc,IDD_PROPPAGE,Property Page,pending-review
 src/TortoiseUDiff/TortoiseUDiff.rc,IDD_FINDBAR,,pending-review

@@ -205,3 +205,5 @@ are not recursively audited.
 [Merge General settings](MERGE-GENERAL-SETTINGS-PARITY.md): native font preview/live metrics, configurable inline bound and source load-jump flags.
 
 [Merge Colors settings](MERGE-COLORS-PARITY.md): source palette rows, independent light/dark drafts, Restore Default and live renderer integration.
+
+[Native About dialog family](ABOUT-PARITY.md): app and tool About windows, bundled runtime reports, original attribution and local license access.

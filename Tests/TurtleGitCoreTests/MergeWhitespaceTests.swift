@@ -155,3 +155,37 @@ final class MergeColorPreferencesTests: XCTestCase {
         XCTAssertEqual(MergeColorPreferences.load(from: defaults), .init())
     }
 }
+
+final class ApplicationAboutInformationTests: XCTestCase {
+    func testCapturedBundleVersionsAndLicensePaths() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        func json(_ path: String, _ value: [String: Any]) throws {
+            let file = root.appendingPathComponent(path); try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try JSONSerialization.data(withJSONObject: value).write(to: file)
+        }
+        try json("Contents/Helpers/Git/runtime-manifest.json", ["version":"2.55.0", "svn_component":["version":"1.14.5", "perl":"5.44.0"]])
+        try json("Contents/Helpers/Git/git-lfs-manifest.json", ["version":"3.8.0"])
+        try json("Contents/Helpers/OpenSSH/provenance.json", ["pin":["openssh":["version":"10.6p1"],"openssl":["version":"3.5.9"]]])
+        try json("Contents/Frameworks/TurtleGitCore.framework/Resources/Icons/provenance.json", ["commit":"source-pin"])
+        let resources = root.appendingPathComponent("Contents/Resources"); try FileManager.default.createDirectory(at: resources, withIntermediateDirectories: true)
+        try Data("license".utf8).write(to: resources.appendingPathComponent("LICENSE"))
+        let info = ApplicationAboutInformation(application: root, version: "0.1", build: "42")
+        XCTAssertTrue(info.versionText.contains("Git: 2.55.0")); XCTAssertTrue(info.versionText.contains("OpenSSH: 10.6p1"))
+        XCTAssertEqual(info.upstreamCommit, "source-pin"); XCTAssertEqual(info.license, resources.appendingPathComponent("LICENSE")); XCTAssertNil(info.notices)
+        XCTAssertEqual(info.components.first { $0.name == "Subversion" }?.version, "1.14.5")
+        XCTAssertEqual(info.components.first { $0.name == "Perl" }?.version, "5.44.0")
+    }
+    func testMalformedOrOversizeMetadataDoesNotBecomeTrustedVersion() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let path = root.appendingPathComponent("Contents/Helpers/Git/runtime-manifest.json")
+        try FileManager.default.createDirectory(at: path.deletingLastPathComponent(), withIntermediateDirectories: true)
+        for data in [Data("bad".utf8), Data(repeating: 32, count: 512 * 1024 + 1)] {
+            try data.write(to: path)
+            let info = ApplicationAboutInformation(application: root, version: "", build: "")
+            XCTAssertEqual(info.applicationVersion, "Development"); XCTAssertEqual(info.build, "Unknown")
+            XCTAssertEqual(info.components.first?.version, "Not bundled / unknown")
+        }
+    }
+}

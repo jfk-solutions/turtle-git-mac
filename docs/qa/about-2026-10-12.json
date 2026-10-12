@@ -1,0 +1,69 @@
+{
+  "date": "2026-10-12",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Native application/Merge/Blame/Image Diff/Unified Diff About family with bundle reports and attribution",
+  "implementationThenGroupedValidation": true,
+  "core": {
+    "tests": 2,
+    "failures": 0,
+    "seconds": 0.017,
+    "log": "build/qa/about-core-repair-2026-10-12.log",
+    "checks": [
+      "captured runtime versions",
+      "compact installed SVN/Perl summary",
+      "source pin",
+      "license paths",
+      "missing/malformed/oversize metadata refusal"
+    ]
+  },
+  "build": {
+    "exitCode": 0,
+    "configuration": "Debug",
+    "architecture": "arm64",
+    "signed": false,
+    "log": "build/qa/about-build-repair-2026-10-12.log",
+    "notes": "Existing exit-zero diagnostic noise remains."
+  },
+  "native": {
+    "exitCode": 0,
+    "log": "build/qa/about-native-repair-2026-10-12.log",
+    "windows": 5,
+    "receiverProcesses": 2,
+    "frontendCompilations": 2,
+    "checks": [
+      "all tool titles/purposes",
+      "real bundled Git/SVN/Perl versions",
+      "selectable read-only report",
+      "exact private-pasteboard copy",
+      "injected license/notices/update actions",
+      "default OK",
+      "close callbacks"
+    ],
+    "installedApplicationLaunched": false,
+    "externalURLsOpened": false,
+    "updatesRequested": false,
+    "physicalInput": false,
+    "ownedWindowsClosed": true
+  },
+  "captures": {
+    "inspected": true,
+    "published": false,
+    "reason": "Offscreen standard controls omitted button labels; incomplete captures rejected and removed"
+  },
+  "repair": "SVN inventory exceeds the bounded report reader; use compact installed-component versions in Git manifest instead",
+  "inventory": {
+    "total": 130,
+    "partial": 57,
+    "pendingReview": 73,
+    "certifiedComplete": 0
+  },
+  "remainingAcceptance": [
+    "physical menus/buttons/keyboard/VoiceOver",
+    "full light/dark/resize captures",
+    "service singleton/multiple windows and Quit",
+    "signed source/license access",
+    "upstream banner/credits fidelity",
+    "complete application and App Store acceptance"
+  ],
+  "completePortCertified": false
+}

@@ -113,3 +113,49 @@ private final class GitEngineAccess: @unchecked Sendable {
         if leases[file] == nil { leases[file] = RepositoryAccessLease(url: file) }
     }
 }
+
+/// About dialogs report captured bundle manifests, never PATH tools or a
+/// configured repository. Missing/malformed metadata stays explicitly unknown.
+public struct ApplicationAboutInformation: Sendable {
+    public let applicationVersion: String
+    public let build: String
+    public let components: [(name: String, version: String)]
+    public let upstreamCommit: String?
+    public let license: URL?
+    public let notices: URL?
+    public init(application: URL, version: String, build: String) {
+        applicationVersion = version.isEmpty ? "Development" : String(version.prefix(128))
+        self.build = build.isEmpty ? "Unknown" : String(build.prefix(128))
+        func json(_ path: String) -> [String: Any] {
+            guard let handle = try? FileHandle(forReadingFrom: application.appendingPathComponent(path)) else { return [:] }
+            defer { try? handle.close() }
+            guard let data = try? handle.read(upToCount: 512 * 1024 + 1), data.count <= 512 * 1024,
+                  let value = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return [:] }
+            return value
+        }
+        func string(_ root: [String: Any], _ keys: [String]) -> String {
+            var value: Any = root
+            for key in keys { guard let map = value as? [String: Any], let next = map[key] else { return "Not bundled / unknown" }; value = next }
+            guard let text = value as? String, !text.isEmpty else { return "Not bundled / unknown" }
+            return String(text.prefix(256))
+        }
+        let git = json("Contents/Helpers/Git/runtime-manifest.json")
+        let lfs = json("Contents/Helpers/Git/git-lfs-manifest.json")
+        let ssh = json("Contents/Helpers/OpenSSH/provenance.json")
+        let editor = json("Contents/Helpers/EditorConfig/provenance.json")
+        components = [("Git", string(git, ["version"])), ("Git LFS", string(lfs, ["version"])),
+                      ("Subversion", string(git, ["svn_component", "version"])),
+                      ("Perl", string(git, ["svn_component", "perl"])),
+                      ("OpenSSH", string(ssh, ["pin", "openssh", "version"])),
+                      ("OpenSSL", string(ssh, ["pin", "openssl", "version"])),
+                      ("EditorConfig", string(editor, ["pins", "editorconfig", "version"]))]
+        let provenance = json("Contents/Frameworks/TurtleGitCore.framework/Resources/Icons/provenance.json")
+        upstreamCommit = provenance["commit"] as? String
+        let sourceLicense = application.appendingPathComponent("Contents/Resources/LICENSE"), sourceNotices = application.appendingPathComponent("Contents/Resources/NOTICE")
+        license = FileManager.default.isReadableFile(atPath: sourceLicense.path) ? sourceLicense : nil
+        notices = FileManager.default.isReadableFile(atPath: sourceNotices.path) ? sourceNotices : nil
+    }
+    public var versionText: String {
+        (["TurtleGit for Mac \(applicationVersion) (\(build))", "Bundled components:"] + components.map { "\($0.name): \($0.version)" } + ["TortoiseGit source: " + (upstreamCommit ?? "Unknown")]).joined(separator: "\n")
+    }
+}
