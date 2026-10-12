@@ -97,7 +97,7 @@ owned loading/command progress. Native Push variants and owned Shift Push option
 controls, full visual matching and signed acceptance are still pending. See
 [Synchronization parity](SYNCHRONIZATION-PARITY.md).
 Across the 130 inventoried dialogs:
-62 dialogs have partial implementations and 68 await review. No dialog is certified complete.
+63 dialogs have partial implementations and 67 await review. No dialog is certified complete.
 See [the reference dialog audit](COMMIT-CONTAINING-REFS-PARITY.md).
 
 Log commit ordering now has the source’s four-choice native sheet, deferred
@@ -787,3 +787,10 @@ reflow, horizontal-scroll gates and shared wrapped heights across aligned
 source rows. Combined/result panes retain logical editing offsets. See
 [wrapping parity](MERGE-WRAPPING-PARITY.md); full result-row alignment,
 unchanged-section collapse and physical/large-file acceptance remain open.
+
+Network settings now have grouped native verification of private real Git
+writes, credential-cache boundaries, source-ordered partial failures and
+Settings validation/Cancel. Forced deactivation no longer reactivates after
+Apply, and late reads cannot touch the password cache. The Network resource is
+reviewed as a partial native replacement; production Keychain/physical/signed
+acceptance remains open. See [Network parity](NETWORK-SETTINGS-PARITY.md).

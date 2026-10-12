@@ -73,3 +73,39 @@ was launched. Native UI/Keychain/Finder, timeout/moved bookmark, mount/case and
 signed sandbox acceptance remain open. Xcode emitted existing warnings and seven
 unusual exit-zero SwiftCompile diagnostics. This supersedes the uncompiled/
 untested statements above; see `qa/network-finder-settings-batch-2026-10-11.json`.
+
+## Native lifecycle and configuration batch — 2026-10-12
+
+Network settings now accept isolated preference and password-store dependencies,
+with production still using the same app-private Keychain adapter. Native checks
+can exercise reads, writes and SSH responses without reading the user's Keychain
+or editing global user preferences. The page loads/saves SSH and retained proxy
+drafts from its supplied preference domain.
+
+Apply no longer restores an obsolete active-page flag after forced deactivation.
+An already-authorized save may finish, but cannot reactivate a closed/hidden page.
+A late proxy read is fenced before accessing the retained-password cache. Source
+ordered partial-save behavior (cache/preferences before Git, proxy before SSH)
+is retained and explicitly checked rather than changed into a different policy.
+
+The native receiver uses real Git against a private global config, private
+preferences and a mock password actor. It covers escaped proxy Apply, disabling
+with URL-scoped override preservation, retained password boundaries, cache/write
+failure ordering, sanitized diagnostics, Settings validation/Cancel, light/dark
+host construction, captured SSH Apply completion after close and late read/cache
+fencing. It joins the existing app-object reference receiver cache; no separate
+whole-app compilation or live network/Keychain access is needed.
+
+Remaining: actual production Keychain API/grants and signed sandbox acceptance,
+physical controls/keyboard/panels and full light/dark screenshots, moved SSH
+bookmarks/version timeouts, non-OpenSSH source clients and full application
+parity. The inventory remains partial, not certified.
+
+
+The new focused Core group passed eight tests, and the unsigned Debug build
+passed. The Network receiver passed with both system and bundled Git, using one
+fixture compilation against existing app objects and two private processes.
+All owned windows/processes were closed/reaped. See
+[the native record](qa/network-settings-native-2026-10-12.json).
+The complete ten-family reference group was not rerun locally; hosted/signed
+acceptance remains unproven.

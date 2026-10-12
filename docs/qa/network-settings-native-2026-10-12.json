@@ -1,0 +1,69 @@
+{
+  "date": "2026-10-12",
+  "baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Network settings native configuration, credential boundaries and late-close lifecycle",
+  "implemented": [
+    "Isolated preference domain for retained proxy and SSH settings",
+    "Injectable password-store protocol; production Keychain adapter retained",
+    "Captured read/write/authorization/version seams for bounded native receivers",
+    "Authorized Apply completion does not restore stale active state after deactivation",
+    "Late proxy read fenced before credential-cache access",
+    "Source-ordered cache/preferences/Git/SSH partial-save behavior preserved",
+    "Native Network checks share the existing app-object reference cache",
+    "Private global/XDG Git config per Network receiver engine"
+  ],
+  "validation": {
+    "core": {
+      "command": "swift test --filter NetworkFinderSettingsBatchTests",
+      "tests": 8,
+      "failures": 0,
+      "seconds": 0.728,
+      "full_core_suite_run": false
+    },
+    "app_build": {
+      "exit": 0,
+      "configuration": "Debug arm64 unsigned macOS13 target"
+    },
+    "native": {
+      "command": "python3 scripts/test-native-reference-batch.py --only network-settings --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "exit": 0,
+      "engines": [
+        "system Git",
+        "bundled Git 2.55"
+      ],
+      "frontend_compilations": 1,
+      "receiver_processes": 2,
+      "app_sources_recompiled_by_receivers": false,
+      "cases": [
+        "Actual escaped proxy global Apply",
+        "Global Disable preserves URL-scoped local override",
+        "Private retained credentials and no password preference duplication",
+        "Cache failure blocks later preference writes",
+        "Git lock failure retains earlier source-ordered draft cache/preferences",
+        "Credential-safe diagnostics and UI Cancel",
+        "Settings validation/Cancel and Aqua/Dark Aqua host creation",
+        "SSH authorized Apply completes after forced deactivation",
+        "Closed page not reactivated by Apply defer",
+        "Late proxy reply cannot load credentials or mutate visible state"
+      ],
+      "user_global_config_keychain_network_used": false,
+      "private_config_preferences_mock_store": true,
+      "owned_receivers_windows_reaped": true,
+      "full_ten_family_reference_batch_rerun": false
+    },
+    "site_build_exit": 0,
+    "new_screenshots": "None; physical source-page appearance remains unverified"
+  },
+  "remaining": [
+    "Production Keychain API/grants and signed sandbox behavior",
+    "Physical UI/panels/keyboard and full light/dark screenshots",
+    "SSH moved bookmarks/timeouts and non-OpenSSH source variants",
+    "Full hosted CI and App Store distribution acceptance"
+  ],
+  "inventory": {
+    "dialogs": 130,
+    "partial": 63,
+    "pending_review": 67,
+    "certified_complete": 0
+  }
+}

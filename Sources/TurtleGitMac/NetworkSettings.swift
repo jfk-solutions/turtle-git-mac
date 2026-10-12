@@ -5,7 +5,11 @@ import Security
 import LocalAuthentication
 import TurtleGitCore
 
-private actor ProxyPasswordCache {
+protocol ProxyPasswordStoring: Sendable {
+    func load() async throws -> String
+    func save(_ value: String) async throws
+}
+private actor ProxyPasswordCache: ProxyPasswordStoring {
     private var query: [String: Any] {
         [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: "org.turtlegit.macos.proxy", kSecAttrAccount as String: "DisabledProxyDraft", kSecUseDataProtectionKeychain as String: true, kSecAttrSynchronizable as String: false]
     }
@@ -42,7 +46,12 @@ private actor ProxyPasswordCache {
     @Published var error: String?
     private var savedProxy = GitProxySettings()
     private var savedSSH = SSHClientPreferences.load()
-    private let cache = ProxyPasswordCache()
+    private let cache: any ProxyPasswordStoring
+    private let preferences: UserDefaults
+    var readProxy: ((OperationCancellation) async throws -> GitProxySettings)?
+    var writeProxy: ((GitProxySettings) async throws -> Void)?
+    var authorizeFile: ((URL) async -> Bool)?
+    var sshVersion: ((SSHClientPreferences, OperationCancellation) async throws -> String)?
     private let repository: GitRepository
     private let access: RepositoryAccessLease?
     private let localAvailable: Bool
@@ -54,8 +63,10 @@ private actor ProxyPasswordCache {
     private var panel: NSOpenPanel?
     private var permissionReply: ((Bool) -> Void)?
     weak var window: NSWindow?
-    init(repository: GitRepository, access: RepositoryAccessLease?, localAvailable: Bool) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, localAvailable: Bool, preferences: UserDefaults = .standard, passwords: (any ProxyPasswordStoring)? = nil) {
         self.repository = repository; self.access = access; self.localAvailable = localAvailable
+        self.preferences = preferences; cache = passwords ?? ProxyPasswordCache()
+        ssh = .load(from: preferences); savedSSH = ssh
     }
     var modified: Bool { loaded && (proxy != savedProxy || ssh != savedSSH) }
     func activate() { active = true; if !loaded { load() } }
@@ -69,6 +80,7 @@ private actor ProxyPasswordCache {
         if GitRuntime.isAppStoreBuild && localAvailable && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     private func permission(_ file: URL) async -> Bool {
+        if let authorizeFile { return await authorizeFile(file) }
         if GitConfigurationPermissions.authorized(file) { return true }
         guard active, let window, window.attachedSheet == nil else { return false }
         let chooser = NSOpenPanel(); chooser.canChooseFiles = false; chooser.canChooseDirectories = true; chooser.canCreateDirectories = true
@@ -95,15 +107,16 @@ private actor ProxyPasswordCache {
                 guard active, generation == request else { return }; self.files = files
                 for file in [files.global, files.xdg].compactMap({ $0 }) { guard await permission(file), active, generation == request else { return } }
                 var proxy: GitProxySettings
-                do { proxy = try await repository.proxyConfiguration(cancellation: token) }
+                do { if let readProxy { proxy = try await readProxy(token) } else { proxy = try await repository.proxyConfiguration(cancellation: token) } }
                 catch NetworkSettingsFailure.proxy {
                     proxy = GitProxySettings(); proxy.enabled = true
                     if active, generation == request { self.error = "The effective proxy URL could not be parsed. Enter a new proxy address to replace the global setting; existing repository overrides remain unchanged." }
                 }
+                guard active, generation == request, !token.isCancelled else { return }
                 if !proxy.enabled {
-                    proxy.server = UserDefaults.standard.string(forKey: "TurtleGit.ProxyServer") ?? ""
-                    proxy.port = UserDefaults.standard.string(forKey: "TurtleGit.ProxyPort") ?? ""
-                    proxy.username = UserDefaults.standard.string(forKey: "TurtleGit.ProxyUsername") ?? ""
+                    proxy.server = preferences.string(forKey: "TurtleGit.ProxyServer") ?? ""
+                    proxy.port = preferences.string(forKey: "TurtleGit.ProxyPort") ?? ""
+                    proxy.username = preferences.string(forKey: "TurtleGit.ProxyUsername") ?? ""
                     do { proxy.password = try await cache.load() }
                     catch {
                         if active, generation == request { self.error = "The retained proxy password is unavailable. Re-enter it before enabling the proxy. SSH-only changes leave the cached password untouched." }
@@ -125,20 +138,22 @@ private actor ProxyPasswordCache {
         let wasActive = active; active = true; if window == nil { window = owner }
         let proxy = proxy, ssh = ssh, request = generation
         busy = true; saving = true; Self.activeSaves += 1
-        defer { busy = false; saving = false; Self.activeSaves -= 1; active = wasActive }
+        defer { busy = false; saving = false; Self.activeSaves -= 1; if generation == request { active = wasActive } }
         do {
             try checkAccess()
             if proxy != savedProxy {
                 guard let files else { throw GitConfigurationFailure.destination }
                 for file in [files.global, files.xdg].compactMap({ $0 }) { guard await permission(file), active, generation == request else { return false } }
                 try await cache.save(proxy.password)
-                UserDefaults.standard.set(proxy.server, forKey: "TurtleGit.ProxyServer"); UserDefaults.standard.set(proxy.port, forKey: "TurtleGit.ProxyPort"); UserDefaults.standard.set(proxy.username, forKey: "TurtleGit.ProxyUsername")
-                try await repository.saveProxyConfiguration(proxy)
+                preferences.set(proxy.server, forKey: "TurtleGit.ProxyServer"); preferences.set(proxy.port, forKey: "TurtleGit.ProxyPort"); preferences.set(proxy.username, forKey: "TurtleGit.ProxyUsername")
+                if let writeProxy { try await writeProxy(proxy) } else { try await repository.saveProxyConfiguration(proxy) }
                 savedProxy = proxy
             }
             if !GitRuntime.isAppStoreBuild, ssh != savedSSH {
-                let token = OperationCancellation(); let version = try await Task.detached { try ssh.version(cancellation: token) }.value
-                try ssh.save(); savedSSH = ssh; if active, generation == request { self.version = version }
+                let token = OperationCancellation()
+                let version: String
+                if let sshVersion { version = try await sshVersion(ssh, token) } else { version = try await Task.detached { try ssh.version(cancellation: token) }.value }
+                try ssh.save(to: preferences); savedSSH = ssh; if active, generation == request { self.version = version }
             }
             return true
         } catch { if active { self.error = error.localizedDescription }; return false }
@@ -149,7 +164,9 @@ private actor ProxyPasswordCache {
         let ssh = ssh, token = OperationCancellation(), request = UUID(); generation = request; self.token = token; busy = true; error = nil
         Task {
             defer { if generation == request { busy = false; self.token = nil } }
-            do { let version = try await Task.detached { try ssh.version(cancellation: token) }.value; if active, generation == request, !token.isCancelled { self.version = version } }
+            do { let version: String
+                if let sshVersion { version = try await sshVersion(ssh, token) } else { version = try await Task.detached { try ssh.version(cancellation: token) }.value }
+                if active, generation == request, !token.isCancelled { self.version = version } }
             catch { if active, generation == request, !token.isCancelled { self.error = error.localizedDescription } }
         }
     }

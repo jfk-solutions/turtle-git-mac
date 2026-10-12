@@ -31,7 +31,7 @@ src/Resources/TortoiseProcENG.rc,IDD_REPOSITORY_BROWSER,Repository Browser,parti
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSMAIN,General,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSOVERLAY,Icon Overlays,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSOVERLAYHANDLERS,Overlay Handlers,pending-review
-src/Resources/TortoiseProcENG.rc,IDD_SETTINGSPROXY,Network,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SETTINGSPROXY,Network,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSMTP,Email,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_SVNPROGRESS,Progress,partial
 src/Resources/TortoiseProcENG.rc,IDD_SIMPLEPROMPT,Authentication,pending-review

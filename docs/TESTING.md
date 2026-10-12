@@ -1156,7 +1156,7 @@ checks three-pane format acceptance. See [format parity](MERGE-FORMAT-PARITY.md)
 Build Debug once, then run `python3 scripts/test-native-reference-batch.py` for
 folders, comparisons, batch/single deletion, Switch/Fetch/Create Branch/Merge
 routes and Merge reference/Log pickers. The driver links the existing app objects
-and nine receiver families in one compilation. It uses an explicit native AppKit run loop and
+and ten receiver families, including Network settings, in one compilation. It uses an explicit native AppKit run loop and
 caches by object files, imported modules/framework, fixtures and compiler/flags.
 It does not recompile the whole SwiftUI app for each case.
 
@@ -1228,3 +1228,12 @@ scrollbar gates/persistence, unchanged text/selection/history/comparison/files,
 combined/three-pane reflow and retirement. `--wrapping-only` shares the built-app
 object cache for an actual wrapping failure. Native-only changes do not trigger
 a full Core rerun.
+
+
+The reference-object group includes `network-settings`, using a private
+`GIT_CONFIG_GLOBAL` and XDG folder for each engine. Its native fixture covers
+actual Git proxy writes/scoped override preservation, private credential-store
+failure/retention, Settings validation/Cancel, hidden light/dark layout, captured
+SSH Apply after forced close and late read/cache fencing. No user global config,
+network or live Keychain is touched. Use `--only network-settings` for an actual
+Network failure; the complete group uses the same object/fixture/module cache.
