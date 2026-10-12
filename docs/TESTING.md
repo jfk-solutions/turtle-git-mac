@@ -1393,3 +1393,14 @@ the subsequent compiler-group cleanup path is implemented but forced compilation
 timeouts were not exercised. This is not a completed hosted CI or signed LFS
 server/helper acceptance claim. See
 [QA record](qa/lfs-mail-driver-2026-10-12.json).
+
+
+The Hook Scripts receiver now also verifies a missing executable and malformed
+command under Abort/Continue, preservation of the original draft, pre-cancellation
+and retired Continue, Start abort with unchanged HEAD and disabled/closed model,
+actual ReCommit invoking Start anew, captured source selection paths and the
+documented ordinary/amend post flag. The existing Commit progress receiver remains
+in the related grouped check. This follow-up is native-only: one Debug build, no
+Core rerun. An initial ReCommit fixture lacked a checked file; its selection was
+corrected before the final four system/packaged-Git checks passed. Both compilations
+use the existing object-linked cache. All owned receivers and scripts settled.

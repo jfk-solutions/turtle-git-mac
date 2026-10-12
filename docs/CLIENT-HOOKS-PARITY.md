@@ -50,9 +50,7 @@ a security-scoped executable bookmark; execution retains scopes for literal
 external file arguments that have matching bookmarks. Complex shell expressions
 remain constrained by the sandbox, and signed execution acceptance is pending.
 
-Remaining acceptance: exact Start-hook abort behavior, launch/preparation failure
-Continue choices, post-action choices and the post-commit flag against the pinned
-caller's `amend.IsEmpty()` expression,
+Remaining acceptance: post-action combinations,
 source placement relative to Rebase autostash, Merge-created commits and alternate
 replay/Sync pathways, comprehensive success/failure and cancellation combinations,
 script-created UI and output presentation, stale/script folder grants, screenshots,
@@ -73,3 +71,22 @@ caller's token. Execution now marks completion before publishing its result;
 disposal and Cancel ignore completed executions. The Core check explicitly
 asserts the successful caller token survives disposal. Final focused results and
 initial failures are recorded in `qa/client-hooks-native-2026-10-12.json`.
+
+
+## Start/ReCommit and failure-choice follow-up
+
+Launch and command-preparation errors now use the same Abort/Continue choice as
+nonzero script exit codes. Continue preserves the original draft and does not
+launch again. Cancellation, retirement and missing security scope remain
+non-overridable. Late Continue replies are checked before publishing results.
+Aborting Start closes Commit without modifying Git state. ReCommit reloads the
+fresh template and runs Start again, matching the two pinned caller sites.
+
+The native post-commit argument follows `dug_settings_hooks.xml`: `false` for an
+ordinary commit, `true` for amend. The pinned Windows caller passes
+`amend.IsEmpty()` even though `amend` contains `--amend` when enabled, inverting
+that documented meaning. This discrepancy is explicit; scripts relying on that
+Windows inversion need adjustment. Native ordinary/amend flags, ReCommit, Start
+closure, missing executable/malformed command choices and cancellation/retired
+replies passed the focused receiver. No full Windows behavioral certification is
+inferred. See `qa/client-hooks-failures-native-2026-10-12.json`.

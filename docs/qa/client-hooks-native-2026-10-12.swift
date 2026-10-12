@@ -23,9 +23,9 @@ import TurtleGitCore
         try Data("""
         printf '%s\\n' "$1" >> "$2/hook-log"
         case "$1" in
-        start_commit_hook) printf 'start message' > "$4" ;;
+        start_commit_hook) cat "$3" > "$2/start-hook-paths"; printf 'start message' > "$4" ;;
         pre_commit_hook) printf 'hook commit message' > "$4" ;;
-        post_commit_hook) [ ! -f "$2/fail-post" ] || { printf 'post failure' >&2; exit 9; } ;;
+        post_commit_hook) printf '%s\\n' "$4" >> "$2/post-hook-flags"; [ ! -f "$2/fail-post" ] || { printf 'post failure' >&2; exit 9; } ;;
         pre_rebase_hook) printf '%s|%s' "$3" "$4" > "$2/rebase-hook-args" ;;
         esac
         """.utf8).write(to:script)
@@ -91,12 +91,48 @@ import TurtleGitCore
         try require(log(repo).count == lines && ClientHookPreferences.decision(values[0],preferences:prefs) == nil,"Late approval wrote or launched")
 
         print("Hook approval/rejection/late retirement passed.")
+        let failures = ClientHookSession(preferences:prefs)
+        defer { failures.retire() }
+        let missing = ClientHook(type:.preCommit,path:repo.root.path,command:root.appendingPathComponent("missing-executable").path,show:false)
+        prefs.set(try ClientHookConfiguration.serialize([missing]),forKey:"hooks")
+        // Global exact-path precedes the local hook, ensuring this tests launch
+        // failure without conflating repository approval with Continue.
+        var failureChoices = 0
+        failures.continueAfterFailure = { _ in failureChoices += 1; return false }
+        do { _ = try await failures.run(.preCommit,repository:repo,access:nil,message:"kept",allowContinue:true); throw NSError(domain:"Missing executable accepted without Continue",code:1) }
+        catch let failure as ClientHookOperationFailure { try require(failure.code == -1,"Launch error lost source failure classification") }
+        failures.continueAfterFailure = { _ in failureChoices += 1; return true }
+        let continued = try await failures.run(.preCommit,repository:repo,access:nil,message:"kept",allowContinue:true)
+        try require(continued?.exitCode == -1 && continued?.message == "kept" && failureChoices == 2,"Continue did not preserve draft after launch failure")
+        var malformed = missing; malformed.command = "/bin/echo 'unfinished"
+        prefs.set(try ClientHookConfiguration.serialize([malformed]),forKey:"hooks")
+        let malformedResult = try await failures.run(.preCommit,repository:repo,access:nil,message:"quoted draft",allowContinue:true)
+        try require(malformedResult?.message == "quoted draft" && failureChoices == 3,"Command preparation bypassed failure choice")
+        let cancelled = OperationCancellation(); cancelled.cancel()
+        do { _ = try await failures.run(.preCommit,repository:repo,access:nil,cancellation:cancelled,allowContinue:true); throw NSError(domain:"Cancellation offered Continue",code:1) } catch OperationCancellationFailure.cancelled {}
+        try require(failureChoices == 3,"Cancellation became overridable")
+        let expired = ClientHookSession(preferences:prefs)
+        expired.continueAfterFailure = { _ in expired.retire(); return true }
+        do { _ = try await expired.run(.preCommit,repository:repo,access:nil,message:"expired",allowContinue:true); throw NSError(domain:"Retired Continue published",code:1) } catch OperationCancellationFailure.cancelled {}
+        let startAbort = CommitWindowModel(repository:repo,access:nil,unversionedDefaults:prefs,dialogDefaults:prefs)
+        defer { startAbort.invalidateForClose() }
+        var closedStart = 0
+        startAbort.close = { [weak startAbort] in closedStart += 1; startAbort?.invalidateForClose() }
+        var startMissing = missing; startMissing.type = .startCommit
+        prefs.set(try ClientHookConfiguration.serialize([startMissing]),forKey:"hooks")
+        startAbort.clientHooks.continueAfterFailure = { _ in false }
+        let beforeStart = try await repo.run(["rev-parse","HEAD"])
+        startAbort.reload(); try await wait { !startAbort.busy }
+        let afterStart = try await repo.run(["rev-parse","HEAD"])
+        try require(closedStart == 1 && !startAbort.messageFocusAvailable && afterStart.stdout == beforeStart.stdout,"Aborted Start did not close without Git mutation")
+        print("Hook launch/preparation Abort/Continue, cancellation and Start abort passed.")
         let commitRepo = try await makeRepo("commit"); try install(commitRepo)
         try Data("change\n".utf8).write(to:commitRepo.root.appendingPathComponent("file.txt"))
         let commit = CommitWindowModel(repository:commitRepo,access:nil,unversionedDefaults:prefs,dialogDefaults:prefs)
         defer { commit.invalidateForClose() }
         commit.reload(paths:["file.txt"]); try await wait { !commit.busy && commit.entries.contains { $0.path == "file.txt" } }
         try require(commit.message == "start message" && log(commitRepo) == ["start_commit_hook"],"Commit Start hook did not seed draft")
+        try require((try? String(contentsOf:commitRepo.root.appendingPathComponent("start-hook-paths"),encoding:.utf8)) == commitRepo.root.appendingPathComponent("file.txt").path + "\n","Start paths differ from source selection")
         commit.message = "user message"; commit.commit(); try await wait { !commit.busy }
         let committed = try await commitRepo.run(["log","-1","--format=%B"])
         try require(committed.text.trimmingCharacters(in:.newlines) == "hook commit message" && log(commitRepo) == ["start_commit_hook","pre_commit_hook","post_commit_hook"],"Commit pre/post ordering or modified message differs")
@@ -105,7 +141,18 @@ import TurtleGitCore
         let count = try await commitRepo.run(["rev-list","--count","HEAD"])
         try require(count.text == "3\n" && commit.error?.contains("commit succeeded") == true,"Post-hook error obscured successful commit")
 
-        print("Hook actual Commit ordering and post-failure success passed.")
+        try FileManager.default.removeItem(at:commitRepo.root.appendingPathComponent("fail-post"))
+        try Data("recommit change\n".utf8).write(to:commitRepo.root.appendingPathComponent("file.txt"))
+        commit.reload(paths:["file.txt"]); try await wait { !commit.busy }
+        commit.checked = Set(commit.entries.filter { $0.path == "file.txt" }.map(\.id))
+        commit.message = "recommit draft"; try require(commit.canCommit,"ReCommit fixture did not check its changed file"); commit.commit(.recommit); try await wait { !commit.busy }
+        try require(commit.message == "start message" && log(commitRepo).last == "start_commit_hook","ReCommit did not re-run Start with fresh draft")
+        commit.amend = true; commit.amendDiffToLastCommit = true; commit.message = "amend draft"
+        try require(commit.canCommit,"Amend fixture did not reach usable state")
+        commit.commit(); try await wait { !commit.busy }
+        let flags = try String(contentsOf:commitRepo.root.appendingPathComponent("post-hook-flags"),encoding:.utf8)
+        try require(flags == "false\nfalse\nfalse\ntrue\n","Post-commit flag differs from documented ordinary/amend meaning")
+        print("Hook actual Commit ordering, ReCommit/Start, ordinary/amend flags and post-failure success passed.")
         let pushRepo = try await makeRepo("push"), remote = root.appendingPathComponent("remote.git")
         _ = try await pushRepo.run(["init","--bare",remote.path]); _ = try await pushRepo.run(["remote","add","origin",remote.path]); try install(pushRepo)
         let push = PushWindowModel(repository:pushRepo,access:nil,preferences:prefs); defer { push.invalidate() }

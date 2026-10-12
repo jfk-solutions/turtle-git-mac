@@ -1,0 +1,47 @@
+{
+  "date": "2026-10-12",
+  "sourceCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Native Hook Scripts launch/preparation failures, Start abort, ReCommit Start replay and documented post-commit flag",
+  "changes": [
+    "Nonzero/launch/preparation failures share Abort/Continue; Continue does not rerun script",
+    "Cancellation/retirement/security scope cannot be overridden",
+    "Aborted Start closes Commit without Git mutation",
+    "ReCommit reloads seed and invokes Start again"
+  ],
+  "sourceDiscrepancy": {
+    "documentation": "dug_settings_hooks.xml: post-commit second argument says commit was amend (true or false)",
+    "pinnedCaller": "CommitDlg.cpp passes amend.IsEmpty(); amend is --amend when enabled",
+    "nativeContract": "Follow documented false=ordinary/true=amend; actual Windows inverse is not silently copied"
+  },
+  "validation": {
+    "debugBuild": {
+      "log": "build/qa/client-hooks-failures-build-2026-10-12.log",
+      "exit": 0
+    },
+    "coreRuns": 0,
+    "native": {
+      "command": "python3 scripts/test-native-reference-batch.py --only client-hooks --only commit-progress --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "finalCases": 4,
+      "exit": 0,
+      "log": "build/qa/client-hooks-failures-native-repair-2026-10-12.log",
+      "ownedReceiverPIDs": [
+        75944,
+        76285,
+        76766,
+        77994,
+        78470
+      ],
+      "allReaped": true,
+      "frontendsIncludingFixtureRepair": 2,
+      "firstFailure": "ReCommit fixture attempted commit with no checked file; explicitly checked file before repeating group",
+      "preferencesAndRepositories": "private",
+      "nonWaitCancellation": "Pool settled before receiver exit"
+    }
+  },
+  "limitations": [
+    "No whole-port or full hosted CI acceptance",
+    "Security-scope exclusion implemented but signed deployment not exercised",
+    "No physical menus, VoiceOver, visual certification or script-created GUI acceptance",
+    "Alternate Merge/replay/Sync paths and Rebase autostash placement remain open"
+  ]
+}

@@ -878,9 +878,14 @@ import UniformTypeIdentifiers
                         let separated = issueProperties.separateIssueLine(from: seed.message)
                         message = separated.message; issueID = separated.issueID
                     }
-                    if let hook = try await clientHooks.run(.startCommit, repository: repository, access: access, paths: scopePaths.isEmpty ? [repository.root.path] : scopePaths.map { repository.root.appendingPathComponent($0).path }, message: message, cancellation: token, allowContinue: true) {
-                        guard messageFocusAvailable, !token.isCancelled else { throw OperationCancellationFailure.cancelled }
-                        message = hook.message
+                    do {
+                        if let hook = try await clientHooks.run(.startCommit, repository: repository, access: access, paths: scopePaths.isEmpty ? [repository.root.path] : scopePaths.map { repository.root.appendingPathComponent($0).path }, message: message, cancellation: token, allowContinue: true) {
+                            guard messageFocusAvailable, !token.isCancelled else { throw OperationCancellationFailure.cancelled }
+                            message = hook.message
+                        }
+                    } catch {
+                        guard messageFocusAvailable, reloadCancellation === token, !token.isCancelled else { return }
+                        self.error = error.localizedDescription; busy = false; close(); return
                     }
                     loadedMessage = true
                     if !seed.warnings.isEmpty { self.error = seed.warnings.joined(separator: "\n\n") }
@@ -1207,7 +1212,7 @@ import UniformTypeIdentifiers
                     } catch { messageTemplate = ""; message = ""; self.error = error.localizedDescription }
                     createBranch = false; newBranch = ""; amend = false; amendDiffToLastCommit = false; amendMessage = ""; nonAmendMessage = ""; setAuthorDate = false; resetAuthorDate = false; setAuthor = false; messageOnly = false
                     selectFilesAutomatically = true
-                    checked = []; selection = []; hasLoaded = false
+                    checked = []; selection = []; hasLoaded = false; loadedMessage = false
                     busy = false
                     reload(paths: scopePaths.isEmpty ? ["."] : scopePaths)
                 } else {

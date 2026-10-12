@@ -85,7 +85,7 @@ struct ClientHookOperationFailure: LocalizedError {
         guard !retired else { throw OperationCancellationFailure.cancelled }
         let id = UUID(), token = cancellation ?? OperationCancellation(); operations[id] = token
         defer { operations.removeValue(forKey:id) }
-        func check() throws { if retired || token.isCancelled || operations[id] !== token { throw OperationCancellationFailure.cancelled } }
+        func check() throws { try Task.checkCancellation(); if retired || token.isCancelled || operations[id] !== token { throw OperationCancellationFailure.cancelled } }
         try check()
         var hooks = ClientHookPreferences.globals(preferences)
         hooks += try await repository.projectClientHooks(cancellation:token)
@@ -103,18 +103,32 @@ struct ClientHookOperationFailure: LocalizedError {
             if !accepted { return nil }
         }
         try check()
-        let scopes = try ClientHookScriptAccess.acquire(hook.command,root:repository.root,access:access,preferences:preferences)
-        let invocation:ClientHookInvocation
-        do { invocation = try ClientHookInvocation(hook:hook,workingTree:repository.root,paths:paths,message:message,amend:amend,error:error,upstream:upstream,rebasedBranch:rebasedBranch) }
-        catch { scopes.forEach { $0.stopAccessingSecurityScopedResource() }; throw error }
-        let result = try await ClientHookProcessPool.shared.execute(invocation,access:access,scopes:scopes,cancellation:token)
-        try check()
-        if result.exitCode != 0 {
-            let failure = ClientHookOperationFailure(type:type,code:result.exitCode,detail:result.error.isEmpty ? result.output:result.error)
-            if allowContinue, await continueFailure(failure) { try check(); return result }
+        var failedResult:ClientHookResult?
+        do {
+            let scopes = try ClientHookScriptAccess.acquire(hook.command,root:repository.root,access:access,preferences:preferences)
+            let invocation:ClientHookInvocation
+            do { invocation = try ClientHookInvocation(hook:hook,workingTree:repository.root,paths:paths,message:message,amend:amend,error:error,upstream:upstream,rebasedBranch:rebasedBranch) }
+            catch { scopes.forEach { $0.stopAccessingSecurityScopedResource() }; throw error }
+            let result = try await ClientHookProcessPool.shared.execute(invocation,access:access,scopes:scopes,cancellation:token)
+            try check()
+            if result.exitCode != 0 {
+                failedResult = result
+                throw ClientHookOperationFailure(type:type,code:result.exitCode,detail:result.error.isEmpty ? result.output:result.error)
+            }
+            return result
+        } catch {
+            // Cancellation/retirement and missing security scope must not turn
+            // into an overridable command failure. Never launch on Continue.
+            try check()
+            if error is OperationCancellationFailure || error is CancellationError || error is RepositoryAccessFailure { throw error }
+            let failure = (error as? ClientHookOperationFailure) ?? ClientHookOperationFailure(type:type,code:-1,detail:error.localizedDescription)
+            if allowContinue, await continueFailure(failure) {
+                try check()
+                return failedResult ?? ClientHookResult(exitCode:failure.code,output:"",error:failure.detail,message:message)
+            }
+            try check()
             throw failure
         }
-        return result
     }
     private func ask(_ hook:ClientHook) async -> Approval {
         if let approval { return await approval(hook) }
