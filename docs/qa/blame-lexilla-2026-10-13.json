@@ -1,0 +1,109 @@
+{
+  "date": "2026-10-13",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "lexilla": "ef08a1a00ce151ccdddf7da700fbe1a4934a9c71",
+  "scope": [
+    "Universal static four-engine helper and original source configuration",
+    "Validated UTF-8 byte to UTF-16 style ranges and owned private inputs",
+    "Native EnableLexer, dark HSL styling and generation/cancellation fences",
+    "CI immutable cache, inherited sandbox embedding, licenses and reconstruction kit"
+  ],
+  "validation": {
+    "runtime": {
+      "initial_exit": 1,
+      "reason": "IDocument.GetLineIndentation requires a non-const override",
+      "interface_repair_exit": 0,
+      "pointer_repair": "passed",
+      "pointer_repair_exit": 0
+    },
+    "core": {
+      "initial_exit": 1,
+      "tests": 6,
+      "failures": 3,
+      "reason": "Adapter dereferenced null optional width pointer; confirmed StyleContext.h call GetCharacterAndWidth(posNew, nullptr).",
+      "log": "build/qa/blame-lexilla-core-2026-10-13.log",
+      "pointer_repair_exit": 0,
+      "final_tests": 6,
+      "final_failures": 0,
+      "final_log": "build/qa/blame-lexilla-core-2026-10-13-pointer-repair.log"
+    },
+    "debug_build": {
+      "initial_exit": 0,
+      "notes": "Existing warnings and SwiftCompile exit-0/no-output diagnostics; embedded initial helper required repair.",
+      "pointer_repair_exit": 0
+    },
+    "cache_contract": {
+      "exit": 0,
+      "tests": 5
+    },
+    "native": {
+      "exit": 0,
+      "cases": [
+        "blame-source",
+        "blame-lexilla"
+      ],
+      "engines": [
+        "system Git",
+        "packaged Git"
+      ],
+      "owned_pids": [
+        1784,
+        1818,
+        1849,
+        1887
+      ],
+      "owned_receivers_reaped": true,
+      "log": "build/qa/blame-lexilla-native-2026-10-13.log"
+    },
+    "appstore_build": {
+      "exit": 0,
+      "log": "build/qa/blame-lexilla-appstore-build-2026-10-13.log",
+      "signing": "disabled; SMTP framework verified arm64+x86_64"
+    },
+    "debugger_diagnostic": "Owned lldb invocation timed out at 30s; it was reaped. Its orphaned debugserver PID 326 was observed, then confirmed absent before further validation. Source inspection identified the optional pointer contract.",
+    "debug_bundle_initial": {
+      "exit": 1,
+      "reason": "Requested --require-git on arm64-only Debug build; validator correctly requires universal SMTP framework in that scope. Normal Debug audit follows; distribution audit uses AppStore build."
+    },
+    "debug_bundle": {
+      "exit": 0,
+      "scope": "Normal arm64 Debug bundle audit, including universal Lexilla/other bundled helpers"
+    },
+    "captures": {
+      "exit": 0,
+      "receiver_pid": 2091,
+      "receiver_reaped": true,
+      "files": [
+        {
+          "file": "docs/site/assets/blame-lexilla-light.png",
+          "width": 2500,
+          "height": 1764,
+          "sha256": "02b1ea445c222b9dfc22f17fe2928732d6409665a300ad87516f6934a83870cc",
+          "visually_reviewed": true
+        },
+        {
+          "file": "docs/site/assets/blame-lexilla-dark.png",
+          "width": 2500,
+          "height": 1764,
+          "sha256": "7d11ad19d857cc3e911ff0704b58e0a4ea285d060b918de9c0566aa8c4c4f833",
+          "visually_reviewed": true
+        }
+      ]
+    },
+    "site": {
+      "exit": 0,
+      "log": "build/qa/blame-lexilla-site-2026-10-13.log"
+    },
+    "appstore_bundle": {
+      "exit": 0,
+      "scope": "--require-git universal distribution audit",
+      "log": "build/qa/blame-lexilla-appstore-bundle-2026-10-13.log"
+    }
+  },
+  "limits": [
+    "Folding UI not ported",
+    "Embedded-language font and EOL-filled background semantics remain partial",
+    "High-contrast palette, large-file performance, physical input and signed runtime acceptance remain open",
+    "Complete TortoiseGit parity and distribution remain incomplete"
+  ]
+}

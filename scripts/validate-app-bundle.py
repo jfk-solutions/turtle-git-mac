@@ -63,6 +63,7 @@ if args.require_git:
 
 import subprocess
 subprocess.run(['/usr/bin/python3', str(root / 'scripts/validate-editorconfig-runtime.py'), str(app / 'Contents/Helpers/EditorConfig')], check=True)
+subprocess.run(['/usr/bin/python3', str(root / 'scripts/validate-lexilla-runtime.py'), str(app / 'Contents/Helpers/Lexilla')], check=True)
 subprocess.run(['/usr/bin/python3', str(root / 'scripts/validate-issue-regex-runtime.py'), str(app / 'Contents/Helpers/IssueRegex')], check=True)
 if (app / 'Contents/Helpers/MergeDiff').is_dir():
     subprocess.run(['/usr/bin/python3', str(root / 'scripts/validate-merge-diff-runtime.py'), str(app / 'Contents/Helpers/MergeDiff')], check=True)

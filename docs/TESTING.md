@@ -1444,3 +1444,11 @@ keyboard and retired editor guards. Run against both system and packaged Git.
 `--only blame-captures` is an optional displayed capture with existing screen
 recording permission; it is excluded from default CI. Inspect both images before
 publication. No Core rerun is needed for this native-only viewer batch.
+
+For the Lexilla batch, build the universal helper and Debug/AppStore apps once,
+then run `swift test --filter BlameSyntaxTests` and cached native reference
+`--only blame-source --only blame-lexilla` against system and packaged Git.
+The Core cases use the real four pinned engines across ten extension groups,
+Unicode/multiline ranges, source case/no-extension rules, malformed output and
+owned cancellation/input cleanup. Native cases verify palette, enable/disable
+range retention, dark transform, late retirement and Quit ownership.

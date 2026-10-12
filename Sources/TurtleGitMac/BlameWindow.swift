@@ -35,10 +35,23 @@ private struct BlameParentMenuTarget {
 }
 
 @MainActor final class BlameWindowModel: ObservableObject {
+    private(set) static var activeSyntaxRequests = 0
     let repository: GitRepository, path: String
     let fullCommitMessageOnLogLine: Bool
     private let access: RepositoryAccessLease?
     private let labelDefaults: UserDefaults
+    @Published private(set) var syntaxEnabled = true
+    @Published var syntaxWorking = false
+    @Published var syntaxError: String?
+    var syntaxExecutable: URL? = BlameSyntax.executable()
+    var syntaxOperation: (String,String,Int,URL?,OperationCancellation) async throws -> BlameSyntaxResult = { text,path,tabs,helper,token in
+        try await Task.detached(priority:.userInitiated) {
+            try BlameSyntax.highlight(text,filename:path,tabSize:tabs,executable:helper,cancellation:token)
+        }.value
+    }
+    func setSyntaxEnabled(_ value: Bool) { guard !busy else { return }; syntaxEnabled = value; labelDefaults.set(value,forKey:"Blame.EnableLexer") }
+    static func syntaxStarted() { activeSyntaxRequests += 1 }
+    static func syntaxFinished() { activeSyntaxRequests -= 1 }
     @Published private(set) var marginFields = Set<BlameMarginField>()
     func setMargin(_ field: BlameMarginField, visible: Bool) {
         guard !busy else { return }
@@ -161,6 +174,7 @@ private struct BlameParentMenuTarget {
     init(repository: GitRepository, access: RepositoryAccessLease?, path: String, revision: String, options: GitBlameOptions = GitBlameOptions(), labelDefaults: UserDefaults = .standard) {
         self.repository = repository; self.access = access; self.path = path; self.revision = revision; self.labelDefaults = labelDefaults
         marginFields = Set(BlameMarginField.allCases.filter { labelDefaults.object(forKey:"Blame." + $0.rawValue) as? Bool ?? ($0 == .author) })
+        syntaxEnabled = labelDefaults.object(forKey:"Blame.EnableLexer") as? Bool ?? !NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
         self.fullCommitMessageOnLogLine = labelDefaults.bool(forKey: "FullCommitMessageOnLogLine")
         let search = GitBlameFindPreferences.load(); find = search.text; matchCase = search.matchCase
         setControls(options); appliedOptions = options
@@ -375,6 +389,8 @@ private struct BlameDialog: View {
                 Button("Next") { model.findLine(previous: false) }.keyboardShortcut("g", modifiers: .command)
                 Spacer()
                 Menu("View") {
+                    Toggle("Syntax highlighting", isOn:Binding(get:{ model.syntaxEnabled },set:{ model.setSyntaxEnabled($0) }))
+                    Divider()
                     ForEach(BlameMarginField.allCases, id:\.self) { field in
                         Toggle(field.title, isOn:Binding(get:{ model.marginFields.contains(field) },set:{ model.setMargin(field,visible:$0) }))
                     }
@@ -382,6 +398,8 @@ private struct BlameDialog: View {
                 Button("Go To Line…") { showingGoToLine = true }.keyboardShortcut("l", modifiers: .command)
             }.disabled(model.busy)
             if model.busy { ProgressView("Reading annotations…").controlSize(.small) }
+            if model.syntaxWorking { ProgressView("Coloring source…").controlSize(.small) }
+            if let error = model.syntaxError { Text(error).font(.caption).foregroundStyle(.red).textSelection(.enabled) }
             if model.loadingParents { ProgressView("Reading previous revisions…").controlSize(.small) }
             if model.copyingLog { ProgressView("Reading log message for clipboard…").controlSize(.small) }
             if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
@@ -915,6 +933,13 @@ private final class BlameSourceContainer: NSView {
     private var renderedPresentation: GitBlamePresentation?
     private var renderedLineCount = -1
     private var gutterWidth: CGFloat = 270
+    private var syntaxText: String?
+    private var syntaxPath = ""
+    private var syntaxTabs = 0
+    private var syntaxResult: BlameSyntaxResult?
+    private var syntaxToken: OperationCancellation?
+    private var syntaxTask: Task<Void,Never>?
+    private var syntaxGeneration = 0
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         addSubview(locator); addSubview(scroll); addSubview(sourceScroll)
@@ -941,6 +966,7 @@ private final class BlameSourceContainer: NSView {
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     func retire() {
         retired = true; editor.delegate = nil; editor.onContextMenu = { _,_ in }
+        syntaxGeneration += 1; syntaxToken?.cancel(); syntaxTask?.cancel()
         editor.retired = true; editor.isSelectable = false
         editor.onFind = {}; editor.onFindNext = { _ in }; editor.onGoTo = {}
         scroll.onScroll = {}; sourceScroll.onScroll = {}
@@ -1031,16 +1057,54 @@ private final class BlameSourceContainer: NSView {
             let width = model.lines.reduce(CGFloat(300)) { max($0, model.displayedSource($1).size().width + 24) }
             editor.frame.size = NSSize(width:max(width,sourceScroll.contentSize.width), height:max(CGFloat(ranges.count) * editor.lineHeight,sourceScroll.contentSize.height))
         }
+        requestSyntax(model)
         let dark = effectiveAppearance.bestMatch(from:[.aqua,.darkAqua]) == .darkAqua
         editor.rowColors = model.lines.map { line in blameSourceBackground(model, line:line, dark:dark) }
         editor.textStorage?.beginEditing()
         if let storage = editor.textStorage, storage.length > 0 {
             storage.addAttribute(.foregroundColor,value:NSColor.labelColor,range:NSRange(location:0,length:storage.length))
+            storage.removeAttribute(.backgroundColor,range:NSRange(location:0,length:storage.length))
+            storage.addAttribute(.font,value:model.sourceFont,range:NSRange(location:0,length:storage.length))
+            if model.syntaxEnabled, let result = syntaxResult {
+                for item in result.ranges where NSMaxRange(item.range) <= storage.length {
+                    guard let style = result.styles[String(item.style)] else { continue }
+                    if let rgb = style.foreground, let color = blameSyntaxColor(rgb,dark:dark) { storage.addAttribute(.foregroundColor,value:color,range:item.range) }
+                    if let rgb = style.background, let color = blameSyntaxColor(rgb,dark:dark) { storage.addAttribute(.backgroundColor,value:color,range:item.range) }
+                    if style.bold == true { storage.addAttribute(.font,value:NSFontManager.shared.convert(model.sourceFont,toHaveTrait:.boldFontMask),range:item.range) }
+                }
+            }
             for (row,line) in model.lines.enumerated() where [1,2].contains(model.highlightKind(line)) && ranges.indices.contains(row) {
                 storage.addAttribute(.foregroundColor,value:NSColor.alternateSelectedControlTextColor,range:ranges[row])
             }
         }
         editor.textStorage?.endEditing(); editor.needsDisplay = true
+    }
+    private func requestSyntax(_ model: BlameWindowModel) {
+        if !model.syntaxEnabled {
+            if syntaxText != nil {
+                syntaxGeneration += 1; syntaxToken?.cancel(); syntaxTask?.cancel()
+                syntaxText = nil; syntaxResult = nil; model.syntaxWorking = false; model.syntaxError = nil
+            }
+            return
+        }
+        guard syntaxText != editor.string || syntaxPath != model.path || syntaxTabs != model.presentation.tabSize else { return }
+        syntaxGeneration += 1; let generation = syntaxGeneration
+        syntaxToken?.cancel(); syntaxTask?.cancel(); syntaxResult = nil
+        syntaxText = editor.string; syntaxPath = model.path; syntaxTabs = model.presentation.tabSize
+        let text = editor.string, path = model.path, tabs = model.presentation.tabSize, helper = model.syntaxExecutable
+        let token = OperationCancellation(); syntaxToken = token
+        model.syntaxWorking = true; model.syntaxError = nil; BlameWindowModel.syntaxStarted()
+        syntaxTask = Task { @MainActor [weak self] in
+            defer { BlameWindowModel.syntaxFinished() }
+            do {
+                let result = try await model.syntaxOperation(text,path,tabs,helper,token)
+                guard let self, !self.retired, self.syntaxGeneration == generation, !token.isCancelled, !Task.isCancelled else { return }
+                self.syntaxResult = result; model.syntaxWorking = false; self.updateSource(model)
+            } catch {
+                guard let self, !self.retired, self.syntaxGeneration == generation, !token.isCancelled, !Task.isCancelled else { return }
+                model.syntaxWorking = false; model.syntaxError = error.localizedDescription
+            }
+        }
     }
     private func synchronize(fromSource: Bool) {
         guard !retired, !synchronizing else { return }; synchronizing = true
@@ -1072,6 +1136,36 @@ private final class BlameSourceContainer: NSView {
         synchronize(fromSource:true)
         locator.needsDisplay = true
     }
+}
+
+/// CTheme::GetThemeColor preserves hue/saturation and inverts HSL luminance,
+/// clamped to 5...90% in ordinary dark mode.
+private func blameSyntaxColor(_ rgb: [UInt8], dark: Bool) -> NSColor? {
+    guard rgb.count == 3 else { return nil }
+    var r = CGFloat(rgb[0])/255, g = CGFloat(rgb[1])/255, b = CGFloat(rgb[2])/255
+    if dark {
+        let minimum = min(r,g,b), maximum = max(r,g,b), delta = maximum - minimum
+        let light = (minimum + maximum)/2
+        let saturation = delta == 0 ? 0 : delta/(1 - abs(2*light - 1))
+        var hue:CGFloat = 0
+        if delta > 0 {
+            if maximum == r { hue = (g-b)/delta + (g < b ? 6 : 0) }
+            else if maximum == g { hue = (b-r)/delta + 2 }
+            else { hue = (r-g)/delta + 4 }
+        }
+        let l = min(0.9,max(0.05,1-light)), c = (1-abs(2*l-1))*saturation
+        let x = c*(1-abs(hue.truncatingRemainder(dividingBy:2)-1)), m = l-c/2
+        switch Int(hue) {
+        case 0: (r,g,b) = (c,x,0)
+        case 1: (r,g,b) = (x,c,0)
+        case 2: (r,g,b) = (0,c,x)
+        case 3: (r,g,b) = (0,x,c)
+        case 4: (r,g,b) = (x,0,c)
+        default: (r,g,b) = (c,0,x)
+        }
+        r += m; g += m; b += m
+    }
+    return NSColor(srgbRed:r,green:g,blue:b,alpha:1)
 }
 
 private final class BlameSourceTextView: NSTextView {

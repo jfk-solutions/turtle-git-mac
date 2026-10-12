@@ -101,6 +101,10 @@ targets:
         script: |
           /usr/bin/python3 "$SRCROOT/scripts/embed-ssh-askpass.py" "$BUILT_PRODUCTS_DIR/TurtleGitSSHAskpass" "$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME"
         basedOnDependencyAnalysis: false
+      - name: Embed pinned Lexilla runtime
+        script: |
+          /usr/bin/python3 "$SRCROOT/scripts/embed-lexilla-runtime.py" "$SRCROOT/build/lexilla-runtime/Lexilla" "$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME"
+        basedOnDependencyAnalysis: false
       - name: Embed C++ issue-matching runtime
         script: |
           /usr/bin/python3 "$SRCROOT/scripts/embed-issue-regex-runtime.py" "$SRCROOT/build/issue-regex-runtime/IssueRegex" "$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME"

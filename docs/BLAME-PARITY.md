@@ -880,7 +880,7 @@ This is partial functionality and native dialog fidelity.
 
 - Remaining native modifier/multi-revision acceptance, full locator acceptance and complete revision-log layout;
   pointer-hover and dark sticky native acceptance.
-- Upstream syntax lexers, source folding and remaining editor scrolling acceptance.
+- Source folding, remaining lexer-style acceptance and editor scrolling acceptance.
 - Remaining modeless Find/Go To Line acceptance, menu shortcuts, match highlighting and
   revision/block navigation and displayed Find feedback.
 - Clipboard presentation/localized dates, export commands and remaining original
@@ -953,3 +953,48 @@ final layout checks on packaged Git. Both final PNGs (2500 × 1764) were inspect
 individually and published. All owned receivers/windows were retired; no Core
 suite was repeated for these native-only changes. See [actual scope, failed
 checks and reviewed captures](qa/blame-source-editor-2026-10-13.json).
+
+## Pinned Lexilla syntax-coloring batch (October 13, 2026)
+
+A private universal helper now uses the exact Lexilla gitlink pinned by the
+TortoiseGit source: ef08a1a00ce151ccdddf7da700fbe1a4934a9c71. It statically links
+CPP, Python, Pascal and Hypertext engines. Configuration/BlameLexers.json extracts
+the source's ten extension groups, exact keyword lists and style palette;
+matching stays case-sensitive, unknown extensions stay plain, and names without
+an extension use CPP without keywords. Pascal's source CPP-style palette is
+retained rather than silently substituted. Header interfaces, original licenses,
+source archive and rebuild recipe accompany the executable.
+
+The read-only IDocument adapter accepts bounded UTF-8 source, runs Lexilla and
+returns contiguous byte-style ranges. Core checks coverage and converts only
+valid scalar boundaries to AppKit UTF-16 ranges. Private source/word-list files
+are removed after completion; helper execution has the existing five-second
+bound and owned process-group cancellation. The Native View menu exposes the
+source EnableLexer switch, enabled initially unless increased contrast is active.
+Source glyph selection remains intact across enable/theme changes. Styles use
+source RGB values and the ordinary dark HSL luminance transform; original bold
+and embedded-language backgrounds are applied without changing document bytes.
+
+Native requests run off the main actor, retain generation/cancellation identity,
+and reject results/errors after replacement, disable or owner retirement. Quit
+waits for owned requests to settle. Failed syntax work reports a separate error
+while retaining the read-only source. Exact source-lexer colors do not establish
+full Scintilla parity: folding UI, embedded-language font/EOL-fill handling,
+match/wrap feedback, high-contrast palette acceptance, large-file performance and
+signed runtime acceptance remain open. Validation follows the whole batch.
+
+The universal helper and repaired focused Core suite passed (six checks across
+all ten source extension groups). Four native source/lexer checks passed on
+system and packaged Git, including actual style colors, Unicode, toggle/range
+persistence, theme changes and late retirement. Debug packaging passed its
+normal audit. Both actual C++ captures were inspected individually and published.
+Initial adapter compile/runtime failures and their repairs are recorded in
+[Lexilla batch evidence](qa/blame-lexilla-2026-10-13.json); source/API assertions
+were retained. Unsigned AppStore and its distribution audit are recorded there
+separately when complete, rather than inferred from Debug acceptance.
+
+The unsigned AppStore build and `--require-git` distribution bundle audit also
+passed, including universal SMTP and Lexilla, source/licenses, inherited signing
+recipe and all existing bundled runtimes. This confirms packaging, not actual
+signing, App Store eligibility or physical sandbox acceptance. No test-owned
+receiver remains running.

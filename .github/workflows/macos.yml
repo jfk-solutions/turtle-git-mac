@@ -99,6 +99,26 @@ jobs:
         with:
           path: build/issue-regex-runtime/IssueRegex
           key: ${{ steps.issue-regex-cache.outputs.cache-primary-key }}
+      - name: Capture lexilla runtime cache key
+        id: lexilla-key
+        run: python3 scripts/ci-runtime-cache-key.py lexilla --toolchain '${{ steps.toolchain.outputs.fingerprint }}' --runner '${{ runner.os }}-${{ runner.arch }}' >> "$GITHUB_OUTPUT"
+      - name: Restore exact lexilla runtime
+        id: lexilla-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: build/lexilla-runtime/Lexilla
+          key: ${{ steps.lexilla-key.outputs.key }}
+      - name: Build and verify universal C++ Lexilla helper
+        if: steps.lexilla-cache.outputs.cache-hit != 'true'
+        run: python3 scripts/build-lexilla-runtime.py
+      - name: Validate prepared or restored lexilla runtime
+        run: python3 scripts/validate-lexilla-runtime.py build/lexilla-runtime/Lexilla
+      - name: Save validated lexilla runtime
+        if: steps.lexilla-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: build/lexilla-runtime/Lexilla
+          key: ${{ steps.lexilla-cache.outputs.cache-primary-key }}
       - name: Restore exact graph runtime package
         id: graph-layout-cache
         uses: actions/cache/restore@v5

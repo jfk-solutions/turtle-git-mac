@@ -1,27 +1,107 @@
 {
   "editorconfig": {
     "path": "build/editorconfig-runtime/EditorConfig",
-    "inputs": ["Configuration/EditorConfigRuntime.json", "scripts/build-editorconfig-runtime.py", "scripts/validate-editorconfig-runtime.py"],
-    "validate": ["python3", "scripts/validate-editorconfig-runtime.py", "build/editorconfig-runtime/EditorConfig"]
+    "inputs": [
+      "Configuration/EditorConfigRuntime.json",
+      "scripts/build-editorconfig-runtime.py",
+      "scripts/validate-editorconfig-runtime.py"
+    ],
+    "validate": [
+      "python3",
+      "scripts/validate-editorconfig-runtime.py",
+      "build/editorconfig-runtime/EditorConfig"
+    ]
   },
   "issue-regex": {
     "path": "build/issue-regex-runtime/IssueRegex",
-    "inputs": ["LICENSE", "Sources/TurtleGitIssueRegex/main.cpp", "scripts/build-issue-regex-runtime.py", "scripts/validate-issue-regex-runtime.py"],
-    "validate": ["python3", "scripts/validate-issue-regex-runtime.py", "build/issue-regex-runtime/IssueRegex"]
+    "inputs": [
+      "LICENSE",
+      "Sources/TurtleGitIssueRegex/main.cpp",
+      "scripts/build-issue-regex-runtime.py",
+      "scripts/validate-issue-regex-runtime.py"
+    ],
+    "validate": [
+      "python3",
+      "scripts/validate-issue-regex-runtime.py",
+      "build/issue-regex-runtime/IssueRegex"
+    ]
   },
   "openssh": {
     "path": "build/openssh-runtime/OpenSSH",
-    "inputs": ["Configuration/OpenSSHRuntime.json", "scripts/build-openssh-runtime.py", "scripts/validate-openssh-runtime.py"],
-    "validate": ["python3", "scripts/validate-openssh-runtime.py", "build/openssh-runtime/OpenSSH"]
+    "inputs": [
+      "Configuration/OpenSSHRuntime.json",
+      "scripts/build-openssh-runtime.py",
+      "scripts/validate-openssh-runtime.py"
+    ],
+    "validate": [
+      "python3",
+      "scripts/validate-openssh-runtime.py",
+      "build/openssh-runtime/OpenSSH"
+    ]
   },
   "git": {
     "path": "build/git-runtime/Git",
-    "inputs": ["Configuration/GitRuntime.json", "Configuration/GitLFSRuntime.json", "Configuration/GitSVNRuntime.json", "Sources/GitSVNLauncher/main.c", "scripts/build-git-runtime.py", "scripts/validate-git-runtime.py", "scripts/test-git-runtime-deployment.py", "scripts/git_lfs_runtime.py", "scripts/prepare-git-lfs-runtime.py", "scripts/validate-git-lfs-runtime.py", "scripts/build-git-svn-runtime.py", "scripts/install-git-svn-runtime.py", "scripts/validate-git-svn-runtime.py", "scripts/validate_git_svn_support.py", "build/git-svn-runtime/GitSVN/runtime-manifest.json"],
-    "validate": ["python3", "scripts/validate-git-runtime.py", "build/git-runtime/Git", "--require-lfs", "--require-svn"]
+    "inputs": [
+      "Configuration/GitRuntime.json",
+      "Configuration/GitLFSRuntime.json",
+      "Configuration/GitSVNRuntime.json",
+      "Sources/GitSVNLauncher/main.c",
+      "scripts/build-git-runtime.py",
+      "scripts/validate-git-runtime.py",
+      "scripts/test-git-runtime-deployment.py",
+      "scripts/git_lfs_runtime.py",
+      "scripts/prepare-git-lfs-runtime.py",
+      "scripts/validate-git-lfs-runtime.py",
+      "scripts/build-git-svn-runtime.py",
+      "scripts/install-git-svn-runtime.py",
+      "scripts/validate-git-svn-runtime.py",
+      "scripts/validate_git_svn_support.py",
+      "build/git-svn-runtime/GitSVN/runtime-manifest.json"
+    ],
+    "validate": [
+      "python3",
+      "scripts/validate-git-runtime.py",
+      "build/git-runtime/Git",
+      "--require-lfs",
+      "--require-svn"
+    ]
   },
   "merge-diff": {
     "path": "build/merge-diff-runtime/MergeDiff",
-    "inputs": ["LICENSE", "Configuration/GitSVNRuntime.json", "Sources/TurtleGitMergeDiff/main.c", "scripts/build-merge-diff-runtime.py", "scripts/validate-merge-diff-runtime.py", "build/git-runtime/Git/libexec/git-svn-runtime/arm64/Subversion/include/subversion-1/svn_diff.h", "build/git-runtime/Git/libexec/git-svn-runtime/arm64/Dependencies/include/apr-1/apr.h", "build/git-runtime/Git/share/licenses/git-svn/runtime-manifest.json"],
-    "validate": ["python3", "scripts/validate-merge-diff-runtime.py", "build/merge-diff-runtime/MergeDiff"]
+    "inputs": [
+      "LICENSE",
+      "Configuration/GitSVNRuntime.json",
+      "Sources/TurtleGitMergeDiff/main.c",
+      "scripts/build-merge-diff-runtime.py",
+      "scripts/validate-merge-diff-runtime.py",
+      "build/git-runtime/Git/libexec/git-svn-runtime/arm64/Subversion/include/subversion-1/svn_diff.h",
+      "build/git-runtime/Git/libexec/git-svn-runtime/arm64/Dependencies/include/apr-1/apr.h",
+      "build/git-runtime/Git/share/licenses/git-svn/runtime-manifest.json"
+    ],
+    "validate": [
+      "python3",
+      "scripts/validate-merge-diff-runtime.py",
+      "build/merge-diff-runtime/MergeDiff"
+    ]
+  },
+  "lexilla": {
+    "path": "build/lexilla-runtime/Lexilla",
+    "inputs": [
+      "LICENSE",
+      "Configuration/LexillaRuntime.json",
+      "Configuration/BlameLexers.json",
+      "Sources/TurtleGitLexilla/main.cpp",
+      "Sources/TurtleGitLexilla/Scintilla/ILexer.h",
+      "Sources/TurtleGitLexilla/Scintilla/Scintilla.h",
+      "Sources/TurtleGitLexilla/Scintilla/Sci_Position.h",
+      "Sources/TurtleGitLexilla/Scintilla/License.txt",
+      "scripts/build-lexilla-runtime.py",
+      "scripts/validate-lexilla-runtime.py"
+    ],
+    "validate": [
+      "python3",
+      "scripts/validate-lexilla-runtime.py",
+      "build/lexilla-runtime/Lexilla"
+    ]
   }
 }

@@ -1,0 +1,23 @@
+{
+  "lexilla_commit": "ef08a1a00ce151ccdddf7da700fbe1a4934a9c71",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "url": "https://codeload.github.com/ScintillaOrg/lexilla/tar.gz/ef08a1a00ce151ccdddf7da700fbe1a4934a9c71",
+  "sha256": "ecd7e40d75b064ae399e58d7fae0db12607b2234f91cc5c35432649a6cdc3aed",
+  "architectures": [
+    "arm64",
+    "x86_64"
+  ],
+  "deployment_target": "13.0",
+  "engines": [
+    "cpp",
+    "python",
+    "pascal",
+    "hypertext"
+  ],
+  "scintilla_headers": {
+    "ILexer.h": "b72dbe4fcbec4abe097376758ceb39a194f899c7ab9f1f231d074543b24683cd",
+    "License.txt": "185c5a37521316e940ead89cbf0b1ba5862d810c7c966e6c6a14a4a515b23625",
+    "Sci_Position.h": "71428440de5a95e8c40b7b6df9bd109a1d9f98644f6f0ace3469d8211070f8ce",
+    "Scintilla.h": "1728013dc2e7e7474ca8e29224f16857105ff0b5efb96e33fb97e453d3853c8c"
+  }
+}

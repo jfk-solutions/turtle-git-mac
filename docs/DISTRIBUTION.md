@@ -17,6 +17,7 @@ configuration requires a prepared pinned runtime and refuses external fallback.
 ```sh
 python3 scripts/build-editorconfig-runtime.py
 python3 scripts/build-issue-regex-runtime.py
+python3 scripts/build-lexilla-runtime.py
 python3 scripts/build-graph-layout-runtime.py
 python3 scripts/build-openssh-runtime.py
 python3 scripts/build-git-runtime.py
@@ -277,3 +278,11 @@ bundle audit now requires both SVN and the adapter. Actual unsigned loading
 from the app bundle has been exercised on arm64 and x86_64; signed dynamic-library
 validation, sandbox execution and minimum-OS acceptance remain open. The adapter
 is a backend foundation and has not yet replaced the editor's current engine.
+
+Lexilla preparation uses `scripts/build-lexilla-runtime.py`. Its universal
+static helper contains the four engines used by pinned Blame, immutable source
+keyword/style definitions, original Lexilla/Scintilla licenses and the pinned
+source archive plus reconstruction scripts. Xcode embeds it in
+Contents/Helpers/Lexilla and applies inherited helper sandbox signing for
+AppStore. Bundle validation verifies hashes, source kit, architectures, minimum
+OS and system-only dynamic linkage. Physical signed acceptance remains open.

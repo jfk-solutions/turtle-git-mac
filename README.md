@@ -50,6 +50,7 @@ python3 scripts/build-git-runtime.py
 python3 scripts/build-merge-diff-runtime.py
 python3 scripts/build-editorconfig-runtime.py
 python3 scripts/build-issue-regex-runtime.py
+python3 scripts/build-lexilla-runtime.py
 python3 scripts/build-graph-layout-runtime.py
 python3 scripts/build-openssh-runtime.py
 swift test
@@ -126,12 +127,17 @@ work that remains.
 
 ## Screenshots and website
 
+Blame syntax coloring now uses the pinned upstream Lexilla engines and keyword
+lists. Reviewed [light](docs/site/assets/blame-lexilla-light.png) /
+[dark](docs/site/assets/blame-lexilla-dark.png) captures and
+[batch evidence](docs/qa/blame-lexilla-2026-10-13.json) include remaining limits.
+
 Blame now has a continuous native source editor with multi-line selection,
 synchronized annotations and the source View switches. Actual
 [light](docs/site/assets/blame-source-editor-light.png) /
 [dark](docs/site/assets/blame-source-editor-dark.png) captures and
 [verification limits](docs/qa/blame-source-editor-2026-10-13.json) document the
-October 13 batch. Syntax lexers and full Blame parity remain open.
+October 13 batch. Folding and full Blame parity remain open.
 
 [Project website](https://jfk-solutions.github.io/turtle-git-mac/).
 

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		B73167000000000000000001 /* BlameSyntax.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73167000000000000000002 /* BlameSyntax.swift */; };
 		B73105000000000000000001 /* ProjectDialogSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73105000000000000000002 /* ProjectDialogSettings.swift */; };
 		B73117000000000000000001 /* NetworkSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73117000000000000000002 /* NetworkSettings.swift */; };
 		B73119000000000000000001 /* FinderOverlaySettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73119000000000000000002 /* FinderOverlaySettings.swift */; };
@@ -375,6 +376,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		B73167000000000000000002 /* BlameSyntax.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlameSyntax.swift; sourceTree = "<group>"; };
 		B73105000000000000000002 /* ProjectDialogSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectDialogSettings.swift; sourceTree = "<group>"; };
 		B73117000000000000000002 /* NetworkSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkSettings.swift; sourceTree = "<group>"; };
 		B73119000000000000000002 /* FinderOverlaySettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderOverlaySettings.swift; sourceTree = "<group>"; };
@@ -965,6 +967,7 @@
 				8ABC9104B3F3E555FB47EC46 /* MessageCaretPosition.swift */,
 				28A4137E7CE7A36F8A8E6F58 /* MessageCodeScanner.swift */,
 				22371C45A6813F87FD610EE6 /* MessageCodeSymbols.swift */,
+				B73167000000000000000002 /* BlameSyntax.swift */,
 				B73164000000000000000002 /* ClientHooks.swift */,
 				C27AB4988402DE898554EF19 /* MessageCodeText.swift */,
 				3329485A1DA9D2066A853483 /* MessageCompletion.swift */,
@@ -1153,6 +1156,7 @@
 				C0FA93121C7653B8CED80394 /* Embed Frameworks */,
 				CEE1C93388E81BE0FC471865 /* Embed SSH passphrase helper */,
 				51D7E3DB4C35C2277F3C9C8D /* Embed C++ issue-matching runtime */,
+				B73167000000000000000003 /* Embed pinned Lexilla runtime */,
 				B73132000000000000000001 /* Embed Subversion merge adapter */,
 				0C37184FA8C6B918D948A94E /* Embed pinned Revision Graph layout runtime */,
 				05E9103FE147A460078548D0 /* Embed pinned EditorConfig runtime */,
@@ -1321,6 +1325,25 @@
 			shellPath = /bin/sh;
 			shellScript = "/usr/bin/python3 \"$SRCROOT/scripts/embed-issue-regex-runtime.py\" \"$SRCROOT/build/issue-regex-runtime/IssueRegex\" \"$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME\"\n";
 		};
+		B73167000000000000000003 /* Embed pinned Lexilla runtime */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Embed pinned Lexilla runtime";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/usr/bin/python3 \"$SRCROOT/scripts/embed-lexilla-runtime.py\" \"$SRCROOT/build/lexilla-runtime/Lexilla\" \"$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME\"\n";
+		};
 		B73132000000000000000001 /* Embed Subversion merge adapter */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -1469,6 +1492,7 @@
 				EF0A14E185D835D3BAB7033E /* MessageCaretPosition.swift in Sources */,
 				B46406E18DBC3B1E7292BD5A /* MessageCodeScanner.swift in Sources */,
 				B96A74776BF83BB313347BBB /* MessageCodeSymbols.swift in Sources */,
+				B73167000000000000000001 /* BlameSyntax.swift in Sources */,
 				B73164000000000000000001 /* ClientHooks.swift in Sources */,
 				A99C16FB42C7E89CA9B6AEC3 /* MessageCodeText.swift in Sources */,
 				91E94E7DF08198646C691752 /* MessageCompletion.swift in Sources */,

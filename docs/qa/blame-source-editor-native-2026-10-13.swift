@@ -15,14 +15,16 @@ import TurtleGitCore
         let repo = GitRepository(root:root,executable:git)
         _ = try await repo.run(["init","-b","main"])
         for (key,value) in [("user.name","Source QA"),("user.email","source@example.invalid"),("core.hooksPath","/dev/null"),("commit.gpgsign","false")] { _ = try await repo.run(["config",key,value]) }
-        var lines = ["// Native source selection", "let snow = \"雪🦎\";\t// tabs", ""]
-        for row in 4...90 { lines.append(row == 64 ? "let needle = \"search target\";" : "let value\(row) = \(row);") }
-        lines[79] = "let longLine = \"" + String(repeating:"wide source text ",count:30) + "\";"
+        let cpp = CommandLine.arguments[3] == "blame-captures"
+        let declaration = cpp ? "int value" : "let value"
+        var lines = ["// Native source selection", (cpp ? "const char* snow" : "let snow") + " = \"雪🦎\";\t// tabs", ""]
+        for row in 4...90 { lines.append(row == 64 ? (cpp ? "const char* needle" : "let needle") + " = \"search target\";" : "\(declaration)\(row) = \(row);") }
+        lines[79] = (cpp ? "const char* longLine" : "let longLine") + " = \"" + String(repeating:"wide source text ",count:30) + "\";"
         lines.append("final line without LF")
-        let path = "demo.swift", file = root.appendingPathComponent(path)
+        let path = cpp ? "demo.cpp" : "demo.swift", file = root.appendingPathComponent(path)
         let original = Data(("\u{feff}" + lines.joined(separator:"\r\n")).utf8)
         try original.write(to:file); try await repo.stage([path]); _ = try await repo.commit(message:"Add native source fixture")
-        lines[11] = "let changed = \"second commit\";"
+        lines[11] = (cpp ? "const char* changed" : "let changed") + " = \"second commit\";"
         let current = Data(("\u{feff}" + lines.joined(separator:"\r\n")).utf8)
         try current.write(to:file); try await repo.stage([path])
         _ = try await repo.run(["config","user.name","Reviewer QA"])
@@ -38,7 +40,7 @@ import TurtleGitCore
         window.setContentSize(NSSize(width:1250,height:850)); model.presentation = GitBlamePresentation()
         window.contentView?.layoutSubtreeIfNeeded()
         func editor() -> NSTextView? { descendants(window.contentView!).compactMap { $0 as? NSTextView }.first { $0.accessibilityLabel() == "Blame source text" } }
-        try await wait { !model.busy && model.error == nil && editor()?.string == lines.joined(separator:"\n") }
+        try await wait { !model.busy && !model.syntaxWorking && model.syntaxError == nil && model.error == nil && editor()?.string == lines.joined(separator:"\n") }
         let text = editor()!, string = text.string as NSString
         precondition(!text.isEditable && text.isSelectable && text.string.hasSuffix("without LF") && !text.string.hasSuffix("\n"))
         precondition(model.marginFields == [.author])
@@ -54,7 +56,7 @@ import TurtleGitCore
             window.childWindows?.contains { $0.title == "Find – TurtleGit Blame" && descendants($0.contentView!).compactMap { $0 as? NSTextField }.contains { $0.isEditable && $0.stringValue == "雪🦎" } } == true
         }
         window.childWindows?.first { $0.title == "Find – TurtleGit Blame" }?.close()
-        let spanning = NSRange(location:0,length:string.range(of:"let value5").location)
+        let spanning = NSRange(location:0,length:string.range(of:declaration + "5").location)
         text.setSelectedRange(spanning); let copied = string.substring(with:spanning)
         precondition(text.writeSelection(to:clipboard,types:[.string]) && clipboard.string(forType:.string) == copied)
         for field in BlameMarginField.allCases { model.setMargin(field,visible:true) }
@@ -102,6 +104,7 @@ import TurtleGitCore
         }
         controller.close(); clipboard.clearContents(); clipboard.setString("retired sentinel",forType:.string)
         precondition(!text.isSelectable && !text.writeSelection(to:clipboard,types:[.string]) && clipboard.string(forType:.string) == "retired sentinel")
+        try await wait { BlameWindowModel.activeSyntaxRequests == 0 }
         let afterHead = try await repo.run(["rev-parse","HEAD"]).stdout
         let afterIndex = try Data(contentsOf:root.appendingPathComponent(".git/index")), afterFile = try Data(contentsOf:file)
         precondition(afterHead == head && afterIndex == index && afterFile == current)
