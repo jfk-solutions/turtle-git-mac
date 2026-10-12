@@ -1,0 +1,47 @@
+{
+  "date": "2026-10-12",
+  "scope": "Reference fixture PID readiness and owned failure cleanup",
+  "hosted_failure": {
+    "run": 38267892128,
+    "head": "b15e5e5",
+    "job": 114882846326,
+    "step": "Grouped native reference folders, comparisons, deletion and action routes",
+    "message": "Owned comparison process absent",
+    "historical_root_cause_proven": false,
+    "observed_orphan_helpers": [
+      "shell",
+      "sleep"
+    ]
+  },
+  "changes": [
+    "Atomic PID marker publication for Comparison/Fetch/Create Branch",
+    "Retained live-PID, forced-close, late-result and mutation assertions",
+    "PID diagnostics",
+    "Bounded asynchronous private-helper cleanup on failure"
+  ],
+  "validation": {
+    "comparison_engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "fetch_create_branch_engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "receiver_compilations": 2,
+    "receiver_processes": 6,
+    "all_exits": 0,
+    "owned_receivers_reaped": true,
+    "forced_close_cleanup_passed": true,
+    "failure_only_cleanup_artificially_injected": false,
+    "app_or_core_rebuild": false,
+    "full_reference_group_rerun": false,
+    "existing_hidden_splitview_layout_diagnostics": true,
+    "full_hosted_pass": false
+  },
+  "remaining": [
+    "Full hosted CI",
+    "Physical native window/menu behavior",
+    "Signed Finder/SVN/App Store acceptance"
+  ]
+}

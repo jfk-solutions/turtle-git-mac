@@ -65,14 +65,24 @@ import TurtleGitCore
               /bin/sleep 30 &
               task_child=$!
               trap 'kill "$task_child" 2>/dev/null; wait "$task_child" 2>/dev/null; exit 143' TERM INT
-              printf '%s %s\\n' "$$" "$task_child" > "$0.started"
+              printf '%s %s\\n' "$$" "$task_child" > "$0.started.tmp"
+              /bin/mv "$0.started.tmp" "$0.started"
               wait "$task_child"
             fi
             exec \(quoted) "$@"
             """
             try Data(script.utf8).write(to:helper); try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:helper.path)
             let closing=ReferenceBrowserWindowController(repository:GitRepository(root:client,executable:helper),access:nil,initial:ref,preferences:prefs) { _ in }; var ids:[Int32]=[]
-            defer { closing.close(); for pid in ids where kill(pid,0)==0 { _ = kill(pid,SIGTERM) } }
+            func cleanupFailure() async {
+                closing.close()
+                if ids.isEmpty, let text = try? String(contentsOf:marker) { ids = text.split(whereSeparator:{$0.isWhitespace}).compactMap { Int32($0) } }
+                for pid in ids where kill(pid,0)==0 { _ = kill(pid,SIGTERM) }
+                for _ in 0..<200 { if ids.allSatisfy({kill($0,0) != 0}) { return }; try? await Task.sleep(nanoseconds:10_000_000) }
+                for pid in ids where kill(pid,0)==0 { _ = kill(pid,SIGKILL) }
+                for _ in 0..<200 { if ids.allSatisfy({kill($0,0) != 0}) { return }; try? await Task.sleep(nanoseconds:10_000_000) }
+                fputs("Private reference fixture cleanup could not reap PIDs: \(ids)\n",stderr)
+            }
+            do {
             closing.presentFetch={parent,_ in parent.makeFirstResponder(nil); return true}; closing.model.configureFetch={ child in child.presentFetchProgress={parent,_ in parent.makeFirstResponder(nil); return true} }
             closing.model.load(); try await wait([closing.window!]) { !closing.model.busy }
             if stage=="remote" { try Data().write(to:pause) }
@@ -85,12 +95,13 @@ import TurtleGitCore
                 prefs.set(true,forKey:"ConfirmKillProcess"); outcome!.confirmCancellation={ lateAnswer=$0 }
             }
             try await wait { FileManager.default.fileExists(atPath:marker.path) }
-            ids=try String(contentsOf:marker).split(whereSeparator:{$0.isWhitespace}).compactMap { Int32($0) }; try require(ids.count==2 && ids.allSatisfy{kill($0,0)==0},"Owned process not live")
+            ids=try String(contentsOf:marker).split(whereSeparator:{$0.isWhitespace}).compactMap { Int32($0) }; try require(ids.count==2 && ids.allSatisfy{kill($0,0)==0},"Owned process not live: \(ids)")
             outcome?.cancel(); closing.close(); let frozen=outcome?.rawOutput
             lateAnswer?(true); outcome?.perform(.fetch)
             try await wait { ids.allSatisfy{kill($0,0) != 0} }; try await Task.sleep(nanoseconds:100_000_000)
             try require(closing.fetchDialog==nil && !closing.model.hasChild && !active.model.busy && active.model.closed && active.model.error==nil && late==0 && outcome?.rawOutput==frozen,"Closed Fetch published late result")
             prefs.set(false,forKey:"ConfirmKillProcess")
+            } catch { await cleanupFailure(); throw error }
         }
         let standalone=FetchWindowController(repository:repo,access:nil,preferences:prefs); defer { standalone.close() }
         standalone.presentFetchProgress={parent,_ in parent.makeFirstResponder(nil); return true}

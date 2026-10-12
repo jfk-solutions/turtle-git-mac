@@ -591,3 +591,37 @@ checks after this change. This does not prove the exact old CI root cause or a
 new hosted pass. CI now uses the documented standard Intel runner and preserves
 an active workflow while superseding future pending runs on the same branch.
 See [the scoped record](qa/reference-deletion-ci-2026-10-11.json).
+
+
+## Comparison/Fetch/Create Branch PID publication — 2026-10-12
+
+Hosted macOS run 38267892128 at b15e5e5 is terminal failed. Job 114882846326
+passed reference folders, then the grouped comparison receiver failed with
+“Owned comparison process absent”; GitHub subsequently cleaned a shell and sleep
+helper. The old diagnostic omitted parsed PIDs, so the exact historical cause
+is not proven. Its readiness protocol allowed observing a PID file after shell
+redirection created it but before printf completed, which is consistent with the
+failure and matches the earlier deletion fixture follow-up.
+
+Comparison now writes the private PID pair to a temporary sibling and renames it
+into readiness only after completion. The reference-family audit found the same
+protocol in Fetch and Create Branch and corrected those too. All original live
+process, cancellation, late publication and repository-preservation assertions
+remain; failures include parsed PID diagnostics. Each affected forced-close
+section has asynchronous failure cleanup: close the owner, recover its private
+marker if needed, terminate only recorded fixture PIDs and wait, with a bounded
+kill/wait fallback and a diagnostic if they remain. The original failure is still
+reported; cleanup does not turn it into a pass. The failure-only fallback itself
+was not artificially injected in this checkpoint.
+
+Focused comparison passed with system and bundled Git, including rev-parse and
+diff-tree forced-close cleanup. Then the newly changed Fetch/Create Branch cases
+passed with both engines, including metadata/transport/creation forced cleanup
+and their existing real mutation/refresh/confirmation checks. Total: two cached
+receiver compilations after the respective fixture changes, six owned receiver
+processes, all reaped. Hidden native hosts logged existing zero-size NSSplitView
+layout diagnostics; this is not physical layout acceptance. No app/Core rebuild
+or full sixteen-family group was run for these fixture-only edits. Newer hosted
+macOS work was observed active/queued and was not restarted; no complete hosted
+pass is claimed. SVN scoped acceptance was deferred to address this actual CI
+failure. See `qa/reference-pid-publication-ci-2026-10-12.json`.

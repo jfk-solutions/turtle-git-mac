@@ -64,26 +64,39 @@ import TurtleGitCore
               /bin/sleep 30 &
               task_child=$!
               trap 'kill "$task_child" 2>/dev/null; wait "$task_child" 2>/dev/null; exit 143' TERM INT
-              printf '%s %s\\n' "$$" "$task_child" > "$0.started"
+              printf '%s %s\\n' "$$" "$task_child" > "$0.started.tmp"
+              /bin/mv "$0.started.tmp" "$0.started"
               wait "$task_child"
             fi
             exec \(quoted) "$@"
             """
             try Data(script.utf8).write(to: helper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
             let closing = ReferenceBrowserWindowController(repository: GitRepository(root: root, executable: helper), access: nil, initial: "refs", preferences: prefs, picking: false) { _ in }
-            var ids: [Int32] = []; defer { closing.close(); for pid in ids where kill(pid, 0) == 0 { _ = kill(pid, SIGTERM) } }
-            closing.presentComparison = { _, _ in true }; var published = false; closing.presentUnified = { _, _, _ in published = true }
-            closing.model.load(); try await wait { !closing.model.busy && closing.model.snapshot != nil }
-            closing.model.select(["refs/heads/a-old", "refs/heads/z-new"], last: "refs/heads/a-old")
-            try Data().write(to: pause); closing.model.comparePair(unified: stage == "diff-tree")
-            let pendingChild = closing.comparisonDialog
-            try await wait { FileManager.default.fileExists(atPath: marker.path) }
-            ids = try String(contentsOf: marker).split(whereSeparator: { $0.isWhitespace }).compactMap { Int32($0) }
-            try require(ids.count == 2 && ids.allSatisfy { kill($0, 0) == 0 }, "Owned comparison process absent")
-            closing.close(); try await wait { ids.allSatisfy { kill($0, 0) != 0 } }; try await Task.sleep(nanoseconds: 100_000_000)
-            try require(closing.model.closed && !closing.model.busy && closing.comparisonDialog == nil && !published && closing.model.error == nil, "Forced comparison continued")
-            if let pendingChild { try require(pendingChild.model.closed && pendingChild.model.snapshot == nil && pendingChild.model.error == nil, "Late child result") }
-            print("PASS comparison forced cleanup: " + stage)
+            var ids: [Int32] = []
+            func cleanupFailure() async {
+                closing.close()
+                // The private marker may have completed after an earlier assertion failed.
+                if ids.isEmpty, let text = try? String(contentsOf: marker) { ids = text.split(whereSeparator: { $0.isWhitespace }).compactMap { Int32($0) } }
+                for pid in ids where kill(pid, 0) == 0 { _ = kill(pid, SIGTERM) }
+                for _ in 0..<200 { if ids.allSatisfy({ kill($0, 0) != 0 }) { return }; try? await Task.sleep(nanoseconds:10_000_000) }
+                for pid in ids where kill(pid, 0) == 0 { _ = kill(pid, SIGKILL) }
+                for _ in 0..<200 { if ids.allSatisfy({ kill($0, 0) != 0 }) { return }; try? await Task.sleep(nanoseconds:10_000_000) }
+                fputs("Comparison cleanup could not reap private fixture PIDs: \(ids)\n",stderr)
+            }
+            do {
+                closing.presentComparison = { _, _ in true }; var published = false; closing.presentUnified = { _, _, _ in published = true }
+                closing.model.load(); try await wait { !closing.model.busy && closing.model.snapshot != nil }
+                closing.model.select(["refs/heads/a-old", "refs/heads/z-new"], last: "refs/heads/a-old")
+                try Data().write(to: pause); closing.model.comparePair(unified: stage == "diff-tree")
+                let pendingChild = closing.comparisonDialog
+                try await wait { FileManager.default.fileExists(atPath: marker.path) }
+                ids = try String(contentsOf: marker).split(whereSeparator: { $0.isWhitespace }).compactMap { Int32($0) }
+                try require(ids.count == 2 && ids.allSatisfy { kill($0, 0) == 0 }, "Owned comparison process absent: \(ids)")
+                closing.close(); try await wait { ids.allSatisfy { kill($0, 0) != 0 } }; try await Task.sleep(nanoseconds: 100_000_000)
+                try require(closing.model.closed && !closing.model.busy && closing.comparisonDialog == nil && !published && closing.model.error == nil, "Forced comparison continued")
+                if let pendingChild { try require(pendingChild.model.closed && pendingChild.model.snapshot == nil && pendingChild.model.error == nil, "Late child result") }
+                print("PASS comparison forced cleanup: " + stage)
+            } catch { await cleanupFailure(); throw error }
         }
         try require(head == Data(contentsOf: root.appendingPathComponent(".git/HEAD")) && index == Data(contentsOf: root.appendingPathComponent(".git/index")) && file == Data(contentsOf: root.appendingPathComponent("file")), "Repository changed by comparison")
         try require(!NSApplication.shared.windows.contains { $0.isVisible }, "QA ordered a window")

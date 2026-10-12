@@ -1291,3 +1291,11 @@ group. Its private real commit cases include conditional SVN DCommit ordering an
 once-only callback, plus the existing output/cancellation/owned-helper checks.
 Fake SVN metadata enables the menu case without submitting to an SVN server.
 Physical menu and scoped native SVN receiver acceptance remain separate.
+
+
+Reference Comparison, Fetch and Create Branch forced-close fixtures atomically
+publish complete PID pairs before readiness. Their failure paths close the owner
+and recover/reap only private fixture helpers with bounded cleanup. The existing
+assertions remain. Focus actual failures with repeatable `--only comparison`,
+`--only fetch` and `--only create-branch` plus desired `--git` paths; this does not
+require recompiling app sources or running Core.

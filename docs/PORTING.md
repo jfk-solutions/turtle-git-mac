@@ -846,3 +846,10 @@ Commit repository/access context through the native SVN workflow. Both-engine
 private commit checks passed, including once-only selection and the existing
 cancellation/cleanup cases. Actual SVN submission, receiving-window/scoped grant
 acceptance and physical menus remain open; see the Commit audit.
+
+
+Hosted run 38267892128 failed in the grouped comparison receiver after reference
+folders passed. The Comparison/Fetch/Create Branch fixture audit corrected
+incomplete PID publication and added bounded failure cleanup while retaining the
+original assertions. All three focused families passed with both Git engines;
+newer CI remains unverified. See the Reference Browser audit and scoped QA record.

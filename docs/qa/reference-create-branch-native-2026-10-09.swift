@@ -71,23 +71,34 @@ import TurtleGitCore
           /bin/sleep 30 &
           task_child=$!
           trap 'kill "$task_child" 2>/dev/null; wait "$task_child" 2>/dev/null; exit 143' TERM INT
-          printf '%s %s\\n' "$$" "$task_child" > "$0.started"
+          printf '%s %s\\n' "$$" "$task_child" > "$0.started.tmp"
+          /bin/mv "$0.started.tmp" "$0.started"
           wait "$task_child"
         fi
         exec \(quoted) "$@"
         """
         try Data(script.utf8).write(to:helper); try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:helper.path)
         let closing=ReferenceBrowserWindowController(repository:GitRepository(root:root,executable:helper),access:nil,initial:remote,preferences:prefs) { _ in }; var ids:[Int32]=[]
-        defer { closing.close(); for pid in ids where kill(pid,0)==0 { _ = kill(pid,SIGTERM) } }
+        func cleanupFailure() async {
+                closing.close()
+                if ids.isEmpty, let text = try? String(contentsOf:marker) { ids = text.split(whereSeparator:{$0.isWhitespace}).compactMap { Int32($0) } }
+                for pid in ids where kill(pid,0)==0 { _ = kill(pid,SIGTERM) }
+                for _ in 0..<200 { if ids.allSatisfy({kill($0,0) != 0}) { return }; try? await Task.sleep(nanoseconds:10_000_000) }
+                for pid in ids where kill(pid,0)==0 { _ = kill(pid,SIGKILL) }
+                for _ in 0..<200 { if ids.allSatisfy({kill($0,0) != 0}) { return }; try? await Task.sleep(nanoseconds:10_000_000) }
+                fputs("Private reference fixture cleanup could not reap PIDs: \(ids)\n",stderr)
+            }
+            do {
         closing.presentBranch={parent,_ in parent.makeFirstResponder(nil); return true}; closing.model.load(); try await wait([closing.window!]) { !closing.model.busy }
         closing.showCreateBranch(); guard let active=closing.branchDialog else { throw Failure(message:"Active child missing") }; try await wait([active.window!]) { !active.model.busy && !active.model.chooser.busy }
         active.model.options.name="must-not-create"; active.model.switchAfterCreation=false; var late=0; active.model.onCreated={ _ in late += 1 }; active.model.create()
         try await wait { FileManager.default.fileExists(atPath:marker.path) }
-        ids=try String(contentsOf:marker).split(whereSeparator:{$0.isWhitespace}).compactMap { Int32($0) }; try require(ids.count==2 && ids.allSatisfy{kill($0,0)==0},"Creation not live")
+        ids=try String(contentsOf:marker).split(whereSeparator:{$0.isWhitespace}).compactMap { Int32($0) }; try require(ids.count==2 && ids.allSatisfy{kill($0,0)==0},"Creation not live: \(ids)")
         closing.close(); try await wait { ids.allSatisfy{kill($0,0) != 0} }; try await Task.sleep(nanoseconds:100_000_000)
         try require(closing.branchDialog==nil && !closing.model.hasChild && !active.model.busy && active.model.error==nil && late==0,"Closed creation published late result")
         let absent=try await repo.run(["show-ref","--verify","--quiet","refs/heads/must-not-create"],successfulExitCodes:0...1).exitCode
         try require(absent==1,"Cancelled creation mutated refs")
+            } catch { await cleanupFailure(); throw error }
         print("PASS: native remote Create Branch menu/icon, pinned hash despite moved remote, owned options/configuration, real creation and browser refresh, Cancel/rejected/competing/close/Quit and forced live creation process cleanup. Private repos/preferences, no ordered windows or physical sheets.")
     }
 }
