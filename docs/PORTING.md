@@ -97,7 +97,7 @@ owned loading/command progress. Native Push variants and owned Shift Push option
 controls, full visual matching and signed acceptance are still pending. See
 [Synchronization parity](SYNCHRONIZATION-PARITY.md).
 Across the 130 inventoried dialogs:
-72 dialogs have partial implementations and 58 await review. No dialog is certified complete.
+73 dialogs have partial implementations and 57 await review. No dialog is certified complete.
 See [the reference dialog audit](COMMIT-CONTAINING-REFS-PARITY.md).
 
 Log commit ordering now has the source’s four-choice native sheet, deferred
@@ -878,3 +878,12 @@ valid expressions for styling current text. Owned debounce/helper work is fenced
 against editing/closure and counted for Quit. The dialog is a partial replacement;
 the full Issue Tracker configuration page/parent Apply integration and plugin
 providers remain open. See [the issue audit](ISSUE-TRACKER-PARITY.md).
+
+
+Settings → Issue Tracker Config now ports the source scope selector, BugTraq
+fields/inheritance/booleans, provider metadata and Save-to control. It owns the
+Regex Tester; tester OK edits the page draft, shared Apply writes the selected
+configuration and Cancel restores unsaved values. The original Bugtraq icon is
+bundled with provenance. Focused Core and native checks passed; provider execution,
+physical/signed acceptance and Windows association adaptation remain open. See
+[Issue tracker audit](ISSUE-TRACKER-PARITY.md).

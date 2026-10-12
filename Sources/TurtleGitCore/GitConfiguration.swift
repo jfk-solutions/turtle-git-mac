@@ -216,12 +216,12 @@ extension GitRepository {
         case .system: return ["--system"]
         }
     }
-    public func projectDialogSettings(source: ProjectDialogSettingsSource, hasRepository: Bool = true, cancellation: OperationCancellation? = nil) throws -> ProjectDialogSettings {
+    private func scopedProjectSettingsValues(pattern: String, source: ProjectDialogSettingsSource, hasRepository: Bool, cancellation: OperationCancellation?) throws -> [String: String] {
         try cancellation?.check()
         if source == .local && !hasRepository { throw GitConfigurationFailure.destination }
         let values: [String: String]
         if source == .effective && hasRepository {
-            values = try projectConfiguration(pattern: ProjectDialogSettings.pattern, cancellation: cancellation)
+            values = try projectConfiguration(pattern: pattern, cancellation: cancellation)
         } else {
             var arguments = projectDialogSettingsArguments(source), temporary: URL?
             defer { if let temporary { try? FileManager.default.removeItem(at: temporary) } }
@@ -236,12 +236,12 @@ extension GitRepository {
                         temporary = directory
                         let file = directory.appendingPathComponent(".tgitconfig"); try bytes.write(to: file)
                         arguments = ["--file", file.path]
-                    } else { return ProjectDialogSettings() }
+                    } else { return [:] }
                 } else if !FileManager.default.fileExists(atPath: root.appendingPathComponent(".tgitconfig").path) {
-                    return ProjectDialogSettings()
+                    return [:]
                 }
             }
-            let bytes = try run(["config"] + arguments + ["--includes", "--null", "--get-regexp", ProjectDialogSettings.pattern], successfulExitCodes: 0...1, cancellation: cancellation).stdout
+            let bytes = try run(["config"] + arguments + ["--includes", "--null", "--get-regexp", pattern], successfulExitCodes: 0...1, cancellation: cancellation).stdout
             var result: [String: String] = [:]
             for record in bytes.split(separator: 0) {
                 guard let separator = record.firstIndex(of: 10) else {
@@ -253,6 +253,10 @@ extension GitRepository {
             }
             values = result
         }
+        try cancellation?.check(); return values
+    }
+    public func projectDialogSettings(source: ProjectDialogSettingsSource, hasRepository: Bool = true, cancellation: OperationCancellation? = nil) throws -> ProjectDialogSettings {
+        let values = try scopedProjectSettingsValues(pattern: ProjectDialogSettings.pattern, source: source, hasRepository: hasRepository, cancellation: cancellation)
         var result = ProjectDialogSettings()
         func identity(_ key: String, fallback: String) -> GitConfigurationIdentity {
             GitConfigurationIdentity(value: values[key] ?? (source == .effective ? fallback : ""), inherit: source != .effective && values[key] == nil)
@@ -271,14 +275,17 @@ extension GitRepository {
         try cancellation?.check(); return result
     }
     public func saveProjectDialogSettings(_ settings: ProjectDialogSettings, destination: ProjectDialogSettingsSource, hasRepository: Bool = true, cancellation: OperationCancellation? = nil) throws {
+        try saveScopedProjectSettings(settings.values, destination: destination, hasRepository: hasRepository, cancellation: cancellation)
+    }
+    private func saveScopedProjectSettings(_ values: [(String, String?)], destination: ProjectDialogSettingsSource, hasRepository: Bool, cancellation: OperationCancellation?) throws {
         guard destination == .local || destination == .global || destination == .project else { throw GitConfigurationFailure.destination }
         if destination == .local || destination == .project {
             guard hasRepository else { throw GitConfigurationFailure.destination }
         }
         if destination == .project, try isBare(cancellation: cancellation) { throw GitConfigurationFailure.destination }
-        guard !settings.values.contains(where: { $0.1?.utf8.contains(0) == true }) else { throw GitConfigurationFailure.invalidValue }
+        guard !values.contains(where: { $0.1?.utf8.contains(0) == true }) else { throw GitConfigurationFailure.invalidValue }
         let scope = projectDialogSettingsArguments(destination)
-        for (key, value) in settings.values {
+        for (key, value) in values {
             try cancellation?.check()
             do {
                 if let value { _ = try run(["config"] + scope + ["--replace-all", "--", key, value], cancellation: cancellation) }
@@ -339,5 +346,59 @@ extension GitRepository {
             let result = try run(arguments, successfulExitCodes: 0...5)
             guard result.exitCode == 0 || result.exitCode == 5 else { throw GitFailure(arguments: arguments, code: result.exitCode, message: result.text) }
         } else { _ = try run(["config", "--global", "--replace-all", "--", "credential.helper", helper]) }
+    }
+}
+
+
+public enum IssueTrackerStringKey: String, CaseIterable, Sendable {
+    case url = "bugtraq.url", message = "bugtraq.message", label = "bugtraq.label"
+    case parameters = "bugtraq.providerparams", provider32 = "bugtraq.provideruuid", provider64 = "bugtraq.provideruuid64", regex = "bugtraq.logregex"
+}
+public struct IssueTrackerSettings: Equatable, Sendable {
+    public var fields = Dictionary(uniqueKeysWithValues: IssueTrackerStringKey.allCases.map { ($0, GitConfigurationIdentity()) })
+    public var append: GitConfigurationBoolean = .inherit
+    public var number: GitConfigurationBoolean = .inherit
+    public var warnIfNoIssue: GitConfigurationBoolean = .inherit
+    public init() {}
+    public var valid: Bool { !fields.values.contains { !$0.inherit && $0.value.contains("\0") } }
+    public var regexParts: (check: String, extract: String) {
+        let text = (fields[.regex]?.value ?? "").replacingOccurrences(of:"\r\n",with:"\n")
+        guard let newline = text.firstIndex(of:"\n") else { return (text.trimmingCharacters(in:.whitespacesAndNewlines), "") }
+        return (String(text[..<newline]).trimmingCharacters(in:.whitespacesAndNewlines),String(text[text.index(after:newline)...]).trimmingCharacters(in:.whitespacesAndNewlines))
+    }
+    static let pattern = "^bugtraq[.](url|message|label|providerparams|provideruuid|provideruuid64|append|number|warnifnoissue|logregex)$"
+    var values: [(String, String?)] {
+        var values = IssueTrackerStringKey.allCases.filter { $0 != .regex }.map { key -> (String,String?) in
+            let field = fields[key] ?? GitConfigurationIdentity(); return (key.rawValue,field.inherit ? nil:field.value)
+        }
+        values += [("bugtraq.append",append == .inherit ? nil:append.rawValue),("bugtraq.number",number == .inherit ? nil:number.rawValue),("bugtraq.warnifnoissue",warnIfNoIssue == .inherit ? nil:warnIfNoIssue.rawValue)]
+        let regex = fields[.regex] ?? GitConfigurationIdentity()
+        values.append((IssueTrackerStringKey.regex.rawValue,regex.inherit ? nil:regex.value.replacingOccurrences(of:"\r\n",with:"\n")))
+        return values
+    }
+}
+extension GitRepository {
+    public func issueTrackerSettings(source: ProjectDialogSettingsSource, hasRepository: Bool = true, cancellation: OperationCancellation? = nil) throws -> IssueTrackerSettings {
+        let values = try scopedProjectSettingsValues(pattern: IssueTrackerSettings.pattern, source: source, hasRepository: hasRepository, cancellation: cancellation)
+        var result = IssueTrackerSettings()
+        for key in IssueTrackerStringKey.allCases {
+            let fallback = key == .label ? "Bug-ID/Issue-Nr:" : ""
+            result.fields[key] = GitConfigurationIdentity(value:values[key.rawValue] ?? (source == .effective ? fallback:""),inherit:source != .effective && values[key.rawValue] == nil)
+        }
+        func boolean(_ key: String, fallback: GitConfigurationBoolean) throws -> GitConfigurationBoolean {
+            guard let value = values[key] else { return source == .effective ? fallback:.inherit }
+            switch value.trimmingCharacters(in:.whitespacesAndNewlines).lowercased() {
+            case "true","yes","on": return .enabled
+            case "false","no","off","": return .disabled
+            default: guard let number = Int64(value.trimmingCharacters(in:.whitespacesAndNewlines)) else { throw GitConfigurationFailure.invalidValue }; return number == 0 ? .disabled:.enabled
+            }
+        }
+        result.append = try boolean("bugtraq.append",fallback:.enabled)
+        result.number = try boolean("bugtraq.number",fallback:.enabled)
+        result.warnIfNoIssue = try boolean("bugtraq.warnifnoissue",fallback:.disabled)
+        return result
+    }
+    public func saveIssueTrackerSettings(_ settings: IssueTrackerSettings, destination: ProjectDialogSettingsSource, hasRepository: Bool = true, cancellation: OperationCancellation? = nil) throws {
+        try saveScopedProjectSettings(settings.values,destination:destination,hasRepository:hasRepository,cancellation:cancellation)
     }
 }

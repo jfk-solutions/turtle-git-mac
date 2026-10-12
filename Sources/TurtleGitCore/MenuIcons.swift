@@ -45,6 +45,7 @@ public enum MenuIcon: String, CaseIterable {
     case lfs = "menulfs"
     case add = "menuadd", revert = "menurevert", reset = "reset", cherryPick = "cherry-pick", copy = "copy"
     case help = "menuhelp", settings = "menusettings", about = "menuabout", saveAs = "saveas"
+    case settingsIssueTracker = "bugtraq"
     case settingsGeneral = "general", settingsDialogs = "dialogs", settingsGit = "gitconfig", settingsRemote = "gitremote"
     case settingsCredential = "gitcredential"
     case settingsNetwork = "proxy"

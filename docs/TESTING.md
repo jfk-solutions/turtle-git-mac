@@ -1157,7 +1157,7 @@ checks three-pane format acceptance. See [format parity](MERGE-FORMAT-PARITY.md)
 Build Debug once, then run `python3 scripts/test-native-reference-batch.py` for
 folders, comparisons, batch/single deletion, Switch/Fetch/Create Branch/Merge
 routes and Merge reference/Log pickers. The driver links the existing app objects
-and eighteen receiver families, including Network, Credential, Tool settings, Overlays, Email, Commit progress, SVN, the issue regex tester and external Merge lifecycle, in one compilation. It uses an explicit native AppKit run loop and
+and nineteen receiver families, including Network, Credential, Tool settings, Overlays, Email, Commit progress, SVN, issue settings/tester and external Merge lifecycle, in one compilation. It uses an explicit native AppKit run loop and
 caches by object files, imported modules/framework, fixtures and compiler/flags.
 It does not recompile the whole SwiftUI app for each case.
 
@@ -1324,3 +1324,12 @@ It verifies sample highlighting, actual Cut/Copy/Paste and context icons,
 single/two-expression matching/UTF-16 positions, invalid fallback and recovery,
 expression return and stale/retired provider/Quit fences. Core, physical menu
 entry/field focus and signed helper/grants remain separate acceptance scopes.
+
+
+`swift test --filter IssueTrackerSettingsTests` checks scoped Issue Tracker values
+and the shared project-config helper regression. After a Debug build, use
+`--only issue-tracker-settings` in the object-linked group, with desired `--git`
+paths. It uses private global/XDG config, a repository and context injection;
+checks shared Apply/Cancel, inheritance, owned tester draft flow, icon decode and
+late confirmation/Quit fences. Tracker plugins and physical/signed access are not
+exercised.

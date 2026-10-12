@@ -1,0 +1,57 @@
+{
+  "date": "2026-10-12",
+  "baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Scoped Issue Tracker Config, shared Apply and owned Regex Tester",
+  "validation": {
+    "core": {
+      "tests": 3,
+      "failures": 0,
+      "seconds": 2.157,
+      "filter": "IssueTrackerSettingsTests"
+    },
+    "debug_build_exits": [
+      0,
+      0
+    ],
+    "diagnostics": "Initial build includes existing exit-zero/no-output diagnostic",
+    "native_engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "native_receiver_compilations": 2,
+    "native_receiver_processes": 4,
+    "final_exits": [
+      0,
+      0
+    ],
+    "owned_processes_windows_closed": true,
+    "private_repository_global_xdg_config": true,
+    "plugin_general_clipboard_user_config_used": false,
+    "full_core_or_group_rerun": false,
+    "new_screenshots": false
+  },
+  "checks": [
+    "Scoped inheritance/explicit empty/boolean presence",
+    "Project/bare config reads and invalid destination/NUL refusal",
+    "Include/unrelated-key preservation and Commit consumer",
+    "Shared Dialogs helper regression",
+    "Native shared Apply/destination-only Cancel and copy",
+    "Owned tester OK/Cancel/draft-only/duplicate/source gates",
+    "Original Bugtraq icon decode/provenance",
+    "Light/dark host construction",
+    "Validation and held Save confirmation retirement/Quit fence"
+  ],
+  "inventory": {
+    "dialogs": 130,
+    "partial": 73,
+    "pending_review": 57,
+    "certified_complete": 0
+  },
+  "remaining": [
+    "Tracker provider/association execution and effective Windows registry fallback",
+    "System saving",
+    "Physical focus/layout/help and screenshots",
+    "No-repository and signed config/child grants",
+    "Full hosted CI/App Store acceptance"
+  ]
+}

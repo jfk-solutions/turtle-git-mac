@@ -60,7 +60,7 @@ src/Resources/TortoiseProcENG.rc,IDD_EXPORT,Export,partial
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSTBLAME,TortoiseGitBlame,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_CREATECHANGELIST,Create Changelist,partial
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSBUGTRAQ,Issue Tracker Integration,pending-review
-src/Resources/TortoiseProcENG.rc,IDD_SETTINGSBUGTRAQ_CONFIG,Issue Tracker Config,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SETTINGSBUGTRAQ_CONFIG,Issue Tracker Config,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSBUGTRAQADV,Configure Issue Tracker Integration,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_AUTOTEXTTESTDLG,Autotext Tester,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGS_CONFIG,Advanced,partial

@@ -296,6 +296,7 @@
 		6D035E4FEDCAF3CDC5F247D0 /* MergeFindWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15C31E3C0CC998152AB576A6 /* MergeFindWindow.swift */; };
 		312D51AE6056FCE503142E6C /* MergeOpenWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D633B053D5BA7A07551C9788 /* MergeOpenWindow.swift */; };
 		B73161000000000000000001 /* IssueRegexTester.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73161000000000000000002 /* IssueRegexTester.swift */; };
+		B73162000000000000000001 /* IssueTrackerSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73162000000000000000002 /* IssueTrackerSettings.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -657,6 +658,7 @@
 		15C31E3C0CC998152AB576A6 /* MergeFindWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeFindWindow.swift; sourceTree = "<group>"; };
 		D633B053D5BA7A07551C9788 /* MergeOpenWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeOpenWindow.swift; sourceTree = "<group>"; };
 		B73161000000000000000002 /* IssueRegexTester.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssueRegexTester.swift; sourceTree = "<group>"; };
+		B73162000000000000000002 /* IssueTrackerSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssueTrackerSettings.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -767,6 +769,7 @@
 				B73102000000000000000004 /* GitConfigurationSettings.swift */,
 				B73102000000000000000008 /* SettingsNavigation.swift */,
 				B7310200000000000000000A /* SettingsTransaction.swift */,
+				B73162000000000000000002 /* IssueTrackerSettings.swift */,
 				B73161000000000000000002 /* IssueRegexTester.swift */,
 				B73105000000000000000002 /* ProjectDialogSettings.swift */,
 				B73117000000000000000002 /* NetworkSettings.swift */,
@@ -1612,6 +1615,7 @@
 				B73102000000000000000003 /* GitConfigurationSettings.swift in Sources */,
 				B73102000000000000000007 /* SettingsNavigation.swift in Sources */,
 				B73102000000000000000009 /* SettingsTransaction.swift in Sources */,
+				B73162000000000000000001 /* IssueTrackerSettings.swift in Sources */,
 				B73161000000000000000001 /* IssueRegexTester.swift in Sources */,
 				B73105000000000000000001 /* ProjectDialogSettings.swift in Sources */,
 				B73117000000000000000001 /* NetworkSettings.swift in Sources */,

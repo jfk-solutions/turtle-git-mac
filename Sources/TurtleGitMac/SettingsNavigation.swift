@@ -8,8 +8,8 @@ import Combine
 /// Pending pages are tracked in the inventory, rather than shown as empty panes.
 enum SettingsPageID: String {
     case general, dialogs, dialogs2, dialogs3, colors1, colors2, colors3, commit, alternativeEditor, git, remote, email, diff
-    case credential, network, contextMenu, contextMenu2, overlays, overlayHandlers, overlayIcons, mergeTool, mergeEditor, mergeColors, savedData, blame, unifiedDiff, advanced
-    var applyOrder: Int { let pages: [SettingsPageID] = [.general, .contextMenu, .contextMenu2, .dialogs, .dialogs2, .dialogs3, .colors1, .colors2, .colors3, .commit, .alternativeEditor, .overlays, .overlayHandlers, .overlayIcons, .git, .remote, .credential, .network, .email, .diff, .mergeTool, .mergeEditor, .mergeColors, .savedData, .blame, .unifiedDiff, .advanced]; return pages.firstIndex(of: self)! }
+    case issueTracker, credential, network, contextMenu, contextMenu2, overlays, overlayHandlers, overlayIcons, mergeTool, mergeEditor, mergeColors, savedData, blame, unifiedDiff, advanced
+    var applyOrder: Int { let pages: [SettingsPageID] = [.general, .contextMenu, .contextMenu2, .dialogs, .dialogs2, .dialogs3, .colors1, .colors2, .colors3, .commit, .alternativeEditor, .overlays, .overlayHandlers, .overlayIcons, .git, .remote, .issueTracker, .credential, .network, .email, .diff, .mergeTool, .mergeEditor, .mergeColors, .savedData, .blame, .unifiedDiff, .advanced]; return pages.firstIndex(of: self)! }
 }
 private final class SettingsPageNode: NSObject {
     let id: SettingsPageID, title: String, icon: MenuIcon
@@ -95,18 +95,18 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         transaction.window = window
         window.title = globalOnly ? "Global Settings – TurtleGit for Mac" : "Settings – TurtleGit for Mac"
     }
-    var canDismiss: Bool { !emailDraft.busy && !transaction.busy && remote?.busy != true && remote?.hasChild != true && GitConfigurationSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSaves == 0 && NetworkSettingsModel.activeSaves == 0 && view.window?.attachedSheet == nil }
+    var canDismiss: Bool { !emailDraft.busy && !transaction.busy && remote?.busy != true && remote?.hasChild != true && GitConfigurationSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSaves == 0 && NetworkSettingsModel.activeSaves == 0 && IssueTrackerSettingsModel.activeSaves == 0 && view.window?.attachedSheet == nil }
     func updateRepository() {
         guard !globalOnly, isViewLoaded, workspace.root?.path != repositoryPath else { return }
         // A captured Remote model belongs to the repository that created it.
         remote?.invalidate()
         if selected == .remote, let window = view.window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.close() }
         remote = nil; cache.removeValue(forKey: .remote); transaction.unregister("remote")
-        transaction.unregister("git"); transaction.unregister("dialogs3")
+        transaction.unregister("git"); transaction.unregister("dialogs3"); transaction.unregister("issueTracker"); cache.removeValue(forKey: .issueTracker)
         transaction.unregister("credential"); cache.removeValue(forKey: .credential)
         transaction.unregister("network"); cache.removeValue(forKey: .network)
         cache.removeValue(forKey: .git); cache.removeValue(forKey: .dialogs3)
-        if [.remote, .git, .dialogs3, .credential, .network].contains(selected) {
+        if [.remote, .git, .dialogs3, .issueTracker, .credential, .network].contains(selected) {
             current?.view.removeFromSuperview(); current?.removeFromParent(); current = nil
             show(selected == .remote ? .git : selected)
         }
@@ -127,6 +127,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
                 SettingsPageNode(.commit, "Message Editor", .editor),
                 SettingsPageNode(.alternativeEditor, "Alternative Editor", .editor)]),
             SettingsPageNode(.git, "Git", .settingsGit, children: (globalOnly || workspace.root == nil ? [] : [SettingsPageNode(.remote, "Remote", .settingsRemote)]) + [SettingsPageNode(.credential, "Credential", .settingsCredential)]),
+            SettingsPageNode(.issueTracker, "Issue Tracker Config", .settingsIssueTracker),
             SettingsPageNode(.network, "Network", .settingsNetwork),
             SettingsPageNode(.overlays, "Icon Overlays", .settingsOverlays, children: [SettingsPageNode(.overlayIcons, "Icon Set", .settingsOverlays), SettingsPageNode(.overlayHandlers, "Overlay Handlers", .settingsOverlays)]),
             SettingsPageNode(.email, "Email", .sendMail),
@@ -153,7 +154,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     @objc private func cancelSettings() { guard canDismiss else { return }; view.window?.makeFirstResponder(nil); transaction.cancel(); view.window?.performClose(nil) }
     private func host<V: View>(_ view: V) -> NSViewController { NSHostingController(rootView: view.environment(\.settingsTransaction, transaction)) }
     private func show(_ page: SettingsPageID) {
-        guard !emailDraft.busy, view.window?.attachedSheet == nil, remote?.busy != true, remote?.hasChild != true, GitConfigurationSettingsModel.activeSaves == 0, CredentialSettingsModel.activeSaves == 0, NetworkSettingsModel.activeSaves == 0 else { return }
+        guard !emailDraft.busy, view.window?.attachedSheet == nil, remote?.busy != true, remote?.hasChild != true, GitConfigurationSettingsModel.activeSaves == 0, CredentialSettingsModel.activeSaves == 0, NetworkSettingsModel.activeSaves == 0, IssueTrackerSettingsModel.activeSaves == 0 else { return }
         if current != nil && selected == page { return }
         view.window?.makeFirstResponder(nil)
         let controller: NSViewController
@@ -179,6 +180,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
             case .overlayIcons: controller = host(FinderOverlaySettingsPage(model: overlayDraft, iconsOnly: true))
             case .contextMenu: controller = host(FinderContextMenuSettingsPage(model: contextMenuDraft))
             case .contextMenu2: controller = host(FinderContextMenuSettingsPage(model: contextMenuDraft, extendedOnly: true))
+            case .issueTracker: controller = host(IssueTrackerSettingsPage(workspace: workspace, globalOnly: globalOnly))
             case .email: controller = host(EmailSettingsPage(model: emailDraft))
             case .diff: controller = host(DiffToolSettings())
             case .mergeTool: controller = host(MergeToolSettings())

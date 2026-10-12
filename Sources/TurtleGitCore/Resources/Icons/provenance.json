@@ -1475,6 +1475,12 @@
       "source": "src/Resources/LineEndingCRLF.ico",
       "sha256": "6df7d7ba2f0c844c4c747306a18abc53174aead1c7ca0c44e53fb74891ee8013",
       "blob": "2da40371db64f721c814cac2b69e980d3b08316b"
+    },
+    {
+      "asset": "bugtraq.ico",
+      "source": "src/Resources/bugtraq.ico",
+      "sha256": "8f337283e412ac5da93526d260c9398265e45192e309d8ea01be1e5a0d53134f",
+      "blob": "e175d1b78cb7143cff55cb806aa4a8f141436751"
     }
   ]
 }

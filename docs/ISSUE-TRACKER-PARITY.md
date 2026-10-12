@@ -278,3 +278,57 @@ OK/Cancel, ignored-cancellation late-result/newer-preview/retirement fences and
 Quit accounting. Core was unchanged and was not rerun; neither the complete
 eighteen-family group nor physical/signed UI was exercised. No screenshot is
 claimed. See `qa/issue-regex-tester-native-2026-10-12.json`.
+
+
+## Scoped Issue Tracker Config and tester Apply — 2026-10-12
+
+Ported SettingsBugtraqConfig.cpp/.h and IDD_SETTINGSBUGTRAQ_CONFIG's source group/
+field order: Effective/Local/Project/Global/System, BugTraq URL/warning/message/
+append/label/number/logregex, inheritance controls, IBugTraqProvider win32/x64
+UUIDs/parameters, and Save to. The Settings tree now has Issue Tracker Config
+with the original bugtraq.ico, copied byte-for-byte with SHA-256/Git blob metadata.
+The source UI label `bugtraq.warningifnoissue` writes its actual source key
+`bugtraq.warnifnoissue`. Effective is read-only; stored scopes retain missing
+versus explicit-empty values and inherited booleans. Windows provider data is
+preserved but does not execute COM providers on macOS. The associations/provider
+integration dialogs remain unported. System is readable/copyable here; privileged
+system-file saving remains unsupported, like the existing native project pages.
+
+Core shares scoped project read/write primitives with Dialogs 3, preserving
+.tgitconfig, includes, bare HEAD reads and source-ordered per-key writes. Saves
+affect only known BugTraq keys, retaining other Git settings and include files.
+Regex CRLF converts to LF when stored. Writes preflight destination/NUL values,
+use Git locks and report the failed key; multi-key writes are not atomic and do
+not promise stale-snapshot protection. Commit's existing property reader consumes
+the stored values without a second configuration representation.
+
+The page owns its Regex Tester and captures the source generation. Duplicate
+opens, source changes and Apply are blocked while the child is active. Tester
+OK returns trimmed expressions into the page draft without saving; tester Cancel
+leaves the draft unchanged; shared Cancel restores the prior saved fields and
+destination. Parent retirement closes its child and owned permission/confirmation
+sheets, cancels reads and fences late replies. Hidden-page Apply captures the
+destination/draft and does not restore active state after retirement. Authorized
+source-ordered writes may finish after forced closure; presentation is fenced.
+Global file access and destination-change confirmation use the existing native
+permission workflow. Saves are counted for page-switch/close/Quit guards.
+
+Validation: three focused Core tests passed, zero failures, 2.157 seconds. They
+cover scoped round trips/consumer settings, include/unrelated-key preservation,
+explicit-empty strings/implicit and empty booleans, regex newline normalization,
+Project/bare reads, invalid destinations/NUL/cancellation and a shared Dialogs
+reader/writer regression. Debug builds exited 0 before and after the source icon
+addition; the first emitted an existing exit-zero/no-output SwiftCompile
+diagnostic, so this is not a clean diagnostics claim.
+
+Native page checks passed with system and bundled Git, then passed again with the
+added icon decode check: two cached receiver compilations, four owned processes,
+all reaped. Actual private Git/shared Settings Apply and Commit reading, Effective/
+stored inheritance, destination-only Cancel/copy, owned tester OK/Cancel/draft-only/
+duplicate/source gates, light/dark hosts, validation and held-save retirement/
+Quit fencing passed. No plugin, general clipboard or user config was touched.
+No full Core/nineteen-family group, physical UI or signed grants were exercised.
+The resource is partial-native-replacement, not certified complete. See
+`qa/issue-tracker-settings-native-2026-10-12.json`. Physical focus/layout/help,
+no-repository/signed permissions, source plugin association/effective registry
+fallback, system saving and complete tracker integration remain open.
