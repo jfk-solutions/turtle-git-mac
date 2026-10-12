@@ -201,3 +201,5 @@ are not recursively audited.
 [CI runtime reuse](CI-RUNTIME-CACHES.md): exact prepared dependency caches with mandatory validation; hosted timing/hits remain pending.
 
 [Merge whitespace display](MERGE-WHITESPACE-DISPLAY-PARITY.md): source space/tab/EOL shapes and original ending icons in both viewers, with saved View/Settings controls.
+
+[Merge General settings](MERGE-GENERAL-SETTINGS-PARITY.md): native font preview/live metrics, configurable inline bound and source load-jump flags.

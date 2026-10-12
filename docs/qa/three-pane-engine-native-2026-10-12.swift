@@ -88,6 +88,15 @@ import TurtleGitCore
         }
         precondition(MergeWhitespaceDisplayPreferences.load(from: defaults) == .init(visible: false, endingIcons: true))
         model.setWhitespaceDisplay(.init())
+        try await wait { model.selectionRequest == nil }
+        let fontViews = textViews(controller.window?.contentView), fontStrings = textViews(controller.window?.contentView).map(\.string)
+        let fontSelections = fontViews.map { $0.selectedRange() }
+        MergeGeneralPreferences(fontName: "Menlo", fontSize: 14).save(to: defaults)
+        NotificationCenter.default.post(name: .mergeEditorPreferencesChanged, object: nil)
+        try await wait { fontViews.allSatisfy { $0.font?.pointSize == 14 } }
+        precondition(fontViews.map(\.string) == fontStrings && fontViews.map { $0.selectedRange() } == fontSelections && !model.dirty)
+        MergeGeneralPreferences().save(to: defaults)
+        NotificationCenter.default.post(name: .mergeEditorPreferencesChanged, object: nil)
         if let screenshots, let window = controller.window {
             try await capture(window, to: screenshots, dark: false); try await capture(window, to: screenshots, dark: true)
         }

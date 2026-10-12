@@ -20,6 +20,10 @@ The whitespace display batch adds source space/tab/EOL overlays and original
 CR/LF/CRLF icons to both viewers, with saved View/Settings controls and original
 ending metadata preserved. See [display parity](MERGE-WHITESPACE-DISPLAY-PARITY.md).
 
+The General settings batch adds native fixed-pitch font/size choices, live pane/
+ruler metrics, an inline-diff length bound and source load-navigation flags.
+See [General settings parity](MERGE-GENERAL-SETTINGS-PARITY.md).
+
 The target is complete behavioral parity, with native macOS windows and Finder
 integration. This first implementation establishes the architecture and common
 workflows. It does **not** represent the complete port or reproduce all upstream

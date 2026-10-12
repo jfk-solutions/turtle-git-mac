@@ -93,3 +93,37 @@ public struct MergeEditorPreferences: Equatable, Sendable {
         defaults.set(enableEditorConfig, forKey: "TurtleGitMerge.EnableEditorConfig")
     }
 }
+
+/// SetMainPage's source font, inline bound and load-navigation preferences.
+public struct MergeGeneralPreferences: Equatable, Sendable {
+    public var fontName: String
+    public var fontSize: Int
+    public var maximumInlineLength: Int
+    public var firstDifference: Bool
+    public var firstConflict: Bool
+    public init(fontName: String = "Consolas", fontSize: Int = 10, maximumInlineLength: Int = 3000, firstDifference: Bool = true, firstConflict: Bool = true) {
+        self.fontName = fontName.isEmpty ? "Consolas" : String(fontName.prefix(256))
+        self.fontSize = min(72, max(6, fontSize)); self.maximumInlineLength = min(100_000, max(0, maximumInlineLength))
+        self.firstDifference = firstDifference; self.firstConflict = firstConflict
+    }
+    public static func load(from defaults: UserDefaults = .standard) -> Self {
+        Self(fontName: defaults.string(forKey: "TurtleGitMerge.LogFontName") ?? "Consolas",
+             fontSize: defaults.object(forKey: "TurtleGitMerge.LogFontSize") == nil ? 10 : defaults.integer(forKey: "TurtleGitMerge.LogFontSize"),
+             maximumInlineLength: defaults.object(forKey: "TurtleGitMerge.InlineDiffMaxLineLength") == nil ? 3000 : defaults.integer(forKey: "TurtleGitMerge.InlineDiffMaxLineLength"),
+             firstDifference: defaults.object(forKey: "TurtleGitMerge.FirstDiffOnLoad") == nil ? true : defaults.bool(forKey: "TurtleGitMerge.FirstDiffOnLoad"),
+             firstConflict: defaults.object(forKey: "TurtleGitMerge.FirstConflictOnLoad") == nil ? true : defaults.bool(forKey: "TurtleGitMerge.FirstConflictOnLoad"))
+    }
+    public func save(to defaults: UserDefaults = .standard) {
+        let value = Self(fontName: fontName, fontSize: fontSize, maximumInlineLength: maximumInlineLength, firstDifference: firstDifference, firstConflict: firstConflict)
+        defaults.set(value.fontName, forKey: "TurtleGitMerge.LogFontName"); defaults.set(value.fontSize, forKey: "TurtleGitMerge.LogFontSize")
+        defaults.set(value.maximumInlineLength, forKey: "TurtleGitMerge.InlineDiffMaxLineLength")
+        defaults.set(value.firstDifference, forKey: "TurtleGitMerge.FirstDiffOnLoad"); defaults.set(value.firstConflict, forKey: "TurtleGitMerge.FirstConflictOnLoad")
+    }
+    public func inlineAllowed(baseLength: Int, mineLength: Int) -> Bool { baseLength <= maximumInlineLength && mineLength <= maximumInlineLength }
+    /// MainFrm checks FirstConflict independently of FirstDiff, even though the
+    /// settings checkbox is disabled when FirstDiff is off. Retain that ordering.
+    public func initialTarget(difference: NSRange?, conflict: NSRange?) -> NSRange? {
+        if firstConflict, let conflict { return conflict }
+        return firstDifference ? difference : nil
+    }
+}

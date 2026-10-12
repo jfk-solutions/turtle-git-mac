@@ -1,0 +1,64 @@
+{
+  "date": "2026-10-12",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Merge General font/inline/load-navigation controls with live native font/ruler metrics",
+  "implementationThenGroupedValidation": true,
+  "core": {
+    "tests": 24,
+    "failures": 0,
+    "seconds": 1.06,
+    "log": "build/qa/merge-general-core-2026-10-12.log"
+  },
+  "build": {
+    "exitCode": 0,
+    "configuration": "Debug",
+    "architecture": "arm64",
+    "signed": false,
+    "log": "build/qa/merge-general-build-repair-2026-10-12.log",
+    "notes": "Existing exit-zero diagnostic noise remains."
+  },
+  "native": {
+    "focusedExitCode": 0,
+    "focusedLog": "build/qa/merge-general-native-focused-2026-10-12.log",
+    "combinedAttemptLogs": [
+      "build/qa/merge-general-native-2026-10-12.log",
+      "build/qa/merge-general-native-repair-2026-10-12.log"
+    ],
+    "combinedExitCode": 1,
+    "checksPassedBeforeFinalFixtureAssertion": [
+      "three-pane live font update retains strings/selection/history",
+      "existing two-pane Unicode/save/Undo and unhosted model cases after repair",
+      "locator/whitespace/backup/Delete checks"
+    ],
+    "focusedChecks": [
+      "actual fixed-pitch fallback",
+      "live size changes",
+      "font-bound cache invalidation",
+      "both-side inline length gate",
+      "load jump enabled/disabled",
+      "selection/Undo/generation/files unchanged"
+    ],
+    "repairs": [
+      "unhosted model selection requests now defer until pane registration",
+      "disabled-jump test verifies retained caret instead of assuming difference metadata must be -1"
+    ],
+    "frontendCompilations": 3,
+    "receiverProcesses": 3,
+    "ownedWindowsClosed": true,
+    "ownedHelpersExited": true,
+    "failedFixtureLeftoversVerifiedAndRemoved": true,
+    "physicalInput": false,
+    "installedApplicationLaunched": false
+  },
+  "remainingAcceptance": [
+    "physical Settings font/size/Apply/Cancel",
+    "full General layout",
+    "large font/file rulers and resize",
+    "all gap/adjacent load-jump boundaries",
+    "complete three-pane inline differences",
+    "signed minimum-OS/Finder/App Store",
+    "hosted CI success",
+    "complete application parity"
+  ],
+  "completePortCertified": false
+}

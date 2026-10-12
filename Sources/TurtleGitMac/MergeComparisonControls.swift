@@ -25,6 +25,13 @@ struct MergeComparisonControls: View {
 
 import AppKit
 
+extension MergeGeneralPreferences {
+    var nativeFont: NSFont {
+        let value = NSFontManager.shared.font(withFamily: fontName, traits: [], weight: 5, size: CGFloat(fontSize)) ?? NSFont(name: fontName, size: CGFloat(fontSize))
+        return value.flatMap { $0.isFixedPitch ? $0 : nil } ?? .monospacedSystemFont(ofSize: CGFloat(fontSize), weight: .regular)
+    }
+}
+
 struct MergeViewControls: View {
     let preferences: MergeLocatorPreferences
     let apply: (MergeLocatorPreferences) -> Void

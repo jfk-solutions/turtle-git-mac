@@ -104,6 +104,10 @@ import TurtleGitCore
     var engineConfiguration: SubversionMergeConfiguration?
     @Published private(set) var comparisonOptions = MergeComparisonOptions.load()
     var comparisonDefaults: UserDefaults = .standard
+    @Published private(set) var generalPreferences = MergeGeneralPreferences.load()
+    private var pendingLoadNavigation = false
+    private var initialScrollRow: Int?
+    private var initialScrollSides = Set<Bool>()
     @Published private(set) var whitespaceDisplay = MergeWhitespaceDisplayPreferences.load()
     func setWhitespaceDisplay(_ value: MergeWhitespaceDisplayPreferences) {
         guard !busy, !confirmingQuit, !retired else { return }
@@ -138,7 +142,7 @@ import TurtleGitCore
         guard !busy, !confirmingQuit, !retired else { return }
         comparisonOptions = value; value.save(to: comparisonDefaults); rebuildFilterAlignment()
     }
-    struct AlignmentSelection { let id = UUID(); let sourceRange: NSRange }
+    struct AlignmentSelection { let id = UUID(); let sourceRange: NSRange; var scroll = false }
     @Published var alignmentSelections: [Bool: AlignmentSelection] = [:]
     var regexDefaults: UserDefaults = .standard
     private var regexCancellation: OperationCancellation?
@@ -231,6 +235,8 @@ import TurtleGitCore
     func useSpaces(base: Bool) -> Bool { spacePanes[base] ?? editorPreferences.useSpaces }
     func smartTab(base: Bool) -> Bool { smartTabPanes[base] ?? editorPreferences.smartTab }
     func refreshPreferences() {
+        let general = MergeGeneralPreferences.load(from: comparisonDefaults)
+        if general != generalPreferences { generalPreferences = general; inlineCache = [:] }
         locatorPreferences = .load(from: comparisonDefaults)
         whitespaceDisplay = .load(from: comparisonDefaults)
         let options = MergeComparisonOptions.load(from: comparisonDefaults)
@@ -270,6 +276,7 @@ import TurtleGitCore
         }
         if let cached = inlineCache[index] { return cached.value }
         let row = alignment.rows[index]
+        guard generalPreferences.inlineAllowed(baseLength: row.base.displayText.utf16.count, mineLength: row.destination.displayText.utf16.count) else { return nil }
         let value = row.base.lineNumber != nil && row.destination.lineNumber != nil ? MergeInlineComparison(base: row.base.displayText, destination: row.destination.displayText, word: inlineWordDiff) : nil
         inlineCache[index] = InlineResult(value: value); return value
     }
@@ -468,6 +475,8 @@ import TurtleGitCore
             }
         }
         reloadCommentProfiles = true
+        generalPreferences = .load(from: comparisonDefaults); pendingLoadNavigation = generalPreferences.firstDifference
+        initialScrollRow = nil; initialScrollSides = []
         busy = true
         Task {
             var externalOpened = false
@@ -558,7 +567,15 @@ import TurtleGitCore
                 }
                 alignment = value; difference = -1; selectedRows = nil; inlineCache = [:]
                 alignmentSelections = selections
-            case .failure(let failure): alignment = nil; regexFilterName = nil; error = failure.localizedDescription
+                if pendingLoadNavigation {
+                    pendingLoadNavigation = false
+                    if let first = value.differences.first {
+                        difference = 0
+                        initialScrollRow = first.lowerBound; initialScrollSides = [true, false]
+                        for side in [true, false] where scrolls[side] != nil { queueInitialNavigation(base: side) }
+                    }
+                }
+            case .failure(let failure): pendingLoadNavigation = false; alignment = nil; regexFilterName = nil; error = failure.localizedDescription
             }
         }
     }
@@ -654,7 +671,16 @@ import TurtleGitCore
     func remapOtherAnnotations(from old: FileComparisonAlignment, to new: FileComparisonAlignment, changedBase: Bool) {
         drafts?.remapAnnotations(from: old, to: new, base: !changedBase)
     }
-    func register(_ scroll: NSScrollView, base: Bool) { scrolls[base] = scroll; onRegisterScroll(scroll, base); refreshLocatorViewport() }
+    private func queueInitialNavigation(base: Bool) {
+        guard initialScrollSides.contains(base), let row = initialScrollRow, let alignment else { return }
+        let offset = alignment.rows.prefix(row).reduce(0) { sum, row in
+            let cell = base ? row.base : row.destination
+            return sum + (cell.lineNumber == nil ? 0 : cell.text.utf16.count)
+        }
+        initialScrollSides.remove(base)
+        alignmentSelections[base] = .init(sourceRange: NSRange(location: offset, length: 0), scroll: true)
+    }
+    func register(_ scroll: NSScrollView, base: Bool) { scrolls[base] = scroll; queueInitialNavigation(base: base); onRegisterScroll(scroll, base); refreshLocatorViewport() }
     func scrolled(_ source: NSScrollView) {
         defer { refreshLocatorViewport() }
         guard !synchronizing else { return }; synchronizing = true; defer { synchronizing = false }
@@ -790,7 +816,7 @@ struct FileComparisonEditor: NSViewRepresentable {
         view.allowsUndo = true; view.delegate = context.coordinator
         view.isAutomaticQuoteSubstitutionEnabled = false; view.isAutomaticDashSubstitutionEnabled = false
         view.isAutomaticSpellingCorrectionEnabled = false
-        view.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
+        view.font = model.generalPreferences.nativeFont
         view.textContainerInset = NSSize(width: 8, height: 8)
         view.isVerticallyResizable = true; view.isHorizontallyResizable = true
         view.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
@@ -820,6 +846,7 @@ struct FileComparisonEditor: NSViewRepresentable {
     }
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let view = scroll.documentView as? NSTextView else { return }
+        view.font = model.generalPreferences.nativeFont
         DispatchQueue.main.async { model.refreshLocatorViewport() }
         // Hosting can deliver a previously captured View value after an edit.
         // Read the current alignment and preserve the selection in source
@@ -848,6 +875,7 @@ struct FileComparisonEditor: NSViewRepresentable {
         }
         scroll.rulersVisible = model.showLineNumbers
         (scroll.verticalRulerView as? MergeLineRuler)?.sourceNumbers = cells.map(\.lineNumber)
+        (scroll.verticalRulerView as? MergeLineRuler)?.updateMetrics(for: view)
         (scroll.verticalRulerView as? MergeLineRuler)?.markedRows = model.annotations(base: base).marked
         scroll.verticalRulerView?.needsDisplay = true
         if let selection = model.alignmentSelections[base], context.coordinator.appliedSelection != selection.id {
@@ -855,6 +883,7 @@ struct FileComparisonEditor: NSViewRepresentable {
             let start = FileComparisonEditing.displayOffset(sourceOffset: selection.sourceRange.location, cells: cells)
             let end = FileComparisonEditing.displayOffset(sourceOffset: NSMaxRange(selection.sourceRange), cells: cells)
             view.setSelectedRange(NSRange(location: min(start, value.length), length: max(0, min(end, value.length) - min(start, value.length))))
+            if selection.scroll { view.scrollRangeToVisible(view.selectedRange()) }
             DispatchQueue.main.async { if model.alignmentSelections[base]?.id == selection.id { model.alignmentSelections.removeValue(forKey: base) } }
         }
         if model.editableBase == base, let caret = model.selectionRequest {
@@ -865,7 +894,7 @@ struct FileComparisonEditor: NSViewRepresentable {
         }
     }
     static func inline(_ row: Int, model: FileComparisonWindowModel, base: Bool) -> MergeInlineComparison? {
-        guard let alignment = model.alignment, alignment.rows.indices.contains(row), ((base ? alignment.rows[row].base : alignment.rows[row].destination).displayText as NSString).length <= 3000 else { return nil }
+        guard let alignment = model.alignment, alignment.rows.indices.contains(row) else { return nil }
         return model.inlineDifference(row)
     }
     static func missingOffsets(_ cells: [MergeSourceCell], model: FileComparisonWindowModel, base: Bool) -> [Int] {

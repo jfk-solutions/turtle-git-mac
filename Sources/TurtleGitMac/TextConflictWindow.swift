@@ -200,6 +200,7 @@ private enum MergeSourceSide {
     var engineConfiguration: SubversionMergeConfiguration?
     @Published private(set) var comparisonOptions = MergeComparisonOptions.load()
     var comparisonDefaults: UserDefaults = .standard
+    @Published private(set) var generalPreferences = MergeGeneralPreferences.load()
     @Published private(set) var whitespaceDisplay = MergeWhitespaceDisplayPreferences.load()
     func setWhitespaceDisplay(_ value: MergeWhitespaceDisplayPreferences) {
         guard !busy, !confirmingQuit, !retired else { return }
@@ -362,6 +363,7 @@ private enum MergeSourceSide {
             let next = MergeEditorPreferences.load()
             self.locatorPreferences = .load(from: self.comparisonDefaults)
             self.whitespaceDisplay = .load(from: self.comparisonDefaults)
+            self.generalPreferences = .load(from: self.comparisonDefaults)
             if next.tabWidth != self.editorPreferences.tabWidth || next.useSpaces != self.editorPreferences.useSpaces || next.smartTab != self.editorPreferences.smartTab {
                 self.tabWidths = [:]; self.spacePanes = [:]; self.smartTabPanes = [:]
                 self.editorPreferences = next
@@ -418,7 +420,11 @@ private enum MergeSourceSide {
         comparisonOptions = options; if changingOptions { options.save(to: comparisonDefaults) }; pendingComparisonOptions = nil
         regexFilterName = filter?.name
         selectedConflict = 0; caret = NSRange(location: 0, length: 0); selectionRequest = nil
-        selectConflict(0)
+        generalPreferences = .load(from: comparisonDefaults)
+        let ranges = MergeLineEndings.lineRanges(in: result)
+        let firstChanged = comparison.resultLocator?.states.firstIndex { $0 != .normal && $0 != .filtered && $0 != .empty }
+        let difference = firstChanged.flatMap { ranges.indices.contains($0) ? ranges[$0] : nil }
+        selectionRequest = generalPreferences.initialTarget(difference: difference, conflict: blocks.first?.range)
         reloadEditorConfig()
     }
     func selectConflict(_ index: Int) {
@@ -610,7 +616,7 @@ private struct MergeEditor: NSViewRepresentable {
         let view = MergeTextView(); view.isRichText = false; view.allowsUndo = editable
         view.isAutomaticQuoteSubstitutionEnabled = false; view.isAutomaticDashSubstitutionEnabled = false
         view.isAutomaticSpellingCorrectionEnabled = false; view.isContinuousSpellCheckingEnabled = false
-        view.font = .monospacedSystemFont(ofSize: 12, weight: .regular); view.textContainerInset = NSSize(width: 8, height: 8)
+        view.font = model.generalPreferences.nativeFont; view.textContainerInset = NSSize(width: 8, height: 8)
         view.setMergeTabWidth(tabWidth)
         view.mergeUseSpaces = useSpaces; view.mergeSmartTab = smartTab
         view.isVerticallyResizable = true; view.isHorizontallyResizable = true; view.autoresizingMask = [.width]
@@ -647,6 +653,7 @@ private struct MergeEditor: NSViewRepresentable {
     }
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let view = scroll.documentView as? MergeTextView else { return }
+        view.font = model.generalPreferences.nativeFont
         DispatchQueue.main.async { model.refreshLocatorViewport() }
         scroll.rulersVisible = model.editorPreferences.showLineNumbers
         view.setMergeTabWidth(tabWidth)
@@ -656,7 +663,7 @@ private struct MergeEditor: NSViewRepresentable {
         let range = view.selectedRange()
         if !view.string.utf8.elementsEqual(text.utf8) { view.string = text; view.setSelectedRange(NSRange(location: min(range.location, (text as NSString).length), length: 0)) }
         let entire = NSRange(location: 0, length: (text as NSString).length)
-        view.textStorage?.addAttributes([.foregroundColor: NSColor.labelColor, .backgroundColor: NSColor.textBackgroundColor, .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .regular), .paragraphStyle: view.defaultParagraphStyle ?? NSParagraphStyle.default], range: entire)
+        view.textStorage?.addAttributes([.foregroundColor: NSColor.labelColor, .backgroundColor: NSColor.textBackgroundColor, .font: model.generalPreferences.nativeFont, .paragraphStyle: view.defaultParagraphStyle ?? NSParagraphStyle.default], range: entire)
         if editable {
             for block in MergeText.conflicts(in: text) { view.textStorage?.addAttribute(.backgroundColor, value: MergePalette.color(.conflicted), range: block.range) }
             if let requested = model.selectionRequest, NSMaxRange(requested) <= entire.length {
@@ -677,6 +684,7 @@ private struct MergeEditor: NSViewRepresentable {
         view.whitespaceRenderer.removal = sourceSide == .theirs
         view.needsDisplay = true
         (scroll.verticalRulerView as? MergeLineRuler)?.sourceNumbers = sourceCells?.map(\.lineNumber)
+        (scroll.verticalRulerView as? MergeLineRuler)?.updateMetrics(for: view)
         scroll.verticalRulerView?.needsDisplay = true
     }
     func makeCoordinator() -> Coordinator { Coordinator(model: model, editable: editable) }
@@ -924,6 +932,13 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
 final class MergeLineRuler: NSRulerView {
     var sourceNumbers: [Int?]?
     var markedRows = Set<Int>()
+    func updateMetrics(for view: NSTextView) {
+        let count = sourceNumbers?.compactMap { $0 }.max() ?? MergeLineEndings.lineRanges(in: view.string).count
+        let font = NSFont.monospacedDigitSystemFont(ofSize: view.font?.pointSize ?? 10, weight: .regular)
+        let width = (String(max(1, count)) as NSString).size(withAttributes: [.font: font]).width + 22
+        let next = max(45, ceil(width))
+        if ruleThickness != next { ruleThickness = next }
+    }
     override init(scrollView: NSScrollView?, orientation: NSRulerView.Orientation) { super.init(scrollView: scrollView, orientation: orientation); ruleThickness = 45 }
     required init(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     override func drawHashMarksAndLabels(in rect: NSRect) {
@@ -935,7 +950,7 @@ final class MergeLineRuler: NSRulerView {
         defer { NSGraphicsContext.restoreGraphicsState() }
         NSBezierPath(rect: NSRect(x: bounds.minX, y: visibleInRuler.minY, width: bounds.width, height: visibleInRuler.height).intersection(bounds)).addClip()
         var location = 0, line = 1
-        let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .regular), .foregroundColor: NSColor.secondaryLabelColor]
+        let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.monospacedDigitSystemFont(ofSize: view.font?.pointSize ?? 10, weight: .regular), .foregroundColor: NSColor.secondaryLabelColor]
         while location < text.length {
             let range = text.lineRange(for: NSRange(location: location, length: 0))
             let glyph = manager.glyphRange(forCharacterRange: NSRange(location: location, length: 1), actualCharacterRange: nil)

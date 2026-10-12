@@ -111,3 +111,23 @@ final class MergeWhitespaceDisplayTests: XCTestCase {
         icons.save(to: defaults); XCTAssertEqual(MergeWhitespaceDisplayPreferences.load(from: defaults), icons)
     }
 }
+
+final class MergeGeneralPreferencesTests: XCTestCase {
+    func testSourceDefaultsClampingAndPrivatePersistence() {
+        let suite = "TurtleGit.MergeGeneral." + UUID().uuidString, defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        XCTAssertEqual(MergeGeneralPreferences.load(from: defaults), .init(fontName: "Consolas", fontSize: 10, maximumInlineLength: 3000, firstDifference: true, firstConflict: true))
+        let value = MergeGeneralPreferences(fontName: "Menlo", fontSize: 16, maximumInlineLength: 10, firstDifference: false, firstConflict: false)
+        value.save(to: defaults); XCTAssertEqual(MergeGeneralPreferences.load(from: defaults), value)
+        XCTAssertEqual(MergeGeneralPreferences(fontSize: -2, maximumInlineLength: -3).fontSize, 6)
+        XCTAssertEqual(MergeGeneralPreferences(fontSize: 500, maximumInlineLength: 200000).maximumInlineLength, 100000)
+        XCTAssertFalse(value.inlineAllowed(baseLength: 11, mineLength: 1)); XCTAssertTrue(value.inlineAllowed(baseLength: 10, mineLength: 10))
+    }
+    func testConflictPriorityPreservesIndependentSourceFlags() {
+        let difference = NSRange(location: 5, length: 2), conflict = NSRange(location: 90, length: 20)
+        XCTAssertEqual(MergeGeneralPreferences().initialTarget(difference: difference, conflict: conflict), conflict)
+        XCTAssertEqual(MergeGeneralPreferences(firstDifference: false).initialTarget(difference: difference, conflict: conflict), conflict)
+        XCTAssertEqual(MergeGeneralPreferences(firstConflict: false).initialTarget(difference: difference, conflict: conflict), difference)
+        XCTAssertNil(MergeGeneralPreferences(firstDifference: false, firstConflict: false).initialTarget(difference: difference, conflict: conflict))
+    }
+}

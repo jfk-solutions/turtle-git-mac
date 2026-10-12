@@ -10,6 +10,9 @@ struct MergeEditorSettings: View {
     @Environment(\.settingsTransaction) private var transaction
     @State private var windowReference = MergeSettingsWindowReference()
     @State private var initialized = false
+    @State private var general = MergeGeneralPreferences.load()
+    @State private var fontSize = String(MergeGeneralPreferences.load().fontSize)
+    @State private var maximumInline = String(MergeGeneralPreferences.load().maximumInlineLength)
     @State private var draft = MergeEditorPreferences.load()
     @State private var comparison = MergeComparisonOptions.load()
     @State private var locator = MergeLocatorPreferences.load()
@@ -25,21 +28,32 @@ struct MergeEditorSettings: View {
         guard let width = Int(tabSize), (1...1000).contains(width) else { return nil }
         return width
     }
+    private var validFontSize: Int? { Int(fontSize).flatMap { (6...72).contains($0) ? $0 : nil } }
+    private var validInlineLength: Int? { Int(maximumInline).flatMap { (0...100_000).contains($0) ? $0 : nil } }
+    private var generalDraft: MergeGeneralPreferences {
+        .init(fontName: general.fontName, fontSize: validFontSize ?? general.fontSize, maximumInlineLength: validInlineLength ?? general.maximumInlineLength,
+              firstDifference: general.firstDifference, firstConflict: general.firstConflict)
+    }
     private var changed: Bool {
-        guard let width = validWidth else { return true }
-        return MergeEditorPreferences(tabWidth: width, useSpaces: draft.useSpaces, smartTab: draft.smartTab, showLineNumbers: draft.showLineNumbers, enableEditorConfig: draft.enableEditorConfig, autoAdd: draft.autoAdd) != .load() || comparison != .load() || locator != .load() || whitespaceDisplay != .load() || backupOriginal != MergeFileSaveOptions.backupEnabled() || profileText != savedProfileText
+        guard let width = validWidth, validFontSize != nil, validInlineLength != nil else { return true }
+        return MergeEditorPreferences(tabWidth: width, useSpaces: draft.useSpaces, smartTab: draft.smartTab, showLineNumbers: draft.showLineNumbers, enableEditorConfig: draft.enableEditorConfig, autoAdd: draft.autoAdd) != .load() || generalDraft != .load() || comparison != .load() || locator != .load() || whitespaceDisplay != .load() || backupOriginal != MergeFileSaveOptions.backupEnabled() || profileText != savedProfileText
     }
     private var validationError: String? {
         if validWidth == nil { return "Enter a tab size from 1 to 1000." }
+        if validFontSize == nil { return "Enter a font size from 6 to 72 points." }
+        if validInlineLength == nil { return "Enter an inline-diff line length from 0 to 100000." }
         if let profileError { return profileError }
         do { try MergeCommentProfileFile.validate(profileText); return nil }
         catch { return error.localizedDescription }
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
+            ScrollView { VStack(alignment: .leading, spacing: 16) {
             GroupBox("General") {
                 VStack(alignment: .leading, spacing: 12) {
                     Toggle("Backup original file", isOn: $backupOriginal)
+                    Toggle("Jump to first difference when loading", isOn: $general.firstDifference)
+                    Toggle("Jump to first conflict when loading", isOn: $general.firstConflict).padding(.leading, 12).disabled(!general.firstDifference)
                     Toggle("Show line numbers", isOn: $draft.showLineNumbers)
                     Toggle("Show Whitespaces", isOn: $whitespaceDisplay.visible)
                     Toggle("Use icons for CR, LF and CRLF", isOn: $whitespaceDisplay.endingIcons)
@@ -58,6 +72,16 @@ struct MergeEditorSettings: View {
                     }
                     Toggle("Add new files to Git after saving a patched result", isOn: $draft.autoAdd)
                     Toggle("Enable EditorConfig", isOn: $draft.enableEditorConfig)
+                    HStack {
+                        Text("Font:"); NativeFixedFontChoice(value: $general.fontName).frame(height: 24)
+                        NativeFontSizeChoice(value: $fontSize).frame(width: 75, height: 24)
+                    }
+                    HStack {
+                        Text("Max line length for inline diffs:")
+                        TextField("Max line length", text: $maximumInline).frame(width: 90)
+                        Spacer()
+                    }
+                    if validFontSize == nil || validInlineLength == nil { Text(validationError ?? "").font(.caption).foregroundStyle(.red) }
                     Divider()
                     Picker("Whitespace comparison:", selection: $comparison.whitespace) {
                         ForEach(MergeWhitespaceComparison.allCases, id: \.rawValue) { Text($0.title).tag($0) }
@@ -78,6 +102,7 @@ struct MergeEditorSettings: View {
             }
             Text("Apply indentation defaults to open panes and new windows. Enable EditorConfig sets the default for new windows; open panes retain their individual toggles.")
                 .font(.caption).foregroundStyle(.secondary)
+            } }
             Spacer()
             if transaction == nil { HStack {
                 Spacer()
@@ -88,6 +113,9 @@ struct MergeEditorSettings: View {
             } }
         }.padding(20).background(MergeSettingsWindowProbe(reference: windowReference).frame(width: 0, height: 0)).onAppear { if !initialized { initialized = true; restore() } }
         .onChange(of: tabSize) { _ in transaction?.notify() }
+        .onChange(of: general) { _ in transaction?.notify() }
+        .onChange(of: fontSize) { _ in transaction?.notify() }
+        .onChange(of: maximumInline) { _ in transaction?.notify() }
         .onChange(of: comparison) { _ in transaction?.notify() }
         .onChange(of: locator) { _ in transaction?.notify() }
         .onChange(of: whitespaceDisplay) { _ in transaction?.notify() }
@@ -127,6 +155,7 @@ struct MergeEditorSettings: View {
             let alert = NSAlert(); alert.messageText = "Comment profiles were not saved"
             alert.informativeText = error.localizedDescription; alert.runModal(); return false
         }
+        general = generalDraft; general.save()
         draft.tabWidth = width; draft.save(); comparison.save(); locator.save(); whitespaceDisplay.save()
         MergeFileSaveOptions.saveBackupPreference(backupOriginal)
         NotificationCenter.default.post(name: .mergeEditorPreferencesChanged, object: nil); return true
@@ -136,6 +165,7 @@ struct MergeEditorSettings: View {
         catch { return error.localizedDescription }
     }
     private func restore() {
+        general = .load(); fontSize = String(general.fontSize); maximumInline = String(general.maximumInlineLength)
         draft = .load(); comparison = .load(); locator = .load(); whitespaceDisplay = .load(); tabSize = String(draft.tabWidth)
         backupOriginal = MergeFileSaveOptions.backupEnabled()
         do { profileText = try MergeCommentProfileFile.text(); savedProfileText = profileText; profileError = nil }
