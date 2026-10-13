@@ -22,10 +22,10 @@ import AppKit
     var failed: (SettingsPageID) -> Void = { _ in }
     var completed: (Bool) -> Void = { _ in }
     var modified: Bool { participants.values.contains { $0.modified() } }
-    func register(_ id: String, participant: Participant) {
+    func register(_ id: String, participant: Participant, registration: UUID = UUID()) {
         guard !invalidated else { return }
         if participants[id] == nil { order.append(id) }
-        participants[id] = participant; registrations[id] = UUID(); notify()
+        participants[id] = participant; registrations[id] = registration; notify()
     }
     func unregister(_ id: String) { participants.removeValue(forKey: id); registrations.removeValue(forKey: id); order.removeAll { $0 == id }; notify() }
     func notify() { objectWillChange.send(); changed() }
@@ -85,11 +85,12 @@ extension EnvironmentValues {
 }
 private struct SettingsParticipantModifier<Value: Equatable>: ViewModifier {
     @Environment(\.settingsTransaction) private var transaction
+    @State private var registration = UUID()
     let id: String, page: SettingsPageID, value: Value
     let modified: () -> Bool, validate: () -> String?, apply: () async -> Bool, cancel: () -> Void
     func body(content: Content) -> some View {
         content.onAppear {
-            transaction?.register(id, participant: .init(page: page, modified: modified, validate: validate, apply: apply, cancel: cancel))
+            transaction?.register(id, participant: .init(page: page, modified: modified, validate: validate, apply: apply, cancel: cancel), registration: registration)
         }.onChange(of: value) { _ in transaction?.notify() }
     }
 }

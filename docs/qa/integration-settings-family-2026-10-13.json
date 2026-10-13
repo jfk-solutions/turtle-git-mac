@@ -1,0 +1,94 @@
+{
+  "date": "2026-10-13",
+  "scope": "Connected General/Message Editor/Hooks/Network/Email/Finder Settings ownership, repository scope regressions and cached Apply registration repair",
+  "checks": {
+    "debug_build": {
+      "exit": 0
+    },
+    "core": {
+      "rerun": false,
+      "reason": "No Core changes; app ownership and transaction behavior validated natively"
+    },
+    "native_group": {
+      "cases": [
+        "settings-family",
+        "network-settings",
+        "credential-settings",
+        "issue-tracker-settings",
+        "email-settings",
+        "overlay-settings"
+      ],
+      "engines": [
+        "system",
+        "bundled"
+      ],
+      "exit": 0,
+      "reaped_pids": [
+        84273,
+        84279,
+        84297,
+        84364,
+        84405,
+        84406,
+        84407,
+        84413,
+        84431,
+        84499,
+        84540,
+        84541
+      ]
+    },
+    "context_registration_followup": {
+      "cases": [
+        "settings-family"
+      ],
+      "engines": [
+        "system",
+        "bundled"
+      ],
+      "exit": 0,
+      "reaped_pids": [
+        84575,
+        84586
+      ],
+      "scope": "Genuine registration/context replacement while Apply is suspended refuses stale writes"
+    }
+  },
+  "failures": [
+    {
+      "phase": "fixture compile",
+      "reason": "Protected-key list accidentally expanded an Advanced dictionary subscript",
+      "receivers_launched": 0
+    },
+    {
+      "reaped_pid": 84037,
+      "reason": "Cached Email Apply unexpectedly refused"
+    },
+    {
+      "reaped_pid": 84111,
+      "reason": "Diagnostic identified cached-page onAppear replacing registration token during Apply",
+      "repair": "Stable token per retained participant view and shared Finder/Network/Credential models; new contexts retain new tokens"
+    }
+  ],
+  "verified": [
+    "Cached General update/Message Editor/Email private-domain Apply",
+    "Validated custom Git-engine persistence to owner store",
+    "Global Hook snapshot/private persistence and Cancel",
+    "Existing Network/Credential/Issue Tracker scope and child-save lifetimes",
+    "SMTP private secret-store lifecycle",
+    "Overlay validation/publication boundaries",
+    "Cached registration survives page reappearance; genuine replacement refuses stale writes"
+  ],
+  "remaining": [
+    "Full physical/visual/keyboard/VoiceOver parity",
+    "Signed Finder/SMTP/credential and App Store acceptance",
+    "Generic external helper/platform boundaries",
+    "Full hosted CI result"
+  ],
+  "logs": [
+    "build/qa/integration-settings-family-build-2026-10-13.log",
+    "build/qa/integration-settings-family-native-2026-10-13.log",
+    "build/qa/integration-settings-context-native-2026-10-13.log",
+    "build/qa/integration-settings-family-diagnostic-2026-10-13.log"
+  ]
+}

@@ -30,9 +30,9 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     private let preferences: UserDefaults
     let globalOnly: Bool
     private let appearanceDraft: SettingsAppearanceDraft
-    private let overlayDraft = FinderOverlaySettingsModel()
-    private let emailDraft = EmailSettingsModel()
-    private let contextMenuDraft = FinderContextMenuSettingsModel()
+    private let overlayDraft: FinderOverlaySettingsModel
+    private let emailDraft: EmailSettingsModel
+    private let contextMenuDraft: FinderContextMenuSettingsModel
     private let outline = NSOutlineView()
     private let content = NSView()
     private let busyShield = SettingsBusyShield()
@@ -51,7 +51,11 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     private var hooks: HookSettingsModel?
     private var delegateProxy: SettingsWindowDelegate?
     private var updating = false
-    init(workspace: RepositoryModel, appearance: AppAppearance, globalOnly: Bool = false, preferences: UserDefaults = .standard) { self.preferences = preferences; self.workspace = workspace; self.appearance = appearance; self.globalOnly = globalOnly; self.appearanceDraft = SettingsAppearanceDraft(appearance: appearance); super.init(nibName: nil, bundle: nil) }
+    init(workspace: RepositoryModel, appearance: AppAppearance, globalOnly: Bool = false, preferences: UserDefaults = .standard, smtpCredentials: any SMTPCredentialStore = SMTPKeychainStore()) {
+        overlayDraft = FinderOverlaySettingsModel(preferences:preferences)
+        emailDraft = EmailSettingsModel(preferences:preferences,credentials:smtpCredentials)
+        contextMenuDraft = FinderContextMenuSettingsModel(defaults:preferences)
+        self.preferences = preferences; self.workspace = workspace; self.appearance = appearance; self.globalOnly = globalOnly; self.appearanceDraft = SettingsAppearanceDraft(appearance: appearance); super.init(nibName: nil, bundle: nil) }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     override func loadView() {
         view = NSView(); view.setAccessibilityLabel("TurtleGit settings")
@@ -164,16 +168,16 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         if let existing = cache[page] { controller = existing }
         else {
             switch page {
-            case .general: controller = host(GeneralSettings(appearance: appearanceDraft))
+            case .general: controller = host(GeneralSettings(appearance: appearanceDraft, preferences: preferences))
             case .colors1, .colors2, .colors3: controller = host(SourceColorSettings(page: page, appearance: appearanceDraft, preferences: preferences))
             case .dialogs: controller = host(LogDialogSettings(defaults: preferences))
             case .hooks:
-                let draft = HookSettingsModel(); hooks = draft
+                let draft = HookSettingsModel(preferences:preferences); hooks = draft
                 guard let context = try? workspace.gitConfigurationContext(globalOnly: globalOnly) else { return }
                 controller = host(HookSettingsPage(model: draft, repository: context.localAvailable ? context.repository : nil, access: context.access))
             case .dialogs2: controller = host(DialogsBehaviorSettings(defaults: preferences))
             case .dialogs3: controller = host(ProjectDialogSettingsPage(workspace: workspace, globalOnly: globalOnly))
-            case .commit: controller = host(CommitEditorSettings(editorOnly: true))
+            case .commit: controller = host(CommitEditorSettings(editorOnly: true, preferences: preferences))
             case .alternativeEditor: controller = host(AlternativeEditorSettings(preferences: preferences))
             case .git: controller = host(GitConfigurationSettingsPage(workspace: workspace, globalOnly: globalOnly))
             case .credential:
@@ -181,7 +185,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
                 controller = host(CredentialSettingsPage(model: CredentialSettingsModel(repository: context.repository, access: context.access, localAvailable: context.localAvailable)))
             case .network:
                 guard let context = try? workspace.gitConfigurationContext(globalOnly: globalOnly) else { return }
-                controller = host(NetworkSettingsPage(model: NetworkSettingsModel(repository: context.repository, access: context.access, localAvailable: context.localAvailable)))
+                controller = host(NetworkSettingsPage(model: NetworkSettingsModel(repository: context.repository, access: context.access, localAvailable: context.localAvailable, preferences: preferences)))
             case .watchedRepositories:
                 if let manager=workspace.finderWatches { controller=host(FinderWatchedRepositoriesPage(manager:manager)) }
                 else { controller=host(Text("Watched repositories are unavailable.").padding(20)) }

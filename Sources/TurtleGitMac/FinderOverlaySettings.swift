@@ -4,6 +4,7 @@ import SwiftUI
 import TurtleGitCore
 
 @MainActor final class FinderOverlaySettingsModel: ObservableObject {
+    let settingsRegistration = UUID()
     @Published var draft: FinderOverlaySettings
     @Published private(set) var error: String?
     @Published private(set) var notice: String?
@@ -99,7 +100,7 @@ struct FinderOverlaySettingsPage: View {
             }.padding(12)
         }
         .onAppear {
-            transaction?.register("overlays", participant: .init(page: .overlays, modified: { model.modified }, validate: { model.validationError }, apply: { model.apply() }, cancel: model.cancel))
+            transaction?.register("overlays", participant: .init(page: .overlays, modified: { model.modified }, validate: { model.validationError }, apply: { model.apply() }, cancel: model.cancel), registration: model.settingsRegistration)
         }
         .onChange(of: model.draft) { _ in transaction?.notify() }
     }

@@ -4,6 +4,7 @@ import SwiftUI
 import TurtleGitCore
 
 @MainActor final class CredentialSettingsModel: ObservableObject {
+    let settingsRegistration = UUID()
     static var activeSaves = 0
     @Published private(set) var snapshot: GitCredentialSnapshot?
     @Published private(set) var files: GitConfigurationFiles?
@@ -290,7 +291,7 @@ struct CredentialSettingsPage: View {
         .background(CredentialWindowCapture(model: model).frame(width: 0, height: 0))
         .onAppear {
             model.activate()
-            transaction?.register("credential", participant: .init(page: .credential, modified: { model.modified }, validate: { model.validationError }, apply: { await model.applyForSettings(owner: transaction?.window) }, cancel: model.cancelDraft))
+            transaction?.register("credential", participant: .init(page: .credential, modified: { model.modified }, validate: { model.validationError }, apply: { await model.applyForSettings(owner: transaction?.window) }, cancel: model.cancelDraft), registration: model.settingsRegistration)
         }
         .onChange(of: model.draft) { _ in transaction?.notify() }
         .onChange(of: model.busy) { _ in transaction?.notify() }

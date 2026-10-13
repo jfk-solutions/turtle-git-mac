@@ -4,6 +4,7 @@ import SwiftUI
 import TurtleGitCore
 
 @MainActor final class FinderContextMenuSettingsModel: ObservableObject {
+    let settingsRegistration = UUID()
     @Published var draft: FinderMenuSettings
     @Published var message: String?
     private var saved: FinderMenuSettings
@@ -76,7 +77,7 @@ struct FinderContextMenuSettingsPage: View {
             Spacer(minLength: 0)
         }.padding(12)
         .onAppear {
-            transaction?.register("contextMenu", participant: .init(page: .contextMenu, modified: { model.modified }, validate: { model.draft.valid ? nil : "Enter one absolute context-menu exclusion path per line." }, apply: model.apply, cancel: model.cancel))
+            transaction?.register("contextMenu", participant: .init(page: .contextMenu, modified: { model.modified }, validate: { model.draft.valid ? nil : "Enter one absolute context-menu exclusion path per line." }, apply: model.apply, cancel: model.cancel), registration: model.settingsRegistration)
         }
         .onChange(of: model.draft) { _ in transaction?.notify() }
     }

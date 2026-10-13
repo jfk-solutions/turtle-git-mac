@@ -37,6 +37,7 @@ private actor ProxyPasswordCache: ProxyPasswordStoring {
     }
 }
 @MainActor final class NetworkSettingsModel: ObservableObject {
+    let settingsRegistration = UUID()
     static var activeSaves = 0
     @Published var proxy = GitProxySettings()
     @Published var ssh = SSHClientPreferences.load()
@@ -217,7 +218,7 @@ struct NetworkSettingsPage: View {
         .background(NetworkWindowCapture(model: model).frame(width: 0, height: 0))
         .onAppear {
             model.activate()
-            transaction?.register("network", participant: .init(page: .network, modified: { model.modified }, validate: model.validate, apply: { await model.apply(owner: transaction?.window) }, cancel: model.cancelDraft))
+            transaction?.register("network", participant: .init(page: .network, modified: { model.modified }, validate: model.validate, apply: { await model.apply(owner: transaction?.window) }, cancel: model.cancelDraft), registration: model.settingsRegistration)
         }
         .onChange(of: model.proxy) { _ in transaction?.notify() }
         .onChange(of: model.ssh) { _ in transaction?.notify() }

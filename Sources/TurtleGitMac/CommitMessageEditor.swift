@@ -267,6 +267,7 @@ private final class MessageTextView: ProjectMessageTextView {
 
 struct CommitEditorSettings: View {
     private let editorOnly: Bool
+    private let preferences: UserDefaults
     private static let editorKeys = Set(["StyleCommitMessages", "AutoCompleteMinChars", "AutocompleteRemovesExtensions"])
     @State private var stripComments: Bool
     @State private var selectFiles: Bool
@@ -290,31 +291,31 @@ struct CommitEditorSettings: View {
         "Autocompletion": .boolean(autocompletion),
         "AutocompleteRemovesExtensions": .boolean(removeExtensions)
     ]; return editorOnly ? values.filter { Self.editorKeys.contains($0.key) } : values }
-    init(editorOnly: Bool = false) {
-        self.editorOnly = editorOnly
-        _stripComments = State(initialValue: (UserDefaults.standard.object(forKey: "StripCommentedLines") as? NSNumber)?.boolValue ?? false)
-        _selectFiles = State(initialValue: (UserDefaults.standard.object(forKey: "SelectFilesForCommit") as? NSNumber)?.boolValue ?? true)
-        _noMissing = State(initialValue: (UserDefaults.standard.object(forKey: "AutoselectMissingFiles") as? NSNumber)?.boolValue ?? false)
-        _historyLimit = State(initialValue: (UserDefaults.standard.object(forKey: "Commit.MaxHistoryItems") as? NSNumber)?.intValue ?? 25)
-        _parseTimeout = State(initialValue: (UserDefaults.standard.object(forKey: "AutocompleteParseTimeout") as? NSNumber)?.intValue ?? 5)
-        _styleMessages = State(initialValue: (UserDefaults.standard.object(forKey: "StyleCommitMessages") as? NSNumber)?.boolValue ?? true)
-        _completionMinimum = State(initialValue: (UserDefaults.standard.object(forKey: "AutoCompleteMinChars") as? NSNumber)?.intValue ?? 3)
-        _autocompletion = State(initialValue: (UserDefaults.standard.object(forKey: "Autocompletion") as? NSNumber)?.boolValue ?? true)
-        _removeExtensions = State(initialValue: (UserDefaults.standard.object(forKey: "AutocompleteRemovesExtensions") as? NSNumber)?.boolValue ?? false)
+    init(editorOnly: Bool = false, preferences: UserDefaults = .standard) {
+        self.editorOnly = editorOnly; self.preferences = preferences
+        _stripComments = State(initialValue: (preferences.object(forKey: "StripCommentedLines") as? NSNumber)?.boolValue ?? false)
+        _selectFiles = State(initialValue: (preferences.object(forKey: "SelectFilesForCommit") as? NSNumber)?.boolValue ?? true)
+        _noMissing = State(initialValue: (preferences.object(forKey: "AutoselectMissingFiles") as? NSNumber)?.boolValue ?? false)
+        _historyLimit = State(initialValue: (preferences.object(forKey: "Commit.MaxHistoryItems") as? NSNumber)?.intValue ?? 25)
+        _parseTimeout = State(initialValue: (preferences.object(forKey: "AutocompleteParseTimeout") as? NSNumber)?.intValue ?? 5)
+        _styleMessages = State(initialValue: (preferences.object(forKey: "StyleCommitMessages") as? NSNumber)?.boolValue ?? true)
+        _completionMinimum = State(initialValue: (preferences.object(forKey: "AutoCompleteMinChars") as? NSNumber)?.intValue ?? 3)
+        _autocompletion = State(initialValue: (preferences.object(forKey: "Autocompletion") as? NSNumber)?.boolValue ?? true)
+        _removeExtensions = State(initialValue: (preferences.object(forKey: "AutocompleteRemovesExtensions") as? NSNumber)?.boolValue ?? false)
         let initial: [String: SettingsScalar] = [
-            "StripCommentedLines": .boolean((UserDefaults.standard.object(forKey: "StripCommentedLines") as? NSNumber)?.boolValue ?? false),
-            "SelectFilesForCommit": .boolean((UserDefaults.standard.object(forKey: "SelectFilesForCommit") as? NSNumber)?.boolValue ?? true),
-            "AutoselectMissingFiles": .boolean((UserDefaults.standard.object(forKey: "AutoselectMissingFiles") as? NSNumber)?.boolValue ?? false),
-            "Commit.MaxHistoryItems": .integer((UserDefaults.standard.object(forKey: "Commit.MaxHistoryItems") as? NSNumber)?.intValue ?? 25),
-            "AutocompleteParseTimeout": .integer((UserDefaults.standard.object(forKey: "AutocompleteParseTimeout") as? NSNumber)?.intValue ?? 5),
-            "StyleCommitMessages": .boolean((UserDefaults.standard.object(forKey: "StyleCommitMessages") as? NSNumber)?.boolValue ?? true),
-            "AutoCompleteMinChars": .integer((UserDefaults.standard.object(forKey: "AutoCompleteMinChars") as? NSNumber)?.intValue ?? 3),
-            "Autocompletion": .boolean((UserDefaults.standard.object(forKey: "Autocompletion") as? NSNumber)?.boolValue ?? true),
-            "AutocompleteRemovesExtensions": .boolean((UserDefaults.standard.object(forKey: "AutocompleteRemovesExtensions") as? NSNumber)?.boolValue ?? false)
+            "StripCommentedLines": .boolean((preferences.object(forKey: "StripCommentedLines") as? NSNumber)?.boolValue ?? false),
+            "SelectFilesForCommit": .boolean((preferences.object(forKey: "SelectFilesForCommit") as? NSNumber)?.boolValue ?? true),
+            "AutoselectMissingFiles": .boolean((preferences.object(forKey: "AutoselectMissingFiles") as? NSNumber)?.boolValue ?? false),
+            "Commit.MaxHistoryItems": .integer((preferences.object(forKey: "Commit.MaxHistoryItems") as? NSNumber)?.intValue ?? 25),
+            "AutocompleteParseTimeout": .integer((preferences.object(forKey: "AutocompleteParseTimeout") as? NSNumber)?.intValue ?? 5),
+            "StyleCommitMessages": .boolean((preferences.object(forKey: "StyleCommitMessages") as? NSNumber)?.boolValue ?? true),
+            "AutoCompleteMinChars": .integer((preferences.object(forKey: "AutoCompleteMinChars") as? NSNumber)?.intValue ?? 3),
+            "Autocompletion": .boolean((preferences.object(forKey: "Autocompletion") as? NSNumber)?.boolValue ?? true),
+            "AutocompleteRemovesExtensions": .boolean((preferences.object(forKey: "AutocompleteRemovesExtensions") as? NSNumber)?.boolValue ?? false)
         ]
         _original = State(initialValue: editorOnly ? initial.filter { Self.editorKeys.contains($0.key) } : initial)
     }
-    private func applyDraft() { preferenceValues.forEach { $0.value.save($0.key) }; original = preferenceValues }
+    private func applyDraft() { preferenceValues.forEach { $0.value.save($0.key, defaults:preferences) }; original = preferenceValues }
     private func cancelDraft() {
         if case .boolean(let value) = original["StripCommentedLines"] { stripComments = value }
         if case .boolean(let value) = original["SelectFilesForCommit"] { selectFiles = value }
@@ -328,7 +329,7 @@ struct CommitEditorSettings: View {
     }
     var body: some View {
         Form {
-            Toggle("Style commit messages", isOn: $styleMessages)
+            LogPreferenceCheckbox(title: "Style commit messages", value: $styleMessages)
             Text(verbatim: "Use *bold*, ^italic^ and _underlined_ text. Markers remain in the commit message. Issue and URL links stay enabled.")
                 .font(.caption).foregroundStyle(.secondary)
             if !editorOnly {

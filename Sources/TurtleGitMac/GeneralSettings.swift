@@ -4,11 +4,16 @@ import SwiftUI
 import TurtleGitCore
 
 @MainActor final class GeneralGitSettingsModel: ObservableObject {
-    @Published var draft = GitEnginePreferences.load() { didSet { if draft != oldValue { version = "" } } }
+    @Published var draft: GitEnginePreferences { didSet { if draft != oldValue { version = "" } } }
     @Published private(set) var busy = false
     @Published var version = ""
     @Published var error: String?
-    private var saved = GitEnginePreferences.load()
+    private let preferences: UserDefaults
+    private var saved: GitEnginePreferences
+    init(preferences: UserDefaults = .standard) {
+        self.preferences = preferences
+        let value = GitEnginePreferences.load(from:preferences); draft = value; saved = value
+    }
     private var token: OperationCancellation?
     private var request = UUID()
     private var updateAlert: NSAlert?
@@ -64,7 +69,7 @@ import TurtleGitCore
         let settings = draft
         do {
             version = try await inspect(settings, cancellation: nil)
-            if !GitRuntime.isAppStoreBuild { try settings.save() }
+            if !GitRuntime.isAppStoreBuild { try settings.save(to:preferences) }
             saved = settings; return true
         } catch { self.error = error.localizedDescription; return false }
     }
@@ -106,23 +111,30 @@ import TurtleGitCore
             }
         }
         values["GIT_TERMINAL_PROMPT"] = "0"; values["GIT_PAGER"] = "cat"; values["LC_ALL"] = "C"
-        values.merge(SSHClientPreferences.load().environment(existing: values)) { _, selected in selected }
+        values.merge(SSHClientPreferences.load(from:preferences).environment(existing: values)) { _, selected in selected }
         return values.keys.sorted().map { $0 + "=" + values[$0]! }.joined(separator: "\n")
     }
 }
 struct GeneralSettings: View {
     @ObservedObject var appearance: SettingsAppearanceDraft
-    @StateObject private var model = GeneralGitSettingsModel()
+    @StateObject private var model: GeneralGitSettingsModel
+    private let preferences: UserDefaults
     @State private var environment: String?
-    @State private var updates = ReleaseUpdateService.enabled
-    @State private var savedUpdates = ReleaseUpdateService.enabled
+    @State private var updates: Bool
+    @State private var savedUpdates: Bool
+    init(appearance: SettingsAppearanceDraft, preferences: UserDefaults = .standard) {
+        self.appearance = appearance; self.preferences = preferences
+        _model = StateObject(wrappedValue:GeneralGitSettingsModel(preferences:preferences))
+        let enabled = (preferences.object(forKey:"VersionCheck") as? NSNumber)?.boolValue ?? true
+        _updates = State(initialValue:enabled); _savedUpdates = State(initialValue:enabled)
+    }
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             GroupBox("TurtleGit for Mac") {
                 VStack(alignment: .leading, spacing: 12) {
                     Picker("Language:", selection: .constant("en")) { Text("English").tag("en") }
                     HStack {
-                        Toggle("Automatically check for newer versions every week", isOn: Binding(get: { updates }, set: { enabled in
+                        LogPreferenceCheckbox(title: "Automatically check for newer versions every week", value: Binding(get: { updates }, set: { enabled in
                             if enabled { updates = true } else { model.confirmDisableUpdates { updates = false } }
                         })).disabled(GitRuntime.isAppStoreBuild)
                         Spacer(); Button("Check now") { ReleaseUpdateService.shared.show() }
@@ -155,7 +167,7 @@ struct GeneralSettings: View {
         }.padding(20).background(GeneralSettingsProbe(model: model).frame(width: 0, height: 0))
         .onAppear { model.activate() }.onDisappear { model.suspend() }
         .settingsParticipant("general", page: .general, value: appearance.choice, modified: { appearance.changed }, apply: { appearance.apply(); return true }, cancel: appearance.cancel)
-        .settingsParticipant("general.updates", page: .general, value: updates, modified: { updates != savedUpdates }, apply: { UserDefaults.standard.set(updates, forKey: "VersionCheck"); savedUpdates = updates; return true }, cancel: { updates = savedUpdates })
+        .settingsParticipant("general.updates", page: .general, value: updates, modified: { updates != savedUpdates }, apply: { preferences.set(updates, forKey: "VersionCheck"); savedUpdates = updates; return true }, cancel: { updates = savedUpdates })
         .settingsParticipant("general.git", page: .general, value: model.draft, modified: { model.modified }, validate: { GitRuntime.isAppStoreBuild || model.draft.valid ? nil : "Choose a valid Git executable and absolute Extra PATH directories." }, apply: { await model.apply() }, cancel: model.cancel)
         .sheet(isPresented: Binding(get: { environment != nil }, set: { if !$0 { environment = nil } })) {
             VStack(alignment: .leading) {

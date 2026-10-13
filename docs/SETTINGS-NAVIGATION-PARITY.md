@@ -331,3 +331,36 @@ Existing associations/table/parent validation and failed-save assertions passed.
 No Core code changed, so the Core suite was not repeated. Full rendered Merge
 Editor/color/Advanced page and physical/signed acceptance remains open.
 See [grouped evidence](qa/tool-settings-family-2026-10-13.json).
+
+
+## Integration-page ownership continuation (implementation 2026-10-13)
+
+General Git-engine and update drafts, Message Editor, global Hooks, Network,
+retained Email and Finder overlay/context-menu models now receive the Settings
+owner preference store. The SMTP credential store is an explicit owner dependency,
+allowing private acceptance fixtures without production secret access. AppAppearance
+can likewise be created in the same preference domain. General validated Apply
+and SSH environment preview use that domain; temporary engine-inspection stores
+remain isolated. Credential, Issue Tracker and project-dialog destinations remain
+Git-config/file scoped, preserving their repository/effective/local/global behavior.
+
+The native acceptance family is expanded for cached General/Message Editor/Email
+Apply, validated engine persistence and global Hook snapshots, with private SMTP
+and Git-global stores. Network/Credential/Issue Tracker existing scope and lifecycle
+fixtures form the same validation group. No Core persistence APIs changed.
+The Debug build passed and the six-case native family passed with both Git engines
+(12 receivers), including existing configuration-scope, secret-store and publication
+fixtures. Two focused receivers also passed a genuine context replacement during
+suspended Apply with no stale writes. All receivers were reaped. No Core code changed,
+so Core checks were not repeated.
+
+Acceptance found a cached-page race: reappearance regenerated a participant token
+while Apply was queued, refusing an unchanged repository context. The generic
+participant view now owns a stable token; shared Finder models and cached
+Network/Credential pages use their model's stable token. New/manual context
+registrations still receive new tokens and reject the old snapshot. An initial
+fixture compilation typo was corrected without launching receivers; two failed
+diagnostic receivers were reaped before the actual transaction repair.
+
+Full scope/control/layout and signed credential/Finder publication equivalence
+remains open. See [integration-family evidence](qa/integration-settings-family-2026-10-13.json).

@@ -10,11 +10,13 @@ enum AppearanceChoice: String, CaseIterable, Identifiable {
 }
 
 @MainActor final class AppAppearance: ObservableObject {
+    private let preferences: UserDefaults
     @Published var choice: AppearanceChoice {
-        didSet { UserDefaults.standard.set(choice.rawValue, forKey: "appearance"); apply() }
+        didSet { preferences.set(choice.rawValue, forKey: "appearance"); apply() }
     }
-    init() {
-        choice = AppearanceChoice(rawValue: UserDefaults.standard.string(forKey: "appearance") ?? "system") ?? .system
+    init(preferences: UserDefaults = .standard) {
+        self.preferences = preferences
+        choice = AppearanceChoice(rawValue: preferences.string(forKey: "appearance") ?? "system") ?? .system
         #if DEBUG
         if Bundle.main.bundleIdentifier?.hasPrefix("org.turtlegit.macos.documentation-preview") == true,
            let value = Bundle.main.object(forInfoDictionaryKey: "TurtleGitDocumentationAppearance") as? String,

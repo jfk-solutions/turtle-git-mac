@@ -8,6 +8,11 @@ private actor SettingsAuthenticationFixture: SSHAuthenticationStore {
     func entries() async throws -> [SSHAuthenticationEntry] { [.init(id:"private",name:"Fixture key")] }
     func remove(identity:String) async throws {}
 }
+private actor SettingsSMTPFixture: SMTPCredentialStore {
+    func login() async throws -> String { "" }
+    func store(login:String,password:String) async throws {}
+    func clear() async throws {}
+}
 @main struct SettingsFamilyVerification {
     struct Failure: Error { let message:String }
     @MainActor static func require(_ value:Bool,_ message:String) throws { if !value { throw Failure(message:message) } }
@@ -21,13 +26,13 @@ private actor SettingsAuthenticationFixture: SSHAuthenticationStore {
         NSApplication.shared.setActivationPolicy(.prohibited)
         let root=URL(fileURLWithPath:CommandLine.arguments[1]), suite="TurtleGit.SettingsFamily.QA."+UUID().uuidString, prefs=UserDefaults(suiteName:suite)!
         defer { prefs.removePersistentDomain(forName:suite) }
-        let keys=["SymbolizeRefNames","GravatarUrl","LogFontSize","LogFontName","MaxHistoryItems","NoSounds","TurtleGitBlame.TabSize","TurtleGitBlame.FontSize","TurtleGit.UnifiedDiffAppearance","TurtleGit.UnifiedDiffViewer.Application","TurtleGit.AlternativeEditor.Application","AutoCompleteMinChars"]
+        let keys=["SymbolizeRefNames","GravatarUrl","LogFontSize","LogFontName","MaxHistoryItems","NoSounds","TurtleGitBlame.TabSize","TurtleGitBlame.FontSize","TurtleGit.UnifiedDiffAppearance","TurtleGit.UnifiedDiffViewer.Application","TurtleGit.AlternativeEditor.Application","AutoCompleteMinChars","StyleCommitMessages","VersionCheck","TurtleGit.GitEngine","SendMail.Address","SendMail.Port","hooks"]
         let original=keys.map { UserDefaults.standard.object(forKey:$0).map { String(describing:$0) } }
-        prefs.set(false,forKey:"SymbolizeRefNames"); prefs.set(11,forKey:"LogFontSize")
+        prefs.set(2,forKey:"SendMail.DeliveryType"); prefs.set(false,forKey:"VersionCheck"); prefs.set(true,forKey:"StyleCommitMessages"); prefs.set(false,forKey:"SymbolizeRefNames"); prefs.set(11,forKey:"LogFontSize")
         prefs.set(true,forKey:"TurtleGit.UnifiedDiffViewer.Enabled"); prefs.set("/Applications/Fixture.app",forKey:"TurtleGit.UnifiedDiffViewer.Application")
         prefs.set(true,forKey:"TurtleGit.AlternativeEditor.Custom"); prefs.set("/Applications/Fixture.app",forKey:"TurtleGit.AlternativeEditor.Application")
         let workspace=RepositoryModel(startMonitoring:false,initializePreferences:false)
-        let navigation=SettingsNavigationController(workspace:workspace,appearance:AppAppearance(),globalOnly:true,preferences:prefs)
+        let navigation=SettingsNavigationController(workspace:workspace,appearance:AppAppearance(preferences:prefs),globalOnly:true,preferences:prefs,smtpCredentials:SettingsSMTPFixture())
         let window=NSWindow(contentRect:.init(x:0,y:0,width:1100,height:820),styleMask:[.titled,.closable],backing:.buffered,defer:false)
         window.isReleasedWhenClosed=false; window.contentViewController=navigation
         defer { window.close(); navigation.invalidate() }
@@ -42,6 +47,20 @@ private actor SettingsAuthenticationFixture: SSHAuthenticationStore {
             }
             throw Failure(message:"Missing Settings page: "+title)
         }
+        try await wait("General update control") { navigation.view.layoutSubtreeIfNeeded(); return views(navigation.view).compactMap { $0 as? NSButton }.contains { $0.title=="Automatically check for newer versions every week" } }
+        views(navigation.view).compactMap { $0 as? NSButton }.first { $0.title=="Automatically check for newer versions every week" }!.performClick(nil)
+        try await wait("General draft") { navigation.transaction.modified }
+        try choose("Message Editor")
+        try await wait("Message editor control") { navigation.view.layoutSubtreeIfNeeded(); return views(navigation.view).compactMap { $0 as? NSButton }.contains { $0.title=="Style commit messages" } }
+        views(navigation.view).compactMap { $0 as? NSButton }.first { $0.title=="Style commit messages" }!.performClick(nil)
+        try await wait("Message editor draft") { navigation.transaction.modified }
+        try choose("Dialogs 1"); navigation.transaction.apply(closeAfter:false)
+        try await wait("Integration cached Apply") { !navigation.transaction.busy }
+        try require(prefs.bool(forKey:"VersionCheck") && !prefs.bool(forKey:"StyleCommitMessages"),"General/Message Editor ignored owner domain")
+        let engine=GeneralGitSettingsModel(preferences:prefs)
+        engine.draft.choice = .custom; engine.draft.path = CommandLine.arguments[2]
+        let engineApplied = await engine.apply()
+        try require(engineApplied && GitEnginePreferences.load(from:prefs).path==CommandLine.arguments[2],"Validated Git-engine Apply ignored owner domain")
         try choose("Dialogs 1")
         try await wait("Dialogs controls") { navigation.view.layoutSubtreeIfNeeded(); return views(navigation.view).compactMap { $0 as? NSButton }.contains { $0.title=="Symbolize ref names" } }
         let checkbox=views(navigation.view).compactMap { $0 as? NSButton }.first { $0.title=="Symbolize ref names" }!
@@ -100,6 +119,27 @@ private actor SettingsAuthenticationFixture: SSHAuthenticationStore {
         try require(advanced.edit("AutoCompleteMinChars",text:"5"),"Advanced numeric edit rejected")
         advanced.apply(); try require(prefs.integer(forKey:"AutoCompleteMinChars")==5,"Advanced ignored owner domain")
         advanced.edit("AutoCompleteMinChars",text:"6"); advanced.cancel(); try require(advanced.values["AutoCompleteMinChars"]=="5","Advanced Cancel lost saved value")
+        try choose("Email")
+        try await wait("Email port control") { navigation.view.layoutSubtreeIfNeeded(); return views(navigation.view).compactMap { $0 as? NSTextField }.contains { $0.placeholderString=="25" && $0.isEnabled } }
+        try enter("25","2525"); try await wait("Email draft") { navigation.transaction.modified }
+        try choose("Dialogs 1"); navigation.transaction.apply(closeAfter:false)
+        try await wait("Cached Email Apply") { !navigation.transaction.busy }
+        try require(prefs.integer(forKey:"SendMail.Port")==2525,"Email ignored owner domain: port=\(prefs.integer(forKey:"SendMail.Port")) error=\(navigation.transaction.error ?? "none") modified=\(navigation.transaction.modified)")
+        let hooks=HookSettingsModel(preferences:prefs)
+        hooks.activate(repository:nil,access:nil); try await wait("Private Hooks load") { hooks.loaded && !hooks.busy }
+        hooks.hooks=[ClientHook(path:root.path,command:"/usr/bin/true")]
+        let hooksApplied=await hooks.apply()
+        try require(hooksApplied && ClientHookPreferences.globals(prefs).count==1,"Global Hooks ignored owner domain")
+        hooks.hooks=[]; hooks.cancel(); try require(hooks.hooks.count==1,"Hooks Cancel lost saved snapshot"); hooks.invalidate()
+        let replacement=SettingsTransaction()
+        var held:CheckedContinuation<Bool,Never>?, staleWrites=0
+        replacement.register("gate",participant:.init(page:.general,modified:{ true },validate:{ nil },apply:{ await withCheckedContinuation { held=$0 } },cancel:{}))
+        replacement.register("target",participant:.init(page:.network,modified:{ true },validate:{ nil },apply:{ staleWrites += 1; return true },cancel:{}))
+        replacement.apply(closeAfter:false); try await wait("Held Settings Apply") { held != nil }
+        replacement.register("target",participant:.init(page:.network,modified:{ true },validate:{ nil },apply:{ staleWrites += 1; return true },cancel:{}))
+        held!.resume(returning:true); try await wait("Replaced Settings refusal") { !replacement.busy }
+        try require(replacement.error != nil && staleWrites==0,"New Settings context applied an obsolete snapshot")
+        replacement.invalidate()
         let chooser=ToolApplicationChooser(); chooser.window=window
         var chooserReplies=0
         chooser.choose({ _,_ in chooserReplies += 1 },failure:{ _ in chooserReplies += 1 })
