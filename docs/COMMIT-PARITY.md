@@ -973,7 +973,7 @@ process after normal Quit failed; no system services were terminated.
 Audit correction: changelist drag/drop is disabled behind `#if 0` in the pinned
 `CGitStatusListCtrlDropTarget::OnDrop`, and `DragOver` rejects drops on group
 headers. We do not count disabled group movement as an active upstream workflow.
-Normal file-drop behavior remains under audit. Merge-parent grouping belongs to
+The later [file-drop batch](COMMIT-DROP-PARITY.md) implements ordinary same-repository file/folder drops; physical Finder acceptance remains open. Merge-parent grouping belongs to
 historical comparison views and is not implemented here. Broader range selection,
 first-request grouped clipboard-column acceptance, ignored/local-flag native
 variants, accessibility group semantics and signed sandbox workflows remain
@@ -2137,3 +2137,10 @@ two documentation tests passed; all owned receivers were reaped. See
 [dated spelling QA](qa/message-spelling-2026-10-13.json). This does not certify
 installed-language coverage, physical spelling menus/VoiceOver, every upstream
 personal-dictionary behavior or full Commit parity.
+
+The native changes list now implements the source's ordinary [file and folder
+drop workflow](COMMIT-DROP-PARITY.md), including scoped-list/check refresh and
+owned cancellation. Full physical/signed acceptance remains open.
+
+The file-drop batch passed eight Core tests and four grouped native cases across
+system and bundled Git. See the [scoped evidence](qa/commit-drop-2026-10-13.json).

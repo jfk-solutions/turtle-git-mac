@@ -278,6 +278,12 @@ struct CommitFileInteraction: NSViewRepresentable {
         var toggleCheck: ([StatusEntry], StatusEntry) -> Void = { _, _ in }
         private var monitor: Any?
         private var menuObserver: NSObjectProtocol?
+        func acceptsFileDrop(at location: CGPoint) -> Bool {
+            guard enabled, window?.attachedSheet == nil, let table = configuredTable else { return false }
+            let point = NSPoint(x: location.x, y: isFlipped ? location.y : bounds.height - location.y)
+            let row = table.row(at: table.convert(point, from: self))
+            return row < 0 || rows.indices.contains(row) && rows[row].group == nil
+        }
         override func hitTest(_ point: NSPoint) -> NSView? { nil }
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow(); stopObserving()

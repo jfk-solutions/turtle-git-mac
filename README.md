@@ -16,7 +16,7 @@ macOS 13.
 
 | Area | Native implementation | Remaining acceptance work |
 | --- | --- | --- |
-| Commit | Checked-file commits, optional staging, right-hand partial-staging window, amend, author/date controls, Commit / ReCommit / Commit & Push | Complete upstream controls, hook/editor/signing interactions and physical UI acceptance across all routes |
+| Commit | Checked-file commits, optional staging, right-hand partial-staging window, same-repository file/folder drops, amend, author/date controls, Commit / ReCommit / Commit & Push | Complete upstream controls, hook/editor/signing interactions and physical UI acceptance across all routes |
 | History | Log with revision graph before the list, revision/file menus, Blame, Reflog, Browse References, references containing a commit, four Log ordering modes, notes and statistics | Complete upstream views, menus and behavior; see individual parity documents |
 | Repository Browser | Pinned tree/blob browsing, historical Open/Save/drag, submodule handoffs, retained folder navigation, multi-file Revert, owned cancellation, saved native columns and multiple historical file/folder promises | Physical drag interoperability, tree-object command handoffs and complete physical/signed acceptance; [source audit](docs/REPOSITORY-BROWSER-PARITY.md) |
 | Repository workflows | Clone/Create Repository, status, branch/tag, Switch, Fetch/Pull/Push, merge, Rebase, Stash, reset, patches, export, Submodule Add/Update/Sync and worktrees | Each workflow has remaining source/UI/sandbox checks; a working Git operation alone does not establish parity |

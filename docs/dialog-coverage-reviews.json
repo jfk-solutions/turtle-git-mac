@@ -441,6 +441,22 @@
       ],
       "parity_document": "docs/INPUT-DIALOG-PARITY.md",
       "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_COMMITDLG",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/CommitWindow.swift",
+          "anchor": "struct CommitDialog"
+        },
+        {
+          "path": "Sources/TurtleGitMac/CommitFileDrop.swift",
+          "anchor": "struct CommitFileDropDelegate"
+        }
+      ],
+      "parity_document": "docs/COMMIT-PARITY.md",
+      "status": "partial-workflow-replacement"
     }
   ]
 }

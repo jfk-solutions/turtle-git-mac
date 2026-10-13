@@ -1,0 +1,75 @@
+{
+  "date": "2026-10-13",
+  "reference": {
+    "revision": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "source": [
+      "CommitDlg.cpp::OnFileDropped",
+      "GitStatusListCtrl.cpp::ResetChecked",
+      "CGitStatusListCtrlDropTarget::OnDrop/DragOver"
+    ]
+  },
+  "scope": [
+    "File-URL data loading with timeout/cancellation and once-only completion",
+    "Native changes-table drop validation rejects group headings, busy/message-only/confirmation/sheet states",
+    "Same-repository files/folders/root, literal pathspecs, metadata/nested-root/escaping-parent rejection and leaf symlink semantics",
+    "Ordinary add without force; continued per-item failures, preserved unrelated staged content/HEAD/working bytes",
+    "One accepted-batch refresh, scoped-list extension and source dropped-path checkbox reset",
+    "Existing owned Cancel settlement, retired provider/backend fences and global Quit accounting"
+  ],
+  "validation": {
+    "core": {
+      "exit": 0,
+      "tests": 8,
+      "failures": 0,
+      "families": [
+        "CommitFileDropTests",
+        "WorkingFileAddTests"
+      ],
+      "log": "build/qa/commit-drop-core-2026-10-13.log"
+    },
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/commit-drop-debug-2026-10-13.log",
+      "note": "Existing Xcode exit-zero/no-output diagnostics were emitted; this is not a warning-clean claim."
+    },
+    "native": {
+      "exit": 0,
+      "cases": 4,
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "families": [
+        "commit-drop",
+        "partial-patch"
+      ],
+      "log": "build/qa/commit-drop-native-accepted-2026-10-13.log",
+      "ownership": "All four accepted receivers and the earlier failed fixture receiver reaped. Only the current receiver owned its hidden Commit window.",
+      "fixture_repair": "The first fixture attempted another drop before the asynchronous Cancel completion cleared its pending guard. It now waits for the actual cancellation completion; no app checks were removed."
+    },
+    "documentation": {
+      "exit": 0,
+      "tests": 2,
+      "log": "build/qa/commit-drop-site-check-2026-10-13.log"
+    }
+  },
+  "adaptations": [
+    "One asynchronous accepted-batch refresh instead of per-file Windows messages plus 200 ms timer.",
+    "Native failure reporting instead of discarding add exit status.",
+    "macOS file URLs and physical parent aliases instead of Windows HDROP/path comparison."
+  ],
+  "hosted_ci": {
+    "run": 38406476058,
+    "revision": "14031f1",
+    "observed_status": "in_progress",
+    "observed_step": "Git integration tests",
+    "note": "This earlier run passed the formerly failing OpenSSH preparation/validation stage; full CI and current revision are not certified."
+  },
+  "pending": [
+    "Physical Finder mouse/drag/VoiceOver acceptance",
+    "Every path alias/volume/multi-display case",
+    "Signed file-provider grants/App Store execution",
+    "Complete Commit and application parity"
+  ],
+  "full_port_certified": false
+}

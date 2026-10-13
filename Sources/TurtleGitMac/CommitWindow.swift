@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 import TurtleGitCore
 import UniformTypeIdentifiers
 
@@ -283,6 +284,10 @@ import UniformTypeIdentifiers
     @Published var partialMode: Bool?
     @Published var stagedDiff = true
     private var hasLoaded = false
+    static private(set) var activeFileDrops = 0
+    var readDroppedURL: (NSItemProvider) async throws -> URL = CommitFileURLReader.read
+    var applyDroppedURLs: (([URL], OperationCancellation) async throws -> [CommitDroppedItem])?
+    private var droppedChecks: [CommitDroppedItem] = []
     private var reloadTask: Task<Void, Never>?
     private var reloadCancellation: OperationCancellation?
     @Published private var pendingReloadCancel = false
@@ -823,6 +828,40 @@ import UniformTypeIdentifiers
         }
         reload(paths: ["."])
     }
+    var canReceiveFileDrop: Bool { messageFocusAvailable && !inputsBlocked && !messageOnly && hasLoaded }
+    @discardableResult func receiveFileDrop(_ providers: [NSItemProvider]) -> Bool {
+        guard canReceiveFileDrop, !providers.isEmpty, providers.allSatisfy({ $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) }) else { return false }
+        busy = true; let token = OperationCancellation(); reloadCancellation = token
+        Self.activeFileDrops += 1
+        reloadTask = Task {
+            var refresh = false
+            defer {
+                Self.activeFileDrops -= 1
+                if reloadCancellation === token {
+                    reloadCancellation = nil; reloadTask = nil; busy = false
+                    if refresh && messageFocusAvailable && !pendingReloadCancel { reload() }
+                }
+            }
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                var urls: [URL] = []
+                for provider in providers { urls.append(try await readReload(token) { try await readDroppedURL(provider) }) }
+                let items = try await readReload(token) {
+                    if let applyDroppedURLs { return try await applyDroppedURLs(urls, token) }
+                    return try await repository.addDroppedCommitFiles(urls, cancellation: token)
+                }
+                guard !items.isEmpty else { return }
+                refresh = true; droppedChecks.append(contentsOf: items)
+                if items.contains(where: { $0.path == "." }) { scopePaths = []; showWholeProject = true }
+                else if !scopePaths.isEmpty {
+                    for item in items where !visibleEntries.contains(where: { $0.path.utf8.elementsEqual(item.path.utf8) }) && !scopePaths.contains(where: { $0.utf8.elementsEqual(item.path.utf8) || item.path.hasPrefix($0 + "/") }) { scopePaths.append(item.path) }
+                }
+                let errors = items.compactMap(\.error)
+                if !errors.isEmpty { error = errors.joined(separator: "\n") }
+            } catch { if messageFocusAvailable, !token.isCancelled, !Task.isCancelled { self.error = error.localizedDescription } }
+        }
+        return true
+    }
     func reload(paths: [String]? = nil) {
         guard messageFocusAvailable, !busy, !pendingReloadCancel else { return }; busy = true
         let token = OperationCancellation(); reloadCancellation = token
@@ -867,6 +906,18 @@ import UniformTypeIdentifiers
                         return inScope && (directFile || automatic) && !changelists.ignores(entry.path) && (!doNotAutoselectSubmodules || !submodules.contains(entry.path)) && entry.state != .conflicted
                     }.map(\.id))
                 } else { checked.formIntersection(Set(entries.map(\.id))) }
+                if !droppedChecks.isEmpty {
+                    for item in droppedChecks {
+                        for entry in visibleEntries where item.path == "." || entry.path.utf8.elementsEqual(item.path.utf8) || item.directory && entry.path.hasPrefix(item.path + "/") {
+                            let missing = entry.worktree == "D"
+                            let automatic = (selectFilesAutomatically || replaySplit != nil) && entry.state != .untracked && (!doNotAutoselectMissing || !missing)
+                            let direct = scopePaths.contains(entry.path)
+                            if (direct || automatic) && !changelists.ignores(entry.path) && (!doNotAutoselectSubmodules || !submodules.contains(entry.path)) && entry.state != .conflicted { checked.insert(entry.id) }
+                            else { checked.remove(entry.id) }
+                        }
+                    }
+                    droppedChecks = []
+                }
                 selection.formIntersection(Set(entries.map(\.id)))
                 if !hasLoaded && author.isEmpty {
                     author = try await readReload(token) {
@@ -1432,6 +1483,7 @@ struct CommitDialog: View {
     @ObservedObject var model: CommitWindowModel
     @AppStorage("Commit.MessagePaneHeight") private var messagePaneHeight = 300.0
     @AppStorage("StyleCommitMessages") private var styleCommitMessages = true
+    @StateObject private var dropTargets = CommitFileDropTargets()
     @State private var dividerStart: Double?
     @FocusState private var issueFieldFocused: Bool
     @State private var initialIssueFocusApplied = false
@@ -1771,12 +1823,13 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
             if ids.count == 1, let entry = model.entries.first(where: { ids.contains($0.id) }), entry.state == .conflicted { model.onResolve(.editConflict, [entry.path]) }
             else { model.compare(paths: ids) }
         }
-        .background(CommitFileInteraction(rows: rows, visibleColumns: Set(model.visibleFileColumns), availableColumns: model.availableFileColumns, columnText: { entry, column in
+        .background(CommitFileInteraction(rows: rows, configureRefresh: { dropTargets.set($0, for: focusKey) }, visibleColumns: Set(model.visibleFileColumns), availableColumns: model.availableFileColumns, columnText: { entry, column in
             String(StatusListClipboard.text([entry], root: model.repository.root, statistics: statistics, copy: .column(column), metadata: model.fileMetadata, lfsOwners: model.lfsOwners).dropLast())
         }, savedOrder: model.fileColumns.order, savedWidths: model.fileColumns.widths, saveLayout: { model.saveFileColumnLayout(order: $0, widths: $1) }, setColumnVisible: { model.setFileColumn($0, visible: $1) }, resetColumns: { choose, accepted in model.requestResetFileColumns(choose: choose, onAccepted: accepted) }, focusedPath: focus, enabled: !model.busy && !model.confirmingQuit, delete: { model.deleteFiles($0, selectionMark: $1, permanently: $2) }, copy: { model.copyFileText($0, statistics: statistics, copy: $1 ? .pathsAndStatus : .relativePaths) }, copyColumn: { model.copyFileText($0, statistics: statistics, copy: .column($1)) }, toggleCheck: { files, mark in
             let next = model.stagingEnabled ? !(mark.staged && mark.worktree == " ") : !model.checked.contains(mark.id)
             model.setFileChecked(mark, files: files, highlighted: Set(files.map(\.id)), checked: next)
         }))
+        .onDrop(of: [UTType.fileURL], delegate: CommitFileDropDelegate(model: model, targets: dropTargets, key: focusKey))
         .onChange(of: selection.wrappedValue) { ids in
             let files = ids.intersection(Set(entries.map(\.id)))
             if files.count == 1 && NSEvent.modifierFlags.intersection([.command, .shift]).isEmpty { focus.wrappedValue = files.first }
