@@ -226,7 +226,9 @@ jobs:
           -configuration Debug -destination 'platform=macOS'
           -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
       - name: Verify app, extension and original icon resources
-        run: python3 scripts/validate-app-bundle.py build/Build/Products/Debug/TurtleGitMac.app
+        run: |
+          python3 scripts/validate-app-bundle.py build/Build/Products/Debug/TurtleGitMac.app
+          python3 scripts/audit-cache-service.py build/Build/Products/Debug/TurtleGitMac.app
       - name: Verify embedded Subversion merge adapter and shared libraries
         run: python3 scripts/test-merge-diff-bundle.py build/Build/Products/Debug/TurtleGitMac.app
       - name: Grouped native LFS and Send Mail receivers with one compilation
@@ -441,7 +443,9 @@ jobs:
           -configuration AppStore -destination 'platform=macOS'
           -derivedDataPath build-store CODE_SIGNING_ALLOWED=NO build
       - name: Verify sandboxed app resources
-        run: python3 scripts/validate-app-bundle.py build-store/Build/Products/AppStore/TurtleGitMac.app --require-git
+        run: |
+          python3 scripts/validate-app-bundle.py build-store/Build/Products/AppStore/TurtleGitMac.app --require-git
+          python3 scripts/audit-cache-service.py build-store/Build/Products/AppStore/TurtleGitMac.app
       - name: Revision Graph through built Debug and Store frameworks and helpers
         run: python3 scripts/test-graph-layout-bundles.py
       - name: Revision Graph data and geometry with bundled Git

@@ -116,6 +116,10 @@ import TurtleGitCore
             } catch { await slow.shutdown();throw error }
         }
         try await wait { provider.successfulStarts==provider.stops }
+        let service=FinderBackgroundService(),wasEnabled=service.enabled
+        await service.enable(first)
+        try require(!service.busy && service.enabled==wasEnabled,"Unsigned Enable changed service registration or retained work")
+        try require(!service.message.contains("synchronized"),"Unsigned Enable bypassed signing")
         let reopened=try RepositoryAccessStore(storageURL:registry,provider:provider)
         try require(reopened.repositories.count==1 && reopened.repositories[0].lastKnownPath==repositories[1].root.path && String(decoding:reopened.repositories[0].bookmark,as:UTF8.self).contains(provider.marker),"Private relaunch records missing")
         print("Finder watches: private persistent Add/dedup/Renew, real independent event refresh, moved bookmark/cache cleanup, retained failed grants, removal and late-read fencing, owned process reaping, once-only asynchronous Quit and balanced scope leases passed. No user preferences/App Group or Finder activation used.")

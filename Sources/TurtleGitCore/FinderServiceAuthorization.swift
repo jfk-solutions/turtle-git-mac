@@ -2,6 +2,7 @@
 // GPL-2.0-or-later. Follows Apple's interprocess URL bookmark contract.
 import Foundation
 import Darwin
+import Security
 
 public protocol RepositoryTransferBookmarkProvider {
     func createTransfer(for url:URL) throws -> Data
@@ -321,5 +322,31 @@ public enum FinderCacheServiceFailure:LocalizedError {
             do { _ = try cache.remove(root:root);pendingRemovals.removeValue(forKey:root);notify() }
             catch { cleanupFailures[id]=error.localizedDescription }
         }
+    }
+}
+
+// Private, authenticated service messages. Standard XPC NSData/NSString payloads
+// avoid sharing Codable implementation objects across the process boundary.
+@objc public protocol FinderCacheServiceProtocol {
+    func replaceGrants(_ request:Data,withReply reply:@escaping (String?)->Void)
+    func refresh(withReply reply:@escaping (String?)->Void)
+    func status(withReply reply:@escaping (Data?,String?)->Void)
+}
+public enum FinderCacheServiceIdentity {
+    public static let bundleIdentifier="org.turtlegit.macos.cache"
+    public static let appIdentifier="org.turtlegit.macos"
+    public static let machService="group.org.turtlegit.macos.cache"
+    public static let agentPlist="org.turtlegit.macos.cache.plist"
+    public static func currentTeam() throws -> String {
+        var code:SecCode?,staticCode:SecStaticCode?,information:CFDictionary?
+        guard SecCodeCopySelf([], &code)==errSecSuccess,let code,
+              SecCodeCopyStaticCode(code,[],&staticCode)==errSecSuccess,let staticCode,
+              SecCodeCopySigningInformation(staticCode,SecCSFlags(rawValue:kSecCSSigningInformation),&information)==errSecSuccess,
+              let values=information as? [String:Any],let team=values[kSecCodeInfoTeamIdentifier as String] as? String else { throw RepositoryAccessFailure.securityScopeUnavailable }
+        _ = try requirement(identifier:bundleIdentifier,team:team);return team
+    }
+    public static func requirement(identifier:String,team:String) throws -> String {
+        guard [bundleIdentifier,appIdentifier].contains(identifier),team.count==10,team.utf8.allSatisfy({ (65...90).contains($0) || (48...57).contains($0) }) else { throw FinderServiceAuthorizationFailure.invalidRequest }
+        return "anchor apple generic and identifier \"\(identifier)\" and certificate leaf[subject.OU] = \"\(team)\""
     }
 }

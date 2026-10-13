@@ -286,3 +286,16 @@ source archive plus reconstruction scripts. Xcode embeds it in
 Contents/Helpers/Lexilla and applies inherited helper sandbox signing for
 AppStore. Bundle validation verifies hashes, source kit, architectures, minimum
 OS and system-only dynamic linkage. Physical signed acceptance remains open.
+
+## Embedded Finder cache agent
+
+The service target is separately sandboxed and embedded under
+`Contents/Library/LaunchServices`; its SMAppService plist is under
+`Contents/Library/LaunchAgents`. Provision app, Finder extension and agent with
+the same App Group, and sign all three with the same team. The helper loads the
+containing app's frameworks/Git runtime. `scripts/audit-cache-service.py` checks
+actual layout and unsigned fail-closed startup without registering a background
+item. Both CI configurations invoke it. See
+[deployment and remaining signed acceptance](FINDER-SERVICE-DEPLOYMENT.md).
+Unsigned packaging passes cannot establish user-approved launch registration,
+peer authentication enforcement or sandbox permission transfer.

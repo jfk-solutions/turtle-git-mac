@@ -60,6 +60,21 @@ targets:
     dependencies:
       - target: TurtleGitSMTP
         embed: false
+  TurtleGitCache:
+    type: application
+    platform: macOS
+    sources: [Sources/TurtleGitCache]
+    dependencies:
+      - target: TurtleGitCore
+        embed: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.turtlegit.macos.cache
+        INFOPLIST_FILE: Configuration/Cache-Info.plist
+        CODE_SIGN_ENTITLEMENTS: Configuration/Cache.entitlements
+        SKIP_INSTALL: YES
+        ENABLE_DEBUG_DYLIB: NO
+        LD_RUNPATH_SEARCH_PATHS: '$(inherited) @executable_path/../../../../../Frameworks'
   TurtleGitMac:
     type: application
     platform: macOS
@@ -77,6 +92,8 @@ targets:
       - target: TurtleGitFinder
         embed: true
       - target: TurtleGitSSHAskpass
+        embed: false
+      - target: TurtleGitCache
         embed: false
     info:
       path: Configuration/App-Info.plist
@@ -97,6 +114,10 @@ targets:
           - CFBundleURLName: org.turtlegit.macos.action
             CFBundleURLSchemes: [turtlegit]
     postBuildScripts:
+      - name: Embed Finder cache service
+        script: |
+          /usr/bin/python3 "$SRCROOT/scripts/embed-cache-service.py" "$BUILT_PRODUCTS_DIR/TurtleGitCache.app" "$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME" "$SRCROOT/Configuration/org.turtlegit.macos.cache.plist"
+        basedOnDependencyAnalysis: false
       - name: Embed SSH passphrase helper
         script: |
           /usr/bin/python3 "$SRCROOT/scripts/embed-ssh-askpass.py" "$BUILT_PRODUCTS_DIR/TurtleGitSSHAskpass" "$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME"
@@ -127,7 +148,7 @@ targets:
         basedOnDependencyAnalysis: false
       - name: Embed pinned Git runtime for App Store
         script: |
-          if [ "$CONFIGURATION" = "AppStore" ]; then
+          if [ "$CONFIGURATION" = "AppStore" ] || [ -d "$SRCROOT/build/git-runtime/Git" ]; then
             /usr/bin/python3 "$SRCROOT/scripts/embed-git-runtime.py" "$SRCROOT/build/git-runtime/Git" "$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME"
           fi
         basedOnDependencyAnalysis: false

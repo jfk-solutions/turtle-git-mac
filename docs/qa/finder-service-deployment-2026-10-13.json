@@ -1,0 +1,84 @@
+{
+  "date": "2026-10-13",
+  "scope": [
+    "Embedded sandboxed launch-agent target and plist",
+    "Mutual NSXPC signing requirements and bounded private grant messages",
+    "Native enable/disable/synchronize/login-items controls",
+    "Revision-driven handoff, retained source leases and Quit settlement",
+    "Debug/AppStore actual bundle layout and unsigned refusal checks"
+  ],
+  "validation": {
+    "core": {
+      "tests": 9,
+      "exit": 0,
+      "log": "build/qa/finder-service-deployment-core-2026-10-13.log"
+    },
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/finder-service-deployment-build-2026-10-13.log"
+    },
+    "appstore": {
+      "exit": 0,
+      "log": "build/qa/finder-service-deployment-appstore-2026-10-13.log"
+    },
+    "native": {
+      "exit": 0,
+      "cases": 4,
+      "engines": [
+        "system Git",
+        "packaged Git"
+      ],
+      "log": "build/qa/finder-service-deployment-native-2026-10-13.log",
+      "owned_receivers_reaped": [
+        35336,
+        35465,
+        35513,
+        35645
+      ],
+      "all_parent_receivers_independently_absent": true
+    },
+    "audits": {
+      "debug_service": 0,
+      "appstore_service": 0,
+      "debug_bundle": 0,
+      "appstore_bundle_with_required_git": 0,
+      "notes": "Actual bundle layouts and negative unsigned helper startup; owned helper subprocesses waited/reaped. No user launch item registered."
+    },
+    "website": {
+      "exit": 0
+    },
+    "initial_failures": [
+      "Scratch-generated project moved with relative source paths; regenerated at repository root after semantic comparison",
+      "Security signing-information call required SecStaticCode conversion",
+      "NSObject throwing initializer changed to a distinct initializer signature",
+      "Native fixture called manager factory rather than manager instance; corrected fixture and reran only grouped native checks"
+    ],
+    "notes": "Existing warnings/exit-zero-no-output build diagnostics remain; not a clean-log claim."
+  },
+  "hosted_ci_observation": {
+    "run": 38326176460,
+    "sha": "0d27ee9",
+    "core": "1163 tests, one skipped, zero failures",
+    "failure_step": "Grouped native LFS and Send Mail receivers with one compilation",
+    "failure": "Cancelled credential capture submitted",
+    "state": "completed failure; remediation remains open"
+  },
+  "limits": [
+    "No actual signed registration or denied-peer XPC enforcement acceptance",
+    "Unsigned builds intentionally cannot enable background agent",
+    "App Group/profile/team provisioning and physical Finder/App Store acceptance remain open",
+    "Shared administration permissions, unavailable old paths and durable cleanup retry gaps remain",
+    "Current published watched-root screenshots predate service controls"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCache/CacheService.swift": "1454112aad05859bf1e21db63db7d8e25634e68ac0161fdbc3a668804fe73fe9",
+    "Sources/TurtleGitMac/FinderBackgroundService.swift": "642c2261031c2a3bf1adab7abafb4ea259cf84860997b4b815c4ca4579a1f423",
+    "Sources/TurtleGitMac/FinderWatchedRepositories.swift": "a76b4549ef81f685872b28094e6ef616e582b4c2e269f693a450886e1fbf4fdd",
+    "Sources/TurtleGitCore/FinderServiceAuthorization.swift": "5cb60aa844ecde398c09b8c7a54468ddadc7ba5170d1db74c5f4af87f9000ffb",
+    "project.yml": "857d53ecbfc46f4b926de461bdeb7a59f3b292cb5c421d57390fe228f0c8b9b7",
+    "Configuration/Cache.entitlements": "649039670ebe058a64af5520fba488390d473268b925e9b405d83aa1f5cc8ea1",
+    "Configuration/org.turtlegit.macos.cache.plist": "29b02cc5dac449fbcb81c118e2407b8d415c776412029ccea85fd95ec3139d55",
+    "scripts/audit-cache-service.py": "c1b79283daeefea7fd6c260ba218ac7fa68be1c796d2ab10302bcd156cad3f02",
+    "Tests/TurtleGitCoreTests/FinderCacheServiceIdentityTests.swift": "cf45df9860fc6ed6183dd358925a62ac0ca557881212d118863a401306210c2b"
+  }
+}

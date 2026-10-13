@@ -1,6 +1,7 @@
 // Native watched-root management for Finder's explicit directory registration.
 // GPL-2.0-or-later; adapts TGitCache watcher/crawler ownership to macOS.
 import AppKit
+import ServiceManagement
 import SwiftUI
 import TurtleGitCore
 
@@ -17,9 +18,11 @@ struct FinderWatchRow:Identifiable {
 }
 @MainActor final class FinderWatchManager:ObservableObject {
     @Published private(set) var rows:[FinderWatchRow]=[]
-    @Published private(set) var busy=false { didSet { if !busy { sessions.values.forEach { $0.scheduler?.kick() } } } }
-    @Published private(set) var pendingOperations=0
+    @Published private(set) var busy=false { didSet { if !busy { sessions.values.forEach { $0.scheduler?.kick() };backgroundService?.requestSync(self) } } }
+    @Published private(set) var pendingOperations=0 { didSet { if pendingOperations==0 { backgroundService?.requestSync(self) } } }
     @Published var error:String?
+    private(set) var serviceRevision=0
+    var backgroundService:FinderBackgroundService?
     private(set) var active=true
     private let permissions:RepositoryAccessStore
     private let cache:FinderSnapshotStore?
@@ -50,7 +53,8 @@ struct FinderWatchRow:Identifiable {
     }
     static func production() throws -> FinderWatchManager {
         let url=RepositoryAccessStore.defaultStorageURL.deletingLastPathComponent().appendingPathComponent("watched-repositories.json")
-        return try FinderWatchManager(permissions:RepositoryAccessStore(storageURL:url),cache:FinderIntegration.snapshotURL.map { FinderSnapshotStore(url:$0) })
+        let manager=try FinderWatchManager(permissions:RepositoryAccessStore(storageURL:url),cache:FinderIntegration.snapshotURL.map { FinderSnapshotStore(url:$0) })
+        manager.backgroundService=FinderBackgroundService();return manager
     }
     private func render() {
         rows=permissions.repositories.map { FinderWatchRow(id:$0.id,name:$0.name,path:$0.lastKnownPath,status:statuses[$0.id] ?? "Waiting") }.sorted { $0.path.localizedStandardCompare($1.path) == .orderedAscending }
@@ -94,7 +98,7 @@ struct FinderWatchRow:Identifiable {
                     guard active,session.active,!token.isCancelled else { return };notify()
                 }
                 guard active,session.active,!token.isCancelled else { return }
-                _ = try permissions.replace(session.id,with:session.lease.url);session.permissionReady=true;render()
+                _ = try permissions.replace(session.id,with:session.lease.url);session.permissionReady=true;serviceRevision += 1;render()
             }
             var ticket:FinderPublicationTicket?
             if let cache { ticket=try await Task.detached { try cache.begin(root:root,cancellation:token) }.value }
@@ -133,7 +137,7 @@ struct FinderWatchRow:Identifiable {
                 }
             }
             let saved=try id.map { try permissions.replace($0,with:root) } ?? permissions.remember(root)
-            sessions.removeValue(forKey:saved.id)?.retire()
+            serviceRevision += 1;sessions.removeValue(forKey:saved.id)?.retire()
             guard active,!token.isCancelled else { return };attach(saved.id);render()
             withExtendedLifetime(lease) {}
         } catch {
@@ -151,9 +155,10 @@ struct FinderWatchRow:Identifiable {
                 _ = try await Task.detached { try cache.remove(root:root,cancellation:token) }.value
                 guard active,!token.isCancelled else { return };notify()
             }
-            try permissions.forget(id);statuses[id]=nil;render()
+            try permissions.forget(id);serviceRevision += 1;statuses[id]=nil;render()
         } catch { if active,!token.isCancelled { self.error=error.localizedDescription;attach(id) } }
     }
+    func serviceLeases() -> [RepositoryAccessLease] { sessions.values.map { $0.lease } }
     func serviceAuthorization(provider:any RepositoryTransferBookmarkProvider = SystemRepositoryTransferBookmarks()) throws -> FinderServiceAuthorization {
         guard active,!busy,pendingOperations==0,rows.count==sessions.count else { throw RepositoryAccessFailure.securityScopeUnavailable }
         let values=try sessions.values.map { session -> (UUID,URL,RepositoryAccessLease) in
@@ -163,7 +168,7 @@ struct FinderWatchRow:Identifiable {
         return try FinderServiceAuthorization.capture(values,provider:provider)
     }
     func retire() { guard active else { return };active=false;mutation?.cancel();sessions.values.forEach { $0.retire() };sessions=[:] }
-    func shutdown() async { retire();while pendingOperations>0 { try? await Task.sleep(nanoseconds:10_000_000) } }
+    func shutdown() async { retire();while pendingOperations>0 { try? await Task.sleep(nanoseconds:10_000_000) };await backgroundService?.settle() }
 }
 
 struct FinderWatchedRepositoriesPage:View {
@@ -172,7 +177,8 @@ struct FinderWatchedRepositoriesPage:View {
     @State private var confirmingRemove=false
     var body:some View {
         VStack(alignment:.leading,spacing:12) {
-            Text("Keep these repositories refreshed while TurtleGit is running.")
+            Text("Keep these repositories refreshed for Finder.")
+            if let service=manager.backgroundService { FinderBackgroundServiceControls(service:service,manager:manager) }
             Table(manager.rows,selection:$selection) {
                 TableColumn("Repository") { row in HStack { Image(nsImage:MenuIcon.repositoryBrowser.image() ?? NSImage()).frame(width:16,height:16);Text(row.name) } }
                 TableColumn("Path",value:\.path)
@@ -201,5 +207,21 @@ struct FinderWatchedRepositoriesPage:View {
         panel.beginSheetModal(for:window) { response in
             guard response == .OK,let url=panel.url,manager.active else { return };Task { await manager.add(url,replacing:id) }
         }
+    }
+}
+
+private struct FinderBackgroundServiceControls:View {
+    @ObservedObject var service:FinderBackgroundService
+    let manager:FinderWatchManager
+    var body:some View {
+        VStack(alignment:.leading,spacing:6) {
+            HStack {
+                Toggle("Refresh after TurtleGit quits",isOn:Binding(get:{ service.enabled },set:{ value in Task { if value { await service.enable(manager) } else { await service.disable() } } })).disabled(service.busy || manager.busy || manager.pendingOperations>0)
+                Button("Synchronize") { service.requestSync(manager,force:true) }.disabled(!service.enabled || service.busy || manager.busy || manager.pendingOperations>0)
+                Button("Login Items…") { SMAppService.openSystemSettingsLoginItems() }
+            }
+            Text(service.message).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+        }.onAppear { service.updateStatus() }
+        .onReceive(NotificationCenter.default.publisher(for:NSApplication.didBecomeActiveNotification)) { _ in service.updateStatus();service.requestSync(manager) }
     }
 }

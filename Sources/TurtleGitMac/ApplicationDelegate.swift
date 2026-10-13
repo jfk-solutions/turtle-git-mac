@@ -194,7 +194,7 @@ import AppKit
     private func finishBackgroundWatches(_ sender:NSApplication) -> NSApplication.TerminateReply {
         repositoryModel?.stopMonitoringForTermination()
         guard let manager=repositoryModel?.finderWatches else { return .terminateNow }
-        let pending=manager.pendingOperations;manager.retire()
+        let pending=manager.pendingOperations+(manager.backgroundService?.busy == true ? 1 : 0);manager.retire()
         guard pending>0 else { return .terminateNow }
         confirmingQuit=true
         Task { await manager.shutdown();confirmingQuit=false;replyToTermination(sender,true) }

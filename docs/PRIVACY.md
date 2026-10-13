@@ -32,8 +32,14 @@ disables new entries without deleting old ones. TurtleGit does not upload it.
 Saved repository bookmarks, display names and last-known paths live in the app's
 private Application Support directory. The bookmark file uses owner-only file
 permissions. Sandboxed builds place that directory inside their application
-container. The app keeps a security scope active only during an open session.
-Closing the session releases a scope it acquired. Forgetting a recent entry removes
+container. The app retains scopes for open workspace sessions and explicitly watched
+repositories. Closing a workspace releases its scope; watched repositories retain
+their scopes until removed or the app quits. The optional background cache agent
+receives grants over authenticated private XPC and creates its own persistent
+bookmarks in its private sandbox container. While enabled, it retains scopes to
+watch repositories after the main app quits. Disabling the agent stops its watches
+but retains its private saved grants for a later enable. These bookmarks are never
+placed in Finder's shared cache. Forgetting a recent entry removes
 its saved bookmark; it does not delete the Git repository.
 
 The app and Finder extension share a local cache of monitored repository roots,

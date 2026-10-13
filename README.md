@@ -27,7 +27,7 @@ macOS 13.
 | Single-patch review | Native before/after review, checked-file application, edited saves, exact-byte clipboard copy/review and confirmed target matching against plain directories or Git subfolders; app/Finder entry | Full TortoiseGitMerge behavior, Open/Finder clipboard integration and signed acceptance; [source audit](docs/REVIEW-PATCH-PARITY.md) |
 | SVN integration | DCommit choices/stash flow, Fetch comparisons, fetch-then-Rebase and Ignore destinations; private universal Perl/Subversion runtime | Native/signed authentication, full physical UI acceptance and distribution review; [source audit](docs/SVN-PARITY.md) |
 | Git daemon | Native warning/progress, server URLs, owned cancellation and app/Finder entry | Signed sandbox, firewall and LAN/IPv6 acceptance; [source audit](docs/DAEMON-PARITY.md) |
-| Finder | Embedded Finder Sync extension, status snapshot/badges, selection-based context-menu routing and event-driven active-workspace refresh and persistent watched repositories while the app runs | Signed end-to-end activation and deployment of the independent background service (its grant, collection, publication and runtime infrastructure is implemented) |
+| Finder | Embedded Finder Sync extension, status snapshot/badges, selection-based context-menu routing and event-driven active-workspace refresh and persistent watched repositories while the app runs | User-approved signed service/Finder activation and App Store acceptance (embedded agent, private grant handoff and runtime are implemented) |
 
 [Getting started](docs/GETTING-STARTED.md) explains the first workflows, including
 how checked-file commits differ from staging mode. The checkbox is named
@@ -111,6 +111,9 @@ The `TurtleGitAppStore` scheme uses the separate sandboxed `AppStore`
 configuration. It requires the pinned bundled Git runtime and refuses system-Git
 fallback. Follow the complete helper/runtime build instructions in
 [distribution engineering](docs/DISTRIBUTION.md); see also [privacy](docs/PRIVACY.md).
+The [Finder cache agent](docs/FINDER-SERVICE-DEPLOYMENT.md) is embedded and
+managed from Watched Repositories. Enabling background refresh requires a signed
+build and macOS approval; unsigned development builds fail closed.
 Signed sandbox acceptance and distribution clearance remain open. **This is not
 an App Store-ready release.**
 
