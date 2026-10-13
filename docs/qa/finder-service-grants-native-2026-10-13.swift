@@ -19,12 +19,29 @@ import TurtleGitCore
         lease=nil
         let worker=Process();worker.executableURL=URL(fileURLWithPath:CommandLine.arguments[0]);worker.arguments=[folder.path,engine.path,"finder-service-grant-worker"]
         try worker.run();defer { if worker.isRunning { worker.terminate() };worker.waitUntilExit() }
+        func awaitState(_ state:FileState) async throws {
+            for _ in 0..<2000 {
+                if let data=try? Data(contentsOf:folder.appendingPathComponent("status.json")),let snapshot=try? JSONDecoder().decode(FinderSnapshot.self,from:data),snapshot.states[root.appendingPathComponent("file").path]==state { return }
+                try require(worker.isRunning,"Runtime receiver exited before cache update")
+                try await Task.sleep(nanoseconds:10_000_000)
+            }
+            throw Failure(description:"Separate runtime cache update timeout")
+        }
+        try await awaitState(.normal)
+        try Data("external runtime edit\n".utf8).write(to:root.appendingPathComponent("file"))
+        try await awaitState(.modified)
+        try Data().write(to:folder.appendingPathComponent("stop"))
         for _ in 0..<2000 { if !worker.isRunning { break };try await Task.sleep(nanoseconds:10_000_000) }
         try require(!worker.isRunning,"Owned transfer receiver timeout");worker.waitUntilExit();try require(worker.terminationStatus==0,"Owned transfer receiver failed")
         let result=try JSONDecoder().decode([String:String].self,from:Data(contentsOf:folder.appendingPathComponent("result.json")))
         try require(result["root"]==root.path && result["bytes"]=="private transfer bytes\n","Receiver grant/root read")
+        try require(FileManager.default.fileExists(atPath:folder.appendingPathComponent("stopped").path),"Receiver did not settle shutdown")
+        let stoppedCache=try Data(contentsOf:folder.appendingPathComponent("status.json"))
+        try Data("after receiver shutdown\n".utf8).write(to:root.appendingPathComponent("file"))
+        try await Task.sleep(nanoseconds:600_000_000)
+        try require(try Data(contentsOf:folder.appendingPathComponent("status.json"))==stoppedCache,"Retired receiver wrote cache")
         let afterHead=try await repo.run(["rev-parse","HEAD"]).stdout,afterIndex=try Data(contentsOf:root.appendingPathComponent(".git/index"))
         try require(head==afterHead && index==afterIndex,"Transfer changed repository state")
-        print("Private service grants: actual Foundation bookmark encoding/receiver resolution in a separate owned process after sender lease release, exact repository bytes and HEAD/index preservation passed. Unsigned private destinations; security scope requirement explicitly disabled for this fixture, not signed permission proof.")
+        print("Private service grants: actual Foundation bookmark encoding/receiver resolution in a separate owned process after sender lease release, restored long-lived runtime publication, external edits, shutdown and HEAD/index preservation passed. Unsigned private destinations; security scope requirement explicitly disabled for this fixture, not signed permission proof.")
     }
 }

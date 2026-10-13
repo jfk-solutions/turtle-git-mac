@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-13",
+  "scope": [
+    "Independent receiver cache runtime: persisted grants, FSEvents, recursive collection, publication, replacement and shutdown",
+    "Real separate-process receiver updates after sender lease release"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/finder-service-runtime-build-2026-10-13.log",
+      "notes": "Actor-isolation compile error fixed; existing toolchain warnings/exit-zero diagnostics remain."
+    },
+    "core": {
+      "exit": 0,
+      "tests": 7,
+      "log": "build/qa/finder-service-runtime-core-2026-10-13.log",
+      "scope": "Runtime lifecycle integration plus permission store and authorization tests; fixture closure compilation corrected."
+    },
+    "native": {
+      "exit": 0,
+      "cases": 2,
+      "engines": [
+        "system Git",
+        "packaged Git"
+      ],
+      "log": "build/qa/finder-service-runtime-native-2026-10-13.log",
+      "owned_receivers_reaped": [
+        33520,
+        33602
+      ],
+      "all_parent_receivers_independently_absent": true,
+      "scope": "Real Foundation bookmarks; restored runtime publication, external edits, shutdown and exact HEAD/index preservation. Child receiver Process waited/reaped by parent."
+    },
+    "website": {
+      "exit": 0,
+      "output": "build/site"
+    },
+    "appstore": "Deferred until service target/entitlement packaging changes."
+  },
+  "limits": [
+    "No installed independent service or authenticated IPC",
+    "Unsigned native fixture explicitly disables security-scope requirement",
+    "Shared administration outside acquired scopes needs additional grants",
+    "Unavailable prior root paths and crash-persistent cache cleanup remain open",
+    "No whole-app UI parity or signed Finder/App Store acceptance claim"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/FinderServiceAuthorization.swift": "e322a44d7ed1b6550e7e13b47e8512ec7b7a8666564c60afbadf058fabd5bb15",
+    "Tests/TurtleGitCoreTests/FinderCacheServiceRuntimeTests.swift": "936dabef88432f4208b2324f59a0d5538c2c90ffa6da79f26920a075c1863f3f",
+    "docs/qa/finder-service-grant-worker-native-2026-10-13.swift": "f1008a16e341caf19da9fb5c82328792825664788bc76a57bd01ead4754133fd",
+    "docs/qa/finder-service-grants-native-2026-10-13.swift": "34c54b62597cad9f688a57a356a234d287542439e67ce05fef1e449b7d93f653"
+  }
+}

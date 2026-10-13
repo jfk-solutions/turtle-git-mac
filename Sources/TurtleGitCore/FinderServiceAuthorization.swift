@@ -177,3 +177,149 @@ public struct FinderServiceRestoration {
     public let accesses:[FinderServicePersistentAccess]
     public let failures:[UUID:String]
 }
+
+public enum FinderCacheServiceFailure:LocalizedError {
+    case transitioning, outsidePermission
+    public var errorDescription:String? {
+        switch self {
+        case .transitioning:return "The cache service is changing registrations."
+        case .outsidePermission:return "Repository administration requires an additional folder permission."
+        }
+    }
+}
+
+/// Independent-process coordinator. Its caller supplies private grants and a shared
+/// status store; it does not register a login item or authenticate IPC itself.
+@MainActor public final class FinderCacheServiceRuntime {
+    @MainActor private final class Session {
+        let access:FinderServicePersistentAccess
+        let repository:GitRepository
+        var monitor:RepositoryFileEventMonitor?
+        var directories:[URL]=[]
+        var refresh:RepositoryEventRefresh?
+        var token:OperationCancellation?
+        var task:Task<Void,Never>?
+        var active=true
+        var watchFailure:String?
+        init(_ access:FinderServicePersistentAccess,repository:GitRepository) { self.access=access;self.repository=repository }
+        func retire() { active=false;monitor?.stop();monitor=nil;refresh?.retire();refresh=nil;token?.cancel();task?.cancel() }
+        deinit { monitor?.stop();token?.cancel();task?.cancel() }
+    }
+    public private(set) var running=false
+    private var rootFailures:[UUID:String]=[:]
+    private var cleanupFailures:[UUID:String]=[:]
+    public var failures:[UUID:String] { rootFailures.merging(cleanupFailures) { $0+"\n"+$1 } }
+    private let permissions:FinderServicePermissionStore
+    private let cache:FinderSnapshotStore
+    private let factory:(URL)->GitRepository
+    private let notify:()->Void
+    private let changed:()->Void
+    private var sessions:[UUID:Session]=[:]
+    private var transitioning=false
+    private var retiring:[Session]=[]
+    private var pendingRemovals:[URL:UUID]=[:]
+    private var generation=0
+    public init(permissions:FinderServicePermissionStore,cache:FinderSnapshotStore,
+                repository:@escaping (URL)->GitRepository = { GitRepository(root:$0) },
+                notify:@escaping ()->Void = {},changed:@escaping ()->Void = {}) {
+        self.permissions=permissions;self.cache=cache;factory=repository;self.notify=notify;self.changed=changed
+    }
+    public func start(requireSecurityScope:Bool = true) throws {
+        guard !running,!transitioning else { throw FinderCacheServiceFailure.transitioning }
+        let restored=try permissions.restore(requireSecurityScope:requireSecurityScope)
+        running=true;generation += 1;rootFailures=restored.failures
+        attach(restored.accesses);changed()
+    }
+    /// Durable installation is atomic. Cache cleanup is a separate operation:
+    /// failures are reported and retained for retry, never hidden as success.
+    public func replace(_ request:FinderServiceAuthorization,
+                        transfer:any RepositoryTransferBookmarkProvider = SystemRepositoryTransferBookmarks(),
+                        requireSecurityScope:Bool = true) async throws {
+        guard running,!transitioning else { throw FinderCacheServiceFailure.transitioning }
+        let accesses=try permissions.install(request,transfer:transfer,requireSecurityScope:requireSecurityScope)
+        transitioning=true;generation += 1;let identity=generation
+        let old=Array(sessions.values);sessions.removeAll();retiring=old
+        for session in old { session.retire() }
+        for session in old { await session.task?.value }
+        // Shutdown may have happened while Git readers were settling.
+        guard running,generation==identity else { retiring=[];transitioning=false;return }
+        rootFailures=[:]
+        let retained=Set(accesses.map { $0.root.standardizedFileURL.path })
+        for session in old where !retained.contains(session.access.root.standardizedFileURL.path) {
+            pendingRemovals[session.access.root]=session.access.id
+        }
+        retiring=[];transitioning=false;attach(accesses);cleanup();changed()
+    }
+    public func refresh(_ id:UUID? = nil) {
+        guard running,!transitioning else { return }
+        cleanup()
+        for (key,session) in sessions where id==nil || id==key { session.refresh?.invalidate() }
+    }
+    public func shutdown() async {
+        running=false;generation += 1;transitioning=true
+        let old=Array(sessions.values)+retiring;sessions.removeAll()
+        for session in old { session.retire() }
+        for session in old { await session.task?.value }
+        retiring=[];transitioning=false;changed()
+    }
+    private func attach(_ accesses:[FinderServicePersistentAccess]) {
+        for access in accesses {
+            let session=Session(access,repository:factory(access.root));sessions[access.id]=session
+            session.refresh=RepositoryEventRefresh(available:{ [weak self,weak session] in
+                self?.running==true && session?.active==true
+            },refresh:{ [weak self,weak session] in
+                guard let self,let session,session.active else { return }
+                let token=OperationCancellation();session.token=token
+                session.task=Task { [weak self] in
+                    guard let self else { return };await self.collect(session,token:token)
+                }
+                await session.task?.value;session.task=nil;session.token=nil
+            })
+            session.refresh?.invalidate()
+        }
+    }
+    private func collect(_ session:Session,token:OperationCancellation) async {
+        do {
+            let ticket=try cache.begin(root:session.access.root,cancellation:token)
+            let collection=try await session.repository.collectFinderRepository(authorizedRoot:session.access.lease.url,cancellation:token,watchReady:{ [weak self,weak session] paths in
+                await self?.watch(session,paths:paths)
+            })
+            try token.check()
+            guard running,session.active,sessions[session.access.id]===session else { return }
+            // An unauthorized shared Git directory must not be silently monitored.
+            guard collection.watchDirectories.allSatisfy({ session.access.lease.contains($0) }) else { throw FinderCacheServiceFailure.outsidePermission }
+            if let failure=session.watchFailure { throw NSError(domain:"TurtleGit.FinderWatcher",code:1,userInfo:[NSLocalizedDescriptionKey:failure]) }
+            let publication=try cache.publish(ticket,snapshots:collection.snapshots,cancellation:token)
+            if publication.published {
+                rootFailures.removeValue(forKey:session.access.id)
+                if !collection.failures.isEmpty { rootFailures[session.access.id]=collection.failures.values.sorted().joined(separator:"\n") }
+                notify();changed()
+            } else { session.refresh?.invalidate() }
+        } catch {
+            guard running,session.active,!token.isCancelled else { return }
+            rootFailures[session.access.id]=error.localizedDescription;changed()
+        }
+    }
+    private func watch(_ session:Session?,paths:[URL]) {
+        guard let session,running,session.active else { return }
+        guard paths.allSatisfy({ session.access.lease.contains($0) }),paths != session.directories else { return }
+        do {
+            let monitor=try RepositoryFileEventMonitor(roots:paths,onEvents:{ [weak self,weak session] _ in
+                Task { @MainActor in
+                    guard let self,let session,self.running,session.active,self.sessions[session.access.id]===session else { return }
+                    session.refresh?.invalidate()
+                }
+            })
+            session.monitor?.stop();session.monitor=monitor;session.directories=paths;session.watchFailure=nil
+        } catch { session.watchFailure=error.localizedDescription;rootFailures[session.access.id]=error.localizedDescription;changed() }
+    }
+    private func cleanup() {
+        let active=Set(sessions.values.map { $0.access.root.standardizedFileURL.path })
+        cleanupFailures=[:]
+        for (root,id) in pendingRemovals {
+            if active.contains(root.standardizedFileURL.path) { pendingRemovals.removeValue(forKey:root);continue }
+            do { _ = try cache.remove(root:root);pendingRemovals.removeValue(forKey:root);notify() }
+            catch { cleanupFailures[id]=error.localizedDescription }
+        }
+    }
+}
