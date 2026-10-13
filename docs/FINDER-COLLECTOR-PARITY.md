@@ -52,3 +52,7 @@ All 16 focused Core checks passed on the first grouped run. The expanded native
 case passed with system and packaged Git; both receivers were reaped and
 independently verified absent. Debug and unsigned App Store builds and the website
 build passed. No full runtime audit or signed/physical acceptance was repeated.
+
+The later [publication batch](FINDER-PUBLICATION-PARITY.md) routes production
+app updates through root-scoped tickets and atomic cross-process merge ownership.
+The independent service remains unimplemented.

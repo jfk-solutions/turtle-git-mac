@@ -174,7 +174,8 @@ import TurtleGitCore
     private var adoptionGeneration = 0
     private var cloneKeyAccess: [String: RepositoryAccessLease] = [:]
     private let repositoryFactory:((URL) throws -> GitRepository)?
-    private let snapshotWriter:@Sendable (FinderSnapshot) throws -> Bool
+    private let snapshotWriter:(@Sendable (FinderSnapshot) throws -> Bool)?
+    private let snapshotStore:FinderSnapshotStore?
     var notifyFinder:()->Void = { DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderIntegration.notification),object:nil) }
     private let monitoringEnabled:Bool
     private var fileMonitor:RepositoryFileEventMonitor?
@@ -232,8 +233,9 @@ import TurtleGitCore
         return eligible && (!action.ignoresByExtension || selected.contains { !($0.path as NSString).pathExtension.isEmpty })
     }
 
-    init(startMonitoring: Bool = true,initializePreferences:Bool = true,repositoryFactory:((URL) throws -> GitRepository)? = nil,snapshotWriter:@escaping @Sendable (FinderSnapshot) throws -> Bool = { try $0.write() }) {
+    init(startMonitoring: Bool = true,initializePreferences:Bool = true,repositoryFactory:((URL) throws -> GitRepository)? = nil,snapshotWriter:(@Sendable (FinderSnapshot) throws -> Bool)? = nil,snapshotStore:FinderSnapshotStore? = nil) {
         self.repositoryFactory=repositoryFactory;self.snapshotWriter=snapshotWriter
+        self.snapshotStore=snapshotStore ?? FinderIntegration.snapshotURL.map { FinderSnapshotStore(url:$0) }
         monitoringEnabled=startMonitoring
         guard startMonitoring && initializePreferences else { return }
         do { _ = try FinderMenuSettings.from().write() }
@@ -366,6 +368,12 @@ import TurtleGitCore
     private func reload() async throws {
         guard let repository, let root else { return }
         let token=OperationCancellation()
+        let store=snapshotStore
+        var ticket:FinderPublicationTicket?,publicationError:String?
+        if snapshotWriter==nil,let store {
+            do { ticket=try await Task.detached { try store.begin(root:root,cancellation:token) }.value }
+            catch { publicationError=error.localizedDescription }
+        }
         let collected=try await repository.collectFinderRepository(authorizedRoot:activeAccess?.url ?? root,cancellation:token,watchReady:{ [weak self] directories in await self?.monitorFiles(directories) })
         bare=collected.bare;entries=collected.entries;conflictRebase=collected.conflictIsRebase;submodules=collected.submodules
         selection.formIntersection(Set(entries.map(\.id)))
@@ -376,8 +384,17 @@ import TurtleGitCore
         cacheOverlayEntries = cached.overlayEntries
         cacheIndexFlags = cached.indexFlags
         do {
-            let writer=snapshotWriter
-            let written = try await Task.detached(operation:{ try writer(cached) }).value
+            if let publicationError { finderStatus="Finder cache unavailable: "+publicationError;return }
+            let written:Bool
+            if let writer=snapshotWriter { written=try await Task.detached { try writer(cached) }.value }
+            else if let store,let ticket {
+                let update=try await Task.detached { try store.publish(ticket,snapshots:collected.snapshots,cancellation:token) }.value
+                cached=update.snapshot
+                monitoredRoots=cached.roots;cacheStates=cached.states;cacheRepositories=cached.repositories
+                cacheOverlayEntries=cached.overlayEntries;cacheIndexFlags=cached.indexFlags
+                guard update.published else { finderStatus="Finder cache update superseded";return }
+                written=true
+            } else { written=false }
             finderStatus = written ? (collected.failures.isEmpty ? "Finder cache updated" : "Finder cache updated; \(collected.failures.count) submodule scan(s) failed: " + collected.failures.sorted { $0.key < $1.key }.map { $0.key + ": " + $0.value }.joined(separator: "; ")) : "Finder cache unavailable: App Group access required"
             if written { notifyFinder() }
         } catch { finderStatus = "Finder cache unavailable: " + error.localizedDescription }

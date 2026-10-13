@@ -1492,3 +1492,18 @@ publication. Cancellation cannot produce a partial child-failure collection.
 The existing cached `--only finder-events` native case now also creates a real
 registered child, edits it externally and verifies an event-published modified
 badge with exact child index bytes retained, using both Git engines.
+
+`FinderPublicationTests|FinderSubmoduleScanTests` checks the shared store protocol,
+including consumed/superseded/overlapping tickets, subtree merge/removal, invalid
+payloads/corruption and cancellable lock waits. Cached native `--only finder-publication`
+opens two real workspace models and launches two owned `finder-publication-worker`
+receivers against a private store. Worker processes use simulated status payloads,
+are individually waited/reaped, and are excluded from default case enumeration.
+The existing `--only finder-events` collector checks run alongside publication
+with both Git engines. No user App Group data or actual Finder activation is used.
+
+Hosted run 38318891938 at ad2f840 finished with one icon-template expectation
+failure among 1,149 tests. The original hook asset is grayscale at all four sizes;
+the expectation now includes settingsHooks and names the icon on failure. The
+three focused MenuIconTests passed; a new complete hosted pass remains unproven.
+See `qa/hook-icon-ci-2026-10-13.json`.

@@ -211,3 +211,5 @@ are not recursively audited.
 - [Filesystem event monitoring and remaining cache-service work](FINDER-EVENTS-PARITY.md)
 
 - [Cancellable Finder cache collector](FINDER-COLLECTOR-PARITY.md)
+
+- [Shared Finder snapshot publication](FINDER-PUBLICATION-PARITY.md)

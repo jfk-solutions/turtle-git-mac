@@ -1,0 +1,61 @@
+{
+  "date": "2026-10-13",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Cross-process root-only atomic merge publication",
+    "Issued/consumed ticket ordering for same/overlapping roots",
+    "Removal invalidation, corruption refusal and cancellable monotonic lock waits",
+    "Production app handoff and notification-after-write"
+  ],
+  "source": [
+    "TGitCache/GitStatusCache.cpp centralized cache/SaveCache ownership",
+    "Existing FinderSnapshot replaceSubtree projection"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/finder-publication-build-2026-10-13.log",
+      "notes": "Existing warnings/exit-0 no-output diagnostics; not a clean-log claim"
+    },
+    "core": {
+      "exit": 0,
+      "tests": 10,
+      "log": "build/qa/finder-publication-core-2026-10-13.log"
+    },
+    "native": {
+      "exit": 0,
+      "cases": 4,
+      "engines": [
+        "system Git",
+        "packaged Git"
+      ],
+      "log": "build/qa/finder-publication-native-2026-10-13.log",
+      "owned_parent_receivers_reaped": [
+        22636,
+        22862,
+        22947,
+        23173
+      ],
+      "independently_absent": true,
+      "worker_scope": "Two additional owned processes per publication case; each waited/reaped with exit 0. Simulated worker payloads; actual app models use real Git."
+    },
+    "appstore": "Not repeated; defer to cache-service packaging batch. No target/runtime/entitlement changes.",
+    "runtime_audit": "Not repeated; recipes/resources unchanged.",
+    "website": {
+      "exit": 0,
+      "output": "build/site"
+    }
+  },
+  "limits": [
+    "No deployed independent cache service or watched-root/bookmark manager",
+    "No physical/signed Finder, App Group or App Store acceptance",
+    "Ticket ordering is not an atomic Git state snapshot; legacy whole-snapshot writes are outside the protocol"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/FinderCache.swift": "0f390944e0a8fe8e8e399fa6dfc1c213998ed592e51160bab72ff2f092945e72",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "264fc23bb4cb938c76f2c7d1b045ade3759faaa1f2c21bd17a48b2fe6f7b1560",
+    "Tests/TurtleGitCoreTests/FinderPublicationTests.swift": "32046e6b3fdb4f65e74fd7636440774e9f8289d7cd9ad6fd84e8e9be4fe2528a",
+    "docs/qa/finder-publication-native-2026-10-13.swift": "8f0ea44827a51752844b61de4c30edd2c7a00f17dc6f54ce7fd51171c7961089",
+    "docs/qa/finder-publication-worker-native-2026-10-13.swift": "672d40316caef12c244776bb11b3c75c0e81d2a4372edb572cf28fda61287ce1"
+  }
+}

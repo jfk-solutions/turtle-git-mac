@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 import Security
 
 public enum FinderIntegration {
@@ -766,5 +767,116 @@ extension GitRepository {
         let children=try await bare ? FinderSubmoduleScan() : finderSubmoduleSnapshots(authorizedRoot:authorizedRoot,cancellation:cancellation)
         try cancellation?.check()
         return FinderRepositoryCollection(root:root,bare:bare,entries:entries,branch:branch,conflictIsRebase:conflict,submodules:submodules,metadata:metadata,watchDirectories:watch,snapshots:[base]+children.snapshots,failures:children.failures)
+    }
+}
+
+public enum FinderPublicationFailure:LocalizedError {
+    case invalidUpdate,corruptStore,lockTimeout
+    public var errorDescription:String? {
+        switch self {
+        case .invalidUpdate:return "The Finder cache update does not belong to its repository."
+        case .corruptStore:return "The Finder cache store is invalid; its previous data was retained."
+        case .lockTimeout:return "Another Finder cache writer did not release its lock."
+        }
+    }
+}
+public struct FinderPublicationTicket:Codable,Sendable {
+    public let root:String
+    fileprivate let store:UUID
+    fileprivate let sequence:UInt64
+}
+public struct FinderPublicationResult:Sendable {
+    public let published:Bool
+    public let snapshot:FinderSnapshot
+}
+/// Serializes app/service updates. Tickets are ordering identities, never access grants.
+public final class FinderSnapshotStore:@unchecked Sendable {
+    public let url:URL
+    private struct Control:Codable {
+        var version=1
+        var id=UUID()
+        var counter:UInt64=0
+        var sequences:[String:UInt64]=[:]
+        var consumed:[String:UInt64]=[:]
+    }
+    public init(url:URL) { self.url=url }
+    private var controlURL:URL { URL(fileURLWithPath:url.path+".writers") }
+    private func read<T:Decodable>(_ type:T.Type,_ location:URL) throws -> T? {
+        var attributes=stat()
+        if lstat(location.path,&attributes) != 0 {
+            if errno==ENOENT { return nil };throw POSIXError(POSIXErrorCode(rawValue:errno) ?? .EIO)
+        }
+        guard attributes.st_mode & S_IFMT == S_IFREG else { throw FinderPublicationFailure.corruptStore }
+        do { return try JSONDecoder().decode(type,from:Data(contentsOf:location)) }
+        catch { throw FinderPublicationFailure.corruptStore }
+    }
+    private func control() throws -> Control {
+        let value=try read(Control.self,controlURL) ?? Control()
+        guard value.version==1 else { throw FinderPublicationFailure.corruptStore };return value
+    }
+    private func save<T:Encodable>(_ value:T,_ location:URL) throws {
+        try JSONEncoder().encode(value).write(to:location,options:.atomic)
+        try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:location.path)
+    }
+    private func locked<T>(_ cancellation:OperationCancellation?,_ operation:() throws -> T) throws -> T {
+        try cancellation?.check()
+        try FileManager.default.createDirectory(at:url.deletingLastPathComponent(),withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
+        let descriptor=Darwin.open(url.path+".lock",O_CREAT | O_RDWR | O_NOFOLLOW | O_CLOEXEC,mode_t(0o600))
+        guard descriptor>=0 else { throw POSIXError(POSIXErrorCode(rawValue:errno) ?? .EIO) }
+        defer { Darwin.close(descriptor) }
+        let deadline=DispatchTime.now().uptimeNanoseconds+5_000_000_000
+        while flock(descriptor,LOCK_EX | LOCK_NB) != 0 {
+            let failure=errno
+            try cancellation?.check()
+            guard failure==EWOULDBLOCK || failure==EINTR else { throw POSIXError(POSIXErrorCode(rawValue:failure) ?? .EIO) }
+            guard DispatchTime.now().uptimeNanoseconds<deadline else { throw FinderPublicationFailure.lockTimeout };usleep(10_000)
+        }
+        defer { flock(descriptor,LOCK_UN) }
+        try cancellation?.check();return try operation()
+    }
+    private func path(_ root:URL) throws -> String {
+        guard root.isFileURL,!root.path.utf8.contains(0) else { throw FinderPublicationFailure.invalidUpdate };return root.standardizedFileURL.path
+    }
+    public func begin(root:URL,cancellation:OperationCancellation? = nil) throws -> FinderPublicationTicket {
+        let root=try path(root)
+        return try locked(cancellation) {
+            var state=try control()
+            guard state.counter<UInt64.max else { throw FinderPublicationFailure.corruptStore }
+            state.counter += 1;state.sequences[root]=state.counter;try save(state,controlURL)
+            return FinderPublicationTicket(root:root,store:state.id,sequence:state.counter)
+        }
+    }
+    public func publish(_ ticket:FinderPublicationTicket,snapshots:[FinderSnapshot],cancellation:OperationCancellation? = nil) throws -> FinderPublicationResult {
+        func belongs(_ value:String) -> Bool {
+            guard !value.utf8.contains(0),URL(fileURLWithPath:value).standardizedFileURL.path==value else { return false }
+            return value==ticket.root || value.hasPrefix(ticket.root=="/" ? "/" : ticket.root+"/")
+        }
+        guard snapshots.contains(where: { $0.roots.contains(ticket.root) }),snapshots.allSatisfy({ snapshot in
+            !snapshot.roots.isEmpty && snapshot.roots.allSatisfy(belongs) && snapshot.states.keys.allSatisfy(belongs) && snapshot.repositories.keys.allSatisfy(belongs) && (snapshot.overlayEntries ?? [:]).keys.allSatisfy(belongs) && (snapshot.indexFlags ?? [:]).keys.allSatisfy(belongs)
+        }) else { throw FinderPublicationFailure.invalidUpdate }
+        return try locked(cancellation) {
+            var state=try control()
+            var latest=try read(FinderSnapshot.self,url) ?? FinderSnapshot(roots:[],states:[:])
+            func nested(_ lhs:String,_ rhs:String) -> Bool { lhs==rhs || lhs.hasPrefix(rhs=="/" ? "/" : rhs+"/") }
+            let newerOverlap=state.sequences.contains { root,sequence in sequence>ticket.sequence && (nested(root,ticket.root) || nested(ticket.root,root)) }
+            guard state.id==ticket.store,state.sequences[ticket.root]==ticket.sequence,!newerOverlap,(state.consumed[ticket.root] ?? 0)<ticket.sequence else { return FinderPublicationResult(published:false,snapshot:latest) }
+            state.consumed[ticket.root]=ticket.sequence;try save(state,controlURL)
+            latest.replaceSubtree(root:URL(fileURLWithPath:ticket.root,isDirectory:true),snapshots:snapshots)
+            latest.updated=Date();try cancellation?.check();try save(latest,url)
+            return FinderPublicationResult(published:true,snapshot:latest)
+        }
+    }
+    /// Invalidate outstanding reads before removing only this repository's owned subtree.
+    public func remove(root:URL,cancellation:OperationCancellation? = nil) throws -> FinderSnapshot {
+        let root=try path(root)
+        return try locked(cancellation) {
+            var state=try control()
+            guard state.counter<UInt64.max else { throw FinderPublicationFailure.corruptStore }
+            var latest=try read(FinderSnapshot.self,url) ?? FinderSnapshot(roots:[],states:[:])
+            state.counter += 1;state.sequences[root]=state.counter;state.consumed[root]=state.counter
+            try cancellation?.check();try save(state,controlURL)
+            latest.replaceSubtree(root:URL(fileURLWithPath:root,isDirectory:true),snapshots:[]);latest.updated=Date();try save(latest,url)
+            return latest
+        }
     }
 }
