@@ -158,15 +158,7 @@ final class LogHistoryWindow: NSWindow {
         }
         model.confirmReferenceDeletion = { [weak window] request in
             guard let window, window.attachedSheet == nil else { return .abort }
-            return await withCheckedContinuation { continuation in
-                let alert = NSAlert(); alert.alertStyle = .warning; alert.messageText = request.message
-                for option in request.choices { alert.addButton(withTitle: option.title).keyEquivalent = "" }
-                let abort = alert.buttons.last!; abort.keyEquivalent = "\r"; alert.window.defaultButtonCell = abort.cell as? NSButtonCell
-                alert.beginSheetModal(for: window) { response in
-                    let index = response.rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
-                    continuation.resume(returning: request.choices.indices.contains(index) ? request.choices[index].choice : .abort)
-                }
-            }
+            return await HistoryReferenceDeletionPresentation.confirm(request, parent: window)
         }
         model.sshSettings.present = { [weak window] prompt in
             guard let window, window.attachedSheet == nil, let child = prompt.window else { return false }
@@ -3368,5 +3360,25 @@ struct LogRevisionDialog: View {
                     .disabled((request.command == .branch || request.command == .tag) && value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }.padding(20).frame(width: 550)
+    }
+}
+
+/// Shared source confirmation for History and RefLog named-reference deletion.
+@MainActor enum HistoryReferenceDeletionPresentation {
+    static func alert(_ request: HistoryReferenceDeletion) -> NSAlert {
+        let alert = NSAlert(); alert.alertStyle = .warning; alert.messageText = request.message
+        for option in request.choices { alert.addButton(withTitle: option.title).keyEquivalent = "" }
+        let abort = alert.buttons.last!; abort.keyEquivalent = "\r"
+        alert.window.defaultButtonCell = abort.cell as? NSButtonCell
+        return alert
+    }
+    static func confirm(_ request: HistoryReferenceDeletion, parent: NSWindow) async -> HistoryReferenceDeleteChoice {
+        guard parent.attachedSheet == nil else { return .abort }
+        return await withCheckedContinuation { continuation in
+            alert(request).beginSheetModal(for: parent) { response in
+                let index = response.rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
+                continuation.resume(returning: request.choices.indices.contains(index) ? request.choices[index].choice : .abort)
+            }
+        }
     }
 }

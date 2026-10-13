@@ -33,6 +33,22 @@ import TurtleGitCore
             alert.beginSheetModal(for: window) { response in if response == .alertFirstButtonReturn { proceed() } }
         }
         model.presentDeletionFailure = { [weak self] issue in await self?.showDeletionFailure(issue) }
+        model.confirmReferenceDeletion = { [weak window] request in
+            guard let window else { return .abort }
+            return await HistoryReferenceDeletionPresentation.confirm(request, parent: window)
+        }
+        model.noteLog.sshSettings.present = { [weak window] prompt in
+            guard let window, window.attachedSheet == nil, let child = prompt.window else { return false }
+            window.makeFirstResponder(nil); window.beginSheet(child); return true
+        }
+        model.acknowledgeReferenceDeletionFailure = { [weak window] message in
+            guard let window, window.attachedSheet == nil else { return }
+            await withCheckedContinuation { continuation in
+                let alert = NSAlert(); alert.alertStyle = .critical
+                alert.messageText = "Could not delete reference."; alert.informativeText = message; alert.addButton(withTitle: "OK")
+                alert.beginSheetModal(for: window) { _ in continuation.resume() }
+            }
+        }
         model.openFind = { [weak self] in self?.openFind() }
         window.functionKey = { [weak self] code in
             guard let self, !self.model.busy else { return false }
@@ -133,6 +149,8 @@ import TurtleGitCore
     var onCompare: ((ComparisonRevision, ComparisonRevision) -> Void)?
     var onCheckout: ((String) -> Void)?
     var onReset: ((String) -> Void)?
+    var confirmReferenceDeletion: (HistoryReferenceDeletion) async -> HistoryReferenceDeleteChoice = { _ in .abort }
+    var acknowledgeReferenceDeletionFailure: (String) async -> Void = { _ in }
     var onTransport: ((ReferenceLogTransportRequest) -> Void)?
     @Published private(set) var hasGitSVN = false
     var onBisect: ((ReferenceLogBisectRequest) -> Void)?
@@ -174,6 +192,7 @@ import TurtleGitCore
             }
         }
         noteLog.onRevisionChanged = { [weak self] in self?.onChanged($0) }
+        acknowledgeReferenceDeletionFailure = { [weak self] in self?.error = $0 }
     }
     func reload() {
         guard !invalidated else { return }
@@ -390,6 +409,59 @@ import TurtleGitCore
     func copy(_ ids: Set<String>, format: ReferenceLogCopyFormat = .hashes, pasteboard: NSPasteboard = .general) {
         guard commandSurfaceAvailable, let text = clipboardText(ids, format: format, dates: .load(defaults: preferences)) else { return }
         pasteboard.clearContents(); pasteboard.setString(text, forType: .string)
+    }
+    func referenceDeletionCandidates(_ ids: Set<String>) -> [String] {
+        guard commandSurfaceAvailable, !selecting, ids.count == 1,
+              let entry = entries.first(where: { ids.contains($0.id) }) else { return [] }
+        var seen = Set<String>()
+        let current = currentBranch.isEmpty ? nil : "refs/heads/" + currentBranch
+        return (referenceNamesByHash[entry.hash] ?? []).compactMap { name in
+            let name = GitReferenceName.removingSuffix("^{}", from: name) ?? name
+            guard name != current, seen.insert(name).inserted else { return nil }
+            return name
+        }
+    }
+    func deleteNamedReferences(_ names: [String], ids: Set<String>) {
+        let candidates = referenceDeletionCandidates(ids)
+        guard !names.isEmpty, Set(names).count == names.count, names.allSatisfy(candidates.contains),
+              let entry = entries.first(where: { ids.contains($0.id) }) else { return }
+        let token = OperationCancellation(), request = generation, reference = self.reference
+        let repository = self.repository, factory = noteLog.sshSettings.capture()
+        revisionReadToken = token; busy = true; error = nil; Self.activeRevisionReads += 1
+        Task { [weak self, access] in
+            defer { Self.activeRevisionReads -= 1; withExtendedLifetime(access) {} }
+            let coordinator = factory?(); defer { coordinator?.close() }
+            var changed = false, outputs: [String] = []
+            defer {
+                if let self {
+                    if self.revisionReadToken === token { self.revisionReadToken = nil; self.busy = false }
+                    if changed { self.onChanged(outputs.joined(separator: "\n")); if !self.invalidated { self.reload() } }
+                }
+            }
+            for name in names {
+                guard let self, !self.invalidated, !token.isCancelled, self.generation == request,
+                      self.reference == reference, self.entries.first(where: { $0.id == entry.id }) == entry else { break }
+                var choice = HistoryReferenceDeleteChoice.abort
+                do {
+                    if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                    let snapshot = try await repository.prepareReferenceLogReferenceDeletion(name, entry: entry, cancellation: token)
+                    guard !self.invalidated, !token.isCancelled, self.generation == request,
+                          self.reference == reference, self.entries.first(where: { $0.id == entry.id }) == entry else { break }
+                    choice = await self.confirmReferenceDeletion(snapshot)
+                    guard choice != .abort, !self.invalidated, !token.isCancelled, self.generation == request,
+                          self.reference == reference, self.entries.first(where: { $0.id == entry.id }) == entry else { break }
+                    let output = try await repository.deleteHistoryReference(snapshot, choice: choice, cancellation: token, prepareTransport: coordinator?.preparation)
+                    outputs.append(output); changed = true
+                } catch {
+                    if self.invalidated || token.isCancelled { break }
+                    await self.acknowledgeReferenceDeletionFailure(error.localizedDescription)
+                    // Source continues All after reported remote/stash errors,
+                    // but stops after an ordinary local reference failure.
+                    if [.remoteAndLocal, .stashAll, .stashOne].contains(choice) { changed = true }
+                    else { break }
+                }
+            }
+        }
     }
     func transportAvailable(_ command: ReferenceLogTransportCommand, ids: Set<String>, extended: Bool = false) -> Bool {
         guard commandSurfaceAvailable, !selecting, onTransport != nil, ids.count == 1,

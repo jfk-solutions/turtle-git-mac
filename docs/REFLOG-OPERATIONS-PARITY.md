@@ -80,7 +80,7 @@ Transport preparation retains the repository grant, owns cancellation and Quit
 accounting, and rejects closed/refreshed/replaced event results. Revision choosers
 omit the transport family. Menu grouping now puts single-row Merge before Reset,
 Rebase before Export, Revert/Notes before reflog deletion, Combine beside the
-multi-revision comparison, and transport before Clipboard. Reference deletion,
+multi-revision comparison, and transport before Clipboard. Named reference deletion is implemented in the batch below;
 full dynamic-menu parity and signed physical acceptance remain open.
 
 Three focused Core tests, the Debug build and four grouped native receivers with
@@ -91,3 +91,48 @@ original transport icons and busy retained-command refusal. It does not execute
 remote transport or SVN publication. Existing table/advanced regression checks
 also passed; all four receivers were reaped. See
 [batch evidence](qa/reflog-transport-2026-10-13.json).
+
+## Named reference deletion (2026-10-13)
+
+RefLog now includes the inherited source `ID_DELETE` family in addition to its
+separate reflog-event Delete action. One associated reference produces **Delete
+refs/…**; multiple references produce **Delete branch/tag** with named entries and
+**All**. The current branch is excluded. Annotated-tag names are normalized to
+one target so peeling cannot produce duplicate deletions. The original Delete
+artwork is used for the parent and choices. Choosers omit mutation menus.
+The source references are `GitLogListBase.cpp` lines 2241–2284 and
+`GitLogListAction.cpp` lines 1031–1068.
+
+Each target uses the existing History deletion engine: ordinary branch/tag
+Delete/Abort (including unmerged-branch warning), remote server-and-local versus
+local-tracking choices, and stash Delete/Drop one/Abort. Log and RefLog now share
+one native confirmation builder with Abort as default. SSH preparation and prompts
+use the existing transport coordinator, retaining the repository grant. There is
+no new Git command implementation for the menu family.
+
+Before prompting, a named reference must still peel to the captured event's
+commit. After confirmation, the shared engine reloads object/stash state and
+rechecks the current branch. A moved reference fails visibly. This is preflight
+validation, not an atomic lock against another Git process during local deletion.
+All processes names in source order, stops on Abort/local failure, and retains
+successful earlier deletions; source remote/stash error continuation remains.
+Partial success refreshes the RefLog reference map and repository views.
+Deletion failures use one acknowledged sheet instead of also triggering the
+general RefLog alert; standalone model owners retain the general-error fallback.
+
+Reads/mutations own a cancellation token and global Quit accounting until settled.
+Busy/menu-sheet gates and captured reference/event guards prevent retained menus
+from redirecting commands. Forced close cancels pending work; a late confirmation
+cannot authorize deletion. Actual remote/stash partial effects are not rolled back.
+The existing Git progress/SSH behavior remains shared with History.
+
+[Native fixture](qa/reflog-reference-deletion-native-2026-10-13.swift) checks actual
+branch/tag deletion, current-branch exclusion, annotated-tag normalization, original
+submenu/All icons, shared Abort default, stopping All after a successful first
+reference then Abort, a reference moving in confirmation, deletion on a private
+bare remote, stash Drop one/Delete all, forced-close refusal and Quit ownership.
+Table regression runs also check transport/copy/columns. Tests use private Git
+repositories and injected choices, not physical button clicks. Signed remote
+credentials, physical menus/confirmation, bare/chooser permutations and whole
+RefLog visual parity remain open. [Batch evidence](qa/reflog-reference-delete-2026-10-13.json)
+records accepted results and limits.

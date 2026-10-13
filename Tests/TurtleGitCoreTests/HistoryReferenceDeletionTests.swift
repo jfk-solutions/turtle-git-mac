@@ -13,6 +13,20 @@ final class HistoryReferenceDeletionTests: XCTestCase {
         try Data("base\n".utf8).write(to: root.appendingPathComponent("file")); try await repo.stage(["file"]); _ = try await repo.commit(message: "base")
         return (root, repo)
     }
+    func testRefLogNamedDeletionRejectsMovedNamesAndPeelsAnnotatedTags() async throws {
+        let (root, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let entry = try await repo.referenceLog("HEAD")[0]
+        _ = try await repo.run(["branch", "topic"])
+        _ = try await repo.run(["-c", "tag.gpgsign=false", "tag", "-a", "release", "-m", "annotated"])
+        let tag = try await repo.prepareReferenceLogReferenceDeletion("refs/tags/release^{}", entry: entry)
+        XCTAssertEqual(tag.name, "refs/tags/release"); XCTAssertNotEqual(tag.objectID, entry.hash)
+        _ = try await repo.deleteHistoryReference(tag, choice: .delete)
+        _ = try await repo.run(["commit", "--allow-empty", "-m", "next"])
+        _ = try await repo.run(["branch", "-f", "topic", "HEAD"])
+        do { _ = try await repo.prepareReferenceLogReferenceDeletion("refs/heads/topic", entry: entry); XCTFail("Moved name accepted") } catch HistoryReferenceDeletionFailure.changed {}
+        let remaining = try await repo.run(["show-ref", "--verify", "refs/heads/topic"]).text
+        XCTAssertTrue(remaining.contains("refs/heads/topic"))
+    }
     func testLocalTagOtherUnmergedAndCurrentGuards() async throws {
         let (root, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
         do { _ = try await repo.prepareHistoryReferenceDeletion("refs/heads/main"); XCTFail() } catch HistoryReferenceDeletionFailure.current {}

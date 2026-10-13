@@ -54,6 +54,15 @@ extension GitRepository {
         try token.check()
         return HistoryReferenceDeletion(name: name, objectID: oid, kind: remote ? .remote : stash ? .stash : .ordinary, unmerged: !merged, stashEntries: stash ? try referenceLog(name, cancellation: token) : [])
     }
+    /// The named reference still has to identify the captured RefLog event.
+    /// Annotated tags compare their peeled commit but delete the tag object.
+    public func prepareReferenceLogReferenceDeletion(_ name: String, entry: ReferenceLogEntry, cancellation: OperationCancellation? = nil) throws -> HistoryReferenceDeletion {
+        _ = try referenceLogOperationEntries(snapshot: [entry], selected: [entry.id], cancellation: cancellation)
+        let snapshot = try prepareHistoryReferenceDeletion(name, cancellation: cancellation)
+        let resolved = try run(["rev-parse", "--verify", "--end-of-options", snapshot.name + "^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+        guard resolved == entry.hash else { throw HistoryReferenceDeletionFailure.changed }
+        return snapshot
+    }
     public func deleteHistoryReference(_ snapshot: HistoryReferenceDeletion, choice: HistoryReferenceDeleteChoice, cancellation: OperationCancellation? = nil, prepareTransport: SSHTransportPreparation? = nil) async throws -> String {
         let token = cancellation ?? OperationCancellation(); try token.check()
         guard choice != .abort, snapshot.choices.contains(where: { $0.choice == choice }) else { throw HistoryReferenceDeletionFailure.choice }

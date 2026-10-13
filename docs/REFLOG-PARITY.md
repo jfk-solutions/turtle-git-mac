@@ -27,7 +27,9 @@ hash to the native restore controller, preventing a later stash-index change fro
 redirecting that selection. Unified inspection now uses the shared read-only
 diff viewer and source parent/two-revision choices, as recorded below. General reflog entries also offer Browse repository, Create Branch/Tag and
 Export at the selected revision, plus the three two-entry Log ranges. These use the original command icons and the
-existing native dialogs; other revision actions remain pending.
+existing native dialogs. Further operation, transport and named-reference deletion
+batches are recorded in [operation parity](REFLOG-OPERATIONS-PARITY.md); full
+menu/visual acceptance remains pending.
 
 Deletion and Clear prompt with Delete/Abort. Selected Delete defaults to Delete;
 Clear stash defaults to Abort, matching their distinct source calls. Before executing either, the core

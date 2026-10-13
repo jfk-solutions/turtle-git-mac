@@ -229,6 +229,16 @@ struct ReferenceLogNativeTable: NSViewRepresentable {
                 }
                 if hasTransport { menu.addItem(.separator()) }
             }
+            let deletable = model.referenceDeletionCandidates(ids)
+            if deletable.count == 1 {
+                add("Delete " + deletable[0], .remove) { model.deleteNamedReferences(deletable, ids: ids) }
+                menu.addItem(.separator())
+            } else if deletable.count > 1 {
+                let child = submenu("Delete branch/tag", .remove)
+                for name in deletable { add(name, .remove, to: child) { model.deleteNamedReferences([name], ids: ids) } }
+                add("All", .remove, to: child) { model.deleteNamedReferences(deletable, ids: ids) }
+                menu.addItem(.separator())
+            }
             let clipboard = submenu("Copy to clipboard", .copy)
             menu.items.last?.isEnabled = live() && !ids.isEmpty
             for (title, format) in [("Full data", ReferenceLogCopyFormat.full), ("SHA-1", .hashes), ("Messages", .messages)] { add(title, .copy, to: clipboard, enabled: !ids.isEmpty) { model.copy(ids, format: format, pasteboard: pasteboard) } }

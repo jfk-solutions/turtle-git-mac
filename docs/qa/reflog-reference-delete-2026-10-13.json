@@ -1,0 +1,84 @@
+{
+  "date": "2026-10-13",
+  "scope": "Partial RefLog named-reference deletion family and shared Log/RefLog confirmation",
+  "source_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "checks": {
+    "core": {
+      "command": "swift test --scratch-path .build/out --filter HistoryReferenceDeletionTests",
+      "exit": 0,
+      "tests": 5
+    },
+    "debug": {
+      "initial_exit": 0,
+      "final_exit": 0
+    },
+    "native": {
+      "cases": [
+        "reflog-reference-deletion",
+        "reflog-table"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "final_exit": 0,
+      "final_reaped_pids": [
+        39413,
+        39741,
+        39862,
+        40188
+      ],
+      "covered": [
+        "current branch exclusion",
+        "annotated tag normalization and deletion",
+        "original single/submenu/All artwork",
+        "shared Abort default",
+        "All partial success then Abort",
+        "externally moved name refusal",
+        "private bare remote deletion",
+        "stash one/all execution",
+        "close cancellation and Quit accounting",
+        "table/transport/clipboard/column regressions"
+      ]
+    },
+    "site": {
+      "build_exit": 0,
+      "tests": 2,
+      "test_exit": 0
+    }
+  },
+  "repairs": [
+    {
+      "attempt": "initial native group",
+      "failure": "Bundled deletion wait timed out; error acknowledgement was not injected and the new path could schedule competing error presentations.",
+      "reaped_pids": [
+        38257,
+        38615,
+        38747
+      ]
+    },
+    {
+      "attempt": "diagnostic receiver",
+      "failure": "Stash Clear did not run after competing error presentation; later diagnostic wait blocked at moved-reference acknowledgement.",
+      "reaped_pids": [
+        38910,
+        39210
+      ]
+    },
+    {
+      "change": "Use one deletion failure acknowledgement path, retaining standalone model error fallback; inject acknowledgement in QA and synchronize native displayed snapshot after settling."
+    }
+  ],
+  "limits": [
+    "Injected decisions do not prove physical confirmation clicks",
+    "Remote server is a private local bare repository, not real SSH credentials",
+    "Bare/chooser permutations and signed runtime/Finder still open",
+    "No whole RefLog menu/layout or whole port certification",
+    "Preflight is not an atomic cross-process local deletion lock"
+  ],
+  "logs": [
+    "build/qa/reflog-reference-delete-core-2026-10-13.log",
+    "build/qa/reflog-reference-delete-build-repair-2026-10-13.log",
+    "build/qa/reflog-reference-delete-native-final-2026-10-13.log"
+  ]
+}
