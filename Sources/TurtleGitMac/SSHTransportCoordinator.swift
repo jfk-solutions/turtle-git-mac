@@ -33,24 +33,27 @@ struct SSHAutoloadToggle: View {
 /// One operation owns one private agent. Push prepares remotes sequentially;
 /// Fetch All loads all configured identities into this agent before transport.
 @MainActor final class SSHTransportCoordinator {
+    static private(set) var activeOperations = 0
     let repository: GitRepository
     let identities: SSHIdentityAccessStore
     let runtime: () throws -> SSHAgentRuntime
     let temporaryRoot: URL
+    let credentials: any SSHAuthenticationStore
     var present: (SSHKeyPassphraseWindowController) -> Bool = { _ in false }
     private(set) var prompt: SSHKeyPassphraseWindowController?
     private(set) var closed = false
     private var session: SSHAgentSession?
     private struct IdentityRevision: Hashable {
         let path: Data
+        let digest: String
         let device: Int64, inode: UInt64, size: Int64, seconds: Int64, nanoseconds: Int64
     }
     private var loaded: Set<IdentityRevision> = []
     private var active: OperationCancellation?
     private var promptID: UUID?
     private var watcher: Task<Void,Never>?
-    init(repository: GitRepository, identities: SSHIdentityAccessStore = SSHIdentityAccessStore(), temporaryRoot: URL = FileManager.default.temporaryDirectory, runtime: @escaping () throws -> SSHAgentRuntime = { try SSHAgentRuntime.resolve() }) {
-        self.repository = repository; self.identities = identities; self.temporaryRoot = temporaryRoot; self.runtime = runtime
+    init(repository: GitRepository, identities: SSHIdentityAccessStore = SSHIdentityAccessStore(), temporaryRoot: URL = FileManager.default.temporaryDirectory, credentials: any SSHAuthenticationStore = SSHKeychainAuthenticationStore.shared, runtime: @escaping () throws -> SSHAgentRuntime = { try SSHAgentRuntime.resolve() }) {
+        self.repository = repository; self.identities = identities; self.temporaryRoot = temporaryRoot; self.runtime = runtime; self.credentials = credentials
     }
     var preparation: SSHTransportPreparation { { [self] names, token in try await prepare(names, cancellation: token) } }
     private func check(_ token: OperationCancellation) throws {
@@ -58,7 +61,8 @@ struct SSHAutoloadToggle: View {
     }
     func prepare(_ names: [String], cancellation token: OperationCancellation) async throws -> SSHAgentSession? {
         try check(token); guard active == nil else { throw SSHAgentFailure.closed }
-        active = token; defer { active = nil }
+        active = token; Self.activeOperations += 1
+        defer { active = nil; Self.activeOperations -= 1 }
         let configured = try await repository.remoteNames(cancellation: token); try check(token)
         for name in names {
             guard configured.contains(where: { GitReferenceName.equal($0,name) }) else { continue }
@@ -74,7 +78,8 @@ struct SSHAutoloadToggle: View {
     }
     func prepareKey(path: String, cancellation token: OperationCancellation) async throws -> SSHAgentSession {
         try check(token); guard active == nil else { throw SSHAgentFailure.closed }
-        active = token; defer { active = nil }
+        active = token; Self.activeOperations += 1
+        defer { active = nil; Self.activeOperations -= 1 }
         try await loadKey(path: path, cancellation: token); try check(token)
         guard let session else { throw SSHAgentFailure.closed }; return session
     }
@@ -83,7 +88,10 @@ struct SSHAutoloadToggle: View {
         defer { withExtendedLifetime(access) {} }
         var info = stat()
         guard stat(access.file.path, &info) == 0 else { throw SSHIdentityAccessFailure.file }
-        let identity = IdentityRevision(path: Data(access.file.path.utf8), device: Int64(info.st_dev), inode: UInt64(info.st_ino), size: info.st_size, seconds: Int64(info.st_mtimespec.tv_sec), nanoseconds: Int64(info.st_mtimespec.tv_nsec))
+        let file = access.file
+        let digest = try await Task.detached { try SSHAuthenticationIdentity.read(file, cancellation: token) }.value
+        try check(token)
+        let identity = IdentityRevision(path: Data(access.file.path.utf8), digest: digest, device: Int64(info.st_dev), inode: UInt64(info.st_ino), size: info.st_size, seconds: Int64(info.st_mtimespec.tv_sec), nanoseconds: Int64(info.st_mtimespec.tv_nsec))
         if loaded.contains(identity) { return }
         if session == nil {
             let tools = try runtime(), root = temporaryRoot
@@ -91,17 +99,36 @@ struct SSHAutoloadToggle: View {
             do { try check(token); session = created } catch { created.close(); throw error }
         }
         guard let session else { throw SSHAgentFailure.closed }
-        var response: String?, retry = false
+        var response: String?, retry = false, triedSaved = false, save = false
+        var warning: String?
         while true {
             try check(token)
+            let currentDigest = try await Task.detached { try SSHAuthenticationIdentity.read(file, cancellation: token) }.value
+            guard currentDigest == digest else { throw SSHIdentityAccessFailure.file }
             do {
                 let file = access.file, capturedResponse = response
                 try await Task.detached { try session.add(keys: [file], passphrase: capturedResponse, cancellation: token) }.value
-                try check(token); loaded.insert(identity); break
+                try check(token)
+                let after = try await Task.detached { try SSHAuthenticationIdentity.read(file, cancellation: token) }.value
+                guard after == digest else { throw SSHIdentityAccessFailure.file }
+                if save, let response {
+                    try await credentials.save(identity: digest, name: "TurtleGit SSH – " + file.lastPathComponent, passphrase: response)
+                    try check(token)
+                }
+                loaded.insert(identity); break
             } catch {
-                response = nil; try check(token)
+                let hadResponse = response != nil
+                response = nil; save = false; try check(token)
                 guard Self.needsPassphrase(error, encrypted: try Self.encryptedHeader(access.file)) else { throw error }
-                response = try await ask(key: access.file.lastPathComponent, retry: retry, cancellation: token); retry = true
+                if !triedSaved {
+                    triedSaved = true
+                    do { response = try await credentials.read(identity: digest) }
+                    catch { warning = "Saved authentication is unavailable. Enter the passphrase to continue without it." }
+                    try check(token)
+                    if response != nil { continue }
+                }
+                let answer = try await ask(key: access.file.lastPathComponent, retry: retry || hadResponse, warning: warning, cancellation: token)
+                response = answer.value; save = answer.save; retry = true; warning = nil
             }
         }
     }
@@ -128,15 +155,17 @@ struct SSHAutoloadToggle: View {
               let cipher = String(data: decoded[19..<(19+length)], encoding: .utf8) else { return false }
         return cipher != "none"
     }
-    private func ask(key: String, retry: Bool, cancellation token: OperationCancellation) async throws -> String {
+    private struct Answer { let value: String; let save: Bool }
+    private func ask(key: String, retry: Bool, warning: String?, cancellation token: OperationCancellation) async throws -> Answer {
         try check(token)
         return try await withCheckedThrowingContinuation { continuation in
             let id = UUID(); promptID = id
-            let controller = SSHKeyPassphraseWindowController(keyName: key, retry: retry) { [weak self] value in
+            let controller = SSHKeyPassphraseWindowController(keyName: key, retry: retry, warning: warning) { [weak self] value in
                 let live = self?.promptID == id && self?.closed == false
+                let save = self?.prompt?.acceptedSave ?? false
                 if self?.promptID == id { self?.watcher?.cancel(); self?.watcher = nil; self?.promptID = nil; self?.prompt = nil }
                 guard live, !token.isCancelled, let value else { token.cancel(); continuation.resume(throwing: OperationCancellationFailure.cancelled); return }
-                continuation.resume(returning: value)
+                continuation.resume(returning: Answer(value: value, save: save))
             }
             prompt = controller
             watcher = Task { [weak self] in

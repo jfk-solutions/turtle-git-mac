@@ -279,6 +279,7 @@ struct CredentialSettingsPage: View {
                     Text("System settings require write access to their configuration folder. Credential passwords are managed by the selected helper.").font(.caption).foregroundStyle(.secondary)
                     Spacer()
                     Button("Keychain Access", action: model.openKeychain)
+                    Button("Saved SSH Authentication…") { SavedSSHAuthenticationService.shared.show() }
                 }.frame(maxWidth: .infinity, alignment: .leading)
             }.disabled(model.busy || model.mode != "advanced")
             HStack { Button("Refresh", action: model.refresh).disabled(model.busy || model.modified); if model.busy { ProgressView().controlSize(.small) } }

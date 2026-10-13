@@ -168,3 +168,29 @@ Submodule Add now shares explicit-key preparation before a child remote exists,
 then saves the native origin key on the added child. Its captured native owner
 holds grants and fences closure/late results. See [Add parity](SUBMODULE-ADD-PARITY.md)
 for source Force precedence, verification and remaining progress/signed limits.
+
+## Saved authentication continuation — 2026-10-13
+
+The shared encrypted-key response now includes source-style Save authentication,
+off by default. An app-private Keychain store records only successfully loaded
+responses, indexed by SHA-256 of exact key-file bytes. Rejected stored responses
+return to the secure prompt; unchecked manual responses leave storage intact.
+Read failures permit a manual response, while save failures stop preparation
+before transport. The captured owner checks cancellation around asynchronous
+reads/writes and observable key changes around loading. Global operation counts
+retain Quit ownership through forced window closure.
+
+A native Saved SSH Authentication window exposes labels and selective confirmed
+removal through metadata-only reads. It is reachable from the application menu
+and Credential settings; writes are immediate and not Settings drafts. Private
+agent identities already loaded are unaffected by removal. This is a macOS
+adaptation of authentication persistence, not completion of generic HTTP, SSH
+account-password, host-key or certificate dialogs.
+
+See [user guide](SSH-AUTHENTICATION.md). The grouped native batch passed six cases across system and bundled Git,
+including actual encrypted loading, successful-save/reuse, rejected responses,
+retirement during a held saved read, Quit ownership and selective removal.
+Debug and unsigned AppStore builds passed, as did the AppStore bundle contract
+(202 native items, 296 icons). See [dated QA](qa/ssh-authentication-2026-10-13.json).
+Live signed Keychain, physical acceptance and full authentication parity remain
+unverified; this continuation is not certified as complete. Earlier Keychain gap statements describe earlier checkpoints.

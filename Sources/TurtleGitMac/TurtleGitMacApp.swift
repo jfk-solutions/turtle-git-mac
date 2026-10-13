@@ -56,6 +56,7 @@ import TurtleGitCore
                 Button("Check for Updates…") { ReleaseUpdateService.shared.show() }
                 Button("First Start Wizard…") { FirstStartWizardService.shared.show() }
                 Button("SSH Key Generator…") { SSHKeyGenerationService.shared.show() }
+                Button("Saved SSH Authentication…") { SavedSSHAuthenticationService.shared.show() }
             }
             CommandGroup(after: .newItem) {
                 Button { BlameWindowController.openFocused(NSApp.keyWindow ?? NSApp.mainWindow) { model.chooseRepository() } } label: { CommandLabel(title:"Open…",icon:.open) }.keyboardShortcut("o")

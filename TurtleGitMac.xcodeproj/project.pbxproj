@@ -16,6 +16,7 @@
 		039C1C33E2239E40BD58E0B5 /* GitDaemon.swift in Sources */ = {isa = PBXBuildFile; fileRef = D11FB71BB05B58ECF349B727 /* GitDaemon.swift */; };
 		03AD1F2FC854986D044AE453 /* ImageComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56132E3DE7A107C7B04A216E /* ImageComparison.swift */; };
 		03EB74C07B887765C564C04D /* SSHKeyGenerationWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D861E87DCA7F3D938BFDF07 /* SSHKeyGenerationWindow.swift */; };
+		03FB132957093BAC375BD5BB /* SSHAuthenticationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1018E4684A7F74369EE313B3 /* SSHAuthenticationStore.swift */; };
 		04F91334CABB49482A59CAF5 /* BlameWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 147C1880748CAF195D6A19CA /* BlameWindow.swift */; };
 		05736B77F7D781FD78B2665B /* WorkingFileExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A3F01EAF3038A31D989E002 /* WorkingFileExport.swift */; };
 		05EE53306561CE7F57B6B0E4 /* libcurl.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 2C6981A4005FA865E41C8FBC /* libcurl.tbd */; };
@@ -60,6 +61,7 @@
 		25FA6351F250E4932AC95E73 /* SSHTransportCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF2BD443F2E22C1D673BB60C /* SSHTransportCoordinator.swift */; };
 		2B851665B4C4A9C890BF3324 /* WorktreeListTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B6A308CF3E486ADD7497BD1 /* WorktreeListTable.swift */; };
 		2B9BAC06239B4C648FEBE0E6 /* CredentialSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8E9D379D35AF0431C2A8495 /* CredentialSettings.swift */; };
+		2BD5160A7FB19B41D7AAC268 /* SavedSSHAuthenticationWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7704AE3070C3BAECF693B26B /* SavedSSHAuthenticationWindow.swift */; };
 		2BE2A50FE49349D97E029CD3 /* UnifiedDiffPrintMargins.swift in Sources */ = {isa = PBXBuildFile; fileRef = 548BA53E454CA6C5917EABE9 /* UnifiedDiffPrintMargins.swift */; };
 		2C55E0EBFCD53E3B244197A8 /* RemoteSettingsWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 837C5F7103FADCDAC3F99EC1 /* RemoteSettingsWindow.swift */; };
 		2D11419DF7A44BFFC87F88DB /* ProjectDialogSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7147E00D8870E2CB238BAEDD /* ProjectDialogSettings.swift */; };
@@ -423,6 +425,7 @@
 		0A8A21C4E5D4C9A48E0B7FE9 /* Rebase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Rebase.swift; sourceTree = "<group>"; };
 		0ABAD60A21F60D01816B9D64 /* CommandLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandLabel.swift; sourceTree = "<group>"; };
 		0B5CA377E560923FE6C0F849 /* ClientHookRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientHookRuntime.swift; sourceTree = "<group>"; };
+		1018E4684A7F74369EE313B3 /* SSHAuthenticationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHAuthenticationStore.swift; sourceTree = "<group>"; };
 		102D31C868ED7CEE8FB72699 /* ConflictResolution.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConflictResolution.swift; sourceTree = "<group>"; };
 		1142010920E5275663D4EB6C /* CreateChangelistSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateChangelistSheet.swift; sourceTree = "<group>"; };
 		1171B2BA353FE1424EB5B04F /* RevertProgressWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevertProgressWindow.swift; sourceTree = "<group>"; };
@@ -545,6 +548,7 @@
 		74246B3AB7101AD7A469BA2E /* SubmoduleProgressOutputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleProgressOutputView.swift; sourceTree = "<group>"; };
 		7428B46131B5378475891E94 /* FileComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileComparison.swift; sourceTree = "<group>"; };
 		75AA5AB1CB579F6BCBCC9CDB /* ClientHooks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientHooks.swift; sourceTree = "<group>"; };
+		7704AE3070C3BAECF693B26B /* SavedSSHAuthenticationWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedSSHAuthenticationWindow.swift; sourceTree = "<group>"; };
 		798E539A3A1B52BFC50781D5 /* DocumentationCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentationCapture.swift; sourceTree = "<group>"; };
 		79BBB2F306958D4D34AFF839 /* SSHTransportPreparation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHTransportPreparation.swift; sourceTree = "<group>"; };
 		79C0E5814B5E3AC88F6511F4 /* WindowGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowGeometry.swift; sourceTree = "<group>"; };
@@ -866,11 +870,13 @@
 				AED856C37545053179A74184 /* RevisionGraphFilter.swift */,
 				E36D548C3CA5F137ED0667D9 /* RevisionGraphWindow.swift */,
 				5CC68DDC9F827CA4F3DA9A05 /* SavedDataSettings.swift */,
+				7704AE3070C3BAECF693B26B /* SavedSSHAuthenticationWindow.swift */,
 				DAD242D45D90F689D7AA5D91 /* SelectionAllCheckbox.swift */,
 				53A34FF11AFBC8CA0823CFB5 /* SendPatchList.swift */,
 				6823801F16A03836426285A5 /* SendPatchWindow.swift */,
 				8F4B173754C0AE48CB0FAAF8 /* SettingsNavigation.swift */,
 				B07F1FB47DC4A875FEE5ECD4 /* SettingsTransaction.swift */,
+				1018E4684A7F74369EE313B3 /* SSHAuthenticationStore.swift */,
 				7D861E87DCA7F3D938BFDF07 /* SSHKeyGenerationWindow.swift */,
 				AE84FD354494653334022AA8 /* SSHKeyPassphraseWindow.swift */,
 				EF2BD443F2E22C1D673BB60C /* SSHTransportCoordinator.swift */,
@@ -1827,11 +1833,13 @@
 				662196E53839BE65FDD9777B /* RevisionGraphExport.swift in Sources */,
 				7987241DFAF00D07FFA1D8DE /* RevisionGraphFilter.swift in Sources */,
 				DB7AFE73DFDDD57C00B36DA3 /* RevisionGraphWindow.swift in Sources */,
+				03FB132957093BAC375BD5BB /* SSHAuthenticationStore.swift in Sources */,
 				03EB74C07B887765C564C04D /* SSHKeyGenerationWindow.swift in Sources */,
 				DF0CD2448F2B8812C9593D7E /* SSHKeyPassphraseWindow.swift in Sources */,
 				25FA6351F250E4932AC95E73 /* SSHTransportCoordinator.swift in Sources */,
 				09618E8B4C40787E3C4DB1F1 /* SVNWindow.swift in Sources */,
 				E870F93D67C68E0FCCDDC0F3 /* SavedDataSettings.swift in Sources */,
+				2BD5160A7FB19B41D7AAC268 /* SavedSSHAuthenticationWindow.swift in Sources */,
 				62913FA0A0A8052D1CF513A4 /* SelectionAllCheckbox.swift in Sources */,
 				EF9005F8A36E739565A165F7 /* SendPatchList.swift in Sources */,
 				EC51E4CE03738676EE135A62 /* SendPatchWindow.swift in Sources */,

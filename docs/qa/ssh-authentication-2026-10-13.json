@@ -1,0 +1,73 @@
+{
+  "date": "2026-10-13",
+  "source": {
+    "baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "references": [
+      "src/TortoiseProc/PromptDlg.cpp:secure field and Save authentication",
+      "src/Resources/TortoiseProcENG.rc:IDD_PROMPT"
+    ]
+  },
+  "scope": [
+    "Shared SSH encrypted-key Save authentication and successful-load-only persistence",
+    "Exact key-content identity, checked before/after loading",
+    "Saved-response retry, unchecked manual response preservation and cancellation fences",
+    "Native metadata-only entry manager with confirmed selective removal",
+    "Global active preparation/management Quit ownership after forced closure"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/ssh-authentication-debug-final-2026-10-13.log",
+      "repair": "Initial compile attempted Core-internal cancellation.check; replaced with public isCancelled guard."
+    },
+    "native_group": {
+      "exit": 0,
+      "cases": 6,
+      "families": [
+        "ssh-authentication",
+        "credential-settings",
+        "network-settings"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "log": "build/qa/ssh-authentication-native-2026-10-13.log",
+      "coverage": [
+        "Actual encrypted Ed25519 loading through one-use helper and private agent",
+        "Incorrect entered phrase not saved; successful selected response saved once",
+        "Saved response reused without prompt; incorrect saved response retries without unchecked overwrite",
+        "Cancel/late response and retired held-read Quit fencing",
+        "Cancelled and confirmed removal",
+        "Content identity differentiation and injected Security service/synchronization/accessibility policy"
+      ],
+      "ownership": "All six bounded receivers reaped; owned private agents and directories closed; no visible app windows or live Keychain access."
+    },
+    "appstore": {
+      "exit": 0,
+      "log": "build/qa/ssh-authentication-appstore-2026-10-13.log",
+      "signed": false
+    },
+    "appstore_bundle": {
+      "exit": 0,
+      "native_items": 202,
+      "icons": 296,
+      "log": "build/qa/ssh-authentication-appstore-bundle-2026-10-13.log"
+    },
+    "documentation": {
+      "exit": 0,
+      "documents": 176,
+      "unresolved_fragments": 0,
+      "log": "build/qa/ssh-authentication-site-check-2026-10-13.log"
+    }
+  },
+  "core_suite_rerun": false,
+  "reason": "Implementation is native-only; grouped native checks exercise unchanged Core encrypted-key generation/loading.",
+  "pending": [
+    "Live signed Keychain and App Store sandbox acceptance",
+    "Physical keyboard/theme/VoiceOver and screenshots",
+    "Generic HTTP/SSH account-password, certificate and host-key prompt port",
+    "Exhaustive file-replacement races and credential-storage failures"
+  ],
+  "full_port_certified": false
+}

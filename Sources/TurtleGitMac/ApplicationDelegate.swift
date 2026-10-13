@@ -18,6 +18,8 @@ import AppKit
         if FirstStartWizardModel.activeWrites > 0 { return .terminateCancel }
         if CredentialSettingsModel.activeSaves > 0 { return .terminateCancel }
         if SSHKeyGenerationModel.activeOperations > 0 { return .terminateCancel }
+        if SavedSSHAuthenticationModel.activeOperations > 0 { return .terminateCancel }
+        if SSHTransportCoordinator.activeOperations > 0 { return .terminateCancel }
         if NetworkSettingsModel.activeSaves > 0 { return .terminateCancel }
         if EmailSettingsModel.activeOperations > 0 { return .terminateCancel }
         if LFSLocksWindowModel.activeOperations > 0 { return .terminateCancel }

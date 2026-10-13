@@ -224,3 +224,5 @@ are not recursively audited.
 - [Helper-owned persistent permissions](FINDER-HELPER-PERSISTENCE.md)
 
 - [Git Properties guide](GIT-PROPERTIES.md) and [source parity](GIT-PROPERTIES-PARITY.md).
+
+- [Saved SSH authentication](SSH-AUTHENTICATION.md)
