@@ -1,0 +1,64 @@
+{
+  "date": "2026-10-13",
+  "hosted_failure": {
+    "run": 38406476058,
+    "job": 115327698396,
+    "revision": "14031f1",
+    "step": "Verify production ad-hoc app seal and runtime links",
+    "cause": "The preview signer excluded all MacOS payloads, leaving Finder __preview.dylib unsigned."
+  },
+  "change": [
+    "Inventory declared bundle main executables separately from auxiliary Mach-O code",
+    "Sign auxiliary MacOS/framework libraries before containing bundles, without deep signing",
+    "Preserve finalized runtime payload signatures/hashes",
+    "Reject missing/escaping bundle metadata or main executable paths"
+  ],
+  "validation": {
+    "inventory": {
+      "exit": 0,
+      "tests": 4,
+      "log": "build/qa/preview-signing-unit-accepted-2026-10-13.log",
+      "fixture_repair": "The initial unit fixture compared /var aliases to resolved /private/var paths. Fixture roots now resolve before constructing expected paths."
+    },
+    "actual_debug_copy": {
+      "exit": 0,
+      "path": "build/qa/runtime-layout-signed-2026-10-13/TurtleGit Auxiliary Signing QA.app",
+      "log": "build/qa/preview-signing-copy-accepted-2026-10-13.log",
+      "scope": "Current Debug app copy with actual Finder preview/debug dylibs; all nested containers and deep strict outer seal passed."
+    },
+    "runtime_seal": {
+      "exit": 0,
+      "code_items": 203,
+      "log": "build/qa/preview-signing-runtime-accepted-2026-10-13.log",
+      "scope": "Sealed source data, substituted/undeclared links rejected, repeated finalization preserved copy and signed runtime provenance."
+    },
+    "appstore_build": {
+      "exit": 0,
+      "architectures": [
+        "x86_64",
+        "arm64"
+      ],
+      "signing_allowed": false,
+      "log": "build/qa/appstore-current-2026-10-13.log"
+    },
+    "appstore_bundle": {
+      "exit": 0,
+      "code_items": 203,
+      "upstream_icons": 296,
+      "log": "build/qa/appstore-current-bundle-2026-10-13.log",
+      "scope": "Unsigned universal app/Finder/runtime packaging, bundled Git and reconstruction/licenses validated; no signed sandbox execution claim."
+    },
+    "documentation": {
+      "exit": 0,
+      "tests": 2,
+      "log": "build/qa/preview-signing-site-check-2026-10-13.log"
+    }
+  },
+  "ownership": "Independent QA app copy only; existing QA copy preserved; no GUI or launch registration performed.",
+  "pending": [
+    "Current hosted CI pass",
+    "Developer ID/App Store identities, entitlement and signed sandbox execution",
+    "App Review/licensing clearance and complete application parity"
+  ],
+  "full_distribution_certified": false
+}

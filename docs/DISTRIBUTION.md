@@ -318,3 +318,26 @@ is no longer required for current builds. See [layout and validation](RUNTIME-LA
 This resolves the structural layout failure. It does not establish App Store
 certificate/provisioning, actual inherited sandbox invocation, physical Finder
 activation, user-approved cache-service registration, or licensing clearance.
+
+## Debug preview auxiliary-code signing — 2026-10-13
+
+Hosted run 38406476058 built and audited its Debug bundle, then failed to seal the
+Finder extension because Xcode's `Contents/MacOS/__preview.dylib` was unsigned.
+The preview signer now inventories each bundle's declared main executable, signs
+other Mach-O payloads first (including auxiliary libraries in MacOS and versioned
+frameworks), and seals containers from the inside out. Finalized runtime payloads
+retain their provenance-bound signatures and hashes. No `--deep` signing is used.
+Executable names and resolved main/metadata paths must remain inside the copied app.
+
+Four inventory tests and a fresh actual signed Debug copy passed. Its 203-item
+runtime layout, deep strict app seal, sealed-source tamper rejection, substituted/
+undeclared-link rejection and repeat-finalization checks passed. This establishes
+the ad-hoc development-preview seal on the current host, not Developer ID, App
+Store signing, sandbox execution or distribution eligibility. No GUI was launched.
+
+The current AppStore configuration also compiled universal x86_64/arm64 with
+signing disabled. See the [scoped packaging evidence](qa/preview-signing-2026-10-13.json).
+Unsigned preparation leaves inherited sandbox signing unverified.
+
+Its unsigned AppStore bundle audit passed the 203 runtime code items, bundled
+Git/Finder packaging, reconstruction/licenses and 296 upstream icons.

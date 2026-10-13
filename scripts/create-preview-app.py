@@ -83,20 +83,13 @@ if legacy_resources.exists():
     shutil.rmtree(legacy_resources)
 # Sign actual payloads explicitly. --deep guesses bundle structure from data
 # directories (including versioned Perl libraries) and can reject valid runtimes.
-magic = {b'\xcf\xfa\xed\xfe', b'\xfe\xed\xfa\xcf', b'\xca\xfe\xba\xbe', b'\xbe\xba\xfe\xca'}
+from preview_signing import signing_plan
 runtime_code = {record['destination'] for record in json.loads(layout.read_text())['code'].values()} if layout.is_file() else set()
-for path in sorted(args.destination.rglob('*')):
-    if path.is_relative_to(args.destination / 'Contents') and str(path.relative_to(args.destination / 'Contents')) in runtime_code:
-        continue # Finalization already signed these payloads and bound their hashes.
-    if path.is_file() and not path.is_symlink() and 'MacOS' not in path.parts and not any(part.endswith('.framework') for part in path.parts):
-        with path.open('rb') as stream:
-            is_code = stream.read(4) in magic
-        if is_code:
-            subprocess.run(['codesign', '--force', '--sign', '-', str(path)], check=True)
-bundles = [path for path in args.destination.rglob('*') if path.is_dir() and not path.is_symlink() and path.suffix in ('.framework', '.appex', '.app')]
-for bundle in sorted(bundles, key=lambda path: len(path.parts), reverse=True):
+payloads, bundles = signing_plan(args.destination, runtime_code)
+for path in payloads:
+    subprocess.run(['codesign', '--force', '--sign', '-', str(path)], check=True)
+for bundle in bundles:
     subprocess.run(['codesign', '--force', '--sign', '-', str(bundle)], check=True)
-subprocess.run(['codesign', '--force', '--sign', '-', str(args.destination)], check=True)
 # Signing changes the bundled parser bytes. Update its provenance and
 # then reseal only the containing app so the helper signature stays intact.
 for helper, executable_name in ([] if layout.is_file() else [('EditorConfig', 'editorconfig'), ('IssueRegex', 'issue-regex'), ('MergeDiff', 'merge-diff')]):

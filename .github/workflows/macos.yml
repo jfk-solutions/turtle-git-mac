@@ -237,6 +237,8 @@ jobs:
         run: |
           python3 scripts/validate-app-bundle.py build/Build/Products/Debug/TurtleGitMac.app
           python3 scripts/audit-cache-service.py build/Build/Products/Debug/TurtleGitMac.app
+      - name: Preview signing inventory regression
+        run: python3 scripts/test-preview-signing.py
       - name: Verify production ad-hoc app seal and runtime links
         run: |
           python3 scripts/create-demo-repository.py "$RUNNER_TEMP/runtime-layout-repository"
