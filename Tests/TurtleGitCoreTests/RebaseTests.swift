@@ -609,6 +609,42 @@ final class RebaseTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("upstream.txt").path))
         let count = try await repo.run(["rev-list", "--count", "main..topic"]).text; XCTAssertEqual(count, "2\n")
     }
+    func testStructuralSkipAndEditRecoverAndContinue() async throws {
+        let (root,repo,_) = try await fixture(); defer { try? FileManager.default.removeItem(at:root) }
+        var settings = options(); settings.preserveMerges = true
+        var plan = try await repo.rebasePlan(settings)
+        plan.entries[0].action = .skip; plan.entries[1].action = .edit
+        let stopped = try await repo.startRebase(plan,editorExecutable:editor)
+        XCTAssertTrue(stopped.state.active,stopped.output)
+        XCTAssertTrue(stopped.state.isEditPause); XCTAssertEqual(stopped.state.currentStep,2); XCTAssertEqual(stopped.state.total,2)
+        let recovered = try await repo.rebaseReplayEntries()
+        XCTAssertEqual(recovered.map(\.action),[.skip,.edit]); XCTAssertEqual(recovered[0].progress,.completed)
+        XCTAssertEqual(recovered[1].progress,.current)
+        XCTAssertFalse(FileManager.default.fileExists(atPath:root.appendingPathComponent("first.txt").path))
+        let finished = try await repo.continueRebase(editMessage:"second edited")
+        XCTAssertEqual(finished.exitCode,0,finished.output); XCTAssertFalse(finished.state.active)
+        let subject = try await repo.run(["log","-1","--format=%s"]).text.trimmingCharacters(in:.newlines)
+        XCTAssertEqual(subject,"second edited"); XCTAssertTrue(FileManager.default.fileExists(atPath:root.appendingPathComponent("second.txt").path))
+        let branch = try await repo.branch(); XCTAssertEqual(branch,"topic")
+    }
+    func testStructuralEditAbortRestoresOriginalHistory() async throws {
+        let (root,repo,_) = try await fixture(); defer { try? FileManager.default.removeItem(at:root) }
+        var settings = options(); settings.preserveMerges = true
+        var plan = try await repo.rebasePlan(settings); plan.entries[0].action = .edit
+        let stopped = try await repo.startRebase(plan,editorExecutable:editor)
+        XCTAssertTrue(stopped.state.isEditPause,stopped.output); XCTAssertEqual(stopped.state.currentStep,1)
+        let aborted = try await repo.abortRebase(); XCTAssertFalse(aborted.state.active)
+        let head = try await repo.rebaseCommit("HEAD"); XCTAssertEqual(head.hash,plan.branchHash)
+    }
+    func testStructuralAllSkippedMovesToOnto() async throws {
+        let (root,repo,_) = try await fixture(); defer { try? FileManager.default.removeItem(at:root) }
+        var settings = options(); settings.preserveMerges = true
+        var plan = try await repo.rebasePlan(settings)
+        for index in plan.entries.indices { plan.entries[index].action = .skip }
+        let finished = try await repo.startRebase(plan,editorExecutable:editor)
+        XCTAssertEqual(finished.exitCode,0,finished.output); XCTAssertFalse(finished.state.active)
+        let head = try await repo.rebaseCommit("HEAD"); XCTAssertEqual(head.hash,plan.ontoHash)
+    }
     func testReorderedStructuralPickPlanExecutesAndPreservesParents() async throws {
         let (root,repo,_) = try await fixture(); defer { try? FileManager.default.removeItem(at:root) }
         _ = try await repo.run(["checkout","-b","side","main"])
@@ -674,8 +710,8 @@ final class RebaseTests: XCTestCase {
         _ = try await repo.run(["checkout", "topic"]); _ = try await repo.run(["merge", "--no-ff", "--no-edit", "side"])
         var o = options(); o.preserveMerges = true
         var plan = try await repo.rebasePlan(o); XCTAssertTrue(plan.entries.contains { $0.commit.parents.count == 2 })
-        plan.entries[0].action = .skip
-        do { _ = try await repo.rebaseTodo(plan); XCTFail("Structural plans cannot be custom edited yet") } catch RebaseFailure.preservePlan {}
+        plan.entries[0].action = .squash
+        do { _ = try await repo.structuralRebaseTodo(plan); XCTFail("Structural Squash is not implemented yet") } catch RebaseFailure.preservePlan {}
         plan = try await repo.rebasePlan(o); let result = try await repo.startRebase(plan, editorExecutable: editor); XCTAssertEqual(result.exitCode, 0, result.output)
         let parents = try await repo.run(["rev-list", "--parents", "-n", "1", "topic"]).text.split(separator: " "); XCTAssertEqual(parents.count, 3)
         XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent("side.txt").path)); XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent("upstream.txt").path))

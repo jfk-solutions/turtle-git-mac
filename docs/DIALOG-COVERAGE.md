@@ -88,7 +88,7 @@ This generated table links explicit implementation/parity reviews and existing Q
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSCOLORS_1` | partial-native-replacement | 0/21 mapped; 21 pending | [SETTINGS-NAVIGATION-PARITY](SETTINGS-NAVIGATION-PARITY.md); 2 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSCOLORS_3` | partial-native-replacement | 0/22 mapped; 22 pending | [SETTINGS-NAVIGATION-PARITY](SETTINGS-NAVIGATION-PARITY.md); 2 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_RESET` | partial | 19/19 mapped; 0 pending | [RESET-PARITY](RESET-PARITY.md), [UI-PARITY](UI-PARITY.md); 10 QA records |
-| `src/Resources/TortoiseProcENG.rc` / `IDD_REBASE` | partial-native | 0/24 mapped; 24 pending | [REBASE-PARITY](REBASE-PARITY.md), [UI-PARITY](UI-PARITY.md); 12 QA records |
+| `src/Resources/TortoiseProcENG.rc` / `IDD_REBASE` | partial-native | 0/24 mapped; 24 pending | [REBASE-PARITY](REBASE-PARITY.md), [UI-PARITY](UI-PARITY.md); 13 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_RESOLVE_CONFLICT` | partial | 14/14 mapped; 0 pending | [DELETE-CONFLICT-PARITY](DELETE-CONFLICT-PARITY.md), [UI-PARITY](UI-PARITY.md); 6 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_REFLOG` | partial | 8/8 mapped; 0 pending | [REFLOG-PARITY](REFLOG-PARITY.md), [UI-PARITY](UI-PARITY.md); 18 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SUBMODULE_ADD` | partial | 0/16 mapped; 16 pending | [SUBMODULE-ADD-PARITY](SUBMODULE-ADD-PARITY.md); 3 QA records |

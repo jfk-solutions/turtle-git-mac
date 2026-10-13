@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-13",
+  "scope": "Partial structural Skip/ordinary Edit workflow and action controls",
+  "checks": {
+    "debug_build": {
+      "exit": 0
+    },
+    "core": {
+      "tests": 9,
+      "exit": 0,
+      "sequence_editor": "current Debug app",
+      "initial_failure": "Fixture referred to editPause rather than existing isEditPause; corrected and rerun"
+    },
+    "native": {
+      "cases": [
+        "rebase-row-drag",
+        "rebase-conditional"
+      ],
+      "engines": [
+        "system",
+        "bundled"
+      ],
+      "exit": 0,
+      "reaped_pids": [
+        57919,
+        58011,
+        58083,
+        58155
+      ],
+      "scope": [
+        "Structural Pick/Skip/ordinary Edit model actions and cycling",
+        "Unsupported structural Squash refusal",
+        "Drag and metadata regression"
+      ]
+    }
+  },
+  "remaining": [
+    "Merge Edit",
+    "Structural Squash and group parent rewrite",
+    "Skipped first-merge-parent recovery",
+    "Broad graphs and real update-ref execution",
+    "Physical keyboard/drag and signed acceptance"
+  ],
+  "logs": [
+    "build/qa/structural-actions-build-2026-10-13.log",
+    "build/qa/structural-actions-core-2026-10-13.log",
+    "build/qa/structural-actions-native-2026-10-13.log"
+  ]
+}

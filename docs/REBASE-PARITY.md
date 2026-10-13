@@ -329,7 +329,43 @@ path. Debug build and four grouped native checks across system/bundled Git passe
 all four receivers were reaped. Native checks exercise structural drag availability
 and conditional metadata ownership, not physical structural replay gestures.
 
-Structural Skip/Edit/Squash, keyboard-action parity, broader cousins/octopus/root
+At this checkpoint, structural Skip/Edit/Squash and keyboard actions remained
+open; the later action batch below supersedes Skip/ordinary Edit and movement
+keyboard restrictions. Broader cousins/octopus/root
 and nested merge behavior, real branch-update execution, physical/signed scope
 and full Source workflow equivalence remain open. This is a partial structural
 port. [Batch evidence](qa/structural-order-2026-10-13.json) records actual results.
+
+
+## Structural Skip and ordinary Edit actions (2026-10-13)
+
+Preserve-merges plans now support selected and bulk Pick/Skip plus Edit on
+ordinary commits, including the Space action cycle and P/S/E/U/D keyboard paths.
+Menus keep structural Squash disabled and merge-commit Edit unavailable. The
+source permits these remaining actions; this restriction is an implementation
+gap, not claimed source parity. Add remains disabled for structural plans.
+
+Any action change selects the custom structural compiler even when ordering is
+unchanged. Skip records a logical completion label without applying a patch or
+rewriting the source parent map (`RebaseDlg.cpp` around lines 2048–2052). A later
+ordinary child uses the current HEAD fallback, while an unreplayed first merge
+parent remains a preflight error. Ordinary Edit emits Git's Edit operation before
+its completion label, so a pause still identifies the current logical row. After
+amend/Continue, the label captures the edited HEAD for descendant parent rewriting.
+Recovered rows retain captured actions and completed/current states; Abort
+restores the original branch history. All-Skip plans finish at Onto.
+
+Debug compilation passed. Nine focused Core checks passed, including Skip/Edit
+recovery and message amendment/Continue, Edit/Abort, all-Skip execution, reordered
+merge topology, conflict recovery, invalid first-parent refusal, update-ref
+placement and the unchanged structural path. Four native receivers passed across
+system/bundled Git and were reaped. They verify actual model selection/cycling,
+unsupported Squash refusal, row drag and conditional metadata lifecycle. Keyboard
+paths are enabled in the native monitor but physical keystroke acceptance is not
+proved by these handler checks. The first Core attempt failed to compile because
+the test referenced `editPause` instead of the existing `isEditPause`; the corrected
+fixture passed without an app behavior change.
+
+Merge Edit, structural Squash/group rewrite, skipped first-merge-parent workflow
+recovery, broader root/cousin/octopus/nested graphs, real update-ref execution and
+physical/signed acceptance remain open. See [batch evidence](qa/structural-actions-2026-10-13.json).

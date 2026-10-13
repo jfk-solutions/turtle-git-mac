@@ -335,7 +335,7 @@ extension GitRepository {
                            total: referenceUpdates || structural ? identities.count : Int(line("end")) ?? Int(line("last")) ?? 0, conflicts: conflicts,
                            remainingCommands: structural ? commands.compactMap { command in
                                let fields = command.split(separator:" ").map(String.init)
-                               if fields.first == "pick" { return command }
+                               if fields.first == "pick" || fields.first == "edit" { return command }
                                if fields.first == "merge", fields.count >= 3 { return "pick " + fields[2] }
                                return nil
                            } : commands, squashMessage: pending, stoppedAction: action, split: activeSplit,
@@ -467,8 +467,8 @@ extension GitRepository {
         try validateRebaseIdentities(plan)
         guard plan.entries.first(where: { $0.action != .skip })?.action != .squash else { throw RebaseFailure.squash }
         if plan.options.preserveMerges {
-            guard !plan.entries.contains(where:{ $0.action != .pick }) else { throw RebaseFailure.preservePlan }
-            if ids != plan.originalCommits { return try structuralRebaseTodo(plan) }
+            guard !plan.entries.contains(where:{ $0.action == .squash }) else { throw RebaseFailure.preservePlan }
+            if ids != plan.originalCommits || plan.entries.contains(where: { $0.action != .pick }) { return try structuralRebaseTodo(plan) }
         }
         if plan.options.isCherryPick {
             for entry in plan.entries where entry.action != .skip {
@@ -480,12 +480,12 @@ extension GitRepository {
         if plan.entries.isEmpty { return "noop\n" }
         return plan.entries.map { $0.action.rawValue + " " + $0.commit.hash + " " + $0.commit.subject.replacingOccurrences(of: "\n", with: " ").replacingOccurrences(of: "\r", with: " ") }.joined(separator: "\n") + "\n"
     }
-    /// Source parent rewrite semantics for reordered Pick-only structural plans.
+    /// Source parent rewrite semantics for structural Pick, Skip and Edit plans.
     /// Labels identify already replayed parents; an unreplayed linear parent
     /// falls back to the current head. A missing first merge parent is rejected.
     public func structuralRebaseTodo(_ plan: RebasePlan) throws -> String {
         try validateRebaseIdentities(plan)
-        guard plan.options.preserveMerges, plan.entries.allSatisfy({ $0.action == .pick && $0.occurrence == 0 }) else { throw RebaseFailure.preservePlan }
+        guard plan.options.preserveMerges, plan.entries.allSatisfy({ $0.action != .squash && $0.occurrence == 0 && !($0.action == .edit && $0.commit.parents.count > 1) }) else { throw RebaseFailure.preservePlan }
         let bases = try run(["merge-base","--all",plan.branchHash,plan.ontoHash],successfulExitCodes:0...1).text.split(whereSeparator: \.isWhitespace).map(String.init)
         guard !bases.isEmpty else { throw RebaseFailure.preservePlan }
         let selected = Set(plan.entries.map { $0.commit.hash })
@@ -494,6 +494,13 @@ extension GitRepository {
         for entry in plan.entries {
             let original = try rebaseCommit(entry.commit.hash)
             guard original.parents == entry.commit.parents else { throw RebaseFailure.changed }
+            if entry.action == .skip {
+                // Source skips a selected row without rewriting its parent map.
+                // Its descendants use the current HEAD fallback; a merge's
+                // unreplayed first parent still fails the source guard.
+                rows.append("label turtlegit-" + original.hash)
+                continue
+            }
             var parents: [String] = []
             for (index,parent) in original.parents.enumerated() {
                 let target: String
@@ -509,7 +516,7 @@ extension GitRepository {
             if original.parents.count > 1 {
                 if parents == original.parents { rows.append("reset " + original.hash) }
                 else if parents.count > 1 { rows.append("merge -C " + original.hash + " " + parents.dropFirst().joined(separator:" ")) }
-            } else { rows.append("pick " + original.hash + " " + original.subject.replacingOccurrences(of:"\n",with:" ").replacingOccurrences(of:"\r",with:" ")) }
+            } else { rows.append(entry.action.rawValue + " " + original.hash + " " + original.subject.replacingOccurrences(of:"\n",with:" ").replacingOccurrences(of:"\r",with:" ")) }
             let label = "turtlegit-" + original.hash
             rows.append("label " + label); rewritten[original.hash] = label; current = label
         }
@@ -563,7 +570,7 @@ extension GitRepository {
         }
         let path = temporary.appendingPathComponent("todo")
         // Validate the original plan first; synthetic merge IDs intentionally differ from its selections.
-        let structural = plan.options.preserveMerges && plan.entries.map(\.id) != plan.originalCommits
+        let structural = plan.options.preserveMerges && (plan.entries.map(\.id) != plan.originalCommits || plan.entries.contains { $0.action != .pick })
         let todo = replay.entries.map { $0.action.rawValue + " " + $0.commit.hash + " " + $0.commit.subject.replacingOccurrences(of: "\n", with: " ").replacingOccurrences(of: "\r", with: " ") }.joined(separator: "\n") + "\n"
         try Data((structural ? try structuralRebaseTodo(plan) : replay.entries.isEmpty ? "noop\n" : todo).utf8).write(to: path)
         var environment = ["GIT_SEQUENCE_EDITOR": RebaseEditor.command(executable: editorExecutable), "TURTLEGIT_REBASE_PLAN": path.path, "GIT_EDITOR": "/usr/bin/true"]
