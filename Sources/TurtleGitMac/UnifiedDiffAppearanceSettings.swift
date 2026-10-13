@@ -6,10 +6,17 @@ extension Notification.Name { static let unifiedDiffAppearanceChanged = Notifica
 struct UnifiedDiffAppearanceSettings: View {
     @Environment(\.settingsTransaction) private var transaction
     @State private var initialized = false
-    @State private var draft = UnifiedDiffAppearance.load()
-    @State private var saved = UnifiedDiffAppearance.load()
-    @State private var size = String(UnifiedDiffAppearance.load().fontSize)
-    @State private var tabs = String(UnifiedDiffAppearance.load().tabSize)
+    private let preferences: UserDefaults
+    @State private var draft: UnifiedDiffAppearance
+    @State private var saved: UnifiedDiffAppearance
+    @State private var size: String
+    @State private var tabs: String
+    init(preferences: UserDefaults = .standard) {
+        self.preferences = preferences
+        let value = UnifiedDiffAppearance.load(from:preferences)
+        _draft = State(initialValue:value); _saved = State(initialValue:value)
+        _size = State(initialValue:String(value.fontSize)); _tabs = State(initialValue:String(value.tabSize))
+    }
     @State private var dark = false
     private var value: UnifiedDiffAppearance? {
         guard let font = Int(size), let tab = Int(tabs), (1...1000).contains(font), (1...1000).contains(tab) else { return nil }
@@ -57,12 +64,12 @@ struct UnifiedDiffAppearanceSettings: View {
                 }.frame(maxWidth: .infinity, alignment: .leading)
             }.frame(maxHeight: .infinity)
             if transaction == nil { HStack { Spacer(); Button("Cancel") { draft = saved; size = String(saved.fontSize); tabs = String(saved.tabSize); NSApp.keyWindow?.performClose(nil) }
-                Button("Apply") { guard let value else { return }; value.save(); saved = value; NotificationCenter.default.post(name: .unifiedDiffAppearanceChanged, object: nil) }.disabled(value == nil || value == saved)
+                Button("Apply") { guard let value else { return }; value.save(to:preferences); saved = value; NotificationCenter.default.post(name: .unifiedDiffAppearanceChanged, object: nil) }.disabled(value == nil || value == saved)
             } }
-        }.padding(20).onAppear { if !initialized { initialized = true; saved = .load(); draft = saved; size = String(saved.fontSize); tabs = String(saved.tabSize) } }
+        }.padding(20).onAppear { if !initialized { initialized = true; saved = .load(from:preferences); draft = saved; size = String(saved.fontSize); tabs = String(saved.tabSize) } }
         .settingsParticipant("unifiedDiff.appearance", page: .unifiedDiff, value: draft,
             modified: { value != saved }, validate: { value == nil ? "Enter font and tab sizes from 1 to 1000." : nil },
-            apply: { guard let value else { return false }; value.save(); saved = value; NotificationCenter.default.post(name: .unifiedDiffAppearanceChanged, object: nil); return true },
+            apply: { guard let value else { return false }; value.save(to:preferences); saved = value; NotificationCenter.default.post(name: .unifiedDiffAppearanceChanged, object: nil); return true },
             cancel: { draft = saved; size = String(saved.fontSize); tabs = String(saved.tabSize) })
         .onChange(of: size) { _ in transaction?.notify() }
         .onChange(of: tabs) { _ in transaction?.notify() }
@@ -72,6 +79,8 @@ struct UnifiedDiffAppearanceSettings: View {
 /// Settings scenes promote nested TabViews into their toolbar. Keep the viewer
 /// subpages inside the Unified Diff page so Appearance cannot select the global tab.
 struct UnifiedDiffSettingsPage: View {
+    let preferences: UserDefaults
+    init(preferences: UserDefaults = .standard) { self.preferences = preferences }
     @State private var appearance = false
     var body: some View {
         VStack(spacing: 0) {
@@ -80,8 +89,8 @@ struct UnifiedDiffSettingsPage: View {
                 Text("Appearance").tag(true)
             }.pickerStyle(.segmented).padding(.horizontal, 20).padding(.top, 16)
             ZStack {
-                UnifiedDiffViewerSettings().opacity(appearance ? 0 : 1).disabled(appearance).accessibilityHidden(appearance)
-                UnifiedDiffAppearanceSettings().opacity(appearance ? 1 : 0).disabled(!appearance).accessibilityHidden(!appearance)
+                UnifiedDiffViewerSettings(preferences:preferences).opacity(appearance ? 0 : 1).disabled(appearance).accessibilityHidden(appearance)
+                UnifiedDiffAppearanceSettings(preferences:preferences).opacity(appearance ? 1 : 0).disabled(!appearance).accessibilityHidden(!appearance)
             }
         }
     }

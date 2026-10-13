@@ -7,8 +7,8 @@
     "pending_family_reviews": 16,
     "certified_complete": 0,
     "static_controls": 1659,
-    "pending_control_reviews": 896,
-    "mapped_controls": 763,
+    "pending_control_reviews": 895,
+    "mapped_controls": 764,
     "statuses": {
       "pending-review": 16,
       "partial-native-replacement": 82,
@@ -1177,7 +1177,8 @@
       "qa_records": [
         "docs/qa/settings-dialogs-tools-batch-2026-10-11.json",
         "docs/qa/settings-family-2026-10-13.json",
-        "docs/qa/settings-history-batch-2026-10-11.json"
+        "docs/qa/settings-history-batch-2026-10-11.json",
+        "docs/qa/tool-settings-family-2026-10-13.json"
       ]
     },
     {
@@ -1187,8 +1188,8 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 22,
-      "mapped_controls": 21,
-      "pending_control_reviews": 1,
+      "mapped_controls": 22,
+      "pending_control_reviews": 0,
       "certified_complete": false,
       "native_sources": [
         {
@@ -1203,7 +1204,8 @@
       "qa_records": [
         "docs/qa/settings-dialogs-tools-batch-2026-10-11.json",
         "docs/qa/settings-family-2026-10-13.json",
-        "docs/qa/settings-history-batch-2026-10-11.json"
+        "docs/qa/settings-history-batch-2026-10-11.json",
+        "docs/qa/tool-settings-family-2026-10-13.json"
       ]
     },
     {
@@ -1342,7 +1344,8 @@
       "qa_records": [
         "docs/qa/settings-dialogs-tools-batch-2026-10-11.json",
         "docs/qa/settings-family-2026-10-13.json",
-        "docs/qa/settings-history-batch-2026-10-11.json"
+        "docs/qa/settings-history-batch-2026-10-11.json",
+        "docs/qa/tool-settings-family-2026-10-13.json"
       ]
     },
     {
@@ -2060,7 +2063,8 @@
       "qa_records": [
         "docs/qa/settings-dialogs-tools-batch-2026-10-11.json",
         "docs/qa/settings-family-2026-10-13.json",
-        "docs/qa/settings-history-batch-2026-10-11.json"
+        "docs/qa/settings-history-batch-2026-10-11.json",
+        "docs/qa/tool-settings-family-2026-10-13.json"
       ]
     },
     {
@@ -2086,7 +2090,8 @@
       "qa_records": [
         "docs/qa/settings-dialogs-tools-batch-2026-10-11.json",
         "docs/qa/settings-family-2026-10-13.json",
-        "docs/qa/settings-history-batch-2026-10-11.json"
+        "docs/qa/settings-history-batch-2026-10-11.json",
+        "docs/qa/tool-settings-family-2026-10-13.json"
       ]
     },
     {

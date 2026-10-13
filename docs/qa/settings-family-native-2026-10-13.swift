@@ -21,9 +21,11 @@ private actor SettingsAuthenticationFixture: SSHAuthenticationStore {
         NSApplication.shared.setActivationPolicy(.prohibited)
         let root=URL(fileURLWithPath:CommandLine.arguments[1]), suite="TurtleGit.SettingsFamily.QA."+UUID().uuidString, prefs=UserDefaults(suiteName:suite)!
         defer { prefs.removePersistentDomain(forName:suite) }
-        let keys=["SymbolizeRefNames","GravatarUrl","LogFontSize","LogFontName","MaxHistoryItems","NoSounds"]
+        let keys=["SymbolizeRefNames","GravatarUrl","LogFontSize","LogFontName","MaxHistoryItems","NoSounds","TurtleGitBlame.TabSize","TurtleGitBlame.FontSize","TurtleGit.UnifiedDiffAppearance","TurtleGit.UnifiedDiffViewer.Application","TurtleGit.AlternativeEditor.Application","AutoCompleteMinChars"]
         let original=keys.map { UserDefaults.standard.object(forKey:$0).map { String(describing:$0) } }
         prefs.set(false,forKey:"SymbolizeRefNames"); prefs.set(11,forKey:"LogFontSize")
+        prefs.set(true,forKey:"TurtleGit.UnifiedDiffViewer.Enabled"); prefs.set("/Applications/Fixture.app",forKey:"TurtleGit.UnifiedDiffViewer.Application")
+        prefs.set(true,forKey:"TurtleGit.AlternativeEditor.Custom"); prefs.set("/Applications/Fixture.app",forKey:"TurtleGit.AlternativeEditor.Application")
         let workspace=RepositoryModel(startMonitoring:false,initializePreferences:false)
         let navigation=SettingsNavigationController(workspace:workspace,appearance:AppAppearance(),globalOnly:true,preferences:prefs)
         let window=NSWindow(contentRect:.init(x:0,y:0,width:1100,height:820),styleMask:[.titled,.closable],backing:.buffered,defer:false)
@@ -65,6 +67,46 @@ private actor SettingsAuthenticationFixture: SSHAuthenticationStore {
         try choose("Colors 2"); navigation.transaction.apply(closeAfter:false)
         try await wait("Dialogs 2 Apply") { !navigation.transaction.busy }
         try require(prefs.bool(forKey:"NoSounds"),"Cached Dialogs 2 applied outside owner domain")
+        func enter(_ placeholder:String,_ text:String) throws {
+            guard let field=views(navigation.view).compactMap({ $0 as? NSTextField }).first(where:{ $0.placeholderString==placeholder }) else { throw Failure(message:"Missing field: "+placeholder) }
+            field.stringValue=text
+            field.delegate?.controlTextDidChange?(Notification(name:NSControl.textDidChangeNotification,object:field))
+        }
+        try choose("TurtleGitBlame")
+        try await wait("Blame tab control") { navigation.view.layoutSubtreeIfNeeded(); return views(navigation.view).compactMap { $0 as? NSTextField }.contains { $0.placeholderString=="Tab size" } }
+        try enter("Tab size","6"); try await wait("Blame draft") { navigation.transaction.modified }
+        try choose("Unified Diff"); navigation.transaction.apply(closeAfter:false)
+        try await wait("Cached Blame Apply") { !navigation.transaction.busy }
+        try require(GitBlamePresentation.load(from:prefs).tabSize==6,"Blame ignored owner domain")
+        try await wait("Unified tab control") { navigation.view.layoutSubtreeIfNeeded(); return views(navigation.view).compactMap { $0 as? NSTextField }.contains { $0.placeholderString=="Tab size" } }
+        try enter("Tab size","7"); try await wait("Unified draft") { navigation.transaction.modified }
+        try choose("Diff Viewer"); navigation.transaction.apply(closeAfter:false)
+        try await wait("Cached Unified Apply") { !navigation.transaction.busy }
+        try require(UnifiedDiffAppearance.load(from:prefs).tabSize==7,"Unified appearance ignored owner domain")
+        try await wait("Nested viewer control") { navigation.view.layoutSubtreeIfNeeded(); return views(navigation.view).compactMap { $0 as? NSTextField }.contains { $0.placeholderString=="Viewer application" } }
+        try enter("Viewer application","/Applications/ChangedViewer.app")
+        try await wait("Nested viewer draft") { navigation.transaction.modified }
+        try choose("Alternative Editor"); navigation.transaction.apply(closeAfter:false)
+        try await wait("Nested viewer Apply") { !navigation.transaction.busy }
+        try require(UnifiedDiffViewerPreferences.load(from:prefs).applicationPath=="/Applications/ChangedViewer.app","Nested viewer ignored Diff owner domain")
+        try await wait("Alternative editor control") { navigation.view.layoutSubtreeIfNeeded(); return views(navigation.view).compactMap { $0 as? NSTextField }.contains { $0.placeholderString=="Editor application" } }
+        try enter("Editor application","/Applications/ChangedEditor.app")
+        try await wait("Alternative editor draft") { navigation.transaction.modified }
+        try choose("Advanced"); navigation.transaction.apply(closeAfter:false)
+        try await wait("Alternative editor Apply") { !navigation.transaction.busy }
+        try require(AlternativeEditorPreferences.load(from:prefs).applicationPath=="/Applications/ChangedEditor.app","Alternative editor ignored owner domain")
+ try await wait("Advanced table") { navigation.selected == .advanced }
+        let advanced=AdvancedSettingsModel(defaults:prefs,publishFinderMenu:{ _ in })
+        try require(advanced.edit("AutoCompleteMinChars",text:"5"),"Advanced numeric edit rejected")
+        advanced.apply(); try require(prefs.integer(forKey:"AutoCompleteMinChars")==5,"Advanced ignored owner domain")
+        advanced.edit("AutoCompleteMinChars",text:"6"); advanced.cancel(); try require(advanced.values["AutoCompleteMinChars"]=="5","Advanced Cancel lost saved value")
+        let chooser=ToolApplicationChooser(); chooser.window=window
+        var chooserReplies=0
+        chooser.choose({ _,_ in chooserReplies += 1 },failure:{ _ in chooserReplies += 1 })
+        try await wait("Owned app chooser") { window.attachedSheet != nil }
+        chooser.window=nil; chooser.cancel()
+        try await wait("Chooser departure cleanup") { window.attachedSheet == nil }
+        try require(chooserReplies==0,"Canceled chooser applied a retained response")
         let font=MessageEditorFontSettings(defaults:prefs), fontTransaction=SettingsTransaction()
         let fontWindow=NSWindow(contentRect:.init(x:0,y:0,width:700,height:300),styleMask:[.titled],backing:.buffered,defer:false)
         fontWindow.isReleasedWhenClosed=false; fontWindow.contentView=NSHostingView(rootView:font.environment(\.settingsTransaction,fontTransaction).defaultAppStorage(prefs))

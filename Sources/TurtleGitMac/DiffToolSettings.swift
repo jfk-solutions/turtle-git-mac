@@ -7,7 +7,7 @@ import TurtleGitCore
 @MainActor final class ToolApplicationChooser {
     weak var window: NSWindow?
     private var panel: NSOpenPanel?
-    func cancel() { if let panel { window?.endSheet(panel, returnCode: .cancel); panel.orderOut(nil) }; panel = nil }
+    func cancel() { if let panel { (panel.sheetParent ?? window)?.endSheet(panel, returnCode: .cancel); panel.orderOut(nil) }; panel = nil }
     func choose(_ completion: @escaping (URL, Data) -> Void, failure: @escaping (String) -> Void) {
         guard let window, panel == nil, window.attachedSheet == nil else { return }
         let chooser = NSOpenPanel(); chooser.allowedContentTypes = [.applicationBundle]
@@ -70,12 +70,14 @@ struct DiffProgramForm: View {
 
 struct DiffToolSettings: View {
     @Environment(\.settingsTransaction) private var transaction
+    private let preferences: UserDefaults
     @StateObject private var model: ToolSettingsDraft<DiffToolPreferences>
     @State private var advanced = false
     init(preferences: UserDefaults = .standard) {
+        self.preferences = preferences
         _model = StateObject(wrappedValue: ToolSettingsDraft(DiffToolPreferences.load(from: preferences), valid: { $0.valid }, persist: { try $0.save(to: preferences) }))
     }
-    init(model: ToolSettingsDraft<DiffToolPreferences>) { _model = StateObject(wrappedValue: model) }
+    init(model: ToolSettingsDraft<DiffToolPreferences>, preferences: UserDefaults = .standard) { self.preferences = preferences; _model = StateObject(wrappedValue: model) }
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
@@ -86,7 +88,7 @@ struct DiffToolSettings: View {
                     }.padding(8)
                 }
                 Text("Arguments: %base, %mine, %bname, %yname, %bpath, %ypath, %brev, %yrev and %wtroot. Quote arguments containing spaces. Hold Shift when opening a comparison to reverse the internal/external choice.").font(.caption).foregroundStyle(.secondary)
-                UnifiedDiffViewerSettings(settingsPage: .diff)
+                UnifiedDiffViewerSettings(settingsPage: .diff, preferences: preferences)
                 if let error = model.error { Text(error).foregroundStyle(.red) }
             }.padding(20)
         }

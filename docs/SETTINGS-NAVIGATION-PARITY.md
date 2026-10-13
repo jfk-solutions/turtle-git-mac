@@ -297,7 +297,37 @@ passed with system and bundled Git; both receivers were reaped. Native acceptanc
 uses the actual Settings sidebar and cached Log/Dialogs 2 drafts, native URL/font
 controls, private color models, Saved Data cache model and an owned authentication
 child with an injected store. It does not prove every rendered Saved Data/color
-picker control. A missing source Dialogs 2 footer remains explicitly unmapped.
+picker control. At that checkpoint the Dialogs 2 source footer remained unmapped; the tool-page
+continuation below ports it.
 Broad visual/accessibility/physical and signed acceptance stays open. Native
 mappings record source/native implementation references, not completed parity.
 See [grouped evidence](qa/settings-family-2026-10-13.json).
+
+
+## Connected tool-page continuation (implementation 2026-10-13)
+
+The owning Settings preference store now reaches Diff/Merge tools, Merge Editor
+and colors, Blame options/presentation, Unified Diff appearance/viewer, Alternative
+Editor and Advanced settings. Diff's nested patch viewer shares the parent's
+store, as do the standalone combined Unified Diff subpages when supplied a store.
+Cached Apply/Cancel remains handled by the existing Settings transaction.
+
+Alternative Editor Browse uses the same owned native app chooser as Diff/Merge
+and the patch viewer; page departure cancels its panel and ignores a retained
+callback. Chooser cleanup uses the panel's actual sheet parent when its view's
+window probe has already detached. Alternative Editor and patch viewer standalone
+Cancel act on their owning window. The missing Dialogs 2 source footer is now
+present; the Blame navigation title uses TurtleGit branding.
+
+This continuation changes preference/child ownership rather than claiming all
+remaining upstream controls or external-app exit-code behavior. Windows executable
+commands, trust-exit-code semantics, generic authentication and signed sandbox
+launch retain their documented platform boundaries. The Debug build passed and one grouped native run passed both Settings-family and
+tool-association receivers with system/bundled Git. All four receivers were reaped.
+Acceptance includes actual cached Blame/Unified Diff/Alternative Editor drafts,
+Diff's nested patch viewer, protected global preference keys, Advanced numeric
+model Apply/Cancel, and real chooser cancellation after its window probe detaches.
+Existing associations/table/parent validation and failed-save assertions passed.
+No Core code changed, so the Core suite was not repeated. Full rendered Merge
+Editor/color/Advanced page and physical/signed acceptance remains open.
+See [grouped evidence](qa/tool-settings-family-2026-10-13.json).

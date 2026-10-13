@@ -28,8 +28,15 @@ import TurtleGitCore
 struct AlternativeEditorSettings: View {
     @Environment(\.settingsTransaction) private var transaction
     @State private var initialized = false
-    @State private var draft = AlternativeEditorPreferences.load()
-    @State private var saved = AlternativeEditorPreferences.load()
+    private let preferences: UserDefaults
+    @State private var chooser = ToolApplicationChooser()
+    @State private var draft: AlternativeEditorPreferences
+    @State private var saved: AlternativeEditorPreferences
+    init(preferences: UserDefaults = .standard) {
+        self.preferences = preferences
+        let value = AlternativeEditorPreferences.load(from:preferences)
+        _draft = State(initialValue:value); _saved = State(initialValue:value)
+    }
     @State private var error: String?
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -54,29 +61,18 @@ struct AlternativeEditorSettings: View {
             Spacer()
             if transaction == nil { HStack {
                 Spacer()
-                Button("Cancel") { draft = saved; NSApp.keyWindow?.performClose(nil) }
-                Button("Apply") { draft.save(); saved = draft }.disabled(!draft.valid || draft == saved)
+                Button("Cancel") { draft = saved; chooser.window?.performClose(nil) }
+                Button("Apply") { draft.save(to:preferences); saved = draft }.disabled(!draft.valid || draft == saved)
             } }
-        }.padding(20).onAppear { if !initialized { initialized = true; saved = .load(); draft = saved } }
+        }.padding(20).background(ToolChooserProbe(chooser:chooser).frame(width:0,height:0)).onDisappear { chooser.cancel() }.onAppear { if !initialized { initialized = true; saved = .load(from:preferences); draft = saved } }
             .settingsParticipant("alternativeEditor", page: .alternativeEditor, value: draft,
                 modified: { draft != saved }, validate: { draft.valid ? nil : "Choose a macOS editor application." },
-                apply: { draft.save(); saved = draft; return true }, cancel: { draft = saved })
+                apply: { draft.save(to:preferences); saved = draft; return true }, cancel: { draft = saved })
             .alert("Alternative editor", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
                 Button("OK") { error = nil }
             } message: { Text(error ?? "") }
     }
     private func browse() {
-        guard let window = NSApp.keyWindow else { return }
-        let panel = NSOpenPanel(); panel.title = "Select editor application"; panel.prompt = "Select"
-        panel.allowedContentTypes = [.applicationBundle]; panel.canChooseDirectories = false
-        panel.allowsMultipleSelection = false
-        panel.directoryURL = URL(fileURLWithPath: "/Applications", isDirectory: true)
-        panel.beginSheetModal(for: window) { response in
-            guard response == .OK, let application = panel.url else { return }
-            do {
-                let bookmark = try application.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil)
-                draft.applicationPath = application.path; draft.bookmark = bookmark
-            } catch { self.error = error.localizedDescription }
-        }
+        chooser.choose({ application, bookmark in draft.applicationPath = application.path; draft.bookmark = bookmark },failure:{ error = $0 })
     }
 }

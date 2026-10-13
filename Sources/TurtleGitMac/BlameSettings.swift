@@ -10,15 +10,24 @@ struct BlameSettings: View {
     @Environment(\.settingsTransaction) private var transaction
     @State private var initialized = false
     @State private var reference = BlameSettingsWindowReference()
-    @State private var draft = GitBlamePreferences.load()
-    @State private var within = String(GitBlamePreferences.load().withinFileCharacters)
-    @State private var between = String(GitBlamePreferences.load().betweenFileCharacters)
-    @State private var presentation = GitBlamePresentation.load()
-    @State private var fontSize = String(GitBlamePresentation.load().fontSize)
-    @State private var tabSize = String(GitBlamePresentation.load().tabSize)
+    private let preferences: UserDefaults
+    @State private var draft: GitBlameOptions
+    @State private var within: String
+    @State private var between: String
+    @State private var presentation: GitBlamePresentation
+    @State private var fontSize: String
+    @State private var tabSize: String
     @State private var darkColors = false
-    @State private var savedOptions = GitBlamePreferences.load()
-    @State private var savedPresentation = GitBlamePresentation.load()
+    @State private var savedOptions: GitBlameOptions
+    @State private var savedPresentation: GitBlamePresentation
+    init(preferences: UserDefaults = .standard) {
+        self.preferences = preferences
+        let options = GitBlamePreferences.load(from:preferences), view = GitBlamePresentation.load(from:preferences)
+        _draft = State(initialValue:options); _savedOptions = State(initialValue:options)
+        _within = State(initialValue:String(options.withinFileCharacters)); _between = State(initialValue:String(options.betweenFileCharacters))
+        _presentation = State(initialValue:view); _savedPresentation = State(initialValue:view)
+        _fontSize = State(initialValue:String(view.fontSize)); _tabSize = State(initialValue:String(view.tabSize))
+    }
     private var fonts: [String] {
         let fixed = NSFontManager.shared.availableFontFamilies.filter { family in
             NSFontManager.shared.font(withFamily: family, traits: [], weight: 5, size: 10)?.isFixedPitch == true
@@ -108,8 +117,8 @@ struct BlameSettings: View {
                 Button("Cancel") { restore(); reference.window?.performClose(nil) }
                 Button("Apply") {
                     guard let options, let validPresentation else { return }
-                    GitBlamePreferences.save(options)
-                    validPresentation.save()
+                    GitBlamePreferences.save(options,to:preferences)
+                    validPresentation.save(to:preferences)
                     savedOptions = options; savedPresentation = validPresentation
                     NotificationCenter.default.post(name: .blamePreferencesChanged, object: nil)
                 }.disabled(options == nil || validPresentation == nil || (options == savedOptions && validPresentation == savedPresentation))
@@ -118,7 +127,7 @@ struct BlameSettings: View {
             .settingsParticipant("blame", page: .blame, value: draft,
                 modified: { options != savedOptions || validPresentation != savedPresentation },
                 validate: { options == nil || validPresentation == nil ? "Enter valid blame thresholds, font size and tab size." : nil },
-                apply: { guard let options, let value = validPresentation else { return false }; GitBlamePreferences.save(options); value.save(); savedOptions = options; savedPresentation = value; NotificationCenter.default.post(name: .blamePreferencesChanged, object: nil); return true }, cancel: restore)
+                apply: { guard let options, let value = validPresentation else { return false }; GitBlamePreferences.save(options,to:preferences); value.save(to:preferences); savedOptions = options; savedPresentation = value; NotificationCenter.default.post(name: .blamePreferencesChanged, object: nil); return true }, cancel: restore)
             .onChange(of: presentation) { _ in transaction?.notify() }
             .onChange(of: within) { _ in transaction?.notify() }.onChange(of: between) { _ in transaction?.notify() }
             .onChange(of: fontSize) { _ in transaction?.notify() }.onChange(of: tabSize) { _ in transaction?.notify() }
@@ -127,9 +136,9 @@ struct BlameSettings: View {
             .onChange(of: draft.showCompleteLog) { _ in draft.normalizeLogSettings() }
     }
     private func restore() {
-        savedOptions = GitBlamePreferences.load(); savedPresentation = .load()
+        savedOptions = GitBlamePreferences.load(from:preferences); savedPresentation = .load(from:preferences)
         draft = savedOptions; draft.normalizeLogSettings(); within = String(draft.withinFileCharacters); between = String(draft.betweenFileCharacters)
-        presentation = .load(); fontSize = String(presentation.fontSize); tabSize = String(presentation.tabSize)
+        presentation = .load(from:preferences); fontSize = String(presentation.fontSize); tabSize = String(presentation.tabSize)
     }
 }
 private final class BlameSettingsWindowReference { weak var window: NSWindow? }

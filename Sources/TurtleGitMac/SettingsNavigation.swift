@@ -135,7 +135,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
             SettingsPageNode(.overlays, "Icon Overlays", .settingsOverlays, children: [SettingsPageNode(.overlayIcons, "Icon Set", .settingsOverlays), SettingsPageNode(.overlayHandlers, "Overlay Handlers", .settingsOverlays), SettingsPageNode(.watchedRepositories, "Watched Repositories", .repositoryBrowser)]),
             SettingsPageNode(.email, "Email", .sendMail),
             SettingsPageNode(.diff, "Diff Viewer", .compare, children: [SettingsPageNode(.mergeTool, "Merge Tool", .merge), SettingsPageNode(.mergeEditor, "Merge Editor", .merge, children: [SettingsPageNode(.mergeColors, "Colors", .settingsColors)])]),
-            SettingsPageNode(.savedData, "Saved Data", .settingsSavedData), SettingsPageNode(.blame, "TortoiseGitBlame", .blame),
+            SettingsPageNode(.savedData, "Saved Data", .settingsSavedData), SettingsPageNode(.blame, "TurtleGitBlame", .blame),
             SettingsPageNode(.unifiedDiff, "Unified Diff", .settingsUnifiedDiff), SettingsPageNode(.advanced, "Advanced", .settingsGeneral)
         ]
         updating = true; outline.reloadData(); roots.forEach { outline.expandItem($0) }
@@ -174,7 +174,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
             case .dialogs2: controller = host(DialogsBehaviorSettings(defaults: preferences))
             case .dialogs3: controller = host(ProjectDialogSettingsPage(workspace: workspace, globalOnly: globalOnly))
             case .commit: controller = host(CommitEditorSettings(editorOnly: true))
-            case .alternativeEditor: controller = host(AlternativeEditorSettings())
+            case .alternativeEditor: controller = host(AlternativeEditorSettings(preferences: preferences))
             case .git: controller = host(GitConfigurationSettingsPage(workspace: workspace, globalOnly: globalOnly))
             case .credential:
                 guard let context = try? workspace.gitConfigurationContext(globalOnly: globalOnly) else { return }
@@ -192,14 +192,14 @@ struct SettingsNavigation: NSViewControllerRepresentable {
             case .contextMenu2: controller = host(FinderContextMenuSettingsPage(model: contextMenuDraft, extendedOnly: true))
             case .issueTracker: controller = host(IssueTrackerSettingsPage(workspace: workspace, globalOnly: globalOnly))
             case .email: controller = host(EmailSettingsPage(model: emailDraft))
-            case .diff: controller = host(DiffToolSettings())
-            case .mergeTool: controller = host(MergeToolSettings())
-            case .mergeEditor: controller = host(MergeEditorSettings())
-            case .mergeColors: controller = host(MergeColorsSettings())
+            case .diff: controller = host(DiffToolSettings(preferences: preferences))
+            case .mergeTool: controller = host(MergeToolSettings(preferences: preferences))
+            case .mergeEditor: controller = host(MergeEditorSettings(defaults: preferences))
+            case .mergeColors: controller = host(MergeColorsSettings(model: MergeColorsSettingsModel(preferences: preferences)))
             case .savedData: controller = host(SavedDataSettingsPage(preferences: preferences))
-            case .blame: controller = host(BlameSettings())
-            case .unifiedDiff: controller = host(UnifiedDiffAppearanceSettings())
-            case .advanced: controller = host(AdvancedSettingsPage())
+            case .blame: controller = host(BlameSettings(preferences: preferences))
+            case .unifiedDiff: controller = host(UnifiedDiffAppearanceSettings(preferences: preferences))
+            case .advanced: controller = host(AdvancedSettingsPage(defaults: preferences))
             case .remote:
                 guard let context = try? workspace.gitConfigurationContext(), context.localAvailable else { return }
                 let model = RemoteSettingsWindowModel(repository: context.repository, access: context.access)
@@ -408,6 +408,7 @@ private struct DialogsBehaviorSettings: View {
                         LogPreferenceCheckbox(title: "Select items automatically", value: draft.boolean("SelectFilesForCommit"))
                         LogPreferenceCheckbox(title: "Do not auto-select \"missing\" files (deleted, but unstaged)", value: draft.boolean("AutoselectMissingFiles"))
                         LogPreferenceCheckbox(title: "Strip lines starting with \"#\" in commit message", value: draft.boolean("StripCommentedLines"))
+                        Text("Further options for the commit dialog are on Dialogs 3 page.").font(.caption).foregroundStyle(.secondary)
                     }.padding(8)
                 }
                 Spacer()

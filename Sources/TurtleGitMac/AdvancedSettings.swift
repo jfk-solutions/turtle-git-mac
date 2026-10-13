@@ -36,7 +36,8 @@ import TurtleGitCore
 
 struct AdvancedSettingsPage: View {
     @Environment(\.settingsTransaction) private var transaction
-    @StateObject private var model = AdvancedSettingsModel()
+    @StateObject private var model: AdvancedSettingsModel
+    init(defaults: UserDefaults = .standard) { _model = StateObject(wrappedValue:AdvancedSettingsModel(defaults:defaults)) }
     @StateObject private var windowReference = AdvancedSettingsWindowReference()
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {

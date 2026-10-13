@@ -58,10 +58,16 @@ import TurtleGitCore
 }
 
 struct UnifiedDiffViewerSettings: View {
-    var settingsPage: SettingsPageID = .unifiedDiff
+    let settingsPage: SettingsPageID
+    private let preferences: UserDefaults
     @Environment(\.settingsTransaction) private var transaction
-    @State private var draft = UnifiedDiffViewerPreferences.load()
-    @State private var saved = UnifiedDiffViewerPreferences.load()
+    @State private var draft: UnifiedDiffViewerPreferences
+    @State private var saved: UnifiedDiffViewerPreferences
+    init(settingsPage: SettingsPageID = .unifiedDiff, preferences: UserDefaults = .standard) {
+        self.settingsPage = settingsPage; self.preferences = preferences
+        let value = UnifiedDiffViewerPreferences.load(from:preferences)
+        _draft = State(initialValue:value); _saved = State(initialValue:value)
+    }
     @State private var error: String?
     @State private var chooser = ToolApplicationChooser()
     var body: some View {
@@ -82,13 +88,13 @@ struct UnifiedDiffViewerSettings: View {
             Text("Hold Shift when opening a unified diff from Format Patch, Log, Commit, Working Tree or Changed Files to reverse the viewer choice. A saved external application remains available while the built-in viewer is selected.").font(.caption).foregroundStyle(.secondary)
             Spacer()
             if transaction == nil { HStack { Spacer()
-                Button("Cancel") { draft = saved; NSApp.keyWindow?.performClose(nil) }
-                Button("Apply") { draft.save(); saved = draft }.disabled(!draft.valid || draft == saved)
+                Button("Cancel") { draft = saved; chooser.window?.performClose(nil) }
+                Button("Apply") { draft.save(to:preferences); saved = draft }.disabled(!draft.valid || draft == saved)
             } }
         }.padding(20).background(ToolChooserProbe(chooser: chooser).frame(width: 0, height: 0)).onDisappear { chooser.cancel() }
             .settingsParticipant("unifiedDiff.viewer", page: settingsPage, value: draft, modified: { draft != saved },
                 validate: { draft.valid ? nil : "Choose a valid unified diff viewer application." },
-                apply: { draft.save(); saved = draft; return true }, cancel: { draft = saved })
+                apply: { draft.save(to:preferences); saved = draft; return true }, cancel: { draft = saved })
             .alert("Unified Diff Viewer", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) { Button("OK") { error = nil } } message: { Text(error ?? "") }
     }
     private func browse() {

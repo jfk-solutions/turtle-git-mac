@@ -1,0 +1,54 @@
+{
+  "date": "2026-10-13",
+  "scope": "Connected tool Settings ownership and chooser lifecycle continuation",
+  "checks": {
+    "debug_build": {
+      "exit": 0
+    },
+    "core": {
+      "rerun": false,
+      "reason": "No Core changes; UI ownership/lifecycle covered by grouped native checks"
+    },
+    "native": {
+      "cases": [
+        "settings-family",
+        "tool-settings"
+      ],
+      "engines": [
+        "system",
+        "bundled"
+      ],
+      "exit": 0,
+      "reaped_pids": [
+        83215,
+        83221,
+        83222,
+        83227
+      ],
+      "scope": [
+        "Actual Settings navigation and cached private-domain Blame/Unified Diff/Alternative Editor Apply",
+        "Diff nested patch-viewer preference ownership",
+        "Existing Log/Dialogs/color/font/Saved Data ownership regression",
+        "Advanced private-domain numeric edit/Cancel model",
+        "Real app chooser cancel after window probe detaches, with no retained reply",
+        "Native association table/order/selection/arguments and parent Apply/Cancel/invalid and failed-save drafts"
+      ]
+    }
+  },
+  "changes": [
+    "Settings owner store reaches tool, editor, viewer, Blame and Advanced drafts",
+    "Standalone viewer/Alternative Editor Cancel uses owning window",
+    "App chooser page-close fence uses actual sheet parent",
+    "Dialogs 2 source footer ported and Blame Settings rebranded"
+  ],
+  "remaining": [
+    "Full rendered Merge Editor/colors and Advanced UI acceptance",
+    "Physical gestures/keyboard/VoiceOver and complete visual equivalence",
+    "External application trust-exit-code and signed sandbox boundaries",
+    "Other Settings pages and full hosted CI result"
+  ],
+  "logs": [
+    "build/qa/tool-settings-family-build-2026-10-13.log",
+    "build/qa/tool-settings-family-native-2026-10-13.log"
+  ]
+}
