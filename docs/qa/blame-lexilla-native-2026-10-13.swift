@@ -1,6 +1,13 @@
 import AppKit
 import TurtleGitCore
 
+private final class BlameColorCalibrationView:NSView {
+    let color:NSColor
+    init(frame:NSRect,color:NSColor) { self.color=color;super.init(frame:frame) }
+    required init?(coder:NSCoder) { fatalError() }
+    override var isOpaque:Bool { true }
+    override func draw(_ rect:NSRect) { color.setFill();bounds.fill() }
+}
 @main struct BlameLexillaVerification {
     @MainActor static func descendants(_ view:NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
     @MainActor static func wait(_ ready:()->Bool) async throws {
@@ -55,6 +62,71 @@ import TurtleGitCore
         precondition(model.syntaxError==nil && !view.isSelectable && view.string==text)
         let afterHead=try await repo.run(["rev-parse","HEAD"]).stdout,afterIndex=try Data(contentsOf:root.appendingPathComponent(".git/index")),afterFile=try Data(contentsOf:file)
         precondition(afterHead==head && afterIndex==index && afterFile==Data(text.utf8))
+        let html="<html>\n<script language=\"VBScript\">\nDim value\nvalue = \"雪🦎\"\n</script>\n</html>\n"
+        let htmlFile=root.appendingPathComponent("embedded.html")
+        try Data(html.utf8).write(to:htmlFile);try await repo.stage(["embedded.html"]);_ = try await repo.commit(message:"Embedded styles")
+        let htmlHead=try await repo.run(["rev-parse","HEAD"]).stdout,htmlIndex=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        let embedded=BlameWindowController(repository:repo,access:nil,path:"embedded.html",revision:"HEAD",options:GitBlameOptions(),preferences:prefs)
+        defer { embedded.close() }
+        let embeddedWindow=embedded.window!,embeddedModel=embedded.model
+        embeddedModel.presentation.fontName="Courier";embeddedModel.presentation.fontSize=14
+        embeddedWindow.contentView?.layoutSubtreeIfNeeded()
+        func embeddedEditor()->NSTextView? { descendants(embeddedWindow.contentView!).compactMap { $0 as? NSTextView }.first { $0.accessibilityLabel()=="Blame source text" } }
+        try await wait { !embeddedModel.busy && !embeddedModel.syntaxWorking && embeddedEditor()?.string==html && BlameWindowModel.activeSyntaxRequests==0 }
+        let htmlView=embeddedEditor()!,offset=(html as NSString).range(of:"value =").location
+        let fillKey=NSAttributedString.Key("TurtleGitBlameEOLFill")
+        let expectedFont=NSFont(name:"Lucida Console",size:14) ?? NSFont(name:"Menlo",size:14)!
+        let actualFont=htmlView.textStorage!.attribute(.font,at:offset,effectiveRange:nil) as! NSFont
+        precondition(actualFont.familyName==expectedFont.familyName && actualFont.pointSize==14)
+        let selectedHTML=(html as NSString).range(of:"雪🦎");htmlView.setSelectedRange(selectedHTML)
+        func paintedTail(reference:NSColor? = nil)->NSColor {
+            let manager=htmlView.layoutManager!,glyph=manager.glyphIndexForCharacter(at:offset)
+            let fragment=manager.lineFragmentRect(forGlyphAt:glyph,effectiveRange:nil)
+            let origin=htmlView.textContainerOrigin
+            let area=NSRect(x:htmlView.bounds.maxX-20,y:fragment.midY+origin.y-2,width:4,height:4)
+            // Cache rendering is color managed (including HDR on current macOS).
+            // Compare to an independently painted reference in the same context,
+            // rather than comparing encoded source RGB directly to display pixels.
+            let calibration=reference.map { BlameColorCalibrationView(frame:area,color:$0) }
+            if let calibration { htmlView.addSubview(calibration) }
+            defer { calibration?.removeFromSuperview() }
+            let bitmap=htmlView.bitmapImageRepForCachingDisplay(in:area)!
+            htmlView.cacheDisplay(in:area,to:bitmap)
+            return bitmap.colorAt(x:1,y:1)!.usingColorSpace(.sRGB)!
+        }
+        for theme in [NSAppearance.Name.aqua,.darkAqua] {
+            embeddedWindow.appearance=NSAppearance(named:theme);embeddedWindow.contentView?.appearance=embeddedWindow.appearance
+            try await Task.sleep(nanoseconds:50_000_000)
+            let stored=htmlView.textStorage!.attribute(fillKey,at:offset,effectiveRange:nil) as! NSColor
+            let pixel=paintedTail(),expected=paintedTail(reference:stored)
+            print("Embedded tail pixels",theme,"calibrated expected",expected,"actual",pixel);fflush(stdout)
+            precondition(abs(pixel.redComponent-expected.redComponent)<0.03 && abs(pixel.greenComponent-expected.greenComponent)<0.03 && abs(pixel.blueComponent-expected.blueComponent)<0.03)
+            precondition(htmlView.selectedRange()==selectedHTML)
+            if ProcessInfo.processInfo.environment["TURTLEGIT_CAPTURE_BLAME_EMBEDDED"]=="1",repo.executable.path=="/usr/bin/git" {
+                NSApplication.shared.setActivationPolicy(.accessory)
+                let output=URL(fileURLWithPath:FileManager.default.currentDirectoryPath).appendingPathComponent("build/qa/blame-embedded-captures-2026-10-13")
+                try FileManager.default.createDirectory(at:output,withIntermediateDirectories:true)
+                embeddedWindow.setContentSize(NSSize(width:1120,height:700));embeddedWindow.center();embeddedWindow.makeKeyAndOrderFront(nil);NSApplication.shared.activate(ignoringOtherApps:true)
+                try await Task.sleep(nanoseconds:300_000_000)
+                let capture=Process();capture.executableURL=URL(fileURLWithPath:"/usr/sbin/screencapture")
+                let suffix=theme == .aqua ? "light" : "dark"
+                capture.arguments=["-x","-o","-l",String(embeddedWindow.windowNumber),output.appendingPathComponent("blame-embedded-"+suffix+".png").path]
+                try capture.run();capture.waitUntilExit();precondition(capture.terminationStatus==0);embeddedWindow.orderOut(nil)
+            }
+        }
+        embeddedModel.setWrapLongLines(true)
+        try await wait { htmlView.enclosingScrollView?.hasHorizontalScroller==false }
+        precondition(htmlView.selectedRange()==selectedHTML && htmlView.textStorage!.attribute(fillKey,at:offset,effectiveRange:nil) != nil)
+        embeddedModel.setSyntaxEnabled(false);try await wait { !embeddedModel.syntaxWorking && htmlView.textStorage!.attribute(fillKey,at:offset,effectiveRange:nil)==nil }
+        precondition(htmlView.textStorage!.attribute(fillKey,at:offset,effectiveRange:nil)==nil && htmlView.selectedRange()==selectedHTML)
+        let disabledFont=htmlView.textStorage!.attribute(.font,at:offset,effectiveRange:nil) as! NSFont
+        precondition(disabledFont.familyName==NSFont(name:"Courier",size:14)!.familyName)
+        embeddedModel.setSyntaxEnabled(true);try await wait { !embeddedModel.syntaxWorking && BlameWindowModel.activeSyntaxRequests==0 && htmlView.textStorage!.attribute(fillKey,at:offset,effectiveRange:nil) != nil }
+        precondition(htmlView.textStorage!.attribute(fillKey,at:offset,effectiveRange:nil) != nil && htmlView.string==html)
+        embedded.close();try await wait { BlameWindowModel.activeSyntaxRequests==0 }
+        let finalHead=try await repo.run(["rev-parse","HEAD"]).stdout,finalIndex=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        let finalHTML=try Data(contentsOf:htmlFile)
+        precondition(finalHead==htmlHead && finalIndex==htmlIndex && finalHTML==Data(html.utf8))
         print("Native pinned Lexilla: actual C++ keyword/comment/Unicode styles, EnableLexer persistence, font-independent selection, dark HSL palette, read-only bytes, late result/retirement and Quit lifetime passed. Owned windows/helpers retired.")
     }
 }

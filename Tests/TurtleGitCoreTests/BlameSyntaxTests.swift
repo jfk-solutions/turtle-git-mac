@@ -38,6 +38,22 @@ final class BlameSyntaxTests: XCTestCase {
         XCTAssertTrue(result.ranges.contains { $0.style == 1 && source.substring(with:$0.range).contains("multiline\n comment") })
         XCTAssertEqual(result.ranges.reduce(0) { $0 + $1.range.length },source.length)
     }
+    func testEmbeddedStylesRetainSourceFontAndEOLIntervals() throws {
+        let result=try BlameSyntax.highlight("<script language=\"VBScript\">\nDim value\nvalue = \"雪\"\n</script>\n",filename:"embedded.html",executable:helper)
+        XCTAssertEqual(result.lexer,"hypertext")
+        for interval in [71...77,81...87,41...50,56...65] {
+            for number in interval {
+                XCTAssertEqual(result.styles[String(number)]?.font,"Lucida Console")
+                XCTAssertEqual(result.styles[String(number)]?.eolFilled,true)
+            }
+        }
+        for number in [51,66] { XCTAssertEqual(result.styles[String(number)]?.eolFilled,true);XCTAssertNil(result.styles[String(number)]?.font) }
+        XCTAssertEqual(result.styles["77"]?.background,[127,127,255])
+        XCTAssertEqual(result.styles["87"]?.background,[207,207,127])
+        XCTAssertEqual(result.styles["51"]?.background,[223,223,127])
+        XCTAssertEqual(result.styles["66"]?.background,[0,175,95])
+        XCTAssertTrue(result.ranges.contains { (71...77).contains($0.style) })
+    }
     func testInvalidInputsAndPreCancellationDoNotRunHelper() throws {
         let token = OperationCancellation(); token.cancel()
         XCTAssertThrowsError(try BlameSyntax.highlight("int x;",filename:"a.cpp",executable:helper,cancellation:token)) { XCTAssertTrue($0 is OperationCancellationFailure) }

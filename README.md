@@ -131,6 +131,11 @@ work that remains.
 
 ## Screenshots and website
 
+Blame embedded-language fonts and line-tail fills now retain the source style
+intervals. Reviewed [light](docs/site/assets/blame-embedded-light.png) /
+[dark](docs/site/assets/blame-embedded-dark.png) captures and
+[acceptance limits](docs/BLAME-EMBEDDED-STYLES.md) describe this batch.
+
 Blame syntax coloring now uses the pinned upstream Lexilla engines and keyword
 lists. Reviewed [light](docs/site/assets/blame-lexilla-light.png) /
 [dark](docs/site/assets/blame-lexilla-dark.png) captures and

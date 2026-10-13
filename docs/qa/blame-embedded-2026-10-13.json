@@ -1,0 +1,99 @@
+{
+  "date": "2026-10-13",
+  "scope": [
+    "34 source embedded font overrides and 36 EOL fill styles",
+    "Native font fallback/bold, line-tail painting, styled width measurement and syntax reset",
+    "Original theme transform, source selection and read-only byte retention"
+  ],
+  "source_baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_reference": "src/TortoiseGitBlame/TortoiseGitBlameView.cpp SetupLexer embedded VBScript/JavaScript loops",
+  "validation": {
+    "core": {
+      "exit": 0,
+      "tests": 7,
+      "log": "build/qa/blame-embedded-core-2026-10-13.log"
+    },
+    "runtime": {
+      "exit": 0,
+      "universal": true,
+      "log": "build/qa/blame-embedded-runtime-2026-10-13.log"
+    },
+    "debug": {
+      "exit": 0,
+      "final_log": "build/qa/blame-embedded-build-final-2026-10-13.log",
+      "bundle_audit": 0,
+      "audit_note": "Unchanged runtime/package audit passed before the final UI-only paint adjustment."
+    },
+    "appstore": {
+      "exit": 0,
+      "final_log": "build/qa/blame-embedded-appstore-final-2026-10-13.log",
+      "required_git_bundle_audit": 0,
+      "audit_log": "build/qa/blame-embedded-appstore-audit-2026-10-13.log"
+    },
+    "native": {
+      "distinct_cases": 6,
+      "source_system": "Passed first case in blame-embedded-native-final log before pixel failure.",
+      "source_packaged": "build/qa/blame-embedded-source-packaged-2026-10-13.log",
+      "lexer_wrap_both_engines": "build/qa/blame-embedded-native-accepted-2026-10-13.log",
+      "owned_receivers_reaped": [
+        40450,
+        40488,
+        40657,
+        42218,
+        42254,
+        43074,
+        43162,
+        43860,
+        43912,
+        43948,
+        43996,
+        44039
+      ],
+      "all_independently_absent": true,
+      "cache_reused_for_final_packaged_source_case": true
+    },
+    "initial_failures": [
+      "Encoded RGB versus color-managed cached pixel comparison failed; independent same-context color calibration retained pixel assertion.",
+      "Partial-tail redraw was hardened to find line fragments across the full editor width.",
+      "Syntax disable asserted before the UI processed model changes; now waits for actual rendered attribute removal/restoration."
+    ],
+    "website": {
+      "exit": 0,
+      "log": "build/qa/blame-embedded-site-2026-10-13.log"
+    },
+    "notes": "Existing compiler warnings/exit-zero diagnostics remain; not a clean-log claim."
+  },
+  "captures": {
+    "docs/site/assets/blame-embedded-light.png": {
+      "sha256": "a64b0b3c5d7ce242c92f578d8d4c7462b5701aaddc4af588c61d4505d4cd14ee",
+      "dimensions": [
+        2240,
+        1464
+      ],
+      "individually_inspected": true
+    },
+    "docs/site/assets/blame-embedded-dark.png": {
+      "sha256": "a21b419ce19dc3437fefe9fc06945208ab56d2c7614142402982cde7aa851946",
+      "dimensions": [
+        2240,
+        1464
+      ],
+      "individually_inspected": true
+    }
+  },
+  "limits": [
+    "Native embedded sample is HTML/VBScript; all style interval metadata tested, not every language/style drawing interaction",
+    "Wrapped geometry checked by existing full wrap receiver; embedded sample toggle is short-line coverage, not every wrapped fill boundary",
+    "Full menus, displayed Find feedback, Properties, export/encoding/accessibility and signed acceptance remain open",
+    "No full hosted CI or whole-app certification claim"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/BlameSyntax.swift": "cf2d92d332deb02c62084a46cecec16065d6ea6866c65968277d81619d8416a4",
+    "Sources/TurtleGitMac/BlameWindow.swift": "60cab8a6cce083a433bd6913dd2761849acaead46a0b27cb415c91725243c22b",
+    "Tests/TurtleGitCoreTests/BlameSyntaxTests.swift": "05c093b60f7ad70c9c7cccf7f277aca912f995f406588114020387a415fac892",
+    "scripts/extract-blame-lexers.py": "9b9150c4110f51c9946c1b3b78bcf6e501da33d151e573264a48f548dcce6a30",
+    "Configuration/BlameLexers.json": "8ab784886a7827958425b6dea6f851845aaff076feefabf39d659c36b57a554b",
+    "docs/qa/blame-lexilla-native-2026-10-13.swift": "8302561ad24979aa944810c300ff647c07423f62b65db3e4f80848d3796dac1c",
+    "docs/BLAME-EMBEDDED-STYLES.md": "66e5f43c1a407afa89c8fafc6ffc5024c02317d192e3833d3d4dcbf219baf7bd"
+  }
+}

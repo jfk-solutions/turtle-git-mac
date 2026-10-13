@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Extract pinned Blame lexer selections, word lists and style colors without changing them."""
+"""Extract pinned Blame lexer selections, word lists, fonts and line fills."""
 import ast,hashlib,json,re
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
@@ -17,6 +17,17 @@ def palette(block):
   result[str(styles[style])]={'foreground':rgb(fore)}
   if back:result[str(styles[style])]['background']=rgb(back)
  for style in re.findall(r'SendEditor\(SCI_STYLESETBOLD,\s*(SCE_\w+),\s*1\)',block):result.setdefault(str(styles[style]),{})['bold']=True
+ # Embedded language loops set the whole style interval, not just styles
+ # mentioned in SetAStyle. Keep the exact Windows family in the manifest;
+ # AppKit chooses the native fallback at presentation time.
+ for variable,first,last,body in re.findall(r'for \(int (\w+) = (SCE_\w+); \1 <= (SCE_\w+); \+\+\1\) \{(.*?)\n\t\t\t\}',block,re.S):
+  face=re.search(r'SCI_STYLESETFONT,\s*'+variable+r',.*?StringForControl\(L"([^"]+)"\)',body,re.S)
+  fill=re.search(r'SCI_STYLESETEOLFILLED,\s*'+variable+r',\s*1',body)
+  for number in range(styles[first],styles[last]+1):
+   style=result.setdefault(str(number),{})
+   if face:style['font']=face[1]
+   if fill:style['eolFilled']=True
+ for symbol in re.findall(r'SCI_STYLESETEOLFILLED,\s*(SCE_\w+),\s*1',block):result.setdefault(str(styles[symbol]),{})['eolFilled']=True
  return result
 cpp=palette(setup.split('void CTortoiseGitBlameView::SetupCppLexer()',1)[1])
 configurations=[]

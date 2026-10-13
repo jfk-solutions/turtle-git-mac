@@ -1034,3 +1034,16 @@ continuation-line context, logical scroll anchors, Unicode clipboard, Go To/Find
 range retention and disabling wrap were checked. Owned receivers were reaped
 and independently verified absent. Core was not rerun for this native-only batch.
 See `qa/blame-wrap-2026-10-13.json` for actual scope and limits.
+
+## Embedded-language fonts and line fills — 2026-10-13
+
+The remaining source font/EOL flags are now extracted for all 34 embedded font
+styles and 36 line-fill styles. AppKit applies Lucida Console when installed or
+Menlo at the configured size, then applies source bold traits. Visible layout
+fragments paint tails to the native editor edge in both themes; revision highlight
+tails retain their highlight, and syntax disable clears all lexer attributes.
+Attributed width measurement follows styled fonts.
+
+[Embedded-style implementation and acceptance](BLAME-EMBEDDED-STYLES.md) records
+coverage and remaining limits. Earlier font/EOL pending entries describe the prior
+checkpoint; this does not certify the complete editor or every interaction.

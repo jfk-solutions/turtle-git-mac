@@ -5,6 +5,8 @@ public struct BlameSyntaxStyle: Codable, Sendable {
     public let foreground: [UInt8]?
     public let background: [UInt8]?
     public let bold: Bool?
+    public let font: String?
+    public let eolFilled: Bool?
 }
 public struct BlameSyntaxRange: Sendable {
     public let range: NSRange

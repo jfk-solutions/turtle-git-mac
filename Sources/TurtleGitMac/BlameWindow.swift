@@ -1091,20 +1091,32 @@ private final class BlameSourceContainer: NSView {
         if let storage = editor.textStorage, storage.length > 0 {
             storage.addAttribute(.foregroundColor,value:NSColor.labelColor,range:NSRange(location:0,length:storage.length))
             storage.removeAttribute(.backgroundColor,range:NSRange(location:0,length:storage.length))
+            storage.removeAttribute(NSAttributedString.Key("TurtleGitBlameEOLFill"),range:NSRange(location:0,length:storage.length))
             storage.addAttribute(.font,value:model.sourceFont,range:NSRange(location:0,length:storage.length))
             if model.syntaxEnabled, let result = syntaxResult {
                 for item in result.ranges where NSMaxRange(item.range) <= storage.length {
                     guard let style = result.styles[String(item.style)] else { continue }
                     if let rgb = style.foreground, let color = blameSyntaxColor(rgb,dark:dark) { storage.addAttribute(.foregroundColor,value:color,range:item.range) }
                     if let rgb = style.background, let color = blameSyntaxColor(rgb,dark:dark) { storage.addAttribute(.backgroundColor,value:color,range:item.range) }
-                    if style.bold == true { storage.addAttribute(.font,value:NSFontManager.shared.convert(model.sourceFont,toHaveTrait:.boldFontMask),range:item.range) }
+                    var font=model.sourceFont
+                    if let family=style.font {
+                        font=NSFont(name:family,size:model.sourceFont.pointSize) ?? NSFont(name:"Menlo",size:model.sourceFont.pointSize) ?? .monospacedSystemFont(ofSize:model.sourceFont.pointSize,weight:.regular)
+                    }
+                    if style.bold == true { font=NSFontManager.shared.convert(font,toHaveTrait:.boldFontMask) }
+                    storage.addAttribute(.font,value:font,range:item.range)
+                    if style.eolFilled == true,let rgb=style.background,let color=blameSyntaxColor(rgb,dark:dark) {
+                        storage.addAttribute(NSAttributedString.Key("TurtleGitBlameEOLFill"),value:color,range:item.range)
+                    }
                 }
             }
             for (row,line) in model.lines.enumerated() where [1,2].contains(model.highlightKind(line)) && ranges.indices.contains(row) {
                 storage.addAttribute(.foregroundColor,value:NSColor.alternateSelectedControlTextColor,range:ranges[row])
+                storage.removeAttribute(NSAttributedString.Key("TurtleGitBlameEOLFill"),range:ranges[row])
             }
         }
-        editor.textStorage?.endEditing(); reflowSource(); editor.needsDisplay = true
+        editor.textStorage?.endEditing()
+        if let storage=editor.textStorage { desiredSourceWidth=max(300,ceil(storage.size().width)+editor.textContainerInset.width*2+24) }
+        reflowSource();editor.needsDisplay=true
     }
     private func reflowSource() {
         guard !retired, !reflowing, let manager=editor.layoutManager, let textContainer=editor.textContainer else { return }
@@ -1308,6 +1320,20 @@ private final class BlameSourceTextView: NSTextView {
         for row in first...min(end,rowColors.count-1) where rowRectangles.indices.contains(row) {
             rowColors[row].setFill()
             var background=rowRectangles[row];background.size.width=bounds.width;background.intersection(rect).fill()
+        }
+        guard let manager=layoutManager,let container=textContainer,let storage=textStorage else { return }
+        let origin=textContainerOrigin
+        // A dirty rectangle in the empty tail contains no glyphs. Expand it
+        // horizontally to discover its line fragment before clipping the fill.
+        let visible=NSRect(x:0,y:rect.minY-origin.y,width:bounds.width,height:rect.height)
+        let glyphs=manager.glyphRange(forBoundingRect:visible,in:container)
+        manager.enumerateLineFragments(forGlyphRange:glyphs) { fragment,used,_,range,_ in
+            let characters=manager.characterRange(forGlyphRange:range,actualGlyphRange:nil)
+            guard characters.length>0,NSMaxRange(characters)<=storage.length,
+                  let color=storage.attribute(NSAttributedString.Key("TurtleGitBlameEOLFill"),at:NSMaxRange(characters)-1,effectiveRange:nil) as? NSColor else { return }
+            let start=used.maxX+origin.x
+            let tail=NSRect(x:start,y:fragment.minY+origin.y,width:max(0,self.bounds.width-start),height:fragment.height).intersection(rect)
+            color.setFill();tail.fill()
         }
     }
     override func rightMouseDown(with event: NSEvent) {
