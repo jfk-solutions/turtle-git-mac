@@ -181,7 +181,7 @@ private struct WorktreeCreateDialog: View {
                         Color.clear.frame(width: 29)
                     }.frame(height: 26)
                     HStack { radio("Commit", target: .commit)
-                        VersionRevisionField(text: $chooser.commitRevision, accessibilityLabel: "Base commit revision", focusRequest: chooser.referenceFocusRequest, onFocus: { chooser.focusReference($0, target: .commit) }).disabled(model.useHead || chooser.options.target != .commit)
+                        VersionRevisionField(text: $chooser.commitRevision, choices: chooser.commitChoices, accessibilityLabel: "Base commit revision", focusRequest: chooser.referenceFocusRequest, onFocus: { chooser.focusReference($0, target: .commit) }).disabled(model.useHead || chooser.options.target != .commit)
                         Button("…") { chooser.browse(.commit) }.accessibilityLabel("Choose commit").disabled(model.useHead || chooser.options.target != .commit)
                     }.frame(height: 26)
                 }.padding(8) }

@@ -284,3 +284,7 @@ It accepts `--git` so real operations and its delayed helper use the selected Gi
 engine consistently. The old short-list compilation failure is retained locally.
 Physical sheets/input/visuals, complete browser/Log commands and signed security
 scopes/Finder acceptance remain pending; scope fixtures simulate policy only.
+
+The commit-revision row now uses the shared [editable session combo](VERSION-COMBO-PARITY.md),
+including programmatic custom choices, exact native Git token identity and
+disabled/retired/focus guards. Physical popup and complete dialog acceptance remain open.

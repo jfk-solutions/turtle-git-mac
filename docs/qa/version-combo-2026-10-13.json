@@ -1,0 +1,61 @@
+{
+  "date": "2026-10-13",
+  "reference": {
+    "revision": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "source": [
+      "ChooseVersion.h::SelectRef/OnBnClickedChooseVersion",
+      "HistoryCombo.cpp::AddString",
+      "IDC_COMBOBOXEX_VERSION"
+    ]
+  },
+  "scope": [
+    "Shared editable NSComboBox across Switch/Merge/Branch-Tag/New Worktree/Reset/Export",
+    "Programmatic custom selection session choices with source folding/trim/append bounds; typing and Log hash selection do not add history",
+    "Exact native UTF-8 case/Unicode identity and qualified custom refs; documented source adaptations",
+    "Popup/text binding, caret retention across choice refresh, disabled/retired callback and scheduled focus guards",
+    "Existing Switch/creation picker suites now use cached app objects and default grouped CI"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/version-combo-debug-final-2026-10-13.log"
+    },
+    "native": {
+      "grouped_cases": 8,
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "families": [
+        "version-combo",
+        "switch-pickers",
+        "creation-pickers",
+        "merge-pickers"
+      ],
+      "log": "build/qa/version-combo-native-2026-10-13.log",
+      "final_export_extension": {
+        "exit": 0,
+        "cases": 2,
+        "log": "build/qa/version-combo-six-consumers-2026-10-13.log",
+        "scope": "Repeated only the affected control case after the final inventory found Export; all six actual native consumers checked."
+      },
+      "ownership": "All eight original and two final receivers reaped; owned control and dialog windows closed. No user app terminated."
+    },
+    "core": {
+      "rerun": false,
+      "reason": "No Core or repository operation implementation changed."
+    },
+    "documentation": {
+      "exit": 0,
+      "tests": 2,
+      "log": "build/qa/version-combo-site-check-2026-10-13.log"
+    }
+  },
+  "pending": [
+    "Physical popup mouse/Return/Escape/VoiceOver and full layout/theme acceptance",
+    "Complete Windows locale/overflow equivalence",
+    "Signed permissions/Finder/App Store execution",
+    "Complete ChooseVersion and application parity"
+  ],
+  "full_port_certified": false
+}

@@ -134,3 +134,7 @@ sheets, fresh tag creation/selection, Cancel catalog refresh, forced child closu
 and real process cleanup for startup/selection reads. Final Debug and unsigned
 AppStore compilation passed; the current Debug bundle audit and inventory gate
 passed. See the dated record for exact scope and receiver PIDs.
+
+Export now uses the shared [editable revision session combo](VERSION-COMBO-PARITY.md)
+for its Commit row. The underlying captured ZIP export/picker workflow is unchanged.
+Full physical/signed acceptance remains open.

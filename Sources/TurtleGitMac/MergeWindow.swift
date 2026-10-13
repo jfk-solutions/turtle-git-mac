@@ -76,6 +76,7 @@ import TurtleGitCore
     @Published var target = CheckoutTarget.branch
     @Published var branchRevision = ""
     @Published var tagRevision = ""
+    @Published private(set) var commitChoices: [String] = []
     @Published var commitRevision = "HEAD"
     @Published var options = MergeOptions()
     @Published var messages = false
@@ -130,10 +131,14 @@ import TurtleGitCore
                     self.target = target
                     if target == .branch { branchRevision = requested } else { tagRevision = requested }
                     commitRevision = draft
-                } else { target = .commit; commitRevision = requested }
+                } else { target = .commit; selectCustomRevision(requested) }
                 applied = true
             } catch { if !invalidated, referenceSelectionToken === token, !token.isCancelled { self.error = error.localizedDescription } }
         }
+    }
+    func selectCustomRevision(_ value: String) {
+        guard !invalidated, let selected = RevisionSessionChoices.select(value, choices: &commitChoices) else { return }
+        commitRevision = selected
     }
     func acceptCommitSelection(_ entry: LogEntry?) {
         guard !invalidated, pickerTarget == .commit else { return }
@@ -173,7 +178,7 @@ import TurtleGitCore
                 if let preset {
                     if catalog.contains(where: { GitReferenceName.equal($0.name, preset) && $0.target == .branch }) { target = .branch; branchRevision = preset }
                     else if tags.contains(where: { GitReferenceName.equal($0.name, preset) }) { target = .tag; tagRevision = preset }
-                    else { target = .commit; commitRevision = preset }
+                    else { target = .commit; selectCustomRevision(preset) }
                 }
             } catch { if !invalidated, loadToken === token, !token.isCancelled { self.error = error.localizedDescription } }
         }
@@ -223,7 +228,7 @@ private struct MergeDialog: View {
                     }
                     HStack {
                         SwitchRadio(title: "Commit", target: .commit, selection: $model.target).frame(width: 95)
-                        VersionRevisionField(text: $model.commitRevision, accessibilityLabel: "Merge commit revision", focusRequest: model.referenceFocusRequest, onFocus: { model.focusReference($0, target: .commit) }).disabled(model.target != .commit)
+                        VersionRevisionField(text: $model.commitRevision, choices: model.commitChoices, accessibilityLabel: "Merge commit revision", focusRequest: model.referenceFocusRequest, onFocus: { model.focusReference($0, target: .commit) }).disabled(model.target != .commit)
                         Button("…") { model.browse(.commit) }.accessibilityLabel("Choose commit").disabled(model.target != .commit)
                     }
                 }.padding(8)

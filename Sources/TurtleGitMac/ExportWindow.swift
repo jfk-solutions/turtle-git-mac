@@ -79,6 +79,7 @@ import TurtleGitCore
     @Published var target = Target.head
     @Published var branch = ""
     @Published var tag = ""
+    @Published private(set) var commitChoices: [String] = []
     @Published var commit = "HEAD"
     @Published var currentBranch = ""
     @Published var references: [CheckoutReference] = []
@@ -117,7 +118,7 @@ import TurtleGitCore
                     else { self.target = .tag; self.tag = requested }
                     self.commit = draft
                 } else if requested == "HEAD" { self.target = .head }
-                else { self.target = .commit; self.commit = requested }
+                else { self.target = .commit; self.selectCustomRevision(requested) }
             } catch {
                 guard let self, !self.invalidated, self.referenceSelectionToken === request, !request.isCancelled else { return }
                 self.error = error.localizedDescription
@@ -125,6 +126,10 @@ import TurtleGitCore
             guard let self, self.referenceSelectionToken === request else { return }
             self.referenceSelectionToken = nil; self.referenceSelectionTask = nil; self.busy = false; self.pickerTarget = nil; completion()
         }
+    }
+    func selectCustomRevision(_ value: String) {
+        guard !invalidated, let selected = RevisionSessionChoices.select(value, choices: &commitChoices) else { return }
+        commit = selected
     }
     func acceptCommitSelection(_ entry: LogEntry?) {
         guard !invalidated, pickerTarget == .commit else { return }
@@ -179,7 +184,7 @@ import TurtleGitCore
                 if preset == "HEAD" || preset.isEmpty { self.target = .head }
                 else if self.tags.contains(where: { $0.name == preset }) { self.target = .tag; self.tag = preset }
                 else if self.branches.contains(where: { $0.name == preset }) { self.target = .branch; self.branch = preset }
-                else { self.target = .commit; self.commit = preset }
+                else { self.target = .commit; self.selectCustomRevision(preset) }
             } catch {
                 guard let self, !self.invalidated, self.loadCancellation === request, !request.isCancelled else { return }
                 self.error = error.localizedDescription
@@ -245,7 +250,7 @@ struct ExportDialog: View {
                     radio("HEAD" + (model.currentBranch.isEmpty ? "" : " (" + model.currentBranch + ")"), .head).frame(maxWidth: .infinity, alignment: .leading)
                     HStack { radio("Branch", .branch).frame(width: 100, alignment: .leading); ReferencePopup(references: model.branches, selection: $model.branch).disabled(model.target != .branch); Button("…") { model.onBrowsePicker?(.branch) }.disabled(model.target != .branch).accessibilityLabel("Browse references") }
                     HStack { radio("Tag", .tag).frame(width: 100, alignment: .leading); ReferencePopup(references: model.tags, selection: $model.tag).disabled(model.target != .tag); Color.clear.frame(width: 29) }
-                    HStack { radio("Commit", .commit).frame(width: 100, alignment: .leading); TextField("Commit", text: $model.commit).disabled(model.target != .commit); Button("…") { model.chooseCommit() }.disabled(model.target != .commit).accessibilityLabel("Choose commit") }
+                    HStack { radio("Commit", .commit).frame(width: 100, alignment: .leading); VersionRevisionField(text: $model.commit, choices: model.commitChoices, accessibilityLabel: "Export commit revision", focusRequest: 0, onFocus: { _ in }).disabled(model.target != .commit); Button("…") { model.chooseCommit() }.disabled(model.target != .commit).accessibilityLabel("Choose commit") }
                 }.padding(8)
             }
             .disabled(model.busy)

@@ -138,3 +138,7 @@ threads cancellation through validation, existence/revision lookup, mutation and
 description; ordinary error/default behavior remains compatible. Description
 retry also owns a token. Routed checkout/switch completion and all failure variants
 still need broader lifetime and physical/signed acceptance.
+
+The commit-revision row now uses the shared [editable session combo](VERSION-COMBO-PARITY.md),
+including programmatic custom choices, exact native Git token identity and
+disabled/retired/focus guards. Physical popup and complete dialog acceptance remain open.

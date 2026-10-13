@@ -525,3 +525,7 @@ darkAqua. The first color assertion compared distinct dynamic NSColor objects;
 the corrected receiver compares resolved sRGB values. Inspected progress captures
 were refreshed with the real Git exit-code status and timed failure footer. See
 [the completion record](qa/merge-abort-footer-2026-10-11.json).
+
+The commit-revision row now uses the shared [editable session combo](VERSION-COMBO-PARITY.md),
+including programmatic custom choices, exact native Git token identity and
+disabled/retired/focus guards. Physical popup and complete dialog acceptance remain open.

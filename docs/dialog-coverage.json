@@ -7,8 +7,8 @@
     "pending_family_reviews": 16,
     "certified_complete": 0,
     "static_controls": 1659,
-    "pending_control_reviews": 1013,
-    "mapped_controls": 646,
+    "pending_control_reviews": 1011,
+    "mapped_controls": 648,
     "statuses": {
       "pending-review": 16,
       "partial-native-replacement": 81,
@@ -1425,7 +1425,12 @@
       "mapped_controls": 18,
       "pending_control_reviews": 0,
       "certified_complete": false,
-      "native_sources": [],
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/SwitchWindow.swift",
+          "origin": "recorded-control-mapping"
+        }
+      ],
       "missing_native_references": [],
       "parity_documents": [
         "docs/EXPORT-PARITY.md",
@@ -1832,10 +1837,15 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 19,
-      "mapped_controls": 0,
-      "pending_control_reviews": 19,
+      "mapped_controls": 1,
+      "pending_control_reviews": 18,
       "certified_complete": false,
-      "native_sources": [],
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/SwitchWindow.swift",
+          "origin": "recorded-control-mapping"
+        }
+      ],
       "missing_native_references": [],
       "parity_documents": [
         "docs/SWITCH-PARITY.md",
@@ -1861,10 +1871,15 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 24,
-      "mapped_controls": 0,
-      "pending_control_reviews": 24,
+      "mapped_controls": 1,
+      "pending_control_reviews": 23,
       "certified_complete": false,
-      "native_sources": [],
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/SwitchWindow.swift",
+          "origin": "recorded-control-mapping"
+        }
+      ],
       "missing_native_references": [],
       "parity_documents": [
         "docs/BRANCH-TAG-PARITY.md",
@@ -1961,6 +1976,10 @@
       "native_sources": [
         {
           "path": "Sources/TurtleGitMac/MergeWindow.swift",
+          "origin": "recorded-control-mapping"
+        },
+        {
+          "path": "Sources/TurtleGitMac/SwitchWindow.swift",
           "origin": "recorded-control-mapping"
         }
       ],
@@ -2079,6 +2098,10 @@
       "native_sources": [
         {
           "path": "Sources/TurtleGitMac/ResetWindow.swift",
+          "origin": "recorded-control-mapping"
+        },
+        {
+          "path": "Sources/TurtleGitMac/SwitchWindow.swift",
           "origin": "recorded-control-mapping"
         }
       ],
@@ -3245,7 +3268,12 @@
       "mapped_controls": 23,
       "pending_control_reviews": 0,
       "certified_complete": false,
-      "native_sources": [],
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/SwitchWindow.swift",
+          "origin": "recorded-control-mapping"
+        }
+      ],
       "missing_native_references": [],
       "parity_documents": [
         "docs/WORKTREE-PARITY.md"

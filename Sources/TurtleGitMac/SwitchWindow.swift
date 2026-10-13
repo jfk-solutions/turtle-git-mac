@@ -159,6 +159,7 @@ extension UserDefaults {
     @Published var options = CheckoutOptions()
     @Published var branchRevision = ""
     @Published var tagRevision = ""
+    @Published private(set) var commitChoices: [String] = []
     @Published var commitRevision = "HEAD"
     @Published var busy = false
     @Published var error: String?
@@ -194,7 +195,7 @@ extension UserDefaults {
                 if let reference = catalog.first(where: { GitReferenceName.equal($0.name, requested) }), let target = reference.target {
                     options.target = target
                     if target == .branch { branchRevision = requested } else { tagRevision = requested }; commitRevision = draft
-                } else { options.target = .commit; commitRevision = requested }
+                } else { options.target = .commit; selectCustomRevision(requested) }
                 defaults(); applied = true
             } catch { if !invalidated, referenceSelectionToken === token, !token.isCancelled { self.error = error.localizedDescription } }
         }
@@ -228,10 +229,14 @@ extension UserDefaults {
                 if let revision, references.contains(where: { GitReferenceName.equal($0.name, revision) }) {
                     if GitReferenceName.removingPrefix("refs/tags/", from: revision) != nil { options.target = .tag; tagRevision = revision }
                     else { options.target = .branch; branchRevision = revision }
-                } else { options.target = revision == nil ? .branch : .commit }
+                } else { options.target = revision == nil ? .branch : .commit; if let revision { selectCustomRevision(revision) } }
                 defaults()
             } catch { if !invalidated, initialLoadToken === token, !token.isCancelled { self.error = error.localizedDescription } }
         }
+    }
+    func selectCustomRevision(_ value: String) {
+        guard !invalidated, !finished, let selected = RevisionSessionChoices.select(value, choices: &commitChoices) else { return }
+        commitRevision = selected
     }
     func defaults() {
         options.overrideBranch = false
@@ -307,7 +312,7 @@ struct SwitchDialog: View {
                     }.frame(height: 26)
                     HStack {
                         SwitchRadio(title: "Commit", target: .commit, selection: $model.options.target).frame(width: 100)
-                        VersionRevisionField(text: $model.commitRevision, focusRequest: model.referenceFocusRequest, onFocus: { model.focusReference($0, target: .commit) }).disabled(model.options.target != .commit)
+                        VersionRevisionField(text: $model.commitRevision, choices: model.commitChoices, focusRequest: model.referenceFocusRequest, onFocus: { model.focusReference($0, target: .commit) }).disabled(model.options.target != .commit)
                         Button("…") { model.browse(.commit) }.accessibilityLabel("Choose commit").disabled(model.options.target != .commit)
                     }.frame(height: 26)
                 }.padding(8)
@@ -648,26 +653,65 @@ struct SwitchProgressDialog: View {
     }
 }
 
+enum RevisionSessionChoices {
+    static func select(_ value: String, choices: inout [String]) -> String? {
+        let value = value.replacingOccurrences(of: "\r", with: " ").replacingOccurrences(of: "\n", with: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty else { return nil }
+        if !choices.contains(where: { $0.utf8.elementsEqual(value.utf8) }) {
+            if choices.count > 25 { choices = Array(choices.prefix(25)) }
+            choices.append(value)
+        }
+        return value
+    }
+}
+
+// Editable session combo from CChooseVersion. No registry/history persistence.
 struct VersionRevisionField: NSViewRepresentable {
     @Binding var text: String
+    var choices: [String] = []
     var accessibilityLabel = "Switch commit revision"
     let focusRequest: Int
     let onFocus: (NSTextField) -> Void
     @Environment(\.isEnabled) private var enabled
     func makeCoordinator() -> Coordinator { Coordinator() }
-    func makeNSView(context: Context) -> NSTextField {
-        let field = NSTextField(); field.isBezeled = true; field.bezelStyle = .squareBezel; field.drawsBackground = true
+    func makeNSView(context: Context) -> NSComboBox {
+        let field = NSComboBox(); field.isEditable = true; field.completes = false
         field.font = .systemFont(ofSize: NSFont.systemFontSize); field.placeholderString = "Commit"; field.setAccessibilityLabel(accessibilityLabel)
         field.delegate = context.coordinator; return field
     }
-    func updateNSView(_ field: NSTextField, context: Context) {
-        if !field.stringValue.utf8.elementsEqual(text.utf8) { field.stringValue = text }
-        field.isEnabled = enabled; context.coordinator.change = { text = $0 }
-        if focusRequest > 0 { DispatchQueue.main.async { [weak field] in if let field { onFocus(field) } } }
+    func updateNSView(_ field: NSComboBox, context: Context) {
+        context.coordinator.configure(field, text: text, choices: choices, enabled: enabled) { text = $0 }
+        if focusRequest > 0 { DispatchQueue.main.async { [weak field, weak coordinator = context.coordinator] in
+            guard let field, let coordinator, !coordinator.retired, field.isEnabled else { return }; onFocus(field)
+        } }
     }
-    static func dismantleNSView(_ field: NSTextField, coordinator: Coordinator) { field.delegate = nil; coordinator.change = { _ in } }
-    final class Coordinator: NSObject, NSTextFieldDelegate {
+    static func dismantleNSView(_ field: NSComboBox, coordinator: Coordinator) { coordinator.retire(field) }
+    final class Coordinator: NSObject, NSComboBoxDelegate {
+        private var choices: [String] = []
+        private(set) var retired = false
         var change: (String) -> Void = { _ in }
-        func controlTextDidChange(_ notification: Notification) { if let field = notification.object as? NSTextField, field.isEnabled { change(field.stringValue) } }
+        func configure(_ field: NSComboBox, text: String, choices: [String], enabled: Bool, change: @escaping (String) -> Void) {
+            guard !retired else { return }
+            self.change = change
+            let selection = (field.currentEditor() as? NSTextView)?.selectedRange()
+            if self.choices.count != choices.count || !zip(self.choices, choices).allSatisfy({ $0.0.utf8.elementsEqual($0.1.utf8) }) {
+                self.choices = choices; field.removeAllItems(); field.addItems(withObjectValues: choices)
+            }
+            if !field.stringValue.utf8.elementsEqual(text.utf8) { field.stringValue = text }
+            if let selection, let editor = field.currentEditor() as? NSTextView {
+                let length = field.stringValue.utf16.count, start = min(selection.location, length)
+                editor.setSelectedRange(NSRange(location: start, length: min(selection.length, length - start)))
+            }
+            field.isEnabled = enabled
+        }
+        func retire(_ field: NSComboBox) { retired = true; field.delegate = nil; change = { _ in } }
+        func controlTextDidChange(_ notification: Notification) {
+            if !retired, let field = notification.object as? NSComboBox, field.isEnabled { change(field.stringValue) }
+        }
+        func comboBoxSelectionDidChange(_ notification: Notification) {
+            guard !retired, let field = notification.object as? NSComboBox, field.isEnabled, field.indexOfSelectedItem >= 0,
+                  let value = field.itemObjectValue(at: field.indexOfSelectedItem) as? String else { return }
+            field.stringValue = value; change(value)
+        }
     }
 }

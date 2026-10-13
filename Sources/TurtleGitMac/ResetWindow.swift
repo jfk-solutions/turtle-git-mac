@@ -189,7 +189,7 @@ import TurtleGitCore
                     chooser.options.target = target
                     if target == .tag { chooser.tagRevision = revision } else { chooser.branchRevision = revision }
                     chooser.commitRevision = commitDraft
-                } else { chooser.options.target = .commit; chooser.commitRevision = revision }
+                } else { chooser.options.target = .commit; chooser.selectCustomRevision(revision) }
                 applied = true
             } catch { if referenceSelectionAvailable, referenceSelectionToken === token, !token.isCancelled { self.error = error.localizedDescription } }
         }
@@ -306,7 +306,7 @@ private struct ResetDialog: View {
                         ReferencePopup(references: chooser.tags, selection: $chooser.tagRevision, accessibilityLabel: "Reset tag revision", focusRequest: model.referenceFocusRequest, onFocus: { model.focusReference($0, target: .tag) }).disabled(chooser.options.target != .tag); Color.clear.frame(width: 29)
                     }.frame(height: 26)
                     HStack { SwitchRadio(title: "Commit", target: .commit, selection: $chooser.options.target).frame(width: 100)
-                        ResetRevisionField(text: $chooser.commitRevision, focusRequest: model.referenceFocusRequest, onFocus: { model.focusReference($0, target: .commit) }).disabled(chooser.options.target != .commit)
+                        VersionRevisionField(text: $chooser.commitRevision, choices: chooser.commitChoices, accessibilityLabel: "Reset commit revision", focusRequest: model.referenceFocusRequest, onFocus: { model.focusReference($0, target: .commit) }).disabled(chooser.options.target != .commit)
                         Button("…") { model.showCommitPicker() }.accessibilityLabel("Choose commit").disabled(chooser.options.target != .commit)
                     }.frame(height: 26)
                 }.padding(8)
@@ -327,28 +327,6 @@ private struct ResetDialog: View {
         }.padding(12).disabled(model.busy || model.showingReferencePicker || model.showingCommitPicker || model.showingModifiedFiles || model.confirmingHard || chooser.busy).onAppear { model.load() }
         .sheet(item: $chooser.browser) { target in SwitchReferenceChooser(model: chooser, target: target) }
         .alert("Reset failed", isPresented: Binding(get: { model.error != nil || chooser.error != nil }, set: { if !$0 { model.error = nil; chooser.error = nil } })) { Button("OK") { model.error = nil; chooser.error = nil } } message: { Text(model.error ?? chooser.error ?? "") }
-    }
-}
-private struct ResetRevisionField: NSViewRepresentable {
-    @Binding var text: String
-    let focusRequest: Int
-    let onFocus: (NSTextField) -> Void
-    @Environment(\.isEnabled) private var enabled
-    func makeCoordinator() -> Coordinator { Coordinator() }
-    func makeNSView(context: Context) -> NSTextField {
-        let field = NSTextField(); field.isBezeled = true; field.bezelStyle = .squareBezel; field.drawsBackground = true
-        field.font = .systemFont(ofSize: NSFont.systemFontSize); field.placeholderString = "Commit"; field.setAccessibilityLabel("Reset commit revision")
-        field.delegate = context.coordinator; return field
-    }
-    func updateNSView(_ field: NSTextField, context: Context) {
-        if !field.stringValue.utf8.elementsEqual(text.utf8) { field.stringValue = text }
-        field.isEnabled = enabled; context.coordinator.change = { text = $0 }
-        if focusRequest > 0 { DispatchQueue.main.async { [weak field] in if let field { onFocus(field) } } }
-    }
-    static func dismantleNSView(_ field: NSTextField, coordinator: Coordinator) { field.delegate = nil; coordinator.change = { _ in } }
-    final class Coordinator: NSObject, NSTextFieldDelegate {
-        var change: (String) -> Void = { _ in }
-        func controlTextDidChange(_ notification: Notification) { if let field = notification.object as? NSTextField, field.isEnabled { change(field.stringValue) } }
     }
 }
 private struct ResetRadio: NSViewRepresentable {

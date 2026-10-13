@@ -169,3 +169,7 @@ is process cancellation, not rollback. See
 [cleanup QA](qa/reference-switch-cleanup-2026-10-09.json). Physical and signed
 acceptance, failure variants, external writers and full application parity remain
 incomplete.
+
+The commit-revision row now uses the shared [editable session combo](VERSION-COMBO-PARITY.md),
+including programmatic custom choices, exact native Git token identity and
+disabled/retired/focus guards. Physical popup and complete dialog acceptance remain open.

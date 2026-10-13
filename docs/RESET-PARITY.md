@@ -173,3 +173,7 @@ hidden hosts exercise nested/merge/text filters, original context icons, owned
 Reflog, refreshed catalogs, revision input focus, draft/cancel/rejected/stale/close
 and competing-route gates. Physical sheet interaction, visual layout comparison
 and complete BrowseRefs/ChooseVersion behavior remain pending.
+
+The commit-revision row now uses the shared [editable session combo](VERSION-COMBO-PARITY.md),
+including programmatic custom choices, exact native Git token identity and
+disabled/retired/focus guards. Physical popup and complete dialog acceptance remain open.
