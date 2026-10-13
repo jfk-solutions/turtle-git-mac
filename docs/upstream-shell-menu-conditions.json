@@ -1752,5 +1752,36 @@
   },
   "additionalSources": {
     "src/TortoiseShell/ContextMenu.cpp": "0b31f963e73ff71cd9cdb0861972a671236ae20f"
+  },
+  "nativeAdaptations": {
+    "properties": {
+      "command": "Native Git Properties window (Finder Get Info adaptation)",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_INVERSIONEDFOLDER"
+          ],
+          "no": []
+        },
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT"
+          ],
+          "no": []
+        },
+        {
+          "yes": [
+            "ITEMIS_INGIT"
+          ],
+          "no": []
+        },
+        {
+          "yes": [
+            "ITEMIS_BAREREPO"
+          ],
+          "no": []
+        }
+      ]
+    }
   }
 }

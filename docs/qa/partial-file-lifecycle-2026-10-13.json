@@ -1,0 +1,80 @@
+{
+  "date": "2026-10-13",
+  "source": {
+    "baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "references": [
+      "src/TortoiseProc/StagingOperations.cpp",
+      "src/TortoiseProc/PatchViewDlg.cpp"
+    ],
+    "adaptation": "Native header normalization when partial added/deleted contents leave a file in the index; read-only selected untracked-file preview."
+  },
+  "scope": [
+    "Added/deleted regular UTF-8 text line/hunk staging and unstaging",
+    "Quoted Unicode/newline paths, executable modes, no-final-newline markers",
+    "Untracked preview without index insertion; intent-to-add deduplication",
+    "Stale untracked snapshot rejection and unrelated staged/worktree preservation",
+    "Native Commit attached patch route and source menus",
+    "Pinned Finder condition fixture repair and native Properties preference integration"
+  ],
+  "validation": {
+    "core": {
+      "exit": 0,
+      "cases": 16,
+      "log": "build/qa/partial-lifecycle-core-2026-10-13.log"
+    },
+    "final_mode_guard": {
+      "exit": 0,
+      "cases": 4,
+      "log": "build/qa/partial-lifecycle-mode-guard-2026-10-13.log",
+      "note": "Only affected lifecycle group repeated after adding existing-symlink index-mode refusal."
+    },
+    "native": {
+      "exit": 0,
+      "cases": 6,
+      "families": [
+        "partial-patch",
+        "commit-progress",
+        "git-properties"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "log": "build/qa/partial-lifecycle-native-2026-10-13.log",
+      "note": "Normal-file lifecycle verified before final symlink-mode guard; guard covered by affected Core group. No complete native matrix rerun."
+    },
+    "finder_menu": {
+      "exit": 0,
+      "source_root_entries": 61,
+      "log": "build/qa/partial-lifecycle-finder-menu-final-2026-10-13.log",
+      "repair": "Original source projections retained; native property adaptation checked independently. Actual builder repaired to follow Settings placement/Shift policy and avoid duplicate Git title prefix."
+    },
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/partial-lifecycle-finder-build-2026-10-13.log",
+      "note": "Final shipping Debug build includes the mode guard and Finder preference fixes; existing Xcode 27 warnings/exit-zero diagnostics were present."
+    },
+    "untracked_normalization_probe": {
+      "git": "/usr/bin/git",
+      "core_autocrlf": true,
+      "working_bytes": "CRLF",
+      "no_index_patch_added_lines": "LF",
+      "scope": "One disposable repository probe, not exhaustive filter/encoding acceptance."
+    }
+  },
+  "ci_trigger": {
+    "run": 38355537693,
+    "job": 115165457953,
+    "failure": "Pinned source condition keys omitted new native property-window adaptation. Preserve 64 upstream rules and record nativeAdaptations separately."
+  },
+  "appstore_rebuilt": false,
+  "ownership": "All native receivers reaped; no installed app/Finder extension activation or real user repository changes.",
+  "pending": [
+    "Current hosted CI result",
+    "Physical native/Finder keyboard/theme/accessibility acceptance",
+    "Rename/copy/binary/symlink/mode partial staging remains unsupported",
+    "Empty files have no selectable text hunk",
+    "Signed App Store execution and exhaustive filesystem races"
+  ],
+  "full_port_certified": false
+}

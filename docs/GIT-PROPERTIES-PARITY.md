@@ -70,3 +70,11 @@ Native Finder/Get Info integration, actual Settings sheet gestures, broader
 physical keyboard/tri-state/accessibility behavior, signed sandbox/App Store
 execution and exhaustive history/index edge cases remain pending. No dialog is
 certified as fully ported.
+
+## Finder preference integration — 2026-10-13
+
+The macOS property-window action now follows Settings placement and visibility,
+including first-level and Shift-only choices. Its direct title remains Git
+Properties without a duplicated Git prefix. Source MenuInfo rules/order remain
+independently checked; the native adaptation is recorded separately in the
+condition fixture and verified alongside the original Finder command sets.

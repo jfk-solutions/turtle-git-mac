@@ -5,7 +5,7 @@ final class FinderShellRulesTests: XCTestCase {
     func testPinnedSourceConditions() throws {
         struct Clause: Decodable { let yes: [String]; let no: [String] }
         struct Rule: Decodable { let command: String; let clauses: [Clause] }
-        struct Fixture: Decodable { let upstreamCommit: String; let rules: [String: Rule] }
+        struct Fixture: Decodable { let upstreamCommit: String; let rules: [String: Rule]; let nativeAdaptations: [String: Rule] }
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         let fixture = try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: root.appendingPathComponent("docs/upstream-shell-menu-conditions.json")))
         XCTAssertEqual(fixture.upstreamCommit, "7338078f8ddd924b8cddee35f512f2286072136d")
@@ -19,11 +19,14 @@ final class FinderShellRulesTests: XCTestCase {
             "ITEMIS_PATCHFILE": .patchFile, "ITEMIS_DELETED": .deleted, "ITEMIS_STASH": .stash, "ITEMIS_SUBMODULECONTAINER": .submoduleContainer
         ]
         XCTAssertEqual(fixture.rules.count, 64)
-        XCTAssertEqual(Set(fixture.rules.keys), Set(FinderShellRules.conditions.keys.map(\.rawValue)))
+        XCTAssertEqual(Set(fixture.nativeAdaptations.keys), ["properties"])
+        XCTAssertTrue(Set(fixture.rules.keys).isDisjoint(with: fixture.nativeAdaptations.keys))
+        let allRules = fixture.rules.merging(fixture.nativeAdaptations) { source, _ in source }
+        XCTAssertEqual(Set(allRules.keys), Set(FinderShellRules.conditions.keys.map(\.rawValue)))
         func mask(_ names: [String]) throws -> FinderShellFlags {
             try names.reduce(into: FinderShellFlags()) { $0.formUnion(try XCTUnwrap(tokens[$1], $1)) }
         }
-        for (name, rule) in fixture.rules {
+        for (name, rule) in allRules {
             let action = try XCTUnwrap(RepositoryAction(rawValue: name))
             let actual = try XCTUnwrap(FinderShellRules.conditions[action])
             XCTAssertEqual(actual.count, 4, rule.command)

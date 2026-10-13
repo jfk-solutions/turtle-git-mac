@@ -56,7 +56,7 @@ final class GitPatchTests: XCTestCase {
         let result = try document.selectedPatch(lines: [4], entireHunks: true, reverse: false)
         XCTAssertEqual(result.components(separatedBy: "\\ No newline").count, 3)
         let newFile = GitPatch(text: "diff --git a/a b/a\nnew file mode 100644\n--- /dev/null\n+++ b/a\n@@ -0,0 +1 @@\n+new\n")
-        XCTAssertThrowsError(try newFile.selectedPatch(lines: [4], entireHunks: true, reverse: false))
+        XCTAssertTrue(try newFile.selectedPatch(lines: [4], entireHunks: true, reverse: false).contains("new file mode 100644"))
     }
     func testReverseSecondHunkWithEarlierIndexInsertionAndRestoreOneRemovedLine() async throws {
         let (root, repo, path) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }

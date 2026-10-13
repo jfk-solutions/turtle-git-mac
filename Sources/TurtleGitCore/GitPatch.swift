@@ -15,14 +15,18 @@ public struct GitPatch: Sendable {
         public let hunks: [Hunk]
         public var supportsPartialChanges: Bool {
             !header.contains { line in
-                ["new file mode", "deleted file mode", "old mode", "new mode", "rename from", "rename to", "copy from", "copy to", "GIT binary patch", "Binary files"].contains { line.hasPrefix($0) }
+                ["old mode", "new mode", "rename from", "rename to", "copy from", "copy to", "GIT binary patch", "Binary files"].contains { line.hasPrefix($0) } ||
+                (line.hasPrefix("index ") && ["120000", "160000"].contains(line.split(separator: " ").last.map(String.init) ?? "")) ||
+                ((line.hasPrefix("new file mode ") || line.hasPrefix("deleted file mode ")) && !line.hasSuffix("100644") && !line.hasSuffix("100755"))
             } && !hunks.isEmpty
         }
     }
     public let text: String
     public let lines: [String]
     public let files: [File]
-    public init(text: String) {
+    public let includesUntracked: Bool
+    public init(text: String, includesUntracked: Bool = false) {
+        self.includesUntracked = includesUntracked
         self.text = text
         var lines = text.components(separatedBy: "\n")
         if lines.last == "" { lines.removeLast() }
@@ -60,7 +64,7 @@ public struct GitPatch: Sendable {
             let picked = file.hunks.filter { selected.contains($0.header) || $0.range.contains(where: { selected.contains($0) }) }
             guard !picked.isEmpty else { continue }
             guard file.supportsPartialChanges else { throw PatchFailure.unsupportedFile }
-            var output: [String] = [], delta = 0
+            var output: [String] = [], delta = 0, selectedOldCount = 0, selectedNewCount = 0
             for hunk in picked {
                 var body: [String] = [], previousKept = false, changes = 0
                 for index in hunk.range {
@@ -81,13 +85,33 @@ public struct GitPatch: Sendable {
                 guard changes > 0 else { continue }
                 let oldCount = body.filter { $0.hasPrefix(" ") || $0.hasPrefix("-") }.count
                 let newCount = body.filter { $0.hasPrefix(" ") || $0.hasPrefix("+") }.count
+                selectedOldCount += oldCount; selectedNewCount += newCount
                 let base = reverse ? hunk.newStart + (hunk.newCount == 0 ? 1 : 0) : hunk.oldStart + (hunk.oldCount == 0 ? 1 : 0)
                 let oldStart = (reverse ? base - delta : base) - (oldCount == 0 ? 1 : 0)
                 let newStart = (reverse ? base : base + delta) - (newCount == 0 ? 1 : 0)
                 output.append("@@ -\(oldStart),\(oldCount) +\(newStart),\(newCount) @@" + hunk.suffix)
                 output += body; delta += newCount - oldCount
             }
-            if !output.isEmpty { result += file.header + output }
+            if !output.isEmpty {
+                var header = file.header
+                // A partial removal of a new file leaves an ordinary indexed
+                // file. Likewise, partial deletion must retain its destination.
+                // Preserve Git's quoted/escaped path representation verbatim.
+                func paired(_ line: String, from: String, to: String) -> String {
+                    let name = String(line.dropFirst(4))
+                    if name.hasPrefix("\"" + from) { return "\"" + to + name.dropFirst(from.count + 1) }
+                    if name.hasPrefix(from) { return to + name.dropFirst(from.count) }
+                    return name
+                }
+                if reverse, selectedOldCount > 0, header.contains(where: { $0.hasPrefix("new file mode ") }), let path = header.first(where: { $0.hasPrefix("+++ ") }) {
+                    header.removeAll { $0.hasPrefix("new file mode ") || $0.hasPrefix("index ") }
+                    header = header.map { $0 == "--- /dev/null" ? "--- " + paired(path, from: "b/", to: "a/") : $0 }
+                } else if !reverse, selectedNewCount > 0, header.contains(where: { $0.hasPrefix("deleted file mode ") }), let path = header.first(where: { $0.hasPrefix("--- ") }) {
+                    header.removeAll { $0.hasPrefix("deleted file mode ") || $0.hasPrefix("index ") }
+                    header = header.map { $0 == "+++ /dev/null" ? "+++ " + paired(path, from: "a/", to: "b/") : $0 }
+                }
+                result += header + output
+            }
         }
         guard !result.isEmpty else { throw PatchFailure.noChangesSelected }
         return result.joined(separator: "\n") + "\n"
@@ -98,7 +122,7 @@ public enum PatchFailure: LocalizedError {
     case unsupportedFile, noChangesSelected, changed, encoding
     public var errorDescription: String? {
         switch self {
-        case .unsupportedFile: return "Partial staging for new, deleted, renamed, binary or mode-changing files is not available yet. Use the file's staging checkbox."
+        case .unsupportedFile: return "Renamed, binary, symlink or mode-changing files require whole-file staging."
         case .noChangesSelected: return "Select changed lines or a changed hunk first."
         case .changed: return "The diff has changed. Refresh the patch before applying the selection."
         case .encoding: return "This patch is not valid UTF-8. Use whole-file staging until this encoding is supported."
@@ -117,17 +141,27 @@ extension GitRepository {
         let args = ["diff", "--no-ext-diff", "--no-color", "--no-textconv", "--unified=3", "-M"] + comparison + ["--"] + paths
         return try run(args, environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation).stdout
     }
-    public func patch(paths: [String], staged: Bool, base: String? = nil, cancellation: OperationCancellation? = nil) throws -> GitPatch {
-        guard let text = String(data: try patchData(paths: paths, staged: staged, base: base, cancellation: cancellation), encoding: .utf8) else { throw PatchFailure.encoding }
-        return GitPatch(text: text)
+    public func patch(paths: [String], staged: Bool, base: String? = nil, cancellation: OperationCancellation? = nil, includeUntracked: Bool = false) throws -> GitPatch {
+        guard let text = String(data: try patchData(paths: paths, staged: staged, base: base, cancellation: cancellation, includeUntracked: includeUntracked), encoding: .utf8) else { throw PatchFailure.encoding }
+        return GitPatch(text: text, includesUntracked: includeUntracked && !staged)
     }
     /// Unified viewers receive original bytes; partial staging still requires UTF-8.
-    public func patchData(paths: [String], staged: Bool, base: String? = nil, cancellation: OperationCancellation? = nil) throws -> Data {
-        let args = ["diff", "--no-ext-diff", "--no-color", "--no-textconv", "--unified=3"] + (staged ? ["--cached"] + (base.map { [$0] } ?? []) : []) + ["--"] + paths
-        return try run(args, environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation).stdout
+    public func patchData(paths: [String], staged: Bool, base: String? = nil, cancellation: OperationCancellation? = nil, includeUntracked: Bool = false) throws -> Data {
+        let options = ["--no-ext-diff", "--no-color", "--no-textconv", "--unified=3", "--src-prefix=a/", "--dst-prefix=b/"]
+        let args = ["diff"] + options + (staged ? ["--cached"] + (base.map { [$0] } ?? []) : []) + ["--"] + paths
+        var bytes = try run(args, environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation).stdout
+        if includeUntracked && !staged && !paths.isEmpty {
+            let names = try run(["ls-files", "--others", "--exclude-standard", "-z", "--"] + paths, environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation).stdout
+            for raw in names.split(separator: 0) {
+                try cancellation?.check()
+                guard let path = String(data: raw, encoding: .utf8) else { throw PatchFailure.encoding }
+                bytes += try run(["diff", "--no-index"] + options + ["--", "/dev/null", path], environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], successfulExitCodes: 0...1, cancellation: cancellation).stdout
+            }
+        }
+        return bytes
     }
     public func applyPatchSelection(_ document: GitPatch, paths: [String], staged: Bool, lines: Set<Int>, entireHunks: Bool, base: String? = nil) throws {
-        guard try patch(paths: paths, staged: staged, base: base).text == document.text else { throw PatchFailure.changed }
+        guard try patch(paths: paths, staged: staged, base: base, includeUntracked: document.includesUntracked).text == document.text else { throw PatchFailure.changed }
         let text = try document.selectedPatch(lines: lines, entireHunks: entireHunks, reverse: staged)
         let url = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGit-patch-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: url) }

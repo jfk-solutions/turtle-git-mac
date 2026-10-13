@@ -48,3 +48,6 @@ Focused Core and native checks passed, with a physical light-mode check of the
 selected-file window and Apply. Full Finder, keyboard and appearance acceptance
 remain pending. See the
 [source comparison and validation](GIT-PROPERTIES-PARITY.md).
+
+Finder’s Git Properties action follows the Settings entry’s first-level and
+Shift-only menu preferences. It uses no invented Windows MenuInfo bit.

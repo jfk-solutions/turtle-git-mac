@@ -2073,3 +2073,25 @@ Validation and remaining acceptance are recorded in
 [partial patch batch QA](qa/partial-patch-2026-10-13.json). Full Commit/application
 parity, unsupported partial file modes/encodings, physical keyboard/menu/Find
 acceptance, refreshed screenshots and multi-display placement remain open.
+
+## Added/deleted partial staging continuation — 2026-10-13
+
+Attached partial staging now reads selected untracked files through no-index
+diffs without inserting intent-to-add entries. Added and deleted regular text
+files accept line and hunk selections. Partial unstage of an added file and
+partial staging of a deletion rewrite the file header as an ordinary edit when
+selected contents leave the file present in the index. Whole-file disappearance
+retains the addition/deletion header. Quoted Git paths, executable modes and
+no-final-newline markers are retained. Snapshot comparison re-reads the same
+untracked-inclusive selection before apply; unrelated staged entries and working
+files remain outside the cached apply.
+
+This extends the pinned StagingOperations line/hunk workflow with explicit
+metadata handling for surviving partial files. Binary, rename/copy, symlink and
+mode-only changes remain whole-file operations. Empty files have no selectable
+text hunk. The grouped 16-case Core check and six native cases passed; the affected
+four Core lifecycle cases were repeated after the final symlink-mode guard.
+Native Commit receivers exercised untracked line staging, added hunk unstaging
+and partial deleted-file staging across system and bundled Git. See
+[dated QA](qa/partial-file-lifecycle-2026-10-13.json). No physical or full Commit
+parity certification is claimed.

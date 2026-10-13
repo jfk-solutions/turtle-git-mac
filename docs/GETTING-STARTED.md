@@ -52,9 +52,9 @@ Inspect the staged diff rather than relying on highlighted rows.
 
 Partial staging opens an attached patch window to the right of Commit. Select
 lines or hunks to stage or unstage. It changes the index while preserving
-working-tree contents; a stale patch is rejected. Partial operations currently
-support ordinary modified UTF-8 text files. Other file types require whole-file
-staging; see the [Commit audit](COMMIT-PARITY.md) for exact limits.
+working-tree contents; a stale patch is rejected. Partial operations support modified, added and deleted regular UTF-8 text files.
+Selected untracked files can be previewed without first adding them to the index.
+Renames, binary files, symlinks and mode changes require whole-file staging; see the [Commit audit](COMMIT-PARITY.md) for exact limits.
 
 ## Inspect history and differences
 

@@ -36,7 +36,12 @@ import TurtleGitCore
         ]
         let nativeBySource = Dictionary(uniqueKeysWithValues: mapping.map { ($0.value, $0.key) })
         let projected = sourceOrder.groups.map { $0.compactMap { nativeBySource[$0] } }.filter { !$0.isEmpty }
-        precondition(FinderShellMenuLayout.groups == projected, "Every implemented root command must preserve pinned MenuInfo order/group")
+        precondition(FinderShellMenuLayout.groups.map { $0.filter { $0 != .properties } }.filter { !$0.isEmpty } == projected, "Every implemented source root command must preserve pinned MenuInfo order/group")
+        let adapted = projected.map { group -> [RepositoryAction] in
+            guard let settings = group.firstIndex(of: .settings) else { return group }
+            var result = group; result.insert(.properties, at: settings); return result
+        }
+        precondition(FinderShellMenuLayout.groups == adapted, "Native property-page adaptation must precede Settings")
         precondition(Set(projected.flatMap { $0 }) == Set(mapping.keys))
         func allCommands(showIcons: Bool = true) -> FinderMenuSettings {
             var settings = FinderMenuSettings(showIcons: showIcons)
@@ -66,7 +71,7 @@ import TurtleGitCore
             }
             if !roots.items.isEmpty { precondition(!actual.last!.isEmpty) }
             let visible = Set(actual.flatMap { $0 })
-            let expected = projected.map { $0.filter { visible.contains($0) } }.filter { !$0.isEmpty }
+            let expected = adapted.map { $0.filter { visible.contains($0) } }.filter { !$0.isEmpty }
             precondition(actual.filter { !$0.isEmpty } == expected, "Visible menu groups must match independent source projection")
             precondition(!visible.contains(.worktreeCreate), "New Worktree belongs in the manager")
         }
@@ -99,6 +104,16 @@ import TurtleGitCore
         let defaultParent = defaultsMenu.items.first { $0.title == "TurtleGit" }!
         precondition(defaultParent.submenu!.items.contains { FinderShellMenuLayout.action($0) == .log })
         precondition(!defaultParent.submenu!.items.contains { FinderShellMenuLayout.action($0) == .commit })
+        let propertyMenu = make([tracked], settings: allCommands())
+        let propertyItem = items(propertyMenu).first { FinderShellMenuLayout.action($0) == .properties }!
+        precondition(propertyItem.isEnabled && propertyItem.image != nil, "Native Properties action/icon missing")
+        var propertyPolicy = allCommands(); propertyPolicy.topLevelMask = FinderMenuEntry.settings.mask
+        let directProperty = make([tracked], settings: propertyPolicy).items.first { FinderShellMenuLayout.action($0) == .properties }!
+        precondition(directProperty.title == RepositoryAction.properties.title && directProperty.image != nil)
+        propertyPolicy.extendedOnlyMask = FinderMenuEntry.settings.mask
+        precondition(!items(make([tracked], settings: propertyPolicy)).contains { FinderShellMenuLayout.action($0) == .properties })
+        let shiftedProperty = FinderMenuBuilder.make(paths: [tracked], snapshot: snapshot, settings: propertyPolicy, comparisonMark: nil, target: target, actionSelector: selector, extended: true)
+        precondition(items(shiftedProperty).contains { FinderShellMenuLayout.action($0) == .properties })
         let rich = FinderSnapshot(roots: [folder.path], states: [folder.path: .normal], repositories: [folder.path: FinderRepositoryMetadata(hasStash: true, hasSubmoduleConfig: true)])
         precondition(!items(policyMenu([folder], snapshot: rich)).contains { FinderShellMenuLayout.action($0) == .stashApply || FinderShellMenuLayout.action($0) == .submoduleSync })
         precondition(items(policyMenu([folder], snapshot: rich, extended: true)).contains { FinderShellMenuLayout.action($0) == .stashApply })
@@ -227,7 +242,8 @@ import TurtleGitCore
         }
         func rootActions(_ menu: NSMenu) -> Set<RepositoryAction> {
             let roots = menu.items.flatMap { $0.title == "TurtleGit" ? ($0.submenu?.items ?? []) : [$0] }
-            return Set(roots.compactMap(FinderShellMenuLayout.action).filter { !$0.isApplicationUtility })
+            // Source command-set comparisons exclude the independently checked native property-page adaptation.
+            return Set(roots.compactMap(FinderShellMenuLayout.action).filter { !$0.isApplicationUtility && $0 != .properties })
         }
         let lfsSnapshot = FinderSnapshot(roots: [folder.path], states: [folder.path: .normal, tracked.path: .normal, untracked.path: .untracked], repositories: [folder.path: FinderRepositoryMetadata(hasLFS: true)])
         func lfsMenu(_ paths: [URL], settings: FinderMenuSettings = allCommands(), extended: Bool = false) -> NSMenu {

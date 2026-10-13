@@ -166,6 +166,34 @@ import TurtleGitCore
         try require(mutationPIDs.count == 2 && mutationPIDs.allSatisfy({ kill($0,0) != 0 }),"Mutation helper leaked")
         let after = try await repo.run(["rev-parse","HEAD"]).stdout
         try require(head == after && (try Data(contentsOf:file)) == Data("base\nneedle 雪\n".utf8), "Preview/staging changed HEAD or working bytes")
+        let lifecycle = PatchWindowController(repository: repo, access: nil, preferences: prefs)
+        defer { lifecycle.close() }
+        let lifecycleModel = lifecycle.model, addedPath = "new lifecycle.txt", addedURL = root.appendingPathComponent(addedPath)
+        let addedBytes = Data("first\nsecond\nlast".utf8)
+        try addedBytes.write(to: addedURL)
+        lifecycleModel.reload(paths: [addedPath], staged: false)
+        try await wait { !lifecycleModel.busy && !lifecycleModel.document.text.isEmpty }
+        try require(lifecycleModel.document.includesUntracked && lifecycleModel.document.files[0].supportsPartialChanges, "Native untracked preview unavailable")
+        lifecycleModel.selectedLines = [lifecycleModel.document.lines.firstIndex(of: "+second")!]
+        lifecycleModel.apply(entireHunks: false); try await wait { !lifecycleModel.busy }
+        let addedIndex = try await repo.run(["show", ":" + addedPath]).stdout
+        try require(addedIndex == Data("second\n".utf8) && lifecycleModel.error == nil, "Native untracked line staging failed")
+        lifecycleModel.reload(paths: [addedPath], staged: true); try await wait { !lifecycleModel.busy }
+        lifecycleModel.selectedLines = [lifecycleModel.document.files[0].hunks[0].header]
+        lifecycleModel.apply(entireHunks: true); try await wait { !lifecycleModel.busy }
+        let addedTracked = try await repo.run(["ls-files", "-z", "--", addedPath]).stdout
+        try require(addedTracked.isEmpty && (try Data(contentsOf: addedURL)) == addedBytes, "Native added-file unstage changed working bytes")
+        let deletedPath = "deleted lifecycle.txt", deletedURL = root.appendingPathComponent(deletedPath)
+        try addedBytes.write(to: deletedURL); try await repo.stage([deletedPath])
+        _ = try await repo.run(["commit", "--only", "-m", "lifecycle fixture", "--", deletedPath])
+        try FileManager.default.removeItem(at: deletedURL)
+        lifecycleModel.reload(paths: [deletedPath], staged: false); try await wait { !lifecycleModel.busy }
+        lifecycleModel.selectedLines = [lifecycleModel.document.lines.firstIndex(of: "-second")!]
+        lifecycleModel.apply(entireHunks: false); try await wait { !lifecycleModel.busy }
+        let remainingIndex = try await repo.run(["show", ":" + deletedPath]).stdout
+        try require(remainingIndex == Data("first\nlast".utf8) && lifecycleModel.error == nil && !FileManager.default.fileExists(atPath: deletedURL.path), "Native partial deletion failed")
+        let stillOther = try await repo.run(["show", ":other.txt"]).stdout
+        try require(stillOther == Data("other staged\n".utf8), "Lifecycle staging lost unrelated index content")
         print("Partial patch: source Staging/Unstaging menu gates and bottom Find/case/no-wrap boundaries, exact rendering and original-byte export; real line stage/hunk unstage, unrelated index preservation, superseded/cancelled/retired reads closed-mutation Quit/parent gates and owned process reaping passed.")
     }
 }

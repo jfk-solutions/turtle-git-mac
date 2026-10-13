@@ -98,6 +98,11 @@ enum FinderShellMenuLayout {
     static func action(_ item: NSMenuItem) -> RepositoryAction? {
         (item.representedObject as? FinderMenuCommand)?.request.action ?? (item.representedObject as? FinderMenuGroup)?.action
     }
+    static func preferenceEntry(_ action: RepositoryAction) -> FinderMenuEntry? {
+        // Explorer's property page has no MenuInfo bit. Its native context
+        // action follows Settings placement/visibility instead of adding one.
+        FinderMenuEntry.entry(for: action) ?? (action == .properties ? .settings : nil)
+    }
     static func arrange(_ menu: NSMenu) {
         let ordered = menu.items.enumerated().filter { !$0.element.isSeparatorItem }.map { entry in
             let action = action(entry.element)
@@ -202,15 +207,17 @@ enum FinderMenuBuilder {
             submenu.addItem(.separator()); submenu.addItem(item)
         }
         for item in submenu.items {
-            guard let action = FinderShellMenuLayout.action(item), let entry = FinderMenuEntry.entry(for: action) else { continue }
+            guard let action = FinderShellMenuLayout.action(item), let entry = FinderShellMenuLayout.preferenceEntry(action) else { continue }
             if !settings.visible(entry, extended: extended) { submenu.removeItem(item) }
         }
         FinderShellMenuLayout.arrange(submenu)
         if toolbar { return submenu }
         let firstLevel = NSMenu(title: "TurtleGit")
         for item in submenu.items {
-            guard let action = FinderShellMenuLayout.action(item), let entry = FinderMenuEntry.entry(for: action), settings.firstLevel(entry) else { continue }
-            submenu.removeItem(item); item.title = "Git " + item.title; firstLevel.addItem(item)
+            guard let action = FinderShellMenuLayout.action(item), let entry = FinderShellMenuLayout.preferenceEntry(action), settings.firstLevel(entry) else { continue }
+            submenu.removeItem(item)
+            if action != .properties { item.title = "Git " + item.title }
+            firstLevel.addItem(item)
         }
         FinderShellMenuLayout.arrange(firstLevel)
         FinderShellMenuLayout.arrange(submenu)

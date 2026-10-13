@@ -186,8 +186,8 @@ import UniformTypeIdentifiers
         if readOnly, let readOnlyInformation { return readOnlyInformation }
         if paths.isEmpty { return "Select files in the Commit window to see their patch." }
         if readOnly { return document.text.isEmpty ? "No patch for the selected files." : "Select files in the Commit window to compare their contents." }
-        if document.text.isEmpty { return "No changes in this view. New files must be staged as a whole file first." }
-        if document.files.contains(where: { !$0.supportsPartialChanges }) { return "Some files require whole-file staging: new/deleted, renamed, binary or mode changes." }
+        if document.text.isEmpty { return "No selectable text changes in this view." }
+        if document.files.contains(where: { !$0.supportsPartialChanges }) { return "Some files require whole-file staging: renamed, binary, symlink or mode changes." }
         return "Select changed lines, or place the caret in a hunk. Right-click for staging actions."
     }
     func reload(paths: [String], staged: Bool) {
@@ -211,9 +211,9 @@ import UniformTypeIdentifiers
                 let bytes: Data
                 if paths.isEmpty { bytes = Data() }
                 else if readOnly { bytes = try await repository.workingTreePatchData(paths: paths, base: base, cancellation: cancellation) }
-                else { bytes = Data(try await repository.patch(paths: paths, staged: staged, base: base, cancellation: cancellation).text.utf8) }
+                else { bytes = Data(try await repository.patch(paths: paths, staged: staged, base: base, cancellation: cancellation, includeUntracked: !staged).text.utf8) }
                 guard !retired, request == generation, !cancellation.isCancelled, !Task.isCancelled else { return }
-                if readOnly { setReadOnlyDiff(bytes) } else { document = GitPatch(text: String(decoding: bytes, as: UTF8.self)) }
+                if readOnly { setReadOnlyDiff(bytes) } else { document = GitPatch(text: String(decoding: bytes, as: UTF8.self), includesUntracked: !staged) }
             } catch {
                 if !retired && request == generation && !cancellation.isCancelled && !Task.isCancelled { self.error = error.localizedDescription }
             }
