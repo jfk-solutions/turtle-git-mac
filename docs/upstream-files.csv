@@ -1113,8 +1113,8 @@ src/Git/TGitPath.cpp,Git,blob,312f765756181b69ef0421d6c681b1aa7ff6ebb2,partial,S
 src/Git/TGitPath.h,Git,blob,c4330e13c511b08b66e09a521df4dd02e755526e,pending-review,,
 src/Git/gitindex.h,Git,blob,e9abd1578755c1afea4ac5fda67a53a9eefdf557,pending-review,,
 src/Git/gittype.h,Git,blob,0c812579f2c13bbbb0d018f17b7d7f0b2bc39bf5,pending-review,,
-src/GitWCRev/GitWCRev.cpp,GitWCRev,blob,2583108d9784275a11c52867e9ae1bf83c2648a6,pending-review,,
-src/GitWCRev/GitWCRev.h,GitWCRev,blob,129cbc0acaf09195e3258910b1a38ba3ab3fe0c7,pending-review,,
+src/GitWCRev/GitWCRev.cpp,GitWCRev,blob,2583108d9784275a11c52867e9ae1bf83c2648a6,partial,Sources/TurtleGitCore/WorkingCopyRevision.swift; Sources/TurtleGitWCRev/TurtleGitWCRev.swift; scripts/test-wcrev.py,"Native CLI/status/submodule/template family implemented; original byte and UTF-16 test templates pass with system and bundled Git. JSON status replaces the native automation role. Source scope/condition rules retained. Exact libgit2 pathspec/Windows locale, signed invocation and full COM replacement acceptance remain open. See docs/WORKING-COPY-REVISION.md."
+src/GitWCRev/GitWCRev.h,GitWCRev,blob,129cbc0acaf09195e3258910b1a38ba3ab3fe0c7,partial,Sources/TurtleGitCore/WorkingCopyRevision.swift; Sources/TurtleGitWCRev/TurtleGitWCRev.swift; scripts/test-wcrev.py,"Native CLI/status/submodule/template family implemented; original byte and UTF-16 test templates pass with system and bundled Git. JSON status replaces the native automation role. Source scope/condition rules retained. Exact libgit2 pathspec/Windows locale, signed invocation and full COM replacement acceptance remain open. See docs/WORKING-COPY-REVISION.md."
 src/GitWCRev/GitWCRev.ico,GitWCRev,blob,5ae9c4f0449839efd899caadb9ec2f70b6fcf9bb,pending-review,,
 src/GitWCRev/GitWCRev.rc,GitWCRev,blob,db6c228a6b3702a0003b39b0f8a250a2812f03fa,pending-review,,
 src/GitWCRev/GitWCRev.rc2,GitWCRev,blob,bffc70e616403da5c9962fbd4c868e69584162c2,pending-review,,
@@ -1129,12 +1129,12 @@ src/GitWCRev/GitWCRevCOM.vcxproj.filters,GitWCRev,blob,dfd4601fd626e4ffeee7beef0
 src/GitWCRev/Register.cpp,GitWCRev,blob,a3f9e1e731145872c9cf86bca18922210f08b4b0,pending-review,,
 src/GitWCRev/Register.h,GitWCRev,blob,f276d216d7bb6e9ba1eabcb8d66e4bfc66157384,pending-review,,
 src/GitWCRev/Test.bat,GitWCRev,blob,766e7aa7e3dc677efcf25f0cce8b451f6c7392e1,pending-review,,
-src/GitWCRev/Test.tmpl,GitWCRev,blob,82b7065d91c37f50c1d57de73a5c91a6565b7137,pending-review,,
-src/GitWCRev/TestW.tmpl,GitWCRev,blob,e0e5b5b748c1c10221d3a59f4ac1dbe3149ad1f2,pending-review,,
+src/GitWCRev/Test.tmpl,GitWCRev,blob,82b7065d91c37f50c1d57de73a5c91a6565b7137,partial,Sources/TurtleGitCore/WorkingCopyRevision.swift; Sources/TurtleGitWCRev/TurtleGitWCRev.swift; scripts/test-wcrev.py,"Native CLI/status/submodule/template family implemented; original byte and UTF-16 test templates pass with system and bundled Git. JSON status replaces the native automation role. Source scope/condition rules retained. Exact libgit2 pathspec/Windows locale, signed invocation and full COM replacement acceptance remain open. See docs/WORKING-COPY-REVISION.md."
+src/GitWCRev/TestW.tmpl,GitWCRev,blob,e0e5b5b748c1c10221d3a59f4ac1dbe3149ad1f2,partial,Sources/TurtleGitCore/WorkingCopyRevision.swift; Sources/TurtleGitWCRev/TurtleGitWCRev.swift; scripts/test-wcrev.py,"Native CLI/status/submodule/template family implemented; original byte and UTF-16 test templates pass with system and bundled Git. JSON status replaces the native automation role. Source scope/condition rules retained. Exact libgit2 pathspec/Windows locale, signed invocation and full COM replacement acceptance remain open. See docs/WORKING-COPY-REVISION.md."
 src/GitWCRev/resource.h,GitWCRev,blob,77244ee21006dadaaf49cf02204d45c5aaff18b1,pending-review,,
 src/GitWCRev/resourcecom.h,GitWCRev,blob,7e9ddfb2521cac31e2615ef6a508261d104c9d79,pending-review,,
-src/GitWCRev/status.cpp,GitWCRev,blob,a186975cd08b90e7d583473da70eb25f812a0a7a,pending-review,,
-src/GitWCRev/status.h,GitWCRev,blob,3092e6a8cef23390295e82213f7111c5b94269c7,pending-review,,
+src/GitWCRev/status.cpp,GitWCRev,blob,a186975cd08b90e7d583473da70eb25f812a0a7a,partial,Sources/TurtleGitCore/WorkingCopyRevision.swift; Sources/TurtleGitWCRev/TurtleGitWCRev.swift; scripts/test-wcrev.py,"Native CLI/status/submodule/template family implemented; original byte and UTF-16 test templates pass with system and bundled Git. JSON status replaces the native automation role. Source scope/condition rules retained. Exact libgit2 pathspec/Windows locale, signed invocation and full COM replacement acceptance remain open. See docs/WORKING-COPY-REVISION.md."
+src/GitWCRev/status.h,GitWCRev,blob,3092e6a8cef23390295e82213f7111c5b94269c7,partial,Sources/TurtleGitCore/WorkingCopyRevision.swift; Sources/TurtleGitWCRev/TurtleGitWCRev.swift; scripts/test-wcrev.py,"Native CLI/status/submodule/template family implemented; original byte and UTF-16 test templates pass with system and bundled Git. JSON status replaces the native automation role. Source scope/condition rules retained. Exact libgit2 pathspec/Windows locale, signed invocation and full COM replacement acceptance remain open. See docs/WORKING-COPY-REVISION.md."
 src/GitWCRev/stdafx.cpp,GitWCRev,blob,768411174a1ee87f35c51143f823cd18e9078e92,pending-review,,
 src/GitWCRev/stdafx.h,GitWCRev,blob,d452b2fdafc0497e3e9687c4a14f723ce8452de6,pending-review,,
 src/GitWCRev/testCOM.js,GitWCRev,blob,ae0d67756afe52f721391dd818a0bbf6612fa17f,pending-review,,

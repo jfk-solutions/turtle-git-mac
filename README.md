@@ -199,3 +199,7 @@ The native [Revision Graph](docs/REVISION-GRAPH.md) now has a separate colored
 reference-box canvas and source-style Filter sheet. See the
 [light/dark graph and filter captures](docs/site/index.html) and
 [remaining parity work](docs/REVISION-GRAPH-PARITY.md).
+
+The [working-copy revision utility](docs/WORKING-COPY-REVISION.md) generates version
+files from TortoiseGit-style templates and exposes repository status as JSON for
+macOS build scripts. Build it with `swift build --product TurtleGitWCRev`.

@@ -42,6 +42,22 @@ for architecture in architectures:
     assert any(line.strip().split(' ', 1)[0].startswith('@rpath/TurtleGitSMTP.framework/') and line.strip().split(' ', 1)[0].endswith('/TurtleGitSMTP') for line in core_links.splitlines()[1:]), architecture
 if args.require_git:
     assert {'arm64', 'x86_64'} <= set(architectures), architectures
+wcrev = app / 'Contents/MacOS/TurtleGitWCRev'
+assert wcrev.is_file() and wcrev.stat().st_mode & 0o111, 'WCRev utility missing'
+wcrev_manifest = json.loads((resources / 'wcrev-provenance.json').read_text())
+for name, digest in wcrev_manifest['sources'].items():
+    assert hashlib.sha256((root / name).read_bytes()).hexdigest() == digest, name
+wcrev_architectures = subprocess.check_output(['/usr/bin/lipo', '-archs', str(wcrev)], text=True).split()
+assert set(architectures) <= set(wcrev_architectures), wcrev_architectures
+for architecture in wcrev_architectures:
+    links = subprocess.check_output(['/usr/bin/otool', '-arch', architecture, '-L', str(wcrev)], text=True).splitlines()[1:]
+    assert any('@rpath/TurtleGitCore.framework/' in line for line in links), architecture
+    for line in links:
+        dependency = line.strip().split(' ', 1)[0]
+        assert dependency.startswith(('@rpath/TurtleGitCore.framework/', '/usr/lib/', '/System/Library/')), dependency
+    commands = subprocess.check_output(['/usr/bin/otool', '-arch', architecture, '-l', str(wcrev)], text=True)
+    assert '@executable_path/../Frameworks' in commands, architecture
+print('Packaged WCRev utility architecture, framework lookup and source provenance verified')
 icons = framework / 'Resources/Icons'
 manifest = json.loads((root / 'Sources/TurtleGitCore/Resources/Icons/provenance.json').read_text())
 for asset in manifest['assets']:

@@ -222,6 +222,8 @@ jobs:
           python3 scripts/reconcile-dialog-coverage.py --check
       - name: Git integration tests
         run: swift test
+      - name: Working copy revision utility and upstream templates
+        run: python3 scripts/test-wcrev.py --tool .build/debug/TurtleGitWCRev --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: SVN command compatibility with pinned Git
         env:
           TURTLEGIT_SVN_TEST_GIT: ${{ github.workspace }}/build/git-runtime/Git/bin/git

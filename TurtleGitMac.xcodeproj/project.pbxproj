@@ -24,6 +24,7 @@
 		08649F1E93CBDC2DE8ADD500 /* FormatPatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0750171C26BC3934BA091775 /* FormatPatch.swift */; };
 		09618E8B4C40787E3C4DB1F1 /* SVNWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE9909E60E6379183F237D7B /* SVNWindow.swift */; };
 		0963B328CDA08FFD1416E9A3 /* ReferenceLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62406E495663E4FBABB4E1A6 /* ReferenceLog.swift */; };
+		099DB59A50F13AEF9077BEA2 /* TurtleGitWCRev.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94460BAA2864B3BF68F01264 /* TurtleGitWCRev.swift */; };
 		0BA99C6714D09E37A7B5E0CE /* BlameOpenDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90FF7E1758DBA2D17D00C67C /* BlameOpenDocument.swift */; };
 		0CA3576B6D4FD01F747903E0 /* GitPropertyIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73B2D722BCF6A197E0E25D2C /* GitPropertyIndex.swift */; };
 		0DDC9B58143481D73B56D530 /* IssueTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D07F0B7B2714BF454BD5BD62 /* IssueTracker.swift */; };
@@ -58,6 +59,7 @@
 		2368F21797097AE66DBADDAE /* LogGraphDrawing.swift in Sources */ = {isa = PBXBuildFile; fileRef = D653B9C802C1DF2EE95F01A9 /* LogGraphDrawing.swift */; };
 		23C8CB83DB2C8FE3D62BD5B7 /* SubversionMergePresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD26E6495039510A4AA65A2 /* SubversionMergePresentation.swift */; };
 		241DD127E807673880A95899 /* PatchWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF9C567B7E6EFBE7EE4F0B69 /* PatchWindow.swift */; };
+		24D410B4268C9FBFE28B45B3 /* TurtleGitCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BCB9C51D9D69E943E22F2C8 /* TurtleGitCore.framework */; };
 		25FA6351F250E4932AC95E73 /* SSHTransportCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF2BD443F2E22C1D673BB60C /* SSHTransportCoordinator.swift */; };
 		2B851665B4C4A9C890BF3324 /* WorktreeListTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B6A308CF3E486ADD7497BD1 /* WorktreeListTable.swift */; };
 		2B9BAC06239B4C648FEBE0E6 /* CredentialSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8E9D379D35AF0431C2A8495 /* CredentialSettings.swift */; };
@@ -106,6 +108,7 @@
 		4F2CE4365733F943E851877A /* TurtleGitSMTP.h in Headers */ = {isa = PBXBuildFile; fileRef = 4D63D5938D6276B5A071748C /* TurtleGitSMTP.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		4F838A5A9747585DC8B737C1 /* TurtleGitSMTP.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F81A7BFF0565C5791A405B0 /* TurtleGitSMTP.framework */; };
 		5085549375579966720F36F4 /* ReviewPatchWorkflow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 359AA0F9F283DFD89D85D237 /* ReviewPatchWorkflow.swift */; };
+		50CED80A268D3933D37E244B /* WorkingCopyRevision.swift in Sources */ = {isa = PBXBuildFile; fileRef = D47F77D286A7FCB5C673A934 /* WorkingCopyRevision.swift */; };
 		510A90BB7F5A0D39A72C1778 /* RevisionComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = 870D95A7EC384863F1C04342 /* RevisionComparison.swift */; };
 		52754E5252F132BF5D20794B /* CancellableGitProcess.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1D127EFCF9CEE3CA778CA79 /* CancellableGitProcess.swift */; };
 		53038E31B82C54BE1E17C10A /* ResolveWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D33C40A99A3883800E7C6431 /* ResolveWindow.swift */; };
@@ -340,6 +343,13 @@
 			remoteGlobalIDString = FCB8B885505C2D762F814FD1;
 			remoteInfo = TurtleGitFinder;
 		};
+		31D131173DBF6BECCF15A117 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8499389742F1D4CC6667681D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 611D1F05CCEE573C536A3781;
+			remoteInfo = TurtleGitCore;
+		};
 		3F51BE81F1F5AB609A91C1B3 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 8499389742F1D4CC6667681D /* Project object */;
@@ -388,6 +398,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = 31D5888CE59D98A76B5D9965;
 			remoteInfo = TurtleGitSMTP;
+		};
+		F8F15B58D72103D0019D15C1 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8499389742F1D4CC6667681D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A7F830D0760A83361D64B371;
+			remoteInfo = TurtleGitWCRev;
 		};
 		FA90BA5FDCBC39003AA01CA3 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -489,6 +506,7 @@
 		2FC37D449B700916B289DDB7 /* TemporaryFiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemporaryFiles.swift; sourceTree = "<group>"; };
 		2FD299C13A57D2632BB2467B /* Pull.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pull.swift; sourceTree = "<group>"; };
 		3036BB1B040A593A364B721E /* RequestPullWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RequestPullWindow.swift; sourceTree = "<group>"; };
+		3115A4E7BBB83B62DA4BFA62 /* TurtleGitWCRev */ = {isa = PBXFileReference; includeInIndex = 0; path = TurtleGitWCRev; sourceTree = BUILT_PRODUCTS_DIR; };
 		3169F8F4F55DC037603B8A0D /* OperationCancellation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OperationCancellation.swift; sourceTree = "<group>"; };
 		326985003F83908822D7B91E /* MergeWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeWindow.swift; sourceTree = "<group>"; };
 		331C56945429ED08DD2BF9C0 /* WorkingFileRevert.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingFileRevert.swift; sourceTree = "<group>"; };
@@ -615,6 +633,7 @@
 		92BCC367833CF7B0CCC10BC6 /* NativeWatermarkTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeWatermarkTable.swift; sourceTree = "<group>"; };
 		92C50E53F34624CECCEC69FA /* LogSearchHighlights.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogSearchHighlights.swift; sourceTree = "<group>"; };
 		94119EBF871C901C8A360D50 /* HistoryFileCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryFileCache.swift; sourceTree = "<group>"; };
+		94460BAA2864B3BF68F01264 /* TurtleGitWCRev.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TurtleGitWCRev.swift; sourceTree = "<group>"; };
 		94E9E00A7AEA7A5BE84E3097 /* ProgressActionLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressActionLog.swift; sourceTree = "<group>"; };
 		966FBB093AE190ED7ACA4024 /* DeleteConflict.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteConflict.swift; sourceTree = "<group>"; };
 		977DAB97DBBB903654C73A78 /* SwitchWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwitchWindow.swift; sourceTree = "<group>"; };
@@ -692,6 +711,7 @@
 		D1D127EFCF9CEE3CA778CA79 /* CancellableGitProcess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CancellableGitProcess.swift; sourceTree = "<group>"; };
 		D1F6087799A5783306A27CEE /* RenameWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RenameWindow.swift; sourceTree = "<group>"; };
 		D33C40A99A3883800E7C6431 /* ResolveWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResolveWindow.swift; sourceTree = "<group>"; };
+		D47F77D286A7FCB5C673A934 /* WorkingCopyRevision.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingCopyRevision.swift; sourceTree = "<group>"; };
 		D4C6BF6E19AAE3084DA015CF /* InputWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputWindow.swift; sourceTree = "<group>"; };
 		D5A68AB404EF711AFEFE6135 /* LFSLocksWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LFSLocksWindow.swift; sourceTree = "<group>"; };
 		D5BC4298E9DBF0AB06FA8087 /* GitModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitModels.swift; sourceTree = "<group>"; };
@@ -761,6 +781,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				05EE53306561CE7F57B6B0E4 /* libcurl.tbd in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		442CA8635A90EDEAC7049121 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				24D410B4268C9FBFE28B45B3 /* TurtleGitCore.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -959,6 +987,15 @@
 			path = Sources/TurtleGitMac;
 			sourceTree = "<group>";
 		};
+		109AEF2894354748308E6752 /* TurtleGitWCRev */ = {
+			isa = PBXGroup;
+			children = (
+				94460BAA2864B3BF68F01264 /* TurtleGitWCRev.swift */,
+			);
+			name = TurtleGitWCRev;
+			path = Sources/TurtleGitWCRev;
+			sourceTree = "<group>";
+		};
 		30663CB5DF2D6EB458048FF9 /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -969,6 +1006,7 @@
 				6A72CBF70DA62980294AB41A /* TurtleGitMac.app */,
 				1F81A7BFF0565C5791A405B0 /* TurtleGitSMTP.framework */,
 				9144F6030805FB115877C438 /* TurtleGitSSHAskpass */,
+				3115A4E7BBB83B62DA4BFA62 /* TurtleGitWCRev */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -1004,6 +1042,7 @@
 				0B0ED7640D942B979726B592 /* TurtleGitMac */,
 				E6AF3B55001F99AC3C6BBDCA /* TurtleGitSMTP */,
 				4ADB6A0F6ED8465E04FB8154 /* TurtleGitSSHAskpass */,
+				109AEF2894354748308E6752 /* TurtleGitWCRev */,
 				41526AFF357D400FE5EBF721 /* Frameworks */,
 				30663CB5DF2D6EB458048FF9 /* Products */,
 			);
@@ -1157,6 +1196,7 @@
 				548BA53E454CA6C5917EABE9 /* UnifiedDiffPrintMargins.swift */,
 				AE81F1D25A56C6A243F01F23 /* UnifiedDiffViewer.swift */,
 				79C0E5814B5E3AC88F6511F4 /* WindowGeometry.swift */,
+				D47F77D286A7FCB5C673A934 /* WorkingCopyRevision.swift */,
 				C60249DCAD62F60EB41319E4 /* WorkingFileAdd.swift */,
 				6E301A686F051DF474EF1D7D /* WorkingFileDelete.swift */,
 				9A3F01EAF3038A31D989E002 /* WorkingFileExport.swift */,
@@ -1310,6 +1350,25 @@
 			productReference = 9144F6030805FB115877C438 /* TurtleGitSSHAskpass */;
 			productType = "com.apple.product-type.tool";
 		};
+		A7F830D0760A83361D64B371 /* TurtleGitWCRev */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6475A6D133AF6FC61EA3015F /* Build configuration list for PBXNativeTarget "TurtleGitWCRev" */;
+			buildPhases = (
+				7985D18A288721ECD4A32354 /* Sources */,
+				442CA8635A90EDEAC7049121 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				5900701EF6CBEC316E82AE12 /* PBXTargetDependency */,
+			);
+			name = TurtleGitWCRev;
+			packageProductDependencies = (
+			);
+			productName = TurtleGitWCRev;
+			productReference = 3115A4E7BBB83B62DA4BFA62 /* TurtleGitWCRev */;
+			productType = "com.apple.product-type.tool";
+		};
 		D85D48769A26BDEB1B7D6021 /* TurtleGitMac */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = AAF975E4580FB3C0CE2D3158 /* Build configuration list for PBXNativeTarget "TurtleGitMac" */;
@@ -1319,6 +1378,7 @@
 				F6F8AC92E0CCCF7FF9CECD59 /* Frameworks */,
 				ED03DD8CA52381A434D18935 /* Embed Foundation Extensions */,
 				C0FA93121C7653B8CED80394 /* Embed Frameworks */,
+				68A72F01D32594C7CE89B214 /* Embed working copy revision utility */,
 				8478C5D94F5C183863E964A2 /* Embed Finder cache service */,
 				CB14EFA3B5008D888CD0A6A5 /* Embed and audit production runtimes */,
 			);
@@ -1331,6 +1391,7 @@
 				571C4F943393C11C23396667 /* PBXTargetDependency */,
 				0BC1526A14154D79662C59A4 /* PBXTargetDependency */,
 				C59F8AFAE9473BCC51FA9844 /* PBXTargetDependency */,
+				F12BCFAA3E87E1A7C1B99C4E /* PBXTargetDependency */,
 			);
 			name = TurtleGitMac;
 			packageProductDependencies = (
@@ -1382,6 +1443,9 @@
 					625F34574E04CB0465D145BF = {
 						ProvisioningStyle = Automatic;
 					};
+					A7F830D0760A83361D64B371 = {
+						ProvisioningStyle = Automatic;
+					};
 					D85D48769A26BDEB1B7D6021 = {
 						ProvisioningStyle = Automatic;
 					};
@@ -1411,6 +1475,7 @@
 				D85D48769A26BDEB1B7D6021 /* TurtleGitMac */,
 				31D5888CE59D98A76B5D9965 /* TurtleGitSMTP */,
 				625F34574E04CB0465D145BF /* TurtleGitSSHAskpass */,
+				A7F830D0760A83361D64B371 /* TurtleGitWCRev */,
 			);
 		};
 /* End PBXProject section */
@@ -1437,6 +1502,25 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		68A72F01D32594C7CE89B214 /* Embed working copy revision utility */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Embed working copy revision utility";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/usr/bin/python3 \"$SRCROOT/scripts/embed-wcrev.py\" \"$BUILT_PRODUCTS_DIR/TurtleGitWCRev\" \"$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME\"\n";
+		};
 		8478C5D94F5C183863E964A2 /* Embed Finder cache service */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -1627,6 +1711,7 @@
 				2BE2A50FE49349D97E029CD3 /* UnifiedDiffPrintMargins.swift in Sources */,
 				D7E9B06DF606B6A8A0488AF9 /* UnifiedDiffViewer.swift in Sources */,
 				369DA51D3F695575992439FC /* WindowGeometry.swift in Sources */,
+				50CED80A268D3933D37E244B /* WorkingCopyRevision.swift in Sources */,
 				9309E5E308F3A0D96BF06CDD /* WorkingFileAdd.swift in Sources */,
 				697C21F466069759F260EF25 /* WorkingFileDelete.swift in Sources */,
 				05736B77F7D781FD78B2665B /* WorkingFileExport.swift in Sources */,
@@ -1809,6 +1894,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		7985D18A288721ECD4A32354 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				099DB59A50F13AEF9077BEA2 /* TurtleGitWCRev.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		A0D241237D80338808B42A09 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -1854,6 +1947,11 @@
 			target = 625F34574E04CB0465D145BF /* TurtleGitSSHAskpass */;
 			targetProxy = EF97D4D412883C2FC2642160 /* PBXContainerItemProxy */;
 		};
+		5900701EF6CBEC316E82AE12 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 611D1F05CCEE573C536A3781 /* TurtleGitCore */;
+			targetProxy = 31D131173DBF6BECCF15A117 /* PBXContainerItemProxy */;
+		};
 		88F3B075A1C58FF85F998BF0 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 31D5888CE59D98A76B5D9965 /* TurtleGitSMTP */;
@@ -1878,6 +1976,11 @@
 			isa = PBXTargetDependency;
 			target = 31D5888CE59D98A76B5D9965 /* TurtleGitSMTP */;
 			targetProxy = 6B0AD6DA4B066765D27F10AD /* PBXContainerItemProxy */;
+		};
+		F12BCFAA3E87E1A7C1B99C4E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A7F830D0760A83361D64B371 /* TurtleGitWCRev */;
+			targetProxy = F8F15B58D72103D0019D15C1 /* PBXContainerItemProxy */;
 		};
 		FF6CE8251CC97B9545A41E31 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -1909,6 +2012,17 @@
 				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Release;
+		};
+		0A84649B233E608583A1AE6A /* AppStore */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = org.turtlegit.macos.wcrev;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+			};
+			name = AppStore;
 		};
 		0AFCEE5672C2E7D0A039969C /* AppStore */ = {
 			isa = XCBuildConfiguration;
@@ -2166,6 +2280,17 @@
 			};
 			name = AppStore;
 		};
+		56A6CEA071A0313CF717CA95 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = org.turtlegit.macos.wcrev;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+			};
+			name = Release;
+		};
 		6CAE0EEBC9362CF3E8CE0E57 /* AppStore */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -2397,6 +2522,17 @@
 			};
 			name = Debug;
 		};
+		E051024D09F0419BBD39B4C8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = org.turtlegit.macos.wcrev;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+			};
+			name = Debug;
+		};
 		FD7C17C29C90DAACADE77B49 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -2455,6 +2591,16 @@
 				107F35C44B41F7115B863224 /* AppStore */,
 				B7D9B9053C043F5604E55E9A /* Debug */,
 				B7E996CD1E9912C15D88EC1B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = AppStore;
+		};
+		6475A6D133AF6FC61EA3015F /* Build configuration list for PBXNativeTarget "TurtleGitWCRev" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0A84649B233E608583A1AE6A /* AppStore */,
+				E051024D09F0419BBD39B4C8 /* Debug */,
+				56A6CEA071A0313CF717CA95 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = AppStore;

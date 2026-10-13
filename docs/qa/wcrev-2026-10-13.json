@@ -1,0 +1,70 @@
+{
+  "date": "2026-10-13",
+  "scope": "GitWCRev repository reader, templates, CLI, JSON automation and unsigned app embedding",
+  "source_revision": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "core": {
+    "initial_log": "build/qa/wcrev-core-2026-10-13.log",
+    "initial_exit": 1,
+    "initial_tests": 5,
+    "initial_failures": 1,
+    "initial_failure": "Fixture compared index bytes across its own reset --hard; changed to snapshots directly around utility reads",
+    "repaired_log": "build/qa/wcrev-core-repaired-2026-10-13.log",
+    "repaired_exit": 0,
+    "tests": 5
+  },
+  "builds": {
+    "swiftpm": {
+      "log": "build/qa/wcrev-cli-build-2026-10-13.log",
+      "exit": 0
+    },
+    "debug": {
+      "log": "build/qa/wcrev-debug-final-2026-10-13.log",
+      "exit": 0
+    }
+  },
+  "cli": {
+    "logs": [
+      "build/qa/wcrev-cli-2026-10-13.log",
+      "build/qa/wcrev-packaged-cli-2026-10-13.log"
+    ],
+    "exit": 0,
+    "products": [
+      "SwiftPM CLI",
+      "embedded Debug CLI"
+    ],
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "groups": 4,
+    "templates": [
+      "unchanged upstream Test.tmpl",
+      "unchanged upstream TestW.tmpl"
+    ],
+    "checks": [
+      "metadata JSON, tags, Unicode author and first-parent count",
+      "all upstream template fields and date invalid-format marker",
+      "flags and exit codes",
+      "exclusive output creation and unchanged-output timestamp",
+      "HEAD/index/file preservation during utility reads and writes"
+    ]
+  },
+  "bundle": {
+    "log": "build/qa/wcrev-bundle-2026-10-13.log",
+    "exit": 0,
+    "scope": "unsigned Debug architecture, framework runpath, source provenance and existing app/runtime audits"
+  },
+  "site": {
+    "log": "build/qa/wcrev-site-2026-10-13.log",
+    "exit": 0,
+    "tests": 2
+  },
+  "gui_instances_launched": 0,
+  "remaining": [
+    "Signed App Store sandbox parent/grant invocation",
+    "External Terminal execution policy for sandboxed embedded tool",
+    "Exact libgit2 wildcard and Windows locale/strftime differences",
+    "Broader COM-role automation acceptance",
+    "Full app/UI/Finder parity"
+  ]
+}

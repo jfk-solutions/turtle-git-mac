@@ -17,6 +17,18 @@ settings:
     AppStore:
       SWIFT_ACTIVE_COMPILATION_CONDITIONS: '$(inherited) TURTLEGIT_APP_STORE'
 targets:
+  TurtleGitWCRev:
+    type: tool
+    platform: macOS
+    sources: [Sources/TurtleGitWCRev]
+    dependencies:
+      - target: TurtleGitCore
+        embed: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.turtlegit.macos.wcrev
+        SKIP_INSTALL: YES
+        LD_RUNPATH_SEARCH_PATHS: '$(inherited) @executable_path/../Frameworks'
   TurtleGitGitAskpass:
     type: tool
     platform: macOS
@@ -108,6 +120,8 @@ targets:
         embed: false
       - target: TurtleGitCache
         embed: false
+      - target: TurtleGitWCRev
+        embed: false
     info:
       path: Configuration/App-Info.plist
       properties:
@@ -127,6 +141,10 @@ targets:
           - CFBundleURLName: org.turtlegit.macos.action
             CFBundleURLSchemes: [turtlegit]
     postBuildScripts:
+      - name: Embed working copy revision utility
+        script: |
+          /usr/bin/python3 "$SRCROOT/scripts/embed-wcrev.py" "$BUILT_PRODUCTS_DIR/TurtleGitWCRev" "$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME"
+        basedOnDependencyAnalysis: false
       - name: Embed Finder cache service
         script: |
           /usr/bin/python3 "$SRCROOT/scripts/embed-cache-service.py" "$BUILT_PRODUCTS_DIR/TurtleGitCache.app" "$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME" "$SRCROOT/Configuration/org.turtlegit.macos.cache.plist"

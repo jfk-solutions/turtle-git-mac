@@ -175,7 +175,7 @@ sandbox execution, passing hosted CI on the latest source or App Store readiness
 | TortoiseIDiff | Native image comparison and three-pane conflict selection windows | Partial Load Images, linked sizing, overlay/XOR, transparency colors and frame playback; full source parity and signed acceptance pending. See IMAGE-COMPARISON-PARITY.md |
 | TortoiseUDiff | Native patch window with highlighted text, find, appearance settings and printing | Partial File/View/menu behavior; full parity and signed acceptance pending |
 | SshAskPass / TortoisePlink | Git helpers, Keychain and OpenSSH | Private agent, encrypted response, key/file grants and Clone/Fetch/Pull/Push/browse auto-load; pinned universal OpenSSH embedding and packaged Git client selection; remaining consumers, real authentication and signed acceptance pending |
-| GitWCRev / COM | Portable revision/template CLI and macOS automation | Pending; COM must be replaced |
+| GitWCRev / COM | Native TurtleGitWCRev CLI, byte/UTF-16 templates and JSON automation | Repository/status/submodule reads, all source keywords and switches implemented; packaging added. Signed execution, exact libgit2 pathspec/locale behavior and broader automation acceptance pending; see WORKING-COPY-REVISION.md |
 | TortoiseGitSetup | Signed app, extension registration, notarized distribution | Pinned universal Git build/embedding added; signed runtime and distribution acceptance pending |
 | Languages / ResText | String catalogs and native localized resources | Pending |
 
