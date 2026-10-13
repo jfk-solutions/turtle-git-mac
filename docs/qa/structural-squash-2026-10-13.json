@@ -1,0 +1,68 @@
+{
+  "date": "2026-10-13",
+  "scope": "Partial structural Squash group workflow, messages and final parent/reference rewrites",
+  "checks": {
+    "debug_build": {
+      "exit": 0
+    },
+    "core_group": {
+      "tests": 14,
+      "exit": 0
+    },
+    "native_group": {
+      "cases": [
+        "rebase-row-drag",
+        "rebase-conditional"
+      ],
+      "engines": [
+        "system",
+        "bundled"
+      ],
+      "exit": 0,
+      "reaped_pids": [
+        61729,
+        62203,
+        62371,
+        63031
+      ]
+    },
+    "subsequent_merge_split_guard": {
+      "reason": "Prevent existing first-parent Split implementation from flattening a structural merge Squash result",
+      "debug_build_exit": 0,
+      "core_tests": 3,
+      "core_exit": 0,
+      "native_cases": [
+        "rebase-row-drag"
+      ],
+      "native_exit": 0,
+      "reaped_pids": [
+        63982,
+        64461
+      ],
+      "engines": [
+        "system",
+        "bundled"
+      ]
+    }
+  },
+  "verified": [
+    "Multiple Squash patches with an intervening skipped row and approved combined message",
+    "Ordinary child Squash into a merge preserves two parents",
+    "Actual reference at group starter updates to final combined commit",
+    "Native window model recovers group messages and executes approval/Continue",
+    "Structural Edit/Skip/Abort/progress and topology regressions"
+  ],
+  "remaining": [
+    "Wider conflict and empty-group/date-policy combinations",
+    "Source-equivalent merge Split",
+    "Broad root/cousin/octopus/nested graphs",
+    "Physical keyboard/gesture/VoiceOver and signed acceptance"
+  ],
+  "logs": [
+    "build/qa/structural-squash-build-2026-10-13.log",
+    "build/qa/structural-squash-core-2026-10-13.log",
+    "build/qa/structural-squash-native-2026-10-13.log",
+    "build/qa/structural-squash-split-guard-core-2026-10-13.log",
+    "build/qa/structural-squash-split-guard-native-2026-10-13.log"
+  ]
+}

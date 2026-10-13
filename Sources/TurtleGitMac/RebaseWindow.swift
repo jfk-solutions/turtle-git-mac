@@ -547,7 +547,7 @@ import TurtleGitCore
         var values = plan?.entries ?? draftEntries
         let targets = ids ?? selection
         for index in values.indices where targets.contains(values[index].id) {
-            guard !options.preserveMerges || action != .squash else { continue }
+            guard !options.preserveMerges || action != .squash || values[index].commit.parents.count == 1 else { continue }
             values[index].action = action
         }
         if plan != nil { plan?.entries = values } else { draftEntries = values }
@@ -596,7 +596,8 @@ import TurtleGitCore
                 switch values[index].action {
                 case .pick: values[index].action = .skip
                 case .skip: values[index].action = .edit
-                case .edit, .squash: values[index].action = .pick
+                case .edit: values[index].action = values[index].commit.parents.count == 1 ? .squash : .pick
+                case .squash: values[index].action = .pick
                 }
                 continue
             }
@@ -780,7 +781,7 @@ struct RebaseRevisionMenu: View {
     var body: some View {
         ForEach(RebaseAction.allCases, id: \.self) { action in
             Button { model.setAction(action, ids: ids) } label: { CommandLabel(title: action == .skip ? "Skip" : action.rawValue.capitalized, icon: action.icon) }
-                .disabled(ids.isEmpty || !model.editable || model.options.preserveMerges && action == .squash)
+                .disabled(ids.isEmpty || !model.editable || model.options.preserveMerges && action == .squash && model.entries.contains { ids.contains($0.id) && $0.commit.parents.count != 1 })
         }
         if !model.revisionMenuRows(ids).isEmpty {
             Divider()
@@ -879,9 +880,9 @@ struct RebaseDialog: View {
                     HStack {
                         Button("Pick ALL") { model.setAction(.pick, ids: Set(model.entries.map(\.id))) }.disabled(!model.editable)
                         Menu("Options") {
-                            ForEach(RebaseAction.allCases.filter { $0 != .skip }, id: \.self) { action in Button { model.setAction(action, ids: Set(model.entries.map(\.id))) } label: { CommandLabel(title: "Select all: " + action.rawValue.capitalized, icon: action.icon) }.disabled(model.options.preserveMerges && action == .squash) }
+                            ForEach(RebaseAction.allCases.filter { $0 != .skip }, id: \.self) { action in Button { model.setAction(action, ids: Set(model.entries.map(\.id))) } label: { CommandLabel(title: "Select all: " + action.rawValue.capitalized, icon: action.icon) } }
                             Divider()
-                            ForEach([RebaseAction.skip, .squash, .edit], id: \.self) { action in Button { model.setAction(action, ids: Set(model.entries.map(\.id)).subtracting(model.selection)) } label: { CommandLabel(title: "Unselected: " + (action == .skip ? "Skip" : action.rawValue.capitalized), icon: action.icon) }.disabled(model.options.preserveMerges && action == .squash) }
+                            ForEach([RebaseAction.skip, .squash, .edit], id: \.self) { action in Button { model.setAction(action, ids: Set(model.entries.map(\.id)).subtracting(model.selection)) } label: { CommandLabel(title: "Unselected: " + (action == .skip ? "Skip" : action.rawValue.capitalized), icon: action.icon) } }
                         }.disabled(!model.editable)
                         Button("Up") { model.move(up: true, toEnd: NSEvent.modifierFlags.contains(.shift)) }.disabled(!model.canMove(up: true, toEnd: true))
                         Button("Down") { model.move(up: false, toEnd: NSEvent.modifierFlags.contains(.shift)) }.disabled(!model.canMove(up: false, toEnd: true))

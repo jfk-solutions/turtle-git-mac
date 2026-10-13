@@ -408,3 +408,43 @@ passed. Physical gestures/keyboard, VoiceOver, conflict-to-merge-Edit acceptance
 broader graphs and signed sandbox behavior remain unverified.
 
 [Batch evidence](qa/structural-merge-edit-2026-10-13.json) records scope and failures.
+
+
+## Structural Squash groups and final-parent labels (2026-10-13)
+
+Preserve-merges now accepts Squash for ordinary one-parent commits from individual
+and bulk actions, the Q keyboard path and Space cycling. A first applied Squash
+and Squash on a merge/root commit are rejected, matching the source's constraints.
+Source comparison: `RebaseDlg.cpp` around lines 2048–2094, 2195–2204 and 2368–2387.
+
+A group starts with its Pick/Edit commit and includes following Squash rows,
+ignoring skipped rows for grouping. It omits resets between Squash patches and
+defers original commit labels until the final result. Applied group members map
+to that result for later parent rewrites; skipped rows retain the source fallback.
+Generated update-ref commands follow the final labels, including references
+attached to the group's starting commit. Logical progress now reads captured
+identities from replay commands and completion labels rather than merely counting
+labels, so a group message pause identifies its final applied row.
+
+The existing durable message-review protocol gathers the original group messages,
+omits skipped messages and requires approval through the native message tab before
+Continue. It retains the existing Squash date-policy configuration. Edit followed
+by Squash goes through the group's final message review rather than an early Edit
+pause. An ordinary child may squash into a merge result while retaining its parents;
+the merge itself cannot be marked Squash. Split remains unavailable for structural
+Edit/Squash results with multiple parents because the existing Split implementation
+would flatten the topology. Source-equivalent merge Split remains open.
+
+Fourteen focused Core checks passed, including a multiple-Squash group with a
+skipped row and approved message, a child combined into a two-parent merge and an
+actual reference attached to the group's starter updating to the combined result.
+The existing structural Edit/Skip/Abort/conflict/topology cases passed in the same
+group. Four native receivers across system/bundled Git also passed, including a
+real group loaded in the window model, recovered group messages, message approval,
+Continue and retained merge topology. All receivers were reaped. A subsequent
+review added the merge-result Split guard; its affected checks are recorded in the
+batch evidence. Physical keyboard/gesture and signed sandbox acceptance remain
+unverified, as do wider graph, conflict/empty-group/date-policy combinations.
+
+This batch supersedes the prior blanket structural Squash restriction, without
+certifying the complete Rebase dialog. [Batch evidence](qa/structural-squash-2026-10-13.json).

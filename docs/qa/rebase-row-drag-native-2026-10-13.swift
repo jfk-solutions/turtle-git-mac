@@ -46,8 +46,8 @@ import TurtleGitCore
         model.options.preserveMerges=true; try require(model.beginRowDrag(current) != nil,"Preserve-merges drag unavailable")
         model.setAction(.skip,ids:current); try require(model.entries.first { current.contains($0.id) }?.action == .skip,"Structural Skip unavailable")
         model.setAction(.edit,ids:current); try require(model.entries.first { current.contains($0.id) }?.action == .edit,"Structural Edit unavailable")
-        model.setAction(.squash,ids:current); try require(model.entries.first { current.contains($0.id) }?.action == .edit,"Unsupported structural Squash mutated plan")
-        model.cycleActions(); try require(model.entries.first { current.contains($0.id) }?.action == .pick,"Structural cycle Edit to Pick failed")
+        model.setAction(.squash,ids:current); try require(model.entries.first { current.contains($0.id) }?.action == .squash,"Structural Squash unavailable")
+        model.cycleActions(); try require(model.entries.first { current.contains($0.id) }?.action == .pick,"Structural cycle Squash to Pick failed")
         model.cycleActions(); try require(model.entries.first { current.contains($0.id) }?.action == .skip,"Structural cycle Pick to Skip failed")
         model.cycleActions(); try require(model.entries.first { current.contains($0.id) }?.action == .edit,"Structural cycle Skip to Edit failed")
         model.options.preserveMerges=false
@@ -83,6 +83,21 @@ import TurtleGitCore
         try require(resumed.model.error==nil && resumed.model.completedSuccessfully,"Native merge Edit Continue failed")
         let edited=try await replay.rebaseCommit("HEAD"); try require(edited.subject=="native edited merge" && edited.parents.count==2,"Native edit lost message or topology")
         resumed.close(); try await wait { RebaseWindowModel.activeColumnReads==0 }
-        print("Rebase row drag: actual native insertion/finish, contiguous block/order/selection and reverse execution order, structural Pick/Skip/Edit/cycle guards and no-op/discontinuous/busy/stale/closed refusal passed. Owned windows closed; plan HEAD/index preserved; actual merge Edit recovery/Continue and topology passed.")
+        try Data("child\n".utf8).write(to:replayRoot.appendingPathComponent("child")); try await replay.stage(["child"]); _ = try await replay.commit(message:"squash child")
+        options.force=true
+        var squashPlan=try await replay.rebasePlan(options); squashPlan.entries[squashPlan.entries.count-1].action = .squash
+        let squashPaused=try await replay.startRebase(squashPlan,editorExecutable:URL(fileURLWithPath:ProcessInfo.processInfo.environment["TURTLEGIT_REBASE_EDITOR"] ?? FileManager.default.currentDirectoryPath + "/build/Build/Products/Debug/TurtleGitMac.app/Contents/MacOS/TurtleGitMac"))
+        try require(squashPaused.state.squashMessage != nil,"Native structural Squash did not request review: " + squashPaused.output)
+        let grouped=RebaseWindowController(repository:replay,access:nil,preferences:prefs); defer { grouped.close() }
+        grouped.model.load(upstream:"upstream",preserveMerges:true)
+        try await wait { !grouped.model.busy && grouped.model.state?.squashMessage != nil }
+        try require(!grouped.model.canSplit && grouped.model.tab==1 && grouped.model.amendMessage.contains("native edited merge") && grouped.model.amendMessage.contains("squash child"),"Native Squash group messages not recovered")
+        grouped.model.amendMessage="native approved structural group"; grouped.model.execute("continue")
+        try await wait { !grouped.model.busy && grouped.model.finished }
+        let combined=try await replay.rebaseCommit("HEAD")
+        try require(grouped.model.completedSuccessfully && combined.subject=="native approved structural group" && combined.parents.count==2,"Native structural Squash approval lost topology/message")
+        grouped.close(); try await wait { RebaseWindowModel.activeColumnReads==0 }
+
+        print("Rebase row drag: actual native insertion/finish, contiguous block/order/selection and reverse execution order, structural Pick/Skip/Edit/Squash/cycle guards and no-op/discontinuous/busy/stale/closed refusal passed. Owned windows closed; plan HEAD/index preserved; actual merge Edit/Squash recovery/Continue and topology passed.")
     }
 }

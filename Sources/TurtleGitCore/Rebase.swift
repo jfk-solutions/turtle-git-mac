@@ -98,9 +98,10 @@ public struct RebaseState: Sendable {
     public let split: RebaseSplitState?
     public let isEditPause: Bool
     public let isStructuralMergeEdit: Bool
+    public let hasStructuralMergeResult: Bool
     public let needsFileRecovery: Bool
     public let session: RebaseSessionContext?
-    public var canSplit: Bool { !isStructuralMergeEdit && active && conflicts.isEmpty && (isEditPause || squashMessage != nil && squashMessage?.skipBaseHead == nil || split != nil && split?.conflictRecovery != true) }
+    public var canSplit: Bool { !hasStructuralMergeResult && active && conflicts.isEmpty && (isEditPause || squashMessage != nil && squashMessage?.skipBaseHead == nil || split != nil && split?.conflictRecovery != true) }
 }
 public struct RebaseExecution: Sendable {
     public let output: String
@@ -213,7 +214,19 @@ public enum RebaseEditor {
     static func currentStep(in directory: URL) -> Int {
         if FileManager.default.fileExists(atPath:directory.appendingPathComponent("turtlegit-structural-plan").path) {
             let done = (try? String(contentsOf:directory.appendingPathComponent("done"),encoding:.utf8)) ?? ""
-            return done.split(separator:"\n").filter { $0.hasPrefix("label turtlegit-") && $0 != "label turtlegit-onto" }.count + 1
+            let identities = (try? JSONDecoder().decode([RebaseReplayIdentity].self,from:Data(contentsOf:directory.appendingPathComponent("turtlegit-replay-identities.json")))) ?? []
+            var step = 1
+            for line in done.split(separator:"\n") {
+                let fields = line.split(separator:" ").map(String.init)
+                guard let command = fields.first else { continue }
+                let hash: String?
+                if ["pick","edit","squash","drop"].contains(command), fields.count >= 2 { hash = fields[1] }
+                else if command == "merge", fields.count >= 3 { hash = fields[2] }
+                else if command == "label", fields.count == 2, fields[1].hasPrefix("turtlegit-"), fields[1] != "turtlegit-onto" { hash = String(fields[1].dropFirst("turtlegit-".count)) }
+                else { hash = nil }
+                if let hash, let index = identities.firstIndex(where: { $0.hash.hasPrefix(hash) }) { step = max(step,index + (command == "label" ? 2 : 1)) }
+            }
+            return step
         }
         if FileManager.default.fileExists(atPath: directory.appendingPathComponent("turtlegit-update-refs").path) {
             let done = (try? String(contentsOf: directory.appendingPathComponent("done"), encoding: .utf8)) ?? ""
@@ -332,16 +345,17 @@ extension GitRepository {
         let editPause = active && conflicts.isEmpty && action == .edit && (mergeEdit || manager.fileExists(atPath: directory.appendingPathComponent("amend").path) || split?.step == step && (split?.conflictRecovery == true && (split?.parts ?? 0) > 0 || split?.conflictRecoveryReturn != nil))
         let pending = request?.step == step && conflicts.isEmpty ? request : nil
         let activeSplit = split?.step == step && split?.entryID == stoppedIdentity ? split : nil
+        let mergeResult = active && structural && (editPause || pending != nil) ? try rebaseCommit("HEAD").parents.count > 1 : false
         return RebaseState(active: active, isCherryPick: active && manager.fileExists(atPath: metadataURL.path), branch: line("head-name"), originalHead: line("orig-head"), onto: line("onto"),
                            stoppedEntryID: stoppedIdentity, stoppedCommit: originalStopped, message: mergeEdit || activeSplit?.conflictRecovery == true || activeSplit?.conflictRecoveryReturn != nil ? try rebaseCommit("HEAD").message : try readMessage(), currentStep: step,
                            total: referenceUpdates || structural ? identities.count : Int(line("end")) ?? Int(line("last")) ?? 0, conflicts: conflicts,
                            remainingCommands: structural ? commands.compactMap { command in
                                let fields = command.split(separator:" ").map(String.init)
-                               if fields.first == "pick" || fields.first == "edit" { return command }
+                               if fields.first == "pick" || fields.first == "edit" || fields.first == "squash" || fields.first == "drop" { return command }
                                if fields.first == "merge", fields.count >= 3 { return "pick " + fields[2] }
                                return nil
                            } : commands, squashMessage: pending, stoppedAction: action, split: activeSplit,
-                           isEditPause: editPause, isStructuralMergeEdit: mergeEdit, needsFileRecovery: active && (!conflicts.isEmpty || !originalStopped.isEmpty && !editPause && pending == nil && activeSplit == nil), session: session)
+                           isEditPause: editPause, isStructuralMergeEdit: mergeEdit, hasStructuralMergeResult: mergeResult, needsFileRecovery: active && (!conflicts.isEmpty || !originalStopped.isEmpty && !editPause && pending == nil && activeSplit == nil), session: session)
     }
     private func replayIdentities(_ directory: URL) -> [RebaseReplayIdentity] {
         (try? JSONDecoder().decode([RebaseReplayIdentity].self, from: Data(contentsOf: directory.appendingPathComponent("turtlegit-replay-identities.json")))) ?? []
@@ -469,7 +483,6 @@ extension GitRepository {
         try validateRebaseIdentities(plan)
         guard plan.entries.first(where: { $0.action != .skip })?.action != .squash else { throw RebaseFailure.squash }
         if plan.options.preserveMerges {
-            guard !plan.entries.contains(where:{ $0.action == .squash }) else { throw RebaseFailure.preservePlan }
             if ids != plan.originalCommits || plan.entries.contains(where: { $0.action != .pick }) { return try structuralRebaseTodo(plan) }
         }
         if plan.options.isCherryPick {
@@ -487,20 +500,25 @@ extension GitRepository {
     /// falls back to the current head. A missing first merge parent is rejected.
     public func structuralRebaseTodo(_ plan: RebasePlan) throws -> String {
         try validateRebaseIdentities(plan)
-        guard plan.options.preserveMerges, plan.entries.allSatisfy({ $0.action != .squash && $0.occurrence == 0 }) else { throw RebaseFailure.preservePlan }
+        guard plan.entries.first(where: { $0.action != .skip })?.action != .squash else { throw RebaseFailure.squash }
+        guard plan.options.preserveMerges, plan.entries.allSatisfy({ $0.occurrence == 0 && !($0.action == .squash && $0.commit.parents.count != 1) }) else { throw RebaseFailure.preservePlan }
         let bases = try run(["merge-base","--all",plan.branchHash,plan.ontoHash],successfulExitCodes:0...1).text.split(whereSeparator: \.isWhitespace).map(String.init)
         guard !bases.isEmpty else { throw RebaseFailure.preservePlan }
         let selected = Set(plan.entries.map { $0.commit.hash })
         var rewritten = Dictionary(uniqueKeysWithValues:bases.map { ($0,"turtlegit-onto") })
-        var current = "turtlegit-onto", rows = ["label turtlegit-onto"]
-        for entry in plan.entries {
+        var current = "turtlegit-onto", rows = ["label turtlegit-onto"], group: [String] = []
+        func nextIsSquash(after index: Int) -> Bool {
+            plan.entries.dropFirst(index + 1).first { $0.action != .skip }?.action == .squash
+        }
+        for (position,entry) in plan.entries.enumerated() {
             let original = try rebaseCommit(entry.commit.hash)
             guard original.parents == entry.commit.parents else { throw RebaseFailure.changed }
             if entry.action == .skip {
                 // Source skips a selected row without rewriting its parent map.
                 // Its descendants use the current HEAD fallback; a merge's
                 // unreplayed first parent still fails the source guard.
-                rows.append("label turtlegit-" + original.hash)
+                if group.isEmpty { rows.append("label turtlegit-" + original.hash) }
+                else { rows.append("drop " + original.hash); group.append(original.hash) }
                 continue
             }
             var parents: [String] = []
@@ -514,14 +532,20 @@ extension GitRepository {
                 if !parents.contains(target) { parents.append(target) }
             }
             let first = parents.first ?? "turtlegit-onto"
-            rows.append("reset " + first)
+            if entry.action != .squash { rows.append("reset " + first) }
             if original.parents.count > 1 {
                 if parents == original.parents { rows.append("reset " + original.hash) }
                 else if parents.count > 1 { rows.append("merge -C " + original.hash + " " + parents.dropFirst().joined(separator:" ")) }
-            } else { rows.append(entry.action.rawValue + " " + original.hash + " " + original.subject.replacingOccurrences(of:"\n",with:" ").replacingOccurrences(of:"\r",with:" ")) }
-            if original.parents.count > 1 && entry.action == .edit { rows.append("break") }
-            let label = "turtlegit-" + original.hash
-            rows.append("label " + label); rewritten[original.hash] = label; current = label
+            } else { rows.append((entry.action == .edit && nextIsSquash(after:position) ? RebaseAction.pick.rawValue : entry.action.rawValue) + " " + original.hash + " " + original.subject.replacingOccurrences(of:"\n",with:" ").replacingOccurrences(of:"\r",with:" ")) }
+            if original.parents.count > 1 && entry.action == .edit && !nextIsSquash(after:position) { rows.append("break") }
+            group.append(original.hash)
+            if !nextIsSquash(after:position) {
+                for hash in group { rows.append("label turtlegit-" + hash) }
+                // Every applied member must map to the final Squash result.
+                // Skipped members retain source's unreplayed-parent fallback.
+                for hash in group where plan.entries.first(where: { $0.commit.hash == hash })?.action != .skip { rewritten[hash] = "turtlegit-" + original.hash }
+                current = "turtlegit-" + original.hash; group.removeAll()
+            }
         }
         return rows.joined(separator:"\n") + "\n"
     }

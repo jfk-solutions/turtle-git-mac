@@ -609,6 +609,37 @@ final class RebaseTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("upstream.txt").path))
         let count = try await repo.run(["rev-list", "--count", "main..topic"]).text; XCTAssertEqual(count, "2\n")
     }
+    func testStructuralSquashGroupSkipsRowsAndApprovesFinalMessage() async throws {
+        let (root,repo,_) = try await fixture(); defer { try? FileManager.default.removeItem(at:root) }
+        for name in ["third","fourth"] { try Data(name.utf8).write(to:root.appendingPathComponent(name)); try await repo.stage([name]); _ = try await repo.commit(message:name) }
+        var settings = options(); settings.preserveMerges=true
+        var plan = try await repo.rebasePlan(settings)
+        plan.entries[1].action = .skip; plan.entries[2].action = .squash; plan.entries[3].action = .squash
+        let stopped = try await repo.startRebase(plan,editorExecutable:editor)
+        XCTAssertTrue(stopped.state.active,stopped.output); XCTAssertEqual(stopped.state.currentStep,4)
+        let pending = try XCTUnwrap(stopped.state.squashMessage)
+        XCTAssertTrue(pending.message.contains("first")); XCTAssertTrue(pending.message.contains("third")); XCTAssertTrue(pending.message.contains("fourth")); XCTAssertFalse(pending.message.contains("second"))
+        let finished = try await repo.continueRebase(squashMessage:"approved structural group")
+        XCTAssertEqual(finished.exitCode,0,finished.output); XCTAssertFalse(finished.state.active)
+        let commits = try await repo.run(["rev-list","--count","upstream..topic"]).text.trimmingCharacters(in:.newlines); XCTAssertEqual(commits,"1")
+        XCTAssertFalse(FileManager.default.fileExists(atPath:root.appendingPathComponent("second.txt").path))
+        let head = try await repo.rebaseCommit("HEAD"); XCTAssertEqual(head.subject,"approved structural group")
+    }
+    func testStructuralSquashIntoMergeRetainsParentsAndUpdatesGroupReferences() async throws {
+        let (root,repo,initial,mergeHash) = try await structuralMergeFixture(); defer { try? FileManager.default.removeItem(at:root) }
+        var plan = initial
+        let merge = try XCTUnwrap(plan.entries.firstIndex { $0.commit.hash==mergeHash })
+        plan.entries[merge].action = .pick; plan.entries[merge+1].action = .squash
+        _ = try await repo.run(["branch","group-base",mergeHash]); _ = try await repo.run(["config","rebase.updateRefs","true"])
+        let stopped = try await repo.startRebase(plan,editorExecutable:editor)
+        XCTAssertNotNil(stopped.state.squashMessage,stopped.output)
+        XCTAssertTrue(stopped.state.hasStructuralMergeResult); XCTAssertFalse(stopped.state.canSplit)
+        let finished = try await repo.continueRebase(squashMessage:"combined merge and child")
+        XCTAssertEqual(finished.exitCode,0,finished.output); XCTAssertFalse(finished.state.active)
+        let head = try await repo.rebaseCommit("HEAD"), reference = try await repo.rebaseCommit("group-base")
+        XCTAssertEqual(head.parents.count,2); XCTAssertEqual(head.hash,reference.hash)
+        XCTAssertEqual(head.subject,"combined merge and child")
+    }
     func structuralMergeFixture() async throws -> (URL,GitRepository,RebasePlan,String) {
         let (root,repo,_) = try await fixture()
         _ = try await repo.run(["checkout","-b","side","main"])
@@ -760,8 +791,9 @@ final class RebaseTests: XCTestCase {
         _ = try await repo.run(["checkout", "topic"]); _ = try await repo.run(["merge", "--no-ff", "--no-edit", "side"])
         var o = options(); o.preserveMerges = true
         var plan = try await repo.rebasePlan(o); XCTAssertTrue(plan.entries.contains { $0.commit.parents.count == 2 })
-        plan.entries[0].action = .squash
-        do { _ = try await repo.structuralRebaseTodo(plan); XCTFail("Structural Squash is not implemented yet") } catch RebaseFailure.preservePlan {}
+        let mergeIndex = try XCTUnwrap(plan.entries.firstIndex { $0.commit.parents.count > 1 })
+        plan.entries[mergeIndex].action = .squash
+        do { _ = try await repo.structuralRebaseTodo(plan); XCTFail("A merge itself cannot be squashed") } catch RebaseFailure.preservePlan {}
         plan = try await repo.rebasePlan(o); let result = try await repo.startRebase(plan, editorExecutable: editor); XCTAssertEqual(result.exitCode, 0, result.output)
         let parents = try await repo.run(["rev-list", "--parents", "-n", "1", "topic"]).text.split(separator: " "); XCTAssertEqual(parents.count, 3)
         XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent("side.txt").path)); XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent("upstream.txt").path))
