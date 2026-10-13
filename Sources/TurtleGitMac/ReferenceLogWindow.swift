@@ -133,6 +133,8 @@ import TurtleGitCore
     var onCompare: ((ComparisonRevision, ComparisonRevision) -> Void)?
     var onCheckout: ((String) -> Void)?
     var onReset: ((String) -> Void)?
+    var onTransport: ((ReferenceLogTransportRequest) -> Void)?
+    @Published private(set) var hasGitSVN = false
     var onBisect: ((ReferenceLogBisectRequest) -> Void)?
     var onCombineRevisions: (([LogEntry], Int, String) -> Void)? { didSet { refreshCombineCandidate() } }
     @Published private(set) var combineCandidate: ReferenceLogCombineCandidate?
@@ -187,6 +189,7 @@ import TurtleGitCore
                 let bare = try await repository.isBare()
                 let mergeActive = try await repository.logMergeActive()
                 let bisectActive = try await repository.bisectState().active
+                let hasGitSVN = try await repository.referenceLogHasGitSVN()
                 let head = try await repository.run(["rev-parse", "--verify", "--quiet", "--end-of-options", "HEAD"], successfulExitCodes: 0...1).text.trimmingCharacters(in: .newlines)
                 let branch = try await repository.branch()
                 let referenceNames = try await repository.referenceLogReferenceNamesByHash()
@@ -202,7 +205,7 @@ import TurtleGitCore
                 guard request == generation else { return }
                 referenceNamesByHash = referenceNames
                 currentStashHash = stashHash; currentStashIndexParent = indexParent
-                hasWorkingTree = !bare; self.mergeActive = mergeActive; self.bisectActive = bisectActive
+                hasWorkingTree = !bare; self.mergeActive = mergeActive; self.bisectActive = bisectActive; self.hasGitSVN = hasGitSVN
                 currentHeadHash = head.isEmpty ? nil : head; currentBranch = branch
                 names = Array(Set(refs + [reference])).sorted(); entries = result
                 let hashes = Set(result.map(\.hash)); diffParents = diffParents.filter { hashes.contains($0.key) }
@@ -387,6 +390,41 @@ import TurtleGitCore
     func copy(_ ids: Set<String>, format: ReferenceLogCopyFormat = .hashes, pasteboard: NSPasteboard = .general) {
         guard commandSurfaceAvailable, let text = clipboardText(ids, format: format, dates: .load(defaults: preferences)) else { return }
         pasteboard.clearContents(); pasteboard.setString(text, forType: .string)
+    }
+    func transportAvailable(_ command: ReferenceLogTransportCommand, ids: Set<String>, extended: Bool = false) -> Bool {
+        guard commandSurfaceAvailable, !selecting, onTransport != nil, ids.count == 1,
+              let entry = entries.first(where: { ids.contains($0.id) }) else { return false }
+        let local = (referenceNamesByHash[entry.hash] ?? []).contains { $0.hasPrefix("refs/heads/") || $0.hasPrefix("refs/tags/") }
+        switch command {
+        case .push: return (!isOnStash(entry) && local) || extended
+        case .pull: return hasWorkingTree && !mergeActive && entry.hash == currentHeadHash
+        case .svnDCommit: return hasWorkingTree && hasGitSVN && ((!isOnStash(entry) && local) || extended)
+        }
+    }
+    func transport(_ command: ReferenceLogTransportCommand, ids: Set<String>, extended: Bool = false) {
+        guard transportAvailable(command, ids: ids, extended: extended),
+              let entry = entries.first(where: { ids.contains($0.id) }) else { return }
+        let token = OperationCancellation(), request = generation, reference = self.reference
+        let repository = self.repository, names = referenceNamesByHash[entry.hash] ?? []
+        revisionReadToken = token; busy = true; error = nil; Self.activeRevisionReads += 1
+        Task { [weak self, access] in
+            defer {
+                Self.activeRevisionReads -= 1; withExtendedLifetime(access) {}
+                if let self, !self.invalidated, self.generation == request, self.revisionReadToken === token {
+                    self.revisionReadToken = nil; self.busy = false
+                }
+            }
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let prepared = try await repository.referenceLogTransportRequest(command: command, entry: entry, references: names, cancellation: token)
+                guard let self, !self.invalidated, self.generation == request, self.reference == reference,
+                      !token.isCancelled, self.entries.first(where: { $0.id == entry.id }) == entry else { return }
+                self.revisionReadToken = nil; self.busy = false; self.onTransport?(prepared)
+            } catch {
+                guard let self, !self.invalidated, self.generation == request, !token.isCancelled else { return }
+                self.revisionReadToken = nil; self.busy = false; self.error = error.localizedDescription
+            }
+        }
     }
     func operationAvailable(_ operation: ReferenceLogRevisionOperation, ids: Set<String>, mainline: Int? = nil) -> Bool {
         let chosen = entries.filter { ids.contains($0.id) }

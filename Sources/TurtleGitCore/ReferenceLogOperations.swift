@@ -88,3 +88,44 @@ public enum ReferenceLogBisectFailure: LocalizedError {
     case marked
     public var errorDescription: String? { "This revision is already marked in the active bisect session." }
 }
+
+/// RefLog transport menus use the selected event, while named Push presets
+/// must still point at its commit when the dialog is opened.
+public enum ReferenceLogTransportCommand: Sendable { case push, pull, svnDCommit }
+public struct ReferenceLogTransportRequest: Sendable {
+    public let command: ReferenceLogTransportCommand
+    public let source: String?
+}
+extension GitRepository {
+    public func referenceLogHasGitSVN(cancellation: OperationCancellation? = nil) throws -> Bool {
+        var bytes = try run(["rev-parse", "--git-common-dir"], cancellation: cancellation).stdout
+        if bytes.last == 10 { bytes.removeLast() }
+        let result = String(decoding: bytes, as: UTF8.self)
+        let directory = result.hasPrefix("/") ? URL(fileURLWithPath: result) : root.appendingPathComponent(result)
+        return FileManager.default.fileExists(atPath: directory.appendingPathComponent("svn/.metadata").path)
+    }
+    public func referenceLogTransportRequest(command: ReferenceLogTransportCommand, entry: ReferenceLogEntry, references: [String], cancellation: OperationCancellation? = nil) throws -> ReferenceLogTransportRequest {
+        _ = try referenceLogOperationEntries(snapshot: [entry], selected: [entry.id], cancellation: cancellation)
+        switch command {
+        case .push:
+            // Prefer local branches, then tags; an externally moved name must
+            // never silently select another revision in the Push dialog.
+            let names = references.filter { $0.hasPrefix("refs/heads/") } + references.filter { $0.hasPrefix("refs/tags/") }
+            for name in names {
+                let ref = GitReferenceName.removingSuffix("^{}", from: name) ?? name
+                let value = try run(["rev-parse", "--verify", "--end-of-options", ref + "^{commit}"], successfulExitCodes: 0...128, cancellation: cancellation)
+                if value.exitCode == 0, value.text.trimmingCharacters(in: .newlines) == entry.hash {
+                    return ReferenceLogTransportRequest(command: command, source: ref)
+                }
+            }
+            return ReferenceLogTransportRequest(command: command, source: entry.hash)
+        case .pull:
+            guard try !isBare(cancellation: cancellation), try !logMergeActive(cancellation: cancellation) else { throw ReferenceLogFailure.selection }
+            let head = try run(["rev-parse", "--verify", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+            guard head == entry.hash else { throw ReferenceLogFailure.selection }
+        case .svnDCommit:
+            guard try !isBare(cancellation: cancellation), try referenceLogHasGitSVN(cancellation: cancellation) else { throw ReferenceLogFailure.selection }
+        }
+        return ReferenceLogTransportRequest(command: command, source: nil)
+    }
+}

@@ -74,7 +74,8 @@ Apply, inspection and Delete Abort checks above were completed.
   Unicode search acceptance; the native receiver checks are recorded below.
 - Native multi-selection Delete execution, Clear execution, clipboard verification
   and stale-view error recovery. Core deletion tests do not prove these UI paths.
-- Saved column widths/order, sorting, saved geometry, minimum-size and dark-mode QA.
+- Saved column widths/order and font behavior now have native receiver evidence in
+  [table parity](REFLOG-TABLE-PARITY.md); physical geometry/minimum-size and dark-mode QA remain open.
 - Broader Log working-tree/stash-menu acceptance. Selected Pop and
   branch-from-stash are absent from the pinned source RefLog menu and are not
   parity requirements.

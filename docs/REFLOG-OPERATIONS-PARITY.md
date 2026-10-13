@@ -56,3 +56,38 @@ system/bundled Git and two site documentation checks passed. All four receivers
 were reaped. [Evidence](qa/reflog-operations-2026-10-13.json) records the limited
 routing/read scope; these passes do not prove full RefLog execution or signed
 App Store readiness.
+
+## RefLog transport family (2026-10-13)
+
+Push, Pull and SVN DCommit now open the existing native workflows from RefLog.
+The pinned `GitLogListBase.cpp` lines 2207–2250 and `GitLogListAction.cpp`
+lines 965–1010 define the source visibility and Push preset behavior. Ordinary
+Push requires one non-stash event with an associated local branch or tag;
+Shift-right-click exposes Push for other single events. Push prefers the local
+branch, then tag, then immutable commit hash, strips annotated-tag peeling,
+and preserves the saved All Branches option because RefLog has no pointed graph
+label. A name moved externally falls back to another matching name or the captured
+hash instead of opening Push at a different commit.
+
+Pull appears for selected HEAD with a working tree and no active merge. Its
+preparation rechecks HEAD and merge state. SVN DCommit shares Push's source
+visibility and additionally requires Git-SVN metadata. Metadata is resolved from
+the common Git directory, including linked worktrees; the existing SVN workflow
+retains responsibility for runtime availability and execution. These menu actions
+open review dialogs; they do not push, pull or publish merely by opening the menu.
+
+Transport preparation retains the repository grant, owns cancellation and Quit
+accounting, and rejects closed/refreshed/replaced event results. Revision choosers
+omit the transport family. Menu grouping now puts single-row Merge before Reset,
+Rebase before Export, Revert/Notes before reflog deletion, Combine beside the
+multi-revision comparison, and transport before Clipboard. Reference deletion,
+full dynamic-menu parity and signed physical acceptance remain open.
+
+Three focused Core tests, the Debug build and four grouped native receivers with
+system/bundled Git passed. Core covers annotated-tag peeling, branch preference,
+moved-name fallback, old-HEAD/merge Pull rejection and missing/present SVN metadata.
+The native table checks Push/Pull callback dispatch, ordinary versus Shift Push,
+original transport icons and busy retained-command refusal. It does not execute
+remote transport or SVN publication. Existing table/advanced regression checks
+also passed; all four receivers were reaped. See
+[batch evidence](qa/reflog-transport-2026-10-13.json).

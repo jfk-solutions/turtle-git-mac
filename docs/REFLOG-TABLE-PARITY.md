@@ -49,7 +49,7 @@ UI interactions. A later explicit fixture commit verifies stale-selector rejecti
 it is not an app mutation. All test windows and receivers are owned and closed.
 
 This remains partial RefLog parity. Other upstream revision commands, exact
-Windows menu conditions/order, custom Log-list fonts, physical row/column gestures,
+Windows menu conditions/order, physical row/column gestures,
 VoiceOver, selecting/bare/stash variants of the new list, and signed sandbox/Finder
 execution still need implementation or acceptance. The gallery image predates this
 native list replacement; no new displayed screenshot is claimed by object checks.
@@ -60,3 +60,12 @@ repairing the action selector; the final group added visible-header, double-acti
 and displayed-date checks. The initial dispatch failure was sampled, then only
 its verified owned PID was terminated and reaped. No full Core suite, physical
 gestures or signed distribution is certified. [QA evidence](qa/reflog-table-2026-10-13.json).
+
+The transport batch also connects RefLog to the optional shared `LogFontForLogCtrl`,
+`LogFontName` and `LogFontSize` settings in its supplied preference store. This
+macOS consistency behavior retains default system text/monospaced hashes when
+turned off and applies the configured font to all five columns when on. Row height
+grows with font metrics and returns to 22 points when disabled. Native QA checks
+large-font cell assignment and row height; physical appearance, live Settings
+interaction and all-script rendering remain open. Transport menu ordering and
+its validation scope are recorded in [operation handoffs](REFLOG-OPERATIONS-PARITY.md).

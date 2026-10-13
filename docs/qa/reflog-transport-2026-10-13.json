@@ -1,0 +1,59 @@
+{
+  "date": "2026-10-13",
+  "scope": "RefLog transport review handoffs, grouping and configurable list font; partial parity",
+  "source": [
+    "src/TortoiseProc/GitLogListBase.cpp:2207",
+    "src/TortoiseProc/GitLogListAction.cpp:965"
+  ],
+  "checks": {
+    "core": {
+      "command": "swift test --scratch-path .build/out --filter ReferenceLogAdvancedTests",
+      "exit": 0,
+      "tests": 3
+    },
+    "debug_build": {
+      "exit": 0,
+      "warnings": "Existing Swift concurrency warnings remain in the build log."
+    },
+    "native": {
+      "cases": [
+        "reflog-table",
+        "reflog-advanced"
+      ],
+      "git": [
+        "/usr/bin/git",
+        "bundled Git"
+      ],
+      "exit": 0,
+      "reaped_pids": [
+        36761,
+        36879,
+        37019,
+        37137
+      ],
+      "scope": [
+        "Push/Pull review callbacks",
+        "Shift Push to captured hash",
+        "transport icons and busy refusal",
+        "font cell and adaptive row height",
+        "existing table/advanced regressions"
+      ]
+    },
+    "site": {
+      "build_exit": 0,
+      "tests": 2,
+      "test_exit": 0
+    }
+  },
+  "remaining": [
+    "Remote Push/Pull execution and SVN publication from RefLog",
+    "physical Shift menu and Settings appearance",
+    "reference deletion and whole dynamic-menu ordering",
+    "signed Finder/sandbox and full port acceptance"
+  ],
+  "logs": [
+    "build/qa/reflog-transport-core-2026-10-13.log",
+    "build/qa/reflog-transport-build-2026-10-13.log",
+    "build/qa/reflog-transport-native-2026-10-13.log"
+  ]
+}

@@ -2,6 +2,32 @@ import XCTest
 @testable import TurtleGitCore
 
 final class ReferenceLogAdvancedTests: XCTestCase {
+    func testTransportPresetsTagPeelingMovedNamesHeadAndSVNGuards() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let old = try await repo.referenceLog("HEAD")[0]
+        _ = try await repo.run(["tag", "-a", "release", "-m", "release"])
+        _ = try await repo.run(["branch", "old", old.hash])
+        _ = try await repo.run(["commit", "--allow-empty", "-m", "new"])
+        let current = try await repo.referenceLog("HEAD")[0]
+        let tag = try await repo.referenceLogTransportRequest(command: .push, entry: old, references: ["refs/heads/main", "refs/tags/release^{}"])
+        XCTAssertEqual(tag.source, "refs/tags/release")
+        let local = try await repo.referenceLogTransportRequest(command: .push, entry: old, references: ["refs/tags/release", "refs/heads/old"])
+        XCTAssertEqual(local.source, "refs/heads/old")
+        let moved = try await repo.referenceLogTransportRequest(command: .push, entry: old, references: ["refs/heads/main"])
+        XCTAssertEqual(moved.source, old.hash)
+        let pull = try await repo.referenceLogTransportRequest(command: .pull, entry: current, references: [])
+        XCTAssertNil(pull.source)
+        do { _ = try await repo.referenceLogTransportRequest(command: .pull, entry: old, references: []); XCTFail("Old HEAD accepted for Pull") } catch is ReferenceLogFailure {}
+        do { _ = try await repo.referenceLogTransportRequest(command: .svnDCommit, entry: current, references: []); XCTFail("Missing SVN metadata accepted") } catch is ReferenceLogFailure {}
+        let metadata = root.appendingPathComponent(".git/svn/.metadata")
+        try FileManager.default.createDirectory(at: metadata.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data().write(to: metadata)
+        let svn = try await repo.referenceLogTransportRequest(command: .svnDCommit, entry: current, references: [])
+        XCTAssertNil(svn.source)
+        try Data(old.hash.utf8).write(to: root.appendingPathComponent(".git/MERGE_HEAD"))
+        do { _ = try await repo.referenceLogTransportRequest(command: .pull, entry: current, references: []); XCTFail("Merge accepted for Pull") } catch is ReferenceLogFailure {}
+    }
     func testCombineMatchesSourceEventPositionsAndRejectsDuplicateCheckoutRows() async throws {
         let (root, repo, _) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

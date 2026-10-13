@@ -7,6 +7,10 @@ import TurtleGitCore
 struct ReferenceLogNativeTable: NSViewRepresentable {
     @ObservedObject var model: ReferenceLogWindowModel
     let dates: HistoryDateSettings
+    @AppStorage("LogFontForLogCtrl") private var useLogFont = false
+    @AppStorage("LogFontName") private var fontName = MessageEditorFont.defaultName
+    @AppStorage("LogFontSize") private var fontSize = MessageEditorFont.defaultSize
+    private var configuredFont: NSFont? { useLogFont ? MessageEditorFont.resolve(name: fontName, size: fontSize) : nil }
     func makeCoordinator() -> Coordinator { Coordinator(model: model, dates: dates) }
     func makeNSView(context: Context) -> NSScrollView {
         let table = ReferenceLogTableView()
@@ -26,10 +30,10 @@ struct ReferenceLogNativeTable: NSViewRepresentable {
         let header = ReferenceLogTableHeader(frame: NSRect(x: 0, y: 0, width: 0, height: 24)); header.owner = context.coordinator; table.headerView = header
         let scroll = NSScrollView(); scroll.documentView = table
         scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true; scroll.autohidesScrollers = true
-        context.coordinator.table = table; context.coordinator.restoreColumns(); context.coordinator.update(model: model, dates: dates)
+        context.coordinator.table = table; context.coordinator.restoreColumns(); context.coordinator.update(model: model, dates: dates, font: configuredFont)
         return scroll
     }
-    func updateNSView(_ view: NSScrollView, context: Context) { context.coordinator.update(model: model, dates: dates) }
+    func updateNSView(_ view: NSScrollView, context: Context) { context.coordinator.update(model: model, dates: dates, font: configuredFont) }
     static func dismantleNSView(_ view: NSScrollView, coordinator: Coordinator) { coordinator.retired = true; coordinator.table?.owner = nil; coordinator.table?.delegate = nil; coordinator.table?.dataSource = nil }
 
     @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate {
@@ -37,13 +41,16 @@ struct ReferenceLogNativeTable: NSViewRepresentable {
         var dates: HistoryDateSettings
         weak var table: ReferenceLogTableView?
         var retired = false, synchronizing = false
+        private var font: NSFont?
         private var entries: [ReferenceLogEntry] = []
         init(model: ReferenceLogWindowModel, dates: HistoryDateSettings) { self.model = model; self.dates = dates }
         var available: Bool { !retired && model.commandSurfaceAvailable && table?.window != nil && table?.window?.attachedSheet == nil }
         var selectedIDs: Set<String> { Set(table?.selectedRowIndexes.compactMap { entries.indices.contains($0) ? entries[$0].id : nil } ?? []) }
-        func update(model: ReferenceLogWindowModel, dates: HistoryDateSettings) {
+        func update(model: ReferenceLogWindowModel, dates: HistoryDateSettings, font: NSFont? = nil) {
             guard !retired, let table else { return }
-            let reload = entries != model.entries || self.dates != dates
+            let reload = entries != model.entries || self.dates != dates || self.font != font
+            self.font = font
+            table.rowHeight = max(22, (font?.ascender ?? 0) - (font?.descender ?? 0) + (font?.leading ?? 0) + 6)
             self.model = model; self.dates = dates; entries = model.entries
             synchronizing = true
             if reload { table.reloadData() }
@@ -69,7 +76,7 @@ struct ReferenceLogNativeTable: NSViewRepresentable {
             let value: String
             switch field { case "Hash": value = entry.hash; case "Ref": value = entry.selector; case "Action": value = entry.action; case "Message": value = entry.message; default: value = ReferenceLogWindowModel.dateText(entry, dates: dates) }
             cell.textField?.stringValue = value; cell.textField?.textColor = .labelColor
-            cell.textField?.font = field == "Hash" ? .monospacedSystemFont(ofSize: 13, weight: .regular) : .systemFont(ofSize: 13)
+            cell.textField?.font = font ?? (field == "Hash" ? .monospacedSystemFont(ofSize: 13, weight: .regular) : .systemFont(ofSize: 13))
             cell.toolTip = field == "Message" ? entry.subject : value
             model.requestDiffParents(entry)
             return cell
@@ -116,7 +123,7 @@ struct ReferenceLogNativeTable: NSViewRepresentable {
             }
             return menu
         }
-        func menu(pasteboard: NSPasteboard = .general) -> NSMenu {
+        func menu(pasteboard: NSPasteboard = .general, extended: Bool = false) -> NSMenu {
             let menu = NSMenu(); menu.autoenablesItems = false
             let ids = selectedIDs, reference = model.reference, snapshot = entries.filter { ids.contains($0.id) }
             let live: () -> Bool = { [weak self] in
@@ -153,8 +160,17 @@ struct ReferenceLogNativeTable: NSViewRepresentable {
                 }
                 menu.addItem(.separator())
             }
+            for command in [LogBisectCommand.good, .bad, .skip] where ids.count == 1 && model.bisectAvailable(command, ids: ids) {
+                add(command.title, command.icon) { model.bisect(command, ids: ids) }
+            }
             add("Show log", .log, enabled: ids.count == 1 && model.onLog != nil) { model.showLog(ids) }
             add(ReferenceLogRevisionCommand.browseRepository.title, .repositoryBrowser, enabled: model.canPerform(.browseRepository, ids: ids)) { model.perform(.browseRepository, ids: ids) }
+            func operation(_ command: ReferenceLogRevisionOperation) {
+                if model.operationAvailable(command, ids: ids) {
+                    add(command.title(branch: model.currentBranch, count: ids.count), command.icon) { model.performOperation(command, ids: ids) }
+                }
+            }
+            if ids.count == 1 { operation(.merge) }
             if !model.selecting, model.hasWorkingTree, ids.count == 1 {
                 add(ReferenceLogHistoryCommand.reset.title(branch: model.currentBranch), .reset, enabled: model.canPerformHistory(.reset, ids: ids)) { model.performHistory(.reset, ids: ids) }
                 let branches = model.switchBranches(ids)
@@ -165,13 +181,27 @@ struct ReferenceLogNativeTable: NSViewRepresentable {
                 }
                 add(ReferenceLogHistoryCommand.checkout.title(branch: model.currentBranch), .checkout, enabled: model.canPerformHistory(.checkout, ids: ids)) { model.performHistory(.checkout, ids: ids) }
             }
-            for command in ReferenceLogRevisionCommand.allCases where command != .browseRepository { add(command.title, command.icon, enabled: model.canPerform(command, ids: ids)) { model.perform(command, ids: ids) } }
+            for command in [ReferenceLogRevisionCommand.createBranch, .createTag] { add(command.title, command.icon, enabled: model.canPerform(command, ids: ids)) { model.perform(command, ids: ids) } }
+            if ids.count == 1 { operation(.rebase) }
+            add(ReferenceLogRevisionCommand.export.title, .export, enabled: model.canPerform(.export, ids: ids)) { model.perform(.export, ids: ids) }
+            if !model.selecting {
+                if ids.count == 1, let entry = snapshot.first, let parents = model.diffParents[entry.hash], parents.count > 1 {
+                    if parents.contains(where: { model.operationAvailable(.revert, ids: ids, mainline: $0.number) }) {
+                        let child = submenu(ReferenceLogRevisionOperation.revert.title(branch: model.currentBranch, count: 1), .revert)
+                        for parent in parents { add(parent.title, .revert, to: child, enabled: model.operationAvailable(.revert, ids: ids, mainline: parent.number)) { model.performOperation(.revert, ids: ids, mainline: parent.number) } }
+                    }
+                } else if ids.count == 1, model.operationAvailable(.revert, ids: ids) {
+                    add(ReferenceLogRevisionOperation.revert.title(branch: model.currentBranch, count: ids.count), .revert) { model.performOperation(.revert, ids: ids) }
+                }
+                if ids.count == 1 { operation(.editNotes) }
+            }
             menu.addItem(.separator())
             if !model.selecting { add("Delete", .deleted, enabled: !ids.isEmpty) { model.delete(ids) } }
             if !model.selecting, model.reference == "refs/stash" { add("Stash apply", .stashPop, enabled: ids.count == 1) { model.apply(ids) } }
             menu.addItem(.separator())
             if ids.count >= 2 {
                 add(ReferenceLogComparisonCommand.revisions.title, .compare, enabled: model.canCompare(.revisions, ids: ids)) { model.compare(.revisions, ids: ids) }
+                if model.combineAvailable(ids) { add("Combine to one commit", .combine) { model.combine(ids) } }
                 if ids.count == 2 {
                     if model.hasWorkingTree { add("Show changes as unified diff", .unifiedDiff, enabled: model.canInspect(ids)) { model.inspect(ids, alternate: NSEvent.modifierFlags.contains(.shift)) } }
                     for command in ReferenceLogRangeCommand.allCases {
@@ -181,24 +211,23 @@ struct ReferenceLogNativeTable: NSViewRepresentable {
                 menu.addItem(.separator())
             }
             if !model.selecting, !ids.isEmpty {
-                for operation in [ReferenceLogRevisionOperation.merge, .rebase, .cherryPick, .editNotes, .formatPatch] {
+                for operation in [ReferenceLogRevisionOperation.cherryPick, .formatPatch] {
                     if model.operationAvailable(operation, ids: ids) {
                         add(operation.title(branch: model.currentBranch, count: ids.count), operation.icon) { model.performOperation(operation, ids: ids) }
                     }
                 }
-                if ids.count == 1, let entry = snapshot.first, let parents = model.diffParents[entry.hash], parents.count > 1 {
-                    if parents.contains(where: { model.operationAvailable(.revert, ids: ids, mainline: $0.number) }) {
-                        let child = submenu(ReferenceLogRevisionOperation.revert.title(branch: model.currentBranch, count: 1), .revert)
-                        for parent in parents { add(parent.title, .revert, to: child, enabled: model.operationAvailable(.revert, ids: ids, mainline: parent.number)) { model.performOperation(.revert, ids: ids, mainline: parent.number) } }
-                    }
-                } else if model.operationAvailable(.revert, ids: ids) {
-                    add(ReferenceLogRevisionOperation.revert.title(branch: model.currentBranch, count: ids.count), .revert) { model.performOperation(.revert, ids: ids) }
-                }
+                if ids.count > 1 { operation(.revert) }
                 menu.addItem(.separator())
             }
-            if model.combineAvailable(ids) { add("Combine to one commit", .combine) { model.combine(ids) } }
-            for command in [LogBisectCommand.start, .good, .bad, .skip] where model.bisectAvailable(command, ids: ids) {
-                add(command.title, command.icon) { model.bisect(command, ids: ids) }
+            if model.bisectAvailable(.start, ids: ids) { add(LogBisectCommand.start.title, .bisect) { model.bisect(.start, ids: ids) }; menu.addItem(.separator()) }
+            if ids.count == 1 {
+                var hasTransport = false
+                for (command, title, icon) in [(ReferenceLogTransportCommand.push, "Push…", MenuIcon.push), (.svnDCommit, "SVN DCommit…", .commit), (.pull, "Pull…", .pull)] {
+                    if model.transportAvailable(command, ids: ids, extended: extended) {
+                        add(title, icon) { model.transport(command, ids: ids, extended: extended) }; hasTransport = true
+                    }
+                }
+                if hasTransport { menu.addItem(.separator()) }
             }
             let clipboard = submenu("Copy to clipboard", .copy)
             menu.items.last?.isEnabled = live() && !ids.isEmpty
@@ -213,7 +242,7 @@ struct ReferenceLogNativeTable: NSViewRepresentable {
         guard owner?.available == true else { return nil }
         let row = self.row(at: convert(event.locationInWindow, from: nil))
         if row >= 0 && !selectedRowIndexes.contains(row) { selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false) }
-        return owner?.menu()
+        return owner?.menu(extended: event.modifierFlags.contains(.shift))
     }
     @objc func copy(_ sender: Any?) { owner?.copy() }
     override func selectAll(_ sender: Any?) { guard owner?.available == true else { return }; super.selectAll(sender) }

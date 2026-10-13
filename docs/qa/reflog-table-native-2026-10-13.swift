@@ -53,6 +53,22 @@ import TurtleGitCore
         opened = ""
         try require(NSApp.sendAction(native.doubleAction!, to: native.target, from: native), "Double-click action did not dispatch")
         try require(opened == owner.model.entries[0].hash, "Double-click action selected the wrong entry")
+        var transports: [ReferenceLogTransportRequest] = []
+        owner.model.onTransport = { transports.append($0) }
+        let transportMenu = coordinator.menu(pasteboard: board)
+        let push = transportMenu.item(withTitle: "Push…")!, pull = transportMenu.item(withTitle: "Pull…")!
+        try require(push.image != nil && pull.image != nil, "Transport source icons missing")
+        try invoke(push); try await wait { !owner.model.busy }
+        try require(transports.last?.source == "refs/heads/main", "Push did not preserve source branch preset")
+        try invoke(pull); try await wait { !owner.model.busy }
+        try require(transports.count == 2 && transports.last?.command == .pull, "Pull handoff missing")
+        let largeFont = NSFont(name: "Menlo", size: 24)!
+        coordinator.update(model: owner.model, dates: .load(defaults: prefs), font: largeFont)
+        let messageColumn = native.tableColumns.firstIndex { $0.identifier.rawValue == "Message" }!
+        let fontCell = native.view(atColumn: messageColumn, row: 0, makeIfNecessary: true) as? NSTableCellView
+        try require(fontCell?.textField?.font == largeFont && native.rowHeight > 22, "Configured font clipped or ignored")
+        coordinator.update(model: owner.model, dates: .load(defaults: prefs))
+        try require(native.rowHeight == 22, "Default row height did not return")
         let full = single.item(withTitle: "Copy to clipboard")!.submenu!.item(withTitle: "Full data")!
         try invoke(full)
         let date = ReferenceLogWindowModel.dateText(owner.model.entries[0], dates: .load(defaults: prefs))
@@ -83,6 +99,18 @@ import TurtleGitCore
         // Retained commands must reject that replacement, even for Copy.
         _ = try await repo.run(["commit", "--allow-empty", "-m", "replacement"])
         owner.model.reload(); try await wait { !owner.model.busy }
+        native.selectRowIndexes(IndexSet(integer: 1), byExtendingSelection: false)
+        let older = coordinator.menu(pasteboard: board)
+        try require(older.item(withTitle: "Push…") == nil && older.item(withTitle: "Pull…") == nil, "Unreferenced old event exposed ordinary transport")
+        let shifted = coordinator.menu(pasteboard: board, extended: true).item(withTitle: "Push…")!
+        try invoke(shifted); try await wait { !owner.model.busy }
+        try require(transports.last?.source == owner.model.entries[1].hash, "Shift Push did not use immutable event")
+        owner.model.busy = true
+        let transportCount = transports.count
+        NSApp.sendAction(shifted.action!, to: shifted.target, from: shifted)
+        try require(transports.count == transportCount, "Busy transport accepted retained command")
+        owner.model.busy = false
+        native.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
         board.clearContents(); board.setString("sentinel", forType: .string)
         NSApp.sendAction(full.action!, to: full.target, from: full)
         try require(board.string(forType: .string) == "sentinel", "Stale selector redirected Copy to new data")
