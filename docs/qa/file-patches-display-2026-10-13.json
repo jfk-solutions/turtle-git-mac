@@ -1,0 +1,69 @@
+{
+  "date": "2026-10-13",
+  "reference": [
+    "Pinned TMerge_PatchWindow.png",
+    "TortoiseMergeENG.rc IDD_FILEPATCHES and IDS_PATCH_*",
+    "FilePatchesDlg.cpp custom draw/menu behavior"
+  ],
+  "assets": {
+    "docs/site/assets/file-patches-light.png": {
+      "sha256": "62383c700f7c51f2828f426848fa9a9a0d5b1308bc2334ec3ec999e5dcb81624",
+      "dimensions": [
+        2200,
+        1504
+      ]
+    },
+    "docs/site/assets/file-patches-dark.png": {
+      "sha256": "81624bb4cda79a7948e3b56545b2774187e43036dd1bead9513bf87f3d00f7d9",
+      "dimensions": [
+        2200,
+        1504
+      ]
+    }
+  },
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/file-patches-display-final-2026-10-13.log"
+    },
+    "native": {
+      "exit": 0,
+      "cases": 4,
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "log": "build/qa/file-patches-display-native-2026-10-13.log"
+    },
+    "physical": [
+      "Original patch tab, light/dark appearance and source file-panel structure inspected",
+      "Physical Patch all in preceding layout changed two fixture files and preserved conflicting bytes",
+      "Final context captions inspected; theme screenshots captured through current-process Debug shortcut"
+    ],
+    "owned_preview_pids_absent": [
+      54376,
+      54500,
+      54564,
+      54810,
+      55045
+    ],
+    "fixture_notes": [
+      "Reduced preview first omitted Subversion libraries; completed its actual runtime payload before final captures",
+      "Intermediate native automation connection dropped; selected-file physical action is not claimed successful",
+      "No installed/user app or real repository changed"
+    ],
+    "documentation": {
+      "exit": 0,
+      "tests": 2,
+      "log": "build/qa/file-patches-display-site-check-2026-10-13.log"
+    }
+  },
+  "pending": [
+    "Applied-file preview parity",
+    "Initial before/after viewport clipping and broader physical comparison acceptance",
+    "Failed-hunk/conflict classification before apply",
+    "Full keyboard/VoiceOver and signed Finder/App Store acceptance",
+    "Whole port parity"
+  ],
+  "full_port_certified": false
+}

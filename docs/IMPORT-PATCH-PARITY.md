@@ -453,3 +453,38 @@ Git, Debug compilation and two documentation tests passed after compilation
 repairs. The native cases also retain the existing owned cancellation/retirement
 checks. All owned receivers were reaped. See
 [dated file-patches QA](qa/file-patches-2026-10-13.json).
+
+## Displayed file-panel comparison — 2026-10-13
+
+Compared the pinned `TMerge_PatchWindow.png`, `IDD_FILEPATCHES` and its command
+strings. The displayed list now uses Path/State with native file-type icons,
+basename labels/full-path tooltips, a bold preview row, muted patched rows and
+red error rows. Source captions are Preview patched file, Patch all files and
+Patch selected files; the panel buttons read Patch selected item/Patch all items.
+The list is bounded in width so the comparison gets most of the window.
+
+The earlier checkbox/Changes columns and Apply checked footer were removed from
+this dialog to follow source selection semantics. The engine's atomic checked
+selection API remains available internally; ordinary Review users now operate
+on highlighted rows or all remaining items. Older checkpoint descriptions refer
+to that preceding UI. Serial git-am import retains its source checked list.
+
+An isolated preview of the real Debug app objects displayed actual per-file
+results and colored original patch in both appearances. A physical Patch all
+operation in the preceding layout patched README and the test file, preserved
+an independently edited source file and reported its error. Final-layout theme
+controls and context command labels were inspected; final fixture states were
+prepared through the same real model/Git workflow. The four grouped native
+cases passed with system/bundled Git. Every preview and receiver was reaped.
+
+The preview must include the merge helper plus its packaged Git/Subversion
+libraries; a reduced fixture first lacked those and displayed hex fallback.
+One intermediate native automation connection dropped and that preview exited;
+its attempted selected-file operation is not counted as successful acceptance.
+Initial comparison viewport clipping was also observed in an intermediate
+before/after view. Applied-file preview behavior, viewport initialization,
+initial failed-hunk counts, full keyboard/VoiceOver and signed execution remain
+open. The published captures show the Original patch tab and do not certify
+those pending comparison behaviors.
+
+See [display QA](qa/file-patches-display-2026-10-13.json).

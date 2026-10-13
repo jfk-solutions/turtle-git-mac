@@ -597,6 +597,12 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     weak var model: WorkingTreePatchWindowModel?
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         let flags = event.modifierFlags.intersection([.command, .shift, .option, .control])
+        #if DEBUG
+        if flags == [.command,.option,.shift], event.charactersIgnoringModifiers?.lowercased() == "s",
+           Bundle.main.bundleIdentifier?.hasPrefix("org.turtlegit.macos.documentation-preview") == true {
+            DocumentationCapture.saveWindow(); return true
+        }
+        #endif
         if flags == .command, event.charactersIgnoringModifiers == "s" { model?.saveDraft(); return true }
         if flags == .command || flags == [.command, .shift], event.charactersIgnoringModifiers?.lowercased() == "z", (firstResponder as? NSTextView)?.isFieldEditor != true {
             if flags.contains(.shift) { model?.editor?.redo() } else { model?.editor?.undo() }; return true
@@ -966,45 +972,48 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
 private struct WorkingTreePatchFileList: View {
     @ObservedObject var model: WorkingTreePatchWindowModel
     private func status(_ file: WorkingTreePatchReview.File) -> String {
-        if model.appliedPaths.contains(file.pathBytes) { return "Patched" }
-        if let result = model.fileResults[file.pathBytes], !result.success { return "Error" }
+        if model.appliedPaths.contains(file.pathBytes) { return "patched" }
+        if let result = model.fileResults[file.pathBytes], !result.success { return "error" }
         return ""
-    }
-    private func changes(_ file: WorkingTreePatchReview.File) -> String {
-        if model.appliedPaths.contains(file.pathBytes) { return "Applied" }
-        if file.isBinary { return "Binary" }
-        return "+\(file.additions ?? 0) −\(file.deletions ?? 0)"
     }
     var body: some View {
         VStack(alignment: .leading) {
                     Text("Files to patch:")
                     Table(model.review?.files ?? [], selection: Binding(get: { model.highlightedFiles }, set: { model.highlightFiles($0) })) {
-                        TableColumn("") { (file: WorkingTreePatchReview.File) in
-                            Toggle(file.path, isOn: Binding(get: { model.selected.contains(file.id) }, set: { model.check(file.id, $0) })).labelsHidden().disabled(!model.canReplaceComparison || model.requiresRefresh || model.appliedPaths.contains(file.pathBytes))
-                        }.width(26)
-                        TableColumn("Path") { (file: WorkingTreePatchReview.File) in Text(file.path).help(file.path) }
-                        TableColumn("Status") { (file: WorkingTreePatchReview.File) in
+                        TableColumn("Path") { (file: WorkingTreePatchReview.File) in
+                            WorkingTreePatchPathCell(file: file, shown: model.focusedFile == file.id, state: status(file))
+                        }
+                        TableColumn("State") { (file: WorkingTreePatchReview.File) in
                             Text(status(file))
-                                .foregroundStyle(model.appliedPaths.contains(file.pathBytes) ? Color.green : Color.red)
+                                .foregroundStyle(model.appliedPaths.contains(file.pathBytes) ? Color.secondary : Color.red)
                                 .help(model.fileResults[file.pathBytes]?.output ?? "")
                         }.width(65)
-                        TableColumn("Changes") { (file: WorkingTreePatchReview.File) in
-                            Text(changes(file))
-                                .foregroundStyle(model.appliedPaths.contains(file.pathBytes) ? Color.green : .secondary)
-                        }.width(80)
                     }.contextMenu(forSelectionType: Int.self) { ids in
                         let generation = model.fileListGeneration
-                        Button { if generation == model.fileListGeneration, ids.count == 1 { model.focusFile(ids.first) } } label: { CommandLabel(title: "Preview", icon: .compare) }.disabled(!model.canReplaceComparison || model.requiresRefresh || ids.count != 1)
-                        Button { model.patchFiles(Set(model.review?.files.map(\.id) ?? []), generation: generation) } label: { CommandLabel(title: "Patch all", icon: .patch) }.disabled(!model.canPatchFiles)
-                        Button { model.patchFiles(ids, generation: generation) } label: { CommandLabel(title: "Patch selected", icon: .patch) }.disabled(!model.canPatchFiles || ids.isEmpty)
+                        Button { if generation == model.fileListGeneration, ids.count == 1 { model.focusFile(ids.first) } } label: { CommandLabel(title: "Preview patched file", icon: .compare) }.disabled(!model.canReplaceComparison || model.requiresRefresh || ids.count != 1)
+                        Button { model.patchFiles(Set(model.review?.files.map(\.id) ?? []), generation: generation) } label: { CommandLabel(title: "Patch all files", icon: .patch) }.disabled(!model.canPatchFiles)
+                        Button { model.patchFiles(ids, generation: generation) } label: { CommandLabel(title: "Patch selected files", icon: .patch) }.disabled(!model.canPatchFiles || ids.isEmpty)
                     } primaryAction: { ids in if ids.count == 1 { model.focusFile(ids.first) } }
                     Button { model.patchFiles(model.highlightedFiles, generation: model.fileListGeneration) } label: {
-                        Text("Patch selected").frame(maxWidth: .infinity)
+                        Text("Patch selected item").frame(maxWidth: .infinity)
                     }.disabled(!model.canPatchFiles || model.highlightedFiles.isEmpty)
                     Button { model.patchFiles(Set(model.review?.files.map(\.id) ?? []), generation: model.fileListGeneration) } label: {
-                        Text("Patch all").frame(maxWidth: .infinity)
+                        Text("Patch all items").frame(maxWidth: .infinity)
                     }.disabled(!model.canPatchFiles)
-                }.frame(minWidth: 280, idealWidth: 350)
+                }.frame(minWidth: 220, idealWidth: 300, maxWidth: 360)
+    }
+}
+
+private struct WorkingTreePatchPathCell: View {
+    let file: WorkingTreePatchReview.File
+    let shown: Bool
+    let state: String
+    private var color: Color { state == "error" ? .red : state == "patched" ? .secondary : .primary }
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(nsImage: NSWorkspace.shared.icon(for: UTType(filenameExtension: (file.path as NSString).pathExtension) ?? .data)).resizable().frame(width: 16, height: 16)
+            Text((file.path as NSString).lastPathComponent).fontWeight(shown ? .bold : .regular).foregroundStyle(color)
+        }.help(file.path)
     }
 }
 
@@ -1029,9 +1038,7 @@ struct WorkingTreePatchDialog: View {
             if !model.output.isEmpty { DisclosureGroup("Output") { OutputView(text: model.output, usesLogFont: true).frame(height: 100) } }
             HStack {
                 if model.busy { ProgressView().controlSize(.small); Text("Processing patch…"); Button("Cancel operation", action: model.cancelOperation) }
-                Text("Apply checked uses checkboxes.").foregroundStyle(.secondary)
                 Spacer()
-                Button("Apply checked") { model.apply() }.disabled(!model.canApply)
                 Button("Close") { model.requestClose() }.disabled(!model.editable)
             }
         }.padding(16)
