@@ -464,6 +464,7 @@ import TurtleGitCore
         if difference != index { difference = index }
     }
     @Published private(set) var exporting = false { didSet { onExportStateChanged() } }
+    static private(set) var activePaneExports = 0
     var onExportStateChanged: () -> Void = {}
     var chooseExportLocation: (NSWindow, String, URL) async -> URL? = { window, name, directory in
         let panel = NSSavePanel(); panel.nameFieldStringValue = name
@@ -474,14 +475,15 @@ import TurtleGitCore
         return response == .OK ? panel.url : nil
     }
     func export(base: Bool) {
-        guard !busy, !exporting, !confirmingQuit, let window, window.attachedSheet == nil, let document else { return }
+        guard !retired, !busy, !exporting, !confirmingQuit, let window, window.attachedSheet == nil, let document else { return }
         let content = base ? document.base : document.destination
         do {
             let bytes = try drafts?.exported(base: base) ?? content.bytes
-            exporting = true; busy = true
+            exporting = true; busy = true; Self.activePaneExports += 1
             Task {
-                defer { busy = false; exporting = false }
-                guard let url = await chooseExportLocation(window, (content.path as NSString).lastPathComponent, snapshot.root) else { return }
+                defer { busy = false; exporting = false; Self.activePaneExports -= 1 }
+                guard !retired else { return }
+                guard let url = await chooseExportLocation(window, (content.path as NSString).lastPathComponent, snapshot.root), !retired else { return }
                 let scoped = url.startAccessingSecurityScopedResource()
                 defer { if scoped { url.stopAccessingSecurityScopedResource() } }
                 do { try bytes.write(to: url, options: .atomic) } catch { self.error = error.localizedDescription }

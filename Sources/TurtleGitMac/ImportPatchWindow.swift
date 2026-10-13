@@ -33,6 +33,7 @@ import TurtleGitCore
                 return self.model.busy || self.model.closing || self.model.confirmingQuit || self.window?.attachedSheet != nil
             }
             controller.model.onChanged = { [weak self] output in self?.model.onChanged(output) }
+            controller.model.onMutationStopped = { [weak self] in self?.model.onMutationStopped() }
             controller.model.onBusyChanged = { [weak self] in self?.model.objectWillChange.send() }
             controller.onClosed = { [weak self, weak controller] in if self?.review === controller { self?.review = nil; self?.model.objectWillChange.send() } }
             self.review = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
@@ -194,6 +195,7 @@ import TurtleGitCore
     var chooseUnavailableClose: (String) async -> Bool = { _ in false }
     var close: () -> Void = {}
     var onChanged: (String) -> Void = { _ in }
+    var onMutationStopped: () -> Void = {}
     var finished: Bool { !items.isEmpty && items.allSatisfy { $0.state == .success || $0.state == .skipped } }
     var editable: Bool { !confirmingQuit && !receivingDrop && !busy && !closing && !openingViewer && !composingMail && !invalidated && !childActive() }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
@@ -607,6 +609,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     let model: WorkingTreePatchWindowModel
     var onClosed: () -> Void = {}
     private var approvedClose = false
+    private var retired = false
     var activeOperation: Bool { model.busy || model.confirmingQuit || model.draftDecisionPending || model.previewDocument.busy || model.editor?.exporting == true || window?.attachedSheet != nil }
     init(repository: GitRepository, access: RepositoryAccessLease?, fileAccess: RepositoryAccessLease?, bytes: Data, title: String, preferences: UserDefaults = .standard, directoryMode: Bool = false, isGitWorkingTree: Bool = true, initialStripCount: Int = 1) {
         model = WorkingTreePatchWindowModel(repository: repository, access: access, fileAccess: fileAccess, bytes: bytes, preferences: preferences, directoryMode: directoryMode, isGitWorkingTree: isGitWorkingTree, initialStripCount: initialStripCount)
@@ -635,11 +638,18 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         if model.dirty { model.requestClose(); return false }
         return true
     }
-    func windowWillClose(_ notification: Notification) { onClosed() }
+    func windowWillClose(_ notification: Notification) {
+        guard !retired else { return }; retired = true; model.retire()
+        if let sheet = window?.attachedSheet { window?.endSheet(sheet, returnCode: .abort); sheet.orderOut(nil) }
+        onClosed()
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
 @MainActor final class WorkingTreePatchWindowModel: ObservableObject {
+    static private(set) var activeOperations = 0
+    private(set) var retired = false
+    private var operation: OperationCancellation?
     enum DraftChoice { case save, discard, cancel }
     let repository: GitRepository
     let directoryMode: Bool
@@ -681,9 +691,34 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     private var selectedReview: WorkingTreePatchReview?
     var close: () -> Void = {}
     var onChanged: (String) -> Void = { _ in }
+    var onMutationStopped: () -> Void = {}
     var onBusyChanged: () -> Void = {}
     var parentActive: () -> Bool = { false }
-    var editable: Bool { !busy && editor?.exporting != true && !confirmingQuit && !draftDecisionPending && !previewDocument.busy && !parentActive() }
+    var editable: Bool { !retired && !busy && editor?.exporting != true && !confirmingQuit && !draftDecisionPending && !previewDocument.busy && !parentActive() }
+    private func begin() -> OperationCancellation? {
+        guard !retired, !busy else { return nil }
+        let token = OperationCancellation(); operation = token; busy = true; Self.activeOperations += 1
+        return token
+    }
+    private func finish(_ token: OperationCancellation) {
+        Self.activeOperations -= 1
+        if operation === token {
+            operation = nil; busy = false
+            if !retired && token.isCancelled {
+                if editor?.dirty == true { notice = "Operation canceled. Draft retained; retry Save, or discard edits and refresh." }
+                else { requiresRefresh = true; notice = "Operation canceled. Refresh to check current files." }
+            }
+        }
+    }
+    private func ensure(_ token: OperationCancellation) throws {
+        guard !retired, operation === token, !token.isCancelled else { throw OperationCancellationFailure.cancelled }
+    }
+    func cancelOperation() { operation?.cancel() }
+    func retire() {
+        guard !retired else { return }; retired = true; operation?.cancel()
+        previewDocument.retire(); editor?.retireImageLoader(); editorChanges = nil
+        beforeScroll = nil; afterScroll = nil; close = {}; chooseDraft = { .cancel }; onBusyChanged = {}
+    }
     var canApply: Bool { canReplaceComparison && !requiresRefresh && selectedReview?.canApply == true && !selected.isEmpty }
     init(repository: GitRepository, access: RepositoryAccessLease?, fileAccess: RepositoryAccessLease?, bytes: Data, preferences: UserDefaults = .standard, directoryMode: Bool = false, isGitWorkingTree: Bool = true, initialStripCount: Int = 1) {
         self._stripCount = Published(initialValue: initialStripCount)
@@ -694,51 +729,57 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     }
     func setReversed(_ value: Bool) {
         guard canReplaceComparison, value != reversed else { return }
-        reversed = value; requiresRefresh = true; selectedReview = nil; comparison = nil; editor = nil; editorChanges = nil; beforeScroll = nil; afterScroll = nil; notice = "Refresh to check the changed options."
+        reversed = value; requiresRefresh = true; selectedReview = nil; comparison = nil; editor?.retireImageLoader(); editor = nil; editorChanges = nil; beforeScroll = nil; afterScroll = nil; notice = "Refresh to check the changed options."
     }
     func setStripCount(_ value: Int) {
         guard canReplaceComparison, value != stripCount else { return }
-        stripCount = value; requiresRefresh = true; selectedReview = nil; comparison = nil; editor = nil; editorChanges = nil; beforeScroll = nil; afterScroll = nil; notice = "Refresh to check the changed options."
+        stripCount = value; requiresRefresh = true; selectedReview = nil; comparison = nil; editor?.retireImageLoader(); editor = nil; editorChanges = nil; beforeScroll = nil; afterScroll = nil; notice = "Refresh to check the changed options."
     }
     private func checkAccess() throws {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     func refresh() {
-        guard canReplaceComparison else { return }; busy = true; selectedReview = nil; appliedPaths = []; comparison = nil; editor = nil; editorChanges = nil; beforeScroll = nil; afterScroll = nil
+        guard canReplaceComparison, let token = begin() else { return }; selectedReview = nil; appliedPaths = []; comparison = nil; editor?.retireImageLoader(); editor = nil; editorChanges = nil; beforeScroll = nil; afterScroll = nil
         let reverse = reversed, strip = stripCount
         Task {
-            defer { busy = false }
-            do { try checkAccess(); try await load(reverse: reverse, strip: strip) }
-            catch { review = nil; selected = []; notice = error.localizedDescription }
+            defer { finish(token) }
+            do { try checkAccess(); try await load(reverse: reverse, strip: strip, token: token) }
+            catch { if !retired && !token.isCancelled { review = nil; selected = []; notice = error.localizedDescription } }
         }
     }
-    private func load(reverse: Bool, strip: Int) async throws {
-        let next = try await repository.reviewWorkingTreePatch(bytes, reversed: reverse, stripCount: strip, directoryMode: directoryMode, isGitWorkingTree: isGitWorkingTree)
+    private func load(reverse: Bool, strip: Int, token: OperationCancellation) async throws {
+        try ensure(token)
+        let next = try await repository.reviewWorkingTreePatch(bytes, reversed: reverse, stripCount: strip, directoryMode: directoryMode, isGitWorkingTree: isGitWorkingTree, cancellation: token)
+        try ensure(token)
         review = next; requiresRefresh = false
         selected = Set(next.files.filter { !appliedPaths.contains($0.pathBytes) }.map(\.id))
-        try await validateSelection()
-        await loadComparison()
+        try await validateSelection(token)
+        await loadComparison(token)
     }
-    private func validateSelection() async throws {
+    private func validateSelection(_ token: OperationCancellation) async throws {
+        try ensure(token)
         selectedReview = nil
         guard let review, !selected.isEmpty else { notice = appliedPaths.isEmpty ? "Select files to apply." : "Selected files have been applied."; return }
-        let next = try await repository.reviewWorkingTreePatchFiles(review, fileIDs: selected)
+        let next = try await repository.reviewWorkingTreePatchFiles(review, fileIDs: selected, cancellation: token)
+        try ensure(token)
         selectedReview = next; notice = next.validationError ?? "Checked files can be applied to the working tree."
     }
     func focusFile(_ id: Int?) {
-        guard canReplaceComparison, !requiresRefresh else { return }
-        focusedFile = id; busy = true
-        Task { defer { busy = false }; await loadComparison() }
+        guard canReplaceComparison, !requiresRefresh, let token = begin() else { return }
+        focusedFile = id
+        Task { defer { finish(token) }; await loadComparison(token) }
     }
-    private func loadComparison() async {
-        comparison = nil; editor = nil; editorChanges = nil; beforeScroll = nil; afterScroll = nil; comparisonNotice = ""; difference = -1
+    private func loadComparison(_ token: OperationCancellation) async {
+        guard (try? ensure(token)) != nil else { return }
+        comparison = nil; editor?.retireImageLoader(); editor = nil; editorChanges = nil; beforeScroll = nil; afterScroll = nil; comparisonNotice = ""; difference = -1
         guard let review else { focusedFile = nil; return }
         let candidates = review.files.filter { !appliedPaths.contains($0.pathBytes) }
         guard let file = candidates.first(where: { $0.id == focusedFile }) ?? candidates.first else { focusedFile = nil; return }
         focusedFile = file.id
         do {
             try checkAccess()
-            let value = try await repository.compareWorkingTreePatchFile(review, fileID: file.id)
+            let value = try await repository.compareWorkingTreePatchFile(review, fileID: file.id, cancellation: token)
+            try ensure(token)
             comparison = value
             let nextEditor = FileComparisonWindowModel(patchComparison: value, access: access, preferences: preferences)
             nextEditor.window = window
@@ -746,7 +787,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
             nextEditor.onRegisterScroll = { [weak self] scroll, base in if base { self?.beforeScroll = scroll } else { self?.afterScroll = scroll } }
             editorChanges = nextEditor.objectWillChange.sink { [weak self] in self?.objectWillChange.send(); self?.onBusyChanged() }
             editor = nextEditor; updateParentState()
-        } catch { comparisonNotice = error.localizedDescription }
+        } catch { if !retired && !token.isCancelled { comparisonNotice = error.localizedDescription } }
     }
     func synchronizeScroll(from scroll: NSScrollView) {
         guard !synchronizingScroll else { return }
@@ -769,6 +810,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         }
     }
     func findComparison() {
+        guard editable else { return }
         guard let view = afterScroll?.documentView as? NSTextView else { return }
         view.window?.makeFirstResponder(view)
         let sender = NSMenuItem(); sender.tag = NSTextFinder.Action.showFindInterface.rawValue
@@ -789,7 +831,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     }
     private func resetComparisonDraft() {
         guard let comparison else { return }
-        editor?.resetHistory(); beforeScroll = nil; afterScroll = nil
+        editor?.resetHistory(); editor?.retireImageLoader(); beforeScroll = nil; afterScroll = nil
         let next = FileComparisonWindowModel(patchComparison: comparison, access: access, preferences: preferences)
         next.window = window
         next.onExportStateChanged = { [weak self] in self?.updateParentState(); self?.onBusyChanged() }
@@ -798,32 +840,44 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         editor = next; updateParentState(); onBusyChanged()
     }
     func saveDraft() {
-        guard canSaveDraft else { return }
-        busy = true
-        Task { _ = await performSave(alreadyBusy: true) }
+        guard canSaveDraft, let token = begin() else { return }
+        Task { defer { finish(token) }; _ = await performSave(token) }
     }
-    private func performSave(alreadyBusy: Bool = false) async -> Bool {
-        guard (alreadyBusy ? busy : !busy), let comparison, let editor, editor.canEdit(base: false) else { return false }
+    private func performSave(_ token: OperationCancellation) async -> Bool {
+        guard !retired, let comparison, let editor, editor.canEdit(base: false) else { return false }
         let text = editor.draftText(base: false), encoding = editor.encoding(base: false)
         let autoAdd = MergeEditorPreferences.load(from: preferences).autoAdd
-        busy = true; defer { busy = false }
+        var reported = false
         do {
             try checkAccess()
-            let saved = try await repository.saveWorkingTreePatchFile(comparison, text: text, encoding: encoding, autoAddNewFiles: autoAdd)
+            let saved = try await repository.saveWorkingTreePatchFile(comparison, text: text, encoding: encoding, autoAddNewFiles: autoAdd, cancellation: token)
+            onChanged(saved.output); reported = true
+            try ensure(token)
             appliedPaths.insert(Data(comparison.document.destination.path.utf8)); output += saved.output
-            editor.resetHistory(); self.editor = nil; onChanged(output)
-            try await load(reverse: reversed, strip: stripCount)
+            editor.resetHistory(); editor.retireImageLoader(); self.editor = nil
+            try await load(reverse: reversed, strip: stripCount, token: token)
             if let failure = saved.addError { notice = "Saved patched result, but Add failed: " + failure; output += notice + "\n"; return false }
             return true
-        } catch { notice = error.localizedDescription; output += notice + "\n"; return false }
+        } catch {
+            if !reported { onMutationStopped() }
+            if !retired && !token.isCancelled { notice = error.localizedDescription; output += notice + "\n" }
+            return false
+        }
     }
     func resolveDraft(discardImmediately: Bool = true) async -> Bool {
+        guard !retired else { return false }
         guard dirty else { return true }
         guard !busy, !draftDecisionPending else { return false }
-        draftDecisionPending = true; defer { draftDecisionPending = false }
-        switch await chooseDraft() {
+        draftDecisionPending = true; Self.activeOperations += 1
+        defer { draftDecisionPending = false; Self.activeOperations -= 1 }
+        let choice = await chooseDraft()
+        guard !retired else { return false }
+        switch choice {
         case .cancel: return false
-        case .save: return await performSave()
+        case .save:
+            guard let token = begin() else { return false }
+            defer { finish(token) }
+            return await performSave(token)
         case .discard:
             if discardImmediately { resetComparisonDraft() }
             return true
@@ -833,21 +887,26 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     func check(_ id: Int, _ value: Bool) {
         guard canReplaceComparison, !requiresRefresh, let file = review?.files.first(where: { $0.id == id }), !appliedPaths.contains(file.pathBytes) else { return }
         if value { selected.insert(id) } else { selected.remove(id) }
-        busy = true; selectedReview = nil
-        Task { defer { busy = false }; do { try checkAccess(); try await validateSelection() } catch { notice = error.localizedDescription } }
+        guard let token = begin() else { return }; selectedReview = nil
+        Task { defer { finish(token) }; do { try checkAccess(); try await validateSelection(token) } catch { if !retired && !token.isCancelled { notice = error.localizedDescription } } }
     }
     func apply() {
-        guard canApply, let selection = selectedReview else { return }; busy = true; selectedReview = nil
+        guard canApply, let selection = selectedReview, let token = begin() else { return }; selectedReview = nil
         let reverse = reversed, strip = stripCount
         Task {
-            defer { busy = false }
+            defer { finish(token) }
+            var reported = false
             do {
                 try checkAccess()
-                let result = try await repository.applyWorkingTreePatch(selection)
+                let result = try await repository.applyWorkingTreePatch(selection, cancellation: token)
+                onChanged(result + "\nApplied \(selection.files.count) file(s).\n"); reported = true
+                try ensure(token)
                 appliedPaths.formUnion(selection.files.map(\.pathBytes)); output += result + "\nApplied \(selection.files.count) file(s).\n"
-                onChanged(output)
-                try await load(reverse: reverse, strip: strip)
-            } catch { notice = error.localizedDescription; output += "\n" + notice + "\n" }
+                try await load(reverse: reverse, strip: strip, token: token)
+            } catch {
+                if !reported { onMutationStopped() }
+                if !retired && !token.isCancelled { notice = error.localizedDescription; output += "\n" + notice + "\n" }
+            }
         }
     }
 }
@@ -884,7 +943,7 @@ struct WorkingTreePatchDialog: View {
             Text(model.notice).foregroundStyle(model.canApply ? Color.secondary : Color.orange).textSelection(.enabled)
             if !model.output.isEmpty { DisclosureGroup("Output") { OutputView(text: model.output, usesLogFont: true).frame(height: 100) } }
             HStack {
-                if model.busy { ProgressView().controlSize(.small); Text("Checking patch…") }
+                if model.busy { ProgressView().controlSize(.small); Text("Processing patch…"); Button("Cancel operation", action: model.cancelOperation) }
                 Text("Only checked files will be applied.").foregroundStyle(.secondary)
                 Spacer(); Button("Apply selected") { model.apply() }.disabled(!model.canApply)
                 Button("Close") { model.requestClose() }.disabled(!model.editable)

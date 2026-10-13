@@ -399,3 +399,26 @@ the standalone app/Finder route and ordinary-folder/nested-folder support to
 this existing review/editor. It retains separate `git am` serial import and its
 working-repository requirement. Earlier dated constraints remain historical
 records; the new audit lists the current implementation and remaining gates.
+
+## Review operation ownership continuation — 2026-10-13
+
+Single-patch Review now owns cancellation across metadata, checked-file
+validation, disposable comparison generation, cached input checks, edited Save
+and Apply. Busy work exposes Cancel operation; closing a busy window normally
+waits, while forced closure retires its token and fences late UI publication.
+Global operation counts keep Quit blocked until real cleanup, including draft
+prompts and pane export choices whose windows were closed. Late Save/discard or
+export destination replies cannot publish writes after retirement.
+
+Canceled edited saves retain their draft and permit a checked retry. Apply/read
+cancellation requires refresh before reusing the plan. Mutations that returned
+success notify the captured owner even if UI retirement followed; unsuccessful
+or canceled mutation attempts refresh that owner without claiming success.
+Cancel is not rollback: changes already written may remain, and an optional Add
+may be incomplete. The grouped 22-test Core check and six native cases passed across system and
+bundled Git. The tests held review/selection/comparison/Apply/Save commands,
+reaped their owned processes, and verified forced closure, draft retry, late
+prompt/export fencing and global Quit ownership. The final compiler compatibility
+rewrite passed the four affected partial-file tests and Debug compilation. See
+[dated QA](qa/review-lifecycle-2026-10-13.json). Physical/signed acceptance and
+older hosted compiler confirmation remain open.

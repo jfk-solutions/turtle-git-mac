@@ -993,7 +993,17 @@ import TurtleGitCore
     }
     private func presentReview(_ workflow: ReviewPatchWorkflow) {
         let id = UUID(); reviewPatchWorkflows[id] = workflow
-        workflow.presentation = reviewPatchPresentation
+        workflow.presentation = { [weak self] controller in
+            let root = controller.model.repository.root
+            let refresh: () -> Void = { [weak self] in
+                self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.refreshRepositoryLogs(root)
+                if self?.root == root { Task { await self?.refresh() } }
+            }
+            controller.model.onMutationStopped = refresh
+            controller.model.onChanged = { [weak self] output in refresh(); if self?.root == root { self?.output = output } }
+            if let presentation = self?.reviewPatchPresentation { presentation(controller) }
+            else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
+        }
         workflow.onFinished = { [weak self] in self?.reviewPatchWorkflows.removeValue(forKey: id) }
         if let reviewPatchPreparation { reviewPatchPreparation(workflow) }
         else { workflow.showWindow(nil); workflow.window?.makeKeyAndOrderFront(nil) }
@@ -1575,6 +1585,10 @@ import TurtleGitCore
     private func showImportPatch(repository: GitRepository, access: RepositoryAccessLease?, paths: [String]) {
         let key = repository.root.path
         let controller = importPatchWindows[key] ?? ImportPatchWindowController(repository: repository, access: access)
+        controller.model.onMutationStopped = { [weak self] in
+            self?.statusWindows[key]?.model.reload(); self?.commitWindows[key]?.model.reload()
+            if self?.root?.path == key { Task { await self?.refresh() } }
+        }
         controller.onClosed = { [weak self] in self?.importPatchWindows.removeValue(forKey: key) }
         controller.model.onChanged = { [weak self] output in
             self?.statusWindows[key]?.model.reload()

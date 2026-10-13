@@ -1,0 +1,60 @@
+{
+  "date": "2026-10-13",
+  "scope": [
+    "Review/check/compare/Apply/edited Save cancellation across every Git command",
+    "Retired window token/publication fences and owned preview retirement",
+    "Retained canceled-save drafts with stale-checked retry",
+    "Draft and pane-export replies fenced after close; queued exports cannot open late choosers",
+    "Global operation/Quit accounting through closed-window cleanup",
+    "Captured owner refresh on success and unsuccessful mutation settlement",
+    "Older Swift compiler compatibility for untracked patch argument construction"
+  ],
+  "validation": {
+    "core": {
+      "exit": 0,
+      "tests": 22,
+      "log": "build/qa/review-lifecycle-core-2026-10-13.log",
+      "coverage": "Five held backend command checkpoints, owned process reaping, HEAD/index/worktree preservation, existing binary/rename/directory/edit-save review cases."
+    },
+    "native": {
+      "exit": 0,
+      "cases": 6,
+      "families": [
+        "patch-review-lifecycle",
+        "partial-patch",
+        "comparison"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "log": "build/qa/review-lifecycle-native-2026-10-13.log",
+      "coverage": "User-cancel and forced-close review/Apply/Save; retained draft retry; stopped-only mutation callback; late Save and export replies; pre-start export retirement; global Quit and balanced counters. No installed app activation."
+    },
+    "compatibility_regression": {
+      "exit": 0,
+      "tests": 4,
+      "log": "build/qa/review-lifecycle-compatibility-2026-10-13.log",
+      "note": "Only affected partial-file group repeated after explicit argument/Data append rewrite."
+    },
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/review-lifecycle-compatibility-build-2026-10-13.log",
+      "note": "Existing warnings and Xcode 27 exit-zero/no-output compiler diagnostics were present. Native checks exercised lifecycle behavior before the final equivalent argument-building compatibility rewrite."
+    }
+  },
+  "ci_trigger": {
+    "run": 38370557500,
+    "job": 115206541846,
+    "failure": "Older Swift compiler could not type-check GitPatch.patchData concatenation and reported a cascading Data += AttributedStringProtocol error. Replaced concatenation with typed incremental array construction and Data.append."
+  },
+  "appstore_rebuilt": false,
+  "ownership": "All six receivers reaped; tests used private repositories/preferences and owned helper groups. No user Keychain or installed Finder activation.",
+  "pending": [
+    "Current hosted older-SDK acceptance",
+    "Physical native menu/keyboard/theme/accessibility and signed sandbox acceptance",
+    "Cancellation after actual filesystem publication/optional Add and all I/O races",
+    "Remaining patch conflict/hunk/line application and full source layout parity"
+  ],
+  "full_port_certified": false
+}

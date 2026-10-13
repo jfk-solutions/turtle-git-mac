@@ -148,14 +148,24 @@ extension GitRepository {
     /// Unified viewers receive original bytes; partial staging still requires UTF-8.
     public func patchData(paths: [String], staged: Bool, base: String? = nil, cancellation: OperationCancellation? = nil, includeUntracked: Bool = false) throws -> Data {
         let options = ["--no-ext-diff", "--no-color", "--no-textconv", "--unified=3", "--src-prefix=a/", "--dst-prefix=b/"]
-        let args = ["diff"] + options + (staged ? ["--cached"] + (base.map { [$0] } ?? []) : []) + ["--"] + paths
+        var args = ["diff"]
+        args.append(contentsOf: options)
+        if staged {
+            args.append("--cached")
+            if let base { args.append(base) }
+        }
+        args.append("--"); args.append(contentsOf: paths)
         var bytes = try run(args, environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation).stdout
         if includeUntracked && !staged && !paths.isEmpty {
             let names = try run(["ls-files", "--others", "--exclude-standard", "-z", "--"] + paths, environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation).stdout
             for raw in names.split(separator: 0) {
                 try cancellation?.check()
                 guard let path = String(data: raw, encoding: .utf8) else { throw PatchFailure.encoding }
-                bytes += try run(["diff", "--no-index"] + options + ["--", "/dev/null", path], environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], successfulExitCodes: 0...1, cancellation: cancellation).stdout
+                var untrackedArguments = ["diff", "--no-index"]
+                untrackedArguments.append(contentsOf: options)
+                untrackedArguments.append(contentsOf: ["--", "/dev/null", path])
+                let addition: Data = try run(untrackedArguments, environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], successfulExitCodes: 0...1, cancellation: cancellation).stdout
+                bytes.append(addition)
             }
         }
         return bytes
@@ -214,11 +224,13 @@ public enum WorkingTreePatchFailure: LocalizedError {
 }
 
 extension GitRepository {
-    public func reviewWorkingTreePatch(_ bytes: Data, reversed: Bool = false, stripCount: Int = 1, directoryMode: Bool = false, isGitWorkingTree: Bool = true) throws -> WorkingTreePatchReview {
-        try reviewWorkingTreePatch(bytes, reversed: reversed, stripCount: stripCount, includePatterns: [], directoryMode: directoryMode, isGitWorkingTree: isGitWorkingTree)
+    public func reviewWorkingTreePatch(_ bytes: Data, reversed: Bool = false, stripCount: Int = 1, directoryMode: Bool = false, isGitWorkingTree: Bool = true, cancellation: OperationCancellation? = nil) throws -> WorkingTreePatchReview {
+        try cancellation?.check()
+        return try reviewWorkingTreePatch(bytes, reversed: reversed, stripCount: stripCount, includePatterns: [], directoryMode: directoryMode, isGitWorkingTree: isGitWorkingTree, cancellation: cancellation)
     }
     /// A failed whole-patch check does not prevent reviewing an applicable subset.
-    public func reviewWorkingTreePatchFiles(_ review: WorkingTreePatchReview, fileIDs: Set<Int>) throws -> WorkingTreePatchReview {
+    public func reviewWorkingTreePatchFiles(_ review: WorkingTreePatchReview, fileIDs: Set<Int>, cancellation: OperationCancellation? = nil) throws -> WorkingTreePatchReview {
+        try cancellation?.check()
         guard review.repositoryRoot == root else { throw WorkingTreePatchFailure.review }
         let selected = review.files.filter { fileIDs.contains($0.id) }
         guard !selected.isEmpty, selected.count == fileIDs.count else { throw WorkingTreePatchFailure.selection }
@@ -230,13 +242,14 @@ extension GitRepository {
             guard let path = String(data: file.pathBytes, encoding: .utf8) else { throw WorkingTreePatchFailure.pathEncoding }
             return path.map { "*?[]\\".contains($0) ? "\\" + String($0) : String($0) }.joined()
         }
-        let filtered = try reviewWorkingTreePatch(review.document.bytes, reversed: review.reversed, stripCount: review.stripCount, includePatterns: patterns, directoryMode: review.directoryMode, isGitWorkingTree: review.isGitWorkingTree)
+        let filtered = try reviewWorkingTreePatch(review.document.bytes, reversed: review.reversed, stripCount: review.stripCount, includePatterns: patterns, directoryMode: review.directoryMode, isGitWorkingTree: review.isGitWorkingTree, cancellation: cancellation)
         guard filtered.files.count == selected.count, Set(filtered.files.map(\.pathBytes)) == paths else { throw WorkingTreePatchFailure.selection }
         return filtered
     }
-    private func reviewWorkingTreePatch(_ bytes: Data, reversed: Bool, stripCount: Int, includePatterns: [String], directoryMode: Bool, isGitWorkingTree: Bool) throws -> WorkingTreePatchReview {
+    private func reviewWorkingTreePatch(_ bytes: Data, reversed: Bool, stripCount: Int, includePatterns: [String], directoryMode: Bool, isGitWorkingTree: Bool, cancellation: OperationCancellation?) throws -> WorkingTreePatchReview {
+        try cancellation?.check()
         guard stripCount >= 0 else { throw WorkingTreePatchFailure.stripCount }
-        return try withPatchTarget(bytes, directoryMode: directoryMode, isGitWorkingTree: isGitWorkingTree) { file, execute in
+        return try withPatchTarget(bytes, directoryMode: directoryMode, isGitWorkingTree: isGitWorkingTree, cancellation: cancellation) { file, execute in
             let arguments = ["apply", "-p\(stripCount)"] + (reversed ? ["--reverse"] : []) + includePatterns.map { "--include=" + $0 }
             let statistics = try execute(arguments + ["--stat", "--", file.path]).text
             let summary = try execute(arguments + ["--summary", "--", file.path]).text
@@ -247,9 +260,10 @@ extension GitRepository {
             return WorkingTreePatchReview(files: files, document: UnifiedDiffDocument(bytes: bytes), statistics: statistics, summary: summary, validationError: failure, isGitWorkingTree: isGitWorkingTree, directoryMode: directoryMode, repositoryRoot: root, reversed: reversed, stripCount: stripCount, includePatterns: includePatterns)
         }
     }
-    public func applyWorkingTreePatch(_ review: WorkingTreePatchReview) throws -> String {
+    public func applyWorkingTreePatch(_ review: WorkingTreePatchReview, cancellation: OperationCancellation? = nil) throws -> String {
+        try cancellation?.check()
         guard review.repositoryRoot == root, review.canApply else { throw WorkingTreePatchFailure.review }
-        return try withPatchTarget(review.document.bytes, directoryMode: review.directoryMode, isGitWorkingTree: review.isGitWorkingTree) { file, execute in
+        return try withPatchTarget(review.document.bytes, directoryMode: review.directoryMode, isGitWorkingTree: review.isGitWorkingTree, cancellation: cancellation) { file, execute in
             let arguments = ["apply", "-p\(review.stripCount)"] + (review.reversed ? ["--reverse"] : []) + review.includePatterns.map { "--include=" + $0 }
             // Revalidate against current files, then let Git validate again when
             // applying. No --index/--cached/--reject or unsafe-path override.
@@ -322,11 +336,12 @@ public struct WorkingTreePatchFileComparison: Sendable {
 }
 
 extension GitRepository {
-    public func compareWorkingTreePatchFile(_ review: WorkingTreePatchReview, fileID: Int) throws -> WorkingTreePatchFileComparison {
+    public func compareWorkingTreePatchFile(_ review: WorkingTreePatchReview, fileID: Int, cancellation: OperationCancellation? = nil) throws -> WorkingTreePatchFileComparison {
+        try cancellation?.check()
         guard review.repositoryRoot == root, review.includePatterns.isEmpty,
               let file = review.files.first(where: { $0.id == fileID }) else { throw WorkingTreePatchFailure.selection }
         let matching = review.files.filter { $0.pathBytes == file.pathBytes }
-        let selected = try reviewWorkingTreePatchFiles(review, fileIDs: Set(matching.map(\.id)))
+        let selected = try reviewWorkingTreePatchFiles(review, fileIDs: Set(matching.map(\.id)), cancellation: cancellation)
         guard selected.canApply else { throw WorkingTreePatchFailure.review }
         return try withPatchTarget(review.document.bytes, directoryMode: review.directoryMode, isGitWorkingTree: review.isGitWorkingTree) { patch, execute in
             // Opposite-direction numstat names the preimage of each record,
@@ -369,6 +384,7 @@ extension GitRepository {
             var before: ComparisonFileContent?
             var inputs: [String: ComparisonFileContent] = [:]
             for name in paths {
+                try cancellation?.check()
                 let location = try restoreLocation(name), value = try read(location, path: name, anchor: root)
                 inputs[name] = value
                 if name == source { before = value }
@@ -386,18 +402,19 @@ extension GitRepository {
             let gitDirectory = temporary.appendingPathComponent(".git").path
             let environment = ["GIT_DIR": gitDirectory, "GIT_COMMON_DIR": gitDirectory, "GIT_WORK_TREE": temporary.path, "GIT_INDEX_FILE": temporary.appendingPathComponent(".git/index").path]
             let location = ["-C", temporary.path, "--git-dir=" + gitDirectory, "--work-tree=" + temporary.path]
-            let format = review.isGitWorkingTree ? try run(["rev-parse", "--show-object-format"]).text.trimmingCharacters(in: .newlines) : "sha1"
-            _ = try run(location + ["init", "--template=", "--object-format=" + format], environmentOverrides: environment)
+            let format = review.isGitWorkingTree ? try run(["rev-parse", "--show-object-format"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) : "sha1"
+            _ = try run(location + ["init", "--template=", "--object-format=" + format], environmentOverrides: environment, cancellation: cancellation)
             // Match repository-local apply policy, including whitespace fixing.
             var configuration: [String] = []
             for key in ["apply.whitespace", "apply.ignoreWhitespace", "core.whitespace"] {
-                let value = try run(["config"] + (review.isGitWorkingTree ? [] : ["--global"]) + ["--get", key], successfulExitCodes: 0...1)
+                let value = try run(["config"] + (review.isGitWorkingTree ? [] : ["--global"]) + ["--get", key], successfulExitCodes: 0...1, cancellation: cancellation)
                 if value.exitCode == 0 { configuration += ["-c", key + "=" + value.text.trimmingCharacters(in: .newlines)] }
             }
             let arguments = location + configuration + ["apply", "-p\(review.stripCount)"] + (review.reversed ? ["--reverse"] : []) + selected.includePatterns.map { "--include=" + $0 }
-            _ = try run(arguments + ["--check", "--", patch.path], environmentOverrides: environment)
-            _ = try run(arguments + ["--", patch.path], environmentOverrides: environment)
+            _ = try run(arguments + ["--check", "--", patch.path], environmentOverrides: environment, cancellation: cancellation)
+            _ = try run(arguments + ["--", patch.path], environmentOverrides: environment, cancellation: cancellation)
             guard let before else { throw WorkingTreePatchFailure.metadata }
+            try cancellation?.check()
             let outputs = try Dictionary(uniqueKeysWithValues: paths.map { ($0, try read(temporary.appendingPathComponent($0), path: $0, anchor: temporary)) })
             return WorkingTreePatchFileComparison(document: FileComparisonDocument(base: before, destination: outputs[destination]!), fileID: fileID, review: selected, inputs: inputs, outputs: outputs)
         }
@@ -412,12 +429,14 @@ public struct WorkingTreePatchSaveResult: Sendable {
 }
 
 extension GitRepository {
-    public func saveWorkingTreePatchFile(_ comparison: WorkingTreePatchFileComparison, text: String, encoding: ComparisonTextEncoding? = nil, autoAddNewFiles: Bool = true) throws -> WorkingTreePatchSaveResult {
+    public func saveWorkingTreePatchFile(_ comparison: WorkingTreePatchFileComparison, text: String, encoding: ComparisonTextEncoding? = nil, autoAddNewFiles: Bool = true, cancellation: OperationCancellation? = nil) throws -> WorkingTreePatchSaveResult {
+        try cancellation?.check()
         let destination = comparison.document.destination
         guard comparison.review.repositoryRoot == root, ["100644", "100755"].contains(destination.mode ?? "") else { throw FileComparisonEditFailure.unsupported }
         let bytes = try FileComparisonEditing.encoded(text, like: destination, encoding: encoding)
         func validateInputs() throws {
             for (path, expected) in comparison.inputs {
+                try cancellation?.check()
                 let location = try restoreLocation(path)
                 var parent = location.deletingLastPathComponent()
                 while parent.path != root.path {
@@ -440,28 +459,29 @@ extension GitRepository {
         let gitDirectory = temporary.appendingPathComponent(".git").path
         let environment = ["GIT_DIR": gitDirectory, "GIT_COMMON_DIR": gitDirectory, "GIT_WORK_TREE": temporary.path, "GIT_INDEX_FILE": gitDirectory + "/index", "GIT_OBJECT_DIRECTORY": gitDirectory + "/objects", "GIT_ALTERNATE_OBJECT_DIRECTORIES": ""]
         let location = ["-C", temporary.path, "--git-dir=" + gitDirectory, "--work-tree=" + temporary.path]
-        let format = comparison.review.isGitWorkingTree ? try run(["rev-parse", "--show-object-format"]).text.trimmingCharacters(in: .newlines) : "sha1"
-        _ = try run(location + ["init", "--template=", "--object-format=" + format], environmentOverrides: environment)
+        let format = comparison.review.isGitWorkingTree ? try run(["rev-parse", "--show-object-format"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) : "sha1"
+        _ = try run(location + ["init", "--template=", "--object-format=" + format], environmentOverrides: environment, cancellation: cancellation)
         func tree(_ contents: [String: ComparisonFileContent]) throws -> String {
-            _ = try run(location + ["read-tree", "--empty"], environmentOverrides: environment)
+            _ = try run(location + ["read-tree", "--empty"], environmentOverrides: environment, cancellation: cancellation)
             for (path, content) in contents.sorted(by: { $0.key < $1.key }) {
+                try cancellation?.check()
                 guard let mode = content.mode else { continue }
                 let payload = temporary.appendingPathComponent("payload")
                 try content.bytes.write(to: payload, options: .atomic)
-                let object = try run(location + ["hash-object", "-w", "--no-filters", "--", payload.path], environmentOverrides: environment).text.trimmingCharacters(in: .newlines)
-                _ = try run(location + ["update-index", "--add", "--cacheinfo", mode + "," + object + "," + path], environmentOverrides: environment)
+                let object = try run(location + ["hash-object", "-w", "--no-filters", "--", payload.path], environmentOverrides: environment, cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+                _ = try run(location + ["update-index", "--add", "--cacheinfo", mode + "," + object + "," + path], environmentOverrides: environment, cancellation: cancellation)
             }
-            return try run(location + ["write-tree"], environmentOverrides: environment).text.trimmingCharacters(in: .newlines)
+            return try run(location + ["write-tree"], environmentOverrides: environment, cancellation: cancellation).text.trimmingCharacters(in: .newlines)
         }
         var outputs = comparison.outputs
         // PatchSave removes zero-line results, including proposed new files.
         outputs[destination.path] = ComparisonFileContent(path: destination.path, revision: .workingTree, bytes: text.isEmpty ? Data() : bytes, mode: text.isEmpty ? nil : destination.mode, permissions: destination.permissions)
         let before = try tree(comparison.inputs), after = try tree(outputs)
-        let patch = try run(location + ["diff", "--binary", "--full-index", "--no-ext-diff", "--no-textconv", "--no-color", "--no-renames", before, after], environmentOverrides: environment).stdout
+        let patch = try run(location + ["diff", "--binary", "--full-index", "--no-ext-diff", "--no-textconv", "--no-color", "--no-renames", before, after], environmentOverrides: environment, cancellation: cancellation).stdout
         try validateInputs()
         var output = "Saved patched result.\n"
         if !patch.isEmpty {
-            output += try withPatchTarget(patch, directoryMode: comparison.review.directoryMode, isGitWorkingTree: comparison.review.isGitWorkingTree) { file, execute in
+            output += try withPatchTarget(patch, directoryMode: comparison.review.directoryMode, isGitWorkingTree: comparison.review.isGitWorkingTree, cancellation: cancellation) { file, execute in
                 // Save edited bytes exactly; repository whitespace-fix policy was
                 // already reflected in the initial patched preview.
                 let arguments = ["apply", "--whitespace=nowarn"]
@@ -472,7 +492,7 @@ extension GitRepository {
         }
         var addError: String?
         if autoAddNewFiles, comparison.review.isGitWorkingTree, comparison.inputs[destination.path]?.mode == nil, !text.isEmpty {
-            do { _ = try stage([destination.path]); output += "Added \(destination.path) to Git.\n" }
+            do { _ = try stage([destination.path], cancellation: cancellation); output += "Added \(destination.path) to Git.\n" }
             catch { addError = error.localizedDescription }
         }
         return WorkingTreePatchSaveResult(output: output, addError: addError)
