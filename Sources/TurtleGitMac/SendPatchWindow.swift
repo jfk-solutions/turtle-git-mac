@@ -669,8 +669,12 @@ enum SendPatchSMTPDelivery {
             }
             let authentication: SMTPAuthentication?
             if request.delivery.authenticate {
-                guard let pair = try await credentials.credentials() else { throw SendPatchSMTPDeliveryFailure.credentials }
+                let captured = try await credentials.credentials()
+                // Cancellation wins over a missing-secret result once the awaited
+                // credential capture returns; never report that boundary as a
+                // retryable authentication setup error.
                 try check()
+                guard let pair = captured else { throw SendPatchSMTPDeliveryFailure.credentials }
                 authentication = SMTPAuthentication(login: pair.login, password: pair.password)
                 try PatchMailSMTP.validate(server: server, authentication: authentication)
             } else { authentication = nil }

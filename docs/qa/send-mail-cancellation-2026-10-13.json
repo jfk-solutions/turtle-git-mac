@@ -1,0 +1,60 @@
+{
+  "date": "2026-10-13",
+  "scope": [
+    "Cancelled credential read takes precedence over nil-secret setup errors",
+    "Deterministic held credential boundary for token/task cancellation and present/missing credentials",
+    "Transport-call count assertions at each cancelled boundary",
+    "Bounded injected-failure settlement",
+    "Current Send Mail documentation and retained historical checkpoints"
+  ],
+  "source_reference": {
+    "baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "files": [
+      "src/TortoiseProc/SendMail.cpp",
+      "src/TortoiseProc/SendMailDlg.cpp"
+    ],
+    "notes": "SendMail checks cancellation before retries/submission; macOS asynchronous credential capture adds an awaited cancellation boundary."
+  },
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/send-mail-cancellation-build-2026-10-13.log"
+    },
+    "native": {
+      "exit": 0,
+      "log": "build/qa/send-mail-cancellation-native-2026-10-13.log",
+      "focus": "LFS and Send Mail grouped receiver; other Merge/daemon cases excluded by --lfs-mail-only",
+      "credential_boundary_cases": 4,
+      "owned_processes_reaped": [
+        38293,
+        38307,
+        38762
+      ],
+      "all_independently_absent": true,
+      "notes": "Private repositories/preferences/clipboard, injected credentials and transport, actual owned loopback SMTP. Existing unsigned bookmark sandbox-consume diagnostics are not signed acceptance."
+    },
+    "core": "Not repeated: delivery orchestration lives in the native target and is exercised by the grouped native receiver.",
+    "appstore": "Not repeated: no target, entitlement or packaging changes.",
+    "website": {
+      "exit": 0,
+      "log": "build/qa/send-mail-cancellation-site-2026-10-13.log"
+    }
+  },
+  "hosted_ci": {
+    "failure_run": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38326176460",
+    "job": 115070734786,
+    "failure": "Cancelled credential capture submitted",
+    "old_fixture_assumption": "Cancel after 40 ms while credentials sleep 150 ms; main actor scheduling can resume cancellation after submission.",
+    "full_new_sha_result": "Unverified; active/pending hosted runs predate this change."
+  },
+  "limits": [
+    "No real Keychain, public mail server, Apple Mail, physical Finder or signed App Store acceptance",
+    "Complete Send Mail and other-dialog visual/usability parity remains open"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitMac/SendPatchWindow.swift": "619c8d17d8f8925e90c83fc4f943a1c4dd08670834a1f1fa1eea9c7c6824bbaa",
+    "docs/qa/send-patch-dialog-native-2026-10-10.swift": "5b9412d1a75163aa534cf9f6437d4dc4fe53a892d80f02615beaa7143fc8e542",
+    "docs/SEND-PATCH-PARITY.md": "9e73190fee8cdc58d58beeadfd4814f22f4d26426460c97f15568b0c2812df43",
+    "docs/history/SEND-PATCH-PARITY-CHECKPOINTS.md": "ce74de31a437dfc745bc4fca5802f3289abceef663e7fafc84f4888ce0f08498"
+  }
+}

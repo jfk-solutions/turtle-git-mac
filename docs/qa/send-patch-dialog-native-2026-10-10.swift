@@ -12,12 +12,15 @@ private actor PrivateSMTPStore: SMTPCredentialStore {
 private actor DeliveryCredentials: SMTPTransportCredentialSource {
     var reads = 0
     var missing = false
-    var delayed = false
-    func configure(missing: Bool = false, delayed: Bool = false) { self.missing = missing; self.delayed = delayed }
+    var blocked = false
+    private var pending:CheckedContinuation<Void,Never>?
+    func configure(missing: Bool = false, blocked: Bool = false) { self.missing = missing; self.blocked = blocked }
+    func waiting() -> Bool { pending != nil }
+    func release() { let value=pending;pending=nil;blocked=false;value?.resume() }
     func count() -> Int { reads }
     func credentials() async throws -> SMTPLoginSecret? {
         reads += 1
-        if delayed { try await Task.sleep(nanoseconds: 150_000_000) }
+        if blocked { await withCheckedContinuation { pending=$0 } }
         return missing ? nil : SMTPLoginSecret(login: "fixture-login", password: "fixture-secret")
     }
 }
@@ -388,14 +391,28 @@ private actor MailDraftProbe {
             _ = try await SendPatchSMTPDelivery.send(captured, credentials: credentialSource, cancellation: OperationCancellation(), onProgress: { _ in }, sender: senderSource, transport: submit)
             throw VerificationFailure(description: "Missing authenticated credentials accepted")
         } catch SendPatchSMTPDeliveryFailure.credentials { }
-        await credentialSource.configure(delayed: true)
-        let cancelledToken = OperationCancellation()
-        let cancelledDelivery = Task {
-            try await SendPatchSMTPDelivery.send(captured, credentials: credentialSource, cancellation: cancelledToken, onProgress: { _ in }, sender: senderSource, transport: submit)
+        // Hold the awaited boundary explicitly. Wall-clock sleeps do not prove
+        // capture is still in flight on a loaded hosted runner.
+        for (missing,taskCancellation) in [(false,false),(true,false),(false,true),(true,true)] {
+            await credentialSource.configure(missing:missing,blocked:true)
+            let cancelledToken=OperationCancellation(),beforeCalls=await probe.state().0
+            let cancelledDelivery=Task {
+                try await SendPatchSMTPDelivery.send(captured,credentials:credentialSource,cancellation:cancelledToken,onProgress:{ _ in },sender:senderSource,transport:submit)
+            }
+            var entered=false
+            for _ in 0..<2000 {
+                if await credentialSource.waiting() { entered=true;break }
+                try await Task.sleep(nanoseconds:10_000_000)
+            }
+            if taskCancellation { cancelledDelivery.cancel() } else { cancelledToken.cancel() }
+            await credentialSource.release()
+            do { _ = try await cancelledDelivery.value;throw VerificationFailure(description:"Cancelled credential capture submitted") }
+            catch is OperationCancellationFailure {}
+            try require(entered,"Credential capture never reached the held boundary")
+            let afterCalls=await probe.state().0
+            try require(beforeCalls==afterCalls,"Cancelled credentials reached SMTP submission")
         }
-        try await Task.sleep(nanoseconds: 40_000_000); cancelledToken.cancel()
-        do { _ = try await cancelledDelivery.value; throw VerificationFailure(description: "Cancelled credential capture submitted") }
-        catch is OperationCancellationFailure { }
+        await credentialSource.configure()
         captureConfiguration.port = 70_000
         let invalidServer = SendPatchRequest(files: captured.files, options: captured.options, messages: captured.messages, delivery: captureConfiguration)
         let beforeInvalid = await credentialSource.count()
@@ -733,7 +750,9 @@ private actor MailDraftProbe {
         })
         prefs.set(false, forKey: "UseSystemLocaleForDates"); prefs.set(false, forKey: "ShowGitexeTimings")
         failed.start(); failed.start()
-        while failed.busy { try await Task.sleep(nanoseconds: 10_000_000) }
+        let failedDeadline=Date().addingTimeInterval(10)
+        while failed.busy && Date()<failedDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        try require(!failed.busy,"Injected failure did not settle")
         try require(failed.notifications.last?.path.contains(" ms @ ") == true && failed.notifications.last?.path.range(of: #"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}"#, options: .regularExpression) != nil, "List finish row always has timings and respects fixed-date preference")
         prefs.removeObject(forKey: "UseSystemLocaleForDates"); prefs.removeObject(forKey: "ShowGitexeTimings")
         try require(!failed.success && !failed.cancelled && failed.accepted == 1 && failed.percentage == 50, "Partial acceptance and uncertain delivery remain failures")
