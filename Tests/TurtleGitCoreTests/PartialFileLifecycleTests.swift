@@ -82,7 +82,7 @@ final class PartialFileLifecycleTests: XCTestCase {
         let before = try Data(contentsOf: root.appendingPathComponent(".git/index"))
         do { try await repo.applyPatchSelection(patch, paths: [path], staged: false, lines: Set(patch.files[0].hunks.map(\.header)), entireHunks: true); XCTFail("Stale untracked snapshot accepted") } catch PatchFailure.changed {}
         XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), before)
-        for header in ["new file mode 120000", "index abc..def 120000", "old mode 100644\nnew mode 100755", "rename from x\nrename to y", "GIT binary patch"] {
+        for header in ["new file mode 120000", "index abc..def 120000", "old mode 100644\nnew mode 120000", "copy from x\ncopy to y", "GIT binary patch"] {
             let document = GitPatch(text: "diff --git a/x b/x\n" + header + "\n--- /dev/null\n+++ b/x\n@@ -0,0 +1 @@\n+line\n")
             XCTAssertFalse(document.files[0].supportsPartialChanges)
         }

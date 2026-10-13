@@ -54,7 +54,11 @@ Partial staging opens an attached patch window to the right of Commit. Select
 lines or hunks to stage or unstage. It changes the index while preserving
 working-tree contents; a stale patch is rejected. Partial operations support modified, added and deleted regular UTF-8 text files.
 Selected untracked files can be previewed without first adding them to the index.
-Renames, binary files, symlinks and mode changes require whole-file staging; see the [Commit audit](COMMIT-PARITY.md) for exact limits.
+Renames and executable-bit changes that include text hunks are applied together
+with the selected text, as shown by the patch header. Unstaging a rename hunk
+can move the index entry back to its original path while leaving working files
+unchanged. Pure metadata changes, copies, binary files and symlinks require
+whole-file staging; see the [Commit audit](COMMIT-PARITY.md) for exact limits.
 
 ## Inspect history and differences
 

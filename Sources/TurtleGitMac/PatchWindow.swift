@@ -187,7 +187,8 @@ import UniformTypeIdentifiers
         if paths.isEmpty { return "Select files in the Commit window to see their patch." }
         if readOnly { return document.text.isEmpty ? "No patch for the selected files." : "Select files in the Commit window to compare their contents." }
         if document.text.isEmpty { return "No selectable text changes in this view." }
-        if document.files.contains(where: { !$0.supportsPartialChanges }) { return "Some files require whole-file staging: renamed, binary, symlink or mode changes." }
+        if document.files.contains(where: { !$0.supportsPartialChanges }) { return "Binary, symlink, copied files and metadata-only changes require whole-file staging." }
+        if document.files.contains(where: { $0.hasSelectedTextMetadata }) { return "Rename and file mode changes are applied with the selected text. Right-click for staging actions." }
         return "Select changed lines, or place the caret in a hunk. Right-click for staging actions."
     }
     func reload(paths: [String], staged: Bool) {

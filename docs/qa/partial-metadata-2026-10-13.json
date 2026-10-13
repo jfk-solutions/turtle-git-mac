@@ -1,0 +1,59 @@
+{
+  "date": "2026-10-13",
+  "source": {
+    "baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "references": [
+      "src/TortoiseProc/StagingOperations.cpp:FindFileHeaderBackwardsFrom/CreatePatchBufferToStageOrUnstageSelectedHunks/CreatePatchBufferToStageOrUnstageSelectedLines"
+    ],
+    "behavior": "Regular rename/mode header metadata travels with selected text and is reversed on partial unstaging."
+  },
+  "scope": [
+    "Regular renamed-file text hunk staging/unstaging eligibility",
+    "Executable-bit metadata with selected text",
+    "Explicit native pane metadata consequence notice",
+    "Pure metadata/nonregular/copy/binary exclusions preserved"
+  ],
+  "validation": {
+    "core": {
+      "exit": 0,
+      "tests": 15,
+      "log": "build/qa/partial-metadata-core-2026-10-13.log",
+      "coverage": [
+        "Selected mode/text stage and reverse hunk with other staged text retained",
+        "Index-only reverse rename with Unicode/newline paths and working paths preserved",
+        "Metadata-only and nonregular mode guards",
+        "Existing added/deleted/untracked/intent-to-add and partial patch cases"
+      ]
+    },
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/partial-metadata-debug-2026-10-13.log",
+      "note": "Existing Xcode 27 warnings/exit-zero diagnostic noise was present."
+    },
+    "native": {
+      "exit": 0,
+      "cases": 6,
+      "families": [
+        "partial-patch",
+        "commit-progress",
+        "comparison"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "log": "build/qa/partial-metadata-native-2026-10-13.log",
+      "coverage": "Actual attached model metadata notice, executable/text line stage, renamed hunk unstage, working path/byte preservation plus existing Commit progress/comparison ownership.",
+      "ownership": "All six receivers reaped; no installed application or Finder activation."
+    }
+  },
+  "appstore_rebuilt": false,
+  "pending": [
+    "Current hosted older-SDK CI completion",
+    "Physical keyboard/theme/accessibility and visual acceptance",
+    "Copy metadata partial actions",
+    "Pure metadata operations still require whole-file controls",
+    "Full Commit/TortoiseGit parity and signed App Store execution"
+  ],
+  "full_port_certified": false
+}

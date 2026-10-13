@@ -13,11 +13,15 @@ public struct GitPatch: Sendable {
     public struct File: Sendable {
         public let header: [String]
         public let hunks: [Hunk]
+        public var hasSelectedTextMetadata: Bool {
+            header.contains { $0.hasPrefix("rename from ") || $0.hasPrefix("old mode ") || $0.hasPrefix("new mode ") }
+        }
         public var supportsPartialChanges: Bool {
             !header.contains { line in
-                ["old mode", "new mode", "rename from", "rename to", "copy from", "copy to", "GIT binary patch", "Binary files"].contains { line.hasPrefix($0) } ||
-                (line.hasPrefix("index ") && ["120000", "160000"].contains(line.split(separator: " ").last.map(String.init) ?? "")) ||
-                ((line.hasPrefix("new file mode ") || line.hasPrefix("deleted file mode ")) && !line.hasSuffix("100644") && !line.hasSuffix("100755"))
+                if ["copy from", "copy to", "GIT binary patch", "Binary files"].contains(where: { line.hasPrefix($0) }) { return true }
+                if line.hasPrefix("index ") && (line.hasSuffix(" 120000") || line.hasSuffix(" 160000")) { return true }
+                let changesMode = ["new file mode ", "deleted file mode ", "old mode ", "new mode "].contains { line.hasPrefix($0) }
+                return changesMode && !line.hasSuffix("100644") && !line.hasSuffix("100755")
             } && !hunks.isEmpty
         }
     }
@@ -122,7 +126,7 @@ public enum PatchFailure: LocalizedError {
     case unsupportedFile, noChangesSelected, changed, encoding
     public var errorDescription: String? {
         switch self {
-        case .unsupportedFile: return "Renamed, binary, symlink or mode-changing files require whole-file staging."
+        case .unsupportedFile: return "Binary, symlink and copied files require whole-file staging. Metadata-only changes have no selectable text hunk."
         case .noChangesSelected: return "Select changed lines or a changed hunk first."
         case .changed: return "The diff has changed. Refresh the patch before applying the selection."
         case .encoding: return "This patch is not valid UTF-8. Use whole-file staging until this encoding is supported."

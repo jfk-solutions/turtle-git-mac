@@ -194,6 +194,31 @@ import TurtleGitCore
         try require(remainingIndex == Data("first\nlast".utf8) && lifecycleModel.error == nil && !FileManager.default.fileExists(atPath: deletedURL.path), "Native partial deletion failed")
         let stillOther = try await repo.run(["show", ":other.txt"]).stdout
         try require(stillOther == Data("other staged\n".utf8), "Lifecycle staging lost unrelated index content")
+        let metadataBytes = Data("base\nneedle 雪\nmetadata line\n".utf8)
+        try metadataBytes.write(to: file)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: file.path)
+        lifecycleModel.reload(paths: ["file.txt"], staged: false); try await wait { !lifecycleModel.busy }
+        try require(lifecycleModel.information.contains("file mode changes") && lifecycleModel.document.files[0].supportsPartialChanges, "Native metadata notice/action missing")
+        lifecycleModel.selectedLines = [lifecycleModel.document.lines.firstIndex(of: "+metadata line")!]
+        lifecycleModel.apply(entireHunks: false); try await wait { !lifecycleModel.busy }
+        let metadataMode = try await repo.run(["ls-files", "--stage", "--", "file.txt"]).text
+        try require(metadataMode.hasPrefix("100755") && (try Data(contentsOf: file)) == metadataBytes && lifecycleModel.error == nil, "Native mode/text staging failed")
+        let renameOld = "metadata old 雪.txt", renameNew = "metadata new 雪.txt"
+        let renameBefore = (1...25).map { "line \($0)\n" }.joined()
+        try Data(renameBefore.utf8).write(to: root.appendingPathComponent(renameOld)); try await repo.stage([renameOld])
+        _ = try await repo.run(["commit", "--only", "-m", "rename fixture", "--", renameOld])
+        _ = try await repo.run(["mv", "--", renameOld, renameNew])
+        let renameWorking = renameBefore.replacingOccurrences(of: "line 10\n", with: "changed 10\n")
+        try Data(renameWorking.utf8).write(to: root.appendingPathComponent(renameNew)); try await repo.stage([renameNew])
+        lifecycleModel.reload(paths: [renameOld, renameNew], staged: true); try await wait { !lifecycleModel.busy }
+        try require(lifecycleModel.document.files[0].header.contains { $0.hasPrefix("rename from ") } && lifecycleModel.canApplyHunks == false, "Native rename preview missing")
+        lifecycleModel.selectedLines = [lifecycleModel.document.files[0].hunks[0].header]
+        try require(lifecycleModel.canApplyHunks, "Native rename hunk disabled")
+        lifecycleModel.apply(entireHunks: true); try await wait { !lifecycleModel.busy }
+        let renameIndex = try await repo.run(["show", ":" + renameOld]).stdout
+        let renameRemaining = try await repo.run(["ls-files", "-z", "--", renameNew]).stdout
+        try require(renameIndex == Data(renameBefore.utf8) && renameRemaining.isEmpty && lifecycleModel.error == nil, "Native rename unstage failed")
+        try require((try Data(contentsOf: root.appendingPathComponent(renameNew))) == Data(renameWorking.utf8) && !FileManager.default.fileExists(atPath: root.appendingPathComponent(renameOld).path), "Native rename unstage changed working paths")
         print("Partial patch: source Staging/Unstaging menu gates and bottom Find/case/no-wrap boundaries, exact rendering and original-byte export; real line stage/hunk unstage, unrelated index preservation, superseded/cancelled/retired reads closed-mutation Quit/parent gates and owned process reaping passed.")
     }
 }

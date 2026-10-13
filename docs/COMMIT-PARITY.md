@@ -2095,3 +2095,21 @@ Native Commit receivers exercised untracked line staging, added hunk unstaging
 and partial deleted-file staging across system and bundled Git. See
 [dated QA](qa/partial-file-lifecycle-2026-10-13.json). No physical or full Commit
 parity certification is claimed.
+
+## Rename and regular mode metadata — 2026-10-13
+
+The partial patch selector now preserves regular-file rename and executable-bit
+metadata with chosen lines/hunks, matching StagingOperations’ retained first file
+header. Reverse application reverses that metadata together with selected text;
+unselected text changes can remain indexed. The attached pane states this
+consequence before applying. Working file bytes, names and permissions are not
+changed by cached application.
+
+Pure renames/mode changes have no text hunk and still use whole-file controls.
+Copy metadata, binary payloads, symlink/gitlink and nonregular mode transitions
+remain excluded. Fifteen grouped Core tests and six native cases passed across
+system and bundled Git. Native checks exercised the metadata notice, regular
+mode/text staging and renamed-hunk unstaging; working bytes/paths stayed intact.
+Debug compilation passed. See [dated QA](qa/partial-metadata-2026-10-13.json).
+These checks do not certify all metadata combinations or physical UI equivalence.
+Earlier rename/mode exclusion statements describe the preceding checkpoints.
