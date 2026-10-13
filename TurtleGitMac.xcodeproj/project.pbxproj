@@ -1299,16 +1299,7 @@
 				ED03DD8CA52381A434D18935 /* Embed Foundation Extensions */,
 				C0FA93121C7653B8CED80394 /* Embed Frameworks */,
 				8478C5D94F5C183863E964A2 /* Embed Finder cache service */,
-				1DBA3B245A731512F4F71E67 /* Embed Git authentication helper */,
-				CEE1C93388E81BE0FC471865 /* Embed SSH passphrase helper */,
-				54E622C1B459D58F04C02122 /* Embed pinned Lexilla runtime */,
-				51D7E3DB4C35C2277F3C9C8D /* Embed C++ issue-matching runtime */,
-				F97CD516CA5212E01DA85633 /* Embed Subversion merge adapter */,
-				0C37184FA8C6B918D948A94E /* Embed pinned Revision Graph layout runtime */,
-				05E9103FE147A460078548D0 /* Embed pinned EditorConfig runtime */,
-				E1188D36737E73638718384D /* Embed pinned OpenSSH runtime */,
-				C45E6CCF59E8F543668B15BE /* Embed pinned Git runtime for App Store */,
-				9C40EC41EF0C55CAEBF38405 /* Finalize production runtime layout */,
+				CB14EFA3B5008D888CD0A6A5 /* Embed and audit production runtimes */,
 			);
 			buildRules = (
 			);
@@ -1425,101 +1416,6 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		05E9103FE147A460078548D0 /* Embed pinned EditorConfig runtime */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "Embed pinned EditorConfig runtime";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "/usr/bin/python3 \"$SRCROOT/scripts/embed-editorconfig-runtime.py\" \"$SRCROOT/build/editorconfig-runtime/EditorConfig\" \"$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME\"\n";
-		};
-		0C37184FA8C6B918D948A94E /* Embed pinned Revision Graph layout runtime */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "Embed pinned Revision Graph layout runtime";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "/usr/bin/python3 \"$SRCROOT/scripts/embed-graph-layout-runtime.py\" \"$SRCROOT/build/graph-layout-runtime/GraphLayout\" \"$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME\"\n";
-		};
-		1DBA3B245A731512F4F71E67 /* Embed Git authentication helper */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "Embed Git authentication helper";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "/usr/bin/python3 \"$SRCROOT/scripts/embed-git-askpass.py\" \"$BUILT_PRODUCTS_DIR/TurtleGitGitAskpass\" \"$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME\"\n";
-		};
-		51D7E3DB4C35C2277F3C9C8D /* Embed C++ issue-matching runtime */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "Embed C++ issue-matching runtime";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "/usr/bin/python3 \"$SRCROOT/scripts/embed-issue-regex-runtime.py\" \"$SRCROOT/build/issue-regex-runtime/IssueRegex\" \"$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME\"\n";
-		};
-		54E622C1B459D58F04C02122 /* Embed pinned Lexilla runtime */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "Embed pinned Lexilla runtime";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "/usr/bin/python3 \"$SRCROOT/scripts/embed-lexilla-runtime.py\" \"$SRCROOT/build/lexilla-runtime/Lexilla\" \"$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME\"\n";
-		};
 		8478C5D94F5C183863E964A2 /* Embed Finder cache service */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -1539,7 +1435,7 @@
 			shellPath = /bin/sh;
 			shellScript = "/usr/bin/python3 \"$SRCROOT/scripts/embed-cache-service.py\" \"$BUILT_PRODUCTS_DIR/TurtleGitCache.app\" \"$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME\" \"$SRCROOT/Configuration/org.turtlegit.macos.cache.plist\"\n";
 		};
-		9C40EC41EF0C55CAEBF38405 /* Finalize production runtime layout */ = {
+		CB14EFA3B5008D888CD0A6A5 /* Embed and audit production runtimes */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -1549,90 +1445,14 @@
 			);
 			inputPaths = (
 			);
-			name = "Finalize production runtime layout";
+			name = "Embed and audit production runtimes";
 			outputFileListPaths = (
 			);
 			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "/usr/bin/python3 \"$SRCROOT/scripts/finalize-runtime-layout.py\" \"$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME\"\n";
-		};
-		C45E6CCF59E8F543668B15BE /* Embed pinned Git runtime for App Store */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "Embed pinned Git runtime for App Store";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "if [ \"$CONFIGURATION\" = \"AppStore\" ] || [ -d \"$SRCROOT/build/git-runtime/Git\" ]; then\n  /usr/bin/python3 \"$SRCROOT/scripts/embed-git-runtime.py\" \"$SRCROOT/build/git-runtime/Git\" \"$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME\"\nfi\n";
-		};
-		CEE1C93388E81BE0FC471865 /* Embed SSH passphrase helper */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "Embed SSH passphrase helper";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "/usr/bin/python3 \"$SRCROOT/scripts/embed-ssh-askpass.py\" \"$BUILT_PRODUCTS_DIR/TurtleGitSSHAskpass\" \"$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME\"\n";
-		};
-		E1188D36737E73638718384D /* Embed pinned OpenSSH runtime */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "Embed pinned OpenSSH runtime";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "/usr/bin/python3 \"$SRCROOT/scripts/embed-openssh-runtime.py\" \"$SRCROOT/build/openssh-runtime/OpenSSH\" \"$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME\"\n";
-		};
-		F97CD516CA5212E01DA85633 /* Embed Subversion merge adapter */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "Embed Subversion merge adapter";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "/usr/bin/python3 \"$SRCROOT/scripts/embed-merge-diff-runtime.py\" \"$SRCROOT/build/merge-diff-runtime/MergeDiff\" \"$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME\"\n";
+			shellScript = "/usr/bin/python3 \"$SRCROOT/scripts/embed-app-runtimes.py\" \"$BUILT_PRODUCTS_DIR\" \"$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME\" \"$DERIVED_FILE_DIR/runtime-embedding-debug.json\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

@@ -1,0 +1,61 @@
+{
+  "date": "2026-10-13",
+  "scope": [
+    "Coordinated runtime embedding/finalization with byte-identical unsigned Debug reuse",
+    "Whole source-kit/helper/configuration/script and installed code/data fingerprints",
+    "Permissions, symlink targets/resolved source roots and container ancestry gates",
+    "Failed embedding receipt removal and complete refresh on cache miss",
+    "Signed/Release/AppStore full pipeline retained; Finder cache service independent"
+  ],
+  "validation": {
+    "unit": {
+      "tests": 6,
+      "failures": 0,
+      "log": "build/qa/runtime-embedding-unit-accepted-2026-10-13.log"
+    },
+    "debug": {
+      "full_seconds": 54.364,
+      "unchanged_seconds": 5.661,
+      "unchanged_receipt": true,
+      "logs": [
+        "build/qa/runtime-embedding-final-recipe-2026-10-13.log",
+        "build/qa/runtime-embedding-final-reuse-2026-10-13.log"
+      ],
+      "note": "Measured runtime preparation overhead for unchanged compiled sources; does not promise the same reduction for Swift compilation."
+    },
+    "output_repair": {
+      "exit": 0,
+      "seconds": 56.363,
+      "scope": "Changed only a private built GraphLayout license file; output mismatch forced complete embedding and restored original bytes with a new receipt.",
+      "log": "build/qa/runtime-embedding-repair-2026-10-13.log"
+    },
+    "direct_reuse": {
+      "exit": 0,
+      "log": "build/qa/runtime-embedding-direct-hit-2026-10-13.log"
+    },
+    "appstore": {
+      "exit": 0,
+      "signed": false,
+      "log": "build/qa/runtime-embedding-appstore-2026-10-13.log",
+      "note": "Full production pipeline ran. Subsequent container-ancestry guard changes apply only to unsigned Debug reuse; the production path is unchanged."
+    },
+    "appstore_bundle": {
+      "exit": 0,
+      "native_items": 203,
+      "icons": 296,
+      "log": "build/qa/runtime-embedding-appstore-audit-2026-10-13.log"
+    },
+    "ownership": "No app GUI launched; no remaining TurtleGit/reference receivers.",
+    "documentation": {
+      "exit": 0,
+      "tests": 2,
+      "log": "build/qa/runtime-embedding-site-check-2026-10-13.log"
+    }
+  },
+  "pending": [
+    "Hosted CI acceptance of the new phase and unit checks",
+    "Certificate/provisioning and signed sandbox/Finder execution",
+    "App Store release acceptance and full port parity"
+  ],
+  "full_port_certified": false
+}
