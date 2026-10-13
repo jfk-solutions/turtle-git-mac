@@ -8,7 +8,7 @@ import TurtleGitCore
     private var selectionCompletion: ((ReferenceLogEntry?) -> Void)?
     private(set) var findController: ReferenceLogFindController?
     init(repository: GitRepository, access: RepositoryAccessLease?, reference: String, onChoose: ((ReferenceLogEntry?) -> Void)? = nil, preferences: UserDefaults = .standard) {
-        model = ReferenceLogWindowModel(repository: repository, access: access, reference: reference, selecting: onChoose != nil)
+        model = ReferenceLogWindowModel(repository: repository, access: access, reference: reference, selecting: onChoose != nil, preferences: preferences)
         selectionCompletion = onChoose
         let window = ReferenceLogNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 530), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – RefLog – TurtleGit"
@@ -88,6 +88,8 @@ import TurtleGitCore
 @MainActor final class ReferenceLogWindowModel: ObservableObject {
     let repository: GitRepository
     let selecting: Bool
+    let preferences: UserDefaults
+    var commandSurfaceAvailable: Bool { !invalidated && !busy }
     private let access: RepositoryAccessLease?
     @Published var reference: String
     @Published var names: [String]
@@ -135,8 +137,8 @@ import TurtleGitCore
     var confirmDelete: (String, Bool, @escaping () -> Void) -> Void = { _, _, _ in }
     var close: () -> Void = {}
     var selectedEntry: ReferenceLogEntry? { let chosen = entries.filter { selection.contains($0.id) }; return chosen.count == 1 ? chosen.first : nil }
-    init(repository: GitRepository, access: RepositoryAccessLease?, reference: String, selecting: Bool = false) {
-        self.selecting = selecting; self.repository = repository; self.access = access; self.reference = reference; names = [reference]
+    init(repository: GitRepository, access: RepositoryAccessLease?, reference: String, selecting: Bool = false, preferences: UserDefaults = .standard) {
+        self.preferences = preferences; self.selecting = selecting; self.repository = repository; self.access = access; self.reference = reference; names = [reference]
     }
     func reload() {
         guard !invalidated else { return }
@@ -345,7 +347,7 @@ import TurtleGitCore
         return dates.format(ISO8601DateFormatter().string(from: date))
     }
     func copy(_ ids: Set<String>, format: ReferenceLogCopyFormat = .hashes, pasteboard: NSPasteboard = .general) {
-        guard let text = clipboardText(ids, format: format) else { return }
+        guard commandSurfaceAvailable, let text = clipboardText(ids, format: format, dates: .load(defaults: preferences)) else { return }
         pasteboard.clearContents(); pasteboard.setString(text, forType: .string)
     }
     func invalidate() { invalidated = true; generation += 1 }
@@ -439,91 +441,7 @@ private struct ReferenceLogDialog: View {
     var body: some View {
         VStack(spacing: 12) {
             HStack { Text("Ref:"); ReferenceLogPicker(names: model.names, selection: $model.reference).frame(maxWidth: .infinity).frame(height: 26) }
-            Table(model.entries, selection: $model.selection) {
-                TableColumn("Hash") { entry in Text(entry.hash).font(.system(.body, design: .monospaced)).help(entry.hash).onAppear { model.requestDiffParents(entry) }.onChange(of: entry.hash) { _ in model.requestDiffParents(entry) } }.width(min: 90, ideal: 120)
-                TableColumn("Ref", value: \.selector).width(min: 100, ideal: 145)
-                TableColumn("Action", value: \.action).width(min: 80, ideal: 100)
-                TableColumn("Message") { entry in Text(entry.message).help(entry.subject) }.width(min: 160, ideal: 360)
-                TableColumn("Date") { entry in if entry.date != nil { Text(ReferenceLogWindowModel.dateText(entry, dates: HistoryDateSettings(shortDate: shortDate, relative: relativeTimes, useSystemLocale: useSystemLocale))) } }.width(min: 140, ideal: 175)
-            }.contextMenu(forSelectionType: String.self) { ids in
-                TurtleGitContextMenu {
-                    if ids.count == 1 {
-                        Button { model.compare(.workingTree, ids: ids) } label: { CommandLabel(title: ReferenceLogComparisonCommand.workingTree.title, icon: .compare) }.disabled(!model.canCompare(.workingTree, ids: ids))
-                        if let entry = model.entries.first(where: { ids.contains($0.id) }), let parents = model.diffParents[entry.hash], model.hasWorkingTree {
-                            if parents.count > 1 {
-                                Menu {
-                                    Button("All Parents") { model.inspect(ids, mode: .allParents, alternate: NSEvent.modifierFlags.contains(.shift)) }
-                                    Button("Only Merged Files") { model.inspect(ids, mode: .onlyMergedFiles, alternate: NSEvent.modifierFlags.contains(.shift)) }
-                                    Button("Show extra changes after merge") { model.inspect(ids, mode: .extraChanges, alternate: NSEvent.modifierFlags.contains(.shift)) }
-                                    ForEach(parents, id: \.number) { parent in
-                                        Button { model.inspect(ids, mode: .parent(parent.number), alternate: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: parent.title, icon: .unifiedDiff) }
-                                    }
-                                } label: { CommandLabel(title: "Unified diff with", icon: .unifiedDiff) }.disabled(model.unifiedViewerBusy)
-                            } else if parents.count == 1 {
-                                Button { model.inspect(ids, alternate: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(!model.canInspect(ids))
-                            }
-                        }
-                        if let entry = model.entries.first(where: { ids.contains($0.id) }), let parents = model.diffParents[entry.hash] {
-                            if parents.count > 1 {
-                                Menu {
-                                    ForEach(parents, id: \.number) { parent in
-                                        Button { model.compareParent(ids, number: parent.number) } label: { CommandLabel(title: parent.title, icon: .compare) }.disabled(!model.canCompareParent(ids, number: parent.number))
-                                    }
-                                } label: { CommandLabel(title: "Compare with previous revision", icon: .compare) }.disabled(model.onCompare == nil)
-                            } else if parents.count == 1 {
-                                Button { model.compareParent(ids) } label: { CommandLabel(title: "Compare with previous revision", icon: .compare) }.disabled(!model.canCompareParent(ids))
-                            }
-                        }
-                        Divider()
-                    }
-                    Button { model.showLog(ids) } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(ids.count != 1 || model.onLog == nil)
-                    Button { model.perform(.browseRepository, ids: ids) } label: { CommandLabel(title: ReferenceLogRevisionCommand.browseRepository.title, icon: .repositoryBrowser) }.disabled(!model.canPerform(.browseRepository, ids: ids))
-                    if !model.selecting && model.hasWorkingTree && ids.count == 1 {
-                        Button { model.performHistory(.reset, ids: ids) } label: { CommandLabel(title: ReferenceLogHistoryCommand.reset.title(branch: model.currentBranch), icon: .reset) }.disabled(!model.canPerformHistory(.reset, ids: ids))
-                        let branches = model.switchBranches(ids)
-                        if branches.count == 1, let ref = branches.first {
-                            Button { model.switchBranch(ref, ids: ids) } label: { CommandLabel(title: "Switch branch \"" + ref.dropFirst("refs/heads/".count) + "\"", icon: .checkout) }.disabled(model.onSwitchBranch == nil)
-                        } else if branches.count > 1 {
-                            Menu {
-                                ForEach(branches, id: \.self) { ref in
-                                    Button { model.switchBranch(ref, ids: ids) } label: { CommandLabel(title: String(ref.dropFirst("refs/heads/".count)), icon: .checkout) }
-                                }
-                            } label: { CommandLabel(title: "Switch branch", icon: .checkout) }.disabled(model.onSwitchBranch == nil)
-                        }
-                        ForEach([ReferenceLogHistoryCommand.checkout], id: \.self) { command in
-                            Button { model.performHistory(command, ids: ids) } label: { CommandLabel(title: command.title(branch: model.currentBranch), icon: command.icon) }.disabled(!model.canPerformHistory(command, ids: ids))
-                        }
-                    }
-                    ForEach(ReferenceLogRevisionCommand.allCases.filter { $0 != .browseRepository }, id: \.self) { command in
-                        Button { model.perform(command, ids: ids) } label: { CommandLabel(title: command.title, icon: command.icon) }.disabled(!model.canPerform(command, ids: ids))
-                    }
-                    Divider()
-                    if !model.selecting { Button { model.delete(ids) } label: { CommandLabel(title: "Delete", icon: .deleted) }.disabled(ids.isEmpty) }
-                    if !model.selecting && model.reference == "refs/stash" {
-                        Button { model.apply(ids) } label: { CommandLabel(title: "Stash apply", icon: .stashPop) }.disabled(ids.count != 1)
-                    }
-                    Divider()
-                    if ids.count >= 2 {
-                        Button { model.compare(.revisions, ids: ids) } label: { CommandLabel(title: ReferenceLogComparisonCommand.revisions.title, icon: .compare) }.disabled(!model.canCompare(.revisions, ids: ids))
-                        if ids.count == 2 && model.hasWorkingTree {
-                            Button { model.inspect(ids, alternate: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(!model.canInspect(ids))
-                        }
-                        if ids.count == 2 {
-                            ForEach(ReferenceLogRangeCommand.allCases, id: \.self) { command in
-                                if let range = model.logRange(command, ids: ids) {
-                                    Button { model.showLogRange(command, ids: ids) } label: { CommandLabel(title: "Show log of " + range.from.prefix(7) + range.separator + range.to.prefix(7), icon: .log) }.disabled(model.onLogRange == nil)
-                                }
-                            }
-                        }
-                        Divider()
-                    }
-                    Menu {
-                        Button { model.copy(ids, format: .full) } label: { CommandLabel(title: "Full data", icon: .copy) }
-                        Button { model.copy(ids, format: .hashes) } label: { CommandLabel(title: "SHA-1", icon: .copy) }
-                        Button { model.copy(ids, format: .messages) } label: { CommandLabel(title: "Messages", icon: .copy) }
-                    } label: { CommandLabel(title: "Copy to clipboard", icon: .copy) }.disabled(ids.isEmpty)
-                }
-            } primaryAction: { ids in model.activateRows(ids) }
+            ReferenceLogNativeTable(model: model, dates: HistoryDateSettings(shortDate: shortDate, relative: relativeTimes, useSystemLocale: useSystemLocale))
             if let report = model.deletionReport { Text(report).font(.caption).foregroundStyle(.red).lineLimit(3).help(report) }
             HStack {
                 Button("Search…") { model.openFind() }.keyboardShortcut("f")

@@ -1,0 +1,61 @@
+{
+  "date": "2026-10-13",
+  "scope": "Native RefLog report list, column persistence and owned context dispatch",
+  "source_revision": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "src/TortoiseProc/refloglist.cpp InsertRefLogColumn",
+    "src/TortoiseProc/RefLogDlg.cpp",
+    "src/TortoiseProc/GitLogListBase.cpp context family"
+  ],
+  "validation": {
+    "debug": {
+      "log": "build/qa/reflog-table-debug-final-2026-10-13.log",
+      "exit": 0
+    },
+    "native": {
+      "log": "build/qa/reflog-table-native-final-2026-10-13.log",
+      "exit": 0,
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "receivers": 2,
+      "scope": [
+        "actual report column/header geometry",
+        "repeated-hash selector identity",
+        "menu and double-action dispatch",
+        "original icons and icons off",
+        "private date/clipboard settings",
+        "Find scroll",
+        "saved reorder/width/hide restoration",
+        "busy/replaced-row/closed command guards",
+        "repository preservation during UI checks"
+      ]
+    },
+    "site": {
+      "log": "build/qa/reflog-table-site-2026-10-13.log",
+      "exit": 0,
+      "tests": 2
+    }
+  },
+  "core_suite_repeated": false,
+  "owned_receivers_reaped": true,
+  "prior_validation": {
+    "dispatch_fixed_log": "build/qa/reflog-table-native-dispatch-2026-10-13.log",
+    "dispatch_fixed_receivers": 2,
+    "initial_compile_failure": "NSTableView does not implement NSTextView copy/validateMenuItem overrides; changed to Objective-C action and explicit validation protocol",
+    "initial_native_failure": "Inherited NSObject perform overload selected an incompatible action selector. Named command action invokeCommand avoids that overload.",
+    "diagnostic_receiver": 30374,
+    "sample": "build/qa/reflog-table-process-sample-2026-10-13.txt",
+    "diagnostic_receiver_stopped_and_reaped": true
+  },
+  "remaining": [
+    "Other upstream revision actions and exact menu order/conditions",
+    "Custom Log list fonts",
+    "Physical column/right-click/keyboard and VoiceOver acceptance",
+    "Selecting/bare/stash variants of the new list",
+    "Updated displayed gallery capture",
+    "Signed sandbox/Finder/App Store acceptance",
+    "Full application parity"
+  ]
+}

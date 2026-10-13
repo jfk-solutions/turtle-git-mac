@@ -489,3 +489,7 @@ Stash Save progress sheet; see STASH-PARITY.md. Subsequent Pull/Merge Pop/Push
 flags, complete progress presentation/persistence and broader Switch options
 progress integration remain pending. Full application parity is
 not established by these checks.
+
+The report list now uses native AppKit selection, saved columns, owned context
+menus and Find scrolling. See [native RefLog list](REFLOG-TABLE-PARITY.md) for the
+retained actions, stale-selector gates and remaining physical/source acceptance.
