@@ -22,11 +22,42 @@ python3 scripts/build-graph-layout-runtime.py
 python3 scripts/build-openssh-runtime.py
 python3 scripts/build-git-runtime.py
 xcodebuild -project TurtleGitMac.xcodeproj -scheme TurtleGitAppStore \
-  -configuration AppStore -destination 'platform=macOS' \
+  -configuration AppStore -destination 'generic/platform=macOS' \
   -derivedDataPath build-store CODE_SIGNING_ALLOWED=NO build
 ```
 
-This verifies compilation only. An unsigned AppStore configuration does not prove
+Release and AppStore explicitly set `ARCHS = arm64 x86_64` and
+`ONLY_ACTIVE_ARCH = NO` for the app and its target dependencies. Debug keeps
+Xcode's development architecture behavior. Build distribution products with the
+generic macOS destination so the package does not depend on the build host's CPU.
+After building, audit the package:
+
+```sh
+python3 scripts/validate-app-bundle.py \
+  build-store/Build/Products/AppStore/TurtleGitMac.app --require-git --require-universal
+```
+
+For a single build-and-audit entry point after preparing the pinned runtimes:
+
+```sh
+python3 scripts/build-distribution.py --configuration AppStore --derived-data build-store
+```
+
+Use `--configuration Release` for a future direct-distribution candidate, or
+`--audit-existing` to inspect an already built candidate without another build.
+The command creates `distribution-audit.json` only after package and cache-service
+audits succeed. The report includes code hashes and slices and explicitly leaves
+signing, sandbox execution and App Store submission unverified. A failed run clears
+its previous owned success report. It does not publish or register the service.
+
+The universal audit requires both slices in the app, Finder extension, embedded
+cache service, Core/SMTP frameworks, WCRev and both askpass helpers. Component
+runtime audits separately check the bundled Git and native runtime payloads.
+A thin development build cannot pass distribution acceptance merely because
+its Git runtime is universal. Architecture checks inspect binaries without
+launching the app or registering the Finder/cache service.
+
+This verifies compilation and unsigned packaging only. An unsigned AppStore configuration does not prove
 sandbox permissions, inherited child-process access or App Review eligibility.
 The build phase embeds the prepared runtime into AppStore bundles and fails if
 it is missing. Debug retains installed-Git support for port development.

@@ -239,6 +239,8 @@ jobs:
         run: |
           python3 scripts/validate-app-bundle.py build/Build/Products/Debug/TurtleGitMac.app
           python3 scripts/audit-cache-service.py build/Build/Products/Debug/TurtleGitMac.app
+      - name: Universal application architecture audit regression
+        run: python3 scripts/test-bundle-architectures.py
       - name: Preview signing inventory regression
         run: python3 scripts/test-preview-signing.py
       - name: Verify production ad-hoc app seal and runtime links
@@ -451,12 +453,15 @@ jobs:
       - name: Sandboxed App Store configuration (unsigned compilation)
         run: >-
           xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitAppStore
-          -configuration AppStore -destination 'platform=macOS'
+          -configuration AppStore -destination 'generic/platform=macOS'
           -derivedDataPath build-store CODE_SIGNING_ALLOWED=NO build
-      - name: Verify sandboxed app resources
-        run: |
-          python3 scripts/validate-app-bundle.py build-store/Build/Products/AppStore/TurtleGitMac.app --require-git
-          python3 scripts/audit-cache-service.py build-store/Build/Products/AppStore/TurtleGitMac.app
+      - name: Audit unsigned universal App Store candidate
+        run: python3 scripts/build-distribution.py --configuration AppStore --derived-data build-store --audit-existing
+      - name: Preserve unsigned distribution audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-appstore-distribution-audit
+          path: build-store/distribution-audit.json
       - name: Revision Graph through built Debug and Store frameworks and helpers
         run: python3 scripts/test-graph-layout-bundles.py
       - name: Revision Graph data and geometry with bundled Git

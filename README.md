@@ -114,6 +114,8 @@ fallback. Follow the complete helper/runtime build instructions in
 The [Finder cache agent](docs/FINDER-SERVICE-DEPLOYMENT.md) is embedded and
 managed from Watched Repositories. Enabling background refresh requires a signed
 build and macOS approval; unsigned development builds fail closed.
+The unsigned universal build/audit command is `python3 scripts/build-distribution.py --configuration AppStore --derived-data build-store` after preparing the pinned runtimes. See [distribution instructions](docs/DISTRIBUTION.md) for its architecture/hash report and remaining acceptance work.
+
 Signed sandbox acceptance and distribution clearance remain open. **This is not
 an App Store-ready release.**
 

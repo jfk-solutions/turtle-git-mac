@@ -1,0 +1,96 @@
+{
+  "date": "2026-10-13",
+  "scope": "Universal AppStore unsigned build, packaging and architecture audit; distribution not certified",
+  "changes": [
+    "Explicit Release/AppStore arm64+x86_64 and ONLY_ACTIVE_ARCH=NO",
+    "Universal audit covers eight app-owned binaries/frameworks rather than SMTP alone",
+    "Single unsigned build-and-audit command with durable code hashes/slices",
+    "Generic macOS CI destination and audit artifact"
+  ],
+  "checks": {
+    "architecture_regression": {
+      "exit": 0,
+      "tests": 2,
+      "scope": "Real clang-built universal/thin Mach-O substitution for every owned target, missing/escaped payload refusal"
+    },
+    "appstore_build": {
+      "exit": 0,
+      "destination": "generic/platform=macOS",
+      "signing_allowed": false
+    },
+    "package_audit": {
+      "exit": 0,
+      "command": "python3 scripts/build-distribution.py --configuration AppStore --derived-data build-store --audit-existing",
+      "report": {
+        "kind": "TurtleGitUnsignedDistributionAudit",
+        "configuration": "AppStore",
+        "app": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build-store/Build/Products/AppStore/TurtleGitMac.app",
+        "checked_at": "2026-10-13T18:54:00.178462+00:00",
+        "architectures": {
+          "Contents/MacOS/TurtleGitMac": [
+            "x86_64",
+            "arm64"
+          ],
+          "Contents/MacOS/TurtleGitWCRev": [
+            "x86_64",
+            "arm64"
+          ],
+          "Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": [
+            "x86_64",
+            "arm64"
+          ],
+          "Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": [
+            "x86_64",
+            "arm64"
+          ],
+          "Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder": [
+            "x86_64",
+            "arm64"
+          ],
+          "Contents/Library/LaunchServices/TurtleGitCache.app/Contents/MacOS/TurtleGitCache": [
+            "x86_64",
+            "arm64"
+          ],
+          "Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass": [
+            "x86_64",
+            "arm64"
+          ],
+          "Contents/Helpers/GitAskpass/TurtleGitGitAskpass": [
+            "x86_64",
+            "arm64"
+          ]
+        },
+        "code_sha256": {
+          "Contents/MacOS/TurtleGitMac": "587dad51a2c567f83612be90ff686fbe5fd2d67d6cc07bbc6a8033a1942a53db",
+          "Contents/MacOS/TurtleGitWCRev": "3a5fd7d772ae8b29afe58035705d4085dc11ba8875d20fd5e29c147f1b124e82",
+          "Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": "79ac664558d7d4fdbfb205172c6efec44290963308ebfdb38333ebc1add20da3",
+          "Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": "b8a3da4c3f79f7c36931ef0509852eeb7180a47c5e5309759ee3f41ad7b2a8d7",
+          "Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder": "a0e073018d9390c5f6143e6a494d11c29ea5fa6d8cd377c631489573b4ea9172",
+          "Contents/Library/LaunchServices/TurtleGitCache.app/Contents/MacOS/TurtleGitCache": "7003803232a3e7093aa25bc05f773d411d457658e05d7cbba59f0d5c0fc5577c",
+          "Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass": "05f5f60207f3bc3a090e73f6e0a542d9f7338da1e301ec99a42cd47687dfffc9",
+          "Contents/Helpers/GitAskpass/TurtleGitGitAskpass": "32c5a4fe9b263a2362b3516109393546156042b096b8832feaee105be9cfd21f"
+        },
+        "signing_and_sandbox_acceptance": "unverified",
+        "app_store_submission": "not performed"
+      },
+      "scope": "App-owned slices, production code/data layout, source/resource/runtime audits, embedded agent layout and owned unsigned startup refusal"
+    },
+    "site": {
+      "build_exit": 0,
+      "tests": 2,
+      "test_exit": 0
+    }
+  },
+  "remaining": [
+    "Developer signing and provisioning",
+    "Actual signed sandbox scopes, helpers, Finder activation and cache service registration",
+    "App Review/licensing clearance",
+    "Release configuration actual build acceptance",
+    "Whole TortoiseGit UI/behavior port"
+  ],
+  "logs": [
+    "build/qa/universal-architecture-tests-2026-10-13.log",
+    "build/qa/universal-store-build-2026-10-13.log",
+    "build/qa/universal-store-audit-2026-10-13.log"
+  ]
+}
