@@ -35,20 +35,21 @@ public struct RemovalRequest: Sendable {
 extension GitRepository {
     /// RemoveCommand handles one selected path per invocation so its native
     /// Ignore/Abort prompt can decide whether to continue after a failure.
-    public func removeVersionedPath(_ path: String, keepLocal: Bool) throws -> String {
+    public func removeVersionedPath(_ path: String, keepLocal: Bool, cancellation: OperationCancellation? = nil) throws -> String {
+        try cancellation?.check()
         _ = try RemovalRequest(paths: [path], keepLocal: keepLocal)
-        guard try !isBare() else { throw RemovalFailure.selection }
+        guard try !isBare(cancellation: cancellation) else { throw RemovalFailure.selection }
         let url = root.appendingPathComponent(path)
         guard RepositoryAccessLease.pathIsContained(url.deletingLastPathComponent(), by: root) else { throw RemovalFailure.outsideWorkingTree }
         let parent = try CloneOptions.workingDirectory(for: url.deletingLastPathComponent())
-        var rootBytes = try run(["-C", parent.path, "rev-parse", "--show-toplevel"]).stdout
+        var rootBytes = try run(["-C", parent.path, "rev-parse", "--show-toplevel"], cancellation: cancellation).stdout
         if rootBytes.last == 10 { rootBytes.removeLast() }
         let selectedRoot = URL(fileURLWithPath: String(decoding: rootBytes, as: UTF8.self)).standardizedFileURL
         guard selectedRoot == root else { throw RemovalFailure.outsideWorkingTree }
-        let tracked = try trackedPaths()
+        let tracked = try trackedPaths(cancellation: cancellation)
         guard tracked.contains(path) || tracked.contains(where: { $0.hasPrefix(path + "/") }) else { throw RemovalFailure.unversioned }
         // Preserve upstream forced/recursive semantics. --cached leaves working
         // files untouched, including their unstaged changes. No shell/path globbing.
-        return try run(["rm", "-r", "-f"] + (keepLocal ? ["--cached"] : []) + ["--", path]).text
+        return try run(["rm", "-r", "-f"] + (keepLocal ? ["--cached"] : []) + ["--", path], cancellation: cancellation).text
     }
 }

@@ -45,16 +45,17 @@ public struct IgnoreOptions: Sendable {
 extension GitRepository {
     /// Resolve through Git rather than assuming .git is a directory: linked
     /// worktrees keep info/exclude in the common administrative directory.
-    public func ignoreDestinations(_ options: IgnoreOptions) throws -> [URL] {
-        try validateIgnoreSelection(options)
-        return try ignorePlans(options).map(\.url)
+    public func ignoreDestinations(_ options: IgnoreOptions, cancellation: OperationCancellation? = nil) throws -> [URL] {
+        try cancellation?.check(); try validateIgnoreSelection(options, cancellation: cancellation)
+        return try ignorePlans(options, cancellation: cancellation).map(\.url)
     }
-    @discardableResult public func addIgnoreRules(_ options: IgnoreOptions) throws -> [URL] {
-        try validateIgnoreSelection(options)
-        let plans = try ignorePlans(options)
+    @discardableResult public func addIgnoreRules(_ options: IgnoreOptions, cancellation: OperationCancellation? = nil) throws -> [URL] {
+        try cancellation?.check(); try validateIgnoreSelection(options, cancellation: cancellation)
+        let plans = try ignorePlans(options, cancellation: cancellation)
         // Validate/read every destination before writing any of them. Existing
         // bytes, comments, BOM and line endings survive the append unchanged.
         let prepared = try plans.map { plan -> (URL, Data, Data) in
+            try cancellation?.check()
             let attributes = try? FileManager.default.attributesOfItem(atPath: plan.url.path)
             if let attributes, attributes[.type] as? FileAttributeType != .typeRegular { throw IgnoreFailure.unsupportedFile }
             let original = attributes == nil ? Data() : try Data(contentsOf: plan.url)
@@ -72,6 +73,7 @@ extension GitRepository {
         }
         var changed: [URL] = []
         for (url, original, data) in prepared where original != data {
+            try cancellation?.check()
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
             // Append only the new suffix to existing files, preserving inode,
             // permissions and all prior bytes like upstream modeNoTruncate.
@@ -85,32 +87,34 @@ extension GitRepository {
         }
         return changed
     }
-    private func validateIgnoreSelection(_ options: IgnoreOptions) throws {
-        guard try !isBare() else { throw IgnoreFailure.selection }
+    private func validateIgnoreSelection(_ options: IgnoreOptions, cancellation: OperationCancellation?) throws {
+        guard try !isBare(cancellation: cancellation) else { throw IgnoreFailure.selection }
         for path in options.paths {
+            try cancellation?.check()
             let parent = root.appendingPathComponent(path).deletingLastPathComponent()
             guard RepositoryAccessLease.pathIsContained(parent, by: root) else { throw IgnoreFailure.outsideWorkingTree }
             let existing = try CloneOptions.workingDirectory(for: parent)
-            var bytes = try run(["-C", existing.path, "rev-parse", "--show-toplevel"]).stdout
+            var bytes = try run(["-C", existing.path, "rev-parse", "--show-toplevel"], cancellation: cancellation).stdout
             if bytes.last == 10 { bytes.removeLast() }
             guard URL(fileURLWithPath: String(decoding: bytes, as: UTF8.self), isDirectory: true).standardizedFileURL == root else { throw IgnoreFailure.outsideWorkingTree }
         }
     }
-    private func ignorePlans(_ options: IgnoreOptions) throws -> [(url: URL, patterns: [String])] {
+    private func ignorePlans(_ options: IgnoreOptions, cancellation: OperationCancellation?) throws -> [(url: URL, patterns: [String])] {
         var plans: [(url: URL, patterns: [String])] = []
         var exclude: URL?
         if options.destination == .exclude {
-            var bytes = try run(["rev-parse", "--git-path", "info/exclude"]).stdout
+            var bytes = try run(["rev-parse", "--git-path", "info/exclude"], cancellation: cancellation).stdout
             if bytes.last == 10 { bytes.removeLast() }
             let path = String(decoding: bytes, as: UTF8.self)
             exclude = path.hasPrefix("/") ? URL(fileURLWithPath: path) : root.appendingPathComponent(path)
-            var commonBytes = try run(["rev-parse", "--git-common-dir"]).stdout
+            var commonBytes = try run(["rev-parse", "--git-common-dir"], cancellation: cancellation).stdout
             if commonBytes.last == 10 { commonBytes.removeLast() }
             let commonPath = String(decoding: commonBytes, as: UTF8.self)
             let common = commonPath.hasPrefix("/") ? URL(fileURLWithPath: commonPath, isDirectory: true) : root.appendingPathComponent(commonPath, isDirectory: true)
             guard RepositoryAccessLease.pathIsContained(exclude!.deletingLastPathComponent(), by: common) else { throw IgnoreFailure.outsideWorkingTree }
         }
         for path in options.paths {
+            try cancellation?.check()
             guard let pattern = options.pattern(for: path) else { continue }
             let url: URL
             switch options.destination {

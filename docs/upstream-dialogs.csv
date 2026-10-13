@@ -97,7 +97,7 @@ src/Resources/TortoiseProcENG.rc,IDD_BISECTSTART,Bisect start,partial-native-rep
 src/Resources/TortoiseProcENG.rc,IDD_STASH,Stash,partial
 src/Resources/TortoiseProcENG.rc,IDD_REVGRAPHFILTER,Revision Graph Filter,partial
 src/Resources/TortoiseProcENG.rc,IDD_DIFFSUBMODULE,Submodule Diff,partial-native-replacement
-src/Resources/TortoiseProcENG.rc,IDD_IGNORE,Ignore,partial
+src/Resources/TortoiseProcENG.rc,IDD_IGNORE,Ignore,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_SUBMODULE_UPDATE,Submodule Update,partial
 src/Resources/TortoiseProcENG.rc,IDD_BROWSE_REFS,Browse references,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_ADD_REMOTE,Add Remote,partial-native-replacement

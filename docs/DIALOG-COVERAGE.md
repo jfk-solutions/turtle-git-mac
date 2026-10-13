@@ -106,7 +106,7 @@ This generated table links explicit implementation/parity reviews and existing Q
 | `src/Resources/TortoiseProcENG.rc` / `IDD_STASH` | partial | 8/8 mapped; 0 pending | [STASH-PARITY](STASH-PARITY.md), [UI-PARITY](UI-PARITY.md); 11 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_REVGRAPHFILTER` | partial | 12/12 mapped; 0 pending | [UI-PARITY](UI-PARITY.md); 6 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_DIFFSUBMODULE` | partial-native-replacement | 17/17 mapped; 0 pending | [SUBMODULE-DIFF-PARITY](SUBMODULE-DIFF-PARITY.md); 0 QA records |
-| `src/Resources/TortoiseProcENG.rc` / `IDD_IGNORE` | partial | 10/10 mapped; 0 pending | [IGNORE-PARITY](IGNORE-PARITY.md), [UI-PARITY](UI-PARITY.md); 6 QA records |
+| `src/Resources/TortoiseProcENG.rc` / `IDD_IGNORE` | partial-native-replacement | 10/10 mapped; 0 pending | [IGNORE-PARITY](IGNORE-PARITY.md), [UI-PARITY](UI-PARITY.md); 7 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SUBMODULE_UPDATE` | partial | 15/15 mapped; 0 pending | [SUBMODULE-UPDATE-PARITY](SUBMODULE-UPDATE-PARITY.md), [UI-PARITY](UI-PARITY.md); 10 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_BROWSE_REFS` | partial-native-replacement | 0/11 mapped; 11 pending | [REFERENCE-BROWSER-PARITY](REFERENCE-BROWSER-PARITY.md); 18 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_ADD_REMOTE` | partial-native-replacement | 7/7 mapped; 0 pending | [REMOTE-DIALOGS-PARITY](REMOTE-DIALOGS-PARITY.md); 1 QA records |

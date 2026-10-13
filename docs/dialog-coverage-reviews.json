@@ -473,6 +473,22 @@
       ],
       "parity_document": "docs/ADD-PARITY.md",
       "status": "native-partial"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_IGNORE",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/IgnoreWindow.swift",
+          "anchor": "class IgnoreWindowController"
+        },
+        {
+          "path": "Sources/TurtleGitMac/IgnoreWindow.swift",
+          "anchor": "class IgnoreWindowModel"
+        }
+      ],
+      "parity_document": "docs/IGNORE-PARITY.md",
+      "status": "partial-native-replacement"
     }
   ]
 }

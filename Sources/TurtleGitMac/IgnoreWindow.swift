@@ -6,85 +6,125 @@ import TurtleGitCore
     let model: IgnoreWindowModel
     var onClosed: () -> Void = {}
     var onChanged: (String) -> Void = { _ in }
-    private let delete: Bool
-    private var removed = 0
+    private var retired = false
+    private var question: (id: UUID, alert: NSAlert, reply: (NSApplication.ModalResponse?) -> Void)?
+    var presentQuestion: (NSWindow, NSAlert, @escaping (NSApplication.ModalResponse) -> Void) -> Bool = { owner, alert, reply in
+        guard owner.attachedSheet == nil else { return false }; alert.beginSheetModal(for: owner, completionHandler: reply); return true
+    }
     init(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], mask: Bool, delete: Bool) throws {
-        model = IgnoreWindowModel(repository: repository, access: access, options: try IgnoreOptions(paths: paths, mask: mask))
-        self.delete = delete
+        model = IgnoreWindowModel(repository: repository, access: access, options: try IgnoreOptions(paths: paths, mask: mask), delete: delete)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 550, height: 300), styleMask: [.titled, .closable], backing: .buffered, defer: false)
-        window.title = "Ignore – TurtleGit"; window.isReleasedWhenClosed = false
-        window.contentMinSize = NSSize(width: 550, height: 300)
+        window.title = "Ignore – TurtleGit"; window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 550, height: 300)
         window.contentViewController = NSHostingController(rootView: IgnoreDialog(model: model))
         super.init(window: window); window.delegate = self; window.setContentSize(NSSize(width: 550, height: 300)); window.center()
-        model.close = { [weak window] in window?.close() }
+        model.close = { [weak self] in guard let self, !self.retired else { return }; self.window?.close() }
         model.onRulesWritten = { [weak self] files in
-            guard let self else { return }
+            guard let self, !self.retired else { return }
             self.onChanged(files.isEmpty ? "Ignore rules already present." : "Updated ignore rules in " + files.map(\.path).joined(separator: ", "))
-            if self.delete { self.askKeepLocal() } else { self.close() }
         }
-
+        model.chooseKeepLocal = { [weak self] in
+            let alert = NSAlert(); alert.messageText = "Keep file locally?"; alert.alertStyle = .warning
+            alert.informativeText = "Yes removes the selected paths from version control and keeps their local contents. No also removes their working copies, including local modifications."
+            alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No")
+            let answer = await self?.ask(alert)
+            if answer == .alertFirstButtonReturn { return true }; if answer == .alertSecondButtonReturn { return false }; return nil
+        }
+        model.continueAfterRemovalFailure = { [weak self] path, message in
+            let alert = NSAlert(); alert.alertStyle = .critical; alert.messageText = "Could not remove “\(path)”"
+            alert.addButton(withTitle: "OK"); alert.addButton(withTitle: "Cancel")
+            alert.informativeText = message + "\nOK continues with the next path. The ignore rules have already been written."
+            return await self?.ask(alert) == .alertFirstButtonReturn
+        }
+        model.showRemovalSummary = { [weak self] count in
+            guard let self, !self.retired else { return }
+            let message = "\(count) files removed."; self.onChanged(message)
+            let alert = NSAlert(); alert.messageText = message; alert.addButton(withTitle: "OK")
+            _ = await self.ask(alert)
+        }
         DialogGeometry.attach(window, identifier: "IgnoreDialog", legacyName: "IgnoreDialog")
     }
-    private func askKeepLocal() {
-        guard let window else { return }
-        let alert = NSAlert(); alert.messageText = "Keep file locally?"; alert.alertStyle = .warning
-        alert.informativeText = "Yes removes the selected paths from version control and keeps their local contents. No also removes their working copies, including local modifications."
-        alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No")
-        alert.beginSheetModal(for: window) { [weak self] response in self?.removeNext(0, keepLocal: response == .alertFirstButtonReturn) }
-    }
-    private func removeNext(_ index: Int, keepLocal: Bool) {
-        guard index < model.options.paths.count else { finishRemoval(); return }
-        let path = model.options.paths[index]
-        Task {
-            do {
-                _ = try await model.repository.removeVersionedPath(path, keepLocal: keepLocal)
-                removed += 1; removeNext(index + 1, keepLocal: keepLocal)
-            } catch {
-                guard let window else { return }
-                let alert = NSAlert(); alert.alertStyle = .critical; alert.messageText = "Could not remove “\(path)”"
-                alert.addButton(withTitle: "OK"); alert.addButton(withTitle: "Cancel")
-                alert.informativeText = error.localizedDescription + "\nOK continues with the next path. The ignore rules have already been written."
-                alert.beginSheetModal(for: window) { [weak self] response in
-                    if response == .alertFirstButtonReturn { self?.removeNext(index + 1, keepLocal: keepLocal) }
-                    else { self?.finishRemoval() }
-                }
-            }
+    private func ask(_ alert: NSAlert) async -> NSApplication.ModalResponse? {
+        guard !retired, question == nil, let window, window.attachedSheet == nil else { return nil }
+        let id = UUID()
+        return await withCheckedContinuation { continuation in
+            question = (id, alert, { continuation.resume(returning: $0) })
+            if !presentQuestion(window, alert, { [weak self] answer in self?.finishQuestion(id, answer: answer) }) { finishQuestion(id, answer: nil) }
         }
     }
-    private func finishRemoval() {
-        let summary = "\(removed) files removed."; onChanged(summary)
-        guard let window else { return }
-        let alert = NSAlert(); alert.messageText = summary; alert.addButton(withTitle: "OK")
-        alert.beginSheetModal(for: window) { [weak self] _ in self?.close() }
+    private func finishQuestion(_ id: UUID, answer: NSApplication.ModalResponse?) {
+        guard let pending = question, pending.id == id else { return }; question = nil
+        if pending.alert.window.sheetParent === window { window?.endSheet(pending.alert.window, returnCode: answer ?? .abort) }
+        pending.alert.window.orderOut(nil); pending.reply(answer)
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy }
-    func windowWillClose(_ notification: Notification) { onClosed() }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && question == nil && sender.attachedSheet == nil }
+    func windowWillClose(_ notification: Notification) {
+        guard !retired else { return }; retired = true; model.invalidate()
+        if let pending = question { finishQuestion(pending.id, answer: nil) }
+        onClosed()
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
 @MainActor final class IgnoreWindowModel: ObservableObject {
+    static private(set) var activeOperations = 0
     let repository: GitRepository
     private let access: RepositoryAccessLease?
+    private let delete: Bool
+    private var retired = false, submitted = false
+    private var cancellation: OperationCancellation?
     @Published var options: IgnoreOptions
     @Published var busy = false
     @Published var error: String?
+    @Published private(set) var removed = 0
     var close: () -> Void = {}
     var onRulesWritten: ([URL]) -> Void = { _ in }
-    init(repository: GitRepository, access: RepositoryAccessLease?, options: IgnoreOptions) {
-        self.repository = repository; self.access = access; self.options = options
+    var chooseKeepLocal: () async -> Bool? = { nil }
+    var continueAfterRemovalFailure: (String, String) async -> Bool = { _, _ in false }
+    var showRemovalSummary: (Int) async -> Void = { _ in }
+    var writeRules: ((IgnoreOptions, OperationCancellation) async throws -> [URL])?
+    var removePath: ((String, Bool, OperationCancellation) async throws -> Void)?
+    init(repository: GitRepository, access: RepositoryAccessLease?, options: IgnoreOptions, delete: Bool = false) {
+        self.repository = repository; self.access = access; self.options = options; self.delete = delete
     }
+    func invalidate() { retired = true; cancellation?.cancel(); busy = false }
+    private func isCurrent(_ token: OperationCancellation) -> Bool { !retired && cancellation === token && !token.isCancelled }
     func apply() {
-        guard !busy else { return }; busy = true
-        let selected = options
+        guard !retired, !submitted, !busy else { return }; busy = true; error = nil; removed = 0
+        let selected = options, token = OperationCancellation(); cancellation = token
+        Self.activeOperations += 1
         Task {
+            defer { Self.activeOperations -= 1; if cancellation === token { cancellation = nil; if !retired { busy = false } } }
             do {
-                let destinations = try await repository.ignoreDestinations(selected)
+                let destinations = try await repository.ignoreDestinations(selected, cancellation: token)
+                guard isCurrent(token) else { return }
                 if GitRuntime.isAppStoreBuild {
                     guard access?.hasSecurityScope == true, access?.contains(repository.root) == true,
                           destinations.allSatisfy({ access?.contains($0) == true }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
                 }
-                onRulesWritten(try await repository.addIgnoreRules(selected))
-            } catch { busy = false; self.error = error.localizedDescription }
+                let files: [URL]
+                if let writeRules { files = try await writeRules(selected, token) }
+                else { files = try await repository.addIgnoreRules(selected, cancellation: token) }
+                guard isCurrent(token) else { return }; onRulesWritten(files)
+                guard isCurrent(token) else { return }
+                if delete {
+                    guard let keepLocal = await chooseKeepLocal(), isCurrent(token) else { if isCurrent(token) { submitted = true; close() }; return }
+                    for path in selected.paths {
+                        guard isCurrent(token) else { return }
+                        do {
+                            if let removePath { try await removePath(path, keepLocal, token) }
+                            else { _ = try await repository.removeVersionedPath(path, keepLocal: keepLocal, cancellation: token) }
+                            guard isCurrent(token) else { return }; removed += 1
+                        } catch {
+                            guard isCurrent(token) else { return }
+                            let proceed = await continueAfterRemovalFailure(path, error.localizedDescription)
+                            guard isCurrent(token) else { return }
+                            if !proceed { submitted = true; close(); return }
+                        }
+                    }
+                    guard isCurrent(token) else { return }; await showRemovalSummary(removed)
+                }
+                guard isCurrent(token) else { return }; submitted = true; close()
+            } catch { if isCurrent(token) { self.error = error.localizedDescription } }
         }
     }
 }

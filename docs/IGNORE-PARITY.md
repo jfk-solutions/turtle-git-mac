@@ -60,7 +60,7 @@ that permission flow remain unfinished.
 
 ## Verification
 
-The full suite passes 140 tests. Six Ignore tests cover all scope/destination
+The historical checkpoint ran 140 tests; this is not a current full-suite claim. Six Ignore tests cover all scope/destination
 combinations through real `git check-ignore`, unchanged index/local files, duplicate
 suppression, exact BOM/CRLF append and permissions/inode, literal macOS names,
 extension masks, validation before multi-file writes, symlinks, invalid UTF-8,
@@ -92,6 +92,34 @@ Native error/retry, Delete-and-ignore No and error continuation, multiple destin
 folder menu handoffs, signed Finder menus, saved position,
 keyboard traversal, Help, broader appearance/locale and post-close restoration need
 verification. Finder selection classes, directories/submodules, cache invalidation,
-additional sandbox grants and full menu configuration remain partial. UnIgnore and
-SVN Ignore are separate unported workflows. Interactive cancellation and streaming
-progress are not implemented. No complete upstream or App Store parity is claimed.
+additional sandbox grants and full menu configuration remain partial. The pinned UnIgnore command edits `svn:ignore`, so it and SVN Ignore need a
+separate SVN port. The later owned workflow adds cancellation boundaries and
+retirement guards; it does not introduce a new streaming-progress interface. No complete upstream or App Store parity is claimed.
+
+
+## Owned Ignore/Delete-and-ignore sequence — 2026-10-13
+
+The native model now captures the complete submitted options/path list. It writes
+rules before asking Keep file locally, removes each captured path after explicit
+Yes/No, asks OK/Cancel after each failure, and reports actual successful removals
+before closing. Rejected/aborted Keep presentation stops removal; it is never
+interpreted as No. Error Cancel stops before the next path and omits a success
+summary, matching IgnoreCommand's early return. Existing successful rule writes
+and removals remain; cancellation does not promise rollback.
+
+Each question belongs to its owner and settles once. Forced closure retires the
+model, cancels its token, tears down the owned sheet and resolves its pending
+question without a destructive answer. Late answers, writers and repository
+replies cannot continue the command or reopen its presentation. Rule writes and
+removals check owned cancellation at metadata/command and between-file boundaries.
+The captured repository/access lease stays alive and a global count guards Quit
+until the task settles, including after window closure and during questions.
+
+Write failures retain a retryable options draft. The window's original two groups,
+five radio choices and buttons remain. Physical Yes/No/error/summary keyboard,
+VoiceOver/theme and linked-worktree extra grants remain open, as does signed
+Finder/App Store execution and complete Ignore parity.
+
+The Debug build, 23 unique affected Core tests, four grouped native cases and
+two additional real-sheet teardown cases passed. See the
+[scoped workflow evidence](qa/ignore-workflow-2026-10-13.json).

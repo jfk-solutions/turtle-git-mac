@@ -2,6 +2,19 @@ import XCTest
 @testable import TurtleGitCore
 
 final class IgnoreTests: XCTestCase {
+    func testPrecancelledRulesAndRemovalPreserveFilesAndIndex() async throws {
+        let (root, repo, tracked) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let cancellation = OperationCancellation(); cancellation.cancel()
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let bytes = try Data(contentsOf: root.appendingPathComponent(tracked))
+        let options = try IgnoreOptions(paths: ["cancel-rule.txt"], mask: false)
+        do { _ = try await repo.addIgnoreRules(options, cancellation: cancellation); XCTFail("Expected cancellation") } catch is OperationCancellationFailure { }
+        do { _ = try await repo.removeVersionedPath(tracked, keepLocal: false, cancellation: cancellation); XCTFail("Expected cancellation") } catch is OperationCancellationFailure { }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent(".gitignore").path))
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(tracked)), bytes)
+    }
     func testAllScopeAndDestinationCombinationsHaveRealGitSemanticsAndKeepIndex() async throws {
         for destination in IgnoreDestination.allCases {
             for scope in IgnoreScope.allCases {

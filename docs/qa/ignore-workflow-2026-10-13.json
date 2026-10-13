@@ -1,0 +1,66 @@
+{
+  "date": "2026-10-13",
+  "reference": {
+    "revision": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "source": [
+      "IgnoreDlg.cpp",
+      "Commands/IgnoreCommand.cpp",
+      "AppUtils.cpp::IgnoreFile",
+      "Commands/UnIgnoreCommand.cpp"
+    ]
+  },
+  "scope": [
+    "Captured options/path list and ordered rules/Keep locally/per-path removal/error Continue or Abort/summary workflow",
+    "Rejected or aborted question is never a destructive No; one-shot sheet responses and forced-owner teardown",
+    "Cancellable metadata/Git operations and between-file rule writes; global Quit accounting after owner closure",
+    "Retryable write failures and late writer/answer/repository presentation fences",
+    "UnIgnore audited as legacy svn:ignore behavior rather than substituted Git rule editing"
+  ],
+  "validation": {
+    "core": {
+      "unique_accepted_tests": 23,
+      "initial_log": "build/qa/ignore-workflow-core-2026-10-13.log",
+      "initial_exit": 1,
+      "repair_log": "build/qa/ignore-workflow-core-repaired-2026-10-13.log",
+      "repair_exit": 0,
+      "repair_tests": 7,
+      "fixture_repair": "The new cancellation fixture used GitPatchTests newline filename, correctly rejected by IgnoreOptions. It now uses a valid ignore-rule name while still testing removal cancellation for the tracked file. All other initial regressions passed."
+    },
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/ignore-workflow-debug-2026-10-13.log"
+    },
+    "native": {
+      "exit": 0,
+      "cases": 4,
+      "families": [
+        "ignore-workflow",
+        "add-dialog"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "log": "build/qa/ignore-workflow-native-2026-10-13.log",
+      "actual_sheet_extension": {
+        "exit": 0,
+        "cases": 2,
+        "log": "build/qa/ignore-workflow-native-sheets-2026-10-13.log",
+        "scope": "Real NSAlert owned-sheet teardown with hidden owned windows, no destructive answer after closure."
+      },
+      "ownership": "All four initial and two real-sheet receivers reaped. Owned Ignore windows/questions closed; no user app terminated."
+    },
+    "documentation": {
+      "exit": 0,
+      "tests": 2,
+      "log": "build/qa/ignore-workflow-site-check-2026-10-13.log"
+    }
+  },
+  "pending": [
+    "Physical pointer/keyboard/VoiceOver/theme acceptance",
+    "Linked-worktree extra grants and signed Finder/App Store execution",
+    "Legacy SVN Ignore/UnIgnore port",
+    "Full Ignore and application parity"
+  ],
+  "full_port_certified": false
+}
