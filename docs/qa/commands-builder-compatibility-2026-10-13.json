@@ -1,0 +1,19 @@
+{
+  "date": "2026-10-13",
+  "trigger": {
+    "commit": "7612fd8",
+    "run": 38345355949,
+    "job": 115136209623,
+    "step": "Git integration tests",
+    "failure": "Xcode 16.4 SwiftUI CommandsBuilder rejected eleventh child at Development menu; tests did not begin."
+  },
+  "change": "Compose Patch and Statistics providers within ViewerFileCommands, retaining provider order/routing and keeping outer CommandsBuilder at ten children including Debug menu.",
+  "validation": {
+    "command": "swift build --scratch-path .build/out --target TurtleGitMac",
+    "exit": 0,
+    "log": "build/qa/commands-builder-compatibility-2026-10-13.log",
+    "compiler": "Local Xcode 27; older runner SDK acceptance pending."
+  },
+  "tests_rerun": false,
+  "test_apps_launched": 0
+}

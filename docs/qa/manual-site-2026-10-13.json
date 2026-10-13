@@ -24,10 +24,20 @@
       "exit": 0,
       "log": "build/qa/manual-search-check-2026-10-13.log",
       "note": "Actual search script exercised against generated catalog with minimal DOM; no full browser visual/accessibility claim."
+    },
+    "hosted": {
+      "commit": "e72a53d",
+      "run": 38352754211,
+      "conclusion": "success",
+      "url": "https://jfk-solutions.github.io/turtle-git-mac/manual/index.html",
+      "http_status": 200,
+      "observed": [
+        "Search documentation label",
+        "175 document catalog"
+      ]
     }
   },
   "pending": [
-    "Hosted deployment of this commit",
     "Physical mobile/theme/browser and assistive-technology acceptance",
     "Remaining user manual chapters and complete app parity"
   ],

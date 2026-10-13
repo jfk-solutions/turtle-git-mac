@@ -51,8 +51,7 @@ import TurtleGitCore
                 Button("TurtleGit Help") { SettingsPresentationService.showHelp() }
             }
             BlameCommands(context:blameMenuContext)
-            PatchFileCommands(context: patchMenuContext)
-            StatisticsFileCommands(context: statisticsMenuContext)
+            ViewerFileCommands(patch: patchMenuContext, statistics: statisticsMenuContext)
             CommandGroup(after: .appInfo) {
                 Button("Check for Updates…") { ReleaseUpdateService.shared.show() }
                 Button("First Start Wizard…") { FirstStartWizardService.shared.show() }
@@ -97,6 +96,17 @@ import TurtleGitCore
             }
             #endif
         }
+    }
+}
+
+// Older SwiftUI SDKs limit each CommandsBuilder block to ten children. Keep
+// viewer command providers together without changing their placement or routing.
+@MainActor private struct ViewerFileCommands: Commands {
+    let patch: PatchMenuContext
+    let statistics: StatisticsMenuContext
+    var body: some Commands {
+        PatchFileCommands(context: patch)
+        StatisticsFileCommands(context: statistics)
     }
 }
 
