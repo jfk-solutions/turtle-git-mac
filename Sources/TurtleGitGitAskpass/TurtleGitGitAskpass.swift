@@ -17,7 +17,9 @@ import Darwin
         while parent.path != "/" && parent.pathExtension != "app" { parent.deleteLastPathComponent() }
         let icon = NSImage(contentsOf: parent.appendingPathComponent("Contents/Frameworks/TurtleGitCore.framework/Resources/Icons/TortoiseSmall.ico"))
         if let icon { application.applicationIconImage = icon }
-        let controller = GitAskpassWindowController(prompt: GitAskpassPrompt(CommandLine.arguments[1]), icon: icon) { answer in
+        let ssh = URL(fileURLWithPath: CommandLine.arguments[0]).lastPathComponent == "TurtleGitOpenSSHAskpass"
+        let prompt = GitAskpassPrompt(CommandLine.arguments[1], ssh: ssh, hint: ProcessInfo.processInfo.environment["SSH_ASKPASS_PROMPT"])
+        let controller = GitAskpassWindowController(prompt: prompt, icon: icon) { answer in
             guard let answer else { exit(1) }
             do { try FileHandle.standardOutput.write(contentsOf: Data((answer + "\n").utf8)); exit(0) }
             catch { exit(1) }

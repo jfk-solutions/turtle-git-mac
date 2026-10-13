@@ -12,6 +12,8 @@ parser.add_argument('helper', type=Path)
 parser.add_argument('--universal', action='store_true')
 args = parser.parse_args()
 helper = args.helper.resolve()
+alias = args.helper.parent / 'TurtleGitOpenSSHAskpass'
+assert alias.is_symlink() and alias.resolve() == helper
 manifest = json.loads((args.helper.parent / 'provenance.json').read_text())
 assert hashlib.sha256(helper.read_bytes()).hexdigest() == manifest['binary_sha256']
 root = Path(__file__).resolve().parent.parent

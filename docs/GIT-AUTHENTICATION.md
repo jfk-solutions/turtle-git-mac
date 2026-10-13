@@ -28,7 +28,35 @@ light/dark appearance is passed to the helper. The dialog uses the original
 TortoiseSmall artwork from the packaged icon resources.
 
 This implements Git CLI responses, including the generic fallback used by HTTPS
-operations. OpenSSH host-key/account-password prompts, certificate dialogs,
+operations. Certificate dialogs,
 OAuth manager behavior and signed inherited-sandbox execution remain separate
 acceptance work. Private checks do not prove live public-server authentication
 or every credential-helper combination. See [source audit](GIT-AUTHENTICATION-PARITY.md).
+
+## OpenSSH prompts
+
+Network Git operations also supply a separate `TurtleGitOpenSSHAskpass` alias
+when the caller has not selected `SSH_ASKPASS`. OpenSSH receives the direct path
+and defaults to `SSH_ASKPASS_REQUIRE=force`, allowing native interaction without
+an X11 display. Existing helpers, an explicit `never`/`prefer` requirement and
+the headless disable flag retain precedence. The private SSH agent’s dedicated
+passphrase helper and saved-key workflow remain independent.
+
+SSH password and fallback passphrase fields are secure. Host-key questions and
+OpenSSH permission hints use a visible response field and **Continue / Cancel**;
+Cancel has initial focus and is the default button. Continue explicitly sends
+`yes` when the field is empty, or the entered fingerprint/answer otherwise.
+OpenSSH decides whether to accept it and where to store known hosts under its
+existing configuration. Retry questions keep the same confirmation mode.
+No host is trusted automatically. Escape cancels every prompt.
+
+OpenSSH’s `none` hint presents a notification, such as a request to touch a
+security key, without a response field or Continue action. The owning SSH
+process controls completion and termination; closing the notification does not
+itself guarantee cancellation of the security-key operation. SSH responses are
+limited to 1,023 UTF-8 bytes, matching the pinned OpenSSH reader. Oversized or
+multiline responses keep the dialog open instead of silently truncating input.
+
+This is a native OpenSSH adaptation, not certification of the complete upstream
+TortoisePlink host-key dialog. Live-server, security-key device and signed
+sandbox interaction remain acceptance work.

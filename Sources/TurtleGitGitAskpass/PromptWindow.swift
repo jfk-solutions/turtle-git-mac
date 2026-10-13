@@ -3,6 +3,9 @@ import AppKit
 
 @MainActor private final class GitAskpassNativeWindow: NSWindow {
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if event.keyCode == 53, event.modifierFlags.intersection([.command,.option,.shift,.control]).isEmpty {
+            performClose(nil); return true
+        }
         #if DEBUG
         let flags = event.modifierFlags.intersection([.command,.option,.shift,.control])
         if flags == [.command,.option,.shift], event.charactersIgnoringModifiers?.lowercased() == "s",
@@ -30,11 +33,16 @@ import AppKit
         let label = NSTextField(wrappingLabelWithString: prompt.text)
         label.isSelectable = true
         label.setAccessibilityLabel("Git authentication request")
-        field.setAccessibilityLabel(prompt.secret ? "Password or authentication response" : "Username")
+        field.setAccessibilityLabel(prompt.confirmation ? "Host fingerprint or confirmation response" : prompt.secret ? "Password or authentication response" : "Username")
         accept.target = self; accept.action = #selector(submit); accept.bezelStyle = .rounded; accept.keyEquivalent = "\r"
         cancel.target = self; cancel.action = #selector(abort); cancel.bezelStyle = .rounded; cancel.keyEquivalent = "\u{1b}"
+        if prompt.confirmation {
+            accept.title = "Continue"; accept.keyEquivalent = ""
+            field.placeholderString = "Optional fingerprint or yes/no response"
+        }
         let buttons = NSStackView(views: [NSView(),accept,cancel]); buttons.orientation = .horizontal; buttons.spacing = 8
         var views: [NSView] = [label,field,buttons]
+        if prompt.notification { views = [label,buttons]; accept.isHidden = true }
         if let icon {
             let image = NSImageView(image: icon); image.setContentHuggingPriority(.required, for: .horizontal)
             let header = NSStackView(views: [image,label]); header.orientation = .horizontal; header.spacing = 12
@@ -43,16 +51,21 @@ import AppKit
         }
         let stack = NSStackView(views: views); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 14; stack.translatesAutoresizingMaskIntoConstraints = false
         let content = NSView(); content.addSubview(stack); window.contentView = content
-        NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 16),stack.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -16),stack.topAnchor.constraint(equalTo: content.topAnchor, constant: 16),stack.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -16),field.widthAnchor.constraint(equalTo: stack.widthAnchor),buttons.widthAnchor.constraint(equalTo: stack.widthAnchor),views[0].widthAnchor.constraint(equalTo: stack.widthAnchor)])
+        NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 16),stack.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -16),stack.topAnchor.constraint(equalTo: content.topAnchor, constant: 16),stack.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -16),buttons.widthAnchor.constraint(equalTo: stack.widthAnchor),views[0].widthAnchor.constraint(equalTo: stack.widthAnchor)])
+        if !prompt.notification { field.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true }
         let width: CGFloat = icon == nil ? 488 : 444
         let bounds = (prompt.text as NSString).boundingRect(with: .init(width: width, height: 1000), options: [.usesLineFragmentOrigin], attributes: [.font: label.font ?? NSFont.systemFont(ofSize: 13)])
         window.setContentSize(.init(width: 520, height: max(170, min(600, ceil(bounds.height) + 110))))
         window.contentMinSize = .init(width: 460, height: 170)
-        window.initialFirstResponder = field; window.defaultButtonCell = accept.cell as? NSButtonCell; window.center()
+        window.initialFirstResponder = prompt.notification || prompt.confirmation ? cancel : field
+        window.defaultButtonCell = (prompt.confirmation || prompt.notification ? cancel : accept).cell as? NSButtonCell
+        window.center()
     }
     @objc func submit() {
-        guard !finished, GitAskpassPrompt.validResponse(field.stringValue) else { return }
-        finish(field.stringValue)
+        guard !finished, !prompt.notification else { return }
+        let value = prompt.confirmation && field.stringValue.isEmpty ? "yes" : field.stringValue
+        guard prompt.accepts(value) else { return }
+        finish(value)
     }
     @objc func abort() { finish(nil) }
     private func finish(_ value: String?) {

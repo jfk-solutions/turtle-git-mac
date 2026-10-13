@@ -26,6 +26,9 @@ public actor GitRepository {
         environment.merge(GitRuntime.environment(executable: executable)) { _, runtime in runtime }
         environment.merge(SSHClientPreferences.load().environment(existing: environment)) { _, selected in selected }
         environment.merge(environmentOverrides) { _, override in override }
+        let sshPrompt = GitAskpassRuntime.sshEnvironment(arguments: arguments, environment: environment, helper: askpass)
+        environment.merge(sshPrompt) { _, selected in selected }
+        if !sshPrompt.isEmpty { environment["TURTLEGIT_ASKPASS_APPEARANCE"] = UserDefaults.standard.string(forKey: "appearance") ?? "system" }
         if GitAskpassRuntime.shouldInstall(arguments: arguments, environment: environment, helper: askpass), let askpass {
             // Preserve explicit core.askPass, including an explicitly empty value.
             let configured = try run(["config", "--get", "core.askPass"], environmentOverrides: environmentOverrides, successfulExitCodes: 0...1, cancellation: cancellation)

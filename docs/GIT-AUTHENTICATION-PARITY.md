@@ -47,3 +47,24 @@ This checkpoint resolves the observed standalone layout/theme/Return/Escape and
 displayed parent-cancellation scenarios. Plain username/long requests, full
 keyboard/VoiceOver, live server and signed inherited-sandbox acceptance remain
 unverified. Earlier pending entries describe the earlier checkpoint.
+
+## OpenSSH interaction batch — 2026-10-13
+
+The implementation follows the packaged OpenSSH source, `readpass.c` and
+`sshconnect.c`: direct helper execution, `confirm` permission hints, `none`
+notification hints, host confirmation/retry text, and a 1,023-byte response
+buffer. A sibling executable alias selects SSH mode without affecting Git’s
+larger response limit. The alias is embedded and audited with the same helper;
+no additional native binary is introduced.
+
+Host and permission questions focus/default to Cancel and require explicit
+Continue. Fingerprint responses are passed through unchanged. Notification
+windows have no input field and cannot submit a response. Existing custom SSH
+helpers and explicit prompting policy take precedence. Core policy and native
+controller checks cover this adaptation; actual host trust, SSH login, hardware
+security keys and signed deployment are not established by those checks.
+
+Six focused Core tests and six grouped native cases passed across system and
+bundled Git, after repairing AppKit’s replacement of the default button’s Escape
+shortcut with Return. The window now handles Escape independently. All owned
+receivers were reaped. See [SSH batch evidence](qa/ssh-askpass-2026-10-13.json).

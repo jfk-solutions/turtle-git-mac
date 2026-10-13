@@ -1,0 +1,67 @@
+{
+  "date": "2026-10-13",
+  "scope": [
+    "OpenSSH account/password/passphrase fallback",
+    "Host and permission confirmation with default Cancel and explicit Continue/fingerprint",
+    "Security-key notification hint without response field",
+    "Distinct SSH alias, byte limit and custom/headless policy precedence",
+    "Native helper packaging and authentication documentation"
+  ],
+  "reference": [
+    "Packaged OpenSSH readpass.c",
+    "Packaged OpenSSH sshconnect.c",
+    "TortoiseGit 7338078f8ddd924b8cddee35f512f2286072136d src/SshAskPass"
+  ],
+  "validation": {
+    "core": {
+      "tests": 6,
+      "failures": 0,
+      "log": "build/qa/ssh-askpass-core-2026-10-13.log"
+    },
+    "native": {
+      "cases": 6,
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "exit": 0,
+      "log": "build/qa/ssh-askpass-native-repaired-2026-10-13.log",
+      "repair": "Initial default-button key-equivalent check exposed AppKit replacing Escape with Return. Added independent window Escape handling; reran grouped checks. All owned receiver PIDs reaped."
+    },
+    "documentation": {
+      "tests": 2,
+      "exit": 0,
+      "log": "build/qa/ssh-askpass-site-check-final-2026-10-13.log"
+    },
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/ssh-askpass-debug-final-2026-10-13.log"
+    },
+    "debug_package": {
+      "exit": 0,
+      "log": "build/qa/ssh-askpass-debug-package-2026-10-13.log"
+    },
+    "appstore": {
+      "exit": 0,
+      "signed": false,
+      "log": "build/qa/ssh-askpass-appstore-final-2026-10-13.log"
+    },
+    "appstore_bundle": {
+      "exit": 0,
+      "native_items": 203,
+      "icons": 296,
+      "helper_architectures": [
+        "arm64",
+        "x86_64"
+      ],
+      "log": "build/qa/ssh-askpass-appstore-bundle-2026-10-13.log"
+    }
+  },
+  "pending": [
+    "Live SSH server and known-host trust interaction",
+    "Hardware security-key notification lifecycle",
+    "Signed inherited sandbox and App Store acceptance",
+    "Complete upstream TortoisePlink dialog parity"
+  ],
+  "full_port_certified": false
+}

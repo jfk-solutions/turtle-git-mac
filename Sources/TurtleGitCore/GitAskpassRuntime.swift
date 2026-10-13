@@ -17,4 +17,14 @@ public enum GitAskpassRuntime {
         let explicit = arguments.contains { $0.lowercased().hasPrefix("core.askpass=") || $0.lowercased().hasPrefix("--config-env=core.askpass=") }
         return helper != nil && !explicit && mayAuthenticate(arguments) && environment["GIT_ASKPASS"] == nil && environment["TURTLEGIT_DISABLE_ASKPASS"] != "1"
     }
+    public static func sshEnvironment(arguments: [String], environment: [String: String], helper: URL?) -> [String: String] {
+        guard let helper, mayAuthenticate(arguments), environment["SSH_ASKPASS"] == nil,
+              environment["TURTLEGIT_DISABLE_ASKPASS"] != "1",
+              environment["SSH_ASKPASS_REQUIRE"]?.lowercased() != "never" else { return [:] }
+        let alias = helper.deletingLastPathComponent().appendingPathComponent("TurtleGitOpenSSHAskpass")
+        guard FileManager.default.isExecutableFile(atPath: alias.path) else { return [:] }
+        var result = ["SSH_ASKPASS": alias.path]
+        if environment["SSH_ASKPASS_REQUIRE"] == nil { result["SSH_ASKPASS_REQUIRE"] = "force" }
+        return result
+    }
 }

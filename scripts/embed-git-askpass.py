@@ -17,6 +17,9 @@ if destination.parent.is_symlink(): remove_entry(destination.parent)
 destination.parent.mkdir(parents=True, exist_ok=True)
 shutil.copy2(source, destination)
 destination.chmod(0o755)
+alias = destination.parent / 'TurtleGitOpenSSHAskpass'
+if alias.exists() or alias.is_symlink(): alias.unlink()
+alias.symlink_to(destination.name)
 if os.environ.get('CODE_SIGNING_ALLOWED') == 'YES':
     identity = os.environ.get('EXPANDED_CODE_SIGN_IDENTITY')
     if not identity:
