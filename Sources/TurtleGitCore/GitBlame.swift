@@ -78,14 +78,20 @@ public struct GitBlameEncoding: Hashable, Identifiable, Sendable, CustomStringCo
     public let id: UInt
     public let rawValue: String
     public var description: String { rawValue }
-    public var windowsCodePage: UInt32 { CFStringConvertEncodingToWindowsCodepage(CFStringConvertNSStringEncodingToEncoding(id)) }
+    public var windowsCodePage: UInt32 {
+        if id == Self.utf8.id { return 65001 }
+        if id == Self.utf16LE.id { return 1200 }
+        if id == Self.utf16BE.id { return 1201 }
+        if Self.supplementalMappings[id] != nil { return UInt32(id - 0x100000000) }
+        return CFStringConvertEncodingToWindowsCodepage(CFStringConvertNSStringEncodingToEncoding(id))
+    }
     public static let utf8 = GitBlameEncoding(id: String.Encoding.utf8.rawValue, rawValue: "UTF-8")
     public static let utf16LE = GitBlameEncoding(id: String.Encoding.utf16LittleEndian.rawValue, rawValue: "UTF-16 LE")
     public static let utf16BE = GitBlameEncoding(id: String.Encoding.utf16BigEndian.rawValue, rawValue: "UTF-16 BE")
     /// Offer installed codecs whose line delimiter is Git's byte LF. Decode
     /// legacy content as a whole so stateful encodings retain their shift state.
     public static let available: [GitBlameEncoding] = {
-        var values = [utf8, utf16LE, utf16BE], seen = Set(values.map(\.id))
+        var values = [utf8, utf16LE, utf16BE] + supplemental, seen = Set(values.map(\.id))
         guard let pointer = CFStringGetListOfAvailableEncodings() else { return values }
         var index = 0
         while pointer[index] != kCFStringEncodingInvalidId {
@@ -105,12 +111,12 @@ public struct GitBlameEncoding: Hashable, Identifiable, Sendable, CustomStringCo
             let bom: [UInt8] = self == .utf16LE ? [255, 254] : [254, 255]
             try Self.validateUTF16(bytes.starts(with: bom) ? bytes.dropFirst(2) : bytes, little: self == .utf16LE)
         } else {
-            guard !bytes.contains(0), String(data: bytes, encoding: String.Encoding(rawValue: id)) != nil else { throw GitBlameFailure.unsupported }
+            guard !bytes.contains(0), decodeText(bytes) != nil else { throw GitBlameFailure.unsupported }
         }
     }
     func legacyLines(_ bytes: Data) throws -> [String]? {
         guard self != .utf8, self != .utf16LE, self != .utf16BE else { return nil }
-        guard let text = String(data: bytes, encoding: String.Encoding(rawValue: id)) else { throw GitBlameFailure.unsupported }
+        guard let text = decodeText(bytes) else { throw GitBlameFailure.unsupported }
         var lines = Data(text.utf8).split(separator: UInt8(10), omittingEmptySubsequences: false).map { String(decoding: $0, as: UTF8.self) }
         if bytes.isEmpty || bytes.last == 10 { lines.removeLast() }
         return lines
@@ -152,7 +158,7 @@ public struct GitBlameEncoding: Hashable, Identifiable, Sendable, CustomStringCo
             guard !raw.contains(0), String(data: raw, encoding: .utf8) != nil else { throw GitBlameFailure.unsupported }; return String(decoding: raw, as: UTF8.self)
         }
         if self != .utf16LE, self != .utf16BE {
-            guard !raw.contains(0), let text = String(data: raw, encoding: String.Encoding(rawValue: id)) else { throw GitBlameFailure.unsupported }; return text
+            guard !raw.contains(0), let text = decodeText(raw) else { throw GitBlameFailure.unsupported }; return text
         }
         var bytes = raw
         if line == 1, bytes.starts(with: self == .utf16LE ? [0xff, 0xfe] : [0xfe, 0xff]) { bytes.removeFirst(2) }

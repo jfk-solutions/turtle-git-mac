@@ -394,7 +394,7 @@ invalid counts disable Apply. Apply saves the draft and broadcasts an update to
 open Blame viewers, retaining each viewer's encoding and selected original line.
 Cancel restores the draft and closes Settings. The shared settings window now has
 room for these controls. Font, tab size, age colors and complete-log/follow-renames
-settings from the upstream page are not yet implemented.
+settings were added in the later Native presentation settings batch below.
 
 New viewers load the saved annotation defaults. Changing the viewer's mode,
 whitespace or first-parent checkbox saves that individual field and reloads.

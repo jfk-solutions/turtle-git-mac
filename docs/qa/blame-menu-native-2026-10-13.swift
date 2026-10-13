@@ -49,8 +49,19 @@ import TurtleGitCore
         context.perform(.colorAge);context.perform(.wrap);context.perform(.author)
         try await wait { model.wrapLongLines && !model.marginFields.contains(.author) }
         context.perform(.wrap);context.perform(.author)
+        // Exercise actual menu routing through both supplemental codecs and a
+        // platform legacy codec. ASCII remains byte-identical in all three.
+        for page: UInt32 in [720, 858, 28606] {
+            let codec = GitBlameEncoding.available.first { $0.windowsCodePage == page }!
+            context.setEncoding(codec)
+            try await wait { !model.busy && model.snapshot?.encoding.id == codec.id }
+            context.refresh()
+            try require(context.encoding?.id == codec.id, "Encoding check state did not follow selected codec")
+        }
+        context.setEncoding(nil); try await wait { !model.busy }; context.refresh()
+        try require(source()?.string == text, "Automatic encoding did not restore Unicode text")
         model.openingDocument=true;context.refresh();let before=model.showToolbar
-        context.perform(.toolbar);try require(!context.available && model.showToolbar==before,"Busy menu mutated a blocked owner")
+        context.perform(.toolbar);context.setEncoding(.utf16LE);try require(model.sourceEncoding == nil && !context.available && model.showToolbar==before,"Busy menu mutated a blocked owner")
         model.openingDocument=false
         let other=NSWindow(contentRect:NSRect(x:0,y:0,width:50,height:50),styleMask:.titled,backing:.buffered,defer:false);other.isReleasedWhenClosed=false
         defer { other.close() }
@@ -70,7 +81,7 @@ import TurtleGitCore
         try require(!reopened.model.showToolbar && !reopened.model.showLog && !reopened.model.showProperties && !reopened.model.showStatusBar,"New viewer did not restore pane layout")
         focus=reopened.window;context.refresh();context.perform(.toolbar)
         try require(reopened.model.showToolbar && !model.showToolbar,"Menus targeted a background viewer")
-        reopened.close();context.refresh();try require(!context.focused && !context.available,"Retired owner stayed in menu context")
+        reopened.close();context.refresh();context.setEncoding(.utf16BE);try require(reopened.model.sourceEncoding == nil, "Retired owner accepted encoding");try require(!context.focused && !context.available,"Retired owner stayed in menu context")
         try require(GitBlameFindPreferences.load()==findGlobals,"Find menu wrote global query preferences")
         let afterHead=try await repo.run(["rev-parse","HEAD"]).stdout,afterIndex=try Data(contentsOf:root.appendingPathComponent(".git/index")),afterFile=try Data(contentsOf:file)
         try require(afterHead==head && afterIndex==index && afterFile==Data(text.utf8),"Menu operations changed repository state")

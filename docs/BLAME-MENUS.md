@@ -22,8 +22,8 @@ Dark Mode installs a Blame-window appearance override, also applied to Find and
 native picker/information panels. Follow System Appearance removes the override.
 New viewers inherit persisted layout/appearance defaults; existing independent
 viewers retain their current layout until changed. Native split panes replace
-Windows docking. Floating/docking layout persistence, full encoding-category/menu
-order, physical menu click/accelerator and VoiceOver acceptance remain open.
+Windows docking. Floating/docking layout persistence, physical menu
+click/accelerator and VoiceOver acceptance remain open.
 
 The native fixture exercises current/Find/unrelated/second/retired window routing,
 visible state, busy/detection gates, hide/restore source selection, window/panel
@@ -49,7 +49,34 @@ and reconstruction kits currently live under `Contents/Helpers`. Apple expects c
 in that location; data/scripts need appropriate resource placement, and dotted Perl
 library directories were rejected as bundles. See
 [Apple's signing guidance](https://developer.apple.com/library/archive/technotes/tn2206/).
-The preview-only resource relocation preserves helper lookups with relative aliases,
-uses explicit inside-out signing and passes ad-hoc verification. Production layout,
-load paths and actual signed distribution still require their own implementation
-batch. [Evidence](qa/blame-menus-2026-10-13.json) records both successes and this gap.
+The initial preview-only resource relocation preserved helper lookups with relative
+aliases and passed ad-hoc verification. Production runtime placement and auxiliary
+library signing were subsequently implemented and checked; see
+[DISTRIBUTION.md](DISTRIBUTION.md). Actual signed distribution remains open. [Evidence](qa/blame-menus-2026-10-13.json) records both successes and this gap.
+
+## Source Encode catalog
+
+Both the macOS menu bar and the Blame window's Edit menu share the pinned Encode
+catalog: UTF-8/UTF-16 LE/UTF-16 BE, then all sixteen language groups in resource
+order, with all 48 legacy entries and original captions. Selection is checked by
+code page rather than localized codec name. Automatic and Additional macOS
+Encodings follow the source choices, retaining native detection and platform
+codecs without changing the source categories.
+
+Foundation supplies 49 of the 51 source codecs. OEM 720 and OEM 858 now use embedded
+single-byte mappings, including Arabic and the Euro replacement in OEM 858.
+Historical annotation, whole-file decoding and the native editor's trailing line
+handling use the same decoder. NUL/binary guards remain enforced. These choices
+require no process execution or additional sandbox entitlement.
+
+Focused Core coverage resolves every source choice and preserves additional codec
+access, checks Arabic/Euro mappings and binary rejection, and annotates historical
+OEM files while preserving HEAD, index and the working copy. The native menu
+receiver covers encoding selection, reset, busy and retired-window gates alongside
+the existing ownership/presentation checks. Full physical category-menu clicks,
+VoiceOver, all non-ASCII platform-codec behavior and signed execution remain open.
+
+The Debug build, 22 unique focused Core tests (initial UTF-16 mapping failure
+fixed and the three affected tests rerun), four grouped native receivers across
+system/bundled Git, and two site documentation checks passed within those scopes.
+All four owned native receivers were reaped. [Evidence](qa/blame-encoding-2026-10-13.json).

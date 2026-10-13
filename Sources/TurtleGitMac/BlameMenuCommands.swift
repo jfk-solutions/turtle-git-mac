@@ -106,10 +106,7 @@ struct BlameCommands:Commands {
                 item(.findNext).keyboardShortcut("g",modifiers:.command)
                 item(.findPrevious).keyboardShortcut("g",modifiers:[.command,.shift])
                 item(.goTo).keyboardShortcut("l",modifiers:.command)
-                Picker("Encode",selection:Binding(get:{context.encoding},set:{context.setEncoding($0)})) {
-                    Text("Automatic").tag(GitBlameEncoding?.none)
-                    ForEach(GitBlameEncoding.available) { Text($0.rawValue).tag(Optional($0)) }
-                }.disabled(!context.available)
+                BlameEncodingMenu(selection: Binding(get: { context.encoding }, set: { context.setEncoding($0) })).disabled(!context.available)
             }
         }
         CommandGroup(after:.toolbar) {
@@ -128,6 +125,32 @@ struct BlameCommands:Commands {
                 toggle(.colorAge);toggle(.syntax);toggle(.dark)
                 Button("Follow System Appearance") { context.followSystemAppearance() }.disabled(!context.available)
                 Divider();toggle(.wrap)
+            }
+        }
+    }
+}
+
+/// Shared by the main menu and the window menu so both expose every source codec.
+struct BlameEncodingMenu: View {
+    @Binding var selection: GitBlameEncoding?
+    private func choice(_ choice: GitBlameEncodingChoice) -> some View {
+        Toggle(choice.title, isOn: Binding(get: {
+            selection?.windowsCodePage == choice.codePage
+        }, set: { _ in if let encoding = choice.encoding { selection = encoding } }))
+        .disabled(choice.encoding == nil)
+    }
+    var body: some View {
+        Menu("Encode") {
+            ForEach(GitBlameEncodingMenu.unicode) { choice($0) }
+            ForEach(GitBlameEncodingMenu.groups) { group in
+                Menu(group.title) { ForEach(group.choices) { choice($0) } }
+            }
+            Divider()
+            Toggle("Automatic", isOn: Binding(get: { selection == nil }, set: { _ in selection = nil }))
+            Menu("Additional macOS Encodings") {
+                ForEach(GitBlameEncodingMenu.additional) { encoding in
+                    Toggle(encoding.rawValue, isOn: Binding(get: { selection?.id == encoding.id }, set: { _ in selection = encoding }))
+                }
             }
         }
     }

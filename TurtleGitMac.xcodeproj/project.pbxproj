@@ -161,6 +161,7 @@
 		8018F6DD761929B2D54820EF /* NativeFontSizeChoice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65BAEACE3DFED3450B1FD93F /* NativeFontSizeChoice.swift */; };
 		805E34A3C95926C9E1244C75 /* CommitFileDrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAA4675C4521ED35D847FB62 /* CommitFileDrop.swift */; };
 		828742F77F4A7A8CC586389A /* NetworkSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9C491D545F62D715E5BDA1 /* NetworkSettings.swift */; };
+		83546F679AC598EFA845968F /* GitBlameEncodingMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = C658A270E621D0024D95E49E /* GitBlameEncodingMenu.swift */; };
 		8372E655010246F1E9FDF3CB /* LogWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB86EFEBCB6909C206458540 /* LogWindow.swift */; };
 		83F67572608DE1A6E12AC47E /* WorktreeListWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1669C286FA69F91FFFF7C002 /* WorktreeListWindow.swift */; };
 		855905DBFBF28D4D0E9E2A47 /* TurtleGitGitAskpass.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD7EE26AD9248EACF4682692 /* TurtleGitGitAskpass.swift */; };
@@ -672,6 +673,7 @@
 		C27AB4988402DE898554EF19 /* MessageCodeText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageCodeText.swift; sourceTree = "<group>"; };
 		C3343365A5D1715F6611CABA /* RemoteSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSettings.swift; sourceTree = "<group>"; };
 		C60249DCAD62F60EB41319E4 /* WorkingFileAdd.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingFileAdd.swift; sourceTree = "<group>"; };
+		C658A270E621D0024D95E49E /* GitBlameEncodingMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitBlameEncodingMenu.swift; sourceTree = "<group>"; };
 		C68CE7BDF48C40B9042C9E95 /* SubmoduleUpdate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleUpdate.swift; sourceTree = "<group>"; };
 		C692AF42221DDE4FA4070CF1 /* LogOrderingWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogOrderingWindow.swift; sourceTree = "<group>"; };
 		C75E958EB60D00CC4B682456 /* GitConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitConfiguration.swift; sourceTree = "<group>"; };
@@ -1047,6 +1049,7 @@
 				9C0D58AA19D852666927E54D /* GitAskpassPrompt.swift */,
 				5EA1DF690F2B0A1AA6382752 /* GitAskpassRuntime.swift */,
 				4B9BF1860CDA9AD27A0DCE2E /* GitBlame.swift */,
+				C658A270E621D0024D95E49E /* GitBlameEncodingMenu.swift */,
 				50C02E4063D7394453CC537A /* GitBlamePreferences.swift */,
 				3BE14912ACD87B35508C186F /* GitBlamePresentation.swift */,
 				05D106E240B26C603304CF20 /* GitCliOutputParser.swift */,
@@ -1516,6 +1519,7 @@
 				A15800C5D07FE7D8B87B6D79 /* GitAskpassPrompt.swift in Sources */,
 				5C8D10E11CCE21FCC9C66B7A /* GitAskpassRuntime.swift in Sources */,
 				39DF8589F3A2226D095F7C2E /* GitBlame.swift in Sources */,
+				83546F679AC598EFA845968F /* GitBlameEncodingMenu.swift in Sources */,
 				C23CCEFA7DA0A805EFCE94C7 /* GitBlamePreferences.swift in Sources */,
 				EFF9A599551FEE689010B300 /* GitBlamePresentation.swift in Sources */,
 				F4EFA7E104D7F5B9615C331C /* GitCliOutputParser.swift in Sources */,

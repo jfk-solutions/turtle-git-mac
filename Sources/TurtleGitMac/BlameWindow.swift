@@ -547,10 +547,7 @@ private struct BlameDialog: View {
                     Button { model.findLine(previous:true) } label: { CommandLabel(title:"Find Previous",icon:.jumpUp) }.keyboardShortcut("g",modifiers:[.command,.shift])
                     Button { showingGoToLine=true } label: { CommandLabel(title:"Go To Line…",icon:.log) }.keyboardShortcut("l",modifiers:.command)
                     Divider()
-                    Picker("Encode",selection:Binding(get:{model.sourceEncoding},set:{model.setEncoding($0)})) {
-                        Text("Automatic").tag(GitBlameEncoding?.none)
-                        ForEach(GitBlameEncoding.available) { encoding in Text(encoding.rawValue).tag(Optional(encoding)) }
-                    }
+                    BlameEncodingMenu(selection: Binding(get: { model.sourceEncoding }, set: { model.setEncoding($0) }))
                 }
                 Menu("View") {
                     Button("Next") { model.navigateChange(previous:false) }.disabled(model.selectedLogHashes.isEmpty)
@@ -1254,7 +1251,7 @@ private final class BlameSourceContainer: NSView {
             renderedPresentation = model.presentation; renderedLineCount = model.lines.count
             editor.lineHeight = max(22, model.sourceFont.ascender - model.sourceFont.descender + model.sourceFont.leading + 6)
             var contents = ""; ranges = []; lineLengths = []
-            let decoded = model.snapshot.flatMap { String(data: $0.contents, encoding: String.Encoding(rawValue: $0.encoding.id)) }
+            let decoded = model.snapshot.flatMap { $0.encoding.decodeText($0.contents) }
             let trailingBreak = decoded?.hasSuffix("\n") == true
             var location = 0
             for (row, line) in model.lines.enumerated() {

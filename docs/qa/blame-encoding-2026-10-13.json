@@ -1,0 +1,61 @@
+{
+  "date": "2026-10-13",
+  "scope": "Blame complete source Encode catalog and supplemental OEM decoders",
+  "source": {
+    "revision": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "resources": [
+      "src/Resources/TortoiseGitBlameENG.rc",
+      "src/TortoiseGitBlame/TortoiseGitBlameView.cpp"
+    ]
+  },
+  "implemented": [
+    "3 Unicode entries and 48 legacy entries in 16 source-ordered language groups shared by main and window menus",
+    "Functional OEM 720 and OEM 858 single-byte decoding, shared with historical annotation and native editor",
+    "Explicit Windows IDs for UTF-16 LE/BE; Automatic and additional platform codecs retained"
+  ],
+  "validation": {
+    "core_initial": {
+      "log": "build/qa/blame-encoding-core-2026-10-13.log",
+      "exit": 1,
+      "tests": 22,
+      "failures": 1,
+      "reason": "Foundation UTF-16 code page conversion did not return source Windows IDs"
+    },
+    "core_repaired": {
+      "log": "build/qa/blame-encoding-core-repaired-2026-10-13.log",
+      "exit": 0,
+      "tests": 3,
+      "failures": 0,
+      "scope": "affected encoding catalog/decoder tests; other 19 tests passed in initial run"
+    },
+    "debug": {
+      "log": "build/qa/blame-encoding-debug-repaired-2026-10-13.log",
+      "exit": 0
+    },
+    "native": {
+      "log": "build/qa/blame-encoding-native-2026-10-13.log",
+      "cases": [
+        "blame-menus",
+        "blame-source"
+      ],
+      "engines": [
+        "/usr/bin/git",
+        "bundled Git"
+      ],
+      "receivers": 4,
+      "exit": 0,
+      "owned_processes_reaped": true
+    },
+    "site": {
+      "log": "build/qa/blame-encoding-site-2026-10-13.log",
+      "exit": 0,
+      "tests": 2
+    }
+  },
+  "remaining": [
+    "Physical category menu selection and VoiceOver",
+    "All non-ASCII platform-codec acceptance",
+    "Signed sandbox/App Store acceptance",
+    "Remaining full Blame and whole-app parity"
+  ]
+}
