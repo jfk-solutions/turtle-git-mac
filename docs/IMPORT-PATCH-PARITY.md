@@ -488,3 +488,31 @@ open. The published captures show the Original patch tab and do not certify
 those pending comparison behaviors.
 
 See [display QA](qa/file-patches-display-2026-10-13.json).
+
+## Preview dispatch and failure states — 2026-10-13
+
+Rechecked `FilePatchesDlg.cpp`'s Preview switch and double-click handler. They
+ignore already-patched rows and report rejects for error rows. The native
+preview now preserves its shown file when those rows are highlighted: patched
+rows do not trigger a read, and failed rows reuse their recorded diagnostic.
+Invalid row IDs are refused. Reload also stops substituting another file for
+an explicitly focused patched row. Errors are presented inline as a native
+adaptation; the source's modal reject presentation remains separate acceptance.
+
+The Compare pane distinguishes a running comparison, an engine failure and a
+binary/undecodable file. An engine error is shown as its actual diagnostic.
+Decoded text with no alignment gets a rebuild-preview message, rather than a
+binary hex label. A save error with a valid alignment retains the text/editor
+and its existing error display. Processing uses an explicit progress indicator.
+
+The prior displayed check's applied-row-preview concern is resolved for the
+source no-op/diagnostic dispatch contract. Initial viewport clipping, source
+failed-hunk/conflict counts, physical modal/keyboard/VoiceOver behavior and
+signed acceptance remain open. Existing gallery captures record their earlier
+Original patch tab checkpoint. Focused native evidence follows this change;
+no full Core suite is required for these native presentation/dispatch changes.
+
+Debug compilation, four unique grouped native cases across system/bundled Git
+and two documentation tests passed. State assertions require a real comparison
+editor; those two engine cases were repeated after tightening that fixture. All
+receivers were reaped. See [preview-state QA](qa/patch-preview-states-2026-10-13.json).

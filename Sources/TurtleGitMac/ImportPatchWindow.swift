@@ -822,7 +822,15 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         selectedReview = next; notice = next.validationError ?? "Checked files can be applied to the working tree."
     }
     func focusFile(_ id: Int?) {
-        guard canReplaceComparison, !requiresRefresh, let token = begin() else { return }
+        guard canReplaceComparison, !requiresRefresh else { return }
+        if let id, let file = review?.files.first(where: { $0.id == id }) {
+            // FilePatchesDlg does not reopen or redirect an already-patched row.
+            if appliedPaths.contains(file.pathBytes) { return }
+            if let result = fileResults[file.pathBytes], !result.success {
+                comparisonNotice = result.output; return
+            }
+        } else if id != nil { return }
+        guard let token = begin() else { return }
         focusedFile = id
         comparisonRead = true
         Task { defer { comparisonRead = false; finish(token) }; await loadComparison(token) }
@@ -831,8 +839,12 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         guard (try? ensure(token)) != nil else { return }
         comparison = nil; editor?.retireImageLoader(); editor = nil; editorChanges = nil; beforeScroll = nil; afterScroll = nil; comparisonNotice = ""; difference = -1
         guard let review else { focusedFile = nil; return }
-        let candidates = review.files.filter { !appliedPaths.contains($0.pathBytes) }
-        guard let file = candidates.first(where: { $0.id == focusedFile }) ?? candidates.first else { focusedFile = nil; return }
+        let file: WorkingTreePatchReview.File?
+        if let focusedFile { file = review.files.first(where: { $0.id == focusedFile }) }
+        else { file = review.files.first(where: { !appliedPaths.contains($0.pathBytes) }) }
+        guard let file else { focusedFile = nil; return }
+        guard !appliedPaths.contains(file.pathBytes) else { return }
+        if let result = fileResults[file.pathBytes], !result.success { comparisonNotice = result.output; return }
         focusedFile = file.id
         do {
             try checkAccess()
@@ -846,6 +858,17 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
             editorChanges = nextEditor.objectWillChange.sink { [weak self] in self?.objectWillChange.send(); self?.onBusyChanged() }
             editor = nextEditor; updateParentState()
         } catch { if !retired && !token.isCancelled { comparisonNotice = error.localizedDescription } }
+    }
+    enum ComparisonPresentation: Equatable { case text, processing, failure(String), binary, empty }
+    var comparisonPresentation: ComparisonPresentation {
+        guard comparison != nil else { return .empty }
+        if editor?.filtering == true { return .processing }
+        if alignment != nil { return .text }
+        if let error = editor?.error { return .failure(error) }
+        if editor?.document?.base.text != nil && editor?.document?.destination.text != nil {
+            return .failure("The text comparison is unavailable. Refresh to rebuild its preview.")
+        }
+        return .binary
     }
     func synchronizeScroll(from scroll: NSScrollView) {
         guard !synchronizingScroll else { return }
@@ -1053,7 +1076,11 @@ struct WorkingTreePatchComparisonView: View {
             Text(base ? "Before patch" : "After patch").font(.headline)
             if let content {
                 Text(content.path).font(.caption).lineLimit(1).help(content.path)
-                if let alignment = model.alignment {
+                if case .failure(let error) = model.comparisonPresentation {
+                    Text(error).foregroundStyle(.orange).textSelection(.enabled).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                } else if model.comparisonPresentation == .processing {
+                    ProgressView("Comparing…").frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if let alignment = model.alignment {
                     WorkingTreePatchComparisonEditor(model: model, cells: alignment.rows.map { base ? $0.base : $0.destination }, base: base)
                 } else {
                     ScrollView {

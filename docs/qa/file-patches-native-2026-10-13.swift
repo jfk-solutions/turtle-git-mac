@@ -35,12 +35,31 @@ import TurtleGitCore
         let all = Set(review.files.map(\.id)), first = review.files[0].id
         model.highlightFiles([first]); try await wait()
         precondition(model.highlightedFiles == [first] && model.selected == all)
+        do {
+            guard let editor = model.editor else { throw NSError(domain: "Comparison editor missing", code: 1) }
+            for _ in 0..<1000 { if !editor.filtering { break }; try await Task.sleep(nanoseconds: 10_000_000) }
+            let alignment = editor.alignment
+            guard alignment != nil else { throw NSError(domain: "Text engine unavailable in native fixture", code: 1) }
+            editor.error = "Fixture save error"
+            precondition(model.comparisonPresentation == .text)
+            editor.alignment = nil; editor.error = "Fixture comparison engine unavailable"
+            precondition(model.comparisonPresentation == .failure("Fixture comparison engine unavailable"))
+            editor.error = nil
+            precondition(model.comparisonPresentation != .binary)
+            editor.alignment = alignment
+        }
         let stale = model.fileListGeneration
         model.refresh(); try await wait(); model.patchFiles(all, generation: stale); precondition(!model.busy && model.appliedPaths.isEmpty)
         model.patchFiles(all, generation: model.fileListGeneration); precondition(model.busy)
         try await wait()
         precondition(model.appliedPaths == Set([Data("a.txt".utf8),Data("z.txt".utf8)]))
         precondition(model.fileResults[Data("middle.txt".utf8)]?.success == false && model.output.contains("Error: middle.txt"))
+        let shown = model.focusedFile
+        model.focusFile(review.files[2].id)
+        precondition(!model.busy && model.focusedFile == shown)
+        let comparison = model.comparison?.fileID
+        model.focusFile(review.files[1].id)
+        precondition(!model.busy && model.focusedFile == shown && model.comparison?.fileID == comparison && model.comparisonNotice.contains("middle.txt"))
         for path in ["a.txt","z.txt"] { let value = try String(contentsOf: root.appendingPathComponent(path)); precondition(value == "after\n") }
         try Data("before\n".utf8).write(to: root.appendingPathComponent("middle.txt"))
         model.patchFiles(all, generation: model.fileListGeneration); try await wait()
