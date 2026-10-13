@@ -102,6 +102,22 @@ public enum IssueRegexRuntime {
         }
         return result.map(HistoryHighlighting.merge)
     }
+    /// The original FindSVNRev patterns, processed in one owned helper batch.
+    public static func svnRevisions(_ messages: [String], executable: URL? = nil, cancellation: OperationCancellation? = nil) throws -> [String] {
+        var units: [UInt16] = []
+        for message in messages {
+            try cancellation?.check()
+            let value = Array(message.utf16)
+            guard value.count <= Int(UInt32.max) else { throw IssueRegexFailure.failed("Log message is too large.") }
+            units += [UInt16(truncatingIfNeeded: value.count), UInt16(truncatingIfNeeded: value.count >> 16)] + value
+        }
+        let output = try capture(message: "", check: "", extract: "", executable: executable, mode: ["--svn-revisions"], messageUnits: units, cancellation: cancellation)
+        var rows = String(decoding: output, as: UTF8.self).components(separatedBy: "\n")
+        guard rows.first == "svn\t1", rows.last == "", rows.count == messages.count + 2 else { throw IssueRegexFailure.failed("Invalid SVN revision output.") }
+        rows.removeFirst(); rows.removeLast()
+        guard rows.allSatisfy({ $0.utf8.allSatisfy { (48...57).contains($0) } }) else { throw IssueRegexFailure.failed("Invalid SVN revision digits.") }
+        return rows
+    }
     static func capture(message: String, check: String, extract: String, executable: URL?, bundle: Bundle = .main, mode: [String] = [], messageUnits: [UInt16]? = nil, cancellation: OperationCancellation? = nil) throws -> Data {
         let parser = try executable ?? Self.executable(bundle: bundle)
         guard FileManager.default.isExecutableFile(atPath: parser.path) else { throw IssueRegexFailure.runtimeMissing }

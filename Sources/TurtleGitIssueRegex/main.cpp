@@ -87,15 +87,37 @@ static void styles(const std::wstring& checkUnits, const std::wstring& extractUn
     }
 }
 int main(int argc, char** argv) {
+    const bool svnRevisions = argc == 5 && std::string(argv[4]) == "--svn-revisions";
     const bool mergeReplace = argc == 5 && std::string(argv[4]) == "--merge-replace";
     const bool styling = argc == 5 && std::string(argv[4]) == "--styles-utf8";
     const bool code = argc == 5 && std::string(argv[4]) == "--code-captures";
     const bool issueIDs = argc == 5 && std::string(argv[4]) == "--issue-ids";
     const bool logRanges = argc == 5 && (std::string(argv[4]) == "--log-ranges-case" || std::string(argv[4]) == "--log-ranges-insensitive");
     const bool logFilter = argc == 5 && (std::string(argv[4]) == "--log-case" || std::string(argv[4]) == "--log-insensitive");
-    if (argc != 4 && !styling && !code && !logFilter && !logRanges && !issueIDs && !mergeReplace) { std::cerr << "Expected check pattern, extraction pattern and message files.\n"; return 2; }
+    if (argc != 4 && !styling && !code && !logFilter && !logRanges && !issueIDs && !mergeReplace && !svnRevisions) { std::cerr << "Expected check pattern, extraction pattern and message files.\n"; return 2; }
     try {
-        const auto check = read_units(argv[1]), extract = read_units(argv[2]), text = read_units(argv[3], !code && !logFilter && !logRanges && !mergeReplace);
+        const auto check = read_units(argv[1]), extract = read_units(argv[2]), text = read_units(argv[3], !code && !logFilter && !logRanges && !mergeReplace && !svnRevisions);
+        if (svnRevisions) {
+            // Pinned CGitLogListBase::FindSVNRev, including default ECMAScript
+            // whole-message anchors. Do not silently broaden to multiline.
+            const std::wregex normal(L"^\\s*git-svn-id:\\s+(.*)\\@(\\d+)\\s([a-f\\d\\-]+)$");
+            const std::wregex compact(L"^\\s*git-svn-id:\\s(\\d+)\\@([a-f\\d\\-]+)$");
+            size_t offset = 0;
+            std::cout << "svn\t1\n";
+            while (offset < text.size()) {
+                if (text.size() - offset < 2) throw std::runtime_error("Invalid SVN record header.");
+                const size_t length = static_cast<size_t>(text[offset]) | (static_cast<size_t>(text[offset + 1]) << 16); offset += 2;
+                if (length > text.size() - offset) throw std::runtime_error("Invalid SVN record length.");
+                auto value = text.substr(offset, length); offset += length;
+                const auto nul = value.find(L'\0'); if (nul != std::wstring::npos) value.resize(nul);
+                std::wsmatch match; std::wstring revision;
+                if (std::regex_search(value, match, normal) && match.size() == 4) revision = match[2];
+                else if (std::regex_search(value, match, compact) && match.size() == 3) revision = match[1];
+                for (auto digit : revision) std::cout.put(static_cast<char>(digit));
+                std::cout.put('\n');
+            }
+            return 0;
+        }
         if (mergeReplace) {
             // CFileTextLines::LineRegex: one default ECMAScript wregex, applied
             // independently to each line; Windows UTF-16 units and $ captures.

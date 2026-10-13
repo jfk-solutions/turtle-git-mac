@@ -23,13 +23,14 @@ Normal defaults show Graph, Message, Author and Date, plus configured Bug-ID;
 SHA-1 and the four extra identity columns start hidden, matching the normal Log
 source definitions. A native header menu offers Reset columns followed by column
 visibility checkboxes. Bug-ID is available only with the configured issue column.
-Visibility saves per column; AppKit autosave handles width/order, and columns can
-be resized and dragged. Reset asks the source Yes/No question in a native sheet; Yes restores default
+Visibility, widths and order now save in the owning dialog preference store, and columns can
+be resized and dragged. The October 13 column batch below supersedes the older global AppKit autosave behavior. Reset asks the source Yes/No question in a native sheet; Yes restores default
 visibility, widths and order. An attached sheet blocks another reset request.
 Graph resizing now addresses the graph column by identifier rather than whichever
 column happens to be first after reordering, and keeps wider user-set widths.
 
-ID/rebase replacement and SVN-specific columns remain unported. Native header/confirmation gestures,
+ID/rebase replacement modes remain outside the ordinary Log list; the SVN column
+is implemented in the October 13 batch below. Native header/confirmation gestures,
 cross-launch width/order persistence and signed sandbox acceptance remain pending.
 See [the metadata-column record](qa/log-columns-2026-10-06.json).
 
@@ -2153,3 +2154,41 @@ work returns. These changes await the grouped history validation pass.
 The shared [Input dialog batch](INPUT-DIALOG-PARITY.md) replaces the separate
 Log/description forms. The follow-up host consolidation brings Rebase and
 Synchronization onto that same form with effective project settings. Full SciEdit and physical acceptance remain open.
+
+## Owned column layout and SVN revision column (2026-10-13)
+
+The ordinary Log list now includes source **SVN Rev**, after Bug-ID. It is available
+and visible by default only while repository metadata reports Git-SVN support.
+Removing that metadata hides the column and removes its header checkbox; user
+visibility survives availability changes. Existing normal columns keep their
+source order and defaults. ID/Rebase replacement modes remain separate work.
+
+The existing C++ matching helper now batches pinned `FindSVNRev` over UTF-16
+messages. It retains both URL/revision/UUID and compact revision/UUID patterns,
+case sensitivity, first-pattern precedence, NUL termination and whole-message
+anchors. It does not broaden those source anchors into a multiline footer search;
+ordinary footer-bearing messages can consequently produce blank cells. The
+history owner reads the values once off the UI thread with its existing cancellation
+and generation, not per painted cell. Raw messages, author data and commit hashes
+remain unchanged. The helper remains universal with source/provenance packaging.
+
+Column visibility, width and order now use the controller's supplied preferences.
+Private dialogs/receivers no longer save column data in global AppKit preferences.
+Resize/reorder notifications save stable column identifiers, and reopening restores
+known order and finite in-range widths while ignoring unknown/duplicate identifiers
+and malformed widths. Standard app preferences can read the previous AppKit layout
+before switching to owned storage. Legacy migration still needs cross-launch
+physical acceptance. Optional nonpersistent table hosts omit width/order storage.
+
+Reset clears per-column overrides, restores source order/width and conditional
+visibility, then saves the final layout rather than intermediate reorder states.
+Header commands reject busy, blocked, sheet-attached and retired owners. The
+existing native Yes/No reset sheet remains; this batch verifies its reset result,
+not physical confirmation gestures.
+
+The focused native fixture exercises real history loading, conditional SVN cells,
+private visibility/width/order restoration in a reopened controller, contextual
+Reset, metadata removal, retained busy/closed command gates, unchanged global
+column settings and preserved HEAD/index. No screenshot, physical gesture or signed
+runtime acceptance is implied by object checks. See
+[batch evidence](qa/log-column-layout-2026-10-13.json).

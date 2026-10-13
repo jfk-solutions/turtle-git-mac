@@ -8,6 +8,13 @@ final class IssueRegexTests: XCTestCase {
     func match(_ message: String, _ check: String, _ extract: String = "") throws -> IssueRegexMatch {
         try IssueRegexRuntime.match(message: message, check: check, extract: extract, executable: parser)
     }
+    func testSourceSVNRevisionBatchPatternsAndWholeMessageAnchors() throws {
+        let messages = ["git-svn-id: https://example.invalid/a@b@00123 abcd-123", "\n\tgit-svn-id: 0007@ab-c9", "subject\n\ngit-svn-id: https://example.invalid/a@42 abcd", "git-svn-id: https://example.invalid/a@42 abcd\n", "git-svn-id: 42@ABCD", "git-svn-id: 42@abcd\0ignored", "ordinary"]
+        XCTAssertEqual(try IssueRegexRuntime.svnRevisions(messages, executable: parser), ["00123", "0007", "", "", "", "42", ""])
+        XCTAssertEqual(try IssueRegexRuntime.svnRevisions([], executable: parser), [])
+        let stopped = OperationCancellation(); stopped.cancel()
+        XCTAssertThrowsError(try IssueRegexRuntime.svnRevisions(messages, executable: parser, cancellation: stopped)) { XCTAssertTrue($0 is OperationCancellationFailure) }
+    }
     func testPinnedUpstreamCaptureAndTwoExpressionExamples() throws {
         let captureless = try match("This is a test for PAF-88", "PAF-[0-9]+")
         XCTAssertTrue(captureless.hasMatch); XCTAssertTrue(captureless.ranges.isEmpty)

@@ -1,0 +1,94 @@
+{
+  "date": "2026-10-13",
+  "scope": "Partial ordinary Log column layout/SVN revision port",
+  "source": [
+    "GitLogListBase.cpp:294-350",
+    "GitLogListBase.cpp:1455-1485",
+    "GitLogListBase.cpp:1589"
+  ],
+  "checks": {
+    "helper_build": {
+      "exit": 0,
+      "architectures": [
+        "arm64",
+        "x86_64"
+      ]
+    },
+    "core": {
+      "command": "swift test --scratch-path .build/out --filter IssueRegexTests",
+      "exit": 0,
+      "tests": 6,
+      "scope": [
+        "source SVN patterns, leading whitespace, compact format, anchors, uppercase/NUL cases, empty batch, precancel",
+        "existing helper offset/filter/cancellation tests"
+      ]
+    },
+    "debug_build": {
+      "initial_exit": 0,
+      "final_exit": 0
+    },
+    "native": {
+      "cases": [
+        "log-column-layout",
+        "reflog-table"
+      ],
+      "git": [
+        "system",
+        "bundled"
+      ],
+      "exit": 0,
+      "reaped_pids": [
+        42865,
+        43012,
+        43134,
+        43281
+      ],
+      "scope": [
+        "SVN metadata availability and cells",
+        "private width/order/visibility restore",
+        "malformed width/duplicate order recovery",
+        "Reset defaults and metadata removal",
+        "busy command refusal and post-close dispatch smoke",
+        "global preference and HEAD/index preservation",
+        "existing RefLog table regression"
+      ]
+    },
+    "bundle_audit": {
+      "exit": 1,
+      "scope": "validate-app-bundle.py --require-git",
+      "failure": "Universal bundle audit requires arm64/x86_64; this architecture-specific Debug build has arm64-only TurtleGitSMTP.framework. Universal distribution acceptance is not established."
+    },
+    "site": {
+      "build_exit": 0,
+      "tests": 2,
+      "test_exit": 0
+    }
+  },
+  "repairs": [
+    {
+      "failure": "Native receiver did not inject packaged IssueRegex path for SVN loading",
+      "reaped_pid": 42366,
+      "change": "Expose existing model helper injection through LogWindowController; inject packaged helper in QA and fail early on model errors."
+    },
+    {
+      "failure": "QA cast native cell wrapper to NSTextField",
+      "reaped_pid": 42710,
+      "change": "Read NSTableCellView.textField; assertion retained."
+    }
+  ],
+  "remaining": [
+    "physical header/resize/Reset and VoiceOver acceptance",
+    "legacy AppKit migration across launches",
+    "ID/Rebase replacement modes",
+    "Windows library/locale equivalence",
+    "universal signed/AppStore/Finder distribution acceptance",
+    "whole Log and application parity"
+  ],
+  "logs": [
+    "build/qa/log-columns-runtime-2026-10-13.log",
+    "build/qa/log-column-layout-core-2026-10-13.log",
+    "build/qa/log-column-layout-build-repair-2026-10-13.log",
+    "build/qa/log-column-layout-native-accepted-2026-10-13.log",
+    "build/qa/log-column-layout-bundle-2026-10-13.log"
+  ]
+}
