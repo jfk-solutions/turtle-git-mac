@@ -1514,3 +1514,10 @@ real event updates, moved bookmark renewal, remove/late reply fencing, scope
 release and owned read cancellation on shutdown with private bookmarks/cache.
 Its optional capture case uses an owned host for the production settings page;
 simulated bookmark grants and screenshots do not establish signed Finder access.
+
+FinderServiceAuthorizationTests covers private transfer/persistent grant roles,
+relative/moved roots, duplicate/escaping requests, partial failure and balanced
+leases. Cached finder-service-grants launches a separate owned receiver using
+actual Foundation bookmarks and private repository reads, with scope requirements
+explicitly disabled in the unsigned fixture. The finder-watches group additionally
+checks export from settled watcher sessions. Neither proves signed IPC permission.

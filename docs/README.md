@@ -215,3 +215,5 @@ are not recursively audited.
 - [Shared Finder snapshot publication](FINDER-PUBLICATION-PARITY.md)
 
 - [Persistent watched repositories](FINDER-WATCHED-ROOTS-PARITY.md)
+
+- [Private cache-service permission handoff](FINDER-SERVICE-GRANTS.md)

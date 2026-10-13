@@ -154,6 +154,14 @@ struct FinderWatchRow:Identifiable {
             try permissions.forget(id);statuses[id]=nil;render()
         } catch { if active,!token.isCancelled { self.error=error.localizedDescription;attach(id) } }
     }
+    func serviceAuthorization(provider:any RepositoryTransferBookmarkProvider = SystemRepositoryTransferBookmarks()) throws -> FinderServiceAuthorization {
+        guard active,!busy,pendingOperations==0,rows.count==sessions.count else { throw RepositoryAccessFailure.securityScopeUnavailable }
+        let values=try sessions.values.map { session -> (UUID,URL,RepositoryAccessLease) in
+            guard session.active,session.permissionReady else { throw RepositoryAccessFailure.securityScopeUnavailable }
+            return (session.id,session.repository.root,session.lease)
+        }.sorted { $0.0.uuidString<$1.0.uuidString }
+        return try FinderServiceAuthorization.capture(values,provider:provider)
+    }
     func retire() { guard active else { return };active=false;mutation?.cancel();sessions.values.forEach { $0.retire() };sessions=[:] }
     func shutdown() async { retire();while pendingOperations>0 { try? await Task.sleep(nanoseconds:10_000_000) } }
 }

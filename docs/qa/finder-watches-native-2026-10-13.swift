@@ -4,7 +4,7 @@ import TurtleGitCore
 
 @main struct FinderWatchVerification {
     struct Failure:Error,CustomStringConvertible { let description:String }
-    final class Bookmarks:RepositoryBookmarkProvider {
+    final class Bookmarks:RepositoryBookmarkProvider,RepositoryTransferBookmarkProvider {
         let marker="PRIVATE-WATCH-BOOKMARK:"
         var moves:[String:URL]=[:]
         var available=true,successfulStarts=0,stops=0
@@ -13,6 +13,8 @@ import TurtleGitCore
             let text=String(decoding:data,as:UTF8.self);guard text.hasPrefix(marker) else { throw RepositoryAccessFailure.unknownRepository }
             let path=String(text.dropFirst(marker.count));return ResolvedBookmark(url:moves[path] ?? URL(fileURLWithPath:path,isDirectory:true),stale:moves[path] != nil)
         }
+        func createTransfer(for url:URL) throws -> Data { Data(("TRANSFER:"+url.path).utf8) }
+        func resolveTransfer(_ data:Data) throws -> ResolvedBookmark { ResolvedBookmark(url:URL(fileURLWithPath:String(decoding:data,as:UTF8.self).replacingOccurrences(of:"TRANSFER:",with:""),isDirectory:true),stale:false) }
         func startAccessing(_ url:URL) -> Bool { if available { successfulStarts += 1 };return available }
         func stopAccessing(_ url:URL) { stops += 1 }
     }
@@ -41,6 +43,11 @@ import TurtleGitCore
         await first.add(repositories[0].root);await first.add(repositories[1].root)
         try await wait { first.pendingOperations==0 && first.rows.allSatisfy { $0.status=="Updated" } && snapshot()?.roots.count==2 }
         try require(first.rows.count==2 && notifications>=2,"Add/publication")
+        do {
+            let exported=try first.serviceAuthorization(provider:provider),received=try exported.acquire(provider:provider)
+            try require(Set(received.map { $0.root.path })==Set(repositories.map { $0.root.path }),"Watcher export lost authorized roots")
+            withExtendedLifetime(received) {}
+        }
         let originalIDs=Set(first.rows.map(\.id))
         await first.add(repositories[0].root);try await wait { first.pendingOperations==0 && first.rows.allSatisfy { $0.status=="Updated" } }
         try require(Set(first.rows.map(\.id))==originalIDs,"Duplicate Add created another watcher")

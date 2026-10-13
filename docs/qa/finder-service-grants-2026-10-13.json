@@ -1,0 +1,62 @@
+{
+  "date": "2026-10-13",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Private transferable watched-root grants",
+    "Explicit receiver scope ownership and relative repository containment",
+    "Receiver-created persistent grants, moved scopes and partial-failure release",
+    "Actual Foundation bookmarks in separate owned receiver plus watcher export"
+  ],
+  "primary_sources": [
+    "https://developer.apple.com/documentation/security/accessing-files-from-the-macos-app-sandbox",
+    "https://developer.apple.com/library/archive/documentation/General/Conceptual/ExtensibilityPG/Finder.html"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/finder-service-grants-build-2026-10-13.log",
+      "notes": "Existing warnings and exit-zero/no-output diagnostics; not clean-log claim"
+    },
+    "core": {
+      "exit": 0,
+      "tests": 13,
+      "log": "build/qa/finder-service-grants-core-2026-10-13.log",
+      "affected": {
+        "exit": 0,
+        "tests": 3,
+        "reason": "Added explicit failed-second-grant release assertion; only service authorization group repeated.",
+        "log": "build/qa/finder-service-grants-core-affected-2026-10-13.log"
+      }
+    },
+    "native": {
+      "exit": 0,
+      "cases": 4,
+      "engines": [
+        "system Git",
+        "packaged Git"
+      ],
+      "log": "build/qa/finder-service-grants-native-2026-10-13.log",
+      "owned_receivers_reaped": [
+        29370,
+        29502,
+        29531,
+        29660
+      ],
+      "independently_absent": true,
+      "child_scope": "One additional separate transfer worker per grant case; waited/reaped with exit 0. Unsigned fixture explicitly disables scope requirement."
+    },
+    "appstore": "Deferred to service packaging and signing; no helper target or entitlement changes.",
+    "runtime_audit": "Not repeated; embedded recipes/resources unchanged."
+  },
+  "limits": [
+    "No deployed/login cache service or authenticated IPC transport",
+    "Actual signed interprocess scope transfer and helper persistence remain unproven",
+    "Private unsigned Foundation read is not proof of sandbox permission transfer",
+    "No Finder activation or registration of a login item"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/FinderServiceAuthorization.swift": "270cfede69dca71c08b01cf18e8755e05a01b730795cee532288814a4bb5c081",
+    "Sources/TurtleGitMac/FinderWatchedRepositories.swift": "9059bd877acb86c809c4278c3b8f1520fa4b4eec534d7c13e574c8efe2314190",
+    "Tests/TurtleGitCoreTests/FinderServiceAuthorizationTests.swift": "fc9b6b3d331078357fb23b9d21aacd7f2f04636973d2a52e1aa996b91feb1c86"
+  }
+}

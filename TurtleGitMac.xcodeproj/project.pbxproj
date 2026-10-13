@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		B73167000000000000000010 /* FinderServiceAuthorization.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73167000000000000000011 /* FinderServiceAuthorization.swift */; };
 		B73167000000000000000008 /* FinderWatchedRepositories.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73167000000000000000009 /* FinderWatchedRepositories.swift */; };
 		B73167000000000000000006 /* RepositoryFileEvents.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73167000000000000000007 /* RepositoryFileEvents.swift */; };
 		B73167000000000000000004 /* RepositoryBrowserContentsTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73167000000000000000005 /* RepositoryBrowserContentsTable.swift */; };
@@ -379,6 +380,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		B73167000000000000000011 /* FinderServiceAuthorization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderServiceAuthorization.swift; sourceTree = "<group>"; };
 		B73167000000000000000009 /* FinderWatchedRepositories.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderWatchedRepositories.swift; sourceTree = "<group>"; };
 		B73167000000000000000007 /* RepositoryFileEvents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryFileEvents.swift; sourceTree = "<group>"; };
 		B73167000000000000000005 /* RepositoryBrowserContentsTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryBrowserContentsTable.swift; sourceTree = "<group>"; };
@@ -976,6 +978,7 @@
 				28A4137E7CE7A36F8A8E6F58 /* MessageCodeScanner.swift */,
 				22371C45A6813F87FD610EE6 /* MessageCodeSymbols.swift */,
 				B73167000000000000000002 /* BlameSyntax.swift */,
+				B73167000000000000000011 /* FinderServiceAuthorization.swift */,
 				B73167000000000000000007 /* RepositoryFileEvents.swift */,
 				B73164000000000000000002 /* ClientHooks.swift */,
 				C27AB4988402DE898554EF19 /* MessageCodeText.swift */,
@@ -1502,6 +1505,7 @@
 				B46406E18DBC3B1E7292BD5A /* MessageCodeScanner.swift in Sources */,
 				B96A74776BF83BB313347BBB /* MessageCodeSymbols.swift in Sources */,
 				B73167000000000000000001 /* BlameSyntax.swift in Sources */,
+				B73167000000000000000010 /* FinderServiceAuthorization.swift in Sources */,
 				B73167000000000000000006 /* RepositoryFileEvents.swift in Sources */,
 				B73164000000000000000001 /* ClientHooks.swift in Sources */,
 				A99C16FB42C7E89CA9B6AEC3 /* MessageCodeText.swift in Sources */,
