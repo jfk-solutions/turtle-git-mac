@@ -2,6 +2,57 @@ import XCTest
 @testable import TurtleGitCore
 
 final class WorkingTreeTests: XCTestCase {
+    func testCancelledWorkingTreeCommandsPreserveIndexAndContent() async throws {
+        let (root, repo, path) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        try Data("changed\n".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path])
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let bytes = try Data(contentsOf: root.appendingPathComponent(path))
+        let token = OperationCancellation(); token.cancel()
+        do { try await repo.unstage([path], cancellation: token); XCTFail("Cancelled Unstage ran") } catch is OperationCancellationFailure {}
+        do { _ = try await repo.workingTreeDiffData(paths: [path], cancellation: token); XCTFail("Cancelled diff ran") } catch is OperationCancellationFailure {}
+        do { try await repo.setIndexFlags(.skipWorktree, paths: [path], cancellation: token); XCTFail("Cancelled flags ran") } catch is OperationCancellationFailure {}
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), bytes)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent(".git/index.lock").path))
+    }
+    func testCancelledHeadInspectionCannotFallBackToUnbornMutationOrDiff() async throws {
+        let (root, repo, path) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        try Data("changed\n".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path])
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let helper = root.appendingPathComponent("slow-git"), ready = root.appendingPathComponent("ready")
+        let script = """
+        #!/bin/sh
+        if [ "$4" = rev-parse ]; then
+          : > "$3/ready"
+          /bin/sleep 30
+          exit 128
+        fi
+        exec /usr/bin/git "$@"
+        """
+        try Data(script.utf8).write(to: helper)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
+        let slow = GitRepository(root: root, executable: helper)
+        for unstage in [false, true] {
+            try? FileManager.default.removeItem(at: ready)
+            let token = OperationCancellation()
+            let task = Task { () async throws -> Data in
+                if unstage { try await slow.unstage([path], cancellation: token); return Data() }
+                return try await slow.workingTreeDiffData(paths: [path], cancellation: token)
+            }
+            for _ in 0..<500 {
+                if FileManager.default.fileExists(atPath: ready.path) { break }
+                try await Task.sleep(nanoseconds: 10_000_000)
+            }
+            let started = FileManager.default.fileExists(atPath: ready.path)
+            token.cancel()
+            do { _ = try await task.value; XCTFail("Cancelled inspection completed") } catch is GitCommandCancellationFailure {} catch is OperationCancellationFailure {}
+            XCTAssertTrue(started)
+            XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        }
+    }
+
     func testIndexFlagMarkedStatusGatesIncludeCombinedAddedDeletedAndUnversionedActions() {
         for (code, skip, assume) in [(" M", true, true), ("A ", false, false), ("AD", false, false), (" D", true, false), ("D ", true, false), ("UU", false, false), ("??", false, false), ("!!", false, false)] {
             let entry = StatusEntry.parse(Data((code + " path\0").utf8))[0]

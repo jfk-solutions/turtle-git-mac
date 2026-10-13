@@ -105,11 +105,14 @@ public actor GitRepository {
         return try run(args).text
     }
     public func stage(_ paths: [String], cancellation: OperationCancellation? = nil) throws { try cancellation?.check(); if !paths.isEmpty { _ = try run(["add", "--"] + paths, cancellation: cancellation) } }
-    public func unstage(_ paths: [String]) throws {
+    public func unstage(_ paths: [String], cancellation: OperationCancellation? = nil) throws {
+        try cancellation?.check()
         guard !paths.isEmpty else { return }
-        if (try? run(["rev-parse", "--verify", "HEAD"])) != nil {
-            _ = try run(["restore", "--staged", "--"] + paths)
-        } else { _ = try run(["rm", "--cached", "--"] + paths) }
+        let head = try run(["rev-parse", "--verify", "HEAD"], successfulExitCodes: 0...128, cancellation: cancellation)
+        try cancellation?.check()
+        if head.exitCode == 0 {
+            _ = try run(["restore", "--staged", "--"] + paths, cancellation: cancellation)
+        } else { _ = try run(["rm", "--cached", "--"] + paths, cancellation: cancellation) }
     }
     public func commit(message: String) throws -> String {
         guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {

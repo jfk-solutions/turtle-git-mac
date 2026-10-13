@@ -526,7 +526,8 @@
         "docs/qa/saved-data-2026-10-08.json",
         "docs/qa/status-colors-2026-10-09.json",
         "docs/qa/temporary-files-2026-10-08.json",
-        "docs/qa/working-tree-columns-2026-10-09.json"
+        "docs/qa/working-tree-columns-2026-10-09.json",
+        "docs/qa/working-tree-lifecycle-2026-10-14.json"
       ]
     },
     {
@@ -1461,6 +1462,7 @@
         "docs/qa/push-stream-2026-10-08.json",
         "docs/qa/saved-data-2026-10-08.json",
         "docs/qa/stash-reference-cancellation-2026-10-11.json",
+        "docs/qa/sync-replay-hooks-2026-10-14.json",
         "docs/qa/synchronization-apply-native-2026-10-11.json",
         "docs/qa/synchronization-branch-picker-native-2026-10-11.json",
         "docs/qa/synchronization-checkout-2026-10-11.json",
@@ -2650,6 +2652,7 @@
         "docs/qa/stash-replay-batch-2026-10-12.json",
         "docs/qa/stash-restore-2026-10-08.json",
         "docs/qa/stash-save-progress-2026-10-08.json",
+        "docs/qa/sync-replay-hooks-2026-10-14.json",
         "docs/qa/synchronization-stash-lifecycle-2026-10-11.json",
         "docs/qa/temporary-files-2026-10-08.json"
       ]

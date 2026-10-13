@@ -45,8 +45,10 @@ cancelled without changing the repository. `site/assets/status.png` shows the ru
   file export/editor/open, submodules, groups/changelists and associated enablement.
 - Full conditional Stash/Switch menus and post-operation behavior; the dedicated
   dialog ports remain partial.
-- Remote status checking, refresh cancellation/progress, F5 shortcut, persisted
-  filters/window geometry, empty-state text and selection restoration.
+- Remote status checking and complete displayed/signed acceptance. Refresh ownership,
+  cancellation/progress, F5, source filter persistence and selection restoration
+  are implemented in the October 14 lifecycle batch below. Window geometry uses
+  the shared native persistence.
 - File/folder-specific filter enablement, alternative diff tools and broader
   multi-repository, rename, conflict and submodule native QA.
 - Native scoped Finder invocation and signed Finder menu/badge appearance still
@@ -112,3 +114,34 @@ is distinct from modification; unversioned/ignored/normal rows stay neutral.
 See [Appearance](APPEARANCE.md) and [status color QA](qa/status-colors-2026-10-09.json).
 Native RGB/appearance resolution is checked separately from current pixel and
 accessibility/contrast acceptance.
+
+## Working Tree operation family — October 14, 2026
+
+ChangedDlg's refresh/F5/cancel flow and saved AddBeforeCommit,
+ChangedFilesIncludeStaged and repository-specific ShowWholeProject choices now
+have native counterparts. Ignored/local-change flags remain session choices,
+as in source. Scoped reopening restores Whole Project; an unrestricted root
+forces it on without overwriting the scoped choice. Changing filters retains
+visible selections. The empty table uses the source explanation of settings.
+
+Refresh reads status, branch, rebase state, submodules, LFS availability, metadata
+and line statistics into a replacement snapshot before publishing. Failure or
+cancellation preserves the previous table, selection and branch. LFS owner reads
+remain separately optional and cannot overwrite a retired window. Refresh,
+Stage/Unstage, index flags, diff export/viewer preparation and column reset share
+owned cancellation/lifetime accounting. Current work and a cancellable progress
+control remain visible while the table is disabled. Close requests cancel and
+wait; forced retirement cancels work and fences late state, panels, viewers and
+preferences. Quit protection survives removal of the owner window.
+
+Core cancellation now reaches Unstage's HEAD inspection and actual mutation,
+diff HEAD inspection and diff child, and every private-index flag command.
+Cancellation cannot be swallowed as an unborn HEAD; private index flags check
+cancellation before replacing the real index and remove their temporary lock
+on failure. Completed Git mutations are retained rather than claiming rollback.
+
+Debug compilation and all ten affected Core checks have passing evidence.
+The new lifecycle and existing LFS/column receivers passed with both system
+and bundled Git; all four receivers were reaped. Only the actual failing Core
+fixture was repeated. See [results and repairs](qa/working-tree-lifecycle-2026-10-14.json). Remote status, physical scrollbar/keyboard/panel
+acceptance, signed security scopes and full status-list/menu parity remain open.

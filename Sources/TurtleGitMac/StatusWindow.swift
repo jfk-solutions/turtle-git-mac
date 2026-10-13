@@ -24,6 +24,14 @@ struct StatusRow: Identifiable {
     var sizeText: String { metadata?.sizeText ?? "–" }
 }
 
+final class StatusNativeWindow: NSWindow {
+    var refresh: () -> Void = {}
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if event.type == .keyDown, event.keyCode == 96 { refresh(); return true }
+        return super.performKeyEquivalent(with: event)
+    }
+}
+
 @MainActor final class StatusWindowController: NSWindowController, NSWindowDelegate {
     let model: StatusWindowModel
     var onClosed: () -> Void = {}
@@ -33,12 +41,13 @@ struct StatusRow: Identifiable {
     var makeLFSOperation: (GitRepository, RepositoryAccessLease?) -> LFSFileOperationController = { LFSFileOperationController(repository: $0, access: $1) }
     init(repository: GitRepository, access: RepositoryAccessLease?, defaults: UserDefaults = .standard) {
         model = StatusWindowModel(repository: repository, access: access, defaults: defaults)
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1100, height: 630),
+        let window = StatusNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 1100, height: 630),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Working Tree – TurtleGit"
         window.minSize = NSSize(width: 960, height: 540); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: StatusDialog(model: model))
         super.init(window: window); window.delegate = self
+        window.refresh = { [weak model] in model?.reload() }
         window.setContentSize(NSSize(width: 1100, height: 630)); window.center()
         model.close = { [weak window] in window?.performClose(nil) }
         model.savePatch = { [weak self] text in self?.savePatch(text) }
@@ -59,28 +68,34 @@ struct StatusRow: Identifiable {
         DialogGeometry.attach(window, identifier: "StatusWindowController")
     }
     private func savePatch(_ bytes: Data) {
-        guard let window else { return }
+        guard let window, !model.retired, window.attachedSheet == nil else { return }
         let panel = NSSavePanel(); panel.nameFieldStringValue = "working-tree.patch"
         panel.allowedContentTypes = [UTType(filenameExtension: "patch") ?? .plainText]
         panel.beginSheetModal(for: window) { [weak model] response in
-            guard response == .OK, let url = panel.url else { return }
+            guard response == .OK, let model, !model.retired, let url = panel.url else { return }
             do { try bytes.write(to: url, options: .atomic) }
-            catch { model?.error = error.localizedDescription }
+            catch { model.error = error.localizedDescription }
         }
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        if model.cancelLFSOwnerQuery() { return false }
+        if model.cancelOperation() { return false }
         return !model.busy && !model.confirmingQuit && !model.unifiedViewerBusy && sender.attachedSheet == nil
     }
     func windowWillClose(_ notification: Notification) {
         guard !closingStatus else { return }; closingStatus = true
-        model.cancelLFSOwnerQuery(); lfsOperation?.close(); lfsOperation = nil
+        model.invalidate(); lfsOperation?.close(); lfsOperation = nil
         model.unifiedWindow?.close(); onClosed()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
 @MainActor final class StatusWindowModel: ObservableObject {
+    private(set) static var activeOperations = 0
+    private(set) var retired = false
+    private var operationCancellation: OperationCancellation?
+    @Published private(set) var currentOperation = ""
+    @Published private(set) var cancelling = false
+    var readStatus: (OperationCancellation) async throws -> [WorkingTreeFile]
     let repository: GitRepository
     private let access: RepositoryAccessLease?
     @Published var conflictRebase = false
@@ -118,6 +133,7 @@ struct StatusRow: Identifiable {
     var onChanged: () -> Void = {}
     init(repository: GitRepository, access: RepositoryAccessLease?, defaults: UserDefaults = .standard) {
         self.repository = repository; self.access = access; self.defaults = defaults
+        readStatus = { try await repository.workingTreeStatus(cancellation: $0) }
         if defaults.integer(forKey: Self.columnKey + ".Version") == 1 {
             fileColumns = .load(from: defaults, key: Self.columnKey)
         } else {
@@ -126,13 +142,15 @@ struct StatusRow: Identifiable {
             fileColumns = columns
         }
         queryLFSOwners = { try await repository.lfsLocks(cancellation: $0) }
+        filter.showUnversioned = defaults.object(forKey: "AddBeforeCommit") == nil || defaults.bool(forKey: "AddBeforeCommit")
+        filter.showAllStaged = defaults.object(forKey: "ChangedFilesIncludeStaged") == nil || defaults.bool(forKey: "ChangedFilesIncludeStaged")
     }
     func setSortOrder(_ order: [StatusFileSort]) {
-        guard !busy, !confirmingQuit else { return }
+        guard !retired, !busy, !confirmingQuit else { return }
         sortOrder = Array(order.prefix(1))
     }
     func setShowLFSOwners(_ visible: Bool) {
-        guard hasLFS, !busy, !confirmingQuit else { return }
+        guard !retired, hasLFS, !busy, !confirmingQuit else { return }
         if visible { fileColumns.visible.insert(.lfsOwner) } else { fileColumns.visible.remove(.lfsOwner) }
         fileColumns.save(to: defaults, key: Self.columnKey)
         if visible { reload() } else { lfsOwners = [:]; lfsLockedPaths = []; lfsOwnershipKnown = false }
@@ -144,21 +162,18 @@ struct StatusRow: Identifiable {
         fileColumns.save(to: defaults, key: Self.columnKey)
     }
     @discardableResult func saveColumnLayout(order: [StatusListColumn], widths: [StatusListColumn: Double]) -> Bool {
-        guard !busy, !confirmingQuit else { return false }
+        guard !retired, !busy, !confirmingQuit else { return false }
         let next = StatusListColumnSettings(visible: fileColumns.visible, order: order, widths: widths)
         if fileColumns != next { fileColumns = next; fileColumns.save(to: defaults, key: Self.columnKey) }
         return true
     }
     func requestResetColumns(choose: @escaping () async -> Bool, onAccepted: @escaping () -> Void) {
-        guard !busy, !confirmingQuit else { return }
-        busy = true
-        Task {
-            defer { busy = false }
-            guard await choose(), !confirmingQuit else { return }
+        runOperation("Reset columns…", operation: { [self] token in
+            guard await choose(), isLive(token), !confirmingQuit else { return }
             fileColumns = Self.defaultColumns; fileColumns.save(to: defaults, key: Self.columnKey)
             lfsOwners = [:]; lfsLockedPaths = []; lfsOwnershipKnown = false
             onAccepted()
-        }
+        })
     }
     @discardableResult func cancelLFSOwnerQuery() -> Bool {
         guard let ownerCancellation else { return false }
@@ -171,34 +186,79 @@ struct StatusRow: Identifiable {
         let rows = visibleFiles
         return "\(rows.count) files shown, \(rows.filter { $0.entry.staged }.count) staged, \(rows.filter { $0.state == .modified }.count) modified, \(rows.filter { $0.state == .untracked }.count) unversioned"
     }
+    private var wholeProjectKey: String { "WorkingTree.ShowWholeProject." + repository.root.path }
     func setScope(_ paths: [String]) {
-        filter.paths = paths.contains(".") ? [] : paths; filter.wholeProject = filter.paths.isEmpty
+        guard !retired, !busy else { return }
+        filter.paths = paths.contains(".") ? [] : paths
+        filter.wholeProject = filter.paths.isEmpty || defaults.bool(forKey: wholeProjectKey)
         selection = []; reload()
     }
-    func reload() {
-        guard !busy, !confirmingQuit else { return }; busy = true
-        lfsOwners = [:]; lfsLockedPaths = []; lfsOwnershipKnown = false
+    func setFilter(_ value: WorkingTreeFilter) {
+        guard !retired, !busy, !confirmingQuit else { return }
+        filter = value
+        defaults.set(value.showUnversioned, forKey: "AddBeforeCommit")
+        defaults.set(value.showAllStaged, forKey: "ChangedFilesIncludeStaged")
+        if !value.paths.isEmpty { defaults.set(value.wholeProject, forKey: wholeProjectKey) }
+        selection.formIntersection(Set(visibleFiles.map(\.id)))
+    }
+    @discardableResult func cancelOperation() -> Bool {
+        guard let token = operationCancellation else { return cancelLFSOwnerQuery() }
+        cancelling = true; token.cancel(); ownerCancellation?.cancel(); return true
+    }
+    func invalidate() {
+        guard !retired else { return }; retired = true
+        operationCancellation?.cancel(); ownerCancellation?.cancel()
+        unifiedWindow?.close(); unifiedWindow = nil
+    }
+    private func isLive(_ token: OperationCancellation) -> Bool {
+        !retired && operationCancellation === token && !token.isCancelled
+    }
+    private func runOperation(_ title: String, operation: @escaping (OperationCancellation) async throws -> Void, completed: @escaping () -> Void = {}) {
+        guard !retired, !busy, !confirmingQuit else { return }
+        let token = OperationCancellation(); operationCancellation = token
+        busy = true; cancelling = false; currentOperation = title; Self.activeOperations += 1
         Task {
-            defer { busy = false }
+            defer {
+                Self.activeOperations -= 1
+                if operationCancellation === token { operationCancellation = nil; busy = false; cancelling = false; currentOperation = "" }
+                withExtendedLifetime(access) {}
+            }
             do {
-                files = try await repository.workingTreeStatus(); branch = try await repository.branch()
-                conflictRebase = (try await repository.conflictIsRebase()); submodules = try await repository.submodulePaths()
-                hasLFS = try await repository.hasLFS()
-                fileMetadata = await repository.statusListMetadata(paths: files.map(\.id))
-                statistics = Dictionary(try await repository.workingTreeFiles().map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
-                selection.formIntersection(Set(visibleFiles.map(\.id)))
-                if ownersVisible {
-                    if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                    let token = OperationCancellation(); ownerCancellation = token
-                    defer { ownerCancellation = nil }
-                    let locks = try await queryLFSOwners(token)
-                    guard !token.isCancelled else { return }
-                    lfsOwners = Dictionary(locks.map { ($0.path, $0.owner) }, uniquingKeysWith: { first, _ in first })
-                    lfsLockedPaths = Set(locks.map(\.path)); lfsOwnershipKnown = true
-                }
-
-            } catch { self.error = error.localizedDescription }
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                try await operation(token)
+                guard isLive(token) else { return }
+                busy = false; completed()
+            } catch {
+                guard !retired else { return }
+                if token.isCancelled { self.error = "Operation cancelled. Any completed changes are retained; refresh to inspect the working tree." }
+                else { self.error = error.localizedDescription }
+            }
         }
+    }
+    func reload() {
+        runOperation("Refreshing working tree…", operation: { [self] token in
+            // Publish one complete snapshot. A failed/cancelled read retains the prior table.
+            let nextFiles = try await readStatus(token)
+            let nextBranch = try await repository.branch(cancellation: token)
+            let nextRebase = try await repository.conflictIsRebase(cancellation: token)
+            let nextSubmodules = try await repository.submodulePaths(cancellation: token)
+            let nextLFS = try await repository.hasLFS(cancellation: token)
+            let nextMetadata = await repository.statusListMetadata(paths: nextFiles.map(\.id))
+            let nextStatistics = try await repository.workingTreeFiles(cancellation: token)
+            guard isLive(token) else { return }
+            files = nextFiles; branch = nextBranch; conflictRebase = nextRebase; submodules = nextSubmodules
+            hasLFS = nextLFS; fileMetadata = nextMetadata
+            statistics = Dictionary(nextStatistics.map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
+            selection.formIntersection(Set(visibleFiles.map(\.id)))
+            lfsOwners = [:]; lfsLockedPaths = []; lfsOwnershipKnown = false
+            if ownersVisible {
+                ownerCancellation = token; defer { if ownerCancellation === token { ownerCancellation = nil } }
+                let locks = try await queryLFSOwners(token)
+                guard isLive(token) else { return }
+                lfsOwners = Dictionary(locks.map { ($0.path, $0.owner) }, uniquingKeysWith: { first, _ in first })
+                lfsLockedPaths = Set(locks.map(\.path)); lfsOwnershipKnown = true
+            }
+        })
     }
     func canLockLFS(_ selected: [WorkingTreeFile]) -> Bool {
         LFSLockingSelection.isAvailable(selected.map(\.entry), hasLFS: hasLFS, root: repository.root, directories: submodules)
@@ -208,72 +268,57 @@ struct StatusRow: Identifiable {
         return LFSLockMenu.actions(paths: selected.map(\.id), ownersVisible: ownersVisible, lockedPaths: lfsLockedPaths, ownershipKnown: lfsOwnershipKnown)
     }
     func setLFSLocked(_ ids: Set<String>, locked: Bool) {
-        guard !busy, !confirmingQuit else { return }
+        guard !retired, !busy, !confirmingQuit else { return }
         let selected = sortedRows.map(\.file).filter { ids.contains($0.id) }
         guard selected.count == ids.count, lfsActions(selected).contains(locked ? .lock : .unlock) else { return }
         busy = true
         if !onLFSOperation(selected.map(\.id), locked) { busy = false }
     }
     func stage(_ ids: Set<String>, staged: Bool) {
-        guard !busy, !ids.isEmpty else { return }; busy = true
-        let paths = files.filter { ids.contains($0.id) && $0.state != .conflicted }.map(\.id)
-        Task {
-            do {
-                if staged { try await repository.stage(paths) } else { try await repository.unstage(paths) }
-                busy = false; reload(); onChanged()
-            } catch { self.error = error.localizedDescription; busy = false; reload() }
-        }
+        let paths = sortedRows.map(\.file).filter { ids.contains($0.id) && $0.state != .conflicted }.map(\.id)
+        guard !paths.isEmpty else { return }
+        runOperation(staged ? "Staging files…" : "Unstaging files…", operation: { [self] token in
+            if staged { try await repository.stage(paths, cancellation: token) }
+            else { try await repository.unstage(paths, cancellation: token) }
+        }, completed: { [self] in reload(); onChanged() })
     }
     func setFlags(_ action: IndexFlagAction, files: [WorkingTreeFile]) {
-        guard !busy, action.isAvailable(for: files), confirmIndexFlags(action) else { return }
-        busy = true
-        Task {
-            do {
-                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                try await repository.setIndexFlags(action, paths: files.map(\.id))
-            }
-            catch { self.error = error.localizedDescription }
-            busy = false; reload(); onChanged()
-        }
+        guard !retired, !busy, !confirmingQuit, action.isAvailable(for: files), confirmIndexFlags(action), !retired else { return }
+        runOperation("Updating index flags…", operation: { [self] token in
+            try await repository.setIndexFlags(action, paths: files.map(\.id), cancellation: token)
+        }, completed: { [self] in reload(); onChanged() })
     }
     func diff(_ ids: Set<String>, saving: Bool = false) {
+        guard !retired, !busy, !confirmingQuit else { return }
         if !saving {
-            let paths = files.filter { ids.contains($0.id) }.map(\.id)
-            guard !busy, !paths.isEmpty else { return }; onAction(.diff, paths); return
+            let paths = sortedRows.filter { ids.contains($0.id) }.map(\.id)
+            guard !paths.isEmpty else { return }; onAction(.diff, paths); return
         }
-        guard !busy else { return }; busy = true
-        let paths = saving ? (filter.wholeProject ? [] : filter.paths) : files.filter { ids.contains($0.id) }.map(\.id)
-        guard saving || !paths.isEmpty else { busy = false; return }
-        Task {
-            defer { busy = false }
-            do {
-                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let bytes = try await repository.workingTreeDiffData(paths: paths)
-                savePatch(bytes)
-            } catch { self.error = error.localizedDescription }
-        }
+        let paths = filter.wholeProject ? [] : filter.paths
+        runOperation("Preparing unified diff…", operation: { [self] token in
+            let bytes = try await repository.workingTreeDiffData(paths: paths, cancellation: token)
+            guard isLive(token) else { return }; savePatch(bytes)
+        })
     }
     func unifiedDiff(_ ids: Set<String>, alternate: Bool) {
-        guard !busy, !unifiedViewerBusy else { return }
-        let paths = visibleFiles.filter { ids.contains($0.id) }.map(\.id)
-        guard !paths.isEmpty else { return }; busy = true
-        Task {
-            defer { busy = false }
-            do {
-                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let bytes = try await repository.workingTreeDiffData(paths: paths)
-                if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
-                    unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "HEAD → Working tree", onClosed: { [weak self] in self?.unifiedWindow = nil })
-                }
-            } catch { self.error = error.localizedDescription }
-        }
+        guard !unifiedViewerBusy else { return }
+        let paths = sortedRows.filter { ids.contains($0.id) }.map(\.id)
+        guard !paths.isEmpty else { return }
+        runOperation("Preparing unified diff…", operation: { [self] token in
+            let bytes = try await repository.workingTreeDiffData(paths: paths, cancellation: token)
+            guard isLive(token) else { return }
+            if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
+                guard isLive(token) else { return }
+                unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "HEAD → Working tree", onClosed: { [weak self] in self?.unifiedWindow = nil })
+            }
+        })
     }
     func commitPaths() -> [String] { filter.wholeProject ? [] : filter.paths }
     func didRename(_ source: String, to destination: String) {
         func moved(_ path: String) -> String { path == source ? destination : path.hasPrefix(source + "/") ? destination + path.dropFirst(source.count) : path }
         selection = Set(selection.map(moved)); filter.paths = filter.paths.map(moved); reload()
     }
-    func reveal(_ ids: Set<String>) { NSWorkspace.shared.activateFileViewerSelecting(files.filter { ids.contains($0.id) }.map { repository.root.appendingPathComponent($0.id) }) }
+    func reveal(_ ids: Set<String>) { guard !retired, !busy, !confirmingQuit else { return }; NSWorkspace.shared.activateFileViewerSelecting(files.filter { ids.contains($0.id) }.map { repository.root.appendingPathComponent($0.id) }) }
     func columnText(_ row: StatusRow, _ column: StatusListColumn) -> String {
         switch column {
         case .path: return StatusListClipboard.displayedPath(row.file.entry)
@@ -309,6 +354,7 @@ struct StatusRow: Identifiable {
         }.joined(separator: "\n") + "\n"
     }
     func copy(_ ids: Set<String>, information: StatusListCopy = .relativePaths) {
+        guard !retired, !busy, !confirmingQuit else { return }
         let text = clipboardText(ids, copy: information)
         guard !text.isEmpty else { return }
         NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
@@ -325,7 +371,7 @@ struct StatusDialog: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Button(model.branch.isEmpty ? "Unborn / detached HEAD" : model.branch) { model.onAction(.switchBranch, []) }.buttonStyle(.link)
-                Spacer(); if model.busy { ProgressView().controlSize(.small) }
+                Spacer(); if model.busy { Text(model.currentOperation).font(.caption); ProgressView().controlSize(.small) }
             }
             Table(rows, selection: $model.selection, sortOrder: Binding(get: { model.sortOrder }, set: { model.setSortOrder($0) })) {
                 TableColumn("Path", sortUsing: StatusFileSort(column: .path)) { row in
@@ -390,13 +436,14 @@ struct StatusDialog: View {
                 else { model.diff(ids) }
             }
             .frame(minHeight: 300)
+            .overlay { if rows.isEmpty && !model.busy { Text("No files to show with the current setting.\nCheck one or more settings below to see unversioned, ignored and/or unmodified files.").foregroundStyle(.secondary).allowsHitTesting(false) } }
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Toggle("Show unversioned files", isOn: $model.filter.showUnversioned)
-                    Toggle("Show ignore local changes flagged files", isOn: $model.filter.showLocalChangesIgnored)
-                    Toggle("Show ignored files", isOn: $model.filter.showIgnored)
-                    Toggle("Show all staged files", isOn: $model.filter.showAllStaged)
-                    Toggle("Show Whole Project", isOn: $model.filter.wholeProject).disabled(model.filter.paths.isEmpty)
+                    Toggle("Show unversioned files", isOn: Binding(get: { model.filter.showUnversioned }, set: { var value = model.filter; value.showUnversioned = $0; model.setFilter(value) }))
+                    Toggle("Show ignore local changes flagged files", isOn: Binding(get: { model.filter.showLocalChangesIgnored }, set: { var value = model.filter; value.showLocalChangesIgnored = $0; model.setFilter(value) }))
+                    Toggle("Show ignored files", isOn: Binding(get: { model.filter.showIgnored }, set: { var value = model.filter; value.showIgnored = $0; model.setFilter(value) }))
+                    Toggle("Show all staged files", isOn: Binding(get: { model.filter.showAllStaged }, set: { var value = model.filter; value.showAllStaged = $0; model.setFilter(value) }))
+                    Toggle("Show Whole Project", isOn: Binding(get: { model.filter.wholeProject }, set: { var value = model.filter; value.wholeProject = $0; model.setFilter(value) })).disabled(model.filter.paths.isEmpty)
                 }.toggleStyle(.checkbox)
                 Spacer()
                 Text(model.summary).font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.trailing)
@@ -414,7 +461,13 @@ struct StatusDialog: View {
                 Button("Refresh") { model.reload() }.keyboardShortcut("r")
                 Button("OK") { model.close() }.keyboardShortcut(.defaultAction)
             }
-        }.padding(12).disabled(model.busy || model.confirmingQuit)
+        }.padding(12).disabled(model.busy || model.confirmingQuit || model.retired)
+        .overlay(alignment: .bottomLeading) {
+            if model.busy && !model.currentOperation.isEmpty {
+                Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancelOperation() }
+                    .disabled(model.cancelling || model.retired).padding(12)
+            }
+        }
         .onChange(of: model.filter) { _ in model.selection.formIntersection(Set(model.visibleFiles.map(\.id))) }
         .alert("Git operation failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("OK") { model.error = nil }

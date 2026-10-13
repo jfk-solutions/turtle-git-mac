@@ -1,0 +1,59 @@
+{
+  "date": "2026-10-14",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Working Tree refresh, saved filters/scope, F5, empty state and retained selections",
+    "Shared cancellable Stage/Unstage/index flags/diff/export/reset lifetime",
+    "Retirement, save/viewer late fences and independent Quit ownership"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/working-tree-lifecycle-build-2026-10-14.log"
+    },
+    "core_group": {
+      "exit": 1,
+      "tests": 10,
+      "passed": 9,
+      "failing_test": "testCancelledHeadInspectionCannotFallBackToUnbornMutationOrDiff",
+      "log": "build/qa/working-tree-lifecycle-core-2026-10-14.log"
+    },
+    "affected_core_recheck": {
+      "exit": 0,
+      "tests": 1,
+      "log": "build/qa/working-tree-lifecycle-core-head-repair-2026-10-14.log",
+      "result": "All ten affected tests now have passing evidence; the other nine were not repeated."
+    },
+    "native": {
+      "exit": 0,
+      "cases": 4,
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "scope": "New lifecycle receiver plus existing complete LFS/Commit/Working Tree columns/routing receiver",
+      "owned_receivers_reaped": [
+        13460,
+        13556,
+        14023,
+        14079
+      ],
+      "no_owned_receivers_remain": true,
+      "log": "build/qa/working-tree-lifecycle-native-2026-10-14.log"
+    },
+    "website": {
+      "exit": 0,
+      "log": "build/qa/working-tree-lifecycle-site-2026-10-14.log"
+    }
+  },
+  "repairs": [
+    "Two compile attempts exposed stored-property initialization order; all stored properties now initialize before published filter mutation. No tests ran on those attempts.",
+    "Delayed HEAD fixture wrote its readiness marker in the host working directory, although Git uses -C. Corrected the fixture to the explicit repository path and reran only its failing test. Temporary marker removed."
+  ],
+  "limits": [
+    "No physical pointer, F5 event delivery, scrollbar or save-panel acceptance claim; F5 was dispatched as an AppKit key equivalent",
+    "No signed sandbox/Finder or refreshed App Store packaging acceptance",
+    "No real LFS server or remote-status implementation",
+    "Full upstream status-list menus and whole application port remain incomplete"
+  ]
+}

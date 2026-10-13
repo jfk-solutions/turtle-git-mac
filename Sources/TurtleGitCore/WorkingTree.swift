@@ -59,10 +59,13 @@ extension GitRepository {
     public func workingTreeDiff(paths: [String]) throws -> String {
         String(decoding: try workingTreeDiffData(paths: paths), as: UTF8.self)
     }
-    public func workingTreeDiffData(paths: [String]) throws -> Data {
-        let head = try? run(["rev-parse", "--verify", "HEAD"])
-        return try run(["diff", "--no-ext-diff", "--no-color"] + (head == nil ? ["--cached"] : ["HEAD"]) + ["--"] + paths).stdout
+    public func workingTreeDiffData(paths: [String], cancellation: OperationCancellation? = nil) throws -> Data {
+        try cancellation?.check()
+        let head = try run(["rev-parse", "--verify", "HEAD"], successfulExitCodes: 0...128, cancellation: cancellation)
+        try cancellation?.check()
+        return try run(["diff", "--no-ext-diff", "--no-color"] + (head.exitCode == 0 ? ["HEAD"] : ["--cached"]) + ["--"] + paths, cancellation: cancellation).stdout
     }
+
 }
 
 public enum IndexFlagAction: String, CaseIterable, Sendable {
@@ -98,12 +101,13 @@ extension GitRepository {
     /// Change only flags in a private locked index. A status-list mark enables
     /// upstream mixed-selection behavior; missing stage-zero entries are reported
     /// after the remaining selected entries have been updated.
-    public func setIndexFlags(_ action: IndexFlagAction, paths: [String], markedPath: String? = nil) throws {
+    public func setIndexFlags(_ action: IndexFlagAction, paths: [String], markedPath: String? = nil, cancellation: OperationCancellation? = nil) throws {
+        try cancellation?.check()
         let paths = Set(paths)
         guard !paths.isEmpty else { throw RevisionComparisonFailure.selection }
         for path in paths { _ = try restoreLocation(path) }
         if let markedPath { _ = try restoreLocation(markedPath) }
-        var indexBytes = try run(["rev-parse", "--git-path", "index"]).stdout
+        var indexBytes = try run(["rev-parse", "--git-path", "index"], cancellation: cancellation).stdout
         if indexBytes.last == 10 { indexBytes.removeLast() }
         let indexPath = String(decoding: indexBytes, as: UTF8.self)
         let index = indexPath.hasPrefix("/") ? URL(fileURLWithPath: indexPath) : root.appendingPathComponent(indexPath)
@@ -116,7 +120,7 @@ extension GitRepository {
         let handle = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
         do { try handle.write(contentsOf: Data(contentsOf: index)); try handle.close() }
         catch { try? handle.close(); throw error }
-        let current = try workingTreeStatus(refreshIndex: false)
+        let current = try workingTreeStatus(refreshIndex: false, cancellation: cancellation)
         let selected = current.filter { paths.contains($0.id) }
         let gate = markedPath.map { mark in current.filter { $0.id == mark } } ?? selected
         guard (markedPath != nil || selected.count == paths.count), action.isAvailable(for: gate) else {
@@ -126,7 +130,7 @@ extension GitRepository {
         // Preserve that behavior for an eligible mark, including idempotent flags
         // and added files, while reporting paths lacking a stage-zero entry.
         var indexed = Set<String>()
-        for record in try run(["ls-files", "--stage", "-z"]).stdout.split(separator: 0) {
+        for record in try run(["ls-files", "--stage", "-z"], cancellation: cancellation).stdout.split(separator: 0) {
             guard let tab = record.firstIndex(of: 9) else { continue }
             let header = String(decoding: record[..<tab], as: UTF8.self).split(separator: " ")
             if header.last == "0" { indexed.insert(String(decoding: record[record.index(after: tab)...], as: UTF8.self)) }
@@ -142,10 +146,11 @@ extension GitRepository {
         case .clear: arguments = [["--no-assume-unchanged"], ["--no-skip-worktree"]]
         }
         for flags in arguments {
-            _ = try run(["update-index"] + flags + ["--"] + targets, environmentOverrides: environment)
+            _ = try run(["update-index"] + flags + ["--"] + targets, environmentOverrides: environment, cancellation: cancellation)
         }
         let attributes = try FileManager.default.attributesOfItem(atPath: index.path)
         if let permissions = attributes[.posixPermissions] { try FileManager.default.setAttributes([.posixPermissions: permissions], ofItemAtPath: lock.path) }
+        try cancellation?.check()
         guard Darwin.rename(lock.path, index.path) == 0 else {
             throw GitFailure(arguments: ["update-index"], code: 1, message: "Could not replace the Git index: " + String(cString: strerror(errno)))
         }

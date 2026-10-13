@@ -262,3 +262,16 @@ to the pane width. The choice is saved and horizontal scrolling is disabled
 while wrapped. Corresponding source rows remain vertically aligned; resizing
 reflows them. File bytes and logical edit/Find/Undo offsets stay unchanged. See
 [wrapping parity](MERGE-WRAPPING-PARITY.md) for remaining acceptance.
+
+## Refreshing the Working Tree
+
+Use **Refresh**, Command-R or F5 in the Working Tree window. The progress label
+shows the current operation; **Cancel** stops its owned work. A failed or
+cancelled refresh retains the last complete table. Closing while work is running
+requests cancellation and keeps the window until it settles. Completed staging
+or index changes are retained; refresh to inspect them after cancellation.
+
+Show unversioned files and Show all staged files are remembered. Show Whole
+Project is remembered per repository for file/folder-scoped windows. Ignored
+and locally ignored flags remain choices for the current window. Successful
+refresh preserves selected paths that are still visible.
