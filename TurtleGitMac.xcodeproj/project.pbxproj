@@ -100,6 +100,7 @@
 		4DADF6934B5B91754BD61031 /* RepositoryBrowser.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B39BEE643082FED0868FD9 /* RepositoryBrowser.swift */; };
 		4DF2969F6AE13B68357E46E5 /* GitPatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0657423D5C68D66703C2BB5C /* GitPatch.swift */; };
 		4E69E4757C052B8B130BCBB3 /* SubmoduleComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6308259E880D7D7EFFC7032A /* SubmoduleComparison.swift */; };
+		4EA29B3D4680129912E75C31 /* RemoteReferenceChoices.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA911F44B257D32227A53505 /* RemoteReferenceChoices.swift */; };
 		4EBF832662E01F9C93325133 /* SubmoduleAdd.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E85FED91C2F9C44EB16228A /* SubmoduleAdd.swift */; };
 		4F2CE4365733F943E851877A /* TurtleGitSMTP.h in Headers */ = {isa = PBXBuildFile; fileRef = 4D63D5938D6276B5A071748C /* TurtleGitSMTP.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		4F838A5A9747585DC8B737C1 /* TurtleGitSMTP.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F81A7BFF0565C5791A405B0 /* TurtleGitSMTP.framework */; };
@@ -140,6 +141,7 @@
 		7164C7C2217E6ABE41A1A1F5 /* SubmoduleUpdateProgressWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A739DFEF6C8F204FD7139944 /* SubmoduleUpdateProgressWindow.swift */; };
 		71A192AE217977ACEEDE0E0E /* Ignore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAA057A2776BAA8F4BE538EE /* Ignore.swift */; };
 		7246ECD3855DE7281A03DD64 /* TextConflict.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8927431F95C0127D9B66489A /* TextConflict.swift */; };
+		73546761F5B2463B95290FFD /* RemoteReferenceWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5703FFF60B4C7B3BD68D1F9A /* RemoteReferenceWindow.swift */; };
 		737A5C831F62BBA90DDF08B4 /* ActionLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 173811DDB174801ACF738211 /* ActionLog.swift */; };
 		73F05370C1A0B99B7BF35C5B /* CommitCompletionPopup.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4626C39B694CD13BD1D8FA1 /* CommitCompletionPopup.swift */; };
 		7402B84E5CE3702EC56EBAD8 /* FileComparisonEditing.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD325E61874E68F270271CC9 /* FileComparisonEditing.swift */; };
@@ -261,6 +263,7 @@
 		CDA5CA2296FD4B376D9C26E6 /* FinderBackgroundService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 915E15D41336AA69D1B13F32 /* FinderBackgroundService.swift */; };
 		CE3B74D0F08777C48EEB452B /* MergeComparisonControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = A22E9699468EE4C1CA9139EB /* MergeComparisonControls.swift */; };
 		CE62DD0C90CCBA058B0F7C1C /* GitProgressOutputState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6D400F85AE92690112D0E35 /* GitProgressOutputState.swift */; };
+		D01D23BA0D2AD50A36BD9F78 /* AddRemoteWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC47297BEF6EC885B5BAF7A5 /* AddRemoteWindow.swift */; };
 		D17A1D5A00D1AFA7FA41B044 /* TemporaryFiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FC37D449B700916B289DDB7 /* TemporaryFiles.swift */; };
 		D20BBF1A1F80FC6A11D4DDAB /* Rebase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A8A21C4E5D4C9A48E0B7FE9 /* Rebase.swift */; };
 		D23A00DDC15A9F767BE97B36 /* Push.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A48D22D1E6D22153CBA3744 /* Push.swift */; };
@@ -524,6 +527,7 @@
 		548BA53E454CA6C5917EABE9 /* UnifiedDiffPrintMargins.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedDiffPrintMargins.swift; sourceTree = "<group>"; };
 		553B03B8CB0E867E812A6B53 /* ReferenceLogDiff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceLogDiff.swift; sourceTree = "<group>"; };
 		56132E3DE7A107C7B04A216E /* ImageComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageComparison.swift; sourceTree = "<group>"; };
+		5703FFF60B4C7B3BD68D1F9A /* RemoteReferenceWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteReferenceWindow.swift; sourceTree = "<group>"; };
 		571A28B129049EF346F00279 /* MailPatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailPatch.swift; sourceTree = "<group>"; };
 		586A85599BCC6EF0DE6B1042 /* NetworkSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkSettings.swift; sourceTree = "<group>"; };
 		58A976676E04B6BC290F5465 /* LogGravatar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogGravatar.swift; sourceTree = "<group>"; };
@@ -634,6 +638,7 @@
 		AA5AD057FE8CA1C91988DA6E /* Removal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Removal.swift; sourceTree = "<group>"; };
 		AB86EFEBCB6909C206458540 /* LogWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogWindow.swift; sourceTree = "<group>"; };
 		AB93559771ED0B23D12480BE /* ImageFileComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageFileComparison.swift; sourceTree = "<group>"; };
+		AC47297BEF6EC885B5BAF7A5 /* AddRemoteWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddRemoteWindow.swift; sourceTree = "<group>"; };
 		ACCD52A86C10025F3F1705C8 /* HistoryReferenceLabels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryReferenceLabels.swift; sourceTree = "<group>"; };
 		AD7EE26AD9248EACF4682692 /* TurtleGitGitAskpass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TurtleGitGitAskpass.swift; sourceTree = "<group>"; };
 		ADFF9F8C8624249F4AB965DF /* CommitFileInteraction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitFileInteraction.swift; sourceTree = "<group>"; };
@@ -653,6 +658,7 @@
 		B975BF437A681B29D6A21240 /* SubmoduleUpdateWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleUpdateWindow.swift; sourceTree = "<group>"; };
 		BA121F2E317F86B146016B4E /* Rename.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Rename.swift; sourceTree = "<group>"; };
 		BA3DD76CCC2D1B2E7E5BEA21 /* FetchWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FetchWindow.swift; sourceTree = "<group>"; };
+		BA911F44B257D32227A53505 /* RemoteReferenceChoices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteReferenceChoices.swift; sourceTree = "<group>"; };
 		BA9C491D545F62D715E5BDA1 /* NetworkSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkSettings.swift; sourceTree = "<group>"; };
 		BC55CCB5A12A46D5ACE608BA /* FinderRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderRequest.swift; sourceTree = "<group>"; };
 		BEA9844D056250E1264A3B15 /* AdvancedSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdvancedSettings.swift; sourceTree = "<group>"; };
@@ -794,6 +800,7 @@
 				1AB2F5FDA0673FDECA2C7F25 /* AddFileTable.swift */,
 				0492C8BA1A8FA506ECB53A3A /* AddProgressTable.swift */,
 				8F84A36C85062FC9FF018CB1 /* AddProgressWindow.swift */,
+				AC47297BEF6EC885B5BAF7A5 /* AddRemoteWindow.swift */,
 				8BB0FD3A5C49E748AA9A42AC /* AddWindow.swift */,
 				AEC571DB776E587D10F568E9 /* AdvancedSettings.swift */,
 				58AC22A1002BEBAD67A07B33 /* AlternativeEditorSettings.swift */,
@@ -881,6 +888,7 @@
 				6F95A32F6B4ECD8AA7745857 /* ReferenceBrowserWindow.swift */,
 				2ED7A4FB5DF119ED7F648EF4 /* ReferenceLogWindow.swift */,
 				71E4D9CD12160681F11F6E2E /* ReleaseUpdateWindow.swift */,
+				5703FFF60B4C7B3BD68D1F9A /* RemoteReferenceWindow.swift */,
 				837C5F7103FADCDAC3F99EC1 /* RemoteSettingsWindow.swift */,
 				E64D6C9E84E73A820367C405 /* RemoteTagWindow.swift */,
 				A35B58726A94B9B4799C06DE /* RemoveWindow.swift */,
@@ -1097,6 +1105,7 @@
 				62406E495663E4FBABB4E1A6 /* ReferenceLog.swift */,
 				553B03B8CB0E867E812A6B53 /* ReferenceLogDiff.swift */,
 				C9A930411C5DE9F562E47D41 /* ReleaseUpdates.swift */,
+				BA911F44B257D32227A53505 /* RemoteReferenceChoices.swift */,
 				C3343365A5D1715F6611CABA /* RemoteSettings.swift */,
 				1541756F953A41D68C44D74B /* RemoteTags.swift */,
 				AA5AD057FE8CA1C91988DA6E /* Removal.swift */,
@@ -1564,6 +1573,7 @@
 				0963B328CDA08FFD1416E9A3 /* ReferenceLog.swift in Sources */,
 				DF224DF655B4A741AE3BDC97 /* ReferenceLogDiff.swift in Sources */,
 				C1A6C3FB8B2C5FBD7C9CCA46 /* ReleaseUpdates.swift in Sources */,
+				4EA29B3D4680129912E75C31 /* RemoteReferenceChoices.swift in Sources */,
 				9EAA76B0018911240EAC2639 /* RemoteSettings.swift in Sources */,
 				C1AC88672C3BE1B0E0F66493 /* RemoteTags.swift in Sources */,
 				A395BF473AA34B992F2BBAB1 /* Removal.swift in Sources */,
@@ -1628,6 +1638,7 @@
 				30E029F3769B8ECF4E2BE561 /* AddFileTable.swift in Sources */,
 				E61342FEBDA63EF108372279 /* AddProgressTable.swift in Sources */,
 				A7F9B61AFDD2F69ADE7A35C7 /* AddProgressWindow.swift in Sources */,
+				D01D23BA0D2AD50A36BD9F78 /* AddRemoteWindow.swift in Sources */,
 				60CE6B733E50271F6725716B /* AddWindow.swift in Sources */,
 				8DA2AEE022FFD2B386F6B6EF /* AdvancedSettings.swift in Sources */,
 				338C2F4E08F8FCB953636C45 /* AlternativeEditorSettings.swift in Sources */,
@@ -1715,6 +1726,7 @@
 				10DEF02C4073108A457F85DC /* ReferenceBrowserWindow.swift in Sources */,
 				8F4345E3454F4ABF3E75D4C9 /* ReferenceLogWindow.swift in Sources */,
 				AF6A88493DDC9F359C9034CA /* ReleaseUpdateWindow.swift in Sources */,
+				73546761F5B2463B95290FFD /* RemoteReferenceWindow.swift in Sources */,
 				2C55E0EBFCD53E3B244197A8 /* RemoteSettingsWindow.swift in Sources */,
 				018CF5C4CDB7B942B4775411 /* RemoteTagWindow.swift in Sources */,
 				5C7063047C3D6080C0D541A4 /* RemoveWindow.swift in Sources */,

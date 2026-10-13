@@ -6,6 +6,9 @@ import TurtleGitCore
     let model: FetchWindowModel
     var onClosed: () -> Void = {}
     var presentPullProgress: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
+    private(set) var remoteReferenceController: RemoteReferenceWindowController?
+    var configureRemoteReferences: (RemoteReferenceWindowController) -> Void = { _ in }
+    var presentRemoteReferences: (NSWindow,NSWindow) -> Bool = { owner,child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
     private(set) var progressController: PullProgressWindowController?
     var presentFetchProgress: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
     private(set) var fetchProgressController: FetchProgressWindowController?
@@ -45,6 +48,7 @@ import TurtleGitCore
                   owner.attachedSheet == nil, let child = controller.window else { return false }
             owner.makeFirstResponder(nil); owner.beginSheet(child); return true
         }
+        model.onBrowseRemote = { [weak self] remote in self?.showRemoteReferences(remote) }
         model.confirmCancellation = { [weak window] choose in
             guard let window, window.attachedSheet == nil else { choose(false); return }
             let alert = NSAlert(); alert.alertStyle = .informational
@@ -57,8 +61,19 @@ import TurtleGitCore
 
         DialogGeometry.attach(window, identifier: "FetchWindowController")
     }
+    func showRemoteReferences(_ remote: String) {
+        guard !model.closed, remoteReferenceController == nil, let owner = window, owner.attachedSheet == nil else { model.browsing = false; return }
+        let child = RemoteReferenceWindowController(repository: model.repository,access: model.repositoryAccess,remote: remote) { [weak self] branch in
+            guard let self else { return }; self.remoteReferenceController = nil
+            let live = !self.model.closed; self.model.browsing = false
+            if live, self.model.currentRemoteDestination.utf8.elementsEqual(remote.utf8), let branch { self.model.selectBranch(branch) }
+        }
+        child.makeSSH = model.sshSettings.capture(); configureRemoteReferences(child); remoteReferenceController = child
+        guard let window = child.window, presentRemoteReferences(owner,window) else { child.close(); return }
+        child.model.refresh()
+    }
     func windowWillClose(_ notification: Notification) {
-        model.invalidate()
+        model.invalidate(); remoteReferenceController?.close(); remoteReferenceController = nil
         let fetch = fetchProgressController; fetchProgressController = nil; fetch?.close()
         let pull = progressController; progressController = nil; pull?.close()
         if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.close() }
@@ -112,7 +127,7 @@ import TurtleGitCore
     private var remoteToken: OperationCancellation?
     private var invalidated = false
     var closed: Bool { invalidated }
-    var operationActive: Bool { busy || progress != nil || fetchProgress != nil }
+    var operationActive: Bool { busy || browsing || progress != nil || fetchProgress != nil }
     func invalidate() {
         invalidated = true; generation += 1; metadataToken?.cancel(); metadataToken = nil; remoteToken?.cancel(); remoteToken = nil
         fetchProgress?.invalidate(); fetchProgress = nil; progress?.invalidate(); progress = nil; busy = false; browsing = false; managing = false
@@ -159,7 +174,7 @@ import TurtleGitCore
                 guard !invalidated, metadataToken === token, !token.isCancelled else { return }
                 remotes = names
                 urls = FetchDialogHistory.load(preferences, key: "History.PullURLS", caseSensitive: true)
-                branchHistory = FetchDialogHistory.load(preferences, key: "History.PullRemoteBranch", caseSensitive: false)
+                branchHistory = FetchDialogHistory.load(preferences, key: "History.PullRemoteBranch", caseSensitive: true)
                 options = FetchOptions(); options.remote = defaults.remote
                 sshSettings.load(preferences, key: key + ".autoload")
                 options.branch = branchHistory.first ?? ""
@@ -193,8 +208,8 @@ import TurtleGitCore
     func selectBranch(_ branch: String, atFront: Bool = true) {
         let branch = FetchDialogHistory.trim(branch)
         guard !branch.isEmpty else { return }
-        branchHistory = FetchDialogHistory.inserting(branch, into: branchHistory, atFront: atFront, caseSensitive: false)
-        options.branch = branchHistory.first { $0.compare(branch, options: .caseInsensitive) == .orderedSame } ?? branch
+        branchHistory = FetchDialogHistory.inserting(branch, into: branchHistory, atFront: atFront, caseSensitive: true)
+        options.branch = branch
     }
     func deleteURLHistory(at index: Int) {
         guard !invalidated, !operationActive, let result = FetchDialogHistory.removing(index, entries: urls, preferences: preferences, key: "History.PullURLS") else { return }
@@ -220,14 +235,12 @@ import TurtleGitCore
             catch { if !invalidated, remoteToken === token, !token.isCancelled, request == generation { self.error = error.localizedDescription } }
         }
     }
+    var repositoryAccess: RepositoryAccessLease? { access }
+    var currentRemoteDestination: String { options.arbitraryURL ? url : options.remote }
+    var onBrowseRemote: ((String) -> Void)?
     func browse() {
-        guard !invalidated, !operationActive else { return }; busy = true
-        let destination = options.arbitraryURL ? url : options.remote, token = OperationCancellation(); metadataToken = token
-        Task {
-            defer { if metadataToken === token { metadataToken = nil; busy = false } }
-            do { let coordinator = sshSettings.capture()?(); defer { coordinator?.close() }; try validateRepositoryAccess(); let values = try await repository.remoteBranches(remote: destination, cancellation: token, prepareTransport: coordinator?.preparation); guard !invalidated, metadataToken === token, !token.isCancelled else { return }; branches = values; browsing = true }
-            catch { if !invalidated, metadataToken === token, !token.isCancelled { self.error = error.localizedDescription } }
-        }
+        guard !invalidated, !operationActive, !currentRemoteDestination.isEmpty, let onBrowseRemote else { return }
+        browsing = true; onBrowseRemote(currentRemoteDestination)
     }
     func reloadRemotes() {
         remotes = remoteSettings.remotes
@@ -256,7 +269,7 @@ import TurtleGitCore
             guard let parsed = Int(depth), parsed > 0 else { error = FetchFailure.depth.localizedDescription; return }; snapshot.depth = parsed
         }
         var pullOptions = PullOptions(); pullOptions.fetch = snapshot; pullOptions.squash = squash; pullOptions.noCommit = noCommit; pullOptions.noFastForward = noFastForward; pullOptions.fastForwardOnly = fastForwardOnly
-        branchHistory = FetchDialogHistory.save(options.branch, entries: branchHistory, preferences: preferences, key: "History.PullRemoteBranch", caseSensitive: false)
+        branchHistory = FetchDialogHistory.save(options.branch, entries: branchHistory, preferences: preferences, key: "History.PullRemoteBranch", caseSensitive: true)
         error = nil
         busy = true
         let sshFactory = sshSettings.capture(); sshSettings.save(preferences, key: key + ".autoload")
@@ -329,18 +342,7 @@ private struct FetchDialog: View {
         .onChange(of: model.options.remote) { _ in model.remoteChanged() }
         .alert(model.isPull ? "Pull failed" : "Fetch failed", isPresented: Binding(get: { model.progress == nil && model.fetchProgress == nil && model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil }; if model.isPull { Button("Open Working Tree") { model.error = nil; model.onShowStatus() } } } message: { Text(model.error ?? "") }
         .sheet(isPresented: $model.managing, onDismiss: { model.reloadRemotes() }) { PushRemoteSettings(onClose: { model.managing = false }, model: model.remoteSettings) }
-        .sheet(isPresented: $model.browsing) { FetchBranchChooser(model: model) }
     }
-}
-private struct FetchBranchChooser: View {
-    @ObservedObject var model: FetchWindowModel
-    @State private var selection: String?
-    @State private var filter = ""
-    var body: some View { VStack(spacing: 12) {
-        Text("Select remote branch").font(.headline); TextField("Filter", text: $filter)
-        List(model.branches.filter { filter.isEmpty || $0.localizedCaseInsensitiveContains(filter) }, id: \.self, selection: $selection) { Text($0) }
-        HStack { Spacer(); Button("Cancel") { model.browsing = false }.keyboardShortcut(.cancelAction); Button("OK") { if let selection { model.selectBranch(selection); model.browsing = false } }.keyboardShortcut(.defaultAction).disabled(selection == nil) }
-    }.padding(16).frame(width: 600, height: 400) }
 }
 private struct FetchOverrideCheckbox: NSViewRepresentable {
     let title: String

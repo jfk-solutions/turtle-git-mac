@@ -1,0 +1,62 @@
+{
+  "date": "2026-10-13",
+  "reference": {
+    "revision": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "source": [
+      "AddRemoteDlg.cpp",
+      "SelectRemoteRefDlg.cpp",
+      "PullFetchDlg.cpp"
+    ]
+  },
+  "scope": [
+    "Owned Add Remote form and collision-safe backend integration in Browse References",
+    "Captured remote-reference query and editable chooser in Fetch and Pull",
+    "Case-sensitive exact UTF-8 branch history",
+    "Cancellation, retired-window fences, active-operation Quit guards and explicit sheet completion"
+  ],
+  "validation": {
+    "core": {
+      "exit": 0,
+      "tests": 22,
+      "failures": 0,
+      "log": "build/qa/remote-dialogs-core-2026-10-13.log"
+    },
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/remote-dialogs-debug-accepted-2026-10-13.log"
+    },
+    "native": {
+      "exit": 0,
+      "cases": 6,
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "families": [
+        "remote-dialogs",
+        "fetch",
+        "fetch-history"
+      ],
+      "log": "build/qa/remote-dialogs-native-accepted-2026-10-13.log",
+      "ownership": "All six owned receivers reaped.",
+      "repairs": "Initial native checks exposed an unsettled sheet. Explicit endSheet followed by close repaired completion; the accepted run retained the ownership assertions."
+    },
+    "documentation": {
+      "exit": 0,
+      "tests": 2,
+      "log": "build/qa/remote-dialogs-site-check-final-2026-10-13.log"
+    }
+  },
+  "adaptations": [
+    "Native Add Remote completes the intended add workflow; pinned upstream caller is dormant.",
+    "Inline native query progress replaces Windows system progress."
+  ],
+  "pending": [
+    "Physical layout, keyboard and VoiceOver acceptance",
+    "Authenticated remote-server acceptance",
+    "Exact Windows natural ordering for every locale",
+    "Signed Finder and App Store acceptance",
+    "Complete application parity"
+  ],
+  "full_port_certified": false
+}

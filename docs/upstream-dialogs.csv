@@ -100,7 +100,7 @@ src/Resources/TortoiseProcENG.rc,IDD_DIFFSUBMODULE,Submodule Diff,partial-native
 src/Resources/TortoiseProcENG.rc,IDD_IGNORE,Ignore,partial
 src/Resources/TortoiseProcENG.rc,IDD_SUBMODULE_UPDATE,Submodule Update,partial
 src/Resources/TortoiseProcENG.rc,IDD_BROWSE_REFS,Browse references,partial-native-replacement
-src/Resources/TortoiseProcENG.rc,IDD_ADD_REMOTE,Add Remote,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_ADD_REMOTE,Add Remote,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_DELETEREMOTETAG,Delete remote tag - TortoiseGit,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_REVISIONGRAPH,Revision Graph,partial
 src/Resources/TortoiseProcENG.rc,IDD_USER_PASSWD,Password,pending-review
@@ -118,7 +118,7 @@ src/Resources/TortoiseProcENG.rc,IDD_FIRSTSTARTWIZARD_USER,First Start Wizard - 
 src/Resources/TortoiseProcENG.rc,IDD_FIRSTSTARTWIZARD_GIT,First Start Wizard - TortoiseGit,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_FIRSTSTARTWIZARD_AUTHENTICATION,First Start Wizard - TortoiseGit,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_FIRSTSTARTWIZARD_LANGUAGE,First Start Wizard - TortoiseGit,partial-native-replacement
-src/Resources/TortoiseProcENG.rc,IDD_SELECTREMOTEREF,Select remote ref - TortoiseGit,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SELECTREMOTEREF,Select remote ref - TortoiseGit,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSWIN11CONTEXTMENU,Windows 11 Context Menu,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_WORKTREE_CREATE,New Worktree,partial
 src/Resources/TortoiseProcENG.rc,IDD_WORKTREE_LIST,Worktree List,partial

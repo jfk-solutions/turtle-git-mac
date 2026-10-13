@@ -75,8 +75,8 @@ remaining upstream differences. The existing Fetch screenshot predates this enab
 Pull and Fetch now use native editable AppKit dropdowns for arbitrary URLs and
 remote branches, backed by shared `History.PullURLS` and
 `History.PullRemoteBranch` preferences across dialogs/repositories. URL identity
-compares exact UTF-16 units and preserves case; branch duplicate matching is
-case-insensitive like the source control. Histories retain their source order,
+compares exact UTF-16 units and preserves case; branch duplicate matching now also preserves exact identity, following the
+source control’s case-sensitive setting (corrected in the remote-dialog batch). Histories retain their source order,
 without sorting. Branch defaults are added/selected during load; browsing adds the
 selected branch to the front without saving until OK. Selecting URL mode uses a recognized clipboard link/command, otherwise
 picks the latest saved URL. URL mode
@@ -393,3 +393,6 @@ installed. Full production factory, Push/Mail completion chains, physical input,
 rendered UI and signed sandbox acceptance are still pending. See
 [Synchronization parity](SYNCHRONIZATION-PARITY.md) for the source comparison and
 verification scope.
+
+The connected remote-dialog batch passed 22 Core tests and six grouped native
+checks across system and bundled Git. See the [scoped QA record](qa/remote-dialogs-2026-10-13.json).

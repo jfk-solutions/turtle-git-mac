@@ -12,6 +12,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     private(set) var remoteSettingsDialog: RemoteSettingsWindowController?
     var configureRemoteSettings: (RemoteSettingsWindowController) -> Void = { _ in }
     var presentRemoteSettings: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
+    private(set) var addRemoteDialog: AddRemoteWindowController?
     private(set) var remoteTagDialog: RemoteTagWindowController?
     var configureRemoteTags: (RemoteTagWindowController) -> Void = { _ in }
     var presentRemoteTags: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
@@ -64,6 +65,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         model.onSelectTracking = { [weak self] in self?.selectTracking() }
         model.onFetch = { [weak self] in self?.showFetch() }
         model.onDeleteRemoteTags = { [weak self] remote in self?.showRemoteTags(remote) }
+        model.onAddRemote = { [weak self] in self?.showAddRemote() }
         model.onManageRemotes = { [weak self] in self?.showRemoteSettings() }
         model.onFetchFolder = { [weak self] remote in self?.showFetch(remote: remote) }
         model.onCreateFolder = { [weak self] isTag in self?.showCreateFolder(isTag: isTag) }
@@ -173,6 +175,17 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         guard let window = child.window, presentRemoteTags(owner, window) else { child.close(); return }
         child.model.load()
     }
+    func showAddRemote() {
+        guard let owner = window, owner.attachedSheet == nil, model.canUseFolder, model.folder.browserIsFrom("refs/remotes"), addRemoteDialog == nil else { return }
+        model.hasChild = true
+        let child = AddRemoteWindowController(repository: model.repository,access: model.access); addRemoteDialog = child
+        child.onClosed = { [weak self, weak child] in
+            guard let self, let child, self.addRemoteDialog === child else { return }
+            self.addRemoteDialog = nil; self.model.hasChild = false
+            if !self.model.closed { self.model.load() }
+        }
+        if let window = child.window { owner.beginSheet(window) }
+    }
     func showRemoteSettings() {
         guard let owner = window, owner.attachedSheet == nil, model.canUseFolder, model.folder.browserIsFrom("refs/remotes") else { return }
         owner.makeFirstResponder(nil); model.hasChild = true
@@ -242,7 +255,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         if let window { window.sheetParent?.endSheet(window); window.close() }; completion(reference)
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { guard !model.hasChild, model.renameReference == nil, !model.busy, sender.attachedSheet == nil else { return false }; finish(nil); return false }
-    func windowWillClose(_ notification: Notification) { model.invalidate(); remoteSettingsDialog?.close(); remoteSettingsDialog = nil; remoteTagDialog?.close(); remoteTagDialog = nil; comparisonDialog?.close(); comparisonDialog = nil; unifiedViewer?.close(); unifiedViewer = nil; if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.close() }; fetchDialog?.close(); fetchDialog = nil; branchDialog?.close(); branchDialog = nil; mergeDialog?.close(); mergeDialog = nil; switchDialog?.close(); switchDialog = nil; trackingRequest = nil; trackingPicker?.abandonPresentation(); trackingPicker = nil; descriptionEditor?.close(); descriptionEditor = nil; reflog?.close(); reflog = nil; model.hasChild = false; let completion = completion; self.completion = nil; completion?(nil); onClosed() }
+    func windowWillClose(_ notification: Notification) { model.invalidate(); addRemoteDialog?.close(); addRemoteDialog = nil; remoteSettingsDialog?.close(); remoteSettingsDialog = nil; remoteTagDialog?.close(); remoteTagDialog = nil; comparisonDialog?.close(); comparisonDialog = nil; unifiedViewer?.close(); unifiedViewer = nil; if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.close() }; fetchDialog?.close(); fetchDialog = nil; branchDialog?.close(); branchDialog = nil; mergeDialog?.close(); mergeDialog = nil; switchDialog?.close(); switchDialog = nil; trackingRequest = nil; trackingPicker?.abandonPresentation(); trackingPicker = nil; descriptionEditor?.close(); descriptionEditor = nil; reflog?.close(); reflog = nil; model.hasChild = false; let completion = completion; self.completion = nil; completion?(nil); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class ReferenceBrowserWindowModel: ObservableObject {
@@ -312,6 +325,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     }
     var canUseFolder: Bool { !invalidated && !busy && !hasChild && renameReference == nil && folders.contains(folder) }
     var onDeleteRemoteTags: ((String) -> Void)?
+    var onAddRemote: (() -> Void)?
     var onManageRemotes: (() -> Void)?
     var onFetchFolder: ((String) -> Void)?
     var folderRemote: String? { folder.browserIsFrom("refs/remotes") ? snapshot?.remote(for: folder) : nil }
@@ -707,7 +721,7 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
                         entry.target = self; entry.image = MenuIcon.remove.contextImage(defaults: model.preferences); entry.isEnabled = model.onDeleteRemoteTags != nil; entry.representedObject = remote; menu.addItem(entry)
                     }
                 }
-                if model.folder.browserIsFrom("refs/remotes") { item("Manage Remotes", #selector(manageRemotes), .settings, model.onManageRemotes != nil) }
+                if model.folder.browserIsFrom("refs/remotes") { item("Add Remote…", #selector(addRemote), .add, model.onAddRemote != nil); item("Manage Remotes", #selector(manageRemotes), .settings, model.onManageRemotes != nil) }
                 if let remote = model.folderRemote {
                     let fetch = NSMenuItem(title: "Fetch from \"" + remote + "\"", action: #selector(fetchFolder(_:)), keyEquivalent: "")
                     fetch.target = self; fetch.image = MenuIcon.fetch.contextImage(defaults: model.preferences); fetch.representedObject = remote; fetch.isEnabled = model.onFetchFolder != nil; menu.addItem(fetch)
@@ -750,6 +764,7 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
             menu.addItem(.separator()); item("Copy ref names", #selector(copyName), .copy, true)
         }
         @objc func deleteRemoteTags(_ sender: NSMenuItem) { guard model.canUseFolder, let remote = sender.representedObject as? String else { return }; model.onDeleteRemoteTags?(remote) }
+        @objc func addRemote() { guard model.canUseFolder, model.folder.browserIsFrom("refs/remotes") else { return }; model.onAddRemote?() }
         @objc func manageRemotes() { guard model.canUseFolder, model.folder.browserIsFrom("refs/remotes") else { return }; model.onManageRemotes?() }
         @objc func fetchFolder(_ sender: NSMenuItem) { guard model.canUseFolder, let remote = sender.representedObject as? String, model.folderRemote.map({ GitReferenceName.equal($0, remote) }) == true else { return }; model.onFetchFolder?(remote) }
         @objc func createFolderBranch() { if model.canCreateFolder(isTag: false) { model.onCreateFolder?(false) } }

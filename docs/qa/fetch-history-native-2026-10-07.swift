@@ -8,7 +8,10 @@ import TurtleGitCore
         while model.busy && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
         precondition(!model.busy && (allowError || model.error == nil), model.error ?? "Fetch/Pull timed out")
     }
-    @MainActor static func main() async throws {
+    @MainActor static func main() async {
+        do { try await run() } catch { fputs("FAIL Fetch history: \(error)\n",stderr); exit(1) }
+    }
+    @MainActor static func run() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
         let root = URL(fileURLWithPath: CommandLine.arguments[1]), git = URL(fileURLWithPath: CommandLine.arguments[2])
         let suite = "TurtleGit.FetchHistory.QA." + UUID().uuidString, preferences = UserDefaults(suiteName: suite)!

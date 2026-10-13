@@ -397,6 +397,30 @@
       ],
       "parity_document": "docs/UNIFIED-DIFF-VIEWER-PARITY.md",
       "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_ADD_REMOTE",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/AddRemoteWindow.swift",
+          "anchor": "AddRemoteWindowController"
+        }
+      ],
+      "parity_document": "docs/REMOTE-DIALOGS-PARITY.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_SELECTREMOTEREF",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/RemoteReferenceWindow.swift",
+          "anchor": "RemoteReferenceWindowController"
+        }
+      ],
+      "parity_document": "docs/REMOTE-DIALOGS-PARITY.md",
+      "status": "partial-native-replacement"
     }
   ]
 }
