@@ -37,7 +37,7 @@ import UniformTypeIdentifiers
             styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Commit – TurtleGit"
         window.minSize = NSSize(width: 900, height: 680); window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: CommitDialog(model: model))
+        window.contentViewController = NSHostingController(rootView: CommitDialog(model: model).defaultAppStorage(defaults))
         super.init(window: window); model.clientHooks.windowProvider = { [weak window] in window?.attachedSheet ?? window }; window.model = model; window.delegate = self; window.setContentSize(NSSize(width: 1000, height: 760)); window.center()
         model.close = { [weak self, weak window] in
             guard let self, self.partial?.model.busy != true, self.partial?.window?.attachedSheet == nil, !self.model.unifiedViewerBusy else { return }
@@ -127,9 +127,10 @@ import UniformTypeIdentifiers
             alert.informativeText = "Do you want to proceed with this commit anyway?"
             alert.addButton(withTitle: "Proceed anyway"); alert.addButton(withTitle: "No")
             alert.showsSuppressionButton = true
-            alert.beginSheetModal(for: window) { response in
+            alert.beginSheetModal(for: window) { [weak model = self.model] response in
+                guard let model, model.messageFocusAvailable else { choose(false); return }
                 if response == .alertFirstButtonReturn {
-                    if alert.suppressionButton?.state == .on { UserDefaults.standard.set(true, forKey: "Commit.TemplateNotEdited.Proceed") }
+                    if alert.suppressionButton?.state == .on { model.rememberTemplateProceed() }
                 }
                 choose(response == .alertFirstButtonReturn)
             }
@@ -310,7 +311,7 @@ import UniformTypeIdentifiers
     @Published var focusedFiles: [String: String] = [:]
     @Published var changelists = GitChangelists()
     @Published var changelistsLoaded = false
-    @Published var keepChangelists = UserDefaults.standard.bool(forKey: "Commit.KeepChangelists")
+    @Published var keepChangelists = false
     @Published var creatingChangelist = false
     @Published var changelistName = ""
     private var changelistPaths: [String] = []
@@ -328,7 +329,7 @@ import UniformTypeIdentifiers
     private var historyIssueCancellation: OperationCancellation?
     private var historyIssueGeneration = UUID()
     var queryHistoryIssue: (IssueTrackerProperties, String, OperationCancellation) async throws -> String
-    @Published var formattingEnabled = UserDefaults.standard.object(forKey: "StyleCommitMessages") as? Bool ?? true {
+    @Published var formattingEnabled = true {
         didSet { if formattingEnabled != oldValue { scheduleIssueStyling() } }
     }
     private(set) var messageSnippets = MessageSnippets()
@@ -341,7 +342,7 @@ import UniformTypeIdentifiers
     deinit { reloadCancellation?.cancel(); reloadTask?.cancel(); completionTask?.cancel(); issueStyleTask?.cancel(); historyIssueTask?.cancel(); historyIssueCancellation?.cancel(); authorCancellation?.cancel(); dateCancellation?.cancel(); amendCancellation?.cancel() }
     func prepareMessageCompletions(force: Bool = false) {
         var options = MessageCodeScanner.Options()
-        let defaults = UserDefaults.standard
+        let defaults = dialogDefaults
         let enabled = defaults.object(forKey: "Autocompletion") as? Bool ?? true
         options.removeExtensions = defaults.bool(forKey: "AutocompleteRemovesExtensions")
         options.parseUnversioned = defaults.bool(forKey: "AutocompleteParseUnversioned")
@@ -448,7 +449,7 @@ import UniformTypeIdentifiers
     @Published var authorDate = Date()
     @Published var resetAuthorDate = false
     @Published var messageOnly = false
-    @Published var doNotAutoselectSubmodules = UserDefaults.standard.bool(forKey: "Commit.DoNotAutoselectSubmodules")
+    @Published var doNotAutoselectSubmodules = false
     @Published var submodules = Set<String>()
     @Published var setAuthor = false
     @Published var author = ""
@@ -534,6 +535,9 @@ import UniformTypeIdentifiers
         selectFilesAutomatically = dialogDefaults.object(forKey: "SelectFilesForCommit") as? Bool ?? true
         doNotAutoselectMissing = dialogDefaults.bool(forKey: "AutoselectMissingFiles")
         showUnversioned = unversionedDefaults.object(forKey: "AddBeforeCommit") == nil || unversionedDefaults.bool(forKey: "AddBeforeCommit")
+        keepChangelists = dialogDefaults.bool(forKey: "Commit.KeepChangelists")
+        doNotAutoselectSubmodules = dialogDefaults.bool(forKey: "Commit.DoNotAutoselectSubmodules")
+        formattingEnabled = dialogDefaults.object(forKey: "StyleCommitMessages") as? Bool ?? true
     }
     func setShowUnversioned(_ enabled: Bool) {
         guard messageFocusAvailable, !busy, !confirmingQuit else { return }
@@ -771,7 +775,20 @@ import UniformTypeIdentifiers
     }
     func cancelChangelist() { creatingChangelist = false; changelistPaths = []; changelistName = "" }
     func saveKeepChangelists(_ value: Bool) {
-        keepChangelists = value; UserDefaults.standard.set(value, forKey: "Commit.KeepChangelists")
+        guard messageFocusAvailable, !inputsBlocked else { return }
+        keepChangelists = value; dialogDefaults.set(value, forKey: "Commit.KeepChangelists")
+    }
+    var colorPreferences: UserDefaults { dialogDefaults }
+    func setDoNotAutoselectSubmodules(_ disabled: Bool) {
+        guard messageFocusAvailable, !inputsBlocked, !stagingEnabled else { return }
+        doNotAutoselectSubmodules = disabled
+        dialogDefaults.set(disabled, forKey: "Commit.DoNotAutoselectSubmodules")
+        if disabled { checked.subtract(submodules) }
+        else { check { submodules.contains($0.path) } }
+    }
+    func rememberTemplateProceed() {
+        guard messageFocusAvailable else { return }
+        dialogDefaults.set(true, forKey: "Commit.TemplateNotEdited.Proceed")
     }
     func moveToChangelist(_ paths: [String], name: String?) {
         guard !busy, !confirmingQuit, !paths.isEmpty else { return }
@@ -1180,7 +1197,7 @@ import UniformTypeIdentifiers
                     let proceed = await withCheckedContinuation { continuation in confirmMissingIssue { continuation.resume(returning: $0) } }
                     guard proceed else { busy = false; return }
                 }
-                if !messageTemplate.isEmpty && rawMessage == messageTemplate && !UserDefaults.standard.bool(forKey: "Commit.TemplateNotEdited.Proceed") {
+                if !messageTemplate.isEmpty && rawMessage == messageTemplate && !dialogDefaults.bool(forKey: "Commit.TemplateNotEdited.Proceed") {
                     let proceed = await withCheckedContinuation { continuation in confirmUneditedTemplate { continuation.resume(returning: $0) } }
                     guard proceed else { busy = false; return }
                 }
@@ -1562,13 +1579,6 @@ struct CommitDialog: View {
         .onChange(of: model.amendDiffToLastCommit) { _ in model.comparisonChanged() }
         .onChange(of: model.setAuthor) { _ in model.authorChanged() }
         .onChange(of: model.setAuthorDate) { _ in model.dateChanged() }
-        .onChange(of: model.doNotAutoselectSubmodules) { disabled in
-            UserDefaults.standard.set(disabled, forKey: "Commit.DoNotAutoselectSubmodules")
-            if !model.stagingEnabled {
-                if disabled { model.checked.subtract(model.submodules) }
-                else { model.check { model.submodules.contains($0.path) } }
-            }
-        }
         .onChange(of: model.selection) { _ in model.refreshPartial() }
         .onChange(of: model.stagingEnabled) { _ in model.stagingChanged() }
         .alert("TurtleGit", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
@@ -1624,7 +1634,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                             VStack(alignment: .leading, spacing: 6) {
                                 Toggle("Staging support (EXPERIMENTAL)", isOn: $model.stagingEnabled)
                                 Toggle("Show Unversioned Files", isOn: Binding(get: { model.showUnversioned }, set: { model.setShowUnversioned($0) }))
-                                Toggle("Do not autoselect submodules", isOn: $model.doNotAutoselectSubmodules).disabled(model.stagingEnabled)
+                                Toggle("Do not autoselect submodules", isOn: Binding(get: { model.doNotAutoselectSubmodules }, set: model.setDoNotAutoselectSubmodules)).disabled(model.stagingEnabled)
                             }.toggleStyle(.checkbox)
                             Spacer()
                             VStack(alignment: .trailing, spacing: 6) {
@@ -1666,7 +1676,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                         Image(nsImage: entry.state.icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16).overlay {
                             if model.restoreCopies[entry.path] != nil { Image(nsImage: MenuIcon.restoreOverlay.image() ?? NSImage()).resizable().frame(width: 16, height: 16) }
                         }
-                        Text(StatusListClipboard.displayedPath(entry)).foregroundStyle(entry.statusTextColor(selected: selection.wrappedValue.contains(entry.id)))
+                        Text(StatusListClipboard.displayedPath(entry)).foregroundStyle(entry.statusTextColor(selected: selection.wrappedValue.contains(entry.id), preferences: model.colorPreferences))
                     }.help(model.fileHelp(entry))
                 } else if let group = row.group {
                     HStack {
@@ -1676,14 +1686,14 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                 }
             }.width(min: 260, ideal: 420)
             TableColumn("Filename", sortUsing: CommitFileSort(column: .fileName)) { (row: CommitSortableRow) in
-                if let entry = row.entry { Text((entry.path as NSString).lastPathComponent).foregroundStyle(entry.statusTextColor(selected: selection.wrappedValue.contains(entry.id))) } else { groupRule }
+                if let entry = row.entry { Text((entry.path as NSString).lastPathComponent).foregroundStyle(entry.statusTextColor(selected: selection.wrappedValue.contains(entry.id), preferences: model.colorPreferences)) } else { groupRule }
             }.width(min: 100, ideal: 180)
             TableColumn("Extension", sortUsing: CommitFileSort(column: .fileExtension)) { (row: CommitSortableRow) in
-                if let entry = row.entry { Text(StatusListClipboard.fileExtension(entry.path, isDirectory: model.submodules.contains(entry.path) || model.fileMetadata[entry.path]?.isDirectory == true)).foregroundStyle(entry.statusTextColor(selected: selection.wrappedValue.contains(entry.id))) }
+                if let entry = row.entry { Text(StatusListClipboard.fileExtension(entry.path, isDirectory: model.submodules.contains(entry.path) || model.fileMetadata[entry.path]?.isDirectory == true)).foregroundStyle(entry.statusTextColor(selected: selection.wrappedValue.contains(entry.id), preferences: model.colorPreferences)) }
                 else { groupRule }
             }.width(min: 40, ideal: 75)
             TableColumn("Status", sortUsing: CommitFileSort(column: .status)) { (row: CommitSortableRow) in
-                if let entry = row.entry { Text(entry.index == "R" || entry.worktree == "R" ? "Renamed" : statistics[entry.path]?.status ?? entry.state.rawValue.capitalized).foregroundStyle(entry.statusTextColor(selected: selection.wrappedValue.contains(entry.id))) }
+                if let entry = row.entry { Text(entry.index == "R" || entry.worktree == "R" ? "Renamed" : statistics[entry.path]?.status ?? entry.state.rawValue.capitalized).foregroundStyle(entry.statusTextColor(selected: selection.wrappedValue.contains(entry.id), preferences: model.colorPreferences)) }
                 else { groupRule }
             }.width(min: 60, ideal: 90)
             TableColumn("Lines added", sortUsing: CommitFileSort(column: .added)) { (row: CommitSortableRow) in
@@ -1693,13 +1703,13 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                 lineCount(row.row, statistics: statistics, selected: selection.wrappedValue, added: false)
             }.width(min: 40, ideal: 95)
             TableColumn("Last modified", sortUsing: CommitFileSort(column: .lastModified)) { (row: CommitSortableRow) in
-                if let entry = row.entry { Text(row.metadata?.dateText ?? "–").foregroundStyle(entry.statusTextColor(selected: selection.wrappedValue.contains(entry.id))) } else { groupRule }
+                if let entry = row.entry { Text(row.metadata?.dateText ?? "–").foregroundStyle(entry.statusTextColor(selected: selection.wrappedValue.contains(entry.id), preferences: model.colorPreferences)) } else { groupRule }
             }.width(min: 140, ideal: 180)
             TableColumn("File size", sortUsing: CommitFileSort(column: .fileSize)) { (row: CommitSortableRow) in
-                if let entry = row.entry { Text(row.metadata?.sizeText ?? "–").foregroundStyle(entry.statusTextColor(selected: selection.wrappedValue.contains(entry.id))) } else { groupRule }
+                if let entry = row.entry { Text(row.metadata?.sizeText ?? "–").foregroundStyle(entry.statusTextColor(selected: selection.wrappedValue.contains(entry.id), preferences: model.colorPreferences)) } else { groupRule }
             }.width(min: 60, ideal: 90)
             TableColumn("LFS Lock", sortUsing: CommitFileSort(column: .lfsOwner)) { (row: CommitSortableRow) in
-                if let entry = row.entry { Text(row.lfsOwner).foregroundStyle(entry.statusTextColor(selected: selection.wrappedValue.contains(entry.id))) } else { groupRule }
+                if let entry = row.entry { Text(row.lfsOwner).foregroundStyle(entry.statusTextColor(selected: selection.wrappedValue.contains(entry.id), preferences: model.colorPreferences)) } else { groupRule }
             }.width(min: 100, ideal: 160)
         }.fileListFont().contextMenu(forSelectionType: String.self) { requested in
             TurtleGitContextMenu {

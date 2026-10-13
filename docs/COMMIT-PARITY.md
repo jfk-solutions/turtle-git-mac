@@ -2144,3 +2144,29 @@ owned cancellation. Full physical/signed acceptance remains open.
 
 The file-drop batch passed eight Core tests and four grouped native cases across
 system and bundled Git. See the [scoped evidence](qa/commit-drop-2026-10-13.json).
+
+## Commit preference ownership (2026-10-13)
+
+Commit now consistently uses its supplied preference store for Keep changelists,
+Do not autoselect submodules, message formatting, completion/scanner options,
+unedited-template Proceed suppression, and file status colors. The hosting view
+also supplies that store to native editor/font and pane preferences. Ordinary app
+controllers continue to use the standard store; private controllers no longer
+read/write these choices through an unrelated global store.
+
+The submodule checkbox applies its check/uncheck effect synchronously through the
+model, including configured automatic initial selection. It remains unavailable
+in staging mode. Keep/submodule changes reject busy and retired owners; a late
+unedited-template sheet reply cannot save suppression on a closed dialog.
+The existing warning sequence and Git commit operations remain unchanged.
+
+The Debug build and one grouped native batch passed across system/bundled Git.
+Native QA uses a real changed submodule and modified parent file, checks initial
+and reopened choices, actual 24-point editor font and formatting, filename
+completion extension options, private warning/Keep saves, busy/staging/retired
+refusal, global preference preservation and byte-exact parent HEAD/index/worktree
+preservation. The Commit progress regression also exercises actual commits,
+hooks, cancellation and post-actions. All four receivers were reaped. No Core
+suite was rerun for this app-only batch. Source color-store wiring is checked;
+rendered color/contrast and physical warning/checkbox gestures remain open.
+[Batch evidence](qa/commit-preferences-2026-10-13.json) records the exact scope.

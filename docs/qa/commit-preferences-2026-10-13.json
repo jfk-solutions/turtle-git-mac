@@ -1,0 +1,64 @@
+{
+  "date": "2026-10-13",
+  "scope": "Partial Commit preference/control ownership; full Commit parity unproven",
+  "source_reference": [
+    "CommitDlg.cpp:225-226",
+    "CommitDlg.cpp:649-651",
+    "CommitDlg.cpp:1066",
+    "CommitDlg.cpp:GetAutocompletionList"
+  ],
+  "changes": [
+    "Owning preference store supplies native view/editor defaults",
+    "Model initial controls/scanner options and saved warning/Keep/submodule choices use that store",
+    "Submodule checkbox applies synchronously and rejects staging/busy/retired actions",
+    "All file status-color calls use the owning store"
+  ],
+  "checks": {
+    "debug_build": {
+      "exit": 0
+    },
+    "native": {
+      "cases": [
+        "commit-preferences",
+        "commit-progress"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "exit": 0,
+      "reaped_pids": [
+        46876,
+        46986,
+        48220,
+        48330
+      ],
+      "scope": [
+        "Real changed submodule initial/toggled checks",
+        "Private control reopen and 24-point native editor font/formatting",
+        "Completion extension preference",
+        "Warning/Keep saved choices",
+        "Busy/staging/retired refusal",
+        "Selected global preference preservation",
+        "Parent HEAD/index/worktree unchanged during controls",
+        "Existing actual Commit/progress/hooks/cancellation/post-action regression"
+      ]
+    },
+    "core": "Not rerun: Core unchanged; actual Git behavior exercised by grouped native receivers",
+    "site": {
+      "build_exit": 0,
+      "tests": 2,
+      "test_exit": 0
+    }
+  },
+  "remaining": [
+    "Physical warning suppression/checkbox/editor gestures",
+    "Rendered color/contrast and accessibility",
+    "Signed sandbox/Finder execution",
+    "Full Commit and application parity"
+  ],
+  "logs": [
+    "build/qa/commit-preferences-build-2026-10-13.log",
+    "build/qa/commit-preferences-native-2026-10-13.log"
+  ]
+}
