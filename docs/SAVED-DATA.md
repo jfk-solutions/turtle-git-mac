@@ -8,6 +8,11 @@ questions appear again. The controls follow TortoiseGit's Saved Data page.
 - **Log messages (Input dialog) → Clear** removes saved Commit message histories
   across repositories and the shared Merge message history. The history backend reloads storage on each access, so an
   existing history object sees the cleared entries and can save new messages.
+- **Log messages (Show log dialog) → Clear** clears TurtleGit's cached repository
+  log file records. Other caches and repository files are preserved.
+- **Authentication data → Clear…** opens the saved SSH authentication dialog to
+  review and remove selected TurtleGit Keychain entries. Git HTTP helper credentials
+  and keys already loaded by a running operation are outside this control's scope.
 - **Dialog sizes and positions → Clear** forgets saved native window frames;
   see [dialog geometry](DIALOG-GEOMETRY.md).
 - **Temp files (including Gravatar images) → Clear** removes app-owned temporary

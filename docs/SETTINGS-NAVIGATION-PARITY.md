@@ -269,3 +269,35 @@ source catalogs/controls are present, with unavailable command routes disabled.
 Placement, Shift-only visibility, Hide-unversioned and path exclusion preferences
 are consumed by the actual Finder builder. See CONTEXT-MENU-SETTINGS-PARITY.md;
 physical navigation/focus/keyboard/signed acceptance remains open.
+
+
+## Dialogs/Colors/Saved Data connected continuation (2026-10-13)
+
+Dialogs 1/2, Colors 1/2/3 and Saved Data now receive the owning Settings preference
+store. Log's nested history-limit and message-font participants use that same store;
+Apply/Cancel stays coordinated when a draft page is cached and another page is
+selected. Source Dialogs 2 checkboxes use native controls with retained source keys,
+defaults and 1–100 validation. Graph line/node ranges remain 1–10 and 1–30. The source
+Gravatar URL presets now use an editable native combo and accept custom URLs.
+Short-date settings stay editable as in the source resource.
+
+Saved Data restores the repository-log cache and authentication rows, in source
+order. The cache clear removes only the native cache's regular hash-named JSON
+records, preserving other files/directories/symlink targets and repository data.
+Authentication opens the owned selective SSH Keychain dialog; generic HTTP helpers
+and Windows credentials have separate native boundaries and are not claimed cleared.
+Settings navigation/dismissal respects active authentication operations. Transient
+cleanup generations refuse retained answers after page departure/owner closure;
+owner retirement does not discard an unapplied draft simply because its page is
+cached. The native Settings family fixture covers the sidebar, cached drafts,
+private-domain Apply/Cancel, nested font, URL presets and owned cleanup.
+
+The Debug build passed, seven Saved Data Core cases passed, and the native family
+passed with system and bundled Git; both receivers were reaped. Native acceptance
+uses the actual Settings sidebar and cached Log/Dialogs 2 drafts, native URL/font
+controls, private color models, Saved Data cache model and an owned authentication
+child with an injected store. It does not prove every rendered Saved Data/color
+picker control. A missing source Dialogs 2 footer remains explicitly unmapped.
+Broad visual/accessibility/physical and signed acceptance stays open. Native
+mappings record source/native implementation references, not completed parity.
+See [grouped evidence](qa/settings-family-2026-10-13.json).

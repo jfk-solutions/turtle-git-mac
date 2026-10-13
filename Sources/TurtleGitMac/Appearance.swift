@@ -55,10 +55,18 @@ struct SourceColorSettings: View {
     let page: SettingsPageID
     @ObservedObject var appearance: SettingsAppearanceDraft
     @Environment(\.settingsTransaction) private var transaction
-    @StateObject private var status = StatusColorSettingsModel()
-    @StateObject private var log = LogColorSettingsModel()
-    @State private var useLocal = UserDefaults.standard.bool(forKey: "Graph.RevGraphUseLocalForCur")
-    @State private var savedUseLocal = UserDefaults.standard.bool(forKey: "Graph.RevGraphUseLocalForCur")
+    @StateObject private var status: StatusColorSettingsModel
+    @StateObject private var log: LogColorSettingsModel
+    @State private var useLocal: Bool
+    @State private var savedUseLocal: Bool
+    private let preferences: UserDefaults
+    init(page: SettingsPageID, appearance: SettingsAppearanceDraft, preferences: UserDefaults = .standard) {
+        self.page = page; self.appearance = appearance; self.preferences = preferences
+        _status = StateObject(wrappedValue: StatusColorSettingsModel(preferences: preferences))
+        _log = StateObject(wrappedValue: LogColorSettingsModel(preferences: preferences))
+        let value = preferences.bool(forKey: "Graph.RevGraphUseLocalForCur")
+        _useLocal = State(initialValue: value); _savedUseLocal = State(initialValue: value)
+    }
     private var roles: [LogColorRole] {
         switch page {
         case .colors1: return [.noteNode, .otherRef]
@@ -141,7 +149,7 @@ struct SourceColorSettings: View {
         if page == .colors1 {
             status.apply()
             if useLocal != savedUseLocal {
-                UserDefaults.standard.set(useLocal, forKey: "Graph.RevGraphUseLocalForCur"); savedUseLocal = useLocal
+                preferences.set(useLocal, forKey: "Graph.RevGraphUseLocalForCur"); savedUseLocal = useLocal
                 NotificationCenter.default.post(name: .statusColorsChanged, object: nil)
             }
         }

@@ -2,6 +2,40 @@ import XCTest
 @testable import TurtleGitCore
 
 final class SavedDataTests: XCTestCase {
+    func testLogCacheClearPreservesOtherNamespacesAndSymlinkTargets() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGit-CacheClear-"+UUID().uuidString)
+        try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
+        defer { try? FileManager.default.removeItem(at:root) }
+        let cacheRoot = root.appendingPathComponent("cache"), external = root.appendingPathComponent("external")
+        try FileManager.default.createDirectory(at:cacheRoot,withIntermediateDirectories:false)
+        let record = cacheRoot.appendingPathComponent(String(repeating:"a",count:64)+".json")
+        try Data("cached record".utf8).write(to:record)
+        let retained = cacheRoot.appendingPathComponent("preferences.json")
+        try Data("retained".utf8).write(to:retained); try Data("outside".utf8).write(to:external)
+        let alias = cacheRoot.appendingPathComponent(String(repeating:"b",count:64)+".json")
+        try FileManager.default.createSymbolicLink(at:alias,withDestinationURL:external)
+        let cache = HistoryFileCache(root:cacheRoot)
+        XCTAssertEqual(try cache.savedRecordCount(),1)
+        try cache.clearSavedRecords()
+        XCTAssertEqual(try cache.savedRecordCount(),0)
+        XCTAssertTrue(FileManager.default.fileExists(atPath:retained.path))
+        XCTAssertEqual(try Data(contentsOf:alias),Data("outside".utf8))
+        XCTAssertTrue(FileManager.default.fileExists(atPath:cacheRoot.path))
+    }
+    func testLogCacheClearRefusesRootSymlinkAndMissingRootIsNoOp() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGit-CacheRoot-"+UUID().uuidString)
+        try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
+        defer { try? FileManager.default.removeItem(at:root) }
+        let real = root.appendingPathComponent("real"), alias = root.appendingPathComponent("alias")
+        try FileManager.default.createDirectory(at:real,withIntermediateDirectories:false)
+        let record = real.appendingPathComponent(String(repeating:"c",count:64)+".json")
+        try Data("preserved".utf8).write(to:record)
+        try FileManager.default.createSymbolicLink(at:alias,withDestinationURL:real)
+        XCTAssertThrowsError(try HistoryFileCache(root:alias).clearSavedRecords())
+        XCTAssertTrue(FileManager.default.fileExists(atPath:record.path))
+        let missing = HistoryFileCache(root:root.appendingPathComponent("missing"))
+        XCTAssertEqual(try missing.savedRecordCount(),0); XCTAssertNoThrow(try missing.clearSavedRecords())
+    }
     func testImportDividerIsGeometryAndAppearanceIsPreserved() throws {
         try fixture { defaults, store in
             let key = WindowGeometryStore.prefix + "AMDlgSizer"

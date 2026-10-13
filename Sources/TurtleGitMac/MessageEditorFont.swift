@@ -16,10 +16,18 @@ import SwiftUI
 
 struct MessageEditorFontSettings: View {
     @Environment(\.settingsTransaction) private var transaction
-    @State private var name = UserDefaults.standard.string(forKey: "LogFontName") ?? MessageEditorFont.defaultName
-    @State private var draftSize = String((UserDefaults.standard.object(forKey: "LogFontSize") as? NSNumber)?.intValue ?? MessageEditorFont.defaultSize)
-    @State private var savedName = UserDefaults.standard.string(forKey: "LogFontName") ?? MessageEditorFont.defaultName
-    @State private var savedSize = String((UserDefaults.standard.object(forKey: "LogFontSize") as? NSNumber)?.intValue ?? MessageEditorFont.defaultSize)
+    private let defaults: UserDefaults
+    @State private var name: String
+    @State private var draftSize: String
+    @State private var savedName: String
+    @State private var savedSize: String
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        let name = defaults.string(forKey:"LogFontName") ?? MessageEditorFont.defaultName
+        let size = String((defaults.object(forKey:"LogFontSize") as? NSNumber)?.intValue ?? MessageEditorFont.defaultSize)
+        _name = State(initialValue:name); _savedName = State(initialValue:name)
+        _draftSize = State(initialValue:size); _savedSize = State(initialValue:size)
+    }
     private var validSize: Int? { Int(draftSize).flatMap { (1...1000).contains($0) ? $0 : nil } }
     var body: some View {
         GroupBox("Font for log messages") {
@@ -41,7 +49,7 @@ struct MessageEditorFontSettings: View {
     }
     private func apply() {
         guard let size = validSize else { return }
-        UserDefaults.standard.set(name, forKey: "LogFontName"); UserDefaults.standard.set(size, forKey: "LogFontSize")
+        defaults.set(name, forKey: "LogFontName"); defaults.set(size, forKey: "LogFontSize")
         savedName = name; savedSize = draftSize
     }
 

@@ -27,6 +27,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
 }
 @MainActor final class SettingsNavigationController: NSViewController, NSOutlineViewDataSource, NSOutlineViewDelegate {
     private let workspace: RepositoryModel, appearance: AppAppearance
+    private let preferences: UserDefaults
     let globalOnly: Bool
     private let appearanceDraft: SettingsAppearanceDraft
     private let overlayDraft = FinderOverlaySettingsModel()
@@ -50,7 +51,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     private var hooks: HookSettingsModel?
     private var delegateProxy: SettingsWindowDelegate?
     private var updating = false
-    init(workspace: RepositoryModel, appearance: AppAppearance, globalOnly: Bool = false) { self.workspace = workspace; self.appearance = appearance; self.globalOnly = globalOnly; self.appearanceDraft = SettingsAppearanceDraft(appearance: appearance); super.init(nibName: nil, bundle: nil) }
+    init(workspace: RepositoryModel, appearance: AppAppearance, globalOnly: Bool = false, preferences: UserDefaults = .standard) { self.preferences = preferences; self.workspace = workspace; self.appearance = appearance; self.globalOnly = globalOnly; self.appearanceDraft = SettingsAppearanceDraft(appearance: appearance); super.init(nibName: nil, bundle: nil) }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     override func loadView() {
         view = NSView(); view.setAccessibilityLabel("TurtleGit settings")
@@ -96,7 +97,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         transaction.window = window
         window.title = globalOnly ? "Global Settings – TurtleGit for Mac" : "Settings – TurtleGit for Mac"
     }
-    var canDismiss: Bool { workspace.finderWatches?.busy != true && !emailDraft.busy && !transaction.busy && remote?.busy != true && remote?.hasChild != true && GitConfigurationSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSaves == 0 && NetworkSettingsModel.activeSaves == 0 && IssueTrackerSettingsModel.activeSaves == 0 && HookSettingsModel.activeSaves == 0 && view.window?.attachedSheet == nil }
+    var canDismiss: Bool { workspace.finderWatches?.busy != true && !emailDraft.busy && !transaction.busy && remote?.busy != true && remote?.hasChild != true && GitConfigurationSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSaves == 0 && NetworkSettingsModel.activeSaves == 0 && IssueTrackerSettingsModel.activeSaves == 0 && HookSettingsModel.activeSaves == 0 && SavedSSHAuthenticationModel.activeOperations == 0 && view.window?.attachedSheet == nil }
     func updateRepository() {
         guard !globalOnly, isViewLoaded, workspace.root?.path != repositoryPath else { return }
         // A captured Remote model belongs to the repository that created it.
@@ -154,9 +155,9 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     @objc private func applySettings() { guard canDismiss else { return }; view.window?.makeFirstResponder(nil); transaction.apply(closeAfter: false) }
     @objc private func acceptSettings() { guard canDismiss else { return }; view.window?.makeFirstResponder(nil); transaction.apply(closeAfter: true) }
     @objc private func cancelSettings() { guard canDismiss else { return }; view.window?.makeFirstResponder(nil); transaction.cancel(); view.window?.performClose(nil) }
-    private func host<V: View>(_ view: V) -> NSViewController { NSHostingController(rootView: view.environment(\.settingsTransaction, transaction)) }
+    private func host<V: View>(_ view: V) -> NSViewController { NSHostingController(rootView: view.environment(\.settingsTransaction, transaction).defaultAppStorage(preferences)) }
     private func show(_ page: SettingsPageID) {
-        guard !emailDraft.busy, view.window?.attachedSheet == nil, remote?.busy != true, remote?.hasChild != true, GitConfigurationSettingsModel.activeSaves == 0, CredentialSettingsModel.activeSaves == 0, NetworkSettingsModel.activeSaves == 0, IssueTrackerSettingsModel.activeSaves == 0 && HookSettingsModel.activeSaves == 0 else { return }
+        guard !emailDraft.busy, view.window?.attachedSheet == nil, remote?.busy != true, remote?.hasChild != true, GitConfigurationSettingsModel.activeSaves == 0, CredentialSettingsModel.activeSaves == 0, NetworkSettingsModel.activeSaves == 0, IssueTrackerSettingsModel.activeSaves == 0 && HookSettingsModel.activeSaves == 0 && SavedSSHAuthenticationModel.activeOperations == 0 else { return }
         if current != nil && selected == page { return }
         view.window?.makeFirstResponder(nil)
         let controller: NSViewController
@@ -164,13 +165,13 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         else {
             switch page {
             case .general: controller = host(GeneralSettings(appearance: appearanceDraft))
-            case .colors1, .colors2, .colors3: controller = host(SourceColorSettings(page: page, appearance: appearanceDraft))
-            case .dialogs: controller = host(LogDialogSettings())
+            case .colors1, .colors2, .colors3: controller = host(SourceColorSettings(page: page, appearance: appearanceDraft, preferences: preferences))
+            case .dialogs: controller = host(LogDialogSettings(defaults: preferences))
             case .hooks:
                 let draft = HookSettingsModel(); hooks = draft
                 guard let context = try? workspace.gitConfigurationContext(globalOnly: globalOnly) else { return }
                 controller = host(HookSettingsPage(model: draft, repository: context.localAvailable ? context.repository : nil, access: context.access))
-            case .dialogs2: controller = host(DialogsBehaviorSettings())
+            case .dialogs2: controller = host(DialogsBehaviorSettings(defaults: preferences))
             case .dialogs3: controller = host(ProjectDialogSettingsPage(workspace: workspace, globalOnly: globalOnly))
             case .commit: controller = host(CommitEditorSettings(editorOnly: true))
             case .alternativeEditor: controller = host(AlternativeEditorSettings())
@@ -195,7 +196,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
             case .mergeTool: controller = host(MergeToolSettings())
             case .mergeEditor: controller = host(MergeEditorSettings())
             case .mergeColors: controller = host(MergeColorsSettings())
-            case .savedData: controller = host(SavedDataSettingsPage())
+            case .savedData: controller = host(SavedDataSettingsPage(preferences: preferences))
             case .blame: controller = host(BlameSettings())
             case .unifiedDiff: controller = host(UnifiedDiffAppearanceSettings())
             case .advanced: controller = host(AdvancedSettingsPage())
@@ -334,6 +335,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
 /// Implemented SetDialogs2 preferences, kept separate from message-editor extras.
 @MainActor private final class DialogsBehaviorDraft: ObservableObject {
     @Published var values: [String: SettingsScalar]
+    private let defaults: UserDefaults
     private var saved: [String: SettingsScalar]
     static let booleans: [(String, Bool)] = [
         ("RevertWithRecycleBin", true), ("ConfirmKillProcess", false),
@@ -344,6 +346,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         ("StripCommentedLines", false)
     ]
     init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
         var initial: [String: SettingsScalar] = [:]
         for (key, fallback) in Self.booleans { initial[key] = .boolean((defaults.object(forKey: key) as? NSNumber)?.boolValue ?? fallback) }
         for (key, fallback) in [("AutoCloseGitProgress", 0), ("AutocompleteParseTimeout", 5), ("MaxHistoryItems", 25)] {
@@ -368,12 +371,13 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         }
         return nil
     }
-    func apply() { for (key, value) in values { value.save(key) }; saved = values }
+    func apply() { for (key, value) in values { value.save(key, defaults: defaults) }; saved = values }
     func cancel() { values = saved }
 }
 private struct DialogsBehaviorSettings: View {
     @Environment(\.settingsTransaction) private var transaction
-    @StateObject private var draft = DialogsBehaviorDraft()
+    @StateObject private var draft: DialogsBehaviorDraft
+    init(defaults: UserDefaults = .standard) { _draft = StateObject(wrappedValue: DialogsBehaviorDraft(defaults: defaults)) }
     @StateObject private var autotextTester = AutotextTesterOwner()
     var body: some View {
         ScrollView {
@@ -383,27 +387,27 @@ private struct DialogsBehaviorSettings: View {
                         Picker("Autoclose Git progress dialog:", selection: draft.integer("AutoCloseGitProgress")) {
                             ForEach(GitProgressAutoClose.allCases, id: \.rawValue) { Text($0.title).tag($0.rawValue) }
                         }
-                        Toggle("Use Trash when reverting", isOn: draft.boolean("RevertWithRecycleBin"))
-                        Toggle("Confirm to kill running git process", isOn: draft.boolean("ConfirmKillProcess"))
-                        Toggle("Randomize Sync Dialog startup position", isOn: draft.boolean("SyncDialogRandomPos"))
-                        Toggle("Hide unchanged refs in Ref Compare List", isOn: draft.boolean("RefCompareHideUnchanged"))
-                        Toggle("Show Git execution timings and timestamp", isOn: draft.boolean("ShowGitexeTimings"))
-                        Toggle("Sort tag list in reversed order", isOn: draft.boolean("SortTagsReversed"))
-                        Toggle("Disable sounds", isOn: draft.boolean("NoSounds"))
-                        Toggle("Include FETCH_HEAD in branch selection boxes", isOn: draft.boolean("BranchesIncludeFetchHead"))
-                        Toggle("Use .mailmap", isOn: draft.boolean("UseMailmap"))
+                        LogPreferenceCheckbox(title: "Use Trash when reverting", value: draft.boolean("RevertWithRecycleBin"))
+                        LogPreferenceCheckbox(title: "Confirm to kill running git process", value: draft.boolean("ConfirmKillProcess"))
+                        LogPreferenceCheckbox(title: "Randomize Sync Dialog startup position", value: draft.boolean("SyncDialogRandomPos"))
+                        LogPreferenceCheckbox(title: "Hide unchanged refs in Ref Compare List", value: draft.boolean("RefCompareHideUnchanged"))
+                        LogPreferenceCheckbox(title: "Show Git execution timings and timestamp", value: draft.boolean("ShowGitexeTimings"))
+                        LogPreferenceCheckbox(title: "Sort tag list in reversed order", value: draft.boolean("SortTagsReversed"))
+                        LogPreferenceCheckbox(title: "Disable sounds", value: draft.boolean("NoSounds"))
+                        LogPreferenceCheckbox(title: "Include FETCH_HEAD in branch selection boxes", value: draft.boolean("BranchesIncludeFetchHead"))
+                        LogPreferenceCheckbox(title: "Use .mailmap", value: draft.boolean("UseMailmap"))
                     }.padding(8)
                 }
                 GroupBox("Commit") {
                     VStack(alignment: .leading, spacing: 10) {
-                        Toggle("Use auto-completion of file paths and keywords", isOn: draft.boolean("Autocompletion"))
+                        LogPreferenceCheckbox(title: "Use auto-completion of file paths and keywords", value: draft.boolean("Autocompletion"))
                         Button("Autotext Tester…", action: autotextTester.show)
                         Stepper("Timeout in seconds to stop auto-completion parsing: \(draft.integer("AutocompleteParseTimeout").wrappedValue)", value: draft.integer("AutocompleteParseTimeout"), in: 1...100)
                             .disabled(!draft.boolean("Autocompletion").wrappedValue)
                         Stepper("Max. items to keep in the log message history: \(draft.integer("MaxHistoryItems").wrappedValue)", value: draft.integer("MaxHistoryItems"), in: 1...100)
-                        Toggle("Select items automatically", isOn: draft.boolean("SelectFilesForCommit"))
-                        Toggle("Do not auto-select \"missing\" files (deleted, but unstaged)", isOn: draft.boolean("AutoselectMissingFiles"))
-                        Toggle("Strip lines starting with \"#\" in commit message", isOn: draft.boolean("StripCommentedLines"))
+                        LogPreferenceCheckbox(title: "Select items automatically", value: draft.boolean("SelectFilesForCommit"))
+                        LogPreferenceCheckbox(title: "Do not auto-select \"missing\" files (deleted, but unstaged)", value: draft.boolean("AutoselectMissingFiles"))
+                        LogPreferenceCheckbox(title: "Strip lines starting with \"#\" in commit message", value: draft.boolean("StripCommentedLines"))
                     }.padding(8)
                 }
                 Spacer()

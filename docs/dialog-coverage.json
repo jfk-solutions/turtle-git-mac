@@ -7,8 +7,8 @@
     "pending_family_reviews": 16,
     "certified_complete": 0,
     "static_controls": 1659,
-    "pending_control_reviews": 1011,
-    "mapped_controls": 648,
+    "pending_control_reviews": 896,
+    "mapped_controls": 763,
     "statuses": {
       "pending-review": 16,
       "partial-native-replacement": 82,
@@ -1157,8 +1157,8 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 28,
-      "mapped_controls": 1,
-      "pending_control_reviews": 27,
+      "mapped_controls": 28,
+      "pending_control_reviews": 0,
       "certified_complete": false,
       "native_sources": [
         {
@@ -1176,6 +1176,7 @@
       ],
       "qa_records": [
         "docs/qa/settings-dialogs-tools-batch-2026-10-11.json",
+        "docs/qa/settings-family-2026-10-13.json",
         "docs/qa/settings-history-batch-2026-10-11.json"
       ]
     },
@@ -1186,17 +1187,13 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 22,
-      "mapped_controls": 7,
-      "pending_control_reviews": 15,
+      "mapped_controls": 21,
+      "pending_control_reviews": 1,
       "certified_complete": false,
       "native_sources": [
         {
           "path": "Sources/TurtleGitMac/SettingsNavigation.swift",
           "anchor": "DialogsBehaviorDraft"
-        },
-        {
-          "path": "Sources/TurtleGitMac/CommitMessageEditor.swift",
-          "origin": "recorded-control-mapping"
         }
       ],
       "missing_native_references": [],
@@ -1205,6 +1202,7 @@
       ],
       "qa_records": [
         "docs/qa/settings-dialogs-tools-batch-2026-10-11.json",
+        "docs/qa/settings-family-2026-10-13.json",
         "docs/qa/settings-history-batch-2026-10-11.json"
       ]
     },
@@ -1328,8 +1326,8 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 12,
-      "mapped_controls": 0,
-      "pending_control_reviews": 12,
+      "mapped_controls": 12,
+      "pending_control_reviews": 0,
       "certified_complete": false,
       "native_sources": [
         {
@@ -1343,6 +1341,7 @@
       ],
       "qa_records": [
         "docs/qa/settings-dialogs-tools-batch-2026-10-11.json",
+        "docs/qa/settings-family-2026-10-13.json",
         "docs/qa/settings-history-batch-2026-10-11.json"
       ]
     },
@@ -1353,8 +1352,8 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 19,
-      "mapped_controls": 0,
-      "pending_control_reviews": 19,
+      "mapped_controls": 19,
+      "pending_control_reviews": 0,
       "certified_complete": false,
       "native_sources": [
         {
@@ -2045,8 +2044,8 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 21,
-      "mapped_controls": 0,
-      "pending_control_reviews": 21,
+      "mapped_controls": 21,
+      "pending_control_reviews": 0,
       "certified_complete": false,
       "native_sources": [
         {
@@ -2060,6 +2059,7 @@
       ],
       "qa_records": [
         "docs/qa/settings-dialogs-tools-batch-2026-10-11.json",
+        "docs/qa/settings-family-2026-10-13.json",
         "docs/qa/settings-history-batch-2026-10-11.json"
       ]
     },
@@ -2070,8 +2070,8 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 22,
-      "mapped_controls": 0,
-      "pending_control_reviews": 22,
+      "mapped_controls": 22,
+      "pending_control_reviews": 0,
       "certified_complete": false,
       "native_sources": [
         {
@@ -2085,6 +2085,7 @@
       ],
       "qa_records": [
         "docs/qa/settings-dialogs-tools-batch-2026-10-11.json",
+        "docs/qa/settings-family-2026-10-13.json",
         "docs/qa/settings-history-batch-2026-10-11.json"
       ]
     },

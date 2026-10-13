@@ -2504,7 +2504,33 @@ struct LogPreferenceCheckbox: NSViewRepresentable {
     }
 }
 
+/// Source's editable URL presets, retaining custom values in a native combo box.
+struct SettingsEditableChoices: NSViewRepresentable {
+    @Binding var value: String
+    let choices: [String]
+    @Environment(\.isEnabled) private var enabled
+    func makeCoordinator() -> Coordinator { Coordinator() }
+    func makeNSView(context: Context) -> NSComboBox {
+        let combo = NSComboBox(); combo.isEditable = true; combo.completes = true
+        combo.addItems(withObjectValues:choices); combo.delegate = context.coordinator
+        return combo
+    }
+    func updateNSView(_ combo: NSComboBox, context: Context) {
+        context.coordinator.change = { value = $0 }; combo.isEnabled = enabled
+        if combo.stringValue != value { combo.stringValue = value }
+        if combo.objectValues.compactMap({ $0 as? String }) != choices { combo.removeAllItems(); combo.addItems(withObjectValues:choices) }
+    }
+    final class Coordinator: NSObject, NSComboBoxDelegate {
+        var change: (String) -> Void = { _ in }
+        func controlTextDidChange(_ notification: Notification) { if let combo = notification.object as? NSComboBox { change(combo.stringValue) } }
+        func comboBoxSelectionDidChange(_ notification: Notification) { if let combo = notification.object as? NSComboBox, let value = combo.objectValueOfSelectedItem as? String { change(value) } }
+    }
+}
+
 struct LogDialogSettings: View {
+    private let defaults: UserDefaults
+    static let gravatarChoices = ["https://gravatar.com/avatar/%HASH%"] +
+        ["mm", "identicon", "monsterid", "wavatar", "retro", "blank"].map { "https://gravatar.com/avatar/%HASH%?d=" + $0 }
     @State private var showBranchRevisionNumber: Bool
     @State private var diffByDoubleClick: Bool
     @State private var enableGravatar: Bool
@@ -2547,49 +2573,50 @@ struct LogDialogSettings: View {
         "EnableLogCache": .boolean(enableLogCache),
         "FullCommitMessageOnLogLine": .boolean(fullMessage)
     ] }
-    init() {
-        _enableLogCache = State(initialValue: UserDefaults.standard.object(forKey: "EnableLogCache") as? Bool ?? true)
-        _describeFirstParent = State(initialValue: (UserDefaults.standard.object(forKey: "DescribeOnlyFollowFirstParent") as? NSNumber)?.boolValue ?? false)
-        _describeLong = State(initialValue: (UserDefaults.standard.object(forKey: "DescribeAlwaysLong") as? NSNumber)?.boolValue ?? false)
-        _describeSize = State(initialValue: (UserDefaults.standard.object(forKey: "DescribeAbbreviatedSize") as? NSNumber)?.intValue ?? 7)
-        _describeStrategy = State(initialValue: (UserDefaults.standard.object(forKey: "DescribeStrategy") as? NSNumber)?.intValue ?? 0)
-        _showDescribe = State(initialValue: (UserDefaults.standard.object(forKey: "ShowDescribe") as? NSNumber)?.boolValue ?? false)
-        _abbreviateRenamings = State(initialValue: (UserDefaults.standard.object(forKey: "AbbreviateRenamings") as? NSNumber)?.boolValue ?? false)
-        _asteriskPrefix = State(initialValue: (UserDefaults.standard.object(forKey: "AsteriskLogPrefix") as? NSNumber)?.boolValue ?? true)
-        _showBranchRevisionNumber = State(initialValue: (UserDefaults.standard.object(forKey: "ShowBranchRevisionNumber") as? NSNumber)?.boolValue ?? false)
-        _diffByDoubleClick = State(initialValue: (UserDefaults.standard.object(forKey: "DiffByDoubleClickInLog") as? NSNumber)?.boolValue ?? false)
-        _enableGravatar = State(initialValue: (UserDefaults.standard.object(forKey: "EnableGravatar") as? NSNumber)?.boolValue ?? false)
-        _gravatarURL = State(initialValue: UserDefaults.standard.string(forKey: "GravatarUrl") ?? LogGravatarRequest.defaultTemplate)
-        _gravatarMD5 = State(initialValue: (UserDefaults.standard.object(forKey: "GravatarUseMD5") as? NSNumber)?.boolValue ?? false)
-        _shortDate = State(initialValue: (UserDefaults.standard.object(forKey: "LogDateFormat") as? NSNumber)?.boolValue ?? true)
-        _relative = State(initialValue: (UserDefaults.standard.object(forKey: "RelativeTimes") as? NSNumber)?.boolValue ?? false)
-        _useSystemLocale = State(initialValue: (UserDefaults.standard.object(forKey: "UseSystemLocaleForDates") as? NSNumber)?.boolValue ?? true)
-        _labelsOnRight = State(initialValue: (UserDefaults.standard.object(forKey: "DrawTagsBranchesOnRightSide") as? NSNumber)?.boolValue ?? false)
-        _symbolizeRefs = State(initialValue: (UserDefaults.standard.object(forKey: "SymbolizeRefNames") as? NSNumber)?.boolValue ?? false)
-        _fullMessage = State(initialValue: (UserDefaults.standard.object(forKey: "FullCommitMessageOnLogLine") as? NSNumber)?.boolValue ?? false)
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        _enableLogCache = State(initialValue: defaults.object(forKey: "EnableLogCache") as? Bool ?? true)
+        _describeFirstParent = State(initialValue: (defaults.object(forKey: "DescribeOnlyFollowFirstParent") as? NSNumber)?.boolValue ?? false)
+        _describeLong = State(initialValue: (defaults.object(forKey: "DescribeAlwaysLong") as? NSNumber)?.boolValue ?? false)
+        _describeSize = State(initialValue: (defaults.object(forKey: "DescribeAbbreviatedSize") as? NSNumber)?.intValue ?? 7)
+        _describeStrategy = State(initialValue: (defaults.object(forKey: "DescribeStrategy") as? NSNumber)?.intValue ?? 0)
+        _showDescribe = State(initialValue: (defaults.object(forKey: "ShowDescribe") as? NSNumber)?.boolValue ?? false)
+        _abbreviateRenamings = State(initialValue: (defaults.object(forKey: "AbbreviateRenamings") as? NSNumber)?.boolValue ?? false)
+        _asteriskPrefix = State(initialValue: (defaults.object(forKey: "AsteriskLogPrefix") as? NSNumber)?.boolValue ?? true)
+        _showBranchRevisionNumber = State(initialValue: (defaults.object(forKey: "ShowBranchRevisionNumber") as? NSNumber)?.boolValue ?? false)
+        _diffByDoubleClick = State(initialValue: (defaults.object(forKey: "DiffByDoubleClickInLog") as? NSNumber)?.boolValue ?? false)
+        _enableGravatar = State(initialValue: (defaults.object(forKey: "EnableGravatar") as? NSNumber)?.boolValue ?? false)
+        _gravatarURL = State(initialValue: defaults.string(forKey: "GravatarUrl") ?? LogGravatarRequest.defaultTemplate)
+        _gravatarMD5 = State(initialValue: (defaults.object(forKey: "GravatarUseMD5") as? NSNumber)?.boolValue ?? false)
+        _shortDate = State(initialValue: (defaults.object(forKey: "LogDateFormat") as? NSNumber)?.boolValue ?? true)
+        _relative = State(initialValue: (defaults.object(forKey: "RelativeTimes") as? NSNumber)?.boolValue ?? false)
+        _useSystemLocale = State(initialValue: (defaults.object(forKey: "UseSystemLocaleForDates") as? NSNumber)?.boolValue ?? true)
+        _labelsOnRight = State(initialValue: (defaults.object(forKey: "DrawTagsBranchesOnRightSide") as? NSNumber)?.boolValue ?? false)
+        _symbolizeRefs = State(initialValue: (defaults.object(forKey: "SymbolizeRefNames") as? NSNumber)?.boolValue ?? false)
+        _fullMessage = State(initialValue: (defaults.object(forKey: "FullCommitMessageOnLogLine") as? NSNumber)?.boolValue ?? false)
         _original = State(initialValue: [
-            "EnableLogCache": .boolean(UserDefaults.standard.object(forKey: "EnableLogCache") as? Bool ?? true),
-            "DescribeOnlyFollowFirstParent": .boolean((UserDefaults.standard.object(forKey: "DescribeOnlyFollowFirstParent") as? NSNumber)?.boolValue ?? false),
-            "DescribeAlwaysLong": .boolean((UserDefaults.standard.object(forKey: "DescribeAlwaysLong") as? NSNumber)?.boolValue ?? false),
-            "DescribeAbbreviatedSize": .integer((UserDefaults.standard.object(forKey: "DescribeAbbreviatedSize") as? NSNumber)?.intValue ?? 7),
-            "DescribeStrategy": .integer((UserDefaults.standard.object(forKey: "DescribeStrategy") as? NSNumber)?.intValue ?? 0),
-            "ShowDescribe": .boolean((UserDefaults.standard.object(forKey: "ShowDescribe") as? NSNumber)?.boolValue ?? false),
-            "AbbreviateRenamings": .boolean((UserDefaults.standard.object(forKey: "AbbreviateRenamings") as? NSNumber)?.boolValue ?? false),
-            "AsteriskLogPrefix": .boolean((UserDefaults.standard.object(forKey: "AsteriskLogPrefix") as? NSNumber)?.boolValue ?? true),
-            "ShowBranchRevisionNumber": .boolean((UserDefaults.standard.object(forKey: "ShowBranchRevisionNumber") as? NSNumber)?.boolValue ?? false),
-            "DiffByDoubleClickInLog": .boolean((UserDefaults.standard.object(forKey: "DiffByDoubleClickInLog") as? NSNumber)?.boolValue ?? false),
-            "EnableGravatar": .boolean((UserDefaults.standard.object(forKey: "EnableGravatar") as? NSNumber)?.boolValue ?? false),
-            "GravatarUrl": .string(UserDefaults.standard.string(forKey: "GravatarUrl") ?? LogGravatarRequest.defaultTemplate),
-            "GravatarUseMD5": .boolean((UserDefaults.standard.object(forKey: "GravatarUseMD5") as? NSNumber)?.boolValue ?? false),
-            "LogDateFormat": .boolean((UserDefaults.standard.object(forKey: "LogDateFormat") as? NSNumber)?.boolValue ?? true),
-            "RelativeTimes": .boolean((UserDefaults.standard.object(forKey: "RelativeTimes") as? NSNumber)?.boolValue ?? false),
-            "UseSystemLocaleForDates": .boolean((UserDefaults.standard.object(forKey: "UseSystemLocaleForDates") as? NSNumber)?.boolValue ?? true),
-            "DrawTagsBranchesOnRightSide": .boolean((UserDefaults.standard.object(forKey: "DrawTagsBranchesOnRightSide") as? NSNumber)?.boolValue ?? false),
-            "SymbolizeRefNames": .boolean((UserDefaults.standard.object(forKey: "SymbolizeRefNames") as? NSNumber)?.boolValue ?? false),
-            "FullCommitMessageOnLogLine": .boolean((UserDefaults.standard.object(forKey: "FullCommitMessageOnLogLine") as? NSNumber)?.boolValue ?? false)
+            "EnableLogCache": .boolean(defaults.object(forKey: "EnableLogCache") as? Bool ?? true),
+            "DescribeOnlyFollowFirstParent": .boolean((defaults.object(forKey: "DescribeOnlyFollowFirstParent") as? NSNumber)?.boolValue ?? false),
+            "DescribeAlwaysLong": .boolean((defaults.object(forKey: "DescribeAlwaysLong") as? NSNumber)?.boolValue ?? false),
+            "DescribeAbbreviatedSize": .integer((defaults.object(forKey: "DescribeAbbreviatedSize") as? NSNumber)?.intValue ?? 7),
+            "DescribeStrategy": .integer((defaults.object(forKey: "DescribeStrategy") as? NSNumber)?.intValue ?? 0),
+            "ShowDescribe": .boolean((defaults.object(forKey: "ShowDescribe") as? NSNumber)?.boolValue ?? false),
+            "AbbreviateRenamings": .boolean((defaults.object(forKey: "AbbreviateRenamings") as? NSNumber)?.boolValue ?? false),
+            "AsteriskLogPrefix": .boolean((defaults.object(forKey: "AsteriskLogPrefix") as? NSNumber)?.boolValue ?? true),
+            "ShowBranchRevisionNumber": .boolean((defaults.object(forKey: "ShowBranchRevisionNumber") as? NSNumber)?.boolValue ?? false),
+            "DiffByDoubleClickInLog": .boolean((defaults.object(forKey: "DiffByDoubleClickInLog") as? NSNumber)?.boolValue ?? false),
+            "EnableGravatar": .boolean((defaults.object(forKey: "EnableGravatar") as? NSNumber)?.boolValue ?? false),
+            "GravatarUrl": .string(defaults.string(forKey: "GravatarUrl") ?? LogGravatarRequest.defaultTemplate),
+            "GravatarUseMD5": .boolean((defaults.object(forKey: "GravatarUseMD5") as? NSNumber)?.boolValue ?? false),
+            "LogDateFormat": .boolean((defaults.object(forKey: "LogDateFormat") as? NSNumber)?.boolValue ?? true),
+            "RelativeTimes": .boolean((defaults.object(forKey: "RelativeTimes") as? NSNumber)?.boolValue ?? false),
+            "UseSystemLocaleForDates": .boolean((defaults.object(forKey: "UseSystemLocaleForDates") as? NSNumber)?.boolValue ?? true),
+            "DrawTagsBranchesOnRightSide": .boolean((defaults.object(forKey: "DrawTagsBranchesOnRightSide") as? NSNumber)?.boolValue ?? false),
+            "SymbolizeRefNames": .boolean((defaults.object(forKey: "SymbolizeRefNames") as? NSNumber)?.boolValue ?? false),
+            "FullCommitMessageOnLogLine": .boolean((defaults.object(forKey: "FullCommitMessageOnLogLine") as? NSNumber)?.boolValue ?? false)
         ])
     }
-    private func applyDraft() { preferenceValues.forEach { $0.value.save($0.key) }; original = preferenceValues }
+    private func applyDraft() { preferenceValues.forEach { $0.value.save($0.key, defaults: defaults) }; original = preferenceValues }
     private func cancelDraft() {
         if case .boolean(let value) = original["EnableLogCache"] { enableLogCache = value }
         if case .boolean(let value) = original["DescribeOnlyFollowFirstParent"] { describeFirstParent = value }
@@ -2615,11 +2642,11 @@ struct LogDialogSettings: View {
         ScrollView { VStack(alignment: .leading) {
             GroupBox("Log messages") {
                 VStack(alignment: .leading, spacing: 10) {
-                    HistoryLimitSettings()
-                    MessageEditorFontSettings()
+                    HistoryLimitSettings(defaults: defaults)
+                    MessageEditorFontSettings(defaults: defaults)
                     Toggle("Can double-click in log list to compare with previous revision", isOn: $diffByDoubleClick)
                         .help("If checked, double-clicking on a revision in the log list compares it with the previous revision")
-                    Toggle("Short date/time format in log messages", isOn: $shortDate).disabled(!useSystemLocale)
+                    Toggle("Short date/time format in log messages", isOn: $shortDate)
                     HStack { Toggle("Relative Times in log", isOn: $relative); Toggle("Show asterisk log prefix", isOn: $asteriskPrefix) }
                     Toggle("Use system locale for date/time", isOn: $useSystemLocale)
                     Toggle("Abbreviate renamings", isOn: $abbreviateRenamings)
@@ -2629,7 +2656,7 @@ struct LogDialogSettings: View {
                     Text("Reopen history windows to apply reference-label and full-message choices.").font(.caption).foregroundStyle(.secondary)
                     Toggle("Enable log cache", isOn: $enableLogCache)
                     Toggle("Enable Gravatar", isOn: $enableGravatar).help("Enable showing Gravatar image in Log Dialog")
-                    TextField("Gravatar URL", text: $gravatarURL).disabled(!enableGravatar).help("Allow to use custom Gravatar URL; %HASH% is replaced by the author email hash")
+                    SettingsEditableChoices(value: $gravatarURL, choices: Self.gravatarChoices).frame(height: 24).help("Allow to use custom Gravatar URL; %HASH% is replaced by the author email hash")
                     Toggle("Use MD5 for Gravatar", isOn: $gravatarMD5).disabled(!enableGravatar)
                     Toggle("Display branch revision number", isOn: $showBranchRevisionNumber)
                         .help("Count first-parent revisions on the checked-out branch; this count is not guaranteed to be unique.")

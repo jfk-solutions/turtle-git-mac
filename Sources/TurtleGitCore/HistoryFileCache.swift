@@ -11,6 +11,23 @@ public struct HistoryFileCache: Sendable {
             .appendingPathComponent("TurtleGit/HistoryFiles-v1", isDirectory: true)
     }
     public init(root: URL = Self.defaultRoot) { self.root = root }
+    /// Clear only this cache's record namespace; never remove the directory,
+    /// follow symlinks, or touch repository files and other cache payloads.
+    private func ownedRecordFiles() throws -> [URL] {
+        guard FileManager.default.fileExists(atPath:root.path) else { return [] }
+        try validRoot(create:false)
+        return try FileManager.default.contentsOfDirectory(at:root,includingPropertiesForKeys:nil).filter { file in
+            let stem = file.deletingPathExtension().lastPathComponent
+            guard file.pathExtension == "json", stem.utf8.count == 64,
+                  stem.utf8.allSatisfy({ (48...57).contains($0) || (97...102).contains($0) }) else { return false }
+            let attributes = try FileManager.default.attributesOfItem(atPath:file.path)
+            return attributes[.type] as? FileAttributeType == .typeRegular
+        }
+    }
+    public func savedRecordCount() throws -> Int { try ownedRecordFiles().count }
+    public func clearSavedRecords() throws {
+        for file in try ownedRecordFiles() { try FileManager.default.removeItem(at:file) }
+    }
     struct Record: Codable {
         let key: String
         let context: String

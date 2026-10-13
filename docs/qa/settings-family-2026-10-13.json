@@ -1,0 +1,56 @@
+{
+  "date": "2026-10-13",
+  "scope": "Connected Dialogs/Colors/Saved Data preferences, source control mappings and owned cleanup family",
+  "checks": {
+    "debug_build": {
+      "exit": 0
+    },
+    "core": {
+      "family": "SavedDataTests",
+      "tests": 7,
+      "exit": 0,
+      "scope": [
+        "Preference namespace clearing regression",
+        "Native log-cache record scope and preservation of other files",
+        "Symlink record targets preserved and root symlink rejected",
+        "Missing cache root no-op"
+      ]
+    },
+    "native": {
+      "cases": [
+        "settings-family"
+      ],
+      "engines": [
+        "system",
+        "bundled"
+      ],
+      "exit": 0,
+      "reaped_pids": [
+        82441,
+        82480
+      ],
+      "scope": [
+        "Actual native Settings sidebar navigation",
+        "Cached Log and Dialogs 2 Apply/Cancel in private preference domain",
+        "Editable source Gravatar presets and custom URL",
+        "Nested native font Apply",
+        "Private status/graph color draft models and dimensions",
+        "Saved Data cache model clear and late transient response refusal",
+        "Owned authentication child using injected private store and cleanup",
+        "Global preference preservation"
+      ]
+    }
+  },
+  "remaining": [
+    "Dialogs 2 source footer",
+    "Full color-picker/visual/keyboard/VoiceOver acceptance",
+    "Generic HTTP helper/Windows authentication cleanup boundaries",
+    "Remaining Settings pages and signed distribution acceptance",
+    "Full hosted CI result"
+  ],
+  "logs": [
+    "build/qa/settings-family-build-2026-10-13.log",
+    "build/qa/settings-family-core-2026-10-13.log",
+    "build/qa/settings-family-native-2026-10-13.log"
+  ]
+}
