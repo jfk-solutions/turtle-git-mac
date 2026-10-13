@@ -384,9 +384,11 @@ Source comparison: `RebaseDlg.cpp` around lines 2195–2270 and 2368–2372, whe
 merge replay precedes its Edit pause. The source workflow is the target; Git's
 sequencer implements the native pause. Retired owners also reject action changes.
 
-The ordinary Split implementation is disabled at a merge Edit pause because its
-first-parent reset would discard merge topology. Source-equivalent merge Split
-requires a separate implementation and remains a recorded gap. Structural
+At this checkpoint, Split was disabled at merge Edit pending a parent-preserving
+recovery audit. The later recovery-family batch below removes this restriction.
+The earlier explanation of a first-parent reset was incorrect: the selection
+backend uses a first-parent tree as its comparison base and amends HEAD, retaining
+its parents. Structural
 Squash/group rewrites are also still unavailable. These changes supersede the
 previous merge Edit restriction, without certifying the full structural workflow.
 
@@ -431,9 +433,9 @@ omits skipped messages and requires approval through the native message tab befo
 Continue. It retains the existing Squash date-policy configuration. Edit followed
 by Squash goes through the group's final message review rather than an early Edit
 pause. An ordinary child may squash into a merge result while retaining its parents;
-the merge itself cannot be marked Squash. Split remains unavailable for structural
-Edit/Squash results with multiple parents because the existing Split implementation
-would flatten the topology. Source-equivalent merge Split remains open.
+the merge itself cannot be marked Squash. At this checkpoint Split remained unavailable for structural Edit/Squash results
+with multiple parents. The later recovery-family batch supersedes that restriction
+and corrects the earlier assumption that first-parent comparison flattens topology.
 
 Fourteen focused Core checks passed, including a multiple-Squash group with a
 skipped row and approved message, a child combined into a two-parent merge and an
@@ -448,3 +450,39 @@ unverified, as do wider graph, conflict/empty-group/date-policy combinations.
 
 This batch supersedes the prior blanket structural Squash restriction, without
 certifying the complete Rebase dialog. [Batch evidence](qa/structural-squash-2026-10-13.json).
+
+
+## Connected structural recovery family (implementation 2026-10-13)
+
+The native recovery flow now recognizes a structural merge command through the
+captured original row/action. Its existing checked-file Commit path can resolve
+that merge against the selected temporary index, retaining MERGE_HEAD parents and
+original source author/date while preserving excluded index/worktree changes. The
+preflight compares captured MERGE_HEAD entries as well as stopped identity, logical
+step and HEAD, rejecting changed merge metadata before mutation. Durable applied
+recovery continues through the existing amend loop and then the source Edit pause.
+
+Merge Edit and merge-result Squash now expose Split. The first replacement part
+uses the existing first-parent selection tree with `git commit --amend`, retaining
+all merge parents; later parts are child commits. Split records its initial parent
+list and compares it before the first replacement. Cancel returning to checked-file
+recovery retains that topology record. The owned Commit dialog receives the same
+preference store as its Rebase owner, covering templates, hooks, fonts and persisted
+choices without falling back to the global domain.
+
+Git's abbreviated replay commands are canonicalized for structural progress,
+stopped action/identity and update-ref attachment. Squash conflict recovery, all
+three date policies and empty Commit/Skip/Cancel reuse the durable message-review
+and reference-label paths. Source comparison includes `RebaseDlg.cpp`'s Conflict,
+Edit/Split and Squash handlers and its rewritten-parent map. Broader octopus/cousin
+and signed/physical/VoiceOver acceptance remain open; this does not certify every
+Rebase control or all graph behavior. One grouped Core run passed all 75 Rebase tests (including ordinary and Cherry
+Pick regressions), the Debug build passed, and four grouped native receivers across
+system/bundled Git passed and were reaped. Native checks include actual Split Commit
+dialog creation and Cancel returning to Merge Edit/Squash review without changing
+HEAD/topology or losing the pending message. Initial timeouts were fixture-only:
+a diagnostic retry identified the unanswered Commit Cancel confirmation; injecting
+its affirmative response retained all assertions and passed. No Core restart or
+app rebuild was needed for that fixture repair. This is family acceptance within
+the recorded scope, not certification of full source/physical/signed parity.
+See [recovery-family evidence](qa/recovery-family-2026-10-13.json).

@@ -5,8 +5,8 @@ import TurtleGitCore
     struct Failure: Error, CustomStringConvertible { let description:String }
     static func require(_ value:Bool,_ message:String) throws { if !value { throw Failure(description:message) } }
     @MainActor static func descendants(_ view:NSView)->[NSView] { [view]+view.subviews.flatMap(descendants) }
-    @MainActor static func wait(_ ready:()->Bool) async throws {
-        for _ in 0..<1000 { if ready() { return }; try await Task.sleep(nanoseconds:10_000_000) }; throw Failure(description:"Row drag did not settle")
+    @MainActor static func wait(_ stage:String="Row drag",_ ready:()->Bool) async throws {
+        for _ in 0..<1000 { if ready() { return }; try await Task.sleep(nanoseconds:10_000_000) }; throw Failure(description:stage + " did not settle")
     }
     @MainActor static func main() async { do { try await verify() } catch { fputs("Rebase row drag failed: \(error)\n",stderr); exit(1) } }
     @MainActor static func verify() async throws {
@@ -77,7 +77,18 @@ import TurtleGitCore
         let resumed=RebaseWindowController(repository:replay,access:nil,preferences:prefs); defer { resumed.close() }
         resumed.model.load(upstream:"upstream",preserveMerges:true)
         try await wait { !resumed.model.busy && resumed.model.state?.isStructuralMergeEdit==true }
-        try require(resumed.model.tab==1 && resumed.model.amendMessage.contains("Merge") && !resumed.model.canSplit,"Native recovery message or merge Split guard incorrect")
+        try require(resumed.model.tab==1 && resumed.model.amendMessage.contains("Merge") && resumed.model.canSplit,"Native recovery message or merge Split guard incorrect")
+        var mergeSplitDialog: CommitWindowModel?
+        resumed.model.configureCommitSelection = { mergeSplitDialog = $0; $0.confirmCancel = { $0(true) } }
+        resumed.model.beginSplitSelection()
+        try await wait("Merge Split load") { mergeSplitDialog?.entries.isEmpty == false && mergeSplitDialog?.busy == false }
+        try require(mergeSplitDialog?.amend == true && mergeSplitDialog?.amendDiffToLastCommit == false,"Merge Split did not open the first-parent comparison/amend dialog")
+        let beforeCancel = try await replay.rebaseCommit("HEAD")
+        mergeSplitDialog!.cancel()
+        try await wait("Merge Split Cancel") { !resumed.model.busy && !resumed.model.selectingSplit }
+        try require(resumed.model.state?.split == nil && resumed.model.state?.isStructuralMergeEdit == true,"Cancel did not restore merge Edit")
+        let afterCancel = try await replay.rebaseCommit("HEAD")
+        try require(afterCancel.hash==beforeCancel.hash && afterCancel.parents.count==2,"Merge Split Cancel changed topology")
         resumed.model.amendMessage="native edited merge"; resumed.model.execute("continue")
         try await wait { !resumed.model.busy && resumed.model.finished }
         try require(resumed.model.error==nil && resumed.model.completedSuccessfully,"Native merge Edit Continue failed")
@@ -91,7 +102,14 @@ import TurtleGitCore
         let grouped=RebaseWindowController(repository:replay,access:nil,preferences:prefs); defer { grouped.close() }
         grouped.model.load(upstream:"upstream",preserveMerges:true)
         try await wait { !grouped.model.busy && grouped.model.state?.squashMessage != nil }
-        try require(!grouped.model.canSplit && grouped.model.tab==1 && grouped.model.amendMessage.contains("native edited merge") && grouped.model.amendMessage.contains("squash child"),"Native Squash group messages not recovered")
+        try require(grouped.model.canSplit && grouped.model.tab==1 && grouped.model.amendMessage.contains("native edited merge") && grouped.model.amendMessage.contains("squash child"),"Native Squash group messages not recovered")
+        var groupSplitDialog: CommitWindowModel?
+        grouped.model.configureCommitSelection = { groupSplitDialog = $0; $0.confirmCancel = { $0(true) } }
+        grouped.model.beginSplitSelection()
+        try await wait("Group Split load") { groupSplitDialog?.entries.isEmpty == false && groupSplitDialog?.busy == false }
+        groupSplitDialog!.cancel()
+        try await wait("Group Split Cancel") { !grouped.model.busy && !grouped.model.selectingSplit }
+        try require(grouped.model.state?.squashMessage != nil && grouped.model.state?.split == nil,"Group Split Cancel lost pending message review")
         grouped.model.amendMessage="native approved structural group"; grouped.model.execute("continue")
         try await wait { !grouped.model.busy && grouped.model.finished }
         let combined=try await replay.rebaseCommit("HEAD")

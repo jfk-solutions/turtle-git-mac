@@ -110,7 +110,7 @@ import TurtleGitCore
     }
     private func showSplitSelection(_ split: RebaseSplitState, message: String) {
         guard let window, window.attachedSheet == nil, splitCommitPicker == nil else { model.splitSelectionClosed(committed: false); return }
-        let child = CommitWindowController(repository: model.repository, access: model.repositoryAccess)
+        let child = CommitWindowController(repository: model.repository, access: model.repositoryAccess, defaults: model.columnPreferences)
         splitCommitPicker = child
         let commit = child.model
         model.configureCommitSelection(commit)

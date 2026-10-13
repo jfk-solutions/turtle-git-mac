@@ -287,7 +287,7 @@ final class RebaseTests: XCTestCase {
         let unchanged = try await repo.rebaseState(); XCTAssertEqual(unchanged.split?.expectedHead, applied.state.split?.expectedHead); XCTAssertEqual(unchanged.split?.conflictRecovery, true)
         _ = try await repo.abortRebase()
     }
-    func squashConflictFixture(policy: RebaseSquashDate, empty: Bool = false, prefix: Bool = false) async throws -> (URL, GitRepository, String, RebasePlan) {
+    func squashConflictFixture(policy: RebaseSquashDate, empty: Bool = false, prefix: Bool = false, preserveMerges: Bool = false) async throws -> (URL, GitRepository, String, RebasePlan) {
         let (root, repo, path) = try await GitPatchTests().fixture()
         let base = try await repo.rebaseCommit("HEAD")
         _ = try await repo.run(["checkout", "-b", "upstream"])
@@ -301,7 +301,7 @@ final class RebaseTests: XCTestCase {
         if empty { _ = try await repo.run(["rm", "--", "group-first.txt"]) }
         try Data("squashed conflict\n".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path])
         _ = try await repo.run(["commit", "--author", "Last Group <last@example.test>", "-m", "last group\n\n# literal last"], environmentOverrides: ["GIT_AUTHOR_DATE": "2002-03-04T05:06:07-03:00"])
-        var settings = options(); settings.squashDate = policy
+        var settings = options(); settings.squashDate = policy; settings.preserveMerges = preserveMerges
         var plan = try await repo.rebasePlan(settings); plan.entries[plan.entries.count - 1].action = .squash
         return (root, repo, path, plan)
     }
@@ -609,6 +609,128 @@ final class RebaseTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("upstream.txt").path))
         let count = try await repo.run(["rev-list", "--count", "main..topic"]).text; XCTAssertEqual(count, "2\n")
     }
+    func testStructuralSquashConflictsReopenWithAllDatePolicies() async throws {
+        for policy in [RebaseSquashDate.first,.latest,.current] {
+            let (root,repo,path,plan) = try await squashConflictFixture(policy:policy,preserveMerges:true); defer { try? FileManager.default.removeItem(at:root) }
+            let stopped = try await repo.startRebase(plan,editorExecutable:editor)
+            XCTAssertEqual(stopped.state.currentStep,2); XCTAssertEqual(stopped.state.stoppedAction,.squash)
+            try Data("structural resolution\n".utf8).write(to:root.appendingPathComponent(path)); try await repo.stage([path])
+            let paused = try await repo.continueRebase(); XCTAssertNotNil(paused.state.squashMessage)
+            let again = GitRepository(root:root,executable:repo.executable), before = Date().addingTimeInterval(-2)
+            let finished = try await again.continueRebase(squashMessage:"approved structural conflict group")
+            XCTAssertEqual(finished.exitCode,0,finished.output); XCTAssertFalse(finished.state.active)
+            let head = try await again.rebaseCommit("HEAD")
+            XCTAssertEqual(head.author,plan.entries[0].commit.author)
+            switch policy {
+            case .first: XCTAssertEqual(head.date,plan.entries[0].commit.date)
+            case .latest: XCTAssertEqual(head.date,plan.entries[1].commit.date)
+            case .current: XCTAssertGreaterThanOrEqual(try XCTUnwrap(ISO8601DateFormatter().date(from:head.date)),before)
+            }
+        }
+    }
+    func testStructuralEmptySquashChoicesAndAbbreviatedReferenceUpdates() async throws {
+        for choice in [RebaseEmptyChoice.commit,.skip,.cancel] {
+            let (root,repo,path,initial) = try await squashConflictFixture(policy:.latest,empty:true,preserveMerges:true); defer { try? FileManager.default.removeItem(at:root) }
+            _ = try await repo.run(["branch","group-start",initial.entries[0].commit.hash]); _ = try await repo.run(["branch","group-end",initial.entries[1].commit.hash])
+            _ = try await repo.run(["config","rebase.updateRefs","true"]); _ = try await repo.run(["config","rebase.abbreviateCommands","true"])
+            try Data("future\n".utf8).write(to:root.appendingPathComponent("future-group.txt")); try await repo.stage(["future-group.txt"]); _ = try await repo.commit(message:"future structural commit")
+            var settings = options(); settings.preserveMerges=true
+            var plan = try await repo.rebasePlan(settings); plan.options.squashDate = .latest; plan.entries[1].action = .squash
+            _ = try await repo.startRebase(plan,editorExecutable:editor)
+            try Data("upstream conflict\n".utf8).write(to:root.appendingPathComponent(path)); try await repo.stage([path])
+            let paused = try await repo.continueRebase(); XCTAssertNotNil(paused.state.squashMessage)
+            let isEmpty = try await repo.rebaseSquashIsEmpty(); XCTAssertTrue(isEmpty)
+            let head = try await repo.rebaseCommit("HEAD")
+            let again = GitRepository(root:root,executable:repo.executable)
+            var finished = try await again.continueRebase(squashMessage:"approved empty structural group",emptySquashChoice:choice,expectedSquashHead:head.hash)
+            if choice == .cancel {
+                XCTAssertTrue(finished.state.active); XCTAssertEqual(finished.state.squashMessage?.message,paused.state.squashMessage?.message)
+                finished = try await again.continueRebase(squashMessage:"approved empty structural group",emptySquashChoice:.commit,expectedSquashHead:head.hash)
+            }
+            XCTAssertEqual(finished.exitCode,0,finished.output); XCTAssertFalse(finished.state.active)
+            let start = try await again.rebaseCommit("group-start"), end = try await again.rebaseCommit("group-end"), future = try await again.rebaseCommit("HEAD"), onto = try await again.rebaseCommit("upstream")
+            XCTAssertEqual(start.hash,end.hash); XCTAssertEqual(future.parents,[end.hash])
+            if choice == .skip { XCTAssertEqual(end.hash,onto.hash) }
+            else { XCTAssertEqual(end.subject,"approved empty structural group") }
+        }
+    }
+    func structuralMergeConflictFixture(action: RebaseAction) async throws -> (URL,GitRepository,String,RebasePlan) {
+        let (root,repo,path) = try await fixture()
+        _ = try await repo.run(["checkout","-b","conflict-side","main"])
+        try Data("side merge value\n".utf8).write(to:root.appendingPathComponent(path)); try await repo.stage([path]); _ = try await repo.commit(message:"side merge value")
+        _ = try await repo.run(["checkout","topic"])
+        try Data("topic merge value\n".utf8).write(to:root.appendingPathComponent(path)); try await repo.stage([path]); _ = try await repo.commit(message:"topic merge value")
+        _ = try await repo.run(["merge","--no-ff","conflict-side"],successfulExitCodes:0...1)
+        try Data("original merge resolution\n".utf8).write(to:root.appendingPathComponent(path)); try await repo.stage([path]); _ = try await repo.commit(message:"original resolved merge")
+        var settings = options(); settings.preserveMerges = true
+        var plan = try await repo.rebasePlan(settings)
+        plan.entries[plan.entries.count-1].action = action
+        if action == .pick { plan.entries.swapAt(0,1) }
+        return (root,repo,path,plan)
+    }
+    func testStructuralMergeConflictResolvesThroughCheckedCommitAndEdit() async throws {
+        for action in [RebaseAction.pick,.edit] {
+            let (root,repo,path,plan) = try await structuralMergeConflictFixture(action:action); defer { try? FileManager.default.removeItem(at:root) }
+            let stopped = try await repo.startRebase(plan,editorExecutable:editor)
+            XCTAssertEqual(stopped.state.stoppedAction,action,stopped.output); XCTAssertEqual(stopped.state.stoppedEntryID,plan.entries.last?.id)
+            XCTAssertEqual(stopped.state.conflicts,[path]); XCTAssertEqual(stopped.state.mergeParents.count,1)
+            try Data("replayed merge resolution\n".utf8).write(to:root.appendingPathComponent(path)); try await repo.stage([path])
+            try Data("excluded\n".utf8).write(to:root.appendingPathComponent("excluded.txt")); try await repo.stage(["excluded.txt"])
+            let expected = try await repo.rebaseState(), before = try await repo.rebaseCommit("HEAD")
+            let applied = try await repo.commitRebaseConflictSelection(message:"checked merge resolution",paths:[path],expected:expected,expectedHead:before.hash)
+            XCTAssertEqual(applied.state.split?.conflictRecovery,true)
+            let merge = try await repo.rebaseCommit("HEAD"); XCTAssertEqual(merge.parents.count,2)
+            let files = try await repo.files(in:merge); XCTAssertFalse(files.contains { $0.path=="excluded.txt" })
+            // The retained excluded file must be approved before replay resumes.
+            try await repo.unstage(["excluded.txt"]); try FileManager.default.removeItem(at:root.appendingPathComponent("excluded.txt"))
+            var result = try await GitRepository(root:root,executable:repo.executable).continueRebase()
+            if action == .edit { XCTAssertTrue(result.state.isStructuralMergeEdit); result = try await repo.continueRebase(editMessage:"approved edited merge") }
+            XCTAssertEqual(result.exitCode,0,result.output); XCTAssertFalse(result.state.active)
+            let head = try await repo.rebaseCommit("HEAD"); XCTAssertEqual(head.parents.count,2)
+            XCTAssertEqual(try String(contentsOf:root.appendingPathComponent(path)),"replayed merge resolution\n")
+        }
+    }
+    func testStructuralMergeConflictRejectsChangedMergeParentMetadata() async throws {
+        let (root,repo,path,plan) = try await structuralMergeConflictFixture(action:.edit); defer { try? FileManager.default.removeItem(at:root) }
+        _ = try await repo.startRebase(plan,editorExecutable:editor)
+        try Data("resolved\n".utf8).write(to:root.appendingPathComponent(path)); try await repo.stage([path])
+        let expected = try await repo.rebaseState(), head = try await repo.rebaseCommit("HEAD")
+        let name = try await repo.run(["rev-parse","--git-path","MERGE_HEAD"]).text.trimmingCharacters(in:.newlines)
+        let file = name.hasPrefix("/") ? URL(fileURLWithPath:name) : root.appendingPathComponent(name)
+        let original = try Data(contentsOf:file); defer { try? original.write(to:file) }
+        try Data((head.hash+"\n").utf8).write(to:file)
+        do { _ = try await repo.commitRebaseConflictSelection(message:"stale parent",paths:[path],expected:expected,expectedHead:head.hash); XCTFail("Changed merge parent accepted") } catch RebaseFailure.changed {}
+        let after = try await repo.rebaseCommit("HEAD"); XCTAssertEqual(head.hash,after.hash)
+        try original.write(to:file); _ = try await repo.abortRebase()
+    }
+    func testStructuralMergeSplitRetainsFirstParentsAndLaterChild() async throws {
+        let (root,repo,plan,_) = try await structuralMergeFixture(); defer { try? FileManager.default.removeItem(at:root) }
+        _ = try await repo.startRebase(plan,editorExecutable:editor)
+        let original = try await repo.rebaseCommit("HEAD")
+        try Data("extra split part\n".utf8).write(to:root.appendingPathComponent("split-extra.txt")); try await repo.stage(["split-extra.txt"])
+        let split = try await repo.beginRebaseSplit(); XCTAssertEqual(split.firstParents,original.parents)
+        var firstOptions = CommitOptions(); firstOptions.amend=true; firstOptions.amendDiffToLastCommit=false
+        firstOptions.author=split.firstAuthor
+        _ = try await repo.commitRebaseSplit(message:"first merge part",paths:["side.txt"],staging:false,options:firstOptions,expected:split)
+        let first = try await repo.rebaseCommit("HEAD"); XCTAssertEqual(first.parents,original.parents)
+        let reopened = GitRepository(root:root,executable:repo.executable)
+        let recovered = try await reopened.rebaseState(), second = try XCTUnwrap(recovered.split)
+        _ = try await reopened.commitRebaseSplit(message:"remaining merge part",paths:["split-extra.txt"],staging:false,options:CommitOptions(),expected:second)
+        let child = try await reopened.rebaseCommit("HEAD"); XCTAssertEqual(child.parents,[first.hash])
+        let finished = try await reopened.continueRebase(); XCTAssertEqual(finished.exitCode,0,finished.output)
+        XCTAssertFalse(finished.state.active)
+        let final = try await reopened.rebaseCommit("HEAD"); XCTAssertEqual(final.subject,"after merge")
+    }
+    func testStructuralMergeSplitCancelAndAbortRestoreHistory() async throws {
+        let (root,repo,plan,_) = try await structuralMergeFixture(); defer { try? FileManager.default.removeItem(at:root) }
+        _ = try await repo.startRebase(plan,editorExecutable:editor)
+        let head = try await repo.rebaseCommit("HEAD"), index = try await repo.run(["ls-files","--stage","-z"]).stdout
+        _ = try await repo.beginRebaseSplit(); try await repo.cancelUnstartedRebaseSplit()
+        let state = try await repo.rebaseState(); XCTAssertNil(state.split); XCTAssertTrue(state.canSplit)
+        let unchanged = try await repo.rebaseCommit("HEAD"), afterIndex = try await repo.run(["ls-files","--stage","-z"]).stdout
+        XCTAssertEqual(head.hash,unchanged.hash); XCTAssertEqual(index,afterIndex)
+        _ = try await repo.abortRebase(); let restored = try await repo.rebaseCommit("HEAD"); XCTAssertEqual(restored.hash,plan.branchHash)
+    }
     func testStructuralSquashGroupSkipsRowsAndApprovesFinalMessage() async throws {
         let (root,repo,_) = try await fixture(); defer { try? FileManager.default.removeItem(at:root) }
         for name in ["third","fourth"] { try Data(name.utf8).write(to:root.appendingPathComponent(name)); try await repo.stage([name]); _ = try await repo.commit(message:name) }
@@ -633,7 +755,7 @@ final class RebaseTests: XCTestCase {
         _ = try await repo.run(["branch","group-base",mergeHash]); _ = try await repo.run(["config","rebase.updateRefs","true"])
         let stopped = try await repo.startRebase(plan,editorExecutable:editor)
         XCTAssertNotNil(stopped.state.squashMessage,stopped.output)
-        XCTAssertTrue(stopped.state.hasStructuralMergeResult); XCTAssertFalse(stopped.state.canSplit)
+        XCTAssertTrue(stopped.state.hasStructuralMergeResult); XCTAssertTrue(stopped.state.canSplit)
         let finished = try await repo.continueRebase(squashMessage:"combined merge and child")
         XCTAssertEqual(finished.exitCode,0,finished.output); XCTAssertFalse(finished.state.active)
         let head = try await repo.rebaseCommit("HEAD"), reference = try await repo.rebaseCommit("group-base")
@@ -658,7 +780,7 @@ final class RebaseTests: XCTestCase {
         XCTAssertEqual(result.exitCode,0,result.output); XCTAssertTrue(result.state.active)
         let reopened = GitRepository(root:root,executable:repo.executable)
         let state = try await reopened.rebaseState()
-        XCTAssertTrue(state.isEditPause); XCTAssertTrue(state.isStructuralMergeEdit); XCTAssertFalse(state.canSplit)
+        XCTAssertTrue(state.isEditPause); XCTAssertTrue(state.isStructuralMergeEdit); XCTAssertTrue(state.canSplit)
         XCTAssertFalse(state.needsFileRecovery); XCTAssertEqual(state.stoppedCommit,merge)
         XCTAssertTrue(state.message.contains("Merge")); XCTAssertEqual(state.stoppedAction,.edit)
         let recovered = try await reopened.rebaseReplayEntries()

@@ -1,0 +1,63 @@
+{
+  "date": "2026-10-13",
+  "scope": "Connected structural recovery family: merge conflicts/checked commits/Split, Squash conflicts/empty/date/reference recovery and owned native dialogs",
+  "checks": {
+    "debug_build": {
+      "exit": 0
+    },
+    "core": {
+      "family": "RebaseTests",
+      "tests": 75,
+      "exit": 0,
+      "seconds": 169.894,
+      "sequence_editor": "current Debug app"
+    },
+    "native": {
+      "cases": [
+        "rebase-row-drag",
+        "rebase-conditional"
+      ],
+      "engines": [
+        "system",
+        "bundled"
+      ],
+      "exit": 0,
+      "reaped_pids": [
+        77715,
+        79027,
+        79207,
+        80379
+      ],
+      "failures": [
+        {
+          "reaped_pid": 68753,
+          "reason": "Timeout without stage diagnostic"
+        },
+        {
+          "reaped_pid": 73366,
+          "reason": "Fixture left actual Split Commit Cancel confirmation unanswered",
+          "repair": "Injected affirmative confirmation response, retaining real dialog/Cancel/topology assertions"
+        }
+      ]
+    }
+  },
+  "verified": [
+    "Checked structural merge conflict Commit with both merge parents and excluded index retention, followed by Pick/Edit Continue",
+    "Changed MERGE_HEAD metadata rejected without moving HEAD",
+    "Merge Split first replacement retains parents; later part creates child; reopen/Cancel/Abort",
+    "Structural Squash conflicts with all author-date policies",
+    "Structural empty Commit/Skip/Cancel with abbreviated update-ref commands and future replay",
+    "Actual owned native Split Commit dialogs Cancel back into Merge Edit/Squash review",
+    "Existing ordinary Rebase/Cherry Pick, conflict/selection, Split, Squash and recovery regressions"
+  ],
+  "remaining": [
+    "Broad octopus/cousin/nested graphs",
+    "Full visual/keyboard/VoiceOver and physical Finder acceptance",
+    "Signed sandbox/distribution and full hosted CI result"
+  ],
+  "logs": [
+    "build/qa/recovery-family-build-2026-10-13.log",
+    "build/qa/recovery-family-core-2026-10-13.log",
+    "build/qa/recovery-family-native-2026-10-13.log"
+  ]
+}
