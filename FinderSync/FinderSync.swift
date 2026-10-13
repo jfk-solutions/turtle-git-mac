@@ -93,7 +93,7 @@ enum FinderShellMenuLayout {
         [.initialize, .add, .blame, .ignore, .ignoreDelete],
         [.worktreeList, .submoduleAdd, .submoduleUpdate, .submoduleSync],
         [.formatPatch, .importPatch, .reviewPatch, .sendMail],
-        [.settings, .help, .about]
+        [.properties, .settings, .help, .about]
     ]
     static func action(_ item: NSMenuItem) -> RepositoryAction? {
         (item.representedObject as? FinderMenuCommand)?.request.action ?? (item.representedObject as? FinderMenuGroup)?.action

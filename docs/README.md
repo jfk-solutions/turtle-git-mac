@@ -219,3 +219,5 @@ are not recursively audited.
 - [Private cache-service permission handoff](FINDER-SERVICE-GRANTS.md)
 
 - [Helper-owned persistent permissions](FINDER-HELPER-PERSISTENCE.md)
+
+- [Git Properties guide](GIT-PROPERTIES.md) and [source parity](GIT-PROPERTIES-PARITY.md).

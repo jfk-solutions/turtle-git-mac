@@ -254,6 +254,7 @@ public enum FinderMenuEntry: String, CaseIterable, Sendable {
     /// One preference controls every command sharing the source menu ID.
     public static func entry(for action: RepositoryAction) -> Self? {
         switch action {
+        case .properties: return nil // macOS entry replaces Explorer's property-sheet tab, not a MenuInfo bit.
         case .lfs, .lfsLocks, .lfsLock, .lfsUnlock: return .lfs
         case .svnDCommit: return .svndCommit
         case .svnRebase: return .svnRebase

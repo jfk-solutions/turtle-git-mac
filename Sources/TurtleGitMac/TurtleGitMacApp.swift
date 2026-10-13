@@ -115,7 +115,7 @@ struct RepositoryWindow: View {
             Divider()
             if model.root == nil { welcome } else {
                 HSplitView {
-                    VStack(alignment: .leading, spacing: 8) {
+                    ScrollView { VStack(alignment: .leading, spacing: 8) {
                         Text("TurtleGit").font(.headline).padding(.bottom, 8)
                         ForEach([RepositoryAction.status, .commit, .log, .daemon, .revisionGraph, .referenceBrowser, .repositoryBrowser, .export, .bisect, .formatPatch, .importPatch, .requestPull]) { action in
                             Button { model.activate(action) } label: {
@@ -130,7 +130,7 @@ struct RepositoryWindow: View {
                         }
                         Spacer()
                         Text("Native macOS port • In development").font(.caption).foregroundStyle(.secondary)
-                    }.padding(12).frame(minWidth: 185, idealWidth: 205, maxWidth: 260).disabled(model.busy)
+                    }.padding(12) }.frame(minWidth: 185, idealWidth: 205, maxWidth: 260).disabled(model.busy)
                     VSplitView {
                         VStack(alignment: .leading, spacing: 8) {
                             Text(model.bare ? "Bare repository" : model.section.title.replacingOccurrences(of: "…", with: "")).font(.title2).padding(.horizontal, 12)

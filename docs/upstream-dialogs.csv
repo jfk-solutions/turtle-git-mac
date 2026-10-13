@@ -126,6 +126,6 @@ src/SshAskPass/SshAskPass.rc,IDD_ASK_PASSWORD,TortoiseGit -  git CLI stdin wrapp
 src/TortoiseIDiff/TortoiseIDiff.rc,IDD_OPEN,Load Images,partial-native-replacement
 src/TortoiseIDiff/TortoiseIDiff.rc,IDD_ABOUT,TortoiseGitIDiff,partial-native-replacement
 src/TortoisePlink/Windows/TortoisePlink.rc,IDD_LOGIN,TortoiseGitPlink,pending-review
-src/TortoiseShell/resourceshell.rc,IDD_PROPPAGE,Property Page,pending-review
+src/TortoiseShell/resourceshell.rc,IDD_PROPPAGE,Property Page,partial-native-replacement
 src/TortoiseUDiff/TortoiseUDiff.rc,IDD_FINDBAR,,pending-review
 test/Cache/Cache.rc,IDD_CACHE_DIALOG,Cache,pending-review

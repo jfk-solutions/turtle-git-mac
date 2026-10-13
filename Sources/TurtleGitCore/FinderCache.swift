@@ -305,7 +305,7 @@ public struct FinderSnapshot: Codable, Sendable {
 public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
     case svnDCommit, svnRebase, svnFetch, svnIgnore
     case reviewPatch, daemon, lfs, lfsLocks, lfsLock, lfsUnlock, sendMail
-    case synchronize, blame, previousDiff, logSubmodule, settings, help, about
+    case synchronize, blame, previousDiff, logSubmodule, properties, settings, help, about
     case status, commit, add, revert, clean, submoduleAdd, submoduleUpdate, submoduleSync, log, revisionGraph, referenceBrowser, repositoryBrowser, export, bisect, bisectStart, bisectGood, bisectBad, bisectSkip, bisectReset, formatPatch, importPatch, requestPull, worktreeCreate, worktreeList, diff, diffLater, clearComparisonMark, pull, push, fetch, branch, tag, switchBranch, merge, mergeAbort, rebase, stash, stashApply, stashPop, stashList, reflog, clone, initialize, rename, remove, removeKeep, ignore, ignoreMask, ignoreDelete, ignoreDeleteMask, resolve, resolveCurrent, resolveMine, resolveTheirs, reset, editConflict
     public var id: String { rawValue }
     public var title: String {
@@ -325,6 +325,7 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
         case .blame: return "Blame"
         case .previousDiff: return "Diff with previous version"
         case .logSubmodule: return "Show log of this folder"
+        case .properties: return "Git Properties…"
         case .settings: return "Settings"
         case .help: return "Help"
         case .about: return "About"
@@ -506,6 +507,7 @@ public enum FinderShellRules {
         .blame: [.init([.inGit, .onlyOne], [.folder, .added]), .init([], []), .init([], []), .init([], [])],
         .logSubmodule: [.init([.folderInGit, .onlyOne, .workingTreeRoot, .submodule], []), .init([], []), .init([], []), .init([], [])],
         .editConflict: [.init([.inGit, .conflicted], [.folder]), .init([], []), .init([], []), .init([], [])],
+        .properties: [.init([.inVersionedFolder], []), .init([.folderInGit], []), .init([.inGit], []), .init([.bare], [])],
         .settings: [.init([.folder], []), .init([], [.folder]), .init([], []), .init([], [])],
         .help: [.init([.folder], []), .init([], [.folder]), .init([], []), .init([], [])],
         .about: [.init([.folder], []), .init([], [.folder]), .init([], []), .init([], [])],

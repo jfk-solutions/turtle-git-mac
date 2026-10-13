@@ -1,0 +1,79 @@
+{
+  "date": "2026-10-13",
+  "source": {
+    "baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "files": [
+      "src/TortoiseShell/GITPropertyPage.cpp",
+      "src/TortoiseShell/GITPropertyPage.h",
+      "src/Resources/resourceshell.rc:IDD_PROPPAGE"
+    ]
+  },
+  "scope": [
+    "Native Git Properties metadata and source-ordered index controls",
+    "Captured submodule pages, Settings and log routing",
+    "Atomic index metadata editing for SHA-1/SHA-256, versions 2\u20134, private split-index materialization",
+    "Cancellation, stale/lock refusal, retirement and Quit ownership",
+    "Scrollable workspace sidebar and compact property controls"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/git-properties-display-build-final-2026-10-13.log"
+    },
+    "core": {
+      "cases": 7,
+      "passed_after_repair": 7,
+      "log": "build/qa/git-properties-core-final-2026-10-13.log",
+      "repair_log": "build/qa/git-properties-history-repaired-2026-10-13.log",
+      "note": "Initial history fixture used commit -am and restaged an index-only mode change; fixed fixture and reran only failed case."
+    },
+    "native_group": {
+      "exit": 0,
+      "cases": 6,
+      "families": [
+        "git-properties",
+        "partial-patch",
+        "comparison"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "log": "build/qa/git-properties-native-2026-10-13.log"
+    },
+    "appstore": {
+      "exit": 0,
+      "log": "build/qa/git-properties-appstore-2026-10-13.log",
+      "scope": "Before final title/checkbox-height UI adjustments; those covered by final Debug build."
+    },
+    "appstore_bundle": {
+      "exit": 0,
+      "log": "build/qa/git-properties-appstore-bundle-2026-10-13.log",
+      "native_items": 202,
+      "icons": 296
+    },
+    "inventory": {
+      "exit": 0,
+      "log": "build/qa/git-properties-inventory-2026-10-13.log"
+    },
+    "physical": {
+      "appearance": "light",
+      "observed": [
+        "README.md selection and Properties menu route",
+        "Source-ordered metadata and compact flags",
+        "Assume-valid Apply changed index, preserved working bytes; restored flag verified H README.md"
+      ],
+      "dark_capture": "not confirmed",
+      "preview_pid": 89072,
+      "preview_closed": true
+    }
+  },
+  "pending": [
+    "Physical Finder menus/badges and signed service activation",
+    "Properties Settings sheet gestures and complete keyboard/accessibility parity",
+    "Dark-mode visual acceptance",
+    "Signed sandbox/App Store execution",
+    "Exhaustive index extensions/sparse combinations and compiled upstream history oracle"
+  ],
+  "full_port_certified": false
+}

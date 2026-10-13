@@ -104,6 +104,8 @@ import TurtleGitCore
     private var accessStore: RepositoryAccessStore?
     private var activeAccess: RepositoryAccessLease?
     private var repository: GitRepository?
+    var settingsContextOverride: (repository:GitRepository,access:RepositoryAccessLease?,localAvailable:Bool)?
+    private var gitPropertyWindows: [String:GitPropertiesWindowController] = [:]
     private var commitWindows: [String: CommitWindowController] = [:]
     private var combineWindows: [UUID: HistoryCombineWindowController] = [:]
     private var historyRevertWindows: [UUID: HistoryRevertWindowController] = [:]
@@ -272,6 +274,7 @@ import TurtleGitCore
     }
     func gitConfigurationContext(globalOnly: Bool = false) throws -> (repository: GitRepository, access: RepositoryAccessLease?, localAvailable: Bool) {
         if globalOnly { return (try makeRepository(TurtleGitTemporaryStorage.root), nil, false) }
+        if let settingsContextOverride { return settingsContextOverride }
         if let repository { return (repository, activeAccess, true) }
         return (try makeRepository(FileManager.default.homeDirectoryForCurrentUser), nil, false)
     }
@@ -448,6 +451,8 @@ import TurtleGitCore
         case .sendMail:
             guard let root else { return }
             showFinderSendMail(files: (paths.isEmpty ? selectedPaths : paths).map { root.appendingPathComponent($0) })
+        case .properties:
+            guard let repository else { return }; showGitProperties(repository:repository,access:activeAccess,paths:paths.isEmpty ? selectedPaths : paths)
         case .settings: onSettings(false)
         case .help: onHelp()
         case .about: onAbout()
@@ -1703,6 +1708,27 @@ import TurtleGitCore
         else { child.showWindow(nil) }
         child.model.start()
     }
+    private func showGitProperties(repository:GitRepository,access:RepositoryAccessLease?,paths:[String]) {
+        let selection = paths.isEmpty ? ["."] : paths
+        let key = repository.root.path + "\0" + selection.map { Data($0.utf8).base64EncodedString() }.joined(separator:"\0")
+        if let existing = gitPropertyWindows[key] { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
+        var contexts = [GitPropertiesContext(repository:repository,paths:selection,access:access,submodule:false)]
+        if selection == ["."], let parent = FinderSnapshot.read()?.repositories[repository.root.path]?.submoduleParentRoot {
+            let root = URL(fileURLWithPath:parent,isDirectory:true)
+            if access?.contains(root) == true, repository.root.path.hasPrefix(root.path + "/") {
+                let path = String(repository.root.path.dropFirst(root.path.count + 1))
+                contexts.insert(GitPropertiesContext(repository:GitRepository(root:root,executable:repository.executable),paths:[path],access:access,submodule:true),at:0)
+            }
+        }
+        let controller = GitPropertiesWindowController(contexts:contexts)
+        controller.onClosed = { [weak self,weak controller] in guard self?.gitPropertyWindows[key] === controller else { return }; self?.gitPropertyWindows.removeValue(forKey:key) }
+        controller.model.onLog = { [weak self] context in self?.showLog(repository:context.repository,access:context.access,paths:context.paths == ["."] ? [] : context.paths) }
+        controller.model.onChanged = { [weak self] changed in
+            self?.statusWindows[changed.root.path]?.model.reload(); self?.commitWindows[changed.root.path]?.model.reload()
+            if self?.root == changed.root { Task { await self?.refresh() } }
+        }
+        gitPropertyWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
     private func showLog(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], endRevision: String? = nil, selectedRevision: String? = nil, revisionRange: HistoryRevisionRange? = nil) {
         let root = repository.root
         var baseKey = root.path
@@ -2337,7 +2363,7 @@ import TurtleGitCore
         if action == .diff && request.paths.count == 2 { handleFilePair(paths: request.paths); return }
         let candidate = request.paths[0]
         var permissionTargets = request.paths
-        if action == .rename || action == .remove || action == .submoduleSync || action == .logSubmodule,
+        if action == .rename || action == .remove || action == .submoduleSync || action == .logSubmodule || action == .properties,
            let parent = FinderSnapshot.read()?.repositories[candidate.standardizedFileURL.path]?.submoduleParentRoot {
             let parentURL = URL(fileURLWithPath: parent, isDirectory: true)
             if parentURL.path != candidate.path && candidate.standardizedFileURL.path.hasPrefix(parentURL.path.hasSuffix("/") ? parentURL.path : parentURL.path + "/") {

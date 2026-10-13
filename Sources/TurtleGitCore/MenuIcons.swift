@@ -211,6 +211,7 @@ extension RepositoryAction {
         case .blame: return .blame
         case .previousDiff: return .compare
         case .logSubmodule: return .log
+        case .properties: return .settingsGit
         case .settings: return .settings
         case .help: return .help
         case .about: return .about
