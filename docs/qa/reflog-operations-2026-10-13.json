@@ -1,0 +1,50 @@
+{
+  "date": "2026-10-13",
+  "scope": "RefLog Merge/Rebase/Cherry Pick/Revert source-gated handoffs and owned immutable metadata reads",
+  "source_revision": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "validation": {
+    "core": {
+      "log": "build/qa/reflog-operations-core-2026-10-13.log",
+      "exit": 0,
+      "tests": 12
+    },
+    "debug": {
+      "log": "build/qa/reflog-operations-debug-2026-10-13.log",
+      "exit": 0
+    },
+    "native": {
+      "log": "build/qa/reflog-operations-native-2026-10-13.log",
+      "exit": 0,
+      "cases": [
+        "reflog-operations",
+        "reflog-table"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "receivers": 4,
+      "owned_receivers_reaped": true,
+      "scope": "production menu action routing and metadata/cancellation probes; callbacks capture requests without submitting mutations"
+    },
+    "site": {
+      "log": "build/qa/reflog-operations-site-2026-10-13.log",
+      "exit": 0,
+      "tests": 2
+    }
+  },
+  "implemented": [
+    "Four operation families connected to existing repository workflows",
+    "Source single/root/merge-parent and first-selected HEAD/active-merge gates",
+    "Rebase local-ref default",
+    "Unique batched raw metadata read restoring event order and duplicates",
+    "Close/refresh cancellation, snapshot/generation fences and retained Quit accounting"
+  ],
+  "remaining": [
+    "Edit Notes, patch, bisect and combination actions",
+    "Full menu order/conditions and remote/tag defaults",
+    "Physical end-to-end mutation/recovery from RefLog",
+    "Moving references and multiple merge/root failure variants",
+    "Signed grants and whole-app parity"
+  ]
+}

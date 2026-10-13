@@ -6,6 +6,7 @@ import AppKit
     var replyToTermination: (NSApplication, Bool) -> Void = { $0.reply(toApplicationShouldTerminate: $1) }
     func applicationWillTerminate(_ notification: Notification) { repositoryModel?.stopMonitoringForTermination(); repositoryModel?.finderWatches?.retire(); HistoricalPreviewFiles.discardAll(); RepositoryBrowserExportFiles.discardAll(); UnifiedDiffPreviewFiles.discardAll(); GitConfigurationPreviewFiles.discardAll(); DiffToolApplication.discardAll(); MergeToolApplication.discardAll() }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        if ReferenceLogWindowModel.activeRevisionReads > 0 { return .terminateCancel }
         if IgnoreWindowModel.activeOperations > 0 { return .terminateCancel }
         if AddWindowModel.activeOperations > 0 { return .terminateCancel }
         if CommitWindowModel.activeFileDrops > 0 { return .terminateCancel }

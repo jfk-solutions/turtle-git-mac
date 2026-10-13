@@ -126,8 +126,16 @@ import TurtleGitCore
     var onCompare: ((ComparisonRevision, ComparisonRevision) -> Void)?
     var onCheckout: ((String) -> Void)?
     var onReset: ((String) -> Void)?
+    var onMergeRevision: ((String) -> Void)?
+    var onRebaseRevision: ((String) -> Void)?
+    var onCherryPick: (([String]) -> Void)?
+    var onRevertRevisions: (([LogEntry], Int?) -> Void)?
+    static private(set) var activeRevisionReads = 0
+    private var revisionReadToken: OperationCancellation?
+    var readOperationEntries: ([ReferenceLogEntry], Set<String>, OperationCancellation) async throws -> [LogEntry]
     var onSwitchBranch: ((String) -> Void)?
     @Published private(set) var referenceNamesByHash: [String: [String]] = [:]
+    @Published private(set) var mergeActive = false
     @Published private(set) var currentHeadHash: String?
     @Published private(set) var currentBranch = ""
     @Published private(set) var hasWorkingTree = false
@@ -138,10 +146,12 @@ import TurtleGitCore
     var close: () -> Void = {}
     var selectedEntry: ReferenceLogEntry? { let chosen = entries.filter { selection.contains($0.id) }; return chosen.count == 1 ? chosen.first : nil }
     init(repository: GitRepository, access: RepositoryAccessLease?, reference: String, selecting: Bool = false, preferences: UserDefaults = .standard) {
+        readOperationEntries = { try await repository.referenceLogOperationEntries(snapshot: $0, selected: $1, cancellation: $2) }
         self.preferences = preferences; self.selecting = selecting; self.repository = repository; self.access = access; self.reference = reference; names = [reference]
     }
     func reload() {
         guard !invalidated else { return }
+        revisionReadToken?.cancel(); revisionReadToken = nil
         generation += 1; let request = generation, reference = reference; busy = true
         requestedDiffParents = Set(diffParents.keys)
         Task {
@@ -149,6 +159,7 @@ import TurtleGitCore
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let refs = try await repository.referenceLogNames(), result = try await repository.referenceLog(reference)
                 let bare = try await repository.isBare()
+                let mergeActive = try await repository.logMergeActive()
                 let head = try await repository.run(["rev-parse", "--verify", "--quiet", "--end-of-options", "HEAD"], successfulExitCodes: 0...1).text.trimmingCharacters(in: .newlines)
                 let branch = try await repository.branch()
                 let referenceNames = try await repository.referenceLogReferenceNamesByHash()
@@ -164,7 +175,7 @@ import TurtleGitCore
                 guard request == generation else { return }
                 referenceNamesByHash = referenceNames
                 currentStashHash = stashHash; currentStashIndexParent = indexParent
-                hasWorkingTree = !bare
+                hasWorkingTree = !bare; self.mergeActive = mergeActive
                 currentHeadHash = head.isEmpty ? nil : head; currentBranch = branch
                 names = Array(Set(refs + [reference])).sorted(); entries = result
                 let hashes = Set(result.map(\.hash)); diffParents = diffParents.filter { hashes.contains($0.key) }
@@ -350,7 +361,59 @@ import TurtleGitCore
         guard commandSurfaceAvailable, let text = clipboardText(ids, format: format, dates: .load(defaults: preferences)) else { return }
         pasteboard.clearContents(); pasteboard.setString(text, forType: .string)
     }
-    func invalidate() { invalidated = true; generation += 1 }
+    func operationAvailable(_ operation: ReferenceLogRevisionOperation, ids: Set<String>, mainline: Int? = nil) -> Bool {
+        let chosen = entries.filter { ids.contains($0.id) }
+        guard commandSurfaceAvailable, !selecting, hasWorkingTree, !mergeActive,
+              !chosen.isEmpty, chosen.count == ids.count else { return false }
+        switch operation {
+        case .merge, .rebase:
+            return chosen.count == 1 && chosen[0].hash != currentHeadHash && !isOnStash(chosen[0]) && (operation == .merge ? onMergeRevision != nil : onRebaseRevision != nil)
+        case .cherryPick:
+            // Source gates by the first displayed selected entry, not by every
+            // selected hash. Preserve display order for the Cherry Pick dialog.
+            return chosen[0].hash != currentHeadHash && onCherryPick != nil
+        case .revert:
+            guard onRevertRevisions != nil else { return false }
+            if chosen.count > 1 { return mainline == nil }
+            guard !isOnStash(chosen[0]), let parents = diffParents[chosen[0].hash], !parents.isEmpty else { return false }
+            if parents.count == 1 { return mainline == nil }
+            return mainline.map { (1...parents.count).contains($0) } ?? false
+        }
+    }
+    func performOperation(_ operation: ReferenceLogRevisionOperation, ids: Set<String>, mainline: Int? = nil) {
+        guard operationAvailable(operation, ids: ids, mainline: mainline) else { return }
+        let selected = entries.filter { ids.contains($0.id) }
+        if operation == .merge { onMergeRevision?(selected[0].hash); return }
+        if operation == .rebase {
+            let names = referenceNamesByHash[selected[0].hash] ?? []
+            let target = names.first { $0.hasPrefix("refs/heads/") } ?? names.first ?? selected[0].hash
+            onRebaseRevision?(target); return
+        }
+        let token = OperationCancellation(), request = generation, reference = self.reference
+        revisionReadToken = token; busy = true; error = nil; Self.activeRevisionReads += 1
+        let read = readOperationEntries, root = repository.root
+        Task { [weak self, access] in
+            defer {
+                Self.activeRevisionReads -= 1; withExtendedLifetime(access) {}
+                if let self, !self.invalidated, self.generation == request, self.revisionReadToken === token {
+                    self.revisionReadToken = nil; self.busy = false
+                }
+            }
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let metadata = try await read(selected, ids, token)
+                guard let self, !self.invalidated, self.generation == request, self.reference == reference,
+                      !token.isCancelled, self.entries.filter({ ids.contains($0.id) }) == selected else { return }
+                self.revisionReadToken = nil; self.busy = false
+                if operation == .cherryPick { self.onCherryPick?(metadata.map(\.hash)) }
+                else { self.onRevertRevisions?(metadata, mainline) }
+            } catch {
+                guard let self, !self.invalidated, self.generation == request, !token.isCancelled else { return }
+                self.revisionReadToken = nil; self.busy = false; self.error = error.localizedDescription
+            }
+        }
+    }
+    func invalidate() { invalidated = true; generation += 1; revisionReadToken?.cancel(); revisionReadToken = nil }
     func requestDiffParents(_ entry: ReferenceLogEntry) {
         guard !invalidated, entries.contains(where: { $0.id == entry.id && $0.hash == entry.hash }), requestedDiffParents.insert(entry.hash).inserted else { return }
         let request = generation
@@ -521,5 +584,18 @@ private struct ReferenceLogFindDialog: View {
             HStack { Spacer(); Button("Find Next") { model.findNext() }.disabled(model.find.isEmpty || model.busy).keyboardShortcut(.defaultAction)
                 Button("Cancel", action: close).keyboardShortcut(.cancelAction) }
         }.padding(20).onAppear { focused = true }
+    }
+}
+
+enum ReferenceLogRevisionOperation: CaseIterable {
+    case merge, rebase, cherryPick, revert
+    var icon: MenuIcon { switch self { case .merge: return .merge; case .rebase: return .rebase; case .cherryPick: return .cherryPick; case .revert: return .revert } }
+    func title(branch: String, count: Int) -> String {
+        switch self {
+        case .merge: return "Merge into \"" + branch + "\"…"
+        case .rebase: return "Rebase \"" + branch + "\" onto this…"
+        case .cherryPick: return count == 1 ? "Cherry pick this commit…" : "Cherry pick selected commits…"
+        case .revert: return count == 1 ? "Revert change by this commit" : "Revert changes by these commits"
+        }
     }
 }

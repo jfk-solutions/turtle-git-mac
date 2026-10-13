@@ -1526,6 +1526,10 @@ import TurtleGitCore
             guard let parent = controller?.window, parent.attachedSheet == nil else { return }
             self?.showSwitchProgress(repository: repository, access: access, reference: reference, parent: parent)
         }
+        controller.model.onMergeRevision = { [weak self] hash in self?.showMerge(repository: repository, access: access, revision: hash) }
+        controller.model.onRebaseRevision = { [weak self] upstream in self?.showRebase(repository: repository, access: access, upstream: upstream) }
+        controller.model.onCherryPick = { [weak self] commits in self?.showRebase(repository: repository, access: access, cherryPick: commits) }
+        controller.model.onRevertRevisions = { [weak self, weak controller] entries, mainline in self?.showHistoryRevert(repository: repository, access: access, entries: entries, mainline: mainline, owner: controller?.window) }
         controller.model.onApply = { [weak self] hash in self?.showStashRestore(repository: repository, access: access, pop: false, reference: hash) }
         controller.model.onChanged = { [weak self] output in
             self?.refreshRepositoryLogs(root)

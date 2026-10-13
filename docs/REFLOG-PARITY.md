@@ -493,3 +493,8 @@ not established by these checks.
 The report list now uses native AppKit selection, saved columns, owned context
 menus and Find scrolling. See [native RefLog list](REFLOG-TABLE-PARITY.md) for the
 retained actions, stale-selector gates and remaining physical/source acceptance.
+
+Merge/Rebase/Cherry Pick/Revert now use the existing native revision workflows
+from RefLog, with owned immutable metadata reads and source parent gates. See
+[RefLog operation handoffs](REFLOG-OPERATIONS-PARITY.md) for reviewed routing and
+remaining end-to-end/physical/signed scope.

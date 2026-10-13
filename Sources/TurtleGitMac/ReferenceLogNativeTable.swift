@@ -180,6 +180,22 @@ struct ReferenceLogNativeTable: NSViewRepresentable {
                 }
                 menu.addItem(.separator())
             }
+            if !model.selecting, !ids.isEmpty {
+                for operation in [ReferenceLogRevisionOperation.merge, .rebase, .cherryPick] {
+                    if model.operationAvailable(operation, ids: ids) {
+                        add(operation.title(branch: model.currentBranch, count: ids.count), operation.icon) { model.performOperation(operation, ids: ids) }
+                    }
+                }
+                if ids.count == 1, let entry = snapshot.first, let parents = model.diffParents[entry.hash], parents.count > 1 {
+                    if parents.contains(where: { model.operationAvailable(.revert, ids: ids, mainline: $0.number) }) {
+                        let child = submenu(ReferenceLogRevisionOperation.revert.title(branch: model.currentBranch, count: 1), .revert)
+                        for parent in parents { add(parent.title, .revert, to: child, enabled: model.operationAvailable(.revert, ids: ids, mainline: parent.number)) { model.performOperation(.revert, ids: ids, mainline: parent.number) } }
+                    }
+                } else if model.operationAvailable(.revert, ids: ids) {
+                    add(ReferenceLogRevisionOperation.revert.title(branch: model.currentBranch, count: ids.count), .revert) { model.performOperation(.revert, ids: ids) }
+                }
+                menu.addItem(.separator())
+            }
             let clipboard = submenu("Copy to clipboard", .copy)
             menu.items.last?.isEnabled = live() && !ids.isEmpty
             for (title, format) in [("Full data", ReferenceLogCopyFormat.full), ("SHA-1", .hashes), ("Messages", .messages)] { add(title, .copy, to: clipboard, enabled: !ids.isEmpty) { model.copy(ids, format: format, pasteboard: pasteboard) } }
