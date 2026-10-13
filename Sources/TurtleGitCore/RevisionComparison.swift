@@ -129,7 +129,7 @@ extension GitRepository {
         }
         return RevisionComparisonSnapshot(root: root, from: snapshot.from, to: snapshot.to, fromDetails: snapshot.fromDetails, toDetails: snapshot.toDetails, files: files, options: snapshot.options)
     }
-    public func revisionComparison(from: ComparisonRevision, to: ComparisonRevision, options: RevisionDiffOptions = RevisionDiffOptions(), cancellation: OperationCancellation? = nil, paths: [String] = []) throws -> RevisionComparisonSnapshot {
+    public func revisionComparison(from: ComparisonRevision, to: ComparisonRevision, options: RevisionDiffOptions = RevisionDiffOptions(), useMailmap: Bool = GitIdentityDisplay().useMailmap, cancellation: OperationCancellation? = nil, paths: [String] = []) throws -> RevisionComparisonSnapshot {
         let scope = paths.filter { $0 != "." }
         for path in scope { _ = try restoreLocation(path) }
         let token = cancellation ?? OperationCancellation()
@@ -151,7 +151,7 @@ extension GitRepository {
         }
         let args = try comparisonArguments(from: old, to: new, options: options, cancellation: token)
         let files = CommitFile.parse(names: try run(args + ["--name-status", "-z", "--"] + scope, cancellation: token).stdout, statistics: try run(args + ["--numstat", "-z", "--"] + scope, cancellation: token).stdout, raw: try run(args + ["--raw", "-z", "--"] + scope, cancellation: token).stdout).filter { $0.hasStatistics || $0.isSubmodule }
-        return RevisionComparisonSnapshot(root: root, from: old, to: new, fromDetails: try comparisonDetails(old, cancellation: token), toDetails: try comparisonDetails(new, cancellation: token), files: files, options: options, scopePaths: scope)
+        return RevisionComparisonSnapshot(root: root, from: old, to: new, fromDetails: try comparisonDetails(old, useMailmap: useMailmap, cancellation: token), toDetails: try comparisonDetails(new, useMailmap: useMailmap, cancellation: token), files: files, options: options, scopePaths: scope)
     }
     public func revisionComparisonPatch(_ snapshot: RevisionComparisonSnapshot, paths: [String] = []) throws -> String {
         String(decoding: try revisionComparisonPatchData(snapshot, paths: paths), as: UTF8.self)
@@ -163,9 +163,9 @@ extension GitRepository {
         for path in selected { _ = try restoreLocation(path) }
         return try run(comparisonArguments(from: snapshot.from, to: snapshot.to, options: snapshot.options, cancellation: token) + ["--"] + Set(selected).sorted(), cancellation: token).stdout
     }
-    private func comparisonDetails(_ side: ComparisonRevision, cancellation: OperationCancellation? = nil) throws -> ComparisonRevisionDetails? {
+    private func comparisonDetails(_ side: ComparisonRevision, useMailmap: Bool, cancellation: OperationCancellation? = nil) throws -> ComparisonRevisionDetails? {
         guard case .revision(let hash) = side else { return nil }
-        let fields = try run(["show", "--encoding=UTF-8", "--no-patch", "--no-notes", "--format=%h%x00%s%x00%aN%x00%at%x00%ct", hash, "--"], cancellation: cancellation).text.trimmingCharacters(in: .newlines).components(separatedBy: "\0")
+        let fields = try run(["show", "--encoding=UTF-8", "--no-patch", "--no-notes", "--format=%h%x00%s%x00" + GitIdentityDisplay(useMailmap: useMailmap).authorName + "%x00%at%x00%ct", hash, "--"], cancellation: cancellation).text.trimmingCharacters(in: .newlines).components(separatedBy: "\0")
         guard fields.count == 5 else { throw RevisionComparisonFailure.range }
         return ComparisonRevisionDetails(shortHash: fields[0], subject: fields[1], author: fields[2], authorDate: TimeInterval(fields[3]).map(Date.init(timeIntervalSince1970:)), committerDate: TimeInterval(fields[4]).map(Date.init(timeIntervalSince1970:)))
     }

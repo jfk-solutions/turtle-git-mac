@@ -17,14 +17,14 @@ public struct CommitContainingReferences: Sendable {
 }
 
 extension GitRepository {
-    public func commitContainingReferences(_ revision: String, includeCompletion: Bool = true, cancellation: OperationCancellation? = nil) throws -> CommitContainingReferences {
+    public func commitContainingReferences(_ revision: String, includeCompletion: Bool = true, useMailmap: Bool = GitIdentityDisplay().useMailmap, cancellation: OperationCancellation? = nil) throws -> CommitContainingReferences {
         try cancellation?.check()
         let resolved = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"], cancellation: cancellation)
         let hash = String(decoding: resolved.stdout, as: UTF8.self).trimmingCharacters(in: .newlines)
         guard (hash.count == 40 || hash.count == 64), hash.allSatisfy({ $0.isASCII && $0.isHexDigit }) else {
             throw GitFailure(arguments: [], code: -1, message: "Invalid resolved commit.")
         }
-        let shown = try run(["show", "--encoding=UTF-8", "-s", "--format=%h%x00%s%x00%aN%x00%aI", hash, "--"], cancellation: cancellation)
+        let shown = try run(["show", "--encoding=UTF-8", "-s", "--format=%h%x00%s%x00" + GitIdentityDisplay(useMailmap: useMailmap).authorName + "%x00%aI", hash, "--"], cancellation: cancellation)
         let metadata = String(decoding: shown.stdout, as: UTF8.self).trimmingCharacters(in: .newlines).components(separatedBy: "\0")
         guard metadata.count == 4 else { throw GitFailure(arguments: [], code: -1, message: "Malformed commit metadata.") }
         let references = try containingReferenceNames(["for-each-ref", "--contains=" + hash, "--format=%(refname)", "refs/heads/", "refs/remotes/", "refs/tags/"], cancellation: cancellation)

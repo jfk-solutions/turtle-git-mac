@@ -612,3 +612,6 @@ preserving filter/query/index and clearing its old list/selection. Reads and
 searches superseded by refresh cannot publish late results. Refresh requested
 behind a critical Find error waits for acknowledgment. Graph keeps its source
 initialization-only refresh route. See [the dated shared checks](qa/log-find-refresh-2026-10-10.json).
+
+Graph node and boundary-node identities now honor the supplied UseMailmap setting
+on reload. See [identity display parity](IDENTITY-DISPLAY-PARITY.md).

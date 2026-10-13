@@ -37,7 +37,7 @@ public struct WorkingCopyRevisionFailure: LocalizedError {
 }
 
 public enum WorkingCopyRevisionReader {
-    public static func read(path: URL, executable: URL = URL(fileURLWithPath: "/usr/bin/git"), skipSubmodules: Bool = false, cancellation: OperationCancellation? = nil) async throws -> WorkingCopyRevision {
+    public static func read(path: URL, executable: URL = URL(fileURLWithPath: "/usr/bin/git"), skipSubmodules: Bool = false, useMailmap: Bool = GitIdentityDisplay().useMailmap, cancellation: OperationCancellation? = nil) async throws -> WorkingCopyRevision {
         var directory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: path.path, isDirectory: &directory) else { throw WorkingCopyRevisionFailure(2, "Path does not exist: \(path.path)") }
         let probe = GitRepository(root: directory.boolValue ? path : path.deletingLastPathComponent(), executable: executable, askpass: nil)
@@ -61,7 +61,7 @@ public enum WorkingCopyRevisionReader {
         if head.exitCode == 0 {
             value.revision = head.text.trimmingCharacters(in: .newlines)
             value.branch = branch.exitCode == 0 ? branch.text.trimmingCharacters(in: .newlines) : value.revision
-            let metadata = try await repo.run(["show", "-s", "--format=%at%x00%aN%x00%aE", "HEAD"], cancellation: cancellation).stdout.split(separator: 0, omittingEmptySubsequences: false)
+            let metadata = try await repo.run(["show", "-s", "--format=%at%x00" + GitIdentityDisplay(useMailmap: useMailmap).authorName + "%x00" + GitIdentityDisplay(useMailmap: useMailmap).authorEmail, "HEAD"], cancellation: cancellation).stdout.split(separator: 0, omittingEmptySubsequences: false)
             guard metadata.count == 3, let time = Int64(String(decoding: metadata[0], as: UTF8.self)) else { throw WorkingCopyRevisionFailure(6, "Invalid commit metadata") }
             value.authorTime = time; value.author = String(decoding: metadata[1], as: UTF8.self)
             var mail = Data(metadata[2]); if mail.last == 10 { mail.removeLast() }; value.email = String(decoding: mail, as: UTF8.self)

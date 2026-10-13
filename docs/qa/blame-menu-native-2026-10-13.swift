@@ -19,6 +19,7 @@ import TurtleGitCore
         let head=try await repo.run(["rev-parse","HEAD"]).stdout,index=try Data(contentsOf:root.appendingPathComponent(".git/index"))
         let name="TurtleGit.BlameMenus.QA."+UUID().uuidString,prefs=UserDefaults(suiteName:name)!
         defer { prefs.removePersistentDomain(forName:name) }
+        try Data("Mapped Menus <mapped@example.invalid> Menus QA <menus@example.invalid>\n".utf8).write(to:root.appendingPathComponent(".mailmap"))
         let globals=GitBlamePreferences.load(),findGlobals=GitBlameFindPreferences.load()
         let owner=BlameWindowController(repository:repo,access:nil,path:"menus.cpp",revision:"HEAD",options:GitBlameOptions(),preferences:prefs)
         defer { owner.close() }
@@ -26,6 +27,22 @@ import TurtleGitCore
         window.contentView?.layoutSubtreeIfNeeded()
         func source()->NSTextView? { descendants(window.contentView!).compactMap { $0 as? NSTextView }.first { $0.accessibilityLabel()=="Blame source text" } }
         try await wait { !model.busy && !model.syntaxWorking && source()?.string==text }
+        let layout = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/GraphLayout/graph-layout")
+        let graph = RevisionGraphWindowModel(repository: repo, access: nil, preferences: prefs, layoutExecutable: layout)
+        defer { graph.invalidate() }
+        var copied = ""; model.writeClipboard = { copied = $0 }
+        for enabled in [false, true] {
+            prefs.set(enabled, forKey: "UseMailmap")
+            let author = enabled ? "Mapped Menus" : "Menus QA"
+            model.reload(); graph.load()
+            try await wait { !model.busy && !graph.busy }
+            try require(model.lines.first?.author == author, "Annotation identity disagrees with history mailmap policy")
+            try require(model.historyEntries.first?.author == author, "Blame history ignored private mailmap policy")
+            try require(graph.nodes.first?.author == author, "Graph ignored private mailmap policy")
+            model.copyLogMessage(model.historyEntries.first!.hash)
+            try await wait { !model.copyingLog }
+            try require(copied.contains("Author: " + author + " <"), "Copied Blame Log ignored mailmap policy")
+        }
         var focus:NSWindow?=window
         let context=BlameMenuContext(keyWindow:{ focus });context.refresh()
         try require(context.focused && context.available && !context.allowed(.nextChange),"Initial focus/next-change menu gates")

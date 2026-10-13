@@ -339,6 +339,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     }
     private var currentOptions: GitBlameOptions {
         var options = GitBlameOptions()
+        options.useMailmap = GitIdentityDisplay(defaults: labelDefaults).useMailmap
         options.ignoreWhitespace = ignoreWhitespace; options.detectionMode = detectionMode; options.encoding = sourceEncoding
         options.onlyFirstParent = onlyFirstParent
         options.showCompleteLog = showCompleteLog; options.followRenames = followRenames
@@ -442,7 +443,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
                 let result = try await repository.blame(path: path, revision: revision, options: options)
                 let entries = try await repository.blameHistory(result, options: options)
                 guard request == generation else { return }
-                install(result,history:entries,options:options)
+                install(result.applyingDisplayIdentities(entries),history:entries,options:options)
                 busy = false; applyPendingLine();onLoaded?()
             } catch {
                 if request == generation {
@@ -478,10 +479,11 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
         let request = generation
         clipboardGeneration += 1; let clipboardRequest = clipboardGeneration
         copyingLog = true; error = nil
+        let useMailmap = GitIdentityDisplay(defaults: labelDefaults).useMailmap
         Task {
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let text = try await repository.commitLogText(revision: hash)
+                let text = try await repository.commitLogText(revision: hash, useMailmap: useMailmap)
                 guard request == generation, clipboardRequest == clipboardGeneration else { return }
                 copy(text)
             } catch {
@@ -489,9 +491,10 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
             }
         }
     }
+    var writeClipboard: (String) -> Void = { text in NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string) }
     func copy(_ text: String) {
         clipboardGeneration += 1; copyingLog = false
-        NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
+        writeClipboard(text)
     }
     func findLine(previous: Bool) {
         guard canFind,!find.isEmpty,!lines.isEmpty else { return }

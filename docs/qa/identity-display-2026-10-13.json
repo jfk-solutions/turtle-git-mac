@@ -1,0 +1,57 @@
+{
+  "date": "2026-10-13",
+  "scope": "UseMailmap display-policy consumers across Graph, Blame history/annotations/Copy Log, Contains Commit, revision summaries and WCRev",
+  "source": "7338078f8ddd924b8cddee35f512f2286072136d src/Git/GitMailmap.cpp ShouldLoadMailmap and GitRev.cpp ApplyMailmap",
+  "validation": {
+    "core_group": {
+      "log": "build/qa/identity-display-core-2026-10-13.log",
+      "exit": 0,
+      "tests": 51
+    },
+    "core_annotation_final": {
+      "log": "build/qa/identity-display-core-final-2026-10-13.log",
+      "exit": 0,
+      "tests": 2,
+      "scope": "affected identity tests after annotation display normalization"
+    },
+    "debug": {
+      "log": "build/qa/identity-display-debug-final-2026-10-13.log",
+      "exit": 0
+    },
+    "native": {
+      "log": "build/qa/identity-display-native-2026-10-13.log",
+      "exit": 0,
+      "receivers": 2,
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "checks": [
+        "private preference toggles",
+        "Graph node identities",
+        "Blame annotation/history identities",
+        "injected Copy Log writer",
+        "existing owned-menu lifecycle cases"
+      ],
+      "owned_receivers_reaped": true
+    },
+    "bundle": {
+      "log": "build/qa/identity-display-bundle-2026-10-13.log",
+      "exit": 0,
+      "scope": "unsigned Debug source provenance/architecture/runpaths and existing runtime/Finder/icon/license packaging checks"
+    },
+    "site": {
+      "log": "build/qa/identity-display-site-2026-10-13.log",
+      "exit": 0,
+      "tests": 2
+    }
+  },
+  "remaining": [
+    "Physical Settings Apply and VoiceOver",
+    "Missing-history copied-origin identities retain porcelain response",
+    "Editing mailmap during reads and inherited/global mailmap sources",
+    "Secondary Graph ancestry/tooltip acceptance",
+    "Signed App Store invocation",
+    "Full source/UI/Finder parity"
+  ]
+}

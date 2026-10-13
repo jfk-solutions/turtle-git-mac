@@ -16,6 +16,7 @@ public enum GitBlameDetectionMode: Int, CaseIterable, Identifiable, Sendable {
     public var betweenFiles: Bool { rawValue >= Self.modifiedFiles.rawValue }
 }
 public struct GitBlameOptions: Equatable, Sendable {
+    public var useMailmap = true
     public var ignoreWhitespace = false
     public var onlyFirstParent = false
     public var showCompleteLog = true
@@ -66,6 +67,21 @@ public struct GitBlameSnapshot: Sendable {
     public let contents: Data
     public let encoding: GitBlameEncoding
     public let lines: [GitBlameLine]
+    /// Git's porcelain annotation can apply mailmap automatically. The viewer's
+    /// already-fetched history supplies the explicit display policy for the same
+    /// commits without another query or any change to attribution/source bytes.
+    public func applyingDisplayIdentities(_ history: [LogEntry]) -> Self {
+        var identities: [String: LogEntry] = [:]
+        for entry in history { identities[entry.hash] = entry }
+        let displayed = lines.map { line -> GitBlameLine in
+            guard let entry = identities[line.hash] else { return line }
+            return GitBlameLine(hash: line.hash, originalLine: line.originalLine, number: line.number,
+                author: entry.author, email: entry.email, date: line.date, timezone: line.timezone,
+                summary: line.summary, filename: line.filename, boundary: line.boundary,
+                source: line.source, sourceBytes: line.sourceBytes)
+        }
+        return Self(revision: revision, path: path, contents: contents, encoding: encoding, lines: displayed)
+    }
 }
 public struct GitBlameParentComparison: Identifiable, Sendable {
     public var id: String { revision }
@@ -253,7 +269,8 @@ public enum GitBlameParser {
 extension GitRepository {
     public func blameHistory(_ snapshot: GitBlameSnapshot, options: GitBlameOptions, cancellation:OperationCancellation? = nil) throws -> [LogEntry] {
         try cancellation?.check()
-        let format = "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00%ct%x00%cn%x00%ce%x00%cI%x00"
+        let identity = GitIdentityDisplay(useMailmap: options.useMailmap)
+        let format = "--format=%H%x00%P%x00" + identity.authorName + "%x00" + identity.authorEmail + "%x00%aI%x00%s%x00%B%x00%ct%x00" + identity.committerName + "%x00" + identity.committerEmail + "%x00%cI%x00"
         func records(_ data: Data) throws -> [(LogEntry, Int64)] {
             let fields = String(decoding: data, as: UTF8.self).components(separatedBy: "\0")
             var result: [(LogEntry, Int64)] = []

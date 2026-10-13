@@ -85,3 +85,6 @@ bundled Git, including both unchanged upstream templates. SwiftPM and Debug
 builds, the unsigned bundle audit and two documentation checks pass. No GUI
 instances were launched. [QA evidence](qa/wcrev-2026-10-13.json) records the scope;
 this is not full source or signed distribution certification.
+
+WCRev now honors the saved UseMailmap setting and its reader accepts an explicit
+policy for isolated callers. See [identity display parity](IDENTITY-DISPLAY-PARITY.md).

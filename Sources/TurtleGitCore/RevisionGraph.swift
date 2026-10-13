@@ -5,6 +5,7 @@ import Foundation
 
 /// The two branch checkboxes and From/To fields of IDD_REVGRAPHFILTER.
 public struct RevisionGraphOptions: Sendable {
+    public var useMailmap = true
     public var from = ""
     public var to = ""
     public var onlyCurrentBranch = false
@@ -112,7 +113,9 @@ extension GitRepository {
             let kind: HistoryReferenceKind = name.hasPrefix("refs/tags/") && reference.peeled != nil ? .annotatedTag : HistoryReferenceLabel.shortName(name).kind
             refs[reference.target, default: []].append(RevisionReference(name: name, isCurrent: currentBranch.map { GitReferenceName.equal($0, name) } ?? false, kind: kind))
         }
-        var arguments = ["log", "--encoding=UTF-8", "--format=%H%x00%P%x00%an%x00%aI%x00%B%x00%ae%x00%cn%x00%ce%x00", "--topo-order", "--parents", "--simplify-by-decoration"]
+        let identity = GitIdentityDisplay(useMailmap: options.useMailmap)
+        let identityFormat = identity.authorName + "%x00%aI%x00%B%x00" + identity.authorEmail + "%x00" + identity.committerName + "%x00" + identity.committerEmail + "%x00"
+        var arguments = ["log", "--encoding=UTF-8", "--format=%H%x00%P%x00" + identityFormat, "--topo-order", "--parents", "--simplify-by-decoration"]
         if options.showBranchingsAndMerges { arguments.append("--sparse") }
         // Upstream gives Only Local Branches precedence if both flags are set.
         if options.onlyLocalBranches { arguments.append("--branches") }
@@ -184,7 +187,7 @@ extension GitRepository {
         for node in nodes {
             for parent in node.parents where known.insert(parent).inserted {
                 try cancellation?.check()
-                let metadata = (try? output(["show", "--no-patch", "--encoding=UTF-8", "--format=%an%x00%aI%x00%B%x00%ae%x00%cn%x00%ce%x00", parent, "--"]))?.components(separatedBy: "\0") ?? []
+                let metadata = (try? output(["show", "--no-patch", "--encoding=UTF-8", "--format=" + identityFormat, parent, "--"]))?.components(separatedBy: "\0") ?? []
                 try cancellation?.check()
                 nodes.append(RevisionGraphNode(hash: parent, references: refs[parent] ?? [], isHead: parent == head, isBoundary: true,
                     author: metadata.count >= 6 ? metadata[0] : "", authorDate: metadata.count >= 6 ? metadata[1] : "", message: metadata.count >= 6 ? metadata[2] : "",

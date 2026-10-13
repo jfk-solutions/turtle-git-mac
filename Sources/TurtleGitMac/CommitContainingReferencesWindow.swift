@@ -91,6 +91,7 @@ private final class CommitReferencesWindow: NSWindow {
         let name = revision.stringValue
         if reloadCompletion { completionCache = nil; revision.removeAllItems(); revision.stringValue = name }
         let cancellation = OperationCancellation(), generation = UUID(); request = generation; token = cancellation; busy = true; status.stringValue = "Loading…"; updateAvailability()
+        let useMailmap = GitIdentityDisplay(defaults: preferences).useMailmap
         worker = Task { [weak self] in
             guard let self else { return }
             defer { withExtendedLifetime(access) {} }
@@ -114,7 +115,7 @@ private final class CommitReferencesWindow: NSWindow {
                 guard !name.isEmpty else { busy = false; token = nil; worker = nil; status.stringValue = ""; updateAvailability(); return }
                 let data: CommitContainingReferences
                 if let read { data = try await read(name, cancellation) }
-                else { data = try await repository.commitContainingReferences(name, includeCompletion: false, cancellation: cancellation) }
+                else { data = try await repository.commitContainingReferences(name, includeCompletion: false, useMailmap: useMailmap, cancellation: cancellation) }
                 guard !closed, request == generation, !cancellation.isCancelled else { return }
                 snapshot = data; busy = false; token = nil; worker = nil
                 subject.stringValue = data.abbreviatedHash + ": " + data.subject; subject.toolTip = HistoryDateSettings.load(defaults: preferences).format(data.authorDate, absolute: true) + "  " + data.author

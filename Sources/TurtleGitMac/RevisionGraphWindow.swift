@@ -93,7 +93,9 @@ final class RevisionGraphSurface: NSView {
     func load() {
         guard !closed, !busy else { return }
         busy = true; error = nil; changed()
-        let token = OperationCancellation(), request = UUID(), options = self.options
+        let token = OperationCancellation(), request = UUID()
+        var options = self.options
+        options.useMailmap = GitIdentityDisplay(defaults: preferences).useMailmap
         cancellation = token; generation = request
         worker = Task { [weak self] in
             guard let self else { return }

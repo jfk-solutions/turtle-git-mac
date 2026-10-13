@@ -1086,3 +1086,6 @@ Busy, unrelated and retired owners are guarded at invocation, and document
 replacement changes the observed model. Full docking/floating placement, encoding
 category/source order, displayed global menus and physical/accessibility/signed
 acceptance remain open. Validation is recorded for the complete related batch.
+
+Blame annotation/history/properties and Copy Log now share the supplied UseMailmap
+display choice. See [identity display parity](IDENTITY-DISPLAY-PARITY.md).
