@@ -2,6 +2,35 @@ import XCTest
 @testable import TurtleGitCore
 
 final class WorkingFileDeleteTests: XCTestCase {
+    func testCancellationStopsStatusInspectionBeforeDeletingOrLockingIndex() async throws {
+        let (root, repository, _) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let path = "unversioned", bytes = Data("preserved\n".utf8)
+        try bytes.write(to: root.appendingPathComponent(path))
+        let selected = try await repository.status(refreshIndex: false).filter { $0.path == path }
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let helper = root.appendingPathComponent("slow-git"), ready = root.appendingPathComponent("ready")
+        let script = """
+        #!/bin/sh
+        if [ "$4" = status ]; then : > "$3/ready"; /bin/sleep 30; fi
+        exec /usr/bin/git "$@"
+        """
+        try Data(script.utf8).write(to: helper)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
+        let slow = GitRepository(root: root, executable: helper), token = OperationCancellation()
+        let task = Task { try await slow.deleteWorkingFiles(selected, permanently: true, cancellation: token) }
+        for _ in 0..<500 {
+            if FileManager.default.fileExists(atPath: ready.path) { break }
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        let started = FileManager.default.fileExists(atPath: ready.path); token.cancel()
+        do { _ = try await task.value; XCTFail("Cancelled deletion completed") } catch is GitCommandCancellationFailure {} catch is OperationCancellationFailure {}
+        XCTAssertTrue(started)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), bytes)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent(".git/index.lock").path))
+    }
+
     func testTrashPreservesLiteralBinaryContentsAndUnrelatedStaging() async throws {
         let (root, repository, tracked) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

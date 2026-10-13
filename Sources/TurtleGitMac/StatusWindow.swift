@@ -24,6 +24,33 @@ struct StatusRow: Identifiable {
     var sizeText: String { metadata?.sizeText ?? "–" }
 }
 
+enum StatusFileCommand: String, CaseIterable {
+    case compareTwo = "Compare two files", log = "Show log", oldNameLog = "Show log of old name", blame = "Blame"
+    case export = "Export…", editor = "View revision in alternative editor", open = "Open", openWith = "Open With…", reveal = "Reveal in Finder", delete = "Delete"
+    var icon: MenuIcon {
+        switch self {
+        case .compareTwo: return .compare
+        case .log, .oldNameLog: return .log
+        case .blame: return .blame
+        case .export: return .export
+        case .editor: return .editor
+        case .open, .openWith: return .open
+        case .reveal: return .explore
+        case .delete: return .remove
+        }
+    }
+}
+struct StatusFileMenuSnapshot {
+    let generation: UUID
+    let entries: [StatusEntry]
+    let mark: StatusEntry?
+    let commands: [StatusFileCommand]
+}
+private struct StatusFileActionFailure: LocalizedError {
+    let message: String
+    var errorDescription: String? { message }
+}
+
 final class StatusNativeWindow: NSWindow {
     var refresh: () -> Void = {}
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
@@ -65,6 +92,27 @@ final class StatusNativeWindow: NSWindow {
         }
 
 
+        model.chooseApplication = { [weak window] in
+            guard let window, window.attachedSheet == nil else { return nil }
+            let panel = NSOpenPanel(); panel.title = "Open With"; panel.prompt = "Open"
+            panel.allowedContentTypes = [.applicationBundle]; panel.canChooseDirectories = false; panel.allowsMultipleSelection = false
+            panel.directoryURL = URL(fileURLWithPath: "/Applications", isDirectory: true)
+            return await withCheckedContinuation { reply in panel.beginSheetModal(for: window) { reply.resume(returning: $0 == .OK ? panel.url : nil) } }
+        }
+        model.chooseExportFolder = { [weak window] in
+            guard let window, window.attachedSheet == nil else { return nil }
+            let panel = NSOpenPanel(); panel.title = "Export working files"; panel.prompt = "Export"
+            panel.canChooseFiles = false; panel.canChooseDirectories = true; panel.canCreateDirectories = true; panel.allowsMultipleSelection = false
+            return await withCheckedContinuation { reply in panel.beginSheetModal(for: window) { reply.resume(returning: $0 == .OK ? panel.url : nil) } }
+        }
+        model.confirmDeletion = { [weak window] paths, permanently in
+            guard let window, window.attachedSheet == nil else { return false }
+            let alert = NSAlert(); alert.messageText = permanently ? "Permanently delete the selected paths?" : "Move the selected paths to Trash?"
+            alert.informativeText = "\(paths.count) selected item(s). Their index entries will also be removed." + (permanently ? " This cannot be undone." : " Files moved to Trash can be recovered in Finder.")
+            alert.addButton(withTitle: "No"); alert.addButton(withTitle: "Yes")
+            return await withCheckedContinuation { reply in alert.beginSheetModal(for: window) { reply.resume(returning: $0 == .alertSecondButtonReturn) } }
+        }
+
         DialogGeometry.attach(window, identifier: "StatusWindowController")
     }
     private func savePatch(_ bytes: Data) {
@@ -83,6 +131,7 @@ final class StatusNativeWindow: NSWindow {
     }
     func windowWillClose(_ notification: Notification) {
         guard !closingStatus else { return }; closingStatus = true
+        if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .cancel); sheet.orderOut(nil) }
         model.invalidate(); lfsOperation?.close(); lfsOperation = nil
         model.unifiedWindow?.close(); onClosed()
     }
@@ -118,7 +167,8 @@ final class StatusNativeWindow: NSWindow {
     var onLFSOperation: ([String], Bool) -> Bool = { _, _ in false }
     @Published var files: [WorkingTreeFile] = []
     @Published var statistics: [String: CommitFile] = [:]
-    @Published var selection = Set<String>()
+    private var menuGeneration = UUID()
+    @Published var selection = Set<String>() { didSet { if selection != oldValue { menuGeneration = UUID() } } }
     @Published var sortOrder = [StatusFileSort(column: .path)]
     @Published var filter = WorkingTreeFilter()
     @Published var branch = ""
@@ -129,6 +179,27 @@ final class StatusNativeWindow: NSWindow {
     var unifiedViewerBusy: Bool { unifiedWindow?.model.busy == true || unifiedWindow?.window?.attachedSheet != nil }
     var close: () -> Void = {}
     var savePatch: (Data) -> Void = { _ in }
+    var onBlame: (String) -> Void = { _ in }
+    var onCompareTwoFiles: ([String]) -> Void = { _ in }
+    var chooseApplication: () async -> URL? = { nil }
+    var chooseExportFolder: () async -> URL? = { nil }
+    var confirmDeletion: ([String], Bool) async -> Bool = { _, _ in false }
+    var openWorkingFile: (URL, URL?) async throws -> Void = { url, application in
+        if let application {
+            try await withCheckedThrowingContinuation { (reply: CheckedContinuation<Void, Error>) in
+                NSWorkspace.shared.open([url], withApplicationAt: application, configuration: NSWorkspace.OpenConfiguration()) { _, error in
+                    if let error { reply.resume(throwing: error) } else { reply.resume() }
+                }
+            }
+        } else if !NSWorkspace.shared.open(url) { throw StatusFileActionFailure(message: "Could not open " + url.lastPathComponent + ".") }
+    }
+    var openAlternativeEditor: (URL) async throws -> Void = { url in
+        try await withCheckedThrowingContinuation { (reply: CheckedContinuation<Void, Error>) in
+            AlternativeEditor.open(url) { error in
+                if let error { reply.resume(throwing: StatusFileActionFailure(message: error)) } else { reply.resume() }
+            }
+        }
+    }
     var onAction: (RepositoryAction, [String]) -> Void = { _, _ in }
     var onChanged: () -> Void = {}
     init(repository: GitRepository, access: RepositoryAccessLease?, defaults: UserDefaults = .standard) {
@@ -195,7 +266,7 @@ final class StatusNativeWindow: NSWindow {
     }
     func setFilter(_ value: WorkingTreeFilter) {
         guard !retired, !busy, !confirmingQuit else { return }
-        filter = value
+        menuGeneration = UUID(); filter = value
         defaults.set(value.showUnversioned, forKey: "AddBeforeCommit")
         defaults.set(value.showAllStaged, forKey: "ChangedFilesIncludeStaged")
         if !value.paths.isEmpty { defaults.set(value.wholeProject, forKey: wholeProjectKey) }
@@ -213,7 +284,7 @@ final class StatusNativeWindow: NSWindow {
     private func isLive(_ token: OperationCancellation) -> Bool {
         !retired && operationCancellation === token && !token.isCancelled
     }
-    private func runOperation(_ title: String, operation: @escaping (OperationCancellation) async throws -> Void, completed: @escaping () -> Void = {}) {
+    private func runOperation(_ title: String, operation: @escaping (OperationCancellation) async throws -> Void, completed: @escaping () -> Void = {}, failed: @escaping () -> Void = {}) {
         guard !retired, !busy, !confirmingQuit else { return }
         let token = OperationCancellation(); operationCancellation = token
         busy = true; cancelling = false; currentOperation = title; Self.activeOperations += 1
@@ -232,10 +303,12 @@ final class StatusNativeWindow: NSWindow {
                 guard !retired else { return }
                 if token.isCancelled { self.error = "Operation cancelled. Any completed changes are retained; refresh to inspect the working tree." }
                 else { self.error = error.localizedDescription }
+                busy = false; failed()
             }
         }
     }
     func reload() {
+        guard !retired, !busy, !confirmingQuit else { return }; menuGeneration = UUID()
         runOperation("Refreshing working tree…", operation: { [self] token in
             // Publish one complete snapshot. A failed/cancelled read retains the prior table.
             let nextFiles = try await readStatus(token)
@@ -313,6 +386,74 @@ final class StatusNativeWindow: NSWindow {
             }
         })
     }
+    func fileMenu(_ ids: Set<String>, mark: String? = nil) -> StatusFileMenuSnapshot {
+        let rows = sortedRows.filter { ids.contains($0.id) }, entries = rows.map { $0.file.entry }
+        let focused = files.first { $0.id == mark }?.entry ?? entries.first
+        func directory(_ row: StatusRow) -> Bool { submodules.contains(row.id) || row.metadata?.isDirectory == true }
+        var commands: [StatusFileCommand] = []
+        if rows.count == 2 && rows.allSatisfy({ !directory($0) }) { commands.append(.compareTwo) }
+        if let row = rows.first, rows.count == 1 {
+            let entry = row.file.entry
+            if ![FileState.untracked, .ignored].contains(entry.state) {
+                commands.append(.log)
+                if entry.originalPath != nil { commands.append(.oldNameLog) }
+                if !directory(row), entry.index != "A", entry.worktree != "A", entry.index != "D" { commands.append(.blame) }
+            }
+        }
+        if !rows.isEmpty, let focused, focused.state != .deleted,
+           focused.worktree != "D" { commands.append(.export) }
+        if let row = rows.first, rows.count == 1, row.file.state != .deleted, row.file.entry.worktree != "D" {
+            if !directory(row) { commands += [.editor, .open, .openWith] }
+        }
+        if let row = rows.first, rows.count == 1, row.file.entry.index != "D" { commands.append(.reveal) }
+        if focused?.canDeleteFromStatusList == true { commands.append(.delete) }
+        return StatusFileMenuSnapshot(generation: menuGeneration, entries: entries, mark: focused, commands: commands)
+    }
+    private func accepts(_ snapshot: StatusFileMenuSnapshot, duringOperation: Bool = false) -> Bool {
+        guard !retired, !confirmingQuit, (duringOperation || !busy), snapshot.generation == menuGeneration,
+              !snapshot.entries.isEmpty else { return false }
+        let current = Dictionary(files.map { ($0.id, $0.entry) }, uniquingKeysWith: { _, last in last })
+        return snapshot.entries.allSatisfy { current[$0.path] == $0 } && (snapshot.mark.map { current[$0.path] == $0 } ?? true)
+    }
+    func withFileMenu(_ snapshot: StatusFileMenuSnapshot, perform: () -> Void) {
+        guard accepts(snapshot) else { return }; perform()
+    }
+    func fileAction(_ command: StatusFileCommand, snapshot: StatusFileMenuSnapshot, permanently: Bool = false) {
+        guard accepts(snapshot), snapshot.commands.contains(command) else { return }
+        let paths = snapshot.entries.map(\.path)
+        switch command {
+        case .compareTwo: onCompareTwoFiles(paths)
+        case .log: onAction(.log, paths)
+        case .oldNameLog: if let old = snapshot.entries.first?.originalPath { onAction(.log, [old]) }
+        case .blame: onBlame(paths[0])
+        case .reveal:
+            var location = repository.root.appendingPathComponent(paths[0])
+            while !FileManager.default.fileExists(atPath: location.path), location.path != repository.root.path { location.deleteLastPathComponent() }
+            NSWorkspace.shared.activateFileViewerSelecting([location])
+        case .export:
+            runOperation("Exporting working files…", operation: { [self] token in
+                guard let folder = await chooseExportFolder(), isLive(token), accepts(snapshot, duringOperation: true) else { return }
+                let scoped = folder.startAccessingSecurityScopedResource(); defer { if scoped { folder.stopAccessingSecurityScopedResource() } }
+                _ = try await repository.exportWorkingFiles(paths: paths, to: folder, cancellation: token)
+            })
+        case .delete:
+            var changed = false
+            runOperation(permanently ? "Deleting working files…" : "Moving working files to Trash…", operation: { [self] token in
+                guard await confirmDeletion(paths, permanently), isLive(token), accepts(snapshot, duringOperation: true) else { return }
+                _ = try await repository.deleteWorkingFiles(snapshot.entries, selectionMark: snapshot.mark, permanently: permanently, cancellation: token)
+                changed = true
+                guard isLive(token) else { return }; selection.subtract(paths)
+            }, completed: { [self] in if changed { reload(); onChanged() } }, failed: { [self] in reload(); onChanged() })
+        case .editor, .open, .openWith:
+            runOperation(command.rawValue, operation: { [self] token in
+                let application = command == .openWith ? await chooseApplication() : nil
+                guard command != .openWith || application != nil, isLive(token), accepts(snapshot, duringOperation: true) else { return }
+                let url = repository.root.appendingPathComponent(paths[0])
+                if command == .editor { try await openAlternativeEditor(url) }
+                else { try await openWorkingFile(url, application) }
+            })
+        }
+    }
     func commitPaths() -> [String] { filter.wholeProject ? [] : filter.paths }
     func didRename(_ source: String, to destination: String) {
         func moved(_ path: String) -> String { path == source ? destination : path.hasPrefix(source + "/") ? destination + path.dropFirst(source.count) : path }
@@ -389,46 +530,53 @@ struct StatusDialog: View {
                 TableColumn("File size", sortUsing: StatusFileSort(column: .fileSize)) { Text($0.sizeText).foregroundStyle($0.file.entry.statusTextColor(selected: model.selection.contains($0.id))) }.width(min: 70, ideal: 100)
                 TableColumn("LFS Lock", sortUsing: StatusFileSort(column: .lfsOwner)) { Text($0.lfsOwner).foregroundStyle($0.file.entry.statusTextColor(selected: model.selection.contains($0.id))) }.width(min: 100, ideal: 160)
             }.fileListFont()
-            .background(CommitFileInteraction(rows: rows.map { .file($0.file.entry) }, leadingColumnCount: 0, keyboardDeleteEnabled: false,
+            .background(CommitFileInteraction(rows: rows.map { .file($0.file.entry) }, leadingColumnCount: 0, keyboardDeleteEnabled: true,
                 visibleColumns: Set(model.visibleColumns), availableColumns: model.availableColumns, columnText: { entry, column in
                     rowsByID[entry.path].map { model.columnText($0,column) } ?? ""
                 }, savedOrder: model.fileColumns.order, savedWidths: model.fileColumns.widths,
                 saveLayout: { model.saveColumnLayout(order: $0, widths: $1) }, setColumnVisible: { model.setColumn($0, visible: $1) },
                 resetColumns: { choose, accepted in model.requestResetColumns(choose: choose, onAccepted: accepted) }, focusedPath: $focusedPath,
-                enabled: !model.busy && !model.confirmingQuit, delete: { _,_,_ in },
+                enabled: !model.busy && !model.confirmingQuit && !model.retired, delete: { entries, mark, permanently in
+                    guard mark.canDeleteWithKeyboard else { return }
+                    model.fileAction(.delete, snapshot: model.fileMenu(Set(entries.map(\.path)), mark: mark.path), permanently: permanently)
+                },
                 copy: { entries, status in model.copy(Set(entries.map(\.path)), information: status ? .pathsAndStatus : .relativePaths) },
                 copyColumn: { entries, column in model.copy(Set(entries.map(\.path)), information: .column(column)) }, toggleCheck: { _,_ in }))
             .contextMenu(forSelectionType: String.self) { ids in
+                let snapshot = model.fileMenu(ids, mark: focusedPath)
                 TurtleGitContextMenu {
-                    Button { model.diff(ids) } label: { CommandLabel(title: "Diff", icon: .compare) }.disabled(ids.isEmpty)
-                    Button { model.unifiedDiff(ids, alternate: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.isEmpty || model.busy)
-                    Button { model.stage(ids, staged: true) } label: { CommandLabel(title: "Add / Stage", icon: .add) }.disabled(ids.isEmpty)
-                    Button { model.stage(ids, staged: false) } label: { CommandLabel(title: "Unstage", icon: .revert) }.disabled(ids.isEmpty)
+                    Button { model.withFileMenu(snapshot) { model.diff(ids) } } label: { CommandLabel(title: "Diff", icon: .compare) }.disabled(ids.isEmpty)
+                    Button { model.withFileMenu(snapshot) { model.unifiedDiff(ids, alternate: NSEvent.modifierFlags.contains(.shift)) } } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.isEmpty || model.busy)
+                    Button { model.withFileMenu(snapshot) { model.stage(ids, staged: true) } } label: { CommandLabel(title: "Add / Stage", icon: .add) }.disabled(ids.isEmpty)
+                    Button { model.withFileMenu(snapshot) { model.stage(ids, staged: false) } } label: { CommandLabel(title: "Unstage", icon: .revert) }.disabled(ids.isEmpty)
                     if ids.count == 1, let path = ids.first, let row = model.files.first(where: { $0.id == path }), ![FileState.untracked, .ignored, .deleted].contains(row.state) {
-                        Button { model.onAction(.rename, [path]) } label: { CommandLabel(title: "Rename…", icon: .rename) }
+                        Button { model.withFileMenu(snapshot) { model.onAction(.rename, [path]) } } label: { CommandLabel(title: "Rename…", icon: .rename) }
                     }
                     let selected = model.files.filter { ids.contains($0.id) }
                     if !selected.isEmpty && selected.allSatisfy({ ![FileState.normal, .untracked, .ignored].contains($0.state) }) {
-                        Button { model.onAction(.revert, selected.map(\.id)) } label: { CommandLabel(title: "Revert…", icon: .revert) }
+                        Button { model.withFileMenu(snapshot) { model.onAction(.revert, selected.map(\.id)) } } label: { CommandLabel(title: "Revert…", icon: .revert) }
                     }
                     ForEach(model.lfsActions(selected), id: \.self) { action in
-                        Button { model.setLFSLocked(ids, locked: action == .lock) } label: { CommandLabel(title: action.rawValue, icon: action == .lock ? .lock : .unlock) }.disabled(model.busy || model.confirmingQuit)
+                        Button { model.withFileMenu(snapshot) { model.setLFSLocked(ids, locked: action == .lock) } } label: { CommandLabel(title: action.rawValue, icon: action == .lock ? .lock : .unlock) }.disabled(model.busy || model.confirmingQuit)
                     }
-                    IndexFlagsMenu(files: selected) { model.setFlags($0, files: selected) }
+                    IndexFlagsMenu(files: selected) { action in model.withFileMenu(snapshot) { model.setFlags(action, files: selected) } }
                     if !selected.isEmpty && selected.allSatisfy({ $0.state == .conflicted }) {
-                        ResolveSelectionMenu(paths: selected.map(\.id), rebase: model.conflictRebase, canEdit: selected.count == 1, action: model.onAction)
+                        ResolveSelectionMenu(paths: selected.map(\.id), rebase: model.conflictRebase, canEdit: selected.count == 1, action: { action, paths in model.withFileMenu(snapshot) { model.onAction(action, paths) } })
                     }
                     if !selected.isEmpty && selected.allSatisfy({ [.untracked, .deleted].contains($0.state) }) {
-                        IgnoreSelectionMenu(paths: selected.map(\.id), action: model.onAction)
+                        IgnoreSelectionMenu(paths: selected.map(\.id), action: { action, paths in model.withFileMenu(snapshot) { model.onAction(action, paths) } })
                     }
                     Divider()
-                    Button { model.onAction(.log, Array(ids)) } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(ids.isEmpty)
-                    Button { model.reveal(ids) } label: { Label("Show in Finder", systemImage: "folder") }.disabled(ids.isEmpty)
+                    ForEach(snapshot.commands, id: \.self) { command in
+                        Button { model.fileAction(command, snapshot: snapshot, permanently: NSEvent.modifierFlags.contains(.shift)) } label: {
+                            CommandLabel(title: command.rawValue, icon: command.icon)
+                        }
+                    }
                     Menu {
-                        Button { model.copy(ids, information: .fullPaths) } label: { CommandLabel(title: "Full paths", icon: .copy) }
-                        Button { model.copy(ids) } label: { CommandLabel(title: "Relative paths", icon: .copy) }
-                        Button { model.copy(ids, information: .names) } label: { CommandLabel(title: "File/folder names", icon: .copy) }
-                        Button { model.copy(ids, information: .all) } label: { CommandLabel(title: "Copy all information to clipboard", icon: .copy) }
+                        Button { model.withFileMenu(snapshot) { model.copy(ids, information: .fullPaths) } } label: { CommandLabel(title: "Full paths", icon: .copy) }
+                        Button { model.withFileMenu(snapshot) { model.copy(ids) } } label: { CommandLabel(title: "Relative paths", icon: .copy) }
+                        Button { model.withFileMenu(snapshot) { model.copy(ids, information: .names) } } label: { CommandLabel(title: "File/folder names", icon: .copy) }
+                        Button { model.withFileMenu(snapshot) { model.copy(ids, information: .all) } } label: { CommandLabel(title: "Copy all information to clipboard", icon: .copy) }
                     } label: { CommandLabel(title: "Copy to Clipboard", icon: .copy) }.disabled(ids.isEmpty)
                 }
             } primaryAction: { ids in

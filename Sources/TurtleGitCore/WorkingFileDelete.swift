@@ -31,7 +31,7 @@ extension GitRepository {
               (selectionMark?.canDeleteFromStatusList ?? selected.contains(where: \.canDeleteFromStatusList)) else {
             throw GitFailure(arguments: ["delete"], code: 1, message: "Select unversioned, ignored or missing paths to delete.")
         }
-        let current = Dictionary(try status(refreshIndex: false).map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
+        let current = Dictionary(try status(refreshIndex: false, cancellation: cancellation).map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
         guard selected.allSatisfy({ current[$0.path] == $0 }),
               selectionMark.map({ current[$0.path] == $0 }) ?? true else {
             throw GitFailure(arguments: ["delete"], code: 1, message: "The selected files changed. Refresh before deleting.")
@@ -49,7 +49,7 @@ extension GitRepository {
                 throw GitFailure(arguments: ["delete"], code: 1, message: "Could not inspect " + location.path)
             }
         }
-        var indexBytes = try run(["rev-parse", "--git-path", "index"]).stdout
+        var indexBytes = try run(["rev-parse", "--git-path", "index"], cancellation: cancellation).stdout
         if indexBytes.last == 10 { indexBytes.removeLast() }
         let indexPath = String(decoding: indexBytes, as: UTF8.self)
         let index = indexPath.hasPrefix("/") ? URL(fileURLWithPath: indexPath) : root.appendingPathComponent(indexPath)
@@ -63,7 +63,7 @@ extension GitRepository {
         var indexed = Set<String>()
         for offset in stride(from: 0, to: paths.count, by: 64) {
             let batch = Array(paths[offset..<min(offset + 64, paths.count)])
-            for record in try run(["ls-files", "--stage", "-z", "--"] + batch).stdout.split(separator: 0) {
+            for record in try run(["ls-files", "--stage", "-z", "--"] + batch, cancellation: cancellation).stdout.split(separator: 0) {
                 guard let tab = record.firstIndex(of: 9) else { continue }
                 indexed.insert(String(decoding: record[record.index(after: tab)...], as: UTF8.self))
             }
@@ -76,7 +76,7 @@ extension GitRepository {
         if !removing.isEmpty {
             try manager.copyItem(at: index, to: privateIndex)
             for offset in stride(from: 0, to: removing.count, by: 64) {
-                _ = try run(["update-index", "--force-remove", "--"] + Array(removing[offset..<min(offset + 64, removing.count)]), environmentOverrides: ["GIT_INDEX_FILE": privateIndex.path])
+                _ = try run(["update-index", "--force-remove", "--"] + Array(removing[offset..<min(offset + 64, removing.count)]), environmentOverrides: ["GIT_INDEX_FILE": privateIndex.path], cancellation: cancellation)
             }
         }
         var removed: [String] = [], trash: [URL] = []
@@ -95,6 +95,7 @@ extension GitRepository {
             if !removing.isEmpty {
                 try handle.write(contentsOf: Data(contentsOf: privateIndex)); try handle.close()
                 if let permissions = (try? manager.attributesOfItem(atPath: index.path))?[.posixPermissions] { try manager.setAttributes([.posixPermissions: permissions], ofItemAtPath: lock.path) }
+                try cancellation?.check()
                 guard Darwin.rename(lock.path, index.path) == 0 else { throw GitFailure(arguments: ["delete"], code: 1, message: "Could not replace the Git index: " + String(cString: strerror(errno))) }
                 ownsLock = false
             }

@@ -1,0 +1,66 @@
+{
+  "date": "2026-10-14",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Working Tree two-file comparison, Log/old-name Log/Blame, alternative editor, Open/Open With, Export, Reveal and Delete menu routes",
+    "Captured selection/status/focus-mark/generation gates, including existing menu actions and keyboard Delete",
+    "Owned panels/confirmation/launch retirement and cancellable private-index deletion"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/working-tree-file-menu-build-mark-repair-2026-10-14.log"
+    },
+    "core": {
+      "exit": 0,
+      "tests": 17,
+      "scope": "WorkingFileDeleteTests and WorkingFileExportTests",
+      "log": "build/qa/working-tree-file-menu-core-2026-10-14.log",
+      "repeated": false
+    },
+    "native_initial": {
+      "exit": 1,
+      "log": "build/qa/working-tree-file-menu-native-initial-2026-10-14.log",
+      "passed": [
+        "System Git new file-menu receiver",
+        "System Git existing Working Tree lifecycle receiver"
+      ],
+      "failure": "Existing LFS fixture required keyboardDeleteEnabled=false; that expectation predates the newly ported Delete-key handling."
+    },
+    "native_final": {
+      "exit": 0,
+      "cases": 4,
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "scope": "Affected file-menu and existing LFS/Commit/Working Tree columns/routing receivers",
+      "log": "build/qa/working-tree-file-menu-native-2026-10-14.log"
+    },
+    "owned_receivers_reaped": [
+      15443,
+      15493,
+      15549,
+      15962,
+      16011,
+      16446,
+      16493
+    ],
+    "no_owned_receivers_remain": true,
+    "website": {
+      "exit": 0,
+      "log": "build/qa/working-tree-file-menu-site-2026-10-14.log"
+    }
+  },
+  "repairs": [
+    "Updated the explicit LFS fixture assertion to require the new enabled keyboard integration rather than removing its check.",
+    "The shared keyboard handler can retain a focus mark outside the highlight. Captured menu policy now retains that mark and validates its status; a new receiver check proves the mark controls eligibility without replacing selected targets. Only the affected app/native checks were repeated."
+  ],
+  "limits": [
+    "Actual external application/editor launches and physical Open With/Export/Delete panels were injected, not visually certified",
+    "Native destructive checks use private permanent unversioned deletion; broader Trash behavior is covered by existing Core tests",
+    "No submodule-specific menus or groups/changelists implemented in this batch",
+    "Full marked-row/menu enablement audit, physical Finder appearance, signed security scopes and complete application parity remain open",
+    "No complete hosted CI or refreshed App Store acceptance claim"
+  ]
+}

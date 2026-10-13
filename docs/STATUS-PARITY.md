@@ -41,8 +41,9 @@ cancelled without changing the repository. `site/assets/status.png` shows the ru
 
 ## Remaining upstream behavior
 
-- Full GitStatusListCtrl menus: revert, conflict editor, blame, index-flag changes,
-  file export/editor/open, submodules, groups/changelists and associated enablement.
+- Full GitStatusListCtrl menus: submodule-specific handoffs, groups/changelists
+  and complete marked-row enablement. Revert/conflict/index flags are available;
+  file history/Blame/export/editor/Open/deletion now have native routes below.
 - Full conditional Stash/Switch menus and post-operation behavior; the dedicated
   dialog ports remain partial.
 - Remote status checking and complete displayed/signed acceptance. Refresh ownership,
@@ -145,3 +146,41 @@ The new lifecycle and existing LFS/column receivers passed with both system
 and bundled Git; all four receivers were reaped. Only the actual failing Core
 fixture was repeated. See [results and repairs](qa/working-tree-lifecycle-2026-10-14.json). Remote status, physical scrollbar/keyboard/panel
 acceptance, signed security scopes and full status-list/menu parity remain open.
+
+## Captured file-menu workflow family — October 14, 2026
+
+The pinned GitStatusListCtrl's working-copy menu supplies two-file comparison,
+single-file Log/old-name Log/Blame, Export, alternative editor, Open/Open With,
+Explore and Delete. Working Tree now exposes these with the original source
+icons and explicit row gates. Missing tracked files retain historical Blame
+and Delete but do not offer Open or Export. Unversioned/ignored rows omit
+Log and Blame. Directories/gitlinks omit file editors and two-file comparison.
+The ChangedDlg mask excludes Save As, Restore and Prepare Diff; this batch
+does not add those excluded commands.
+
+A snapshot retains displayed row order, exact status records, the focus mark
+and a generation. The mark can sit outside the highlighted set, as in source;
+it controls Delete eligibility while the highlighted paths remain its targets.
+Selection-away/return, filter changes and refresh invalidate
+old menus. Existing Stage, flags, Ignore, Resolve, clipboard and comparison
+closures also check that snapshot before dispatch. The shared native Delete
+key integration accepts an unversioned/ignored focus mark; context Delete
+also supports a missing tracked mark. Shift requests permanent deletion.
+
+Open With and Export use dialog-owned native panels; deletion uses a default-No
+confirmation. Their pending responses retain operation/Quit ownership, repeat
+the snapshot gate and refuse late responses after retirement. External launch
+and editor errors use the shared operation diagnostics. Export retains working
+contents and relative paths independently of staged contents; directories are
+skipped by the shared source-compatible exporter. Deletion retains the shared
+fresh-status/index preflight, Trash behavior and partial-outcome diagnostics.
+All deletion Git inspections/private-index commands are now cancellable.
+Successful or failed deletion refreshes the table while retaining its error.
+
+Debug and all 17 affected Delete/Export Core tests passed. The file-menu and
+existing LFS/column receiver families passed with system and bundled Git after
+an obsolete Delete-key expectation was updated and outside-highlight focus
+marks were retained. The initial system-Git lifecycle regression also passed;
+it was not repeated. All seven initial/final receivers were reaped. See
+[results and limits](qa/working-tree-file-menu-2026-10-14.json). Actual application/editor launches, physical panels,
+Trash/Finder appearance, signed grants and full status-list parity remain open.

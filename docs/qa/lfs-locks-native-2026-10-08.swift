@@ -584,7 +584,7 @@ import TurtleGitCore
         precondition(statusTable.tableColumns.filter { !$0.isHidden }.count == 6)
         precondition(statusTable.tableColumns[1].isHidden && statusTable.tableColumns[7].isHidden)
         func statusProbe() -> CommitFileInteraction.Probe { descendants(status.window!.contentView!).compactMap { $0 as? CommitFileInteraction.Probe }.first! }
-        precondition(statusProbe().leadingColumnCount == 0 && !statusProbe().keyboardDeleteEnabled)
+        precondition(statusProbe().leadingColumnCount == 0 && statusProbe().keyboardDeleteEnabled)
         let statusChoice = statusTable.headerView!.menu!.item(withTitle: "LFS Lock")!
         status.model.selection = [unusual]
         _ = NSApplication.shared.sendAction(statusChoice.action!, to: statusChoice.target, from: statusChoice)

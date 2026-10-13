@@ -275,3 +275,14 @@ Show unversioned files and Show all staged files are remembered. Show Whole
 Project is remembered per repository for file/folder-scoped windows. Ignored
 and locally ignored flags remain choices for the current window. Successful
 refresh preserves selected paths that are still visible.
+
+Working Tree’s file menu offers history, old-name history for renames, and Blame
+for existing tracked files, including a missing file’s committed history. Select
+two files for **Compare two files**. **Open**, **Open With…** and the configured
+alternative editor use working contents. **Export…** preserves the relative
+paths and current working contents in the chosen folder.
+
+Context **Delete** asks before moving paths to Trash and removes any corresponding
+index entries. Hold Shift for permanent deletion. The Delete key applies when
+the focus mark has an unversioned or ignored working copy; context Delete also applies to missing
+tracked rows. Confirming a mixed selection acts on the entire selected set.
