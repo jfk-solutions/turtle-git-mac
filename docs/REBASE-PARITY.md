@@ -104,7 +104,7 @@ not current visual, behavior or accessibility parity.
   and old-upstream checks are now adapted; see FETCH-PARITY.md.
 - Remaining advanced Cherry Pick options, displayed patch-becomes-empty interaction and custom structural merge plans.
 - Remaining reword/author editing and complete conflict/resolution menus and tabs.
-- Remaining row targeting/shortcuts and drag reordering, customizable columns and persisted layout. Action and move shortcuts now have headless native coverage; displayed acceptance remains pending.
+- Remaining row targeting/shortcuts and commit drag reordering and physical column-layout acceptance. Customizable metadata columns and persisted layout are implemented in the October 13 batch below. Action and move shortcuts now have headless native coverage; displayed acceptance remains pending.
 - Broader hook, signing/editor/authentication, reopened-session stash restoration, streaming progress,
   cancellation, failures and signed sandbox/editor validation.
 - Broader native light/dark/contrast, keyboard, resizing and accessibility QA.
@@ -206,3 +206,40 @@ sheet](INPUT-DIALOG-PARITY.md). The revision context menu is gated while it is
 open. Retiring the Rebase owner invalidates its revision model, cancels pending
 note reads and closes the sheet without late presentation. Full physical/signed
 acceptance remains open.
+
+## Revision metadata and column layout (2026-10-13)
+
+The Rebase/Cherry Pick list now retains source REBASE, right-aligned ID, SHA-1,
+Message, Author and Date defaults and offers hidden-by-default Email, Commit Name,
+Commit Email and Commit Date columns. Hash cells carry full hashes and truncate
+visually to their width. Upstream `RebaseDlg.cpp` uses the shared Rebase column key
+and replaces Graph/Actions with REBASE/ID; the native plan's occurrence IDs and
+execution order remain separate from column order.
+
+The native header offers checkable column choices and the existing source-style
+Yes/No Reset question. Width/order/visibility persist in supplied preferences,
+shared by Rebase and Cherry Pick. Unknown/duplicate ordering and invalid widths
+are ignored; at least one column remains visible. Header drag tracking prevents
+SwiftUI refresh from resetting a drag before its final width/order is stored.
+Busy, sheet and retired ownership guard layout commands. Existing SwiftUI row
+menus and the owned keyboard/action dispatcher are preserved.
+
+Rebase readers now include raw committer name/email/date, retaining raw author
+name/email/date and message text in their original fields. One reader supplies
+ordinary plans, Cherry Pick entries and resumed replay metadata; display mailmap
+preferences do not become replayed authors. The hosting view supplies the owning
+font preferences, and Date/Commit Date use its Log date settings.
+
+The focused Core metadata check, final Debug build and four grouped native
+receivers with system/bundled Git passed. Native QA verifies declared/default
+columns, saved layout on reopening, the committer email rendered in a native cell
+using local Vision OCR, action selection, Reset, busy/closed refusal, and unchanged
+HEAD/index/global layout settings. The shared note-editor ownership regression
+also passed. The initial native test exposed missing committer metadata and was
+repaired. Attempts to inspect hidden SwiftUI text/AX cells could not verify their
+values; native cell pixels replaced that assertion without removing it.
+
+All owned receivers were reaped. Physical header drag/Reset acceptance, VoiceOver,
+conditional Bug-ID/SVN columns, commit drag ordering and full signed/replay/window
+parity remain open. A cell render is not an all-dialog visual comparison.
+See [batch evidence](qa/rebase-columns-2026-10-13.json).

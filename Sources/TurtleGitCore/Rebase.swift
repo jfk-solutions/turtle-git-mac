@@ -369,10 +369,10 @@ extension GitRepository {
         let ontoHash = options.onto.isEmpty ? upstreamHash : try rebaseRevision(options.onto)
         let symbolic = ((try? run(["rev-parse", "--symbolic-full-name", "--verify", "--end-of-options", options.branch]).text) ?? "").trimmingCharacters(in: .newlines)
         let branchReference = symbolic.hasPrefix("refs/heads/") ? symbolic : ""
-        var args = ["log", "--encoding=UTF-8", "--reverse", "--topo-order", "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00"]
+        var args = ["log", "--encoding=UTF-8", "--reverse", "--topo-order", "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00%cn%x00%ce%x00%cI%x00"]
         if !options.preserveMerges { args.append("--no-merges") }
         args += [upstreamHash + ".." + branchHash, "--"]
-        let commits = LogEntry.parseHistory(try run(args).stdout)
+        let commits = LogEntry.parseReplayHistory(try run(args).stdout)
         let cherry = try run(["cherry", upstreamHash, branchHash]).text
         let redundant = Set(cherry.split(separator: "\n").compactMap { line -> String? in
             let parts = line.split(separator: " "); return parts.count == 2 && parts[0] == "-" ? String(parts[1]) : nil
@@ -388,8 +388,8 @@ extension GitRepository {
     }
     public func rebaseCommit(_ revision: String) throws -> LogEntry {
         let hash = try rebaseRevision(revision)
-        let result = try run(["show", "--encoding=UTF-8", "-s", "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00", hash, "--"])
-        guard let entry = LogEntry.parseHistory(result.stdout).first else { throw RebaseFailure.revision }
+        let result = try run(["show", "--encoding=UTF-8", "-s", "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00%cn%x00%ce%x00%cI%x00", hash, "--"])
+        guard let entry = LogEntry.parseReplayHistory(result.stdout).first else { throw RebaseFailure.revision }
         return entry
     }
     public func remainingRebaseEntries() throws -> [RebaseEntry] {
@@ -705,5 +705,21 @@ extension GitRepository {
         try JSONEncoder().encode(updated).write(to: rebasePath("rebase-merge/turtlegit-split.json"), options: .atomic)
         if saved.parts == 0, state.squashMessage != nil { try FileManager.default.removeItem(at: rebasePath("rebase-merge/turtlegit-squash-message.json")) }
         return output
+    }
+}
+
+private extension LogEntry {
+    static func parseReplayHistory(_ data: Data) -> [LogEntry] {
+        let fields = String(decoding: data, as: UTF8.self).components(separatedBy: "\0")
+        var entries: [LogEntry] = []
+        for start in stride(from: 0, to: max(0, fields.count - 9), by: 10) {
+            let hash = fields[start].trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !hash.isEmpty else { continue }
+            var entry = LogEntry(hash: hash, author: fields[start+2], date: fields[start+4], subject: fields[start+5],
+                                 parents: fields[start+1].split(separator: " ").map(String.init), email: fields[start+3], message: fields[start+6])
+            entry.committer = fields[start+7]; entry.committerEmail = fields[start+8]; entry.committerDate = fields[start+9]
+            entries.append(entry)
+        }
+        return entries
     }
 }

@@ -16,7 +16,7 @@ import TurtleGitCore
         model = RebaseWindowModel(repository: repository, access: access, messageDefaults: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1040, height: 720), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Rebase – TurtleGit"; window.minSize = NSSize(width: 930, height: 620); window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: RebaseDialog(model: model))
+        window.contentViewController = NSHostingController(rootView: RebaseDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); model.clientHooks.windowProvider = { [weak window] in window?.attachedSheet ?? window }; window.delegate = self; window.center(); model.close = { [weak window] in window?.close() }
         model.revisionMenuLog.window = window
         notePresenter = CommitNotePresenter(parent: window, model: model.revisionMenuLog, preferences: preferences)
@@ -136,6 +136,7 @@ import TurtleGitCore
     let repository: GitRepository
     let fullCommitMessageOnLogLine: Bool
     private let access: RepositoryAccessLease?
+    var columnPreferences: UserDefaults { messageDefaults }
     private let messageDefaults: UserDefaults
     lazy var clientHooks = ClientHookSession(preferences: messageDefaults)
     var repositoryAccess: RepositoryAccessLease? { access }
@@ -747,10 +748,14 @@ struct RebaseRevisionMenuPresentation: ViewModifier {
 }
 
 struct RebaseReplayCell<Content: View>: View {
+    @AppStorage("LogFontForLogCtrl") private var useLogFont = false
+    @AppStorage("LogFontName") private var fontName = MessageEditorFont.defaultName
+    @AppStorage("LogFontSize") private var fontSize = MessageEditorFont.defaultSize
     let entry: RebaseEntry
     @ViewBuilder let content: () -> Content
     var body: some View {
         content()
+            .font(useLogFont ? Font(MessageEditorFont.resolve(name: fontName, size: fontSize)) : nil)
             .foregroundStyle(entry.progress == .completed || entry.action == .skip ? Color.secondary : Color.primary)
             .fontWeight(entry.progress == .current ? .bold : .regular)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -763,6 +768,11 @@ struct RebaseDialog: View {
     @ObservedObject var model: RebaseWindowModel
     @AppStorage("LogFontName") private var fontName = MessageEditorFont.defaultName
     @AppStorage("LogFontSize") private var fontSize = MessageEditorFont.defaultSize
+    @AppStorage("LogFontForLogCtrl") private var useLogFont = false
+    @AppStorage("LogDateFormat") private var shortDate = true
+    @AppStorage("RelativeTimes") private var relativeTimes = false
+    @AppStorage("UseSystemLocaleForDates") private var systemDates = true
+    private var dates: HistoryDateSettings { .init(shortDate: shortDate, relative: relativeTimes, useSystemLocale: systemDates) }
     private var messageFont: Font { Font(MessageEditorFont.resolve(name: fontName, size: fontSize)) }
     var body: some View {
         VStack(spacing: 10) {
@@ -785,12 +795,16 @@ struct RebaseDialog: View {
                 VStack(spacing: 8) {
                     Table(model.entries, selection: $model.selection) {
                         TableColumn("REBASE") { entry in RebaseReplayCell(entry: entry) { HStack(spacing: 5) { Image(nsImage: entry.action.icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16); Text(entry.action == .skip ? "Skip" : entry.action.rawValue.capitalized) } } }.width(90)
-                        TableColumn("ID") { entry in RebaseReplayCell(entry: entry) { Text(String(model.entryNumber(entry))) } }.width(40)
-                        TableColumn("Hash") { entry in RebaseReplayCell(entry: entry) { Text(String(entry.commit.hash.prefix(9))).font(.system(.caption, design: .monospaced)) } }.width(95)
+                        TableColumn("ID") { entry in RebaseReplayCell(entry: entry) { Text(String(model.entryNumber(entry))).frame(maxWidth: .infinity, alignment: .trailing) } }.width(40)
+                        TableColumn("SHA-1") { entry in RebaseReplayCell(entry: entry) { Text(entry.commit.hash).font(useLogFont ? nil : .system(.caption, design: .monospaced)).lineLimit(1) } }.width(95)
                         TableColumn("Message") { entry in RebaseReplayCell(entry: entry) { Text(entry.commit.logLine(fullMessage: model.fullCommitMessageOnLogLine)).lineLimit(1) } }
                         TableColumn("Author") { entry in RebaseReplayCell(entry: entry) { Text(entry.commit.author) } }.width(130)
-                        TableColumn("Date") { entry in RebaseReplayCell(entry: entry) { Text(HistoryDateSettings.load().format(entry.commit.date)) } }.width(150)
-                    }.background(RebaseListInteraction(model: model)).contextMenu(forSelectionType: String.self) { ids in
+                        TableColumn("Date") { entry in RebaseReplayCell(entry: entry) { Text(dates.format(entry.commit.date)) } }.width(150)
+                        TableColumn("Email") { entry in RebaseReplayCell(entry: entry) { Text(entry.commit.email) } }.width(200)
+                        TableColumn("Commit Name") { entry in RebaseReplayCell(entry: entry) { Text(entry.commit.committer) } }.width(130)
+                        TableColumn("Commit Email") { entry in RebaseReplayCell(entry: entry) { Text(entry.commit.committerEmail) } }.width(200)
+                        TableColumn("Commit Date") { entry in RebaseReplayCell(entry: entry) { Text(dates.format(entry.commit.committerDate)) } }.width(150)
+                    }.background(RebaseColumnLayout(model: model)).background(RebaseListInteraction(model: model)).contextMenu(forSelectionType: String.self) { ids in
                         TurtleGitContextMenu {
                             RebaseRevisionMenu(model: model, log: model.revisionMenuLog, ids: ids)
                         }

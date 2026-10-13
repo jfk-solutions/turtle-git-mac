@@ -30,6 +30,23 @@ final class RebaseTests: XCTestCase {
         var plan = try await repo.rebasePlan(options()); plan.entries[0].action = .edit
         return (root, repo, plan)
     }
+    func testReplayMetadataRetainsRawAuthorAndIndependentCommitter() async throws {
+        let (root, repo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        _ = try await repo.run(["commit", "--allow-empty", "-m", "independent\n\nbody"], environmentOverrides: ["GIT_AUTHOR_NAME":"Raw Author", "GIT_AUTHOR_EMAIL":"raw@example.invalid", "GIT_AUTHOR_DATE":"2026-10-12T10:00:00+0200", "GIT_COMMITTER_NAME":"Separate Committer", "GIT_COMMITTER_EMAIL":"committer@example.invalid", "GIT_COMMITTER_DATE":"2026-10-13T11:00:00+0200"])
+        let head = try await repo.run(["rev-parse", "HEAD"]).stdout, index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let commit = try await repo.rebaseCommit("HEAD")
+        XCTAssertEqual(commit.author, "Raw Author"); XCTAssertEqual(commit.email, "raw@example.invalid")
+        XCTAssertEqual(commit.committer, "Separate Committer"); XCTAssertEqual(commit.committerEmail, "committer@example.invalid")
+        XCTAssertEqual(commit.date, "2026-10-12T10:00:00+02:00"); XCTAssertEqual(commit.committerDate, "2026-10-13T11:00:00+02:00")
+        XCTAssertTrue(commit.message.contains("body"))
+        let plan = try await repo.rebasePlan(options())
+        XCTAssertEqual(plan.entries.last?.commit.hash, commit.hash); XCTAssertEqual(plan.entries.last?.commit.committerEmail, commit.committerEmail)
+        let cherry = try await repo.cherryPickPlan(revisions: [commit.hash])
+        XCTAssertEqual(cherry.entries.first?.commit.committerDate, commit.committerDate)
+        XCTAssertEqual(cherry.entries.first?.commit.author, "Raw Author")
+        let after = try await repo.run(["rev-parse", "HEAD"]).stdout
+        XCTAssertEqual(after, head); XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+    }
     func testLegacyEncodedEditAndSquashMessagesDecodeAndContinue() async throws {
         let (root, repo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
         _ = try await repo.run(["config", "i18n.commitencoding", "windows-1252"])

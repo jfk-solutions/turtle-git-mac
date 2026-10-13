@@ -2147,6 +2147,7 @@
         "docs/qa/fetch-pull-stream-2026-10-08.json",
         "docs/qa/merge-stream-2026-10-08.json",
         "docs/qa/push-stream-2026-10-08.json",
+        "docs/qa/rebase-columns-2026-10-13.json",
         "docs/qa/rebase-list-interaction-2026-10-06.json",
         "docs/qa/rebase-split-return-2026-10-06.json",
         "docs/qa/saved-data-2026-10-08.json",

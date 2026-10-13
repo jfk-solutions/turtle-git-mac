@@ -1,0 +1,79 @@
+{
+  "date": "2026-10-13",
+  "scope": "Partial Rebase/Cherry Pick metadata and native column layout",
+  "checks": {
+    "core": {
+      "exit": 0,
+      "tests": 1,
+      "command": "swift test --scratch-path .build/out --filter RebaseTests.testReplayMetadataRetainsRawAuthorAndIndependentCommitter"
+    },
+    "debug_build": {
+      "final_exit": 0
+    },
+    "native": {
+      "cases": [
+        "rebase-columns",
+        "input-hosts"
+      ],
+      "engines": [
+        "system",
+        "bundled"
+      ],
+      "exit": 0,
+      "reaped_pids": [
+        51575,
+        51645,
+        51811,
+        51873
+      ],
+      "scope": [
+        "Source default/header columns",
+        "Private width/order/visibility reopen",
+        "Actual native committer-cell pixels with local Vision OCR",
+        "Selection/action preservation",
+        "Reset and busy/closed guards",
+        "HEAD/index/global layout preservation",
+        "Shared note-editor ownership regression"
+      ]
+    },
+    "site": {
+      "build_exit": 0,
+      "tests": 2,
+      "test_exit": 0
+    }
+  },
+  "repairs": [
+    {
+      "failure": "Initial native independent-identity assertion exposed missing committer metadata in Rebase readers",
+      "change": "Read ten raw fields, retaining author fields and adding committer identity/date; Core real Git check passed"
+    },
+    {
+      "failure": "Hidden SwiftUI cells did not expose values through NSTextField/public accessibility traversal",
+      "change": "Keep the native text assertion and verify locally rendered native-cell pixels with Vision; no screen capture or remote image service used"
+    },
+    {
+      "change": "Visibility toggles derive their next choice from owning saved state rather than transient SwiftUI native hidden state"
+    }
+  ],
+  "failed_attempt_reaped_pids": [
+    50260,
+    50752,
+    50882,
+    50992,
+    51111,
+    51237,
+    51395
+  ],
+  "remaining": [
+    "Physical header gestures and Reset buttons",
+    "VoiceOver/accessibility tree acceptance",
+    "Conditional Bug-ID/SVN columns",
+    "Commit row drag ordering",
+    "Signed sandbox/full replay and dialog parity"
+  ],
+  "logs": [
+    "build/qa/rebase-columns-core-2026-10-13.log",
+    "build/qa/rebase-columns-build-layout-2026-10-13.log",
+    "build/qa/rebase-columns-native-pixels-2026-10-13.log"
+  ]
+}
