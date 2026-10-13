@@ -289,10 +289,10 @@ owner/generation plus row/action/progress/mainline state; changed plans, busy,
 active/finished, note/sheet and retired owners cannot apply an obsolete drag.
 Handlers update only the plan, not Git HEAD/index/worktree.
 
-Preserve-merges drag ordering remains a parity gap: upstream enables dragging in
-its editing stages, but this port's existing structural rebase engine rejects
-edited structural plans. Its current UI therefore keeps structural drag disabled.
-This batch does not claim equivalence for that mode.
+At the drag-only checkpoint, Preserve-merges ordering remained disabled because
+the backend rejected edited structural plans. The later structural Pick batch
+below implements reordered execution and enables dragging; structural action
+editing and broader Source equivalence remain open.
 
 Two focused Core checks, the Debug build and four grouped native receivers across
 system/bundled Git passed. Native QA invokes actual insertion/finish handlers,
@@ -302,3 +302,34 @@ passed. All four receivers were reaped. The checks do not synthesize a physical
 pointer gesture; full mouse capture, stationary-edge autoscroll, multi-display,
 VoiceOver and signed acceptance remain open. See
 [batch evidence](qa/rebase-row-drag-2026-10-13.json).
+
+## Reordered structural Pick plans (2026-10-13)
+
+Preserve-merges dragging and movement buttons now accept reordered Pick-only
+plans. The unchanged structural plan retains Git's previous default path. A
+reordered structural plan uses an interactive label/reset/merge todo compiled
+from immutable commit parents. Common merge bases map to Onto; already replayed
+parents map to their labels. An unreplayed linear parent uses current HEAD, as
+in the source. A merge with an unreplayed first parent is rejected before starting.
+Unchanged original merge parents can reuse the original merge; rewritten parents
+are deduplicated and merged with the original message/author reference.
+
+The sequence editor places generated update-ref commands after each original
+commit's stable label. Structural markers count logical commits rather than
+Git's label/reset operations, preserving progress rows, stopped/remaining revision
+metadata and Abort through a conflict. The source comparison is
+`RebaseDlg.cpp`'s rewritten-parent handling around lines 2137–2270. These changes
+supersede the previous blanket structural-ordering restriction.
+
+Five focused Core tests passed with the current built app as sequence editor:
+reordered branch/side/merge execution and parent count/tree results, invalid future
+first-parent refusal without mutation, conflict logical progress/recovered rows
+and Abort, structural update-ref placement, and the unchanged Preserve-merges
+path. Debug build and four grouped native checks across system/bundled Git passed;
+all four receivers were reaped. Native checks exercise structural drag availability
+and conditional metadata ownership, not physical structural replay gestures.
+
+Structural Skip/Edit/Squash, keyboard-action parity, broader cousins/octopus/root
+and nested merge behavior, real branch-update execution, physical/signed scope
+and full Source workflow equivalence remain open. This is a partial structural
+port. [Batch evidence](qa/structural-order-2026-10-13.json) records actual results.

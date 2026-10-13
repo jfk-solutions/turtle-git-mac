@@ -116,7 +116,7 @@ public enum RebaseFailure: LocalizedError {
         case .changed: return "A selected reference changed after the commit plan was loaded. Reload the plan before starting."
         case .plan: return "The commit plan contains missing, duplicate or unexpected commits."
         case .squash: return "The first retained commit cannot be squashed."
-        case .preservePlan: return "Preserve Merges uses Git's structural plan; custom actions and ordering require further porting."
+        case .preservePlan: return "This structural plan requires unsupported actions or a merge whose first parent has not been replayed yet."
         case .message: return "Enter a commit message."
         case .emptyResult: return "The current commit will be empty. Choose Commit, Skip or Cancel."
         case .mainline: return "Choose a valid mainline parent for each retained merge commit."
@@ -142,9 +142,10 @@ public enum RebaseEditor {
             for (index, identity) in identities.enumerated() where identity.occurrence == 0 {
                 guard originals.updateValue(index, forKey: identity.hash) == nil else { throw RebaseFailure.plan }
             }
-            let merged = try mergeReferenceUpdates(generated: generated, custom: custom, originalPositions: originals)
+            let merged = try environment["TURTLEGIT_STRUCTURAL_PLAN"] == "1" ? mergeStructuralReferenceUpdates(generated:generated,custom:custom) : mergeReferenceUpdates(generated: generated, custom: custom, originalPositions: originals)
             try Data(merged.todo.utf8).write(to: target, options: .atomic)
             if merged.hasUpdates { try Data().write(to: target.deletingLastPathComponent().appendingPathComponent("turtlegit-update-refs"), options: .atomic) }
+            if environment["TURTLEGIT_STRUCTURAL_PLAN"] == "1" { try Data().write(to:target.deletingLastPathComponent().appendingPathComponent("turtlegit-structural-plan")) }
             if let metadata = environment["TURTLEGIT_CHERRY_PICK_METADATA"] {
                 try Data(contentsOf: URL(fileURLWithPath: metadata)).write(to: target.deletingLastPathComponent().appendingPathComponent("turtlegit-cherry-pick.json"), options: .atomic)
             }
@@ -193,7 +194,26 @@ public enum RebaseEditor {
         guard !updates.isEmpty else { return (custom, false) }
         return (rows.indices.flatMap { [rows[$0]] + (updates[$0] ?? []) }.joined(separator: "\n") + "\n", true)
     }
+    static func mergeStructuralReferenceUpdates(generated:String,custom:String) throws -> (todo:String,hasUpdates:Bool) {
+        var preceding = "", updates: [String:[String]] = [:]
+        for line in generated.split(separator:"\n") {
+            let fields = line.split(separator:" ").map(String.init)
+            if fields.first == "pick", fields.count >= 2 { preceding = fields[1] }
+            else if fields.first == "merge", fields.count >= 3, ["-C","-c"].contains(fields[1]) { preceding = fields[2] }
+            else if fields.first == "update-ref" {
+                guard fields.count == 2, fields[1].hasPrefix("refs/heads/"), !preceding.isEmpty else { throw RebaseFailure.plan }
+                let labels = custom.split(separator:"\n").map(String.init).filter { $0.hasPrefix("label turtlegit-") && $0.dropFirst("label turtlegit-".count).hasPrefix(preceding) }
+                guard labels.count == 1 else { throw RebaseFailure.plan }
+                updates[labels[0],default:[]].append(String(line))
+            }
+        }
+        return (custom.split(separator:"\n").flatMap { [String($0)] + (updates[String($0)] ?? []) }.joined(separator:"\n") + "\n", !updates.isEmpty)
+    }
     static func currentStep(in directory: URL) -> Int {
+        if FileManager.default.fileExists(atPath:directory.appendingPathComponent("turtlegit-structural-plan").path) {
+            let done = (try? String(contentsOf:directory.appendingPathComponent("done"),encoding:.utf8)) ?? ""
+            return done.split(separator:"\n").filter { $0.hasPrefix("label turtlegit-") && $0 != "label turtlegit-onto" }.count + 1
+        }
         if FileManager.default.fileExists(atPath: directory.appendingPathComponent("turtlegit-update-refs").path) {
             let done = (try? String(contentsOf: directory.appendingPathComponent("done"), encoding: .utf8)) ?? ""
             return done.split(separator: "\n").filter { $0.split(separator: " ").first.flatMap { RebaseAction(rawValue: String($0)) } != nil }.count
@@ -302,6 +322,7 @@ extension GitRepository {
         let split = active && manager.fileExists(atPath: splitURL.path) ? try JSONDecoder().decode(RebaseSplitState.self, from: Data(contentsOf: splitURL)) : nil
         let storedSession = active ? try? JSONDecoder().decode(RebaseSessionContext.self, from: Data(contentsOf: directory.appendingPathComponent("turtlegit-session.json"))) : nil
         let session = storedSession?.version == 1 ? storedSession : nil
+        let structural = manager.fileExists(atPath:directory.appendingPathComponent("turtlegit-structural-plan").path)
         let referenceUpdates = manager.fileExists(atPath: directory.appendingPathComponent("turtlegit-update-refs").path)
         let done = read("done").split(separator: "\n")
         let lastCommand = (referenceUpdates ? done.filter { $0.split(separator: " ").first.flatMap { RebaseAction(rawValue: String($0)) } != nil } : done).last?.split(separator: " ").first.map(String.init)
@@ -311,8 +332,13 @@ extension GitRepository {
         let activeSplit = split?.step == step && split?.entryID == stoppedIdentity ? split : nil
         return RebaseState(active: active, isCherryPick: active && manager.fileExists(atPath: metadataURL.path), branch: line("head-name"), originalHead: line("orig-head"), onto: line("onto"),
                            stoppedEntryID: stoppedIdentity, stoppedCommit: originalStopped, message: activeSplit?.conflictRecovery == true || activeSplit?.conflictRecoveryReturn != nil ? try rebaseCommit("HEAD").message : try readMessage(), currentStep: step,
-                           total: referenceUpdates ? identities.count : Int(line("end")) ?? Int(line("last")) ?? 0, conflicts: conflicts,
-                           remainingCommands: commands, squashMessage: pending, stoppedAction: action, split: activeSplit,
+                           total: referenceUpdates || structural ? identities.count : Int(line("end")) ?? Int(line("last")) ?? 0, conflicts: conflicts,
+                           remainingCommands: structural ? commands.compactMap { command in
+                               let fields = command.split(separator:" ").map(String.init)
+                               if fields.first == "pick" { return command }
+                               if fields.first == "merge", fields.count >= 3 { return "pick " + fields[2] }
+                               return nil
+                           } : commands, squashMessage: pending, stoppedAction: action, split: activeSplit,
                            isEditPause: editPause, needsFileRecovery: active && (!conflicts.isEmpty || !originalStopped.isEmpty && !editPause && pending == nil && activeSplit == nil), session: session)
     }
     private func replayIdentities(_ directory: URL) -> [RebaseReplayIdentity] {
@@ -440,7 +466,10 @@ extension GitRepository {
         let ids = plan.entries.map(\.id)
         try validateRebaseIdentities(plan)
         guard plan.entries.first(where: { $0.action != .skip })?.action != .squash else { throw RebaseFailure.squash }
-        if plan.options.preserveMerges, ids != plan.originalCommits || plan.entries.contains(where: { $0.action != .pick }) { throw RebaseFailure.preservePlan }
+        if plan.options.preserveMerges {
+            guard !plan.entries.contains(where:{ $0.action != .pick }) else { throw RebaseFailure.preservePlan }
+            if ids != plan.originalCommits { return try structuralRebaseTodo(plan) }
+        }
         if plan.options.isCherryPick {
             for entry in plan.entries where entry.action != .skip {
                 if entry.commit.parents.count > 1 {
@@ -450,6 +479,41 @@ extension GitRepository {
         }
         if plan.entries.isEmpty { return "noop\n" }
         return plan.entries.map { $0.action.rawValue + " " + $0.commit.hash + " " + $0.commit.subject.replacingOccurrences(of: "\n", with: " ").replacingOccurrences(of: "\r", with: " ") }.joined(separator: "\n") + "\n"
+    }
+    /// Source parent rewrite semantics for reordered Pick-only structural plans.
+    /// Labels identify already replayed parents; an unreplayed linear parent
+    /// falls back to the current head. A missing first merge parent is rejected.
+    public func structuralRebaseTodo(_ plan: RebasePlan) throws -> String {
+        try validateRebaseIdentities(plan)
+        guard plan.options.preserveMerges, plan.entries.allSatisfy({ $0.action == .pick && $0.occurrence == 0 }) else { throw RebaseFailure.preservePlan }
+        let bases = try run(["merge-base","--all",plan.branchHash,plan.ontoHash],successfulExitCodes:0...1).text.split(whereSeparator: \.isWhitespace).map(String.init)
+        guard !bases.isEmpty else { throw RebaseFailure.preservePlan }
+        let selected = Set(plan.entries.map { $0.commit.hash })
+        var rewritten = Dictionary(uniqueKeysWithValues:bases.map { ($0,"turtlegit-onto") })
+        var current = "turtlegit-onto", rows = ["label turtlegit-onto"]
+        for entry in plan.entries {
+            let original = try rebaseCommit(entry.commit.hash)
+            guard original.parents == entry.commit.parents else { throw RebaseFailure.changed }
+            var parents: [String] = []
+            for (index,parent) in original.parents.enumerated() {
+                let target: String
+                if let mapped = rewritten[parent] { target = mapped }
+                else if selected.contains(parent) {
+                    guard original.parents.count <= 1 || index != 0 else { throw RebaseFailure.preservePlan }
+                    target = current
+                } else { target = parent }
+                if !parents.contains(target) { parents.append(target) }
+            }
+            let first = parents.first ?? "turtlegit-onto"
+            rows.append("reset " + first)
+            if original.parents.count > 1 {
+                if parents == original.parents { rows.append("reset " + original.hash) }
+                else if parents.count > 1 { rows.append("merge -C " + original.hash + " " + parents.dropFirst().joined(separator:" ")) }
+            } else { rows.append("pick " + original.hash + " " + original.subject.replacingOccurrences(of:"\n",with:" ").replacingOccurrences(of:"\r",with:" ")) }
+            let label = "turtlegit-" + original.hash
+            rows.append("label " + label); rewritten[original.hash] = label; current = label
+        }
+        return rows.joined(separator:"\n") + "\n"
     }
     public func startRebase(_ plan: RebasePlan, editorExecutable: URL, afterFetch: Bool = false, autoStart: Bool = false, fromLog: Bool = false) throws -> RebaseExecution {
         guard !(try rebaseState().active) else { throw RebaseFailure.active }
@@ -499,9 +563,11 @@ extension GitRepository {
         }
         let path = temporary.appendingPathComponent("todo")
         // Validate the original plan first; synthetic merge IDs intentionally differ from its selections.
+        let structural = plan.options.preserveMerges && plan.entries.map(\.id) != plan.originalCommits
         let todo = replay.entries.map { $0.action.rawValue + " " + $0.commit.hash + " " + $0.commit.subject.replacingOccurrences(of: "\n", with: " ").replacingOccurrences(of: "\r", with: " ") }.joined(separator: "\n") + "\n"
-        try Data((replay.entries.isEmpty ? "noop\n" : todo).utf8).write(to: path)
+        try Data((structural ? try structuralRebaseTodo(plan) : replay.entries.isEmpty ? "noop\n" : todo).utf8).write(to: path)
         var environment = ["GIT_SEQUENCE_EDITOR": RebaseEditor.command(executable: editorExecutable), "TURTLEGIT_REBASE_PLAN": path.path, "GIT_EDITOR": "/usr/bin/true"]
+        if structural { environment["TURTLEGIT_STRUCTURAL_PLAN"] = "1" }
         let identityFile = temporary.appendingPathComponent("identities.json")
         try JSONEncoder().encode(plan.entries.map { RebaseReplayIdentity(hash: $0.commit.hash, occurrence: $0.occurrence, action: $0.action.rawValue, mainline: $0.mainline) }).write(to: identityFile)
         environment["TURTLEGIT_REPLAY_IDENTITIES"] = identityFile.path
@@ -522,7 +588,7 @@ extension GitRepository {
         // Interactive replay stops for patches that become empty, including on Git versions predating --empty=stop.
         if plan.options.isCherryPick { args.append("--keep-empty") }
         if plan.options.isCherryPick { args = ["-c", "rebase.updateRefs=false"] + args }
-        if plan.options.preserveMerges { args.append("--rebase-merges") }
+        if plan.options.preserveMerges { args.append("--rebase-merges"); if structural { args.append("--interactive") } }
         else { args.append("--interactive") }
         args += ["--onto", plan.ontoHash, "--", plan.upstreamHash, plan.branchReference.isEmpty ? plan.branchHash : String(plan.branchReference.dropFirst(11))]
         let result = try executeRebase(args, environment: environment)

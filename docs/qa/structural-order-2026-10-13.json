@@ -1,0 +1,58 @@
+{
+  "date": "2026-10-13",
+  "scope": "Partial reordered Pick-only Preserve-merges backend/UI port",
+  "checks": {
+    "debug_build": {
+      "exit": 0
+    },
+    "core": {
+      "tests": 5,
+      "exit": 0,
+      "sequence_editor": "current built Debug app",
+      "scope": [
+        "Reordered structural execution and merge topology/tree",
+        "Future first merge parent rejection without mutation",
+        "Conflict logical progress and recovered rows with Abort restoration",
+        "Structural update-ref placement",
+        "Unchanged structural path regression"
+      ]
+    },
+    "native": {
+      "cases": [
+        "rebase-row-drag",
+        "rebase-conditional"
+      ],
+      "engines": [
+        "system",
+        "bundled"
+      ],
+      "exit": 0,
+      "reaped_pids": [
+        56644,
+        56736,
+        56818,
+        56884
+      ],
+      "scope": [
+        "Preserve-merges drag availability and plan-only guards",
+        "Conditional metadata ownership regression"
+      ]
+    },
+    "site": {
+      "build_exit": 0,
+      "tests": 2,
+      "test_exit": 0
+    }
+  },
+  "remaining": [
+    "Structural Skip/Edit/Squash and keyboard parity",
+    "Broader root/cousin/octopus/nested graphs",
+    "Real structural update-ref execution",
+    "Physical/signed replay and Source equivalence"
+  ],
+  "logs": [
+    "build/qa/structural-order-build-2026-10-13.log",
+    "build/qa/structural-order-core-2026-10-13.log",
+    "build/qa/structural-order-native-2026-10-13.log"
+  ]
+}

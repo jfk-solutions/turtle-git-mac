@@ -43,13 +43,13 @@ import TurtleGitCore
         try require(!interaction.updateDrag(at:NSPoint(x:native.visibleRect.midX,y:first.midY)) && !interaction.finishDrag(),"Source no-op span allowed")
         let drag=model.beginRowDrag(current)!
         model.setAction(.edit,ids:current); try require(!model.dropRows(drag,before:5),"Changed action reused a stale drag")
-        model.options.preserveMerges=true; try require(model.beginRowDrag(current)==nil,"Preserve-merges drag allowed"); model.options.preserveMerges=false
+        model.options.preserveMerges=true; try require(model.beginRowDrag(current) != nil,"Preserve-merges drag unavailable"); model.options.preserveMerges=false
         model.busy=true; try require(model.beginRowDrag(current)==nil,"Busy drag allowed"); model.busy=false
         let retiredDrag=model.beginRowDrag(current)!
         owner.close(); try require(!model.dropRows(retiredDrag,before:5),"Closed owner applied retained drag")
         try await wait { RebaseWindowModel.activeColumnReads==0 }
         let after=try await repo.run(["rev-parse","HEAD"]).stdout
         try require(after==head && (try Data(contentsOf:root.appendingPathComponent(".git/index")))==index,"Plan drag modified HEAD/index")
-        print("Rebase row drag: actual native insertion/finish, contiguous block/order/selection and reverse execution order, no-op/discontinuous/preserve/busy/stale/closed refusal passed. Owned window closed; HEAD/index preserved.")
+        print("Rebase row drag: actual native insertion/finish, contiguous block/order/selection and reverse execution order, structural availability and no-op/discontinuous/busy/stale/closed refusal passed. Owned window closed; HEAD/index preserved.")
     }
 }

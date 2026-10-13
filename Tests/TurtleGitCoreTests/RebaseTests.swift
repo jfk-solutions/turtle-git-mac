@@ -2,7 +2,7 @@ import XCTest
 @testable import TurtleGitCore
 
 final class RebaseTests: XCTestCase {
-    var editor: URL { URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent(".build/debug/TurtleGitMac") }
+    var editor: URL { if let path = ProcessInfo.processInfo.environment["TURTLEGIT_REBASE_EDITOR"] { return URL(fileURLWithPath:path) }; return URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent(".build/debug/TurtleGitMac") }
     func fixture(conflict: Bool = false) async throws -> (URL, GitRepository, String) {
         let (root, original, path) = try await GitPatchTests().fixture()
         let git = URL(fileURLWithPath: ProcessInfo.processInfo.environment["TURTLEGIT_GROUP_TEST_GIT"] ?? original.executable.path)
@@ -608,6 +608,64 @@ final class RebaseTests: XCTestCase {
         let result = try await repo.startRebase(plan, editorExecutable: editor); XCTAssertEqual(result.exitCode, 0, result.output)
         XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("upstream.txt").path))
         let count = try await repo.run(["rev-list", "--count", "main..topic"]).text; XCTAssertEqual(count, "2\n")
+    }
+    func testReorderedStructuralPickPlanExecutesAndPreservesParents() async throws {
+        let (root,repo,_) = try await fixture(); defer { try? FileManager.default.removeItem(at:root) }
+        _ = try await repo.run(["checkout","-b","side","main"])
+        try Data("side\n".utf8).write(to:root.appendingPathComponent("side.txt")); try await repo.stage(["side.txt"]); _ = try await repo.commit(message:"side")
+        _ = try await repo.run(["checkout","topic"]); _ = try await repo.run(["merge","--no-ff","--no-edit","side"])
+        var settings = options(); settings.preserveMerges = true
+        var plan = try await repo.rebasePlan(settings)
+        let side = try XCTUnwrap(plan.entries.first { $0.commit.subject == "side" })
+        plan.entries.removeAll { $0.id == side.id }; plan.entries.insert(side,at:0)
+        if plan.entries.map(\.id) == plan.originalCommits {
+            let first = plan.entries.remove(at:0); plan.entries.insert(first,at:2)
+        }
+        let todo = try await repo.rebaseTodo(plan)
+        XCTAssertTrue(todo.contains("label turtlegit-onto")); XCTAssertTrue(todo.contains("merge -C"))
+        let result = try await repo.startRebase(plan,editorExecutable:editor)
+        XCTAssertEqual(result.exitCode,0,result.output); XCTAssertFalse(result.state.active)
+        let parents = try await repo.run(["rev-list","--parents","-n","1","topic"]).text.split(whereSeparator: \.isWhitespace)
+        XCTAssertEqual(parents.count,3)
+        for path in ["first.txt","second.txt","side.txt","upstream.txt"] { XCTAssertTrue(FileManager.default.fileExists(atPath:root.appendingPathComponent(path).path),path) }
+        let branch = try await repo.branch(); XCTAssertEqual(branch,"topic")
+    }
+    func testStructuralReorderConflictKeepsLogicalProgressAndAbortRestoresBranch() async throws {
+        let (root,repo,_) = try await fixture(conflict:true); defer { try? FileManager.default.removeItem(at:root) }
+        var settings = options(); settings.preserveMerges = true
+        var plan = try await repo.rebasePlan(settings); plan.entries.reverse()
+        let before = try await repo.run(["rev-parse","HEAD"]).stdout
+        let stopped = try await repo.startRebase(plan,editorExecutable:editor)
+        XCTAssertTrue(stopped.state.active); XCTAssertEqual(stopped.state.total,2); XCTAssertEqual(stopped.state.currentStep,2)
+        XCTAssertFalse(stopped.state.conflicts.isEmpty)
+        let recovered = try await repo.rebaseReplayEntries()
+        XCTAssertEqual(recovered.map(\.id),plan.entries.map(\.id)); XCTAssertEqual(recovered[0].progress,.completed); XCTAssertEqual(recovered[1].progress,.current)
+        let aborted = try await repo.abortRebase(); XCTAssertFalse(aborted.state.active)
+        let after = try await repo.run(["rev-parse","HEAD"]).stdout
+        XCTAssertEqual(after,before); let branch = try await repo.branch(); XCTAssertEqual(branch,"topic")
+    }
+    func testStructuralReferenceUpdatesFollowOriginalLabels() throws {
+        let first = String(repeating:"a",count:40), merge = String(repeating:"b",count:40)
+        let custom = "label turtlegit-onto\nreset turtlegit-onto\npick " + first + " first\nlabel turtlegit-" + first + "\nmerge -C " + merge + " side\nlabel turtlegit-" + merge + "\n"
+        let generated = "pick aaaaaaa first\nupdate-ref refs/heads/alias\nmerge -C bbbbbbb side\nupdate-ref refs/heads/merged\n"
+        let result = try RebaseEditor.mergeStructuralReferenceUpdates(generated:generated,custom:custom)
+        XCTAssertTrue(result.hasUpdates)
+        XCTAssertTrue(result.todo.contains("label turtlegit-" + first + "\nupdate-ref refs/heads/alias"))
+        XCTAssertTrue(result.todo.contains("label turtlegit-" + merge + "\nupdate-ref refs/heads/merged"))
+    }
+    func testStructuralCompilerRejectsFutureFirstMergeParentWithoutMutation() async throws {
+        let (root,repo,_) = try await fixture(); defer { try? FileManager.default.removeItem(at:root) }
+        _ = try await repo.run(["checkout","-b","side","main"])
+        _ = try await repo.run(["commit","--allow-empty","-m","side"])
+        _ = try await repo.run(["checkout","topic"]); _ = try await repo.run(["merge","--no-ff","--no-edit","side"])
+        var settings = options(); settings.preserveMerges = true
+        var plan = try await repo.rebasePlan(settings)
+        let merge = try XCTUnwrap(plan.entries.first { $0.commit.parents.count > 1 })
+        plan.entries.removeAll { $0.id == merge.id }; plan.entries.insert(merge,at:0)
+        let head = try await repo.run(["rev-parse","HEAD"]).stdout, index = try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        do { _ = try await repo.rebaseTodo(plan); XCTFail("Future first merge parent accepted") } catch RebaseFailure.preservePlan {}
+        let after = try await repo.run(["rev-parse","HEAD"]).stdout
+        XCTAssertEqual(after,head); XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index)
     }
     func testPreserveMergesRetainsMergeParentTopology() async throws {
         let (root, repo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }

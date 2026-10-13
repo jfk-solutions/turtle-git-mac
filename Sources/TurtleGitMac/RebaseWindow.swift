@@ -551,7 +551,7 @@ import TurtleGitCore
     }
     struct RowDrag { let owner: UUID; let generation: Int; let rows: ReplayRowDrag }
     private let rowDragOwner = UUID()
-    var canDragRows: Bool { !retired && editable && !options.preserveMerges && revisionMenuAvailable && revisionMenuLog.window?.attachedSheet == nil }
+    var canDragRows: Bool { !retired && editable && revisionMenuAvailable && revisionMenuLog.window?.attachedSheet == nil }
     func beginRowDrag(_ ids: Set<String>) -> RowDrag? {
         guard canDragRows, let rows = ReplayRowDrag(visible:entries,selected:ids) else { return nil }
         selection = ids
@@ -566,7 +566,7 @@ import TurtleGitCore
         selection = drag.rows.selected; selectCommit(); return true
     }
     func canMove(up: Bool, toEnd: Bool = false) -> Bool {
-        guard editable, !options.preserveMerges else { return false }
+        guard !retired, editable else { return false }
         let visible = entries
         let indexes = visible.indices.filter { selection.contains(visible[$0].id) }
         guard let first = indexes.first, let last = indexes.last else { return false }
