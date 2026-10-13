@@ -151,6 +151,7 @@ import TurtleGitCore
     private var columnGeneration = UUID()
     private var columnSignature: [String] = []
     static private(set) var activeColumnReads = 0
+    static private(set) var activeStashRestorations = 0
     var readColumnMetadata: ([LogEntry],OperationCancellation) async throws -> ReplayColumnMetadata
     @Published var references: [CheckoutReference] = []
     @Published var plan: RebasePlan?
@@ -196,7 +197,6 @@ import TurtleGitCore
     var chooseAnotherSplit: () async -> Bool = { false }
     private(set) var retired = false
     @Published private(set) var hasReplayStash = false
-    private var replayStashAutomatic = false
     private var replayPreparationCancellation: OperationCancellation?
     var chooseStashBeforeReplay: () async -> Bool = { false }
     var chooseRestoreReplayStash: () async -> Bool = { false }
@@ -207,18 +207,25 @@ import TurtleGitCore
         // Preserve immediate completion routing when there is no stash question
         // or restore operation to await.
         if !hasReplayStash { if let after { after() } else { close() }; return }
-        busy = true
+        busy=true;let request=OperationCancellation();replayPreparationCancellation=request
+        Self.activeStashRestorations += 1
         Task {
-            if hasReplayStash {
-                let restore = replayStashAutomatic ? true : await chooseRestoreReplayStash()
-                guard !retired else { busy = false; return }
-                // Once-only, including No: source clears m_bStashed after this choice.
-                hasReplayStash = false
-                if restore { await restoreReplayStash(replayStashAutomatic ? 0 : 1) }
-            }
-            busy = false
-            guard !retired else { return }
-            if let after { after() } else { close() }
+            defer { busy=false;Self.activeStashRestorations -= 1;if replayPreparationCancellation === request { replayPreparationCancellation=nil };withExtendedLifetime(access) {} }
+            do {
+                if hasReplayStash {
+                    if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                    let automatic=try await repository.replayAutomaticStash(cherryPick:isCherryPick,cancellation:request)
+                    guard !retired,!request.isCancelled else { return }
+                    let restore=automatic ? true : await chooseRestoreReplayStash()
+                    guard !retired,!request.isCancelled else { return }
+                    // Once-only, including No: source clears m_bStashed after this choice.
+                    hasReplayStash=false
+                    if restore { await restoreReplayStash(automatic ? 0 : 1) }
+                }
+                guard !retired,!request.isCancelled else { return }
+                busy=false
+                if let after { after() } else { close() }
+            } catch { if !retired,!request.isCancelled { self.error=error.localizedDescription } }
         }
     }
     var close: () -> Void = {}
@@ -658,7 +665,7 @@ import TurtleGitCore
                         let saved = try await repository.saveStash(StashSaveOptions(), cancellation: preparation)
                         guard !retired else { return }
                         output += saved.output + "\n"; onChanged()
-                        if saved.created { hasReplayStash = true; replayStashAutomatic = condition.automatic }
+                        if saved.created { hasReplayStash = true }
                     }
                     guard !retired else { return }
                     if !snapshot.options.isCherryPick {

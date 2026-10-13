@@ -33,14 +33,16 @@ extension GitRepository {
         try cancellation?.check()
         let staged = try run(["diff", "--cached", "--quiet", "HEAD", "--"], successfulExitCodes: 0...1, cancellation: cancellation).exitCode != 0
         let working = try run(["diff", "--quiet", "--"], successfulExitCodes: 0...1, cancellation: cancellation).exitCode != 0
-        let automatic: Bool
-        if cherryPick { automatic = false }
-        else {
-            let config = try run(["config", "--bool", "--get", "rebase.autostash"], successfulExitCodes: 0...1, cancellation: cancellation)
-            automatic = config.exitCode == 0 && config.text.trimmingCharacters(in: .whitespacesAndNewlines) == "true"
-        }
+        let automatic=try replayAutomaticStash(cherryPick:cherryPick,cancellation:cancellation)
         try cancellation?.check()
         return (staged || working, automatic)
+    }
+
+    /// Source re-reads this setting when restoring, rather than keeping its Save-time value.
+    public func replayAutomaticStash(cherryPick:Bool,cancellation:OperationCancellation?=nil) throws -> Bool {
+        try cancellation?.check();guard !cherryPick else { return false }
+        let config=try run(["config","--bool","--get","rebase.autostash"],successfulExitCodes:0...1,cancellation:cancellation)
+        try cancellation?.check();return config.exitCode==0 && config.text.trimmingCharacters(in:.whitespacesAndNewlines)=="true"
     }
 
     /// Apply retains the stash; Pop lets Git drop it only after successful application.

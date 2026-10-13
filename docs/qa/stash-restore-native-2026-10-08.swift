@@ -147,8 +147,8 @@ import TurtleGitCore
             model.plan = try await model.repository.rebasePlan(model.options)
             model.editorExecutable = URL(fileURLWithPath:FileManager.default.currentDirectoryPath).appendingPathComponent("build/Build/Products/Debug/TurtleGitMac.app/Contents/MacOS/TurtleGitMac")
         }
-        for automatic in [false,true] {
-            let repo = try await fixture(automatic ? "replay-auto":"replay-manual")
+        for (automatic,restoreAutomatic) in [(false,false),(true,true),(false,true),(true,false)] {
+            let repo = try await fixture("replay-save-\(automatic)-restore-\(restoreAutomatic)")
             _ = try await repo.run(["config","rebase.autostash",automatic ? "true":"false"])
             let older = try await repo.run(["rev-parse","refs/stash"]).stdout
             let model = RebaseWindowModel(repository:repo,access:nil,messageDefaults:prefs)
@@ -157,7 +157,7 @@ import TurtleGitCore
             var saveQuestions = 0, restoreQuestions = 0, closes = 0, modes:[Int] = []
             model.completionAfterFetch = automatic
             var pushed = 0
-            model.onCompletedPush = { _ in precondition(modes == [0] && closes == 1); pushed += 1 }
+            model.onCompletedPush = { _ in precondition(modes == [restoreAutomatic ? 0:1] && closes == 1); pushed += 1 }
             model.chooseStashBeforeReplay = { saveQuestions += 1; return true }
             model.chooseRestoreReplayStash = { restoreQuestions += 1; return true }
             model.restoreReplayStash = { mode in modes.append(mode); do { _ = try await repo.restoreStash(pop:true) } catch { preconditionFailure("Replay restore: \(error)") } }
@@ -165,13 +165,14 @@ import TurtleGitCore
             model.execute("start"); try await wait { !model.busy }
             try require(model.error == nil && model.finished && model.completedSuccessfully && model.hasReplayStash,"Replay did not finish with pending stash: \(model.error ?? "none")")
             try require((try? String(contentsOf:repo.root.appendingPathComponent("untracked"))) == "untracked\n","Untracked file was stashed")
+            if automatic != restoreAutomatic { _ = try await repo.run(["config","rebase.autostash",restoreAutomatic ? "true":"false"]) }
             if automatic { model.performCompletionAction(.push); model.performCompletionAction(.push) }
             else { model.finishReplay(); model.finishReplay() }
             try await wait { !model.busy }
             let after = try await repo.run(["rev-parse","refs/stash"]).stdout
             let index = try await repo.run(["diff","--cached"]).text
             try require(after == older && index.isEmpty && (try? String(contentsOf:repo.root.appendingPathComponent("file"))) == "working\n","Restore changed older stash or index semantics")
-            try require(saveQuestions == (automatic ? 0:1) && restoreQuestions == (automatic ? 0:1) && modes == [automatic ? 0:1] && closes == 1 && pushed == (automatic ? 1:0),"Automatic/manual questions or once-only completion differ")
+            try require(saveQuestions == (automatic ? 0:1) && restoreQuestions == (restoreAutomatic ? 0:1) && modes == [restoreAutomatic ? 0:1] && closes == 1 && pushed == (automatic ? 1:0),"Automatic/manual questions or once-only completion differ")
         }
         // Existing no-stash completion commands retain immediate routing.
         let plainRepo = try await fixture("replay-plain-routes")

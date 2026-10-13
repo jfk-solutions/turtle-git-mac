@@ -1,0 +1,45 @@
+{
+  "date": "2026-10-14",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Sync direct Push, Push tags and Push notes client hooks",
+    "Rebase fresh autostash restoration policy and lifetime"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/sync-replay-hooks-build-2026-10-14.log"
+    },
+    "core": {
+      "exit": 0,
+      "tests": 8,
+      "scope": "StashRestoreTests",
+      "log": "build/qa/sync-replay-hooks-core-2026-10-14.log"
+    },
+    "native": {
+      "exit": 0,
+      "cases": 6,
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "log": "build/qa/sync-replay-hooks-native-2026-10-14.log",
+      "owned_receivers_reaped": [
+        8680,
+        9053,
+        9990,
+        10487,
+        10867,
+        11768
+      ]
+    }
+  },
+  "repairs": [
+    "Initial native fixture compilation failed because a comparison operator lacked matching whitespace. Fixed fixture only; grouped native check passed without repeating app/Core builds."
+  ],
+  "limits": [
+    "Physical approval/failure/kill sheets and complete visual parity remain open",
+    "Signed security scopes and remote transport servers not exercised",
+    "No complete hosted CI or complete application-port acceptance claim"
+  ]
+}

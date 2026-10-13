@@ -560,7 +560,7 @@ Cancel prevents transport; suppression is shared with Pull. Tags, notes and type
 URLs do not ask. Normal selection is persisted after accepted preflight. Remote
 removal additionally requires an owned Yes/No confirmation before authorizing the
 backend deletion; the pinned Windows Sync handler does not show this extra
-question. Native project pre/post-push hooks are still unimplemented.
+question. Native project pre/post-push hooks now use the shared hook session; see the October 14 transport-hook checkpoint below.
 
 Shift+Push opens the full native Push options as an owned sheet with the source
 local-branch preset; it does not preflight the Sync remote or overwrite the saved
@@ -1584,3 +1584,33 @@ Synchronization Edit Notes now inherits the shared [Input form](INPUT-DIALOG-PAR
 including effective project settings, loading/minimum gates, explicit error state,
 source geometry and owned read/save Quit accounting. The previous separate
 SwiftUI host has been removed; complete physical/signed acceptance remains open.
+
+### Direct Push hook and replay restore batch — October 14, 2026
+
+Pinned SyncDlg::OnBnClickedButtonPush runs PrePush for Push, Push tags and Push
+notes, and RunPostAction runs PostPush after both successful and failed/cancelled
+Git commands unless the owner is exiting. Native direct actions now use the same
+ClientHookSession as the full Push dialog, retaining project approval, local/global
+selection, Abort/Continue, waiting/non-waiting script behavior and script permissions.
+Shift delegates to the full Push child and does not run duplicate outer hooks.
+
+Pre-hook Abort prevents transport and Post. Continued pre-hook failure remains
+in Command Log. Post uses a fresh owned token after reference inspection, so normal
+Git cancellation can still settle the source post-action. Forced exit suppresses
+late transport/hook callbacks. Post-hook failure preserves the actual Git success
+flag and changed references, with an explicit error; a failed Push still retains
+its own error. A pending kill confirmation cannot cancel a later post-hook token.
+Independent Push-workflow accounting retains Quit protection through questions,
+hook settlement and reference reads, including forced owner closure.
+
+The same connected batch repairs Rebase's Save-time autostash capture: restoration
+now re-reads current effective rebase.autostash, while Cherry Pick remains manual.
+Pre-rebase hooks or settings changes therefore affect the source restore question
+and Pop mode. The restoration read is cancellable and holds its lease/termination
+accounting; configuration failure retains the pending stash for retry. See
+[Stash parity](STASH-PARITY.md).
+
+The Debug build, eight focused Stash Core checks and six grouped Sync/hooks/replay
+native receivers passed with system and bundled Git. All receivers were reaped.
+See [results and limits](qa/sync-replay-hooks-2026-10-14.json). Physical approval/failure/kill sheets, signed script/security scopes,
+transport servers and complete Synchronization/Rebase parity remain open.

@@ -9,6 +9,12 @@ running its tests. Compare behavior and layout with the pinned TortoiseGit sourc
 and resources; retain an explicit list of missing behavior. Do not declare the
 whole port complete from implemented screens alone.
 
+Keep several related missing behaviors in the same implementation batch rather
+than making each small parity correction its own milestone. Finish the planned
+functionality and layout work before validation; do not interrupt implementation
+for repeated builds, screenshot runs or commits. A failure may require a focused
+repair and recheck, but does not justify restarting the complete validation set.
+
 Do not run tests on a timer or after every small edit. Perform one relevant Core
 check and one grouped native check at the end of the implementation batch when
 needed. Repeat only checks affected by an actual failure or subsequent change.

@@ -130,4 +130,20 @@ final class StashRestoreTests: XCTestCase {
         do { _ = try await repo.replayStashCondition(cherryPick:false,cancellation:token); XCTFail("Cancelled condition accepted") } catch OperationCancellationFailure.cancelled {}
     }
 
+    func testAutomaticReplayStashRestorationUsesCurrentConfigAndCancellation() async throws {
+        let (root,repo,_) = try await StashTests().fixture();defer { try? FileManager.default.removeItem(at:root) }
+        let before=try await repo.run(["rev-parse","HEAD"]).stdout,index=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        for (value,expected) in [("true",true),("false",false),("yes",true)] {
+            _ = try await repo.run(["config","rebase.autostash",value])
+            let automatic=try await repo.replayAutomaticStash(cherryPick:false)
+            let cherry=try await repo.replayAutomaticStash(cherryPick:true)
+            XCTAssertEqual(automatic,expected);XCTAssertFalse(cherry)
+        }
+        _ = try await repo.run(["config","--unset","rebase.autostash"])
+        let absent=try await repo.replayAutomaticStash(cherryPick:false);XCTAssertFalse(absent)
+        let token=OperationCancellation();token.cancel()
+        do { _ = try await repo.replayAutomaticStash(cherryPick:true,cancellation:token);XCTFail("Cancelled mode read") } catch OperationCancellationFailure.cancelled {}
+        let after=try await repo.run(["rev-parse","HEAD"]).stdout;XCTAssertEqual(before,after);XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index)
+    }
+
 }

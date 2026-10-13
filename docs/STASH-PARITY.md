@@ -249,7 +249,22 @@ hook checks with system and packaged Git. A native acknowledgement/close race
 was found and repaired; affected replay checks then passed again, including
 existing immediate completion routes when there is no pending stash. All owned
 receivers were reaped. See [actual results and limits](qa/stash-replay-batch-2026-10-12.json).
-The restoration mode currently retains the automatic choice from Save; upstream
-re-reads `rebase.autostash` before restoration. Mid-session configuration changes
-remain an explicit parity gap. Hosted CI still fails its separate LFS native
+Restoration now re-reads effective `rebase.autostash`; see the October 14 checkpoint below. Mid-session configuration changes no longer use the Save-time choice. Hosted CI still fails its separate LFS native
 selection assertion; these focused passes do not establish a green full run.
+
+## Effective restoration policy — October 14, 2026
+
+Rebase Done/Abort/completion now follows RebaseDlg::FinishRebase's fresh
+rebase.autostash read. Enabling it after Save skips the restore question and uses
+Pop mode 0; disabling it asks Yes/No and uses mode 1 after Yes. Cherry Pick never
+uses this automatic policy. No retains the stash but clears the once-only session
+flag, as source does. A failed/cancelled configuration read cannot clear the pending
+stash or launch a completion action. Forced owner closure cancels this read;
+independent accounting blocks Quit until the restoration worker settles.
+
+The connected transport-hook/replay batch includes original manual/automatic
+paths and both configuration flips with actual saved changes, older stash retention
+and completion routes. Eight focused Core checks and six grouped native receivers
+passed using system and bundled Git, with owned receivers reaped. See
+[results and limits](qa/sync-replay-hooks-2026-10-14.json). Physical and signed restore
+sheets, crash recovery and full replay parity remain open.

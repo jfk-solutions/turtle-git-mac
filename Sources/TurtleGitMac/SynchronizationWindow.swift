@@ -266,6 +266,7 @@ enum SynchronizationHistoryOperation: Equatable {
         window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 860, height: 500)
         window.contentViewController = NSHostingController(rootView: SynchronizationDialog(model: model))
         super.init(window: window); window.delegate = self; model.window = window
+        model.clientHooks.windowProvider = { [weak window] in window?.attachedSheet ?? window }
         model.runPushOptions = { [weak self] source in
             guard let self, !self.model.closed, let owner = self.window, owner.attachedSheet == nil else { throw OperationCancellationFailure.cancelled }
             await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
@@ -847,6 +848,8 @@ enum SynchronizationHistoryDiff {
 }
 
 @MainActor final class SynchronizationWindowModel: ObservableObject {
+    private(set) static var activePushWorkflows=0
+    lazy var clientHooks=ClientHookSession(preferences:preferences)
     private(set) static var activeHistoryDeletions = 0
     let repository: GitRepository
     let access: RepositoryAccessLease?
@@ -1308,7 +1311,7 @@ enum SynchronizationHistoryDiff {
         case nil: return ""
         }
     }
-    func invalidate() { closed = true; historyDeletionCoordinator?.close(); historyDeletionCoordinator = nil; cancelHistoryActions(); token?.cancel(); token = nil; comparison.invalidate(); incomingComparison.invalidate(); busy = false; transportRunning = false; cancelling = false; confirmingCancellation = false; cancellationQuestion = nil; transportID = nil }
+    func invalidate() { closed = true; clientHooks.retire(); historyDeletionCoordinator?.close(); historyDeletionCoordinator = nil; cancelHistoryActions(); token?.cancel(); token = nil; comparison.invalidate(); incomingComparison.invalidate(); busy = false; transportRunning = false; cancelling = false; confirmingCancellation = false; cancellationQuestion = nil; transportID = nil }
     func reload(selectTracking: Bool = false, initial: Bool = false, preserveError: Bool = false, refreshRemoteSelection: Bool = false) {
         guard !closed, !confirmingQuit, !transportRunning, !hasBlockingChild else { return }
         token?.cancel()
@@ -1590,7 +1593,9 @@ enum SynchronizationHistoryDiff {
             guard selected == .push else { return }
             let request = OperationCancellation(); token = request; busy = true; transportRunning = true; cancelling = false; error = nil
             let source = PushSourcePresentation.normalized(localBranch)
+            Self.activePushWorkflows += 1
             Task {
+                defer { Self.activePushWorkflows -= 1;withExtendedLifetime(access) {} }
                 defer { if token === request { token = nil; busy = false; transportRunning = false; cancelling = false } }
                 do {
                     if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
@@ -1709,13 +1714,17 @@ enum SynchronizationHistoryDiff {
         options.localBranch = localBranch; options.remote = remote; options.remoteBranch = remoteBranch; options.force = force
         let factory = sshSettings.capture()
         sshSettings.save(preferences, key: historyKey + ".autoload")
+        if pushing { Self.activePushWorkflows += 1 }
         Task {
+            defer { if pushing { Self.activePushWorkflows -= 1 };withExtendedLifetime(access) {} }
             let coordinator = factory?(); defer { coordinator?.close() }
             defer { if transportID == operationID { token = nil; busy = false; transportRunning = false; transportID = nil } }
             let parser = GitCliOutputParser(limit: outputState.limit)
             var oldReferences: SynchronizationReferenceSnapshot?
             var oldHead: String?
             var incomingRevision: String?
+            var pushAttempted=false
+            var ignoredPreHook:ClientHookResult?
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let plan = try await (shift ? repository.synchronizationOptionsPlan(options, cancellation: request) : repository.synchronizationTransportPlan(options, cancellation: request))
@@ -1755,7 +1764,14 @@ enum SynchronizationHistoryDiff {
                     deletionAuthorized = await confirmPushDeletion(plan.options.remoteBranch)
                     guard deletionAuthorized, !closed, token === request, !request.isCancelled else { throw OperationCancellationFailure.cancelled }
                 } else { deletionAuthorized = false }
-                if pushing { preferences.set(action == .push ? 0 : action == .pushTags ? 1 : 2, forKey: historyKey + ".pushAction") }
+                if pushing {
+                    preferences.set(action == .push ? 0 : action == .pushTags ? 1 : 2, forKey: historyKey + ".pushAction")
+                    currentWork=ClientHookType.prePush.title
+                    let result=try await clientHooks.run(.prePush,repository:repository,access:access,cancellation:request,allowContinue:true)
+                    guard !closed,token === request,!request.isCancelled else { return }
+                    if let result,result.exitCode != 0 { ignoredPreHook=result }
+                    currentWork=""
+                }
                 oldReferences = try await repository.synchronizationReferenceSnapshot(cancellation: request)
                 guard !closed, token === request else { return }
                 if request.isCancelled { throw OperationCancellationFailure.cancelled }
@@ -1776,6 +1792,7 @@ enum SynchronizationHistoryDiff {
                     // Conflicts are loaded below, after refreshing references.
                     commandSucceeded = true
                 } else {
+                    pushAttempted=pushing
                     let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
                     let operation = Task {
                         defer { continuation.finish() }
@@ -1868,6 +1885,22 @@ enum SynchronizationHistoryDiff {
                     commandOutput += "\nReading Pull results failed.\n" + error.localizedDescription
                 }
                 guard !closed, token === inspection else { return }
+            }
+            if let ignoredPreHook {
+                commandOutput += "\nPre-push hook failure was continued.\n" + (ignoredPreHook.error.isEmpty ? ignoredPreHook.output : ignoredPreHook.error)
+            }
+            // RunPostAction executes after both successful and failed/cancelled
+            // Push commands; forced owner exit suppresses it. A fresh token lets
+            // the live post-action settle independently of the killed Git child.
+            if pushing,pushAttempted,!closed {
+                let postRequest=OperationCancellation();token=postRequest;cancelling=false;currentWork=ClientHookType.postPush.title
+                do { _ = try await clientHooks.run(.postPush,repository:repository,access:access,cancellation:postRequest) }
+                catch {
+                    guard !closed,token === postRequest else { return }
+                    let text=postRequest.isCancelled ? "Post-push hook cancelled. Push effects are retained." : (commandSucceeded ? "The push succeeded, but its post-push hook failed.\n\n" : "The post-push hook failed.\n\n") + error.localizedDescription
+                    commandOutput += "\n"+text;self.error=(self.error.map { $0+"\n\n" } ?? "")+text
+                }
+                guard !closed,token === postRequest else { return };currentWork=""
             }
             commandCompleted = true; cancelling = false; transportRunning = false; busy = false; token = nil; transportID = nil
             onTransportFinished(commandOutput)
