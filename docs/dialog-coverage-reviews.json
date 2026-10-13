@@ -1,0 +1,402 @@
+{
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "note": "Explicit family-level source/native audit references. No entry certifies complete behavior or controls. Unmapped controls stay pending.",
+  "reviews": [
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_SETTINGSMAIN",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/GeneralSettings.swift",
+          "anchor": "struct GeneralSettings"
+        }
+      ],
+      "parity_document": "docs/GENERAL-SETTINGS-PARITY.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_CHECKFORUPDATES",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/ReleaseUpdateWindow.swift",
+          "anchor": "ReleaseUpdateWindowController"
+        }
+      ],
+      "parity_document": "docs/RELEASE-UPDATES-PARITY.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_LFS_LOCKS",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/LFSLocksWindow.swift",
+          "anchor": "LFSLocksWindowController"
+        }
+      ],
+      "parity_document": "docs/LFS-PARITY.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_SETTINGSLOOKANDFEEL",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/FinderContextMenuSettings.swift",
+          "anchor": "FinderContextMenuSettingsPage"
+        }
+      ],
+      "parity_document": "docs/CONTEXT-MENU-SETTINGS-PARITY.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_SETTINGSEXTMENU",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/FinderContextMenuSettings.swift",
+          "anchor": "FinderContextMenuSettingsPage"
+        }
+      ],
+      "parity_document": "docs/CONTEXT-MENU-SETTINGS-PARITY.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_SETTINGSDIALOGS",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/SettingsNavigation.swift",
+          "anchor": "DialogsBehaviorDraft"
+        }
+      ],
+      "parity_document": "docs/SETTINGS-NAVIGATION-PARITY.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_SETTINGSDIALOGS2",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/SettingsNavigation.swift",
+          "anchor": "DialogsBehaviorDraft"
+        }
+      ],
+      "parity_document": "docs/SETTINGS-NAVIGATION-PARITY.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_SETTINGSDIALOGS3",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/ProjectDialogSettings.swift",
+          "anchor": "ProjectDialogSettingsModel"
+        }
+      ],
+      "parity_document": "docs/GIT-CONFIGURATION-PARITY.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_SETTINGSCOLORS_1",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/Appearance.swift",
+          "anchor": "struct SourceColorSettings"
+        }
+      ],
+      "parity_document": "docs/SETTINGS-NAVIGATION-PARITY.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_SETTINGSCOLORS_2",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/Appearance.swift",
+          "anchor": "struct SourceColorSettings"
+        }
+      ],
+      "parity_document": "docs/SETTINGS-NAVIGATION-PARITY.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_SETTINGSCOLORS_3",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/Appearance.swift",
+          "anchor": "struct SourceColorSettings"
+        }
+      ],
+      "parity_document": "docs/SETTINGS-NAVIGATION-PARITY.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_SETTINGSSAVEDDATA",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/SavedDataSettings.swift",
+          "anchor": "SavedDataSettingsPage"
+        }
+      ],
+      "parity_document": "docs/SAVED-DATA.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_SVNDCOMMITTYPE",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/SVNWindow.swift",
+          "anchor": "SVNWindowController"
+        }
+      ],
+      "parity_document": "docs/SVN-PARITY.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_SVNIGNORE",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/SVNWindow.swift",
+          "anchor": "SVNWindowController"
+        }
+      ],
+      "parity_document": "docs/SVN-PARITY.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_REQUESTPULL",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/RequestPullWindow.swift",
+          "anchor": "RequestPullWindowController"
+        }
+      ],
+      "parity_document": "docs/REQUEST-PULL-PARITY.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_APPLY_PATCH_LIST",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/ImportPatchWindow.swift",
+          "anchor": "ImportPatchWindowController"
+        }
+      ],
+      "parity_document": "docs/IMPORT-PATCH-PARITY.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_PATCH_VIEW",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/PatchWindow.swift",
+          "anchor": "PatchWindowController"
+        }
+      ],
+      "parity_document": "docs/COMMIT-PARITY.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_FINDBAR",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/PatchWindow.swift",
+          "anchor": "PartialPatchFindBar"
+        }
+      ],
+      "parity_document": "docs/COMMIT-PARITY.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_BISECTSTART",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/BisectWindow.swift",
+          "anchor": "BisectWindowController"
+        }
+      ],
+      "parity_document": "docs/BISECT-PARITY.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_BROWSE_REFS",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/ReferenceBrowserWindow.swift",
+          "anchor": "ReferenceBrowserWindowController"
+        }
+      ],
+      "parity_document": "docs/REFERENCE-BROWSER-PARITY.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_DELETEREMOTETAG",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/RemoteTagWindow.swift",
+          "anchor": "RemoteTagWindowController"
+        }
+      ],
+      "parity_document": "docs/REMOTE-TAGS-PARITY.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_SETTINGIT_CONFIG",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/GitConfigurationSettings.swift",
+          "anchor": "GitConfigurationSettingsPage"
+        }
+      ],
+      "parity_document": "docs/GIT-CONFIGURATION-PARITY.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_SENDMAIL",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/SendPatchWindow.swift",
+          "anchor": "SendPatchWindowController"
+        }
+      ],
+      "parity_document": "docs/SEND-PATCH-PARITY.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_FIRSTSTARTWIZARD_START",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/FirstStartWizard.swift",
+          "anchor": "FirstStartWizardModel"
+        }
+      ],
+      "parity_document": "docs/FIRST-START-WIZARD-PARITY.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_FIRSTSTARTWIZARD_USER",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/FirstStartWizard.swift",
+          "anchor": "FirstStartWizardModel"
+        }
+      ],
+      "parity_document": "docs/FIRST-START-WIZARD-PARITY.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_FIRSTSTARTWIZARD_GIT",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/FirstStartWizard.swift",
+          "anchor": "FirstStartWizardModel"
+        }
+      ],
+      "parity_document": "docs/FIRST-START-WIZARD-PARITY.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_FIRSTSTARTWIZARD_AUTHENTICATION",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/FirstStartWizard.swift",
+          "anchor": "FirstStartWizardModel"
+        }
+      ],
+      "parity_document": "docs/FIRST-START-WIZARD-PARITY.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_FIRSTSTARTWIZARD_LANGUAGE",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/FirstStartWizard.swift",
+          "anchor": "FirstStartWizardModel"
+        }
+      ],
+      "parity_document": "docs/FIRST-START-WIZARD-PARITY.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_DIFFFILES",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/RevisionComparisonWindow.swift",
+          "anchor": "RevisionComparisonWindowController"
+        }
+      ],
+      "parity_document": "docs/LOG-PARITY.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_DIFFSUBMODULE",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/SubmoduleDiffWindow.swift",
+          "anchor": "SubmoduleDiffWindowController"
+        }
+      ],
+      "parity_document": "docs/SUBMODULE-DIFF-PARITY.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseMergeENG.rc",
+      "id": "IDD_FILEPATCHES",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/ImportPatchWindow.swift",
+          "anchor": "WorkingTreePatchFileList"
+        }
+      ],
+      "parity_document": "docs/IMPORT-PATCH-PARITY.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseMergeENG.rc",
+      "id": "IDD_DIFFLOCATOR",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/FileComparisonWindow.swift",
+          "anchor": "locatorMap"
+        }
+      ],
+      "parity_document": "docs/MERGE-LOCATOR-PARITY.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/TortoiseUDiff/TortoiseUDiff.rc",
+      "id": "IDD_FINDBAR",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/PatchWindow.swift",
+          "anchor": "usesFindBar"
+        }
+      ],
+      "parity_document": "docs/UNIFIED-DIFF-VIEWER-PARITY.md",
+      "status": "partial-native-replacement"
+    }
+  ]
+}

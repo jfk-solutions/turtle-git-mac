@@ -1,0 +1,55 @@
+{
+  "date": "2026-10-13",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "All 130 resource/id identities retained in generated ledger",
+    "33 explicit family-level native/parity reference reconciliations",
+    "12 Bisect/File patches static-control mapping updates",
+    "Existing reviewed-control native paths and source resource blobs indexed",
+    "Separate pending control reviews, QA links and zero complete certification"
+  ],
+  "summary": {
+    "dialogs": 130,
+    "partial_family_audits": 111,
+    "pending_family_reviews": 19,
+    "certified_complete": 0,
+    "static_controls": 1659,
+    "pending_control_reviews": 1037,
+    "mapped_controls": 622,
+    "statuses": {
+      "pending-review": 19,
+      "partial-native-replacement": 78,
+      "partial": 26,
+      "native-partial": 1,
+      "partial-workflow-replacement": 3,
+      "partial-native": 3
+    }
+  },
+  "validation": {
+    "unit": {
+      "tests": 3,
+      "exit": 0,
+      "log": "build/qa/dialog-coverage-unit-2026-10-13.log"
+    },
+    "pinned_regeneration": {
+      "exit": 0,
+      "log": "build/qa/dialog-coverage-pin-2026-10-13.log"
+    },
+    "consistency": {
+      "exit": 0,
+      "log": "build/qa/dialog-coverage-consistency-2026-10-13.log"
+    },
+    "documentation": {
+      "exit": 0,
+      "tests": 2,
+      "log": "build/qa/dialog-coverage-site-check-final-2026-10-13.log"
+    }
+  },
+  "interpretation": "This is corrected audit bookkeeping and navigable evidence, not 33 newly implemented dialogs or a completion percentage. Native class/file existence is not complete behavioral parity.",
+  "pending": [
+    "19 family reviews",
+    "1037 static-control reviews and dynamic controls",
+    "Physical/signed/full application acceptance"
+  ],
+  "full_port_certified": false
+}

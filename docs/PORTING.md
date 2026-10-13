@@ -97,7 +97,10 @@ owned loading/command progress. Native Push variants and owned Shift Push option
 controls, full visual matching and signed acceptance are still pending. See
 [Synchronization parity](SYNCHRONIZATION-PARITY.md).
 Across the 130 inventoried dialogs:
-76 dialogs have partial implementations and 54 await review. No dialog is certified complete.
+111 dialogs have recorded partial family audits and 19 await a family review.
+No dialog is certified complete. Of 1,659 static controls, 622 have recorded
+native mappings and 1,037 still await control review. These are audit-coverage
+counts, not a feature-completion percentage. See [all dialog coverage](DIALOG-COVERAGE.md).
 See [the reference dialog audit](COMMIT-CONTAINING-REFS-PARITY.md).
 
 Log commit ordering now has the source’s four-choice native sheet, deferred

@@ -29,3 +29,11 @@ needed for the current check. Do not terminate unrelated user-owned apps.
 Record the actual validation scope and failures. A local focused pass does not
 prove a complete hosted CI pass, physical Finder integration, signed deployment,
 or visual parity of every upstream dialog.
+
+## Dialog audit coverage
+
+After changing parity documentation, source control mappings or dialog review
+references, run `python3 scripts/reconcile-dialog-coverage.py` before committing.
+The generated ledger covers every pinned resource/id pair and separates partial
+family audits from unmapped controls. Do not describe its counts as a feature
+completion percentage or mark a dialog complete from a file/class existing.
