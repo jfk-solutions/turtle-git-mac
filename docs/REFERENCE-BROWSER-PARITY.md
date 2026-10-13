@@ -625,3 +625,7 @@ or full sixteen-family group was run for these fixture-only edits. Newer hosted
 macOS work was observed active/queued and was not restarted; no complete hosted
 pass is claimed. SVN scoped acceptance was deferred to address this actual CI
 failure. See `qa/reference-pid-publication-ci-2026-10-12.json`.
+
+The shared [Input dialog batch](INPUT-DIALOG-PARITY.md) replaces the separate
+standalone Log/description forms and unifies the embedded notes editor font and
+keyboard behavior. Full SciEdit and physical acceptance remain open.

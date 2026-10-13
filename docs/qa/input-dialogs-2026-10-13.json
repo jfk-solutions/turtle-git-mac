@@ -1,0 +1,62 @@
+{
+  "date": "2026-10-13",
+  "reference": {
+    "revision": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "source": [
+      "InputDlg.cpp",
+      "AppUtils.cpp::EditNote",
+      "BrowseRefsDlg.cpp",
+      "IDD_INPUTDLG"
+    ]
+  },
+  "scope": [
+    "Shared native Input form for branch descriptions and standalone Log notes",
+    "Optional checkbox, shared log font, end caret, Ctrl/Command Return, UTF-16 minimum and NUL rejection",
+    "Captured note revision/ref, exact multiline bytes, errors/cancel and parent sheet settlement",
+    "Forced-close presentation fences and shared active-save Quit accounting",
+    "Embedded Rebase/Synchronization notes editor shares font and keyboard policy"
+  ],
+  "validation": {
+    "core": {
+      "exit": 0,
+      "tests": 4,
+      "failures": 0,
+      "log": "build/qa/input-dialogs-core-2026-10-13.log"
+    },
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/input-dialogs-debug-final-package-2026-10-13.log",
+      "repairs": "Corrected inaccessible internal cancellation check and retained the existing embedded history/rebase adapters using the shared editor; initial compilation failures exercised no apps.",
+      "packaging_repair": "The settlement build encountered the known OpenSSH inventory mismatch against the old local kit. Rebuilt the corrected runtime before the final packaging build."
+    },
+    "native": {
+      "exit": 0,
+      "cases": 4,
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "families": [
+        "input-dialogs",
+        "description"
+      ],
+      "log": "build/qa/input-dialogs-native-final-2026-10-13.log",
+      "ownership": "All four final receivers, four earlier accepted receivers and both failed-fixture receivers reaped.",
+      "fixture_repair": "The first new fixture waited for two rows; Log also includes a working-tree row. Counted commit rows explicitly without removing assertions.",
+      "final_settlement": "Final repeated affected native cases verify revision callback arrives after busy/save settlement and the focused fixture compilation path."
+    },
+    "documentation": {
+      "exit": 0,
+      "tests": 2,
+      "log": "build/qa/input-dialogs-site-check-final-2026-10-13.log"
+    }
+  },
+  "pending": [
+    "Complete SciEdit styling/completion and branch project-settings propagation",
+    "Embedded host consolidation",
+    "Physical/accessibility/theme acceptance",
+    "Signed file grants and App Store acceptance",
+    "Complete application parity"
+  ],
+  "full_port_certified": false
+}

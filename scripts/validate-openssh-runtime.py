@@ -29,6 +29,7 @@ expected_files = {'bin/'+name for name in pin['binaries']} | {
     'Licenses/OpenSSH-LICENCE.txt', 'Licenses/OpenSSL-LICENSE.txt',
     'Sources/openssh.tar.gz', 'Sources/openssl.tar.gz',
     'Sources/build/build-openssh-runtime.py', 'Sources/build/validate-openssh-runtime.py',
+    'Sources/build/pinned_download.py',
     'Sources/build/runtime_bundle_layout.py', 'Sources/build/git_lfs_runtime.py',
     'Sources/Configuration/OpenSSHRuntime.json'}
 assert set(manifest['files_sha256']) == expected_files, 'Unexpected manifest inventory'

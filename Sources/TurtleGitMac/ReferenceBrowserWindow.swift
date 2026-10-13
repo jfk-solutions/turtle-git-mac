@@ -792,17 +792,19 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
     }
 }
 
-// CInputDlg's branch-description use: multiline input, end caret, Ctrl+Return,
-// shared log font and InputDlg geometry. See NOTICE for upstream provenance.
-private final class ReferenceDescriptionTextView: NSTextView {
+// Shared CInputDlg adaptation for branch descriptions and notes. See NOTICE.
+final class InputMessageTextView: ProjectMessageTextView {
     var accept: () -> Void = {}
     override func keyDown(with event: NSEvent) {
-        if event.modifierFlags.contains(.control), event.keyCode == 36 || event.keyCode == 76 { accept(); return }
+        if !event.modifierFlags.intersection([.control, .command]).isEmpty, event.keyCode == 36 || event.keyCode == 76 { accept(); return }
         super.keyDown(with: event)
     }
 }
-@MainActor final class ReferenceDescriptionWindowController: NSWindowController, NSWindowDelegate {
+@MainActor class InputWindowController: NSWindowController, NSWindowDelegate, NSTextViewDelegate {
+    static private(set) var activeSaves = 0
     let editor: NSTextView
+    let checkbox = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let minimumLength: Int
     let ok = NSButton(title: "OK", target: nil, action: nil)
     let cancelButton = NSButton(title: "Cancel", target: nil, action: nil)
     let errorLabel = NSTextField(wrappingLabelWithString: "")
@@ -812,37 +814,40 @@ private final class ReferenceDescriptionTextView: NSTextView {
     private var token: OperationCancellation?
     private var fontObserver: NSObjectProtocol?
     private let preferences: UserDefaults
-    private let write: (String, OperationCancellation) async throws -> Void
+    private let write: (String, Bool, OperationCancellation) async throws -> Void
     var onClosed: () -> Void = {}
-    init(text: String, preferences: UserDefaults, write: @escaping (String, OperationCancellation) async throws -> Void) {
-        self.preferences = preferences; self.write = write
-        let input = ReferenceDescriptionTextView(frame: .zero); editor = input
+    init(title: String = "Input", hint: String = "Enter log message:", text: String, checkboxTitle: String? = nil, checked: Bool = false, minimumLength: Int = 0, projectSettings: ProjectDialogSettings = ProjectDialogSettings(), preferences: UserDefaults, write: @escaping (String, Bool, OperationCancellation) async throws -> Void) {
+        self.preferences = preferences; self.write = write; self.minimumLength = max(0, minimumLength)
+        let input = InputMessageTextView(frame: .zero); editor = input
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 510, height: 255), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "Edit description"; window.isReleasedWhenClosed = false; window.contentMinSize = .init(width: 360, height: 210)
+        window.title = title; window.isReleasedWhenClosed = false; window.contentMinSize = .init(width: 360, height: 210)
         super.init(window: window); window.delegate = self
         let content = NSView(); window.contentView = content
-        let hint = NSTextField(labelWithString: "Edit description")
+        let hint = NSTextField(labelWithString: hint)
         let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.borderType = .bezelBorder; scroll.documentView = input
         input.isRichText = false; input.allowsUndo = true; input.isVerticallyResizable = true; input.isHorizontallyResizable = false
         input.autoresizingMask = [.width]; input.textContainer?.widthTracksTextView = true
         input.textContainer?.containerSize = .init(width: 0, height: CGFloat.greatestFiniteMagnitude)
         input.maxSize = .init(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         input.textContainerInset = .init(width: 5, height: 5); input.string = text
-        input.setAccessibilityLabel("Branch description"); input.undoManager?.removeAllActions()
+        input.setAccessibilityLabel(title); input.undoManager?.removeAllActions(); input.delegate = self
+        input.applyProjectSettings(projectSettings)
+        checkbox.title = checkboxTitle ?? ""; checkbox.isHidden = checkboxTitle?.isEmpty != false; checkbox.state = checked ? .on : .off
         errorLabel.textColor = .systemRed
         ok.bezelStyle = .rounded; cancelButton.bezelStyle = .rounded
         ok.target = self; ok.action = #selector(save); cancelButton.target = self; cancelButton.action = #selector(cancel)
         cancelButton.keyEquivalent = "\u{1b}"; input.accept = { [weak self] in self?.save() }
-        for view in [hint, scroll, errorLabel, ok, cancelButton] { view.translatesAutoresizingMaskIntoConstraints = false; content.addSubview(view) }
+        for view in [hint, scroll, errorLabel, checkbox, ok, cancelButton] { view.translatesAutoresizingMaskIntoConstraints = false; content.addSubview(view) }
         NSLayoutConstraint.activate([
             hint.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 12), hint.topAnchor.constraint(equalTo: content.topAnchor, constant: 10),
             scroll.leadingAnchor.constraint(equalTo: hint.leadingAnchor), scroll.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -12), scroll.topAnchor.constraint(equalTo: hint.bottomAnchor, constant: 6),
             scroll.bottomAnchor.constraint(equalTo: errorLabel.topAnchor, constant: -5),
             errorLabel.leadingAnchor.constraint(equalTo: hint.leadingAnchor), errorLabel.trailingAnchor.constraint(equalTo: scroll.trailingAnchor), errorLabel.bottomAnchor.constraint(equalTo: ok.topAnchor, constant: -6),
             cancelButton.trailingAnchor.constraint(equalTo: scroll.trailingAnchor), cancelButton.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -10), cancelButton.widthAnchor.constraint(equalToConstant: 80),
+            checkbox.leadingAnchor.constraint(equalTo: hint.leadingAnchor), checkbox.centerYAnchor.constraint(equalTo: ok.centerYAnchor), checkbox.trailingAnchor.constraint(lessThanOrEqualTo: ok.leadingAnchor, constant: -8),
             ok.trailingAnchor.constraint(equalTo: cancelButton.leadingAnchor, constant: -8), ok.bottomAnchor.constraint(equalTo: cancelButton.bottomAnchor), ok.widthAnchor.constraint(equalToConstant: 80)
         ])
-        updateFont(); window.center(); DialogGeometry.attach(window, identifier: "InputDlg", legacyName: "InputDlg")
+        updateFont(); updateAcceptance(); window.center(); DialogGeometry.attach(window, identifier: "InputDlg", legacyName: "InputDlg")
         fontObserver = NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: preferences, queue: .main) { [weak self] _ in Task { @MainActor in self?.updateFont() } }
     }
     private func updateFont() {
@@ -853,28 +858,41 @@ private final class ReferenceDescriptionTextView: NSTextView {
         editor.undoManager?.enableUndoRegistration(); editor.selectedRanges = ranges
     }
     func focusEditor() { guard !closed, !busy, let window else { return }; window.makeFirstResponder(editor); editor.setSelectedRange(.init(location: editor.string.utf16.count, length: 0)) }
+    var canAccept: Bool { !closed && !busy && editor.string.utf16.count >= minimumLength && !editor.string.contains("\0") }
+    func textDidChange(_ notification: Notification) { updateAcceptance() }
+    private func updateAcceptance() { ok.isEnabled = canAccept }
+    private func dismiss() { if let window { window.sheetParent?.endSheet(window); window.close() } }
     @objc func save() {
-        guard !busy, !closed else { return }
-        busy = true; editor.isEditable = false; ok.isEnabled = false; cancelButton.isEnabled = false; errorLabel.stringValue = ""
-        let request = OperationCancellation(); token = request; let text = editor.string
+        guard canAccept else { return }
+        busy = true; checkbox.isEnabled = false; editor.isEditable = false; ok.isEnabled = false; cancelButton.isEnabled = false; errorLabel.stringValue = ""
+        let request = OperationCancellation(); token = request; let text = editor.string, checked = checkbox.state == .on
+        InputWindowController.activeSaves += 1
         Task {
+            defer { InputWindowController.activeSaves -= 1 }
             do {
-                try await write(text, request)
+                try await write(text, checked, request)
                 guard !closed, token === request else { return }
-                saved = true; close()
+                saved = true; dismiss()
             } catch {
                 guard !closed, token === request else { return }
-                token = nil; busy = false; editor.isEditable = true; ok.isEnabled = true; cancelButton.isEnabled = true
+                token = nil; busy = false; editor.isEditable = true; checkbox.isEnabled = true; updateAcceptance(); cancelButton.isEnabled = true
                 errorLabel.stringValue = error.localizedDescription; window?.makeFirstResponder(editor)
             }
         }
     }
-    @objc func cancel() { guard !busy, !closed else { return }; close() }
+    @objc func cancel() { guard !busy, !closed else { return }; dismiss() }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !busy }
     func windowWillClose(_ notification: Notification) {
         guard !closed else { return }; closed = true; token?.cancel(); token = nil
         if let fontObserver { NotificationCenter.default.removeObserver(fontObserver) }; fontObserver = nil
         if let window { window.sheetParent?.endSheet(window) }; onClosed()
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+}
+
+@MainActor final class ReferenceDescriptionWindowController: InputWindowController {
+    init(text: String, preferences: UserDefaults, write: @escaping (String, OperationCancellation) async throws -> Void) {
+        super.init(title: "Edit description", hint: "Edit description", text: text, preferences: preferences) { text, _, token in try await write(text, token) }
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }

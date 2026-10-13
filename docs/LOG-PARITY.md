@@ -2149,3 +2149,7 @@ captured menu revision before confirmation, including peeled annotated tags.
 The shared core revalidates the confirmed object again before mutation. Its
 operation lifetime remains tracked after a forced window close until owned Git
 work returns. These changes await the grouped history validation pass.
+
+The shared [Input dialog batch](INPUT-DIALOG-PARITY.md) replaces the separate
+standalone Log/description forms and unifies the embedded notes editor font and
+keyboard behavior. Full SciEdit and physical acceptance remain open.

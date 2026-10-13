@@ -35,7 +35,7 @@ src/Resources/TortoiseProcENG.rc,IDD_SETTINGSPROXY,Network,partial-native-replac
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSMTP,Email,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_SVNPROGRESS,Progress,partial
 src/Resources/TortoiseProcENG.rc,IDD_SIMPLEPROMPT,Authentication,pending-review
-src/Resources/TortoiseProcENG.rc,IDD_INPUTDLG,Input,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_INPUTDLG,Input,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSPROGSADV,Advanced Diff/Merge Settings,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_URL,URL,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_TOOLASSOC,Add/Edit Extension Specific Diff/Merge Program,partial-native-replacement

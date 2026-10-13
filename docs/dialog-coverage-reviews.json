@@ -421,6 +421,22 @@
       ],
       "parity_document": "docs/REMOTE-DIALOGS-PARITY.md",
       "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_INPUTDLG",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/ReferenceBrowserWindow.swift",
+          "anchor": "class InputWindowController"
+        },
+        {
+          "path": "Sources/TurtleGitMac/LogWindow.swift",
+          "anchor": "func showNote"
+        }
+      ],
+      "parity_document": "docs/INPUT-DIALOG-PARITY.md",
+      "status": "partial-native-replacement"
     }
   ]
 }

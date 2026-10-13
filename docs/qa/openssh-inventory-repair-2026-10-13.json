@@ -1,0 +1,24 @@
+{
+  "date": "2026-10-13",
+  "hosted_failure": {
+    "run": 38403636288,
+    "job": 115317850052,
+    "revision": "105939d",
+    "step": "Build and verify pinned universal OpenSSH helpers",
+    "cause": "Builder included Sources/build/pinned_download.py, but exact manifest inventory omitted it."
+  },
+  "change": "Add the already required reconstruction helper to the exact expected inventory; retain per-file SHA-256 and extra-file rejection.",
+  "validation": {
+    "builder": {
+      "exit": 0,
+      "log": "build/qa/openssh-inventory-repair-2026-10-13.log",
+      "scope": "Actual arm64/x86_64 OpenSSH 10.6p1 / OpenSSL 3.5.9 rebuild, deployment/system-linkage/archive/license/reconstruction hash validation and private arm64 agent key operations."
+    }
+  },
+  "pending": [
+    "New hosted CI run",
+    "Signed app/agent execution",
+    "Network authentication acceptance"
+  ],
+  "full_ci_certified": false
+}

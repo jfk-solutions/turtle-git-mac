@@ -308,8 +308,6 @@ jobs:
         run: python3 scripts/test-reference-tracking.py
       - name: Native reference browser inline branch rename
         run: python3 scripts/test-reference-rename.py
-      - name: Native branch-description input and browser ownership
-        run: python3 scripts/test-reference-description.py
       - name: Native Switch full reference and commit pickers
         run: python3 scripts/test-switch-pickers.py
       - name: Native Branch and Tag creation handoffs

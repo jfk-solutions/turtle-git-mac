@@ -103,3 +103,12 @@ module metadata because Xcode strips modules from embedded frameworks.
 real embedded key loader/response helper and monitor the real agent's PID.
 A private controlled loader delays loading to verify closure and failure cleanup.
 Both unsigned configurations pass; this does not prove signed execution.
+
+## CI reconstruction inventory repair — 2026-10-13
+
+Hosted run 38403636288 stopped before application tests because the builder
+packaged `pinned_download.py` but the validator's exact file inventory omitted
+it. The inventory now includes that reconstruction dependency; checksum and
+extra-file rejection remain enforced. An actual universal rebuild and runtime
+validation passed. See the [scoped evidence](qa/openssh-inventory-repair-2026-10-13.json).
+The subsequent hosted run and signed acceptance remain unverified.

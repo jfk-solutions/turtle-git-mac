@@ -12,6 +12,8 @@ import tempfile
 import time
 
 CASES = {
+    'input-dialogs': 'InputDialogsVerification',
+    'description': 'ReferenceDescriptionVerification',
     'fetch-history': 'FetchHistoryVerification',
     'remote-dialogs': 'RemoteDialogsVerification',
     'file-patches': 'FilePatchesVerification',
@@ -69,6 +71,9 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git', type=Path, action='append')
 parser.add_argument('--only', choices=CASES, action='append')
 args = parser.parse_args()
+compiled_cases = dict(CASES) if not args.only else {case: CASES[case] for case in CASES if case in args.only}
+for parent, worker in [('finder-service-grants', 'finder-service-grant-worker'), ('finder-publication', 'finder-publication-worker')]:
+    if parent in compiled_cases: compiled_cases[worker] = CASES[worker]
 root = Path(__file__).resolve().parent.parent
 products = root / 'build/Build/Products/Debug'
 objects = sorted((root / 'build/Build/Intermediates.noindex/TurtleGitMac.build/Debug/TurtleGitMac.build/Objects-normal' / platform.machine()).glob('*.o'))
@@ -81,30 +86,31 @@ exec(compile(ast.Module(body=[helper], type_ignores=[]), '<owned reference recei
 with tempfile.TemporaryDirectory(prefix='TurtleGitReferenceNativeBatch-') as temporary:
     directory = Path(temporary)
     sources = []
-    for case in CASES:
+    for case in compiled_cases:
         source = directory / (case + '.swift')
-        fixture = root / ('docs/qa/fetch-history-native-2026-10-07.swift' if case == 'fetch-history' else 'docs/qa/remote-dialogs-native-2026-10-13.swift' if case == 'remote-dialogs' else 'docs/qa/file-patches-native-2026-10-13.swift' if case == 'file-patches' else 'docs/qa/bisect-lifecycle-native-2026-10-13.swift' if case == 'bisect-lifecycle' else 'docs/qa/message-spelling-native-2026-10-13.swift' if case == 'message-spelling' else 'docs/qa/git-askpass-native-2026-10-13.swift' if case == 'git-askpass' else 'docs/qa/patch-review-lifecycle-native-2026-10-13.swift' if case == 'patch-review-lifecycle' else 'docs/qa/ssh-authentication-native-2026-10-13.swift' if case == 'ssh-authentication' else 'docs/qa/git-properties-native-2026-10-13.swift' if case == 'git-properties' else 'docs/qa/partial-patch-native-2026-10-13.swift' if case == 'partial-patch' else 'docs/qa/finder-service-grants-native-2026-10-13.swift' if case == 'finder-service-grants' else 'docs/qa/finder-service-grant-worker-native-2026-10-13.swift' if case == 'finder-service-grant-worker' else 'docs/qa/finder-watches-native-2026-10-13.swift' if case == 'finder-watches' else 'docs/qa/finder-watches-capture-native-2026-10-13.swift' if case == 'finder-watches-captures' else 'docs/qa/finder-publication-native-2026-10-13.swift' if case == 'finder-publication' else 'docs/qa/finder-publication-worker-native-2026-10-13.swift' if case == 'finder-publication-worker' else 'docs/qa/finder-events-native-2026-10-13.swift' if case == 'finder-events' else 'docs/qa/repository-browser-table-capture-native-2026-10-13.swift' if case == 'repository-browser-table-captures' else 'docs/qa/repository-browser-table-native-2026-10-13.swift' if case == 'repository-browser-table' else 'docs/qa/repository-browser-lifecycle-native-2026-10-13.swift' if case == 'repository-browser' else 'docs/qa/blame-wrap-native-2026-10-13.swift' if case == 'blame-wrap' else 'docs/qa/blame-wrap-capture-native-2026-10-13.swift' if case == 'blame-wrap-captures' else 'docs/qa/blame-lexilla-native-2026-10-13.swift' if case == 'blame-lexilla' else 'docs/qa/blame-menu-native-2026-10-13.swift' if case == 'blame-menus' else 'docs/qa/blame-file-open-native-2026-10-13.swift' if case == 'blame-file-open' else 'docs/qa/blame-find-native-2026-10-13.swift' if case == 'blame-find' else 'docs/qa/blame-source-editor-native-2026-10-13.swift' if case == 'blame-source' else 'docs/qa/blame-source-capture-native-2026-10-13.swift' if case == 'blame-captures' else 'docs/qa/stash-restore-native-2026-10-08.swift' if case == 'stash-restore' else 'docs/qa/utility-captures-2026-10-12.swift' if case == 'utility-captures' else 'docs/qa/client-hooks-native-2026-10-12.swift' if case == 'client-hooks' else 'docs/qa/autotext-tester-native-2026-10-12.swift' if case == 'autotext-tester' else 'docs/qa/issue-tracker-captures-2026-10-12.swift' if case == 'issue-captures' else 'docs/qa/issue-tracker-settings-native-2026-10-12.swift' if case == 'issue-tracker-settings' else 'docs/qa/issue-regex-tester-native-2026-10-12.swift' if case == 'issue-regex-tester' else 'docs/qa/svn-native-2026-10-12.swift' if case == 'svn-workflow' else 'docs/qa/commit-progress-native-2026-10-08.swift' if case == 'commit-progress' else 'docs/qa/email-settings-native-2026-10-10.swift' if case == 'email-settings' else 'docs/qa/overlay-settings-native-2026-10-12.swift' if case == 'overlay-settings' else 'docs/qa/external-merge-lifecycle-native-2026-10-12.swift' if case == 'external-merge-lifecycle' else 'docs/qa/tool-settings-native-2026-10-12.swift' if case == 'tool-settings' else 'docs/qa/credential-settings-native-2026-10-12.swift' if case == 'credential-settings' else 'docs/qa/network-settings-native-2026-10-12.swift' if case == 'network-settings' else 'docs/qa/merge-pickers-native-2026-10-09.swift' if case == 'merge-pickers' else 'docs/qa/reference-' + case + '-native-2026-10-09.swift')
+        fixture = root / ('docs/qa/input-dialogs-native-2026-10-13.swift' if case == 'input-dialogs' else 'docs/qa/fetch-history-native-2026-10-07.swift' if case == 'fetch-history' else 'docs/qa/remote-dialogs-native-2026-10-13.swift' if case == 'remote-dialogs' else 'docs/qa/file-patches-native-2026-10-13.swift' if case == 'file-patches' else 'docs/qa/bisect-lifecycle-native-2026-10-13.swift' if case == 'bisect-lifecycle' else 'docs/qa/message-spelling-native-2026-10-13.swift' if case == 'message-spelling' else 'docs/qa/git-askpass-native-2026-10-13.swift' if case == 'git-askpass' else 'docs/qa/patch-review-lifecycle-native-2026-10-13.swift' if case == 'patch-review-lifecycle' else 'docs/qa/ssh-authentication-native-2026-10-13.swift' if case == 'ssh-authentication' else 'docs/qa/git-properties-native-2026-10-13.swift' if case == 'git-properties' else 'docs/qa/partial-patch-native-2026-10-13.swift' if case == 'partial-patch' else 'docs/qa/finder-service-grants-native-2026-10-13.swift' if case == 'finder-service-grants' else 'docs/qa/finder-service-grant-worker-native-2026-10-13.swift' if case == 'finder-service-grant-worker' else 'docs/qa/finder-watches-native-2026-10-13.swift' if case == 'finder-watches' else 'docs/qa/finder-watches-capture-native-2026-10-13.swift' if case == 'finder-watches-captures' else 'docs/qa/finder-publication-native-2026-10-13.swift' if case == 'finder-publication' else 'docs/qa/finder-publication-worker-native-2026-10-13.swift' if case == 'finder-publication-worker' else 'docs/qa/finder-events-native-2026-10-13.swift' if case == 'finder-events' else 'docs/qa/repository-browser-table-capture-native-2026-10-13.swift' if case == 'repository-browser-table-captures' else 'docs/qa/repository-browser-table-native-2026-10-13.swift' if case == 'repository-browser-table' else 'docs/qa/repository-browser-lifecycle-native-2026-10-13.swift' if case == 'repository-browser' else 'docs/qa/blame-wrap-native-2026-10-13.swift' if case == 'blame-wrap' else 'docs/qa/blame-wrap-capture-native-2026-10-13.swift' if case == 'blame-wrap-captures' else 'docs/qa/blame-lexilla-native-2026-10-13.swift' if case == 'blame-lexilla' else 'docs/qa/blame-menu-native-2026-10-13.swift' if case == 'blame-menus' else 'docs/qa/blame-file-open-native-2026-10-13.swift' if case == 'blame-file-open' else 'docs/qa/blame-find-native-2026-10-13.swift' if case == 'blame-find' else 'docs/qa/blame-source-editor-native-2026-10-13.swift' if case == 'blame-source' else 'docs/qa/blame-source-capture-native-2026-10-13.swift' if case == 'blame-captures' else 'docs/qa/stash-restore-native-2026-10-08.swift' if case == 'stash-restore' else 'docs/qa/utility-captures-2026-10-12.swift' if case == 'utility-captures' else 'docs/qa/client-hooks-native-2026-10-12.swift' if case == 'client-hooks' else 'docs/qa/autotext-tester-native-2026-10-12.swift' if case == 'autotext-tester' else 'docs/qa/issue-tracker-captures-2026-10-12.swift' if case == 'issue-captures' else 'docs/qa/issue-tracker-settings-native-2026-10-12.swift' if case == 'issue-tracker-settings' else 'docs/qa/issue-regex-tester-native-2026-10-12.swift' if case == 'issue-regex-tester' else 'docs/qa/svn-native-2026-10-12.swift' if case == 'svn-workflow' else 'docs/qa/commit-progress-native-2026-10-08.swift' if case == 'commit-progress' else 'docs/qa/email-settings-native-2026-10-10.swift' if case == 'email-settings' else 'docs/qa/overlay-settings-native-2026-10-12.swift' if case == 'overlay-settings' else 'docs/qa/external-merge-lifecycle-native-2026-10-12.swift' if case == 'external-merge-lifecycle' else 'docs/qa/tool-settings-native-2026-10-12.swift' if case == 'tool-settings' else 'docs/qa/credential-settings-native-2026-10-12.swift' if case == 'credential-settings' else 'docs/qa/network-settings-native-2026-10-12.swift' if case == 'network-settings' else 'docs/qa/merge-pickers-native-2026-10-09.swift' if case == 'merge-pickers' else 'docs/qa/reference-' + case + '-native-2026-10-09.swift')
         source.write_text('@testable import TurtleGitMac\n' + fixture.read_text().replace('@main struct', 'struct', 1))
         sources.append(source)
     askpass_window = directory / 'GitAskpassWindow.swift'
     askpass_window.write_text('import TurtleGitCore\n' + (root / 'Sources/TurtleGitGitAskpass/PromptWindow.swift').read_text())
     sources.append(askpass_window)
-    svn_fixture = directory / 'SVNFixture.swift'
-    svn_fixture.write_text((root / 'Tests/TurtleGitCoreTests/GitSVNFixture.swift').read_text().replace('@testable import TurtleGitCore', 'import TurtleGitCore'))
-    sources.append(svn_fixture)
-    svn_entry = directory / 'SVNEntry.swift'
-    svn_entry.write_text(r'''import Foundation
-struct SVNWorkflowVerification {
-    @MainActor static func main() async {
-        setenv("TURTLEGIT_SVN_TEST_GIT", CommandLine.arguments[2], 1)
-        do { try await SVNNativeVerification.verify() }
-        catch { fputs("SVN workflow failed: \(error)\n", stderr); exit(1) }
+    if 'svn-workflow' in compiled_cases:
+        svn_fixture = directory / 'SVNFixture.swift'
+        svn_fixture.write_text((root / 'Tests/TurtleGitCoreTests/GitSVNFixture.swift').read_text().replace('@testable import TurtleGitCore', 'import TurtleGitCore'))
+        sources.append(svn_fixture)
+        svn_entry = directory / 'SVNEntry.swift'
+        svn_entry.write_text(r'''import Foundation
+    struct SVNWorkflowVerification {
+        @MainActor static func main() async {
+            setenv("TURTLEGIT_SVN_TEST_GIT", CommandLine.arguments[2], 1)
+            do { try await SVNNativeVerification.verify() }
+            catch { fputs("SVN workflow failed: \(error)\n", stderr); exit(1) }
+        }
     }
-}
-''')
-    sources.append(svn_entry)
+    ''')
+        sources.append(svn_entry)
     main = directory / 'Main.swift'
-    branches = '\n'.join('        case "' + case + '": await ' + name + '.main()' for case, name in CASES.items())
+    branches = '\n'.join('        case "' + case + '": await ' + name + '.main()' for case, name in compiled_cases.items())
     main.write_text('''import AppKit
 @_cdecl("turtlegit_reference_batch_main") func bootstrap() -> Int32 {
     NSApplication.shared.setActivationPolicy(.prohibited)

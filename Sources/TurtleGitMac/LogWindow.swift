@@ -99,6 +99,7 @@ final class LogHistoryWindow: NSWindow {
     private let findAccess: RepositoryAccessLease?
     private let findPreferences: UserDefaults
     private var findAvailability: AnyCancellable?
+    private(set) var noteEditor: InputWindowController?
     private(set) var find: RevisionGraphFindController?
     private(set) var ordering: LogOrderingWindowController?
     private(set) var containingReferences: [UUID: CommitContainingReferencesWindowController] = [:]
@@ -124,6 +125,7 @@ final class LogHistoryWindow: NSWindow {
         window.find = { [weak self] in self?.showFind() }
         window.blocksInteraction = { [weak model] in model?.findBlocked == true || model?.orderingBlocked == true }
         findAvailability = model.$busy.sink { [weak self] _ in DispatchQueue.main.async { self?.find?.updateAvailability() } }
+        model.onShowNote = { [weak self] note, settings in self?.showNote(note, settings: settings) }
         model.onShowOrdering = { [weak self] in self?.showOrdering() }
         model.onShowContainingReferences = { [weak self] hash in self?.showContainingReferences(hash) }
         model.onFindReferenceRefresh = { [weak self] in self?.find?.loadReferences() }
@@ -409,12 +411,27 @@ final class LogHistoryWindow: NSWindow {
         if let window = child.window { window.alphaValue = parent.alphaValue; window.appearance = parent.appearance; parent.addChildWindow(window, ordered: .above); window.center(); window.orderFront(nil); window.makeFirstResponder(child.revision) }
         child.refresh()
     }
+    func showNote(_ note: CommitNoteSnapshot, settings: ProjectDialogSettings) {
+        guard noteEditor == nil, !model.isInvalidated, let parent = window, parent.attachedSheet == nil else { model.cancelNote(); return }
+        let child = InputWindowController(title: "Edit Notes", hint: "Edit Notes", text: note.text, minimumLength: note.minimumLength, projectSettings: settings, preferences: findPreferences) { [model] text, _, token in
+            if token.isCancelled { throw CancellationError() }
+            try await model.saveNoteText(note, text: text)
+        }
+        noteEditor = child
+        child.onClosed = { [weak self, weak child] in
+            guard let self, self.noteEditor === child else { return }
+            self.noteEditor = nil; self.model.cancelNote()
+        }
+        guard let sheet = child.window else { noteEditor = nil; model.cancelNote(); return }
+        parent.beginSheet(sheet); child.focusEditor()
+    }
     var hasBlockingReferenceChild: Bool { containingReferences.values.contains { $0.hasBlockingChild } }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         guard (!model.busy || model.loadingHistory), !model.unifiedViewerBusy, !model.findBlocked, !model.orderingBlocked, !hasBlockingReferenceChild, sender.attachedSheet == nil else { return false }
         if model.selecting { finishSelection(nil); return false }; return true
     }
     func windowWillClose(_ notification: Notification) {
+        noteEditor?.close(); noteEditor = nil
         let ordered = ordering; ordering = nil; ordered?.completion = { _ in }; ordered?.close(); model.orderingBlocked = false
         let references = Array(containingReferences.values); containingReferences.removeAll(); references.forEach { $0.close() }
         find?.close(); find = nil; model.findBlocked = false
@@ -787,6 +804,7 @@ struct LogCommandRequest: Identifiable {
     @Published var searchFields = LogSearchSelection.load()
     @Published var searchRegex = UserDefaults.standard.bool(forKey: "UseRegexFilter")
     @Published var searchCaseSensitive = UserDefaults.standard.bool(forKey: "FilterCaseSensitively")
+    var onShowNote: ((CommitNoteSnapshot, ProjectDialogSettings) -> Void)?
     @Published var noteRequest: CommitNoteSnapshot?
     @Published var noteText = ""
     @Published var noteError: String?
@@ -868,8 +886,10 @@ struct LogCommandRequest: Identifiable {
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let note = try await repository.editableCommitNote(revision: revision.hash, cancellation: token)
-                guard request == noteGeneration else { return }
+                let settings = try await repository.projectDialogSettings(source: .effective, cancellation: token)
+                guard !isInvalidated, request == noteGeneration else { return }
                 noteCancellation = nil; loadingNote = false; noteText = note.text; noteError = nil; noteRequest = note
+                onShowNote?(note, settings)
             } catch {
                 guard request == noteGeneration else { return }
                 noteCancellation = nil; loadingNote = false
@@ -880,19 +900,28 @@ struct LogCommandRequest: Identifiable {
     func cancelNote() { guard !savingNote else { return }; noteRequest = nil; noteText = ""; noteError = nil }
     func saveNote() {
         guard canSaveNote, let note = noteRequest else { return }
-        let text = noteText; savingNote = true; busy = true; noteError = nil
+        let text = noteText
         Task {
-            do {
-                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let display = try await repository.saveCommitNote(note, text: text)
-                if let index = entries.firstIndex(where: { $0.hash == note.revision }) { entries[index].notes = display }
-                savingNote = false; busy = false; cancelNote()
-                onRevisionChanged("Saved note for " + note.revision)
-            } catch let failure as CommitNoteFailure {
-                savingNote = false; busy = false
-                if case .savedButRefreshFailed = failure { cancelNote(); error = failure.localizedDescription }
-                else { noteError = failure.localizedDescription }
-            } catch { savingNote = false; busy = false; noteError = error.localizedDescription }
+            do { try await saveNoteText(note, text: text); if !isInvalidated { cancelNote() } }
+            catch { if !isInvalidated { noteError = error.localizedDescription } }
+        }
+    }
+    func saveNoteText(_ note: CommitNoteSnapshot, text: String) async throws {
+        guard !isInvalidated, !savingNote, noteRequest?.revision == note.revision, note.accepts(text) else { throw CommitNoteFailure.invalidText }
+        savingNote = true; busy = true; noteError = nil
+        defer { savingNote = false; busy = false }
+        if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+        do {
+            let display = try await repository.saveCommitNote(note, text: text)
+            guard !isInvalidated else { return }
+            if let index = entries.firstIndex(where: { $0.hash == note.revision }) { entries[index].notes = display }
+            DispatchQueue.main.async { [weak self] in
+                guard let self, !self.isInvalidated else { return }
+                self.onRevisionChanged("Saved note for " + note.revision)
+            }
+        } catch let failure as CommitNoteFailure {
+            if case .savedButRefreshFailed = failure, !isInvalidated { error = failure.localizedDescription }
+            throw failure
         }
     }
     @Published var jumpKind = HistoryJumpKind.authorEmail
@@ -2346,7 +2375,6 @@ struct LogDialog: View {
             Button("OK") { model.navigationNotice = nil }
         } message: { Text(model.navigationNotice ?? "") }
         .sheet(isPresented: $model.configureHistoryDefaults) { HistoryLimitSettings(defaults: model.colorPreferences, onClose: { model.configureHistoryDefaults = false }).frame(width: 440).padding(20) }
-        .sheet(item: $model.noteRequest) { _ in LogNotesDialog(model: model) }
         .sheet(item: $model.commandRequest) { request in LogRevisionDialog(model: model, request: request) }
 
     }
@@ -3331,27 +3359,31 @@ struct LogNotesDialog: View {
     }
 }
 struct LogNotesEditor: NSViewRepresentable {
+    @AppStorage("LogFontName") private var fontName = MessageEditorFont.defaultName
+    @AppStorage("LogFontSize") private var fontSize = MessageEditorFont.defaultSize
     @Binding var text: String
     let enabled: Bool
     var accept: () -> Void
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     func makeNSView(context: Context) -> NSScrollView {
         let scroll = NSScrollView(); scroll.hasVerticalScroller = true
-        let editor = NotesTextView(frame: NSRect(x: 0, y: 0, width: 640, height: 240))
+        let editor = InputMessageTextView(frame: NSRect(x: 0, y: 0, width: 640, height: 240))
         editor.isAutomaticQuoteSubstitutionEnabled = false; editor.isAutomaticDashSubstitutionEnabled = false; editor.isAutomaticTextReplacementEnabled = false
         editor.isRichText = false; editor.allowsUndo = true; editor.font = .monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
         editor.textContainerInset = NSSize(width: 5, height: 5); editor.isVerticallyResizable = true; editor.isHorizontallyResizable = false
         editor.autoresizingMask = [.width]; editor.textContainer?.widthTracksTextView = true
         editor.setAccessibilityLabel("Notes"); editor.delegate = context.coordinator
         editor.string = text; editor.undoManager?.removeAllActions(); editor.setSelectedRange(NSRange(location: (text as NSString).length, length: 0))
+        editor.applyProjectSettings(ProjectDialogSettings())
         scroll.documentView = editor
         DispatchQueue.main.async { [weak editor] in if let editor { editor.window?.makeFirstResponder(editor) } }
         return scroll
     }
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         context.coordinator.parent = self
-        guard let editor = scroll.documentView as? NotesTextView else { return }
+        guard let editor = scroll.documentView as? InputMessageTextView else { return }
         editor.accept = accept; editor.isEditable = enabled
+        editor.font = MessageEditorFont.resolve(name: fontName, size: fontSize)
         if editor.string != text { editor.string = text }
     }
     final class Coordinator: NSObject, NSTextViewDelegate {
@@ -3360,14 +3392,6 @@ struct LogNotesEditor: NSViewRepresentable {
         func textDidChange(_ notification: Notification) { if let editor = notification.object as? NSTextView { parent.text = editor.string } }
     }
 }
-final class NotesTextView: NSTextView {
-    var accept: () -> Void = {}
-    override func keyDown(with event: NSEvent) {
-        if event.keyCode == 36 && !event.modifierFlags.intersection([.command, .control]).isEmpty { accept(); return }
-        super.keyDown(with: event)
-    }
-}
-
 struct LogRevisionDialog: View {
     @ObservedObject var model: LogWindowModel
     let request: LogCommandRequest
