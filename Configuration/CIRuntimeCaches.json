@@ -31,7 +31,9 @@
     "inputs": [
       "Configuration/OpenSSHRuntime.json",
       "scripts/build-openssh-runtime.py",
-      "scripts/validate-openssh-runtime.py"
+      "scripts/validate-openssh-runtime.py",
+      "scripts/runtime_bundle_layout.py",
+      "scripts/git_lfs_runtime.py"
     ],
     "validate": [
       "python3",
@@ -56,7 +58,8 @@
       "scripts/install-git-svn-runtime.py",
       "scripts/validate-git-svn-runtime.py",
       "scripts/validate_git_svn_support.py",
-      "build/git-svn-runtime/GitSVN/runtime-manifest.json"
+      "build/git-svn-runtime/GitSVN/runtime-manifest.json",
+      "scripts/runtime_bundle_layout.py"
     ],
     "validate": [
       "python3",

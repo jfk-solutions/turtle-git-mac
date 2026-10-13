@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Embed the prepared Git runtime before Xcode signs the containing app."""
+from runtime_bundle_layout import remove_entry
 import argparse
 import json
 import os
@@ -20,19 +21,7 @@ manifest = json.loads((args.runtime / 'runtime-manifest.json').read_text())
 assert manifest['version'] == pin['version'] and manifest['source_sha256'] == pin['source_sha256'], 'Runtime does not match pinned source.'
 subprocess.run(['/usr/bin/python3', str(ROOT / 'scripts/validate-git-runtime.py'), str(args.runtime), '--require-lfs', '--require-svn'], check=True)
 target = args.app / 'Contents/Helpers/Git'
-if target.exists(): shutil.rmtree(target)
+if target.exists() or target.is_symlink(): remove_entry(target)
 target.parent.mkdir(parents=True, exist_ok=True)
 shutil.copytree(args.runtime, target, symlinks=True)
-if os.environ.get('CODE_SIGNING_ALLOWED') == 'YES':
-    identity = os.environ.get('EXPANDED_CODE_SIGN_IDENTITY')
-    if not identity: raise RuntimeError('Xcode signing identity is unavailable for Git helpers.')
-    for path in sorted(target.rglob('*')):
-        if path.is_file() and not path.is_symlink() and path.open('rb').read(4) in MACH:
-            import struct
-            from git_lfs_runtime import slices
-            types = {struct.unpack_from('<I', data, 12)[0] for data in slices(path.read_bytes()).values()}
-            command = ['/usr/bin/codesign', '--force', '--sign', identity]
-            if types == {2}: command += ['--options', 'runtime', '--entitlements', str(ROOT / 'Configuration/GitHelper.entitlements')]
-            else: assert types <= {6, 8}, 'Unexpected Git helper Mach-O type'
-            subprocess.run(command + [str(path)], check=True)
 print('Embedded pinned Git runtime in ' + str(args.app))

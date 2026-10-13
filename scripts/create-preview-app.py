@@ -18,7 +18,7 @@ parser.add_argument('--bundle-identifier', default='org.turtlegit.macos.document
 parser.add_argument('--name', default='TurtleGit Documentation Preview')
 parser.add_argument('--screenshot', type=pathlib.Path, help='Debug-only destination for the Save Window Screenshot command.')
 parser.add_argument('--appearance', choices=['system', 'light', 'dark'], help='Debug-only initial appearance.')
-parser.add_argument('--resource-runtimes', action='store_true', help='Preview-only: relocate mixed runtime trees into Resources with compatibility symlinks; does not establish production signing acceptance.')
+parser.add_argument('--resource-runtimes', action='store_true', help='Upgrade an older Debug runtime layout before signing the preview.')
 parser.add_argument('--finder-request', help='Debug-only Finder request dispatched after the demo repository opens.')
 args = parser.parse_args()
 if args.destination.exists():
@@ -63,17 +63,18 @@ if args.swift_executable:
         raise SystemExit('Swift Package icon resource bundle is missing. Run swift build first.')
     shutil.copytree(resources, args.destination / 'Contents/Resources' / resources.name, symlinks=True, dirs_exist_ok=True)
 
-if args.resource_runtimes:
-    # Diagnostic previews can seal mixed code/data runtimes as resources. Keep
-    # public helper lookup paths through relative in-bundle aliases. Production
-    # layout/signing acceptance remains a separate distribution requirement.
-    helpers = args.destination / 'Contents/Helpers'
-    resources = args.destination / 'Contents/Resources/PreviewRuntimes'
-    resources.mkdir(parents=True, exist_ok=True)
-    for runtime in helpers.iterdir():
-        if runtime.is_dir() and not runtime.is_symlink():
-            shutil.move(str(runtime), resources / runtime.name)
-            runtime.symlink_to('../Resources/PreviewRuntimes/' + runtime.name)
+layout = args.destination / 'Contents/Resources/runtime-layout.json'
+if layout.is_file():
+    from runtime_bundle_layout import audit_layout
+    descriptor=json.loads(layout.read_text())
+    if any(record['sandbox_inherited'] for record in descriptor['code'].values()):
+        raise SystemExit('Use a Debug build for an ad-hoc documentation preview.')
+    audit_layout(args.destination)
+elif args.resource_runtimes:
+    # Older Debug bundles can be upgraded using the same production layout.
+    import os
+    environment=dict(os.environ,CODE_SIGNING_ALLOWED='NO')
+    subprocess.run(['/usr/bin/python3',str(pathlib.Path(__file__).with_name('finalize-runtime-layout.py')),str(args.destination)],env=environment,check=True)
 
 # A replaced executable invalidates the copied bundle signature. Keep Swift resources
 # inside Contents/Resources so the preview passes bundle signature validation.
@@ -83,7 +84,10 @@ if legacy_resources.exists():
 # Sign actual payloads explicitly. --deep guesses bundle structure from data
 # directories (including versioned Perl libraries) and can reject valid runtimes.
 magic = {b'\xcf\xfa\xed\xfe', b'\xfe\xed\xfa\xcf', b'\xca\xfe\xba\xbe', b'\xbe\xba\xfe\xca'}
+runtime_code = {record['destination'] for record in json.loads(layout.read_text())['code'].values()} if layout.is_file() else set()
 for path in sorted(args.destination.rglob('*')):
+    if path.is_relative_to(args.destination / 'Contents') and str(path.relative_to(args.destination / 'Contents')) in runtime_code:
+        continue # Finalization already signed these payloads and bound their hashes.
     if path.is_file() and not path.is_symlink() and 'MacOS' not in path.parts and not any(part.endswith('.framework') for part in path.parts):
         with path.open('rb') as stream:
             is_code = stream.read(4) in magic
@@ -95,7 +99,7 @@ for bundle in sorted(bundles, key=lambda path: len(path.parts), reverse=True):
 subprocess.run(['codesign', '--force', '--sign', '-', str(args.destination)], check=True)
 # Signing changes the bundled parser bytes. Update its provenance and
 # then reseal only the containing app so the helper signature stays intact.
-for helper, executable_name in [('EditorConfig', 'editorconfig'), ('IssueRegex', 'issue-regex'), ('MergeDiff', 'merge-diff')]:
+for helper, executable_name in ([] if layout.is_file() else [('EditorConfig', 'editorconfig'), ('IssueRegex', 'issue-regex'), ('MergeDiff', 'merge-diff')]):
     parser_runtime = args.destination / 'Contents/Helpers' / helper
     if not parser_runtime.is_dir():
         continue
@@ -106,7 +110,6 @@ for helper, executable_name in [('EditorConfig', 'editorconfig'), ('IssueRegex',
     manifest['signed'] = True
     manifest['sandbox_inherited'] = False  # This script creates Debug previews.
     manifest_path.write_text(json.dumps(manifest, indent=2) + '\n')
-    subprocess.run(['codesign', '--force', '--sign', '-', str(manifest_path)], check=True)
 subprocess.run(['codesign', '--force', '--sign', '-', str(args.destination)], check=True)
 subprocess.run(['codesign', '--verify', '--deep', '--strict', str(args.destination)], check=True)
 

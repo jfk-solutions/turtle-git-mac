@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Check unsigned build packaging; does not assert signing or sandbox activation."""
+from runtime_bundle_layout import audit_layout
 import argparse
 import hashlib
 import json
@@ -11,6 +12,7 @@ parser.add_argument('app', type=pathlib.Path)
 parser.add_argument('--require-git', action='store_true', help='Require and audit a packaged App Store Git runtime.')
 args = parser.parse_args()
 app = args.app
+print("Production runtime code/data layout verified:",audit_layout(app))
 root = pathlib.Path(__file__).resolve().parent.parent
 with (app / 'Contents/Info.plist').open('rb') as stream:
     info = plistlib.load(stream)

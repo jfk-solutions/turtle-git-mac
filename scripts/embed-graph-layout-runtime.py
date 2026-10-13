@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Embed the validated layout adapter; sign it before the containing application."""
+from runtime_bundle_layout import remove_entry
 import argparse
 import hashlib
 import json
@@ -18,8 +19,8 @@ if args.app.suffix != '.app' or not (args.app / 'Contents').is_dir():
 validator = ROOT / 'scripts/validate-graph-layout-runtime.py'
 subprocess.run(['/usr/bin/python3', validator, args.runtime], check=True)
 target = args.app / 'Contents/Helpers/GraphLayout'
-if target.exists():
-    shutil.rmtree(target)
+if target.exists() or target.is_symlink():
+    remove_entry(target)
 target.parent.mkdir(parents=True, exist_ok=True)
 shutil.copytree(args.runtime, target)
 if os.environ.get('CODE_SIGNING_ALLOWED') == 'YES':

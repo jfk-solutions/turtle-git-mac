@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Audit runtime architecture/dependencies and exercise real local Git operations."""
+from runtime_bundle_layout import code_record
 import argparse
 import hashlib
 import json
@@ -76,9 +77,10 @@ def main():
         subprocess.run(['/usr/bin/python3', pathlib.Path(__file__).with_name('validate-git-svn-runtime.py'), runtime, '--installed', '--audit-only'], check=True)
     binaries = 0
     for path in runtime.rglob('*'):
-        if path.is_symlink():
+        relocated = code_record(path, runtime) if path.is_symlink() else None
+        if path.is_symlink() and not relocated:
             assert path.resolve().is_relative_to(runtime), 'Escaping runtime symlink: ' + str(path)
-        elif path.is_file() and path.open('rb').read(4) in MACH:
+        if (not path.is_symlink() or (relocated and not relocated.get('alias'))) and path.is_file() and path.open('rb').read(4) in MACH:
             if manifest.get('svn_component') and (path.is_relative_to(runtime / 'libexec/git-svn-runtime') or path == runtime / 'libexec/git-core/git-svn'): continue
             binaries += 1
             architectures = subprocess.check_output(['/usr/bin/lipo', '-archs', str(path)], text=True).split()

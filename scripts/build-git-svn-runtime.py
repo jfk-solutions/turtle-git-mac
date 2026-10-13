@@ -191,7 +191,7 @@ def main():
             shutil.rmtree(destination / 'Subversion/lib/perl5/site_perl')
             relocate(destination)
         flags = [item for arch in architectures for item in ['-arch', arch]]
-        run([compiler, *flags, '-isysroot', sdk, '-mmacosx-version-min=' + pin['minimum_macos'], '-O2', ROOT / 'Sources/GitSVNLauncher/main.c', '-o', core / 'git-svn'])
+        run([compiler, *flags, '-isysroot', sdk, '-mmacosx-version-min=' + pin['minimum_macos'], '-O2', '-DTURTLEGIT_PERL_VERSION="'+pin['sources']['perl']['version']+'"', ROOT / 'Sources/GitSVNLauncher/main.c', '-o', core / 'git-svn'])
         licenses = prepared / 'share/licenses/git-svn'; licenses.mkdir(parents=True)
         for name, archive in archives.items(): shutil.copy2(archive, licenses / archive.name)
         shutil.copy2(git_archive, licenses / git_archive.name)
@@ -203,7 +203,7 @@ def main():
         reconstruction = licenses / 'build'; (reconstruction / 'scripts').mkdir(parents=True)
         (reconstruction / 'Configuration').mkdir(); (reconstruction / 'Sources/GitSVNLauncher').mkdir(parents=True)
         shutil.copy2(__file__, reconstruction / 'scripts/build-git-svn-runtime.py')
-        for name in ['validate-git-svn-runtime.py', 'validate_git_svn_support.py', 'validate-git-runtime.py', 'git_lfs_runtime.py']:
+        for name in ['validate-git-svn-runtime.py', 'validate_git_svn_support.py', 'validate-git-runtime.py', 'git_lfs_runtime.py', 'runtime_bundle_layout.py']:
             shutil.copy2(ROOT / 'scripts' / name, reconstruction / 'scripts' / name)
         for name in ['GitSVNRuntime.json', 'GitRuntime.json']: shutil.copy2(ROOT / 'Configuration' / name, reconstruction / 'Configuration' / name)
         shutil.copy2(ROOT / 'Sources/GitSVNLauncher/main.c', reconstruction / 'Sources/GitSVNLauncher/main.c')

@@ -100,6 +100,8 @@ def main():
         for name, archive in archives.items(): shutil.copy2(archive, stage/'Sources'/(name+'.tar.gz'))
         shutil.copy2(__file__, stage/'Sources/build/build-openssh-runtime.py')
         shutil.copy2(Path(__file__).with_name('validate-openssh-runtime.py'), stage/'Sources/build/validate-openssh-runtime.py')
+        shutil.copy2(Path(__file__).with_name('runtime_bundle_layout.py'), stage/'Sources/build/runtime_bundle_layout.py')
+        shutil.copy2(Path(__file__).with_name('git_lfs_runtime.py'), stage/'Sources/build/git_lfs_runtime.py')
         shutil.copy2(ROOT/'Configuration/OpenSSHRuntime.json',stage/'Sources/Configuration/OpenSSHRuntime.json')
         manifest = {'pin':pin,'signed':False,'binary_sha256':binaries,
                     'toolchain':subprocess.check_output(['/usr/bin/clang','--version'],text=True).splitlines()[0],

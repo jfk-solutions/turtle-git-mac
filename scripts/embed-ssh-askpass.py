@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Embed the native passphrase pipe helper; never handles credential data."""
+from runtime_bundle_layout import remove_entry
 import os
 import hashlib
 import json
@@ -12,6 +13,7 @@ source, app = map(Path, sys.argv[1:])
 if not source.is_file():
     raise SystemExit('SSH askpass helper build product is missing.')
 destination = app / 'Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass'
+if destination.parent.is_symlink(): remove_entry(destination.parent)
 destination.parent.mkdir(parents=True, exist_ok=True)
 shutil.copy2(source, destination)
 destination.chmod(0o755)

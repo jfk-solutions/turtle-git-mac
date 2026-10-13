@@ -1240,6 +1240,7 @@
 				05E9103FE147A460078548D0 /* Embed pinned EditorConfig runtime */,
 				E1188D36737E73638718384D /* Embed pinned OpenSSH runtime */,
 				C45E6CCF59E8F543668B15BE /* Embed pinned Git runtime for App Store */,
+				9C40EC41EF0C55CAEBF38405 /* Finalize production runtime layout */,
 			);
 			buildRules = (
 			);
@@ -1445,6 +1446,25 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "/usr/bin/python3 \"$SRCROOT/scripts/embed-cache-service.py\" \"$BUILT_PRODUCTS_DIR/TurtleGitCache.app\" \"$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME\" \"$SRCROOT/Configuration/org.turtlegit.macos.cache.plist\"\n";
+		};
+		9C40EC41EF0C55CAEBF38405 /* Finalize production runtime layout */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Finalize production runtime layout";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/usr/bin/python3 \"$SRCROOT/scripts/finalize-runtime-layout.py\" \"$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME\"\n";
 		};
 		C45E6CCF59E8F543668B15BE /* Embed pinned Git runtime for App Store */ = {
 			isa = PBXShellScriptBuildPhase;

@@ -23,7 +23,7 @@ jobs:
         id: svn-cache
         with:
           path: build/git-svn-runtime/GitSVN
-          key: svn-macos15-arm64-${{ steps.svn-toolchain.outputs.key }}-${{ hashFiles('Configuration/GitSVNRuntime.json', 'Configuration/GitRuntime.json', 'Sources/GitSVNLauncher/main.c', 'scripts/build-git-svn-runtime.py', 'scripts/validate-git-svn-runtime.py', 'scripts/validate_git_svn_support.py', 'scripts/validate-git-runtime.py', 'scripts/git_lfs_runtime.py') }}
+          key: svn-macos15-arm64-${{ steps.svn-toolchain.outputs.key }}-${{ hashFiles('Configuration/GitSVNRuntime.json', 'Configuration/GitRuntime.json', 'Sources/GitSVNLauncher/main.c', 'scripts/build-git-svn-runtime.py', 'scripts/validate-git-svn-runtime.py', 'scripts/validate_git_svn_support.py', 'scripts/validate-git-runtime.py', 'scripts/git_lfs_runtime.py', 'scripts/runtime_bundle_layout.py') }}
       - name: Build pinned universal private Perl/Subversion runtime
         if: steps.svn-cache.outputs.cache-hit != 'true'
         run: python3 scripts/build-git-svn-runtime.py
@@ -124,7 +124,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: build/graph-layout-runtime/GraphLayout
-          key: graph-layout-v1-${{ runner.os }}-${{ steps.toolchain.outputs.fingerprint }}-${{ hashFiles('LICENSE', 'Configuration/GraphLayoutRuntime.json', 'Sources/TurtleGitGraphLayout/main.cpp', 'scripts/build-graph-layout-runtime.py', 'scripts/validate-graph-layout-runtime.py', 'scripts/embed-graph-layout-runtime.py') }}
+          key: graph-layout-v1-${{ runner.os }}-${{ steps.toolchain.outputs.fingerprint }}-${{ hashFiles('LICENSE', 'Configuration/GraphLayoutRuntime.json', 'Sources/TurtleGitGraphLayout/main.cpp', 'scripts/build-graph-layout-runtime.py', 'scripts/validate-graph-layout-runtime.py', 'scripts/embed-graph-layout-runtime.py', 'scripts/runtime_bundle_layout.py', 'scripts/git_lfs_runtime.py') }}
       - name: Build and verify pinned universal Revision Graph layout engine
         if: steps.graph-layout-cache.outputs.cache-hit != 'true'
         run: python3 scripts/build-graph-layout-runtime.py
@@ -229,6 +229,15 @@ jobs:
         run: |
           python3 scripts/validate-app-bundle.py build/Build/Products/Debug/TurtleGitMac.app
           python3 scripts/audit-cache-service.py build/Build/Products/Debug/TurtleGitMac.app
+      - name: Verify production ad-hoc app seal and runtime links
+        run: |
+          python3 scripts/create-demo-repository.py "$RUNNER_TEMP/runtime-layout-repository"
+          python3 scripts/create-preview-app.py build/Build/Products/Debug/TurtleGitMac.app \
+            'build/qa/runtime-layout-signed-2026-10-13/TurtleGit Layout QA.app' \
+            --repository "$RUNNER_TEMP/runtime-layout-repository" \
+            --bundle-identifier org.turtlegit.macos.documentation-preview.layout-ci
+          python3 docs/qa/runtime-layout-native-2026-10-13.py \
+            'build/qa/runtime-layout-signed-2026-10-13/TurtleGit Layout QA.app'
       - name: Verify embedded Subversion merge adapter and shared libraries
         run: python3 scripts/test-merge-diff-bundle.py build/Build/Products/Debug/TurtleGitMac.app
       - name: Grouped native LFS and Send Mail receivers with one compilation

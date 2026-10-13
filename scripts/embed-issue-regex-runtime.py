@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Embed and sign the verified C++ matcher before Xcode signs the app."""
+from runtime_bundle_layout import remove_entry
 import argparse
 import hashlib
 import json
@@ -20,8 +21,8 @@ if not args.runtime.is_dir():
 validator = ROOT / 'scripts/validate-issue-regex-runtime.py'
 subprocess.run(['/usr/bin/python3', validator, args.runtime], check=True)
 target = args.app / 'Contents/Helpers/IssueRegex'
-if target.exists():
-    shutil.rmtree(target)
+if target.exists() or target.is_symlink():
+    remove_entry(target)
 target.parent.mkdir(parents=True, exist_ok=True)
 shutil.copytree(args.runtime, target)
 if os.environ.get('CODE_SIGNING_ALLOWED') == 'YES':

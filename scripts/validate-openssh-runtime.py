@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Audit universal SSH helpers and exercise a private fixture agent, never login SSH."""
+from runtime_bundle_layout import code_record
 import argparse
 import hashlib
 import json
@@ -22,15 +23,16 @@ assert manifest['pin'] == pin
 assert set(manifest['binary_sha256']) == set(pin['binaries'])
 for relative, expected in manifest['files_sha256'].items():
     path = runtime/relative
-    assert path.resolve().is_relative_to(runtime) and not path.is_symlink(), relative
+    assert (path.resolve().is_relative_to(runtime) and not path.is_symlink()) or code_record(path,runtime), relative
     assert hashlib.sha256(path.read_bytes()).hexdigest() == expected, relative
 expected_files = {'bin/'+name for name in pin['binaries']} | {
     'Licenses/OpenSSH-LICENCE.txt', 'Licenses/OpenSSL-LICENSE.txt',
     'Sources/openssh.tar.gz', 'Sources/openssl.tar.gz',
     'Sources/build/build-openssh-runtime.py', 'Sources/build/validate-openssh-runtime.py',
+    'Sources/build/runtime_bundle_layout.py', 'Sources/build/git_lfs_runtime.py',
     'Sources/Configuration/OpenSSHRuntime.json'}
 assert set(manifest['files_sha256']) == expected_files, 'Unexpected manifest inventory'
-assert not any(p.is_symlink() for p in runtime.rglob('*')), 'Runtime contains symlinks'
+assert all(code_record(p,runtime) for p in runtime.rglob('*') if p.is_symlink()), 'Unowned runtime symlink'
 assert expected_files | {'provenance.json'} == {str(p.relative_to(runtime)) for p in runtime.rglob('*') if p.is_file()}, 'Unexpected runtime inventory'
 for name in ['openssh','openssl']:
     assert hashlib.sha256((runtime/'Sources'/(name+'.tar.gz')).read_bytes()).hexdigest() == pin[name]['sha256']

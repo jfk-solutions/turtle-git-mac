@@ -15,7 +15,7 @@ args = parser.parse_args()
 helper = args.helper.resolve()
 assert helper.is_file() and os.access(helper, os.X_OK)
 root_source = Path(__file__).resolve().parent.parent
-manifest = json.loads((helper.parent/'provenance.json').read_text())
+manifest = json.loads((args.helper.parent/'provenance.json').read_text())
 assert manifest['binary_sha256'] == hashlib.sha256(helper.read_bytes()).hexdigest()
 assert manifest['source_sha256'] == hashlib.sha256((root_source/'Sources/TurtleGitSSHAskpass/main.swift').read_bytes()).hexdigest()
 architectures = set(subprocess.check_output(['/usr/bin/lipo','-archs',str(helper)],text=True).split())

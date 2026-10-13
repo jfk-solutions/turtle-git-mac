@@ -6,6 +6,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#ifndef TURTLEGIT_PERL_VERSION
+#error Build with the pinned Perl version
+#endif
 
 int main(int argc, char **argv) {
     char executable[PATH_MAX], path[PATH_MAX], root[PATH_MAX];
@@ -21,7 +24,13 @@ int main(int argc, char **argv) {
 #else
 #error Unsupported Git SVN runtime architecture
 #endif
-    if (snprintf(root, sizeof root, "%s/../git-svn-runtime/%s", path, arch) >= sizeof root) return 127;
+    // In production the executable lives in MacOS and its modules remain in
+    // Resources. Standalone reconstructed runtimes retain the git-core layout.
+    const char *directory = strrchr(path, '/');
+    const char *format = directory && strcmp(directory + 1, "MacOS") == 0
+        ? "%s/../Resources/TurtleGitRuntimes/Git/libexec/git-svn-runtime/%s"
+        : "%s/../git-svn-runtime/%s";
+    if (snprintf(root, sizeof root, format, path, arch) >= sizeof root) return 127;
     char perl[PATH_MAX], script[PATH_MAX], modules[PATH_MAX];
     if (snprintf(perl, sizeof perl, "%s/Perl/bin/perl", root) >= sizeof perl ||
         snprintf(script, sizeof script, "%s/GitPerl/git-svn.perl", root) >= sizeof script ||
@@ -30,7 +39,11 @@ int main(int argc, char **argv) {
     // authentication environment remains available to Git/SVN itself.
     unsetenv("PERL5OPT"); unsetenv("PERL5DB"); unsetenv("PERLLIB");
     unsetenv("PERL_LOCAL_LIB_ROOT"); unsetenv("PERL_MB_OPT"); unsetenv("PERL_MM_OPT");
-    if (setenv("PERL5LIB", modules, 1) != 0 || setenv("GITPERLLIB", modules, 1) != 0) return 127;
+    char libraries[PATH_MAX * 6];
+    if (snprintf(libraries, sizeof libraries, "%s:%s/Perl/lib/perl5/%s:%s/Perl/lib/perl5/%s/darwin-2level:%s/Perl/lib/perl5/site_perl/%s:%s/Perl/lib/perl5/site_perl/%s/darwin-2level",
+            modules, root, TURTLEGIT_PERL_VERSION, root, TURTLEGIT_PERL_VERSION,
+            root, TURTLEGIT_PERL_VERSION, root, TURTLEGIT_PERL_VERSION) >= sizeof libraries) return 127;
+    if (setenv("PERL5LIB", libraries, 1) != 0 || setenv("GITPERLLIB", modules, 1) != 0) return 127;
     char **arguments = calloc((size_t)argc + 2, sizeof(char *)); if (!arguments) return 127;
     arguments[0] = perl; arguments[1] = script;
     for (int i = 1; i < argc; ++i) arguments[i + 1] = argv[i];

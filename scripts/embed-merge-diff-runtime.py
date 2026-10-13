@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Embed the merge adapter; its dynamic libraries are shared with bundled GitSVN."""
 from pathlib import Path
+from runtime_bundle_layout import remove_entry
 import argparse
 import hashlib
 import json
@@ -18,7 +19,7 @@ if not args.runtime.is_dir():
     print('MergeDiff not prepared for this development build.'); raise SystemExit(0)
 subprocess.run(['python3', str(root / 'scripts/validate-merge-diff-runtime.py'), str(args.runtime)], check=True)
 target = args.app / 'Contents/Helpers/MergeDiff'
-if target.exists(): shutil.rmtree(target)
+if target.exists() or target.is_symlink(): remove_entry(target)
 target.parent.mkdir(parents=True, exist_ok=True); shutil.copytree(args.runtime, target)
 if os.environ.get('CODE_SIGNING_ALLOWED') == 'YES':
     identity = os.environ.get('EXPANDED_CODE_SIGN_IDENTITY'); assert identity, 'Missing Xcode signing identity.'

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Embed the verified Lexilla helper with inherited App Store sandbox signing."""
+from runtime_bundle_layout import remove_entry
 import hashlib,json,os,shutil,subprocess,sys
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
@@ -7,7 +8,7 @@ runtime,app=map(Path,sys.argv[1:])
 assert app.suffix=='.app' and (app/'Contents').is_dir()
 subprocess.run(['/usr/bin/python3',ROOT/'scripts/validate-lexilla-runtime.py',runtime],check=True)
 target=app/'Contents/Helpers/Lexilla'
-if target.exists():shutil.rmtree(target)
+if target.exists() or target.is_symlink():remove_entry(target)
 target.parent.mkdir(parents=True,exist_ok=True);shutil.copytree(runtime,target)
 if os.environ.get('CODE_SIGNING_ALLOWED')=='YES':
     identity=os.environ.get('EXPANDED_CODE_SIGN_IDENTITY')

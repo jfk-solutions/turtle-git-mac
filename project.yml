@@ -152,6 +152,10 @@ targets:
             /usr/bin/python3 "$SRCROOT/scripts/embed-git-runtime.py" "$SRCROOT/build/git-runtime/Git" "$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME"
           fi
         basedOnDependencyAnalysis: false
+      - name: Finalize production runtime layout
+        script: |
+          /usr/bin/python3 "$SRCROOT/scripts/finalize-runtime-layout.py" "$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME"
+        basedOnDependencyAnalysis: false
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.turtlegit.macos

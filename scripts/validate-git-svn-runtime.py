@@ -11,6 +11,7 @@ import tempfile
 import uuid
 import sys
 from validate_git_svn_support import deployment
+from runtime_bundle_layout import code_record, audit_layout, bundle_for_runtime
 
 ROOT = Path(__file__).resolve().parents[1]
 MACH = {b'\xcf\xfa\xed\xfe', b'\xfe\xed\xfa\xcf', b'\xca\xfe\xba\xbe', b'\xbe\xba\xfe\xca'}
@@ -21,9 +22,9 @@ def audit(runtime, manifest, installed=False):
     assert manifest['architectures'] and set(manifest['architectures']) <= {'arm64', 'x86_64'}, 'Invalid architecture list'
     for relative, expected in manifest['files_sha256'].items():
         path = runtime / relative
-        assert path.is_file() and not path.is_symlink(), relative
+        assert path.is_file() and (not path.is_symlink() or code_record(path,runtime)), relative
         assert hashlib.sha256(path.read_bytes()).hexdigest() == expected, relative
-    actual = {str(p.relative_to(runtime)) for p in runtime.rglob('*') if p.is_file() and not p.is_symlink()}
+    actual = {str(p.relative_to(runtime)) for p in runtime.rglob('*') if p.is_file() and (not p.is_symlink() or (code_record(p,runtime) and not code_record(p,runtime).get('alias')))}
     if installed:
         actual = {x for x in actual if x.startswith(('libexec/git-svn-runtime/', 'share/licenses/git-svn/')) or x == 'libexec/git-core/git-svn'}
         actual.discard('share/licenses/git-svn/runtime-manifest.json')
@@ -33,12 +34,14 @@ def audit(runtime, manifest, installed=False):
     binaries = 0
     for path in runtime.rglob('*'):
         if installed and not (path.is_relative_to(payload) or path == runtime / 'libexec/git-core/git-svn'): continue
-        if path.is_symlink(): assert path.resolve().is_relative_to(runtime), str(path)
-        elif path.is_file() and path.open('rb').read(4) in MACH:
+        relocated=code_record(path,runtime) if path.is_symlink() else None
+        if path.is_symlink() and not relocated: assert path.resolve().is_relative_to(runtime), str(path)
+        if (not path.is_symlink() or (relocated and not relocated.get('alias'))) and path.is_file() and path.open('rb').read(4) in MACH:
             binaries += 1
             relative = path.relative_to(payload) if path.is_relative_to(payload) else None
             architectures = [relative.parts[0]] if relative else manifest['architectures']
             deployment(path, architectures, manifest['pin']['minimum_macos'])
+            if relocated: continue # Complete relocated dependency graph is audited below.
             for line in subprocess.check_output(['/usr/bin/otool', '-L', path], text=True).splitlines()[1:]:
                 if '(compatibility version' not in line: continue
                 library = line.strip().split(' (', 1)[0]
@@ -50,6 +53,13 @@ def audit(runtime, manifest, installed=False):
                     target = (path.parent / library[len('@loader_path/'):]).resolve()
                     assert target.is_file() and target.is_relative_to(runtime), library
                     if relative: assert target.is_relative_to(payload / relative.parts[0]), 'Cross-architecture dependency'
+    if manifest.get('bundle_layout'):
+        audit_layout(bundle_for_runtime(runtime))
+        originals=manifest['unsigned_files_sha256']
+        assert originals.keys()==manifest['files_sha256'].keys()
+        for relative,expected in originals.items():
+            path=runtime/relative;record=code_record(path,runtime) if path.is_symlink() else None
+            assert (record['original_sha256'] if record else hashlib.sha256(path.read_bytes()).hexdigest())==expected,relative
     for arch in manifest['architectures']:
         root = payload / arch
         for name in ['Perl/bin/perl', 'Subversion/bin/svn', 'Subversion/bin/svnadmin', 'GitPerl/git-svn.perl', 'GitPerl/Git/SVN.pm']:
@@ -88,7 +98,7 @@ def no_build_fallbacks(manifest):
 
 def exercise(args, runtime, manifest):
     environment = {k: v for k, v in os.environ.items() if not k.startswith(('GIT_', 'PERL', 'DYLD_'))}
-    environment.update(PATH=str(args.git.resolve().parent) + ':/usr/bin:/bin:/usr/sbin:/sbin', GIT_EXEC_PATH=str(args.git.resolve().parent.parent / 'libexec/git-core'),
+    environment.update(PATH=str(args.git.absolute().parent) + ':/usr/bin:/bin:/usr/sbin:/sbin', GIT_EXEC_PATH=str(runtime / 'libexec/git-core'),
         GIT_CONFIG_GLOBAL='/dev/null', GIT_CONFIG_NOSYSTEM='1', GIT_TERMINAL_PROMPT='0')
     import platform
     arch = 'arm64' if platform.machine() == 'arm64' else 'x86_64'

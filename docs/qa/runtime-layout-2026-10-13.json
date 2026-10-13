@@ -1,0 +1,100 @@
+{
+  "date": "2026-10-13",
+  "scope": [
+    "Production runtime executable/library/data split with compatibility links",
+    "Private library relocation, architecture containment and inside-out signing",
+    "Git-SVN bundled module discovery after executable relocation",
+    "Provenance, repeated embedding/finalization, validators and CI cache dependency updates"
+  ],
+  "validation": {
+    "debug_build": {
+      "exit": 0,
+      "log": "build/qa/runtime-layout-debug-final-2026-10-13.log"
+    },
+    "appstore_configuration_build": {
+      "exit": 0,
+      "log": "build/qa/runtime-layout-appstore-2026-10-13.log"
+    },
+    "debug_bundle_audit": {
+      "exit": 0,
+      "log": "build/qa/runtime-layout-bundle-final-2026-10-13.log"
+    },
+    "appstore_bundle_audit_with_git_lfs_svn": {
+      "exit": 0,
+      "log": "build/qa/runtime-layout-appstore-bundle-2026-10-13.log"
+    },
+    "private_ad_hoc_app_signing": {
+      "exit": 0,
+      "log": "build/qa/runtime-layout-signing-final-2026-10-13.log"
+    },
+    "negative_seal_links_and_repeat_finalization": {
+      "exit": 0,
+      "log": "build/qa/runtime-layout-seal-2026-10-13.log"
+    },
+    "real_private_svn_workflows_without_build_fallback": {
+      "exit": 0,
+      "log": "build/qa/runtime-layout-svn-final-2026-10-13.log"
+    },
+    "grouped_native": {
+      "exit": 0,
+      "log": "build/qa/runtime-layout-native-2026-10-13.log"
+    },
+    "both_architecture_merge_library_loading": {
+      "exit": 0,
+      "log": "build/qa/runtime-layout-merge-2026-10-13.log"
+    },
+    "bundled_ssh_and_owned_process_cleanup": {
+      "exit": 0,
+      "log": "build/qa/runtime-layout-ssh-2026-10-13.log"
+    },
+    "ci_cache_contracts": {
+      "exit": 0,
+      "log": "build/qa/runtime-layout-caches-2026-10-13.log"
+    }
+  },
+  "counts": {
+    "runtime_code_items": 202,
+    "svn_code_items": 179,
+    "git_code_items": 12,
+    "icons": 296,
+    "native_cases": 8,
+    "cache_tests": 5
+  },
+  "native_scope": {
+    "cases": [
+      "svn-workflow",
+      "blame-lexilla",
+      "issue-regex-tester",
+      "autotext-tester"
+    ],
+    "engines": [
+      "system Git",
+      "packaged Git"
+    ],
+    "svn_note": "Native workflow fixture injects SVN transport; separate real private file:// runtime test covers clone/fetch/dcommit/show-ignore/create-ignore on arm64."
+  },
+  "failures_repaired": [
+    "Graph reconstruction metadata had the previous embed-script hash; refreshed source kits and declared new reconstruction dependencies.",
+    "Original internal dylib aliases were absent from the layout descriptor; retained and strictly validated their original link targets.",
+    "Relocated Perl needed site_perl as well as core and Git modules; added bundled site module paths."
+  ],
+  "ownership": "No GUI app launched in this batch. Native receivers, SSH agents/loaders/children and SVN commands exited/reaped. Build and validation sessions completed. No user service registration changed.",
+  "hosted_ci_at_observation": {
+    "macos_run": 38340591429,
+    "head": "2424e63a",
+    "status": "pending",
+    "pages_run": 38340591323,
+    "pages_status": "success",
+    "note": "Before this packaging commit. Does not prove hosted tests of this batch."
+  },
+  "not_proven": [
+    "Full upstream dialog/menu/workflow parity",
+    "Developer/App Store certificate and provisioning",
+    "Inherited sandbox execution from a signed parent",
+    "Physical Finder extension activation and badge/menu behavior",
+    "User-approved background-service registration and signed XPC",
+    "App Review and licensing clearance",
+    "Hosted CI pass for this batch"
+  ],
+  "core_suite": "Not repeated: this batch changes packaging, native runtime dispatcher and scripts. Bundle/runtime functional checks and relevant native integrations ran; hosted CI retains full suite."
+}

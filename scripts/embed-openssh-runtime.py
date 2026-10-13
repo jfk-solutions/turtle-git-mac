@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Validate, embed and sign all SSH helpers before the containing app is signed."""
+from runtime_bundle_layout import remove_entry
 import argparse
 import hashlib
 import json
@@ -48,12 +49,12 @@ try:
         manifest['sandbox_inherited'] = inherited
         (stage/'provenance.json').write_text(json.dumps(manifest,indent=2)+'\n')
     subprocess.run(['/usr/bin/python3',validator,stage],check=True)
-    if target.exists(): target.replace(backup)
+    if target.exists() or target.is_symlink(): target.replace(backup)
     try: stage.replace(target)
     except BaseException:
         if backup.exists(): backup.replace(target)
         raise
-    if backup.exists(): shutil.rmtree(backup)
+    if backup.exists() or backup.is_symlink(): remove_entry(backup)
 finally:
     if stage.exists(): shutil.rmtree(stage)
 print('Embedded verified OpenSSH runtime in '+str(args.app))
