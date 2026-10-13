@@ -15,18 +15,15 @@ import Darwin
         guard let toolbar = views(window.contentView!).first(where: { $0.identifier?.rawValue == "RevisionGraphToolbar" }) as? NSStackView else { throw Failure(line: #line) }
         return toolbar
     }
-    @MainActor static func main() {
+    @MainActor static func main() async {
         NSApplication.shared.setActivationPolicy(.prohibited)
-        Task { @MainActor in
-            do { try await verify(); fflush(stdout); exit(0) }
-            catch { print("FAIL: \(error)"); fflush(stdout); exit(1) }
-        }
-        NSApp.run()
+        do { try await verify(); fflush(stdout) }
+        catch { print("FAIL: \(error)"); fflush(stdout); exit(1) }
     }
     @MainActor static func verify() async throws {
         let root = URL(fileURLWithPath: CommandLine.arguments[1])
         let repo = GitRepository(root: root, executable: URL(fileURLWithPath: CommandLine.arguments[2]))
-        let helper = URL(fileURLWithPath: CommandLine.arguments[3])
+        let helper = URL(fileURLWithPath: CommandLine.arguments[3] == "revision-graph" ? "build/graph-layout-runtime/GraphLayout/graph-layout" : CommandLine.arguments[3])
         let suite = "TurtleGit.RevisionGraph.QA." + UUID().uuidString, prefs = UserDefaults(suiteName: suite)!
         defer { prefs.removePersistentDomain(forName: suite) }
         _ = try await repo.run(["init", "-b", "main"])
@@ -161,6 +158,14 @@ import Darwin
         let switchItem = switches.items.first!
         var switched = ""; model.onSwitchBranch = { switched = $0 }
         try require(NSApp.sendAction(switchItem.action!, to: switchItem.target, from: switchItem) && switched.hasPrefix("refs/heads/feature/"))
+        let retainedLog=controller.nodeMenu().items.first { $0.title == "Show Log" }!
+        var logged:String?; model.onLog={ logged=$0 }
+        model.select(nil,extending:false); model.select(feature.hash,extending:false)
+        _ = NSApp.sendAction(retainedLog.action!,to:retainedLog.target,from:retainedLog)
+        try require(logged == nil && !controller.validateMenuItem(retainedLog))
+        let freshLog=controller.nodeMenu().items.first { $0.title == "Show Log" }!
+        _ = NSApp.sendAction(freshLog.action!,to:freshLog.target,from:freshLog)
+        try require(logged == feature.hash)
         let rootNode = model.nodes.first { $0.references.contains { $0.name == "refs/tags/v1.0" } }!
         model.select(rootNode.hash, extending: false)
         let checkout = controller.nodeMenu().items.first { $0.title == "Switch/Checkout to this…" }!
@@ -435,6 +440,15 @@ import Darwin
         let current = buttons.first { $0.title == "Only Current Branch" }!, local = buttons.first { $0.title == "Only Local Branches" }!
         let to = views(child.contentView!).compactMap { $0 as? NSTextField }.first { $0.accessibilityLabel() == "To revision" }!
         let filter = controller.filter!, from = filter.fromField
+        try await wait { RevisionGraphFilterController.activeOperations == 0 }
+        try require(filter.completionError == nil)
+        for value in ["HEAD","refs/heads/main","heads/main","main","refs/tags/v1.0","tags/v1.0","v1.0"] { try require(filter.completionNames.contains(value)) }
+        try require(filter.completions(for:"feature/").contains("feature/native-graph"))
+        child.makeFirstResponder(from)
+        let completionFieldEditor=from.currentEditor() as! RevisionGraphCompletionEditor
+        completionFieldEditor.string="HEAD feature/native"; completionFieldEditor.setSelectedRange(NSRange(location:(completionFieldEditor.string as NSString).length,length:0))
+        try require((completionFieldEditor.string as NSString).substring(with:completionFieldEditor.rangeForUserCompletion)=="feature/native")
+        from.stringValue=""
         to.stringValue = "original-to"; child.makeFirstResponder(from)
         filter.fromBrowse.performClick(nil)
         try await wait { filter.picker != nil && filter.picker?.model.busy == false }
@@ -521,7 +535,7 @@ import Darwin
         func itemDeleting(_ name: String) throws -> NSMenuItem {
             let menu = controller.nodeMenu()
             for item in menu.items.flatMap({ [$0] + ($0.submenu?.items ?? []) }) {
-                if let command = item.representedObject as? RevisionGraphReferenceCommand, case .delete(let names, _) = command, names == [name] { return item }
+                if [name,name+"^{}","Delete "+name,"Delete "+name+"^{}"].contains(item.title) { return item }
             }
             throw Failure(line: #line)
         }
@@ -556,7 +570,8 @@ import Darwin
         try await wait { window.attachedSheet == nil && !model.busy }
         let keptAnnotated = try await repo.run(["rev-parse", "refs/tags/release-v1"]).text
         try require(!keptAnnotated.isEmpty)
-        try invoke(annotated); try await sheetButton("Delete"); try await wait { !model.busy }
+        try require(!controller.validateMenuItem(annotated))
+        try invoke(try itemDeleting("refs/tags/release-v1")); try await sheetButton("Delete"); try await wait { !model.busy }
         let removedAnnotated = try? await repo.run(["show-ref", "--verify", "refs/tags/release-v1"])
         try require(removedAnnotated == nil)
         model.select(main.hash, extending: false)
@@ -637,6 +652,27 @@ import Darwin
         window.performClose(nil); try await wait { closed }
         try require(model.closed && !model.busy && finalFind.closed && controller.find == nil)
         model.load(); try require(!model.busy)
-        print("PASS: Native Revision Graph selection, routing, zoom, tooltip, filter scopes, Reset, cancellation and repository invariants")
+        try await wait { RevisionGraphWindowModel.activeOperations == 0 && RevisionGraphFilterController.activeOperations == 0 }
+        let retiredModel=RevisionGraphWindowModel(repository:repo,access:nil,preferences:prefs,layoutExecutable:helper)
+        let failedFilter=RevisionGraphFilterController(model:retiredModel,referenceReader:{ _ in
+            throw NSError(domain:"GraphFixture",code:1,userInfo:[NSLocalizedDescriptionKey:"Fixture reference read failure"])
+        }) { _ in }
+        try await wait { failedFilter.window?.attachedSheet != nil && RevisionGraphFilterController.activeOperations == 0 }
+        try require(failedFilter.completionError == "Fixture reference read failure")
+        failedFilter.fromField.stringValue="typed-revision"
+        failedFilter.accept(); try require(failedFilter.window?.attachedSheet != nil)
+        failedFilter.close(); try await wait { failedFilter.window?.attachedSheet == nil }
+        var read:CheckedContinuation<[String],Error>?, readToken:OperationCancellation?
+        let retiredFilter=RevisionGraphFilterController(model:retiredModel,referenceReader:{ token in
+            readToken=token; return try await withCheckedThrowingContinuation { read=$0 }
+        }) { _ in }
+        try await wait { read != nil }
+        try require(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel)
+        retiredFilter.close(); retiredModel.invalidate()
+        try require(readToken?.isCancelled == true && RevisionGraphFilterController.activeOperations == 1)
+        let finishRead=read;read=nil;finishRead?.resume(returning:["refs/heads/late"])
+        try await wait { RevisionGraphFilterController.activeOperations == 0 }
+        try require(retiredFilter.completionNames == ["HEAD"] && retiredFilter.completions(for:"HEAD").isEmpty)
+        print("PASS: Native Revision Graph captured menus, revision token completion, retired completion/Quit ownership, selection, routing, zoom, tooltip, filter scopes, Reset, cancellation and repository invariants")
     }
 }

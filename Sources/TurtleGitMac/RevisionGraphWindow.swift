@@ -38,6 +38,7 @@ final class RevisionGraphSurface: NSView {
 }
 
 @MainActor final class RevisionGraphWindowModel: ObservableObject {
+    static var activeOperations = 0
     let repository: GitRepository
     let access: RepositoryAccessLease?
     let preferences: UserDefaults
@@ -49,12 +50,13 @@ final class RevisionGraphSurface: NSView {
     @Published private(set) var geometry: RevisionGraphLayout?
     @Published private(set) var busy = false
     @Published private(set) var error: String?
-    @Published var selection: [String] = []
+    @Published var selection: [String] = [] { didSet { if selection != oldValue { selectionGeneration = UUID() } } }
+    private(set) var selectionGeneration = UUID()
     var zoom: CGFloat = 1
     var showOverview = false
     var arrowsTowardMerges = false
     private(set) var closed = false
-    private var generation = UUID()
+    private(set) var generation = UUID()
     private var cancellation: OperationCancellation?
     private var worker: Task<Void, Never>?
     private(set) var pointers: [String: [String]] = [:]
@@ -97,9 +99,10 @@ final class RevisionGraphSurface: NSView {
         var options = self.options
         options.useMailmap = GitIdentityDisplay(defaults: preferences).useMailmap
         cancellation = token; generation = request
-        worker = Task { [weak self] in
-            guard let self else { return }
+        Self.activeOperations += 1
+        worker = Task { [self] in
             defer {
+                Self.activeOperations -= 1
                 if generation == request { busy = false; cancellation = nil; worker = nil; changed(); becameIdle() }
                 withExtendedLifetime(access) {}
             }
@@ -177,10 +180,11 @@ final class RevisionGraphSurface: NSView {
               names.allSatisfy({ name in deletableReferences.contains { GitReferenceName.equal($0.name, name) } }) else { return }
         let token = OperationCancellation(), request = UUID(), factory = sshSettings.capture()
         busy = true; error = nil; cancellation = token; generation = request; changed()
-        worker = Task { [weak self] in
-            guard let self else { return }
+        Self.activeOperations += 1
+        worker = Task { [self] in
             let coordinator = factory?(); var refresh = false
             defer {
+                Self.activeOperations -= 1
                 coordinator?.close()
                 if generation == request {
                     busy = false; cancellation = nil; worker = nil; changed(); becameIdle()
@@ -214,9 +218,9 @@ final class RevisionGraphSurface: NSView {
         let from = friendName(first), to = head ? "HEAD" : friendName(selection[1])
         let token = OperationCancellation(), request = UUID()
         busy = true; cancellation = token; generation = request; changed()
-        worker = Task { [weak self] in
-            guard let self else { return }
-            defer { if request == generation { busy = false; cancellation = nil; worker = nil; changed(); becameIdle() }; withExtendedLifetime(access) {} }
+        Self.activeOperations += 1
+        worker = Task { [self] in
+            defer { Self.activeOperations -= 1; if request == generation { busy = false; cancellation = nil; worker = nil; changed(); becameIdle() }; withExtendedLifetime(access) {} }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let a = try await repository.run(["rev-parse", "--verify", "--end-of-options", from + "^{commit}"], cancellation: token).text.trimmingCharacters(in: .newlines)
@@ -406,7 +410,32 @@ enum RevisionGraphReferenceCommand {
             menu.addItem(menuItem("Compare revisions", command: "compare", icon: .compare))
             menu.addItem(menuItem("Unified diff", command: "unified", icon: .unifiedDiff))
         }
+        func capture(_ menu: NSMenu) {
+            for item in menu.items {
+                if let command=item.representedObject {
+                    item.representedObject=NodeMenuTarget(model:model,command:command); item.action=#selector(nodeMenuCommand(_:))
+                }
+                if let submenu=item.submenu { capture(submenu) }
+            }
+        }
+        capture(menu)
         return menu
+    }
+    @MainActor private final class NodeMenuTarget: NSObject {
+        let generation: UUID
+        let selectionGeneration: UUID
+        let command: Any
+        init(model: RevisionGraphWindowModel, command: Any) {
+            generation=model.generation; selectionGeneration=model.selectionGeneration; self.command=command
+        }
+    }
+    private func acceptsNodeTarget(_ target: NodeMenuTarget) -> Bool {
+        !model.closed && !model.busy && target.generation == model.generation && target.selectionGeneration == model.selectionGeneration
+    }
+    @objc private func nodeMenuCommand(_ sender: NSMenuItem) {
+        guard let target=sender.representedObject as? NodeMenuTarget, acceptsNodeTarget(target) else { return }
+        let item=NSMenuItem(title:sender.title,action:nil,keyEquivalent:""); item.representedObject=target.command
+        menuCommand(item)
     }
     @objc private func menuCommand(_ sender: NSMenuItem) {
         if let command = sender.representedObject as? String { perform(command); return }
@@ -449,6 +478,11 @@ enum RevisionGraphReferenceCommand {
     @objc private func sheetEnded() { update() }
     func requestRepositoryRefresh() { guard !model.closed else { return }; pendingRepositoryRefresh = true; update() }
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        if let target=item.representedObject as? NodeMenuTarget {
+            guard acceptsNodeTarget(target) else { return false }
+            let command=NSMenuItem(title:item.title,action:nil,keyEquivalent:""); command.representedObject=target.command
+            return validateMenuItem(command)
+        }
         if let target = item.representedObject as? RevisionGraphReferenceCommand {
             guard !model.busy, !model.closed, filter == nil, !exporting, window?.attachedSheet == nil && !hasFindError, let node = model.selectedNode else { return false }
             switch target {
@@ -513,7 +547,7 @@ enum RevisionGraphReferenceCommand {
         }
     }
     func showFilter() {
-        guard let window, window.attachedSheet == nil, !hasFindError else { return }
+        guard !model.closed, !model.busy, filter == nil, !exporting, let window, window.attachedSheet == nil, !hasFindError else { return }
         let filter = RevisionGraphFilterController(model: model) { [weak self] options in
             guard let self else { return }; self.filter = nil
             if let options { self.pendingRepositoryRefresh = false; self.model.options = options; self.model.load() }

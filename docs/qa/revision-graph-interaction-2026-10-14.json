@@ -1,0 +1,80 @@
+{
+  "date": "2026-10-14",
+  "started": "2026-10-13",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Revision Graph filter reference completion, token editor and focus",
+    "Captured node commands and retirement across selection/reload/modal operations",
+    "Owned completion/error/picker lifecycle and independent Graph/Quit task accounting"
+  ],
+  "source": [
+    "src/TortoiseProc/RevisionGraph/RevGraphFilterDlg.cpp::OnInitDialog",
+    "src/Utils/ACEdit.cpp",
+    "src/TortoiseProc/RevisionGraph/RevisionGraphWnd.cpp context commands"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/graph-interaction-build-final2-2026-10-13.log",
+      "notes": "Not a warning-free build claim"
+    },
+    "native": {
+      "exit": 0,
+      "receivers": 2,
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "log": "build/qa/graph-interaction-native-final2-2026-10-13.log",
+      "scope": "Existing complete Graph interaction receiver plus completion/retained menu/retired error and read/Quit assertions",
+      "owned_receivers_reaped": [
+        86864,
+        87175
+      ],
+      "independently_absent": true
+    },
+    "core": {
+      "rerun": false,
+      "reason": "Core unchanged"
+    },
+    "website": {
+      "exit": 0,
+      "log": "build/qa/graph-interaction-site-2026-10-14.log"
+    }
+  },
+  "earlier_failures": [
+    {
+      "exit": 65,
+      "log": "build/qa/graph-interaction-build-2026-10-13.log",
+      "reason": "Core-internal reference API inaccessible; replaced with existing public cancellable Git read"
+    },
+    {
+      "exit": 65,
+      "log": "build/qa/graph-interaction-build-final-2026-10-13.log",
+      "reason": "Nested captured-menu helper required explicit main actor annotation"
+    },
+    {
+      "exit": 1,
+      "log": "build/qa/graph-interaction-native-2026-10-13.log",
+      "reason": "Fixture local editor variable duplicate; no receiver launched"
+    },
+    {
+      "exit": 1,
+      "log": "build/qa/graph-interaction-native-final-2026-10-13.log",
+      "reason": "Old fixture inspected unwrapped menu payload and reused a retired menu after Abort; updated title lookup and asserted rejection before reopening",
+      "owned_receiver_reaped": 86628,
+      "independently_absent": true
+    }
+  ],
+  "limits": [
+    "Physical typing and completion popup interaction not exercised",
+    "No new visual capture, full error-sheet pixel/VoiceOver or signed sandbox acceptance",
+    "No complete hosted CI or App Store claim; whole application port remains incomplete"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "d310b15c106144023fe0304d62255e72dacba32ac73915f5ab3cb5249cbc2ba3",
+    "Sources/TurtleGitMac/RevisionGraphWindow.swift": "9331904311d26af6e273118173468abc75bd45824112679b49f6036ce00cde25",
+    "Sources/TurtleGitMac/RevisionGraphFilter.swift": "b32d3be9788798091424c6ae78f77ec4f2dec692a5882273d13e486e5a1394cd",
+    "docs/qa/revision-graph-window-native-2026-10-10.swift": "bbd3e3739a1cd176a70aea8fa91153c917641704b2f243adb2a7de152ddad4e3"
+  }
+}

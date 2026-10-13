@@ -615,3 +615,37 @@ initialization-only refresh route. See [the dated shared checks](qa/log-find-ref
 
 Graph node and boundary-node identities now honor the supplied UseMailmap setting
 on reload. See [identity display parity](IDENTITY-DISPLAY-PARITY.md).
+
+## Connected filter/menu/operation ownership batch — October 13, 2026
+
+The pinned `RevGraphFilterDlg.cpp::OnInitDialog` completion list supplies HEAD,
+full reference names, refs-relative names and heads/remotes/tags-short names.
+Both native From/To fields now use this catalog through AppKit text completion.
+A shared field editor completes whitespace-delimited revision tokens, preserving
+branch slashes and dots and the rest of a multi-revision expression. Native
+case-insensitive prefix matching supplies suggestions without validating or
+rewriting arbitrary revision expressions. Typing requests completion; the native
+completion keyboard command remains available. Initial focus is From.
+
+Completion reads are cancellable and retain their original repository lease.
+A reference-read error uses an owned native error sheet, while fields remain
+usable for typed revisions afterward. Nested picker sheets defer this error until
+they close. Cancel/forced closure retire reads, suppress late completion catalogs
+and end the owned error sheet. Retired filters reject accept/reset/browse routes.
+
+Every node-menu command now captures graph and selection generations, including
+Log/Browse/Copy/Compare/Unified and reference submenu items. A selection change
+(including leaving and returning) or reload invalidates the retained menu. Normal
+keyboard/toolbar commands continue to operate on the current graph selection.
+
+Graph reads/layout, unified patches, reference deletion and filter completion
+reads now contribute independent Quit guards until their owned tasks finish,
+including after forced closure. The model is retained until settlement and releases
+its counter on success, cancellation and failure. The Debug build and grouped native Graph receiver passed with both system and
+bundled Git. Native checks cover completion variants/token boundaries, stale menus,
+pickers/focus/scopes, owned error-sheet forced closure, delayed read retirement/Quit,
+Find, graph navigation, export formats, deletion races and repository invariants.
+All receivers were reaped. Core was unchanged and was not rerun. Physical typing/
+completion popup gestures, full error-sheet presentation, VoiceOver, signed sandbox
+and complete Revision Graph parity remain open. See
+[batch evidence](qa/revision-graph-interaction-2026-10-14.json).
