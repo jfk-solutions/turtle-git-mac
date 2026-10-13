@@ -194,3 +194,26 @@ Debug and unsigned AppStore builds passed, as did the AppStore bundle contract
 (202 native items, 296 icons). See [dated QA](qa/ssh-authentication-2026-10-13.json).
 Live signed Keychain, physical acceptance and full authentication parity remain
 unverified; this continuation is not certified as complete. Earlier Keychain gap statements describe earlier checkpoints.
+
+
+## Shipping remote picker CI repair and cached SSH verification (2026-10-13)
+
+Hosted run 38434623838 failed the native coordinator fixture's old model-only
+Fetch Browse assertion. Browse now delegates to the owned `RemoteReferenceWindowController`,
+so the fixture had no callback and could not exercise its key preparation. The
+updated check creates the shipping Fetch controller, opens its remote picker,
+answers the actual encrypted-key prompt, verifies its live `main` reference and
+accepts it back into Fetch. Other transport ordering, cancellation, agent and
+lease cleanup assertions remain in place. No shipping app behavior was changed.
+
+The standalone SSH test command now delegates to the cached app-object native
+batch rather than compiling every app Swift file again. It retains both Git-engine
+arguments, private Git configuration, a 300-second receiver limit and process-group
+cleanup on success/failure/timeout. The SSH fixture uses a short private `/tmp`
+directory because agent Unix-domain sockets have a path-length limit; the first
+cached-run attempt exposed this limit and was reaped before the path repair.
+
+This fixes the identified fixture path and reduces repeated native compilation.
+A local focused pass does not establish a full hosted workflow pass or signed SSH
+acceptance. [Batch evidence](qa/ssh-picker-ci-2026-10-13.json) records final checks,
+failures and owned receiver cleanup.

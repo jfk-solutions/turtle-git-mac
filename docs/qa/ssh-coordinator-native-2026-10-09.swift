@@ -27,7 +27,7 @@ private final class NativeIdentityBookmarks: RepositoryBookmarkProvider {
         }
     }
     @MainActor static func run() async throws {
-        let root = URL(fileURLWithPath: CommandLine.arguments[1]), git = URL(fileURLWithPath: CommandLine.arguments[2]), askpass = URL(fileURLWithPath: CommandLine.arguments[3])
+        let root = URL(fileURLWithPath: CommandLine.arguments[1]), git = URL(fileURLWithPath: CommandLine.arguments[2]), askpass = URL(fileURLWithPath: CommandLine.arguments[3].hasPrefix("/") ? CommandLine.arguments[3] : FileManager.default.currentDirectoryPath + "/build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass")
         let domain = "TurtleGit.SSHCoordinator.QA." + UUID().uuidString, preferences = UserDefaults(suiteName: domain)!
         defer { preferences.removePersistentDomain(forName: domain) }
         let repo = GitRepository(root: root, executable: git)
@@ -119,9 +119,29 @@ private final class NativeIdentityBookmarks: RepositoryBookmarkProvider {
             model.invalidate()
         }
         try require(modelPrompts == 3,"Auto-load snapshot was changed after submission")
-        let browse = FetchWindowModel(repository:transportRepo,access:nil,isPull:false,preferences:preferences)
-        browse.sshSettings.makeCoordinator = factory; browse.load(remote:"origin"); try await wait { !browse.busy }; browse.sshSettings.enabled = true; browse.browse(); try await wait { !browse.busy }
-        try require(browse.branches == ["main"] && modelPrompts == 4,"Shipping remote branch lookup did not load key"); browse.invalidate()
+        let browseOwner = FetchWindowController(repository:transportRepo,access:nil,isPull:false,preferences:preferences)
+        defer { browseOwner.close() }
+        let browse = browseOwner.model
+        browseOwner.presentRemoteReferences = { _, _ in true }
+        browse.sshSettings.makeCoordinator = {
+            let value = SSHTransportCoordinator(repository:transportRepo,identities:identities,temporaryRoot:root,runtime:{tools})
+            coordinators.append(value)
+            Task { @MainActor in
+                do {
+                    try await wait("Browse key prompt") { value.prompt != nil || value.closed }
+                    if let prompt = value.prompt { modelPrompts += 1; prompt.passphrase.stringValue = phrase; prompt.submit() }
+                } catch { fputs("Browse prompt failed: \(error)\n",stderr) }
+            }
+            return value
+        }
+        browse.load(remote:"origin"); try await wait { !browse.busy }; browse.sshSettings.enabled = true; browse.browse()
+        try await wait("Owned remote picker") { browseOwner.remoteReferenceController != nil }
+        let picker = browseOwner.remoteReferenceController!
+        try await wait("Remote picker key preparation and refs") { !picker.model.busy }
+        try require(picker.model.error == nil && picker.model.refs == ["main"] && modelPrompts == 4,"Shipping remote picker did not load key")
+        picker.model.accept("main")
+        try require(browseOwner.remoteReferenceController == nil && !browse.browsing && browse.options.branch == "main","Remote picker selection did not return to Fetch")
+        browseOwner.close()
         let calls = try String(contentsOf: URL(fileURLWithPath:wrapper.path+".calls")); try require(calls == "push\nfetch\npull\nls-remote\n","Unexpected transport order")
         for tag in ["keep", "drop"] { _ = try await repo.run(["tag", tag]) }
         _ = try await repo.run(["push", "origin", "--tags"])

@@ -1,0 +1,47 @@
+{
+  "date": "2026-10-13",
+  "scope": "Native SSH coordinator CI fixture repair and cached owned receiver",
+  "hosted_failure": {
+    "run": 38434623838,
+    "job": 115439924698,
+    "commit": "35789c5f",
+    "step": "Native SSH transport coordinator",
+    "message": "Shipping remote branch lookup did not load key",
+    "cause": "Fixture called Fetch model Browse without shipping controller callback after native remote picker port"
+  },
+  "changes": [
+    "Exercise shipping Fetch controller and its remote picker/key prompt/selection return",
+    "Reuse cached built app objects rather than recompile all app Swift sources",
+    "Keep bounded owned receiver/process cleanup and use short private SSH socket fixture path"
+  ],
+  "checks": {
+    "native": {
+      "engines": [
+        "system",
+        "bundled"
+      ],
+      "exit": 0,
+      "reaped_pids": [
+        65794,
+        66748
+      ],
+      "scope": [
+        "Encrypted-key prompt/retry/dedup and cancellation/forced-close fences",
+        "Private agents, leases and shipping Push/Fetch/Pull/native picker",
+        "Tag/reference/Log transports and close guards",
+        "Clone and Submodule Add workflows"
+      ]
+    },
+    "initial_cached_attempt": {
+      "failure": "Agent socket path length exceeded by long reference-batch fixture directory",
+      "reaped_pid": 65716,
+      "repair": "Short private /tmp fixture directory via managed TemporaryDirectory"
+    }
+  },
+  "remaining": [
+    "Full hosted CI result",
+    "Signed SSH and sandbox acceptance",
+    "Broader physical UI acceptance"
+  ],
+  "log": "build/qa/ssh-picker-ci-native-2026-10-13.log"
+}
