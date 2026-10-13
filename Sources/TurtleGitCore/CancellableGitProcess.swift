@@ -5,7 +5,7 @@ import Darwin
 /// Cancellation targets that group while its leader PID is still unreaped, so
 /// helper children stop too and the numeric ID cannot be reused by another job.
 enum CancellableGitProcess {
-    static func run(executable: URL, arguments: [String], environment: [String: String], output: Int32, error: Int32, cancellation: OperationCancellation? = nil, pollOutput: (() -> Void)? = nil, terminateDescendantsOnExit: Bool = false, workingDirectory: URL? = nil, didStart: (() -> Void)? = nil) throws -> Int32 {
+    static func run(executable: URL, arguments: [String], environment: [String: String], output: Int32, error: Int32, input: Int32? = nil, cancellation: OperationCancellation? = nil, pollOutput: (() -> Void)? = nil, terminateDescendantsOnExit: Bool = false, workingDirectory: URL? = nil, didStart: (() -> Void)? = nil) throws -> Int32 {
         try cancellation?.check()
         func check(_ code: Int32) throws {
             guard code == 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(code)) }
@@ -18,6 +18,9 @@ enum CancellableGitProcess {
         let errorCopy = fcntl(error, F_DUPFD_CLOEXEC, 3)
         guard errorCopy >= 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
         defer { close(errorCopy) }
+        let inputCopy=input.map { fcntl($0,F_DUPFD_CLOEXEC,3) }
+        if let inputCopy, inputCopy < 0 { throw NSError(domain:NSPOSIXErrorDomain,code:Int(errno)) }
+        defer { if let inputCopy { close(inputCopy) } }
         func strings<T>(_ values: [String], _ body: (UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) throws -> T) throws -> T {
             guard values.allSatisfy({ !$0.contains("\0") }) else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(EINVAL)) }
             var pointers = values.map { strdup($0) }
@@ -33,7 +36,8 @@ enum CancellableGitProcess {
         try check(posix_spawnattr_init(&attributes))
         defer { posix_spawnattr_destroy(&attributes) }
         if let workingDirectory { try check(posix_spawn_file_actions_addchdir_np(&actions, workingDirectory.path)) }
-        try check(posix_spawn_file_actions_addopen(&actions, STDIN_FILENO, "/dev/null", O_RDONLY, 0))
+        if let inputCopy { try check(posix_spawn_file_actions_adddup2(&actions,inputCopy,STDIN_FILENO)) }
+        else { try check(posix_spawn_file_actions_addopen(&actions, STDIN_FILENO, "/dev/null", O_RDONLY, 0)) }
         try check(posix_spawn_file_actions_adddup2(&actions, outputCopy, STDOUT_FILENO))
         try check(posix_spawn_file_actions_adddup2(&actions, errorCopy, STDERR_FILENO))
         try check(posix_spawnattr_setpgroup(&attributes, 0))

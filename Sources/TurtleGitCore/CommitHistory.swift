@@ -966,39 +966,36 @@ extension GitRepository {
         let notesConfigured = try historyRun(["config", "--get-regexp", "^(core[.]notesref|notes[.]displayref)$"], successfulExitCodes: 0...1).exitCode == 0
         let hasNotes = references.values.contains { $0.contains { $0.name.hasPrefix("refs/notes/") } }
             || notesConfigured || ProcessInfo.processInfo.environment["GIT_NOTES_REF"] != nil
-        var notesCache: [String: String] = [:]
-        func notes(_ hash: String) throws -> String {
+        var metadataEntries:[LogEntry]=[],metadataPositions:[String:Int]=[:]
+        func metadataBatch(_ hash:String) -> [LogEntry] {
+            guard let index=metadataPositions[hash] else { return [] }
+            let start=index/128*128;return Array(metadataEntries[start..<min(start+128,metadataEntries.count)])
+        }
+        var notesCache:[String:String]=[:],tagCache:[String:String]=[:],pathCache:[String:[String]]=[:]
+        func notes(_ hash:String) throws -> String {
             guard hasNotes else { return "" }
-            if let cached = notesCache[hash] { return cached }
-            let value = try historyRun(["show", "--encoding=UTF-8", "-s", "--notes", "--format=%N", hash, "--"]).text.trimmingCharacters(in: .newlines)
-            notesCache[hash] = value; return value
+            if let value=notesCache[hash] { return value }
+            let values=try historyNotes(metadataBatch(hash).map(\.hash),cancellation:cancellation)
+            notesCache.merge(values) { _,new in new };return notesCache[hash] ?? ""
         }
-        var tagCache: [String: String] = [:]
-        func tagInfo(_ hash: String) throws -> String {
-            try (annotatedObjects[hash] ?? []).map { object in
-                if let cached = tagCache[object] { return cached }
-                var value = try historyRun(["cat-file", "tag", object]).text
-                if value.hasPrefix("object "), let newline = value.firstIndex(of: "\n") {
-                    value = String(value[value.index(after: newline)...])
-                    if value.hasPrefix("type commit\n") { value.removeFirst("type commit\n".count) }
-                }
-                value = value.trimmingCharacters(in: .newlines)
-                tagCache[object] = value; return value
-            }.joined(separator: "\n")
-        }
-        func changedPaths(_ hash: String, parents: [String]) throws -> [String] {
-            var paths = Set<String>()
-            for parent in parents.isEmpty ? [""] : parents {
-                try cancellation?.check()
-                var arguments = ["diff-tree", "--root", "--no-commit-id", "--name-status", "-z", "-r", "-M", "--no-ext-diff", "--no-color"]
-                if !parent.isEmpty { arguments.append(parent) }
-                arguments += [hash, "--"]
-                for file in CommitFile.parse(names: try historyRun(arguments).stdout, statistics: Data()) {
-                    paths.insert(file.path)
-                    if let old = file.oldPath { paths.insert(old) }
-                }
+        func tagInfo(_ hash:String) throws -> String {
+            let objects=annotatedObjects[hash] ?? []
+            if objects.contains(where:{ tagCache[$0]==nil }) {
+                var seen=Set<String>()
+                let pending=metadataBatch(hash).flatMap { annotatedObjects[$0.hash] ?? [] }.filter { tagCache[$0]==nil && seen.insert($0).inserted }
+                tagCache.merge(try historyTagObjects(pending,cancellation:cancellation)) { _,new in new }
             }
-            return paths.sorted()
+            return objects.compactMap { tagCache[$0] }.joined(separator:"\n")
+        }
+        func changedPaths(_ hash:String) throws -> [String] {
+            if let value=pathCache[hash] { return value }
+            let changes=try revisionChanges(in:metadataBatch(hash),cancellation:cancellation)
+            for (hash,files) in changes {
+                var paths=Set<GitReferenceName>()
+                for file in files { paths.insert(GitReferenceName(file.path));if let old=file.oldPath { paths.insert(GitReferenceName(old)) } }
+                pathCache[hash]=paths.map(\.rawValue).sorted()
+            }
+            return pathCache[hash] ?? []
         }
         let fieldsInHistory = String(decoding: try historyRun(args).stdout, as: UTF8.self).components(separatedBy: "\0")
         var actualParents: [String: [String]] = [:]
@@ -1019,6 +1016,13 @@ extension GitRepository {
                 }
                 guard batch.allSatisfy({ actualParents[$0] != nil }) else { throw RevisionComparisonFailure.range }
             }
+        }
+        for offset in stride(from:0,to:max(0,fieldsInHistory.count-10),by:11) {
+            let hash=fieldsInHistory[offset].trimmingCharacters(in:.whitespacesAndNewlines)
+            guard HistoryMetadataProtocol.objectID(hash) else { throw HistoryMetadataFailure.input }
+            let parents=actualParents[hash] ?? fieldsInHistory[offset+1].split(separator:" ").map(String.init)
+            metadataPositions[hash]=metadataEntries.count
+            metadataEntries.append(LogEntry(hash:hash,author:"",date:"",subject:"",parents:parents))
         }
         let hasBisectRefs = references.values.contains { $0.contains { $0.name.hasPrefix("refs/bisect/") } }
         let bisectTerms = hasBisectRefs ? try historyBisectTerms(cancellation: cancellation) : HistoryBisectTerms()
@@ -1049,7 +1053,7 @@ extension GitRepository {
                     searchable += (references[hash] ?? []).map(\.name) + (peeledReferenceNames[hash] ?? [])
                 }
                 if options.searchFields.contains(.tagInfo) { searchable.append(dateSettings.tagInfo(try tagInfo(fields[0].trimmingCharacters(in: .whitespacesAndNewlines)))) }
-                if options.searchFields.contains(.paths) { searchable += try changedPaths(hash, parents: parents) }
+                if options.searchFields.contains(.paths) { searchable += try changedPaths(hash) }
                 let text = searchable.isEmpty ? "" : searchable.joined(separator: "\n") + "\n"
                 if options.searchRegex { regexTexts.append(text) }
                 else { matchesFilter = query.matches(text); if !matchesFilter && !options.retainFilteredRows { continue } }
@@ -1157,19 +1161,7 @@ extension GitRepository {
     }
     /// Lightweight name-status union across all parents for the lazy Log Actions column.
     public func revisionActions(in entry: LogEntry, cancellation: OperationCancellation? = nil) throws -> LogRevisionActions {
-        try cancellation?.check()
-        var actions = LogRevisionActions()
-        for parent in entry.parents.isEmpty ? [nil] : entry.parents.map({ Optional($0) }) {
-            try cancellation?.check()
-            var args = ["diff-tree", "--root", "--no-commit-id", "--name-status", "-z", "-r", "-M", "--no-ext-diff", "--no-color"]
-            if let parent { args.append(parent) }
-            args += [entry.hash, "--"]
-            let names = try run(args, cancellation: cancellation).stdout
-            try cancellation?.check()
-            actions.formUnion(LogRevisionActions.classify(CommitFile.parse(names: names, statistics: Data())))
-        }
-        try cancellation?.check()
-        return actions
+        try revisionActions(in:[entry],cancellation:cancellation)[entry.hash] ?? LogRevisionActions()
     }
     /// Stop at the first result in source Find order. In particular, do not
     /// fetch paths from later rows merely to find a match in the first row.

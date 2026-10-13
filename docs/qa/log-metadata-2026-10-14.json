@@ -1,0 +1,80 @@
+{
+  "date": "2026-10-14",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Connected Log path/note/tag metadata batching",
+    "Length/count/NUL protocol framing and file-backed cancellable stdin",
+    "Coalesced visible Actions reads, retirement and Quit ownership"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/log-metadata-build-2026-10-14.log"
+    },
+    "core_history": {
+      "exit": 0,
+      "tests": 57,
+      "log": "build/qa/log-metadata-core-2026-10-14.log",
+      "scope": "CommitHistoryTests and HistoryMetadataBatchTests"
+    },
+    "core_process": {
+      "exit": 0,
+      "tests": 7,
+      "log": "build/qa/log-metadata-process-2026-10-14.log",
+      "scope": "GitProcessCancellationTests and GitProcessExitTests, existing build reused"
+    },
+    "native": {
+      "exit": 0,
+      "cases": 4,
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "log": "build/qa/log-metadata-native-2026-10-14.log",
+      "owned_receivers_reaped": [
+        6952,
+        7298,
+        7436,
+        7516
+      ],
+      "no_owned_receivers_remain": true,
+      "scope": "Metadata coalescing/lifetime plus existing Log column regression"
+    },
+    "website": {
+      "exit": 0,
+      "log": "build/qa/log-metadata-site-2026-10-14.log"
+    }
+  },
+  "measured_process_counts": {
+    "130_row_history": {
+      "notes_reads": 2,
+      "existing_parent_reads": 2,
+      "tag_object_reads": 1
+    },
+    "12_visible_actions": {
+      "diff_tree_reads": 1
+    }
+  },
+  "primary_protocol_docs": [
+    "https://git-scm.com/docs/git-diff-tree",
+    "https://git-scm.com/docs/git-log",
+    "https://git-scm.com/docs/git-cat-file"
+  ],
+  "limits": [
+    "Bounded batching does not implement streaming unlimited histories or a transactional notes snapshot",
+    "New Core metadata fixtures use system Git; native Actions/column checks use both system and bundled Git",
+    "No layout changes, new screenshots or physical/signed/Finder acceptance claim",
+    "Current hosted CI and refreshed Store packaging were not checked for this native/Core read batch",
+    "Full application port remains incomplete"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/HistoryMetadataBatch.swift": "2e8bf12632eddc32909e839b23719c27ad2a1d4f6b6ecf9fc7fc54c26b0312d5",
+    "Sources/TurtleGitCore/CommitHistory.swift": "5189ce759d00b1de409531e4b41fb469110724cc7d7aac94165713fd3c8c1112",
+    "Sources/TurtleGitCore/GitRepository.swift": "b48ed5de31bb1429d4ee7d69e06a2792153aeed84e29d6bc72892502592c27ae",
+    "Sources/TurtleGitCore/CancellableGitProcess.swift": "34d31ccda1c3e81305fed8e95d68b02d40ee7de34dedeed966e7c4d3a0f9289d",
+    "Sources/TurtleGitMac/LogWindow.swift": "d1b7af24d6e236e92abb9ce0d437636cc66527510b52113f4182c8fdb20dfaf0",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "2af8709b4c6578c24443ddca4704a52c9e928c4706f58e2e2ec77918c1060f7d",
+    "Tests/TurtleGitCoreTests/HistoryMetadataBatchTests.swift": "51e882740c497c42ba8cffc8a9a0e7501d7b61f276a4002261ade1dc366b9088",
+    "docs/qa/log-metadata-native-2026-10-14.swift": "9b0587f3d8d9614e150194c6992370595c4a52c85316af37222f2068c77eaca4"
+  }
+}

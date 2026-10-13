@@ -8,7 +8,7 @@ public actor GitRepository {
     public init(root: URL, executable: URL = URL(fileURLWithPath: "/usr/bin/git"), askpass: URL? = GitAskpassRuntime.bundled()) {
         self.root = root.standardizedFileURL; self.executable = executable; self.askpass = askpass
     }
-    public func run(_ arguments: [String], environmentOverrides: [String: String] = [:], literalPathspecs: Bool = true, successfulExitCodes: ClosedRange<Int32> = 0...0, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> GitResult {
+    public func run(_ arguments: [String], environmentOverrides: [String: String] = [:], literalPathspecs: Bool = true, successfulExitCodes: ClosedRange<Int32> = 0...0, cancellation: OperationCancellation? = nil, input: Data? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> GitResult {
         try cancellation?.check()
         let temporary = try TurtleGitTemporaryStorage.root.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: true)
@@ -19,6 +19,13 @@ public actor GitRepository {
         let output = try FileHandle(forWritingTo: out), error = try FileHandle(forWritingTo: err)
         defer { try? output.close(); try? error.close() }
         let commandArguments = (literalPathspecs ? ["--literal-pathspecs"] : ["--no-literal-pathspecs"]) + ["-C", root.path] + arguments
+        var inputReader:FileHandle?
+        if let input {
+            let file=temporary.appendingPathComponent("stdin")
+            guard FileManager.default.createFile(atPath:file.path,contents:input,attributes:[.posixPermissions:0o600]) else { throw NSError(domain:NSPOSIXErrorDomain,code:Int(EIO)) }
+            inputReader=try FileHandle(forReadingFrom:file)
+        }
+        defer { try? inputReader?.close() }
         var environment = ProcessInfo.processInfo.environment
         environment["GIT_TERMINAL_PROMPT"] = "0"
         environment["GIT_PAGER"] = "cat"
@@ -50,10 +57,10 @@ public actor GitRepository {
                     if !drain { return }
                 } while true
             }
-            status = try CancellableGitProcess.run(executable: executable, arguments: commandArguments, environment: environment, output: output.fileDescriptor, error: error.fileDescriptor, cancellation: cancellation ?? OperationCancellation(), pollOutput: { read(outputReader, stream: .stdout); read(errorReader, stream: .stderr) })
+            status = try CancellableGitProcess.run(executable: executable, arguments: commandArguments, environment: environment, output: output.fileDescriptor, error: error.fileDescriptor, input:inputReader?.fileDescriptor, cancellation: cancellation ?? OperationCancellation(), pollOutput: { read(outputReader, stream: .stdout); read(errorReader, stream: .stderr) })
             read(outputReader, stream: .stdout, drain: true); read(errorReader, stream: .stderr, drain: true)
         } else {
-            status = try CancellableGitProcess.run(executable: executable, arguments: commandArguments, environment: environment, output: output.fileDescriptor, error: error.fileDescriptor)
+            status = try CancellableGitProcess.run(executable: executable, arguments: commandArguments, environment: environment, output: output.fileDescriptor, error: error.fileDescriptor,input:inputReader?.fileDescriptor)
         }
         let result = GitResult(exitCode: status, stdout: try Data(contentsOf: out), stderr: try Data(contentsOf: err))
         if cancellation?.isCancelled == true { throw GitCommandCancellationFailure(result: result) }

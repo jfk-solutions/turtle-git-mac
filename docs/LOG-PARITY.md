@@ -176,8 +176,8 @@ message pane appends a Notes section. Message-only Git grep explicitly excludes
 notes, so selecting Messages does not implicitly search them. Notes are fetched
 separately from commit records and cached by revision during each history read;
 embedded NUL data cannot break the commit-record parser. Repositories without
-notes refs/configuration skip per-commit note reads. Repositories with notes still
-use individual Git reads, so batched/incremental loading remains unfinished. See
+notes refs/configuration skip per-commit note reads. Notes now use bounded batched reads; see the October 14 metadata checkpoint below.
+Full incremental/streaming loading remains unfinished. See
 [the notes record](qa/log-notes-search-2026-10-06.json).
 Tag Info searches annotation text, internal tag names and tagger identity from
 annotated tag objects associated with the commit. Lightweight tag names and
@@ -205,8 +205,8 @@ OR combination with other fields before applying the result limit. This is
 independent of the lower changed-file pane filter and existing history path scope.
 Unlike upstream's cold simple-list path, which can omit rename old names, native
 search includes old names consistently before/after loading commit details.
-Per-commit/per-parent Git diff reads remain a performance gap; batched loading and
-streaming remain unfinished. See [the Paths record](qa/log-path-search-2026-10-06.json).
+Paths now use bounded stdin diff batches, including every parent; see the
+October 14 checkpoint below. Full streaming history loading remains unfinished. See [the Paths record](qa/log-path-search-2026-10-06.json).
 The menu also offers the upstream Case-sensitive toggle, default off. It applies
 to every selected field and is saved under FilterCaseSensitively for subsequent
 Log windows. Plain text uses the upstream term query rules described below; a single positive
@@ -2192,3 +2192,42 @@ Reset, metadata removal, retained busy/closed command gates, unchanged global
 column settings and preserved HEAD/index. No screenshot, physical gesture or signed
 runtime acceptance is implied by object checks. See
 [batch evidence](qa/log-column-layout-2026-10-13.json).
+
+## Bounded metadata and visible Actions batch — October 14, 2026
+
+History loading/search now fetches notes in groups of at most 128 candidate rows
+using Git's sized pretty-record output. Embedded NUL/newline text remains payload,
+not a record separator. Git still formats configured notes/display refs itself.
+Annotated tag objects use length-framed `cat-file --batch` requests and retain
+the source header stripping, alias multiplicity and date presentation.
+
+Changed paths and action roles use `diff-tree --stdin --root -m` with captured
+actual parent lists, NUL name-status records and explicit commit headers. Roots,
+empty commits and every merge parent remain represented. Rename/copy records
+retain both names. Reserved-position parsing distinguishes commit IDs from
+filenames that happen to be full hash strings. Byte-distinct Unicode paths stay
+distinct. Existing path scope, query combination, limit and display ordering
+remain independent of metadata batching. Find's first-result reader stays bounded
+to the row it is currently checking.
+
+The native Actions queue coalesces cells from a main-actor update into at most
+64 rows per read, suppresses duplicate/active requests, and publishes only for the
+live generation. Refresh/close cancel the batch; retired results cannot update
+rows. Independent action-read accounting retains Quit protection until the owned
+Git child settles, even after owner retirement. Permission leases remain held.
+
+The shared process runner accepts file-backed stdin with a duplicated child
+descriptor and private temporary ownership. Callers that omit input retain the
+existing /dev/null behavior. This avoids argv growth and pipe backpressure while
+keeping cancellation/process-group cleanup on the existing path.
+
+The Debug build, 57 grouped history/metadata Core checks, seven shared process
+regressions and four native metadata/column checks passed. Native checks ran with
+system and bundled Git, measuring a single owned diff-tree process for 12 visible
+Actions rows. The 130-row notes fixture used two notes reads plus two existing
+parent-record reads; annotated tag data used one object batch. All owned receivers
+were reaped. See [batch evidence](qa/log-metadata-2026-10-14.json).
+
+This is
+bounded batching, not a streaming unlimited-history reader, repository-wide notes
+transaction, complete large-repository responsiveness guarantee or full Log parity.

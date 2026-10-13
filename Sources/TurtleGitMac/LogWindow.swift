@@ -520,6 +520,7 @@ struct LogCommandRequest: Identifiable {
 
 @MainActor final class LogWindowModel: ObservableObject {
     private(set) static var activeHistoryDeletions = 0
+    private(set) static var activeActionReads = 0
     let repository: GitRepository
     let sshSettings: SSHTransportSettings
     private var deletionCancellation: OperationCancellation?
@@ -538,7 +539,7 @@ struct LogCommandRequest: Identifiable {
     @Published var actionFailures = Set<String>()
     private var actionQueue: [LogEntry] = []
     private var actionCancellation: OperationCancellation?
-    private var activeActionHash: String?
+    private var activeActionHashes=Set<String>()
     private var actionGeneration = 0
     var loadingActions: Bool { actionCancellation != nil }
     @Published var parentMetadata: [String: [LogParentChoice]] = [:]
@@ -1255,30 +1256,36 @@ struct LogCommandRequest: Identifiable {
     }
     private func cancelActionReads() {
         actionCancellation?.cancel(); actionCancellation = nil
-        actionQueue = []; activeActionHash = nil; actionGeneration += 1
+        actionQueue = []; activeActionHashes = []; actionGeneration += 1
     }
     func requestActions(_ entry: LogEntry) {
         if entry.hash.isEmpty { if revisionActions[""] == nil, let snapshot = workingTreeSnapshot { revisionActions[""] = .classify(snapshot.files) }; return }
-        guard !busy, revisionActions[entry.hash] == nil, !actionFailures.contains(entry.hash),
-            activeActionHash != entry.hash, !actionQueue.contains(where: { $0.hash == entry.hash }) else { return }
+        guard !busy, !isInvalidated, revisionActions[entry.hash] == nil, !actionFailures.contains(entry.hash),
+            !activeActionHashes.contains(entry.hash), !actionQueue.contains(where: { $0.hash == entry.hash }) else { return }
         actionQueue.append(entry)
         guard actionCancellation == nil else { return }
         let cancellation = OperationCancellation(); actionCancellation = cancellation
         let request = actionGeneration
+        Self.activeActionReads += 1
         Task {
+            defer { Self.activeActionReads -= 1;withExtendedLifetime(access) {} }
+            // Coalesce the cells requested during this main-actor update.
+            await Task.yield()
             while request == actionGeneration && !actionQueue.isEmpty && !cancellation.isCancelled {
-                let entry = actionQueue.removeFirst(); activeActionHash = entry.hash
+                let batch=Array(actionQueue.prefix(64));actionQueue.removeFirst(batch.count)
+                activeActionHashes=Set(batch.map(\.hash))
                 do {
-                    let actions = try await repository.revisionActions(in: entry, cancellation: cancellation)
-                    guard request == actionGeneration else { return }
-                    revisionActions[entry.hash] = actions
+                    if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                    let actions=try await repository.revisionActions(in:batch,cancellation:cancellation)
+                    guard request == actionGeneration,!cancellation.isCancelled,!isInvalidated else { return }
+                    revisionActions.merge(actions) { _,new in new }
                 } catch {
                     guard request == actionGeneration else { return }
-                    if !cancellation.isCancelled { actionFailures.insert(entry.hash) }
+                    if !cancellation.isCancelled { actionFailures.formUnion(batch.map(\.hash)) }
                 }
-                activeActionHash = nil
+                activeActionHashes=[]
             }
-            if request == actionGeneration { actionCancellation = nil; activeActionHash = nil }
+            if request == actionGeneration { actionCancellation=nil;activeActionHashes=[] }
         }
     }
     func showStatistics() {
