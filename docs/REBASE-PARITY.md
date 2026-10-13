@@ -200,3 +200,9 @@ Rebase factory/editor acceptance and full workflow parity remain pending.
 Tracked dirty-tree Stash/Abort, effective `rebase.autostash`, Cherry Pick's manual
 question, post-save Pre-rebase hooks, and owned Done/Abort/completion restoration
 are now implemented together. See [stash workflow and remaining limits](STASH-PARITY.md#replay-stash-and-applypop-ownership-october-12-2026).
+
+The selected-revision Edit Notes action now uses the shared owned [Input
+sheet](INPUT-DIALOG-PARITY.md). The revision context menu is gated while it is
+open. Retiring the Rebase owner invalidates its revision model, cancels pending
+note reads and closes the sheet without late presentation. Full physical/signed
+acceptance remains open.

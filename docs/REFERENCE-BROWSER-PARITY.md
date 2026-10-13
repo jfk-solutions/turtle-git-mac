@@ -627,5 +627,5 @@ pass is claimed. SVN scoped acceptance was deferred to address this actual CI
 failure. See `qa/reference-pid-publication-ci-2026-10-12.json`.
 
 The shared [Input dialog batch](INPUT-DIALOG-PARITY.md) replaces the separate
-standalone Log/description forms and unifies the embedded notes editor font and
-keyboard behavior. Full SciEdit and physical acceptance remain open.
+Log/description forms. The follow-up host consolidation brings Rebase and
+Synchronization onto that same form with effective project settings. Full SciEdit and physical acceptance remain open.

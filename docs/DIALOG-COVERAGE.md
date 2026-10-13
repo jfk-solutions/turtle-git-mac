@@ -44,7 +44,7 @@ This generated table links explicit implementation/parity reviews and existing Q
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSMTP` | partial-native-replacement | 0/16 mapped; 16 pending | No recorded family document; 0 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SVNPROGRESS` | partial | 6/8 mapped; 2 pending | [REVERT-PARITY](REVERT-PARITY.md), [UI-PARITY](UI-PARITY.md); 6 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SIMPLEPROMPT` | pending-review | 0/9 mapped; 9 pending | No recorded family document; 0 QA records |
-| `src/Resources/TortoiseProcENG.rc` / `IDD_INPUTDLG` | partial-native-replacement | 5/5 mapped; 0 pending | [EDIT-NOTES-PARITY](EDIT-NOTES-PARITY.md), [INPUT-DIALOG-PARITY](INPUT-DIALOG-PARITY.md); 2 QA records |
+| `src/Resources/TortoiseProcENG.rc` / `IDD_INPUTDLG` | partial-native-replacement | 5/5 mapped; 0 pending | [EDIT-NOTES-PARITY](EDIT-NOTES-PARITY.md), [INPUT-DIALOG-PARITY](INPUT-DIALOG-PARITY.md); 3 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSPROGSADV` | partial-native-replacement | 0/8 mapped; 8 pending | No recorded family document; 0 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_URL` | pending-review | 0/4 mapped; 4 pending | No recorded family document; 0 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_TOOLASSOC` | partial-native-replacement | 0/7 mapped; 7 pending | No recorded family document; 0 QA records |

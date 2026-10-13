@@ -9,6 +9,8 @@ import TurtleGitCore
     private var splitCommitPicker: CommitWindowController?
     private var stashRestore: StashRestoreWindowController?
     private var stashAlert: NSAlert?
+    private var notePresenter: CommitNotePresenter?
+    var noteEditor: InputWindowController? { notePresenter?.editor }
 
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
         model = RebaseWindowModel(repository: repository, access: access, messageDefaults: preferences)
@@ -17,6 +19,7 @@ import TurtleGitCore
         window.contentViewController = NSHostingController(rootView: RebaseDialog(model: model))
         super.init(window: window); model.clientHooks.windowProvider = { [weak window] in window?.attachedSheet ?? window }; window.delegate = self; window.center(); model.close = { [weak window] in window?.close() }
         model.revisionMenuLog.window = window
+        notePresenter = CommitNotePresenter(parent: window, model: model.revisionMenuLog, preferences: preferences)
         model.onModeChanged = { [weak window, weak model] in
             window?.title = "\(repository.root.lastPathComponent) – \(model?.operationTitle ?? "Rebase") – TurtleGit"
         }
@@ -126,7 +129,7 @@ import TurtleGitCore
         if !model.active && model.hasReplayStash { model.finishReplay(); return false }
         return true
     }
-    func windowWillClose(_ notification: Notification) { model.retire(); if let alert = stashAlert { window?.endSheet(alert.window, returnCode: .abort); alert.window.orderOut(nil) }; stashAlert = nil; stashRestore?.close(); stashRestore = nil; logPicker?.close(); logPicker = nil; splitCommitPicker?.close(); splitCommitPicker = nil; onClosed() }
+    func windowWillClose(_ notification: Notification) { model.retire(); notePresenter?.close(); if let alert = stashAlert { window?.endSheet(alert.window, returnCode: .abort); alert.window.orderOut(nil) }; stashAlert = nil; stashRestore?.close(); stashRestore = nil; logPicker?.close(); logPicker = nil; splitCommitPicker?.close(); splitCommitPicker = nil; onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class RebaseWindowModel: ObservableObject {
@@ -187,7 +190,7 @@ import TurtleGitCore
     var chooseStashBeforeReplay: () async -> Bool = { false }
     var chooseRestoreReplayStash: () async -> Bool = { false }
     var restoreReplayStash: (Int) async -> Void = { _ in }
-    func retire() { retired = true; replayPreparationCancellation?.cancel(); clientHooks.retire() }
+    func retire() { retired = true; revisionMenuLog.invalidate(); replayPreparationCancellation?.cancel(); clientHooks.retire() }
     func finishReplay(after: (() -> Void)? = nil) {
         guard !retired, !busy, !active, !selectingSplit, !pickingCommits else { return }
         // Preserve immediate completion routing when there is no stash question
@@ -212,7 +215,7 @@ import TurtleGitCore
     var onShowStatus: () -> Void = {}
     var onModeChanged: () -> Void = {}
     var configureLogPicker: (LogWindowModel) -> Void = { _ in }
-    lazy var revisionMenuLog = LogWindowModel(repository: repository, access: access)
+    lazy var revisionMenuLog = LogWindowModel(repository: repository, access: access, labelDefaults: messageDefaults)
     var onShowRevisionLog: ((String) -> Void)?
     var pickAdditionalCommits: () -> Void = {}
     var chooseEmptyResult: () async -> RebaseEmptyChoice = { .cancel }
@@ -341,7 +344,7 @@ import TurtleGitCore
         self.repository = repository; self.access = access; self.messageDefaults = messageDefaults
         self.fullCommitMessageOnLogLine = messageDefaults.bool(forKey: "FullCommitMessageOnLogLine")
     }
-    var revisionMenuAvailable: Bool { !busy && !selectingSplit && !pickingCommits && !revisionMenuLog.busy && !revisionMenuLog.loadingNote && !revisionMenuLog.savingNote && !revisionMenuLog.copyingDetails }
+    var revisionMenuAvailable: Bool { !retired && !busy && !selectingSplit && !pickingCommits && revisionMenuLog.noteRequest == nil && !revisionMenuLog.busy && !revisionMenuLog.loadingNote && !revisionMenuLog.savingNote && !revisionMenuLog.copyingDetails }
     func revisionMenuRows(_ ids: Set<String>) -> [RebaseEntry] { entries.filter { ids.contains($0.id) } }
     @discardableResult func prepareRevisionMenu(_ ids: Set<String>) -> LogWindowModel? {
         let rows = revisionMenuRows(ids)
@@ -740,7 +743,6 @@ struct RebaseRevisionMenuPresentation: ViewModifier {
         content.alert("Git operation failed", isPresented: Binding(get: { log.error != nil }, set: { if !$0 { log.error = nil } })) {
             Button("OK") { log.error = nil }
         } message: { Text(log.error ?? "") }
-        .sheet(item: $log.noteRequest) { _ in LogNotesDialog(model: log) }
     }
 }
 

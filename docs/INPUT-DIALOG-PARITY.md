@@ -30,12 +30,38 @@ Git notes writes remain noninterruptible and counted until completion. Quit
 checks the shared count even after a window closes. Retired Log models do not
 update displayed notes or emit revision callbacks.
 
-Synchronization and embedded Rebase retain their existing workflow hosts, but
-share InputMessageTextView and the same log-font/keyboard policy. Their complete
-host consolidation and project-settings propagation remain open. This resource
+Synchronization now uses InputWindowController directly. Rebase and Log use
+the same CommitNotePresenter for an owned Input sheet. All three note callers
+load effective project language, width marker and minimum-length settings before
+enabling their form. Legacy model save entry points synchronously capture and
+gate the accepted draft before scheduling work. The former SwiftUI notes hosts
+and their separate editor adapters have been removed. This resource
 is partially replaced, not certified complete. The grouped receiver includes
 new Input checks and existing branch-description assertions through the common
 compilation cache; no timed/full-suite repetition is required for this batch.
 
 Four backend tests and four grouped native cases passed across both Git engines.
 See the [scoped evidence](qa/input-dialogs-2026-10-13.json).
+
+
+## Connected host consolidation — 2026-10-13
+
+The shared form now lives in `Sources/TurtleGitMac/InputWindow.swift`, with one
+owned note presenter for Log and Rebase. Synchronization's captured revision
+window inherits the same form and saved InputDlg geometry. Loading disables the
+editor/OK, failures retain an explicit error state, and Cancel closes without
+saving. The reusable checkbox remains hidden for these source note callers.
+
+Rebase blocks its revision context actions while a note is open and invalidates
+its revision model on retirement. Pending read cancellation is propagated; late
+results cannot reopen a sheet or populate a closed form. Note readers and saves
+remain globally counted until completion, including after forced closure, so
+Quit cannot leave owned work running. Save callbacks observe settled busy state.
+Core notes writes remain noninterruptible once authorized.
+
+Full SciEdit completion/issue styling, physical keyboard/accessibility/layout,
+branch project-settings propagation and signed access acceptance remain open.
+
+The consolidation passed the Debug build and six grouped native cases across
+system and bundled Git. Core was unchanged and was not retested. See the
+[host acceptance record](qa/input-hosts-2026-10-13.json).

@@ -6,6 +6,7 @@ import AppKit
     var replyToTermination: (NSApplication, Bool) -> Void = { $0.reply(toApplicationShouldTerminate: $1) }
     func applicationWillTerminate(_ notification: Notification) { repositoryModel?.stopMonitoringForTermination(); repositoryModel?.finderWatches?.retire(); HistoricalPreviewFiles.discardAll(); RepositoryBrowserExportFiles.discardAll(); UnifiedDiffPreviewFiles.discardAll(); GitConfigurationPreviewFiles.discardAll(); DiffToolApplication.discardAll(); MergeToolApplication.discardAll() }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        if LogWindowModel.activeNoteReads > 0 || LogWindowModel.activeNoteSaves > 0 { return .terminateCancel }
         if InputWindowController.activeSaves > 0 { return .terminateCancel }
         if AddRemoteWindowModel.activeOperations > 0 || RemoteReferenceWindowModel.activeOperations > 0 { return .terminateCancel }
         if BisectWindowModel.activeOperations > 0 { return .terminateCancel }
@@ -67,7 +68,7 @@ import AppKit
         // A forced owner close can remove the window before its Git child has
         // stopped. Keep termination fenced until that child or atomic save ends.
         if HistoryCombineWindowModel.activeOperations > 0 || HistoryRevertWindowModel.activeOperations > 0 ||
-            HistoryNotesWindowModel.activeMutations > 0 || SynchronizationWindowModel.activeHistoryDeletions > 0 ||
+            HistoryNotesWindowModel.activeMutations > 0 || HistoryNotesWindowModel.activeReads > 0 || SynchronizationWindowModel.activeHistoryDeletions > 0 ||
             LogWindowModel.activeHistoryDeletions > 0 || GitConfigurationSettingsModel.activeSaves > 0 ||
             RemoteSettingsWindowModel.activeOperations > 0 || SettingsTransaction.activeApplications > 0 { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? HistoryNotesWindowController }).contains(where: { $0.model.loading || $0.model.saving || $0.window?.attachedSheet != nil }) { return .terminateCancel }

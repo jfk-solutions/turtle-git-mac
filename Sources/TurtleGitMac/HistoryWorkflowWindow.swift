@@ -4,26 +4,35 @@ import AppKit
 import SwiftUI
 import TurtleGitCore
 
-@MainActor final class HistoryNotesWindowController: NSWindowController, NSWindowDelegate {
+@MainActor final class HistoryNotesWindowController: InputWindowController {
     let model: HistoryNotesWindowModel
-    var onClosed: () -> Void = {}
     init(repository: GitRepository, access: RepositoryAccessLease?, revision: String, preferences: UserDefaults) {
-        model = HistoryNotesWindowModel(repository: repository, access: access, revision: revision)
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 680, height: 360), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Edit Notes – TurtleGit"
-        window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 560, height: 280)
-        window.contentViewController = NSHostingController(rootView: HistoryNotesDialog(model: model).defaultAppStorage(preferences))
-        super.init(window: window); window.delegate = self
-        model.close = { [weak self] in guard let self, !self.model.saving else { return }; self.close() }
-        DialogGeometry.attach(window, identifier: "HistoryNotesWindowController")
+        let notes = HistoryNotesWindowModel(repository: repository, access: access, revision: revision)
+        model = notes
+        super.init(title: "Edit Notes", hint: "Edit Notes", text: "", preferences: preferences) { [notes] text, _, token in
+            if token.isCancelled { throw CancellationError() }
+            try await notes.saveText(text)
+        }
+        setInputState(ready: false, message: "Loading notes…")
+        onTextChanged = { [weak notes] text in notes?.text = text }
+        notes.onLoaded = { [weak self] note, settings in self?.configure(text: note.text, minimumLength: note.minimumLength, settings: settings) }
+        notes.onStateChanged = { [weak self, weak notes] in
+            guard let self, let notes, notes.snapshot == nil else { return }
+            self.setInputState(ready: false, message: notes.error ?? (notes.loading ? "Loading notes…" : nil))
+        }
+        notes.close = { [weak self] in
+            guard let self, !self.model.saving else { return }
+            if let window = self.window { window.sheetParent?.endSheet(window); window.close() }
+        }
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.saving && sender.attachedSheet == nil }
-    func windowWillClose(_ notification: Notification) { model.invalidate(); if let window { window.sheetParent?.endSheet(window) }; onClosed() }
+    override func windowShouldClose(_ sender: NSWindow) -> Bool { !model.saving && sender.attachedSheet == nil && super.windowShouldClose(sender) }
+    override func windowWillClose(_ notification: Notification) { model.invalidate(); super.windowWillClose(notification) }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
 @MainActor final class HistoryNotesWindowModel: ObservableObject {
     private(set) static var activeMutations = 0
+    private(set) static var activeReads = 0
     let repository: GitRepository
     let access: RepositoryAccessLease?
     let revision: String
@@ -37,6 +46,9 @@ import TurtleGitCore
     private var worker: Task<Void, Never>?
     var close: () -> Void = {}
     var onChanged: (String) -> Void = { _ in }
+    var read: ((OperationCancellation) async throws -> (CommitNoteSnapshot, ProjectDialogSettings))?
+    var onLoaded: (CommitNoteSnapshot, ProjectDialogSettings) -> Void = { _, _ in }
+    var onStateChanged: () -> Void = {}
     var canSave: Bool { !invalidated && !loading && !saving && snapshot?.accepts(text) == true }
     init(repository: GitRepository, access: RepositoryAccessLease?, revision: String) { self.repository = repository; self.access = access; self.revision = revision }
     private func validateAccess() throws {
@@ -44,60 +56,65 @@ import TurtleGitCore
     }
     func load() {
         guard !invalidated, !loading, !saving, snapshot == nil else { return }
-        loading = true; error = nil
+        loading = true; error = nil; onStateChanged()
         let token = OperationCancellation(); cancellation = token
+        Self.activeReads += 1
         worker = Task { [weak self, access, repository, revision] in
+            defer { Self.activeReads -= 1 }
             _ = access
             do {
                 guard let self else { return }; try self.validateAccess()
-                let note = try await repository.editableCommitNote(revision: revision, cancellation: token)
+                let note: CommitNoteSnapshot, settings: ProjectDialogSettings
+                if let read = self.read { (note, settings) = try await read(token) }
+                else {
+                    note = try await repository.editableCommitNote(revision: revision, cancellation: token)
+                    settings = try await repository.projectDialogSettings(source: .effective, cancellation: token)
+                }
                 guard !self.invalidated, self.cancellation === token, !token.isCancelled else { return }
                 self.snapshot = note; self.text = note.text
+                self.loading = false; self.onLoaded(note, settings)
             } catch { if let self, !self.invalidated, self.cancellation === token, !token.isCancelled { self.error = error.localizedDescription } }
             guard let self, self.cancellation === token else { return }
             self.cancellation = nil; self.worker = nil; self.loading = false
+            if !self.invalidated { self.onStateChanged() }
         }
     }
+    private func beginSave(_ captured: String) -> CommitNoteSnapshot? {
+        guard !invalidated, !loading, !saving, let snapshot, snapshot.accepts(captured) else { return nil }
+        saving = true; error = nil; Self.activeMutations += 1
+        return snapshot
+    }
     func save() {
-        guard canSave, let snapshot else { return }; saving = true; error = nil; Self.activeMutations += 1
-        let text = text
-        // Notes mutation is atomic at Git's ref lock and is kept open until it ends.
-        worker = Task { [weak self, access, repository] in
-            _ = access
-            defer { Self.activeMutations -= 1 }
-            do {
-                guard let self else { return }; try self.validateAccess()
-                let display = try await repository.saveCommitNote(snapshot, text: text)
-                guard !self.invalidated else { return }
-                self.saving = false; self.worker = nil; self.onChanged(display); self.close()
-            } catch {
-                guard let self, !self.invalidated else { return }
-                self.saving = false; self.worker = nil
-                if let failure = error as? CommitNoteFailure, case .savedButRefreshFailed = failure { self.onChanged(error.localizedDescription) }
-                self.error = error.localizedDescription
-            }
+        let captured = text
+        guard let note = beginSave(captured) else { return }
+        worker = Task { [weak self] in
+            guard let self else { Self.activeMutations -= 1; return }
+            do { try await self.persistNote(note, text: captured); if !self.invalidated { self.worker = nil; self.close() } }
+            catch { if !self.invalidated { self.worker = nil } }
+        }
+    }
+    func saveText(_ captured: String) async throws {
+        guard let note = beginSave(captured) else { throw CommitNoteFailure.invalidText }
+        try await persistNote(note, text: captured)
+    }
+    private func persistNote(_ note: CommitNoteSnapshot, text: String) async throws {
+        let result: Result<String, Error>
+        do {
+            guard !invalidated else { throw CancellationError() }
+            try validateAccess()
+            result = .success(try await repository.saveCommitNote(note, text: text))
+        } catch { result = .failure(error) }
+        saving = false; Self.activeMutations -= 1
+        guard !invalidated else { return }
+        switch result {
+        case .success(let display): onChanged(display)
+        case .failure(let failure):
+            if let noteFailure = failure as? CommitNoteFailure, case .savedButRefreshFailed = noteFailure { onChanged(failure.localizedDescription) }
+            error = failure.localizedDescription; throw failure
         }
     }
     func invalidate() { invalidated = true; cancellation?.cancel(); cancellation = nil; if !saving { worker?.cancel() }; worker = nil; loading = false }
 }
-private struct HistoryNotesDialog: View {
-    @ObservedObject var model: HistoryNotesWindowModel
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Edit Notes").font(.headline)
-            LogNotesEditor(text: $model.text, enabled: !model.loading && !model.saving, accept: model.save)
-                .frame(minHeight: 190, maxHeight: .infinity).border(Color.secondary.opacity(0.3))
-            if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
-            HStack {
-                if model.loading || model.saving { ProgressView().controlSize(.small) }
-                Spacer()
-                Button("OK", action: model.save).disabled(!model.canSave).keyboardShortcut(.return, modifiers: .command)
-                Button("Cancel", action: model.close).disabled(model.saving).keyboardShortcut(.cancelAction)
-            }
-        }.padding(12).frame(minWidth: 560, minHeight: 280)
-    }
-}
-
 @MainActor final class HistoryRevertWindowController: NSWindowController, NSWindowDelegate {
     let model: HistoryRevertWindowModel
     var onClosed: () -> Void = {}

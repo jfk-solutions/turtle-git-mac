@@ -1579,3 +1579,8 @@ replay/recovery rather than immediately after its intermediate amend.
 These changes are part of the same deferred history section validation. Native
 forced close/quit, both Git engines, partial Revert cancellation, pending deletion
 confirmation and atomic Notes save completion still need execution evidence.
+
+Synchronization Edit Notes now inherits the shared [Input form](INPUT-DIALOG-PARITY.md),
+including effective project settings, loading/minimum gates, explicit error state,
+source geometry and owned read/save Quit accounting. The previous separate
+SwiftUI host has been removed; complete physical/signed acceptance remains open.

@@ -1,0 +1,67 @@
+{
+  "date": "2026-10-13",
+  "reference": {
+    "revision": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "source": [
+      "InputDlg.cpp",
+      "AppUtils.cpp::EditNote",
+      "IDD_INPUTDLG"
+    ]
+  },
+  "scope": [
+    "One extracted native Input form for branch descriptions and all note hosts",
+    "Shared owned CommitNotePresenter for Log and Rebase; Synchronization inherits Input form",
+    "Effective note language/width/minimum settings before input is enabled",
+    "Source UTF-16 minimum, hidden optional checkbox, shared font/caret and keyboard acceptance",
+    "Captured revisions and drafts, synchronous legacy save gates, noninterruptible authorized mutation settlement",
+    "Retirement cancels pending reads and blocks late note sheets; reads and saves retain global Quit accounting"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/input-hosts-debug-2026-10-13.log"
+    },
+    "native": {
+      "exit": 0,
+      "cases": 6,
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "families": [
+        "input-hosts",
+        "input-dialogs",
+        "description"
+      ],
+      "log": "build/qa/input-hosts-native-final-2026-10-13.log",
+      "ownership": "All six final owned receivers and the earlier timed-out fixture receiver reaped. Initial fixture compile failure launched no receiver.",
+      "fixture_repairs": [
+        "Used the model plan instead of assigning computed entries.",
+        "Used a legitimate Cherry Pick draft: an already-up-to-date Rebase intentionally hides its commit rows. No app assertions were removed."
+      ]
+    },
+    "core": {
+      "rerun": false,
+      "reason": "No Core or notes-backend implementation changed; the preceding recorded four backend tests remain their narrow evidence."
+    },
+    "documentation": {
+      "exit": 0,
+      "tests": 2,
+      "log": "build/qa/input-hosts-site-check-2026-10-13.log"
+    }
+  },
+  "hosted_ci": {
+    "run": 38406476058,
+    "revision": "14031f1",
+    "observed_status": "in_progress",
+    "observed_step": "Validate prepared or restored openssh runtime",
+    "complete_pass_verified": false
+  },
+  "pending": [
+    "Full SciEdit issue styling/completion and branch project-settings propagation",
+    "Physical layout/keyboard/VoiceOver/theme acceptance",
+    "Signed file grants and App Store acceptance",
+    "Complete TortoiseGit application parity"
+  ],
+  "full_port_certified": false
+}

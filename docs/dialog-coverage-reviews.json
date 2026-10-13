@@ -427,12 +427,16 @@
       "id": "IDD_INPUTDLG",
       "native_sources": [
         {
-          "path": "Sources/TurtleGitMac/ReferenceBrowserWindow.swift",
+          "path": "Sources/TurtleGitMac/InputWindow.swift",
           "anchor": "class InputWindowController"
         },
         {
-          "path": "Sources/TurtleGitMac/LogWindow.swift",
-          "anchor": "func showNote"
+          "path": "Sources/TurtleGitMac/InputWindow.swift",
+          "anchor": "class CommitNotePresenter"
+        },
+        {
+          "path": "Sources/TurtleGitMac/HistoryWorkflowWindow.swift",
+          "anchor": "class HistoryNotesWindowController"
         }
       ],
       "parity_document": "docs/INPUT-DIALOG-PARITY.md",

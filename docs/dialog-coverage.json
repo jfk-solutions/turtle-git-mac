@@ -860,12 +860,16 @@
       "certified_complete": false,
       "native_sources": [
         {
-          "path": "Sources/TurtleGitMac/ReferenceBrowserWindow.swift",
+          "path": "Sources/TurtleGitMac/InputWindow.swift",
           "anchor": "class InputWindowController"
         },
         {
-          "path": "Sources/TurtleGitMac/LogWindow.swift",
-          "anchor": "func showNote"
+          "path": "Sources/TurtleGitMac/InputWindow.swift",
+          "anchor": "class CommitNotePresenter"
+        },
+        {
+          "path": "Sources/TurtleGitMac/HistoryWorkflowWindow.swift",
+          "anchor": "class HistoryNotesWindowController"
         }
       ],
       "missing_native_references": [],
@@ -875,6 +879,7 @@
       ],
       "qa_records": [
         "docs/qa/input-dialogs-2026-10-13.json",
+        "docs/qa/input-hosts-2026-10-13.json",
         "docs/qa/log-notes-edit-2026-10-06.json"
       ]
     },
