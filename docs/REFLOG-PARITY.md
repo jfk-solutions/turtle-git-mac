@@ -498,3 +498,7 @@ Merge/Rebase/Cherry Pick/Revert now use the existing native revision workflows
 from RefLog, with owned immutable metadata reads and source parent gates. See
 [RefLog operation handoffs](REFLOG-OPERATIONS-PARITY.md) for reviewed routing and
 remaining end-to-end/physical/signed scope.
+
+Edit Notes now uses the shared owned Input sheet, and Create Patch supplies
+selector-based source range defaults. See [RefLog notes and patches](REFLOG-NOTES-PATCH-PARITY.md)
+for accepted note writes, read retirement and remaining caller acceptance.

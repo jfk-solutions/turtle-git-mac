@@ -93,3 +93,15 @@ extension GitRepository {
         return try run(["format-patch"] + (noPrefix ? ["--no-prefix"] : []) + ["-o", destination.path] + version + ["--"], cancellation: cancellation, onOutput: onOutput)
     }
 }
+
+extension FormatPatchPreset {
+    /// RefLog selects events by selector, not by hash. Preserve source row
+    /// continuity rules even when several events point at the same commit.
+    public static func referenceLogSelection(entries: [ReferenceLogEntry], selected: Set<String>) -> Self? {
+        let rows = entries.indices.filter { selected.contains(entries[$0].id) }
+        guard !rows.isEmpty, rows.count == selected.count else { return nil }
+        if rows.count == 1 { return Self(startRevision: entries[rows[0]].hash) }
+        guard rows.count <= 2 || rows.last! - rows.first! + 1 == rows.count else { return nil }
+        return Self(startRevision: entries[rows.last!].hash + "~1", endRevision: entries[rows.first!].hash)
+    }
+}

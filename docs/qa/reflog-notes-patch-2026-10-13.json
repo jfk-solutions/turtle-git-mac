@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-13",
+  "scope": "RefLog Edit Notes and Create Patch shared workflow callers",
+  "source_revision": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "validation": {
+    "core": {
+      "log": "build/qa/reflog-notes-patch-core-2026-10-13.log",
+      "exit": 0,
+      "tests": 8
+    },
+    "debug": {
+      "log": "build/qa/reflog-notes-patch-debug-2026-10-13.log",
+      "exit": 0
+    },
+    "native": {
+      "log": "build/qa/reflog-notes-patch-native-2026-10-13.log",
+      "exit": 0,
+      "cases": [
+        "reflog-notes-patch",
+        "reflog-operations"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "receivers": 4,
+      "owned_receivers_reaped": true,
+      "scope": "actual owned note sheet and Git note save/Cancel/read-close fencing; captured patch preset and existing revision operation route probes"
+    },
+    "site": {
+      "log": "build/qa/reflog-notes-patch-site-2026-10-13.log",
+      "exit": 0,
+      "tests": 2
+    }
+  },
+  "implemented": [
+    "Source icon menus and non-stash selector gates",
+    "Repeated-hash-safe patch presets and continuity rules",
+    "Existing Format Patch factory routing",
+    "Shared note model and Input presenter with private font/project/minimum",
+    "Captured note writes, parent gates and read/write lifetime reuse"
+  ],
+  "remaining": [
+    "Physical bare/stash/picker/refresh-during-read variants",
+    "Patch export via new caller",
+    "Accepted-save closure timing",
+    "Geometry/keyboard/VoiceOver",
+    "Signed grants and full source parity",
+    "RefLog bisect/combination entries"
+  ]
+}

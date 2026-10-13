@@ -181,7 +181,7 @@ struct ReferenceLogNativeTable: NSViewRepresentable {
                 menu.addItem(.separator())
             }
             if !model.selecting, !ids.isEmpty {
-                for operation in [ReferenceLogRevisionOperation.merge, .rebase, .cherryPick] {
+                for operation in [ReferenceLogRevisionOperation.merge, .rebase, .cherryPick, .editNotes, .formatPatch] {
                     if model.operationAvailable(operation, ids: ids) {
                         add(operation.title(branch: model.currentBranch, count: ids.count), operation.icon) { model.performOperation(operation, ids: ids) }
                     }

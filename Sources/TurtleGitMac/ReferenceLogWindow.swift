@@ -1,11 +1,14 @@
 import AppKit
 import SwiftUI
+import Combine
 import TurtleGitCore
 
 @MainActor final class ReferenceLogWindowController: NSWindowController, NSWindowDelegate {
     let model: ReferenceLogWindowModel
     var onClosed: () -> Void = {}
     private var selectionCompletion: ((ReferenceLogEntry?) -> Void)?
+    private var notePresenter: CommitNotePresenter?
+    var noteEditor: InputWindowController? { notePresenter?.editor }
     private(set) var findController: ReferenceLogFindController?
     init(repository: GitRepository, access: RepositoryAccessLease?, reference: String, onChoose: ((ReferenceLogEntry?) -> Void)? = nil, preferences: UserDefaults = .standard) {
         model = ReferenceLogWindowModel(repository: repository, access: access, reference: reference, selecting: onChoose != nil, preferences: preferences)
@@ -15,10 +18,12 @@ import TurtleGitCore
         window.minSize = NSSize(width: 800, height: 360); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: ReferenceLogDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self
+        model.noteLog.window = window
+        notePresenter = CommitNotePresenter(parent: window, model: model.noteLog, preferences: preferences)
         window.setContentSize(NSSize(width: 1000, height: 530)); window.center()
         model.close = { [weak self] in
             guard let self else { return }
-            guard !self.model.busy, !self.model.unifiedViewerBusy, self.window?.attachedSheet == nil else { return }
+            guard self.model.commandSurfaceAvailable, !self.model.unifiedViewerBusy, self.window?.attachedSheet == nil else { return }
             if self.model.selecting { self.finishSelection(nil) } else { self.window?.close() }
         }
         model.onChoose = { [weak self] entry in self?.finishSelection(entry) }
@@ -74,12 +79,12 @@ import TurtleGitCore
         completion(entry)
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard !model.busy, !model.unifiedViewerBusy, sender.attachedSheet == nil else { return false }
+        guard model.commandSurfaceAvailable, !model.unifiedViewerBusy, sender.attachedSheet == nil else { return false }
         if model.selecting { finishSelection(nil); return false }; return true
     }
     func windowWillClose(_ notification: Notification) {
         findController?.close(); findController = nil
-        model.invalidate()
+        model.invalidate(); notePresenter?.close()
         model.unifiedWindow?.close(); model.unifiedWindow = nil
         let completion = selectionCompletion; selectionCompletion = nil; completion?(nil); onClosed()
     }
@@ -89,7 +94,9 @@ import TurtleGitCore
     let repository: GitRepository
     let selecting: Bool
     let preferences: UserDefaults
-    var commandSurfaceAvailable: Bool { !invalidated && !busy }
+    let noteLog: LogWindowModel
+    private var noteChanges: AnyCancellable?
+    var commandSurfaceAvailable: Bool { !invalidated && !busy && !noteLog.loadingNote && !noteLog.savingNote && noteLog.noteRequest == nil }
     private let access: RepositoryAccessLease?
     @Published var reference: String
     @Published var names: [String]
@@ -126,6 +133,7 @@ import TurtleGitCore
     var onCompare: ((ComparisonRevision, ComparisonRevision) -> Void)?
     var onCheckout: ((String) -> Void)?
     var onReset: ((String) -> Void)?
+    var onFormatPatch: ((FormatPatchPreset) -> Void)?
     var onMergeRevision: ((String) -> Void)?
     var onRebaseRevision: ((String) -> Void)?
     var onCherryPick: (([String]) -> Void)?
@@ -146,11 +154,21 @@ import TurtleGitCore
     var close: () -> Void = {}
     var selectedEntry: ReferenceLogEntry? { let chosen = entries.filter { selection.contains($0.id) }; return chosen.count == 1 ? chosen.first : nil }
     init(repository: GitRepository, access: RepositoryAccessLease?, reference: String, selecting: Bool = false, preferences: UserDefaults = .standard) {
+        noteLog = LogWindowModel(repository: repository, access: access, labelDefaults: preferences)
         readOperationEntries = { try await repository.referenceLogOperationEntries(snapshot: $0, selected: $1, cancellation: $2) }
         self.preferences = preferences; self.selecting = selecting; self.repository = repository; self.access = access; self.reference = reference; names = [reference]
+        noteChanges = noteLog.objectWillChange.sink { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self, !self.invalidated else { return }
+                self.objectWillChange.send()
+                if self.noteLog.noteRequest == nil, let error = self.noteLog.error { self.noteLog.error = nil; self.error = error }
+            }
+        }
+        noteLog.onRevisionChanged = { [weak self] in self?.onChanged($0) }
     }
     func reload() {
         guard !invalidated else { return }
+        if noteLog.loadingNote { noteLog.cancelPendingNoteRead() }
         revisionReadToken?.cancel(); revisionReadToken = nil
         generation += 1; let request = generation, reference = reference; busy = true
         requestedDiffParents = Set(diffParents.keys)
@@ -363,17 +381,20 @@ import TurtleGitCore
     }
     func operationAvailable(_ operation: ReferenceLogRevisionOperation, ids: Set<String>, mainline: Int? = nil) -> Bool {
         let chosen = entries.filter { ids.contains($0.id) }
-        guard commandSurfaceAvailable, !selecting, hasWorkingTree, !mergeActive,
+        guard commandSurfaceAvailable, !selecting,
               !chosen.isEmpty, chosen.count == ids.count else { return false }
         switch operation {
+        case .formatPatch: return !isOnStash(chosen[0]) && formatPatchPreset(ids) != nil && onFormatPatch != nil
+        case .editNotes: return chosen.count == 1 && !isOnStash(chosen[0]) && !noteLog.isInvalidated
         case .merge, .rebase:
+            guard hasWorkingTree, !mergeActive else { return false }
             return chosen.count == 1 && chosen[0].hash != currentHeadHash && !isOnStash(chosen[0]) && (operation == .merge ? onMergeRevision != nil : onRebaseRevision != nil)
         case .cherryPick:
             // Source gates by the first displayed selected entry, not by every
             // selected hash. Preserve display order for the Cherry Pick dialog.
-            return chosen[0].hash != currentHeadHash && onCherryPick != nil
+            return hasWorkingTree && !mergeActive && chosen[0].hash != currentHeadHash && onCherryPick != nil
         case .revert:
-            guard onRevertRevisions != nil else { return false }
+            guard hasWorkingTree, !mergeActive, onRevertRevisions != nil else { return false }
             if chosen.count > 1 { return mainline == nil }
             guard !isOnStash(chosen[0]), let parents = diffParents[chosen[0].hash], !parents.isEmpty else { return false }
             if parents.count == 1 { return mainline == nil }
@@ -383,6 +404,7 @@ import TurtleGitCore
     func performOperation(_ operation: ReferenceLogRevisionOperation, ids: Set<String>, mainline: Int? = nil) {
         guard operationAvailable(operation, ids: ids, mainline: mainline) else { return }
         let selected = entries.filter { ids.contains($0.id) }
+        if operation == .formatPatch { if let preset = formatPatchPreset(ids) { onFormatPatch?(preset) }; return }
         if operation == .merge { onMergeRevision?(selected[0].hash); return }
         if operation == .rebase {
             let names = referenceNamesByHash[selected[0].hash] ?? []
@@ -405,7 +427,9 @@ import TurtleGitCore
                 guard let self, !self.invalidated, self.generation == request, self.reference == reference,
                       !token.isCancelled, self.entries.filter({ ids.contains($0.id) }) == selected else { return }
                 self.revisionReadToken = nil; self.busy = false
-                if operation == .cherryPick { self.onCherryPick?(metadata.map(\.hash)) }
+                if operation == .editNotes {
+                    self.noteLog.entries = metadata; self.noteLog.selected = Set(metadata.map(\.hash)); self.noteLog.editNotes()
+                } else if operation == .cherryPick { self.onCherryPick?(metadata.map(\.hash)) }
                 else { self.onRevertRevisions?(metadata, mainline) }
             } catch {
                 guard let self, !self.invalidated, self.generation == request, !token.isCancelled else { return }
@@ -413,7 +437,8 @@ import TurtleGitCore
             }
         }
     }
-    func invalidate() { invalidated = true; generation += 1; revisionReadToken?.cancel(); revisionReadToken = nil }
+    func formatPatchPreset(_ ids: Set<String>) -> FormatPatchPreset? { FormatPatchPreset.referenceLogSelection(entries: entries, selected: ids) }
+    func invalidate() { noteLog.invalidate(); noteChanges = nil; invalidated = true; generation += 1; revisionReadToken?.cancel(); revisionReadToken = nil }
     func requestDiffParents(_ entry: ReferenceLogEntry) {
         guard !invalidated, entries.contains(where: { $0.id == entry.id && $0.hash == entry.hash }), requestedDiffParents.insert(entry.hash).inserted else { return }
         let request = generation
@@ -516,7 +541,7 @@ private struct ReferenceLogDialog: View {
                 Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction)
                 Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-reflog.html")!) }
             }
-        }.padding(12).disabled(model.busy)
+        }.padding(12).disabled(!model.commandSurfaceAvailable)
         .onChange(of: model.reference) { _ in model.selection = []; model.reload() }
         .alert("RefLog", isPresented: Binding(get: { model.error != nil || model.information != nil }, set: { if !$0 { model.error = nil; model.information = nil } })) { Button("OK") { model.error = nil; model.information = nil } } message: { Text(model.error ?? model.information ?? "") }
     }
@@ -588,10 +613,12 @@ private struct ReferenceLogFindDialog: View {
 }
 
 enum ReferenceLogRevisionOperation: CaseIterable {
-    case merge, rebase, cherryPick, revert
-    var icon: MenuIcon { switch self { case .merge: return .merge; case .rebase: return .rebase; case .cherryPick: return .cherryPick; case .revert: return .revert } }
+    case merge, rebase, cherryPick, revert, editNotes, formatPatch
+    var icon: MenuIcon { switch self { case .merge: return .merge; case .rebase: return .rebase; case .cherryPick: return .cherryPick; case .revert: return .revert; case .editNotes: return .rebaseEdit; case .formatPatch: return .patch } }
     func title(branch: String, count: Int) -> String {
         switch self {
+        case .editNotes: return "Edit Notes…"
+        case .formatPatch: return "Create patch…"
         case .merge: return "Merge into \"" + branch + "\"…"
         case .rebase: return "Rebase \"" + branch + "\" onto this…"
         case .cherryPick: return count == 1 ? "Cherry pick this commit…" : "Cherry pick selected commits…"

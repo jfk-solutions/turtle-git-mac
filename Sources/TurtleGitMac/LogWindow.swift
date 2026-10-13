@@ -893,6 +893,7 @@ struct LogCommandRequest: Identifiable {
             }
         }
     }
+    func cancelPendingNoteRead() { cancelNoteRead() }
     func cancelNote() { guard !savingNote else { return }; noteRequest = nil; noteText = ""; noteError = nil }
     private func beginNoteSave(_ note: CommitNoteSnapshot, text: String) -> Bool {
         guard !isInvalidated, !savingNote, noteRequest?.revision == note.revision, noteRequest?.notesRef == note.notesRef, note.accepts(text) else { return false }
