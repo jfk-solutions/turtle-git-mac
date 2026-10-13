@@ -1073,3 +1073,16 @@ retirement cancel/await owned readers; global/window Command-O routes to Blame
 while it owns focus. Single-file reads no longer diff the full tree, and HEAD
 Reload retains HEAD identity while displayed snapshots stay pinned. Full menu,
 physical/signed and accessibility acceptance remain open.
+
+## Active menu bar and pane visibility — 2026-10-13
+
+[Native menu context](BLAME-MENUS.md) now routes shared menu-bar Find/navigation,
+encoding, source options and pane/appearance controls to the active Blame owner,
+including its Find panel. Toolbar, Log, Properties, status/footer and Color Age
+choices persist in the supplied store. Menus can restore a hidden toolbar; Dark
+Mode and Follow System also synchronize owned picker/Find/information panels.
+
+Busy, unrelated and retired owners are guarded at invocation, and document
+replacement changes the observed model. Full docking/floating placement, encoding
+category/source order, displayed global menus and physical/accessibility/signed
+acceptance remain open. Validation is recorded for the complete related batch.

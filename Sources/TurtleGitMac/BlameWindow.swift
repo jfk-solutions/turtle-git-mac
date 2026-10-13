@@ -39,6 +39,7 @@ private struct BlameParentMenuTarget {
             do { try recentDocuments.remember(root:self.model.repository.root,path:self.model.path,lease:lease) } catch { self.model.error=error.localizedDescription }
         };model.reload()
 
+        applyWindowAppearance()
         DialogGeometry.attach(window, identifier: "BlameWindowController")
     }
     private let requireScope:Bool
@@ -46,7 +47,7 @@ private struct BlameParentMenuTarget {
     func openDocument() {
         guard model.canFind,!model.openingDocument,let window,window.attachedSheet==nil else { return }
         let panel=NSOpenPanel();panel.canChooseFiles=true;panel.canChooseDirectories=false;panel.allowsMultipleSelection=false;panel.prompt="Blame File"
-        panel.directoryURL=model.repository.root
+        panel.directoryURL=model.repository.root;panel.appearance=window.appearance
         recentID=nil;openPanel=panel;model.openingDocument=true;openingGeneration += 1;let identity=openingGeneration
         chooseFile(panel,window) { [weak self] file in
             guard let self,self.openingGeneration==identity,!self.model.retired,self.openPanel===panel else { return };self.openPanel=nil
@@ -69,7 +70,7 @@ private struct BlameParentMenuTarget {
         guard let window else { model.openingDocument=false;return }
         let panel=NSOpenPanel();panel.canChooseDirectories=true;panel.canChooseFiles=false;panel.allowsMultipleSelection=false;panel.prompt="Allow Repository"
         panel.message="Allow access to the repository root containing this file.";panel.directoryURL=file.deletingLastPathComponent()
-        openPanel=panel;let identity=openingGeneration
+        panel.appearance=window.appearance;openPanel=panel;let identity=openingGeneration
         chooseScope(panel,window) { [weak self] folder in
             guard let self,self.openingGeneration==identity,!self.model.retired,self.openPanel===panel else { return };self.openPanel=nil
             guard let folder else { self.model.openingDocument=false;return }
@@ -93,7 +94,8 @@ private struct BlameParentMenuTarget {
                 replacement.install(document.snapshot,history:document.history,options:document.options);replacement.recentHistoryError=old.recentHistoryError
                 model=replacement;replacement.onFind={ [weak self] in self?.showFind() };replacement.onFindFeedback={ [weak self] in self?.feedback($0) };replacement.onOpenDocument={ [weak self] in self?.openDocument() };replacement.onCancelDocumentOpen={ [weak self] in self?.cancelOpenDocument() };replacement.onOpenRecent={ [weak self] in self?.openRecent($0) };replacement.recentDocuments=recentDocuments
                 window?.contentViewController=NSHostingController(rootView:BlameDialog(model:replacement))
-                findWindow?.rebind(replacement)
+                findWindow?.rebind(replacement);applyWindowAppearance()
+                NotificationCenter.default.post(name:NSNotification.Name("TurtleGit.BlameDocumentChanged"),object:window)
                 window?.title="\(document.snapshot.path) at HEAD – Blame – TurtleGit";replacement.goToLine(1)
                 do { try recentDocuments?.remember(root:document.repository.root,path:document.snapshot.path,lease:document.access,replacing:recentID) }
                 catch { replacement.error="Opened file; recent-file access could not be saved: "+error.localizedDescription }
@@ -104,6 +106,13 @@ private struct BlameParentMenuTarget {
             }
         }
     }
+    private func applyWindowAppearance() {
+        window?.appearance=model.darkOverride.map { NSAppearance(named:$0 ? .darkAqua : .aqua)! }
+        findWindow?.window?.appearance=window?.appearance
+        findAlert?.window.appearance=window?.appearance
+    }
+    func setDarkMode(_ value:Bool) { guard model.canFind else { return };model.setDarkOverride(value);applyWindowAppearance() }
+    func followSystemAppearance() { guard model.canFind else { return };model.setDarkOverride(nil);applyWindowAppearance() }
     static func focusedOwner(_ initial:NSWindow?)->BlameWindowController? {
         var candidate=initial,seen=Set<ObjectIdentifier>()
         while let window=candidate,seen.insert(ObjectIdentifier(window)).inserted {
@@ -121,7 +130,7 @@ private struct BlameParentMenuTarget {
         let selected=model.selectedSourceText?()
         let draft=BlameFindDraft(text:selected?.isEmpty==false ? selected! : model.find,matchCase:model.matchCase)
         let controller=BlameFindWindowController(model:model,draft:draft)
-        findWindow=controller
+        findWindow=controller;controller.window?.appearance=window?.appearance
         controller.onClosed={ [weak self,weak controller] in
             guard let self,self.findWindow===controller else { return };self.findWindow=nil
         }
@@ -134,7 +143,7 @@ private struct BlameParentMenuTarget {
         case .notFound(let text):
             guard findAlert==nil,let owner=findWindow?.window ?? window,owner.attachedSheet==nil else { return }
             let alert=NSAlert();alert.alertStyle = .informational;alert.messageText="TurtleGit Blame";alert.informativeText="\"\(text)\" was not found.";alert.addButton(withTitle:"OK")
-            findAlert=alert;model.searchFeedbackBusy=true;feedbackGeneration += 1;let identity=feedbackGeneration
+            alert.window.appearance=owner.appearance;findAlert=alert;model.searchFeedbackBusy=true;feedbackGeneration += 1;let identity=feedbackGeneration
             alert.beginSheetModal(for:owner) { [weak self] _ in
                 guard let self,self.feedbackGeneration==identity else { return };self.findAlert=nil;self.model.searchFeedbackBusy=false
             }
@@ -212,7 +221,12 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     @Published var followRenames = false
     @Published var historyEntries: [LogEntry] = []
     @Published var selectedLogHashes: Set<String> = []
-    @Published var showProperties = true
+    @Published var showProperties=true { didSet { labelDefaults.set(showProperties,forKey:"Blame.ShowProperties") } }
+    @Published var showToolbar=true { didSet { labelDefaults.set(showToolbar,forKey:"Blame.ShowToolbar") } }
+    @Published var showLog=true { didSet { labelDefaults.set(showLog,forKey:"Blame.ShowLog") } }
+    @Published var showStatusBar=true { didSet { labelDefaults.set(showStatusBar,forKey:"Blame.ShowStatusBar") } }
+    @Published private(set) var darkOverride:Bool?
+    func setDarkOverride(_ value:Bool?) { darkOverride=value;if let value { labelDefaults.set(value,forKey:"Blame.DarkMode") } else { labelDefaults.removeObject(forKey:"Blame.DarkMode") } }
     var historyGraph: [CommitGraphRow] { CommitGraph.layout(historyEntries) }
     var showHistoryGraph: Bool { appliedOptions.usesCompleteLog && !appliedOptions.usesFollowRenames }
     var canShowCompleteLog: Bool { !detectionMode.betweenFiles && !onlyFirstParent }
@@ -220,7 +234,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     @Published var detectionMode = GitBlameDetectionMode.disabled
     @Published var withinFileCharacters = "20"
     @Published var betweenFileCharacters = "40"
-    @Published var colorAge = true
+    @Published var colorAge=true { didSet { labelDefaults.set(colorAge,forKey:"Blame.ColorAge") } }
     @Published var presentation = GitBlamePresentation.load()
     private var cachedSourceFont: (String, Int, NSFont)?
     var sourceFont: NSFont {
@@ -310,6 +324,12 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     }
     init(repository: GitRepository, access: RepositoryAccessLease?, path: String, revision: String, options: GitBlameOptions = GitBlameOptions(), labelDefaults: UserDefaults = .standard) {
         self.repository = repository; self.access = access; self.path = path; self.revision = revision; self.labelDefaults = labelDefaults
+        showProperties=labelDefaults.object(forKey:"Blame.ShowProperties") as? Bool ?? true
+        showToolbar=labelDefaults.object(forKey:"Blame.ShowToolbar") as? Bool ?? true
+        showLog=labelDefaults.object(forKey:"Blame.ShowLog") as? Bool ?? true
+        showStatusBar=labelDefaults.object(forKey:"Blame.ShowStatusBar") as? Bool ?? true
+        colorAge=labelDefaults.object(forKey:"Blame.ColorAge") as? Bool ?? true
+        darkOverride=labelDefaults.object(forKey:"Blame.DarkMode") as? Bool
         marginFields = Set(BlameMarginField.allCases.filter { labelDefaults.object(forKey:"Blame." + $0.rawValue) as? Bool ?? ($0 == .author) })
         syntaxEnabled = labelDefaults.object(forKey:"Blame.EnableLexer") as? Bool ?? !NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
         wrapLongLines = labelDefaults.bool(forKey:"Blame.WrapLongLines")
@@ -349,30 +369,32 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     }
     func setDetectionMode(_ mode: GitBlameDetectionMode) {
         guard !busy, detectionMode != mode else { return }
-        detectionMode = mode; GitBlamePreferences.update { $0.detectionMode = mode }; reload(saveThresholds: true)
+        detectionMode = mode; GitBlamePreferences.update(in:labelDefaults) { $0.detectionMode = mode }; reload(saveThresholds: true)
     }
     func setOnlyFirstParent(_ enabled: Bool) {
         guard !busy, onlyFirstParent != enabled else { return }
-        onlyFirstParent = enabled; GitBlamePreferences.update { $0.onlyFirstParent = enabled }; reload(saveThresholds: true)
+        onlyFirstParent = enabled; GitBlamePreferences.update(in:labelDefaults) { $0.onlyFirstParent = enabled }; reload(saveThresholds: true)
     }
     func setIgnoreWhitespace(_ enabled: Bool) {
         guard !busy, ignoreWhitespace != enabled else { return }
-        ignoreWhitespace = enabled; GitBlamePreferences.update { $0.ignoreWhitespace = enabled }; reload(saveThresholds: true)
+        ignoreWhitespace = enabled; GitBlamePreferences.update(in:labelDefaults) { $0.ignoreWhitespace = enabled }; reload(saveThresholds: true)
     }
     func applyPreferences() {
-        presentation = .load()
-        var options = GitBlamePreferences.load(); options.encoding = sourceEncoding
+        presentation = .load(from:labelDefaults)
+        var options = GitBlamePreferences.load(from:labelDefaults); options.encoding = sourceEncoding
         configure(options: options, line: selection)
     }
     func setShowCompleteLog(_ enabled: Bool) {
         guard !busy, canShowCompleteLog, showCompleteLog != enabled else { return }
-        showCompleteLog = enabled; GitBlamePreferences.update { $0.showCompleteLog = enabled }; reload(saveThresholds: true)
+        showCompleteLog = enabled; GitBlamePreferences.update(in:labelDefaults) { $0.showCompleteLog = enabled }; reload(saveThresholds: true)
     }
     func setFollowRenames(_ enabled: Bool) {
         guard !busy, canShowCompleteLog, showCompleteLog, followRenames != enabled else { return }
-        followRenames = enabled; GitBlamePreferences.update { $0.followRenames = enabled }; reload(saveThresholds: true)
+        followRenames = enabled; GitBlamePreferences.update(in:labelDefaults) { $0.followRenames = enabled }; reload(saveThresholds: true)
     }
-    func retire() { retired=true;invalidate() }
+    func retire() {
+        retired=true;onFind=nil;onFindFeedback=nil;onGoTo=nil;onOpenDocument=nil;onCancelDocumentOpen=nil;onOpenRecent=nil;onLoaded=nil;onLog=nil;onChanges=nil;onPrevious=nil;recentDocuments=nil;invalidate()
+    }
     func invalidate() { generation += 1; parentGeneration += 1; clipboardGeneration += 1; copyingLog = false; firstVisibleSourceRow = nil; scrollSourceRowToTop = nil; selectedSourceText = nil; sourceNavigation = nil }
     func prepareParentMenu(number: Int, completion: @escaping () -> Void) {
         selection = number; loadParents(completion: completion)
@@ -407,7 +429,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
             let changedWithin = UInt32(withinFileCharacters).flatMap { $0 == appliedOptions.withinFileCharacters ? nil : $0 }
             let changedBetween = UInt32(betweenFileCharacters).flatMap { $0 == appliedOptions.betweenFileCharacters ? nil : $0 }
             if changedWithin != nil || changedBetween != nil {
-                GitBlamePreferences.update {
+                GitBlamePreferences.update(in:labelDefaults) {
                     if let changedWithin { $0.withinFileCharacters = changedWithin }
                     if let changedBetween { $0.betweenFileCharacters = changedBetween }
                 }
@@ -505,7 +527,7 @@ private struct BlameDialog: View {
     @State private var showingGoToLine = false
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing:8) {
+            if model.showToolbar { HStack(spacing:8) {
                 Button { model.reload(saveThresholds:true) } label: { CommandLabel(title:"Reload",icon:.refresh) }
                 Button { model.navigateChange(previous:true) } label: { CommandLabel(title:"Previous change",icon:.jumpUp) }.disabled(model.selectedLogHashes.isEmpty)
                 Button { model.navigateChange(previous:false) } label: { CommandLabel(title:"Next change",icon:.jumpDown) }.disabled(model.selectedLogHashes.isEmpty)
@@ -549,12 +571,15 @@ private struct BlameDialog: View {
                     Divider()
                     Toggle("Color by age, continuous",isOn:$model.colorAge)
                     Toggle("Enable syntax highlighting",isOn:Binding(get:{model.syntaxEnabled},set:{model.setSyntaxEnabled($0)}))
+                    Toggle("Log",isOn:$model.showLog)
                     Toggle("Properties",isOn:$model.showProperties)
+                    Toggle("Status Bar",isOn:$model.showStatusBar)
+                    Toggle("Toolbar",isOn:$model.showToolbar)
                     Divider()
                     Toggle("Wrap long lines",isOn:Binding(get:{model.wrapLongLines},set:{model.setWrapLongLines($0)}))
                 }
                 Button { SettingsPresentationService.shared.show() } label: { CommandLabel(title:"Settings…",icon:.settings) }
-            }.disabled(model.busy || model.openingDocument || model.searchFeedbackBusy)
+            }.disabled(model.busy || model.openingDocument || model.searchFeedbackBusy) }
             if let error=model.recentHistoryError { Text(error).font(.caption).foregroundStyle(.orange).textSelection(.enabled) }
             if model.openingDocument { HStack { ProgressView(model.cancellingDocument ? "Cancelling…" : "Opening file…").controlSize(.small);Button("Cancel") { model.onCancelDocumentOpen?() }.disabled(model.cancellingDocument) } }
             if model.busy { ProgressView("Reading annotations…").controlSize(.small) }
@@ -566,18 +591,18 @@ private struct BlameDialog: View {
             HSplitView {
                 VSplitView {
                     BlameTable(model: model).frame(minHeight: 90, maxHeight: .infinity)
-                    BlameHistoryTable(model: model).frame(minHeight: 80, idealHeight: 170, maxHeight: 320)
+                    if model.showLog { BlameHistoryTable(model:model).frame(minHeight:80,idealHeight:170,maxHeight:320) }
                 }.frame(minWidth: 450, maxWidth: .infinity, maxHeight: .infinity)
                 if model.showProperties {
                     BlamePropertiesPane(entry: model.selectedHistoryEntry, history: model.historyEntries, copy: model.copy)
                         .frame(minWidth: 230, idealWidth: 300, maxWidth: 350, maxHeight: .infinity)
                 }
             }.frame(maxWidth: .infinity, maxHeight: .infinity)
-            if let line = model.selectedLine {
+            if model.showStatusBar { if let line = model.selectedLine {
                 Text("\(line.hash) • \(line.author) <\(line.email)>").font(.system(size: 11)).textSelection(.enabled)
                 Text("\(line.summary)\nOrigin: \(line.filename), line \(line.originalLine)").font(.system(size: 11)).textSelection(.enabled)
             }
-            Text("\(model.lines.count) lines • \(model.snapshot?.encoding.rawValue ?? "") • \(model.navigationMessage)").font(.system(size: 11)).foregroundStyle(.secondary)
+            Text("\(model.lines.count) lines • \(model.snapshot?.encoding.rawValue ?? "") • \(model.navigationMessage)").font(.system(size: 11)).foregroundStyle(.secondary) }
         }.padding(12).onAppear { model.onGoTo = { showingGoToLine = true } }
         .onDisappear { model.onGoTo = nil }.sheet(isPresented: $showingGoToLine) {
             BlameGoToLineDialog { requested in model.goToLine(requested) }

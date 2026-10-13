@@ -1,0 +1,134 @@
+import AppKit
+import Combine
+import SwiftUI
+import TurtleGitCore
+
+enum BlameMenuAction:String,CaseIterable {
+    case find,findNext,findPrevious,goTo,nextChange,previousChange
+    case toolbar,log,properties,statusBar,logID,author,date,filename,original
+    case ignoreWhitespace,completeLog,followRenames,firstParent,colorAge,syntax,dark,wrap
+    var title:String {
+        switch self {
+        case .find:return "Find…";case .findNext:return "Find Next";case .findPrevious:return "Find Previous";case .goTo:return "Go To Line…"
+        case .nextChange:return "Next Change";case .previousChange:return "Previous Change"
+        case .toolbar:return "Toolbar";case .log:return "Log";case .properties:return "Properties";case .statusBar:return "Status Bar"
+        case .logID:return "Show log ID instead of SHA-1";case .author:return "Show author";case .date:return "Show date";case .filename:return "Show file name";case .original:return "Show original line number"
+        case .ignoreWhitespace:return "Ignore whitespace";case .completeLog:return "Show complete log";case .followRenames:return "Follow renames";case .firstParent:return "Only consider first parents on blame"
+        case .colorAge:return "Color by age, continuous";case .syntax:return "Enable syntax highlighting";case .dark:return "Dark Mode";case .wrap:return "Wrap long lines"
+        }
+    }
+    var icon:MenuIcon {
+        switch self {
+        case .find:return .mergeFind;case .findNext,.nextChange:return .jumpDown;case .findPrevious,.previousChange:return .jumpUp
+        case .goTo,.log,.logID:return .log;case .properties:return .imageInfo
+        default:return .settings
+        }
+    }
+}
+private struct BlameMenuState:Equatable {
+    var owner:ObjectIdentifier?,model:ObjectIdentifier?
+    var enabled=false
+    var checked:[BlameMenuAction:Bool]=[:]
+    var allowed:[BlameMenuAction:Bool]=[:]
+    var encoding:GitBlameEncoding?
+    var detection:GitBlameDetectionMode = .disabled
+}
+/// All menus resolve the current window again when invoked. A background Blame
+/// view must never receive commands from a different editor or retired owner.
+@MainActor final class BlameMenuContext:ObservableObject {
+    @Published private var state=BlameMenuState()
+    private let keyWindow:()->NSWindow?
+    private weak var observedModel:BlameWindowModel?
+    private var modelChanges:AnyCancellable?
+    private var notifications:[AnyCancellable]=[]
+    init(keyWindow:@escaping ()->NSWindow? = { NSApp.keyWindow }) {
+        self.keyWindow=keyWindow
+        for name in [NSWindow.didBecomeKeyNotification,NSWindow.didResignKeyNotification,NSWindow.willCloseNotification,NSWindow.didUpdateNotification,NSApplication.didBecomeActiveNotification,NSNotification.Name("TurtleGit.BlameDocumentChanged")] {
+            notifications.append(NotificationCenter.default.publisher(for:name).sink { [weak self] _ in Task { @MainActor in self?.refresh() } })
+        }
+        refresh()
+    }
+    var owner:BlameWindowController? { let value=BlameWindowController.focusedOwner(keyWindow());return value?.model.retired==false ? value : nil }
+    var focused:Bool { state.owner != nil }
+    var available:Bool { state.enabled }
+    var encoding:GitBlameEncoding? { state.encoding }
+    var detection:GitBlameDetectionMode { state.detection }
+    func checked(_ action:BlameMenuAction)->Bool { state.checked[action] ?? false }
+    func allowed(_ action:BlameMenuAction)->Bool { state.enabled && (state.allowed[action] ?? true) }
+    func refresh() {
+        let owner=owner,model=owner?.model
+        if observedModel !== model {
+            modelChanges=nil;observedModel=model
+            modelChanges=model?.objectWillChange.sink { [weak self] _ in Task { @MainActor in self?.refresh() } }
+        }
+        var next=BlameMenuState();next.owner=owner.map(ObjectIdentifier.init);next.model=model.map(ObjectIdentifier.init)
+        if let model,let owner {
+            next.enabled=model.canFind && owner.window?.attachedSheet==nil
+            next.encoding=model.sourceEncoding;next.detection=model.detectionMode
+            next.checked=[.toolbar:model.showToolbar,.log:model.showLog,.properties:model.showProperties,.statusBar:model.showStatusBar,.ignoreWhitespace:model.ignoreWhitespace,.completeLog:model.canShowCompleteLog && model.showCompleteLog,.followRenames:model.canShowCompleteLog && model.showCompleteLog && model.followRenames,.firstParent:model.onlyFirstParent,.colorAge:model.colorAge,.syntax:model.syntaxEnabled,.wrap:model.wrapLongLines,.dark:owner.window?.effectiveAppearance.bestMatch(from:[.aqua,.darkAqua]) == .darkAqua]
+            for (action,field) in [(BlameMenuAction.logID,BlameMarginField.logID),(.author,.author),(.date,.date),(.filename,.filename),(.original,.original)] { next.checked[action]=model.marginFields.contains(field) }
+            next.allowed=[.nextChange:!model.selectedLogHashes.isEmpty,.previousChange:!model.selectedLogHashes.isEmpty,.completeLog:model.canShowCompleteLog,.followRenames:model.canShowCompleteLog && model.showCompleteLog]
+        }
+        if state != next { state=next }
+    }
+    func perform(_ action:BlameMenuAction) {
+        refresh();guard allowed(action),let owner else { return };let model=owner.model
+        switch action {
+        case .find:model.onFind?();case .findNext:model.findLine(previous:false);case .findPrevious:model.findLine(previous:true);case .goTo:model.onGoTo?()
+        case .nextChange:model.navigateChange(previous:false);case .previousChange:model.navigateChange(previous:true)
+        case .toolbar:model.showToolbar.toggle();case .log:model.showLog.toggle();case .properties:model.showProperties.toggle();case .statusBar:model.showStatusBar.toggle()
+        case .logID:model.setMargin(.logID,visible:!model.marginFields.contains(.logID));case .author:model.setMargin(.author,visible:!model.marginFields.contains(.author));case .date:model.setMargin(.date,visible:!model.marginFields.contains(.date));case .filename:model.setMargin(.filename,visible:!model.marginFields.contains(.filename));case .original:model.setMargin(.original,visible:!model.marginFields.contains(.original))
+        case .ignoreWhitespace:model.setIgnoreWhitespace(!model.ignoreWhitespace);case .completeLog:model.setShowCompleteLog(!model.showCompleteLog);case .followRenames:model.setFollowRenames(!model.followRenames);case .firstParent:model.setOnlyFirstParent(!model.onlyFirstParent)
+        case .colorAge:model.colorAge.toggle();case .syntax:model.setSyntaxEnabled(!model.syntaxEnabled);case .dark:owner.setDarkMode(!checked(.dark));case .wrap:model.setWrapLongLines(!model.wrapLongLines)
+        }
+        refresh()
+    }
+    func setEncoding(_ value:GitBlameEncoding?) { refresh();guard available else { return };owner?.model.setEncoding(value) }
+    func setDetection(_ value:GitBlameDetectionMode) { refresh();guard available else { return };owner?.model.setDetectionMode(value) }
+    func followSystemAppearance() { refresh();guard available else { return };owner?.followSystemAppearance();refresh() }
+}
+struct BlameCommands:Commands {
+    @ObservedObject var context:BlameMenuContext
+    private func item(_ action:BlameMenuAction)->some View {
+        Button { context.perform(action) } label: { CommandLabel(title:action.title,icon:action.icon) }.disabled(!context.allowed(action))
+    }
+    private func toggle(_ action:BlameMenuAction)->some View {
+        Toggle(isOn:Binding(get:{context.checked(action)},set:{ _ in context.perform(action) })) { CommandLabel(title:action.title,icon:action.icon) }.disabled(!context.allowed(action))
+    }
+    var body:some Commands {
+        CommandGroup(after:.newItem) {
+            if context.focused,let store=context.owner?.recentDocuments { BlameRecentFileMenu(store:store,open:{ context.owner?.openRecent($0) }).disabled(!context.available) }
+        }
+        CommandGroup(after:.textEditing) {
+            if context.focused {
+                Divider()
+                item(.find).keyboardShortcut("f",modifiers:.command)
+                item(.findNext).keyboardShortcut("g",modifiers:.command)
+                item(.findPrevious).keyboardShortcut("g",modifiers:[.command,.shift])
+                item(.goTo).keyboardShortcut("l",modifiers:.command)
+                Picker("Encode",selection:Binding(get:{context.encoding},set:{context.setEncoding($0)})) {
+                    Text("Automatic").tag(GitBlameEncoding?.none)
+                    ForEach(GitBlameEncoding.available) { Text($0.rawValue).tag(Optional($0)) }
+                }.disabled(!context.available)
+            }
+        }
+        CommandGroup(after:.toolbar) {
+            if context.focused {
+                Menu("Toolbars and Panes") { toggle(.toolbar);toggle(.log);toggle(.properties) }
+                toggle(.statusBar)
+                item(.nextChange);item(.previousChange)
+                Divider()
+                ForEach([BlameMenuAction.logID,.author,.date,.filename,.original],id:\.self) { toggle($0) }
+                Divider()
+                Picker("Detect moved or copied lines",selection:Binding(get:{context.detection},set:{context.setDetection($0)})) {
+                    ForEach(GitBlameDetectionMode.allCases) { Text($0.title).tag($0) }
+                }.disabled(!context.available)
+                toggle(.ignoreWhitespace);Divider()
+                toggle(.completeLog);toggle(.followRenames);toggle(.firstParent);Divider()
+                toggle(.colorAge);toggle(.syntax);toggle(.dark)
+                Button("Follow System Appearance") { context.followSystemAppearance() }.disabled(!context.available)
+                Divider();toggle(.wrap)
+            }
+        }
+    }
+}

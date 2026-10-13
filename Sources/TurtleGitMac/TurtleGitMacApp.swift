@@ -7,6 +7,7 @@ import TurtleGitCore
     @StateObject private var model = RepositoryModel()
     @StateObject private var hookProcesses = ClientHookProcessPool.shared
     @StateObject private var appearance = AppAppearance()
+    @StateObject private var blameMenuContext=BlameMenuContext()
     @StateObject private var patchMenuContext = PatchMenuContext()
     @StateObject private var statisticsMenuContext = StatisticsMenuContext()
     init() {
@@ -49,6 +50,7 @@ import TurtleGitCore
             CommandGroup(replacing: .help) {
                 Button("TurtleGit Help") { SettingsPresentationService.showHelp() }
             }
+            BlameCommands(context:blameMenuContext)
             PatchFileCommands(context: patchMenuContext)
             StatisticsFileCommands(context: statisticsMenuContext)
             CommandGroup(after: .appInfo) {

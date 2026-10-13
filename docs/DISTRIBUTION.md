@@ -299,3 +299,19 @@ item. Both CI configurations invoke it. See
 [deployment and remaining signed acceptance](FINDER-SERVICE-DEPLOYMENT.md).
 Unsigned packaging passes cannot establish user-approved launch registration,
 peer authentication enforcement or sandbox permission transfer.
+
+## Verified signing-layout blocker — 2026-10-13
+
+Ad-hoc preview signing rejected a versioned Perl directory as an invalid bundle and
+then a Scintilla reconstruction header as unsigned code under `Contents/Helpers`.
+Unsigned build/package audits did not cover this requirement. Runtime trees mix
+executables, scripts, configuration, licenses and reconstruction sources in a code
+location. Production must relocate data/scripts to resource locations, reconcile
+lookup/load paths and seal nested code inside out before signed acceptance can pass.
+[Apple TN2206](https://developer.apple.com/library/archive/technotes/tn2206/) explains
+these location rules. No certificate alone resolves the current layout failure.
+
+`create-preview-app.py --resource-runtimes` provides an explicitly diagnostic layout:
+resource-hosted runtime trees with relative helper-path aliases. It verified the
+current menu bar in a private ad-hoc app, but is not production App Store layout or
+signing certification. Follow [menu verification](BLAME-MENUS.md) for the evidence.

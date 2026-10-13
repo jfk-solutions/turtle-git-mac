@@ -1,0 +1,95 @@
+{
+  "date": "2026-10-13",
+  "scope": [
+    "Active Blame menu-bar routing through current/Find/sheet ownership",
+    "Persistent toolbar/Log/Properties/status/Color Age controls",
+    "Window/panel appearance override and follow-system reset",
+    "Consistent injected option defaults, state/gate updates and retirement callback clearing"
+  ],
+  "source": {
+    "baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "files": [
+      "src/Resources/TortoiseGitBlameENG.rc",
+      "src/TortoiseGitBlame/MainFrm.cpp",
+      "src/TortoiseGitBlame/TortoiseGitBlameView.cpp"
+    ]
+  },
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/blame-menus-build-final-2026-10-13.log"
+    },
+    "native": {
+      "exit": 0,
+      "cases": 10,
+      "engines": [
+        "system Git",
+        "packaged Git"
+      ],
+      "log": "build/qa/blame-menus-native-final-2026-10-13.log",
+      "initial_failure": "Fixture assumed within-file detection disables complete history; source restricts between-file detection. Corrected to modifiedFiles."
+    },
+    "interactive_preview": {
+      "pid": 56526,
+      "bundle_identifier": "org.turtlegit.macos.documentation-preview.menus-28544aecafd643438934b9b80e662d31",
+      "app": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/blame-menu-app-44c902a2-a826-4a4c-abc3-35659a7acf42/TurtleGit Menus QA.app",
+      "state": "Normally quit; PID independently absent",
+      "observed": [
+        "Actual View/Edit menu bar commands",
+        "Menu-bar Toolbar hide/restore",
+        "Find menu opens owned panel and accepts typing/Return",
+        "Command-G reports Wrapped to line 1",
+        "Command-L opens native Go To Line sheet from Find focus",
+        "Go To Cancel closes sheet and preserves source selection"
+      ],
+      "layout": "Explicit diagnostic --resource-runtimes; relative helper aliases into Resources/PreviewRuntimes; not production distribution layout",
+      "signing": "Ad-hoc inside-out signing and codesign --verify --deep --strict passed",
+      "create_log": "build/qa/blame-menu-preview-create-final-2026-10-13.log"
+    },
+    "owned_processes_reaped": [
+      54510,
+      55413,
+      55455,
+      55522,
+      55541,
+      55565,
+      55595,
+      55637,
+      55704,
+      55723,
+      55747,
+      56526
+    ],
+    "all_independently_absent": true,
+    "core": "Not repeated: no Core changes.",
+    "appstore": "Not repeated: native-only changes; production signing layout is contradicted by preview investigation.",
+    "website": {
+      "exit": 0,
+      "log": "build/qa/blame-menus-site-2026-10-13.log"
+    },
+    "notes": "Existing build warnings/exit-zero diagnostics remain."
+  },
+  "distribution_blocker": {
+    "errors": [
+      "Deep signing treated Perl 5.44.0 directory as invalid bundle",
+      "Mixed reconstruction header in Helpers rejected as unsigned code"
+    ],
+    "primary_guidance": "https://developer.apple.com/library/archive/technotes/tn2206/",
+    "required": "Production code/data relocation, lookup/load-path reconciliation, signing and runtime acceptance",
+    "status": "Open; diagnostic preview cannot substitute for production fix"
+  },
+  "limits": [
+    "Full native menu order and source encoding groups remain open",
+    "Complete docking/floating persistence, VoiceOver, multiwindow/menu edge cases and signed App Store acceptance remain unproven",
+    "No complete hosted CI or whole-app certification claim"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitMac/BlameMenuCommands.swift": "914248d04b9a5308ab69621f5a54dd8f7096702468f220a12ad7f913f8acd261",
+    "Sources/TurtleGitMac/BlameWindow.swift": "23ff35622d846e1696292dcc6b2162f4f550601c6bc7dfafa1e0aebf7866bcc0",
+    "Sources/TurtleGitMac/TurtleGitMacApp.swift": "d7624225317bb01794926667dfce888d7172ba297a354ea0fb4f6c52b60e775c",
+    "docs/qa/blame-menu-native-2026-10-13.swift": "8b3cee68aecd735ab36fe704ca86fed637f64142c21677cdc6c696ed6fff5a2d",
+    "scripts/create-preview-app.py": "bc8bdbc041b24e026e0da3ca94d37f8cc3b2c24aca68e21fd77da8c61cf1e9e5",
+    "scripts/test-native-reference-batch.py": "62e41e54ec1c78837025c3741ef53db26a21db9fb6d965572acfe79ec28d03dd",
+    "docs/BLAME-MENUS.md": "c263b89fb6c06b2f9473b62f25d91c9abf0512b713908fe7ef79eeef4ead21f1"
+  }
+}

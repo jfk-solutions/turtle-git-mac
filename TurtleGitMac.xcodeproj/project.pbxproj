@@ -228,6 +228,7 @@
 		BE010DEA813D0B5A2AB75681 /* IssueTrackerSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 155C3080F23D2A10CD8EC65C /* IssueTrackerSettings.swift */; };
 		BF033D5E29F40CFE9BE7C111 /* GitSVN.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE4D210C98ACAE51849E16C4 /* GitSVN.swift */; };
 		BFC8E11BB21B098D019D0FB7 /* GitRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6DEDC3481F79B1185AE15B3 /* GitRuntime.swift */; };
+		C0CB11DFCDE279F6A54841FD /* BlameMenuCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C3A0368920E97DF4AFA1318 /* BlameMenuCommands.swift */; };
 		C0DFDDFC2CEFE1853FEDEA84 /* BisectWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2889759BB2F79152E342606E /* BisectWindow.swift */; };
 		C1A6C3FB8B2C5FBD7C9CCA46 /* ReleaseUpdates.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A930411C5DE9F562E47D41 /* ReleaseUpdates.swift */; };
 		C1AC88672C3BE1B0E0F66493 /* RemoteTags.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1541756F953A41D68C44D74B /* RemoteTags.swift */; };
@@ -547,6 +548,7 @@
 		7A48D22D1E6D22153CBA3744 /* Push.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Push.swift; sourceTree = "<group>"; };
 		7A4B370EB64932B2909A8228 /* CloneWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloneWindow.swift; sourceTree = "<group>"; };
 		7BD26E6495039510A4AA65A2 /* SubversionMergePresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubversionMergePresentation.swift; sourceTree = "<group>"; };
+		7C3A0368920E97DF4AFA1318 /* BlameMenuCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlameMenuCommands.swift; sourceTree = "<group>"; };
 		7D861E87DCA7F3D938BFDF07 /* SSHKeyGenerationWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHKeyGenerationWindow.swift; sourceTree = "<group>"; };
 		7E85FED91C2F9C44EB16228A /* SubmoduleAdd.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleAdd.swift; sourceTree = "<group>"; };
 		7E8B2EE97B70CCF7AC78ABAA /* DeleteConflictWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteConflictWindow.swift; sourceTree = "<group>"; };
@@ -759,6 +761,7 @@
 				5A915E0D55658EE40F710D3B /* ApplicationDelegate.swift */,
 				D16465B7DCE5BB303F553610 /* AutotextTester.swift */,
 				2889759BB2F79152E342606E /* BisectWindow.swift */,
+				7C3A0368920E97DF4AFA1318 /* BlameMenuCommands.swift */,
 				90FF7E1758DBA2D17D00C67C /* BlameOpenDocument.swift */,
 				9ABE7B92864A28F4229F6063 /* BlameSettings.swift */,
 				147C1880748CAF195D6A19CA /* BlameWindow.swift */,
@@ -1695,6 +1698,7 @@
 				230460E9908BB05D1AD2BD7C /* ApplicationDelegate.swift in Sources */,
 				B6DE7C8AE3A9B25FFE8B6982 /* AutotextTester.swift in Sources */,
 				C0DFDDFC2CEFE1853FEDEA84 /* BisectWindow.swift in Sources */,
+				C0CB11DFCDE279F6A54841FD /* BlameMenuCommands.swift in Sources */,
 				0BA99C6714D09E37A7B5E0CE /* BlameOpenDocument.swift in Sources */,
 				C74FD1797BC0727D5BBFBFA6 /* BlameSettings.swift in Sources */,
 				04F91334CABB49482A59CAF5 /* BlameWindow.swift in Sources */,
