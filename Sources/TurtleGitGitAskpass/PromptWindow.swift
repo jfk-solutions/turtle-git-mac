@@ -1,6 +1,19 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import AppKit
 
+@MainActor private final class GitAskpassNativeWindow: NSWindow {
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        #if DEBUG
+        let flags = event.modifierFlags.intersection([.command,.option,.shift,.control])
+        if flags == [.command,.option,.shift], event.charactersIgnoringModifiers?.lowercased() == "s",
+           Bundle.main.bundleIdentifier?.hasPrefix("org.turtlegit.macos.documentation-preview") == true {
+            DocumentationCapture.saveWindow(); return true
+        }
+        #endif
+        return super.performKeyEquivalent(with: event)
+    }
+}
+
 @MainActor final class GitAskpassWindowController: NSWindowController, NSWindowDelegate {
     let prompt: GitAskpassPrompt
     let field: NSTextField
@@ -11,7 +24,7 @@ import AppKit
     init(prompt: GitAskpassPrompt, icon: NSImage? = nil, response: @escaping (String?) -> Void) {
         self.prompt = prompt; self.response = response
         field = prompt.secret ? NSSecureTextField() : NSTextField()
-        let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 520, height: 170), styleMask: [.titled,.closable,.resizable], backing: .buffered, defer: false)
+        let window = GitAskpassNativeWindow(contentRect: .init(x: 0, y: 0, width: 520, height: 170), styleMask: [.titled,.closable,.resizable], backing: .buffered, defer: false)
         window.title = "Authentication – TurtleGit"; window.isReleasedWhenClosed = false
         super.init(window: window); window.delegate = self
         let label = NSTextField(wrappingLabelWithString: prompt.text)

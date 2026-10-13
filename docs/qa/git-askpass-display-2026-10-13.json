@@ -1,0 +1,65 @@
+{
+  "date": "2026-10-13",
+  "scope": [
+    "Displayed real Debug helper in isolated ad hoc QA bundles",
+    "Light/dark secure field, original icon, initial focus and controls",
+    "Masked fixture response, Return and exact private stdout receipt",
+    "Escape/cancel with empty output",
+    "Core-owned Git wrapper cancellation of a displayed helper"
+  ],
+  "validation": {
+    "build": {
+      "exit": 0,
+      "log": "build/qa/git-askpass-capture-build-repaired-2026-10-13.log",
+      "repair": "Initial app build rejected stale GraphLayout reconstruction hash after downloader changes. Rebuilt cached pinned GraphLayout; validator passed, then app build passed."
+    },
+    "light": {
+      "pid": 25931,
+      "absent": true,
+      "response_exact": true,
+      "stderr_empty": true
+    },
+    "dark": {
+      "pid": 25964,
+      "absent": true,
+      "response_empty": true
+    },
+    "parent_cancellation": {
+      "pids": [
+        26016,
+        26019,
+        26023
+      ],
+      "all_absent": true,
+      "output": "PASS displayed helper parent cancellation",
+      "fixture": "docs/qa/git-askpass-parent-2026-10-13.swift"
+    },
+    "captures": {
+      "light": {
+        "path": "docs/site/assets/git-authentication-light.png",
+        "sha256": "b0156e31a6eb852ed5d876d55176f20bd3f4028179d58992eb89cc7e702b2601"
+      },
+      "dark": {
+        "path": "docs/site/assets/git-authentication-dark.png",
+        "sha256": "b35595dfc98198a435d8cd700d39e797bf52843d27391b485305f9db4c290386"
+      }
+    },
+    "site": {
+      "exit": 0,
+      "link_tests": 2,
+      "log": "build/qa/git-askpass-display-site-check-2026-10-13.log"
+    },
+    "helper_package": {
+      "exit": 0,
+      "log": "build/qa/git-askpass-capture-package-2026-10-13.log"
+    }
+  },
+  "data": "Fixture URL and empty capture fields; no real server, credentials, user repository or Keychain access.",
+  "preview_setup": "Real helper executable and packaged Core/SMTP frameworks in private QA bundles. An initial incomplete icon-only framework preview failed signing and was replaced with real frameworks before launch.",
+  "pending": [
+    "Public-server authentication and all credential helpers",
+    "Signed inherited-sandbox execution",
+    "Plain username/long-request/full keyboard/VoiceOver acceptance"
+  ],
+  "full_port_certified": false
+}

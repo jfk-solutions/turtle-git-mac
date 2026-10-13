@@ -27,7 +27,7 @@ if os.environ.get('CODE_SIGNING_ALLOWED') == 'YES':
     subprocess.run(command + [str(destination)], check=True)
 root = Path(__file__).resolve().parent.parent
 manifest = {'binary_sha256': hashlib.sha256(destination.read_bytes()).hexdigest(),
-            'sources': {str(path.relative_to(root)): hashlib.sha256(path.read_bytes()).hexdigest() for path in [root/'Sources/TurtleGitCore/GitAskpassPrompt.swift', *sorted((root/'Sources/TurtleGitGitAskpass').glob('*.swift'))]},
+            'sources': {str(path.relative_to(root)): hashlib.sha256(path.read_bytes()).hexdigest() for path in [root/'Sources/TurtleGitCore/GitAskpassPrompt.swift', root/'Sources/TurtleGitMac/DocumentationCapture.swift', *sorted((root/'Sources/TurtleGitGitAskpass').glob('*.swift'))]},
             'sandbox_inherited': os.environ.get('CODE_SIGNING_ALLOWED') == 'YES' and os.environ.get('CONFIGURATION') == 'AppStore'}
 (destination.parent/'provenance.json').write_text(json.dumps(manifest, indent=2)+'\n')
 print('Git askpass helper embedded; signed sandbox acceptance remains separate.')

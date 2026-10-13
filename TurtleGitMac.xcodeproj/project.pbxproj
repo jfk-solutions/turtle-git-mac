@@ -203,6 +203,7 @@
 		A74A3FE8744154EDF768C63C /* SwitchWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 977DAB97DBBB903654C73A78 /* SwitchWindow.swift */; };
 		A79BF60CDBEDA5B4F781B0A5 /* PatchClipboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A257C0CA956E0F3CCCBD435C /* PatchClipboard.swift */; };
 		A7F9B61AFDD2F69ADE7A35C7 /* AddProgressWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F84A36C85062FC9FF018CB1 /* AddProgressWindow.swift */; };
+		A8FB6D064D4AC3D589BEC6BA /* DocumentationCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 798E539A3A1B52BFC50781D5 /* DocumentationCapture.swift */; };
 		A99C16FB42C7E89CA9B6AEC3 /* MessageCodeText.swift in Sources */ = {isa = PBXBuildFile; fileRef = C27AB4988402DE898554EF19 /* MessageCodeText.swift */; };
 		A9E14DE01BAAD7CF54993E51 /* CommandLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ABAD60A21F60D01816B9D64 /* CommandLabel.swift */; };
 		A9FF0A885E44AF8F4261B5DA /* GitModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5BC4298E9DBF0AB06FA8087 /* GitModels.swift */; };
@@ -1960,6 +1961,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A8FB6D064D4AC3D589BEC6BA /* DocumentationCapture.swift in Sources */,
 				408F4C4B2799D45011844A32 /* GitAskpassPrompt.swift in Sources */,
 				9449C31C758AF7B42027F8D8 /* PromptWindow.swift in Sources */,
 				855905DBFBF28D4D0E9E2A47 /* TurtleGitGitAskpass.swift in Sources */,

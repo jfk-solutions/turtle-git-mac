@@ -23,6 +23,7 @@ targets:
     sources:
       - path: Sources/TurtleGitGitAskpass
       - path: Sources/TurtleGitCore/GitAskpassPrompt.swift
+      - path: Sources/TurtleGitMac/DocumentationCapture.swift
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.turtlegit.macos.git-askpass
