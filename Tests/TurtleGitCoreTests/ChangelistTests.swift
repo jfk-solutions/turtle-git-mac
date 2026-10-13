@@ -2,6 +2,19 @@ import XCTest
 @testable import TurtleGitCore
 
 final class ChangelistTests: XCTestCase {
+    func testCancelledAssignmentRetainsExistingMetadataAndGitIndex() async throws {
+        let (root, repo, path) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        _ = try await repo.assignChangelist(paths: [path], name: "Keep")
+        let file = root.appendingPathComponent(".git/turtlegit-changelists.json")
+        let original = try Data(contentsOf: file), index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let token = OperationCancellation(); token.cancel()
+        do { _ = try await repo.assignChangelist(paths: [path], name: "Replace", cancellation: token); XCTFail("Cancelled assignment wrote metadata") } catch is OperationCancellationFailure {}
+        XCTAssertEqual(try Data(contentsOf: file), original)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: file.path + ".lock"))
+    }
+
     func testPersistMoveRemoveAndLiteralNamesPreserveGitAndWorkingState() async throws {
         let (root, repo, path) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

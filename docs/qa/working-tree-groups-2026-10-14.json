@@ -1,0 +1,69 @@
+{
+  "date": "2026-10-14",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Working Tree status/changelist group rows and saved metadata",
+    "Create/move/remove/ignore-on-commit and shared Keep preference",
+    "Group-aware native sorting/clipboard/keyboard slots, captured group selection and retired name replies"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/working-tree-groups-build-2026-10-14.log"
+    },
+    "core": {
+      "exit": 0,
+      "tests": 11,
+      "scope": "ChangelistTests and StatusListGroupTests",
+      "log": "build/qa/working-tree-groups-core-2026-10-14.log"
+    },
+    "native": {
+      "exit": 0,
+      "cases": 6,
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "scope": "Groups plus existing file-menu and LFS/Commit/Working Tree column/routing receivers",
+      "log": "build/qa/working-tree-groups-native-2026-10-14.log"
+    },
+    "capture_recheck": {
+      "exit": 0,
+      "cases": 1,
+      "engine": "system Git",
+      "log": "build/qa/working-tree-groups-capture-2026-10-14.log",
+      "repair": "Initial native content renders had a transparent root background. Capture now supplies the native window background; app/Core/LFS checks were not repeated."
+    },
+    "owned_receivers_reaped": [
+      17654,
+      17717,
+      17778,
+      18232,
+      18285,
+      18338,
+      18800
+    ],
+    "no_owned_receivers_remain": true,
+    "website": {
+      "exit": 0,
+      "log": "build/qa/working-tree-groups-site-2026-10-14.log"
+    }
+  },
+  "captures": {
+    "kind": "Native content-view renders, not physical desktop/window screenshots",
+    "files": [
+      "docs/site/assets/working-tree-groups-light.png",
+      "docs/site/assets/working-tree-groups-dark.png"
+    ],
+    "inspected": true,
+    "observed_limits": [
+      "Long group title is clipped by Path-column width rather than spanning all columns",
+      "Offscreen capture can show the optional Filename header without its cell values; exact column/whole-window layout acceptance remains open"
+    ]
+  },
+  "limits": [
+    "Physical group gestures, new-name modal sheet, VoiceOver and signed grants remain unverified",
+    "Full status-list marked-row menus, submodule-specific routes and whole application port remain incomplete",
+    "No complete hosted CI or refreshed App Store acceptance claim"
+  ]
+}

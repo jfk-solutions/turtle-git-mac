@@ -286,3 +286,11 @@ Context **Delete** asks before moving paths to Trash and removes any correspondi
 index entries. Hold Shift for permanent deletion. The Delete key applies when
 the focus mark has an unversioned or ignored working copy; context Delete also applies to missing
 tracked rows. Confirming a mixed selection acts on the entire selected set.
+
+Working Tree displays status categories and saved changelists as group headings.
+Use **Move to changelist** to name or reorganize selected files, or **Remove from
+changelist** to return them to their status category. **ignore-on-commit** keeps
+files out of automatic checked-file selection in Commit; assigning it in Working
+Tree does not change staging. **Keep changelists** shares Commit’s preference for
+retaining membership after a successful commit. Clipboard copies follow the
+visible group order and omit headings.

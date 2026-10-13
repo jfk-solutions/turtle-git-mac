@@ -21,12 +21,13 @@ extension GitRepository {
     }
     /// Mutations reload under a worktree-local lock, preserving other processes'
     /// assignments. JSON retains Unicode and literal newline filenames.
-    public func assignChangelist(paths: [String], name: String?) throws -> GitChangelists {
+    public func assignChangelist(paths: [String], name: String?, cancellation: OperationCancellation? = nil) throws -> GitChangelists {
+        try cancellation?.check()
         guard !paths.isEmpty, name.map({ !$0.isEmpty && !$0.contains("\0") }) ?? true else {
             throw GitFailure(arguments: ["changelist"], code: 1, message: "Select paths and enter a nonempty changelist name.")
         }
-        for path in paths { _ = try restoreLocation(path) }
-        return try mutateChangelists { lists in
+        for path in paths { try cancellation?.check(); _ = try restoreLocation(path) }
+        return try mutateChangelists(cancellation: cancellation) { lists in
             for path in Set(paths) { lists.assignments[path] = name }
         }
     }
@@ -90,18 +91,20 @@ extension GitRepository {
         }
         return lists
     }
-    private func mutateChangelists(_ update: (inout GitChangelists) throws -> Void) throws -> GitChangelists {
-        let url = try changelistLocation("turtlegit-changelists.json"), lock = URL(fileURLWithPath: url.path + ".lock")
+    private func mutateChangelists(cancellation: OperationCancellation? = nil, _ update: (inout GitChangelists) throws -> Void) throws -> GitChangelists {
+        try cancellation?.check()
+        let url = try changelistLocation("turtlegit-changelists.json", cancellation: cancellation), lock = URL(fileURLWithPath: url.path + ".lock")
         let descriptor = open(lock.path, O_WRONLY | O_CREAT | O_EXCL, 0o600)
         guard descriptor >= 0 else { throw GitFailure(arguments: ["changelist"], code: 1, message: "Could not lock the changelist file: " + String(cString: strerror(errno))) }
         var ownsLock = true
         defer { if ownsLock { try? FileManager.default.removeItem(at: lock) } }
         let handle = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
         defer { try? handle.close() }
-        var lists = try readChangelists(at: url)
-        try update(&lists)
+        var lists = try readChangelists(at: url, cancellation: cancellation)
+        try update(&lists); try cancellation?.check()
         let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         try handle.write(contentsOf: encoder.encode(ChangelistDocument(assignments: lists.assignments))); try handle.close()
+        try cancellation?.check()
         guard Darwin.rename(lock.path, url.path) == 0 else { throw GitFailure(arguments: ["changelist"], code: 1, message: "Could not save the changelist file: " + String(cString: strerror(errno))) }
         ownsLock = false
         return lists

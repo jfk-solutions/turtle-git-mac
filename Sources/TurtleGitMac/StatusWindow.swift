@@ -24,6 +24,20 @@ struct StatusRow: Identifiable {
     var sizeText: String { metadata?.sizeText ?? "–" }
 }
 
+struct StatusGroupedRow: Identifiable {
+    let row: StatusListRow
+    let contents: StatusRow?
+    var id: String { row.id }
+}
+struct StatusGroupedSort: SortComparator {
+    var column: StatusListColumn
+    var order: SortOrder = .forward
+    func compare(_ lhs: StatusGroupedRow, _ rhs: StatusGroupedRow) -> ComparisonResult {
+        if let a = lhs.contents, let b = rhs.contents { return StatusFileSort(column: column, order: order).compare(a, b) }
+        return lhs.id.compare(rhs.id)
+    }
+}
+
 enum StatusFileCommand: String, CaseIterable {
     case compareTwo = "Compare two files", log = "Show log", oldNameLog = "Show log of old name", blame = "Blame"
     case export = "Export…", editor = "View revision in alternative editor", open = "Open", openWith = "Open With…", reveal = "Reveal in Finder", delete = "Delete"
@@ -92,6 +106,16 @@ final class StatusNativeWindow: NSWindow {
         }
 
 
+        model.chooseChangelistName = { [weak window] in
+            guard let window, window.attachedSheet == nil else { return nil }
+            let alert = NSAlert(); alert.messageText = "Create changelist"; alert.informativeText = "Enter a name for the new changelist:"
+            let name = NSTextField(frame: NSRect(x: 0, y: 0, width: 320, height: 24)); name.setAccessibilityLabel("Changelist name")
+            alert.accessoryView = name; alert.addButton(withTitle: "OK"); alert.addButton(withTitle: "Cancel")
+            return await withCheckedContinuation { reply in
+                alert.beginSheetModal(for: window) { reply.resume(returning: $0 == .alertFirstButtonReturn && !name.stringValue.isEmpty ? name.stringValue : nil) }
+                alert.window.makeFirstResponder(name)
+            }
+        }
         model.chooseApplication = { [weak window] in
             guard let window, window.attachedSheet == nil else { return nil }
             let panel = NSOpenPanel(); panel.title = "Open With"; panel.prompt = "Open"
@@ -147,6 +171,9 @@ final class StatusNativeWindow: NSWindow {
     var readStatus: (OperationCancellation) async throws -> [WorkingTreeFile]
     let repository: GitRepository
     private let access: RepositoryAccessLease?
+    @Published var changelists = GitChangelists()
+    @Published private(set) var keepChangelists = false
+    var chooseChangelistName: () async -> String? = { nil }
     @Published var conflictRebase = false
     @Published var submodules = Set<String>()
     @Published var hasLFS = false
@@ -213,6 +240,7 @@ final class StatusNativeWindow: NSWindow {
             fileColumns = columns
         }
         queryLFSOwners = { try await repository.lfsLocks(cancellation: $0) }
+        keepChangelists = defaults.bool(forKey: "Commit.KeepChangelists")
         filter.showUnversioned = defaults.object(forKey: "AddBeforeCommit") == nil || defaults.bool(forKey: "AddBeforeCommit")
         filter.showAllStaged = defaults.object(forKey: "ChangedFilesIncludeStaged") == nil || defaults.bool(forKey: "ChangedFilesIncludeStaged")
     }
@@ -252,7 +280,15 @@ final class StatusNativeWindow: NSWindow {
     }
 
     var visibleFiles: [WorkingTreeFile] { files.filter { filter.includes($0) } }
-    var sortedRows: [StatusRow] { visibleFiles.map { StatusRow(file: $0, statistics: statistics[$0.id], lfsOwner: lfsOwners[$0.id] ?? "", metadata: fileMetadata[$0.id]) }.sorted(using: sortOrder) }
+    private var ungroupedSortedRows: [StatusRow] { visibleFiles.map { StatusRow(file: $0, statistics: statistics[$0.id], lfsOwner: lfsOwners[$0.id] ?? "", metadata: fileMetadata[$0.id]) }.sorted(using: sortOrder) }
+    var tableRows: [StatusGroupedRow] {
+        let rows = ungroupedSortedRows, lookup = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0) })
+        let flagged = Set(rows.filter { $0.file.assumeUnchanged || $0.file.skipWorktree }.map(\.id))
+        return StatusListGroups.rows(entries: rows.map { $0.file.entry }, changelists: changelists, locallyIgnored: flagged).map {
+            StatusGroupedRow(row: $0, contents: $0.entry.flatMap { lookup[$0.path] })
+        }
+    }
+    var sortedRows: [StatusRow] { tableRows.compactMap(\.contents) }
     var summary: String {
         let rows = visibleFiles
         return "\(rows.count) files shown, \(rows.filter { $0.entry.staged }.count) staged, \(rows.filter { $0.state == .modified }.count) modified, \(rows.filter { $0.state == .untracked }.count) unversioned"
@@ -312,6 +348,7 @@ final class StatusNativeWindow: NSWindow {
         runOperation("Refreshing working tree…", operation: { [self] token in
             // Publish one complete snapshot. A failed/cancelled read retains the prior table.
             let nextFiles = try await readStatus(token)
+            let nextChangelists = try await repository.changelists(cancellation: token)
             let nextBranch = try await repository.branch(cancellation: token)
             let nextRebase = try await repository.conflictIsRebase(cancellation: token)
             let nextSubmodules = try await repository.submodulePaths(cancellation: token)
@@ -319,7 +356,7 @@ final class StatusNativeWindow: NSWindow {
             let nextMetadata = await repository.statusListMetadata(paths: nextFiles.map(\.id))
             let nextStatistics = try await repository.workingTreeFiles(cancellation: token)
             guard isLive(token) else { return }
-            files = nextFiles; branch = nextBranch; conflictRebase = nextRebase; submodules = nextSubmodules
+            changelists = nextChangelists; files = nextFiles; branch = nextBranch; conflictRebase = nextRebase; submodules = nextSubmodules
             hasLFS = nextLFS; fileMetadata = nextMetadata
             statistics = Dictionary(nextStatistics.map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
             selection.formIntersection(Set(visibleFiles.map(\.id)))
@@ -454,6 +491,35 @@ final class StatusNativeWindow: NSWindow {
             })
         }
     }
+    func canAssignChangelist(_ snapshot: StatusFileMenuSnapshot) -> Bool {
+        // Pinned source compares wcStatus with enum values 0/1, excluding a pure
+        // Added action, rather than masking all unversioned rows.
+        guard let mark = snapshot.mark else { return false }
+        return !snapshot.entries.isEmpty && !(mark.index == "A" && mark.worktree == " ")
+    }
+    func setKeepChangelists(_ value: Bool, snapshot: StatusFileMenuSnapshot) {
+        guard accepts(snapshot), canAssignChangelist(snapshot) else { return }
+        keepChangelists = value; defaults.set(value, forKey: "Commit.KeepChangelists")
+    }
+    func assignChangelist(_ snapshot: StatusFileMenuSnapshot, name: String?, creating: Bool = false) {
+        guard accepts(snapshot), canAssignChangelist(snapshot) else { return }
+        runOperation(creating ? "New changelist…" : "Moving to changelist…", operation: { [self] token in
+            let chosen: String?
+            if creating { guard let value = await chooseChangelistName(), !value.isEmpty else { return }; chosen = value }
+            else { chosen = name }
+            guard isLive(token), accepts(snapshot, duringOperation: true) else { return }
+            let next = try await repository.assignChangelist(paths: snapshot.entries.map(\.path), name: chosen, cancellation: token)
+            guard isLive(token) else { return }; changelists = next; menuGeneration = UUID()
+        })
+    }
+    func groupMenu(_ group: StatusListGroup) -> StatusFileMenuSnapshot {
+        fileMenu(Set(StatusListGroups.files(in: group, rows: tableRows.map(\.row)).map(\.path)))
+    }
+    func selectGroup(_ group: StatusListGroup, snapshot: StatusFileMenuSnapshot? = nil) {
+        let captured = snapshot ?? groupMenu(group)
+        guard accepts(captured) else { return }
+        selection = Set(captured.entries.map(\.path))
+    }
     func commitPaths() -> [String] { filter.wholeProject ? [] : filter.paths }
     func didRename(_ source: String, to destination: String) {
         func moved(_ path: String) -> String { path == source ? destination : path.hasPrefix(source + "/") ? destination + path.dropFirst(source.count) : path }
@@ -514,23 +580,23 @@ struct StatusDialog: View {
                 Button(model.branch.isEmpty ? "Unborn / detached HEAD" : model.branch) { model.onAction(.switchBranch, []) }.buttonStyle(.link)
                 Spacer(); if model.busy { Text(model.currentOperation).font(.caption); ProgressView().controlSize(.small) }
             }
-            Table(rows, selection: $model.selection, sortOrder: Binding(get: { model.sortOrder }, set: { model.setSortOrder($0) })) {
-                TableColumn("Path", sortUsing: StatusFileSort(column: .path)) { row in
-                    HStack(spacing: 6) { if let icon = row.file.state.icon.image() { Image(nsImage: icon) }; Text(StatusListClipboard.displayedPath(row.file.entry)).foregroundStyle(row.file.entry.statusTextColor(selected: model.selection.contains(row.id))).lineLimit(1) }
-                        .help(row.file.entry.originalPath.map { "Renamed from \($0)" } ?? row.path)
+            Table(model.tableRows, selection: $model.selection, sortOrder: Binding(get: { model.sortOrder.map { StatusGroupedSort(column: $0.column, order: $0.order) } }, set: { model.setSortOrder($0.map { StatusFileSort(column: $0.column, order: $0.order) }) })) {
+                TableColumn("Path", sortUsing: StatusGroupedSort(column: .path)) { item in
+                    if let row = item.contents {
+                        HStack(spacing: 6) { if let icon = row.file.state.icon.image() { Image(nsImage: icon) }; Text(StatusListClipboard.displayedPath(row.file.entry)).foregroundStyle(row.file.entry.statusTextColor(selected: model.selection.contains(row.id))).lineLimit(1) }
+                            .help(row.file.entry.originalPath.map { "Renamed from \($0)" } ?? row.path)
+                    } else if let group = item.row.group { Text(group.title).font(.headline).foregroundStyle(Color.accentColor).accessibilityLabel(group.title) }
                 }.width(min: 250, ideal: 380)
-                TableColumn("Filename", sortUsing: StatusFileSort(column: .fileName)) { Text($0.fileName).foregroundStyle($0.file.entry.statusTextColor(selected: model.selection.contains($0.id))) }.width(min: 100, ideal: 180)
-                TableColumn("Extension", sortUsing: StatusFileSort(column: .fileExtension)) { Text($0.fileExtension).foregroundStyle($0.file.entry.statusTextColor(selected: model.selection.contains($0.id))) }.width(min: 45, ideal: 65)
-                TableColumn("Status", sortUsing: StatusFileSort(column: .status)) { row in Text(row.status).foregroundStyle(row.file.entry.statusTextColor(selected: model.selection.contains(row.id))) }.width(min: 110, ideal: 155)
-                TableColumn("Lines added", sortUsing: StatusFileSort(column: .added)) { Text($0.addedText).foregroundStyle($0.file.entry.statusTextColor(selected: model.selection.contains($0.id))) }.width(min: 60, ideal: 80)
-                TableColumn("Lines removed", sortUsing: StatusFileSort(column: .removed)) { Text($0.removedText).foregroundStyle($0.file.entry.statusTextColor(selected: model.selection.contains($0.id))) }.width(min: 60, ideal: 90)
-                TableColumn("Last modified", sortUsing: StatusFileSort(column: .lastModified)) { row in
-                    Text(row.metadata?.dateText ?? "–").foregroundStyle(row.file.entry.statusTextColor(selected: model.selection.contains(row.id)))
-                }.width(min: 150, ideal: 170)
-                TableColumn("File size", sortUsing: StatusFileSort(column: .fileSize)) { Text($0.sizeText).foregroundStyle($0.file.entry.statusTextColor(selected: model.selection.contains($0.id))) }.width(min: 70, ideal: 100)
-                TableColumn("LFS Lock", sortUsing: StatusFileSort(column: .lfsOwner)) { Text($0.lfsOwner).foregroundStyle($0.file.entry.statusTextColor(selected: model.selection.contains($0.id))) }.width(min: 100, ideal: 160)
+                TableColumn("Filename", sortUsing: StatusGroupedSort(column: .fileName)) { item in groupCell(item, column: .fileName) }.width(min: 100, ideal: 180)
+                TableColumn("Extension", sortUsing: StatusGroupedSort(column: .fileExtension)) { item in groupCell(item, column: .fileExtension) }.width(min: 45, ideal: 65)
+                TableColumn("Status", sortUsing: StatusGroupedSort(column: .status)) { item in groupCell(item, column: .status) }.width(min: 110, ideal: 155)
+                TableColumn("Lines added", sortUsing: StatusGroupedSort(column: .added)) { item in groupCell(item, column: .added) }.width(min: 60, ideal: 80)
+                TableColumn("Lines removed", sortUsing: StatusGroupedSort(column: .removed)) { item in groupCell(item, column: .removed) }.width(min: 60, ideal: 90)
+                TableColumn("Last modified", sortUsing: StatusGroupedSort(column: .lastModified)) { item in groupCell(item, column: .lastModified) }.width(min: 150, ideal: 170)
+                TableColumn("File size", sortUsing: StatusGroupedSort(column: .fileSize)) { item in groupCell(item, column: .fileSize) }.width(min: 70, ideal: 100)
+                TableColumn("LFS Lock", sortUsing: StatusGroupedSort(column: .lfsOwner)) { item in groupCell(item, column: .lfsOwner) }.width(min: 100, ideal: 160)
             }.fileListFont()
-            .background(CommitFileInteraction(rows: rows.map { .file($0.file.entry) }, leadingColumnCount: 0, keyboardDeleteEnabled: true,
+            .background(CommitFileInteraction(rows: model.tableRows.map(\.row), leadingColumnCount: 0, keyboardDeleteEnabled: true,
                 visibleColumns: Set(model.visibleColumns), availableColumns: model.availableColumns, columnText: { entry, column in
                     rowsByID[entry.path].map { model.columnText($0,column) } ?? ""
                 }, savedOrder: model.fileColumns.order, savedWidths: model.fileColumns.widths,
@@ -545,6 +611,11 @@ struct StatusDialog: View {
             .contextMenu(forSelectionType: String.self) { ids in
                 let snapshot = model.fileMenu(ids, mark: focusedPath)
                 TurtleGitContextMenu {
+                    if ids.count == 1, let group = model.tableRows.first(where: { ids.contains($0.id) })?.row.group {
+                        let groupedSelection = model.groupMenu(group)
+                        Button("Select group") { model.selectGroup(group, snapshot: groupedSelection) }.disabled(model.busy || model.confirmingQuit)
+                    }
+                    if !snapshot.entries.isEmpty {
                     Button { model.withFileMenu(snapshot) { model.diff(ids) } } label: { CommandLabel(title: "Diff", icon: .compare) }.disabled(ids.isEmpty)
                     Button { model.withFileMenu(snapshot) { model.unifiedDiff(ids, alternate: NSEvent.modifierFlags.contains(.shift)) } } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.isEmpty || model.busy)
                     Button { model.withFileMenu(snapshot) { model.stage(ids, staged: true) } } label: { CommandLabel(title: "Add / Stage", icon: .add) }.disabled(ids.isEmpty)
@@ -566,6 +637,21 @@ struct StatusDialog: View {
                     if !selected.isEmpty && selected.allSatisfy({ [.untracked, .deleted].contains($0.state) }) {
                         IgnoreSelectionMenu(paths: selected.map(\.id), action: { action, paths in model.withFileMenu(snapshot) { model.onAction(action, paths) } })
                     }
+                    if model.canAssignChangelist(snapshot) {
+                        Divider()
+                        if snapshot.entries.contains(where: { model.changelists.assignments[$0.path] != nil }) {
+                            Button("Remove from changelist") { model.assignChangelist(snapshot, name: nil) }
+                        }
+                        Menu("Move to changelist") {
+                            Button("<new changelist>") { model.assignChangelist(snapshot, name: nil, creating: true) }
+                            Divider()
+                            Button(GitChangelists.ignored) { model.assignChangelist(snapshot, name: GitChangelists.ignored) }
+                            ForEach(model.changelists.names.filter { $0 != GitChangelists.ignored }, id: \.self) { name in
+                                Button(name) { model.assignChangelist(snapshot, name: name) }
+                            }
+                        }
+                        Toggle("Keep changelists", isOn: Binding(get: { model.keepChangelists }, set: { model.setKeepChangelists($0, snapshot: snapshot) }))
+                    }
                     Divider()
                     ForEach(snapshot.commands, id: \.self) { command in
                         Button { model.fileAction(command, snapshot: snapshot, permanently: NSEvent.modifierFlags.contains(.shift)) } label: {
@@ -578,8 +664,10 @@ struct StatusDialog: View {
                         Button { model.withFileMenu(snapshot) { model.copy(ids, information: .names) } } label: { CommandLabel(title: "File/folder names", icon: .copy) }
                         Button { model.withFileMenu(snapshot) { model.copy(ids, information: .all) } } label: { CommandLabel(title: "Copy all information to clipboard", icon: .copy) }
                     } label: { CommandLabel(title: "Copy to Clipboard", icon: .copy) }.disabled(ids.isEmpty)
+                    }
                 }
             } primaryAction: { ids in
+                if ids.count == 1, let group = model.tableRows.first(where: { ids.contains($0.id) })?.row.group { model.selectGroup(group); return }
                 if ids.count == 1, let entry = model.files.first(where: { ids.contains($0.id) }), entry.state == .conflicted { model.onAction(.editConflict, [entry.id]) }
                 else { model.diff(ids) }
             }
@@ -622,6 +710,11 @@ struct StatusDialog: View {
         } message: { Text(model.error ?? "") }
 
     }
+    @ViewBuilder private func groupCell(_ item: StatusGroupedRow, column: StatusListColumn) -> some View {
+        if let row = item.contents { Text(model.columnText(row, column)).foregroundStyle(row.file.entry.statusTextColor(selected: model.selection.contains(row.id))) }
+        else { Rectangle().fill(Color.accentColor.opacity(0.35)).frame(height: 1).padding(.vertical, 8) }
+    }
+
 }
 
 

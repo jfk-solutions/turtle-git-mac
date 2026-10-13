@@ -41,8 +41,8 @@ cancelled without changing the repository. `site/assets/status.png` shows the ru
 
 ## Remaining upstream behavior
 
-- Full GitStatusListCtrl menus: submodule-specific handoffs, groups/changelists
-  and complete marked-row enablement. Revert/conflict/index flags are available;
+- Full GitStatusListCtrl menus: submodule-specific handoffs and complete
+  marked-row enablement. Group/changelist workflows are mapped below. Revert/conflict/index flags are available;
   file history/Blame/export/editor/Open/deletion now have native routes below.
 - Full conditional Stash/Switch menus and post-operation behavior; the dedicated
   dialog ports remain partial.
@@ -184,3 +184,40 @@ marks were retained. The initial system-Git lifecycle regression also passed;
 it was not repeated. All seven initial/final receivers were reaped. See
 [results and limits](qa/working-tree-file-menu-2026-10-14.json). Actual application/editor launches, physical panels,
 Trash/Finder appearance, signed grants and full status-list parity remain open.
+
+## Working Tree groups and changelists — October 14, 2026
+
+Working Tree now reads the same worktree-local changelist document as Commit
+and reuses the pinned PrepareGroups/SetItemGroup category order. Explicit
+assignments take priority over status/flags; ignore-on-commit follows ordinary
+changelists. Group headers use non-path identities, the source-style colored
+heading/rule layout, and no checkboxes in this dialog. The nine physical columns
+and independent saved column layout remain available. Sorting applies within
+each category; clipboard/file-menu order follows the resulting displayed rows.
+
+The native table interaction receives every header slot and ignores it when
+resolving keyboard/clipboard file selections. A group menu selects its captured
+files rather than passing a header identity to Git. Its generation and member
+status are checked after selection/filter/refresh changes.
+
+File menus add Remove from changelist, Move to an existing name, a new-name
+native dialog and ignore-on-commit. The pinned legacy enum-value comparison
+excludes a pure Added mark rather than excluding all unversioned paths. Pending
+name replies retain operation/Quit ownership and cannot assign after retirement.
+Assignments change only changelist metadata; Working Tree does not silently
+stage or unstage ignore-on-commit paths. Keep changelists persists through the
+same preference used when the next Commit dialog opens. The shared mutation
+API now propagates cancellation through metadata-location reads and checks
+before publishing its locked replacement. Failed/cancelled saves retain the
+prior document and clean up their owned lock.
+
+Debug, eleven affected Core tests and six grouped native groups/file-menu/LFS
+receivers passed with system and bundled Git. A capture-only correction supplied
+the native background; one Groups receiver regenerated inspected light/dark
+content renders without repeating app/Core/LFS validation. All seven receivers
+were reaped. See [results and capture limits](qa/working-tree-groups-2026-10-14.json).
+Long group headings remain clipped by the first column; the offscreen captures
+can show an optional header without its cells, so full-width group headings and
+complete column/whole-window visual acceptance remain unfinished. Physical header gestures/name
+dialog appearance, full source group-state accessibility and signed worktree
+access remain open. This does not certify complete status-list parity.
