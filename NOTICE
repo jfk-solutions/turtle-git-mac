@@ -1473,3 +1473,9 @@ Log commit ordering adapts TortoiseProc/LogOrdering.cpp/.h, IDD_LOGORDERING,
 LogDlg's deferred header-click route and CGit::GetLogCmd's four order choices
 from the pinned upstream GPL-2.0-or-later source. Native sheets retain draft
 OK/Cancel persistence and choose Git walk order rather than sorting projected rows.
+
+PuTTYgen 0.84 supplies private-key format conversion and passphrase/comment
+interoperability in TurtleGit's native SSH key manager. The unmodified source
+archive and PuTTY's permissive licence are packaged with the universal macOS
+CLI runtime. This is the same upstream PuTTY release identified by the pinned
+TortoiseGitPlink version header; TurtleGit's SSH transport remains OpenSSH.

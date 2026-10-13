@@ -23,7 +23,7 @@ public enum SSHIdentityAccessFailure: LocalizedError {
         case .file: return "Choose a regular private key file using Browse."
         case .missingGrant: return "Select this SSH key again using Browse to grant access."
         case .permission: return "The saved SSH key permission could not be renewed. Select it again using Browse."
-        case .putty: return "This is a PuTTY key. Choose an OpenSSH key for macOS; PuTTY conversion is not yet available."
+        case .putty: return "This is a PuTTY key. Use SSH Key Generator → Load existing key to save an OpenSSH copy, then select that copy."
         }
     }
 }

@@ -1,0 +1,102 @@
+{
+  "date": "2026-10-14",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Pinned universal PuTTY 0.84 CLI and source/licence reconstruction",
+    "Native PuTTY/OpenSSH import, optional passphrase/comment changes and explicit new pair publication",
+    "Generator-owned import window, retained output permission and cancellation/Quit cleanup",
+    "Debug/Store packaging, signing path, cache and bundle validation integration"
+  ],
+  "validation": {
+    "runtime_build": {
+      "exit": 0,
+      "log": "build/qa/putty-runtime-build-2026-10-14.log",
+      "architectures": [
+        "arm64",
+        "x86_64"
+      ],
+      "deployment_target": "13.0"
+    },
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/ssh-key-import-build-final2-2026-10-14.log"
+    },
+    "core": {
+      "exit": 0,
+      "tests": 8,
+      "log": "build/qa/ssh-key-import-core-final-2026-10-14.log",
+      "scope": "5 conversion tests plus 3 existing key-generation checks; Core unchanged after permission handoff and not rerun"
+    },
+    "native": {
+      "exit": 0,
+      "cases": 1,
+      "log": "build/qa/ssh-key-import-native-final-2026-10-14.log",
+      "owned_receiver_reaped": 349,
+      "earlier_passing_receiver_reaped": 98163,
+      "no_owned_receiver_remains": true,
+      "notes": "Conversion does not use Git; no duplicate Git-engine run. Final check repeats only affected native handoff after completed Debug build."
+    },
+    "cache": {
+      "ci_tests": 5,
+      "embedding_tests": 6,
+      "exit": 0,
+      "log": "build/qa/ssh-key-import-cache-final-2026-10-14.log",
+      "embedding_log": "build/qa/ssh-key-import-cache-2026-10-14.log"
+    },
+    "store": {
+      "exit": 0,
+      "log": "build/qa/ssh-key-import-store-final-2026-10-14.log",
+      "signed": false
+    },
+    "bundle_audit": {
+      "exit": 0,
+      "log": "build/qa/ssh-key-import-store-audit-2026-10-14.log",
+      "universal_application_targets": 8,
+      "runtime_code_items": 204
+    },
+    "website": {
+      "exit": 0,
+      "log": "build/qa/ssh-key-import-site-final-2026-10-14.log"
+    }
+  },
+  "repairs": [
+    {
+      "logs": [
+        "build/qa/ssh-key-import-build-2026-10-14.log",
+        "build/qa/ssh-key-import-core-2026-10-14.log"
+      ],
+      "reason": "Resolver function with default parameters needed explicit zero-argument closure; no Core tests/native receivers executed"
+    },
+    {
+      "log": "build/qa/ssh-key-import-cache-2026-10-14.log",
+      "reason": "CI naming conventions required lowercase putty Capture/Save step names; embedding cache tests passed and only CI cache group repeated"
+    },
+    {
+      "reason": "Final review found missing output-folder lease handoff; app rebuilt and affected native check repeated. Core conversion tests unchanged."
+    }
+  ],
+  "limits": [
+    "No fresh composed-window screenshots or physical file-panel/popup/VoiceOver certification",
+    "Unsigned universal package and inherited-helper signing recipe do not prove signed sandbox or App Store acceptance",
+    "PPK2/RSA and PPK3/Ed25519 plus encrypted PPK3/OpenSSH tested; every supported algorithm/format is not certified",
+    "Source key remains unchanged; cancellation cannot undo a pair already fully published",
+    "Whole app port, Finder acceptance and current hosted CI remain incomplete"
+  ],
+  "source_sha256": {
+    "Configuration/PuTTYRuntime.json": "93af04014abe6e7e003bfab51734ad33ad73d7ad26b315ca21e24a79e07eb8cc",
+    "Sources/TurtleGitCore/SSHKeyConversion.swift": "db6d0d4675e658f429a9d56cd9bd549c69d475319010fdada1c4856770ceb629",
+    "Sources/TurtleGitCore/SSHIdentityAccess.swift": "26061009e950e5b250c0dbbd9f67d6e06a04e75c1215d70dd565a6dc36b21cbe",
+    "Sources/TurtleGitMac/SSHKeyImportWindow.swift": "843ba2b73dc5a88a24ad42d7657d58c92a94d8d899cd548d89135d7f16158d23",
+    "Sources/TurtleGitMac/SSHKeyGenerationWindow.swift": "aed73f2ff117355641c5f3815550a4f5e941a8fcb46c0f99c063d6bda3fa1578",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "1940d60d94e772b0c4cdfc7c54e889bd005ec1c7aa5a4242823ea32b60057533",
+    "Tests/TurtleGitCoreTests/SSHKeyConversionTests.swift": "de0afcb018fd4030c683c67930c8612dafc64b30d858c7a47e79aaec293f492f",
+    "docs/qa/ssh-key-import-native-2026-10-14.swift": "c85eeb1c9bafcac9b057a57d3a38d5ec404cea83894c55651ab4feca51fb3045",
+    "scripts/build-putty-runtime.py": "cb2e09cb5ccc387ef7b8b9a7a4cb35c09711621f0e97570d22a1e9df4c36c517",
+    "scripts/embed-putty-runtime.py": "317271cecf1a26d417660e00113794c99cbfca56a0a6e64940d528d5189f174f",
+    "scripts/validate-putty-runtime.py": "c7494b90e36ad748d9bf256551c09aec715153055eb8729ed2fdc057775cd30f",
+    "scripts/embed-app-runtimes.py": "aefb62780593b71621d7c3ed501aa2d613802f5368056756d55d4d6bb169ae28",
+    "scripts/validate-app-bundle.py": "47dc6ab205b7e20187632e8afe1dd26a856f85e619fdf135074edd2d916027c9",
+    "Configuration/CIRuntimeCaches.json": "5b5406771a5e81b1024d1546fac289137a603326045d8922e89fec4b587b312e",
+    ".github/workflows/macos.yml": "c8d0d1a95a7836a2e7b3900e2cff0c789ae4e03264e73f276515bde0f1f2dfc0"
+  }
+}

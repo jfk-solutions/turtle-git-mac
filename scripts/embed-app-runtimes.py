@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parent.parent
 KITS = [
     ('lexilla', 'Lexilla'), ('issue-regex', 'IssueRegex'),
     ('merge-diff', 'MergeDiff'), ('graph-layout', 'GraphLayout'),
-    ('editorconfig', 'EditorConfig'), ('openssh', 'OpenSSH'),
+    ('editorconfig', 'EditorConfig'), ('openssh', 'OpenSSH'), ('putty', 'PuTTY'),
 ]
 
 def fingerprint(paths, follow_roots=False):

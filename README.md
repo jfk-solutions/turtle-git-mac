@@ -59,7 +59,7 @@ swift test
 open build/Build/Products/Debug/TurtleGitMac.app
 ```
 
-The build script prepares the editor, regex, graph and SSH helpers, plus the merge
+The build script prepares the editor, regex, graph, SSH and PuTTY key-conversion helpers, plus the merge
 adapter when the Git/SVN runtime is present, before building the unsigned Debug
 app. The explicit commands above prepare the dependencies for the preceding
 tests. The initial pinned Git/SVN build can take substantially longer than app
@@ -192,7 +192,7 @@ The static site source is `docs/site`; `python3 scripts/build-site.py` builds
 
 GPL v2, matching upstream TortoiseGit; see [LICENSE](LICENSE) and [NOTICE](NOTICE).
 Native builds use Apple's frameworks and embed the pinned EditorConfig,
-issue-matching, OGDF graph-layout and OpenSSH helpers. Development builds can use installed Git; the Store
+issue-matching, OGDF graph-layout, OpenSSH and PuTTY key-conversion helpers. Development builds can use installed Git; the Store
 configuration embeds its pinned Git runtime. Bundled dependencies and original
 artwork are documented in NOTICE and the bundle's license resources.
 Distribution clearance remains incomplete; see [distribution requirements](docs/DISTRIBUTION.md).

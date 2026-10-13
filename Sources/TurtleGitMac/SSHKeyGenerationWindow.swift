@@ -5,6 +5,9 @@ import TurtleGitCore
 
 @MainActor final class SSHKeyGenerationModel: ObservableObject {
     static var activeOperations = 0
+    @Published var childActive=false
+    var active:Bool { !retired }
+    var loadExisting:()->Void={}
     @Published var algorithm: SSHKeyAlgorithm = .ed25519
     @Published var bits = 3072
     @Published var filename = "id_ed25519"
@@ -25,8 +28,9 @@ import TurtleGitCore
         var request = SSHKeyGenerationRequest(destination: folder.appendingPathComponent(filename)); request.algorithm = algorithm; request.bits = bits; request.comment = comment; request.passphrase = passphrase
         return request.valid
     }
+    func hasDestinationAccess(_ file:URL)->Bool { access?.contains(file) == true }
     func chooseFolder() {
-        guard !busy, !retired, let window, window.attachedSheet == nil else { return }
+        guard !busy, !childActive, !retired, let window, window.attachedSheet == nil else { return }
         let panel = NSOpenPanel(); panel.canChooseFiles = false; panel.canChooseDirectories = true; panel.canCreateDirectories = true
         panel.title = "Choose SSH key folder"; panel.prompt = "Choose folder"
         panel.directoryURL = folder ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".ssh", isDirectory: true)
@@ -40,7 +44,7 @@ import TurtleGitCore
         }
     }
     func generate() {
-        guard valid, !busy, !retired, let folder else { return }
+        guard valid, !busy, !childActive, !retired, let folder else { return }
         var request = SSHKeyGenerationRequest(destination: folder.appendingPathComponent(filename))
         request.algorithm = algorithm; request.bits = bits; request.comment = comment; request.passphrase = passphrase
         passphrase = ""; confirmation = ""; result = nil; error = nil; busy = true
@@ -59,16 +63,23 @@ import TurtleGitCore
             } catch { if !retired { self.error = token.isCancelled ? "Key generation cancelled." : error.localizedDescription } }
         }
     }
+    func acceptImported(_ result:SSHKeyGenerationResult,access:RepositoryAccessLease?) {
+        guard !retired,!busy else { return }
+        self.access=access
+        self.result=result;error=nil;folder=result.privateKey.deletingLastPathComponent();filename=result.privateKey.lastPathComponent
+        passphrase="";confirmation=""
+    }
     func cancel() { token?.cancel() }
     func retire() {
         retired = true; token?.cancel(); passphrase = ""; confirmation = ""
         if let panel { window?.endSheet(panel, returnCode: .cancel); panel.orderOut(nil) }; panel = nil
     }
-    func copyPublicKey() { guard let result else { return }; NSPasteboard.general.clearContents(); NSPasteboard.general.setString(result.publicText, forType: .string) }
-    func reveal() { guard let result else { return }; NSWorkspace.shared.activateFileViewerSelecting([result.privateKey, result.publicKey]) }
+    func copyPublicKey() { guard !retired,!busy,!childActive,let result else { return }; NSPasteboard.general.clearContents(); NSPasteboard.general.setString(result.publicText, forType: .string) }
+    func reveal() { guard !retired,!busy,!childActive,let result else { return }; NSWorkspace.shared.activateFileViewerSelecting([result.privateKey, result.publicKey]) }
 }
 @MainActor final class SSHKeyGenerationWindowController: NSWindowController, NSWindowDelegate {
     let model = SSHKeyGenerationModel()
+    private(set) var importController:SSHKeyImportWindowController?
     var onClosed: () -> Void = {}
     init() {
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 690, height: 590), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
@@ -76,12 +87,24 @@ import TurtleGitCore
         window.contentMinSize = .init(width: 660, height: 560)
         window.contentViewController = NSHostingController(rootView: SSHKeyGenerationDialog(model: model))
         super.init(window: window); window.delegate = self; model.window = window; window.center()
+        model.loadExisting={ [weak self] in self?.loadExisting() }
         DialogGeometry.attach(window, identifier: "SSHKeyGenerator")
     }
+    private func loadExisting() {
+        guard model.active,!model.busy,importController == nil,let window,window.attachedSheet == nil else { return }
+        let child=SSHKeyImportWindowController();importController=child;model.childActive=true
+        child.model.imported={ [weak model,weak importedModel=child.model] result in model?.acceptImported(result,access:importedModel?.resultAccess) }
+        child.onClosed={ [weak self,weak child] in
+            guard let self,self.importController === child else { return }
+            self.importController=nil;self.model.childActive=false
+        }
+        if let sheet=child.window { sheet.alphaValue=window.alphaValue;sheet.appearance=window.appearance;window.beginSheet(sheet) }
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && sender.attachedSheet == nil }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && importController == nil && sender.attachedSheet == nil }
     func windowWillClose(_ notification: Notification) {
-        model.retire(); if let window, let parent = window.sheetParent { parent.endSheet(window) }; onClosed()
+        model.retire();importController?.close();importController=nil
+        if let window, let parent = window.sheetParent { parent.endSheet(window) }; onClosed()
     }
 }
 private struct SSHKeyGenerationDialog: View {
@@ -99,14 +122,14 @@ private struct SSHKeyGenerationDialog: View {
                     SecureField("Confirm passphrase:", text: $model.confirmation)
                     Text("An empty passphrase creates an unencrypted private key.").font(.caption).foregroundStyle(.secondary)
                 }.padding(8)
-            }.disabled(model.busy)
+            }.disabled(model.busy || model.childActive)
             GroupBox("Save key pair") {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack { Text(model.folder?.path ?? "Choose a folder…").lineLimit(2).textSelection(.enabled); Spacer(); Button("Browse…", action: model.chooseFolder) }
                     TextField("Private key filename:", text: $model.filename)
                     Text("Public key: " + model.filename + ".pub").font(.caption).foregroundStyle(.secondary)
                 }.padding(8)
-            }.disabled(model.busy)
+            }.disabled(model.busy || model.childActive)
             if let result = model.result {
                 GroupBox("Public key for pasting into your Git server") {
                     VStack(alignment: .leading, spacing: 8) {
@@ -120,8 +143,9 @@ private struct SSHKeyGenerationDialog: View {
             Spacer()
             HStack {
                 if model.busy { ProgressView().controlSize(.small); Text("Generating key…") }
+                Button("Load existing key…",action:model.loadExisting).disabled(model.busy || model.childActive)
                 Spacer()
-                Button("Generate", action: model.generate).keyboardShortcut(.defaultAction).disabled(model.busy || !model.valid)
+                Button("Generate", action: model.generate).keyboardShortcut(.defaultAction).disabled(model.busy || model.childActive || !model.valid)
                 Button(model.busy ? "Cancel generation" : "Close") { if model.busy { model.cancel() } else { model.window?.performClose(nil) } }.keyboardShortcut(.cancelAction)
             }
         }.padding(20)

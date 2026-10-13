@@ -41,6 +41,7 @@
 		18258028C97AA8D019E54469 /* GitProperties.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46967B22CDDBD6B32FA46BCF /* GitProperties.swift */; };
 		1979E37CB9AAE2C56AB7BEE7 /* CommitMessageHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C1E4CB612A126A32276124E /* CommitMessageHistory.swift */; };
 		199556A177703BA9869154D4 /* RepositoryAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0144901E0020C531A5D86FB /* RepositoryAccess.swift */; };
+		1BA28775A9F962B4A6F1D19B /* SSHKeyImportWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72865D9AC73996DD71D1991A /* SSHKeyImportWindow.swift */; };
 		1C3518D6A25C8AF5ED0B0B29 /* SubmoduleSyncWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0939C1284CC5B9339D0C0356 /* SubmoduleSyncWindow.swift */; };
 		1C7C643A9272F36E8A10A307 /* MergeWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 326985003F83908822D7B91E /* MergeWindow.swift */; };
 		1C8614FEC2CFD890B47268BD /* DiffToolPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36D340EDBB3CC101A00E5910 /* DiffToolPreferences.swift */; };
@@ -253,6 +254,7 @@
 		BE010DEA813D0B5A2AB75681 /* IssueTrackerSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 155C3080F23D2A10CD8EC65C /* IssueTrackerSettings.swift */; };
 		BF033D5E29F40CFE9BE7C111 /* GitSVN.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE4D210C98ACAE51849E16C4 /* GitSVN.swift */; };
 		BFC8E11BB21B098D019D0FB7 /* GitRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6DEDC3481F79B1185AE15B3 /* GitRuntime.swift */; };
+		C066D30D4EBBE139C4B0195F /* SSHKeyConversion.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6CAABC1071730FA9E23CCD4 /* SSHKeyConversion.swift */; };
 		C0CB11DFCDE279F6A54841FD /* BlameMenuCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C3A0368920E97DF4AFA1318 /* BlameMenuCommands.swift */; };
 		C0DFDDFC2CEFE1853FEDEA84 /* BisectWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2889759BB2F79152E342606E /* BisectWindow.swift */; };
 		C1A6C3FB8B2C5FBD7C9CCA46 /* ReleaseUpdates.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A930411C5DE9F562E47D41 /* ReleaseUpdates.swift */; };
@@ -593,6 +595,7 @@
 		7147E00D8870E2CB238BAEDD /* ProjectDialogSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectDialogSettings.swift; sourceTree = "<group>"; };
 		71E4D9CD12160681F11F6E2E /* ReleaseUpdateWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReleaseUpdateWindow.swift; sourceTree = "<group>"; };
 		72211FE8450E694C1BC89AB3 /* FormatPatchWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatPatchWindow.swift; sourceTree = "<group>"; };
+		72865D9AC73996DD71D1991A /* SSHKeyImportWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHKeyImportWindow.swift; sourceTree = "<group>"; };
 		73B2D722BCF6A197E0E25D2C /* GitPropertyIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitPropertyIndex.swift; sourceTree = "<group>"; };
 		74246B3AB7101AD7A469BA2E /* SubmoduleProgressOutputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleProgressOutputView.swift; sourceTree = "<group>"; };
 		7428B46131B5378475891E94 /* FileComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileComparison.swift; sourceTree = "<group>"; };
@@ -666,6 +669,7 @@
 		A3DED1F87985F333C460E700 /* StashRestoreWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StashRestoreWindow.swift; sourceTree = "<group>"; };
 		A3F90E32273723C62C5C2E88 /* FinderOverlaySettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderOverlaySettings.swift; sourceTree = "<group>"; };
 		A4DD237526A9AB5C51C92B2B /* ConflictPrompts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConflictPrompts.swift; sourceTree = "<group>"; };
+		A6CAABC1071730FA9E23CCD4 /* SSHKeyConversion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHKeyConversion.swift; sourceTree = "<group>"; };
 		A739DFEF6C8F204FD7139944 /* SubmoduleUpdateProgressWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleUpdateProgressWindow.swift; sourceTree = "<group>"; };
 		A903049DFE6395BCA1EB8078 /* SSHKeyGeneration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHKeyGeneration.swift; sourceTree = "<group>"; };
 		A99F5C3AA9C0220F58B2801A /* RebaseWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RebaseWindow.swift; sourceTree = "<group>"; };
@@ -968,6 +972,7 @@
 				B07F1FB47DC4A875FEE5ECD4 /* SettingsTransaction.swift */,
 				1018E4684A7F74369EE313B3 /* SSHAuthenticationStore.swift */,
 				7D861E87DCA7F3D938BFDF07 /* SSHKeyGenerationWindow.swift */,
+				72865D9AC73996DD71D1991A /* SSHKeyImportWindow.swift */,
 				AE84FD354494653334022AA8 /* SSHKeyPassphraseWindow.swift */,
 				EF2BD443F2E22C1D673BB60C /* SSHTransportCoordinator.swift */,
 				A3DED1F87985F333C460E700 /* StashRestoreWindow.swift */,
@@ -1194,6 +1199,7 @@
 				B448BFA0806C28AEC8AE9126 /* SerialPatch.swift */,
 				1955B87A0E1325E2162C4C37 /* SSHAgentSession.swift */,
 				FFA8ABAE7D9E9C611A3AA3BF /* SSHIdentityAccess.swift */,
+				A6CAABC1071730FA9E23CCD4 /* SSHKeyConversion.swift */,
 				A903049DFE6395BCA1EB8078 /* SSHKeyGeneration.swift */,
 				79BBB2F306958D4D34AFF839 /* SSHTransportPreparation.swift */,
 				83395323FFA0860A52795F9F /* Stash.swift */,
@@ -1711,6 +1717,7 @@
 				B8A7AF9FEA0FB08862822AE4 /* RevisionGraphLayout.swift in Sources */,
 				FC70E4ECEA3F0C2EFA442E19 /* SSHAgentSession.swift in Sources */,
 				1D5A237BEB1F04360AA51C3B /* SSHIdentityAccess.swift in Sources */,
+				C066D30D4EBBE139C4B0195F /* SSHKeyConversion.swift in Sources */,
 				084320672DDAA80261764600 /* SSHKeyGeneration.swift in Sources */,
 				F4564607AA83749B93DC5894 /* SSHTransportPreparation.swift in Sources */,
 				768B7B2B700F618CA924EBDA /* SavedData.swift in Sources */,
@@ -1872,6 +1879,7 @@
 				DB7AFE73DFDDD57C00B36DA3 /* RevisionGraphWindow.swift in Sources */,
 				03FB132957093BAC375BD5BB /* SSHAuthenticationStore.swift in Sources */,
 				03EB74C07B887765C564C04D /* SSHKeyGenerationWindow.swift in Sources */,
+				1BA28775A9F962B4A6F1D19B /* SSHKeyImportWindow.swift in Sources */,
 				DF0CD2448F2B8812C9593D7E /* SSHKeyPassphraseWindow.swift in Sources */,
 				25FA6351F250E4932AC95E73 /* SSHTransportCoordinator.swift in Sources */,
 				09618E8B4C40787E3C4DB1F1 /* SVNWindow.swift in Sources */,

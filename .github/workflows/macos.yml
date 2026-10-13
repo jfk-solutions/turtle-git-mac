@@ -160,6 +160,26 @@ jobs:
         with:
           path: build/openssh-runtime/OpenSSH
           key: ${{ steps.openssh-cache.outputs.cache-primary-key }}
+      - name: Capture putty runtime cache key
+        id: putty-key
+        run: python3 scripts/ci-runtime-cache-key.py putty --toolchain '${{ steps.toolchain.outputs.fingerprint }}' --runner '${{ runner.os }}-${{ runner.arch }}' >> "$GITHUB_OUTPUT"
+      - name: Restore exact PuTTY key converter
+        id: putty-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: build/putty-runtime/PuTTY
+          key: ${{ steps.putty-key.outputs.key }}
+      - name: Build pinned universal PuTTY key converter
+        if: steps.putty-cache.outputs.cache-hit != 'true'
+        run: python3 scripts/build-putty-runtime.py
+      - name: Validate prepared or restored PuTTY runtime
+        run: python3 scripts/validate-putty-runtime.py build/putty-runtime/PuTTY
+      - name: Save validated putty runtime
+        if: steps.putty-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: build/putty-runtime/PuTTY
+          key: ${{ steps.putty-cache.outputs.cache-primary-key }}
       - name: Verify OpenSSH embedding and both ad-hoc signing branches
         run: python3 scripts/test-openssh-embedding.py
       - uses: actions/download-artifact@v4

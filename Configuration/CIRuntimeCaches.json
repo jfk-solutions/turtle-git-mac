@@ -110,5 +110,21 @@
       "scripts/validate-lexilla-runtime.py",
       "build/lexilla-runtime/Lexilla"
     ]
+  },
+  "putty": {
+    "path": "build/putty-runtime/PuTTY",
+    "inputs": [
+      "Configuration/PuTTYRuntime.json",
+      "scripts/build-putty-runtime.py",
+      "scripts/validate-putty-runtime.py",
+      "scripts/pinned_download.py",
+      "scripts/runtime_bundle_layout.py",
+      "scripts/git_lfs_runtime.py"
+    ],
+    "validate": [
+      "python3",
+      "scripts/validate-putty-runtime.py",
+      "build/putty-runtime/PuTTY"
+    ]
   }
 }

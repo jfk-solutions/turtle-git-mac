@@ -63,3 +63,53 @@ partial-write failures and signed sandbox acceptance remain open. Logs and
 limitations are in `qa/authentication-settings-batch-2026-10-11.json`.
 This supersedes the uncompiled/untested statements above. Full-port and inventory
 certification remain unchanged.
+
+## PuTTY/OpenSSH import and key settings batch — October 14, 2026
+
+The key generator now owns a Load existing key window, replacing the previous
+PuTTY-key rejection dead end. The pinned TortoiseGitPlink version header identifies
+PuTTY 0.84; TurtleGit packages that release's unmodified puttygen CLI for macOS 13
+arm64 and Intel, with its permissive licence and reconstructable source archive.
+The native UI supplies loading, current passphrase, optional new passphrase and
+comment, destination folder/filename, public key/fingerprint, Copy and Finder.
+
+PPK 2/3 and PuTTY-supported OpenSSH private keys are converted to the new OpenSSH
+format. Existing encryption is retained unless Change passphrase is selected;
+an explicitly empty new passphrase removes encryption. The selected source key
+is never modified. A bounded regular-file snapshot is used for conversion.
+Passphrases stay out of argv and environment values; private temporary files
+inside a 0700 output staging directory supply them to PuTTYgen and are removed
+on success, failure and cancellation. Secure UI fields clear when work starts.
+
+Complete private/public files publish through exclusive same-volume links, with
+0600/0644 permissions and inode-checked rollback if publishing the public half
+fails. Existing files or symlinks are refused. Wrong phrases or malformed input
+produce a bounded generic error without displaying key material or converter
+logs. Fingerprinting reads only public key data. Conversion is cancellable and
+holds both source/destination leases through settlement.
+
+The generator owns its import sheet and blocks competing generation/folder
+requests and ordinary parent close. Forced closure cancels owned conversion and
+file panels, clears secret fields and rejects late callbacks. Quit stays blocked
+until its owned child exits. Converted keys can be selected by the existing
+Remote/Network key-file controls; source PuTTY paths remain valid configuration
+for Windows consumers. No key is enrolled in an agent or configured silently.
+
+Debug/Store embedding, inherited helper signing, cache pins, source reconstruction
+and bundle validators include PuTTY. Eight focused Core checks passed, including
+PPK 2/3 with RSA/Ed25519, encrypted import and actual OpenSSH-agent loading,
+passphrase/comment changes, malformed input, collision/symlink refusal and cleanup.
+The native receiver passed real encrypted conversion, secure-field clearing,
+retained drafts, result ownership, cancelled live helpers, closed parent/child and
+Quit settlement. The output-folder lease is handed back with the imported result
+and retained after the import child closes. The affected native check passed
+again after that handoff was repaired; Core was unchanged and not rerun.
+
+The final Debug and unsigned universal Store builds passed. The distribution
+bundle audit verified all eight universal app targets, 204 relocated runtime code
+items, the pinned PuTTY helper and its source/licence records. Cache integrity
+checks and the documentation build passed. All owned native receivers were reaped.
+See
+[batch evidence](qa/ssh-key-import-2026-10-14.json). Physical panels/layout/accessibility,
+signed sandbox invocation, all key algorithms/formats and full PuTTYgen utility
+parity remain open.

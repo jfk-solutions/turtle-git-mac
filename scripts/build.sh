@@ -5,6 +5,7 @@ python3 scripts/build-editorconfig-runtime.py
 python3 scripts/build-issue-regex-runtime.py
 python3 scripts/build-graph-layout-runtime.py
 python3 scripts/build-openssh-runtime.py
+python3 scripts/build-putty-runtime.py
 if [ -d build/git-runtime/Git/libexec/git-svn-runtime ]; then
   python3 scripts/build-merge-diff-runtime.py
 fi
