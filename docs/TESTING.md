@@ -1507,3 +1507,10 @@ failure among 1,149 tests. The original hook asset is grayscale at all four size
 the expectation now includes settingsHooks and names the icon on failure. The
 three focused MenuIconTests passed; a new complete hosted pass remains unproven.
 See `qa/hook-icon-ci-2026-10-13.json`.
+
+Watched-repository management reuses the private permission store and shared
+publication store. The native `finder-watches` case verifies saved-root relaunch,
+real event updates, moved bookmark renewal, remove/late reply fencing, scope
+release and owned read cancellation on shutdown with private bookmarks/cache.
+Its optional capture case uses an owned host for the production settings page;
+simulated bookmark grants and screenshots do not establish signed Finder access.

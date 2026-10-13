@@ -38,6 +38,20 @@ final class RepositoryAccessTests: XCTestCase {
         XCTAssertTrue(try RepositoryAccessStore(storageURL: storage, provider: provider).repositories.isEmpty)
         XCTAssertTrue(FileManager.default.fileExists(atPath: repository.path))
     }
+    func testReplacementKeepsIdentityAndRejectsDuplicateWithoutChangingStore() throws {
+        let (folder,url)=try fixture();defer { try? FileManager.default.removeItem(at:folder) }
+        let provider=TestBookmarks(),store=try RepositoryAccessStore(storageURL:url,provider:provider)
+        let a=folder.appendingPathComponent("a"),b=folder.appendingPathComponent("b"),moved=folder.appendingPathComponent("moved")
+        let first=try store.remember(a),second=try store.remember(b)
+        let replaced=try store.replace(first.id,with:moved)
+        XCTAssertEqual(replaced.id,first.id);XCTAssertEqual(replaced.lastKnownPath,moved.path)
+        let before=try Data(contentsOf:url)
+        XCTAssertThrowsError(try store.replace(first.id,with:b));XCTAssertEqual(before,try Data(contentsOf:url))
+        let reopened=try RepositoryAccessStore(storageURL:url,provider:provider)
+        XCTAssertEqual(Set(reopened.repositories.map(\.id)),[first.id,second.id])
+        XCTAssertEqual(try reopened.acquire(first.id).url.path,moved.path)
+    }
+
     func testScopeHeldThroughSessionAndBalancedOnRelease() throws {
         let (folder, storage) = try fixture(); defer { try? FileManager.default.removeItem(at: folder) }
         let provider = TestBookmarks(), store = try RepositoryAccessStore(storageURL: storage, provider: provider)

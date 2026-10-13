@@ -177,11 +177,13 @@ import TurtleGitCore
     private let snapshotWriter:(@Sendable (FinderSnapshot) throws -> Bool)?
     private let snapshotStore:FinderSnapshotStore?
     var notifyFinder:()->Void = { DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderIntegration.notification),object:nil) }
+    private(set) var finderWatches:FinderWatchManager?
     private let monitoringEnabled:Bool
     private var fileMonitor:RepositoryFileEventMonitor?
     private var eventRefresh:RepositoryEventRefresh?
     private var watchIdentity=UUID()
     private var watchPaths:[URL]=[]
+    func stopMonitoringForTermination() { stopFileMonitoring() }
     private func stopFileMonitoring() {
         watchIdentity=UUID();fileMonitor?.stop();fileMonitor=nil;watchPaths=[];eventRefresh?.retire();eventRefresh=nil
     }
@@ -233,11 +235,14 @@ import TurtleGitCore
         return eligible && (!action.ignoresByExtension || selected.contains { !($0.path as NSString).pathExtension.isEmpty })
     }
 
-    init(startMonitoring: Bool = true,initializePreferences:Bool = true,repositoryFactory:((URL) throws -> GitRepository)? = nil,snapshotWriter:(@Sendable (FinderSnapshot) throws -> Bool)? = nil,snapshotStore:FinderSnapshotStore? = nil) {
+    init(startMonitoring: Bool = true,initializePreferences:Bool = true,repositoryFactory:((URL) throws -> GitRepository)? = nil,snapshotWriter:(@Sendable (FinderSnapshot) throws -> Bool)? = nil,snapshotStore:FinderSnapshotStore? = nil,finderWatches:FinderWatchManager? = nil) {
+        self.finderWatches=finderWatches
         self.repositoryFactory=repositoryFactory;self.snapshotWriter=snapshotWriter
         self.snapshotStore=snapshotStore ?? FinderIntegration.snapshotURL.map { FinderSnapshotStore(url:$0) }
         monitoringEnabled=startMonitoring
         guard startMonitoring && initializePreferences else { return }
+        do { if self.finderWatches==nil { self.finderWatches=try FinderWatchManager.production() };self.finderWatches?.restore() }
+        catch { finderStatus="Watched repositories unavailable: "+error.localizedDescription }
         do { _ = try FinderMenuSettings.from().write() }
         catch { finderStatus = "Finder menu preferences unavailable: " + error.localizedDescription }
         do { _ = try FinderOverlaySettings.from().write() }

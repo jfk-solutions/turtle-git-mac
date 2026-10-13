@@ -1,0 +1,88 @@
+{
+  "date": "2026-10-13",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Persistent app-private watched-root bookmarks and startup restoration",
+    "Event-driven refresh while app is running, independent of workspace selection",
+    "Native Add/Remove/Refresh/Renew management page and scope-held sessions",
+    "Moved bookmark cleanup, cancellation/late reply fencing and asynchronous Quit"
+  ],
+  "adaptation": "Finder Sync explicit watched-directory management; supplemental macOS page, not a reproduced Windows dialog.",
+  "validation": {
+    "initial_build_failure": "Empty dictionary literal typo in retirement; fixed before checks.",
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/finder-watches-build-final3-2026-10-13.log",
+      "notes": "Existing warnings; not a clean-log claim."
+    },
+    "core": {
+      "exit": 0,
+      "tests": 15,
+      "scope": "RepositoryAccessTests and FinderPublicationTests",
+      "log": "build/qa/finder-watches-core-final-2026-10-13.log"
+    },
+    "native": {
+      "state": "passed",
+      "initial_compile_failure": "Fixture lacked SwiftUI import for NSHostingController; no receiver/app was started.",
+      "initial_log": "build/qa/finder-watches-native-2026-10-13.log",
+      "exit": 0,
+      "cases": 4,
+      "engines": [
+        "system Git",
+        "packaged Git"
+      ],
+      "final_log": "build/qa/finder-watches-native-final-2026-10-13.log",
+      "owned_receivers_reaped": [
+        25943,
+        26072,
+        26157,
+        26287
+      ],
+      "independently_absent": true,
+      "scope": "Watch management plus publication; simulated bookmark grants, actual Git/events/process cancellation and private files.",
+      "affected_followup": {
+        "exit": 0,
+        "cases": 4,
+        "log": "build/qa/finder-watches-affected-final-2026-10-13.log",
+        "owned_receivers_reaped": [
+          27529,
+          27658,
+          27794,
+          27923
+        ],
+        "independently_absent": true,
+        "scope": "Watch cases on both engines and captures after correcting the duplicate-watch message; no Core/publication rerun."
+      }
+    },
+    "captures": {
+      "exit": 0,
+      "initial_host_failure": "Hosting controller reset the window to minimum width; initial clipped captures were not published. Fixture now sets content size after host installation.",
+      "initial_receivers_reaped": [
+        26398,
+        26608
+      ],
+      "review": "Both final 1800x1064 captures individually inspected: three columns, buttons, original artwork, updated colors and correct duplicate-watch feedback. Owned QA host, simulated grants; not full Settings/Finder visual acceptance.",
+      "sha256": {
+        "light": "0ebb443f8fbcdee0c139371b1281d0c2e9eb75b89434e2971acdb3ded9d37dcf",
+        "dark": "6aa0b7ae7f0578a7c40e87bad05dab48674739e2229f5846730affd751600df3"
+      }
+    },
+    "appstore": "Deferred to independent cache-service packaging/entitlement batch; no new target or entitlement here.",
+    "website": {
+      "exit": 0,
+      "output": "build/site"
+    }
+  },
+  "limits": [
+    "No independent login/cache process; watches run while the app is running",
+    "Simulated bookmark/scope checks do not prove signed sandbox or physical Finder activation",
+    "Extra grants for linked administration outside a selected root and full volume relocation acceptance remain open",
+    "Management actions take effect immediately; Settings Cancel does not roll them back"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitMac/FinderWatchedRepositories.swift": "3f20eab060764ac7dce3a2c0e761bb5166685a010b599ed5608208c71f279878",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "2b765a6f4d1e06a147b3e7bbafecf6aab21fa16eb1f293dfb406e41a89479600",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "6fda347ec3ae5137a6deef62e0b6a92195c4ebd8686f122f7233057a2fa3e3a8",
+    "Sources/TurtleGitCore/RepositoryAccess.swift": "5147dc2f0fbeb32a76c2a6e5c88114ac0430dd76a3fac4685572292e09d24818"
+  }
+}

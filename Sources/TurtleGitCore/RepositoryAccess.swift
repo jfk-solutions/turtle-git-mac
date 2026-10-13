@@ -125,11 +125,12 @@ public final class RepositoryAccessStore {
         try persist(updated)
         return saved
     }
-    public func acquire(_ id: UUID, requireSecurityScope: Bool = false) throws -> RepositoryAccessLease {
+    public func acquire(_ id: UUID, requireSecurityScope: Bool = false, updatingRecord:Bool = true) throws -> RepositoryAccessLease {
         guard let index = repositories.firstIndex(where: { $0.id == id }) else { throw RepositoryAccessFailure.unknownRepository }
         let resolved = try provider.resolve(repositories[index].bookmark)
         let lease = RepositoryAccessLease(url: resolved.url, provider: provider)
         if requireSecurityScope && !lease.hasSecurityScope { throw RepositoryAccessFailure.securityScopeUnavailable }
+        guard updatingRecord else { return lease }
         var updated = repositories
         if resolved.stale { updated[index].bookmark = try provider.create(for: resolved.url) }
         updated[index].lastKnownPath = resolved.url.standardizedFileURL.resolvingSymlinksInPath().path
@@ -138,6 +139,13 @@ public final class RepositoryAccessStore {
         let entry = updated.remove(at: index); updated.insert(entry, at: 0)
         try persist(updated)
         return lease
+    }
+    @discardableResult public func replace(_ id:UUID,with url:URL) throws -> SavedRepository {
+        guard repositories.contains(where:{ $0.id==id }) else { throw RepositoryAccessFailure.unknownRepository }
+        let path=url.standardizedFileURL.resolvingSymlinksInPath().path
+        guard !repositories.contains(where:{ $0.id != id && $0.lastKnownPath==path }) else { throw GitConfigurationFailure.invalidValue }
+        let value=SavedRepository(id:id,name:url.lastPathComponent,lastKnownPath:path,bookmark:try provider.create(for:url),lastOpened:Date())
+        try persist([value]+repositories.filter { $0.id != id });return value
     }
     public func forget(_ id: UUID) throws { try persist(repositories.filter { $0.id != id }) }
 }

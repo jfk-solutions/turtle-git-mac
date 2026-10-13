@@ -4,7 +4,7 @@ import AppKit
     weak var repositoryModel: RepositoryModel?
     private var confirmingQuit = false
     var replyToTermination: (NSApplication, Bool) -> Void = { $0.reply(toApplicationShouldTerminate: $1) }
-    func applicationWillTerminate(_ notification: Notification) { HistoricalPreviewFiles.discardAll(); RepositoryBrowserExportFiles.discardAll(); UnifiedDiffPreviewFiles.discardAll(); GitConfigurationPreviewFiles.discardAll(); DiffToolApplication.discardAll(); MergeToolApplication.discardAll() }
+    func applicationWillTerminate(_ notification: Notification) { repositoryModel?.stopMonitoringForTermination(); repositoryModel?.finderWatches?.retire(); HistoricalPreviewFiles.discardAll(); RepositoryBrowserExportFiles.discardAll(); UnifiedDiffPreviewFiles.discardAll(); GitConfigurationPreviewFiles.discardAll(); DiffToolApplication.discardAll(); MergeToolApplication.discardAll() }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         if RepositoryBrowserWindowModel.activeOperations > 0 { return .terminateCancel }
         if BlameWindowModel.activeSyntaxRequests > 0 { return .terminateCancel }
@@ -97,7 +97,7 @@ import AppKit
         let fileComparisons = sender.windows.compactMap { $0.delegate as? FileComparisonWindowController }
         let progress = sender.windows.compactMap { $0.delegate as? RevertProgressWindowController }
         guard !adds.contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }), !addProgress.contains(where: { $0.model.busy }), !browsers.contains(where: { $0.model.mutating }), !fileComparisons.contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }), !submoduleDiffs.contains(where: { $0.model.busy }), !comparisons.contains(where: { $0.model.busy || $0.model.patchWindow?.model.busy == true || $0.model.unifiedWindows.values.contains(where: { $0.model.busy }) }), !updates.contains(where: { $0.model.busy }), !progress.contains(where: { $0.model.busy }), !reverts.contains(where: { $0.model.busy }), !commits.contains(where: { $0.model.busy }), repositoryModel?.busy != true, !controllers.contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }) else { return .terminateCancel }
-        guard !imports.isEmpty || !commits.isEmpty || controllers.contains(where: { $0.model.dirty }) || fileComparisons.contains(where: { $0.model.dirty }) || reviews.contains(where: { $0.model.dirty }) else { return .terminateNow }
+        guard !imports.isEmpty || !commits.isEmpty || controllers.contains(where: { $0.model.dirty }) || fileComparisons.contains(where: { $0.model.dirty }) || reviews.contains(where: { $0.model.dirty }) else { return finishBackgroundWatches(sender) }
         confirmingQuit = true
         for controller in lfsLocks { controller.model.confirmingQuit = true }
         for controller in statuses { controller.model.confirmingQuit = true }
@@ -185,9 +185,20 @@ import AppKit
             for controller in reviews { controller.setQuitConfirmation(false) }
             for controller in lfsLocks { controller.model.confirmingQuit = false }
             for controller in statuses { controller.model.confirmingQuit = false }
+            if allowQuit { repositoryModel?.stopMonitoringForTermination();await repositoryModel?.finderWatches?.shutdown() }
             confirmingQuit = false
             replyToTermination(sender, allowQuit)
         }
         return .terminateLater
     }
+    private func finishBackgroundWatches(_ sender:NSApplication) -> NSApplication.TerminateReply {
+        repositoryModel?.stopMonitoringForTermination()
+        guard let manager=repositoryModel?.finderWatches else { return .terminateNow }
+        let pending=manager.pendingOperations;manager.retire()
+        guard pending>0 else { return .terminateNow }
+        confirmingQuit=true
+        Task { await manager.shutdown();confirmingQuit=false;replyToTermination(sender,true) }
+        return .terminateLater
+    }
+
 }

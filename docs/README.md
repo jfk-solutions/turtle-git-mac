@@ -213,3 +213,5 @@ are not recursively audited.
 - [Cancellable Finder cache collector](FINDER-COLLECTOR-PARITY.md)
 
 - [Shared Finder snapshot publication](FINDER-PUBLICATION-PARITY.md)
+
+- [Persistent watched repositories](FINDER-WATCHED-ROOTS-PARITY.md)

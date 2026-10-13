@@ -8,7 +8,7 @@ import Combine
 /// Pending pages are tracked in the inventory, rather than shown as empty panes.
 enum SettingsPageID: String {
     case general, dialogs, dialogs2, dialogs3, colors1, colors2, colors3, commit, alternativeEditor, git, remote, email, diff
-    case hooks, issueTracker, credential, network, contextMenu, contextMenu2, overlays, overlayHandlers, overlayIcons, mergeTool, mergeEditor, mergeColors, savedData, blame, unifiedDiff, advanced
+    case hooks, issueTracker, credential, network, contextMenu, contextMenu2, overlays, overlayHandlers, overlayIcons, watchedRepositories, mergeTool, mergeEditor, mergeColors, savedData, blame, unifiedDiff, advanced
     var applyOrder: Int { let pages: [SettingsPageID] = [.general, .contextMenu, .contextMenu2, .dialogs, .dialogs2, .dialogs3, .colors1, .colors2, .colors3, .commit, .alternativeEditor, .overlays, .overlayHandlers, .overlayIcons, .git, .remote, .hooks, .issueTracker, .credential, .network, .email, .diff, .mergeTool, .mergeEditor, .mergeColors, .savedData, .blame, .unifiedDiff, .advanced]; return pages.firstIndex(of: self)! }
 }
 private final class SettingsPageNode: NSObject {
@@ -96,7 +96,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         transaction.window = window
         window.title = globalOnly ? "Global Settings – TurtleGit for Mac" : "Settings – TurtleGit for Mac"
     }
-    var canDismiss: Bool { !emailDraft.busy && !transaction.busy && remote?.busy != true && remote?.hasChild != true && GitConfigurationSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSaves == 0 && NetworkSettingsModel.activeSaves == 0 && IssueTrackerSettingsModel.activeSaves == 0 && HookSettingsModel.activeSaves == 0 && view.window?.attachedSheet == nil }
+    var canDismiss: Bool { workspace.finderWatches?.busy != true && !emailDraft.busy && !transaction.busy && remote?.busy != true && remote?.hasChild != true && GitConfigurationSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSaves == 0 && NetworkSettingsModel.activeSaves == 0 && IssueTrackerSettingsModel.activeSaves == 0 && HookSettingsModel.activeSaves == 0 && view.window?.attachedSheet == nil }
     func updateRepository() {
         guard !globalOnly, isViewLoaded, workspace.root?.path != repositoryPath else { return }
         // A captured Remote model belongs to the repository that created it.
@@ -131,7 +131,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
             SettingsPageNode(.git, "Git", .settingsGit, children: (globalOnly || workspace.root == nil ? [] : [SettingsPageNode(.remote, "Remote", .settingsRemote)]) + [SettingsPageNode(.credential, "Credential", .settingsCredential)]),
             SettingsPageNode(.hooks, "Hook Scripts", .settingsHooks, children: [SettingsPageNode(.issueTracker, "Issue Tracker Config", .settingsIssueTracker)]),
             SettingsPageNode(.network, "Network", .settingsNetwork),
-            SettingsPageNode(.overlays, "Icon Overlays", .settingsOverlays, children: [SettingsPageNode(.overlayIcons, "Icon Set", .settingsOverlays), SettingsPageNode(.overlayHandlers, "Overlay Handlers", .settingsOverlays)]),
+            SettingsPageNode(.overlays, "Icon Overlays", .settingsOverlays, children: [SettingsPageNode(.overlayIcons, "Icon Set", .settingsOverlays), SettingsPageNode(.overlayHandlers, "Overlay Handlers", .settingsOverlays), SettingsPageNode(.watchedRepositories, "Watched Repositories", .repositoryBrowser)]),
             SettingsPageNode(.email, "Email", .sendMail),
             SettingsPageNode(.diff, "Diff Viewer", .compare, children: [SettingsPageNode(.mergeTool, "Merge Tool", .merge), SettingsPageNode(.mergeEditor, "Merge Editor", .merge, children: [SettingsPageNode(.mergeColors, "Colors", .settingsColors)])]),
             SettingsPageNode(.savedData, "Saved Data", .settingsSavedData), SettingsPageNode(.blame, "TortoiseGitBlame", .blame),
@@ -181,6 +181,9 @@ struct SettingsNavigation: NSViewControllerRepresentable {
             case .network:
                 guard let context = try? workspace.gitConfigurationContext(globalOnly: globalOnly) else { return }
                 controller = host(NetworkSettingsPage(model: NetworkSettingsModel(repository: context.repository, access: context.access, localAvailable: context.localAvailable)))
+            case .watchedRepositories:
+                if let manager=workspace.finderWatches { controller=host(FinderWatchedRepositoriesPage(manager:manager)) }
+                else { controller=host(Text("Watched repositories are unavailable.").padding(20)) }
             case .overlays: controller = host(FinderOverlaySettingsPage(model: overlayDraft))
             case .overlayHandlers: controller = host(FinderOverlaySettingsPage(model: overlayDraft, handlersOnly: true))
             case .overlayIcons: controller = host(FinderOverlaySettingsPage(model: overlayDraft, iconsOnly: true))
