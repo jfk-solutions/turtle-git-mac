@@ -340,3 +340,29 @@ and selected stash-row Pop/List. It fabricates the Merge marker and temporary
 configuration in a disposable real repository and removes/restores its test
 refs. It does not fetch from a network or pop a stash through these callbacks.
 Activated dialogs and root completion refresh still need displayed acceptance.
+
+## Owned cancellation and recovery — 2026-10-13
+
+The native Bisect family now owns a cancellation token for initial repository
+queries, Start, Good/Bad/Skip/Reset and the explicitly approved Stash. Closing a
+busy window requests cancellation and keeps it open until the owned work settles.
+Its footer exposes Cancel and a pending Cancelling state. The original captured
+Good/Bad revisions are retained across the stash decision and Start sequence.
+
+A cancelled command can leave Git’s bisect session active. The live window reads
+actual state using a fresh owned recovery token and offers Reset; it does not
+implicitly reset, apply a stash or claim remote/local changes were undone.
+Cancellation during revision resolution stays a cancellation error. Replay
+conflicts are checked through cancellable Git metadata paths.
+
+Forced closure retires the model, cancels its child, resolves its stash decision
+once, closes an owned revision picker and refuses subsequent UI publications,
+callbacks or dispatch. Active operation accounting survives retirement until
+children and recovery queries finish, blocking Quit even after the window goes
+away. Duplicate pickers and commands behind a picker are refused.
+
+Seven Core tests, two grouped native cases across system and bundled Git, Debug
+compilation and two documentation tests passed. All owned test processes were
+reaped. See [dated lifecycle QA](qa/bisect-lifecycle-2026-10-13.json).
+Physical Cancel/stash/picker keyboard acceptance, full progress presentation,
+all Git checkout-hook behavior and signed Finder/App Store execution remain open.

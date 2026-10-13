@@ -43,63 +43,73 @@ public enum BisectFailure: LocalizedError {
     }
 }
 extension GitRepository {
-    private func bisectPath(_ name: String) throws -> URL {
-        var bytes = try run(["rev-parse", "--git-path", name]).stdout
+    private func bisectReplayActive(cancellation: OperationCancellation?) throws -> Bool {
+        for name in ["rebase-merge", "rebase-apply"] {
+            if FileManager.default.fileExists(atPath: try bisectPath(name, cancellation: cancellation).path) { return true }
+        }
+        return false
+    }
+    private func bisectPath(_ name: String, cancellation: OperationCancellation? = nil) throws -> URL {
+        var bytes = try run(["rev-parse", "--git-path", name], cancellation: cancellation).stdout
         if bytes.last == 10 { bytes.removeLast() }
         let path = String(decoding: bytes, as: UTF8.self)
         return path.hasPrefix("/") ? URL(fileURLWithPath: path) : root.appendingPathComponent(path)
     }
-    public func bisectState() throws -> BisectState {
-        func read(_ name: String) throws -> String { (try? String(contentsOf: bisectPath(name), encoding: .utf8)) ?? "" }
-        let active = FileManager.default.fileExists(atPath: try bisectPath("BISECT_START").path)
-        let head = try run(["rev-parse", "--verify", "HEAD"]).text.trimmingCharacters(in: .newlines)
+    public func bisectState(cancellation: OperationCancellation? = nil) throws -> BisectState {
+        func read(_ name: String) throws -> String {
+            let path = try bisectPath(name, cancellation: cancellation)
+            let text = (try? String(contentsOf: path, encoding: .utf8)) ?? ""
+            try cancellation?.check(); return text
+        }
+        let active = FileManager.default.fileExists(atPath: try bisectPath("BISECT_START", cancellation: cancellation).path)
+        let head = try run(["rev-parse", "--verify", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
         let terms = try read("BISECT_TERMS").split(separator: "\n").map(String.init)
         // Git writes the bad term first, then the good term.
         return BisectState(active: active, originalRevision: try read("BISECT_START").trimmingCharacters(in: .newlines), head: head,
                            goodTerm: terms.count == 2 ? terms[1] : "good", badTerm: terms.count == 2 ? terms[0] : "bad", log: active ? try read("BISECT_LOG") : "")
     }
-    private func bisectCommit(_ revision: String) throws -> String {
+    private func bisectCommit(_ revision: String, cancellation: OperationCancellation? = nil) throws -> String {
         guard !revision.isEmpty, !revision.contains("\0") else { throw BisectFailure.revision }
-        do { return try run(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"]).text.trimmingCharacters(in: .newlines) }
-        catch { throw BisectFailure.revision }
+        do { return try run(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) }
+        catch { try cancellation?.check(); throw BisectFailure.revision }
     }
     /// The native Stash/Abort prompt calls this only after explicit Stash.
-    public func stashBeforeBisect() throws -> StashSaveResult {
-        guard try !isBare() else { throw BisectFailure.workingTree }
-        guard try !bisectState().active, try !logMergeActive(), try !rebaseState().active,
-              try !FileManager.default.fileExists(atPath: bisectPath("CHERRY_PICK_HEAD").path),
-              try !FileManager.default.fileExists(atPath: bisectPath("REVERT_HEAD").path) else { throw BisectFailure.active }
-        return try saveStash(StashSaveOptions())
+    public func stashBeforeBisect(cancellation: OperationCancellation? = nil) throws -> StashSaveResult {
+        guard try !isBare(cancellation: cancellation) else { throw BisectFailure.workingTree }
+        guard try !bisectState(cancellation: cancellation).active, try !logMergeActive(cancellation: cancellation), try !bisectReplayActive(cancellation: cancellation),
+              try !FileManager.default.fileExists(atPath: bisectPath("CHERRY_PICK_HEAD", cancellation: cancellation).path),
+              try !FileManager.default.fileExists(atPath: bisectPath("REVERT_HEAD", cancellation: cancellation).path) else { throw BisectFailure.active }
+        return try saveStash(StashSaveOptions(), cancellation: cancellation)
     }
     /// Like upstream, run Start, Good, Bad in order. A checkout failure leaves
     /// Git's active session recoverable through Reset instead of hiding it.
-    public func startBisect(good: String, bad: String) throws -> BisectExecution {
-        guard try !isBare() else { throw BisectFailure.workingTree }
-        guard try !bisectState().active, try !logMergeActive(), try !rebaseState().active,
-              try !FileManager.default.fileExists(atPath: bisectPath("CHERRY_PICK_HEAD").path),
-              try !FileManager.default.fileExists(atPath: bisectPath("REVERT_HEAD").path) else { throw BisectFailure.active }
-        let goodHash = try bisectCommit(good), badHash = try bisectCommit(bad)
-        guard try run(["diff", "--quiet", "--"], successfulExitCodes: 0...1).exitCode == 0,
-              try run(["diff", "--cached", "--quiet", "--"], successfulExitCodes: 0...1).exitCode == 0 else { throw BisectFailure.dirty }
+    public func startBisect(good: String, bad: String, cancellation: OperationCancellation? = nil) throws -> BisectExecution {
+        guard try !isBare(cancellation: cancellation) else { throw BisectFailure.workingTree }
+        guard try !bisectState(cancellation: cancellation).active, try !logMergeActive(cancellation: cancellation), try !bisectReplayActive(cancellation: cancellation),
+              try !FileManager.default.fileExists(atPath: bisectPath("CHERRY_PICK_HEAD", cancellation: cancellation).path),
+              try !FileManager.default.fileExists(atPath: bisectPath("REVERT_HEAD", cancellation: cancellation).path) else { throw BisectFailure.active }
+        let goodHash = try bisectCommit(good, cancellation: cancellation), badHash = try bisectCommit(bad, cancellation: cancellation)
+        guard try run(["diff", "--quiet", "--"], successfulExitCodes: 0...1, cancellation: cancellation).exitCode == 0,
+              try run(["diff", "--cached", "--quiet", "--"], successfulExitCodes: 0...1, cancellation: cancellation).exitCode == 0 else { throw BisectFailure.dirty }
         var output = "", code: Int32 = 0
         for arguments in [["bisect", "start"], ["bisect", "good", goodHash], ["bisect", "bad", badHash]] {
-            let result = try run(arguments, successfulExitCodes: 0...128)
+            let result = try run(arguments, successfulExitCodes: 0...128, cancellation: cancellation)
             output += result.text; code = result.exitCode
             if code != 0 { break }
         }
-        return BisectExecution(output: output, exitCode: code, state: try bisectState())
+        return BisectExecution(output: output, exitCode: code, state: try bisectState(cancellation: cancellation))
     }
     /// Empty revisions means classify the checked-out commit. Good/Bad follow
     /// custom terms from an externally started Git session. Skip uses literal
     /// resolved hashes for every selected revision, without range expansion.
-    public func bisect(_ operation: BisectOperation, revisions: [String] = []) throws -> BisectExecution {
-        guard try !isBare() else { throw BisectFailure.workingTree }
-        let state = try bisectState(); guard state.active else { throw BisectFailure.inactive }
+    public func bisect(_ operation: BisectOperation, revisions: [String] = [], cancellation: OperationCancellation? = nil) throws -> BisectExecution {
+        guard try !isBare(cancellation: cancellation) else { throw BisectFailure.workingTree }
+        let state = try bisectState(cancellation: cancellation); guard state.active else { throw BisectFailure.inactive }
         guard operation != .reset || revisions.isEmpty,
               operation == .skip || revisions.count <= 1 else { throw BisectFailure.operation }
-        let hashes = try revisions.map { try bisectCommit($0) }
+        let hashes = try revisions.map { try bisectCommit($0, cancellation: cancellation) }
         let command = operation == .good ? state.goodTerm : operation == .bad ? state.badTerm : operation.rawValue
-        let result = try run(["bisect", command] + hashes, successfulExitCodes: 0...128)
-        return BisectExecution(output: result.text, exitCode: result.exitCode, state: try bisectState())
+        let result = try run(["bisect", command] + hashes, successfulExitCodes: 0...128, cancellation: cancellation)
+        return BisectExecution(output: result.text, exitCode: result.exitCode, state: try bisectState(cancellation: cancellation))
     }
 }

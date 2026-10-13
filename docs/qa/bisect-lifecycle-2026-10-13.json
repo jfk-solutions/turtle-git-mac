@@ -1,0 +1,56 @@
+{
+  "date": "2026-10-13",
+  "reference": {
+    "revision": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "sources": [
+      "src/TortoiseProc/BisectStartDlg.cpp",
+      "src/TortoiseProc/AppUtils.cpp BisectStart/BisectOperation"
+    ]
+  },
+  "scope": [
+    "Cancellable metadata, revision validation and Start/Good/Bad/Skip/Reset/Stash children",
+    "Native pending cancellation and actual state recovery without implicit rollback",
+    "Picker and stash decision ownership, duplicate fences and forced retirement",
+    "Late-result/callback rejection and active accounting retained through child settlement",
+    "Global Quit refusal while retired operations remain active"
+  ],
+  "validation": {
+    "core": {
+      "exit": 0,
+      "tests": 7,
+      "failures": 0,
+      "log": "build/qa/bisect-lifecycle-core-2026-10-13.log",
+      "new_cases": [
+        "Pre-cancelled state/Start/Stash/Reset preserve repository",
+        "Live cancellation between Start commands leaves session recoverable through real Reset"
+      ]
+    },
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/bisect-lifecycle-debug-2026-10-13.log"
+    },
+    "native": {
+      "exit": 0,
+      "cases": 2,
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "log": "build/qa/bisect-lifecycle-native-repaired-2026-10-13.log",
+      "repair": "Fixture entry point adapted to nonthrowing grouped runner and corrected delegate type before behavioral execution. Only native receiver check repeated.",
+      "ownership": "Owned wrappers independently absent after cancelled read/Start and forced retirement; both receiver PIDs reaped. No visible app windows remain."
+    },
+    "documentation": {
+      "exit": 0,
+      "tests": 2,
+      "log": "build/qa/bisect-lifecycle-site-check-2026-10-13.log"
+    }
+  },
+  "pending": [
+    "Physical Cancel/stash/revision-picker keyboard and accessibility acceptance",
+    "Full upstream progress presentation and checkout-hook variants",
+    "Signed Finder handoff and App Store execution",
+    "Full Bisect and application parity"
+  ],
+  "full_port_certified": false
+}

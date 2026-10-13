@@ -2,6 +2,33 @@ import XCTest
 @testable import TurtleGitCore
 
 final class BisectTests: XCTestCase {
+    func testPrecancelledBisectAPIsLeaveSessionAndFilesAlone() async throws {
+        let (root, repo, hashes) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let before = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let token = OperationCancellation(); token.cancel()
+        do { _ = try await repo.bisectState(cancellation: token); XCTFail("Cancelled state accepted") } catch is OperationCancellationFailure {}
+        do { _ = try await repo.startBisect(good: hashes[0], bad: "HEAD", cancellation: token); XCTFail("Cancelled Start accepted") } catch is OperationCancellationFailure {}
+        do { _ = try await repo.stashBeforeBisect(cancellation: token); XCTFail("Cancelled Stash accepted") } catch is OperationCancellationFailure {}
+        do { _ = try await repo.bisect(.reset, cancellation: token); XCTFail("Cancelled Reset accepted") } catch is OperationCancellationFailure {}
+        let after = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let state = try await repo.bisectState()
+        XCTAssertEqual(before, after); XCTAssertFalse(state.active)
+    }
+    func testCancellingStartBetweenCommandsPreservesRecoverableSession() async throws {
+        let (root, real, hashes) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let marker = root.appendingPathComponent("owned-bisect-pid")
+        let wrapper = root.appendingPathComponent("git-cancel-wrapper")
+        try Data("#!/bin/sh\ncase \" $* \" in *' bisect good '*) echo $$ > \"$3/owned-bisect-pid\"; /bin/sleep 30;; esac\nexec /usr/bin/git \"$@\"\n".utf8).write(to: wrapper)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: wrapper.path)
+        let repo = GitRepository(root: root, executable: wrapper, askpass: nil), token = OperationCancellation()
+        let operation = Task { try await repo.startBisect(good: hashes[0], bad: "HEAD", cancellation: token) }
+        for _ in 0..<500 { if FileManager.default.fileExists(atPath: marker.path) { break }; try await Task.sleep(nanoseconds: 10_000_000) }
+        let reached = FileManager.default.fileExists(atPath: marker.path); token.cancel()
+        do { _ = try await operation.value; XCTFail("Cancelled sequence accepted") } catch is GitCommandCancellationFailure {} catch is OperationCancellationFailure {}
+        XCTAssertTrue(reached)
+        let state = try await real.bisectState(); XCTAssertTrue(state.active)
+        let reset = try await real.bisect(.reset); XCTAssertFalse(reset.state.active)
+    }
     private func fixture() async throws -> (URL, GitRepository, [String]) {
         let (root, _, _) = try await GitPatchTests().fixture()
         let executable = URL(fileURLWithPath: ProcessInfo.processInfo.environment["TURTLEGIT_BISECT_TEST_GIT"] ?? "/usr/bin/git")

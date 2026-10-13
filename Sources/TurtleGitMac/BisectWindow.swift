@@ -7,6 +7,9 @@ import TurtleGitCore
     let model: BisectWindowModel
     var onClosed: () -> Void = {}
     private var picker: LogWindowController?
+    private var stashAlert: NSAlert?
+    private var stashReply: ((Bool) -> Void)?
+    private var retired = false
     var activeOperation: Bool { model.busy || window?.attachedSheet != nil }
     init(repository: GitRepository, access: RepositoryAccessLease?, good: String? = nil, bad: String? = nil, operation: BisectOperation? = nil, revisions: [String] = [], requireStart: Bool = false) {
         model = BisectWindowModel(repository: repository, access: access)
@@ -21,32 +24,63 @@ import TurtleGitCore
             if window.contentLayoutRect.height < 440 { window.setContentSize(NSSize(width: max(660, window.contentLayoutRect.width), height: 440)) }
         }
         model.chooseRevision = { [weak self] good in self?.chooseRevision(good: good) }
-        model.confirmStash = { [weak window] in
-            guard let window, window.attachedSheet == nil else { return false }
+        model.cancelPrompt = { [weak self] in self?.finishStash(false) }
+        model.confirmStash = { [weak self, weak window] in
+            guard let self, !self.retired, let window, window.attachedSheet == nil else { return false }
             let alert = NSAlert(); alert.messageText = "Stash local changes before bisect?"
             alert.informativeText = "Bisect checks out revisions. Stash saves your tracked changes; the stash stays available after bisect."
             alert.addButton(withTitle: "Abort"); alert.addButton(withTitle: "Stash")
-            return await withCheckedContinuation { continuation in alert.beginSheetModal(for: window) { continuation.resume(returning: $0 == .alertSecondButtonReturn) } }
+            self.stashAlert = alert
+            return await withCheckedContinuation { continuation in
+                self.stashReply = { continuation.resume(returning: $0) }
+                alert.beginSheetModal(for: window) { [weak self] response in
+                    guard let self, self.stashAlert === alert else { return }
+                    self.finishStash(response == .alertSecondButtonReturn && !self.retired)
+                }
+            }
         }
         model.load(good: good, bad: bad, operation: operation, revisions: revisions, requireStart: requireStart)
 
         DialogGeometry.attach(window, identifier: "BisectWindowController")
     }
     private func chooseRevision(good: Bool) {
-        guard !model.busy, let window, window.attachedSheet == nil else { return }
+        guard !retired, !model.busy, picker == nil, let window, window.attachedSheet == nil else { return }
         let picker = LogWindowController(repository: model.repository, access: model.access, onChoose: { [weak self] entry in
-            self?.picker = nil
-            if let entry { if good { self?.model.good = entry.hash } else { self?.model.bad = entry.hash } }
+            guard let self, !self.retired else { return }
+            self.picker = nil; self.model.hasPicker = false
+            if let entry { if good { self.model.good = entry.hash } else { self.model.bad = entry.hash } }
         })
-        self.picker = picker; let revision = good ? model.good : model.bad; picker.model.endRevision = revision.isEmpty ? nil : revision
+        self.picker = picker; model.hasPicker = true; let revision = good ? model.good : model.bad; picker.model.endRevision = revision.isEmpty ? nil : revision
         picker.model.reload(); if let child = picker.window { window.beginSheet(child) }
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !activeOperation }
-    func windowWillClose(_ notification: Notification) { picker?.close(); picker = nil; onClosed() }
+    private func finishStash(_ accepted: Bool) {
+        let reply = stashReply; stashReply = nil
+        if let alert = stashAlert { stashAlert = nil; if let parent = alert.window.sheetParent { parent.endSheet(alert.window) }; alert.window.orderOut(nil) }
+        reply?(accepted)
+    }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; return !activeOperation }
+    func windowWillClose(_ notification: Notification) {
+        guard !retired else { return }; retired = true; model.retire(); finishStash(false)
+        if let child = picker?.window, child.sheetParent === window { window?.endSheet(child) }
+        picker?.close(); picker = nil; model.hasPicker = false; onClosed()
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
 @MainActor final class BisectWindowModel: ObservableObject {
+    private(set) static var activeOperations = 0
+    private(set) var retired = false
+    private var token: OperationCancellation?
+    @Published private(set) var cancelling = false
+    @Published var hasPicker = false
+    var cancelPrompt: () -> Void = {}
+    func cancel() { guard busy else { return }; cancelling = true; token?.cancel(); cancelPrompt() }
+    func retire() { guard !retired else { return }; retired = true; cancel(); logObservers.removeAll() }
+    private func begin() -> OperationCancellation {
+        let value = OperationCancellation(); token = value; busy = true; cancelling = false; error = nil
+        Self.activeOperations += 1; return value
+    }
+    private func finish() { token = nil; busy = false; cancelling = false; Self.activeOperations -= 1 }
     let repository: GitRepository
     let access: RepositoryAccessLease?
     @Published var good = ""
@@ -79,75 +113,89 @@ import TurtleGitCore
         for observer in logObservers { observer.model?.requestRepositoryRefresh() }
     }
     var onSubmoduleUpdate: (() -> Void)?
-    var canUpdateSubmodules: Bool { !busy && hasSubmodules && lastExitCode == 0 && onSubmoduleUpdate != nil }
+    var canUpdateSubmodules: Bool { !retired && !hasPicker && !busy && hasSubmodules && lastExitCode == 0 && onSubmoduleUpdate != nil }
     func updateSubmodules() { guard canUpdateSubmodules else { return }; onSubmoduleUpdate?() }
-    var canStart: Bool { !busy && state?.active == false && !good.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !bad.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-    func canPerform(_ operation: BisectOperation) -> Bool { !busy && state?.active == true && (operation == .reset || lastExitCode == nil || lastExitCode == 0) }
+    var canStart: Bool { !retired && !hasPicker && !busy && state?.active == false && !good.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !bad.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    func canPerform(_ operation: BisectOperation) -> Bool { !retired && !hasPicker && !busy && state?.active == true && (operation == .reset || lastExitCode == nil || lastExitCode == 0) }
     init(repository: GitRepository, access: RepositoryAccessLease?) { self.repository = repository; self.access = access }
     private func validateAccess() throws {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
+    private func requireLive(_ token: OperationCancellation) throws {
+        if retired || token.isCancelled { throw OperationCancellationFailure.cancelled }
+    }
     func load(good presetGood: String? = nil, bad presetBad: String? = nil, operation: BisectOperation? = nil, revisions: [String] = [], requireStart: Bool = false) {
-        guard !busy else { return }; busy = true; error = nil
+        guard !retired, !hasPicker, !busy else { return }; let token = begin()
         Task {
             do {
                 try validateAccess()
-                guard try await !repository.isBare() else { throw BisectFailure.workingTree }
-                choices = Array(Set(try await repository.checkoutReferences().filter { $0.symbolicTarget == nil }.map(\.label))).sorted { $0.localizedStandardCompare($1) == .orderedAscending }
-                let freshState = try await repository.bisectState(), metadata = try await repository.finderMetadata()
-                state = freshState; hasSubmodules = metadata.hasSubmoduleConfig
+                guard try await !repository.isBare(cancellation: token) else { throw BisectFailure.workingTree }
+                let choices = Array(Set(try await repository.checkoutReferences(cancellation: token).filter { $0.symbolicTarget == nil }.map(\.label))).sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+                let freshState = try await repository.bisectState(cancellation: token)
+                let metadata = try await repository.finderMetadata(cancellation: token)
+                let branch = presetBad == nil && bad.isEmpty ? try await repository.branch(cancellation: token) : ""
+                try requireLive(token)
+                self.choices = choices; state = freshState; hasSubmodules = metadata.hasSubmoduleConfig
                 if freshState.active { if output.isEmpty { output = freshState.log }; onProgress() }
                 if requireStart && (freshState.active || metadata.mergeActive) { throw BisectFailure.active }
                 if operation != nil && !freshState.active { throw BisectFailure.inactive }
                 if let presetGood { good = presetGood }
                 if let presetBad { bad = presetBad }
-                else if bad.isEmpty { let branch = try await repository.branch(); bad = branch.isEmpty ? "HEAD" : branch }
+                else if bad.isEmpty { bad = branch.isEmpty ? "HEAD" : branch }
                 lastExitCode = nil
-            } catch { self.error = error.localizedDescription }
-            busy = false
-            if error == nil, let operation { perform(operation, revisions: revisions) }
+            } catch { if !retired { self.error = error.localizedDescription } }
+            finish()
+            if !retired, !token.isCancelled, error == nil, let operation { perform(operation, revisions: revisions) }
         }
     }
     func start() {
         guard canStart else { return }
         let good = self.good.trimmingCharacters(in: .whitespacesAndNewlines), bad = self.bad.trimmingCharacters(in: .whitespacesAndNewlines)
-        busy = true; error = nil
+        let token = begin()
         Task {
-            defer { busy = false }
+            defer { finish() }
             do {
                 try validateAccess()
                 let result: BisectExecution
-                do { result = try await repository.startBisect(good: good, bad: bad) }
+                do { result = try await repository.startBisect(good: good, bad: bad, cancellation: token) }
                 catch BisectFailure.dirty {
                     guard await confirmStash() else { return }
-                    try validateAccess(); let stash = try await repository.stashBeforeBisect()
-                    output = stash.output; changed(stash.output)
-                    result = try await repository.startBisect(good: good, bad: bad)
+                    try requireLive(token); try validateAccess()
+                    let stash = try await repository.stashBeforeBisect(cancellation: token)
+                    try requireLive(token); output = stash.output; changed(stash.output)
+                    result = try await repository.startBisect(good: good, bad: bad, cancellation: token)
                 }
-                await accept(result)
+                try await accept(result, token: token)
             } catch { await recover(error) }
         }
     }
     func perform(_ operation: BisectOperation, revisions: [String] = []) {
-        guard canPerform(operation) else { return }; busy = true; error = nil
+        guard canPerform(operation) else { return }; let token = begin()
         Task {
-            defer { busy = false }
-            do { try validateAccess(); await accept(try await repository.bisect(operation, revisions: revisions)) }
+            defer { finish() }
+            do { try validateAccess(); try await accept(try await repository.bisect(operation, revisions: revisions, cancellation: token), token: token) }
             catch { await recover(error) }
         }
     }
-    private func accept(_ result: BisectExecution) async {
+    private func accept(_ result: BisectExecution, token: OperationCancellation) async throws {
+        let metadata = try await repository.finderMetadata(cancellation: token)
+        try requireLive(token)
         state = result.state; lastExitCode = result.exitCode; output += result.output
-        // A bisect checkout can add or remove .gitmodules. Upstream queries the
-        // resulting worktree in its post-command callback, not the initial one.
-        hasSubmodules = (try? await repository.finderMetadata().hasSubmoduleConfig) ?? false
+        hasSubmodules = metadata.hasSubmoduleConfig
         onProgress(); changed(result.output)
         if result.exitCode != 0 { error = result.output.isEmpty ? "Bisect failed (\(result.exitCode))." : result.output }
     }
     private func recover(_ failure: Error) async {
-        error = failure.localizedDescription; lastExitCode = 1
-        state = try? await repository.bisectState()
-        hasSubmodules = (try? await repository.finderMetadata().hasSubmoduleConfig) ?? false
+        guard !retired else { return }
+        // Cancellation can leave Git's session active. Read its actual state with
+        // a fresh owned token so Reset remains available; never undo it implicitly.
+        let recovery = OperationCancellation(); token = recovery
+        let recoveredState = try? await repository.bisectState(cancellation: recovery)
+        let metadata = try? await repository.finderMetadata(cancellation: recovery)
+        guard !retired, !recovery.isCancelled else { return }
+        error = failure.localizedDescription; lastExitCode = 1; state = recoveredState
+        hasSubmodules = metadata?.hasSubmoduleConfig ?? false
+        if let cancelled = failure as? GitCommandCancellationFailure { output += cancelled.result.text }
         if state?.active == true { onProgress() }
         changed(failure.localizedDescription)
     }
@@ -177,7 +225,7 @@ private struct BisectDialog: View {
             }
             HStack { if model.busy { ProgressView().controlSize(.small) }; Spacer()
                 if model.state?.active != true { Button("OK") { model.start() }.keyboardShortcut(.defaultAction).disabled(!model.canStart) }
-                Button(model.output.isEmpty ? "Cancel" : "Close") { model.close() }.keyboardShortcut(.cancelAction).disabled(model.busy)
+                Button(model.busy ? (model.cancelling ? "Cancelling…" : "Cancel") : model.output.isEmpty ? "Cancel" : "Close") { if model.busy { model.cancel() } else { model.close() } }.keyboardShortcut(.cancelAction).disabled(model.cancelling || model.hasPicker)
                 Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-bisect.html")!) }
             }
         }.padding(16)
