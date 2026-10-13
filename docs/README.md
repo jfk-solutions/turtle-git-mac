@@ -217,3 +217,5 @@ are not recursively audited.
 - [Persistent watched repositories](FINDER-WATCHED-ROOTS-PARITY.md)
 
 - [Private cache-service permission handoff](FINDER-SERVICE-GRANTS.md)
+
+- [Helper-owned persistent permissions](FINDER-HELPER-PERSISTENCE.md)

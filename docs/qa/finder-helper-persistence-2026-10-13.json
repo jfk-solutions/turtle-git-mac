@@ -1,0 +1,55 @@
+{
+  "date": "2026-10-13",
+  "scope": [
+    "Receiver-private versioned persistent grants",
+    "Validated all-or-nothing install and atomic private file replacement",
+    "Relaunch/moved-root restoration with unavailable entries retained",
+    "Actual separate-process Foundation persistence and restored root reads"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/finder-helper-persistence-build-2026-10-13.log",
+      "notes": "Existing warnings/exit-zero no-output diagnostics; not a clean-log claim"
+    },
+    "core": {
+      "exit": 0,
+      "tests": 6,
+      "scope": "FinderServicePermissionStoreTests and FinderServiceAuthorizationTests",
+      "log": "build/qa/finder-helper-persistence-core-2026-10-13.log"
+    },
+    "native": {
+      "state": "passed",
+      "first_run": "Both engines passed; fixture tightened to read only via restored persistent access after initial access release.",
+      "initial_log": "build/qa/finder-helper-persistence-native-2026-10-13.log",
+      "exit": 0,
+      "cases": 2,
+      "engines": [
+        "system Git",
+        "packaged Git"
+      ],
+      "final_log": "build/qa/finder-helper-persistence-native-final-2026-10-13.log",
+      "owned_receivers_reaped": [
+        30945,
+        30976
+      ],
+      "all_parent_receivers_independently_absent": true,
+      "scope": "Actual Foundation receiver bookmark mint/persist/reopen/restore then Git/file reads after initial access release. Separate child workers waited/reaped."
+    },
+    "appstore": "Deferred to actual service target/entitlement packaging batch.",
+    "website": {
+      "exit": 0,
+      "output": "build/site"
+    }
+  },
+  "limits": [
+    "No deployed independent service, authenticated IPC or login startup",
+    "Unsigned native fixture disables security scope requirement; not signed sandbox permission proof",
+    "Private registry alone does not remove corresponding shared snapshot roots"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/FinderServiceAuthorization.swift": "da3e50a58c1a357382ac3d04b88bfb394734a6a798b3927b438fcbf757030dc9",
+    "Tests/TurtleGitCoreTests/FinderServicePermissionStoreTests.swift": "9c0fadaa16c5e024070079985625fa5f8b03efdd209f5c3446488944358524a1",
+    "docs/qa/finder-service-grant-worker-native-2026-10-13.swift": "82ba46bc48fe562ae49c473fb75d21e6ecc1e56a9964afc082c24466c77c92fe"
+  }
+}

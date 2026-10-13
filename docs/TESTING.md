@@ -1521,3 +1521,9 @@ leases. Cached finder-service-grants launches a separate owned receiver using
 actual Foundation bookmarks and private repository reads, with scope requirements
 explicitly disabled in the unsigned fixture. The finder-watches group additionally
 checks export from settled watcher sessions. Neither proves signed IPC permission.
+
+FinderServicePermissionStoreTests checks atomic replacement failure, receiver-only
+bookmark persistence, moved relative scopes, failed-entry retention and file modes.
+The finder-service-grants worker now installs a private receiver registry, releases
+initial accesses, reopens/restores it and reads real Git/files through restored
+accesses. Scope requirements are disabled only in that unsigned fixture.
