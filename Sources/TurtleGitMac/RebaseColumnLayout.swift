@@ -10,7 +10,7 @@ struct RebaseColumnLayout: NSViewRepresentable {
     func updateNSView(_ view: Probe, context: Context) { view.model = model; view.configure() }
     static func dismantleNSView(_ view: Probe, coordinator: ()) { view.retire() }
     @MainActor final class Probe: NSView {
-        static let names = ["REBASE", "ID", "SHA-1", "Message", "Author", "Date", "Email", "Commit Name", "Commit Email", "Commit Date"]
+        static let names = ["REBASE", "ID", "SHA-1", "Message", "Author", "Date", "Email", "Commit Name", "Commit Email", "Commit Date", "Bug-ID", "SVN Rev"]
         weak var model: RebaseWindowModel?
         weak var table: NSTableView?
         private var columns: [NSTableColumn] = []
@@ -42,6 +42,8 @@ struct RebaseColumnLayout: NSViewRepresentable {
         private func contains(_ candidate: NSTableView) -> Bool {
             convert(bounds, to: nil).intersects(candidate.convert(candidate.visibleRect, to: nil))
         }
+        private func columnAvailable(_ index: Int) -> Bool { index != 10 && index != 11 || index == 10 && model?.showsIssueColumn == true || index == 11 && model?.hasGitSVN == true }
+        private func defaultVisible(_ index: Int) -> Bool { index < 6 || index >= 10 }
         func configure() {
             guard !retired, !adjusting, !trackingHeader, let content = window?.contentView, let model else { return }
             func find(_ view: NSView) -> NSTableView? {
@@ -73,7 +75,7 @@ struct RebaseColumnLayout: NSViewRepresentable {
                 column.minWidth = index == 3 ? 100 : 30; column.maxWidth = 10000
                 if let current = native.tableColumns.firstIndex(where: { $0 === column }), current != destination { native.moveColumn(current,toColumn:destination) }
                 let key = "Rebase.Columns.Visible." + Self.names[index]
-                column.isHidden = !(defaults.object(forKey:key) as? Bool ?? (index < 6))
+                column.isHidden = !columnAvailable(index) || !(defaults.object(forKey:key) as? Bool ?? defaultVisible(index))
                 if let value = widths[Self.names[index]] as? NSNumber, value.doubleValue.isFinite, (30...10000).contains(value.doubleValue) { column.width = max(column.minWidth,min(column.maxWidth,CGFloat(value.doubleValue))) }
             }
             if native.tableColumns.allSatisfy(\.isHidden) { columns[3].isHidden = false }
@@ -88,7 +90,7 @@ struct RebaseColumnLayout: NSViewRepresentable {
         func headerMenu() -> NSMenu {
             let menu = NSMenu(); menu.autoenablesItems = false
             let reset = NSMenuItem(title:"Reset columns",action:#selector(requestReset(_:)),keyEquivalent:""); reset.target = self; reset.isEnabled = available; menu.addItem(reset); menu.addItem(.separator())
-            for (index,name) in Self.names.enumerated() {
+            for (index,name) in Self.names.enumerated() where columnAvailable(index) {
                 let item = NSMenuItem(title:name,action:#selector(toggle(_:)),keyEquivalent:""); item.target = self; item.tag = index
                 item.state = columns.indices.contains(index) && !columns[index].isHidden ? .on : .off
                 item.isEnabled = available && (item.state == .off || columns.filter { !$0.isHidden }.count > 1)
@@ -97,11 +99,11 @@ struct RebaseColumnLayout: NSViewRepresentable {
             return menu
         }
         @objc func toggle(_ sender: NSMenuItem) {
-            guard available, columns.indices.contains(sender.tag), let model else { return }
+            guard available, columns.indices.contains(sender.tag), columnAvailable(sender.tag), let model else { return }
             let column = columns[sender.tag]
             guard column.isHidden || columns.filter({ !$0.isHidden }).count > 1 else { return }
             let key = "Rebase.Columns.Visible." + Self.names[sender.tag]
-            let visible = model.columnPreferences.object(forKey:key) as? Bool ?? (sender.tag < 6)
+            let visible = model.columnPreferences.object(forKey:key) as? Bool ?? defaultVisible(sender.tag)
             model.columnPreferences.set(!visible,forKey:key); configure()
         }
         @objc func requestReset(_ sender: NSMenuItem) {
@@ -115,7 +117,7 @@ struct RebaseColumnLayout: NSViewRepresentable {
             model.columnPreferences.removeObject(forKey:"Rebase.Columns.Order"); model.columnPreferences.removeObject(forKey:"Rebase.Columns.Widths")
             for name in Self.names { model.columnPreferences.removeObject(forKey:"Rebase.Columns.Visible." + name) }
             // Restore declared widths as well as visibility/order.
-            let widths: [Double] = [90,40,95,420,130,150,200,130,200,150]
+            let widths: [Double] = [90,40,95,420,130,150,200,130,200,150,110,100]
             model.columnPreferences.set(Dictionary(uniqueKeysWithValues: zip(Self.names,widths)),forKey:"Rebase.Columns.Widths")
             configure(); persistLayout()
         }

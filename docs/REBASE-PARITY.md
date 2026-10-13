@@ -239,7 +239,35 @@ also passed. The initial native test exposed missing committer metadata and was
 repaired. Attempts to inspect hidden SwiftUI text/AX cells could not verify their
 values; native cell pixels replaced that assertion without removing it.
 
-All owned receivers were reaped. Physical header drag/Reset acceptance, VoiceOver,
-conditional Bug-ID/SVN columns, commit drag ordering and full signed/replay/window
-parity remain open. A cell render is not an all-dialog visual comparison.
+All owned receivers were reaped. Conditional columns are implemented in the batch below. Physical header drag/Reset
+acceptance, VoiceOver, commit drag ordering and full signed/replay/window parity remain open. A cell render is not an all-dialog visual comparison.
 See [batch evidence](qa/rebase-columns-2026-10-13.json).
+
+## Conditional Bug-ID/SVN column family (2026-10-13)
+
+Rebase and Cherry Pick now include the source conditional Bug-ID and SVN Rev
+columns after Commit Date. Bug-ID availability uses effective project issue
+properties; SVN availability uses worktree/common Git metadata. Available columns
+start visible, participate in saved width/order/visibility, retain a hidden choice
+while unavailable, and recover contextual defaults through Reset. Configuration
+removal hides the checkbox and clears its displayed values.
+
+The model projects values in an owned background read without changing replay
+records or authors. Duplicate commit events share one hash-keyed result. One
+batched C++ helper invocation extracts issue IDs across the entire projection,
+retaining UTF-16 offsets, first capture/two-expression semantics, NUL termination,
+source invalid-regex suppression and natural ID sorting. SVN extraction uses its
+existing batch and source whole-message anchors. Template-only issue extraction
+remains local. Reordering or changing plan actions does not restart unchanged
+metadata. Explicit reload rechecks configuration.
+
+Closing/refreshing cancels the owned read, rejects obsolete replies and retains
+its repository grant and global Quit accounting until completion. Read state
+is separate from replay execution; the UI remains selectable while repository
+queries may queue behind the owned read.
+Runtime errors are reported by the owning Rebase dialog. SwiftUI column groups
+keep all twelve columns within macOS 13-compatible builder expressions.
+
+The batch's evidence is [conditional-column QA](qa/rebase-conditional-2026-10-13.json).
+It does not establish complete dialog/VoiceOver/physical/signed parity. Source
+Windows versus macOS locale/regex equivalence and all rendered cells remain open.

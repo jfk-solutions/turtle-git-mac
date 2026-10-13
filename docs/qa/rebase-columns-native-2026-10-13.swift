@@ -48,8 +48,8 @@ import TurtleGitCore
         let owner=RebaseWindowController(repository:repo,access:nil,preferences:prefs); defer { owner.close() }
         owner.window!.alphaValue = 1; owner.window!.orderBack(nil)
         owner.model.load(cherryPick:hashes); let probe=try await settle(owner), table=probe.table!
-        try require(table.tableColumns.count == 10 && table.tableColumns.filter { !$0.isHidden }.count == 6,"Source default/extra columns wrong")
-        let menu=probe.headerMenu(); try require(menu.items.dropFirst(2).map(\.title) == RebaseColumnLayout.Probe.names,"Header menu lost source order")
+        try require(table.tableColumns.count == 12 && table.tableColumns.filter { !$0.isHidden }.count == 6,"Source default/extra columns wrong")
+        let menu=probe.headerMenu(); try require(menu.items.dropFirst(2).map(\.title) == Array(RebaseColumnLayout.Probe.names.prefix(10)),"Header menu lost source order")
         let email=menu.item(withTitle:"Email")!; probe.toggle(email)
         try require(prefs.bool(forKey:"Rebase.Columns.Visible.Email"),"Email visibility not saved")
         let emailColumn=table.tableColumns[6]; emailColumn.width=330; table.moveColumn(6,toColumn:0); probe.persistLayout()
@@ -71,6 +71,7 @@ import TurtleGitCore
         owner.model.busy=true; probe.toggle(email); try require(prefs.bool(forKey:"Rebase.Columns.Visible.Email"),"Busy header accepted action"); owner.model.busy=false
         probe.resetLayout(); try require(prefs.stringArray(forKey:"Rebase.Columns.Order")?.first == "REBASE" && table.tableColumns.filter { !$0.isHidden }.count == 6,"Reset did not restore default layout")
         reopened.close(); owner.close(); probe.toggle(email)
+        try await wait { RebaseWindowModel.activeColumnReads == 0 }
         try require(prefs.object(forKey:"Rebase.Columns.Visible.Email") == nil,"Closed owner changed visibility")
         let after=UserDefaults.standard.dictionaryRepresentation().filter { $0.key.hasPrefix("Rebase.Columns.") }
         try require(NSDictionary(dictionary:global).isEqual(to:after),"Private layout changed global preferences")

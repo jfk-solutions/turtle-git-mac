@@ -30,6 +30,26 @@ final class RebaseTests: XCTestCase {
         var plan = try await repo.rebasePlan(options()); plan.entries[0].action = .edit
         return (root, repo, plan)
     }
+    func testReplayConditionalColumnsReadConfigurationAndLeaveCommitDataUntouched() async throws {
+        let (root,repo,_) = try await fixture(); defer { try? FileManager.default.removeItem(at:root) }
+        _ = try await repo.run(["commit","--allow-empty","-m","Issue #10 #2"])
+        let entry = try await repo.rebaseCommit("HEAD")
+        _ = try await repo.run(["config","bugtraq.logregex","#([0-9]+)"])
+        let helper = URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("build/issue-regex-runtime/IssueRegex/issue-regex")
+        let metadata = root.appendingPathComponent(".git/svn/.metadata")
+        try FileManager.default.createDirectory(at:metadata.deletingLastPathComponent(),withIntermediateDirectories:true); try Data().write(to:metadata)
+        let before = try await repo.run(["rev-parse","HEAD"]).stdout, index = try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        let values = try await repo.replayColumnMetadata([entry,entry],executable:helper)
+        XCTAssertTrue(values.showsIssueIDs); XCTAssertTrue(values.hasGitSVN); XCTAssertEqual(values.issueIDs[entry.hash],"2 10"); XCTAssertEqual(values.issueIDs.count,1)
+        XCTAssertEqual(values.svnRevisions[entry.hash],"")
+        _ = try await repo.run(["config","--unset","bugtraq.logregex"]); try FileManager.default.removeItem(at:metadata)
+        let cleared = try await repo.replayColumnMetadata([entry],executable:helper)
+        XCTAssertFalse(cleared.showsIssueIDs); XCTAssertFalse(cleared.hasGitSVN); XCTAssertTrue(cleared.issueIDs.isEmpty)
+        let after = try await repo.run(["rev-parse","HEAD"]).stdout
+        XCTAssertEqual(after,before); XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index)
+        let stopped = OperationCancellation(); stopped.cancel()
+        do { _ = try await repo.replayColumnMetadata([entry],executable:helper,cancellation:stopped); XCTFail("Canceled projection accepted") } catch is OperationCancellationFailure {}
+    }
     func testReplayMetadataRetainsRawAuthorAndIndependentCommitter() async throws {
         let (root, repo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
         _ = try await repo.run(["commit", "--allow-empty", "-m", "independent\n\nbody"], environmentOverrides: ["GIT_AUTHOR_NAME":"Raw Author", "GIT_AUTHOR_EMAIL":"raw@example.invalid", "GIT_AUTHOR_DATE":"2026-10-12T10:00:00+0200", "GIT_COMMITTER_NAME":"Separate Committer", "GIT_COMMITTER_EMAIL":"committer@example.invalid", "GIT_COMMITTER_DATE":"2026-10-13T11:00:00+0200"])

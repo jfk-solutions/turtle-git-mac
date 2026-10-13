@@ -102,6 +102,25 @@ public enum IssueRegexRuntime {
         }
         return result.map(HistoryHighlighting.merge)
     }
+    public static func batchIssueIDs(_ messages: [String], check: String, extract: String = "", executable: URL? = nil, cancellation: OperationCancellation? = nil) throws -> [[String]] {
+        var units: [UInt16] = []
+        for message in messages {
+            try cancellation?.check(); let value = Array(message.utf16)
+            guard value.count <= Int(UInt32.max) else { throw IssueRegexFailure.failed("Log message is too large.") }
+            units += [UInt16(truncatingIfNeeded:value.count), UInt16(truncatingIfNeeded:value.count >> 16)] + value
+        }
+        let output = try capture(message:"",check:check,extract:extract,executable:executable,mode:["--batch-issue-ids"],messageUnits:units,cancellation:cancellation)
+        let rows = String(decoding:output,as:UTF8.self).split(separator:"\n")
+        guard rows.first == "issues\t1" else { throw IssueRegexFailure.failed("Invalid batch issue output.") }
+        var result = Array(repeating:[String](),count:messages.count)
+        for row in rows.dropFirst() {
+            let values = row.split(separator:"\t").compactMap { Int($0) }
+            guard values.count == 3, messages.indices.contains(values[0]), values[1] >= 0, values[2] >= 0,
+                  values[1] <= messages[values[0]].utf16.count, values[2] <= messages[values[0]].utf16.count - values[1] else { throw IssueRegexFailure.failed("Invalid batch issue range.") }
+            result[values[0]].append((messages[values[0]] as NSString).substring(with:NSRange(location:values[1],length:values[2])))
+        }
+        return result
+    }
     /// The original FindSVNRev patterns, processed in one owned helper batch.
     public static func svnRevisions(_ messages: [String], executable: URL? = nil, cancellation: OperationCancellation? = nil) throws -> [String] {
         var units: [UInt16] = []

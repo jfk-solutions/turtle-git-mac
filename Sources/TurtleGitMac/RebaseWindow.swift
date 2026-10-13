@@ -142,6 +142,16 @@ import TurtleGitCore
     var repositoryAccess: RepositoryAccessLease? { access }
     @Published var options = RebaseOptions()
     @Published var ontoEnabled = false
+    @Published private(set) var showsIssueColumn = false
+    @Published private(set) var hasGitSVN = false
+    @Published private(set) var issueColumnValues: [String:String] = [:]
+    @Published private(set) var svnColumnValues: [String:String] = [:]
+    @Published private(set) var loadingColumnMetadata = false
+    private var columnToken: OperationCancellation?
+    private var columnGeneration = UUID()
+    private var columnSignature: [String] = []
+    static private(set) var activeColumnReads = 0
+    var readColumnMetadata: ([LogEntry],OperationCancellation) async throws -> ReplayColumnMetadata
     @Published var references: [CheckoutReference] = []
     @Published var plan: RebasePlan?
     @Published var recovered: [RebaseEntry] = []
@@ -191,7 +201,7 @@ import TurtleGitCore
     var chooseStashBeforeReplay: () async -> Bool = { false }
     var chooseRestoreReplayStash: () async -> Bool = { false }
     var restoreReplayStash: (Int) async -> Void = { _ in }
-    func retire() { retired = true; revisionMenuLog.invalidate(); replayPreparationCancellation?.cancel(); clientHooks.retire() }
+    func retire() { retired = true; columnGeneration = UUID(); columnToken?.cancel(); columnToken = nil; loadingColumnMetadata = false; revisionMenuLog.invalidate(); replayPreparationCancellation?.cancel(); clientHooks.retire() }
     func finishReplay(after: (() -> Void)? = nil) {
         guard !retired, !busy, !active, !selectingSplit, !pickingCommits else { return }
         // Preserve immediate completion routing when there is no stash question
@@ -343,6 +353,7 @@ import TurtleGitCore
     }
     init(repository: GitRepository, access: RepositoryAccessLease?, messageDefaults: UserDefaults = .standard) {
         self.repository = repository; self.access = access; self.messageDefaults = messageDefaults
+        readColumnMetadata = { try await repository.replayColumnMetadata($0,cancellation:$1) }
         self.fullCommitMessageOnLogLine = messageDefaults.bool(forKey: "FullCommitMessageOnLogLine")
     }
     var revisionMenuAvailable: Bool { !retired && !busy && !selectingSplit && !pickingCommits && revisionMenuLog.noteRequest == nil && !revisionMenuLog.busy && !revisionMenuLog.loadingNote && !revisionMenuLog.savingNote && !revisionMenuLog.copyingDetails }
@@ -399,6 +410,30 @@ import TurtleGitCore
         case .messages: log.copy(log.revisions.map(\.message).joined(separator: "\n\n"))
         }
     }
+    func refreshColumnMetadata(force: Bool = false) {
+        guard !retired else { return }
+        let commits = entries.map(\.commit), signature = Array(Set(entries.map { $0.commit.hash + "\0" + $0.commit.message })).sorted()
+        guard force || signature != columnSignature else { return }
+        columnSignature = signature; columnToken?.cancel()
+        let request = UUID(), token = OperationCancellation(), read = readColumnMetadata
+        columnGeneration = request; columnToken = token; loadingColumnMetadata = true; Self.activeColumnReads += 1
+        Task { [weak self, access] in
+            defer {
+                Self.activeColumnReads -= 1; withExtendedLifetime(access) {}
+                if let self, self.columnToken === token { self.columnToken = nil; self.loadingColumnMetadata = false }
+            }
+            do {
+                guard let self else { return }; try self.requireAccess()
+                let result = try await read(commits,token)
+                guard !self.retired, self.columnGeneration == request, !token.isCancelled else { return }
+                self.showsIssueColumn = result.showsIssueIDs; self.hasGitSVN = result.hasGitSVN
+                self.issueColumnValues = result.issueIDs; self.svnColumnValues = result.svnRevisions
+            } catch {
+                guard let self, !self.retired, self.columnGeneration == request, !token.isCancelled else { return }
+                self.error = error.localizedDescription
+            }
+        }
+    }
     func load(upstream: String? = nil, autoStart: Bool = false, preserveMerges: Bool = false, cherryPick: [String]? = nil) {
         guard !retired else { return }
         if hasReplayStash && !active && !busy {
@@ -411,7 +446,7 @@ import TurtleGitCore
         }; busy = true; planGeneration += 1; detailGeneration += 1
         Task {
             var started = false
-            defer { if !started { busy = false; loadPendingHandoff() } }
+            defer { if !started { busy = false; refreshColumnMetadata(force:true); loadPendingHandoff() } }
             do {
                 try requireAccess()
                 projectSettings = try await repository.projectDialogSettings(source: .effective)
@@ -548,6 +583,7 @@ import TurtleGitCore
         if plan != nil { plan?.entries = values } else { draftEntries = values }
     }
     func selectCommit() {
+        if !busy { refreshColumnMetadata() }
         detailGeneration += 1; let request = detailGeneration
         files = []; message = ""
         guard let entry = entries.first(where: { selection.contains($0.id) }) else { return }
@@ -800,10 +836,14 @@ struct RebaseDialog: View {
                         TableColumn("Message") { entry in RebaseReplayCell(entry: entry) { Text(entry.commit.logLine(fullMessage: model.fullCommitMessageOnLogLine)).lineLimit(1) } }
                         TableColumn("Author") { entry in RebaseReplayCell(entry: entry) { Text(entry.commit.author) } }.width(130)
                         TableColumn("Date") { entry in RebaseReplayCell(entry: entry) { Text(dates.format(entry.commit.date)) } }.width(150)
+                        Group {
                         TableColumn("Email") { entry in RebaseReplayCell(entry: entry) { Text(entry.commit.email) } }.width(200)
                         TableColumn("Commit Name") { entry in RebaseReplayCell(entry: entry) { Text(entry.commit.committer) } }.width(130)
                         TableColumn("Commit Email") { entry in RebaseReplayCell(entry: entry) { Text(entry.commit.committerEmail) } }.width(200)
                         TableColumn("Commit Date") { entry in RebaseReplayCell(entry: entry) { Text(dates.format(entry.commit.committerDate)) } }.width(150)
+                        TableColumn("Bug-ID") { (entry: RebaseEntry) in RebaseReplayCell(entry:entry) { Text(model.issueColumnValues[entry.commit.hash] ?? "") } }.width(110)
+                        TableColumn("SVN Rev") { (entry: RebaseEntry) in RebaseReplayCell(entry:entry) { Text(model.svnColumnValues[entry.commit.hash] ?? "") } }.width(100)
+                        }
                     }.background(RebaseColumnLayout(model: model)).background(RebaseListInteraction(model: model)).contextMenu(forSelectionType: String.self) { ids in
                         TurtleGitContextMenu {
                             RebaseRevisionMenu(model: model, log: model.revisionMenuLog, ids: ids)
@@ -881,6 +921,7 @@ struct RebaseDialog: View {
         .onChange(of: model.options.addCherryPickedFrom) { _ in model.updateAttribution() }
         .onChange(of: model.options.force) { _ in model.reloadPlan() }
         .onChange(of: model.options.preserveMerges) { _ in model.reloadPlan() }
+        .onChange(of: model.busy) { if !$0 { model.refreshColumnMetadata() } }
         .onChange(of: model.selection) { _ in model.selectCommit() }
         .alert(model.operationTitle, isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil }; Button("Open Working Tree") { model.error = nil; model.onShowStatus() } } message: { Text(model.error ?? "") }
         .alert("Confirm " + model.operationTitle, isPresented: Binding(get: { model.confirmation != nil }, set: { if !$0 { model.confirmation = nil } })) {

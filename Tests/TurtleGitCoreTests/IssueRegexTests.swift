@@ -8,6 +8,18 @@ final class IssueRegexTests: XCTestCase {
     func match(_ message: String, _ check: String, _ extract: String = "") throws -> IssueRegexMatch {
         try IssueRegexRuntime.match(message: message, check: check, extract: extract, executable: parser)
     }
+    func testBatchedIssueIDsMatchSingleSourceExtractionIncludingUTF16AndInvalidPatterns() throws {
+        let messages = ["🦎 Issue #10 and #2", "Issue #7", "none", "Issue #1\0Issue #99"]
+        let pattern = "#([0-9]+)"
+        let batch = try IssueRegexRuntime.batchIssueIDs(messages,check:pattern,executable:parser)
+        let single = try messages.map { try IssueRegexRuntime.match(message:$0,check:pattern,executable:parser,ignoreInvalidPattern:true).identifiers(in:$0) }
+        XCTAssertEqual(batch,single)
+        let two = try IssueRegexRuntime.batchIssueIDs(messages,check:"Issue.*",extract:"#[0-9]+",executable:parser)
+        let twoSingle = try messages.map { try IssueRegexRuntime.match(message:$0,check:"Issue.*",extract:"#[0-9]+",executable:parser,ignoreInvalidPattern:true).identifiers(in:$0) }
+        XCTAssertEqual(two,twoSingle)
+        XCTAssertEqual(try IssueRegexRuntime.batchIssueIDs(messages,check:"(",executable:parser),Array(repeating:[],count:4))
+        XCTAssertEqual(try IssueRegexRuntime.batchIssueIDs(["b"],check:"(a)?b",executable:parser),[[""]])
+    }
     func testSourceSVNRevisionBatchPatternsAndWholeMessageAnchors() throws {
         let messages = ["git-svn-id: https://example.invalid/a@b@00123 abcd-123", "\n\tgit-svn-id: 0007@ab-c9", "subject\n\ngit-svn-id: https://example.invalid/a@42 abcd", "git-svn-id: https://example.invalid/a@42 abcd\n", "git-svn-id: 42@ABCD", "git-svn-id: 42@abcd\0ignored", "ordinary"]
         XCTAssertEqual(try IssueRegexRuntime.svnRevisions(messages, executable: parser), ["00123", "0007", "", "", "", "42", ""])

@@ -1,0 +1,78 @@
+{
+  "date": "2026-10-13",
+  "scope": "Partial conditional Bug-ID/SVN columns for Rebase and Cherry Pick",
+  "changes": [
+    "Source conditional columns/defaults and saved visibility/reset integration",
+    "Owned cancellable metadata projection with grant and Quit lifetime",
+    "Single framed UTF-16 batch issue extraction rather than one helper per commit",
+    "Deduplicated hash projection and no reread on action/order changes",
+    "macOS 13-compatible SwiftUI column groups"
+  ],
+  "checks": {
+    "helper_build": {
+      "exit": 0,
+      "architectures": [
+        "arm64",
+        "x86_64"
+      ]
+    },
+    "core": {
+      "tests": 8,
+      "exit": 0,
+      "scope": [
+        "Batch versus single issue extraction, UTF-16/NUL/optional capture/two-expression/invalid syntax",
+        "Existing matcher cancellation/offset/filter/SVN regressions",
+        "Real replay metadata configuration/removal/dedup/precancel and HEAD/index preservation"
+      ]
+    },
+    "debug_build": {
+      "exit": 0
+    },
+    "native": {
+      "cases": [
+        "rebase-conditional",
+        "rebase-columns"
+      ],
+      "engines": [
+        "system",
+        "bundled"
+      ],
+      "exit": 0,
+      "reaped_pids": [
+        54497,
+        54569,
+        54650,
+        54722
+      ],
+      "scope": [
+        "Real configured issue values and SVN availability",
+        "Removal/restoration/saved hidden/default columns",
+        "Forced-close cancellation, late reply and Quit accounting",
+        "Native column/committer-pixel/layout regression",
+        "HEAD/index/global layout preservation"
+      ]
+    },
+    "site": {
+      "build_exit": 0,
+      "tests": 2,
+      "test_exit": 0
+    }
+  },
+  "repairs": [
+    {
+      "failure": "Initial Debug and SwiftPM compilation could not type-check twelve inline columns; tests had not executed",
+      "change": "Group column declarations into macOS 13-compatible subexpressions; final build and Core group passed"
+    }
+  ],
+  "remaining": [
+    "Physical column/Reset/VoiceOver and all-cell rendered acceptance",
+    "Windows versus macOS locale/regex equivalence",
+    "Signed sandbox/Finder and full replay/window/application acceptance"
+  ],
+  "logs": [
+    "build/qa/rebase-conditional-runtime-final-2026-10-13.log",
+    "build/qa/rebase-conditional-core-repair-2026-10-13.log",
+    "build/qa/rebase-conditional-build-repair-2026-10-13.log",
+    "build/qa/rebase-conditional-native-2026-10-13.log"
+  ]
+}

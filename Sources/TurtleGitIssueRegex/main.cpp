@@ -87,6 +87,7 @@ static void styles(const std::wstring& checkUnits, const std::wstring& extractUn
     }
 }
 int main(int argc, char** argv) {
+    const bool batchIssues = argc == 5 && std::string(argv[4]) == "--batch-issue-ids";
     const bool svnRevisions = argc == 5 && std::string(argv[4]) == "--svn-revisions";
     const bool mergeReplace = argc == 5 && std::string(argv[4]) == "--merge-replace";
     const bool styling = argc == 5 && std::string(argv[4]) == "--styles-utf8";
@@ -94,9 +95,35 @@ int main(int argc, char** argv) {
     const bool issueIDs = argc == 5 && std::string(argv[4]) == "--issue-ids";
     const bool logRanges = argc == 5 && (std::string(argv[4]) == "--log-ranges-case" || std::string(argv[4]) == "--log-ranges-insensitive");
     const bool logFilter = argc == 5 && (std::string(argv[4]) == "--log-case" || std::string(argv[4]) == "--log-insensitive");
-    if (argc != 4 && !styling && !code && !logFilter && !logRanges && !issueIDs && !mergeReplace && !svnRevisions) { std::cerr << "Expected check pattern, extraction pattern and message files.\n"; return 2; }
+    if (argc != 4 && !styling && !code && !logFilter && !logRanges && !issueIDs && !mergeReplace && !svnRevisions && !batchIssues) { std::cerr << "Expected check pattern, extraction pattern and message files.\n"; return 2; }
     try {
-        const auto check = read_units(argv[1]), extract = read_units(argv[2]), text = read_units(argv[3], !code && !logFilter && !logRanges && !mergeReplace && !svnRevisions);
+        const auto check = read_units(argv[1]), extract = read_units(argv[2]), text = read_units(argv[3], !code && !logFilter && !logRanges && !mergeReplace && !svnRevisions && !batchIssues);
+        if (batchIssues) {
+            std::cout << "issues\t1\n";
+            std::wregex first, second;
+            try { first = std::wregex(check); if (!extract.empty()) second = std::wregex(extract); }
+            catch (const std::regex_error&) { return 0; } // Source FindBugID ignores invalid syntax.
+            size_t offset = 0, row = 0;
+            while (offset < text.size()) {
+                if (text.size() - offset < 2) throw std::runtime_error("Invalid issue record header.");
+                const size_t length = static_cast<size_t>(text[offset]) | (static_cast<size_t>(text[offset + 1]) << 16); offset += 2;
+                if (length > text.size() - offset) throw std::runtime_error("Invalid issue record length.");
+                auto value = text.substr(offset, length); offset += length;
+                const auto nul = value.find(L'\0'); if (nul != std::wstring::npos) value.resize(nul);
+                const std::wsregex_iterator end;
+                for (std::wsregex_iterator match(value.cbegin(), value.cend(), first); match != end; ++match) {
+                    if (extract.empty()) {
+                        if (match->size() >= 2) { const auto& group = (*match)[1]; std::cout << row << '\t' << (group.first - value.cbegin()) << '\t' << (group.second - group.first) << '\n'; }
+                    } else {
+                        const std::wstring section = (*match)[0];
+                        for (std::wsregex_iterator id(section.cbegin(), section.cend(), second); id != end; ++id)
+                            std::cout << row << '\t' << (match->position(0) + id->position(0)) << '\t' << id->length(0) << '\n';
+                    }
+                }
+                ++row;
+            }
+            return 0;
+        }
         if (svnRevisions) {
             // Pinned CGitLogListBase::FindSVNRev, including default ECMAScript
             // whole-message anchors. Do not silently broaden to multiline.

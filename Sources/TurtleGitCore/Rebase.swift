@@ -723,3 +723,30 @@ private extension LogEntry {
         return entries
     }
 }
+
+public struct ReplayColumnMetadata: Sendable {
+    public let showsIssueIDs: Bool
+    public let hasGitSVN: Bool
+    public let issueIDs: [String:String]
+    public let svnRevisions: [String:String]
+}
+extension GitRepository {
+    public func replayColumnMetadata(_ entries: [LogEntry], executable: URL? = nil, cancellation: OperationCancellation? = nil) throws -> ReplayColumnMetadata {
+        try cancellation?.check()
+        let properties = try issueTrackerProperties(cancellation:cancellation)
+        let svn = try !isBare(cancellation:cancellation) && referenceLogHasGitSVN(cancellation:cancellation)
+        var seen = Set<String>(); let commits = entries.filter { seen.insert($0.hash).inserted }
+        var issues: [String:String] = [:]
+        if properties.showsBugIDColumn {
+            if properties.checkExpression.isEmpty {
+                for entry in commits { issues[entry.hash] = try properties.logIssueIDs(in:entry.message,executable:executable,cancellation:cancellation) }
+            } else {
+                let ids = try IssueRegexRuntime.batchIssueIDs(commits.map(\.message),check:properties.checkExpression,extract:properties.extractionExpression,executable:executable,cancellation:cancellation)
+                for (entry, values) in zip(commits,ids) { issues[entry.hash] = IssueTrackerProperties.naturalIssueIDs(values) }
+            }
+        }
+        let revisions = svn ? try IssueRegexRuntime.svnRevisions(commits.map { $0.historySubject + "\n" + $0.historyBody },executable:executable,cancellation:cancellation) : []
+        try cancellation?.check()
+        return ReplayColumnMetadata(showsIssueIDs:properties.showsBugIDColumn,hasGitSVN:svn,issueIDs:issues,svnRevisions:Dictionary(uniqueKeysWithValues:zip(commits.map(\.hash),revisions)))
+    }
+}
