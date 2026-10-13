@@ -2,7 +2,7 @@ name: GitHub Pages
 on:
   push:
     branches: [main]
-    paths: ['docs/**', 'scripts/build-site.py', '.github/workflows/pages.yml']
+    paths: ['docs/**', 'scripts/build-site.py', 'scripts/site_docs.py', 'scripts/site-requirements.txt', 'scripts/test-site-docs.py', 'scripts/test-site-search.cjs', '.github/workflows/pages.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -15,8 +15,17 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: actions/configure-pages@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install documentation renderer
+        run: python3 -m pip install -r scripts/site-requirements.txt
       - name: Build static project site
         run: python3 scripts/build-site.py
+      - name: Check generated documentation links
+        run: python3 scripts/test-site-docs.py
+      - name: Check local search behavior
+        run: node scripts/test-site-search.cjs
       - uses: actions/upload-pages-artifact@v4
         with:
           path: build/site

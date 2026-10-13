@@ -96,11 +96,11 @@ and remaining acceptance work.
 
 Signed activation and badge rendering remain unverified. Finder Sync controls
 badge placement and menu insertion. Badges apply to registered repository
-folders. Only the current repository refreshes every five seconds while the app
-runs; inactive or closed repositories can retain stale cached status. Selections
-spanning repositories are rejected before an operation runs. The independent
-background cache, FSEvents invalidation, repository management and coexistence
-with other Finder extensions still need implementation and testing.
+folders. The implementation includes watched-repository management, FSEvents invalidation
+and an independent background cache service. Its signed service registration and
+physical Finder coexistence still require acceptance checks; cached badges are
+not evidence of current repository state. Selections spanning repositories are
+rejected before an operation runs. See the [service deployment audit](docs/FINDER-SERVICE-DEPLOYMENT.md).
 
 See the [Finder parity documents](docs/README.md#finder-integration) for menu,
 selection, icon and routing comparisons.

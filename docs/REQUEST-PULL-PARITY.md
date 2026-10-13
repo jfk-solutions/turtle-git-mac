@@ -95,6 +95,6 @@ signed sandbox/App Store acceptance remain pending.
 
 Mail-client mode now also uses native custom-subject options and the Apple Mail
 visible-draft adapter rather than the file-only sharing service. See
-[client parity/evidence](SEND-PATCH-PARITY.md#mail-client-options-and-apple-mail-drafts).
+[client parity/evidence](SEND-PATCH-PARITY.md#delivery-modes).
 The earlier system-composer bypass describes a historical checkpoint. Actual
 Apple Mail execution and full modal mail-client lifecycle remain unverified.

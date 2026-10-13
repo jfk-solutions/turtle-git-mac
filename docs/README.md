@@ -1,5 +1,8 @@
 # TurtleGit documentation
 
+The [published documentation](https://jfk-solutions.github.io/turtle-git-mac/manual/)
+provides local search and section navigation for these guides and source audits.
+
 Start with [Getting started](GETTING-STARTED.md) for the first native workflows,
 or the [project README](../README.md) for build instructions and current limits.
 The [manual plan](MANUAL-PLAN.md) tracks the remaining user-guide chapters.

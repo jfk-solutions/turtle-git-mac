@@ -6,6 +6,7 @@ import pathlib
 import re
 import shutil
 import subprocess
+from site_docs import render_documents
 
 root = pathlib.Path(__file__).resolve().parent.parent
 repository = os.environ.get('GITHUB_REPOSITORY')
@@ -33,5 +34,7 @@ for token, value in {'REPOSITORY_URL': 'https://github.com/' + repository,
 if '@@' in index:
     raise SystemExit('Unresolved website token.')
 (destination / 'index.html').write_text(index)
+report = render_documents(root, destination, repository)
+print(json.dumps(report, indent=2))
 (destination / '.nojekyll').touch()
 print(destination)

@@ -1,0 +1,36 @@
+{
+  "date": "2026-10-13",
+  "scope": [
+    "175 repository Markdown documents rendered as static HTML",
+    "Local browser search with title ranking, category filters and no-match/fetch-failure handling",
+    "Section anchors, duplicate heading IDs, tables, escaped raw HTML/code and cross-document routes",
+    "Screenshot gallery links to rendered pages; source and QA links retain GitHub destination",
+    "Pinned Python renderer and Pages workflow checks"
+  ],
+  "validation": {
+    "build": {
+      "exit": 0,
+      "log": "build/qa/manual-site-build-2026-10-13.log",
+      "documents": 175,
+      "unresolved_fragments": 0
+    },
+    "python": {
+      "cases": 2,
+      "exit": 0,
+      "log": "build/qa/manual-site-check-2026-10-13.log",
+      "note": "Temp-directory fixture first exposed /var to /private/var root normalization; fixed renderer and reran affected checks."
+    },
+    "search": {
+      "exit": 0,
+      "log": "build/qa/manual-search-check-2026-10-13.log",
+      "note": "Actual search script exercised against generated catalog with minimal DOM; no full browser visual/accessibility claim."
+    }
+  },
+  "pending": [
+    "Hosted deployment of this commit",
+    "Physical mobile/theme/browser and assistive-technology acceptance",
+    "Remaining user manual chapters and complete app parity"
+  ],
+  "app_rebuilt": false,
+  "test_apps_launched": 0
+}

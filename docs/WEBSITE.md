@@ -5,15 +5,25 @@ Published site: https://jfk-solutions.github.io/turtle-git-mac/
 The first deployment succeeded on 2026-10-03 after enabling the repository’s
 GitHub Actions publishing source. Repository name: `jfk-solutions/turtle-git-mac`.
 
-The GitHub Pages site is a static page at `docs/site`. Build it with:
+The GitHub Pages site includes the screenshot gallery and generated documentation
+pages, with local search and navigation. Markdown under `docs/` remains the source.
+Build it in a private Python environment:
 
 ```sh
-python3 scripts/build-site.py
+python3 -m venv build/site-venv
+build/site-venv/bin/pip install -r scripts/site-requirements.txt
+build/site-venv/bin/python scripts/build-site.py
+build/site-venv/bin/python scripts/test-site-docs.py
 python3 -m http.server 8768 --bind 127.0.0.1 --directory build/site
 ```
 
 The build reads `GITHUB_REPOSITORY` in Actions and derives it from `origin` locally.
-Repository links therefore follow a later rename. No analytics, third-party scripts
+Repository links therefore follow a later rename. The manual keeps local Markdown links on the published site; source files and
+QA records link to GitHub. Search reads a static index and performs matching in
+the browser. No query is sent to an external search service. The full document
+list remains available when JavaScript or index loading fails.
+
+No analytics, third-party scripts
 or remote fonts are included. All screenshots use a disposable sample repository.
 The page must describe the current development state without claiming full parity.
 
@@ -129,3 +139,17 @@ captures. The generated local page's introduction and Log section were inspected
 in the in-app browser; the preview tab and exact owned HTTP server were closed.
 The complete gallery, responsive layouts and hosted publication were not verified
 in this capture refresh.
+
+## Published documentation continuation — 2026-10-13
+
+The site build now renders every top-level Markdown document under `docs/` into
+`manual/`, with a complete no-script document list, local browser search, document
+type filtering, section navigation, tables and preserved code blocks. Existing
+gallery guide links point to these pages. Raw HTML from Markdown is escaped;
+source files and machine-readable QA retain their GitHub links.
+
+The grouped build/link/renderer/search checks passed for 175 documents. One
+outdated mail section link was corrected, and generated cross-page anchors
+validated without unresolved fragments. These checks cover generated structure
+and search behavior, not physical browser/theme/VoiceOver acceptance or completion
+of the manual chapters. See [dated evidence](qa/manual-site-2026-10-13.json).
