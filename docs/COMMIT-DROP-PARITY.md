@@ -51,3 +51,6 @@ parity.
 
 The file-drop batch passed eight Core tests and four grouped native cases across
 system and bundled Git. See the [scoped evidence](qa/commit-drop-2026-10-13.json).
+
+The membership resolver is now shared with [Add](ADD-DROP-PARITY.md). Add only
+refreshes its selection; Commit retains its source ordinary-add behavior.

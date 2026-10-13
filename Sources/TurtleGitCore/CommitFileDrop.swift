@@ -8,14 +8,18 @@ public struct CommitDroppedItem: Sendable {
     public let error: String?
 }
 
+public struct WorkingFileDropItem: Sendable {
+    public let path: String
+    public let directory: Bool
+}
+
 extension GitRepository {
-    /// CommitDlg::OnFileDropped: same repository only, ordinary add without -f,
-    /// separate items and continued failures. Never copies or moves disk items.
-    public func addDroppedCommitFiles(_ urls: [URL], cancellation: OperationCancellation? = nil) throws -> [CommitDroppedItem] {
+    /// Shared Add/Commit membership query. It does not stage or change disk items.
+    public func resolveWorkingFileDrops(_ urls: [URL], cancellation: OperationCancellation? = nil) throws -> [WorkingFileDropItem] {
         try cancellation?.check()
         guard try !isBare(cancellation: cancellation) else { throw WorkingFileRestoreFailure.location }
         let physicalRoot = root.resolvingSymlinksInPath().standardizedFileURL
-        var seen = Set<Data>(), results: [CommitDroppedItem] = []
+        var seen = Set<Data>(), results: [WorkingFileDropItem] = []
         for url in urls {
             try cancellation?.check()
             guard url.isFileURL, url.host == nil || url.host == "" || url.host == "localhost", !url.path.contains("\0") else { continue }
@@ -38,10 +42,21 @@ extension GitRepository {
                   URL(fileURLWithPath: discovered).resolvingSymlinksInPath().path.utf8.elementsEqual(physicalRoot.path.utf8) else { continue }
             let path = components.isEmpty ? "." : components.joined(separator: "/")
             guard seen.insert(Data(path.utf8)).inserted else { continue }
-            let added = try run(["add", "--", path], successfulExitCodes: 0...128, cancellation: cancellation)
-            results.append(CommitDroppedItem(path: path, directory: directory, added: added.exitCode == 0,
+            results.append(WorkingFileDropItem(path: path, directory: directory))
+        }
+        return results
+    }
+    /// CommitDlg::OnFileDropped uses ordinary add without -f, one item at a time.
+    public func addDroppedCommitFiles(_ urls: [URL], cancellation: OperationCancellation? = nil) throws -> [CommitDroppedItem] {
+        let items = try resolveWorkingFileDrops(urls, cancellation: cancellation)
+        var results: [CommitDroppedItem] = []
+        for item in items {
+            try cancellation?.check()
+            let added = try run(["add", "--", item.path], successfulExitCodes: 0...128, cancellation: cancellation)
+            results.append(CommitDroppedItem(path: item.path, directory: item.directory, added: added.exitCode == 0,
                 error: added.exitCode == 0 ? nil : String(added.text.prefix(4096))))
         }
         return results
     }
+
 }

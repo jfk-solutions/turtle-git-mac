@@ -457,6 +457,22 @@
       ],
       "parity_document": "docs/COMMIT-PARITY.md",
       "status": "partial-workflow-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_ADD",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/AddWindow.swift",
+          "anchor": "class AddWindowModel"
+        },
+        {
+          "path": "Sources/TurtleGitMac/AddFileTable.swift",
+          "anchor": "struct AddFileTable"
+        }
+      ],
+      "parity_document": "docs/ADD-PARITY.md",
+      "status": "native-partial"
     }
   ]
 }

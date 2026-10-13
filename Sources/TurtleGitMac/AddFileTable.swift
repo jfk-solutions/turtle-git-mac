@@ -7,6 +7,18 @@ private final class AddNativeTable: NativeWatermarkTable {
     var copySelection: () -> Void = {}
     var deleteSelection: (Bool) -> Void = { _ in }
     var contextSelection: (Int, Int) -> Void = { _, _ in }
+    var validateFileDrop: (NSPasteboard) -> Bool = { _ in false }
+    var acceptFileDrop: (NSPasteboard) -> Bool = { _ in false }
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        guard sender.draggingSource as AnyObject? !== self else { return [] }
+        return validateFileDrop(sender.draggingPasteboard) ? .copy : []
+    }
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation { draggingEntered(sender) }
+    override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool { validateFileDrop(sender.draggingPasteboard) }
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        guard sender.draggingSource as AnyObject? !== self else { return false }
+        return acceptFileDrop(sender.draggingPasteboard)
+    }
     override func menu(for event: NSEvent) -> NSMenu? {
         let point = convert(event.locationInWindow, from: nil)
         let index = row(at: point)
@@ -62,6 +74,9 @@ struct AddFileTable: NSViewRepresentable {
         }
         func make() -> NSScrollView {
             let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true; scroll.borderType = .bezelBorder
+            nativeTable.registerForDraggedTypes([.fileURL])
+            nativeTable.validateFileDrop = { [weak self] in self?.validateDrop($0) == true }
+            nativeTable.acceptFileDrop = { [weak self] in self?.acceptDrop($0) == true }
             table.dataSource = self; table.delegate = self; table.allowsMultipleSelection = true; table.rowHeight = 22
             table.target = self; table.doubleAction = #selector(preview)
             nativeTable.contextSelection = { [weak self] row, column in self?.prepareContext(row: row, column: column) }
@@ -102,12 +117,20 @@ struct AddFileTable: NSViewRepresentable {
             table.selectRowIndexes(IndexSet(rows.enumerated().compactMap { model.highlighted.contains($0.element.path) ? $0.offset : nil }), byExtendingSelection: false)
             updating = false
         }
+        func droppedURLs(_ pasteboard: NSPasteboard) -> [URL] {
+            (pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) ?? []).compactMap { ($0 as? NSURL).map { $0 as URL } }
+        }
+        func validateDrop(_ pasteboard: NSPasteboard) -> Bool { model.canReceiveFileDrop && table.window?.attachedSheet == nil && !droppedURLs(pasteboard).isEmpty }
+        @discardableResult func acceptDrop(_ pasteboard: NSPasteboard) -> Bool {
+            guard validateDrop(pasteboard) else { return false }
+            return model.addDropped(droppedURLs(pasteboard))
+        }
         func numberOfRows(in tableView: NSTableView) -> Int { rows.count }
         func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row index: Int) -> NSView? {
             guard rows.indices.contains(index) else { return nil }; let row = rows[index]
             if tableColumn?.identifier.rawValue == "check" {
                 let button = NSButton(checkboxWithTitle: "", target: self, action: #selector(toggleRow(_:))); button.identifier = NSUserInterfaceItemIdentifier(row.path)
-                button.state = model.checked.contains(row.path) ? .on : .off; button.isEnabled = !model.busy && !model.confirmingQuit; return button
+                button.state = model.checked.contains(row.path) ? .on : .off; button.isEnabled = !model.retired && !model.busy && !model.confirmingQuit; return button
             }
             let field = NSTextField(labelWithString: ""); field.lineBreakMode = .byTruncatingMiddle; field.font = fileListFont ?? .systemFont(ofSize: NSFont.systemFontSize)
             switch tableColumn?.identifier.rawValue {
@@ -129,14 +152,14 @@ struct AddFileTable: NSViewRepresentable {
             else { model.selectionMark = selectedRows.first?.path }
         }
         func tableView(_ tableView: NSTableView, sortDescriptorsDidChange oldDescriptors: [NSSortDescriptor]) { refresh() }
-        @objc func toggleRow(_ sender: NSButton) { guard !model.busy, !model.confirmingQuit, let path = sender.identifier?.rawValue, model.entries.contains(where: { $0.path == path }) else { return }; if sender.state == .on { model.checked.insert(path) } else { model.checked.remove(path) } }
+        @objc func toggleRow(_ sender: NSButton) { guard !model.retired, !model.busy, !model.confirmingQuit, let path = sender.identifier?.rawValue, model.entries.contains(where: { $0.path == path }) else { return }; if sender.state == .on { model.checked.insert(path) } else { model.checked.remove(path) } }
         var selectedRows: [AddDialogEntry] { rows.filter { model.highlighted.contains($0.path) } }
         var selectedIsFile: Bool {
             guard selectedRows.count == 1, let row = selectedRows.first,
                   let type = try? FileManager.default.attributesOfItem(atPath: model.repository.root.appendingPathComponent(row.path).path)[.type] as? FileAttributeType else { return false }
             return type != .typeDirectory
         }
-        var canAct: Bool { !model.busy && !model.confirmingQuit && !selectedRows.isEmpty }
+        var canAct: Bool { !model.retired && !model.busy && !model.confirmingQuit && !selectedRows.isEmpty }
         @objc func check() { guard canAct else { return }; model.checked.formUnion(selectedRows.map(\.path)); refresh() }
         @objc func uncheck() { guard canAct else { return }; model.checked.subtract(selectedRows.map(\.path)); refresh() }
         func toggleSelectedChecks() {

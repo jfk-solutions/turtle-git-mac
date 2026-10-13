@@ -47,6 +47,18 @@ final class CommitFileDropTests: XCTestCase {
         XCTAssertEqual(blob, Data(external.appendingPathComponent("file").path.utf8))
         XCTAssertEqual(try Data(contentsOf: external.appendingPathComponent("file")), Data("outside".utf8))
     }
+    func testAddResolverReturnsMembershipWithoutStaging() async throws {
+        let (root, repository, _) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let file = root.appendingPathComponent("new 雪\n.txt")
+        try Data("not staged".utf8).write(to: file)
+        let index = root.appendingPathComponent(".git/index"), before = try Data(contentsOf: index)
+        let items = try await repository.resolveWorkingFileDrops([file, file, root.appendingPathComponent(".git/config")])
+        XCTAssertEqual(items.map(\.path), ["new 雪\n.txt"]); XCTAssertFalse(items[0].directory)
+        XCTAssertEqual(try Data(contentsOf: index), before)
+        let staged = try await repository.run(["ls-files", "-z", "--", "new 雪\n.txt"]).stdout
+        XCTAssertTrue(staged.isEmpty)
+    }
     func testRootDropAndPrecancel() async throws {
         let (root, repository, _) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

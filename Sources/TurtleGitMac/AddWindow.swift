@@ -123,10 +123,15 @@ private final class AddNativeWindow: NSWindow {
         } else if !NSWorkspace.shared.open(file) { model.error = "Could not open the file. Choose an application using Open With." }
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { if sender.attachedSheet != nil { return false }; if model.busy { model.cancel(); return false }; return !model.confirmingQuit }
-    func windowWillClose(_ notification: Notification) { model.restoreCopies.removeAll(); onClosed() }
+    func windowWillClose(_ notification: Notification) { model.invalidate(); if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.close() }; ignoreController?.close(); ignoreController = nil; onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class AddWindowModel: ObservableObject {
+    static private(set) var activeOperations = 0
+    private(set) var retired = false
+    private var readTask: Task<Void, Never>?
+    var queryDroppedItems: (([URL], OperationCancellation) async throws -> [WorkingFileDropItem])?
+    var querySelection: (([String], Bool, OperationCancellation) async throws -> AddDialogSelection)?
     let repository: GitRepository
     private let access: RepositoryAccessLease?
     @Published var entries: [AddDialogEntry] = []
@@ -140,6 +145,7 @@ private final class AddNativeWindow: NSWindow {
     @Published var error: String?
     @Published var sortOrder = [KeyPathComparator(\AddDialogEntry.path)]
     private var paths: [String] = ["."]
+    var scopePaths: [String] { paths }
     private var loaded = false
     private(set) var ignoring = false
     @Published var restoreCopies: [String: WorkingFileRestoreCopy] = [:]
@@ -147,29 +153,30 @@ private final class AddNativeWindow: NSWindow {
     private var pendingFlags: (IndexFlagAction, [String], String)?
     var onIndexFlags: (IndexFlagAction, [String], String) -> Void = { _, _, _ in }
     func beginFlagConfirmation(_ action: IndexFlagAction, paths: [String], mark: String) -> Bool {
-        guard !busy, !confirmingQuit, !paths.isEmpty, paths.contains(mark),
+        guard !retired, !busy, !confirmingQuit, !paths.isEmpty, paths.contains(mark),
               paths.allSatisfy({ path in entries.contains { $0.path == path } }),
               let marked = indexFlagFiles.first(where: { $0.id == mark }), action.isAvailable(for: [marked]) else { return false }
         pendingFlags = (action, paths, mark); busy = true; return true
     }
     @discardableResult func finishFlagConfirmation(accepted: Bool) -> Task<Void, Never>? {
+        guard !retired else { return nil }
         guard let (action, paths, mark) = pendingFlags else { return nil }; pendingFlags = nil
         guard accepted else { busy = false; return nil }
         cancellation = OperationCancellation(); let operationCancellation = cancellation
-        return Task {
-            defer { busy = false; if operationCancellation.isCancelled || cancellation.isCancelled { close() }; cancellation = OperationCancellation() }
+        return performOperation { [self] in
+            defer { busy = false; if !retired && (operationCancellation.isCancelled || cancellation.isCancelled) { close() }; cancellation = OperationCancellation() }
             do {
                 try validateAccess()
                 if operationCancellation.isCancelled { throw OperationCancellationFailure.cancelled }
                 // The shared locked index transaction finishes atomically once started.
                 try await repository.setIndexFlags(action, paths: paths, markedPath: mark)
-                onIgnoreChanged(action.rawValue + ": " + paths.joined(separator: ", "))
+                if !retired { onIgnoreChanged(action.rawValue + ": " + paths.joined(separator: ", ")) }
             } catch {
                 if let failure = error as? IndexFlagPartialFailure, !failure.updatedPaths.isEmpty { onIgnoreChanged(failure.localizedDescription) }
                 if !(error is OperationCancellationFailure) { self.error = error.localizedDescription }
             }
             cancellation = OperationCancellation()
-            do { try await read() } catch { if !cancellation.isCancelled { self.error = [self.error, error.localizedDescription].compactMap { $0 }.joined(separator: "\n") } }
+            do { try await read() } catch { if !retired && !cancellation.isCancelled { self.error = [self.error, error.localizedDescription].compactMap { $0 }.joined(separator: "\n") } }
         }
     }
     private var pendingRevert: [AddDialogEntry]?
@@ -181,10 +188,11 @@ private final class AddNativeWindow: NSWindow {
     var revertNeedsConfirmation: Bool { pendingRevert?.contains { !$0.isDirectory && [$0.status.index, $0.status.worktree].contains { $0 == "M" || $0 == "T" } } == true }
     func beginRevertConfirmation(_ rows: [AddDialogEntry]) -> Bool {
         let marked = rows.first { $0.path == selectionMark } ?? rows.first
-        guard !busy, !confirmingQuit, !rows.isEmpty, marked?.status.canCompareWithBaseFromStatusList == true else { return false }
+        guard !retired, !busy, !confirmingQuit, !rows.isEmpty, marked?.status.canCompareWithBaseFromStatusList == true else { return false }
         pendingRevert = rows; busy = true; return true
     }
     func finishRevertConfirmation(accepted: Bool) {
+        guard !retired else { return }
         guard let selected = pendingRevert else { return }; pendingRevert = nil
         guard accepted else { busy = false; return }
         reverting = true; closeAfterRevert = false
@@ -192,9 +200,9 @@ private final class AddNativeWindow: NSWindow {
         if reverting { cancelRevert = cancel }
     }
     private func finishRevert(_ selected: [AddDialogEntry], succeeded: Bool) {
-        guard reverting else { return }; reverting = false; cancelRevert = nil; cancellation = OperationCancellation()
-        Task {
-            defer { busy = false; if closeAfterRevert || cancellation.isCancelled { close() }; closeAfterRevert = false; cancellation = OperationCancellation() }
+        guard !retired, reverting else { return }; reverting = false; cancelRevert = nil; cancellation = OperationCancellation()
+        performOperation { [self] in
+            defer { busy = false; if !retired && (closeAfterRevert || cancellation.isCancelled) { close() }; closeAfterRevert = false; cancellation = OperationCancellation() }
             if succeeded { checked.subtract(selected.map(\.path)); highlighted.subtract(selected.map(\.path)) }
             do {
                 try await read()
@@ -202,7 +210,7 @@ private final class AddNativeWindow: NSWindow {
                     let clean = Set(selected.filter { !$0.isDirectory && $0.state != .added }.map(\.path))
                     entries.removeAll { clean.contains($0.path) && $0.state == .normal }
                 }
-            } catch { if !cancellation.isCancelled { self.error = error.localizedDescription } }
+            } catch { if !retired && !cancellation.isCancelled { self.error = error.localizedDescription } }
         }
     }
     private var pendingRestore: [String]?
@@ -224,11 +232,11 @@ private final class AddNativeWindow: NSWindow {
     var onIgnore: ([String], Bool) -> Void = { _, _ in }
     var onIgnoreChanged: (String) -> Void = { _ in }
     func beginIgnore() -> Bool {
-        guard !busy, !confirmingQuit else { return false }
+        guard !retired, !busy, !confirmingQuit else { return false }
         ignoring = true; busy = true; return true
     }
     func finishIgnore(changed: Bool) {
-        guard ignoring else { return }
+        guard !retired, ignoring else { return }
         ignoring = false; busy = false
         if changed { reload() }
     }
@@ -240,103 +248,111 @@ private final class AddNativeWindow: NSWindow {
     @discardableResult func startSave(_ path: String, to target: URL) -> Task<Void, Never>? { startCopy([path], to: target, save: true) }
     @discardableResult func startExport(_ paths: [String], to folder: URL) -> Task<Void, Never>? { startCopy(paths, to: folder, save: false) }
     private func startCopy(_ paths: [String], to target: URL, save: Bool) -> Task<Void, Never>? {
-        guard !busy, !confirmingQuit, !paths.isEmpty else { return nil }; busy = true; cancellation = OperationCancellation()
-        return Task {
+        guard !retired, !busy, !confirmingQuit, !paths.isEmpty else { return nil }; busy = true; cancellation = OperationCancellation()
+        return performOperation { [self] in
             let scoped = target.startAccessingSecurityScopedResource()
             defer { if scoped { target.stopAccessingSecurityScopedResource() }; busy = false; cancellation = OperationCancellation() }
             do {
                 try validateAccess()
                 if GitRuntime.isAppStoreBuild && !scoped { throw RepositoryAccessFailure.securityScopeUnavailable }
                 if save {
-                    try await repository.saveWorkingFile(path: paths[0], to: target, cancellation: cancellation); information = "Saved " + target.path
+                    try await repository.saveWorkingFile(path: paths[0], to: target, cancellation: cancellation); if !retired { information = "Saved " + target.path }
                 } else {
-                    let count = try await repository.exportWorkingFiles(paths: paths, to: target, cancellation: cancellation); information = "\(count) file(s) exported."
+                    let count = try await repository.exportWorkingFiles(paths: paths, to: target, cancellation: cancellation); if !retired { information = "\(count) file(s) exported." }
                 }
-            } catch { self.error = error.localizedDescription }
+            } catch { if !retired { self.error = error.localizedDescription } }
         }
     }
     var onDelete: ([StatusEntry], Bool) -> Void = { _, _ in }
     var onDeleteChanged: (String) -> Void = { _ in }
     func beginDeleteConfirmation(_ selected: [StatusEntry], permanently: Bool) -> Bool {
-        guard !busy, !confirmingQuit, !selected.isEmpty, selected.contains(where: \.canDeleteFromStatusList) else { return false }
+        guard !retired, !busy, !confirmingQuit, !selected.isEmpty, selected.contains(where: \.canDeleteFromStatusList) else { return false }
         pendingDelete = (selected, permanently); lastDeleteResult = nil; busy = true; return true
     }
     @discardableResult func finishDeleteConfirmation(accepted: Bool) -> Task<Void, Never>? {
+        guard !retired else { return nil }
         guard let pendingDelete else { return nil }; self.pendingDelete = nil
         guard accepted else { busy = false; return nil }
         cancellation = OperationCancellation()
-        return Task {
+        return performOperation { [self] in
             do {
                 try validateAccess()
                 let result = try await repository.deleteWorkingFiles(pendingDelete.selected, permanently: pendingDelete.permanently, cancellation: cancellation)
+                guard !retired else { return }
                 lastDeleteResult = result
                 checked.subtract(pendingDelete.selected.map(\.path)); highlighted.subtract(pendingDelete.selected.map(\.path))
                 onDeleteChanged("\(pendingDelete.selected.count) item(s) deleted." + (result.trashedFiles.isEmpty ? "" : "\n" + result.trashedFiles.map { "Moved to Trash: " + $0.path }.joined(separator: "\n")))
             } catch {
+                guard !retired else { return }
                 self.error = error.localizedDescription
                 if let failure = error as? WorkingFileDeleteFailure, !failure.removedPaths.isEmpty { onDeleteChanged(failure.localizedDescription) }
             }
+            guard !retired else { return }
             cancellation = OperationCancellation()
-            do { try await read() } catch { self.error = [self.error, error.localizedDescription].compactMap { $0 }.joined(separator: "\n") }
+            do { try await read() } catch { if !retired { self.error = [self.error, error.localizedDescription].compactMap { $0 }.joined(separator: "\n") } }
             busy = false
         }
     }
     @discardableResult func startMarkForRestore(_ paths: [String]) -> Task<Void, Never>? {
         let files = paths.filter { path in entries.contains { $0.path == path && !$0.isDirectory } && restoreCopies[path] == nil }
-        guard !busy, !confirmingQuit, !files.isEmpty else { return nil }
+        guard !retired, !busy, !confirmingQuit, !files.isEmpty else { return nil }
         busy = true; cancellation = OperationCancellation()
-        return Task {
-            defer { busy = false; if cancellation.isCancelled { close() }; cancellation = OperationCancellation() }
+        return performOperation { [self] in
+            defer { busy = false; if !retired && cancellation.isCancelled { close() }; cancellation = OperationCancellation() }
             do {
                 try validateAccess()
                 var failures: [String] = []
                 for path in files {
                     if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
-                    do { restoreCopies[path] = try await repository.captureWorkingFileRestoreCopy(path: path, allowUnversioned: true) }
+                    do {
+                        let copy = try await repository.captureWorkingFileRestoreCopy(path: path, allowUnversioned: true)
+                        guard !retired else { return }; restoreCopies[path] = copy
+                    }
                     catch { failures.append(path + ": " + error.localizedDescription) }
                 }
-                if !failures.isEmpty { self.error = failures.joined(separator: "\n") }
-            } catch { if !cancellation.isCancelled { self.error = error.localizedDescription } }
+                if !retired && !failures.isEmpty { self.error = failures.joined(separator: "\n") }
+            } catch { if !retired && !cancellation.isCancelled { self.error = error.localizedDescription } }
         }
     }
     func beginRestoreConfirmation(_ paths: [String]) -> Bool {
-        guard !busy, !confirmingQuit, paths.contains(where: { restoreCopies[$0] != nil }) else { return false }
+        guard !retired, !busy, !confirmingQuit, paths.contains(where: { restoreCopies[$0] != nil }) else { return false }
         pendingRestore = paths; busy = true; return true
     }
     @discardableResult func finishRestoreConfirmation(accepted: Bool) -> Task<Void, Never>? {
+        guard !retired else { return nil }
         guard let paths = pendingRestore else { return nil }; pendingRestore = nil
         guard accepted else { busy = false; return nil }
         cancellation = OperationCancellation()
-        return Task {
+        return performOperation { [self] in
             var changed = false
-            defer { busy = false; if cancellation.isCancelled { close() }; cancellation = OperationCancellation() }
+            defer { busy = false; if !retired && cancellation.isCancelled { close() }; cancellation = OperationCancellation() }
             do {
                 try validateAccess()
                 var failures: [String] = []
                 for path in paths {
                     if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
                     guard let copy = restoreCopies[path] else { continue }
-                    do { try await repository.restoreWorkingFile(copy); restoreCopies.removeValue(forKey: path); changed = true }
+                    do { try await repository.restoreWorkingFile(copy); guard !retired else { return }; restoreCopies.removeValue(forKey: path); changed = true }
                     catch { failures.append(path + ": " + error.localizedDescription) }
                 }
-                if !failures.isEmpty { self.error = failures.joined(separator: "\n") }
-            } catch { if !cancellation.isCancelled { self.error = error.localizedDescription } }
-            if changed {
+                if !retired && !failures.isEmpty { self.error = failures.joined(separator: "\n") }
+            } catch { if !retired && !cancellation.isCancelled { self.error = error.localizedDescription } }
+            if changed, !retired {
                 onRestoreChanged()
-                do { try await read() } catch { if !cancellation.isCancelled { self.error = error.localizedDescription } }
+                do { try await read() } catch { if !retired && !cancellation.isCancelled { self.error = error.localizedDescription } }
             }
         }
     }
     @discardableResult func startUnifiedDiff(paths: [String], alternate: Bool = false) -> Task<Void, Never>? {
         let marked = entries.first { $0.path == selectionMark && paths.contains($0.path) } ?? entries.first { $0.path == paths.first }
-        guard !busy, !confirmingQuit, !unifiedViewerBusy(), hasHead, !paths.isEmpty,
+        guard !retired, !busy, !confirmingQuit, !unifiedViewerBusy(), hasHead, !paths.isEmpty,
               Set(paths).count == paths.count, paths.allSatisfy({ path in entries.contains { $0.path == path } }),
               marked?.status.canCompareWithBaseFromStatusList == true else { return nil }
         busy = true; cancellation = OperationCancellation()
-        return Task {
+        return performOperation { [self] in
             defer {
                 busy = false
-                if cancellation.isCancelled { close() }
+                if !retired && cancellation.isCancelled { close() }
                 cancellation = OperationCancellation()
             }
             do {
@@ -345,26 +361,46 @@ private final class AddNativeWindow: NSWindow {
                 for path in paths {
                     bytes.append(try await repository.run(["diff", "--no-ext-diff", "--no-color", "--stat", "-p", "--end-of-options", "HEAD", "--", path], cancellation: cancellation).stdout)
                 }
-                if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
+                if retired || cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
                 if unifiedViewerBusy() { throw NSError(domain: "TurtleGit.Add", code: 1, userInfo: [NSLocalizedDescriptionKey: "Finish the open unified diff operation before showing another comparison."]) }
                 try await onUnifiedPatch(bytes, alternate)
-            } catch { if !cancellation.isCancelled { self.error = error.localizedDescription } }
+            } catch { if !retired && !cancellation.isCancelled { self.error = error.localizedDescription } }
         }
     }
-    var canApply: Bool { !busy && !confirmingQuit && !checked.isEmpty }
+    private func performOperation(_ work: @escaping @MainActor () async -> Void) -> Task<Void, Never> {
+        Self.activeOperations += 1
+        return Task { @MainActor in
+            defer { Self.activeOperations -= 1 }
+            guard !retired else { return }
+            await work()
+        }
+    }
+    var canApply: Bool { !retired && !busy && !confirmingQuit && !checked.isEmpty }
     init(repository: GitRepository, access: RepositoryAccessLease?) { self.repository = repository; self.access = access }
-    func setScope(_ paths: [String]) { self.paths = paths.isEmpty ? ["."] : paths; loaded = false; checked = []; highlighted = []; selectionMark = nil; hasHead = false }
+    func setScope(_ paths: [String]) { guard !retired, !busy else { return }; self.paths = paths.isEmpty ? ["."] : paths; loaded = false; checked = []; highlighted = []; selectionMark = nil; hasHead = false }
     private func validateAccess() throws {
+        guard !retired, !cancellation.isCancelled else { throw OperationCancellationFailure.cancelled }
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+    }
+    func invalidate() {
+        guard !retired else { return }; retired = true; cancellation.cancel(); readTask?.cancel(); readTask = nil
+        cancelRevert?(); cancelRevert = nil; reverting = false
+        pendingFlags = nil; pendingDelete = nil; pendingRestore = nil; pendingRevert = nil; ignoring = false
+        restoreCopies.removeAll(); busy = false
     }
     func read() async throws {
         try validateAccess()
-        let selection = try await repository.addDialogSelection(paths: paths, includeIgnored: includeIgnored, cancellation: cancellation)
+        let token = cancellation
+        let selection: AddDialogSelection
+        if let querySelection { selection = try await querySelection(paths, includeIgnored, token) }
+        else { selection = try await repository.addDialogSelection(paths: paths, includeIgnored: includeIgnored, cancellation: token) }
+        guard !retired, cancellation === token, !token.isCancelled else { throw OperationCancellationFailure.cancelled }
         let head = try? await repository.run(["rev-parse", "--verify", "HEAD^{commit}"], cancellation: cancellation)
-        if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }; hasHead = head != nil
-        let flags = try await repository.workingTreeStatus(refreshIndex: false)
+        if retired || cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
+        let flags = try await repository.workingTreeStatus(refreshIndex: false, cancellation: token)
         if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
-        indexFlagFiles = flags
+        guard !retired, cancellation === token, !token.isCancelled else { throw OperationCancellationFailure.cancelled }
+        hasHead = head != nil; indexFlagFiles = flags
         let previous = Set(entries.map(\.path))
         entries = selection.entries
         if loaded { checked.formIntersection(Set(entries.map(\.path))); checked.formUnion(selection.initiallyChecked.subtracting(previous)) }
@@ -372,40 +408,47 @@ private final class AddNativeWindow: NSWindow {
         highlighted.formIntersection(Set(entries.map(\.path)))
     }
     func reload() {
-        guard !busy, !confirmingQuit else { return }; busy = true; cancellation = OperationCancellation()
-        Task {
-            do { try await read() }
-            catch { if !cancellation.isCancelled { self.error = error.localizedDescription } }
-            busy = false
-            if cancellation.isCancelled { close() }
+        guard !retired, !busy, !confirmingQuit else { return }; busy = true; cancellation = OperationCancellation()
+        let token = cancellation
+        readTask = performOperation { [self] in
+            defer { self.readTask = nil; self.busy = false; if !self.retired && token.isCancelled { self.close() } }
+            do { try await self.read() }
+            catch { if !self.retired && !token.isCancelled { self.error = error.localizedDescription } }
         }
     }
     func cancel() {
-        guard !confirmingQuit, !ignoring, pendingDelete == nil, pendingRestore == nil, pendingRevert == nil, pendingFlags == nil else { return }
+        guard !retired, !confirmingQuit, !ignoring, pendingDelete == nil, pendingRestore == nil, pendingRevert == nil, pendingFlags == nil else { return }
         if reverting { closeAfterRevert = true; cancelRevert?() }
         else if busy { cancellation.cancel() }
         else { close() }
     }
     func apply() { guard canApply else { return }; onAccepted(entries.filter { checked.contains($0.path) }.map(\.path)); close() }
-    func addDropped(_ urls: [URL]) -> Bool {
-        guard !busy, !confirmingQuit, !urls.isEmpty else { return false }
-        let request = FinderRequest(action: .add, paths: urls)
-        guard request.paths.allSatisfy({ $0.path == repository.root.path || $0.path.hasPrefix(repository.root.path + "/") }) else { return false }
-        busy = true
-        Task {
+    var canReceiveFileDrop: Bool { !retired && !busy && !confirmingQuit && loaded }
+    @discardableResult func addDropped(_ urls: [URL]) -> Bool {
+        guard canReceiveFileDrop, !urls.isEmpty, urls.allSatisfy(\.isFileURL) else { return false }
+        busy = true; cancellation = OperationCancellation(); let token = cancellation
+        readTask = performOperation { [self] in
+            defer { self.readTask = nil; self.busy = false; if !self.retired && token.isCancelled { self.close() } }
             do {
-                try validateAccess()
-                for item in request.paths {
-                    let type = try FileManager.default.attributesOfItem(atPath: item.path)[.type] as? FileAttributeType
-                    let location = type == .typeDirectory ? item : item.deletingLastPathComponent()
-                    let owner = try await GitRepository(root: location, executable: repository.executable).discoverRoot()
-                    guard owner.path == repository.root.path else { throw AddFailure.outsideRepository }
+                try self.validateAccess()
+                let items: [WorkingFileDropItem]
+                if let query = self.queryDroppedItems { items = try await query(urls, token) }
+                else { items = try await self.repository.resolveWorkingFileDrops(urls, cancellation: token) }
+                guard !self.retired, self.cancellation === token, !token.isCancelled, !Task.isCancelled else { throw OperationCancellationFailure.cancelled }
+                guard !items.isEmpty else { return }
+                if items.contains(where: { $0.path == "." }) { self.paths = ["."] }
+                else if !self.paths.contains(".") {
+                    for item in items where !self.entries.contains(where: { $0.path.utf8.elementsEqual(item.path.utf8) }) && !self.paths.contains(where: { $0.utf8.elementsEqual(item.path.utf8) || item.path.hasPrefix($0 + "/") }) { self.paths.append(item.path) }
                 }
-                let additions = request.relativePaths(root: repository.root)
-                paths = Array(Set(paths + additions)).sorted()
-                try await read(); checked.formUnion(entries.filter { row in additions.contains { row.path == $0 || row.path.hasPrefix($0 + "/") } }.map(\.path))
-            } catch { self.error = error.localizedDescription }
-            busy = false
+                try await self.read()
+                guard !self.retired, !token.isCancelled else { throw OperationCancellationFailure.cancelled }
+                for item in items {
+                    for row in self.entries where item.path == "." || row.path.utf8.elementsEqual(item.path.utf8) || item.directory && row.path.hasPrefix(item.path + "/") {
+                        if row.state == .untracked || row.status.hasUnversionedCopy || self.paths.contains(row.path) { self.checked.insert(row.path) }
+                        else { self.checked.remove(row.path) }
+                    }
+                }
+            } catch { if !self.retired && !token.isCancelled { self.error = error.localizedDescription } }
         }
         return true
     }
@@ -432,7 +475,6 @@ struct AddDialogView: View {
                 Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-add.html")!) }
             }
         }.padding(12).disabled(model.confirmingQuit)
-        .dropDestination(for: URL.self) { urls, _ in model.addDropped(urls) }
         .alert("Add failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
     }
 }

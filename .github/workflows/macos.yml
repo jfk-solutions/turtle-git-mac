@@ -442,8 +442,6 @@ jobs:
         run: python3 scripts/test-clean-dialog.py
       - name: Native Advanced Settings model and table receiver
         run: python3 scripts/test-advanced-settings.py
-      - name: Native Add model and table receiver
-        run: python3 scripts/test-add-dialog.py
       - name: Native Finder menu builder without extension activation
         run: python3 scripts/test-finder-menu.py
       - name: Native Context Menu settings transactions and page previews

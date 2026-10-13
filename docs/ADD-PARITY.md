@@ -153,8 +153,9 @@ Unversioned rows start checked; ignored rows are hidden until Include ignored is
 selected and start unchecked unless directly requested. Direct files in a mixed
 scope and removed-but-present copies are included. Refresh retains existing
 checks and initially checks new unversioned rows. F5 and Command/Control-Return
-are wired to refresh/accept. Same-repository drops extend scope/checks; native
-drop acceptance remains unverified. Folder selections use path boundaries.
+are wired to refresh/accept. The later [drop/lifetime batch](ADD-DROP-PARITY.md)
+adds the native table destination and scoped read-only drop/check refresh.
+Physical Finder delivery and signed acceptance remain unverified. Folder selections use path boundaries.
 Git still cannot track empty directories.
 
 OK submits only checked paths and closes the selector. Direct file requests and
@@ -248,3 +249,10 @@ progress notification granularity, saved histories/preferences, broader direct/
 removed/ignored/submodule cases and real native visual/light/dark comparison remain
 unfinished. Signed Finder/picker/grant/quit acceptance and GitHub execution of
 these local changes remain unverified. This work does not complete the full port.
+
+The Add selector now owns read/drop cancellation, invalidates on closure and
+counts model-owned tasks for Quit. See the [connected source audit](ADD-DROP-PARITY.md).
+
+The batch passed fourteen Core tests, the Debug build and six unique native
+cases across Add/drop/Commit with both Git engines. See the
+[scoped evidence and fixture repairs](qa/add-drop-2026-10-13.json).

@@ -1,0 +1,95 @@
+{
+  "date": "2026-10-13",
+  "reference": {
+    "revision": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "source": [
+      "AddDlg.cpp::OnFileDropped",
+      "GitStatusListCtrl.cpp::ResetChecked",
+      "CGitStatusListCtrlDropTarget::OnDrop/DragOver"
+    ]
+  },
+  "scope": [
+    "Shared read-only repository membership resolver; Commit preserves ordinary add and Add waits for reviewed OK/progress",
+    "Native Add table file-URL dragging destination and scoped/default check reset",
+    "Tracked cancellable Add reads/drops with snapshot publication and retirement fences",
+    "Add-model-owned tasks retain global Quit accounting after closure",
+    "Late confirmation and retired table/Apply guards; retired owned-sheet/Ignore cleanup",
+    "Complete existing Add receiver moved into the object cache with both-engine isolation"
+  ],
+  "validation": {
+    "core": {
+      "exit": 0,
+      "tests": 14,
+      "failures": 0,
+      "families": [
+        "CommitFileDropTests",
+        "AddTests",
+        "WorkingFileAddTests"
+      ],
+      "log": "build/qa/add-drop-core-2026-10-13.log"
+    },
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/add-drop-debug-2026-10-13.log",
+      "note": "Existing Xcode exit-zero/no-output diagnostics emitted; not a warning-clean claim."
+    },
+    "native": {
+      "unique_accepted_cases": 6,
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "families": [
+        "add-drop",
+        "add-dialog",
+        "commit-drop"
+      ],
+      "evidence": [
+        {
+          "log": "build/qa/add-drop-native-accepted-2026-10-13.log",
+          "accepted": [
+            "add-drop/system",
+            "add-dialog/system",
+            "commit-drop/system",
+            "add-drop/bundled"
+          ],
+          "terminal_exit": 1,
+          "failure": "Bundled Add receiver collided with the system receiver sibling directory."
+        },
+        {
+          "log": "build/qa/add-dialog-native-accepted-2026-10-13.log",
+          "accepted": [
+            "add-dialog/system",
+            "add-dialog/bundled"
+          ],
+          "terminal_exit": 0
+        },
+        {
+          "log": "build/qa/add-drop-commit-bundled-2026-10-13.log",
+          "accepted": [
+            "commit-drop/bundled"
+          ],
+          "terminal_exit": 0
+        }
+      ],
+      "repairs": [
+        "Initial migrated receiver compared dynamic NSColor objects by identity. The assertion now resolves RGBA in both Aqua/Dark Aqua and retains exact tooltip checks.",
+        "Auxiliary exports/unborn directories now derive from the engine/case fixture, and the unborn repository uses the selected Git engine."
+      ],
+      "ownership": "Every accepted and failed receiver emitted owned-process reaping. No user app was terminated.",
+      "signed_scope": "Private pasteboard emitted sandbox_extension_consume failure in the unsigned receiver; accepted functional checks do not prove signed Finder grants."
+    },
+    "documentation": {
+      "exit": 0,
+      "tests": 2,
+      "log": "build/qa/add-drop-site-check-2026-10-13.log"
+    }
+  },
+  "pending": [
+    "Physical Finder mouse/drag/VoiceOver acceptance",
+    "Broader permission-panel/external-workflow teardown",
+    "Every alias/volume and signed App Store grant/execution case",
+    "Full Add/Commit/application parity"
+  ],
+  "full_port_certified": false
+}
