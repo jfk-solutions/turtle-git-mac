@@ -606,3 +606,7 @@ The native locator bar is now integrated in both viewers, with engine result col
 Backup original file and empty-result Delete/Keep now share a guarded save layer across both viewers. Deleted conflict snapshots retain staging retry state. See [save workflows](MERGE-SAVE-WORKFLOWS-PARITY.md) for source adaptations, evidence and remaining acceptance.
 
 Both viewers now display source whitespace/EOL symbols and the original CR/LF/CRLF icons without changing buffers. Saved View/Settings controls retain the source defaults. See [whitespace display parity](MERGE-WHITESPACE-DISPLAY-PARITY.md) for source mapping and remaining acceptance.
+
+Source/block clipboard payloads, private context-menu boards and grouped cached
+receivers now extend both viewers. See [clipboard workflows](MERGE-CLIPBOARD-PARITY.md)
+for source Cut semantics, covered mutation/Undo checks and remaining gestures.

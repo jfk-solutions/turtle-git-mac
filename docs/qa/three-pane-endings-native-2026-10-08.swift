@@ -6,7 +6,10 @@ import TurtleGitCore
     @MainActor static func views(_ parent: NSView) -> [NSTextView] {
         (parent as? NSTextView).map { [$0] } ?? parent.subviews.flatMap { views($0) }
     }
-    @MainActor static func main() async throws {
+    @MainActor static func main() async {
+        do { try await verify() } catch { fputs("Three-pane source verification failed: \(error)\n", stderr); exit(1) }
+    }
+    @MainActor static func verify() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
         let root = URL(fileURLWithPath: CommandLine.arguments[1]), git = URL(fileURLWithPath: CommandLine.arguments[2])
         let menuSuite = "TurtleGit.MergeMenu.QA." + UUID().uuidString
@@ -126,7 +129,7 @@ import TurtleGitCore
             merged.setSelectedRange(firstBlock.range)
             let resultMenu = provider.mergeContextMenu(defaults: menuDefaults, pasteboard: clipboard)
             precondition(resultMenu.items.prefix(3).map(\.title) == ["Copy", "Cut", "Paste"])
-            precondition(resultMenu.items.prefix(3).allSatisfy { $0.image != nil && ($0.target as? NSTextView) === merged })
+            precondition(resultMenu.items.prefix(3).allSatisfy { $0.image != nil && $0.action != nil && ($0.target as? NSObject)?.responds(to: $0.action!) == true })
             precondition(resultMenu.item(withTitle: "Paste")!.isEnabled)
             let blockItems = resultMenu.items.filter { $0.action == NSSelectorFromString("useBlock:") }
             precondition(blockItems.count == 4 && blockItems.allSatisfy { $0.image != nil && $0.isEnabled })

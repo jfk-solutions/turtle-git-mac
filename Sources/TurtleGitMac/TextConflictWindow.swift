@@ -262,7 +262,8 @@ private enum MergeSourceSide {
     }
     enum ReloadDecision { case save, discard, cancel }
     var chooseReload: (() -> ReloadDecision)?
-    private var loadGeneration = 0, retired = false
+    private var loadGeneration = 0
+    private(set) var retired = false
     private var loadCancellation: OperationCancellation?
     private var regexList: MergeRegexFilterListController?
     func manageRegexFilters() {
@@ -845,10 +846,35 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
     }
     let whitespaceRenderer = MergeWhitespaceRenderer()
     override func draw(_ dirtyRect: NSRect) { super.draw(dirtyRect); whitespaceRenderer.draw(in: self, dirtyRect: dirtyRect) }
+    fileprivate var clipboardText: String? {
+        guard window != nil, let model, !model.retired else { return nil }
+        if let cells = sourceCells {
+            return try? MergeClipboard.sourceText(selection: selectedRange(), cells: cells,
+                blockRows: MergeClipboard.changedBlock(selection: selectedRange(), cells: cells))
+        }
+        let block = sourceSide == nil && selectedRange().length == 0 ? model.blocks.first { NSLocationInRange(selectedRange().location, $0.range) }?.range : nil
+        return try? MergeClipboard.documentText(selection: selectedRange(), document: string, block: block)
+    }
+    fileprivate var clipboardWritable: Bool {
+        window != nil && model?.retired == false && mergeEditable && isEditable && model?.busy == false && model?.confirmingQuit == false && window?.attachedSheet == nil
+    }
+    @discardableResult fileprivate func copySelection(to pasteboard: NSPasteboard) -> Bool {
+        guard let text = clipboardText, !text.isEmpty else { return false }
+        pasteboard.clearContents(); return pasteboard.setString(text, forType: .string)
+    }
+    override func copy(_ sender: Any?) { copySelection(to: .general) }
     override func writeSelection(to pboard: NSPasteboard, type: NSPasteboard.PasteboardType) -> Bool {
-        guard let sourceCells else { return super.writeSelection(to: pboard, type: type) }
-        guard type == .string, let text = try? MergeSourceComparison.clipboardText(selectedRange(), cells: sourceCells), !text.isEmpty else { return false }
+        guard type == .string, let text = clipboardText, !text.isEmpty else { return false }
         return pboard.setString(text, forType: .string)
+    }
+    fileprivate func cutSelection(to pasteboard: NSPasteboard) {
+        guard clipboardWritable, copySelection(to: pasteboard) else { return }
+        // Source RemoveSelectedText is a no-op for a block-only selection.
+        if selectedRange().length > 0 { insertText("", replacementRange: selectedRange()) }
+    }
+    fileprivate func pasteSelection(from pasteboard: NSPasteboard) {
+        guard clipboardWritable, let text = pasteboard.string(forType: .string) else { return }
+        insertText(MergeClipboard.pastedText(text, document: string), replacementRange: selectedRange())
     }
     private var mergeTabWidth = 4
     var mergeUseSpaces = false
@@ -908,17 +934,21 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
         return mergeContextMenu(defaults: .standard, pasteboard: .general)
     }
     func mergeContextMenu(defaults: UserDefaults, pasteboard: NSPasteboard) -> NSMenu {
-        let menu = NSMenu(); menu.autoenablesItems = false
-        let writable = mergeEditable && isEditable && model?.busy == false && model?.confirmingQuit == false
+        let menu = MergeClipboardMenu()
+        let clipboard = MergeClipboardCommands(view: self, pasteboard: pasteboard); menu.clipboard = clipboard; menu.autoenablesItems = false
+        let writable = clipboardWritable
         func editingItem(_ title: String, _ action: Selector, _ image: NSImage?, _ enabled: Bool) {
             let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
             item.target = self; item.image = image; item.isEnabled = enabled; menu.addItem(item)
         }
-        editingItem("Copy", #selector(copyFromContext(_:)), MenuIcon.copy.contextImage(defaults: defaults), selectedRange().length > 0)
+        editingItem("Copy", #selector(MergeClipboardCommands.copySelection(_:)), MenuIcon.copy.contextImage(defaults: defaults), !(clipboardText ?? "").isEmpty)
+        menu.items.last?.target = clipboard; menu.items.last?.representedObject = clipboard
         if mergeEditable {
             let cutImage = MenuPresentationSettings.applicationContextIcons(defaults: defaults) ? NSImage(systemSymbolName: "scissors", accessibilityDescription: "Cut") : nil
-            editingItem("Cut", #selector(cutFromContext(_:)), cutImage, writable && selectedRange().length > 0)
-            editingItem("Paste", #selector(pasteFromContext(_:)), MenuIcon.mergePaste.contextImage(defaults: defaults), writable && pasteboard.availableType(from: [.string]) != nil)
+            editingItem("Cut", #selector(MergeClipboardCommands.cutSelection(_:)), cutImage, writable && !(clipboardText ?? "").isEmpty)
+            menu.items.last?.target = clipboard; menu.items.last?.representedObject = clipboard
+            editingItem("Paste", #selector(MergeClipboardCommands.pasteSelection(_:)), MenuIcon.mergePaste.contextImage(defaults: defaults), writable && pasteboard.availableType(from: [.string]) != nil)
+            menu.items.last?.target = clipboard; menu.items.last?.representedObject = clipboard
         }
         menu.addItem(.separator())
         let find = NSMenuItem(title: "Find…", action: #selector(showFind(_:)), keyEquivalent: "")
@@ -967,23 +997,17 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
     @objc private func copyFromContext(_ sender: Any?) { copy(sender) }
     @objc private func cutFromContext(_ sender: Any?) { cut(sender) }
     @objc private func pasteFromContext(_ sender: Any?) { paste(sender) }
-    override func cut(_ sender: Any?) {
-        guard mergeEditable, isEditable, model?.busy == false, model?.confirmingQuit == false else { return }
-        super.cut(sender)
-    }
-    override func paste(_ sender: Any?) {
-        guard mergeEditable, isEditable, model?.busy == false, model?.confirmingQuit == false else { return }
-        super.paste(sender)
-    }
+    override func cut(_ sender: Any?) { cutSelection(to: .general) }
+    override func paste(_ sender: Any?) { pasteSelection(from: .general) }
     @objc private func showFind(_ sender: Any?) {
         window?.makeFirstResponder(self)
         (window as? TextConflictNSWindow)?.find(.showFindInterface)
     }
     override func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         if menuItem.action == #selector(goToSourceLine(_:)) { return canNavigateToSourceLine }
-        if menuItem.action == #selector(copyFromContext(_:)) { return selectedRange().length > 0 }
-        if menuItem.action == #selector(cutFromContext(_:)) { return mergeEditable && isEditable && model?.busy == false && model?.confirmingQuit == false && selectedRange().length > 0 }
-        if menuItem.action == #selector(pasteFromContext(_:)) { return mergeEditable && isEditable && model?.busy == false && model?.confirmingQuit == false && NSPasteboard.general.availableType(from: [.string]) != nil }
+        if menuItem.action == #selector(copyFromContext(_:)) || menuItem.action == NSSelectorFromString("copy:") { return !(clipboardText ?? "").isEmpty }
+        if menuItem.action == #selector(cutFromContext(_:)) || menuItem.action == NSSelectorFromString("cut:") { return clipboardWritable && !(clipboardText ?? "").isEmpty }
+        if menuItem.action == #selector(pasteFromContext(_:)) || menuItem.action == NSSelectorFromString("paste:") { return clipboardWritable && NSPasteboard.general.availableType(from: [.string]) != nil }
         if menuItem.action == #selector(changeEncoding(_:)) {
             return mergeEditable && isEditable && model?.busy == false && model?.confirmingQuit == false && ComparisonTextEncoding.allCases.indices.contains(menuItem.tag)
         }
@@ -1069,4 +1093,16 @@ final class MergeLineRuler: NSRulerView {
             location = NSMaxRange(range); line += 1
         }
     }
+}
+
+@MainActor private final class MergeClipboardMenu: NSMenu {
+    var clipboard: MergeClipboardCommands?
+}
+@MainActor private final class MergeClipboardCommands: NSObject {
+    private weak var view: MergeTextView?
+    private let pasteboard: NSPasteboard
+    init(view: MergeTextView, pasteboard: NSPasteboard) { self.view = view; self.pasteboard = pasteboard }
+    @objc func copySelection(_ sender: Any?) { view?.copySelection(to: pasteboard) }
+    @objc func cutSelection(_ sender: Any?) { view?.cutSelection(to: pasteboard) }
+    @objc func pasteSelection(_ sender: Any?) { view?.pasteSelection(from: pasteboard) }
 }

@@ -114,6 +114,7 @@
 		52754E5252F132BF5D20794B /* CancellableGitProcess.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1D127EFCF9CEE3CA778CA79 /* CancellableGitProcess.swift */; };
 		53038E31B82C54BE1E17C10A /* ResolveWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D33C40A99A3883800E7C6431 /* ResolveWindow.swift */; };
 		552406DDFBEB165400BBDC81 /* IssueRegexTester.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC889BB298CAB567A75F53F6 /* IssueRegexTester.swift */; };
+		5530D7CAC8A20AD3B4EEA016 /* MergeClipboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96C5E1496CBC8B6DFC29A687 /* MergeClipboard.swift */; };
 		55B7CD6C3BF86B590E0F64B9 /* TurtleGitSMTP.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1F81A7BFF0565C5791A405B0 /* TurtleGitSMTP.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		566929EB924A146E09618757 /* StatusListSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48ED07A9B4D7F1E9FB4E87B3 /* StatusListSelection.swift */; };
 		56B94B831C0F93189FCA10AB /* SubmoduleProgressCompletion.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3285697EA8FA321AA94C400 /* SubmoduleProgressCompletion.swift */; };
@@ -638,6 +639,7 @@
 		94460BAA2864B3BF68F01264 /* TurtleGitWCRev.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TurtleGitWCRev.swift; sourceTree = "<group>"; };
 		94E9E00A7AEA7A5BE84E3097 /* ProgressActionLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressActionLog.swift; sourceTree = "<group>"; };
 		966FBB093AE190ED7ACA4024 /* DeleteConflict.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteConflict.swift; sourceTree = "<group>"; };
+		96C5E1496CBC8B6DFC29A687 /* MergeClipboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeClipboard.swift; sourceTree = "<group>"; };
 		977DAB97DBBB903654C73A78 /* SwitchWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwitchWindow.swift; sourceTree = "<group>"; };
 		98FB2A1DFAD46AEBD2A7826D /* MessageSpelling.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageSpelling.swift; sourceTree = "<group>"; };
 		99649DB8EC94705917C269A1 /* FinderWatchedRepositories.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderWatchedRepositories.swift; sourceTree = "<group>"; };
@@ -1126,6 +1128,7 @@
 				571A28B129049EF346F00279 /* MailPatch.swift */,
 				3FC03184E38E2D4ACB2908F5 /* MenuIcons.swift */,
 				D975B1620A435727724213D1 /* Merge.swift */,
+				96C5E1496CBC8B6DFC29A687 /* MergeClipboard.swift */,
 				D7FAB28527E314AA877C27D3 /* MergeCommentProfiles.swift */,
 				F0038AFD2AD4CE0CE4AC18AA /* MergeComparisonOptions.swift */,
 				35EFDB07D0E47ACAE56DF1EF /* MergeEditorPreferences.swift */,
@@ -1642,6 +1645,7 @@
 				D31013C8AB098F7D32CD16BD /* MailPatch.swift in Sources */,
 				00EAAAB986D762F4A6B93DBE /* MenuIcons.swift in Sources */,
 				90A423E07A63281C4163EAD0 /* Merge.swift in Sources */,
+				5530D7CAC8A20AD3B4EEA016 /* MergeClipboard.swift in Sources */,
 				7E6572D417D32FC2871A7AE9 /* MergeCommentProfiles.swift in Sources */,
 				2F7197DC1FEF6925132426F2 /* MergeComparisonOptions.swift in Sources */,
 				3CB563EE56DEB0B529C4BF4B /* MergeEditorPreferences.swift in Sources */,

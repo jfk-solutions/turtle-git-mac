@@ -1292,6 +1292,8 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
     override func validateMenuItem(_ item: NSMenuItem) -> Bool {
         if item.action == NSSelectorFromString("undo:") { return model?.canUndo == true && model?.busy == false && model?.confirmingQuit == false }
         if item.action == NSSelectorFromString("redo:") { return model?.canRedo == true && model?.busy == false && model?.confirmingQuit == false }
+        if item.action == NSSelectorFromString("copy:") { return !(clipboardText ?? "").isEmpty }
+        if item.action == NSSelectorFromString("cut:") { return isEditable && model?.canTransfer(toBase: baseSide) == true && !(clipboardText ?? "").isEmpty }
         if item.action == #selector(goToSourceLine(_:)) { return canNavigateToSourceLine }
         return super.validateMenuItem(item)
     }
@@ -1322,9 +1324,25 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
         setSelectedRange(NSRange(location: start, length: max(0, end - start)))
     }
     override func copy(_ sender: Any?) { copySelection(to: .general) }
-    fileprivate func copySelection(to pasteboard: NSPasteboard) {
-        guard model?.contextCommandsAllowed == true, window != nil, let text = try? (model?.onePaneActive == true ? MergeSourceComparison.clipboardText(selectedRange(), cells: sourceCells) : FileComparisonEditing.selectedText(selectedRange(), cells: sourceCells)), !text.isEmpty else { return }
-        pasteboard.clearContents(); pasteboard.setString(text, forType: .string)
+    override func cut(_ sender: Any?) { cutSelection(to: .general) }
+    fileprivate func cutSelection(to pasteboard: NSPasteboard) {
+        guard window != nil, isEditable, model?.contextCommandsAllowed == true,
+              model?.canTransfer(toBase: baseSide) == true, copySelection(to: pasteboard) else { return }
+        if selectedRange().length > 0 { insertText("", replacementRange: selectedRange()) }
+    }
+    fileprivate var clipboardText: String? {
+        guard let model, model.contextCommandsAllowed, window != nil else { return nil }
+        model.updateSelection(selectedRange(), cells: sourceCells)
+        var rows = model.transferRows
+        if model.onePaneActive, let selected = rows, let combined = model.combined {
+            let indices = combined.rows.indices.filter { selected.contains(combined.rows[$0].alignmentRow) }
+            rows = indices.first.flatMap { first in indices.last.map { first..<($0 + 1) } }
+        }
+        return try? MergeClipboard.sourceText(selection: selectedRange(), cells: sourceCells, blockRows: rows)
+    }
+    @discardableResult fileprivate func copySelection(to pasteboard: NSPasteboard) -> Bool {
+        guard let text = clipboardText, !text.isEmpty else { return false }
+        pasteboard.clearContents(); return pasteboard.setString(text, forType: .string)
     }
     override func menu(for event: NSEvent) -> NSMenu? {
         guard model != nil else { return super.menu(for: event) }
@@ -1365,10 +1383,10 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
         }
         func clipboardItems() {
             menu.addItem(.separator())
-            add("Copy", #selector(ComparisonClipboardCommands.copySelection(_:)), MenuIcon.copy.image(), model.contextCommandsAllowed && selectedRange().length > 0)
+            add("Copy", #selector(ComparisonClipboardCommands.copySelection(_:)), MenuIcon.copy.image(), model.contextCommandsAllowed && !(clipboardText ?? "").isEmpty)
             menu.items.last?.target = clipboard; menu.items.last?.representedObject = clipboard
             if !model.onePaneActive || isEditable && model.canTransfer(toBase: baseSide) {
-                add("Cut", #selector(ComparisonClipboardCommands.cutSelection(_:)), NSImage(systemSymbolName: "scissors", accessibilityDescription: nil), isEditable && model.canTransfer(toBase: baseSide) && selectedRange().length > 0)
+                add("Cut", #selector(ComparisonClipboardCommands.cutSelection(_:)), NSImage(systemSymbolName: "scissors", accessibilityDescription: nil), isEditable && model.canTransfer(toBase: baseSide) && !(clipboardText ?? "").isEmpty)
                 menu.items.last?.target = clipboard; menu.items.last?.representedObject = clipboard
                 add("Paste", #selector(ComparisonClipboardCommands.pasteSelection(_:)), MenuIcon.mergePaste.image(), isEditable && model.canTransfer(toBase: baseSide) && pasteboard.availableType(from: [.string]) != nil)
                 menu.items.last?.target = clipboard; menu.items.last?.representedObject = clipboard
@@ -1449,11 +1467,7 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
     private let pasteboard: NSPasteboard
     init(view: FileComparisonTextView, pasteboard: NSPasteboard) { self.view = view; self.pasteboard = pasteboard }
     @objc func copySelection(_ sender: Any?) { view?.copySelection(to: pasteboard) }
-    @objc func cutSelection(_ sender: Any?) {
-        guard let view, view.window != nil, view.isEditable, view.model?.contextCommandsAllowed == true,
-              view.model?.canTransfer(toBase: view.baseSide) == true, view.selectedRange().length > 0 else { return }
-        view.copySelection(to: pasteboard); view.insertText("", replacementRange: view.selectedRange())
-    }
+    @objc func cutSelection(_ sender: Any?) { view?.cutSelection(to: pasteboard) }
     @objc func pasteSelection(_ sender: Any?) {
         guard let view, view.window != nil, view.isEditable, view.model?.contextCommandsAllowed == true,
               view.model?.canTransfer(toBase: view.baseSide) == true, let text = pasteboard.string(forType: .string) else { return }

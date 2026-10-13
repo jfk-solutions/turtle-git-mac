@@ -1,0 +1,65 @@
+{
+  "date": "2026-10-13",
+  "scope": "Compare/merge clipboard payloads and context command lifetime across three-pane, two-pane and combined views",
+  "source_revision": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_functions": [
+    "CBaseView::GetSelectedText",
+    "OnEditCopy",
+    "OnEditCut",
+    "OnEditPaste",
+    "RemoveSelectedText"
+  ],
+  "validation": {
+    "core": {
+      "log": "build/qa/merge-clipboard-core-final-2026-10-13.log",
+      "exit": 0,
+      "tests": 30
+    },
+    "debug": {
+      "log": "build/qa/merge-clipboard-debug-target-2026-10-13.log",
+      "exit": 0
+    },
+    "native": {
+      "log": "build/qa/merge-clipboard-native-mode-2026-10-13.log",
+      "exit": 0,
+      "cases": [
+        "merge-clipboard",
+        "merge-source"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "receivers": 4,
+      "source_pairs": 18,
+      "owned_receivers_reaped": true
+    },
+    "site": {
+      "log": "build/qa/merge-clipboard-site-2026-10-13.log",
+      "exit": 0,
+      "tests": 2
+    }
+  },
+  "failures_and_repairs": [
+    "Initial and first repair Core/Debug compilation failed because retired shared a private declaration with loadGeneration; split into a read-only exposed state. No Core tests ran in those attempts.",
+    "Initial native link rejected the legacy throwing main; retained the body behind a nonthrowing reporting entry adapter.",
+    "A real clipboard target lifetime failure occurred when an item outlived its temporary menu; items now retain their weak-editor command bridge.",
+    "Subsequent fixture attempts observed unrendered panes or requested One Pane while filtering was active; supplied explicit view/encoding preferences, flushed hidden hosting layout and awaited idle filtering before submission."
+  ],
+  "earlier_failed_receiver_count": 7,
+  "earlier_failed_receivers_reaped": true,
+  "implementation": [
+    "Text selection takes precedence over changed-block Copy",
+    "Removed/conflict rows included, Empty rows skipped, synthetic block final break excluded",
+    "Source block-only Cut copies and does not delete",
+    "Plain Paste normalized to target ending style",
+    "Private context Copy/Cut/Paste target lifetime; busy/retired fences",
+    "Three-pane wrapper reuses cached app objects"
+  ],
+  "remaining": [
+    "Physical Command-C/X/V and Services/drag/rich text",
+    "Gutter selection of normal blocks and cross-pane selection synchronization",
+    "All mixed-ending mutation variants",
+    "Signed sandbox and full merge-editor/app parity"
+  ]
+}
