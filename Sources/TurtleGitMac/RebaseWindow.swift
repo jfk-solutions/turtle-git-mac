@@ -549,6 +549,22 @@ import TurtleGitCore
         for index in values.indices where targets.contains(values[index].id) { values[index].action = action }
         if plan != nil { plan?.entries = values } else { draftEntries = values }
     }
+    struct RowDrag { let owner: UUID; let generation: Int; let rows: ReplayRowDrag }
+    private let rowDragOwner = UUID()
+    var canDragRows: Bool { !retired && editable && !options.preserveMerges && revisionMenuAvailable && revisionMenuLog.window?.attachedSheet == nil }
+    func beginRowDrag(_ ids: Set<String>) -> RowDrag? {
+        guard canDragRows, let rows = ReplayRowDrag(visible:entries,selected:ids) else { return nil }
+        selection = ids
+        return RowDrag(owner:rowDragOwner,generation:planGeneration,rows:rows)
+    }
+    func canDropRows(_ drag: RowDrag, before destination: Int) -> Bool {
+        canDragRows && drag.owner == rowDragOwner && drag.generation == planGeneration && drag.rows.canDrop(visible:entries,before:destination)
+    }
+    @discardableResult func dropRows(_ drag: RowDrag, before destination: Int) -> Bool {
+        guard canDropRows(drag,before:destination), let values = drag.rows.reordered(visible:entries,before:destination) else { return false }
+        if plan != nil { plan?.entries = Array(values.reversed()) } else { draftEntries = Array(values.reversed()) }
+        selection = drag.rows.selected; selectCommit(); return true
+    }
     func canMove(up: Bool, toEnd: Bool = false) -> Bool {
         guard editable, !options.preserveMerges else { return false }
         let visible = entries
@@ -978,17 +994,82 @@ struct RebaseListInteraction: NSViewRepresentable {
     final class Probe: NSView {
         weak var model: RebaseWindowModel?
         private var monitor: Any?
+        private weak var dragTable: NSTableView?
+        private var dragStart: NSPoint?
+        private var rowDrag: RebaseWindowModel.RowDrag?
+        private(set) var dropIndex: Int?
+        private let marker = NSView()
         override func hitTest(_ point: NSPoint) -> NSView? { nil }
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow(); stopObserving()
             guard window != nil else { return }
-            monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .leftMouseDown, .leftMouseDragged, .leftMouseUp]) { [weak self] event in
                 guard let self else { return event }; return self.observe(event)
             }
         }
-        func stopObserving() { if let monitor { NSEvent.removeMonitor(monitor) }; monitor = nil }
+        func stopObserving() { cancelRowDrag(); if let monitor { NSEvent.removeMonitor(monitor) }; monitor = nil }
         deinit { stopObserving() }
+        func cancelRowDrag() { marker.removeFromSuperview(); rowDrag = nil; dragStart = nil; dragTable = nil; dropIndex = nil }
+        func beginDrag(in table: NSTableView, ids: Set<String>) -> Bool {
+            guard let model, window?.attachedSheet == nil, let drag = model.beginRowDrag(ids) else { return false }
+            rowDrag = drag; dragTable = table; return true
+        }
+        func updateDrag(at point: NSPoint) -> Bool {
+            guard let table = dragTable, let model, let drag = rowDrag, table.visibleRect.contains(point) else { marker.removeFromSuperview(); dropIndex = nil; return false }
+            var adjusted = point; adjusted.y += min(10,table.rowHeight/2)
+            var destination = table.row(at:adjusted)
+            if destination < 0, table.row(at:point) >= 0 { destination = table.numberOfRows }
+            guard destination >= 0, model.canDropRows(drag,before:destination) else { marker.removeFromSuperview(); dropIndex = nil; return false }
+            dropIndex = destination
+            let y = destination == table.numberOfRows ? table.rect(ofRow:destination-1).maxY : table.rect(ofRow:destination).minY
+            marker.wantsLayer = true; marker.layer?.backgroundColor = NSColor.controlAccentColor.cgColor
+            marker.frame = NSRect(x:table.visibleRect.minX,y:y-1,width:table.visibleRect.width,height:2)
+            if marker.superview !== table { table.addSubview(marker) }
+            marker.setAccessibilityLabel("Insert selected commits here")
+            return true
+        }
+        @discardableResult func finishDrag() -> Bool {
+            defer { cancelRowDrag() }
+            guard let model, let drag = rowDrag, let destination = dropIndex else { return false }
+            let accepted = model.dropRows(drag,before:destination), table = dragTable
+            if accepted { DispatchQueue.main.async { [weak model, weak table] in
+                guard let model, let table, let row = model.entries.firstIndex(where:{ model.selection.contains($0.id) }) else { return }
+                table.scrollRowToVisible(row)
+            } }
+            return accepted
+        }
+        private func rowTable() -> NSTableView? {
+            guard let content = window?.contentView else { return nil }
+            func find(_ view:NSView)->NSTableView? {
+                if let table = view as? NSTableView, table.tableColumns.count == RebaseColumnLayout.Probe.names.count,
+                   convert(bounds,to:nil).intersects(table.convert(table.visibleRect,to:nil)) { return table }
+                return view.subviews.compactMap(find).first
+            }
+            return find(content)
+        }
+        private func observeMouse(_ event:NSEvent)->NSEvent? {
+            guard let window, event.window === window else { if event.type == .leftMouseUp { cancelRowDrag() }; return event }
+            if event.type == .leftMouseDown {
+                cancelRowDrag()
+                guard event.clickCount == 1, model?.canDragRows == true, let table = rowTable() else { return event }
+                let point = table.convert(event.locationInWindow,from:nil)
+                guard table.visibleRect.contains(point), table.row(at:point) >= 0 else { return event }
+                dragTable = table; dragStart = point
+            } else if event.type == .leftMouseDragged, let table = dragTable, let start = dragStart, let model {
+                let point = table.convert(event.locationInWindow,from:nil)
+                guard rowDrag != nil || hypot(point.x-start.x,point.y-start.y) >= 4 else { return event }
+                if rowDrag == nil {
+                    let visible = model.entries, ids = Set(table.selectedRowIndexes.compactMap { visible.indices.contains($0) ? visible[$0].id : nil })
+                    guard beginDrag(in:table,ids:ids) else { cancelRowDrag(); return event }
+                }
+                _ = updateDrag(at:point); _ = table.autoscroll(with:event); return nil
+            } else if event.type == .leftMouseUp, rowDrag != nil { _ = finishDrag(); return nil }
+            else if event.type == .leftMouseUp { cancelRowDrag() }
+            return event
+        }
         func observe(_ event: NSEvent) -> NSEvent? {
+            if event.type != .keyDown { return observeMouse(event) }
+            if rowDrag != nil, event.keyCode == 53 { cancelRowDrag(); return nil }
             guard event.type == .keyDown, let window, event.window === window,
                   let table = window.firstResponder as? NSTableView,
                   convert(bounds, to: nil).intersects(table.convert(table.visibleRect, to: nil)),

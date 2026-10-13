@@ -271,3 +271,34 @@ keep all twelve columns within macOS 13-compatible builder expressions.
 The batch's evidence is [conditional-column QA](qa/rebase-conditional-2026-10-13.json).
 It does not establish complete dialog/VoiceOver/physical/signed parity. Source
 Windows versus macOS locale/regex equivalence and all rendered cells remain open.
+
+## Dialog-local commit drag ordering (2026-10-13)
+
+Ordinary Rebase and Cherry Pick now support dragging a contiguous selected block
+inside the revision list. The source is `GitLogListBase::OnBeginDrag/OnMouseMove`
+and `RebaseDlg::OnCommitsReordered`: move in newest-first display order, preserve
+the block's order, and select its occurrences after insertion. The native model
+stores the reverse display as execution order, retaining actions, mainlines and
+occurrence identities. Source no-op positions inside or immediately after the
+selected span are refused; the final row permits insertion after the list.
+
+The owned native list monitor draws an insertion line, requests edge autoscroll,
+consumes the active drag's pointer events and supports Escape cancellation. Header
+interaction remains owned by the column layout probe. Drop validation retains
+owner/generation plus row/action/progress/mainline state; changed plans, busy,
+active/finished, note/sheet and retired owners cannot apply an obsolete drag.
+Handlers update only the plan, not Git HEAD/index/worktree.
+
+Preserve-merges drag ordering remains a parity gap: upstream enables dragging in
+its editing stages, but this port's existing structural rebase engine rejects
+edited structural plans. Its current UI therefore keeps structural drag disabled.
+This batch does not claim equivalence for that mode.
+
+Two focused Core checks, the Debug build and four grouped native receivers across
+system/bundled Git passed. Native QA invokes actual insertion/finish handlers,
+checks the marker destination, block/selection/execution ordering and refusal
+cases, and preserves HEAD/index. Column/committer-cell/layout regression also
+passed. All four receivers were reaped. The checks do not synthesize a physical
+pointer gesture; full mouse capture, stationary-edge autoscroll, multi-display,
+VoiceOver and signed acceptance remain open. See
+[batch evidence](qa/rebase-row-drag-2026-10-13.json).

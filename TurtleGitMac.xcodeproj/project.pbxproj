@@ -119,6 +119,7 @@
 		566929EB924A146E09618757 /* StatusListSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48ED07A9B4D7F1E9FB4E87B3 /* StatusListSelection.swift */; };
 		56B94B831C0F93189FCA10AB /* SubmoduleProgressCompletion.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3285697EA8FA321AA94C400 /* SubmoduleProgressCompletion.swift */; };
 		57D0F31F4AA8A43D27C48511 /* SMTP.c in Sources */ = {isa = PBXBuildFile; fileRef = 205A616C02EABD9EE7DB57A2 /* SMTP.c */; };
+		57F5458D5F380EC55CF581E3 /* ReplayRowDrag.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DEE4FE7D1D60DD01647E285 /* ReplayRowDrag.swift */; };
 		5891A8F4129A4F0F519264F8 /* TurtleGitCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BCB9C51D9D69E943E22F2C8 /* TurtleGitCore.framework */; };
 		591E7907CB6B5F012E1A8AEB /* PatchPrinting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07308426CB6B06DAFB9B5A89 /* PatchPrinting.swift */; };
 		5AE1A8F789C776583FB32A26 /* RepositoryInitialization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593C3138AD1ABEC07EC9AC6C /* RepositoryInitialization.swift */; };
@@ -568,6 +569,7 @@
 		5CE3CE517C60F5192533D85D /* MergeMessageEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeMessageEditor.swift; sourceTree = "<group>"; };
 		5D08A34234EAA3FC6585226F /* WorktreeCreateWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorktreeCreateWindow.swift; sourceTree = "<group>"; };
 		5D83BDB1830627E69B8F3E83 /* MergeRegexFilterWindows.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeRegexFilterWindows.swift; sourceTree = "<group>"; };
+		5DEE4FE7D1D60DD01647E285 /* ReplayRowDrag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReplayRowDrag.swift; sourceTree = "<group>"; };
 		5E466B2519722A3DA9A50629 /* FirstStartWizard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirstStartWizard.swift; sourceTree = "<group>"; };
 		5E600ADAA231E0E7D95C9827 /* Icons */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Icons; path = Sources/TurtleGitCore/Resources/Icons; sourceTree = SOURCE_ROOT; };
 		5EA1DF690F2B0A1AA6382752 /* GitAskpassRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitAskpassRuntime.swift; sourceTree = "<group>"; };
@@ -1176,6 +1178,7 @@
 				1541756F953A41D68C44D74B /* RemoteTags.swift */,
 				AA5AD057FE8CA1C91988DA6E /* Removal.swift */,
 				BA121F2E317F86B146016B4E /* Rename.swift */,
+				5DEE4FE7D1D60DD01647E285 /* ReplayRowDrag.swift */,
 				B0144901E0020C531A5D86FB /* RepositoryAccess.swift */,
 				C9B39BEE643082FED0868FD9 /* RepositoryBrowser.swift */,
 				F92C83C2562E61AC44E27CB5 /* RepositoryFileEvents.swift */,
@@ -1694,6 +1697,7 @@
 				C1AC88672C3BE1B0E0F66493 /* RemoteTags.swift in Sources */,
 				A395BF473AA34B992F2BBAB1 /* Removal.swift in Sources */,
 				B5EF4E8582D92A364C726BD5 /* Rename.swift in Sources */,
+				57F5458D5F380EC55CF581E3 /* ReplayRowDrag.swift in Sources */,
 				199556A177703BA9869154D4 /* RepositoryAccess.swift in Sources */,
 				4DADF6934B5B91754BD61031 /* RepositoryBrowser.swift in Sources */,
 				A30A1486DF98FEF313571969 /* RepositoryFileEvents.swift in Sources */,

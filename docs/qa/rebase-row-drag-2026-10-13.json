@@ -1,0 +1,57 @@
+{
+  "date": "2026-10-13",
+  "scope": "Partial ordinary Rebase/Cherry Pick dialog-local row drag ordering",
+  "source": [
+    "GitLogListBase.cpp:OnBeginDrag/OnMouseMove",
+    "RebaseDlg.cpp:OnCommitsReordered"
+  ],
+  "checks": {
+    "core": {
+      "exit": 0,
+      "tests": 2,
+      "scope": "Before/after rotation, no-op span, discontinuity/missing/duplicate IDs, occurrences/actions/mainline and stale state"
+    },
+    "debug_build": {
+      "exit": 0
+    },
+    "native": {
+      "cases": [
+        "rebase-row-drag",
+        "rebase-columns"
+      ],
+      "engines": [
+        "system",
+        "bundled"
+      ],
+      "exit": 0,
+      "reaped_pids": [
+        55673,
+        55748,
+        55840,
+        55905
+      ],
+      "scope": [
+        "Actual native insertion/finish handlers and marker destination",
+        "Contiguous block/display/selection/reverse execution order",
+        "No-op/discontinuous/preserve/busy/stale/closed refusals",
+        "HEAD/index and column regression"
+      ]
+    },
+    "site": {
+      "build_exit": 0,
+      "tests": 2,
+      "test_exit": 0
+    }
+  },
+  "remaining": [
+    "Preserve-merges reordering: upstream permits it, existing native backend rejects edited structural plans",
+    "Physical pointer capture/Escape and stationary-edge autoscroll",
+    "Multi-display/VoiceOver/signed acceptance",
+    "Full Rebase and application parity"
+  ],
+  "logs": [
+    "build/qa/rebase-row-drag-core-2026-10-13.log",
+    "build/qa/rebase-row-drag-build-2026-10-13.log",
+    "build/qa/rebase-row-drag-native-2026-10-13.log"
+  ]
+}
