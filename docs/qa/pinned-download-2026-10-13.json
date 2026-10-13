@@ -1,0 +1,37 @@
+{
+  "date": "2026-10-13",
+  "trigger": {
+    "run": 38376689968,
+    "job": 115237129653,
+    "failure": "Lexilla pinned source DNS lookup failed before application tests"
+  },
+  "scope": [
+    "Six source builder families share bounded verified downloads",
+    "Unique temporary download files; checksum before atomic publication",
+    "Transient retry and permanent/integrity refusal",
+    "Reconstruction kits and transitive CI cache dependencies"
+  ],
+  "validation": {
+    "download_tests": {
+      "exit": 0,
+      "cases": 4,
+      "log": "build/qa/pinned-download-2026-10-13.log"
+    },
+    "cache_tests": {
+      "exit": 0,
+      "cases": 5,
+      "log": "build/qa/pinned-download-caches-2026-10-13.log"
+    },
+    "builders": {
+      "count": 6,
+      "syntax": "py_compile/AST passed",
+      "reconstruction": "Shared-module inclusion declared in all six builder sources"
+    }
+  },
+  "binaries_rebuilt": false,
+  "pending": [
+    "Hosted network recovery under real failures",
+    "Complete toolchain rebuild and packaged reconstruction acceptance"
+  ],
+  "full_port_certified": false
+}

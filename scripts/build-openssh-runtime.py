@@ -11,6 +11,8 @@ import tarfile
 import urllib.request
 import uuid
 
+from pinned_download import download_verified
+
 ROOT = Path(__file__).resolve().parents[1]
 
 def digest(path):
@@ -50,13 +52,7 @@ def main():
             archived = ROOT/(name+'.tar.gz')
             if archived.is_file(): shutil.copy2(archived, archive)
             else:
-                part = archive.with_suffix('.download')
-                try:
-                    with urllib.request.urlopen(item['url'], timeout=60) as response, part.open('wb') as stream:
-                        shutil.copyfileobj(response, stream)
-                    part.replace(archive)
-                finally:
-                    part.unlink(missing_ok=True)
+                download_verified(item['url'], archive, item['sha256'])
         if digest(archive) != item['sha256']: raise RuntimeError('Source checksum mismatch: '+name)
         archives[name] = archive
     sdk = subprocess.check_output(['xcrun','--sdk','macosx','--show-sdk-path'], text=True).strip()
@@ -99,6 +95,7 @@ def main():
         shutil.copy2(workspace/'arm64/openssl/LICENSE.txt',stage/'Licenses/OpenSSL-LICENSE.txt')
         for name, archive in archives.items(): shutil.copy2(archive, stage/'Sources'/(name+'.tar.gz'))
         shutil.copy2(__file__, stage/'Sources/build/build-openssh-runtime.py')
+        shutil.copy2(Path(__file__).with_name('pinned_download.py'), stage/'Sources/build/pinned_download.py')
         shutil.copy2(Path(__file__).with_name('validate-openssh-runtime.py'), stage/'Sources/build/validate-openssh-runtime.py')
         shutil.copy2(Path(__file__).with_name('runtime_bundle_layout.py'), stage/'Sources/build/runtime_bundle_layout.py')
         shutil.copy2(Path(__file__).with_name('git_lfs_runtime.py'), stage/'Sources/build/git_lfs_runtime.py')

@@ -23,7 +23,7 @@ jobs:
         id: svn-cache
         with:
           path: build/git-svn-runtime/GitSVN
-          key: svn-macos15-arm64-${{ steps.svn-toolchain.outputs.key }}-${{ hashFiles('Configuration/GitSVNRuntime.json', 'Configuration/GitRuntime.json', 'Sources/GitSVNLauncher/main.c', 'scripts/build-git-svn-runtime.py', 'scripts/validate-git-svn-runtime.py', 'scripts/validate_git_svn_support.py', 'scripts/validate-git-runtime.py', 'scripts/git_lfs_runtime.py', 'scripts/runtime_bundle_layout.py') }}
+          key: svn-macos15-arm64-${{ steps.svn-toolchain.outputs.key }}-${{ hashFiles('scripts/pinned_download.py', 'Configuration/GitSVNRuntime.json', 'Configuration/GitRuntime.json', 'Sources/GitSVNLauncher/main.c', 'scripts/build-git-svn-runtime.py', 'scripts/validate-git-svn-runtime.py', 'scripts/validate_git_svn_support.py', 'scripts/validate-git-runtime.py', 'scripts/git_lfs_runtime.py', 'scripts/runtime_bundle_layout.py') }}
       - name: Build pinned universal private Perl/Subversion runtime
         if: steps.svn-cache.outputs.cache-hit != 'true'
         run: python3 scripts/build-git-svn-runtime.py
@@ -124,7 +124,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: build/graph-layout-runtime/GraphLayout
-          key: graph-layout-v1-${{ runner.os }}-${{ steps.toolchain.outputs.fingerprint }}-${{ hashFiles('LICENSE', 'Configuration/GraphLayoutRuntime.json', 'Sources/TurtleGitGraphLayout/main.cpp', 'scripts/build-graph-layout-runtime.py', 'scripts/validate-graph-layout-runtime.py', 'scripts/embed-graph-layout-runtime.py', 'scripts/runtime_bundle_layout.py', 'scripts/git_lfs_runtime.py') }}
+          key: graph-layout-v1-${{ runner.os }}-${{ steps.toolchain.outputs.fingerprint }}-${{ hashFiles('scripts/pinned_download.py', 'LICENSE', 'Configuration/GraphLayoutRuntime.json', 'Sources/TurtleGitGraphLayout/main.cpp', 'scripts/build-graph-layout-runtime.py', 'scripts/validate-graph-layout-runtime.py', 'scripts/embed-graph-layout-runtime.py', 'scripts/runtime_bundle_layout.py', 'scripts/git_lfs_runtime.py') }}
       - name: Build and verify pinned universal Revision Graph layout engine
         if: steps.graph-layout-cache.outputs.cache-hit != 'true'
         run: python3 scripts/build-graph-layout-runtime.py
@@ -212,6 +212,8 @@ jobs:
           key: ${{ steps.merge-diff-cache.outputs.cache-primary-key }}
       - name: Verify per-slice Git and LFS macOS deployment targets
         run: python3 scripts/test-git-runtime-deployment.py --runtime build/git-runtime/Git
+      - name: Pinned source download recovery checks
+        run: python3 scripts/test-pinned-download.py
       - name: Git integration tests
         run: swift test
       - name: SVN command compatibility with pinned Git

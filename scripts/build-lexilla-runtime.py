@@ -2,6 +2,8 @@
 """Build pinned Lexilla engines as a universal, read-only macOS helper."""
 import hashlib,json,shutil,subprocess,tarfile,urllib.request
 from pathlib import Path
+from pinned_download import download_verified
+
 ROOT=Path(__file__).resolve().parents[1]
 pin=json.loads((ROOT/'Configuration/LexillaRuntime.json').read_text())
 target=ROOT/'build/lexilla-runtime/Lexilla'
@@ -11,7 +13,7 @@ archive=cache/(pin['lexilla_commit']+'.tar.gz')
 if not archive.exists():
     bundled=ROOT.parent/'lexilla.tar.gz'
     if bundled.is_file():shutil.copyfile(bundled,archive)
-    else:archive.write_bytes(urllib.request.urlopen(pin['url'],timeout=60).read())
+    else:download_verified(pin['url'],archive,pin['sha256'])
 if hashlib.sha256(archive.read_bytes()).hexdigest()!=pin['sha256']:raise RuntimeError('Lexilla archive checksum mismatch')
 work=ROOT/'build/lexilla-runtime/work';work.mkdir(parents=True,exist_ok=True)
 with tarfile.open(archive) as source:
@@ -40,7 +42,7 @@ shutil.copyfile(archive,kit/'lexilla.tar.gz')
 shutil.copytree(ROOT/'Sources/TurtleGitLexilla',rebuild/'Sources/TurtleGitLexilla')
 for folder in ['Configuration','scripts']:(rebuild/folder).mkdir()
 for name in ['LexillaRuntime.json','BlameLexers.json']:shutil.copyfile(ROOT/'Configuration'/name,rebuild/'Configuration'/name)
-for name in ['build-lexilla-runtime.py','validate-lexilla-runtime.py']:shutil.copyfile(ROOT/'scripts'/name,rebuild/'scripts'/name)
+for name in ['build-lexilla-runtime.py','validate-lexilla-runtime.py','pinned_download.py']:shutil.copyfile(ROOT/'scripts'/name,rebuild/'scripts'/name)
 shutil.copyfile(ROOT/'LICENSE',rebuild/'LICENSE')
 manifest={**pin,'files':{name:hashlib.sha256((target/name).read_bytes()).hexdigest() for name in ['lexilla','BlameLexers.json','LICENSE','Lexilla-LICENSE.txt','Scintilla-LICENSE.txt']},
           'adapter_sha256':hashlib.sha256((ROOT/'Sources/TurtleGitLexilla/main.cpp').read_bytes()).hexdigest(),

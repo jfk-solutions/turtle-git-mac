@@ -50,3 +50,22 @@ See [the validation record](qa/ci-runtime-caches-2026-10-12.json).
 Actual hosted restore/save hits, total CI timing improvements and full hosted
 workflow success remain unverified until new runs exercise this workflow. Signed
 Finder/App Store and complete application parity remain separate open gates.
+
+## Pinned source download recovery — 2026-10-13
+
+Git, git-svn, OpenSSH/OpenSSL, EditorConfig/PCRE2, OGDF/license and Lexilla
+builders share `scripts/pinned_download.py`. Downloads use unique temporary
+files and publish them only after validating the configured checksum. Cached
+archives are also checked and are never silently replaced after corruption.
+
+The default limit is three attempts, with a 30-second network timeout and short
+backoff. DNS/network/timeouts, truncated bodies and selected transient HTTP
+statuses retry. Permanent HTTP errors and checksum mismatches stop immediately.
+This does not weaken TLS or change pins. Interrupted downloads leave no archive
+and remove their temporary file.
+
+The shared module is included in each affected reconstruction kit and cache
+recipe. Four download recovery tests and five cache invalidation checks passed;
+all six builder sources compile and declare the reconstruction dependency. The
+full native toolchains were not rebuilt for this Python-only change. Current
+hosted network and complete reconstruction acceptance remain separate.

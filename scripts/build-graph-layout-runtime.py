@@ -10,6 +10,8 @@ import tarfile
 import urllib.request
 import uuid
 
+from pinned_download import download_verified
+
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
@@ -49,8 +51,7 @@ def main():
             if bundled.is_file():
                 shutil.copy2(bundled, path)
             else:
-                with urllib.request.urlopen(pin[name]['url'], timeout=60) as response:
-                    path.write_bytes(response.read())
+                download_verified(pin[name]['url'], path, pin[name]['sha256'])
         if digest(path) != pin[name]['sha256']:
             raise RuntimeError('Pinned input checksum mismatch: ' + name)
         inputs[name] = path
@@ -99,7 +100,7 @@ def main():
         shutil.copy2(inputs['ogdf'], stage / 'Sources/ogdf.tar.gz')
         shutil.copy2(inputs['coin_license'], stage / 'Sources/LICENSE_EPL_v1.html')
         files = ['LICENSE', 'Configuration/GraphLayoutRuntime.json', 'Sources/TurtleGitGraphLayout/main.cpp',
-                 'scripts/build-graph-layout-runtime.py', 'scripts/validate-graph-layout-runtime.py',
+                 'scripts/pinned_download.py', 'scripts/build-graph-layout-runtime.py', 'scripts/validate-graph-layout-runtime.py',
                  'scripts/embed-graph-layout-runtime.py', 'scripts/runtime_bundle_layout.py', 'scripts/git_lfs_runtime.py']
         for relative in files:
             destination = reconstruction / relative

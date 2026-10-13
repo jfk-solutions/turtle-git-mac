@@ -11,6 +11,8 @@ import tarfile
 import urllib.request
 import uuid
 
+from pinned_download import download_verified
+
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
@@ -53,7 +55,7 @@ def main():
             if bundled is not None and bundled.is_file():
                 shutil.copy2(bundled, archive)
             else:
-                archive.write_bytes(urllib.request.urlopen(item['url']).read())
+                download_verified(item['url'], archive, item['sha256'])
         if hashlib.sha256(archive.read_bytes()).hexdigest() != item['sha256']:
             raise RuntimeError('Source checksum mismatch: ' + name)
         archives[name] = archive
@@ -118,6 +120,7 @@ def main():
     (reconstruction / 'scripts').mkdir()
     shutil.copy2(ROOT / 'Configuration/EditorConfigRuntime.json', reconstruction / 'Configuration/EditorConfigRuntime.json')
     shutil.copy2(__file__, reconstruction / 'scripts/build-editorconfig-runtime.py')
+    shutil.copy2(pathlib.Path(__file__).with_name('pinned_download.py'), reconstruction / 'scripts/pinned_download.py')
     (sources / 'README.txt').write_text('Unmodified pinned source archives and reconstruction script.\nRun: python3 build/scripts/build-editorconfig-runtime.py\nRequires the macOS SDK, CMake and Python 3.9 or later.\n')
     (prepared / 'provenance.json').write_text(json.dumps({'pins': pin, 'binary_sha256': hashlib.sha256(binary.read_bytes()).hexdigest(),
                                                        'architectures': sorted(archs), 'build_versions': build_versions, 'system_linkage': linkage}, indent=2) + '\n')

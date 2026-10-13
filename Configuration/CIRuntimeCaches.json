@@ -4,7 +4,8 @@
     "inputs": [
       "Configuration/EditorConfigRuntime.json",
       "scripts/build-editorconfig-runtime.py",
-      "scripts/validate-editorconfig-runtime.py"
+      "scripts/validate-editorconfig-runtime.py",
+      "scripts/pinned_download.py"
     ],
     "validate": [
       "python3",
@@ -33,7 +34,8 @@
       "scripts/build-openssh-runtime.py",
       "scripts/validate-openssh-runtime.py",
       "scripts/runtime_bundle_layout.py",
-      "scripts/git_lfs_runtime.py"
+      "scripts/git_lfs_runtime.py",
+      "scripts/pinned_download.py"
     ],
     "validate": [
       "python3",
@@ -59,7 +61,8 @@
       "scripts/validate-git-svn-runtime.py",
       "scripts/validate_git_svn_support.py",
       "build/git-svn-runtime/GitSVN/runtime-manifest.json",
-      "scripts/runtime_bundle_layout.py"
+      "scripts/runtime_bundle_layout.py",
+      "scripts/pinned_download.py"
     ],
     "validate": [
       "python3",
@@ -99,7 +102,8 @@
       "Sources/TurtleGitLexilla/Scintilla/Sci_Position.h",
       "Sources/TurtleGitLexilla/Scintilla/License.txt",
       "scripts/build-lexilla-runtime.py",
-      "scripts/validate-lexilla-runtime.py"
+      "scripts/validate-lexilla-runtime.py",
+      "scripts/pinned_download.py"
     ],
     "validate": [
       "python3",

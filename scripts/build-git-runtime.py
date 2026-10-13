@@ -13,6 +13,8 @@ import tarfile
 import tempfile
 import urllib.request
 
+from pinned_download import download_verified
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 MACH = {b'\xcf\xfa\xed\xfe', b'\xfe\xed\xfa\xcf', b'\xca\xfe\xba\xbe', b'\xbe\xba\xfe\xca'}
 def macho(path):
@@ -35,10 +37,7 @@ def main():
     cache = ROOT / 'build/git-source'; cache.mkdir(parents=True, exist_ok=True)
     archive = cache / ('git-' + pin['version'] + '.tar.xz')
     if not archive.exists():
-        with urllib.request.urlopen(pin['source_url'], timeout=90) as response:
-            data = response.read()
-        if hashlib.sha256(data).hexdigest() != pin['source_sha256']: raise RuntimeError('Source checksum mismatch')
-        archive.write_bytes(data)
+        download_verified(pin['source_url'], archive, pin['source_sha256'])
     if hashlib.sha256(archive.read_bytes()).hexdigest() != pin['source_sha256']: raise RuntimeError('Cached source checksum mismatch')
     clang = subprocess.check_output(['/usr/bin/xcrun', '--find', 'clang'], text=True).strip()
     sdk = subprocess.check_output(['/usr/bin/xcrun', '--show-sdk-path'], text=True).strip()
@@ -86,7 +85,7 @@ def main():
         reconstruction = licenses / 'build'
         (reconstruction / 'scripts').mkdir(parents=True)
         (reconstruction / 'Configuration').mkdir()
-        for script in ['build-git-runtime.py', 'validate-git-runtime.py', 'test-git-runtime-deployment.py', 'git_lfs_runtime.py', 'prepare-git-lfs-runtime.py', 'validate-git-lfs-runtime.py', 'build-git-svn-runtime.py', 'install-git-svn-runtime.py', 'validate-git-svn-runtime.py', 'validate_git_svn_support.py', 'runtime_bundle_layout.py']:
+        for script in ['pinned_download.py', 'build-git-runtime.py', 'validate-git-runtime.py', 'test-git-runtime-deployment.py', 'git_lfs_runtime.py', 'prepare-git-lfs-runtime.py', 'validate-git-lfs-runtime.py', 'build-git-svn-runtime.py', 'install-git-svn-runtime.py', 'validate-git-svn-runtime.py', 'validate_git_svn_support.py', 'runtime_bundle_layout.py']:
             shutil.copy2(ROOT / 'scripts' / script, reconstruction / 'scripts' / script)
         shutil.copy2(ROOT / 'Configuration/GitRuntime.json', reconstruction / 'Configuration/GitRuntime.json')
         shutil.copy2(ROOT / 'Configuration/GitLFSRuntime.json', reconstruction / 'Configuration/GitLFSRuntime.json')

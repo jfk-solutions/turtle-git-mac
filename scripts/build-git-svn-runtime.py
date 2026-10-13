@@ -20,6 +20,8 @@ import urllib.request
 import uuid
 import zipfile
 
+from pinned_download import download_verified
+
 ROOT = Path(__file__).resolve().parents[1]
 
 def run(arguments, cwd=None, env=None):
@@ -29,14 +31,7 @@ def run(arguments, cwd=None, env=None):
 def fetch(pin, cache):
     path = cache / pin['url'].rsplit('/', 1)[1]
     if not path.exists():
-        part = path.with_suffix(path.suffix + '.download')
-        try:
-            with urllib.request.urlopen(pin['url'], timeout=60) as response, part.open('wb') as stream:
-                shutil.copyfileobj(response, stream)
-            if hashlib.new(pin['hash'], part.read_bytes()).hexdigest() != pin['digest']:
-                raise RuntimeError('Downloaded source checksum mismatch: ' + path.name)
-            part.replace(path)
-        finally: part.unlink(missing_ok=True)
+        download_verified(pin['url'], path, pin['digest'], algorithm=pin['hash'])
     if hashlib.new(pin['hash'], path.read_bytes()).hexdigest() != pin['digest']:
         raise RuntimeError('Cached source checksum mismatch: ' + path.name)
     return path
@@ -203,7 +198,7 @@ def main():
         reconstruction = licenses / 'build'; (reconstruction / 'scripts').mkdir(parents=True)
         (reconstruction / 'Configuration').mkdir(); (reconstruction / 'Sources/GitSVNLauncher').mkdir(parents=True)
         shutil.copy2(__file__, reconstruction / 'scripts/build-git-svn-runtime.py')
-        for name in ['validate-git-svn-runtime.py', 'validate_git_svn_support.py', 'validate-git-runtime.py', 'git_lfs_runtime.py', 'runtime_bundle_layout.py']:
+        for name in ['pinned_download.py', 'validate-git-svn-runtime.py', 'validate_git_svn_support.py', 'validate-git-runtime.py', 'git_lfs_runtime.py', 'runtime_bundle_layout.py']:
             shutil.copy2(ROOT / 'scripts' / name, reconstruction / 'scripts' / name)
         for name in ['GitSVNRuntime.json', 'GitRuntime.json']: shutil.copy2(ROOT / 'Configuration' / name, reconstruction / 'Configuration' / name)
         shutil.copy2(ROOT / 'Sources/GitSVNLauncher/main.c', reconstruction / 'Sources/GitSVNLauncher/main.c')
