@@ -43,8 +43,9 @@ parent selection, and forced-close cancellation/late-result fencing. Callback
 probes capture the requests; they do not execute an actual replay or revert. The
 shared production workflow bindings are inspected separately in code.
 
-Remaining upstream RefLog actions include Edit Notes, patch creation, bisect and
-commit combination. Exact whole-menu ordering/conditions, remote/tag guessing,
+Edit Notes, patch creation, Bisect and commit combination were subsequently added
+with their own partial caller checks; see REFLOG-NOTES-PATCH-PARITY.md and
+REFLOG-ADVANCED-PARITY.md. Exact whole-menu ordering/conditions, remote/tag guessing,
 physical workflow/window recovery from RefLog, multi-revision merge/root error
 variants, moving references during execution, signed file grants and full
 application parity remain open. Existing workflow tests do not certify every new

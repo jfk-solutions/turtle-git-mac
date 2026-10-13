@@ -102,7 +102,7 @@ import TurtleGitCore
     @Published var names: [String]
     @Published var entries: [ReferenceLogEntry] = []
     @Published var selection = Set<String>() {
-        didSet { if !finding { searchIndex = entries.firstIndex { selection.contains($0.id) } ?? 0 } }
+        didSet { if !finding { searchIndex = entries.firstIndex { selection.contains($0.id) } ?? 0 }; refreshCombineCandidate() }
     }
     @Published var busy = false
     @Published var error: String?
@@ -133,6 +133,12 @@ import TurtleGitCore
     var onCompare: ((ComparisonRevision, ComparisonRevision) -> Void)?
     var onCheckout: ((String) -> Void)?
     var onReset: ((String) -> Void)?
+    var onBisect: ((ReferenceLogBisectRequest) -> Void)?
+    var onCombineRevisions: (([LogEntry], Int, String) -> Void)? { didSet { refreshCombineCandidate() } }
+    @Published private(set) var combineCandidate: ReferenceLogCombineCandidate?
+    @Published private(set) var bisectActive = false
+    private var combineToken: OperationCancellation?
+    var readCombineCandidate: ([ReferenceLogEntry], Set<String>, String, OperationCancellation) async throws -> ReferenceLogCombineCandidate?
     var onFormatPatch: ((FormatPatchPreset) -> Void)?
     var onMergeRevision: ((String) -> Void)?
     var onRebaseRevision: ((String) -> Void)?
@@ -155,6 +161,7 @@ import TurtleGitCore
     var selectedEntry: ReferenceLogEntry? { let chosen = entries.filter { selection.contains($0.id) }; return chosen.count == 1 ? chosen.first : nil }
     init(repository: GitRepository, access: RepositoryAccessLease?, reference: String, selecting: Bool = false, preferences: UserDefaults = .standard) {
         noteLog = LogWindowModel(repository: repository, access: access, labelDefaults: preferences)
+        readCombineCandidate = { try await repository.referenceLogCombineCandidate(snapshot: $0, selected: $1, expectedHead: $2, cancellation: $3) }
         readOperationEntries = { try await repository.referenceLogOperationEntries(snapshot: $0, selected: $1, cancellation: $2) }
         self.preferences = preferences; self.selecting = selecting; self.repository = repository; self.access = access; self.reference = reference; names = [reference]
         noteChanges = noteLog.objectWillChange.sink { [weak self] _ in
@@ -168,6 +175,7 @@ import TurtleGitCore
     }
     func reload() {
         guard !invalidated else { return }
+        combineToken?.cancel(); combineToken = nil; combineCandidate = nil
         if noteLog.loadingNote { noteLog.cancelPendingNoteRead() }
         revisionReadToken?.cancel(); revisionReadToken = nil
         generation += 1; let request = generation, reference = reference; busy = true
@@ -178,6 +186,7 @@ import TurtleGitCore
                 let refs = try await repository.referenceLogNames(), result = try await repository.referenceLog(reference)
                 let bare = try await repository.isBare()
                 let mergeActive = try await repository.logMergeActive()
+                let bisectActive = try await repository.bisectState().active
                 let head = try await repository.run(["rev-parse", "--verify", "--quiet", "--end-of-options", "HEAD"], successfulExitCodes: 0...1).text.trimmingCharacters(in: .newlines)
                 let branch = try await repository.branch()
                 let referenceNames = try await repository.referenceLogReferenceNamesByHash()
@@ -193,11 +202,11 @@ import TurtleGitCore
                 guard request == generation else { return }
                 referenceNamesByHash = referenceNames
                 currentStashHash = stashHash; currentStashIndexParent = indexParent
-                hasWorkingTree = !bare; self.mergeActive = mergeActive
+                hasWorkingTree = !bare; self.mergeActive = mergeActive; self.bisectActive = bisectActive
                 currentHeadHash = head.isEmpty ? nil : head; currentBranch = branch
                 names = Array(Set(refs + [reference])).sorted(); entries = result
                 let hashes = Set(result.map(\.hash)); diffParents = diffParents.filter { hashes.contains($0.key) }
-                selection.formIntersection(Set(result.map(\.id))); searchIndex = 0; searchWrapped = false; busy = false
+                selection.formIntersection(Set(result.map(\.id))); searchIndex = 0; searchWrapped = false; busy = false; refreshCombineCandidate()
             } catch { if request == generation { self.error = error.localizedDescription; busy = false } }
         }
     }
@@ -437,8 +446,65 @@ import TurtleGitCore
             }
         }
     }
+    func refreshCombineCandidate() {
+        combineToken?.cancel(); combineToken = nil; combineCandidate = nil
+        guard !invalidated, commandSurfaceAvailable, !selecting, hasWorkingTree, !mergeActive,
+              selection.count >= 2, let head = currentHeadHash, onCombineRevisions != nil else { return }
+        let snapshot = entries, ids = selection, request = generation, reference = self.reference
+        let token = OperationCancellation(), read = readCombineCandidate, root = repository.root
+        combineToken = token; Self.activeRevisionReads += 1
+        Task { [weak self, access] in
+            defer {
+                Self.activeRevisionReads -= 1; withExtendedLifetime(access) {}
+                if let self, self.combineToken === token { self.combineToken = nil }
+            }
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let candidate = try await read(snapshot, ids, head, token)
+                guard let self, !self.invalidated, !token.isCancelled, self.generation == request,
+                      self.reference == reference, self.selection == ids, self.entries == snapshot else { return }
+                self.combineToken = nil; self.combineCandidate = candidate
+            } catch { /* Source omits Combine when its ancestry check fails. */ }
+        }
+    }
+    func combineAvailable(_ ids: Set<String>) -> Bool {
+        commandSurfaceAvailable && !selecting && hasWorkingTree && !mergeActive && onCombineRevisions != nil && combineCandidate?.selectors == ids && combineCandidate?.head == currentHeadHash
+    }
+    func combine(_ ids: Set<String>) {
+        guard combineAvailable(ids), let candidate = combineCandidate else { return }
+        onCombineRevisions?(candidate.entries, candidate.offset, candidate.head)
+    }
+    func bisectAvailable(_ command: LogBisectCommand, ids: Set<String>) -> Bool {
+        let chosen = entries.filter { ids.contains($0.id) }
+        guard command != .reset, commandSurfaceAvailable, !selecting, hasWorkingTree,
+              chosen.count == ids.count, let first = chosen.first, onBisect != nil else { return false }
+        if command == .start { return chosen.count == 2 && !bisectActive && !mergeActive && !isOnStash(first) }
+        return bisectActive && !(referenceNamesByHash[first.hash] ?? []).contains { $0.hasPrefix("refs/bisect/") } && (command == .skip || chosen.count == 1)
+    }
+    func bisect(_ command: LogBisectCommand, ids: Set<String>) {
+        guard bisectAvailable(command, ids: ids) else { return }
+        let snapshot = entries.filter { ids.contains($0.id) }, refs = referenceNamesByHash, request = generation, reference = self.reference
+        let token = OperationCancellation(), repository = self.repository, root = repository.root
+        revisionReadToken = token; busy = true; error = nil; Self.activeRevisionReads += 1
+        Task { [weak self, access] in
+            defer {
+                Self.activeRevisionReads -= 1; withExtendedLifetime(access) {}
+                if let self, !self.invalidated, self.generation == request, self.revisionReadToken === token { self.revisionReadToken = nil; self.busy = false }
+            }
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let result = try await repository.referenceLogBisectRequest(snapshot: snapshot, selected: ids, operation: command == .start ? nil : command.operation, references: refs, cancellation: token)
+                guard let self, !self.invalidated, !token.isCancelled, self.generation == request,
+                      self.reference == reference, self.entries.filter({ ids.contains($0.id) }) == snapshot else { return }
+                self.revisionReadToken = nil; self.busy = false; self.onBisect?(result)
+            } catch {
+                guard let self, !self.invalidated, !token.isCancelled, self.generation == request else { return }
+                self.revisionReadToken = nil; self.busy = false; self.error = error.localizedDescription
+            }
+        }
+    }
     func formatPatchPreset(_ ids: Set<String>) -> FormatPatchPreset? { FormatPatchPreset.referenceLogSelection(entries: entries, selected: ids) }
-    func invalidate() { noteLog.invalidate(); noteChanges = nil; invalidated = true; generation += 1; revisionReadToken?.cancel(); revisionReadToken = nil }
+    func invalidate() { combineToken?.cancel(); combineToken = nil; combineCandidate = nil; noteLog.invalidate(); noteChanges = nil; invalidated = true; generation += 1; revisionReadToken?.cancel(); revisionReadToken = nil }
     func requestDiffParents(_ entry: ReferenceLogEntry) {
         guard !invalidated, entries.contains(where: { $0.id == entry.id && $0.hash == entry.hash }), requestedDiffParents.insert(entry.hash).inserted else { return }
         let request = generation

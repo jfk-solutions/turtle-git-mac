@@ -502,3 +502,7 @@ remaining end-to-end/physical/signed scope.
 Edit Notes now uses the shared owned Input sheet, and Create Patch supplies
 selector-based source range defaults. See [RefLog notes and patches](REFLOG-NOTES-PATCH-PARITY.md)
 for accepted note writes, read retirement and remaining caller acceptance.
+
+RefLog now routes source-gated Bisect and Combine candidates to the existing
+workflows. See [advanced RefLog actions](REFLOG-ADVANCED-PARITY.md) for event/ancestry
+checks, read ownership and remaining mutation/physical/signed acceptance.

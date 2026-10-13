@@ -42,7 +42,7 @@ probed without executing export or mail delivery.
 Remaining acceptance includes physical bare/stash/picker and refresh-during-read
 variants, Format Patch export through the new caller, displayed geometry/keyboard/
 VoiceOver, accepted-save closure timing, signed grants and full RefLog/source/app
-parity. Bisect and commit-combination actions remain to be ported to RefLog.
+parity. Bisect and commit-combination entries were subsequently added; see [advanced RefLog actions](REFLOG-ADVANCED-PARITY.md).
 
 Eight focused Core tests, the Debug build and four grouped native receivers
 passed with system/bundled Git. All receivers were reaped. [Evidence](qa/reflog-notes-patch-2026-10-13.json)

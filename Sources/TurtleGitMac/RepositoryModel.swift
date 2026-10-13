@@ -1526,6 +1526,8 @@ import TurtleGitCore
             guard let parent = controller?.window, parent.attachedSheet == nil else { return }
             self?.showSwitchProgress(repository: repository, access: access, reference: reference, parent: parent)
         }
+        controller.model.onBisect = { [weak self] request in self?.showBisect(repository: repository, access: access, good: request.good, bad: request.bad, operation: request.operation, revisions: request.revisions, requireStart: request.operation == nil) }
+        controller.model.onCombineRevisions = { [weak self, weak controller] entries, offset, head in self?.showHistoryCombine(repository: repository, access: access, entries: entries, offset: offset, head: head, owner: controller?.window) }
         controller.model.onFormatPatch = { [weak self] preset in self?.showFormatPatch(repository: repository, access: access, preset: preset) }
         controller.model.onMergeRevision = { [weak self] hash in self?.showMerge(repository: repository, access: access, revision: hash) }
         controller.model.onRebaseRevision = { [weak self] upstream in self?.showRebase(repository: repository, access: access, upstream: upstream) }

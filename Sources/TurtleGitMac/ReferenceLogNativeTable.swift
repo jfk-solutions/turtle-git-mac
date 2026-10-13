@@ -196,6 +196,10 @@ struct ReferenceLogNativeTable: NSViewRepresentable {
                 }
                 menu.addItem(.separator())
             }
+            if model.combineAvailable(ids) { add("Combine to one commit", .combine) { model.combine(ids) } }
+            for command in [LogBisectCommand.start, .good, .bad, .skip] where model.bisectAvailable(command, ids: ids) {
+                add(command.title, command.icon) { model.bisect(command, ids: ids) }
+            }
             let clipboard = submenu("Copy to clipboard", .copy)
             menu.items.last?.isEnabled = live() && !ids.isEmpty
             for (title, format) in [("Full data", ReferenceLogCopyFormat.full), ("SHA-1", .hashes), ("Messages", .messages)] { add(title, .copy, to: clipboard, enabled: !ids.isEmpty) { model.copy(ids, format: format, pasteboard: pasteboard) } }

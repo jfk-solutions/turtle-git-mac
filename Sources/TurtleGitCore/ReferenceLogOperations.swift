@@ -27,3 +27,64 @@ extension GitRepository {
         return try chosen.map { guard let entry = records[$0.hash] else { throw ReferenceLogFailure.selection }; return entry }
     }
 }
+
+public struct ReferenceLogCombineCandidate: Sendable {
+    public let entries: [LogEntry]
+    public let offset: Int
+    public let head: String
+    public let selectors: Set<String>
+}
+public struct ReferenceLogBisectRequest: Sendable {
+    public let good: String?
+    public let bad: String?
+    public let operation: BisectOperation?
+    public let revisions: [String]
+}
+extension GitRepository {
+    /// Match the source's RefLog row-to-HEAD endpoint checks. Actual history
+    /// rewriting is still validated by the shared Combine workflow at execution.
+    public func referenceLogCombineCandidate(snapshot: [ReferenceLogEntry], selected: Set<String>, expectedHead: String, cancellation: OperationCancellation? = nil) throws -> ReferenceLogCombineCandidate? {
+        try cancellation?.check()
+        guard try !isBare(cancellation: cancellation), try !logMergeActive(cancellation: cancellation) else { return nil }
+        let rows = snapshot.indices.filter { selected.contains(snapshot[$0].id) }
+        guard rows.count >= 2, rows.count == selected.count, rows.last! - rows.first! + 1 == rows.count,
+              let headRow = snapshot.firstIndex(where: { $0.hash == expectedHead }), rows.first! >= headRow else { return nil }
+        let head = try run(["rev-parse", "--verify", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+        guard head == expectedHead else { return nil }
+        let offset = rows.first! - headRow
+        func ancestor(_ offset: Int) throws -> String? {
+            let value = try run(["rev-parse", "--verify", "HEAD~" + String(offset)], successfulExitCodes: 0...128, cancellation: cancellation)
+            return value.exitCode == 0 ? value.text.trimmingCharacters(in: .newlines) : nil
+        }
+        guard try ancestor(offset) == snapshot[rows.first!].hash,
+              try ancestor(offset + rows.count - 1) == snapshot[rows.last!].hash else { return nil }
+        let entries = try referenceLogOperationEntries(snapshot: snapshot, selected: selected, cancellation: cancellation)
+        return ReferenceLogCombineCandidate(entries: entries, offset: offset, head: head, selectors: selected)
+    }
+    public func referenceLogBisectRequest(snapshot: [ReferenceLogEntry], selected: Set<String>, operation: BisectOperation?, references: [String: [String]], cancellation: OperationCancellation? = nil) throws -> ReferenceLogBisectRequest {
+        try cancellation?.check()
+        guard try !isBare(cancellation: cancellation) else { throw BisectFailure.workingTree }
+        let entries = try referenceLogOperationEntries(snapshot: snapshot, selected: selected, cancellation: cancellation)
+        let state = try bisectState(cancellation: cancellation)
+        if let operation {
+            guard operation != .reset, operation == .skip || entries.count == 1 else { throw BisectFailure.operation }
+            guard state.active else { throw BisectFailure.inactive }
+            let marks = try run(["for-each-ref", "--points-at", entries[0].hash, "--format=%(refname)", "refs/bisect/"], cancellation: cancellation)
+            guard marks.stdout.isEmpty else { throw ReferenceLogBisectFailure.marked }
+            return ReferenceLogBisectRequest(good: nil, bad: nil, operation: operation, revisions: entries.map(\.hash))
+        }
+        guard entries.count == 2 else { throw BisectFailure.operation }
+        guard !state.active, try !logMergeActive(cancellation: cancellation) else { throw BisectFailure.active }
+        func preset(_ entry: LogEntry) throws -> String {
+            guard let name = references[entry.hash]?.first else { return entry.hash }
+            let value = try run(["rev-parse", "--verify", "--end-of-options", name + "^{commit}"], successfulExitCodes: 0...128, cancellation: cancellation)
+            return value.exitCode == 0 && value.text.trimmingCharacters(in: .newlines) == entry.hash ? name : entry.hash
+        }
+        return ReferenceLogBisectRequest(good: try preset(entries[1]), bad: try preset(entries[0]), operation: nil, revisions: [])
+    }
+}
+
+public enum ReferenceLogBisectFailure: LocalizedError {
+    case marked
+    public var errorDescription: String? { "This revision is already marked in the active bisect session." }
+}

@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-13",
+  "scope": "RefLog Bisect Start/Good/Bad/Skip and ancestry-validated Combine caller family",
+  "source_revision": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "validation": {
+    "core": {
+      "log": "build/qa/reflog-advanced-core-final-2026-10-13.log",
+      "exit": 0,
+      "tests": 11
+    },
+    "debug": {
+      "log": "build/qa/reflog-advanced-debug-final-2026-10-13.log",
+      "exit": 0
+    },
+    "native": {
+      "log": "build/qa/reflog-advanced-native-2026-10-13.log",
+      "exit": 0,
+      "cases": [
+        "reflog-advanced",
+        "reflog-notes-patch"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "receivers": 4,
+      "owned_receivers_reaped": true,
+      "scope": "production menu callback capture, source ancestry/preset/state gates, closed-reader cancellation and notes/patch regression. Explicit private Bisect setup/reset is fixture work."
+    },
+    "site": {
+      "log": "build/qa/reflog-advanced-site-final-2026-10-13.log",
+      "exit": 0,
+      "tests": 2
+    }
+  },
+  "initial_repairs": [
+    "Core used app-scoped LogBisectFailure; added a Core localized marked-revision failure instead. Initial build stopped before tests.",
+    "Core/native fixtures used bisectStart instead of startBisect; corrected fixture call. No behavior assertions removed."
+  ],
+  "implemented": [
+    "Captured source Combine endpoints and raw metadata",
+    "Selection/refresh/close cancellation and retained Quit accounting",
+    "Bisect snapshot defaults, moved-ref fallback and active marked-row checks",
+    "Existing Bisect/History Combine repository factory routes and original icons"
+  ],
+  "remaining": [
+    "Physical dynamic menu tracking and selecting/bare/stash variants",
+    "Multi-selection marked variants",
+    "Actual rewrite/bisect execution and recovery through RefLog",
+    "Root/merge rewrite and moved-ancestry variants",
+    "Signed execution and full source/menu/app parity"
+  ]
+}
