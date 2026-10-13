@@ -29,8 +29,7 @@ bypasses checked-file index preparation. These are distinct commit modes.
   selection of individual lines or hunks, and original icons in its context menu.
   Applying a selection changes the index and preserves working-tree contents.
   A stale patch is rejected before applying; disabling staging closes the patch window.
-- Bottom Find bar with selection-seeded search, next/previous and native search
-  options; Command-F and Command-G / Shift-Command-G shortcuts. Escape hides Find
+- Bottom Find bar with selection-seeded search, next/previous and Match case; Command-F and Command-G / Shift-Command-G shortcuts. Escape hides Find
   first, then closes the patch. Save As exports the displayed patch through the
   native save panel. Patch width is saved; buttons switch to Hide Staging/Unstaging
   while the corresponding patch window is open.
@@ -87,8 +86,9 @@ checkbox semantics. Staged files remain visible outside Finder-requested scope.
 ## Remaining upstream behavior
 
 - Audit partial changes for renamed/binary/mode-changing files and other encodings;
-  broader mixed-stage QA and multi-display placement. Native Find follows macOS
-  search conventions (including wraparound); upstream flashes at a search boundary.
+  broader mixed-stage QA and multi-display placement. The attached patch Find now
+  stops at a boundary and pulses the native window; physical keyboard/placement
+  acceptance remains incomplete.
   Added/deleted file partial changes would extend the pinned upstream behavior.
 - Full issue controls and message-history behavior; native root/merge/
   rename amend QA and broader date/author combinations. Native new branch,
@@ -2029,3 +2029,47 @@ conflicting-operation refusal and replacement after closure. It uses private Git
 and injected SVN responses, rather than an actual remote submission. See
 [SVN workflow acceptance](SVN-PARITY.md). Physical Commit menu activation and
 signed handoff remain open.
+
+
+## Attached patch window, Find and owned operations — 2026-10-13
+
+The source `PatchViewDlg.cpp`, `FindBar.cpp`, `MENU IDR_STAGING`, and
+`IDD_FINDBAR` were checked at the pinned upstream revision. The partial patch
+window now gives its area to the colored patch, with a bottom Find bar when
+requested. Extra staging buttons and the comparison/header toolbar were removed
+from this attached editing mode; shared read-only unified previews retain their
+own toolbar. Staging and Unstaging app menus contain the source's selected-lines
+and selected-hunks commands with original icons. Their state follows the focused
+patch, selected lines, stage/unstage mode, busy state, sheets and retirement.
+A captured menu for another mode or a background/closed patch cannot apply it.
+The existing context commands remain available.
+
+Find seeds from selected text, resets to the start on typing, searches forward
+or backward from the corresponding selection edge, and uses Match case. It does
+not wrap. A failed search collapses to that edge and pulses the native window
+border three times, replacing Windows taskbar/window flashing. Command-F,
+Command-G, Shift-Command-G and Escape route through the patch window even when
+the field owns focus. Escape first hides Find and returns focus to the patch.
+Read-only unified previews retain the native macOS Find interface.
+
+Patch rendering no longer adds a newline absent from its document. Selection
+line mapping uses the actual line lengths and trailing-newline state. Original
+read-only bytes remain separate from their display text for Copy/Save/export.
+
+Default patch readers now pass cancellation to their HEAD/diff commands with
+optional index writes disabled. Replacing the selected paths cancels the previous
+owned read. Cancel publishes pending state until its child has exited; closing a
+window retires it, cancels its reads, and rejects late results and refreshes.
+The model retains operation accounting after a forced window close, so Quit stays
+blocked until owned work finishes. Accepted staging mutations settle without
+cancellation, preserve their captured inputs and release the original parent gate
+exactly once; a retired child cannot start its subsequent reload/callback.
+Commit refreshes its live file list after a successful settlement; failed
+staging keeps its error visible. It passes
+its private preferences to the child. Other owners' custom refresh pipelines
+continue to own their tasks and require their separate lifecycle acceptance.
+
+Validation and remaining acceptance are recorded in
+[partial patch batch QA](qa/partial-patch-2026-10-13.json). Full Commit/application
+parity, unsupported partial file modes/encodings, physical keyboard/menu/Find
+acceptance, refreshed screenshots and multi-display placement remain open.

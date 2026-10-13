@@ -17,6 +17,7 @@ import UniformTypeIdentifiers
     let model: CommitWindowModel
     var onClosed: () -> Void = {}
     private var partial: PatchWindowController?
+    private let preferences: UserDefaults
     private var closingCommit = false
     private var historyWindow: NSWindow?
     var makeHistoryWindow: () -> NSWindow = {
@@ -29,6 +30,7 @@ import UniformTypeIdentifiers
     private var lfsOperation: LFSFileOperationController?
     var makeLFSOperation: (GitRepository, RepositoryAccessLease?) -> LFSFileOperationController = { LFSFileOperationController(repository: $0, access: $1) }
     init(repository: GitRepository, access: RepositoryAccessLease?, defaults: UserDefaults = .standard) {
+        preferences = defaults
         model = CommitWindowModel(repository: repository, access: access, unversionedDefaults: defaults, dialogDefaults: defaults)
         let window = CommitNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 760),
             styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
@@ -208,15 +210,22 @@ import UniformTypeIdentifiers
     private func showPartial(staged: Bool, readOnly: Bool = false) {
         guard let window, partial?.model.busy != true, partial?.window?.attachedSheet == nil else { return }
         if let partial, partial.model.readOnly == readOnly, partial.model.staged == staged { partial.close(); return }
-        let controller = partial ?? PatchWindowController(repository: model.repository, access: model.access)
+        let controller = partial ?? PatchWindowController(repository: model.repository, access: model.access, preferences: preferences)
         partial = controller
-        controller.onClosed = { [weak self] in
-            guard let self else { return }
+        controller.onClosed = { [weak self, weak controller] in
+            guard let self, self.partial === controller else { return }
             self.partial = nil; self.model.partialMode = nil; self.model.viewingPatch = false
             if !self.closingCommit { self.model.savePatchPreference(false) }
         }
-        controller.model.onApplying = { [weak model] busy in model?.busy = busy }
-        controller.model.onApplied = { [weak model] in model?.reload() }
+        controller.model.onApplying = { [weak self] busy in
+            guard let self, !self.closingCommit else { return }
+            self.model.busy = busy
+        }
+        controller.model.onSettled = { [weak self] succeeded in
+            guard succeeded, let self, !self.closingCommit else { return }
+            self.model.reload()
+        }
+        controller.model.onApplied = {}
         controller.model.readOnly = readOnly
         controller.model.staged = staged
         controller.model.base = model.comparisonBase

@@ -1,0 +1,100 @@
+{
+  "date": "2026-10-13",
+  "source": {
+    "baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "files": [
+      "src/TortoiseProc/PatchViewDlg.cpp",
+      "src/TortoiseProc/FindBar.cpp",
+      "src/Resources/TortoiseProcENG.rc:IDR_STAGING/IDD_FINDBAR"
+    ]
+  },
+  "scope": [
+    "Attached patch-only layout and bottom source-style Find/case/boundary feedback",
+    "Focused Staging/Unstaging app-menu state and original icons",
+    "Exact display final-newline and selection-line mapping; original-byte read-only export",
+    "Cancellable default HEAD/diff readers, supersession and retirement",
+    "Global operation/Quit accounting after forced closure; balanced parent mutation settlement and success-only refresh",
+    "Commit private child preferences and identity-fenced closure callback"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/partial-patch-debug-settlement-2026-10-13.log",
+      "note": "Xcode 27 emitted exit-zero/no-output formatter diagnostics alongside warnings. Overall build exit was zero; updated native objects/modules linked and passed receiver checks."
+    },
+    "core": {
+      "exit": 0,
+      "tests": 9,
+      "filter": [
+        "GitPatchTests",
+        "CommitPatchTests",
+        "PatchReadCancellationTests"
+      ],
+      "log": "build/qa/partial-patch-core-final-2026-10-13.log",
+      "note": "Four live held-command cancellation boundaries reaped their owned shell/child pairs and preserved HEAD/index/worktree. Not repeated after native menu/settlement-only edits."
+    },
+    "native_group": {
+      "exit": 0,
+      "cases": 6,
+      "families": [
+        "partial-patch",
+        "commit-progress",
+        "comparison"
+      ],
+      "engines": [
+        "system Git",
+        "packaged Git"
+      ],
+      "log": "build/qa/partial-patch-native-final-2026-10-13.log"
+    },
+    "affected_settlement_checks": {
+      "exit": 0,
+      "cases": 4,
+      "families": [
+        "partial-patch",
+        "commit-progress"
+      ],
+      "engines": [
+        "system Git",
+        "packaged Git"
+      ],
+      "log": "build/qa/partial-patch-native-settlement-2026-10-13.log",
+      "scope": [
+        "Focused/opposite-mode/background menu guards",
+        "Selection seed, incremental reset, case, forward/backward/no-wrap boundary behavior",
+        "Exact no-LF render and original-byte export",
+        "Real line staging/hunk unstaging and unrelated index preservation",
+        "Stale staging keeps its error and leaves index unchanged",
+        "Superseded, cancelled and retired readers reject late replies and reap children",
+        "Forced close during accepted index mutation retains actual Quit guard and releases original parent/settlement once",
+        "Core mutation completion does not restart retired child callbacks/reloads"
+      ]
+    }
+  },
+  "failures_and_review_corrections": [
+    "Initial compile referenced a private model preference store. The controller now retains and supplies its own injected preferences.",
+    "Review separated success-only parent refresh from balanced mutation settlement so a failed stage cannot erase its error."
+  ],
+  "ownership": "Native receivers and all registered patch/hook helper/descendant processes exited/reaped. No standalone GUI app launched; no unrelated app terminated. Private fixture repositories/preferences and clipboard scopes used.",
+  "hosted_observation": {
+    "macos_live_run": 38333743749,
+    "head": "dd315a4f",
+    "job": 115091248561,
+    "step": "Native SSH transport coordinator",
+    "latest_packaging_run": 38342862413,
+    "latest_packaging_head": "1af1a7da",
+    "latest_packaging_status": "pending",
+    "pages_run": 38342862447,
+    "pages_status": "success",
+    "logs_note": "Live-job download returned BlobNotFound; that is not a terminal job result. No restart/cancellation performed."
+  },
+  "not_proven": [
+    "Physical menu-bar and keyboard/Find interaction",
+    "Current displayed light/dark and multi-display captures",
+    "All custom refresh-owner pipelines",
+    "Unsupported renamed/binary/mode-changing/non-UTF-8 partial application",
+    "New AppStore build/signed inherited sandbox execution for this native batch",
+    "Whole Commit and application parity",
+    "Hosted macOS pass for this batch"
+  ]
+}

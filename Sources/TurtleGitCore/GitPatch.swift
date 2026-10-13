@@ -107,24 +107,24 @@ public enum PatchFailure: LocalizedError {
 }
 
 extension GitRepository {
-    public func workingTreePatch(paths: [String], base: String? = nil) throws -> GitPatch {
-        guard let text = String(data: try workingTreePatchData(paths: paths, base: base), encoding: .utf8) else { throw PatchFailure.encoding }
+    public func workingTreePatch(paths: [String], base: String? = nil, cancellation: OperationCancellation? = nil) throws -> GitPatch {
+        guard let text = String(data: try workingTreePatchData(paths: paths, base: base, cancellation: cancellation), encoding: .utf8) else { throw PatchFailure.encoding }
         return GitPatch(text: text)
     }
-    public func workingTreePatchData(paths: [String], base: String? = nil) throws -> Data {
-        let head = (try? run(["rev-parse", "--verify", "HEAD"])) != nil
+    public func workingTreePatchData(paths: [String], base: String? = nil, cancellation: OperationCancellation? = nil) throws -> Data {
+        let head = try run(["rev-parse", "--verify", "--quiet", "HEAD"], environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], successfulExitCodes: 0...1, cancellation: cancellation).exitCode == 0
         let comparison = base.map { [$0] } ?? (head ? ["HEAD"] : ["--cached"])
         let args = ["diff", "--no-ext-diff", "--no-color", "--no-textconv", "--unified=3", "-M"] + comparison + ["--"] + paths
-        return try run(args).stdout
+        return try run(args, environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation).stdout
     }
-    public func patch(paths: [String], staged: Bool, base: String? = nil) throws -> GitPatch {
-        guard let text = String(data: try patchData(paths: paths, staged: staged, base: base), encoding: .utf8) else { throw PatchFailure.encoding }
+    public func patch(paths: [String], staged: Bool, base: String? = nil, cancellation: OperationCancellation? = nil) throws -> GitPatch {
+        guard let text = String(data: try patchData(paths: paths, staged: staged, base: base, cancellation: cancellation), encoding: .utf8) else { throw PatchFailure.encoding }
         return GitPatch(text: text)
     }
     /// Unified viewers receive original bytes; partial staging still requires UTF-8.
-    public func patchData(paths: [String], staged: Bool, base: String? = nil) throws -> Data {
+    public func patchData(paths: [String], staged: Bool, base: String? = nil, cancellation: OperationCancellation? = nil) throws -> Data {
         let args = ["diff", "--no-ext-diff", "--no-color", "--no-textconv", "--unified=3"] + (staged ? ["--cached"] + (base.map { [$0] } ?? []) : []) + ["--"] + paths
-        return try run(args).stdout
+        return try run(args, environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation).stdout
     }
     public func applyPatchSelection(_ document: GitPatch, paths: [String], staged: Bool, lines: Set<Int>, entireHunks: Bool, base: String? = nil) throws {
         guard try patch(paths: paths, staged: staged, base: base).text == document.text else { throw PatchFailure.changed }

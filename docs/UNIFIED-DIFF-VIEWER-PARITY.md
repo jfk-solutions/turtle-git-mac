@@ -383,3 +383,17 @@ Only the exact owned preview PID 1283 was revalidated and sent SIGTERM; no
 TurtleGit process remained. No new screenshot or font-preview/live-Apply/dark
 acceptance is claimed. The cause of the controller failure is not established.
 See [verification record](qa/unified-font-preview-2026-10-05.json).
+
+
+## Shared patch read/render lifetime — 2026-10-13
+
+The shared native patch renderer now preserves the display document's final
+newline state. Default working-tree/index readers own cancellable processes,
+ignore obsolete results, and retain Quit accounting until every reader/mutation
+settles, including after forced window closure. Original bytes still drive
+Copy/Save/export independently of display decoding. These changes also serve
+Commit's attached partial editor; its source-style bottom Find and Staging menus
+are documented in [Commit parity](COMMIT-PARITY.md#attached-patch-window-find-and-owned-operations--2026-10-13).
+Read-only viewers retain their existing toolbar and native macOS Find. External
+owners' custom loaders and physical print/save/panel acceptance remain separate
+from the default-read coverage of this batch.

@@ -25,7 +25,9 @@ import UniformTypeIdentifiers
         (patchText as? PatchTextView.PatchText)?.find(action)
     }
     override func cancelOperation(_ sender: Any?) {
-        if patchText?.enclosingScrollView?.isFindBarVisible == true {
+        if let text = patchText as? PatchTextView.PatchText, text.coordinator?.model.findVisible == true {
+            text.coordinator?.model.hideFind()
+        } else if patchText?.enclosingScrollView?.isFindBarVisible == true {
             find(.hideFindInterface); makeFirstResponder(patchText)
         } else { performClose(sender) }
     }
@@ -36,6 +38,7 @@ import UniformTypeIdentifiers
     var onClosed: () -> Void = {}
     var onMoved: () -> Void = {}
     private let preferences: UserDefaults
+    private var flashGeneration = 0
     func windowDidMove(_ notification: Notification) { onMoved() }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
         self.preferences = preferences
@@ -54,9 +57,23 @@ import UniformTypeIdentifiers
         model.saveAs = { [weak window] in (window?.patchText as? PatchTextView.PatchText)?.savePatch(nil) }
         model.printDiff = { [weak window] in (window?.patchText as? PatchTextView.PatchText)?.printPatch(nil) }
 
+        model.onFindBoundary = { [weak self, weak window] in
+            guard let self, !self.model.retired, let view = window?.contentView else { return }
+            self.flashGeneration += 1; let identity = self.flashGeneration
+            view.wantsLayer = true
+            for step in 0..<6 {
+                DispatchQueue.main.asyncAfter(deadline: .now() + Double(step) * 0.1) { [weak self, weak view] in
+                    guard let self, self.flashGeneration == identity, !self.model.retired, let view else { return }
+                    view.layer?.borderWidth = step % 2 == 0 ? 2 : 0
+                    view.layer?.borderColor = NSColor.controlAccentColor.cgColor
+                }
+            }
+        }
         DialogGeometry.attach(window, identifier: "PatchWindowController")
     }
     func windowWillClose(_ notification: Notification) {
+        flashGeneration += 1; window?.contentView?.layer?.borderWidth = 0
+        model.retire()
         if let window { preferences.set(window.frame.width, forKey: "PartialPatchWindowWidth") }
         onClosed()
     }
@@ -78,7 +95,7 @@ import UniformTypeIdentifiers
     var printDiff: () -> Void = {}
     @Published var showPageSetup = false
     func pageSetup() {
-        guard !busy, !confirmingQuit, !showPageSetup else { return }
+        guard !retired, !busy, !confirmingQuit, !showPageSetup else { return }
         busy = true; showPageSetup = true
     }
     @Published var comparisonTitle = "HEAD → Working tree"
@@ -90,20 +107,81 @@ import UniformTypeIdentifiers
     @Published var error: String?
     @Published var paths: [String] = []
     private var generation = 0
+    private var readTask: Task<Void, Never>?
+    private var readCancellation: OperationCancellation?
+    private var ownedReads = 0
+    private var applying = false
+    private(set) var retired = false
+    static private(set) var activeOperations = 0
+    @Published private(set) var loading = false
+    @Published private(set) var cancelling = false
+    @Published private(set) var findVisible = false
+    @Published private(set) var findFocusRequest = 0
+    @Published private(set) var findBoundaryCount = 0
+    @Published var findText = ""
+    @Published var findMatchCase = false
+    var sourceOwnerID: UUID?
+    var sourceSelection: () -> NSRange = { NSRange(location: 0, length: 0) }
+    var selectSource: (NSRange) -> Void = { _ in }
+    var focusSource: () -> Void = {}
+    var onFindBoundary: () -> Void = {}
+    var canFind: Bool { !retired && !busy && !confirmingQuit }
+    func showFind() {
+        guard canFind else { return }
+        let selected = sourceSelection(), text = document.text as NSString
+        if selected.length > 0, selected.location <= text.length, NSMaxRange(selected) <= text.length {
+            findText = text.substring(with: selected)
+        }
+        findVisible = true; findFocusRequest += 1
+    }
+    func hideFind() {
+        guard canFind else { return }; findVisible = false; focusSource()
+    }
+    func changeFindText(_ text: String) {
+        guard canFind else { return }; findText = text
+        selectSource(NSRange(location: 0, length: 0))
+        if !text.isEmpty { search(previous: false) }
+    }
+    func search(previous: Bool) {
+        guard canFind else { return }
+        guard !findText.isEmpty else { showFind(); return }
+        let text = document.text as NSString, selection = sourceSelection()
+        let cursor = min(text.length, previous ? selection.location : NSMaxRange(selection))
+        let range = previous ? NSRange(location: 0, length: cursor) : NSRange(location: cursor, length: text.length - cursor)
+        var options: NSString.CompareOptions = findMatchCase ? [] : [.caseInsensitive]
+        if previous { options.insert(.backwards) }
+        let found = text.range(of: findText, options: options, range: range)
+        if found.location == NSNotFound {
+            selectSource(NSRange(location: cursor, length: 0)); findBoundaryCount += 1; onFindBoundary()
+        } else { selectSource(found) }
+    }
+    func cancelRead() {
+        guard !retired, loading, !cancelling else { return }
+        cancelling = true; readCancellation?.cancel(); readTask?.cancel()
+    }
+    func retire() {
+        guard !retired else { return }; retired = true; generation += 1
+        readCancellation?.cancel(); readTask?.cancel()
+        sourceSelection = { NSRange(location: 0, length: 0) }; selectSource = { _ in }; focusSource = {}; onFindBoundary = {}
+        saveAs = {}; printDiff = {}; customRefresh = nil; onApplied = {}; onApplying = { _ in }; onSettled = { _ in }
+        findVisible = false
+    }
     var onApplying: (Bool) -> Void = { _ in }
     var onApplied: () -> Void = {}
+    var onSettled: (Bool) -> Void = { _ in }
     init(repository: GitRepository, access: RepositoryAccessLease?, appearancePreferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.appearancePreferences = appearancePreferences }
     var exportDocument: UnifiedDiffDocument { readOnly ? originalDiff ?? UnifiedDiffDocument(bytes: Data(document.text.utf8)) : UnifiedDiffDocument(bytes: Data(document.text.utf8)) }
     func copyPatch(to pasteboard: NSPasteboard = .general) {
-        guard !busy, !confirmingQuit else { return }
+        guard !retired, !busy, !confirmingQuit else { return }
         if !PatchClipboard.write(exportDocument, to: pasteboard) { error = "The patch could not be copied to the clipboard." }
     }
     func setReadOnlyDiff(_ bytes: Data) {
+        guard !retired else { return }
         let source = UnifiedDiffDocument(bytes: bytes)
         readOnly = true; document = GitPatch(text: source.displayText); originalDiff = source
     }
-    var canApplyLines: Bool { !readOnly && !busy && !confirmingQuit && selectedLines.contains(where: { document.changedLine($0) }) }
-    var canApplyHunks: Bool { !readOnly && !busy && !confirmingQuit && document.files.flatMap(\.hunks).contains { hunk in selectedLines.contains(hunk.header) || hunk.range.contains(where: { selectedLines.contains($0) }) } }
+    var canApplyLines: Bool { !retired && !readOnly && !busy && !confirmingQuit && selectedLines.contains(where: { document.changedLine($0) }) }
+    var canApplyHunks: Bool { !retired && !readOnly && !busy && !confirmingQuit && document.files.flatMap(\.hunks).contains { hunk in selectedLines.contains(hunk.header) || hunk.range.contains(where: { selectedLines.contains($0) }) } }
     var information: String {
         if readOnly, let readOnlyInformation { return readOnlyInformation }
         if paths.isEmpty { return "Select files in the Commit window to see their patch." }
@@ -113,31 +191,50 @@ import UniformTypeIdentifiers
         return "Select changed lines, or place the caret in a hunk. Right-click for staging actions."
     }
     func reload(paths: [String], staged: Bool) {
+        guard !retired, !applying, !confirmingQuit, !showPageSetup else { return }
         if let customRefresh { customRefresh(); return }
-        generation += 1; let request = generation
+        readCancellation?.cancel(); readTask?.cancel()
+        generation += 1; let request = generation, cancellation = OperationCancellation()
+        readCancellation = cancellation
         let base = self.base, readOnly = self.readOnly
-        self.paths = paths; self.staged = staged; selectedLines = []; document = GitPatch(text: ""); busy = true
-        Task {
+        self.paths = paths; self.staged = staged; selectedLines = []; document = GitPatch(text: "")
+        busy = true; loading = true; cancelling = false; error = nil
+        ownedReads += 1; Self.activeOperations += 1
+        readTask = Task {
+            defer {
+                ownedReads -= 1; Self.activeOperations -= 1
+                if request == generation {
+                    readTask = nil; readCancellation = nil; loading = false; cancelling = false; busy = false
+                } else if retired && ownedReads == 0 && !applying { loading = false; cancelling = false; busy = false }
+            }
             do {
                 let bytes: Data
                 if paths.isEmpty { bytes = Data() }
-                else if readOnly { bytes = try await repository.workingTreePatchData(paths: paths, base: base) }
-                else { bytes = Data(try await repository.patch(paths: paths, staged: staged, base: base).text.utf8) }
-                guard request == generation else { return }
+                else if readOnly { bytes = try await repository.workingTreePatchData(paths: paths, base: base, cancellation: cancellation) }
+                else { bytes = Data(try await repository.patch(paths: paths, staged: staged, base: base, cancellation: cancellation).text.utf8) }
+                guard !retired, request == generation, !cancellation.isCancelled, !Task.isCancelled else { return }
                 if readOnly { setReadOnlyDiff(bytes) } else { document = GitPatch(text: String(decoding: bytes, as: UTF8.self)) }
-                busy = false
-            } catch { if request == generation { self.error = error.localizedDescription; busy = false } }
+            } catch {
+                if !retired && request == generation && !cancellation.isCancelled && !Task.isCancelled { self.error = error.localizedDescription }
+            }
         }
     }
     func apply(entireHunks: Bool) {
-        guard !readOnly, entireHunks ? canApplyHunks : canApplyLines else { return }
+        guard !retired, !readOnly, entireHunks ? canApplyHunks : canApplyLines else { return }
         let document = self.document, paths = self.paths, staged = self.staged, lines = selectedLines, base = self.base
-        busy = true; onApplying(true)
+        let releaseParent = onApplying, settleParent = onSettled
+        busy = true; applying = true; Self.activeOperations += 1; releaseParent(true)
         Task {
+            var succeeded = false
             do {
                 try await repository.applyPatchSelection(document, paths: paths, staged: staged, lines: lines, entireHunks: entireHunks, base: base)
-                busy = false; onApplying(false); onApplied(); reload(paths: paths, staged: staged)
-            } catch { self.error = error.localizedDescription; busy = false; onApplying(false) }
+                succeeded = true
+            } catch { if !retired { self.error = error.localizedDescription } }
+            applying = false; busy = ownedReads != 0; Self.activeOperations -= 1
+            // Balance the original parent gate even after a forced child close.
+            releaseParent(false); settleParent(succeeded)
+            guard !retired else { return }
+            if succeeded { onApplied(); reload(paths: paths, staged: staged) }
         }
     }
 }
@@ -146,28 +243,48 @@ struct PatchDialog: View {
     @ObservedObject var model: PatchWindowModel
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
+            if model.readOnly { HStack {
                 Text(model.readOnly ? model.comparisonTitle : model.staged ? (model.base == nil ? "HEAD → Index" : "Parent → Index") : "Index → Working tree").font(.headline)
                 Spacer(); if model.busy { ProgressView().controlSize(.small) }
                 Button { model.copyPatch() } label: { CommandLabel(title: "Copy Patch", icon: .copy) }.disabled(model.busy || model.exportDocument.bytes.isEmpty)
                 Button { model.saveAs() } label: { CommandLabel(title: "Save As…", icon: .saveAs) }.disabled(model.busy)
                 Button { model.printDiff() } label: { Label("Print…", systemImage: "printer") }.disabled(model.busy)
                 if model.refreshAvailable { Button("Refresh") { model.reload(paths: model.paths, staged: model.staged) }.disabled(model.busy) }
-            }
+            } }
             PatchTextView(model: model).frame(minWidth: 430, minHeight: 360)
-            Text(model.information).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            if !model.readOnly {
-                HStack {
-                    Button(model.staged ? "Unstage selected hunks" : "Stage selected hunks") { model.apply(entireHunks: true) }.disabled(!model.canApplyHunks)
-                    Button(model.staged ? "Unstage selected lines" : "Stage selected lines") { model.apply(entireHunks: false) }.disabled(!model.canApplyLines)
-                }
-            }
-        }.padding(12).disabled(model.confirmingQuit)
+            if !model.readOnly && model.findVisible { PartialPatchFindBar(model: model) }
+            if model.loading { HStack { ProgressView(model.cancelling ? "Cancelling…" : "Loading patch…").controlSize(.small); Button("Cancel") { model.cancelRead() }.disabled(model.cancelling) } }
+            if model.readOnly { Text(model.information).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
+        }.padding(model.readOnly ? 12 : 0).disabled(model.confirmingQuit)
         .sheet(isPresented: $model.showPageSetup, onDismiss: { model.busy = false }) { PatchPageSetup(model: model) }
         .onReceive(NotificationCenter.default.publisher(for: .unifiedDiffAppearanceChanged)) { _ in model.objectWillChange.send() }
         .alert(model.readOnly ? "Patch could not be loaded" : "Patch could not be applied", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("OK") { model.error = nil }
         } message: { Text(model.error ?? "") }
+    }
+}
+
+private struct PartialPatchFindBar: View {
+    @ObservedObject var model: PatchWindowModel
+    @FocusState private var focused: Bool
+    var body: some View {
+        HStack(spacing: 6) {
+            Button { model.hideFind() } label: { Image(systemName: "xmark") }.buttonStyle(.plain).help("Close Find")
+            Text("Find:")
+            TextField("Find", text: Binding(get: { model.findText }, set: { model.changeFindText($0) }))
+                .textFieldStyle(.roundedBorder).focused($focused).onSubmit { model.search(previous: false) }
+                .onExitCommand { model.hideFind() }
+                .accessibilityIdentifier("PartialPatch.FindText")
+            Button("‹ Previous") { model.search(previous: true) }
+            Button("Next ›") { model.search(previous: false) }
+            Toggle("Match case", isOn: $model.findMatchCase).toggleStyle(.checkbox)
+        }.controlSize(.small).padding(6).disabled(!model.canFind)
+        .onAppear { requestFocus() }
+        .onChange(of: model.findFocusRequest) { _ in requestFocus() }
+    }
+    private func requestFocus() {
+        focused = false
+        DispatchQueue.main.async { if model.canFind && model.findVisible { focused = true } }
     }
 }
 
@@ -181,7 +298,7 @@ struct PatchTextView: NSViewRepresentable {
         text.isEditable = false; text.isSelectable = true; text.delegate = context.coordinator
         text.coordinator = context.coordinator
         text.isRichText = false; text.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
-        text.usesFindBar = true; text.isIncrementalSearchingEnabled = true
+        text.usesFindBar = model.readOnly; text.isIncrementalSearchingEnabled = model.readOnly
         text.isHorizontallyResizable = true; text.isVerticallyResizable = true
         text.autoresizingMask = [.width]
         text.textContainer?.widthTracksTextView = false
@@ -192,8 +309,17 @@ struct PatchTextView: NSViewRepresentable {
         return scroll
     }
     func updateNSView(_ scroll: NSScrollView, context: Context) {
+        guard !model.retired, let text = scroll.documentView as? PatchText else { return }
         context.coordinator.model = model
-        guard let text = scroll.documentView as? PatchText else { return }
+        text.usesFindBar = model.readOnly; text.isIncrementalSearchingEnabled = model.readOnly
+        model.sourceOwnerID = context.coordinator.identity
+        model.sourceSelection = { [weak text] in text?.selectedRange() ?? NSRange(location: 0, length: 0) }
+        model.selectSource = { [weak text] range in
+            guard let text else { return }; let count = (text.string as NSString).length
+            let selected = NSRange(location: min(range.location, count), length: min(range.length, max(0, count - range.location)))
+            text.setSelectedRange(selected); text.scrollRangeToVisible(selected)
+        }
+        model.focusSource = { [weak text] in guard let text else { return }; text.window?.makeFirstResponder(text) }
         let settings = UnifiedDiffAppearance.load(from: model.appearancePreferences), dark = scheme == .dark, highContrast = contrast == .increased
         let cache = context.coordinator
         guard cache.lastText != model.document.text || cache.lastAppearance != settings || cache.dark != dark || cache.highContrast != highContrast else { return }
@@ -211,7 +337,7 @@ struct PatchTextView: NSViewRepresentable {
             let terminated = index < model.document.lines.count - 1 || model.document.text.hasSuffix("\n")
             let style = UnifiedDiffLineStyle.classify(line + (terminated ? "\n" : "")), palette = settings.colors(style, dark: dark)
             let face = !highContrast && style == .comment ? NSFontManager.shared.convert(font, toHaveTrait: .boldFontMask) : font
-            value.append(NSAttributedString(string: line + "\n", attributes: [.font: face, .paragraphStyle: paragraph,
+            value.append(NSAttributedString(string: line + (terminated ? "\n" : ""), attributes: [.font: face, .paragraphStyle: paragraph,
                 .foregroundColor: highContrast ? NSColor.labelColor : color(palette.foreground),
                 .backgroundColor: highContrast ? NSColor.textBackgroundColor : color(palette.background)]))
         }
@@ -223,18 +349,29 @@ struct PatchTextView: NSViewRepresentable {
             text.setSelectedRange(NSRange(location: location, length: min(selection.length, value.length - location)))
         }
     }
+    static func dismantleNSView(_ scroll: NSScrollView, coordinator: Coordinator) {
+        if let text = scroll.documentView as? PatchText { text.delegate = nil; text.coordinator = nil }
+        if coordinator.model.sourceOwnerID == coordinator.identity {
+            coordinator.model.sourceOwnerID = nil
+            coordinator.model.sourceSelection = { NSRange(location: 0, length: 0) }
+            coordinator.model.selectSource = { _ in }; coordinator.model.focusSource = {}
+        }
+    }
     @MainActor final class Coordinator: NSObject, NSTextViewDelegate {
+        let identity = UUID()
         var model: PatchWindowModel
         var lastText: String?
         var lastAppearance: UnifiedDiffAppearance?
         var dark = false, highContrast = false
         init(model: PatchWindowModel) { self.model = model }
         func textViewDidChangeSelection(_ notification: Notification) {
-            guard let view = notification.object as? NSTextView else { return }
+            guard !model.retired, let view = notification.object as? NSTextView else { return }
             let selected = view.selectedRange(); var offset = 0, lines = Set<Int>()
             for (index, line) in model.document.lines.enumerated() {
-                let range = NSRange(location: offset, length: (line as NSString).length + 1)
-                if selected.length == 0 ? NSLocationInRange(selected.location, range) : NSIntersectionRange(selected, range).length > 0 { lines.insert(index) }
+                let terminated = index < model.document.lines.count - 1 || model.document.text.hasSuffix("\n")
+                let range = NSRange(location: offset, length: (line as NSString).length + (terminated ? 1 : 0))
+                let caretInLine = NSLocationInRange(selected.location, range) || (!terminated && index == model.document.lines.count - 1 && selected.location == NSMaxRange(range))
+                if selected.length == 0 ? caretInLine : NSIntersectionRange(selected, range).length > 0 { lines.insert(index) }
                 offset += range.length
             }
             model.selectedLines = lines
@@ -288,7 +425,7 @@ struct PatchTextView: NSViewRepresentable {
         private var printSession: PatchPrintSession?
         @objc func printPatch(_ sender: Any?) {
             guard let window, window.attachedSheet == nil, let model = coordinator?.model,
-                  !model.busy, !model.confirmingQuit, printSession == nil else { return }
+                  !model.retired, !model.busy, !model.confirmingQuit, printSession == nil else { return }
             let snapshot = NSAttributedString(attributedString: attributedString())
             model.busy = true
             do {
@@ -303,6 +440,17 @@ struct PatchTextView: NSViewRepresentable {
             super.viewDidMoveToWindow(); (window as? PatchNSWindow)?.patchText = self
         }
         func find(_ action: NSTextFinder.Action) {
+            guard let model = coordinator?.model, model.canFind else { return }
+            if !model.readOnly {
+                switch action {
+                case .showFindInterface: model.showFind()
+                case .hideFindInterface: model.hideFind()
+                case .nextMatch: model.search(previous: false)
+                case .previousMatch: model.search(previous: true)
+                default: break
+                }
+                return
+            }
             if action == .showFindInterface, selectedRange().length > 0 {
                 let selection = NSMenuItem(); selection.tag = NSTextFinder.Action.setSearchString.rawValue
                 performTextFinderAction(selection)
@@ -312,7 +460,7 @@ struct PatchTextView: NSViewRepresentable {
         }
         override func performKeyEquivalent(with event: NSEvent) -> Bool {
             let modifiers = event.modifierFlags.intersection([.command, .shift, .control, .option])
-            guard window?.firstResponder === self || enclosingScrollView?.isFindBarVisible == true else { return super.performKeyEquivalent(with: event) }
+            guard window?.firstResponder === self || enclosingScrollView?.isFindBarVisible == true || coordinator?.model.findVisible == true else { return super.performKeyEquivalent(with: event) }
             if modifiers == .command, event.charactersIgnoringModifiers?.lowercased() == "f" {
                 find(.showFindInterface); return true
             }
@@ -322,17 +470,18 @@ struct PatchTextView: NSViewRepresentable {
             return super.performKeyEquivalent(with: event)
         }
         override func cancelOperation(_ sender: Any?) {
-            if enclosingScrollView?.isFindBarVisible == true {
+            if coordinator?.model.findVisible == true { coordinator?.model.hideFind() }
+            else if enclosingScrollView?.isFindBarVisible == true {
                 find(.hideFindInterface); window?.makeFirstResponder(self)
             } else { window?.performClose(sender) }
         }
         @objc func savePatch(_ sender: Any?) {
-            guard let window, window.attachedSheet == nil, let model = coordinator?.model, !model.busy, !model.confirmingQuit else { return }
+            guard let window, window.attachedSheet == nil, let model = coordinator?.model, !model.retired, !model.busy, !model.confirmingQuit else { return }
             let snapshot = model.exportDocument
             let panel = NSSavePanel(); panel.nameFieldStringValue = "changes.patch"
             panel.allowedContentTypes = [UTType(filenameExtension: "patch") ?? .plainText]
             panel.beginSheetModal(for: window) { response in
-                guard response == .OK, let url = panel.url else { return }
+                guard !model.retired, response == .OK, let url = panel.url else { return }
                 do { try snapshot.write(to: url) }
                 catch { model.error = error.localizedDescription }
             }
