@@ -2194,6 +2194,10 @@
         {
           "path": "Sources/TurtleGitMac/ReferenceLogWindow.swift",
           "origin": "recorded-control-mapping"
+        },
+        {
+          "path": "Sources/TurtleGitMac/ReferenceLogNativeTable.swift",
+          "origin": "recorded-control-mapping"
         }
       ],
       "missing_native_references": [],
