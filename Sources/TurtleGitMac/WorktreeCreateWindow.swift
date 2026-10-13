@@ -5,6 +5,7 @@ import TurtleGitCore
 @MainActor final class WorktreeCreateWindowController: NSWindowController, NSWindowDelegate {
     let model: WorktreeCreateWindowModel
     var onClosed: () -> Void = {}
+    private var directoryPanel:NSOpenPanel?
     private var pickers: VersionPickerCoordinator!
     var referencePicker: ReferenceBrowserWindowController? { pickers.referencePicker }
     var commitPicker: LogWindowController? { pickers.commitPicker }
@@ -30,14 +31,20 @@ import TurtleGitCore
         DialogGeometry.attach(window, identifier: "CreateWorktreeDialog", legacyName: "CreateWorktreeDialog")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && !model.chooser.busy && model.chooser.pickerTarget == nil && sender.attachedSheet == nil }
-    func windowWillClose(_ notification: Notification) { model.invalidate(); pickers.invalidate(); onClosed() }
+    func windowWillClose(_ notification: Notification) {
+        model.invalidate(); pickers.invalidate()
+        if let panel=directoryPanel { panel.sheetParent?.endSheet(panel,returnCode:.cancel); panel.orderOut(nil) }; directoryPanel=nil
+        onClosed()
+    }
     private func chooseDirectory() {
-        guard let window, window.attachedSheet == nil, !model.busy, model.chooser.pickerTarget == nil else { return }
+        guard model.active, !model.chooser.busy, let window, window.attachedSheet == nil, !model.busy, model.chooser.pickerTarget == nil else { return }
         let panel = NSOpenPanel(); panel.canChooseFiles = false; panel.canChooseDirectories = true; panel.canCreateDirectories = true
         panel.title = "Worktree Directory"; panel.prompt = "Choose"
         panel.directoryURL = URL(fileURLWithPath: model.directory).deletingLastPathComponent()
+        directoryPanel=panel
         panel.beginSheetModal(for: window) { [weak self] response in
-            guard response == .OK, let folder = panel.url, let self else { return }
+            guard let self else { return }; self.directoryPanel=nil
+            guard self.model.active, response == .OK, let folder = panel.url else { return }
             let lease = RepositoryAccessLease(url: folder)
             guard !GitRuntime.isAppStoreBuild || lease.hasSecurityScope else { self.model.error = RepositoryAccessFailure.securityScopeUnavailable.localizedDescription; return }
             self.model.destinationAccess = lease; self.model.directory = folder.path
@@ -47,6 +54,8 @@ import TurtleGitCore
 }
 
 @MainActor final class WorktreeCreateWindowModel: ObservableObject {
+    static var activeOperations=0
+    var active:Bool { !invalidated }
     let chooser: SwitchWindowModel
     let access: RepositoryAccessLease?
     var destinationAccess: RepositoryAccessLease?
@@ -67,7 +76,7 @@ import TurtleGitCore
     @Published var cancelled = false
     private var invalidated = false
     var canPickBase: Bool { !invalidated && !busy && !progress && !useHead }
-    func invalidate() { invalidated = true; chooser.invalidate() }
+    func invalidate() { invalidated = true; cancellation?.cancel(); chooser.invalidate() }
     private var cancellation: OperationCancellation?
     private var createdPath: URL?
     private var shortHashLength = 7
@@ -86,19 +95,21 @@ import TurtleGitCore
     }
     func load() {
         guard !invalidated, !busy, !progress, chooser.pickerTarget == nil else { return }
-        busy = true
+        let token=OperationCancellation(); cancellation=token
+        busy = true; Self.activeOperations += 1
         Task {
-            defer { busy = false }
+            defer { busy = false; cancellation=nil; Self.activeOperations -= 1; withExtendedLifetime(access) {} }
             do {
                 try checkAccess()
-                let branch = try await chooser.repository.branch()
-                let length = (try? await chooser.repository.run(["rev-parse", "--short", "HEAD"]).text.trimmingCharacters(in: .newlines).count) ?? 7
-                guard !invalidated else { return }; currentBranch = branch; shortHashLength = length
-                chooser.load(); changedBase()
-            } catch { if !invalidated { self.error = error.localizedDescription } }
+                let branch = try await chooser.repository.branch(cancellation:token)
+                let length = (try? await chooser.repository.run(["rev-parse", "--short", "HEAD"],cancellation:token).text.trimmingCharacters(in: .newlines).count) ?? 7
+                if token.isCancelled { throw OperationCancellationFailure.cancelled }; guard !invalidated else { return }; currentBranch = branch; shortHashLength = length
+                chooser.load(); applyBase()
+            } catch { if !invalidated, !token.isCancelled { self.error = error.localizedDescription } }
         }
     }
-    func changedBase() {
+    func changedBase() { guard active, !busy, !progress else { return }; applyBase() }
+    private func applyBase() {
         if useHead {
             branchName = URL(fileURLWithPath: directory).lastPathComponent; createBranch = false
         } else if chooser.options.target == .branch, let reference = chooser.references.first(where: { GitReferenceName.equal($0.name, chooser.branchRevision) }) {
@@ -107,10 +118,10 @@ import TurtleGitCore
             let revision = chooser.options.target == .commit ? String(chooser.commitRevision.prefix(shortHashLength)) : chooser.tags.first(where: { GitReferenceName.equal($0.name, chooser.tagRevision) })?.label ?? chooser.revision
             branchName = "Branch_" + revision; createBranch = chooser.options.target != .branch
         }
-        changedBranch()
+        detach=automaticDetach
     }
-    func changedBranch() { detach = automaticDetach }
-    func changedDetach() { if detach { createBranch = false } }
+    func changedBranch() { guard active, !busy, !progress else { return }; detach = automaticDetach }
+    func changedDetach() { guard active, !busy, !progress else { return }; if detach { createBranch = false } }
     func create() {
         guard !invalidated, !busy, !chooser.busy, !progress, chooser.pickerTarget == nil else { return }
         guard !directory.isEmpty, directory.hasPrefix("/"), !directory.contains("\0") else { error = "Enter an absolute worktree directory."; return }
@@ -133,21 +144,23 @@ import TurtleGitCore
         }
         let token = OperationCancellation(); cancellation = token
         busy = true; progress = true; success = false; cancelled = false; output = "Creating worktree…"; error = nil
+        Self.activeOperations += 1
         Task {
-            defer { busy = false; cancellation = nil }
+            defer { busy = false; cancellation = nil; Self.activeOperations -= 1; withExtendedLifetime(access) {}; withExtendedLifetime(destinationAccess) {} }
             do {
-                output = try await chooser.repository.createWorktree(at: path, options: options, cancellation: token)
+                let text=try await chooser.repository.createWorktree(at: path, options: options, cancellation: token)
+                guard active else { return }; output=text
                 success = true; createdPath = path
                 hasSubmodules = checkout && FileManager.default.fileExists(atPath: path.appendingPathComponent(".gitmodules").path)
                 onCreated(output)
-            } catch let failure as GitCommandCancellationFailure { cancelled = true; output = failure.result.text }
-            catch OperationCancellationFailure.cancelled { cancelled = true; output = "Cancelled before worktree creation." }
-            catch { output = error.localizedDescription }
+            } catch let failure as GitCommandCancellationFailure { guard active else { return }; cancelled = true; output = failure.result.text }
+            catch OperationCancellationFailure.cancelled { guard active else { return }; cancelled = true; output = "Cancelled before worktree creation." }
+            catch { if active { output = error.localizedDescription } }
         }
     }
     func cancel() { cancellation?.cancel() }
     func updateSubmodules() {
-        guard success, !busy, let createdPath else { return }
+        guard active, success, !busy, let createdPath else { return }
         let lease = destinationAccess?.contains(createdPath) == true ? destinationAccess : access
         onSubmodules(createdPath, lease); close()
     }

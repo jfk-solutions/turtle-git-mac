@@ -75,8 +75,8 @@ public enum WorktreeFailure: LocalizedError {
 }
 
 extension GitRepository {
-    public func worktrees() throws -> [GitWorktree] {
-        GitWorktree.parse(try run(["worktree", "list", "--porcelain", "-z"]).stdout)
+    public func worktrees(cancellation: OperationCancellation? = nil) throws -> [GitWorktree] {
+        GitWorktree.parse(try run(["worktree", "list", "--porcelain", "-z"], environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"], cancellation:cancellation).stdout)
     }
 
     /// Matches CreateWorktreeDlg / CAppUtils::CreateWorktree: Force is --force,
@@ -88,14 +88,14 @@ extension GitRepository {
         if let name = options.newBranch {
             guard !name.isEmpty else { throw WorktreeFailure.invalidBranch }
             do {
-                _ = try run(["check-ref-format", "refs/heads/" + name])
-                _ = try run(["check-ref-format", "--branch", name])
-            } catch { throw WorktreeFailure.invalidBranch }
+                _ = try run(["check-ref-format", "refs/heads/" + name], cancellation:cancellation)
+                _ = try run(["check-ref-format", "--branch", name], cancellation:cancellation)
+            } catch { try cancellation?.check(); throw WorktreeFailure.invalidBranch }
         }
         guard !options.revision.isEmpty, !options.revision.contains("\0") else { throw WorktreeFailure.invalidRevision }
         if options.revision != "HEAD" {
-            do { _ = try run(["rev-parse", "--verify", "--end-of-options", options.revision + "^{commit}"]) }
-            catch { throw WorktreeFailure.invalidRevision }
+            do { _ = try run(["rev-parse", "--verify", "--end-of-options", options.revision + "^{commit}"], cancellation:cancellation) }
+            catch { try cancellation?.check(); throw WorktreeFailure.invalidRevision }
         }
         var args = ["worktree", "add"]
         if !options.checkout { args.append("--no-checkout") }
@@ -107,9 +107,10 @@ extension GitRepository {
         return try run(args, cancellation: cancellation).text
     }
 
-    private func linkedWorktreePath(_ path: URL) throws -> String {
+    private func linkedWorktreePath(_ path: URL, cancellation:OperationCancellation?) throws -> String {
+        try cancellation?.check()
         let normalized = canonicalWorktreePath(path)
-        guard path.isFileURL, let record = try worktrees().first(where: {
+        guard path.isFileURL, let record = try worktrees(cancellation:cancellation).first(where: {
             canonicalWorktreePath($0.path).path == normalized.path
         }), !record.isMain else { throw WorktreeFailure.notLinkedWorktree }
         return record.path.path
@@ -130,18 +131,18 @@ extension GitRepository {
     }
 
     public func lockWorktree(at path: URL, reason: String? = nil, cancellation: OperationCancellation? = nil) throws -> String {
-        let registered = try linkedWorktreePath(path)
+        let registered = try linkedWorktreePath(path,cancellation:cancellation)
         var args = ["worktree", "lock"]
         if let reason { args += ["--reason", reason] }
         return try run(args + ["--", registered], cancellation: cancellation).text
     }
 
     public func unlockWorktree(at path: URL, cancellation: OperationCancellation? = nil) throws -> String {
-        try run(["worktree", "unlock", "--", linkedWorktreePath(path)], cancellation: cancellation).text
+        try run(["worktree", "unlock", "--", linkedWorktreePath(path,cancellation:cancellation)], cancellation: cancellation).text
     }
 
     public func removeWorktree(at path: URL, force: Bool = false, cancellation: OperationCancellation? = nil) throws -> String {
-        let registered = try linkedWorktreePath(path)
+        let registered = try linkedWorktreePath(path,cancellation:cancellation)
         return try run(["worktree", "remove"] + (force ? ["--force"] : []) + ["--", registered], cancellation: cancellation).text
     }
 

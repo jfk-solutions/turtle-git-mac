@@ -10,6 +10,7 @@ final class GitWorktreeTests: XCTestCase {
         _ = try await repo.run(["init", "-b", "main"])
         _ = try await repo.run(["config", "user.name", "Worktree Test"])
         _ = try await repo.run(["config", "user.email", "worktree@example.invalid"])
+        _ = try await repo.run(["config", "commit.gpgsign", "false"])
         try Data("original\n".utf8).write(to: root.appendingPathComponent("file.txt"))
         try await repo.stage(["file.txt"])
         _ = try await repo.commit(message: "Initial")
@@ -190,4 +191,56 @@ final class GitWorktreeTests: XCTestCase {
         _ = try await bare.removeWorktree(at: linked)
         let remaining = try await bare.worktrees(); XCTAssertEqual(remaining.count, 1)
     }
+    func testCancelledWorktreeListDoesNotRead() async throws {
+        let (base,repo)=try await fixture(); defer { try? FileManager.default.removeItem(at:base) }
+        let token=OperationCancellation();token.cancel()
+        do { _ = try await repo.worktrees(cancellation:token); XCTFail("Cancelled list") } catch OperationCancellationFailure.cancelled {}
+    }
+
+    func testRunningCreationAndManagementPreflightsCancelWithoutMutation() async throws {
+        let (base,repo)=try await fixture();defer { try? FileManager.default.removeItem(at:base) }
+        let managed=base.appendingPathComponent("managed")
+        _ = try await repo.createWorktree(at:managed)
+        let beforeHead=try await repo.run(["rev-parse","HEAD"]).stdout
+        let beforeRefs=try await repo.run(["show-ref"]).stdout
+        let beforeIndex=try Data(contentsOf:repo.root.appendingPathComponent(".git/index"))
+        for phase in ["check-ref-format","rev-parse","worktree"] {
+            let wrapper=base.appendingPathComponent("preflight-"+phase)
+            try """
+            #!/bin/sh
+            if [ "$4" = "\(phase)" ]; then
+                : > "$0.started"
+                /bin/sleep 30
+            fi
+            exec /usr/bin/git "$@"
+
+            """.write(to:wrapper,atomically:true,encoding:.utf8)
+            try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:wrapper.path)
+            let delayed=GitRepository(root:repo.root,executable:wrapper),token=OperationCancellation()
+            let destination=base.appendingPathComponent("cancel-"+phase)
+            let task=Task {
+                if phase == "worktree" { _ = try await delayed.lockWorktree(at:managed,cancellation:token) }
+                else {
+                    var options=WorktreeCreationOptions()
+                    if phase == "check-ref-format" { options.newBranch="new-preflight" } else { options.revision="HEAD~0" }
+                    _ = try await delayed.createWorktree(at:destination,options:options,cancellation:token)
+                }
+            }
+            let marker=URL(fileURLWithPath:wrapper.path+".started"),deadline=Date().addingTimeInterval(10)
+            while !FileManager.default.fileExists(atPath:marker.path),Date() < deadline { try await Task.sleep(nanoseconds:20_000_000) }
+            XCTAssertTrue(FileManager.default.fileExists(atPath:marker.path),"Observed running \(phase) preflight")
+            let cancelledAt=Date();token.cancel()
+            do { try await task.value; XCTFail("Preflight completed after cancellation") }
+            catch is GitCommandCancellationFailure {} catch OperationCancellationFailure.cancelled {}
+            XCTAssertLessThan(Date().timeIntervalSince(cancelledAt),10)
+            XCTAssertFalse(FileManager.default.fileExists(atPath:destination.path))
+        }
+        let afterHead=try await repo.run(["rev-parse","HEAD"]).stdout
+        let afterRefs=try await repo.run(["show-ref"]).stdout
+        let afterIndex=try Data(contentsOf:repo.root.appendingPathComponent(".git/index"))
+        XCTAssertEqual(beforeHead,afterHead);XCTAssertEqual(beforeRefs,afterRefs);XCTAssertEqual(beforeIndex,afterIndex)
+        let records=try await repo.worktrees();XCTAssertEqual(records.count,2)
+        XCTAssertNil(records.last?.lockReason)
+    }
+
 }

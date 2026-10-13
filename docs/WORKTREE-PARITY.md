@@ -288,3 +288,44 @@ scopes/Finder acceptance remain pending; scope fixtures simulate policy only.
 The commit-revision row now uses the shared [editable session combo](VERSION-COMBO-PARITY.md),
 including programmatic custom choices, exact native Git token identity and
 disabled/retired/focus guards. Physical popup and complete dialog acceptance remain open.
+
+## Connected creation/list ownership batch — October 14, 2026
+
+The pinned WorktreeListDlg context order remains Explore to, Lock/Unlock, Remove
+and Force remove, with original artwork and main-row/multi-selection rules.
+Native menu actions now retain their displayed worktrees rather than consulting
+a later selection. Reload, owner closure, changed records and active modal work
+refuse retired actions. Removal confirmation now defaults to No, matching the
+source. The five-column table and original watermark share the list owner's
+preference store; nested New Worktree inherits that store.
+
+Creation branch/revision validation and every management registration read now
+pass cancellation to Git. Worktree-list reads suppress optional Git locks. Native
+list refresh gathers a complete snapshot before publishing, including bare HEAD
+metadata. Closed lists cannot accept late rows, permissions, error decisions or
+column-reset answers, or start the next item in a batch. Completed progress and
+nested creation keep parent actions blocked until their own dialogs close.
+
+Creation metadata and actual creation retain operation accounting independently
+of their window. Forced closure cancels the owned command and ignores subsequent
+completion/submodule callbacks. Destination panels are explicitly ended and late
+responses cannot replace permission/directory state. List confirmation/access
+sheets and nested creation are likewise retired when the parent closes. Active
+creation, list commands and column-reset decisions block Quit until settlement.
+
+Completed mutations remain visible for live owners, including partial batch
+results and Force/Continue/Abort. Cancellation reconciles the live list through
+a separately cancellable read when the mutation token has already been cancelled.
+This does not provide rollback of Git's partially completed worktree creation.
+
+The Debug build, 13 focused Core tests and four grouped native Worktree/creation-
+picker checks passed across system and bundled Git. The cached family receiver
+retains all prior real-Git operations, scope-policy simulation, column and artwork
+assertions, and adds captured menu, modal/child, retired Reset/removal, metadata
+cancellation and Quit settlement checks. CI runs the family in its existing native
+batch, replacing the duplicate standalone Worktree step. All owned receivers were
+reaped. See [batch evidence](qa/worktree-family-2026-10-14.json).
+
+Physical progress/confirmation
+input, native rendered parity, signed sandbox/Finder grants and full Worktree
+parity remain open.

@@ -21,7 +21,7 @@ struct WorktreeListTable: NSViewRepresentable {
         private var updating = false
         private var snapshot: [String] = []
         private var adjusted = Set<String>()
-        init(model: WorktreeListWindowModel, defaults: UserDefaults = .standard) { self.model = model; self.defaults = defaults }
+        init(model: WorktreeListWindowModel, defaults: UserDefaults? = nil) { self.model = model; self.defaults = defaults ?? model.preferences }
         func makeScrollView() -> NSScrollView {
             let table = WorktreeTableView(defaults: defaults)
             table.rowHeight = 23; table.intercellSpacing = NSSize(width: 4, height: 0)
@@ -56,8 +56,8 @@ struct WorktreeListTable: NSViewRepresentable {
             if next != snapshot { snapshot = next; table.reloadData() }
             let indices = IndexSet(model.rows.enumerated().compactMap { model.selection.contains($0.element.id) ? $0.offset : nil })
             if table.selectedRowIndexes != indices { table.selectRowIndexes(indices, byExtendingSelection: false) }
-            table.isEnabled = !model.busy
-            table.allowsColumnReordering = !model.busy; table.allowsColumnResizing = !model.busy
+            table.isEnabled = model.canInteract
+            table.allowsColumnReordering = model.canInteract; table.allowsColumnResizing = model.canInteract
         }
         func numberOfRows(in tableView: NSTableView) -> Int { model.rows.count }
         func value(_ id: String, row: GitWorktree) -> String {
@@ -92,7 +92,7 @@ struct WorktreeListTable: NSViewRepresentable {
             return cell
         }
         func tableViewSelectionDidChange(_ notification: Notification) {
-            guard !updating, let table else { return }
+            guard !updating, model.canInteract, let table else { return }
             model.selection = Set(table.selectedRowIndexes.compactMap { model.rows.indices.contains($0) ? model.rows[$0].id : nil })
         }
         func tableViewColumnDidMove(_ notification: Notification) { if !updating { saveColumns() } }
@@ -113,7 +113,7 @@ struct WorktreeListTable: NSViewRepresentable {
             return min(column.maxWidth, max(column.minWidth, content, header))
         }
         func fitColumn(_ index: Int, useDefault: Bool) {
-            guard !model.busy, let table, table.tableColumns.indices.contains(index) else { return }
+            guard model.canInteract, let table, table.tableColumns.indices.contains(index) else { return }
             let column = table.tableColumns[index], id = column.identifier.rawValue
             updating = true; column.width = fittedWidth(column, includeHeader: useDefault); updating = false
             if useDefault { adjusted.remove(id) } else { adjusted.insert(id) }
@@ -121,28 +121,34 @@ struct WorktreeListTable: NSViewRepresentable {
         }
         func columnMenu() -> NSMenu {
             let menu = NSMenu(); menu.autoenablesItems = false
-            let reset = NSMenuItem(title: "Reset columns", action: #selector(confirmReset), keyEquivalent: ""); reset.target = self; reset.isEnabled = !model.busy
+            let reset = NSMenuItem(title: "Reset columns", action: #selector(confirmReset), keyEquivalent: ""); reset.target = self; reset.isEnabled = model.canInteract
             menu.addItem(reset); menu.addItem(.separator())
             for (id, title, _) in Self.columns.dropFirst() {
                 let item = NSMenuItem(title: title, action: #selector(toggleColumn(_:)), keyEquivalent: "")
                 item.target = self; item.representedObject = id; item.state = table?.tableColumns.first(where: { $0.identifier.rawValue == id })?.isHidden == false ? .on : .off
-                item.isEnabled = !model.busy; menu.addItem(item)
+                item.isEnabled = model.canInteract; menu.addItem(item)
             }
             return menu
         }
         @objc func toggleColumn(_ sender: NSMenuItem) {
-            guard !model.busy, let id = sender.representedObject as? String, id != "path", let column = table?.tableColumns.first(where: { $0.identifier.rawValue == id }) else { return }
+            guard model.canInteract, let id = sender.representedObject as? String, id != "path", let column = table?.tableColumns.first(where: { $0.identifier.rawValue == id }) else { return }
             updating = true; column.isHidden.toggle()
             if !column.isHidden { column.width = fittedWidth(column, includeHeader: true) }
             updating = false
             saveColumns()
         }
         @objc func confirmReset() {
-            guard !model.busy else { return }; model.busy = true
-            Task { defer { model.busy = false }; if await model.confirmResetColumns() { resetColumns() } }
+            guard model.canInteract else { return }
+            let owner=model, token=owner.beginRequest(), generation=owner.generation
+            Task {
+                defer { owner.finishRequest() }
+                let accepted=await owner.confirmResetColumns()
+                guard owner.isLive(token), owner.generation == generation, model === owner, accepted else { return }
+                resetColumns()
+            }
         }
         func resetColumns() {
-            guard let table else { return }; updating = true
+            guard model.active, let table else { return }; updating = true
             for (index, definition) in Self.columns.enumerated() {
                 guard let current = table.tableColumns.firstIndex(where: { $0.identifier.rawValue == definition.0 }) else { continue }
                 table.moveColumn(current, toColumn: index)
@@ -151,7 +157,7 @@ struct WorktreeListTable: NSViewRepresentable {
             adjusted = []; updating = false; saveColumns()
         }
         func saveColumns() {
-            guard let table else { return }
+            guard model.active, let table else { return }
             defaults.set(["order": table.tableColumns.map { $0.identifier.rawValue },
                           "hidden": table.tableColumns.filter { $0.isHidden && $0.identifier.rawValue != "path" }.map { $0.identifier.rawValue },
                           "widths": Dictionary(uniqueKeysWithValues: table.tableColumns.filter { adjusted.contains($0.identifier.rawValue) }.map { ($0.identifier.rawValue, Double($0.width)) })], forKey: Self.settingsKey)
@@ -175,13 +181,37 @@ struct WorktreeListTable: NSViewRepresentable {
             menu.removeAllItems(); menu.autoenablesItems = false
             let ids = model.selection
             func add(_ title: String, _ icon: MenuIcon, _ action: Selector) {
-                let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
-                item.image = icon.contextImage(defaults: defaults); item.target = self; item.isEnabled = !model.busy; menu.addItem(item)
+                let item = NSMenuItem(title: title, action:#selector(invokeMenu(_:)), keyEquivalent: "")
+                item.representedObject=MenuTarget(model:model,rows:model.selected(ids),command:action)
+                item.image = icon.contextImage(defaults: defaults); item.target = self; item.isEnabled = model.canInteract; menu.addItem(item)
             }
             if ids.count == 1 { add("Explore to", .explore, #selector(explore)) }
             if model.showLock(ids) { add("Lock", .lock, #selector(lock)) }
             if model.showUnlock(ids) { add("Unlock", .unlock, #selector(unlock)) }
             if model.showRemove(ids) { add("Remove", .remove, #selector(remove)); add("Force remove", .remove, #selector(forceRemove)) }
+        }
+        @MainActor private final class MenuTarget: NSObject {
+            let owner:ObjectIdentifier
+            let generation:UUID
+            let rows:[GitWorktree]
+            let command:Selector
+            init(model:WorktreeListWindowModel,rows:[GitWorktree],command:Selector) {
+                owner=ObjectIdentifier(model);generation=model.generation;self.rows=rows;self.command=command
+            }
+        }
+        @objc func invokeMenu(_ sender:NSMenuItem) {
+            guard model.canInteract, let target=sender.representedObject as? MenuTarget,
+                  target.owner == ObjectIdentifier(model), target.generation == model.generation,
+                  !target.rows.isEmpty, target.rows.allSatisfy({ model.rows.contains($0) }) else { return }
+            let ids=Set(target.rows.map(\.id))
+            switch target.command {
+            case #selector(explore): model.open(ids)
+            case #selector(lock): model.modify(.lock,ids:ids)
+            case #selector(unlock): model.modify(.unlock,ids:ids)
+            case #selector(remove): model.modify(.remove,ids:ids)
+            case #selector(forceRemove): model.modify(.removeForce,ids:ids)
+            default: break
+            }
         }
         @objc func explore() { model.open(model.selection) }
         @objc func lock() { model.modify(.lock, ids: model.selection) }

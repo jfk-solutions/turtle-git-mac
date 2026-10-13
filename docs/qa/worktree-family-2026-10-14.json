@@ -1,0 +1,83 @@
+{
+  "date": "2026-10-14",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Connected New Worktree and Worktree List cancellation/ownership",
+    "Captured menu rows, private preferences and nested creation",
+    "Progress/modal gates, late column/removal/access replies and independent Quit accounting",
+    "Cancellation of actual creation/management preflight processes"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/worktree-family-build-final-2026-10-14.log",
+      "notes": "Existing exit-0/no-output diagnostics; not a warning-free build claim"
+    },
+    "core": {
+      "exit": 0,
+      "tests": 13,
+      "filter": "GitWorktreeTests",
+      "log": "build/qa/worktree-family-core-final-2026-10-14.log",
+      "scope": "Existing creation/management invariants plus cancelled list and running check-ref-format/rev-parse/registration preflights with unchanged HEAD/refs/index"
+    },
+    "native": {
+      "exit": 0,
+      "cases": 4,
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "log": "build/qa/worktree-family-native-2026-10-14.log",
+      "owned_receivers_reaped": [
+        88766,
+        88929,
+        89557,
+        89721
+      ],
+      "independently_absent": true,
+      "scope": "Complete prior Worktree driver plus retained target/private columns/late Reset/removal/metadata/Quit assertions, and Branch/Tag/Worktree creation-picker regression"
+    },
+    "website": {
+      "exit": 0,
+      "log": "build/qa/worktree-family-site-2026-10-14.log"
+    }
+  },
+  "earlier_failures": [
+    {
+      "exit": 65,
+      "log": "build/qa/worktree-family-build-2026-10-14.log",
+      "reason": "App attempted internal Core cancellation check; changed to public cancellation state"
+    },
+    {
+      "exit": 1,
+      "log": "build/qa/worktree-family-core-2026-10-14.log",
+      "reason": "Swift Package app compilation stopped at the same internal Core API; no Core tests executed"
+    }
+  ],
+  "ci": "Worktree family is registered in the existing native batch; duplicate standalone workflow step removed without removing its assertions. Current hosted execution unverified.",
+  "limits": [
+    "No composed-window/physical gestures, full default-button/focus/VoiceOver or visual parity certification",
+    "Scope fixtures simulate policy; signed security grants, directory-panel gestures, Finder and App Store acceptance remain open",
+    "Cancellation stops owned work but cannot roll back partially completed Git worktree creation",
+    "Full application port remains incomplete"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/GitWorktrees.swift": "aa432f56a64e664302f9474aff12e55b517085770e3ec1a1098230be0803b2ce",
+    "Sources/TurtleGitMac/WorktreeListWindow.swift": "0def5165d1d4cc8c59882c89583ca18212a1c665d56e7fddde6a863dd7cccf29",
+    "Sources/TurtleGitMac/WorktreeListTable.swift": "ed0710793c986155461cfe8d93a07078fe5328a5b3f52116bb049927880e70d1",
+    "Sources/TurtleGitMac/WorktreeCreateWindow.swift": "5f390365931f4da7c99dce6e32efb4cae0c5a4b7dae0f50267ea3f7d5037c161",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "7db6c369d663e22d99da5b3d6ab487db316633591e37d431e1d1b72685909f44",
+    "Tests/TurtleGitCoreTests/GitWorktreeTests.swift": "5284d771b1ff6f9df70800d9a34557479af0ba2c14e58ebefff5e847fc24131b",
+    "docs/qa/worktree-family-native-2026-10-14.swift": "926e59809e323b7fefb602c016478a59f671a178f0db6f59d45b055ed1fe2fbf",
+    "scripts/test-worktree-dialog.py": "ef11ed2f9cf44a8aa2591f40dea9dffe108b06cb336af9b021acfa7184b38ab8",
+    ".github/workflows/macos.yml": "2faea34d25cb99b6486a31d466616223bd51b022d138c5f54729fbf3cec8a1c2"
+  },
+  "ci_observation": {
+    "head": "fce4c5f10727c8f3aaeaa6fba47dfc88987bdc3a",
+    "run": 38474974587,
+    "status": "pending",
+    "conclusion": null,
+    "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38474974587",
+    "scope": "Pre-batch main; not evidence for the new Worktree changes"
+  }
+}

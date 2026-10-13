@@ -262,8 +262,6 @@ jobs:
         run: python3 scripts/test-bundled-ssh-agent.py --app build/Build/Products/Debug/TurtleGitMac.app
       - name: Native Submodule Update selection gestures without visible windows
         run: python3 scripts/test-submodule-update-selection.py
-      - name: Native worktree dialog models and Git integration
-        run: python3 scripts/test-worktree-dialog.py
       - name: Native RefLog browser, branch, tag and export handoffs
         run: python3 scripts/test-reflog-revision-handoffs.py
       - name: Native RefLog working-tree and selected revision comparisons
@@ -304,7 +302,7 @@ jobs:
         run: python3 scripts/test-submodule-update-progress.py
       - name: Native submodule progress output controls
         run: python3 scripts/test-submodule-progress-output.py
-      - name: Grouped native reference folders, comparisons, deletion, actions, Merge pickers, Network, Credential, Tools, Overlays, Email, Commit progress, SVN, issue settings/regex and external Merge lifecycle
+      - name: Grouped native references, Worktrees, Revision Graph, pickers, settings, Commit, SVN and external Merge lifecycle
         run: python3 scripts/test-native-reference-batch.py
       - name: Native Pull forced cleanup
         run: python3 scripts/test-pull-cleanup.py
