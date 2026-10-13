@@ -39,6 +39,7 @@ struct CommitMessageEditor: NSViewRepresentable {
         }
         editor.applyProjectPresentation()
         editor.applyIssueStyles(model.issueMessageStyles, base: MessageEditorFont.resolve(name: fontName, size: fontSize))
+        editor.setSpellingCandidates(model.messageCompletionCatalog.candidates)
         context.coordinator.updatePosition(editor)
         context.coordinator.updateFocus(editor)
     }

@@ -2113,3 +2113,27 @@ mode/text staging and renamed-hunk unstaging; working bytes/paths stayed intact.
 Debug compilation passed. See [dated QA](qa/partial-metadata-2026-10-13.json).
 These checks do not certify all metadata combinations or physical UI equivalence.
 Earlier rename/mode exclusion statements describe the preceding checkpoints.
+
+## Source-aware native spelling — 2026-10-13
+
+Compared `SciEdit.cpp::IsMisspelled/CheckSpelling` at the pinned source. The
+native message editor now filters spelling errors for exact completion keywords,
+known dotted filenames, digit-prefixed identifiers and camel-case/acronym words
+whose longer components pass the dictionary. URL spans use the existing pinned
+URL finder. UTF-16 offsets retain correct behavior after emoji and other
+non-BMP characters. Unknown words and unknown extensions remain checkable.
+
+Commit supplies its current filename/code/snippet completion catalog; replacing
+that catalog requests a spelling-only check. Merge and Rebase share the project
+language, disabled-language and identifier/URL rules. The global `Spellchecker`
+preference also gates checking. macOS provides dictionaries, correction menus
+and personal spelling data; Windows Hunspell dictionary files are not loaded.
+Automatic spelling, quote, dash and text replacement are disabled so suggestions
+do not rewrite the message. Other text-checking result types remain unchanged.
+
+Seven focused Core tests and four grouped native cases passed across system and
+bundled Git, including the real Commit progress workflow. Debug compilation and
+two documentation tests passed; all owned receivers were reaped. See
+[dated spelling QA](qa/message-spelling-2026-10-13.json). This does not certify
+installed-language coverage, physical spelling menus/VoiceOver, every upstream
+personal-dictionary behavior or full Commit parity.

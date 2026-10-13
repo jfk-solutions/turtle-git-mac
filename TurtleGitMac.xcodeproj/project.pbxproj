@@ -188,6 +188,7 @@
 		9B2EC959297C2E28D596ACCE /* RequestPull.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A118CF3A03416CA1144F4DE /* RequestPull.swift */; };
 		9E622C7C59E4097D00A01885 /* HookSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B6C7223527745421AF60617 /* HookSettings.swift */; };
 		9EAA76B0018911240EAC2639 /* RemoteSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3343365A5D1715F6611CABA /* RemoteSettings.swift */; };
+		9FCCF3C7B9757CF88874DA66 /* MessageSpelling.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98FB2A1DFAD46AEBD2A7826D /* MessageSpelling.swift */; };
 		A0416F3B295FEB5114DF93C1 /* Clone.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08425BF4A91945D52E0F6D99 /* Clone.swift */; };
 		A15800C5D07FE7D8B87B6D79 /* GitAskpassPrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0D58AA19D852666927E54D /* GitAskpassPrompt.swift */; };
 		A21C930FBA350B87BA3B16BB /* RequestPullWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3036BB1B040A593A364B721E /* RequestPullWindow.swift */; };
@@ -608,6 +609,7 @@
 		94E9E00A7AEA7A5BE84E3097 /* ProgressActionLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressActionLog.swift; sourceTree = "<group>"; };
 		966FBB093AE190ED7ACA4024 /* DeleteConflict.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteConflict.swift; sourceTree = "<group>"; };
 		977DAB97DBBB903654C73A78 /* SwitchWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwitchWindow.swift; sourceTree = "<group>"; };
+		98FB2A1DFAD46AEBD2A7826D /* MessageSpelling.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageSpelling.swift; sourceTree = "<group>"; };
 		99649DB8EC94705917C269A1 /* FinderWatchedRepositories.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderWatchedRepositories.swift; sourceTree = "<group>"; };
 		9A3F01EAF3038A31D989E002 /* WorkingFileExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingFileExport.swift; sourceTree = "<group>"; };
 		9ABE7B92864A28F4229F6063 /* BlameSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlameSettings.swift; sourceTree = "<group>"; };
@@ -1079,6 +1081,7 @@
 				3329485A1DA9D2066A853483 /* MessageCompletion.swift */,
 				876D19E7421E1EB603F7DAD0 /* MessageFormatting.swift */,
 				81E52787ACF6315F812EA290 /* MessageSnippets.swift */,
+				98FB2A1DFAD46AEBD2A7826D /* MessageSpelling.swift */,
 				E7A0AFE1810E078E1C6F598D /* MessageURLFinder.swift */,
 				BA9C491D545F62D715E5BDA1 /* NetworkSettings.swift */,
 				3169F8F4F55DC037603B8A0D /* OperationCancellation.swift */,
@@ -1725,6 +1728,7 @@
 				91E94E7DF08198646C691752 /* MessageCompletion.swift in Sources */,
 				D79AA5AC341AC1D837C2E155 /* MessageFormatting.swift in Sources */,
 				02B318481C48E5ACC8497EF9 /* MessageSnippets.swift in Sources */,
+				9FCCF3C7B9757CF88874DA66 /* MessageSpelling.swift in Sources */,
 				603768B96A855B625D7D5E0C /* MessageURLFinder.swift in Sources */,
 				828742F77F4A7A8CC586389A /* NetworkSettings.swift in Sources */,
 				BD7B4EFF6714DB43BFECDB71 /* OperationCancellation.swift in Sources */,

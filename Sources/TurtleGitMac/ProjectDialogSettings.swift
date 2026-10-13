@@ -305,20 +305,52 @@ private struct ProjectDialogWindowProbe: NSViewRepresentable {
 /// SciEdit's project language and margin are shared by Commit, Merge and Rebase.
 class ProjectMessageTextView: NSTextView {
     private var projectSettings = ProjectDialogSettings()
+    private var spellingPolicy = MessageSpellingPolicy()
+    var spellingDictionary: ((String, String?) -> Bool)?
+    func setSpellingCandidates(_ values: [String]) {
+        let policy = MessageSpellingPolicy(candidates: values)
+        guard policy != spellingPolicy else { return }
+        spellingPolicy = policy
+        if isContinuousSpellCheckingEnabled && isEditable {
+            checkText(in: NSRange(location: 0, length: (string as NSString).length), types: NSTextCheckingResult.CheckingType.spelling.rawValue, options: [:])
+        }
+    }
     func applyProjectSettings(_ settings: ProjectDialogSettings) {
-        isContinuousSpellCheckingEnabled = ProjectLanguages.code(settings.language.value) != -1
+        // The source suggests corrections; it never rewrites commit-message bytes automatically.
+        isAutomaticSpellingCorrectionEnabled = false; isAutomaticTextReplacementEnabled = false
+        isAutomaticQuoteSubstitutionEnabled = false; isAutomaticDashSubstitutionEnabled = false
+        isContinuousSpellCheckingEnabled = ProjectLanguages.code(settings.language.value) != -1 && (UserDefaults.standard.object(forKey: "Spellchecker") as? Bool ?? true)
         guard projectSettings != settings else { return }
         projectSettings = settings; needsDisplay = true
     }
     override func checkText(in range: NSRange, types checkingTypes: NSTextCheckingTypes, options: [NSSpellChecker.OptionKey: Any] = [:]) {
         var options = options, types = checkingTypes
         let language = projectSettings.language.value
-        if ProjectLanguages.code(language) == -1 {
+        if ProjectLanguages.code(language) == -1 || !(UserDefaults.standard.object(forKey: "Spellchecker") as? Bool ?? true) {
             types &= ~(NSTextCheckingResult.CheckingType.spelling.rawValue | NSTextCheckingResult.CheckingType.grammar.rawValue)
         } else if let identifier = ProjectLanguages.identifier(language) {
             options[.orthography] = NSOrthography.defaultOrthography(forLanguage: identifier)
         }
         super.checkText(in: range, types: types, options: options)
+    }
+    func filteredSpellingResults(_ results: [NSTextCheckingResult]) -> [NSTextCheckingResult] {
+        let language = ProjectLanguages.identifier(projectSettings.language.value)
+        let enabled = ProjectLanguages.code(projectSettings.language.value) != -1 && (UserDefaults.standard.object(forKey: "Spellchecker") as? Bool ?? true)
+        let urls = MessageURLFinder.ranges(in: string)
+        return results.filter { result in
+            guard result.resultType == .spelling else { return true }
+            guard enabled, isEditable else { return false }
+            let range = result.range, length = (string as NSString).length
+            guard range.location != NSNotFound, range.location >= 0, range.length > 0, range.location <= length, range.length <= length - range.location else { return false }
+            if urls.contains(where: { NSIntersectionRange($0, range).length == range.length }) { return false }
+            return !spellingPolicy.suppresses(message: string, range: range) { word in
+                if let spellingDictionary { return spellingDictionary(word, language) }
+                return NSSpellChecker.shared.checkSpelling(of: word, startingAt: 0, language: language, wrap: false, inSpellDocumentWithTag: spellCheckerDocumentTag, wordCount: nil).location != NSNotFound
+            }
+        }
+    }
+    override func handleTextCheckingResults(_ results: [NSTextCheckingResult], forRange range: NSRange, types checkingTypes: NSTextCheckingTypes, options: [NSSpellChecker.OptionKey: Any], orthography: NSOrthography, wordCount: Int) {
+        super.handleTextCheckingResults(filteredSpellingResults(results), forRange: range, types: checkingTypes, options: options, orthography: orthography, wordCount: wordCount)
     }
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)

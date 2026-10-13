@@ -1,0 +1,56 @@
+{
+  "date": "2026-10-13",
+  "reference": {
+    "revision": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "source": "src/Utils/MiscUI/SciEdit.cpp::IsMisspelled/CheckSpelling"
+  },
+  "scope": [
+    "Shared native Commit/Merge/Rebase spelling policy",
+    "Exact completion keyword and known dotted filename suppression",
+    "Digit-prefixed and camel-case/acronym identifiers",
+    "Pinned URL span exclusion and UTF-16 range fences",
+    "Project language/global disable and spelling-only catalog refresh",
+    "Native dictionary/suggestion adaptation with automatic message rewriting disabled"
+  ],
+  "validation": {
+    "core": {
+      "tests": 7,
+      "failures": 0,
+      "families": [
+        "MessageSpellingTests",
+        "MessageCompletionTests"
+      ],
+      "log": "build/qa/message-spelling-core-2026-10-13.log"
+    },
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/message-spelling-debug-2026-10-13.log"
+    },
+    "native": {
+      "exit": 0,
+      "cases": 4,
+      "families": [
+        "message-spelling",
+        "commit-progress"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "log": "build/qa/message-spelling-native-2026-10-13.log",
+      "ownership": "All receivers reaped; no displayed windows or remaining TurtleGit test processes. Dictionary responses injected for deterministic component/language checks."
+    },
+    "documentation": {
+      "exit": 0,
+      "tests": 2,
+      "log": "build/qa/message-spelling-site-check-2026-10-13.log"
+    }
+  },
+  "pending": [
+    "Physical spelling/suggestion/learn-word menus and accessibility",
+    "Installed dictionary language coverage and upstream personal dictionary equivalence",
+    "Signed App Store acceptance",
+    "Full Commit and application parity"
+  ],
+  "full_port_certified": false
+}
