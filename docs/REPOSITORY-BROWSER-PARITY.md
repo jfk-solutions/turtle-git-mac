@@ -50,7 +50,8 @@ navigation, Log and copying. A marked historical file retains its path and peele
 revision when the browser changes revision; comparison uses the existing native
 two-pane editor. An existing scoped working-file mark can also be imported.
 The upstream source copies basenames despite the manual describing full paths;
-native copying preserves basenames, using LF instead of Windows CRLF separators.
+native copying preserves basenames and source CRLF records: names have a trailing
+CRLF, while hashes have separators without a trailing CRLF.
 
 Opening a submodule from a working repository resolves its initialized checkout
 and browses the recorded child revision, or offers the existing Update window
@@ -331,8 +332,9 @@ retain their immutable snapshot, item and security-scope lease independently of
 the browser. Native promises write only to the supplied receiver URL, stage an
 owned temporary sibling, refuse an existing destination and remove staging on
 failure. Exported temporary trees are discarded after delivery; active deliveries
-retain the application's existing Quit protection. Existing root/tree providers
-remain available. Gitlink rows are not yet promised as standalone items.
+retain the application's existing Quit protection. Tree and root rows now use the same native file promises through an AppKit
+folder button, including pinned directory data and delivery after owner close.
+Legacy item-provider entry points remain available. Gitlink rows are not yet promised as standalone items.
 
 The SDK delegate contract and pinned upstream multi-selection/recursive drag
 implementation were reviewed. Private delegate deliveries establish historical
@@ -352,3 +354,30 @@ reaped and independently verified absent.
 Debug and unsigned App Store builds passed, as did the website build. The prior
 bundle/runtime audit was not repeated for this table/persistence/promise batch.
 Signed destination grants and App Store acceptance remain unverified.
+
+## Tree/list action and promise batch — October 13, 2026
+
+Folder tree menus expose Open, Show log, Copy to clipboard and Copy hash, with
+the original command artwork. Folder hashes come from pinned tree entries; the
+root hash is the root tree, rather than the commit. Log/Blame handoffs retain the
+upstream revision object unchanged; full tree-object history behavior remains open.
+
+Native list menu items retain their displayed entries and comparison mark. A later
+selection change cannot redirect an existing menu action. Browser refresh, navigation
+(including leaving and returning), closure and busy/modal state refuse retired actions.
+Direct keyboard and double-click operations continue to use the current selection.
+Empty or invalid clipboard selections preserve existing pasteboard contents.
+
+Folder/root drag gestures use an AppKit promised-file source and share deferred
+pinned export, scope retention, collision refusal and cleanup with the contents list.
+Delegate delivery acceptance is recorded in the batch QA record; physical drag,
+Finder interoperability, signed scope delivery and complete keyboard/accessibility
+acceptance remain open.
+
+The connected action batch passed one Debug build and four grouped native cases
+(table/actions and lifecycle, each with system and bundled Git). The checks cover
+captured menu targets after selection changes, navigation and busy refusal, exact
+clipboard records, folder/root tree hashes, and pinned root/folder delivery after
+branch movement and owner close. All four owned receivers were reaped and checked
+absent. Core was unchanged and was not rerun. The website build passed. See
+[action-batch evidence](qa/repository-browser-actions-2026-10-13.json).

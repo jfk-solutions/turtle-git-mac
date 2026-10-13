@@ -1,0 +1,57 @@
+{
+  "date": "2026-10-13",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Connected tree/list menus and captured immutable action targets",
+    "Source clipboard CRLF/name/hash behavior and pinned folder/root tree hashes",
+    "Native root/folder promised-file source and deferred pinned delivery after owner close"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/browser-actions-build-2026-10-13.log"
+    },
+    "native": {
+      "exit": 0,
+      "cases": 4,
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "log": "build/qa/browser-actions-native-2026-10-13.log",
+      "owned_receivers_reaped": [
+        85528,
+        85593,
+        85749,
+        85809
+      ],
+      "independently_absent": true
+    },
+    "core": {
+      "rerun": false,
+      "reason": "No Core changes; native browser cases exercise existing exporter through both Git engines"
+    },
+    "website": {
+      "exit": 0,
+      "log": "build/qa/browser-actions-site-2026-10-13.log"
+    },
+    "coverage": {
+      "mapped_controls": 764,
+      "pending_controls": 895,
+      "certified_complete": 0
+    }
+  },
+  "limits": [
+    "Physical tree drag and Finder receiver interoperability remain unverified",
+    "Signed sandbox destination access, App Store delivery and complete keyboard/accessibility acceptance remain open",
+    "Tree-object history handoffs retain upstream object semantics; complete history behavior remains open",
+    "No new visual captures or full hosted CI claim; whole app parity unfinished"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitMac/RepositoryBrowserContentsTable.swift": "ff9a33d736ed36833c9c5643bb42a4d4817477079a9dca52b618f4f8fbcd4cf6",
+    "Sources/TurtleGitMac/RepositoryBrowserDrag.swift": "e7683f05e99d1fc78ea968698ae77ac257e850f369cde237201e82d3a7aa6c96",
+    "Sources/TurtleGitMac/RepositoryBrowserWindow.swift": "58abd548b67862802e6afb6929d32bc354f4a2350f628405d985dcd30691508e",
+    "docs/qa/repository-browser-table-native-2026-10-13.swift": "d6cff5f69ec38c76e79f6590b11f715d4dea0277c28c80b6ff51b5d169c2c0d3",
+    "docs/qa/repository-browser-lifecycle-native-2026-10-13.swift": "0d37209b896d5eaaff05976352512e95c16f08eb2c135f091428d2c786a86f8d"
+  }
+}

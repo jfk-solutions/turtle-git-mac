@@ -174,6 +174,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     @Published var comparisonMark: PreparedFileComparisonMark?
     private var lastImportedWorkingMark: UUID?
     private(set) var generation = UUID()
+    private var menuGeneration = UUID()
     private var loads = Set<String>()
     private var listings: [String: RepositoryBrowserSnapshot] = [:]
     private var requestedDirectory = ""
@@ -292,7 +293,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     func loadDirectory(_ path: String, select: Bool) {
         guard active, !busy, !mutating, !confirmingQuit, !confirmingColumns, let snapshot, snapshot.treeID != nil else { return }
         let identity = generation
-        if select { requestedDirectory = path }
+        if select { menuGeneration = UUID(); requestedDirectory = path }
         if let cached = listings[path] {
             if select { self.snapshot = cached; selection = [] }
             return
@@ -397,15 +398,75 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
               snapshot.entries.contains(entry), ![.directory, .submodule].contains(entry.kind) else { return }
         comparisonMark = PreparedFileComparisonMark(path: entry.path, revision: revision)
     }
-    func compareWithMarkedFile(_ entry: RepositoryBrowserEntry) {
-        guard active, !busy, !confirmingQuit, !confirmingColumns, let snapshot, let revision = snapshot.objectID, let comparisonMark,
+    func compareWithMarkedFile(_ entry: RepositoryBrowserEntry, capturedMark: PreparedFileComparisonMark? = nil) {
+        guard active, !busy, !confirmingQuit, !confirmingColumns, let snapshot, let revision = snapshot.objectID, let comparisonMark = capturedMark ?? comparisonMark,
               snapshot.entries.contains(entry), ![.directory, .submodule].contains(entry.kind) else { return }
         onPreparedFileCompare?(comparisonMark, PreparedFileComparisonMark(path: entry.path, revision: revision))
     }
-    func copy(hashes: Bool = false, pasteboard: NSPasteboard = .general) {
+    struct MenuTarget {
+        let owner: ObjectIdentifier
+        let generation: UUID
+        let navigation: UUID
+        let revision: String
+        let directory: String
+        let entries: [RepositoryBrowserEntry]
+        let comparisonMark: PreparedFileComparisonMark?
+    }
+    func menuTarget(_ entries: [RepositoryBrowserEntry] = []) -> MenuTarget? {
+        guard canUseMenu, let snapshot, let revision = snapshot.objectID,
+              entries.allSatisfy({ snapshot.entries.contains($0) }) else { return nil }
+        return MenuTarget(owner:ObjectIdentifier(self),generation:generation,navigation:menuGeneration,revision:revision,directory:snapshot.directory,entries:entries,comparisonMark:comparisonMark)
+    }
+    func acceptsMenu(_ target: MenuTarget) -> Bool {
+        canUseMenu && target.owner == ObjectIdentifier(self) && target.generation == generation && target.navigation == menuGeneration &&
+        target.revision == snapshot?.objectID && target.directory == snapshot?.directory &&
+        target.entries.allSatisfy { snapshot?.entries.contains($0) == true }
+    }
+    var canUseMenu: Bool { active && !busy && !mutating && !confirmingQuit && !confirmingColumns }
+    func folderObjectID(_ path: String) -> String? {
+        guard canUseMenu, let snapshot, snapshot.objectID != nil else { return nil }
+        if path.isEmpty { return snapshot.treeID }
+        let parent = (path as NSString).deletingLastPathComponent
+        return directories[parent == "." ? "" : parent]?.first { $0.path == path && $0.kind == .directory }?.objectID
+    }
+    func openFolder(_ path: String) {
+        guard folderObjectID(path) != nil else { return }
+        expanded.insert(path); loadDirectory(path,select:true)
+    }
+    func folderPromise(_ path: String) -> NSFilePromiseProvider? {
+        guard folderObjectID(path) != nil, let snapshot else { return nil }
+        do { try validateAccess() } catch { self.error = error.localizedDescription; return nil }
+        return RepositoryBrowserFilePromise(repository:repository,access:access,snapshot:snapshot,directory:path).provider()
+    }
+    func showFolderLog(_ path: String) {
+        guard folderObjectID(path) != nil, let revision = snapshot?.objectID else { return }
+        onLog(path,revision)
+    }
+    func copyFolder(_ path: String, hashes: Bool = false, pasteboard: NSPasteboard = .general) {
+        guard let hash = folderObjectID(path) else { return }
+        let name = path.isEmpty ? repository.root.lastPathComponent : (path as NSString).lastPathComponent
+        pasteboard.clearContents(); pasteboard.setString(hashes ? hash : name + "\r\n",forType:.string)
+    }
+    func showEntryLog(_ entry: RepositoryBrowserEntry) {
+        guard canUseMenu, let snapshot, snapshot.entries.contains(entry), let revision = snapshot.objectID else { return }
+        onLog(entry.path,revision)
+    }
+    func showEntryBlame(_ entry: RepositoryBrowserEntry) {
+        guard canUseMenu, let snapshot, !snapshot.bare, snapshot.entries.contains(entry),
+              ![.directory,.submodule].contains(entry.kind), let revision = snapshot.objectID else { return }
+        onBlame(entry.path,revision)
+    }
+    func compareEntryToWorkingTree(_ entry: RepositoryBrowserEntry) {
+        guard canUseMenu, let snapshot, !snapshot.bare, snapshot.entries.contains(entry),
+              entry.kind != .directory, let revision = snapshot.objectID else { return }
+        onCompare(entry.path,revision)
+    }
+    func copy(hashes: Bool = false, pasteboard: NSPasteboard = .general, entries: [RepositoryBrowserEntry]? = nil) {
         guard active, !busy, !mutating, !confirmingQuit, !confirmingColumns else { return }
+        let values = entries ?? selected
+        guard let snapshot, !values.isEmpty, values.allSatisfy({ snapshot.entries.contains($0) }) else { return }
         pasteboard.clearContents()
-        pasteboard.setString(selected.map { hashes ? $0.objectID : $0.name }.joined(separator: "\n"), forType: .string)
+        pasteboard.setString(hashes ? values.map(\.objectID).joined(separator:"\r\n") : values.map { $0.name + "\r\n" }.joined(), forType: .string)
     }
 }
 
@@ -469,18 +530,15 @@ private struct RepositoryFolderRow: View {
         }
     }
     private var folderButton: some View {
-        Button { model.loadDirectory(path,select:true) } label: {
-            HStack(spacing:5) {
-                Image(nsImage:NSWorkspace.shared.icon(for:.folder)).resizable().frame(width:16,height:16)
-                Text(verbatim:name).lineLimit(1)
-            }.padding(3).background(model.snapshot?.directory == path ? Color.accentColor.opacity(0.2) : Color.clear)
-        }.buttonStyle(.plain).onDrag { model.dragProvider(directory:path) ?? NSItemProvider() }.contextMenu {
+        RepositoryFolderDragButton(model:model,path:path,name:name).frame(height:24).contextMenu {
             TurtleGitContextMenu {
-                if let revision=model.snapshot?.objectID {
-                    Button { model.onLog(path,revision) } label: { CommandLabel(title:"Show log",icon:.log) }
-                    Button {
-                        NSPasteboard.general.clearContents(); NSPasteboard.general.setString(name,forType:.string)
-                    } label: { CommandLabel(title:"Copy to clipboard",icon:.copy) }
+                if model.folderObjectID(path) != nil, let target = model.menuTarget() {
+                    Button { if model.acceptsMenu(target) { model.openFolder(path) } } label: { CommandLabel(title:"Open",icon:.open) }
+                    Divider()
+                    Button { if model.acceptsMenu(target) { model.showFolderLog(path) } } label: { CommandLabel(title:"Show log",icon:.log) }
+                    Divider()
+                    Button { if model.acceptsMenu(target) { model.copyFolder(path) } } label: { CommandLabel(title:"Copy to clipboard",icon:.copy) }
+                    Button { if model.acceptsMenu(target) { model.copyFolder(path,hashes:true) } } label: { CommandLabel(title:"Copy hash",icon:.copy) }
                 }
             }
         }

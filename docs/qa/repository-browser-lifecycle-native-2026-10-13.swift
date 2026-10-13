@@ -32,7 +32,7 @@ import TurtleGitCore
         model.refresh();try await wait { !model.busy && model.snapshot?.directory=="a/b" }
         try require(model.expanded.isSuperset(of:["","a","a/b"]) && model.directories["a"] != nil && model.selection==["a/b/one"],"Refresh lost loaded ancestors/selection")
         let board=NSPasteboard(name:NSPasteboard.Name("TurtleGit.Browser.QA."+UUID().uuidString));defer { board.clearContents() }
-        model.copy(pasteboard:board);try require(board.string(forType:.string)=="one","Private names copy")
+        model.copy(pasteboard:board);try require(board.string(forType:.string)=="one\r\n","Private names copy")
         model.copy(hashes:true,pasteboard:board);try require(board.string(forType:.string)==model.selected.first?.objectID,"Private hash copy")
         let entries=model.entries
         // Real partial-success Continue then Cancel, keeping the captured revision.

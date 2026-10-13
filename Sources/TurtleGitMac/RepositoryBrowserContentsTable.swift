@@ -125,7 +125,9 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
         func menuNeedsUpdate(_ menu:NSMenu) {
             menu.removeAllItems();let values=selected
             func item(_ title:String,_ action:Selector,_ icon:MenuIcon,enabled:Bool=true) {
-                let entry=NSMenuItem(title:title,action:action,keyEquivalent:"");entry.target=self;entry.image=icon.contextImage(defaults:model.preferences);entry.isEnabled=available && enabled;menu.addItem(entry)
+                let entry=NSMenuItem(title:title,action:#selector(invokeBrowserMenu(_:)),keyEquivalent:"");entry.target=self;entry.image=icon.contextImage(defaults:model.preferences)
+                if let target=model.menuTarget(values) { entry.representedObject=MenuInvocation(target:target,command:action) }
+                entry.isEnabled=available && enabled && entry.representedObject != nil;menu.addItem(entry)
             }
             if values.count==1,let entry=values.first,model.snapshot?.objectID != nil {
                 item("Open",#selector(open),.open)
@@ -146,14 +148,40 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
             }
             if !values.isEmpty { item("Copy to clipboard",#selector(copyNames),.copy);item("Copy hash",#selector(copyHashes),.copy) }
         }
+        private final class MenuInvocation: NSObject {
+            let target: RepositoryBrowserWindowModel.MenuTarget
+            let command: Selector
+            init(target: RepositoryBrowserWindowModel.MenuTarget, command: Selector) { self.target=target; self.command=command }
+        }
+        @objc func invokeBrowserMenu(_ sender: NSMenuItem) {
+            guard available, let invocation=sender.representedObject as? MenuInvocation, model.acceptsMenu(invocation.target) else { return }
+            let entries=invocation.target.entries
+            if invocation.command == #selector(revert) { model.revert(entries); return }
+            if invocation.command == #selector(copyNames) { model.copy(entries:entries); return }
+            if invocation.command == #selector(copyHashes) { model.copy(hashes:true,entries:entries); return }
+            guard entries.count == 1, let entry=entries.first else { return }
+            switch invocation.command {
+            case #selector(open): model.open(entry)
+            case #selector(openWith): model.open(entry,action:.openWith)
+            case #selector(alternativeEditor): model.open(entry,action:.alternativeEditor)
+            case #selector(save): model.open(entry,action:.save)
+            case #selector(compare): model.compareEntryToWorkingTree(entry)
+            case #selector(log): model.showEntryLog(entry)
+            case #selector(blame): model.showEntryBlame(entry)
+            case #selector(submoduleLog): model.showSubmoduleLog(entry)
+            case #selector(mark): model.markForComparison(entry)
+            case #selector(compareMarked): model.compareWithMarkedFile(entry,capturedMark:invocation.target.comparisonMark)
+            default: break
+            }
+        }
         private func one(_ operation:(RepositoryBrowserEntry)->Void) { guard available,selected.count==1,let entry=selected.first else { return };operation(entry) }
         @objc func open() { one { model.open($0) } }
         @objc func openWith() { one { model.open($0,action:.openWith) } }
         @objc func alternativeEditor() { one { model.open($0,action:.alternativeEditor) } }
         @objc func save() { one { model.open($0,action:.save) } }
-        @objc func compare() { one { if let revision=model.snapshot?.objectID { model.onCompare($0.path,revision) } } }
-        @objc func log() { one { if let revision=model.snapshot?.objectID { model.onLog($0.path,revision) } } }
-        @objc func blame() { one { if let revision=model.snapshot?.objectID { model.onBlame($0.path,revision) } } }
+        @objc func compare() { one { model.compareEntryToWorkingTree($0) } }
+        @objc func log() { one { model.showEntryLog($0) } }
+        @objc func blame() { one { model.showEntryBlame($0) } }
         @objc func submoduleLog() { one { model.showSubmoduleLog($0) } }
         @objc func revert() { guard available else { return };model.revert(selected) }
         @objc func mark() { one { model.markForComparison($0) } }

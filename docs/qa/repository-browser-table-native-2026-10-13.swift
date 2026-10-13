@@ -4,6 +4,7 @@ import TurtleGitCore
 @main struct RepositoryBrowserTableVerification {
     struct Failure:Error,CustomStringConvertible { let description:String }
     static func require(_ condition:Bool,_ message:String) throws { if !condition { throw Failure(description:message) } }
+    static func requireEntry(_ entry:RepositoryBrowserEntry?) throws -> RepositoryBrowserEntry { guard let entry else { throw Failure(description:"Missing folder") }; return entry }
     @MainActor static func find(_ view:NSView) -> NSTableView? {
         if let table=view as? NSTableView,table.accessibilityLabel()=="Repository contents" { return table }
         return view.subviews.compactMap(find).first
@@ -43,6 +44,33 @@ import TurtleGitCore
         model.onLog={ logReply=($0,$1) }
         let log=menu.items.first { $0.title=="Show log" }!;try require(NSApplication.shared.sendAction(log.action!,to:log.target,from:log),"Native Log dispatch")
         try require(logReply?.0==model.selected.first?.path && logReply?.1==hash,"Pinned context target")
+        let originalLogPath=logReply!.0
+        table.selectRowIndexes(IndexSet(integer:2),byExtendingSelection:false)
+        logReply=nil;_ = NSApplication.shared.sendAction(log.action!,to:log.target,from:log)
+        try require(logReply?.0==originalLogPath,"Retained menu followed a new selection")
+        let privateBoard=NSPasteboard(name:.init("TurtleGit.BrowserActions."+UUID().uuidString));defer { privateBoard.releaseGlobally() }
+        model.selection=Set(model.entries.filter { $0.kind != .directory }.map(\.id))
+        model.copy(pasteboard:privateBoard)
+        try require(privateBoard.string(forType:.string)==model.selected.map { $0.name+"\r\n" }.joined(),"Name clipboard source records differ")
+        model.copy(hashes:true,pasteboard:privateBoard)
+        try require(privateBoard.string(forType:.string)==model.selected.map(\.objectID).joined(separator:"\r\n"),"Hash clipboard source separators differ")
+        model.copyFolder("folder",hashes:true,pasteboard:privateBoard)
+        let folder=try requireEntry(model.entries.first { $0.kind == .directory })
+        try require(privateBoard.string(forType:.string)==folder.objectID,"Folder copy used the commit hash")
+        model.copyFolder("",hashes:true,pasteboard:privateBoard);try require(privateBoard.string(forType:.string)==model.snapshot?.treeID,"Root copy used a non-tree hash")
+        let rootPromise=model.folderPromise("")!,folderPromise=model.folderPromise("folder")!
+        let staleTarget=model.menuTarget()!
+        model.busy=true;logReply=nil;_ = NSApplication.shared.sendAction(log.action!,to:log.target,from:log)
+        try require(logReply==nil && model.folderPromise("")==nil,"Busy browser dispatched or began drag")
+        model.busy=false;model.openFolder("folder")
+        try await wait { model.snapshot?.directory=="folder" }
+        try require(!model.acceptsMenu(staleTarget),"Navigation retained old menu context")
+        logReply=nil;_ = NSApplication.shared.sendAction(log.action!,to:log.target,from:log);try require(logReply==nil,"Stale menu dispatched after navigation")
+        model.openFolder("");try await wait { model.snapshot?.directory=="" }
+        try require(!model.acceptsMenu(staleTarget),"Returning to a directory revived a retired menu")
+        model.selection=[];model.copy(pasteboard:privateBoard)
+        try require(privateBoard.string(forType:.string)==model.snapshot?.treeID,"Empty selection cleared clipboard")
+
         let header=table.headerView as! RepositoryBrowserColumnHeader
         let columns=header.buildMenu()!,hide=columns.items.first { $0.title=="Extension" }!
         try require(NSApplication.shared.sendAction(hide.action!,to:hide.target,from:hide),"Native header toggle")
@@ -81,6 +109,15 @@ import TurtleGitCore
         let retiredColumns=model.columns
         model.requestResetColumns();try await wait { reply != nil };owner.close();let late=reply;reply=nil;late?.resume(returning:true)
         try await wait { RepositoryBrowserWindowModel.activeOperations==0 };try require(model.columns==retiredColumns && !model.active,"Retired reset wrote preferences")
+        for (provider,name) in [(rootPromise,"root-export"),(folderPromise,"folder-export")] {
+            let delegate=provider.userInfo as! RepositoryBrowserFilePromise
+            var complete=false,error:Error?
+            delegate.filePromiseProvider(provider,writePromiseTo:destination.appendingPathComponent(name)) { error=$0;complete=true }
+            try await wait { complete && RepositoryBrowserExportFiles.activeLoads==0 }
+            try require(error==nil,"Folder/root promise delivery failed")
+        }
+        try require(try Data(contentsOf:destination.appendingPathComponent("root-export/file2.txt"))==Data("second\n".utf8),"Root promise lost pinned bytes")
+        try require(try Data(contentsOf:destination.appendingPathComponent("folder-export/deep/雪.txt"))==Data("nested bytes\n".utf8),"Folder promise lost hierarchy")
         for provider in providers {
             let delegate=provider.userInfo as! RepositoryBrowserFilePromise,name=delegate.filePromiseProvider(provider,fileNameForType:provider.fileType)
             try require(delegate.snapshot.objectID==snapshot.objectID,"Promise lost pinned object")
@@ -91,7 +128,7 @@ import TurtleGitCore
         try require(try Data(contentsOf:destination.appendingPathComponent("file2.txt"))==Data("second\n".utf8),"Promise followed moved branch")
         try require(try Data(contentsOf:destination.appendingPathComponent("folder/deep/雪.txt"))==Data("nested bytes\n".utf8),"Folder promise did not preserve hierarchy")
         // Re-delivery fails without replacing a receiver's existing file.
-        let provider=providers.first { ($0.userInfo as! RepositoryBrowserFilePromise).entry.name=="file2.txt" }!,delegate=provider.userInfo as! RepositoryBrowserFilePromise
+        let provider=providers.first { ($0.userInfo as! RepositoryBrowserFilePromise).entry?.name=="file2.txt" }!,delegate=provider.userInfo as! RepositoryBrowserFilePromise
         var rejected=false,finished=false
         delegate.filePromiseProvider(provider,writePromiseTo:destination.appendingPathComponent("file2.txt")) { rejected=$0 != nil;finished=true }
         try await wait { finished && RepositoryBrowserExportFiles.activeLoads==0 };try require(rejected,"Existing destination replaced")
