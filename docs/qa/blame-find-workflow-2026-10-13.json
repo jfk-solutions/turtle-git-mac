@@ -1,0 +1,65 @@
+{
+  "date": "2026-10-13",
+  "scope": [
+    "Selection-prefilled draft separate from last applied query",
+    "Modeless panel reuse, close/reopen and parent interaction",
+    "Native informational no-match sheet and two-pulse wrap feedback",
+    "Search and ordinary close guards during feedback, owner retirement and late-callback fencing",
+    "Owner-supplied Find preferences rather than global writes in private fixtures"
+  ],
+  "upstream": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "file": "src/TortoiseGitBlame/TortoiseGitBlameView.cpp",
+    "methods": [
+      "OnEditFind",
+      "OnFindDialogMessage",
+      "DoSearch"
+    ],
+    "audit_correction": "Source selects the whole matched line including its break; historical substring highlighting gap was incorrect."
+  },
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/blame-find-workflow-build-2026-10-13.log",
+      "notes": "Existing warnings/exit-zero diagnostics remain; not a clean-log claim."
+    },
+    "native": {
+      "exit": 0,
+      "cases": 6,
+      "engines": [
+        "system Git",
+        "packaged Git"
+      ],
+      "log": "build/qa/blame-find-workflow-native-2026-10-13.log",
+      "owned_receivers_reaped": [
+        45245,
+        45271,
+        45301,
+        45338,
+        45363,
+        45393
+      ],
+      "all_independently_absent": true,
+      "scope": "Actual native panels/field focus, NSAlert sheet controls, reuse/reopen, source selection, pulse border, close refusal/retirement and private preference/HEAD/index/file preservation."
+    },
+    "core": "Not repeated: no Core changes; native workflow covered by object-linked receiver.",
+    "appstore": "Not repeated: no resource/target/entitlement changes.",
+    "website": {
+      "exit": 0,
+      "log": "build/qa/blame-find-workflow-site-2026-10-13.log"
+    },
+    "hosted": "dd315a4 macOS run 38333743749 active when inspected; full new-sha result unverified."
+  },
+  "limits": [
+    "Full Edit menu/accelerator/keyboard and VoiceOver parity remains open",
+    "New Find fixture exercises current native default appearance; existing source/wrap fixtures cover both themes, not full Find visual acceptance",
+    "Signed sandbox and full Blame certification remain unproven",
+    "No new screenshot certification inferred from existing historical Find capture"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitMac/BlameWindow.swift": "f4bbdf7a2ab507a4250523cf0b4a68b8869dcaebe5d7de2e2e74453ac53fb21e",
+    "docs/qa/blame-find-native-2026-10-13.swift": "9443bb75839193baa457e6cffca7e3594107f25dcced76ea41462f3a040bea56",
+    "scripts/test-native-reference-batch.py": "308c087a5033ce0a77407f42d78b09557a5d9ab7b1a8d1d4c391c57d755e3524",
+    "docs/BLAME-FIND-WORKFLOW.md": "5a5e7940f835d52392c0c48c8dd78be1fcb3f0be5e880f3eb9a7de0de7b03d40"
+  }
+}

@@ -1047,3 +1047,15 @@ Attributed width measurement follows styled fonts.
 [Embedded-style implementation and acceptance](BLAME-EMBEDDED-STYLES.md) records
 coverage and remaining limits. Earlier font/EOL pending entries describe the prior
 checkpoint; this does not certify the complete editor or every interaction.
+
+## Modeless Find ownership and feedback — 2026-10-13
+
+[Native Find workflow](BLAME-FIND-WORKFLOW.md) now implements selection-prefilled
+drafts without changing the applied query on Cancel, close/reopen/reuse ownership,
+private defaults injection, native wrap pulse and informational no-match sheets.
+Source `DoSearch` selects the whole line; the historical substring-highlight gap
+was an audit mistake and is not implemented as an incompatible change.
+
+The panel remains modeless for parent navigation. An active no-match sheet gates
+search/ordinary close; owner retirement disposes the sheet/panel and late callbacks.
+Full menu, physical/accessibility and signed acceptance remain open.

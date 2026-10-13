@@ -11,7 +11,9 @@ private struct BlameParentMenuTarget {
 @MainActor final class BlameWindowController: NSWindowController, NSWindowDelegate {
     let model: BlameWindowModel
     var onClosed: () -> Void = {}
-    private var findWindow: BlameFindWindowController?
+    private(set) var findWindow: BlameFindWindowController?
+    private(set) var findAlert:NSAlert?
+    private var feedbackGeneration=0
     init(repository: GitRepository, access: RepositoryAccessLease?, path: String, revision: String, options: GitBlameOptions = GitBlamePreferences.load(), preferences: UserDefaults = .standard) {
         model = BlameWindowModel(repository: repository, access: access, path: path, revision: revision, options: options, labelDefaults: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 700), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
@@ -19,20 +21,49 @@ private struct BlameParentMenuTarget {
         window.minSize = NSSize(width: 820, height: 400); window.isReleasedWhenClosed = false
         window.acceptsMouseMovedEvents = true
         window.contentViewController = NSHostingController(rootView: BlameDialog(model: model))
-        super.init(window: window); window.delegate = self; window.setContentSize(NSSize(width: 1120, height: 700)); window.center(); model.onFind = { [weak self] in self?.showFind() }; model.reload()
+        super.init(window: window); window.delegate = self; window.setContentSize(NSSize(width: 1120, height: 700)); window.center(); model.onFind = { [weak self] in self?.showFind() }; model.onFindFeedback = { [weak self] in self?.feedback($0) }; model.reload()
 
         DialogGeometry.attach(window, identifier: "BlameWindowController")
     }
     private func showFind() {
-        if let findWindow, findWindow.window?.isVisible == true { findWindow.showWindow(nil); findWindow.window?.makeKeyAndOrderFront(nil); return }
-        if let selected = model.selectedSourceText?(), !selected.isEmpty { model.find = selected }
-        findWindow = BlameFindWindowController(model: model)
-        if let window, let panel = findWindow?.window { window.addChildWindow(panel, ordered: .above); panel.center() }
-        findWindow?.showWindow(nil); findWindow?.window?.makeKeyAndOrderFront(nil)
+        guard model.canFind else { return }
+        if let findWindow,findWindow.window?.isVisible==true { findWindow.showWindow(nil);findWindow.window?.makeKeyAndOrderFront(nil);return }
+        let selected=model.selectedSourceText?()
+        let draft=BlameFindDraft(text:selected?.isEmpty==false ? selected! : model.find,matchCase:model.matchCase)
+        let controller=BlameFindWindowController(model:model,draft:draft)
+        findWindow=controller
+        controller.onClosed={ [weak self,weak controller] in
+            guard let self,self.findWindow===controller else { return };self.findWindow=nil
+        }
+        if let window,let panel=controller.window { window.addChildWindow(panel,ordered:.above);panel.center() }
+        controller.showWindow(nil);controller.window?.makeKeyAndOrderFront(nil)
     }
-    func windowWillClose(_ notification: Notification) { findWindow?.close(); model.retireSourceView?(); model.retireSourceView = nil; model.onFind = nil; model.invalidate(); onClosed() }
+    private func feedback(_ result:BlameFindFeedback) {
+        switch result {
+        case .wrapped:findWindow?.flash()
+        case .notFound(let text):
+            guard findAlert==nil,let owner=findWindow?.window ?? window,owner.attachedSheet==nil else { return }
+            let alert=NSAlert();alert.alertStyle = .informational;alert.messageText="TurtleGit Blame";alert.informativeText="\"\(text)\" was not found.";alert.addButton(withTitle:"OK")
+            findAlert=alert;model.searchFeedbackBusy=true;feedbackGeneration += 1;let identity=feedbackGeneration
+            alert.beginSheetModal(for:owner) { [weak self] _ in
+                guard let self,self.feedbackGeneration==identity else { return };self.findAlert=nil;self.model.searchFeedbackBusy=false
+            }
+        }
+    }
+    func windowShouldClose(_ sender:NSWindow) -> Bool { !model.searchFeedbackBusy }
+    func windowWillClose(_ notification:Notification) {
+        feedbackGeneration += 1
+        if let alert=findAlert {
+            alert.window.sheetParent?.endSheet(alert.window,returnCode:.cancel);alert.window.close();findAlert=nil
+        }
+        model.searchFeedbackBusy=false
+        findWindow?.close();findWindow=nil
+        model.retireSourceView?();model.retireSourceView=nil;model.onFind=nil;model.onFindFeedback=nil;model.retire();onClosed()
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
+
+enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
 
 @MainActor final class BlameWindowModel: ObservableObject {
     private(set) static var activeSyntaxRequests = 0
@@ -125,6 +156,10 @@ private struct BlameParentMenuTarget {
     @Published var find = ""
     @Published var matchCase = false
     @Published var navigationMessage = ""
+    @Published var searchFeedbackBusy=false
+    private(set) var retired=false
+    var canFind:Bool { !retired && !busy && !searchFeedbackBusy }
+    var onFindFeedback:((BlameFindFeedback)->Void)?
     var ranks: [String: Int] = [:]
     private var origins: [String: GitBlameLine] = [:]
     var historyCount = 0
@@ -179,7 +214,7 @@ private struct BlameParentMenuTarget {
         syntaxEnabled = labelDefaults.object(forKey:"Blame.EnableLexer") as? Bool ?? !NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
         wrapLongLines = labelDefaults.bool(forKey:"Blame.WrapLongLines")
         self.fullCommitMessageOnLogLine = labelDefaults.bool(forKey: "FullCommitMessageOnLogLine")
-        let search = GitBlameFindPreferences.load(); find = search.text; matchCase = search.matchCase
+        let search = GitBlameFindPreferences.load(from:labelDefaults); find = search.text; matchCase = search.matchCase
         setControls(options); appliedOptions = options
     }
     private var currentOptions: GitBlameOptions {
@@ -237,6 +272,7 @@ private struct BlameParentMenuTarget {
         guard !busy, canShowCompleteLog, showCompleteLog, followRenames != enabled else { return }
         followRenames = enabled; GitBlamePreferences.update { $0.followRenames = enabled }; reload(saveThresholds: true)
     }
+    func retire() { retired=true;invalidate() }
     func invalidate() { generation += 1; parentGeneration += 1; clipboardGeneration += 1; copyingLog = false; firstVisibleSourceRow = nil; scrollSourceRowToTop = nil; selectedSourceText = nil; sourceNavigation = nil }
     func prepareParentMenu(number: Int, completion: @escaping () -> Void) {
         selection = number; loadParents(completion: completion)
@@ -258,7 +294,7 @@ private struct BlameParentMenuTarget {
         }
     }
     func reload(saveThresholds: Bool = false) {
-        guard !busy else { return }
+        guard !retired,!busy else { return }
         let required = detectionMode == .withinFile ? withinFileCharacters : detectionMode.betweenFiles ? betweenFileCharacters : nil
         if let required, required.isEmpty || !required.utf8.allSatisfy({ (48...57).contains($0) }) || UInt32(required) == nil {
             error = "Enter a character count from 0 to 4294967295."; return
@@ -333,23 +369,25 @@ private struct BlameParentMenuTarget {
         NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
     }
     func findLine(previous: Bool) {
-        guard !busy, !find.isEmpty, !lines.isEmpty else { return }
+        guard canFind,!find.isEmpty,!lines.isEmpty else { return }
         guard let result = GitBlameSearch.find(fields: lines.map { [$0.author, $0.source] }, text: find,
             fromRow: selection.map { $0 - 1 }, previous: previous, matchCase: matchCase) else {
-            navigationMessage = "\"\(find)\" was not found."; return
+            navigationMessage = "\"\(find)\" was not found.";onFindFeedback?(.notFound(text:find));return
         }
         selection = lines[result.row].number
         let number = lines[result.row].number
         requestSourceNavigation(line: number, wholeLine: true, includeBreak: true)
         navigationMessage = result.wrapped ? "Wrapped to line \(number)." : "Line \(number)"
+        if result.wrapped { onFindFeedback?(.wrapped(line:number)) }
     }
     func applyFind(text: String, matchCase: Bool, previous: Bool) {
+        guard canFind else { return }
         find = text; self.matchCase = matchCase
-        GitBlameFindPreferences(text: text, matchCase: matchCase).save()
+        GitBlameFindPreferences(text:text,matchCase:matchCase).save(to:labelDefaults)
         findLine(previous: previous)
     }
     func goToLine(_ requested: Int) {
-        guard let number = GitBlameNavigation.targetLine(requested, lineCount: lines.count) else { return }
+        guard canFind,let number = GitBlameNavigation.targetLine(requested, lineCount: lines.count) else { return }
         selection = number; requestSourceNavigation(line: number, wholeLine: true); navigationMessage = "Line \(number)"
     }
     func navigateChange(previous: Bool) {
@@ -435,54 +473,67 @@ private struct BlameDialog: View {
     }
 }
 
-@MainActor private final class BlameFindWindowController: NSWindowController {
-    init(model: BlameWindowModel) {
-        let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 460, height: 180), styleMask: [.titled, .closable, .utilityWindow], backing: .buffered, defer: false)
-        panel.title = "Find – TurtleGit Blame"; panel.isReleasedWhenClosed = false
-        panel.isFloatingPanel = true; panel.hidesOnDeactivate = true
-        super.init(window: panel)
-        panel.contentViewController = NSHostingController(rootView: BlameFindDialog(model: model, close: { [weak self] in self?.close() }))
-
-        DialogGeometry.attach(panel, identifier: "BlameFindWindowController")
-    }
-    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+@MainActor final class BlameFindDraft:ObservableObject {
+    @Published var text:String
+    @Published var matchCase:Bool
+    @Published var previous=false
+    init(text:String,matchCase:Bool) { self.text=text;self.matchCase=matchCase }
 }
-
-private struct BlameFindDialog: View {
-    @ObservedObject var model: BlameWindowModel
-    let close: () -> Void
-    @State private var text: String
-    @State private var matchCase: Bool
-    @State private var previous = false
-    @FocusState private var focused: Bool
-    init(model: BlameWindowModel, close: @escaping () -> Void) {
-        self.model = model; self.close = close
-        _text = State(initialValue: model.find)
-        _matchCase = State(initialValue: GitBlameFindPreferences.load().matchCase)
+@MainActor final class BlameFindWindowController:NSWindowController,NSWindowDelegate {
+    let draft:BlameFindDraft
+    let model:BlameWindowModel
+    var onClosed:()->Void={}
+    private var flashGeneration=0
+    private(set) var flashCount=0
+    init(model:BlameWindowModel,draft:BlameFindDraft) {
+        self.model=model;self.draft=draft
+        let panel=NSPanel(contentRect:NSRect(x:0,y:0,width:460,height:180),styleMask:[.titled,.closable,.utilityWindow],backing:.buffered,defer:false)
+        panel.title="Find – TurtleGit Blame";panel.isReleasedWhenClosed=false;panel.isFloatingPanel=true;panel.hidesOnDeactivate=true
+        super.init(window:panel);panel.delegate=self
+        panel.contentViewController=NSHostingController(rootView:BlameFindDialog(model:model,draft:draft,close:{ [weak self] in self?.window?.performClose(nil) }))
+        DialogGeometry.attach(panel,identifier:"BlameFindWindowController")
     }
-    private func search() {
-        guard !text.isEmpty, !model.busy else { return }
-        model.applyFind(text: text, matchCase: matchCase, previous: previous)
+    func search() { guard !draft.text.isEmpty,model.canFind else { return };model.applyFind(text:draft.text,matchCase:draft.matchCase,previous:draft.previous) }
+    func flash() {
+        guard let view=window?.contentView else { return };flashGeneration += 1;let identity=flashGeneration;flashCount += 1
+        view.wantsLayer=true
+        for step in 0..<4 {
+            DispatchQueue.main.asyncAfter(deadline:.now()+Double(step)*0.1) { [weak self,weak view] in
+                guard let self,self.flashGeneration==identity,let view else { return }
+                view.layer?.borderWidth=step%2==0 ? 2 : 0;view.layer?.borderColor=NSColor.controlAccentColor.cgColor
+            }
+        }
     }
-    var body: some View {
-        HStack(alignment: .top, spacing: 18) {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack { Text("Find what:"); TextField("Search text", text: $text).focused($focused).onSubmit { search() } }
+    func windowShouldClose(_ sender:NSWindow) -> Bool { !model.searchFeedbackBusy }
+    func windowWillClose(_ notification:Notification) {
+        flashGeneration += 1;window?.contentView?.layer?.borderWidth=0
+        if let panel=window { panel.parent?.removeChildWindow(panel) };onClosed()
+    }
+    required init?(coder:NSCoder) { fatalError("init(coder:) is not supported") }
+}
+private struct BlameFindDialog:View {
+    @ObservedObject var model:BlameWindowModel
+    @ObservedObject var draft:BlameFindDraft
+    let close:()->Void
+    @FocusState private var focused:Bool
+    private func search() { guard !draft.text.isEmpty,model.canFind else { return };model.applyFind(text:draft.text,matchCase:draft.matchCase,previous:draft.previous) }
+    var body:some View {
+        HStack(alignment:.top,spacing:18) {
+            VStack(alignment:.leading,spacing:14) {
+                HStack { Text("Find what:");TextField("Search text",text:$draft.text).focused($focused).onSubmit { search() }.accessibilityLabel("Blame search text") }
                 HStack {
-                    Toggle("Match case", isOn: $matchCase)
+                    Toggle("Match case",isOn:$draft.matchCase)
                     GroupBox("Direction") {
-                        Picker("Direction", selection: $previous) {
-                            Text("Up").tag(true); Text("Down").tag(false)
-                        }.pickerStyle(.radioGroup).labelsHidden()
+                        Picker("Direction",selection:$draft.previous) { Text("Up").tag(true);Text("Down").tag(false) }.pickerStyle(.radioGroup).labelsHidden().horizontalRadioGroupLayout()
                     }
                 }
-                Text(model.navigationMessage).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                Text(model.navigationMessage).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
+            }.disabled(!model.canFind)
+            VStack(spacing:10) {
+                Button("Find Next") { search() }.keyboardShortcut(.defaultAction).disabled(draft.text.isEmpty || !model.canFind)
+                Button("Cancel") { close() }.keyboardShortcut(.cancelAction).disabled(model.searchFeedbackBusy)
             }
-            VStack(spacing: 10) {
-                Button("Find Next") { search() }.keyboardShortcut(.defaultAction).disabled(text.isEmpty || model.busy)
-                Button("Cancel") { close() }.keyboardShortcut(.cancelAction)
-            }
-        }.padding(16).frame(width: 460).task { await Task.yield(); focused = true }
+        }.padding(16).frame(width:460).task { await Task.yield();focused=true }
     }
 }
 
