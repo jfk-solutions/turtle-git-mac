@@ -17,6 +17,16 @@ settings:
     AppStore:
       SWIFT_ACTIVE_COMPILATION_CONDITIONS: '$(inherited) TURTLEGIT_APP_STORE'
 targets:
+  TurtleGitGitAskpass:
+    type: tool
+    platform: macOS
+    sources:
+      - path: Sources/TurtleGitGitAskpass
+      - path: Sources/TurtleGitCore/GitAskpassPrompt.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.turtlegit.macos.git-askpass
+        SKIP_INSTALL: YES
   TurtleGitSSHAskpass:
     type: tool
     platform: macOS
@@ -93,6 +103,8 @@ targets:
         embed: true
       - target: TurtleGitSSHAskpass
         embed: false
+      - target: TurtleGitGitAskpass
+        embed: false
       - target: TurtleGitCache
         embed: false
     info:
@@ -117,6 +129,10 @@ targets:
       - name: Embed Finder cache service
         script: |
           /usr/bin/python3 "$SRCROOT/scripts/embed-cache-service.py" "$BUILT_PRODUCTS_DIR/TurtleGitCache.app" "$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME" "$SRCROOT/Configuration/org.turtlegit.macos.cache.plist"
+        basedOnDependencyAnalysis: false
+      - name: Embed Git authentication helper
+        script: |
+          /usr/bin/python3 "$SRCROOT/scripts/embed-git-askpass.py" "$BUILT_PRODUCTS_DIR/TurtleGitGitAskpass" "$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME"
         basedOnDependencyAnalysis: false
       - name: Embed SSH passphrase helper
         script: |

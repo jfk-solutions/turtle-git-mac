@@ -1,0 +1,86 @@
+{
+  "date": "2026-10-13",
+  "source": {
+    "baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "references": [
+      "src/SshAskPass/SshAskPass.cpp",
+      "src/SshAskPass/SshAskPass.rc:IDD_ASK_PASSWORD"
+    ],
+    "adaptation": "Native accessory helper; expose recognized username prompts and mask unfamiliar prompts. Configured Git credential helpers retain storage/approval."
+  },
+  "scope": [
+    "Native one-shot username/password response window and original turtle artwork",
+    "GitRepository fallback across potential authentication commands",
+    "Environment/effective core.askPass/command-line/headless precedence and caller override retention",
+    "Direct executable-path interoperability, including spaces and apostrophes",
+    "macOS 13 helper packaging, source/hash provenance, production code relocation and inherited-signing branch",
+    "User guide and partial source/control inventory mapping"
+  ],
+  "validation": {
+    "core": {
+      "unique_cases": 8,
+      "passed_after_repair": 8,
+      "log": "build/qa/git-askpass-core-2026-10-13.log",
+      "repair_log": "build/qa/git-askpass-path-repaired-2026-10-13.log",
+      "note": "One real credential-fill case initially failed with three assertions because askpass was unnecessarily shell-quoted. Corrected direct executable path and reran only that case; no real server or user credentials."
+    },
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/git-askpass-debug-final-2026-10-13.log"
+    },
+    "native": {
+      "exit": 0,
+      "cases": 6,
+      "families": [
+        "git-askpass",
+        "credential-settings",
+        "network-settings"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "log": "build/qa/git-askpass-native-2026-10-13.log",
+      "ownership": "All receivers reaped; secure/plain fields, Return/Escape, one-shot response, clearing, forced-close and invalid-response behavior checked without visible windows."
+    },
+    "helper_package": {
+      "exit": 0,
+      "log": "build/qa/git-askpass-package-2026-10-13.log"
+    },
+    "appstore": {
+      "exit": 0,
+      "signed": false,
+      "log": "build/qa/git-askpass-appstore-2026-10-13.log"
+    },
+    "appstore_bundle": {
+      "exit": 0,
+      "native_items": 203,
+      "icons": 296,
+      "helper_architectures": [
+        "arm64",
+        "x86_64"
+      ],
+      "log": "build/qa/git-askpass-appstore-bundle-2026-10-13.log"
+    },
+    "documentation": {
+      "exit": 0,
+      "documents": 178,
+      "unresolved_fragments": 0,
+      "log": "build/qa/git-askpass-site-check-2026-10-13.log"
+    }
+  },
+  "ci_observation": {
+    "run": 38376689968,
+    "job": 115237129653,
+    "step": "Build and verify universal C++ Lexilla helper",
+    "failure": "DNS lookup failure during pinned download; hosted run did not reach app tests."
+  },
+  "pending": [
+    "Live public-server authentication and every credential-helper combination",
+    "Actual displayed helper cancellation by the owning Git process group",
+    "Physical layout/long-prompt/theme/accessibility acceptance",
+    "Signed inherited-sandbox/Keychain execution and App Store release acceptance",
+    "Full generic HTTP/SSH/account-password/host-key/certificate dialogs"
+  ],
+  "full_port_certified": false
+}

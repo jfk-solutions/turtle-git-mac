@@ -226,3 +226,6 @@ are not recursively audited.
 - [Git Properties guide](GIT-PROPERTIES.md) and [source parity](GIT-PROPERTIES-PARITY.md).
 
 - [Saved SSH authentication](SSH-AUTHENTICATION.md)
+
+- [Git authentication prompts](GIT-AUTHENTICATION.md)
+- [Git CLI authentication source audit](GIT-AUTHENTICATION-PARITY.md)

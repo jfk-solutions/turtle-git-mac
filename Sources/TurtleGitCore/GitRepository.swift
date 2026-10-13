@@ -4,8 +4,9 @@ import Foundation
 public actor GitRepository {
     public nonisolated let root: URL
     public nonisolated let executable: URL
-    public init(root: URL, executable: URL = URL(fileURLWithPath: "/usr/bin/git")) {
-        self.root = root.standardizedFileURL; self.executable = executable
+    public nonisolated let askpass: URL?
+    public init(root: URL, executable: URL = URL(fileURLWithPath: "/usr/bin/git"), askpass: URL? = GitAskpassRuntime.bundled()) {
+        self.root = root.standardizedFileURL; self.executable = executable; self.askpass = askpass
     }
     public func run(_ arguments: [String], environmentOverrides: [String: String] = [:], literalPathspecs: Bool = true, successfulExitCodes: ClosedRange<Int32> = 0...0, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> GitResult {
         try cancellation?.check()
@@ -25,6 +26,14 @@ public actor GitRepository {
         environment.merge(GitRuntime.environment(executable: executable)) { _, runtime in runtime }
         environment.merge(SSHClientPreferences.load().environment(existing: environment)) { _, selected in selected }
         environment.merge(environmentOverrides) { _, override in override }
+        if GitAskpassRuntime.shouldInstall(arguments: arguments, environment: environment, helper: askpass), let askpass {
+            // Preserve explicit core.askPass, including an explicitly empty value.
+            let configured = try run(["config", "--get", "core.askPass"], environmentOverrides: environmentOverrides, successfulExitCodes: 0...1, cancellation: cancellation)
+            if configured.exitCode == 1 {
+                environment["GIT_ASKPASS"] = GitAskpassRuntime.command(askpass)
+                environment["TURTLEGIT_ASKPASS_APPEARANCE"] = UserDefaults.standard.string(forKey: "appearance") ?? "system"
+            }
+        }
         // Disk-backed streams avoid pipe deadlock with large diffs and command output.
         let status: Int32
         if cancellation != nil || onOutput != nil {
