@@ -662,6 +662,50 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     @Published private(set) var review: WorkingTreePatchReview?
     @Published private(set) var selected: Set<Int> = []
     @Published private(set) var appliedPaths: Set<Data> = []
+    @Published private(set) var fileResults: [Data: WorkingTreePatchFileResult] = [:]
+    @Published private(set) var highlightedFiles = Set<Int>()
+    private(set) var fileListGeneration = UUID()
+    private var comparisonRead = false
+    var canPatchFiles: Bool { canReplaceComparison && !requiresRefresh && review?.files.contains(where: { !appliedPaths.contains($0.pathBytes) }) == true }
+    func highlightFiles(_ ids: Set<Int>) {
+        guard !retired, (!busy || comparisonRead), !dirty, !editingEnabled, !confirmingQuit, !draftDecisionPending, !requiresRefresh, let review else { return }
+        highlightedFiles = ids.intersection(Set(review.files.map(\.id)))
+        if highlightedFiles.count == 1 { focusFile(review.files.first(where: { highlightedFiles.contains($0.id) })?.id) }
+    }
+    func patchFiles(_ ids: Set<Int>, generation: UUID) {
+        guard generation == fileListGeneration, canPatchFiles, let review else { return }
+        let targets = Set(review.files.filter { ids.contains($0.id) && !appliedPaths.contains($0.pathBytes) }.map(\.id))
+        guard !targets.isEmpty, let token = begin() else { return }
+        selectedReview = nil
+        let reverse = reversed, strip = stripCount
+        Task { [self] in
+            defer { finish(token) }
+            var reported = false
+            do {
+                try checkAccess()
+                let batch = try await repository.applyWorkingTreePatchBatch(review, fileIDs: targets, cancellation: token) { [weak self] result in
+                    Task { @MainActor [weak self] in
+                        guard let self, !self.retired, self.operation === token else { return }
+                        self.fileResults[result.pathBytes] = result
+                        if result.success { self.appliedPaths.insert(result.pathBytes) }
+                    }
+                }
+                let report = batch.files.map { ( $0.success ? "Patched: " : "Error: " ) + String(decoding: $0.pathBytes, as: UTF8.self) + "\n" + $0.output }.joined(separator: "\n")
+                // Notify the repository owner even if the window was closed after
+                // a file changed; UI publications still require the live token.
+                if batch.files.contains(where: \.success) { onChanged(report) } else { onMutationStopped() }
+                reported = true
+                guard !retired, operation === token else { return }
+                for result in batch.files { fileResults[result.pathBytes] = result; if result.success { appliedPaths.insert(result.pathBytes) } }
+                output += "\n" + report + "\n"
+                try ensure(token)
+                try await load(reverse: reverse, strip: strip, token: token)
+            } catch {
+                if !reported { onMutationStopped() }
+                if !retired && !token.isCancelled { notice = error.localizedDescription }
+            }
+        }
+    }
     @Published private(set) var busy = false { didSet { updateParentState(); onBusyChanged() } }
     @Published var confirmingQuit = false { didSet { updateParentState() } }
     @Published private(set) var reversed = false
@@ -708,6 +752,10 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
                 if editor?.dirty == true { notice = "Operation canceled. Draft retained; retry Save, or discard edits and refresh." }
                 else { requiresRefresh = true; notice = "Operation canceled. Refresh to check current files." }
             }
+            if !retired, !token.isCancelled, !requiresRefresh, highlightedFiles.count == 1,
+               let wanted = review?.files.first(where: { highlightedFiles.contains($0.id) && !appliedPaths.contains($0.pathBytes) }), wanted.id != focusedFile {
+                focusFile(wanted.id)
+            }
         }
     }
     private func ensure(_ token: OperationCancellation) throws {
@@ -716,6 +764,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     func cancelOperation() { operation?.cancel() }
     func retire() {
         guard !retired else { return }; retired = true; operation?.cancel()
+        fileListGeneration = UUID()
         previewDocument.retire(); editor?.retireImageLoader(); editorChanges = nil
         beforeScroll = nil; afterScroll = nil; close = {}; chooseDraft = { .cancel }; onBusyChanged = {}
     }
@@ -740,6 +789,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     }
     func refresh() {
         guard canReplaceComparison, let token = begin() else { return }; selectedReview = nil; appliedPaths = []; comparison = nil; editor?.retireImageLoader(); editor = nil; editorChanges = nil; beforeScroll = nil; afterScroll = nil
+        fileResults = [:]
         let reverse = reversed, strip = stripCount
         Task {
             defer { finish(token) }
@@ -751,7 +801,8 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         try ensure(token)
         let next = try await repository.reviewWorkingTreePatch(bytes, reversed: reverse, stripCount: strip, directoryMode: directoryMode, isGitWorkingTree: isGitWorkingTree, cancellation: token)
         try ensure(token)
-        review = next; requiresRefresh = false
+        review = next; requiresRefresh = false; fileListGeneration = UUID()
+        highlightedFiles.formIntersection(Set(next.files.map(\.id)))
         selected = Set(next.files.filter { !appliedPaths.contains($0.pathBytes) }.map(\.id))
         try await validateSelection(token)
         await loadComparison(token)
@@ -767,7 +818,8 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     func focusFile(_ id: Int?) {
         guard canReplaceComparison, !requiresRefresh, let token = begin() else { return }
         focusedFile = id
-        Task { defer { finish(token) }; await loadComparison(token) }
+        comparisonRead = true
+        Task { defer { comparisonRead = false; finish(token) }; await loadComparison(token) }
     }
     private func loadComparison(_ token: OperationCancellation) async {
         guard (try? ensure(token)) != nil else { return }
@@ -911,6 +963,51 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     }
 }
 
+private struct WorkingTreePatchFileList: View {
+    @ObservedObject var model: WorkingTreePatchWindowModel
+    private func status(_ file: WorkingTreePatchReview.File) -> String {
+        if model.appliedPaths.contains(file.pathBytes) { return "Patched" }
+        if let result = model.fileResults[file.pathBytes], !result.success { return "Error" }
+        return ""
+    }
+    private func changes(_ file: WorkingTreePatchReview.File) -> String {
+        if model.appliedPaths.contains(file.pathBytes) { return "Applied" }
+        if file.isBinary { return "Binary" }
+        return "+\(file.additions ?? 0) −\(file.deletions ?? 0)"
+    }
+    var body: some View {
+        VStack(alignment: .leading) {
+                    Text("Files to patch:")
+                    Table(model.review?.files ?? [], selection: Binding(get: { model.highlightedFiles }, set: { model.highlightFiles($0) })) {
+                        TableColumn("") { (file: WorkingTreePatchReview.File) in
+                            Toggle(file.path, isOn: Binding(get: { model.selected.contains(file.id) }, set: { model.check(file.id, $0) })).labelsHidden().disabled(!model.canReplaceComparison || model.requiresRefresh || model.appliedPaths.contains(file.pathBytes))
+                        }.width(26)
+                        TableColumn("Path") { (file: WorkingTreePatchReview.File) in Text(file.path).help(file.path) }
+                        TableColumn("Status") { (file: WorkingTreePatchReview.File) in
+                            Text(status(file))
+                                .foregroundStyle(model.appliedPaths.contains(file.pathBytes) ? Color.green : Color.red)
+                                .help(model.fileResults[file.pathBytes]?.output ?? "")
+                        }.width(65)
+                        TableColumn("Changes") { (file: WorkingTreePatchReview.File) in
+                            Text(changes(file))
+                                .foregroundStyle(model.appliedPaths.contains(file.pathBytes) ? Color.green : .secondary)
+                        }.width(80)
+                    }.contextMenu(forSelectionType: Int.self) { ids in
+                        let generation = model.fileListGeneration
+                        Button { if generation == model.fileListGeneration, ids.count == 1 { model.focusFile(ids.first) } } label: { CommandLabel(title: "Preview", icon: .compare) }.disabled(!model.canReplaceComparison || model.requiresRefresh || ids.count != 1)
+                        Button { model.patchFiles(Set(model.review?.files.map(\.id) ?? []), generation: generation) } label: { CommandLabel(title: "Patch all", icon: .patch) }.disabled(!model.canPatchFiles)
+                        Button { model.patchFiles(ids, generation: generation) } label: { CommandLabel(title: "Patch selected", icon: .patch) }.disabled(!model.canPatchFiles || ids.isEmpty)
+                    } primaryAction: { ids in if ids.count == 1 { model.focusFile(ids.first) } }
+                    Button { model.patchFiles(model.highlightedFiles, generation: model.fileListGeneration) } label: {
+                        Text("Patch selected").frame(maxWidth: .infinity)
+                    }.disabled(!model.canPatchFiles || model.highlightedFiles.isEmpty)
+                    Button { model.patchFiles(Set(model.review?.files.map(\.id) ?? []), generation: model.fileListGeneration) } label: {
+                        Text("Patch all").frame(maxWidth: .infinity)
+                    }.disabled(!model.canPatchFiles)
+                }.frame(minWidth: 280, idealWidth: 350)
+    }
+}
+
 struct WorkingTreePatchDialog: View {
     @ObservedObject var model: WorkingTreePatchWindowModel
     var body: some View {
@@ -922,19 +1019,7 @@ struct WorkingTreePatchDialog: View {
                 Button("Refresh") { model.refresh() }
             }.disabled(!model.canReplaceComparison)
             HSplitView {
-                VStack(alignment: .leading) {
-                    Text("Files to patch:")
-                    Table(model.review?.files ?? [], selection: Binding(get: { model.focusedFile }, set: { model.focusFile($0) })) {
-                        TableColumn("") { file in
-                            Toggle(file.path, isOn: Binding(get: { model.selected.contains(file.id) }, set: { model.check(file.id, $0) })).labelsHidden().disabled(!model.canReplaceComparison || model.requiresRefresh || model.appliedPaths.contains(file.pathBytes))
-                        }.width(26)
-                        TableColumn("Path") { file in Text(file.path).help(file.path) }
-                        TableColumn("Changes") { file in
-                            Text(model.appliedPaths.contains(file.pathBytes) ? "Applied" : file.isBinary ? "Binary" : "+\(file.additions ?? 0) −\(file.deletions ?? 0)")
-                                .foregroundStyle(model.appliedPaths.contains(file.pathBytes) ? Color.green : .secondary)
-                        }.width(80)
-                    }
-                }.frame(minWidth: 280, idealWidth: 350)
+                WorkingTreePatchFileList(model: model)
                 TabView(selection: $model.previewTab) {
                     WorkingTreePatchComparisonView(model: model).tabItem { Text("Compare") }.tag(0)
                     VStack(alignment: .leading) { Text("Original patch:"); PatchTextView(model: model.previewDocument) }.tabItem { Text("Original patch") }.tag(1)
@@ -944,8 +1029,9 @@ struct WorkingTreePatchDialog: View {
             if !model.output.isEmpty { DisclosureGroup("Output") { OutputView(text: model.output, usesLogFont: true).frame(height: 100) } }
             HStack {
                 if model.busy { ProgressView().controlSize(.small); Text("Processing patch…"); Button("Cancel operation", action: model.cancelOperation) }
-                Text("Only checked files will be applied.").foregroundStyle(.secondary)
-                Spacer(); Button("Apply selected") { model.apply() }.disabled(!model.canApply)
+                Text("Apply checked uses checkboxes.").foregroundStyle(.secondary)
+                Spacer()
+                Button("Apply checked") { model.apply() }.disabled(!model.canApply)
                 Button("Close") { model.requestClose() }.disabled(!model.editable)
             }
         }.padding(16)

@@ -1,0 +1,64 @@
+{
+  "date": "2026-10-13",
+  "reference": {
+    "revision": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "source": "src/TortoiseMerge/FilePatchesDlg.cpp Preview/PatchAll/PatchSelected"
+  },
+  "scope": [
+    "Highlighted file selection independent of checked-file application",
+    "Source-order per-file Patch all/selected with error continuation and failed-file retry",
+    "Original-icon native context actions and below-list full-width buttons",
+    "Per-file Patched/Error reporting with Git diagnostics",
+    "Captured file-list generation guards and existing owned cancellation/retirement",
+    "Original patch bytes retained; HEAD/index unchanged"
+  ],
+  "validation": {
+    "core": {
+      "exit": 0,
+      "tests": 19,
+      "failures": 0,
+      "families": [
+        "WorkingPatchBatchTests",
+        "WorkingTreePatchReviewTests",
+        "WorkingPatchCancellationTests"
+      ],
+      "log": "build/qa/file-patches-core-accepted-2026-10-13.log"
+    },
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/file-patches-debug-accepted-2026-10-13.log",
+      "repair": "Initial expanded SwiftUI table failed type checking. Extracted the file-list view and typed cells/string helpers; corrected a nonexistent icon case to the existing comparison artwork. Earlier compile failures ran no tests or apps."
+    },
+    "native": {
+      "exit": 0,
+      "cases": 4,
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "families": [
+        "file-patches",
+        "patch-review-lifecycle"
+      ],
+      "log": "build/qa/file-patches-native-2026-10-13.log",
+      "ownership": "All four receivers and existing lifecycle-owned Git children reaped; no remaining TurtleGit/reference receivers."
+    },
+    "documentation": {
+      "exit": 0,
+      "tests": 2,
+      "log": "build/qa/file-patches-site-check-2026-10-13.log"
+    },
+    "debug_layout": {
+      "exit": 0,
+      "log": "build/qa/file-patches-debug-layout-2026-10-13.log",
+      "note": "Final placement-only change moves the two batch buttons below the list. Behavioral tests were not repeated for unchanged operations."
+    }
+  },
+  "pending": [
+    "Physical table/context-menu/layout/theme and accessibility acceptance",
+    "Initial failed-hunk/conflict counts and source conflict-editor behavior",
+    "Signed Finder/App Store acceptance",
+    "Full patch/application parity"
+  ],
+  "full_port_certified": false
+}

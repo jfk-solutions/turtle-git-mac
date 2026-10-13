@@ -422,3 +422,34 @@ prompt/export fencing and global Quit ownership. The final compiler compatibilit
 rewrite passed the four affected partial-file tests and Debug compilation. See
 [dated QA](qa/review-lifecycle-2026-10-13.json). Physical/signed acceptance and
 older hosted compiler confirmation remain open.
+
+## File patches batch actions — 2026-10-13
+
+Compared `TortoiseMerge/FilePatchesDlg.cpp` Preview/PatchAll/PatchSelected.
+The native file list now retains multiple highlighted rows separately from its
+checked-file set. Original-icon Preview, Patch all and Patch selected context
+commands accompany full-width Patch selected/Patch all buttons below the file
+list, following the source panel placement. The existing whole
+checked-selection operation remains available as Apply checked.
+
+Patch all/selected operate in original list order, skip files already patched,
+report individual errors and continue with later files. Duplicate records for
+one path are grouped into one complete-file operation. Each file is validated
+again immediately before applying, using the original captured bytes and target
+options; HEAD and index are not changed. Successful rows show green Patched;
+failed rows show red Error with the Git diagnostic. Fixing a failed target allows
+retry without applying the successful files again. Highlighting does not change
+checkboxes. Captured menus are fenced by the loaded file-list generation.
+
+Cancellation retains completed results, stops before the next file and requires
+Refresh to inspect potentially interrupted changes. Closing/retiring the viewer
+retains its existing owned cancellation, grants and late-result fences. The
+repository owner still receives settlement after a mutation even if the viewer
+was closed. Physical menu/layout acceptance, initial failed-hunk/conflict counts,
+source conflict-editor behavior and signed App Store execution remain open.
+
+Nineteen focused Core tests, four grouped native cases across system and bundled
+Git, Debug compilation and two documentation tests passed after compilation
+repairs. The native cases also retain the existing owned cancellation/retirement
+checks. All owned receivers were reaped. See
+[dated file-patches QA](qa/file-patches-2026-10-13.json).

@@ -214,6 +214,47 @@ public struct WorkingTreePatchReview: Sendable {
     fileprivate let includePatterns: [String]
 }
 
+public struct WorkingTreePatchFileResult: Sendable {
+    public let pathBytes: Data
+    public let success: Bool
+    public let output: String
+}
+public struct WorkingTreePatchBatchResult: Sendable {
+    public let files: [WorkingTreePatchFileResult]
+    public let cancelled: Bool
+}
+
+extension GitRepository {
+    /// FilePatchesDlg patches in list order, reports a failed file and continues.
+    /// Whole checked-file application remains a separate, atomic Git operation.
+    public func applyWorkingTreePatchBatch(_ review: WorkingTreePatchReview, fileIDs: Set<Int>, cancellation: OperationCancellation? = nil,
+        onResult: (@Sendable (WorkingTreePatchFileResult) -> Void)? = nil) throws -> WorkingTreePatchBatchResult {
+        guard review.repositoryRoot == root, !fileIDs.isEmpty,
+              fileIDs.isSubset(of: Set(review.files.map(\.id))) else { throw WorkingTreePatchFailure.review }
+        var seen = Set<Data>(), results: [WorkingTreePatchFileResult] = []
+        for file in review.files where fileIDs.contains(file.id) && seen.insert(file.pathBytes).inserted {
+            if cancellation?.isCancelled == true { return .init(files: results, cancelled: true) }
+            // Multiple patch records for one path must be applied together.
+            let ids = Set(review.files.filter { $0.pathBytes == file.pathBytes }.map(\.id))
+            let result: WorkingTreePatchFileResult
+            do {
+                let selected = try reviewWorkingTreePatchFiles(review, fileIDs: ids, cancellation: cancellation)
+                if let failure = selected.validationError {
+                    result = .init(pathBytes: file.pathBytes, success: false, output: failure)
+                } else {
+                    let output = try applyWorkingTreePatch(selected, cancellation: cancellation)
+                    result = .init(pathBytes: file.pathBytes, success: true, output: output)
+                }
+            } catch {
+                result = .init(pathBytes: file.pathBytes, success: false, output: error.localizedDescription)
+            }
+            results.append(result); onResult?(result)
+            if cancellation?.isCancelled == true { return .init(files: results, cancelled: true) }
+        }
+        return .init(files: results, cancelled: false)
+    }
+}
+
 public enum WorkingTreePatchFailure: LocalizedError {
     case stripCount, review, metadata, selection, pathEncoding
     public var errorDescription: String? {
