@@ -1,0 +1,21 @@
+{
+  "date": "2026-10-13",
+  "hosted_run": 38318891938,
+  "revision": "ad2f840",
+  "job": 115046568992,
+  "hosted_scope": "Git integration tests: 1149 executed, 1 skipped, 1 failure",
+  "failure": "MenuIconTests.testAllBundledUpstreamIconsDecodeAtMenuAndRetinaSizes expected settingsHooks to be colored, while production intentionally marks it as a template.",
+  "source_asset": "Sources/TurtleGitCore/Resources/Icons/hook.ico",
+  "asset_sha256": "90fd29efd9aa0f10c40169e413ce54c4801cc0c157b2656660055a752bc66305",
+  "asset_inspection": "All 16/32/64/128 32-bit DIB frames have zero non-gray visible RGBA colors.",
+  "change": "Add settingsHooks to expected monochrome roles and include raw icon name in assertion diagnostics; production rendering unchanged.",
+  "validation": {
+    "exit": 0,
+    "tests": 3,
+    "scope": "MenuIconTests only",
+    "log": "build/qa/finder-publication-ci-icons-2026-10-13.log"
+  },
+  "limits": [
+    "Focused local pass does not prove the next full hosted run is green."
+  ]
+}
