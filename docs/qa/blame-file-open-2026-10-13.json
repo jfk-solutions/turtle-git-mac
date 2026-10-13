@@ -1,0 +1,99 @@
+{
+  "date": "2026-10-13",
+  "scope": [
+    "Native File Open/permission chooser and validated same-window document replacement",
+    "Four-entry private recent file bookmarks, moved registration ID preservation and private atomic writing",
+    "Cancellable direct pinned blob/blame/history reads without whole-tree diff",
+    "Retained Find panel/draft rebind, fresh HEAD Reload and current repository context routing",
+    "Global/local Command-O and original Open/navigation icons",
+    "Cancel and forced owner retirement with reader/late-picker fencing and Quit guards"
+  ],
+  "source": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "files": [
+      "src/Resources/TortoiseGitBlameENG.rc",
+      "src/TortoiseGitBlame/TortoiseGitBlameDoc.cpp",
+      "src/TortoiseGitBlame/TortoiseGitBlame.cpp"
+    ],
+    "correction": "No active Save/Export command in pinned Blame File menu; Open/default HEAD/SDI/four recent files are the actual source behavior."
+  },
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/blame-file-open-build-2026-10-13.log"
+    },
+    "appstore": {
+      "exit": 0,
+      "log": "build/qa/blame-file-open-appstore-2026-10-13.log"
+    },
+    "core": {
+      "collective_passed": 28,
+      "initial_log": "build/qa/blame-file-open-core-2026-10-13.log",
+      "initial_existing_passed": 27,
+      "initial_failed_case": "BlameReadCancellationTests expected OperationCancellationFailure but actual GitCommandCancellationFailure is established cancellation type.",
+      "targeted_repair_log": "build/qa/blame-file-open-core-cancellation-2026-10-13.log",
+      "targeted_repair_exit": 0,
+      "owned_read_phases": [
+        "rev-parse",
+        "ls-tree",
+        "cat-file",
+        "blame",
+        "log"
+      ]
+    },
+    "native": {
+      "exit": 0,
+      "cases": 8,
+      "engines": [
+        "system Git",
+        "packaged Git"
+      ],
+      "log": "build/qa/blame-file-open-native-final-2026-10-13.log",
+      "initial_failure": "Directory URL trailing-slash equality in fixture; normalized path comparison repaired without weakening behavior assertions.",
+      "owned_receivers_reaped": [
+        51325,
+        51457,
+        52254,
+        52322,
+        52375,
+        52401,
+        52431,
+        52499,
+        52586,
+        52676
+      ],
+      "all_independently_absent": true,
+      "child_ownership": "Two held discovery processes plus sleep children per File Open receiver canceled/waited and checked absent; Core checks all five phases."
+    },
+    "audits": {
+      "debug": 0,
+      "debug_log": "build/qa/blame-file-open-debug-audit-2026-10-13.log",
+      "appstore_required_git": 0,
+      "appstore_log": "build/qa/blame-file-open-appstore-audit-2026-10-13.log"
+    },
+    "website": {
+      "exit": 0,
+      "log": "build/qa/blame-file-open-site-2026-10-13.log"
+    },
+    "notes": "Initial Core containment helper access-control compilation failure fixed; existing compiler warnings/exit-zero diagnostics remain. Not a clean-log claim."
+  },
+  "limits": [
+    "Typed native chooser replies and simulated scope/movement; no physical or signed chooser acceptance",
+    "Production repository-window registry/context rebinding inspected in source, not complete window-collision/global-menu acceptance",
+    "No new screenshot certification; full File/Edit/View layout/VoiceOver and signed App Store acceptance remain open",
+    "No whole hosted CI or whole-app certification claim"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/GitBlame.swift": "c609b373b42a3828acd9b299f829a6ec835980afa523299595962d5f6aa81bd0",
+    "Sources/TurtleGitCore/RepositoryAccess.swift": "3926d8d0cf5975aab1ae1effb1057e710d1e1c36d5c3b35f2b4ddeb229d8cb4c",
+    "Sources/TurtleGitMac/BlameOpenDocument.swift": "a1e21db68d945116d68222bebe97a2407ba62c5e5fb9b89038fc7a531970ee6f",
+    "Sources/TurtleGitMac/BlameWindow.swift": "d42c17859dad7964f4dbf1812c3c54a78ff798e7b0c03f82915912d679a78929",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "eb16e5012383cb6473ef3c3a491263df93e3aa2c4d0e327a1530f2e0a772fd40",
+    "Sources/TurtleGitMac/TurtleGitMacApp.swift": "d3ef9388527d3303bcfca3d0ef4e14b78b734da2e6858999621e60e4a5ddb4de",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "5d5857ec731b3f01fb514e074122892bee83ea86722b0821738a4f92b1f0a3d9",
+    "Tests/TurtleGitCoreTests/BlameReadCancellationTests.swift": "f7c4a3a41236f82d050517a055e54c5dc0fc1cdfff6287210a72764ca6dd964c",
+    "docs/qa/blame-file-open-native-2026-10-13.swift": "c7dd490f7880791286634fa8f7860dbb5eb256e59fc023916ef2f6e448641da9",
+    "docs/BLAME-FILE-OPEN.md": "553fc2c40051d7f95cb3bad84be503b0710466c220f61c8043c7226372eda3ee",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "e174b9e7ac03ae7577fd519396cf4988552d155699b54c3796064230e1b03e12"
+  }
+}

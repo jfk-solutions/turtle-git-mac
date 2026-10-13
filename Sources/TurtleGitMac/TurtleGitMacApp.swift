@@ -57,7 +57,7 @@ import TurtleGitCore
                 Button("SSH Key Generator…") { SSHKeyGenerationService.shared.show() }
             }
             CommandGroup(after: .newItem) {
-                Button("Open Repository…") { model.chooseRepository() }.keyboardShortcut("o")
+                Button { BlameWindowController.openFocused(NSApp.keyWindow ?? NSApp.mainWindow) { model.chooseRepository() } } label: { CommandLabel(title:"Open…",icon:.open) }.keyboardShortcut("o")
                 Button { model.showClipboardPatch() } label: { CommandLabel(title: "Review Clipboard Patch…", icon: .patch) }.disabled(model.busy || model.confirmingQuit)
                 Button { model.showReviewPatch(files: []) } label: { CommandLabel(title: RepositoryAction.reviewPatch.title, icon: RepositoryAction.reviewPatch.icon) }.disabled(model.busy || model.confirmingQuit)
                 Button { model.showMergeOpen() } label: { CommandLabel(title: "Open in TurtleGitMerge…", icon: .open) }.disabled(model.busy || model.confirmingQuit)

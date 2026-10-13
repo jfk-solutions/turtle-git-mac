@@ -23,6 +23,7 @@
 		08649F1E93CBDC2DE8ADD500 /* FormatPatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0750171C26BC3934BA091775 /* FormatPatch.swift */; };
 		09618E8B4C40787E3C4DB1F1 /* SVNWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE9909E60E6379183F237D7B /* SVNWindow.swift */; };
 		0963B328CDA08FFD1416E9A3 /* ReferenceLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62406E495663E4FBABB4E1A6 /* ReferenceLog.swift */; };
+		0BA99C6714D09E37A7B5E0CE /* BlameOpenDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90FF7E1758DBA2D17D00C67C /* BlameOpenDocument.swift */; };
 		0DDC9B58143481D73B56D530 /* IssueTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D07F0B7B2714BF454BD5BD62 /* IssueTracker.swift */; };
 		0E60EC4DFD35AD719021FCB2 /* FinderCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = F01FB406B12CA9FED59A3121 /* FinderCache.swift */; };
 		0FBFEB0FC27D3E17BE0D1C35 /* ReferenceBrowser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 338C73A7EDBB0AF3F14DD64D /* ReferenceBrowser.swift */; };
@@ -571,6 +572,7 @@
 		8F4B173754C0AE48CB0FAAF8 /* SettingsNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsNavigation.swift; sourceTree = "<group>"; };
 		8F84A36C85062FC9FF018CB1 /* AddProgressWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddProgressWindow.swift; sourceTree = "<group>"; };
 		9058AE332FC66665066DAE81 /* GitDaemonWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitDaemonWindow.swift; sourceTree = "<group>"; };
+		90FF7E1758DBA2D17D00C67C /* BlameOpenDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlameOpenDocument.swift; sourceTree = "<group>"; };
 		9144F6030805FB115877C438 /* TurtleGitSSHAskpass */ = {isa = PBXFileReference; includeInIndex = 0; path = TurtleGitSSHAskpass; sourceTree = BUILT_PRODUCTS_DIR; };
 		915E15D41336AA69D1B13F32 /* FinderBackgroundService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderBackgroundService.swift; sourceTree = "<group>"; };
 		9239515FD50D7B6B92A181A5 /* ComparisonFileList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComparisonFileList.swift; sourceTree = "<group>"; };
@@ -757,6 +759,7 @@
 				5A915E0D55658EE40F710D3B /* ApplicationDelegate.swift */,
 				D16465B7DCE5BB303F553610 /* AutotextTester.swift */,
 				2889759BB2F79152E342606E /* BisectWindow.swift */,
+				90FF7E1758DBA2D17D00C67C /* BlameOpenDocument.swift */,
 				9ABE7B92864A28F4229F6063 /* BlameSettings.swift */,
 				147C1880748CAF195D6A19CA /* BlameWindow.swift */,
 				136F4D60A5ED1BD907C0F4FF /* BranchTagWindow.swift */,
@@ -1692,6 +1695,7 @@
 				230460E9908BB05D1AD2BD7C /* ApplicationDelegate.swift in Sources */,
 				B6DE7C8AE3A9B25FFE8B6982 /* AutotextTester.swift in Sources */,
 				C0DFDDFC2CEFE1853FEDEA84 /* BisectWindow.swift in Sources */,
+				0BA99C6714D09E37A7B5E0CE /* BlameOpenDocument.swift in Sources */,
 				C74FD1797BC0727D5BBFBFA6 /* BlameSettings.swift in Sources */,
 				04F91334CABB49482A59CAF5 /* BlameWindow.swift in Sources */,
 				7D8AA5904CE9BB1EBE312F07 /* BranchTagWindow.swift in Sources */,

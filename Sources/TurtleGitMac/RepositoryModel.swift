@@ -117,6 +117,7 @@ import TurtleGitCore
     private var importPatchWindows: [String: ImportPatchWindowController] = [:]
     private var formatPatchWindows: [String: FormatPatchWindowController] = [:]
     private var blameWindows: [String: BlameWindowController] = [:]
+    private var blameRecentDocuments:BlameRecentDocuments?
     private var rebaseWindows: [String: RebaseWindowController] = [:]
     private var fetchWindows: [String: FetchWindowController] = [:]
     private var pushWindows: [String: PushWindowController] = [:]
@@ -1636,16 +1637,31 @@ import TurtleGitCore
         }
         browserWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showBlame(repository: GitRepository, access: RepositoryAccessLease?, path: String, revision: String, line: Int? = nil, options: GitBlameOptions? = nil) {
-        let key = repository.root.path + "\0" + path + "\0" + revision
-        let controller = blameWindows[key] ?? BlameWindowController(repository: repository, access: access, path: path, revision: revision, options: options ?? GitBlamePreferences.load())
-        controller.onClosed = { [weak self] in self?.blameWindows.removeValue(forKey: key) }
-        controller.model.onLog = { [weak self] origin, hash in self?.showLog(repository: repository, access: access, paths: [origin], endRevision: hash) }
-        controller.model.onChanges = { [weak self] snapshot in self?.showFileComparisons(repository: repository, access: access, snapshot: snapshot) }
-        controller.model.onPrevious = { [weak self] origin, hash, number, inherited in self?.showBlame(repository: repository, access: access, path: origin, revision: hash, line: number, options: inherited) }
-        if let options { controller.model.configure(options: options, line: line) }
-        else if let line { controller.model.selectOriginalLine(line) }
-        blameWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    private func configureBlameRoutes(_ controller:BlameWindowController) {
+        let repository=controller.model.repository,access=controller.model.repositoryAccess
+        controller.model.onLog={ [weak self] origin,hash in self?.showLog(repository:repository,access:access,paths:[origin],endRevision:hash) }
+        controller.model.onChanges={ [weak self] snapshot in self?.showFileComparisons(repository:repository,access:access,snapshot:snapshot) }
+        controller.model.onPrevious={ [weak self] origin,hash,number,inherited in self?.showBlame(repository:repository,access:access,path:origin,revision:hash,line:number,options:inherited) }
+    }
+    private func showBlame(repository:GitRepository,access:RepositoryAccessLease?,path:String,revision:String,line:Int? = nil,options:GitBlameOptions? = nil) {
+        let key=repository.root.path+"\0"+path+"\0"+revision
+        var recentFailure:String?
+        if blameRecentDocuments==nil { do { blameRecentDocuments=try BlameRecentDocuments.production() } catch { recentFailure="Recent files could not be loaded: "+error.localizedDescription } }
+        let controller=blameWindows[key] ?? BlameWindowController(repository:repository,access:access,path:path,revision:revision,options:options ?? GitBlamePreferences.load(),recentDocuments:blameRecentDocuments)
+        controller.model.recentHistoryError=recentFailure
+        configureBlameRoutes(controller)
+        controller.onClosed={ [weak self,weak controller] in guard let self,let controller else { return };self.blameWindows=self.blameWindows.filter { $0.value !== controller } }
+        controller.onDocumentChanged={ [weak self,weak controller] in
+            guard let self,let controller else { return };self.configureBlameRoutes(controller)
+            self.blameWindows=self.blameWindows.filter { $0.value !== controller }
+            let newKey=controller.model.repository.root.path+"\0"+controller.model.path+"\0HEAD"
+            // Another window may already display this file; retain both without
+            // corrupting either owner's lifecycle or discarding its work.
+            let available=self.blameWindows[newKey]==nil ? newKey : newKey+"\0"+UUID().uuidString
+            self.blameWindows[available]=controller
+        }
+        if let options { controller.model.configure(options:options,line:line) } else if let line { controller.model.selectOriginalLine(line) }
+        blameWindows[key]=controller;controller.showWindow(nil);controller.window?.makeKeyAndOrderFront(nil)
     }
     private func refreshRepositoryLogs(_ root: URL) {
         for log in logWindows.values where log.model.repository.root == root && !log.model.isInvalidated { log.model.requestRepositoryRefresh() }

@@ -73,3 +73,10 @@ temporary files outside the new folder are not scanned or deleted.
 Saved native window sizes and positions live in app preferences.
 [Saved Data's geometry Clear](DIALOG-GEOMETRY.md) deletes those records and known
 legacy frame-autosave entries; it preserves histories, bookmarks and repositories.
+
+Blame keeps up to four recent HEAD files in a separate private `blame-files.json`
+archive with folder bookmarks, relative repository/file paths and display paths.
+Bookmarks are used only after containment/security-scope validation. Successful
+reopening renews moved grants; failed entries remain until replaced by later
+recent-file use. The archive is atomically written with owner-only permissions
+and is not shared with Finder or uploaded.

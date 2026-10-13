@@ -9,21 +9,111 @@ private struct BlameParentMenuTarget {
 }
 
 @MainActor final class BlameWindowController: NSWindowController, NSWindowDelegate {
-    let model: BlameWindowModel
+    private(set) var model: BlameWindowModel
     var onClosed: () -> Void = {}
     private(set) var findWindow: BlameFindWindowController?
     private(set) var findAlert:NSAlert?
     private var feedbackGeneration=0
-    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, revision: String, options: GitBlameOptions = GitBlamePreferences.load(), preferences: UserDefaults = .standard) {
+    private let preferences:UserDefaults
+    let recentDocuments:BlameRecentDocuments?
+    private let documentOpener:BlameDocumentOpener
+    private(set) var openPanel:NSOpenPanel?
+    private var openingGeneration=0
+    private var recentID:UUID?
+    var onDocumentChanged:()->Void={}
+    var chooseFile:(NSOpenPanel,NSWindow,@escaping (URL?)->Void)->Void = { panel,owner,reply in panel.beginSheetModal(for:owner) { reply($0 == .OK ? panel.url : nil) } }
+    var chooseScope:(NSOpenPanel,NSWindow,@escaping (URL?)->Void)->Void = { panel,owner,reply in panel.beginSheetModal(for:owner) { reply($0 == .OK ? panel.url : nil) } }
+
+    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, revision: String, options: GitBlameOptions = GitBlamePreferences.load(), preferences: UserDefaults = .standard, recentDocuments:BlameRecentDocuments? = nil, requireScope:Bool = GitRuntime.isAppStoreBuild, provider:any RepositoryBookmarkProvider = SystemRepositoryBookmarkProvider()) {
+        self.preferences=preferences;self.recentDocuments=recentDocuments
+        documentOpener=BlameDocumentOpener(requireScope:requireScope,provider:provider,factory:{ GitRepository(root:$0,executable:repository.executable) });self.requireScope=requireScope;self.scopeProvider=provider
         model = BlameWindowModel(repository: repository, access: access, path: path, revision: revision, options: options, labelDefaults: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 700), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(path) at \(revision.prefix(7)) – Blame – TurtleGit"
         window.minSize = NSSize(width: 820, height: 400); window.isReleasedWhenClosed = false
         window.acceptsMouseMovedEvents = true
         window.contentViewController = NSHostingController(rootView: BlameDialog(model: model))
-        super.init(window: window); window.delegate = self; window.setContentSize(NSSize(width: 1120, height: 700)); window.center(); model.onFind = { [weak self] in self?.showFind() }; model.onFindFeedback = { [weak self] in self?.feedback($0) }; model.reload()
+        super.init(window: window); window.delegate = self; window.setContentSize(NSSize(width: 1120, height: 700)); window.center(); model.onFind = { [weak self] in self?.showFind() }; model.onFindFeedback = { [weak self] in self?.feedback($0) };model.onOpenDocument={ [weak self] in self?.openDocument() };model.onCancelDocumentOpen={ [weak self] in self?.cancelOpenDocument() };model.onOpenRecent={ [weak self] in self?.openRecent($0) };model.recentDocuments=recentDocuments;model.onLoaded={ [weak self] in
+            guard let self,revision=="HEAD",let recentDocuments=self.recentDocuments else { return }
+            let lease=self.model.repositoryAccess ?? RepositoryAccessLease(url:self.model.repository.root,provider:self.scopeProvider)
+            do { try recentDocuments.remember(root:self.model.repository.root,path:self.model.path,lease:lease) } catch { self.model.error=error.localizedDescription }
+        };model.reload()
 
         DialogGeometry.attach(window, identifier: "BlameWindowController")
+    }
+    private let requireScope:Bool
+    private let scopeProvider:any RepositoryBookmarkProvider
+    func openDocument() {
+        guard model.canFind,!model.openingDocument,let window,window.attachedSheet==nil else { return }
+        let panel=NSOpenPanel();panel.canChooseFiles=true;panel.canChooseDirectories=false;panel.allowsMultipleSelection=false;panel.prompt="Blame File"
+        panel.directoryURL=model.repository.root
+        recentID=nil;openPanel=panel;model.openingDocument=true;openingGeneration += 1;let identity=openingGeneration
+        chooseFile(panel,window) { [weak self] file in
+            guard let self,self.openingGeneration==identity,!self.model.retired,self.openPanel===panel else { return };self.openPanel=nil
+            guard let file else { self.model.openingDocument=false;return }
+            self.authorizeAndOpen(file)
+        }
+    }
+    func cancelOpenDocument() {
+        guard model.openingDocument,!model.cancellingDocument else { return }
+        let old=model;old.cancellingDocument=true;openingGeneration += 1;documentOpener.cancel()
+        if let panel=openPanel { panel.sheetParent?.endSheet(panel,returnCode:.cancel);panel.close();openPanel=nil }
+        Task {
+            while documentOpener.isReading { try? await Task.sleep(nanoseconds:10_000_000) }
+            guard !old.retired,model===old else { return };old.openingDocument=false;old.cancellingDocument=false
+        }
+    }
+    private func authorizeAndOpen(_ file:URL) {
+        if let access=model.repositoryAccess,access.contains(file),(!requireScope || access.hasSecurityScope) { prepare(file,scope:access);return }
+        guard requireScope else { prepare(file,scope:nil);return }
+        guard let window else { model.openingDocument=false;return }
+        let panel=NSOpenPanel();panel.canChooseDirectories=true;panel.canChooseFiles=false;panel.allowsMultipleSelection=false;panel.prompt="Allow Repository"
+        panel.message="Allow access to the repository root containing this file.";panel.directoryURL=file.deletingLastPathComponent()
+        openPanel=panel;let identity=openingGeneration
+        chooseScope(panel,window) { [weak self] folder in
+            guard let self,self.openingGeneration==identity,!self.model.retired,self.openPanel===panel else { return };self.openPanel=nil
+            guard let folder else { self.model.openingDocument=false;return }
+            self.prepare(file,scope:RepositoryAccessLease(url:folder,provider:self.scopeProvider))
+        }
+    }
+    func openRecent(_ entry:BlameRecentDocument) {
+        guard model.canFind,!model.openingDocument,let recentDocuments else { return }
+        recentID=entry.id;model.openingDocument=true;openingGeneration += 1
+        do { let (_,file,lease)=try recentDocuments.acquire(entry,requireScope:requireScope);prepare(file,scope:lease) }
+        catch { model.openingDocument=false;model.error=error.localizedDescription }
+    }
+    private func prepare(_ file:URL,scope:RepositoryAccessLease?) {
+        let old=model,identity=openingGeneration,options=GitBlamePreferences.load(from:preferences)
+        Task {
+            do {
+                let document=try await documentOpener.prepare(file:file,scope:scope,options:options)
+                guard openingGeneration==identity,!old.retired else { return }
+                old.retireSourceView?();old.onFind=nil;old.onFindFeedback=nil;old.retire()
+                let replacement=BlameWindowModel(repository:document.repository,access:document.access,path:document.snapshot.path,revision:"HEAD",options:document.options,labelDefaults:preferences)
+                replacement.install(document.snapshot,history:document.history,options:document.options);replacement.recentHistoryError=old.recentHistoryError
+                model=replacement;replacement.onFind={ [weak self] in self?.showFind() };replacement.onFindFeedback={ [weak self] in self?.feedback($0) };replacement.onOpenDocument={ [weak self] in self?.openDocument() };replacement.onCancelDocumentOpen={ [weak self] in self?.cancelOpenDocument() };replacement.onOpenRecent={ [weak self] in self?.openRecent($0) };replacement.recentDocuments=recentDocuments
+                window?.contentViewController=NSHostingController(rootView:BlameDialog(model:replacement))
+                findWindow?.rebind(replacement)
+                window?.title="\(document.snapshot.path) at HEAD – Blame – TurtleGit";replacement.goToLine(1)
+                do { try recentDocuments?.remember(root:document.repository.root,path:document.snapshot.path,lease:document.access,replacing:recentID) }
+                catch { replacement.error="Opened file; recent-file access could not be saved: "+error.localizedDescription }
+                onDocumentChanged()
+            } catch {
+                guard openingGeneration==identity,!old.retired else { return };old.openingDocument=false
+                if !(error is OperationCancellationFailure) { old.error=error.localizedDescription }
+            }
+        }
+    }
+    static func focusedOwner(_ initial:NSWindow?)->BlameWindowController? {
+        var candidate=initial,seen=Set<ObjectIdentifier>()
+        while let window=candidate,seen.insert(ObjectIdentifier(window)).inserted {
+            if let owner=window.delegate as? BlameWindowController { return owner }
+            candidate=window.sheetParent ?? window.parent
+        }
+        return nil
+    }
+    static func openFocused(_ window:NSWindow?,fallback:()->Void) {
+        if let owner=focusedOwner(window) { owner.openDocument() } else { fallback() }
     }
     private func showFind() {
         guard model.canFind else { return }
@@ -50,9 +140,10 @@ private struct BlameParentMenuTarget {
             }
         }
     }
-    func windowShouldClose(_ sender:NSWindow) -> Bool { !model.searchFeedbackBusy }
+    func windowShouldClose(_ sender:NSWindow) -> Bool { !model.searchFeedbackBusy && !model.openingDocument }
     func windowWillClose(_ notification:Notification) {
-        feedbackGeneration += 1
+        feedbackGeneration += 1;openingGeneration += 1;documentOpener.cancel()
+        if let panel=openPanel { panel.sheetParent?.endSheet(panel,returnCode:.cancel);panel.close();openPanel=nil };model.openingDocument=false
         if let alert=findAlert {
             alert.window.sheetParent?.endSheet(alert.window,returnCode:.cancel);alert.window.close();findAlert=nil
         }
@@ -70,6 +161,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     let repository: GitRepository, path: String
     let fullCommitMessageOnLogLine: Bool
     private let access: RepositoryAccessLease?
+    var repositoryAccess:RepositoryAccessLease? { access }
     private let labelDefaults: UserDefaults
     @Published private(set) var syntaxEnabled = true
     @Published private(set) var wrapLongLines = false
@@ -156,9 +248,17 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     @Published var find = ""
     @Published var matchCase = false
     @Published var navigationMessage = ""
+    @Published var recentHistoryError:String?
+    @Published var openingDocument=false
+    @Published var cancellingDocument=false
+    var onCancelDocumentOpen:(()->Void)?
+    var onLoaded:(()->Void)?
+    var onOpenDocument:(()->Void)?
+    var onOpenRecent:((BlameRecentDocument)->Void)?
+    var recentDocuments:BlameRecentDocuments?
     @Published var searchFeedbackBusy=false
     private(set) var retired=false
-    var canFind:Bool { !retired && !busy && !searchFeedbackBusy }
+    var canFind:Bool { !retired && !busy && !searchFeedbackBusy && !openingDocument }
     var onFindFeedback:((BlameFindFeedback)->Void)?
     var ranks: [String: Int] = [:]
     private var origins: [String: GitBlameLine] = [:]
@@ -294,7 +394,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
         }
     }
     func reload(saveThresholds: Bool = false) {
-        guard !retired,!busy else { return }
+        guard !retired,!busy,!openingDocument,!searchFeedbackBusy else { return }
         let required = detectionMode == .withinFile ? withinFileCharacters : detectionMode.betweenFiles ? betweenFileCharacters : nil
         if let required, required.isEmpty || !required.utf8.allSatisfy({ (48...57).contains($0) }) || UInt32(required) == nil {
             error = "Enter a character count from 0 to 4294967295."; return
@@ -319,14 +419,9 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let result = try await repository.blame(path: path, revision: revision, options: options)
                 let entries = try await repository.blameHistory(result, options: options)
-                let history = entries.map(\.hash)
                 guard request == generation else { return }
-                ranks = Dictionary(history.enumerated().map { ($0.element, $0.offset) }, uniquingKeysWith: min)
-                origins = Dictionary(result.lines.map { ($0.hash, $0) }, uniquingKeysWith: { first, _ in first })
-                historyCount = history.count; revision = result.revision; appliedOptions = options; snapshot = result
-                historyEntries = entries; selectedLogHashes.formIntersection(Set(history))
-                if let selection, !result.lines.contains(where: { $0.number == selection }) { self.selection = nil }
-                busy = false; applyPendingLine()
+                install(result,history:entries,options:options)
+                busy = false; applyPendingLine();onLoaded?()
             } catch {
                 if request == generation {
                     snapshot = nil; selection = nil; highlightedHash = nil; hoveredLine = nil; origins = [:]; ranks = [:]
@@ -336,6 +431,14 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
                 }
             }
         }
+    }
+    func install(_ result:GitBlameSnapshot,history entries:[LogEntry],options:GitBlameOptions) {
+        let hashes=entries.map(\.hash)
+        ranks=Dictionary(hashes.enumerated().map { ($0.element,$0.offset) },uniquingKeysWith:min)
+        origins=Dictionary(result.lines.map { ($0.hash,$0) },uniquingKeysWith:{ first,_ in first })
+        historyCount=hashes.count;appliedOptions=options;snapshot=result;historyEntries=entries
+        selectedLogHashes.formIntersection(Set(hashes))
+        if let selection,!result.lines.contains(where:{ $0.number==selection }) { self.selection=nil }
     }
     func selectOriginalLine(_ number: Int) {
         pendingLine = max(1, number)
@@ -408,12 +511,19 @@ private struct BlameDialog: View {
                 Button { model.navigateChange(previous:false) } label: { CommandLabel(title:"Next change",icon:.jumpDown) }.disabled(model.selectedLogHashes.isEmpty)
                 Button { model.onFind?() } label: { CommandLabel(title:"Find…",icon:.mergeFind) }.keyboardShortcut("f",modifiers:.command)
                 Spacer()
+                Menu("File") {
+                    Button { model.onOpenDocument?() } label: { CommandLabel(title:"Open…",icon:.open) }.keyboardShortcut("o",modifiers:.command)
+                    if let recent=model.recentDocuments { BlameRecentFileMenu(store:recent,open:{ model.onOpenRecent?($0) }) }
+                    Divider()
+                    Button { SettingsPresentationService.shared.show() } label: { CommandLabel(title:"Settings…",icon:.settings) }
+                    Button("Close") { NSApp.sendAction(#selector(NSWindow.performClose(_:)),to:nil,from:nil) }.keyboardShortcut("w",modifiers:.command)
+                }
                 Menu("Edit") {
                     Button { NSApp.sendAction(Selector(("copy:")),to:nil,from:nil) } label: { CommandLabel(title:"Copy",icon:.copy) }
                     Button { model.onFind?() } label: { CommandLabel(title:"Find…",icon:.mergeFind) }
-                    Button("Find Next") { model.findLine(previous:false) }.keyboardShortcut("g",modifiers:.command)
-                    Button("Find Previous") { model.findLine(previous:true) }.keyboardShortcut("g",modifiers:[.command,.shift])
-                    Button("Go To Line…") { showingGoToLine=true }.keyboardShortcut("l",modifiers:.command)
+                    Button { model.findLine(previous:false) } label: { CommandLabel(title:"Find Next",icon:.jumpDown) }.keyboardShortcut("g",modifiers:.command)
+                    Button { model.findLine(previous:true) } label: { CommandLabel(title:"Find Previous",icon:.jumpUp) }.keyboardShortcut("g",modifiers:[.command,.shift])
+                    Button { showingGoToLine=true } label: { CommandLabel(title:"Go To Line…",icon:.log) }.keyboardShortcut("l",modifiers:.command)
                     Divider()
                     Picker("Encode",selection:Binding(get:{model.sourceEncoding},set:{model.setEncoding($0)})) {
                         Text("Automatic").tag(GitBlameEncoding?.none)
@@ -444,7 +554,9 @@ private struct BlameDialog: View {
                     Toggle("Wrap long lines",isOn:Binding(get:{model.wrapLongLines},set:{model.setWrapLongLines($0)}))
                 }
                 Button { SettingsPresentationService.shared.show() } label: { CommandLabel(title:"Settings…",icon:.settings) }
-            }.disabled(model.busy)
+            }.disabled(model.busy || model.openingDocument || model.searchFeedbackBusy)
+            if let error=model.recentHistoryError { Text(error).font(.caption).foregroundStyle(.orange).textSelection(.enabled) }
+            if model.openingDocument { HStack { ProgressView(model.cancellingDocument ? "Cancelling…" : "Opening file…").controlSize(.small);Button("Cancel") { model.onCancelDocumentOpen?() }.disabled(model.cancellingDocument) } }
             if model.busy { ProgressView("Reading annotations…").controlSize(.small) }
             if model.syntaxWorking { ProgressView("Coloring source…").controlSize(.small) }
             if let error = model.syntaxError { Text(error).font(.caption).foregroundStyle(.red).textSelection(.enabled) }
@@ -481,7 +593,7 @@ private struct BlameDialog: View {
 }
 @MainActor final class BlameFindWindowController:NSWindowController,NSWindowDelegate {
     let draft:BlameFindDraft
-    let model:BlameWindowModel
+    private(set) var model:BlameWindowModel
     var onClosed:()->Void={}
     private var flashGeneration=0
     private(set) var flashCount=0
@@ -492,6 +604,10 @@ private struct BlameDialog: View {
         super.init(window:panel);panel.delegate=self
         panel.contentViewController=NSHostingController(rootView:BlameFindDialog(model:model,draft:draft,close:{ [weak self] in self?.window?.performClose(nil) }))
         DialogGeometry.attach(panel,identifier:"BlameFindWindowController")
+    }
+    func rebind(_ model:BlameWindowModel) {
+        flashGeneration += 1;window?.contentView?.layer?.borderWidth=0;self.model=model
+        window?.contentViewController=NSHostingController(rootView:BlameFindDialog(model:model,draft:draft,close:{ [weak self] in self?.window?.performClose(nil) }))
     }
     func search() { guard !draft.text.isEmpty,model.canFind else { return };model.applyFind(text:draft.text,matchCase:draft.matchCase,previous:draft.previous) }
     func flash() {
@@ -1042,7 +1158,7 @@ private final class BlameSourceContainer: NSView {
         retired = true; editor.delegate = nil; editor.onContextMenu = { _,_ in }
         syntaxGeneration += 1; syntaxToken?.cancel(); syntaxTask?.cancel()
         editor.retired = true; editor.isSelectable = false
-        editor.onFind = {}; editor.onFindNext = { _ in }; editor.onGoTo = {}
+        editor.onOpen = {};editor.onFind = {}; editor.onFindNext = { _ in }; editor.onGoTo = {}
         scroll.onScroll = {}; sourceScroll.onScroll = {}
     }
     func installNavigation(_ model: BlameWindowModel) {
@@ -1054,6 +1170,7 @@ private final class BlameSourceContainer: NSView {
             return text.substring(with: range)
         }
         model.retireSourceView = { [weak self] in self?.retire() }
+        editor.onOpen = { [weak model] in model?.onOpenDocument?() }
         editor.onFind = { [weak model] in model?.onFind?() }
         editor.onFindNext = { [weak model] previous in model?.findLine(previous: previous) }
         editor.onGoTo = { [weak model] in model?.onGoTo?() }
@@ -1307,6 +1424,7 @@ private final class BlameSourceTextView: NSTextView {
         return max(0,low-1)
     }
     var onContextMenu: (Int,NSEvent) -> Void = { _,_ in }
+    var onOpen:()->Void={}
     var onFind: () -> Void = {}
     var onFindNext: (Bool) -> Void = { _ in }
     var onGoTo: () -> Void = {}
@@ -1357,6 +1475,7 @@ private final class BlameSourceTextView: NSTextView {
         let flags = event.modifierFlags.intersection([.command,.control,.option,.shift])
         if flags.contains(.command), !flags.contains(.control), !flags.contains(.option) {
             switch event.charactersIgnoringModifiers?.lowercased() {
+            case "o":onOpen();return
             case "f": onFind(); return
             case "g": onFindNext(flags.contains(.shift)); return
             case "l": onGoTo(); return

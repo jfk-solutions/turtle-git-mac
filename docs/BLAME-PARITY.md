@@ -884,7 +884,7 @@ This is partial functionality and native dialog fidelity.
   no folding command; earlier folding entries were an audit error.
 - Remaining modeless Find/Go To Line acceptance, menu shortcuts, match highlighting and
   revision/block navigation and displayed Find feedback.
-- Clipboard presentation/localized dates, export commands and remaining original
+- Clipboard presentation/localized dates and remaining original
   menu icons.
 - Complete Blame settings layout, revision chooser, font preview drawing,
   native preset/color acceptance and full log preferences parity; native multi-window updates and unsaved Cancel acceptance.
@@ -1059,3 +1059,17 @@ was an audit mistake and is not implemented as an incompatible change.
 The panel remains modeless for parent navigation. An active no-match sheet gates
 search/ordinary close; owner retirement disposes the sheet/panel and late callbacks.
 Full menu, physical/accessibility and signed acceptance remain open.
+
+## File Open, recent files and pinned reads — 2026-10-13
+
+[Native File Open](BLAME-FILE-OPEN.md) implements the active source File menu:
+Open, four recent files, Settings and Close. The previous export gap was an audit
+error: the pinned menu has no Save/Export commands. Native Open prepares a HEAD
+document before replacing the same window, requests sandbox folder permission,
+rebinds modeless Find/context routes and retains the previous document on failure.
+
+Private recent-file bookmarks preserve relative paths and moved IDs. Cancel and
+retirement cancel/await owned readers; global/window Command-O routes to Blame
+while it owns focus. Single-file reads no longer diff the full tree, and HEAD
+Reload retains HEAD identity while displayed snapshots stay pinned. Full menu,
+physical/signed and accessibility acceptance remain open.

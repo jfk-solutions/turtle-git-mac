@@ -245,7 +245,8 @@ public enum GitBlameParser {
     }
 }
 extension GitRepository {
-    public func blameHistory(_ snapshot: GitBlameSnapshot, options: GitBlameOptions) throws -> [LogEntry] {
+    public func blameHistory(_ snapshot: GitBlameSnapshot, options: GitBlameOptions, cancellation:OperationCancellation? = nil) throws -> [LogEntry] {
+        try cancellation?.check()
         let format = "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00%ct%x00%cn%x00%ce%x00%cI%x00"
         func records(_ data: Data) throws -> [(LogEntry, Int64)] {
             let fields = String(decoding: data, as: UTF8.self).components(separatedBy: "\0")
@@ -263,13 +264,14 @@ extension GitRepository {
         }
         if options.usesCompleteLog {
             let args = ["log", "--encoding=UTF-8", "--topo-order", format] + (options.usesFollowRenames ? ["--follow"] : [])
-            return try records(run(args + [snapshot.revision, "--", snapshot.path]).stdout).map { $0.0 }
+            return try records(run(args + [snapshot.revision, "--", snapshot.path],cancellation:cancellation).stdout).map { $0.0 }
         }
         let hashes = Set(snapshot.lines.map(\.hash)).sorted()
         var entries: [(LogEntry, Int64)] = []
         // Bound argv size for large files with many distinct originating commits.
         for start in stride(from: 0, to: hashes.count, by: 128) {
-            entries += try records(run(["log", "--encoding=UTF-8", "--no-walk=unsorted", format] + Array(hashes[start..<min(start + 128, hashes.count)]) + ["--"]).stdout)
+            try cancellation?.check()
+            entries += try records(run(["log", "--encoding=UTF-8", "--no-walk=unsorted", format] + Array(hashes[start..<min(start + 128, hashes.count)]) + ["--"],cancellation:cancellation).stdout)
         }
         guard Set(entries.map { $0.0.hash }) == Set(hashes), entries.count == hashes.count else { throw GitBlameFailure.format }
         return entries.sorted { lhs, rhs in
@@ -297,8 +299,22 @@ extension GitRepository {
         }
         return result
     }
-    public func blame(path: String, revision: String = "HEAD", options: GitBlameOptions = GitBlameOptions()) throws -> GitBlameSnapshot {
-        let content = try historicalFile(revision: revision, path: path)
+    /// A pinned single-file read, without diffing the entire repository tree.
+    private func blameContents(revision:String,path:String,cancellation:OperationCancellation?) throws -> ComparisonFileContent {
+        _ = try restoreLocation(path)
+        let resolved=try run(["rev-parse","--verify","--end-of-options",revision+"^{commit}"],cancellation:cancellation).text.trimmingCharacters(in:.newlines)
+        for record in try run(["ls-tree","-z",resolved,"--",path],cancellation:cancellation).stdout.split(separator:0) {
+            guard let tab=record.firstIndex(of:9),Data(record[record.index(after:tab)...])==Data(path.utf8) else { continue }
+            let header=String(decoding:record[..<tab],as:UTF8.self).split(separator:" ")
+            guard header.count==3,header[1]=="blob",["100644","100755"].contains(String(header[0])) else { throw GitBlameFailure.unsupported }
+            let bytes=try run(["cat-file","blob",String(header[2])],cancellation:cancellation).stdout
+            return ComparisonFileContent(path:path,revision:.revision(resolved),bytes:bytes,mode:String(header[0]))
+        }
+        throw RevisionComparisonFailure.selection
+    }
+    public func blame(path: String, revision: String = "HEAD", options: GitBlameOptions = GitBlameOptions(), cancellation:OperationCancellation? = nil) throws -> GitBlameSnapshot {
+        try cancellation?.check()
+        let content = try blameContents(revision:revision,path:path,cancellation:cancellation)
         guard ["100644", "100755"].contains(content.mode ?? ""),
               case .revision(let hash) = content.revision else { throw GitBlameFailure.unsupported }
         let encoding = try options.encoding ?? GitBlameEncoding.detect(content.bytes)
@@ -307,13 +323,14 @@ extension GitRepository {
         if options.ignoreWhitespace { args.append("-w") }
         if options.onlyFirstParent { args.append("--first-parent") }
         args += options.detectionArguments
-        let lines = try GitBlameParser.parse(run(args + [hash, "--", path]).stdout, encoding: encoding, decodedSources: try encoding.legacyLines(content.bytes))
+        let lines = try GitBlameParser.parse(run(args + [hash, "--", path],cancellation:cancellation).stdout, encoding: encoding, decodedSources: try encoding.legacyLines(content.bytes))
         // Git appends LF to each porcelain record even when the source has no final LF.
         // Compare individual source bytes to the pinned blob, preserving CR, tabs and BOM.
         let records = content.bytes.split(separator: UInt8(10), omittingEmptySubsequences: false)
         var source = records.map { Data($0) }
         if content.bytes.isEmpty || content.bytes.last == 10 { source.removeLast() }
         guard source == lines.map(\.sourceBytes) else { throw GitBlameFailure.format }
+        try cancellation?.check()
         return GitBlameSnapshot(revision: hash, path: path, contents: content.bytes, encoding: encoding, lines: lines)
     }
 }

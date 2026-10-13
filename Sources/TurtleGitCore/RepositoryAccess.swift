@@ -50,7 +50,7 @@ public final class RepositoryAccessLease {
     public func contains(_ candidate: URL) -> Bool {
         Self.pathIsContained(candidate, by: url)
     }
-    static func pathIsContained(_ candidate: URL, by folder: URL) -> Bool {
+    public static func pathIsContained(_ candidate: URL, by folder: URL) -> Bool {
         guard candidate.isFileURL, folder.isFileURL else { return false }
         guard let root = Self.canonicalPath(folder), let path = Self.canonicalPath(candidate) else { return false }
         return path == root || path.hasPrefix(root == "/" ? "/" : root + "/")
