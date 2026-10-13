@@ -543,11 +543,11 @@ import TurtleGitCore
         }
     }
     func setAction(_ action: RebaseAction, ids: Set<String>? = nil) {
-        guard editable else { return }
+        guard !retired, editable else { return }
         var values = plan?.entries ?? draftEntries
         let targets = ids ?? selection
         for index in values.indices where targets.contains(values[index].id) {
-            guard !options.preserveMerges || action != .squash && !(action == .edit && values[index].commit.parents.count > 1) else { continue }
+            guard !options.preserveMerges || action != .squash else { continue }
             values[index].action = action
         }
         if plan != nil { plan?.entries = values } else { draftEntries = values }
@@ -589,13 +589,13 @@ import TurtleGitCore
         if plan != nil { plan?.entries = Array(visible.reversed()) } else { draftEntries = Array(visible.reversed()) }
     }
     func cycleActions() {
-        guard editable else { return }
+        guard !retired, editable else { return }
         var values = plan?.entries ?? draftEntries
         for index in values.indices where selection.contains(values[index].id) {
             if options.preserveMerges {
                 switch values[index].action {
                 case .pick: values[index].action = .skip
-                case .skip: values[index].action = values[index].commit.parents.count > 1 ? .pick : .edit
+                case .skip: values[index].action = .edit
                 case .edit, .squash: values[index].action = .pick
                 }
                 continue
@@ -780,7 +780,7 @@ struct RebaseRevisionMenu: View {
     var body: some View {
         ForEach(RebaseAction.allCases, id: \.self) { action in
             Button { model.setAction(action, ids: ids) } label: { CommandLabel(title: action == .skip ? "Skip" : action.rawValue.capitalized, icon: action.icon) }
-                .disabled(ids.isEmpty || !model.editable || model.options.preserveMerges && (action == .squash || action == .edit && model.entries.contains { ids.contains($0.id) && $0.commit.parents.count > 1 }))
+                .disabled(ids.isEmpty || !model.editable || model.options.preserveMerges && action == .squash)
         }
         if !model.revisionMenuRows(ids).isEmpty {
             Divider()

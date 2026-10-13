@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-13",
+  "scope": "Structural merge Edit, recovery/Continue/Abort, actual side-reference execution",
+  "checks": {
+    "debug_build": {
+      "exit": 0
+    },
+    "core": {
+      "tests": 12,
+      "exit": 0,
+      "sequence_editor": "current built Debug app"
+    },
+    "native": {
+      "cases": [
+        "rebase-row-drag",
+        "rebase-conditional"
+      ],
+      "engines": [
+        "system",
+        "bundled"
+      ],
+      "exit": 0,
+      "reaped_pids": [
+        60674,
+        60906,
+        60985,
+        61205
+      ],
+      "initial_failure": {
+        "reason": "Reference runner bootstrap is not a sequence editor; fixture changed to built app executable",
+        "reaped_pid": 59430
+      },
+      "scope": [
+        "Real merge Edit active session loaded by Rebase window model",
+        "Message tab/Split guard and actual Continue",
+        "Amended merge message/two parents",
+        "Row drag/action and metadata regression"
+      ]
+    }
+  },
+  "remaining": [
+    "Structural Squash/group rewrite",
+    "Source-equivalent merge Split",
+    "Conflict-to-merge-Edit acceptance",
+    "Broader graph/update-ref scenarios",
+    "Physical keyboard/gesture/VoiceOver and signed acceptance"
+  ],
+  "logs": [
+    "build/qa/structural-merge-edit-build-2026-10-13.log",
+    "build/qa/structural-merge-edit-core-2026-10-13.log",
+    "build/qa/structural-merge-edit-native-2026-10-13.log"
+  ]
+}

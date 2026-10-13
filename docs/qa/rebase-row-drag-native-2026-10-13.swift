@@ -57,6 +57,32 @@ import TurtleGitCore
         try await wait { RebaseWindowModel.activeColumnReads==0 }
         let after=try await repo.run(["rev-parse","HEAD"]).stdout
         try require(after==head && (try Data(contentsOf:root.appendingPathComponent(".git/index")))==index,"Plan drag modified HEAD/index")
-        print("Rebase row drag: actual native insertion/finish, contiguous block/order/selection and reverse execution order, structural Pick/Skip/Edit/cycle guards and no-op/discontinuous/busy/stale/closed refusal passed. Owned window closed; HEAD/index preserved.")
+        let replayRoot=root.appendingPathComponent("merge-edit-qa"); try FileManager.default.createDirectory(at:replayRoot,withIntermediateDirectories:true)
+        let replay=GitRepository(root:replayRoot,executable:repo.executable)
+        _ = try await replay.run(["init","-b","main"])
+        for (key,value) in [("user.name","Merge Edit QA"),("user.email","qa@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")] { _ = try await replay.run(["config",key,value]) }
+        try Data("base\n".utf8).write(to:replayRoot.appendingPathComponent("base")); try await replay.stage(["base"]); _ = try await replay.commit(message:"base")
+        _ = try await replay.run(["checkout","-b","upstream"])
+        _ = try await replay.run(["commit","--allow-empty","-m","upstream"])
+        _ = try await replay.run(["checkout","-b","side","main"])
+        try Data("side\n".utf8).write(to:replayRoot.appendingPathComponent("side")); try await replay.stage(["side"]); _ = try await replay.commit(message:"side")
+        _ = try await replay.run(["checkout","-b","topic","main"])
+        try Data("topic\n".utf8).write(to:replayRoot.appendingPathComponent("topic")); try await replay.stage(["topic"]); _ = try await replay.commit(message:"topic")
+        _ = try await replay.run(["merge","--no-ff","--no-edit","side"])
+        let merge=try await replay.rebaseCommit("HEAD")
+        var options=RebaseOptions(); options.branch="topic"; options.upstream="upstream"; options.preserveMerges=true
+        var plan=try await replay.rebasePlan(options); plan.entries[plan.entries.firstIndex { $0.commit.hash==merge.hash }!].action = .edit
+        let paused=try await replay.startRebase(plan,editorExecutable:URL(fileURLWithPath:ProcessInfo.processInfo.environment["TURTLEGIT_REBASE_EDITOR"] ?? FileManager.default.currentDirectoryPath + "/build/Build/Products/Debug/TurtleGitMac.app/Contents/MacOS/TurtleGitMac"))
+        try require(paused.state.isStructuralMergeEdit,"Native receiver merge Edit did not pause: " + paused.output)
+        let resumed=RebaseWindowController(repository:replay,access:nil,preferences:prefs); defer { resumed.close() }
+        resumed.model.load(upstream:"upstream",preserveMerges:true)
+        try await wait { !resumed.model.busy && resumed.model.state?.isStructuralMergeEdit==true }
+        try require(resumed.model.tab==1 && resumed.model.amendMessage.contains("Merge") && !resumed.model.canSplit,"Native recovery message or merge Split guard incorrect")
+        resumed.model.amendMessage="native edited merge"; resumed.model.execute("continue")
+        try await wait { !resumed.model.busy && resumed.model.finished }
+        try require(resumed.model.error==nil && resumed.model.completedSuccessfully,"Native merge Edit Continue failed")
+        let edited=try await replay.rebaseCommit("HEAD"); try require(edited.subject=="native edited merge" && edited.parents.count==2,"Native edit lost message or topology")
+        resumed.close(); try await wait { RebaseWindowModel.activeColumnReads==0 }
+        print("Rebase row drag: actual native insertion/finish, contiguous block/order/selection and reverse execution order, structural Pick/Skip/Edit/cycle guards and no-op/discontinuous/busy/stale/closed refusal passed. Owned windows closed; plan HEAD/index preserved; actual merge Edit recovery/Continue and topology passed.")
     }
 }

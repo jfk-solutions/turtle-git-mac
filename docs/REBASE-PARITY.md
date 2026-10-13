@@ -369,3 +369,42 @@ fixture passed without an app behavior change.
 Merge Edit, structural Squash/group rewrite, skipped first-merge-parent workflow
 recovery, broader root/cousin/octopus/nested graphs, real update-ref execution and
 physical/signed acceptance remain open. See [batch evidence](qa/structural-actions-2026-10-13.json).
+
+
+## Structural merge Edit and real reference updates (2026-10-13)
+
+Preserve-merges Edit now accepts merge commits from individual/bulk actions,
+Space cycling and the existing E keyboard path. The structural compiler emits a
+Git `break` after reconstructing or reusing the merge and before its logical
+completion label. Recovery recognizes that owned break plus the captured Edit
+identity and its next label, supplies the current merge message, retains the
+original row identity/action and selects the message tab. Continue amends the
+current merge and then records its rewritten label for descendant commits.
+Source comparison: `RebaseDlg.cpp` around lines 2195–2270 and 2368–2372, where
+merge replay precedes its Edit pause. The source workflow is the target; Git's
+sequencer implements the native pause. Retired owners also reject action changes.
+
+The ordinary Split implementation is disabled at a merge Edit pause because its
+first-parent reset would discard merge topology. Source-equivalent merge Split
+requires a separate implementation and remains a recorded gap. Structural
+Squash/group rewrites are also still unavailable. These changes supersede the
+previous merge Edit restriction, without certifying the full structural workflow.
+
+Twelve focused Core checks passed, including reopen/message amendment/Continue
+with a two-parent merge and rewritten descendant, Abort restoring all references,
+and actual `rebase.updateRefs=true` updating a side branch to the merge's rewritten
+parent. The prior ordinary Edit/Skip, topology, conflict/progress and invalid-parent
+checks passed in the same group. This replaces the earlier placement-only evidence
+for that tested reference scenario; all other reference/graph cases remain open.
+
+The Debug build and four native receivers across system/bundled Git passed. The
+native fixture resumes a real active merge replay in the Rebase window model,
+checks its message tab and Split guard, invokes Continue and verifies the amended
+message and parent count. It also retains prior row-drag and metadata assertions.
+All receivers were reaped. The first native attempt used the reference runner as
+sequence editor; its different bootstrap entry point could not run the editor.
+The fixture now uses the current built app executable and the corrected group
+passed. Physical gestures/keyboard, VoiceOver, conflict-to-merge-Edit acceptance,
+broader graphs and signed sandbox behavior remain unverified.
+
+[Batch evidence](qa/structural-merge-edit-2026-10-13.json) records scope and failures.

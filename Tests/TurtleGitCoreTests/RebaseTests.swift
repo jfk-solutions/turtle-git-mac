@@ -609,6 +609,56 @@ final class RebaseTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("upstream.txt").path))
         let count = try await repo.run(["rev-list", "--count", "main..topic"]).text; XCTAssertEqual(count, "2\n")
     }
+    func structuralMergeFixture() async throws -> (URL,GitRepository,RebasePlan,String) {
+        let (root,repo,_) = try await fixture()
+        _ = try await repo.run(["checkout","-b","side","main"])
+        try Data("side\n".utf8).write(to:root.appendingPathComponent("side.txt")); try await repo.stage(["side.txt"]); _ = try await repo.commit(message:"side")
+        _ = try await repo.run(["checkout","topic"]); _ = try await repo.run(["merge","--no-ff","--no-edit","side"])
+        let merge = try await repo.rebaseCommit("HEAD")
+        try Data("after\n".utf8).write(to:root.appendingPathComponent("after.txt")); try await repo.stage(["after.txt"]); _ = try await repo.commit(message:"after merge")
+        var settings = options(); settings.preserveMerges = true
+        var plan = try await repo.rebasePlan(settings)
+        let index = try XCTUnwrap(plan.entries.firstIndex { $0.commit.hash == merge.hash }); plan.entries[index].action = .edit
+        return (root,repo,plan,merge.hash)
+    }
+    func testStructuralMergeEditReopensAmendsAndRewritesDescendant() async throws {
+        let (root,repo,plan,merge) = try await structuralMergeFixture(); defer { try? FileManager.default.removeItem(at:root) }
+        let result = try await repo.startRebase(plan,editorExecutable:editor)
+        XCTAssertEqual(result.exitCode,0,result.output); XCTAssertTrue(result.state.active)
+        let reopened = GitRepository(root:root,executable:repo.executable)
+        let state = try await reopened.rebaseState()
+        XCTAssertTrue(state.isEditPause); XCTAssertTrue(state.isStructuralMergeEdit); XCTAssertFalse(state.canSplit)
+        XCTAssertFalse(state.needsFileRecovery); XCTAssertEqual(state.stoppedCommit,merge)
+        XCTAssertTrue(state.message.contains("Merge")); XCTAssertEqual(state.stoppedAction,.edit)
+        let recovered = try await reopened.rebaseReplayEntries()
+        XCTAssertEqual(recovered.first { $0.id == merge }?.progress,.current)
+        XCTAssertEqual(recovered.first { $0.id == merge }?.action,.edit)
+        let finished = try await reopened.continueRebase(editMessage:"edited structural merge")
+        XCTAssertEqual(finished.exitCode,0,finished.output); XCTAssertFalse(finished.state.active)
+        let tip = try await reopened.rebaseCommit("HEAD"), edited = try await reopened.rebaseCommit("HEAD^")
+        XCTAssertEqual(tip.subject,"after merge"); XCTAssertEqual(edited.subject,"edited structural merge")
+        XCTAssertEqual(edited.parents.count,2); XCTAssertNotEqual(edited.hash,merge)
+        for path in ["first.txt","second.txt","side.txt","upstream.txt","after.txt"] { XCTAssertTrue(FileManager.default.fileExists(atPath:root.appendingPathComponent(path).path)) }
+    }
+    func testStructuralMergeEditAbortRestoresBranchAndReferences() async throws {
+        let (root,repo,plan,_) = try await structuralMergeFixture(); defer { try? FileManager.default.removeItem(at:root) }
+        let before = try await repo.run(["show-ref"]).stdout
+        let stopped = try await repo.startRebase(plan,editorExecutable:editor); XCTAssertTrue(stopped.state.isStructuralMergeEdit)
+        let aborted = try await repo.abortRebase(); XCTAssertFalse(aborted.state.active)
+        let after = try await repo.run(["show-ref"]).stdout; XCTAssertEqual(before,after)
+        let branch = try await repo.branch(); XCTAssertEqual(branch,"topic")
+    }
+    func testStructuralReplayActuallyUpdatesSideReference() async throws {
+        let (root,repo,plan,_) = try await structuralMergeFixture(); defer { try? FileManager.default.removeItem(at:root) }
+        _ = try await repo.run(["config","rebase.updateRefs","true"])
+        let originalSide = try await repo.rebaseCommit("side")
+        let stopped = try await repo.startRebase(plan,editorExecutable:editor); XCTAssertTrue(stopped.state.isStructuralMergeEdit,stopped.output)
+        let finished = try await repo.continueRebase(editMessage:"edited merge with refs")
+        XCTAssertEqual(finished.exitCode,0,finished.output); XCTAssertFalse(finished.state.active)
+        let side = try await repo.rebaseCommit("side"), merge = try await repo.rebaseCommit("HEAD^")
+        XCTAssertNotEqual(side.hash,originalSide.hash); XCTAssertEqual(side.subject,"side")
+        XCTAssertTrue(merge.parents.contains(side.hash))
+    }
     func testStructuralSkipAndEditRecoverAndContinue() async throws {
         let (root,repo,_) = try await fixture(); defer { try? FileManager.default.removeItem(at:root) }
         var settings = options(); settings.preserveMerges = true
