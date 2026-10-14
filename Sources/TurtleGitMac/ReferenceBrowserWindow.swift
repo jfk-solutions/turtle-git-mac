@@ -37,6 +37,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     var presentDescription: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
     var presentReflog: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
     private var completion: ((String?) -> Void)?
+    private var question: (UUID, NSAlert, (Bool) -> Void)?
     init(repository: GitRepository, access: RepositoryAccessLease?, initial: String, preferences: UserDefaults = .standard, scope: ReferenceBrowserScope = .all, picking: Bool = true, pickMultiple: Bool = false, allowsRangeSelection: Bool = false, onChoose: @escaping (String?) -> Void) {
         model = ReferenceBrowserWindowModel(repository: repository, access: access, initial: initial, preferences: preferences, scope: scope, picking: picking, pickMultiple: pickMultiple, allowsRangeSelection: allowsRangeSelection); completion = onChoose
         let window = ReferenceBrowserNativeWindow(contentRect: .init(x: 0, y: 0, width: 1130, height: 660), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
@@ -44,15 +45,11 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         window.contentViewController = NSHostingController(rootView: ReferenceBrowserDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self; window.center()
         window.refresh = { [weak model] in model?.load() }
-        model.confirmDeletion = { [weak window] confirmation in
-            guard let window, window.attachedSheet == nil else { return false }
-            return await withCheckedContinuation { continuation in
-                let alert = NSAlert(); alert.messageText = "TurtleGit"; alert.informativeText = confirmation.message
-                alert.alertStyle = confirmation.warning ? .warning : .informational
-                let yes = alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No")
-                yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
-                alert.beginSheetModal(for: window) { continuation.resume(returning: $0 == .alertFirstButtonReturn) }
-            }
+        model.confirmDeletion = { [weak self] confirmation in
+            await self?.ask(message: "TurtleGit", detail: confirmation.message, warning: confirmation.warning) ?? false
+        }
+        model.confirmCancellation = { [weak self] in
+            await self?.ask(message: "The process is still running.", detail: "Stop the current reference operation? Review the resulting references and configuration before retrying.", warning: true) ?? false
         }
         model.sshSettings.present = { [weak window] prompt in
             guard let window, window.attachedSheet == nil, let child = prompt.window else { return false }
@@ -74,6 +71,21 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         model.onSwitch = { [weak self] in self?.showSwitch() }
         model.finish = { [weak self] reference in self?.finish(reference) }
         DialogGeometry.attach(window, identifier: "BrowseRefs", legacyName: "BrowseRefs")
+    }
+    private func ask(message: String, detail: String, warning: Bool) async -> Bool {
+        guard !model.closed, question == nil, let window, window.attachedSheet == nil else { return false }
+        let alert = NSAlert(); alert.messageText = message; alert.informativeText = detail; alert.alertStyle = warning ? .warning : .informational
+        let yes = alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No")
+        yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
+        let id = UUID()
+        return await withCheckedContinuation { continuation in
+            question = (id, alert, { continuation.resume(returning: $0) })
+            alert.beginSheetModal(for: window) { [weak self] response in self?.finishQuestion(id, accepted: response == .alertFirstButtonReturn) }
+        }
+    }
+    private func finishQuestion(_ id: UUID, accepted: Bool) {
+        guard let pending = question, pending.0 == id else { return }; question = nil
+        if pending.1.window.sheetParent === window { window?.endSheet(pending.1.window) }; pending.1.window.orderOut(nil); pending.2(accepted)
     }
     func showComparison(_ pair: ReferenceBrowserComparison) {
         guard let owner = window, owner.attachedSheet == nil, model.canComparePair else { return }
@@ -119,14 +131,14 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         let repository = model.repository, access = model.access
         let child = ReferenceDescriptionWindowController(text: chosen.description, preferences: model.preferences) { text, cancellation in
             if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-            try await repository.updateBranchDescription(branch, message: text, cancellation: cancellation)
+            try await repository.updateBranchDescription(branch, message: text, cancellation: cancellation, expectedHash: chosen.hash)
         }
         descriptionEditor = child
         child.onClosed = { [weak self, weak child] in
             guard let self, let child, self.descriptionEditor === child else { return }
             if let window = child.window, window.sheetParent === self.window { self.window?.endSheet(window) }
             self.descriptionEditor = nil; self.model.hasChild = false
-            if child.saved && !self.model.closed { self.model.load() }
+            if child.saved && !self.model.closed { self.model.onReferencesChanged(); self.model.load() }
         }
         guard let window = child.window, presentDescription(owner, window) else { child.close(); return }
         child.focusEditor()
@@ -254,11 +266,11 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         guard let completion, !model.busy, !model.hasChild, model.renameReference == nil, window?.attachedSheet == nil else { return }; self.completion = nil
         if let window { window.sheetParent?.endSheet(window); window.close() }; completion(reference)
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { guard !model.hasChild, model.renameReference == nil, !model.busy, sender.attachedSheet == nil else { return false }; finish(nil); return false }
-    func windowWillClose(_ notification: Notification) { model.invalidate(); addRemoteDialog?.close(); addRemoteDialog = nil; remoteSettingsDialog?.close(); remoteSettingsDialog = nil; remoteTagDialog?.close(); remoteTagDialog = nil; comparisonDialog?.close(); comparisonDialog = nil; unifiedViewer?.close(); unifiedViewer = nil; if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.close() }; fetchDialog?.close(); fetchDialog = nil; branchDialog?.close(); branchDialog = nil; mergeDialog?.close(); mergeDialog = nil; switchDialog?.close(); switchDialog = nil; trackingRequest = nil; trackingPicker?.abandonPresentation(); trackingPicker = nil; descriptionEditor?.close(); descriptionEditor = nil; reflog?.close(); reflog = nil; model.hasChild = false; let completion = completion; self.completion = nil; completion?(nil); onClosed() }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { if model.mutationActive { model.cancelRenameOperation(); return false }; guard !model.hasChild, model.renameReference == nil, !model.busy, sender.attachedSheet == nil else { return false }; finish(nil); return false }
+    func windowWillClose(_ notification: Notification) { model.invalidate(); if let pending = question { finishQuestion(pending.0, accepted: false) }; addRemoteDialog?.close(); addRemoteDialog = nil; remoteSettingsDialog?.close(); remoteSettingsDialog = nil; remoteTagDialog?.close(); remoteTagDialog = nil; comparisonDialog?.close(); comparisonDialog = nil; unifiedViewer?.close(); unifiedViewer = nil; if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.close() }; fetchDialog?.close(); fetchDialog = nil; branchDialog?.close(); branchDialog = nil; mergeDialog?.close(); mergeDialog = nil; switchDialog?.close(); switchDialog = nil; trackingRequest = nil; trackingPicker?.abandonPresentation(); trackingPicker = nil; descriptionEditor?.close(); descriptionEditor = nil; reflog?.close(); reflog = nil; model.hasChild = false; let completion = completion; self.completion = nil; completion?(nil); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
-@MainActor final class ReferenceBrowserWindowModel: ObservableObject {
+@MainActor final class ReferenceBrowserWindowModel: ObservableObject, ActionLogProgress {
     private(set) static var activeReads = 0
     let repository: GitRepository
     let sshSettings: SSHTransportSettings
@@ -271,14 +283,36 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     let allowsRangeSelection: Bool
     private var token: OperationCancellation?
     private var invalidated = false
-    private(set) var deletingReference = false
-    private(set) var changingTracking = false
+    @Published private(set) var deletingReference = false
+    @Published private(set) var changingTracking = false
     private var generatingUnified = false
     private var resolvingCurrentBranch = false
     private(set) var initialFocusPending = true
     var closed: Bool { invalidated }
     @Published private(set) var renameReference: GitReferenceName?
     private var renameFolder: GitReferenceName?
+    private var renameHash: String?
+    static private(set) var activeRenames = 0
+    static private(set) var activeMutations = 0
+    @Published private(set) var confirmingCancellation = false
+    @Published private(set) var awaitingConfirmation = false
+    @Published private(set) var mutationTitle = "Rename"
+    @Published private(set) var mutationFailed = false
+    @Published private(set) var mutationCancelled = false
+    var mutationActive: Bool { renaming || deletingReference || changingTracking }
+    var confirmCancellation: () async -> Bool = { false }
+    @Published private(set) var renaming = false
+    @Published var renameOutput = ""
+    @Published private(set) var cancellingRename = false
+    var onReferencesChanged: () -> Void = {}
+    var output: String { renameOutput }
+    var actionLogRepository: URL { repository.root }
+    var actionLogFailed: Bool { mutationFailed }
+    var actionLogCancelled: Bool { mutationCancelled }
+    var actionLogEligible: Bool { !renameOutput.isEmpty }
+    func dismissOutput() { guard !mutationActive else { return }; saveActionLog(); renameOutput = "" }
+
+
     @Published var hasChild = false
     @Published private(set) var bare = false
     private(set) var folders: [GitReferenceName] = ["refs"]
@@ -344,20 +378,31 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     }
     private func deleteReferences(_ references: [GitReferenceName]) {
         guard !invalidated, !busy, !hasChild, renameReference == nil, !references.isEmpty, let confirmDeletion else { return }
+        let hashes = Dictionary(uniqueKeysWithValues: selectedRows.map { ($0.reference.name, $0.reference.hash) })
         let factory = sshSettings.capture()
-        let request = OperationCancellation(); token = request; deletingReference = true; busy = true; error = nil
+        ProgressActionLog.nextAttempt(self); let request = OperationCancellation(); token = request; deletingReference = true; busy = true; error = nil; mutationTitle = "Delete references"; mutationFailed = false; mutationCancelled = false; renameOutput = ""; cancellingRename = false
+        Self.activeMutations += 1; LocalGitCommandProgress.begin()
         Task {
-            var failure: String?
+            var attempted = false, failure: String?
+            defer { Self.activeMutations -= 1; LocalGitCommandProgress.end(); withExtendedLifetime(access) {}; if token === request { token = nil; deletingReference = false; busy = false; awaitingConfirmation = false }; if !invalidated { cancellingRename = false; saveActionLog(); if attempted { onReferencesChanged() }; load(preservingError: failure) } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let confirmation = try await repository.browserDeletionConfirmation(references, cancellation: request)
                 guard !invalidated, token === request, !request.isCancelled else { return }
-                let accepted = await confirmDeletion(confirmation)
-                guard !invalidated, token === request, !request.isCancelled else { return }
-                if accepted { let coordinator = factory?(); defer { coordinator?.close() }; try await repository.deleteBrowserReferences(references, cancellation: request, prepareTransport: coordinator?.preparation) }
-            } catch { guard !invalidated, token === request, !request.isCancelled else { return }; failure = error.localizedDescription }
-            guard !invalidated, token === request, !request.isCancelled else { return }
-            token = nil; deletingReference = false; busy = false; load(preservingError: failure)
+                awaitingConfirmation = true; let accepted = await confirmDeletion(confirmation); awaitingConfirmation = false
+                guard !invalidated, token === request, !request.isCancelled, accepted else { return }
+                attempted = true
+                let coordinator = factory?(); defer { coordinator?.close() }
+                _ = try await LocalGitCommandProgress.stream(preferences: preferences, update: { [weak self] progress in guard let self, !self.invalidated, self.token === request else { return }; self.renameOutput = progress.output }, resultText: { $0 }) { [self] emit in
+                    try await repository.deleteBrowserReferences(references, cancellation: request, prepareTransport: coordinator?.preparation, expectedHashes: hashes, onOutput: emit)
+                    return "Deleted \(references.count) reference(s).\n"
+                }
+            } catch {
+                guard !invalidated, token === request else { return }
+                mutationCancelled = request.isCancelled; mutationFailed = !mutationCancelled
+                renameOutput = LocalGitCommandProgress.failure(error, existing: renameOutput, preferences: preferences)
+                if !mutationCancelled { failure = error.localizedDescription }
+            }
         }
     }
     var onFetch: (() -> Void)?
@@ -383,16 +428,22 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     var canChangeTracking: Bool { canAccept && !bare && chosen?.objectType == "commit" && chosen.flatMap { GitReferenceName.removingPrefix("refs/heads/", from: $0.name.rawValue) } != nil }
     func unsetTracking() { guard canChangeTracking, let chosen, !chosen.upstream.isEmpty else { return }; changeTracking(chosen.name, upstream: nil) }
     func changeTracking(_ reference: GitReferenceName, upstream: GitReferenceName?) {
-        guard !invalidated, !busy, !hasChild, renameReference == nil, !bare else { return }
-        let request = OperationCancellation(); token = request; changingTracking = true; busy = true; error = nil
+        guard !invalidated, !busy, !hasChild, renameReference == nil, !bare, let captured = snapshot?.references.first(where: { $0.name == reference }) else { return }
+        ProgressActionLog.nextAttempt(self); let request = OperationCancellation(); token = request; changingTracking = true; busy = true; error = nil; mutationTitle = upstream == nil ? "Drop tracked branch" : "Set tracked branch"; mutationFailed = false; mutationCancelled = false; renameOutput = ""; cancellingRename = false
+        Self.activeMutations += 1; LocalGitCommandProgress.begin()
         Task {
+            var failure: String?
+            defer { Self.activeMutations -= 1; LocalGitCommandProgress.end(); withExtendedLifetime(access) {}; if token === request { token = nil; changingTracking = false; busy = false }; if !invalidated { cancellingRename = false; saveActionLog(); onReferencesChanged(); load(preservingError: failure) } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                try await repository.updateBrowserTracking(reference, upstream: upstream, cancellation: request)
-                guard !invalidated, token === request else { return }; token = nil; changingTracking = false; busy = false; load()
+                _ = try await LocalGitCommandProgress.stream(preferences: preferences, update: { [weak self] progress in guard let self, !self.invalidated, self.token === request else { return }; self.renameOutput = progress.output }, resultText: { $0 }) { [self] emit in
+                    try await repository.updateBrowserTracking(reference, upstream: upstream, cancellation: request, expectedHash: captured.hash, onOutput: emit)
+                    return upstream.map { "Tracking “\($0.rawValue)”.\n" } ?? "Dropped tracked branch.\n"
+                }
             } catch {
-                guard !invalidated, token === request else { return }; token = nil; changingTracking = false; busy = false
-                if upstream == nil { load(preservingError: error.localizedDescription) } else { self.error = error.localizedDescription }
+                guard !invalidated, token === request else { return }; mutationCancelled = request.isCancelled; mutationFailed = !mutationCancelled
+                renameOutput = LocalGitCommandProgress.failure(error, existing: renameOutput, preferences: preferences)
+                if !mutationCancelled { failure = error.localizedDescription }
             }
         }
     }
@@ -444,27 +495,43 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         }
     }
     var chosen: BrowserReference? { guard selection.count == 1, let selected else { return nil }; return rows.first { $0.reference.name == selected }?.reference }
-    var canAccept: Bool { !busy && !hasChild && !invalidated && renameReference == nil && (pickMultiple ? !selectedRows.isEmpty && selectedRows.count == selection.count : chosen != nil) }
+    var canAccept: Bool { !confirmingCancellation && !awaitingConfirmation && !busy && !hasChild && !invalidated && renameReference == nil && (pickMultiple ? !selectedRows.isEmpty && selectedRows.count == selection.count : chosen != nil) }
     var canFinish: Bool { picking ? canAccept : !busy && !hasChild && !invalidated && renameReference == nil }
     var canRename: Bool { canAccept && chosen.flatMap { GitReferenceName.removingPrefix("refs/heads/", from: $0.name.rawValue) } != nil }
     func beginRename() -> String? {
         guard canRename, let chosen, let row = rows.first(where: { $0.reference.name == chosen.name }) else { return nil }
-        renameFolder = folder; renameReference = chosen.name; initialFocusPending = false; error = nil
+        renameFolder = folder; renameHash = chosen.hash; renameReference = chosen.name; initialFocusPending = false; error = nil
         return row.name
     }
-    func cancelRename() { guard !busy else { return }; renameReference = nil; renameFolder = nil }
-    func commitRename(_ label: String) {
-        guard !invalidated, !busy, !hasChild, let reference = renameReference, let folder = renameFolder else { return }
-        let request = OperationCancellation(); token = request; busy = true; error = nil
+    func cancelRename() { guard !busy else { return }; renameReference = nil; renameFolder = nil; renameHash = nil }
+    func cancelRenameOperation() {
+        guard mutationActive, !invalidated, !awaitingConfirmation, !confirmingCancellation, !cancellingRename, let request = token else { return }
+        if !preferences.bool(forKey: "ConfirmKillProcess") { cancellingRename = true; request.cancel(); return }
+        confirmingCancellation = true; Self.activeMutations += 1
         Task {
+            defer { Self.activeMutations -= 1; if !invalidated { confirmingCancellation = false } }
+            let accepted = await confirmCancellation()
+            if accepted && !invalidated && token === request { cancellingRename = true; request.cancel() }
+        }
+    }
+    func commitRename(_ label: String) {
+        guard !invalidated, !busy, !hasChild, let reference = renameReference, let folder = renameFolder, let hash = renameHash else { return }
+        ProgressActionLog.nextAttempt(self); let request = OperationCancellation(); token = request; busy = true; error = nil; renaming = true; mutationTitle = "Rename"; mutationFailed = false; mutationCancelled = false; cancellingRename = false; renameOutput = ""; Self.activeRenames += 1; Self.activeMutations += 1; LocalGitCommandProgress.begin()
+        Task {
+            defer { Self.activeRenames -= 1; Self.activeMutations -= 1; LocalGitCommandProgress.end(); withExtendedLifetime(access) {}; renaming = false; cancellingRename = false; if !invalidated { saveActionLog() } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                try await repository.renameBrowserBranch(reference, folder: folder, label: label, cancellation: request)
+                _ = try await LocalGitCommandProgress.stream(preferences: preferences, update: { [weak self] progress in guard let self, !self.invalidated, self.token === request else { return }; self.renameOutput = progress.output }, resultText: { $0 }) { [self] emit in
+                    try await repository.renameBrowserBranch(reference, folder: folder, label: label, cancellation: request, expectedHash: hash, onOutput: emit)
+                    return "Renamed “\(reference.rawValue)” to “\(folder.rawValue)/\(label)”.\n"
+                }
                 guard !invalidated, token === request else { return }
-                token = nil; busy = false; renameReference = nil; renameFolder = nil; load()
+                token = nil; busy = false; renameReference = nil; renameFolder = nil; renameHash = nil; onReferencesChanged(); load()
             } catch {
                 guard !invalidated, token === request else { return }
-                token = nil; busy = false; renameReference = nil; renameFolder = nil; self.error = error.localizedDescription
+                mutationCancelled = request.isCancelled; mutationFailed = !mutationCancelled
+                renameOutput = LocalGitCommandProgress.failure(error, existing: renameOutput, preferences: preferences)
+                token = nil; busy = false; renameReference = nil; renameFolder = nil; renameHash = nil; onReferencesChanged(); load(preservingError: request.isCancelled ? nil : error.localizedDescription)
             }
         }
     }
@@ -500,7 +567,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
             } catch { if !invalidated, token === request, !request.isCancelled { self.error = error.localizedDescription } }
         }
     }
-    func invalidate() { invalidated = true; generatingUnified = false; deletingReference = false; changingTracking = false; resolvingCurrentBranch = false; renameReference = nil; renameFolder = nil; initialFocusPending = false; token?.cancel(); token = nil; busy = false }
+    func invalidate() { if mutationActive { mutationCancelled = true }; saveActionLog(); invalidated = true; confirmingCancellation = false; awaitingConfirmation = false; generatingUnified = false; deletingReference = false; changingTracking = false; resolvingCurrentBranch = false; renameReference = nil; renameFolder = nil; initialFocusPending = false; token?.cancel(); token = nil; busy = false }
     func setFolder(_ folder: GitReferenceName) { guard !busy, !hasChild, renameReference == nil, folders.contains(folder) else { return }; self.folder = folder; selected = nil }
     func refilter() {
         selection.formIntersection(Set(rows.map { $0.reference.name }))
@@ -565,6 +632,10 @@ struct ReferenceBrowserDialog: View {
                 Picker("Branch filter", selection: $model.mergeFilter) { ForEach(ReferenceBrowserMergeFilter.allCases, id: \.self) { Text($0.rawValue).tag($0) } }.labelsHidden().frame(width: 170).onChange(of: model.mergeFilter) { _ in model.load() }
             }.disabled(model.busy || model.renameReference != nil)
             ReferenceBrowserNativeView(model: model).frame(maxWidth: .infinity, maxHeight: .infinity)
+            if model.mutationActive || !model.renameOutput.isEmpty {
+                SubmoduleProgressOutputView(text: model.renameOutput, completed: !model.mutationActive, success: !model.mutationFailed && !model.mutationCancelled, preferences: model.preferences).frame(height: 100)
+                HStack { Spacer(); if model.mutationActive { Button(model.cancellingRename ? "Cancelling…" : "Cancel " + model.mutationTitle) { model.cancelRenameOperation() }.disabled(model.cancellingRename || model.awaitingConfirmation || model.confirmingCancellation) } else { Button("Dismiss output") { model.dismissOutput() } } }
+            }
             HStack {
                 Toggle("Show nested refs", isOn: $model.nested).onChange(of: model.nested) { _ in model.nestedChanged() }.disabled(model.busy || model.renameReference != nil)
                 Text("Showing \(model.rows.count) ref(s), \(model.selectedRows.count) ref(s) selected").font(.system(size: 11)).foregroundStyle(.secondary)

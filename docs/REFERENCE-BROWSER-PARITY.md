@@ -633,3 +633,28 @@ Synchronization onto that same form with effective project settings. Full SciEdi
 The connected [Log reference-navigation family](LOG-REFERENCE-NAVIGATION-PARITY.md)
 adds source reference-set scopes, multi-tip/range picking, bounded exact recents
 and owned browser/preparation lifetime. ChooseVersion histories remain session-only.
+
+## Connected reference mutations — October 14, 2026
+
+Inline Rename, Set/Drop tracked branch and local/remote deletion now use the same
+bounded colored output area, retained result, cancellation preference and action
+log. Deletion owns its confirmation through a once-only settlement; forced closure
+settles the answer as No. Lifetime counters retain preparation, confirmation,
+transport, mutation and cancellation questions after forced closure. Final reads
+refresh the catalog after success, failure or cancellation, including partial
+multi-reference deletion or a partly completed two-key tracking drop. Captured
+reference hashes are checked before mutation; local deletions recheck each target.
+Description keeps the upstream multiline Input dialog and its write lock, checks
+the captured branch tip and refreshes other repository windows after saving.
+
+These hash checks are preflight guards, not an atomic ref/config transaction.
+Remote deletion retains upstream's ordinary Push semantics; it does not add a
+force-with-lease guarantee. Cancellation cannot undo a completed Git operation.
+Physical menus/pickers/themes, signed transport/sandbox acceptance and all pinned
+control-by-control parity remain separate open gates. Grouped results are recorded
+with the Rename family after implementation is complete.
+
+The expanded grouped checkpoint passed 36 Core tests and fourteen native cases
+across system and bundled Git. Initial compilation and fixture failures, scoped
+repairs, actual process cleanup and acceptance limits are recorded in
+[the batch evidence](qa/rename-reference-management-2026-10-14.json).

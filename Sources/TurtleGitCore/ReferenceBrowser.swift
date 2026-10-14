@@ -157,19 +157,27 @@ extension GitRepository {
 // BrowseRefsDlg's inline label editor composes the new canonical name from the
 // selected tree folder, and delegates non-forcing rename semantics to Git.
 extension GitRepository {
-    public func renameBrowserBranch(_ reference: GitReferenceName, folder: GitReferenceName, label: String, cancellation: OperationCancellation? = nil) throws {
+    func validateBrowserReference(_ reference: GitReferenceName, expectedHash: String?, cancellation: OperationCancellation?) throws {
+        guard let expectedHash else { return }
+        let actual = try run(["rev-parse", "--verify", "--end-of-options", reference.rawValue], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+        guard actual == expectedHash else { throw ReferenceBrowserRenameFailure.changed }
+    }
+    public func renameBrowserBranch(_ reference: GitReferenceName, folder: GitReferenceName, label: String, cancellation: OperationCancellation? = nil, expectedHash: String? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws {
         try cancellation?.check()
         guard let old = GitReferenceName.removingPrefix("refs/heads/", from: reference.rawValue) else { throw ReferenceBrowserRenameFailure.localBranchOnly }
         let canonical = folder.rawValue + "/" + label
         guard let new = GitReferenceName.removingPrefix("refs/heads/", from: canonical) else { throw ReferenceBrowserRenameFailure.namespaceChange }
-        _ = try run(["-c", "core.precomposeunicode=false", "branch", "-m", old, "--", new], cancellation: cancellation)
+        try validateBrowserReference(reference, expectedHash: expectedHash, cancellation: cancellation)
+        try cancellation?.check()
+        _ = try run(["-c", "core.precomposeunicode=false", "branch", "-m", old, "--", new], cancellation: cancellation, onOutput: onOutput)
     }
 }
 public enum ReferenceBrowserRenameFailure: LocalizedError {
-    case localBranchOnly, namespaceChange
+    case localBranchOnly, namespaceChange, changed
     public var errorDescription: String? {
         switch self {
         case .localBranchOnly: return "Only local branches can be renamed."
+        case .changed: return "The reference changed after this operation began. Refresh before retrying."
         case .namespaceChange: return "The reference type cannot be changed. Keep the new name within refs/heads/."
         }
     }
@@ -178,19 +186,20 @@ public enum ReferenceBrowserRenameFailure: LocalizedError {
 // BrowseRefsDlg's tracked-branch commands. Git validates the remote fetch mapping
 // for Set; Drop removes just remote and merge rather than other branch settings.
 extension GitRepository {
-    public func updateBrowserTracking(_ reference: GitReferenceName, upstream: GitReferenceName?, cancellation: OperationCancellation? = nil) throws {
+    public func updateBrowserTracking(_ reference: GitReferenceName, upstream: GitReferenceName?, cancellation: OperationCancellation? = nil, expectedHash: String? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws {
         try cancellation?.check()
         guard let local = GitReferenceName.removingPrefix("refs/heads/", from: reference.rawValue) else { throw ReferenceBrowserRenameFailure.localBranchOnly }
+        try validateBrowserReference(reference, expectedHash: expectedHash, cancellation: cancellation)
         if let upstream {
             guard let short = GitReferenceName.removingPrefix("refs/remotes/", from: upstream.rawValue) else { throw ReferenceBrowserTrackingFailure.remoteBranchRequired }
             let remotes = try run(["remote"], cancellation: cancellation).text.split(separator: "\n").map(String.init)
             guard remotes.contains(where: { GitReferenceName.removingPrefix($0 + "/", from: short) != nil || GitReferenceName.equal($0, short) }) else { throw ReferenceBrowserTrackingFailure.remoteBranchRequired }
-            do { _ = try run(["-c", "core.precomposeunicode=false", "branch", "--set-upstream-to=" + short, "--", local], cancellation: cancellation) }
+            do { _ = try run(["-c", "core.precomposeunicode=false", "branch", "--set-upstream-to=" + short, "--", local], cancellation: cancellation, onOutput: onOutput) }
             catch let failure as GitFailure { throw ReferenceBrowserTrackingFailure.fetchMapping(failure.message) }
         } else {
             for suffix in ["remote", "merge"] {
                 try cancellation?.check()
-                do { _ = try run(["-c", "core.precomposeunicode=false", "config", "--local", "--unset-all", "branch." + local + "." + suffix], cancellation: cancellation) }
+                do { _ = try run(["-c", "core.precomposeunicode=false", "config", "--local", "--unset-all", "branch." + local + "." + suffix], cancellation: cancellation, onOutput: onOutput) }
                 catch let failure as GitFailure where failure.code == 5 { /* Already absent. */ }
             }
         }
@@ -268,10 +277,11 @@ extension GitRepository {
     public func deleteBrowserReference(_ reference: GitReferenceName, cancellation: OperationCancellation? = nil, prepareTransport: SSHTransportPreparation? = nil) async throws {
         try await deleteBrowserReferences([reference], cancellation: cancellation, prepareTransport: prepareTransport)
     }
-    public func deleteBrowserReferences(_ references: [GitReferenceName], cancellation: OperationCancellation? = nil, prepareTransport: SSHTransportPreparation? = nil) async throws {
+    public func deleteBrowserReferences(_ references: [GitReferenceName], cancellation: OperationCancellation? = nil, prepareTransport: SSHTransportPreparation? = nil, expectedHashes: [GitReferenceName: String] = [:], onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) async throws {
         // POSIX argv retains canonical UTF-8 even without caller cancellation.
         let token = cancellation ?? OperationCancellation()
         let kind = try validateBrowserDeletion(references, cancellation: token)
+        for reference in references { try validateBrowserReference(reference, expectedHash: expectedHashes[reference], cancellation: token) }
         if kind == .remoteBranch {
             let remotes = try remoteNames(cancellation: token)
             var grouped: [GitReferenceName: [String]] = [:]
@@ -285,13 +295,14 @@ extension GitRepository {
             for remote in grouped.keys.sorted(by: { $0.rawValue.utf16.lexicographicallyPrecedes($1.rawValue.utf16) }) {
                 let session = try await prepareSSHTransport([remote.rawValue], cancellation: token, preparation: prepareTransport)
                 defer { withExtendedLifetime(session) {} }
-                _ = try run(["-c", "core.precomposeunicode=false", "push", "--", remote.rawValue] + grouped[remote]!, environmentOverrides: session?.transportEnvironment ?? [:], cancellation: token)
+                _ = try run(["-c", "core.precomposeunicode=false", "push", "--", remote.rawValue] + grouped[remote]!, environmentOverrides: session?.transportEnvironment ?? [:], cancellation: token, onOutput: onOutput)
             }
         } else {
             // Source stops at the first failure; earlier deletions remain completed.
             for reference in references {
+                try validateBrowserReference(reference, expectedHash: expectedHashes[reference], cancellation: token)
                 let name = GitReferenceName.removingPrefix(kind.prefix, from: reference.rawValue)!
-                _ = try run(["-c", "core.precomposeunicode=false"] + (kind == .branch ? ["branch", "-D", "--", name] : ["tag", "-d", "--", name]), cancellation: token)
+                _ = try run(["-c", "core.precomposeunicode=false"] + (kind == .branch ? ["branch", "-D", "--", name] : ["tag", "-d", "--", name]), cancellation: token, onOutput: onOutput)
             }
         }
     }

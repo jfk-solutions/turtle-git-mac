@@ -2,6 +2,14 @@
 
 *A macOS fork of TortoiseGit*
 
+The connected Rename/reference-management batch covers guarded file/folder Rename,
+inline branch Rename, tracked-branch Set/Drop and ordered local/remote deletion.
+Owned questions, cancellable streamed results, retained action logs and final
+catalog/parent refresh now share operation lifetimes. Description retains its
+source Input layout with captured-tip validation. See [Rename parity](RENAME-PARITY.md)
+and [reference browser parity](REFERENCE-BROWSER-PARITY.md); these remain partial
+family audits, with physical/signed and full upstream parity gates open.
+
 The comparison configuration batch adds custom comment profiles in Application
 Support and a native editor with draft/Apply/Cancel, validation and stale-edit
 protection. Both viewers capture profiles on reload; the three-pane editor

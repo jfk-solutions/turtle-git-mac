@@ -1,0 +1,95 @@
+{
+  "date": "2026-10-14",
+  "base": "07b3a162acc833d07d039f5e1a727b46597433f3",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Guarded file/folder Rename plan, owned same-worktree destination selection, streamed progress, Cancel/Back and captured parent path remapping",
+    "Inline branch rename keeps source layout with captured-tip validation and final catalog refresh",
+    "Tracked-branch Set/Drop and ordered local/remote deletion share colored bounded stream, ConfirmKillProcess, retained results/action logs and final catalog/parent refresh",
+    "Owned once-settled deletion/cancellation questions, retained operation/transport/lease/Quit lifetimes and retired-response suppression",
+    "Description keeps multiline Input form and write lock, adds captured-tip guard and refresh of other repository windows"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/rename-reference-debug-2026-10-14.log",
+      "initial_failure": "Exit 65 from ambiguous greatestFiniteMagnitude in three native geometry expressions; explicit CGFloat repaired before tests started. Existing exit-zero/no-output diagnostics remain."
+    },
+    "core": {
+      "exit": 0,
+      "tests": 36,
+      "filter": "RenameWorkflowTests|RenameTests|ReferenceBrowserTests|ReferenceCreationTests",
+      "log": "build/qa/rename-reference-core-2026-10-14.log",
+      "initial_failure": "Package build hit the same native geometry ambiguity before tests began; grouped check passed after repair. No Core repeat for native fixture changes."
+    },
+    "native": {
+      "exit": 0,
+      "cases": 14,
+      "families": [
+        "rename-workflows",
+        "reference-rename",
+        "reference-mutations",
+        "reference-tracking",
+        "description",
+        "delete",
+        "batch-delete"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "logs": [
+        "build/qa/rename-reference-native-2026-10-14.log",
+        "build/qa/rename-reference-native-remaining-2026-10-14.log",
+        "build/qa/rename-reference-native-bundled-2026-10-14.log"
+      ],
+      "owned_receivers_reaped": [
+        57854,
+        57894,
+        57978,
+        58144,
+        58228,
+        58342,
+        58409,
+        58597,
+        58839,
+        58924,
+        59029,
+        59097,
+        59283,
+        59611,
+        59649
+      ],
+      "initial_failure": "New reference-mutations fixture omitted configured remote/tracking ref, so Drop was correctly unavailable and readiness timed out. Receiver 57978 was reaped. Fixture configured origin and its tracking ref; only uncompleted cases ran afterward. Unchanged original receiver reused for the two bundled Rename cases.",
+      "evidence": [
+        "Actual rename preserves separately staged/working bytes, path callbacks and success closure; invalid input remains editable; live mv cancellation and Back retain draft",
+        "Native inline branch label editor/menu/F2/Return/Escape, relative namespace/collision/config/HEAD preservation",
+        "Actual gated tracking/deletion helper streams, carriage-return replacement, declined and accepted cancellation, resulting unchanged references/config and one final refresh",
+        "Actual owned deletion sheet settles on forced closure without deleting selected branch or retaining operation counter",
+        "Real set/drop tracked config, description save/clear/bare/retry, local/tag/remote and ordered deletion, preflight/command/transport cancellation and forced-child cleanup"
+      ],
+      "receiver_pids_still_live_at_final_check": []
+    },
+    "hosted": {
+      "last_observed_commit": "07b3a162acc833d07d039f5e1a727b46597433f3",
+      "macos_run": 38572025288,
+      "macos_status": "in_progress",
+      "pages_run": 38572025522,
+      "pages_conclusion": "success",
+      "current_batch": "Not yet hosted-verified"
+    },
+    "site": {
+      "exit": 0,
+      "log": "build/qa/rename-reference-site-2026-10-14.log",
+      "unresolved_fragments": []
+    }
+  },
+  "limitations": [
+    "Preflight tip/index/filesystem guards do not establish an atomic ref/config/filesystem transaction",
+    "Remote deletion retains upstream ordinary Push, without a new force-with-lease guarantee; cancellation cannot undo completed effects",
+    "Two-key tracking drops may complete partially and are reloaded accurately",
+    "Hidden native fixtures do not establish physical picker/theme/keyboard/screenshot parity; zero-size NSSplitView diagnostics remain",
+    "Autocomplete/Windows balloon behavior, physical drag, submodule/gitmodules variants and full source control review remain open",
+    "Signed Finder/sandbox/transport, minimum-OS and App Store distribution acceptance remain open; whole port incomplete"
+  ]
+}

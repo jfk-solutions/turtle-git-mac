@@ -703,8 +703,12 @@ import TurtleGitCore
             self.commitWindows[root.path]?.model.didRename(old, to: new)
             if self.root == root {
                 self.selection = Set(self.selection.map { $0 == old ? new : $0.hasPrefix(old + "/") ? new + $0.dropFirst(old.count) : $0 })
-                self.output = output.isEmpty ? "Renamed \(old) to \(new)." : output; Task { await self.refresh() }
+                self.output = output.isEmpty ? "Renamed \(old) to \(new)." : output
             }
+        }
+        controller.model.onChanged = { [weak self] in
+            self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
+            if self?.root == root { Task { await self?.refresh() } }
         }
         renameWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
@@ -2383,6 +2387,7 @@ import TurtleGitCore
         let key = repository.root.path
         if let existing = referenceBrowserWindows[key] { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
         let controller = ReferenceBrowserWindowController(repository: repository, access: access, initial: "HEAD", picking: false) { _ in }
+        controller.model.onReferencesChanged = { [weak self] in self?.refreshRepositoryLogs(repository.root); if self?.root == repository.root { Task { await self?.refresh() } } }
         configureReferenceBrowser(controller.model, repository: repository, access: access)
         controller.onClosed = { [weak self, weak controller] in
             guard let self, let controller, self.referenceBrowserWindows[key] === controller else { return }

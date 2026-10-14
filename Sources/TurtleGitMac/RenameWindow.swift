@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 import AppKit
 import SwiftUI
 import TurtleGitCore
@@ -5,112 +6,131 @@ import TurtleGitCore
 @MainActor final class RenameWindowController: NSWindowController, NSWindowDelegate {
     let model: RenameWindowModel
     var onClosed: () -> Void = {}
-    init(repository: GitRepository, access: RepositoryAccessLease?, source: String) {
-        model = RenameWindowModel(repository: repository, access: access, source: source)
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 610, height: 150), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "Rename – TurtleGit"
-        window.contentMinSize = NSSize(width: 520, height: 150)
-        window.contentMaxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: 150)
-        window.isReleasedWhenClosed = false
+    private var panel: (UUID, NSSavePanel)?
+    private var question: (UUID, NSAlert, (Bool) -> Void)?
+    init(repository: GitRepository, access: RepositoryAccessLease?, source: String, preferences: UserDefaults = .standard) {
+        model = RenameWindowModel(repository: repository, access: access, source: source, preferences: preferences)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 610, height: 160), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        window.title = "Rename – TurtleGit"; window.contentMinSize = NSSize(width: 520, height: 160); window.contentMaxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: 160); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: RenameDialog(model: model))
         super.init(window: window); window.delegate = self; window.center()
-        model.close = { [weak window] in window?.close() }
-        model.browse = { [weak self] in self?.browse() }
-
+        model.close = { [weak self] in self?.window?.performClose(nil) }; model.browse = { [weak self] in self?.browse() }
+        model.presentProgress = { [weak window] in window?.contentMaxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude); window?.contentMinSize = NSSize(width: 620, height: 300); window?.setContentSize(NSSize(width: 760, height: 430)) }
+        model.restoreInput = { [weak window] in window?.contentMinSize = NSSize(width: 520, height: 160); window?.contentMaxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: 160); window?.setContentSize(NSSize(width: 610, height: 160)) }
+        model.confirmCancel = { [weak self] in await self?.confirmCancellation() ?? false }
         DialogGeometry.attach(window, identifier: "RenameDialog", legacyName: "RenameDialog")
     }
     private func browse() {
-        guard let window else { return }
-        let panel = NSSavePanel()
-        let original = model.repository.root.appendingPathComponent(model.source)
-        panel.title = "Rename"; panel.prompt = "Choose destination"
-        panel.directoryURL = original.deletingLastPathComponent(); panel.nameFieldStringValue = model.name
-        panel.canCreateDirectories = true
-        panel.beginSheetModal(for: window) { [weak model] response in
-            guard response == .OK, let target = panel.url else { return }
-            model?.chooseDestination(target)
+        guard model.canEdit, panel == nil, let window, window.attachedSheet == nil else { return }
+        let panel = NSSavePanel(), id = UUID(), original = model.repository.root.appendingPathComponent(model.source)
+        panel.title = "Rename"; panel.prompt = "Choose destination"; panel.directoryURL = original.deletingLastPathComponent(); panel.nameFieldStringValue = model.name; panel.canCreateDirectories = true
+        self.panel = (id, panel); model.choosingDestination = true
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard let self, self.panel?.0 == id else { return }; self.panel = nil; self.model.choosingDestination = false
+            if !self.model.retired, response == .OK, let target = panel.url { self.model.chooseDestination(target) }
         }
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy }
-    func windowWillClose(_ notification: Notification) { onClosed() }
+    private func confirmCancellation() async -> Bool {
+        guard !model.retired, question == nil, let window, window.attachedSheet == nil else { return false }
+        let alert = NSAlert(); alert.messageText = "The process is still running."; alert.informativeText = "Stop the current rename? Review the resulting index and working paths before retrying."; alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No")
+        let id = UUID(); model.hasQuestion = true
+        return await withCheckedContinuation { continuation in
+            question = (id, alert, { continuation.resume(returning: $0) }); alert.beginSheetModal(for: window) { [weak self] response in self?.finishQuestion(id, accepted: response == .alertFirstButtonReturn) }
+        }
+    }
+    private func finishQuestion(_ id: UUID, accepted: Bool) {
+        guard let pending = question, pending.0 == id else { return }; question = nil; model.hasQuestion = false
+        if pending.1.window.sheetParent === window { window?.endSheet(pending.1.window) }; pending.1.window.orderOut(nil); pending.2(accepted)
+    }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; return !model.choosingDestination && !model.hasQuestion && !model.confirmingCancellation }
+    func windowWillClose(_ notification: Notification) { guard !model.retired else { return }; model.retire(); if let (_, panel) = panel { panel.sheetParent?.endSheet(panel, returnCode: .cancel); panel.orderOut(nil) }; panel = nil; if let pending = question { finishQuestion(pending.0, accepted: false) }; onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
-
-@MainActor final class RenameWindowModel: ObservableObject {
+@MainActor final class RenameWindowModel: ObservableObject, ActionLogProgress {
+    static private(set) var activeOperations = 0
     let repository: GitRepository
-    private let access: RepositoryAccessLease?
+    let access: RepositoryAccessLease?
     let source: String
+    let preferences: UserDefaults
+    private var token: OperationCancellation?
+    private(set) var retired = false
     @Published var name: String
     @Published var busy = false
     @Published var error: String?
+    @Published var choosingDestination = false
+    @Published var hasQuestion = false
+    @Published private(set) var confirmingCancellation = false
+    @Published private(set) var cancelling = false
+    @Published private(set) var progress = false
+    @Published private(set) var failed = false
+    @Published private(set) var cancelled = false
+    @Published var output = ""
+    var canEdit: Bool { !retired && !busy && !progress && !choosingDestination && !hasQuestion }
     var close: () -> Void = {}
     var browse: () -> Void = {}
+    var presentProgress: () -> Void = {}
+    var restoreInput: () -> Void = {}
+    var confirmCancel: () async -> Bool = { false }
     var onRenamed: (String, String, String) -> Void = { _, _, _ in }
-    init(repository: GitRepository, access: RepositoryAccessLease?, source: String) {
-        self.repository = repository; self.access = access; self.source = source
-        name = (source as NSString).lastPathComponent
-    }
+    var onChanged: () -> Void = {}
+    var resolveDestination: ((URL, OperationCancellation) async throws -> String)?
+    init(repository: GitRepository, access: RepositoryAccessLease?, source: String, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.source = source; self.preferences = preferences; name = (source as NSString).lastPathComponent }
+    private func requireAccess() throws { if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable } }
+    func retire() { if busy { cancelled = true }; retired = true; token?.cancel(); saveActionLog() }
     func chooseDestination(_ target: URL) {
-        guard !busy else { return }; busy = true
+        guard canEdit else { return }; let token = OperationCancellation(); self.token = token; busy = true; error = nil; Self.activeOperations += 1
         Task {
-            defer { busy = false }
-            do {
-                let root = repository.root.standardizedFileURL.path
-                guard target.isFileURL, target.path.hasPrefix(root + "/") else { throw RenameFailure.outsideWorkingTree }
-                let parent = try CloneOptions.workingDirectory(for: target.deletingLastPathComponent())
-                let targetRoot = try await GitRepository(root: parent, executable: repository.executable).discoverRoot()
-                guard targetRoot.resolvingSymlinksInPath() == repository.root.resolvingSymlinksInPath() else { throw RenameFailure.outsideWorkingTree }
-                let base = repository.root.appendingPathComponent(source).deletingLastPathComponent().path
-                // Express a same-worktree move relative to the source's directory.
-                let from = base.split(separator: "/"), to = target.path.split(separator: "/")
-                var shared = 0
-                while shared < min(from.count, to.count), from[shared] == to[shared] { shared += 1 }
-                let relative = Array(repeating: "..", count: from.count - shared) + to.dropFirst(shared).map(String.init)
-                let proposed = relative.joined(separator: "/")
-                _ = try RenameOptions(source: source, name: proposed).destination(root: repository.root)
-                name = proposed
-            } catch { self.error = error.localizedDescription }
+            defer { Self.activeOperations -= 1; withExtendedLifetime(access) {}; if self.token === token { self.token = nil; busy = false } }
+            do { try requireAccess(); let value: String; if let resolveDestination { value = try await resolveDestination(target, token) } else { value = try await repository.renameDestination(target, source: source, cancellation: token) }; try token.check(); if !retired { name = value } }
+            catch { if !retired, !token.isCancelled { self.error = error.localizedDescription } }
         }
     }
     func rename() {
-        guard !busy else { return }
-        let options = RenameOptions(source: source, name: name)
-        do {
-            let destination = try options.destination(root: repository.root)
-            if GitRuntime.isAppStoreBuild && access?.contains(repository.root) != true { throw RepositoryAccessFailure.securityScopeUnavailable }
-            busy = true
-            Task {
-                defer { busy = false }
-                do {
-                    let output = try await repository.rename(options)
-                    onRenamed(source, destination, output); close()
-                } catch { self.error = error.localizedDescription }
+        guard canEdit else { return }; let options = RenameOptions(source: source, name: name), token = OperationCancellation(); self.token = token; busy = true; error = nil; cancelled = false; failed = false; output = ""; Self.activeOperations += 1; LocalGitCommandProgress.begin()
+        Task {
+            var attempted = false
+            defer { Self.activeOperations -= 1; LocalGitCommandProgress.end(); withExtendedLifetime(access) {}; if self.token === token { self.token = nil; busy = false; cancelling = false }; if attempted && !retired { onChanged() } }
+            do {
+                try requireAccess(); let plan = try await repository.prepareRename(options, cancellation: token); try token.check(); guard !retired else { return }
+                progress = true; ProgressActionLog.nextAttempt(self, savePrevious: false); presentProgress(); attempted = true
+                let text = try await LocalGitCommandProgress.stream(preferences: preferences, update: { [weak self] value in guard let self, !self.retired, self.token === token else { return }; self.output = value.output }, resultText: { $0 }) { [self] emit in try await repository.executeRename(plan, cancellation: token, onOutput: emit) }
+                guard !retired else { return }; onRenamed(source, plan.destination, text); onChanged(); attempted = false
+                busy = false; self.token = nil; saveActionLog(); close()
+            } catch {
+                guard !retired else { return }; cancelled = token.isCancelled; failed = !cancelled
+                if progress { output = LocalGitCommandProgress.failure(error, existing: output, preferences: preferences) }
+                else if !cancelled { self.error = error.localizedDescription }
             }
-        } catch { self.error = error.localizedDescription }
+        }
     }
+    func back() { guard !retired, !busy, progress, !hasQuestion, !confirmingCancellation else { return }; saveActionLog(); progress = false; restoreInput() }
+    func cancel() {
+        guard !retired, busy, !hasQuestion, !confirmingCancellation, !cancelling, let token else { return }
+        if !progress || !preferences.bool(forKey: "ConfirmKillProcess") { cancelling = true; token.cancel(); return }
+        confirmingCancellation = true
+        Task { let accepted = await confirmCancel(); confirmingCancellation = false; if accepted && !retired && self.token === token { cancelling = true; token.cancel() } }
+    }
+    var actionLogRepository: URL { repository.root }
+    var actionLogEligible: Bool { progress }
+    var actionLogFailed: Bool { failed }
+    var actionLogCancelled: Bool { cancelled }
 }
-
 private struct RenameDialog: View {
     @ObservedObject var model: RenameWindowModel
-    @FocusState private var nameFocused: Bool
+    @FocusState private var focused: Bool
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Rename “\((model.source as NSString).lastPathComponent)”: ").lineLimit(2).help(model.source)
-            HStack {
-                Text("New name:").frame(width: 90, alignment: .leading)
-                TextField("New name", text: $model.name).textFieldStyle(.roundedBorder).focused($nameFocused)
-                Button("…") { model.browse() }.help("Choose a destination in the same working tree")
+            if model.progress {
+                Text(model.busy ? "Renaming…" : model.cancelled ? "Rename stopped. Review current paths before retrying." : "Rename failed.").font(.headline)
+                SubmoduleProgressOutputView(text: model.output, completed: !model.busy, success: !model.failed && !model.cancelled, preferences: model.preferences)
+                HStack { if !model.busy { Button("Back") { model.back() } }; Spacer(); Button(model.busy ? "Cancel" : "Close") { if model.busy { model.cancel() } else { model.saveActionLog(); model.close() } }.disabled(model.cancelling || model.hasQuestion || model.confirmingCancellation) }
+            } else {
+                Text("Rename “\((model.source as NSString).lastPathComponent)”: ").lineLimit(2).help(model.source)
+                HStack { Text("New name:").frame(width: 90, alignment: .leading); TextField("New name", text: $model.name).textFieldStyle(.roundedBorder).focused($focused).disabled(!model.canEdit); Button("…") { model.browse() }.disabled(!model.canEdit) }
+                if let error = model.error { Text(error).font(.caption).foregroundStyle(.red).lineLimit(2) }
+                Spacer(minLength: 0)
+                HStack { if model.busy { ProgressView().controlSize(.small) }; Spacer(); Button("OK") { model.rename() }.keyboardShortcut(.defaultAction).disabled(!model.canEdit); Button("Cancel") { if model.busy { model.cancel() } else { model.close() } }.keyboardShortcut(.cancelAction).disabled(model.choosingDestination) }
             }
-            Spacer(minLength: 0)
-            HStack {
-                if model.busy { ProgressView().controlSize(.small) }
-                Spacer()
-                Button("OK") { model.rename() }.keyboardShortcut(.defaultAction)
-                Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction)
-            }
-        }.padding(16).disabled(model.busy).onAppear { nameFocused = true }
-        .alert("Could not rename", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
-            Button("OK") { model.error = nil; nameFocused = true }
-        } message: { Text(model.error ?? "") }
+        }.padding(16).onAppear { focused = true }
     }
 }

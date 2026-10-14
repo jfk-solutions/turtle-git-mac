@@ -68,12 +68,44 @@ geometry relaunch, dark rendering and keyboard traversal still require verificat
 The current directory picker issue is tracked in INIT-PARITY.md. Signed Finder
 activation, external URL delivery, sandbox grants and symlink selections, submodule
 moves/gitmodules updates and multi-repository handoffs need broader end-to-end QA.
-The shared upstream Rename dialog's other consumers (reference renaming and drop
-move/copy workflows), autocomplete and Windows error balloons are not fully ported.
+Reference rename retains upstream's separate inline Browse References editor.
+Move/Copy and Finder clipboard consumers have their own connected family records;
+autocomplete, Windows error balloons and physical drag integration remain open.
 The native Commit list was verified to display index renames as Renamed even if a
 low-similarity HEAD comparison reports an added file. The workspace now shares the
 existing upstream status-color palette; its broader native visual QA remains.
 No full upstream or App Store parity is claimed.
 
 The native multi-file Move and Move/Rename adaptation is tracked separately in
-[File Move parity](FILE-MOVE-PARITY.md); Finder drag and clipboard consumers remain open.
+[File Move parity](FILE-MOVE-PARITY.md). Finder clipboard consumers are implemented
+in the transfer family; physical drag acceptance remains open.
+
+
+## Connected file/reference workflow — October 14, 2026
+
+File/folder Rename now shares the guarded Move plan and cancellable literal Git mv
+backend. Input errors retain the native source/name/browse/OK/Cancel window. Browse
+owns its panel and destination validation token; same-worktree parent-relative names
+remain supported. Retired replies cannot change a later input or start mutation.
+Actual execution streams bounded output; cancellation/failure retains a progress
+result with Back and the entered name. Success delivers captured path remapping and
+refresh before closing. Operation counters/leases cover preparation, commands and
+pending reads even after forced closure. The progress window is a macOS adaptation
+of upstream's blocking Git call; input layout remains horizontally resizable.
+
+Reference renaming retains BrowseRefsDlg's inline editor rather than replacing it
+with CRenameDlg. The branch SHA is captured when label editing begins and checked
+before nonforcing Git branch -m. Owned streamed output, cancellation, final snapshot
+refresh and lifetime counters now cover the command. Changed references are refused
+rather than renamed under stale metadata. Git remains authoritative for collisions,
+invalid labels and checked-out branch/worktree constraints.
+
+Shared Move/Copy collision dialogs have separate family records. Autocomplete,
+Windows balloon focus behavior, full physical input/picker/theme acceptance,
+submodule/gitmodules variants and signed Finder/sandbox integration remain open.
+Batch results follow grouped validation; no full Rename/source or port claim.
+
+The expanded grouped checkpoint passed 36 Core tests and fourteen native cases
+across system and bundled Git. Initial compilation and fixture failures, scoped
+repairs, actual process cleanup and acceptance limits are recorded in
+[the batch evidence](qa/rename-reference-management-2026-10-14.json).
