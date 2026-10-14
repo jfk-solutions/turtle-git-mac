@@ -389,3 +389,47 @@ Progress cancellation and coordinated exclusive receiver writes are shared acros
 file/folder/root handoffs. See [historical transfer parity](HISTORICAL-TRANSFER-PARITY.md)
 for exact ownership, the observed CI step, local results and remaining physical/
 signed acceptance.
+
+## Native folder tree — October 15, 2026
+
+The left pane now uses NSOutlineView, replacing the nested disclosure/button
+implementation. This restores standard native tree selection, arrow-key expansion
+and navigation, type-to-select, Return/double-click opening and Command-C folder
+name copying. The browser window's file-table shortcuts exclude the outline, so
+folder Return and Copy cannot accidentally operate on the contents selection.
+
+Folder nodes keep stable path identities while directory listings load lazily.
+Expanding a folder requests its pinned listing; loaded leaves lose their disclosure
+arrow. Selection updates the right pane, and list navigation/refresh restores the
+matching tree row and expanded folders. The outline uses a native folder icon,
+selection appearance, scrolling, path tooltips and an accessible pane label.
+
+Right-click targets the folder row without navigating the contents pane. Its
+Open, Show log, Copy to clipboard and Copy hash actions use the original command
+artwork and captured pinned menu targets. Navigation, refresh and retired owners
+reject old actions. Root/folder rows expose NSFilePromiseProvider through the
+outline's native drag delegate, retaining the existing pinned historical export,
+receiver collision refusal and permission lifetime. Actual Finder drag acceptance
+and signed destination access remain separate.
+
+The source comparison is RepositoryBrowser.cpp's RepoTree registration,
+OnContextMenu_RepoTree/ShowContextMenu, ReadTree/FillListCtrlForTreeNode, refresh
+and historical drag behavior at the pinned commit. AppKit supplies macOS tree
+keyboard/selection behavior in place of Windows common controls. Full physical
+keyboard/VoiceOver and visual parity acceptance are not inferred from delegate tests.
+
+The Debug build and four grouped browser table/lifecycle checks passed on system
+and bundled Git. After a sheet-state correction, the affected table/capture cases
+passed again on bundled Git. The fixture needed an explicit synchronous sheet
+completion signature; production code did not change for that fixture correction.
+Core behavior is unchanged and was not rerun. All six owned receivers were reaped.
+See qa/repository-browser-folder-tree-2026-10-15.json for exact scope and limits.
+
+Both captures were inspected against the pinned upstream RepoBrowser.png. They
+show the native folder tree alongside the source-style path/revision, contents
+columns and footer layout. These private fixtures contain representative folders
+and files, not a claim of full physical or accessibility acceptance.
+
+![Native Repository Browser folder tree in light mode](site/assets/repository-browser-tree-light.png)
+
+![Native Repository Browser folder tree in dark mode](site/assets/repository-browser-tree-dark.png)

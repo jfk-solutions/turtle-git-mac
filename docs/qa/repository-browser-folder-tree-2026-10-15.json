@@ -1,0 +1,69 @@
+{
+  "date": "2026-10-15",
+  "scope": "Repository Browser native folder tree",
+  "source": "Pinned RepositoryBrowser.cpp RepoTree, folder menu/navigation and drag branches",
+  "implementation": [
+    "NSOutlineView with stable path nodes and lazy loading",
+    "Native selection/navigation/type-select/expansion; Return and Copy separated from file-table shortcuts",
+    "Captured folder menu targets with original icons and generation guards",
+    "Root/folder file promise drag delegate reuses pinned historical export",
+    "Sheet actions gated without leaving tree disabled after sheet dismissal"
+  ],
+  "validation": {
+    "debug_build": {
+      "exit_code": 0,
+      "log": "build/qa/browser-folder-tree-build-2026-10-15.log"
+    },
+    "initial_native": {
+      "log": "build/qa/browser-folder-tree-native-2026-10-15.log",
+      "cases": [
+        "repository-browser-table",
+        "repository-browser"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "result": "4 passed",
+      "pids_reaped": [
+        32799,
+        32869,
+        33020,
+        33083
+      ]
+    },
+    "final_affected_native": {
+      "log": "build/qa/browser-folder-tree-final-native-2026-10-15.log",
+      "cases": [
+        "repository-browser-table",
+        "repository-browser-table-captures"
+      ],
+      "engine": "bundled Git",
+      "result": "2 passed after sheet-state fix; fixture compile repaired with explicit synchronous beginSheet completion",
+      "pids_reaped": [
+        33414,
+        33477
+      ]
+    },
+    "core": "Unchanged; not rerun",
+    "captures": [
+      {
+        "file": "docs/site/assets/repository-browser-tree-light.png",
+        "sha256": "d0c3a32a5512113c2b6ee834e38547d9109a9d95631ba616f67bf6f13dd57f7e",
+        "inspected": true
+      },
+      {
+        "file": "docs/site/assets/repository-browser-tree-dark.png",
+        "sha256": "03c74beb1e01451299f9c4f4b6d02a11b2f9c97178ed4ba074ddc138342dc05d",
+        "inspected": true
+      }
+    ],
+    "visual_comparison": "Both actual 2000x1364 captures compared with pinned doc/images/en/RepoBrowser.png: path/revision, left tree/right three-column list, selected folder, size alignment, footer and buttons; native macOS icons and selection appearance retained"
+  },
+  "remaining": [
+    "Physical keyboard and VoiceOver acceptance",
+    "Actual Finder drag session and signed receiver destination access",
+    "Tree-object history handoff behavior",
+    "Full browser/application parity and App Store acceptance"
+  ]
+}

@@ -9,6 +9,10 @@ import TurtleGitCore
         if let table=view as? NSTableView,table.accessibilityLabel()=="Repository contents" { return table }
         return view.subviews.compactMap(find).first
     }
+    @MainActor static func findTree(_ view:NSView) -> RepositoryBrowserFolderOutline? {
+        if let tree=view as? RepositoryBrowserFolderOutline { return tree }
+        return view.subviews.compactMap(findTree).first
+    }
     @MainActor static func wait(line:Int = #line,_ ready:()->Bool) async throws {
         for _ in 0..<1500 { if ready() { return };try await Task.sleep(nanoseconds:10_000_000) };throw Failure(description:"Browser table timeout at \(line)")
     }
@@ -30,6 +34,40 @@ import TurtleGitCore
         owner.window?.contentView?.layoutSubtreeIfNeeded()
         try await wait { !owner.model.busy && find(owner.window!.contentView!)?.numberOfRows==3 }
         let model=owner.model,table=find(owner.window!.contentView!)!,coordinator=table.delegate as! RepositoryBrowserContentsTable.Coordinator
+        try await wait { findTree(owner.window!.contentView!)?.numberOfRows==2 }
+        let tree=findTree(owner.window!.contentView!)!,treeCoordinator=tree.delegate as! RepositoryBrowserFolderTree.Coordinator
+        try require(tree.accessibilityLabel()=="Repository folders" && tree.allowsTypeSelect && !tree.allowsMultipleSelection,"Native folder tree configuration")
+        let temporarySheet=NSWindow(contentRect:NSRect(x:0,y:0,width:160,height:80),styleMask:[.titled],backing:.buffered,defer:false)
+        temporarySheet.isReleasedWhenClosed=false
+        owner.window!.beginSheet(temporarySheet,completionHandler:{ _ in });treeCoordinator.update()
+        try require(!treeCoordinator.available && tree.isEnabled,"Sheet must suppress actions without permanently disabling the tree")
+        owner.window!.endSheet(temporarySheet,returnCode:.cancel);temporarySheet.orderOut(nil);temporarySheet.close()
+        try await wait { owner.window!.attachedSheet==nil }
+        try require(treeCoordinator.available && tree.isEnabled,"Tree stayed disabled after sheet dismissal")
+        let rootNode=tree.item(atRow:0)!,folderNode=tree.item(atRow:1)!
+        try require(model.directories["folder"]==nil,"Folder eagerly loaded")
+        tree.expandItem(folderNode)
+        try await wait { model.directories["folder"] != nil && tree.numberOfRows==3 }
+        try require(model.expanded.contains("folder"),"Native expansion not retained")
+        let deepNode=tree.item(atRow:2)!
+        tree.selectRowIndexes(IndexSet(integer:2),byExtendingSelection:false)
+        try await wait { model.snapshot?.directory=="folder/deep" && table.numberOfRows==1 }
+        try require((deepNode as? RepositoryBrowserFolderTree.Node)?.path=="folder/deep","Lazy child identity")
+        treeCoordinator.selectContext(1)
+        let treeMenu=tree.menu!;treeCoordinator.menuNeedsUpdate(treeMenu)
+        try require(treeMenu.items.filter { !$0.isSeparatorItem }.map(\.title)==["Open","Show log","Copy to clipboard","Copy hash"],"Native folder menu source order")
+        try require(treeMenu.items.filter { !$0.isSeparatorItem }.allSatisfy { $0.image != nil },"Folder context artwork")
+        var treeLog:(String,String)?;model.onLog={ treeLog=($0,$1) }
+        let treeLogItem=treeMenu.items.first { $0.title=="Show log" }!
+        _ = NSApplication.shared.sendAction(treeLogItem.action!,to:treeLogItem.target,from:treeLogItem)
+        try require(treeLog?.0=="folder" && treeLog?.1==hash,"Folder menu lost pinned context")
+        try require(treeCoordinator.outlineView(tree,pasteboardWriterForItem:rootNode) is NSFilePromiseProvider && treeCoordinator.outlineView(tree,pasteboardWriterForItem:folderNode) is NSFilePromiseProvider,"Root/folder native drag source")
+        tree.collapseItem(folderNode)
+        try require(!model.expanded.contains("folder"),"Collapse did not update expansion state")
+        model.openFolder("");try await wait { model.snapshot?.directory=="" && table.numberOfRows==3 }
+        treeLog=nil;_ = NSApplication.shared.sendAction(treeLogItem.action!,to:treeLogItem.target,from:treeLogItem)
+        try require(treeLog==nil,"Retired folder menu dispatched")
+
         try require(table.tableColumns.map { $0.identifier.rawValue }==["name","extension","size"] && table.allowsMultipleSelection,"Native defaults")
         table.selectRowIndexes(IndexSet([1,2]),byExtendingSelection:false)
         try await wait { model.selection.count==2 }

@@ -8,7 +8,7 @@ import UniformTypeIdentifiers
 private final class RepositoryBrowserNativeWindow: NSWindow {
     weak var model: RepositoryBrowserWindowModel?
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        if attachedSheet == nil, firstResponder is NSTableView, event.modifierFlags.contains(.command),
+        if attachedSheet == nil, firstResponder is NSTableView, !(firstResponder is NSOutlineView), event.modifierFlags.contains(.command),
            event.modifierFlags.intersection([.control,.option]).isEmpty {
             if event.charactersIgnoringModifiers?.lowercased() == "a", let model, model.active, !model.busy, !model.mutating {
                 model.selection = Set(model.entries.map(\.id)); return true
@@ -16,7 +16,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
             if event.charactersIgnoringModifiers?.lowercased() == "c" { model?.copy(); return true }
         }
         if attachedSheet == nil, event.keyCode == 96 { model?.refresh(); return true }
-        if attachedSheet == nil, [36, 76].contains(event.keyCode), !event.modifierFlags.contains(.option), firstResponder is NSTableView {
+        if attachedSheet == nil, [36, 76].contains(event.keyCode), !event.modifierFlags.contains(.option), firstResponder is NSTableView, !(firstResponder is NSOutlineView) {
             if let model, model.selected.count == 1, let entry = model.selected.first { model.open(entry) }
             return true
         }
@@ -482,11 +482,7 @@ private struct RepositoryBrowserDialog: View {
                 Button(model.revision) { model.chooseRevision() }.lineLimit(1).frame(minWidth: 180).disabled(model.busy)
             }
             RepositoryBrowserSplit {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 2) {
-                        RepositoryFolderRow(model: model, path: "", name: model.repository.root.lastPathComponent)
-                    }.padding(6).frame(maxWidth: .infinity, alignment: .leading)
-                }.disabled(model.busy).accessibilityLabel("Repository folders")
+                RepositoryBrowserFolderTree(model:model)
             } right: {
                 RepositoryBrowserContentsTable(model:model)
             }.border(Color.secondary.opacity(0.4))
@@ -509,43 +505,6 @@ private struct RepositoryBrowserDialog: View {
         switch entry.kind { case .executable: return .executableOverlay; case .symlink: return .symlinkOverlay; case .submodule: return .externalOverlay; default: return nil }
     }
 }
-private struct RepositoryFolderRow: View {
-    @ObservedObject var model: RepositoryBrowserWindowModel
-    let path: String
-    let name: String
-    var body: some View {
-        if let children = model.directories[path], !children.contains(where: { $0.kind == .directory }) {
-            folderButton.padding(.leading,18)
-        } else {
-            DisclosureGroup(isExpanded:Binding(get:{ model.expanded.contains(path) },set:{ expanded in
-                if expanded { model.expanded.insert(path); model.loadDirectory(path,select:false) }
-                else { model.expanded.remove(path) }
-            })) {
-                if let children=model.directories[path] {
-                    ForEach(RepositoryBrowserListing.sorted(children).filter { $0.kind == .directory }) { entry in
-                        AnyView(RepositoryFolderRow(model:model,path:entry.path,name:entry.name))
-                    }
-                } else { ProgressView().controlSize(.small) }
-            } label: { folderButton }
-        }
-    }
-    private var folderButton: some View {
-        RepositoryFolderDragButton(model:model,path:path,name:name).frame(height:24).contextMenu {
-            TurtleGitContextMenu {
-                if model.folderObjectID(path) != nil, let target = model.menuTarget() {
-                    Button { if model.acceptsMenu(target) { model.openFolder(path) } } label: { CommandLabel(title:"Open",icon:.open) }
-                    Divider()
-                    Button { if model.acceptsMenu(target) { model.showFolderLog(path) } } label: { CommandLabel(title:"Show log",icon:.log) }
-                    Divider()
-                    Button { if model.acceptsMenu(target) { model.copyFolder(path) } } label: { CommandLabel(title:"Copy to clipboard",icon:.copy) }
-                    Button { if model.acceptsMenu(target) { model.copyFolder(path,hashes:true) } } label: { CommandLabel(title:"Copy hash",icon:.copy) }
-                }
-            }
-        }
-    }
-}
-
-
 private struct RepositoryBrowserSplit<Left: View, Right: View>: NSViewControllerRepresentable {
     let left: Left
     let right: Right
@@ -567,47 +526,147 @@ private struct RepositoryBrowserSplit<Left: View, Right: View>: NSViewController
     }
 }
 
-/// Tree and root rows use AppKit's promised-file drag surface, like the list.
-@MainActor struct RepositoryFolderDragButton: NSViewRepresentable {
+/// Native historical folder navigation. Items keep identity across lazy loads;
+/// every action still validates the pinned browser generation and permission.
+@MainActor struct RepositoryBrowserFolderTree: NSViewRepresentable {
     @ObservedObject var model: RepositoryBrowserWindowModel
-    let path: String
-    let name: String
-    func makeNSView(context: Context) -> RepositoryFolderNativeButton { RepositoryFolderNativeButton() }
-    func updateNSView(_ button: RepositoryFolderNativeButton, context: Context) {
-        button.model=model; button.path=path; button.title=name
-        button.isEnabled=model.canUseMenu
-        button.layer?.backgroundColor=(model.snapshot?.directory == path ? NSColor.controlAccentColor.withAlphaComponent(0.2) : NSColor.clear).cgColor
+    func makeCoordinator() -> Coordinator { Coordinator(model) }
+    func makeNSView(context: Context) -> NSScrollView { context.coordinator.makeView() }
+    func updateNSView(_ view: NSScrollView, context: Context) { context.coordinator.update() }
+    static func dismantleNSView(_ view:NSScrollView, coordinator:Coordinator) { coordinator.retired=true;coordinator.outline?.delegate=nil;coordinator.outline?.dataSource=nil }
+
+    @MainActor final class Node: NSObject {
+        let path:String
+        init(_ path:String) { self.path=path }
     }
-}
-@MainActor final class RepositoryFolderNativeButton: NSButton, NSDraggingSource {
-    weak var model: RepositoryBrowserWindowModel?
-    var path=""
-    override init(frame: NSRect) {
-        super.init(frame:frame); isBordered=false; alignment = .left; imagePosition = .imageLeft
-        image=NSWorkspace.shared.icon(for:.folder); imageScaling = .scaleProportionallyDown
-        font = .systemFont(ofSize:12); cell?.lineBreakMode = .byTruncatingTail
-        wantsLayer=true; layer?.cornerRadius=3; target=self; action=#selector(openFolder)
-        setContentCompressionResistancePriority(.defaultLow,for:.horizontal)
-    }
-    convenience init() { self.init(frame:.zero) }
-    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
-    @objc private func openFolder() { model?.openFolder(path) }
-    override func mouseDown(with event: NSEvent) {
-        guard isEnabled, let owner=window, let model, let target=model.menuTarget() else { return }
-        let start=convert(event.locationInWindow,from:nil)
-        highlight(true); defer { highlight(false) }
-        while self.window === owner && model.acceptsMenu(target) {
-            guard let next=owner.nextEvent(matching:[.leftMouseDragged,.leftMouseUp,.keyDown],until:Date().addingTimeInterval(0.1),inMode:.eventTracking,dequeue:true) else { continue }
-            if next.type == .keyDown { if next.keyCode == 53 { return }; continue }
-            if next.type == .leftMouseUp { if bounds.contains(convert(next.locationInWindow,from:nil)) { performClick(nil) }; return }
-            let point=convert(next.locationInWindow,from:nil)
-            guard hypot(point.x-start.x,point.y-start.y) >= 4, let promise=model.folderPromise(path) else { continue }
-            let item=NSDraggingItem(pasteboardWriter:promise)
-            let preview=NSImage(size:bounds.size)
-            if let bitmap=bitmapImageRepForCachingDisplay(in:bounds) { cacheDisplay(in:bounds,to:bitmap); preview.addRepresentation(bitmap) }
-            item.setDraggingFrame(bounds,contents:preview)
-            beginDraggingSession(with:[item],event:next,source:self); return
+    @MainActor final class Coordinator: NSObject, NSOutlineViewDataSource, NSOutlineViewDelegate, NSMenuDelegate {
+        let model:RepositoryBrowserWindowModel
+        weak var outline:RepositoryBrowserFolderOutline?
+        private var nodes:[String:Node]=["":Node("")]
+        private var children:[String:[RepositoryBrowserEntry]]=[:]
+        private var generation:UUID?
+        private var updating=false
+        var retired=false
+        var available:Bool { !retired && model.canUseMenu && outline?.window?.attachedSheet==nil }
+        init(_ model:RepositoryBrowserWindowModel) { self.model=model }
+        func node(_ path:String) -> Node { if let value=nodes[path] { return value };let value=Node(path);nodes[path]=value;return value }
+        func folders(_ path:String) -> [RepositoryBrowserEntry] { RepositoryBrowserListing.sorted(children[path] ?? []).filter { $0.kind == .directory } }
+        func makeView() -> NSScrollView {
+            let scroll=NSScrollView(),tree=RepositoryBrowserFolderOutline()
+            scroll.hasVerticalScroller=true;scroll.hasHorizontalScroller=true;scroll.autohidesScrollers=true
+            let column=NSTableColumn(identifier:.init("folder"));column.title="Folders";column.width=250;column.minWidth=100
+            tree.addTableColumn(column);tree.outlineTableColumn=column;tree.headerView=nil
+            tree.rowHeight=23;tree.indentationPerLevel=16;tree.intercellSpacing=NSSize(width:2,height:2)
+            tree.allowsMultipleSelection=false;tree.allowsEmptySelection=false;tree.allowsTypeSelect=true;tree.columnAutoresizingStyle = .firstColumnOnlyAutoresizingStyle
+            tree.setAccessibilityLabel("Repository folders");tree.dataSource=self;tree.delegate=self
+            tree.target=self;tree.doubleAction=#selector(openSelected)
+            tree.openSelection={ [weak self] in self?.openSelected() }
+            tree.copySelection={ [weak self] in self?.copySelected() }
+            tree.contextSelection={ [weak self] row in self?.selectContext(row) }
+            let menu=NSMenu();menu.delegate=self;menu.autoenablesItems=false;tree.menu=menu
+            tree.setDraggingSourceOperationMask(.copy,forLocal:false);tree.setDraggingSourceOperationMask(.copy,forLocal:true)
+            scroll.documentView=tree;outline=tree;update();return scroll
+        }
+        func update() {
+            guard !retired,let outline else { return };updating=true;defer { updating=false }
+            if children != model.directories || generation != model.generation {
+                children=model.directories;generation=model.generation
+                // Retain identity only for paths belonging to the current tree.
+                let paths=Set([""]+children.values.flatMap { $0.filter { $0.kind == .directory }.map(\.path) })
+                nodes=nodes.filter { paths.contains($0.key) };outline.reloadData()
+            }
+            for path in model.expanded.sorted(by:{ $0.split(separator:"/").count < $1.split(separator:"/").count }) {
+                if path.isEmpty || model.folderObjectID(path) != nil { outline.expandItem(node(path)) }
+            }
+            if let path=model.snapshot?.directory {
+                let row=outline.row(forItem:node(path))
+                if row>=0 && outline.selectedRow != row { outline.selectRowIndexes(IndexSet(integer:row),byExtendingSelection:false);outline.scrollRowToVisible(row) }
+            }
+            // Sheets suppress actions through available, but must not leave the
+            // outline disabled after dismissal without a model publication.
+            outline.isEnabled = !retired && model.canUseMenu
+        }
+        func outlineView(_ outlineView:NSOutlineView, numberOfChildrenOfItem item:Any?) -> Int { item == nil ? 1 : (item as? Node).map { folders($0.path).count } ?? 0 }
+        func outlineView(_ outlineView:NSOutlineView, child index:Int, ofItem item:Any?) -> Any {
+            guard let parent=item as? Node else { return node("") };return node(folders(parent.path)[index].path)
+        }
+        func outlineView(_ outlineView:NSOutlineView, isItemExpandable item:Any) -> Bool {
+            guard let item=item as? Node else { return false };return children[item.path] == nil || !folders(item.path).isEmpty
+        }
+        func outlineView(_ outlineView:NSOutlineView, viewFor tableColumn:NSTableColumn?, item:Any) -> NSView? {
+            guard let node=item as? Node else { return nil }
+            let cell=NSTableCellView(),label=NSTextField(labelWithString:node.path.isEmpty ? model.repository.root.lastPathComponent : (node.path as NSString).lastPathComponent)
+            let image=NSImageView(image:NSWorkspace.shared.icon(for:.folder));cell.imageView=image;cell.textField=label
+            label.font = .systemFont(ofSize:12);label.lineBreakMode = .byTruncatingMiddle;label.maximumNumberOfLines=1
+            cell.toolTip=node.path.isEmpty ? model.repository.root.path : node.path
+            cell.addSubview(image);cell.addSubview(label);image.translatesAutoresizingMaskIntoConstraints=false;label.translatesAutoresizingMaskIntoConstraints=false
+            NSLayoutConstraint.activate([image.leadingAnchor.constraint(equalTo:cell.leadingAnchor,constant:2),image.centerYAnchor.constraint(equalTo:cell.centerYAnchor),image.widthAnchor.constraint(equalToConstant:16),image.heightAnchor.constraint(equalToConstant:16),label.leadingAnchor.constraint(equalTo:image.trailingAnchor,constant:5),label.trailingAnchor.constraint(equalTo:cell.trailingAnchor,constant:-3),label.centerYAnchor.constraint(equalTo:cell.centerYAnchor)])
+            return cell
+        }
+        func outlineView(_ outlineView:NSOutlineView, typeSelectStringFor tableColumn:NSTableColumn?, item:Any) -> String? {
+            (item as? Node).map { $0.path.isEmpty ? model.repository.root.lastPathComponent : ($0.path as NSString).lastPathComponent }
+        }
+        func outlineView(_ outlineView:NSOutlineView, shouldExpandItem item:Any) -> Bool { updating || available }
+        func outlineView(_ outlineView:NSOutlineView, shouldCollapseItem item:Any) -> Bool { updating || available }
+        func outlineView(_ outlineView:NSOutlineView, shouldSelectItem item:Any) -> Bool { updating || available }
+        func outlineViewItemDidExpand(_ notification:Notification) {
+            guard !updating,available,let item=notification.userInfo?["NSObject"] as? Node else { return }
+            model.expanded.insert(item.path);model.loadDirectory(item.path,select:false)
+        }
+        func outlineViewItemDidCollapse(_ notification:Notification) {
+            guard !updating,available,let item=notification.userInfo?["NSObject"] as? Node else { return }
+            model.expanded.remove(item.path)
+        }
+        func outlineViewSelectionDidChange(_ notification:Notification) {
+            guard !updating,available,let outline,let item=outline.item(atRow:outline.selectedRow) as? Node else { return }
+            model.loadDirectory(item.path,select:true)
+        }
+        @objc func openSelected() {
+            guard available,let outline,let item=outline.item(atRow:outline.selectedRow) as? Node else { return }
+            model.openFolder(item.path)
+        }
+        func copySelected() {
+            guard available,let outline,let item=outline.item(atRow:outline.selectedRow) as? Node else { return };model.copyFolder(item.path)
+        }
+        func selectContext(_ row:Int) {
+            guard available,let outline,row>=0 else { return };updating=true
+            outline.selectRowIndexes(IndexSet(integer:row),byExtendingSelection:false);updating=false
+        }
+        private final class Invocation:NSObject {
+            let path:String,target:RepositoryBrowserWindowModel.MenuTarget,command:Int
+            init(path:String,target:RepositoryBrowserWindowModel.MenuTarget,command:Int) { self.path=path;self.target=target;self.command=command }
+        }
+        func menuNeedsUpdate(_ menu:NSMenu) {
+            menu.removeAllItems()
+            guard available,let outline,let item=outline.item(atRow:outline.selectedRow) as? Node,model.folderObjectID(item.path) != nil,let target=model.menuTarget() else { return }
+            for (index,title,icon) in [(0,"Open",MenuIcon.open),(1,"Show log",.log),(2,"Copy to clipboard",.copy),(3,"Copy hash",.copy)] {
+                if index==1 || index==2 { menu.addItem(.separator()) }
+                let entry=NSMenuItem(title:title,action:#selector(invoke(_:)),keyEquivalent:"");entry.target=self
+                entry.image=icon.contextImage(defaults:model.preferences);entry.representedObject=Invocation(path:item.path,target:target,command:index);menu.addItem(entry)
+            }
+        }
+        @objc func invoke(_ sender:NSMenuItem) {
+            guard available,let action=sender.representedObject as? Invocation,model.acceptsMenu(action.target) else { return }
+            switch action.command { case 0:model.openFolder(action.path);case 1:model.showFolderLog(action.path);case 2:model.copyFolder(action.path);case 3:model.copyFolder(action.path,hashes:true);default:break }
+        }
+        func outlineView(_ outlineView:NSOutlineView, pasteboardWriterForItem item:Any) -> NSPasteboardWriting? {
+            guard available,let item=item as? Node else { return nil };return model.folderPromise(item.path)
         }
     }
-    func draggingSession(_ session:NSDraggingSession,sourceOperationMaskFor context:NSDraggingContext)->NSDragOperation { .copy }
+}
+@MainActor final class RepositoryBrowserFolderOutline:NSOutlineView {
+    var openSelection:()->Void = {},copySelection:()->Void = {}
+    var contextSelection:(Int)->Void = { _ in }
+    override func keyDown(with event:NSEvent) {
+        if isEnabled,event.keyCode==36 || event.keyCode==76 { openSelection();return }
+        super.keyDown(with:event)
+    }
+    override func performKeyEquivalent(with event:NSEvent) -> Bool {
+        if isEnabled,event.modifierFlags.intersection([.command,.control,.option]) == .command,event.charactersIgnoringModifiers?.lowercased()=="c" { copySelection();return true }
+        return super.performKeyEquivalent(with:event)
+    }
+    override func menu(for event:NSEvent) -> NSMenu? {
+        guard isEnabled else { return nil };let clicked=row(at:convert(event.locationInWindow,from:nil));guard clicked>=0 else { return nil }
+        contextSelection(clicked);menu?.update();return menu
+    }
 }
