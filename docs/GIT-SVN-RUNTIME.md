@@ -73,3 +73,31 @@ Debug app contains the new component manifest. These results do not establish
 signed Store acceptance, public authenticated transport or a successful remote
 CI run. Logs and exact scope are in
 [the dated record](qa/svn-batch-2026-10-12.json).
+
+
+## Hosted runtime cache dependency repair — October 14, 2026
+
+The complete Git SVN cache now uses the shared immutable runtime-key recipe,
+including the native SVN prompt adapter. Changing credentials/certificate callback
+code must invalidate the packaged Perl modules and reconstruction manifest; a
+previous cache key omitted that input even though the validator rejects an old
+adapter hash. Restored and freshly built payloads still run the same complete
+audit before saving or transferring to the Intel build job.
+
+The native build workspace has a separate exact cache, keyed by runner/compiler/
+SDK build/paths, checkout path, both pin manifests, builder and verified-download
+recipe. The checkout path keeps prefix-bound native work separate after a repository
+rename or checkout move. Prompt-only
+edits reuse the existing architecture/component stamps and native prefixes while
+repackaging the Perl adapter and launcher. Component build recipes and flags are
+still checked by the builder. Native work is saved only after a newly packaged
+payload passes its final audit; a full payload hit with no work tree does not
+attempt to save a missing tree. No prefix cache fallback or validator exception
+is introduced. This improves future hosted rebuilds after the native-work cache
+has been populated; a cold cache still compiles its native dependencies.
+
+The six cache-contract checks passed after the final key inputs were captured.
+No app/Core/native UI checks were repeated. See [CI cache evidence](qa/svn-ci-cache-2026-10-14.json);
+actual hosted warm/cold restore/build/save behavior awaits the next CI execution.
+Native runtime behavior, full application integration and signed acceptance are
+not proved by this workflow dependency change.

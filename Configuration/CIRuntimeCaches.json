@@ -126,5 +126,27 @@
       "scripts/validate-putty-runtime.py",
       "build/putty-runtime/PuTTY"
     ]
+  },
+  "git-svn": {
+    "path": "build/git-svn-runtime/GitSVN",
+    "inputs": [
+      "Configuration/GitSVNRuntime.json",
+      "Configuration/GitRuntime.json",
+      "Sources/GitSVNLauncher/main.c",
+      "scripts/build-git-svn-runtime.py",
+      "scripts/git_svn_prompt_adapter.py",
+      "scripts/validate-git-svn-runtime.py",
+      "scripts/validate_git_svn_support.py",
+      "scripts/validate-git-runtime.py",
+      "scripts/pinned_download.py",
+      "scripts/git_lfs_runtime.py",
+      "scripts/runtime_bundle_layout.py"
+    ],
+    "validate": [
+      "python3",
+      "scripts/validate-git-svn-runtime.py",
+      "build/git-svn-runtime/GitSVN",
+      "--audit-only"
+    ]
   }
 }

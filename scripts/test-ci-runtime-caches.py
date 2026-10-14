@@ -54,6 +54,31 @@ class RuntimeCacheTests(unittest.TestCase):
         path = self.root / 'Sources/TurtleGitMac/CommitDialog.swift'; path.parent.mkdir(parents=True)
         path.write_text('new native dialog implementation')
         self.assertEqual(originals, {name: self.key(name) for name in self.recipes})
+    def testSVNPromptChangesInvalidatePayloadButNotNativeWorkInputs(self):
+        original = self.key('git-svn')
+        adapter = self.root / 'scripts/git_svn_prompt_adapter.py'
+        adapter.write_bytes(adapter.read_bytes() + b'certificate callback change')
+        self.assertNotEqual(original, self.key('git-svn'))
+        workflow = (ROOT / '.github/workflows/macos.yml').read_text()
+        start = workflow.index('      - name: Restore exact SVN native component work')
+        end = workflow.index('      - name: Capture git-svn runtime cache key', start)
+        native = workflow[start:end]
+        self.assertNotIn('git_svn_prompt_adapter.py', native)
+        for dependency in ['Configuration/GitSVNRuntime.json', 'Configuration/GitRuntime.json', 'scripts/build-git-svn-runtime.py', 'scripts/pinned_download.py']:
+            self.assertIn(dependency, native)
+        self.assertIn('steps.svn-toolchain.outputs.key', native)
+        self.assertIn('runner.arch', native)
+        self.assertIn('github.workspace', native)
+        toolchain = workflow[workflow.index('      - name: Record SVN runtime toolchain key'):start]
+        for argument in ['--show-sdk-build-version', '--show-sdk-path', '--find']:
+            self.assertIn(argument, toolchain)
+        build = workflow.index('      - name: Build pinned universal private Perl/Subversion runtime')
+        audit = workflow.index('      - name: Validate prepared or restored git-svn runtime')
+        save = workflow.index('      - name: Save SVN native component work after payload validation')
+        self.assertLess(start, build); self.assertLess(build, audit); self.assertLess(audit, save)
+        section = workflow[save:workflow.index('      - name: Preserve executable permissions', save)]
+        self.assertIn("steps.git-svn-cache.outputs.cache-hit != 'true' && steps.svn-work-cache.outputs.cache-hit != 'true'", section)
+        self.assertIn('steps.svn-work-cache.outputs.cache-primary-key', section)
     def testWorkflowOrdersRestoreBuildValidateSaveWithoutPrefixFallback(self):
         workflow = (ROOT / '.github/workflows/macos.yml').read_text()
         self.assertNotIn('restore-keys:', workflow)

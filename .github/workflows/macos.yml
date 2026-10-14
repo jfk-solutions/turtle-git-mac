@@ -16,19 +16,43 @@ jobs:
           /usr/bin/arch -x86_64 /usr/bin/true
           python3 - <<'PY' >> "$GITHUB_OUTPUT"
           import hashlib, subprocess
-          data = subprocess.check_output(['xcrun', 'clang', '--version']) + subprocess.check_output(['xcrun', '--show-sdk-version'])
+          data = subprocess.check_output(['xcrun', 'clang', '--version']) + subprocess.check_output(['xcrun', '--show-sdk-build-version']) + subprocess.check_output(['xcrun', '--show-sdk-path']) + subprocess.check_output(['xcrun', '--find', 'clang'])
           print('key=' + hashlib.sha256(data).hexdigest())
           PY
-      - uses: actions/cache@v5
-        id: svn-cache
+      # Intermediate build trees have their own exact key. Prompt-only edits
+      # repack the payload while native component recipe stamps remain reusable.
+      - name: Restore exact SVN native component work
+        id: svn-work-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: build/git-svn-runtime/work
+          key: svn-native-work-v1-${{ runner.os }}-${{ runner.arch }}-${{ github.workspace }}-${{ steps.svn-toolchain.outputs.key }}-${{ hashFiles('Configuration/GitSVNRuntime.json', 'Configuration/GitRuntime.json', 'scripts/build-git-svn-runtime.py', 'scripts/pinned_download.py') }}
+      - name: Capture git-svn runtime cache key
+        id: git-svn-key
+        run: python3 scripts/ci-runtime-cache-key.py git-svn --toolchain '${{ steps.svn-toolchain.outputs.key }}' --runner '${{ runner.os }}-${{ runner.arch }}' >> "$GITHUB_OUTPUT"
+      - name: Restore exact git-svn runtime
+        id: git-svn-cache
+        uses: actions/cache/restore@v5
         with:
           path: build/git-svn-runtime/GitSVN
-          key: svn-macos15-arm64-${{ steps.svn-toolchain.outputs.key }}-${{ hashFiles('scripts/pinned_download.py', 'Configuration/GitSVNRuntime.json', 'Configuration/GitRuntime.json', 'Sources/GitSVNLauncher/main.c', 'scripts/build-git-svn-runtime.py', 'scripts/validate-git-svn-runtime.py', 'scripts/validate_git_svn_support.py', 'scripts/validate-git-runtime.py', 'scripts/git_lfs_runtime.py', 'scripts/runtime_bundle_layout.py') }}
+          key: ${{ steps.git-svn-key.outputs.key }}
       - name: Build pinned universal private Perl/Subversion runtime
-        if: steps.svn-cache.outputs.cache-hit != 'true'
+        if: steps.git-svn-cache.outputs.cache-hit != 'true'
         run: python3 scripts/build-git-svn-runtime.py
-      - name: Verify SVN payload before transferring to Intel tests
+      - name: Validate prepared or restored git-svn runtime
         run: python3 scripts/validate-git-svn-runtime.py build/git-svn-runtime/GitSVN --audit-only
+      - name: Save validated git-svn runtime
+        if: steps.git-svn-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: build/git-svn-runtime/GitSVN
+          key: ${{ steps.git-svn-cache.outputs.cache-primary-key }}
+      - name: Save SVN native component work after payload validation
+        if: steps.git-svn-cache.outputs.cache-hit != 'true' && steps.svn-work-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: build/git-svn-runtime/work
+          key: ${{ steps.svn-work-cache.outputs.cache-primary-key }}
       - name: Preserve executable permissions and contained aliases
         run: tar -czf build/git-svn-runtime/GitSVN.tar.gz -C build/git-svn-runtime GitSVN
       - uses: actions/upload-artifact@v4

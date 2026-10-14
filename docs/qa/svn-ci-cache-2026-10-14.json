@@ -1,0 +1,71 @@
+{
+  "date": "2026-10-14",
+  "base": "6608e439",
+  "scope": [
+    "Complete Git SVN immutable cache recipe includes native prompt adapter and captured reconstruction/validator dependencies",
+    "Exact separate native-work cache, with runner/compiler/SDK build and paths, checkout path, pins and native builder/download inputs",
+    "Unconditional final payload audit before cache save and Intel artifact transfer; native-work save requires an actual payload build and successful audit"
+  ],
+  "validation": {
+    "initial_contracts": {
+      "exit": 0,
+      "tests": 6,
+      "log": "build/qa/svn-ci-cache-2026-10-14.log"
+    },
+    "final_contracts": {
+      "exit": 0,
+      "tests": 6,
+      "log": "build/qa/svn-ci-cache-final-2026-10-14.log",
+      "additional_inputs": "Native prefix work key captures checkout root; compiler/SDK paths enter toolchain fingerprint"
+    },
+    "application_checks": {
+      "run": false,
+      "reason": "CI/cache recipes only; app/Core/runtime implementations unchanged"
+    },
+    "site": {
+      "exit": 0,
+      "documents": 212,
+      "unresolved_fragments": [],
+      "log": "build/qa/svn-ci-cache-site-2026-10-14.log"
+    }
+  },
+  "external_evidence": {
+    "prior_pages": {
+      "run": 38597663654,
+      "commit": "7e2b79808e7a9b4ea240c6300c5462cdc1a08c87",
+      "build_job": 115968437353,
+      "build_conclusion": "success",
+      "deploy_job": 115968668945,
+      "deploy_conclusion": "failure",
+      "actual_error": "GitHub deployment creation HTTP 500; no failing documentation build or test"
+    },
+    "latest_pages": {
+      "run": 38600484675,
+      "commit": "6608e43932051c06e5384047c4c4e480ca66fe7f",
+      "build_job": 115978148345,
+      "build_conclusion": "success",
+      "deploy_job": 115978336605,
+      "deploy_conclusion": "success"
+    },
+    "public_site": {
+      "url": "https://jfk-solutions.github.io/turtle-git-mac/",
+      "http_status": 200,
+      "brand_present": true,
+      "new_light_preview_present": true,
+      "new_dark_preview_present": true,
+      "verification": "Direct urllib request after web reader could not open this URL"
+    },
+    "macos_at_check": {
+      "run": 38600484776,
+      "commit": "6608e43932051c06e5384047c4c4e480ca66fe7f",
+      "status": "pending",
+      "conclusion": null
+    }
+  },
+  "limitations": [
+    "New hosted cache restore/build/save behavior requires its next CI execution; local contracts are not a hosted native runtime rebuild or full app integration pass",
+    "Cold native-work cache still compiles dependencies; separate work cache benefits subsequent prompt-only changes",
+    "No validator weakening, prefix fallback, app launch or active CI cancellation",
+    "Full application parity and signed App Store acceptance remain incomplete"
+  ]
+}
