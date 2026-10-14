@@ -1,0 +1,67 @@
+{
+  "date": "2026-10-14",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Log changed-file native column mask, order/visibility/width/reopen/fit/reset",
+    "Per-parent numeric sorting, source-colored status artwork and full-width parent headers",
+    "Original parent-specific IDs, group-filtered selection, injected Home/End and ordered column-aware copy",
+    "Owned reset replies/sheets and shared window-close adapter retirement"
+  ],
+  "validation": {
+    "debug_initial": {
+      "exit": 65,
+      "reason": "Referenced nonexistent StatusIcon view; repaired to existing FileState artwork decoder",
+      "log": "build/qa/log-changed-files-debug-2026-10-14.log"
+    },
+    "debug_first_repair": {
+      "exit": 65,
+      "reason": "View used private labelDefaults; repaired to exposed colorPreferences accessor for same supplied store",
+      "log": "build/qa/log-changed-files-debug-repair-2026-10-14.log"
+    },
+    "debug_repair": {
+      "exit": 0,
+      "log": "build/qa/log-changed-files-debug-final-2026-10-14.log"
+    },
+    "debug_final_lifetime": {
+      "exit": 0,
+      "reason": "Finished planned shared adapter retirement with explicit window-close observation before native validation",
+      "log": "build/qa/log-changed-files-debug-lifetime-2026-10-14.log"
+    },
+    "native": {
+      "exit": 0,
+      "cases": 4,
+      "families": [
+        "log-changed-files",
+        "file-list-layout"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "owned_receivers_reaped": [
+        95883,
+        95949,
+        96009,
+        96075
+      ],
+      "log": "build/qa/log-changed-files-native-2026-10-14.log"
+    },
+    "core": {
+      "run": false,
+      "reason": "Core unchanged; native consumers reuse existing StatusList sorting/settings algorithms"
+    },
+    "site": {
+      "exit": 0,
+      "documents": 199,
+      "unresolved_fragments": 0,
+      "log": "build/qa/log-changed-files-site-2026-10-14.log"
+    }
+  },
+  "limits": [
+    "Hidden table/geometry/state and injected keyboard events do not certify actual header gestures, composed screenshots, full theme/VoiceOver or keyboard acceptance",
+    "Copy column artwork follows supplied preferences; complete displayed contextual clipboard menus remain open",
+    "Large historical lists and all working-file/source menu variants need broader acceptance",
+    "Signed Finder/sandbox/App Store acceptance and complete hosted CI remain unverified",
+    "Complete application port remains incomplete"
+  ]
+}

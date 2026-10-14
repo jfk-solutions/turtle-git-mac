@@ -117,6 +117,7 @@ struct CommitFileInteraction: NSViewRepresentable {
     var copyColumnIDs: (([String], StatusListColumn) -> Void)? = nil
     var toggleCheckIDs: (([String], String) -> Void)? = nil
     var configureRefresh: ((Probe) -> Void)? = nil
+    var preferences:UserDefaults = .standard
     let visibleColumns: Set<StatusListColumn>
     var availableColumns: Set<StatusListColumn> = Set(StatusListColumn.allCases)
     let columnText: (StatusEntry, StatusListColumn) -> String
@@ -137,6 +138,7 @@ struct CommitFileInteraction: NSViewRepresentable {
         CGSize(width: proposal.width ?? nsView.frame.width, height: proposal.height ?? nsView.frame.height)
     }
     func updateNSView(_ view: Probe, context: Context) {
+        view.preferences=preferences
         view.fileListFont = useLogFont ? MessageEditorFont.resolve(name: fontName, size: fontSize) : nil
         view.leadingColumnCount = leadingColumnCount; view.keyboardDeleteEnabled = keyboardDeleteEnabled
         view.nativeColumns = nativeColumns; view.rowTexts = rowTexts; view.itemIDs = itemIDs
@@ -152,6 +154,7 @@ struct CommitFileInteraction: NSViewRepresentable {
     static func dismantleNSView(_ view: Probe, coordinator: ()) { view.stopObserving() }
 
     final class Probe: NSView {
+        var preferences:UserDefaults = .standard
         var fileListFont: NSFont?
         var rows: [StatusListRow] = []
         var leadingColumnCount = 1
@@ -170,13 +173,24 @@ struct CommitFileInteraction: NSViewRepresentable {
         var saveLayout: ([StatusListColumn], [StatusListColumn: Double]) -> Bool = { _, _ in false }
         var setColumnVisible: (StatusListColumn, Bool) -> Void = { _, _ in }
         var resetColumns: (@escaping () async -> Bool, @escaping () -> Void) -> Void = { _, _ in }
-        var confirmResetColumns: (NSWindow) async -> Bool = { window in
-            let alert = NSAlert(); alert.messageText = "Are you sure to reset columns?"
-            alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No")
-            let answer = await withCheckedContinuation { continuation in
-                alert.beginSheetModal(for: window) { continuation.resume(returning: $0) }
+        private var resetAlert:NSAlert?
+        private var resetReply:((Bool)->Void)?
+        lazy var confirmResetColumns:(NSWindow) async -> Bool = { [weak self] window in
+            guard let self,self.integrationActive,self.window === window,window.attachedSheet == nil else {return false}
+            let alert=NSAlert();alert.messageText="Are you sure to reset columns?"
+            alert.addButton(withTitle:"Yes");alert.addButton(withTitle:"No");self.resetAlert=alert
+            return await withCheckedContinuation { continuation in
+                self.resetReply={continuation.resume(returning:$0)}
+                alert.beginSheetModal(for:window) { [weak self] response in
+                    guard let self,self.resetAlert === alert else {return}
+                    self.finishResetQuestion(response == .alertFirstButtonReturn)
+                }
             }
-            return answer == .alertFirstButtonReturn
+        }
+        private func finishResetQuestion(_ accepted:Bool) {
+            let reply=resetReply;resetReply=nil
+            if let alert=resetAlert {resetAlert=nil;alert.window.sheetParent?.endSheet(alert.window,returnCode:.abort);alert.window.orderOut(nil)}
+            reply?(accepted)
         }
         private weak var configuredTable: NSTableView?
         private var columnDefinitions: [ObjectIdentifier: StatusListColumn] = [:]
@@ -420,6 +434,7 @@ struct CommitFileInteraction: NSViewRepresentable {
         var copy: ([StatusEntry], Bool) -> Void = { _, _ in }
         var copyColumn: ([StatusEntry], StatusListColumn) -> Void = { _, _ in }
         var toggleCheck: ([StatusEntry], StatusEntry) -> Void = { _, _ in }
+        private var closeObserver:NSObjectProtocol?
         private var monitor: Any?
         private var menuObserver: NSObjectProtocol?
         func acceptsFileDrop(at location: CGPoint) -> Bool {
@@ -433,6 +448,9 @@ struct CommitFileInteraction: NSViewRepresentable {
             super.viewDidMoveToWindow(); stopObserving()
             guard window != nil else { return }
             integrationActive = true; scheduleColumnConfiguration()
+            closeObserver=NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:window,queue:.main) { [weak self] _ in
+                MainActor.assumeIsolated {self?.stopObserving()}
+            }
             monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp, .rightMouseDown, .keyDown]) { [weak self] event in
                 guard let self else { return event }
                 return self.observe(event)
@@ -443,6 +461,8 @@ struct CommitFileInteraction: NSViewRepresentable {
             }
         }
         func stopObserving() {
+            finishResetQuestion(false)
+            if let closeObserver {NotificationCenter.default.removeObserver(closeObserver);self.closeObserver=nil}
             integrationActive = false; integrationGeneration = UUID(); configurationScheduled = false
             for observer in geometryObservers { NotificationCenter.default.removeObserver(observer) }; geometryObservers = []
             groupHeaders?.removeFromSuperview(); groupHeaders = nil
@@ -462,7 +482,7 @@ struct CommitFileInteraction: NSViewRepresentable {
             if let previous = submenu.items.first(where: { $0.identifier == identifier }) { submenu.removeItem(previous) }
             let item = NSMenuItem(title: "column '\(column.rawValue)'", action: #selector(copyCurrentColumn(_:)), keyEquivalent: "")
             item.identifier = identifier; item.target = self
-            if let image = MenuIcon.copy.contextImage()?.copy() as? NSImage { image.size = NSSize(width: 16, height: 16); item.image = image }
+            if let image = MenuIcon.copy.contextImage(defaults:preferences)?.copy() as? NSImage { image.size = NSSize(width: 16, height: 16); item.image = image }
             submenu.addItem(item)
         }
         @objc private func copyCurrentColumn(_ sender: NSMenuItem) {
@@ -482,7 +502,7 @@ struct CommitFileInteraction: NSViewRepresentable {
             let area = convert(bounds, to: nil)
             return area.intersects(table.convert(table.visibleRect, to: nil))
         }
-        private func observe(_ event: NSEvent) -> NSEvent? {
+        func observe(_ event: NSEvent) -> NSEvent? {
             guard let window, event.window === window else { return event }
             if event.type == .rightMouseDown { trackingHeader = false; draggingHeader = false }
             if event.type == .leftMouseDown {
@@ -511,6 +531,7 @@ struct CommitFileInteraction: NSViewRepresentable {
                       let table = table(at: event.locationInWindow, in: content) else { return event }
                 let row = table.row(at: table.convert(event.locationInWindow, from: nil))
                 if let itemIDs, itemIDs.indices.contains(row) {
+                    if rows.count == itemIDs.count && rows[row].group != nil {return event.type == .leftMouseDown ? nil:event}
                     if event.type == .rightMouseDown {
                         contextColumn = columnDefinition(atNativeIndex: table.column(at: table.convert(event.locationInWindow, from: nil)))
                         let indexes = table.selectedRowIndexes.contains(row) ? table.selectedRowIndexes : IndexSet(integer: row)
@@ -539,7 +560,13 @@ struct CommitFileInteraction: NSViewRepresentable {
             let flags = event.modifierFlags.intersection([.command, .control, .option, .shift])
             contextColumn = nil; contextEntries = []; contextIDs = []
             if let itemIDs {
-                let selected = table.selectedRowIndexes.compactMap { itemIDs.indices.contains($0) ? itemIDs[$0] : nil }
+                let selected = table.selectedRowIndexes.compactMap { index in itemIDs.indices.contains(index) && (rows.count != itemIDs.count || rows[index].entry != nil) ? itemIDs[index]:nil }
+                if flags.isEmpty,rows.count == itemIDs.count,rows.contains(where:{$0.group != nil}),[125,126,115,119].contains(event.keyCode) {
+                    let forward=event.keyCode == 125 || event.keyCode == 115,endpoint=event.keyCode == 115 || event.keyCode == 119
+                    let anchor=endpoint ? nil:focusedPath?.wrappedValue.flatMap {itemIDs.firstIndex(of:$0)} ?? (table.selectedRow >= 0 ? table.selectedRow:nil)
+                    guard let target=StatusListGroups.nextFileRow(after:anchor,forward:forward,in:rows) else {return nil}
+                    table.selectRowIndexes(IndexSet(integer:target),byExtendingSelection:false);table.scrollRowToVisible(target);focusedPath?.wrappedValue=itemIDs[target];return nil
+                }
                 if event.keyCode == 49, flags.isEmpty, enabled, leadingColumnCount > 0,
                    let mark = selected.first(where: { $0 == focusedPath?.wrappedValue }) ?? selected.first {
                     toggleCheckIDs?(selected, mark); return nil

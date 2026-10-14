@@ -2309,3 +2309,49 @@ message and expose no file/header rows; equality remains displayed. See
 The connected [Log reference-navigation family](LOG-REFERENCE-NAVIGATION-PARITY.md)
 adds source reference-set scopes, multi-tip/range picking, bounded exact recents
 and owned browser/preparation lifetime. ChooseVersion histories remain session-only.
+
+
+## Connected changed-file list controls — October 14, 2026
+
+Pinned LogDlg initializes GitStatusListCtrl with Path, Extension, Status, Lines
+added and Lines removed; its available column mask contains those same five.
+The native changed-file table now adopts the shared native column controller:
+header menu visibility, protected Path, saved order/adjusted widths, divider
+content fitting, Shift fitting including the header, and confirmed Reset columns.
+The supplied Log preference store holds a separate versioned changed-file layout;
+it does not replace revision-list column settings. Malformed values use the shared
+bounded/default rules. These five historical columns do not expose file timestamp,
+size or LFS fields absent from this source mask.
+
+Path includes original colored status artwork. Parent headings span the viewport
+with the shared blue title/rule renderer, independently of Path width or horizontal
+scroll. Native group accessibility remains in the underlying row. Sorting uses
+numeric/case-insensitive source-style path/extension/status/numeric statistics;
+headers and parent groups keep their source order. Duplicate paths in merge
+parents retain their original parent-specific IDs and comparison routing.
+
+Keyboard Home/End/Up/Down skip group headings through the native table, while
+range selections are filtered to actual file IDs. Pointer clicks on a heading do
+not retarget a file. Copy uses displayed sort order and supplied abbreviation/
+status preferences. Keyboard paths/status copying and clicked-column copying retain
+parent occurrences; empty/header-only selections preserve the clipboard. Existing
+context actions, double-click, working-tree Delete and comparison ownership remain.
+
+Busy/retired/reset-pending owners refuse column changes and late Reset acceptance.
+Owned Reset sheets now settle when their shared native list adapter retires, rather
+than leaving an unanswered continuation. Removed adapters cancel queued layout,
+observers and group repaint. Copy column artwork follows the supplied icon setting.
+Complete composed light/dark screenshots, actual header drag/divider gestures,
+keyboard/VoiceOver and signed sandbox/Finder acceptance remain open; this does not
+certify complete Log, GitStatusListCtrl or application parity.
+
+
+Debug compilation passed after the icon/accessor repairs. Four grouped native
+cases (Log pane and shared Commit/Working Tree list layout with system/bundled Git)
+passed on their first run; all four receivers were reaped. Assertions cover actual
+merge-parent rows, private persisted columns, fitting/reset decisions, numeric
+order, duplicate parent IDs, injected native Home/End, exact private clipboard,
+light/dark heading geometry, late Reset and closed-window overlay cleanup, with
+HEAD/index bytes preserved. Core was unchanged and not rerun. See
+[batch evidence](qa/log-changed-files-2026-10-14.json). This is not all-dialog
+visual/physical/signed certification.
