@@ -366,3 +366,56 @@ compilation and two documentation tests passed. All owned test processes were
 reaped. See [dated lifecycle QA](qa/bisect-lifecycle-2026-10-13.json).
 Physical Cancel/stash/picker keyboard acceptance, full progress presentation,
 all Git checkout-hook behavior and signed Finder/App Store execution remain open.
+
+
+## Connected Bisect start/progress/recovery family — October 14, 2026
+
+This batch compares BisectStartDlg's branch/tag population, remote-prefix input
+and single Log picker contract with AppUtils's Start/Stash/operation callbacks
+and ProgressDlg's output, kill confirmation, auto-close and Action log behavior.
+Good/Bad choices retain branch-first/tag-second ordering and exact reference
+identity. Typed `remotes/` values are normalized as the source does. Picker
+requests retain their target field and identity; duplicate, changed-target,
+retired and unavailable-presentation replies cannot change either revision.
+The actual Log receives the typed revision at construction, preventing a first
+unfiltered read. Disabled/dismantled native combo delegates refuse edits.
+
+The native window now switches from the compact two-row start layout to an output
+result layout; revision inputs no longer occupy the result. This remains one
+owned macOS window rather than the source's separate modal window instances.
+Back restores the start layout after a failed inactive attempt. Active results
+show source-ordered Submodule Update, Good, Bad, Skip and Reset. Interrupted or
+failed active results expose only Reset; success after Reset has no classification
+actions. Existing custom terms, culprit hash, Log observers and safe explicit
+Stash/Abort behavior remain. A declined stash restores options without mutation.
+
+Core Stash/Start/classification/Reset APIs stream only the actual commands;
+validation and metadata reads are excluded. All three Start commands drain into
+one ordered parser. Stash output remains before Start output after explicit
+approval. Presentation is bounded, CR/split-UTF-8 aware, styled and selectable,
+with current work/percentage and original-icon Copy/Copy All menus. Repository
+callbacks retain complete original results. Full result storage is not bounded.
+
+Kill confirmation responses are once-only. A completed operation waits for an
+outstanding question before successful auto-close; late Yes cannot cancel it.
+Forced retirement bypasses the question, cancels owned reads/processes, ends
+owned sheets and drops late replies. Operation accounting and retained repository
+scope span the output drain, result metadata and fresh cancellation recovery.
+Recovery reads Git's real session and leaves Reset available without rolling back
+completed changes or reapplying a stash. Captured auto-close counts the conditional
+Submodule Update and active continuation actions. Closing/Back/new attempts preserve
+the displayed Action log result, including cancelled attempts.
+
+Physical window composition, separate-window lifetime equivalence, Return/Escape,
+real nested sheets/picker clicks, VoiceOver, screenshots/theme acceptance, signed
+sandbox and actual Finder activation remain open. This is partial family progress,
+not a claim of full Bisect or application parity.
+
+
+Debug compilation and all eight affected Core tests passed. Four grouped native
+cases (new connected progress family plus existing lifecycle) passed with system
+and bundled Git. Initial fixture-only helper/label failures are retained in the
+[batch evidence](qa/bisect-progress-2026-10-14.json); no app rebuild or Core repeat
+was required after the native label correction. All five attempted receivers,
+including the failed initial case, were reaped. Action log assertions require
+actual saved Unicode output and User cancelled, not only a logging callback.

@@ -7,7 +7,7 @@ Show opens the UTF-8 log in the system text viewer. Clear deletes this log only.
 
 The following native progress windows save their displayed output when closed:
 Clone, Commit, Push, Fetch, Pull, Merge, Abort Merge, Switch, Reset, Clean,
-Export, Format Patch, Stash Save, New Worktree, and Worktree management progress. Each entry starts with an empty separator line, the
+Export, Format Patch, Stash Save, New Worktree, Worktree management progress, and Bisect. Each entry starts with an empty separator line, the
 local date and time, and the repository path (Clone uses its destination).
 Cancelled results append **User cancelled**. Quiet operations still save the
 header. The stored text follows the visible output limit, rather than the full

@@ -125,3 +125,8 @@ bounded presentation, independent ownership and once-only kill questions.
 The [Worktree progress family](WORKTREE-PARITY.md#connected-worktree-progress-family--october-14-2026)
 adds live creation/management output, native copy icons, batch output limits,
 kill confirmation, captured auto-close decisions and Action log preservation.
+
+
+The [Bisect connected family](BISECT-PARITY.md#connected-bisect-startprogressrecovery-family--october-14-2026)
+adds streamed Stash/Start/classification/Reset, native copy output, once-only kill
+confirmation, captured auto-close, Action log and interrupted-session recovery.

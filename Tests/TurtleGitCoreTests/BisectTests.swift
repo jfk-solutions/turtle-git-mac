@@ -2,6 +2,28 @@ import XCTest
 @testable import TurtleGitCore
 
 final class BisectTests: XCTestCase {
+    private final class OutputCapture: @unchecked Sendable {
+        let lock=NSLock();var bytes=Data()
+        func append(_ chunk:GitOutputChunk) { lock.lock();defer { lock.unlock() };bytes.append(chunk.data) }
+        var text:String { lock.lock();defer { lock.unlock() };return String(decoding:bytes,as:UTF8.self) }
+    }
+    func testStashStartClassificationAndResetStreamOnlyActualCommands() async throws {
+        let (root,repo,hashes)=try await fixture();defer { try? FileManager.default.removeItem(at:root) }
+        try Data("dirty tracked\n".utf8).write(to:root.appendingPathComponent("change"))
+        let stashOutput=OutputCapture();let stash=try await repo.stashBeforeBisect(onOutput:stashOutput.append)
+        XCTAssertTrue(stash.created);XCTAssertEqual(stashOutput.text,stash.output)
+        let startOutput=OutputCapture();let started=try await repo.startBisect(good:hashes[0],bad:"HEAD",onOutput:startOutput.append)
+        XCTAssertEqual(started.exitCode,0);XCTAssertTrue(started.state.active)
+        XCTAssertFalse(startOutput.text.isEmpty)
+        XCTAssertEqual(startOutput.text.split(separator:"\n").sorted(),started.output.split(separator:"\n").sorted())
+        let goodOutput=OutputCapture();let good=try await repo.bisect(.good,onOutput:goodOutput.append)
+        XCTAssertEqual(goodOutput.text.split(separator:"\n").sorted(),good.output.split(separator:"\n").sorted())
+        let resetOutput=OutputCapture();let reset=try await repo.bisect(.reset,onOutput:resetOutput.append)
+        XCTAssertEqual(resetOutput.text.split(separator:"\n").sorted(),reset.output.split(separator:"\n").sorted())
+        XCTAssertFalse(reset.state.active);XCTAssertEqual(reset.state.head,hashes.last)
+        let stored=try await repo.run(["stash","list","--format=%H"]).text.split(separator:"\n");XCTAssertEqual(stored.count,1)
+    }
+
     func testPrecancelledBisectAPIsLeaveSessionAndFilesAlone() async throws {
         let (root, repo, hashes) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
         let before = try await repo.run(["rev-parse", "HEAD"]).stdout

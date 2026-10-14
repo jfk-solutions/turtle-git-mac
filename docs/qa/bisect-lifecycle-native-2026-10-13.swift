@@ -68,8 +68,9 @@ import TurtleGitCore
         retired.load(good: hashes[0], bad: "HEAD"); try await wait { !retired.busy }
         var callbacks = 0; retired.onChanged = { _ in callbacks += 1 }; retired.onProgress = { callbacks += 1 }
         retired.start(); try await wait { FileManager.default.fileExists(atPath: root.appendingPathComponent("good-pid").path) }
+        let callbacksBeforeRetirement=callbacks
         retired.retire(); try await wait { !retired.busy }; try gone("good-pid")
-        precondition(callbacks == 0 && retired.state?.active == false && !retired.canStart && !retired.canPerform(.reset))
+        precondition(callbacks == callbacksBeforeRetirement && retired.state?.active == false && !retired.canStart && !retired.canPerform(.reset))
         _ = try await real.bisect(.reset)
 
         try Data("dirty tracked\n".utf8).write(to: root.appendingPathComponent("change"))

@@ -81,3 +81,11 @@ extension WorktreeListWindowModel: ActionLogProgress {
     var actionLogFailed: Bool { failed }
     var actionLogCancelled: Bool { cancelled }
 }
+
+
+extension BisectWindowModel: ActionLogProgress {
+    var actionLogRepository: URL { repository.root }
+    var actionLogEligible: Bool { showingProgress }
+    var actionLogFailed: Bool { lastExitCode != 0 }
+    var actionLogCancelled: Bool { cancelled }
+}
