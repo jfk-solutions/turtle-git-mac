@@ -49,7 +49,7 @@ import TurtleGitCore
         let helper=root.appendingPathComponent("gated-git"),ready=root.appendingPathComponent("diff-ready")
         let script = #"""
         #!/bin/sh
-        if [ "$4" = diff ] && [ "$5" = --no-ext-diff ] && [ "$6" = --no-textconv ];then
+        if [ "$4" = cat-file ] && [ "$5" = blob ];then
           : > "$3/diff-ready";/bin/sleep 30
         fi
         exec "$TG_REFRESH_GIT" "$@"

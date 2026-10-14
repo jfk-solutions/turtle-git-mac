@@ -53,9 +53,9 @@ This is a partial port of upstream's conflict tab. Squash checkbox acceptance
 the Strip Commented Lines preference, all contextual
 commands and full displayed layout/keyboard/accessibility acceptance remain
 pending. Squash conflicts keep the existing staged Continue
-path, and their checkboxes are disabled. The base
-comparison is a native text sheet; it does not yet use the complete comparison
-editor. No new screenshot establishes this tab's displayed layout.
+path, and their checkboxes are disabled. Single ordinary base comparison now
+uses the full native editor; multiple paths and unavailable stage-1 cases retain
+unified output. No new screenshot establishes this tab's displayed layout.
 
 ## Verification
 
@@ -83,3 +83,41 @@ See [Squash conflicts](REBASE-SQUASH-CONFLICTS.md).
 
 Empty Squash groups now offer Commit/Skip/Cancel and recover an approved Skip
 after failure. See [empty Squash groups](REBASE-EMPTY-SQUASH.md).
+
+## Conflict file menus and native base review — 14 October 2026
+
+The source status-list mask includes read/open/history/export/clipboard commands,
+while excluding Commit, Restore and Changelists. The native conflict list now adds
+Open, Open With, View revision in alternative editor, Show log (including an old
+name when present), Blame, Reveal in Finder, Export and Compare two files with
+original icons and selection/type conditions. Full paths, relative paths,
+file/folder names, all five displayed columns and individual column copies retain
+the visible row order, Unicode and literal newlines. Extension cells now use the
+shared source dotted extension format. Command/Control-C copy paths; Shift adds
+status. Space toggles checked rows independently of highlighting, only when the
+lower conflict table owns focus and checked continuation is supported.
+
+A popup captures its displayed rows, stages, statistics, stopped replay identity,
+HEAD and refresh generation. Preparation holds its token, permission and global
+Quit lifetime through any chooser or command settlement. It validates the current
+session before routing; Open With and Export validate again after the chooser.
+Later highlighting cannot redirect an old selection, and refresh/retirement cannot
+revive a stale popup or picker. Export uses the existing cancellable working-file
+copy backend and keeps the chosen destination grant until it settles.
+
+Single ordinary Compare with base now opens the native two-pane editor using the
+captured stage-1 blob and current working bytes. Its working pane can edit/save
+through existing encoding, backup, empty-result and stale-byte/stage guards without
+staging. The Rebase owner retains the viewer and blocks replay actions until it
+closes, then refreshes the actual session. Multiple/unavailable-base comparisons
+retain the existing unified output. Clean tracked rows double-click into ordinary
+working comparisons; unresolved single rows retain Edit conflict.
+
+[Grouped native evidence](qa/rebase-conflict-menus-2026-10-14.json) records actual
+private clipboard/export/owned picker and comparison behavior separately from
+injected Open/Editor/Log/Blame/Reveal callbacks. Core is unchanged in this batch.
+The remaining source status-list menus (including broader submodule history,
+Add/Ignore/Revert/Delete and prepared/unified comparison combinations), column
+customization, drag/drop, all conditional layouts, physical keyboard/VoiceOver,
+workspace editor-dispatch preparation and signed Finder/sandbox acceptance remain
+open. This does not certify full Rebase, Cherry Pick or app parity.

@@ -1,0 +1,91 @@
+{
+  "date": "2026-10-14",
+  "base": "c2763991",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Native stage-1 base review for one ordinary Rebase/Cherry Pick conflict with retained viewer, editable working pane and parent replay blocking through child close",
+    "Captured conflict-file popup rows/stages/statistics/HEAD/session/generation with owned cancellable preparation and revalidation after Open With/Export pickers",
+    "Original-icon Open/Open With/alternative editor/Log/old-name Log/Blame/Reveal/Export/two-file commands and clean-row working comparison route",
+    "Shared five-column/path/name clipboard formatting plus scoped native copy/check keys",
+    "Owned native application/export picker retirement and once-only late-reply fencing"
+  ],
+  "references": [
+    "src/TortoiseProc/RebaseDlg.cpp:m_FileListCtrl.Init/REBASE_TAB_CONFLICT",
+    "src/Git/GitStatusListCtrl.cpp:context menu selection/type gates and file command handlers",
+    "src/Resources/TortoiseProcENG.rc:IDD_REBASE"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/rebase-conflict-menus-debug-2026-10-14.log",
+      "diagnostics": "Existing exit-zero/no-output compiler messages; no clean-diagnostics claim"
+    },
+    "native_checkpoint": {
+      "exit": 0,
+      "cases": 4,
+      "families": [
+        "rebase-conflict-menus",
+        "rebase-session-refresh"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "owned_receivers_reaped": [
+        15286,
+        15942,
+        16339,
+        16973
+      ],
+      "log": "build/qa/rebase-conflict-menus-native-2026-10-14.log"
+    },
+    "source_gate_followup": {
+      "change": "Final pinned common status-list comparison required hiding Blame for working additions and restricting Explore to one nondeleted item",
+      "debug": {
+        "exit": 0,
+        "log": "build/qa/rebase-conflict-menus-source-gates-debug-2026-10-14.log"
+      },
+      "native": {
+        "exit": 0,
+        "cases": 2,
+        "families": [
+          "rebase-conflict-menus"
+        ],
+        "engines": [
+          "system Git",
+          "bundled Git"
+        ],
+        "owned_receivers_reaped": [
+          17441,
+          18082
+        ],
+        "log": "build/qa/rebase-conflict-menus-source-gates-native-2026-10-14.log"
+      }
+    },
+    "core": "Not repeated; no Core changes",
+    "native_evidence": [
+      "Private clipboard retains visible row order, Unicode/literal newline paths, dotted extensions, Conflicted status and five displayed-column headings",
+      "Log/Blame/Editor/Reveal/pair callbacks retain exact captured paths/HEAD; Open With ignores subsequent highlight changes",
+      "Real multi-file export copies exact current bytes; all review/menu operations preserve HEAD/raw index/working baseline",
+      "New snapshot rejects old popup generation",
+      "Native stage-1/current viewer loads real alignment, exposes only working-side edits and keeps parent busy until close/refresh",
+      "Native lower-table Command-C and Space are driven through actual focused NSTableView and scoped event handler",
+      "Forced-close settles real owned export-panel continuation once and ignores duplicate late OK",
+      "Prior coherent replay refresh/coalescing/retired read and actual gated stage-1 Git process cancellation checks remain passing"
+    ],
+    "site": {
+      "exit": 0,
+      "documents": 200,
+      "unresolved_fragments": 0,
+      "log": "build/qa/rebase-conflict-menus-site-2026-10-14.log"
+    }
+  },
+  "limits": [
+    "External Open/Editor/Log/Blame/Reveal/pair viewers are injected callbacks; actual external applications, physical picker and complete menu gestures are not exercised",
+    "New viewer Save/Undo/encoding/backup/empty-result combinations and full visual/VoiceOver acceptance remain open; underlying shared base save guards retain previous batch evidence",
+    "Remaining submodule file-history/Add/Ignore/Revert/Delete/prepared and unified menu combinations, column customization and drag/drop remain open",
+    "Workspace conflict-editor dispatch preparation remains a separate unfinished lifetime path; this batch owns initiating Rebase preparation and does not certify every factory",
+    "Multiple/unavailable-stage-1 base selections retain unified output",
+    "Complete hosted CI, signed Finder/sandbox/App Store acceptance and whole port remain incomplete"
+  ]
+}

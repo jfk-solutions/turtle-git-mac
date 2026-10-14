@@ -2073,6 +2073,16 @@ import TurtleGitCore
             if action == .editConflict, let path = paths.first { self?.showConflictEditor(repository: repository, access: access, path: path) }
             else { self?.showResolve(repository: repository, access: access, paths: paths, quick: action.resolveChoice) }
         }
+        controller.model.onConflictFileLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
+        controller.model.onConflictFileBlame = { [weak self] path, revision in self?.showBlame(repository: repository, access: access, path: path, revision: revision) }
+        controller.model.onConflictWorkingComparison = { [weak self, weak controller] paths in
+            guard let self, let controller else { return }
+            self.prepareFileComparisons(repository: repository, access: access, selectedCount: paths.count, owner: controller.window) { [weak self] token in
+                let snapshot = try await repository.workingFileComparison(paths: paths, cancellation: token)
+                self?.presentFileComparisons(repository: repository, access: access, snapshot: snapshot, cancellation: token)
+            }
+        }
+        controller.model.onConflictWorkingPair = { [weak self, weak controller] paths in guard let controller else { return }; self?.showWorkingFilePair(repository: repository, access: access, paths: paths, owner: controller.window) }
         controller.model.completionAfterFetch = afterFetch
         controller.model.completionFromLog = fromLog
         controller.model.completionAutoStart = autoStart
