@@ -19,8 +19,11 @@ import TurtleGitCore
         func startAccessing(_ url:URL)->Bool { starts += 1;return true }
         func stopAccessing(_ url:URL) { stops += 1 }
     }
-    @MainActor static func main() async { do { try await verify() } catch { fputs("Blame File Open failed: \(error)\n",stderr);exit(1) } }
+    @MainActor static func main() async { do { try await verify() } catch {
+        for _ in 0..<500 { if BlameWindowModel.activeHistoryOperations==0 && BlameDocumentOpener.activeReads==0 && BlameWindowModel.activeSyntaxRequests==0 { break };try? await Task.sleep(nanoseconds:10_000_000) }
+        fputs("Blame File Open failed: \(error)\n",stderr);exit(1) } }
     @MainActor static func verify() async throws {
+        let regexExecutable=URL(fileURLWithPath:FileManager.default.currentDirectoryPath).appendingPathComponent("build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/IssueRegex/issue-regex")
         let folder=URL(fileURLWithPath:CommandLine.arguments[1]),engine=URL(fileURLWithPath:CommandLine.arguments[2]),provider=Provider()
         let history=try BlameRecentDocuments(url:folder.appendingPathComponent("private/blame-files.json"),provider:provider)
         var repos:[GitRepository]=[],files:[URL]=[]
@@ -28,13 +31,14 @@ import TurtleGitCore
             let root=folder.appendingPathComponent(name);try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
             let repo=GitRepository(root:root,executable:engine);_ = try await repo.run(["init","-b","main"])
             for (key,value) in [("user.name","Open QA"),("user.email","open@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")] { _ = try await repo.run(["config",key,value]) }
-            let file=root.appendingPathComponent("雪:line\n.txt");try Data((name+" source\n").utf8).write(to:file);try await repo.stage([file.lastPathComponent]);_ = try await repo.commit(message:name)
+            let file=root.appendingPathComponent("雪:line\n.txt");try Data((name+" source\n").utf8).write(to:file);try await repo.stage([file.lastPathComponent]);_ = try await repo.commit(message:name+" #27")
+            _ = try await repo.run(["config","bugtraq.url","https://example.invalid/issues/%BUGID%"]);_ = try await repo.run(["config","bugtraq.logregex","#([0-9]+)"])
             repos.append(repo);files.append(file)
         }
         let suite="TurtleGit.BlameOpen.QA."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!
         defer { prefs.removePersistentDomain(forName:suite) }
         let firstScope=RepositoryAccessLease(url:repos[0].root,provider:provider)
-        let owner=BlameWindowController(repository:repos[0],access:firstScope,path:files[0].lastPathComponent,revision:"HEAD",options:GitBlameOptions(),preferences:prefs,recentDocuments:history,requireScope:true,provider:provider)
+        let owner=BlameWindowController(repository:repos[0],access:firstScope,path:files[0].lastPathComponent,revision:"HEAD",options:GitBlameOptions(),preferences:prefs,regexExecutable:regexExecutable,recentDocuments:history,requireScope:true,provider:provider)
         defer { owner.close() }
         try await wait { !owner.model.busy && !owner.model.syntaxWorking && history.entries.count==1 }
         let original=owner.model,window=owner.window!,index=try Data(contentsOf:repos[0].root.appendingPathComponent(".git/index"))
@@ -55,6 +59,7 @@ import TurtleGitCore
         try require(owner.window===window && original.retired && owner.model.repository.root.resolvingSymlinksInPath().path==repos[1].root.resolvingSymlinksInPath().path && owner.model.path==files[1].lastPathComponent && owner.model.selection==1 && changed==1,"SDI replacement/context mismatch: sameWindow=\(owner.window===window) retired=\(original.retired) root=\(owner.model.repository.root) expected=\(repos[1].root) path=\(owner.model.path) selection=\(String(describing:owner.model.selection)) changed=\(changed)")
         try require(BlameWindowController.focusedOwner(retainedFind?.window)===owner,"Find panel lost document-owner menu routing")
         try require(owner.findWindow===retainedFind && retainedFind?.model===owner.model && retainedFind?.draft.text=="source","File Open discarded/staled the modeless Find panel")
+        try require(owner.model.issueProperties.showsBugIDColumn && owner.model.historyEntries.first?.issueIDs=="27","File Open omitted project history metadata")
         let second=owner.model
         try Data("updated HEAD source\n".utf8).write(to:files[1]);try await repos[1].stage([files[1].lastPathComponent]);_ = try await repos[1].commit(message:"New HEAD")
         second.reload();try await wait { !second.busy && second.snapshot?.contents==Data("updated HEAD source\n".utf8) }
@@ -78,7 +83,7 @@ import TurtleGitCore
         let script="""
         #!/bin/sh
         for task_arg in "$@"; do
-          if [ "$task_arg" = '--show-toplevel' ]; then
+          if [ "$task_arg" = '--show-toplevel' ] || { [ "$task_arg" = config ] && [ -f "$3/hold-reload" ]; }; then
             /bin/sleep 30 &
             task_child=$!
             trap 'kill "$task_child" 2>/dev/null; wait "$task_child" 2>/dev/null; exit 143' TERM INT
@@ -90,7 +95,7 @@ import TurtleGitCore
         exec \(quote(engine.path)) "$@"
         """
         try script.write(to:helper,atomically:true,encoding:.utf8);try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:helper.path)
-        let held=BlameWindowController(repository:GitRepository(root:repos[0].root,executable:helper),access:firstScope,path:files[0].lastPathComponent,revision:"HEAD",options:GitBlameOptions(),preferences:prefs,recentDocuments:history,requireScope:false,provider:provider)
+        let held=BlameWindowController(repository:GitRepository(root:repos[0].root,executable:helper),access:firstScope,path:files[0].lastPathComponent,revision:"HEAD",options:GitBlameOptions(),preferences:prefs,regexExecutable:regexExecutable,recentDocuments:history,requireScope:false,provider:provider)
         defer { held.close() }
         try await wait { !held.model.busy && !held.model.syntaxWorking }
         held.chooseFile={ _,_,reply in reply(files[1]) };held.openDocument()
@@ -103,6 +108,22 @@ import TurtleGitCore
         let retiringPIDs=try String(contentsOf:marker).split(whereSeparator:\.isWhitespace).compactMap { Int32($0) }
         held.close();try await wait { BlameDocumentOpener.activeReads==0 && retiringPIDs.allSatisfy { kill($0,0) != 0 } }
         try require(held.model.retired && held.model.repository.root.resolvingSymlinksInPath().path==repos[0].root.resolvingSymlinksInPath().path,"Retired read committed a replacement")
+        try FileManager.default.removeItem(at:marker)
+        let reloadOwner=BlameWindowController(repository:GitRepository(root:repos[0].root,executable:helper),access:firstScope,path:files[0].lastPathComponent,revision:"HEAD",options:GitBlameOptions(),preferences:prefs,regexExecutable:regexExecutable,requireScope:false,provider:provider)
+        defer { reloadOwner.close() }
+        try await wait { !reloadOwner.model.busy && !reloadOwner.model.syntaxWorking }
+        let reload=reloadOwner.model,stable=reload.snapshot!.contents;reload.goToLine(1)
+        try Data().write(to:repos[0].root.appendingPathComponent("hold-reload"));reload.reload()
+        try await wait { FileManager.default.fileExists(atPath:marker.path) && reload.busy }
+        let reloadPIDs=try String(contentsOf:marker).split(whereSeparator: \.isWhitespace).compactMap { Int32($0) }
+        try require(reloadPIDs.count==2 && BlameWindowModel.activeHistoryOperations>0,"Reload lacks owned process/Quit lifetime")
+        reload.cancelReload();try await wait { !reload.busy && BlameWindowModel.activeHistoryOperations==0 && reloadPIDs.allSatisfy { kill($0,0) != 0 } }
+        try require(reload.snapshot?.contents==stable && reload.selection==1 && reload.error==nil,"Cancelled metadata reload lost stable document")
+        try FileManager.default.removeItem(at:marker);reload.reload()
+        try await wait { FileManager.default.fileExists(atPath:marker.path) && reload.busy }
+        let closePIDs=try String(contentsOf:marker).split(whereSeparator: \.isWhitespace).compactMap { Int32($0) }
+        reloadOwner.close();try await wait { BlameWindowModel.activeHistoryOperations==0 && closePIDs.allSatisfy { kill($0,0) != 0 } }
+        try require(reload.retired && !reload.busy && reload.snapshot?.contents==stable,"Closing metadata read accepted a late result")
         for n in 0..<5 { let lease=RepositoryAccessLease(url:repos[0].root,provider:provider);try history.remember(root:repos[0].root,path:"file\(n).txt",lease:lease) }
         try require(history.entries.count==4 && history.entries.map(\.path)==["file4.txt","file3.txt","file2.txt","file1.txt"],"Four-entry source MRU order/dedup")
         do {

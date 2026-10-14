@@ -1187,3 +1187,45 @@ exercise actual parent/current content, a real read-only unified viewer, exclusi
 of an unrelated changed file, owner Close/Open guards, viewer cleanup and stale
 parent-menu rejection. All four receivers were reaped and checked absent.
 See qa/blame-parent-family-2026-10-15.json for evidence and remaining limits.
+
+## Project metadata and cancellable reload — October 15, 2026
+
+The embedded Log now supplies the conditional Bug-ID and SVN Rev columns from
+GitLogListBase.cpp InsertGitColumn/FindBugID/FindSVNRev and OutputWnd.cpp's project
+property refresh. Reload and File Open share one Core history-presentation path.
+Project issue properties use the existing system/global/project/local precedence.
+Issue regexes run in bounded batches of 128 messages with the original ECMAScript
+helper, natural sorting and deduplication; invalid expressions produce empty IDs
+like the source. Template-based IDs use the existing source parser.
+
+SVN column eligibility follows `.git-common-dir/svn/.metadata`, excluding bare
+repositories, as the existing Finder/Log metadata does. Values use the shared
+source FindSVNRev helper and subject/body concatenation. Its whole-message anchor
+quirks are intentionally retained: an ordinary message containing a later
+`git-svn-id` trailer can display an empty SVN value. The native menu hides unavailable
+conditional columns, retains their saved choices and restores eligibility when
+repository metadata changes. Existing ten-column layouts acquire defaults for
+these newly ported columns without discarding user order or widths.
+
+Annotation Reload now owns a cancellation token across blob, blame, history,
+project properties and issue/SVN matching reads. A Cancel button appears while
+loading. Cancel keeps the previous annotations, metadata and selected line until
+the owned reader settles. Closing/invalidation cancels the reader and suppresses
+late publication. The static operation count guards Quit even after the visible
+window has closed, and the task retains its security-scope lease through cleanup.
+The existing File Open preparation likewise obtains all metadata before replacing
+the current document. Its injected matcher path is retained across replacement;
+production uses the app's own bundled helper.
+
+Full Blame source parity, physical conditional-column/layout acceptance, docking,
+external alternate comparison and signed/App Store acceptance remain open. This
+batch does not certify the whole viewer or application.
+
+This supersedes earlier conditional-column and uncancelled-reload limitations.
+The 28 focused Core checks and initial/final Debug builds passed. The final build
+adds only native helper-path injection; Core was not repeated. Both grouped native
+menu/File Open cases passed on system and bundled Git. New assertions verify
+conditional-column availability/removal, issue IDs after document replacement,
+stable annotations/selection after Cancel, actual owned metadata-process reaping
+and suppressed publication after Close. All four receivers were reaped and checked
+absent. See qa/blame-metadata-load-2026-10-15.json for exact scope and limits.

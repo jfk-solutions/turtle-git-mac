@@ -20,7 +20,7 @@ final class BlameReadCancellationTests:XCTestCase {
         try "#!/bin/sh\nfor arg in \"$@\"; do if [ \"$arg\" = diff ]; then exit 93; fi; done\nexec /usr/bin/git \"$@\"\n".write(to:fast,atomically:true,encoding:.utf8)
         try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:fast.path)
         let fastResult=try await GitRepository(root:root,executable:fast).blame(path:path);XCTAssertEqual(fastResult.contents,bytes)
-        for phase in ["rev-parse","ls-tree","cat-file","blame","log","diff"] {
+        for phase in ["rev-parse","ls-tree","cat-file","blame","log","diff","config","--git-common-dir"] {
             let helper=root.appendingPathComponent("held-"+phase),marker=URL(fileURLWithPath:helper.path+".ready")
             let script="""
             #!/bin/sh
@@ -39,7 +39,8 @@ final class BlameReadCancellationTests:XCTestCase {
             try script.write(to:helper,atomically:true,encoding:.utf8);try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:helper.path)
             let token=OperationCancellation(),slow=GitRepository(root:root,executable:helper)
             let work=Task {
-                if phase=="diff" { _ = try await slow.blameHistoryParentComparisons(snapshot,revision:snapshot.revision,cancellation:token) }
+                if phase=="config" || phase=="--git-common-dir" { _ = try await slow.blameHistoryDetails(snapshot,options:GitBlameOptions(),cancellation:token) }
+                else if phase=="diff" { _ = try await slow.blameHistoryParentComparisons(snapshot,revision:snapshot.revision,cancellation:token) }
                 else if phase=="log" { _ = try await slow.blameHistory(snapshot,options:GitBlameOptions(),cancellation:token) }
                 else { _ = try await slow.blame(path:path,cancellation:token) }
             }

@@ -29,10 +29,10 @@ private struct BlameParentMenuTarget {
     var chooseFile:(NSOpenPanel,NSWindow,@escaping (URL?)->Void)->Void = { panel,owner,reply in panel.beginSheetModal(for:owner) { reply($0 == .OK ? panel.url : nil) } }
     var chooseScope:(NSOpenPanel,NSWindow,@escaping (URL?)->Void)->Void = { panel,owner,reply in panel.beginSheetModal(for:owner) { reply($0 == .OK ? panel.url : nil) } }
 
-    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, revision: String, options: GitBlameOptions = GitBlamePreferences.load(), preferences: UserDefaults = .standard, recentDocuments:BlameRecentDocuments? = nil, requireScope:Bool = GitRuntime.isAppStoreBuild, provider:any RepositoryBookmarkProvider = SystemRepositoryBookmarkProvider()) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, revision: String, options: GitBlameOptions = GitBlamePreferences.load(), preferences: UserDefaults = .standard, regexExecutable:URL? = nil, recentDocuments:BlameRecentDocuments? = nil, requireScope:Bool = GitRuntime.isAppStoreBuild, provider:any RepositoryBookmarkProvider = SystemRepositoryBookmarkProvider()) {
         self.preferences=preferences;self.recentDocuments=recentDocuments
         documentOpener=BlameDocumentOpener(requireScope:requireScope,provider:provider,factory:{ GitRepository(root:$0,executable:repository.executable) });self.requireScope=requireScope;self.scopeProvider=provider
-        model = BlameWindowModel(repository: repository, access: access, path: path, revision: revision, options: options, labelDefaults: preferences)
+        model = BlameWindowModel(repository: repository, access: access, path: path, revision: revision, options:options,labelDefaults:preferences,historyRegexExecutable:regexExecutable)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 700), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(path) at \(revision.prefix(7)) – Blame – TurtleGit"
         window.minSize = NSSize(width: 820, height: 400); window.isReleasedWhenClosed = false
@@ -93,11 +93,11 @@ private struct BlameParentMenuTarget {
         let old=model,identity=openingGeneration,options=GitBlamePreferences.load(from:preferences)
         Task {
             do {
-                let document=try await documentOpener.prepare(file:file,scope:scope,options:options)
+                let document=try await documentOpener.prepare(file:file,scope:scope,options:options,regexExecutable:old.historyRegexExecutable)
                 guard openingGeneration==identity,!old.retired else { return }
                 old.retireSourceView?();old.onFind=nil;old.onFindFeedback=nil;old.retire()
-                let replacement=BlameWindowModel(repository:document.repository,access:document.access,path:document.snapshot.path,revision:"HEAD",options:document.options,labelDefaults:preferences)
-                replacement.install(document.snapshot,history:document.history,options:document.options);replacement.recentHistoryError=old.recentHistoryError
+                let replacement=BlameWindowModel(repository:document.repository,access:document.access,path:document.snapshot.path,revision:"HEAD",options:document.options,labelDefaults:preferences,historyRegexExecutable:old.historyRegexExecutable)
+                replacement.install(document.snapshot,history:document.history,options:document.options,details:document.details);replacement.recentHistoryError=old.recentHistoryError
                 model=replacement;replacement.onFind={ [weak self] in self?.showFind() };replacement.onFindFeedback={ [weak self] in self?.feedback($0) };replacement.onOpenDocument={ [weak self] in self?.openDocument() };replacement.onCancelDocumentOpen={ [weak self] in self?.cancelOpenDocument() };replacement.onOpenRecent={ [weak self] in self?.openRecent($0) };replacement.recentDocuments=recentDocuments
                 window?.contentViewController=NSHostingController(rootView:BlameDialog(model:replacement))
                 Array(containingReferences.values).forEach { $0.close() };containingReferences=[:]
@@ -253,6 +253,14 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     private var generation = 0
     private var pendingLine: Int?
     private var clipboardGeneration = 0
+    let historyRegexExecutable:URL?
+    private var loadCancellation:OperationCancellation?
+    @Published private(set) var cancellingReload=false
+    @Published private(set) var issueProperties=IssueTrackerProperties()
+    @Published private(set) var hasGitSVN=false
+    @Published private(set) var svnRevisions:[String:String]=[:]
+    func cancelReload() { guard let loadCancellation,!cancellingReload else { return };cancellingReload=true;loadCancellation.cancel() }
+
     private var historyClipboardCancellation:OperationCancellation?
     private(set) static var activeHistoryOperations=0
     @Published private(set) var historyColumns:BlameHistoryColumns
@@ -442,8 +450,8 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
         }
         return 0
     }
-    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, revision: String, options: GitBlameOptions = GitBlameOptions(), labelDefaults: UserDefaults = .standard) {
-        self.repository = repository; self.access = access; self.path = path; self.revision = revision; self.labelDefaults = labelDefaults;self.historyColumns = .load(labelDefaults)
+    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, revision: String, options: GitBlameOptions = GitBlameOptions(), labelDefaults: UserDefaults = .standard,historyRegexExecutable:URL? = nil) {
+        self.repository = repository; self.access = access; self.path = path; self.revision = revision; self.labelDefaults = labelDefaults;self.historyColumns = .load(labelDefaults);self.historyRegexExecutable=historyRegexExecutable
         showProperties=labelDefaults.object(forKey:"Blame.ShowProperties") as? Bool ?? true
         showToolbar=labelDefaults.object(forKey:"Blame.ShowToolbar") as? Bool ?? true
         showLog=labelDefaults.object(forKey:"Blame.ShowLog") as? Bool ?? true
@@ -516,7 +524,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     func retire() {
         retired=true;onFind=nil;onFindFeedback=nil;onGoTo=nil;onOpenDocument=nil;onCancelDocumentOpen=nil;onOpenRecent=nil;onLoaded=nil;onLog=nil;onChanges=nil;onPrevious=nil;recentDocuments=nil;invalidate()
     }
-    func invalidate() { cancelHistoryParentReads();historyClipboardCancellation?.cancel();historyClipboardCancellation=nil;generation += 1; parentGeneration += 1; clipboardGeneration += 1; copyingLog = false; firstVisibleSourceRow = nil; scrollSourceRowToTop = nil; selectedSourceText = nil; sourceNavigation = nil }
+    func invalidate() { loadCancellation?.cancel();loadCancellation=nil;cancellingReload=false;busy=false;cancelHistoryParentReads();historyClipboardCancellation?.cancel();historyClipboardCancellation=nil;generation += 1; parentGeneration += 1; clipboardGeneration += 1; copyingLog = false; firstVisibleSourceRow = nil; scrollSourceRowToTop = nil; selectedSourceText = nil; sourceNavigation = nil }
     func prepareParentMenu(number: Int, completion: @escaping () -> Void) {
         selection = number; loadParents(completion: completion)
     }
@@ -540,7 +548,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
         }
     }
     func reload(saveThresholds: Bool = false) {
-        guard !retired,!busy,!openingDocument,!searchFeedbackBusy else { return }
+        guard !retired,!busy,!openingDocument,!searchFeedbackBusy,!resettingHistoryColumns else { return }
         let required = detectionMode == .withinFile ? withinFileCharacters : detectionMode.betweenFiles ? betweenFileCharacters : nil
         if let required, required.isEmpty || !required.utf8.allSatisfy({ (48...57).contains($0) }) || UInt32(required) == nil {
             error = "Enter a character count from 0 to 4294967295."; return
@@ -561,26 +569,27 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
                 }
             }
         }
-        busy = true; error = nil
-        Task {
+        let token=OperationCancellation();loadCancellation=token;cancellingReload=false
+        busy = true; error = nil;Self.activeHistoryOperations += 1
+        Task { [self,access] in
+            defer { Self.activeHistoryOperations -= 1;withExtendedLifetime(access) {};if request==generation { loadCancellation=nil;cancellingReload=false;busy=false } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let result = try await repository.blame(path: path, revision: revision, options: options)
-                let entries = try await repository.blameHistory(result, options: options)
-                guard request == generation else { return }
-                install(result.applyingDisplayIdentities(entries),history:entries,options:options)
-                busy = false; applyPendingLine();onLoaded?()
+                let result=try await repository.blame(path:path,revision:revision,options:options,cancellation:token)
+                let details=try await repository.blameHistoryDetails(result,options:options,cancellation:token,regexExecutable:historyRegexExecutable)
+                guard request==generation,!retired,!token.isCancelled else { return }
+                install(result.applyingDisplayIdentities(details.entries),history:details.entries,options:options,details:details)
+                busy=false;applyPendingLine();onLoaded?()
             } catch {
-                if request == generation {
-                    snapshot = nil; selection = nil; highlightedHash = nil; hoveredLine = nil; origins = [:]; ranks = [:]
-                    historyCount = 0; navigationMessage = ""
-                    historyEntries = []; selectedLogHashes = []
-                    self.error = error.localizedDescription; busy = false
-                }
+                guard request==generation,!retired,!token.isCancelled else { return }
+                snapshot=nil;selection=nil;highlightedHash=nil;hoveredLine=nil;origins=[:];ranks=[:]
+                historyCount=0;navigationMessage="";historyEntries=[];selectedLogHashes=[]
+                issueProperties=IssueTrackerProperties();hasGitSVN=false;svnRevisions=[:];self.error=error.localizedDescription
             }
         }
     }
-    func install(_ result:GitBlameSnapshot,history entries:[LogEntry],options:GitBlameOptions) {
+    func install(_ result:GitBlameSnapshot,history entries:[LogEntry],options:GitBlameOptions,details:GitBlameHistoryDetails? = nil) {
+        issueProperties=details?.issueProperties ?? IssueTrackerProperties();hasGitSVN=details?.hasGitSVN ?? false;svnRevisions=details?.svnRevisions ?? [:]
         let hashes=entries.map(\.hash)
         ranks=Dictionary(hashes.enumerated().map { ($0.element,$0.offset) },uniquingKeysWith:min)
         origins=Dictionary(result.lines.map { ($0.hash,$0) },uniquingKeysWith:{ first,_ in first })
@@ -709,7 +718,10 @@ private struct BlameDialog: View {
             }.disabled(model.busy || model.openingDocument || model.searchFeedbackBusy) }
             if let error=model.recentHistoryError { Text(error).font(.caption).foregroundStyle(.orange).textSelection(.enabled) }
             if model.openingDocument { HStack { ProgressView(model.cancellingDocument ? "Cancelling…" : "Opening file…").controlSize(.small);Button("Cancel") { model.onCancelDocumentOpen?() }.disabled(model.cancellingDocument) } }
-            if model.busy { ProgressView("Reading annotations…").controlSize(.small) }
+            if model.busy { HStack {
+                ProgressView(model.cancellingReload ? "Cancelling…" : "Reading annotations…").controlSize(.small)
+                Button("Cancel") { model.cancelReload() }.disabled(model.cancellingReload)
+            } }
             if model.syntaxWorking { ProgressView("Coloring source…").controlSize(.small) }
             if let error = model.syntaxError { Text(error).font(.caption).foregroundStyle(.red).textSelection(.enabled) }
             if model.loadingParents || model.readingHistoryParents { ProgressView("Reading previous revisions…").controlSize(.small) }
@@ -882,7 +894,7 @@ private struct BlamePropertiesPane: View {
 
 /// CGitBlameLogList uses the shared column manager with ID replacing Actions.
 struct BlameHistoryColumns:Equatable {
-    static let definitions:[(String,String,Double,Bool)]=[("graph","Graph",65,true),("id","ID",55,true),("hash","SHA-1",92,true),("message","Message",420,true),("author","Author",140,true),("date","Date",170,true),("email","Email",200,false),("committer","Commit Name",140,false),("committerEmail","Commit Email",200,false),("committerDate","Commit Date",170,false)]
+    static let definitions:[(String,String,Double,Bool)]=[("graph","Graph",65,true),("id","ID",55,true),("hash","SHA-1",92,true),("message","Message",420,true),("author","Author",140,true),("date","Date",170,true),("email","Email",200,false),("committer","Commit Name",140,false),("committerEmail","Commit Email",200,false),("committerDate","Commit Date",170,false),("bugs","Bug-ID",110,true),("svn","SVN Rev",100,true)]
     static let names=definitions.map { $0.0 }
     var visible:Set<String>,order:[String],widths:[String:Double]
     init(visible:Set<String> = Set(definitions.filter { $0.3 }.map { $0.0 }),order:[String] = names,widths:[String:Double] = [:]) {
@@ -894,7 +906,10 @@ struct BlameHistoryColumns:Equatable {
         let key="Blame.LogColumns"
         guard preferences.integer(forKey:key+".Version")==6 else { return Self() }
         let widths=(preferences.dictionary(forKey:key+".Widths") ?? [:]).compactMapValues { ($0 as? NSNumber)?.doubleValue }
-        return Self(visible:Set(preferences.stringArray(forKey:key) ?? names),order:preferences.stringArray(forKey:key+".Order") ?? names,widths:widths)
+        let saved=Set(preferences.stringArray(forKey:key) ?? names)
+        let prior=preferences.stringArray(forKey:key+".Order") ?? names
+        let introduced=Set(["bugs","svn"].filter { !prior.contains($0) })
+        return Self(visible:saved.union(introduced),order:preferences.stringArray(forKey:key+".Order") ?? names,widths:widths)
     }
     func save(_ preferences:UserDefaults) {
         let key="Blame.LogColumns";preferences.set(6,forKey:key+".Version");preferences.set(Self.names.filter { visible.contains($0) },forKey:key)
@@ -942,7 +957,7 @@ struct BlameHistoryTable:NSViewRepresentable {
                 for (index,id) in value.order.enumerated() { if let old=table.tableColumns.firstIndex(where:{ $0.identifier.rawValue==id }),old != index { table.moveColumn(old,toColumn:index) } }
                 for column in table.tableColumns {
                     let id=column.identifier.rawValue
-                    column.isHidden = !value.visible.contains(id) || id=="graph" && !showGraph
+                    column.isHidden = !value.visible.contains(id) || id=="graph" && !showGraph || id=="bugs" && !model.issueProperties.showsBugIDColumn || id=="svn" && !model.hasGitSVN
                     let fallback=BlameHistoryColumns.definitions.first { $0.0==id }!.2
                     column.width=CGFloat(value.widths[id] ?? (id=="graph" ? Double(max(65,min(240,(graph.map(\.width).max() ?? 1)*14+24))) : fallback))
                 };layout=value
@@ -967,6 +982,8 @@ struct BlameHistoryTable:NSViewRepresentable {
             case "committer":return entry.committer
             case "committerEmail":return entry.committerEmail
             case "committerDate":return dates.format(entry.committerDate)
+            case "bugs":return entry.issueIDs
+            case "svn":return model.svnRevisions[entry.hash] ?? ""
             case "graph":return ""
             default:return entry.logLine(fullMessage:model.fullCommitMessageOnLogLine)
             }
@@ -1000,12 +1017,13 @@ struct BlameHistoryTable:NSViewRepresentable {
             let menu=NSMenu();menu.autoenablesItems=false
             let resetItem=NSMenuItem(title:"Reset columns",action:#selector(reset),keyEquivalent:"");resetItem.target=self;resetItem.isEnabled=available;menu.addItem(resetItem);menu.addItem(.separator())
             for (id,title,_,_) in BlameHistoryColumns.definitions {
+                if id=="bugs" && !model.issueProperties.showsBugIDColumn || id=="svn" && !model.hasGitSVN { continue }
                 let item=NSMenuItem(title:title,action:#selector(toggle(_:)),keyEquivalent:"");item.target=self;item.representedObject=id;item.state=model.historyColumns.visible.contains(id) ? .on : .off
                 item.isEnabled=available && id != "message" && (id != "graph" || model.showHistoryGraph);menu.addItem(item)
             };return menu
         }
         @objc func toggle(_ sender:NSMenuItem) {
-            guard available,let id=sender.representedObject as? String,id != "message" else { return };var value=model.historyColumns
+            guard available,let id=sender.representedObject as? String,id != "message",!(id=="bugs" && !model.issueProperties.showsBugIDColumn),!(id=="svn" && !model.hasGitSVN) else { return };var value=model.historyColumns
             if value.visible.contains(id) { value.visible.remove(id) } else { value.visible.insert(id) };model.saveHistoryColumns(value)
         }
         @objc func reset() { guard available else { return };model.resetHistoryColumns() }

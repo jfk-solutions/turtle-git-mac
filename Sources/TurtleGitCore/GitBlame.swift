@@ -266,6 +266,46 @@ public enum GitBlameParser {
         return (bytes[1] - 48) * 10 + bytes[2] - 48 < 24 && (bytes[3] - 48) * 10 + bytes[4] - 48 < 60
     }
 }
+/// Project-dependent presentation shared by Reload and File Open.
+public struct GitBlameHistoryDetails:Sendable {
+    public let entries:[LogEntry]
+    public let issueProperties:IssueTrackerProperties
+    public let hasGitSVN:Bool
+    public let svnRevisions:[String:String]
+    public static func prepare(entries:[LogEntry],issueProperties:IssueTrackerProperties,hasGitSVN:Bool,regexExecutable:URL? = nil,cancellation:OperationCancellation? = nil) throws -> Self {
+        var decorated=entries,svn:[String:String]=[:]
+        for start in stride(from:0,to:entries.count,by:128) {
+            try cancellation?.check()
+            let end=min(start+128,entries.count),batch=Array(entries[start..<end])
+            let messages=batch.map { $0.message.isEmpty ? $0.subject : $0.message }
+            if !issueProperties.checkExpression.isEmpty {
+                let ids=try IssueRegexRuntime.batchIssueIDs(messages,check:issueProperties.checkExpression,extract:issueProperties.extractionExpression,executable:regexExecutable,cancellation:cancellation)
+                for offset in batch.indices { decorated[start+offset].issueIDs=IssueTrackerProperties.naturalIssueIDs(ids[offset]) }
+            } else {
+                for offset in batch.indices { decorated[start+offset].issueIDs=try issueProperties.logIssueIDs(in:messages[offset],executable:regexExecutable,cancellation:cancellation) }
+            }
+            if hasGitSVN {
+                let values=try IssueRegexRuntime.svnRevisions(batch.map { $0.historySubject+"\n"+$0.historyBody },executable:regexExecutable,cancellation:cancellation)
+                for offset in batch.indices { svn[batch[offset].hash]=values[offset] }
+            }
+        }
+        try cancellation?.check();return Self(entries:decorated,issueProperties:issueProperties,hasGitSVN:hasGitSVN,svnRevisions:svn)
+    }
+}
+
+extension GitRepository {
+    public func blameHistoryDetails(_ snapshot:GitBlameSnapshot,options:GitBlameOptions,cancellation:OperationCancellation? = nil,regexExecutable:URL? = nil) throws -> GitBlameHistoryDetails {
+        let entries=try blameHistory(snapshot,options:options,cancellation:cancellation)
+        let properties=try issueTrackerProperties(cancellation:cancellation)
+        let bare=try isBare(cancellation:cancellation)
+        var bytes=try run(["rev-parse","--path-format=absolute","--git-common-dir"],cancellation:cancellation).stdout
+        if bytes.last==10 { bytes.removeLast() }
+        guard let path=String(data:bytes,encoding:.utf8),path.hasPrefix("/"),!path.contains("\0") else { throw GitBlameFailure.format }
+        let svn = !bare && FileManager.default.fileExists(atPath:URL(fileURLWithPath:path).appendingPathComponent("svn/.metadata").path)
+        return try GitBlameHistoryDetails.prepare(entries:entries,issueProperties:properties,hasGitSVN:svn,regexExecutable:regexExecutable,cancellation:cancellation)
+    }
+}
+
 extension GitRepository {
     public func blameHistory(_ snapshot: GitBlameSnapshot, options: GitBlameOptions, cancellation:OperationCancellation? = nil) throws -> [LogEntry] {
         try cancellation?.check()

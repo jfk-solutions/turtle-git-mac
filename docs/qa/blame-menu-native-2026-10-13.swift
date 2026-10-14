@@ -13,19 +13,22 @@ import TurtleGitCore
         for _ in 0..<500 { if BlameWindowModel.activeHistoryOperations==0 { break };try? await Task.sleep(nanoseconds:10_000_000) }
         fputs("Blame menus failed: \(error)\n",stderr);exit(1) } }
     @MainActor static func verify() async throws {
+        let regexExecutable=URL(fileURLWithPath:FileManager.default.currentDirectoryPath).appendingPathComponent("build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/IssueRegex/issue-regex")
         let root=URL(fileURLWithPath:CommandLine.arguments[1]),repo=GitRepository(root:root,executable:URL(fileURLWithPath:CommandLine.arguments[2]))
         _ = try await repo.run(["init","-b","main"])
         for (key,value) in [("user.name","Menus QA"),("user.email","menus@example.invalid"),("core.hooksPath","/dev/null"),("commit.gpgsign","false")] { _ = try await repo.run(["config",key,value]) }
         let text="int value = 42;\n// needle 雪\n",file=root.appendingPathComponent("menus.cpp")
         try Data(text.utf8).write(to:file);try await repo.stage(["menus.cpp"]);_ = try await repo.commit(message:"Menu baseline")
         try Data(text.replacingOccurrences(of:"42",with:"43").utf8).write(to:file);try await repo.stage(["menus.cpp"]);_ = try await repo.commit(message:"Second revision")
-        try Data(text.utf8).write(to:file);try Data("unrelated diff must be excluded\n".utf8).write(to:root.appendingPathComponent("unrelated.txt"));try await repo.stage(["menus.cpp","unrelated.txt"]);_ = try await repo.commit(message:"Restore display")
+        try Data(text.utf8).write(to:file);try Data("unrelated diff must be excluded\n".utf8).write(to:root.appendingPathComponent("unrelated.txt"));try await repo.stage(["menus.cpp","unrelated.txt"]);_ = try await repo.commit(message:"Restore display #10 #2 #10")
+        _ = try await repo.run(["config","bugtraq.url","https://example.invalid/issues/%BUGID%"]);_ = try await repo.run(["config","bugtraq.logregex","#([0-9]+)"])
+        let svnMarker=root.appendingPathComponent(".git/svn/.metadata");try FileManager.default.createDirectory(at:svnMarker.deletingLastPathComponent(),withIntermediateDirectories:true);try Data().write(to:svnMarker)
         let head=try await repo.run(["rev-parse","HEAD"]).stdout,index=try Data(contentsOf:root.appendingPathComponent(".git/index"))
         let name="TurtleGit.BlameMenus.QA."+UUID().uuidString,prefs=UserDefaults(suiteName:name)!
         defer { prefs.removePersistentDomain(forName:name) }
         try Data("Mapped Menus <mapped@example.invalid> Menus QA <menus@example.invalid>\n".utf8).write(to:root.appendingPathComponent(".mailmap"))
         let globals=GitBlamePreferences.load(),findGlobals=GitBlameFindPreferences.load()
-        let owner=BlameWindowController(repository:repo,access:nil,path:"menus.cpp",revision:"HEAD",options:GitBlameOptions(),preferences:prefs)
+        let owner=BlameWindowController(repository:repo,access:nil,path:"menus.cpp",revision:"HEAD",options:GitBlameOptions(),preferences:prefs,regexExecutable:regexExecutable)
         defer { owner.close() }
         let window=owner.window!,model=owner.model
         window.contentView?.layoutSubtreeIfNeeded()
@@ -36,6 +39,8 @@ import TurtleGitCore
         let history=historyTable()!,historyCoordinator=history.delegate as! BlameHistoryTable.Coordinator
         try require(history.tableColumns.map { $0.identifier.rawValue }==BlameHistoryColumns.names,"Source Blame column inventory")
         try require(historyCoordinator.text("id",0)=="3" && historyCoordinator.text("id",2)=="1","Blame Log ID numbering")
+        try require(model.issueProperties.showsBugIDColumn && model.hasGitSVN && historyCoordinator.text("bugs",0)=="2 10","Project metadata not applied to Blame rows")
+        try require(history.tableColumns.first { $0.identifier.rawValue=="bugs" }?.isHidden==false && history.tableColumns.first { $0.identifier.rawValue=="svn" }?.isHidden==false,"Conditional columns unavailable")
         let header=history.headerView as! BlameHistoryColumnHeader,columns=header.buildMenu()!,email=columns.items.first { $0.title=="Email" }!
         _ = NSApp.sendAction(email.action!,to:email.target,from:email)
         try await wait { history.tableColumns.first { $0.identifier.rawValue=="email" }?.isHidden==false }
@@ -94,6 +99,11 @@ import TurtleGitCore
         try require(routed==beforeRoutes,"Old menu survived Blame reload")
         previousRoute=nil;_ = NSApp.sendAction(previous.action!,to:previous.target,from:previous);try require(previousRoute==nil,"Old parent menu survived reload")
         model.selectedLogHashes=[]
+        _ = try await repo.run(["config","--unset","bugtraq.url"]);_ = try await repo.run(["config","--unset","bugtraq.logregex"]);try FileManager.default.removeItem(at:svnMarker)
+        model.reload();try await wait { !model.busy && !model.syntaxWorking && !model.hasGitSVN }
+        try require(!model.issueProperties.showsBugIDColumn && history.tableColumns.first { $0.identifier.rawValue=="bugs" }?.isHidden==true && history.tableColumns.first { $0.identifier.rawValue=="svn" }?.isHidden==true,"Stale conditional columns survived reload")
+        _ = try await repo.run(["config","bugtraq.url","https://example.invalid/issues/%BUGID%"]);_ = try await repo.run(["config","bugtraq.logregex","#([0-9]+)"]);try Data().write(to:svnMarker)
+        model.reload();try await wait { !model.busy && !model.syntaxWorking }
         let layout = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/GraphLayout/graph-layout")
         let graph = RevisionGraphWindowModel(repository: repo, access: nil, preferences: prefs, layoutExecutable: layout)
         defer { graph.invalidate() }
@@ -159,7 +169,7 @@ import TurtleGitCore
         try require(GitBlamePreferences.load(from:prefs).ignoreWhitespace && GitBlamePreferences.load()==globals,"Option menu wrote outside injected preferences")
         // A second owner receives its own routing and restores persisted pane choices.
         model.showToolbar=false;model.showLog=false;model.showProperties=false;model.showStatusBar=false
-        let reopened=BlameWindowController(repository:repo,access:nil,path:"menus.cpp",revision:"HEAD",options:GitBlameOptions(),preferences:prefs)
+        let reopened=BlameWindowController(repository:repo,access:nil,path:"menus.cpp",revision:"HEAD",options:GitBlameOptions(),preferences:prefs,regexExecutable:regexExecutable)
         defer { reopened.close() }
         try await wait { !reopened.model.busy && !reopened.model.syntaxWorking }
         try require(!reopened.model.showToolbar && !reopened.model.showLog && !reopened.model.showProperties && !reopened.model.showStatusBar,"New viewer did not restore pane layout")

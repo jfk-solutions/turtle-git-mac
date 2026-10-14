@@ -1,0 +1,69 @@
+{
+  "date": "2026-10-15",
+  "scope": "Blame project history metadata and reload lifecycle",
+  "source": [
+    "GitLogListBase.cpp InsertGitColumn/FindBugID/FindSVNRev",
+    "OutputWnd.cpp project property refresh",
+    "GitRevLoglist.h GetSubjectBody"
+  ],
+  "implementation": [
+    "Shared Core project metadata for Reload and File Open",
+    "Bounded 128-message issue extraction with natural sort/dedup and source invalid-pattern behavior",
+    "Conditional Bug-ID/SVN columns, header availability and existing layout migration",
+    "SVN eligibility from shared Git metadata and exact source subject/body anchored matching",
+    "Owned cancellable reload across blob/blame/history/config/metadata matching",
+    "Cancel retains stable annotations/selection; Close suppresses late publication while retaining lease and Quit count",
+    "Explicit matcher path injection retained across File Open; production uses bundled runtime"
+  ],
+  "validation": {
+    "core": {
+      "tests": 28,
+      "failures": 0,
+      "log": "build/qa/blame-metadata-load-core-2026-10-15.log",
+      "coverage": [
+        "Project regex/config metadata and index/file preservation",
+        "130-row issue extraction with duplicate IDs",
+        "Source SVN whole-message/leading whitespace behavior",
+        "Invalid expression and pre-cancelled empty preparation",
+        "Owned config and Git common-directory read cancellation"
+      ]
+    },
+    "build": {
+      "initial_exit_code": 0,
+      "final_exit_code": 0,
+      "final_log": "build/qa/blame-metadata-load-final-build-2026-10-15.log",
+      "note": "Final native-only helper-path injection compiled after initial build; Core was unchanged and not rerun"
+    },
+    "native": {
+      "cases": [
+        "blame-menus",
+        "blame-file-open"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "result": "4 passed",
+      "log": "build/qa/blame-metadata-load-native-2026-10-15.log",
+      "owned_receiver_pids_reaped": [
+        44353,
+        44606,
+        44735,
+        44980
+      ],
+      "new_coverage": [
+        "Conditional metadata/column appearance and removal on reload",
+        "Project issue metadata retained through same-window File Open",
+        "Actual blocked metadata reload cancellation with stable source/selected line",
+        "Closing blocked reload cancels and reaps leader/worker; stale result suppressed"
+      ]
+    }
+  },
+  "limits": [
+    "SVN marker is private simulated metadata; no remote SVN server accessed",
+    "Typed picker replies/simulated bookmarks do not prove signed permissions",
+    "Full Blame visual/keyboard/VoiceOver/docking acceptance remains open",
+    "Alternate external comparison and App Store signing/acceptance remain open",
+    "Hosted macOS run 38649492168 was observed in progress; no full hosted pass claimed"
+  ]
+}

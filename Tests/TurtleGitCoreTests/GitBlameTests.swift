@@ -2,6 +2,28 @@ import XCTest
 @testable import TurtleGitCore
 
 final class GitBlameTests: XCTestCase {
+    func testProjectHistoryDetailsAndSourceIssueSVNMetadata() async throws {
+        let (root,repo,path)=try await GitPatchTests().fixture();defer { try? FileManager.default.removeItem(at:root) }
+        let parser=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("build/issue-regex-runtime/IssueRegex/issue-regex")
+        _ = try await repo.run(["config","bugtraq.url","https://example.invalid/issues/%BUGID%"])
+        _ = try await repo.run(["config","bugtraq.logregex","#([0-9]+)"])
+        try Data("metadata changed\n".utf8).write(to:root.appendingPathComponent(path));try await repo.stage([path]);_ = try await repo.commit(message:"Fix #10 #2 #10 雪")
+        let marker=root.appendingPathComponent(".git/svn/.metadata");try FileManager.default.createDirectory(at:marker.deletingLastPathComponent(),withIntermediateDirectories:true);try Data().write(to:marker)
+        let snapshot=try await repo.blame(path:path),index=try Data(contentsOf:root.appendingPathComponent(".git/index")),details=try await repo.blameHistoryDetails(snapshot,options:GitBlameOptions(),regexExecutable:parser)
+        XCTAssertTrue(details.issueProperties.showsBugIDColumn);XCTAssertTrue(details.hasGitSVN);XCTAssertEqual(details.entries.first?.issueIDs,"2 10");XCTAssertEqual(details.entries.first?.hash,snapshot.revision)
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index);XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(path)),snapshot.contents)
+        let values=[LogEntry(hash:String(repeating:"a",count:40),author:"",date:"",subject:"",message:"\ngit-svn-id: https://example.invalid/a@00123 abcd"),LogEntry(hash:String(repeating:"b",count:40),author:"",date:"",subject:"subject",message:"subject\n\ngit-svn-id: https://example.invalid/a@42 abcd\n")]
+        let source=try GitBlameHistoryDetails.prepare(entries:values,issueProperties:IssueTrackerProperties(),hasGitSVN:true,regexExecutable:parser)
+        XCTAssertEqual(source.svnRevisions[values[0].hash],"00123");XCTAssertEqual(source.svnRevisions[values[1].hash],"")
+        var many:[LogEntry]=[]
+        for value in 0..<130 { many.append(LogEntry(hash:String(format:"%040x",value+1),author:"",date:"",subject:"row",message:"#\(value) #\(value)")) }
+        let batched=try GitBlameHistoryDetails.prepare(entries:many,issueProperties:details.issueProperties,hasGitSVN:false,regexExecutable:parser)
+        XCTAssertEqual(batched.entries.map(\.issueIDs),(0..<130).map(String.init))
+        var invalid=details.issueProperties;invalid.checkExpression="("
+        XCTAssertEqual(try GitBlameHistoryDetails.prepare(entries:values,issueProperties:invalid,hasGitSVN:false,regexExecutable:parser).entries.map(\.issueIDs),["",""])
+        let token=OperationCancellation();token.cancel()
+        XCTAssertThrowsError(try GitBlameHistoryDetails.prepare(entries:[],issueProperties:invalid,hasGitSVN:false,cancellation:token))
+    }
     func testHistoryParentOriginsFallbackAndScopedPatch() async throws {
         let (root,repo,firstPath)=try await GitPatchTests().fixture();defer { try? FileManager.default.removeItem(at:root) }
         let second="second.txt",other="unrelated.txt"

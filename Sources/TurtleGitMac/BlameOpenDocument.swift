@@ -56,6 +56,7 @@ struct BlameOpenedDocument {
     let access:RepositoryAccessLease
     let snapshot:GitBlameSnapshot
     let history:[LogEntry]
+    let details:GitBlameHistoryDetails
     let options:GitBlameOptions
 }
 @MainActor final class BlameDocumentOpener {
@@ -70,7 +71,7 @@ struct BlameOpenedDocument {
     }
     var isReading:Bool { token != nil }
     func cancel() { generation += 1;token?.cancel() }
-    func prepare(file:URL,scope:RepositoryAccessLease?,options:GitBlameOptions) async throws -> BlameOpenedDocument {
+    func prepare(file:URL,scope:RepositoryAccessLease?,options:GitBlameOptions,regexExecutable:URL? = nil) async throws -> BlameOpenedDocument {
         guard token==nil else { throw FinderCacheServiceFailure.transitioning }
         let request=OperationCancellation();token=request;let identity=generation
         Self.activeReads += 1;defer { token=nil;Self.activeReads -= 1 }
@@ -94,9 +95,10 @@ struct BlameOpenedDocument {
         let path=String(file.standardizedFileURL.resolvingSymlinksInPath().path.dropFirst(root.path=="/" ? 1 : root.path.count+1))
         let repository=factory(root)
         let snapshot=try await repository.blame(path:path,revision:"HEAD",options:options,cancellation:request)
-        let history=try await repository.blameHistory(snapshot,options:options,cancellation:request)
+        let details=try await repository.blameHistoryDetails(snapshot,options:options,cancellation:request,regexExecutable:regexExecutable)
+        let history=details.entries
         guard identity==generation,!request.isCancelled else { throw OperationCancellationFailure.cancelled }
-        return BlameOpenedDocument(repository:repository,access:retained,snapshot:snapshot,history:history,options:options)
+        return BlameOpenedDocument(repository:repository,access:retained,snapshot:snapshot,history:history,details:details,options:options)
     }
 }
 
