@@ -1,0 +1,85 @@
+{
+  "date": "2026-10-14",
+  "base": "0c05c2a3",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Guarded recursive Copy/Add with immutable tree/destination snapshots and temporary replacement",
+    "Overwrite/Keep/Cancel and copied repository/submodule Delete/Ignore/Abort",
+    "Native picker/file URL drops, self-copy name validation, source leases and owned cancellation",
+    "Commit/Working Tree URL clipboard and captured Paste Move/Copy entry points, focused caller routing",
+    "Batch Copy/Add staging versus per-item Paste Copy staging, abort-on-error Paste Move"
+  ],
+  "validation": {
+    "compile_repairs": [
+      {
+        "attempt": "initial",
+        "debug_exit": 65,
+        "core_command_exit": 1,
+        "cause": "Unqualified POSIX rename clashed with the repository rename method; qualified Darwin.rename."
+      },
+      {
+        "attempt": "repair",
+        "debug_exit": 65,
+        "core_command_exit": 1,
+        "cause": "Commit model has messageFocusAvailable/inputsBlocked rather than retired; corrected captured caller guards."
+      },
+      {
+        "attempt": "repair2",
+        "debug_exit": 65,
+        "core_command_exit": 1,
+        "cause": "Application menu referenced private repository property; now uses public root/bare state."
+      }
+    ],
+    "core": {
+      "exit": 0,
+      "tests": 17,
+      "families": {
+        "FileCopyTests": 6,
+        "FileMoveTests": 6,
+        "RenameTests": 5
+      },
+      "log": "build/qa/file-transfer-core-repair3-2026-10-14.log",
+      "repeated": "No Core tests ran before the compile repairs; do not repeat after native-only fixes."
+    },
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/file-transfer-debug-repair3-2026-10-14.log",
+      "diagnostics": "Existing exit-zero/no-output compiler diagnostics remain; no clean-diagnostics claim."
+    },
+    "native": {
+      "exit": 0,
+      "cases": 4,
+      "families": [
+        "file-transfer",
+        "file-move"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "owned_receivers_reaped": [
+        27491,
+        27575,
+        27661,
+        27746
+      ],
+      "log": "build/qa/file-transfer-native-2026-10-14.log",
+      "evidence": [
+        "Private file URL pasteboard retains literal Unicode/newline path",
+        "Actual self-copy name sheet keeps invalid input then accepts corrected copy destination",
+        "Keep stages retained target contents and Overwrite copies source working bytes",
+        "Copied repository Delete/Ignore/Abort choices preserve original source metadata and exclude ignored files",
+        "Real add stream cancellation retains copied file with unchanged prior index",
+        "Captured clipboard URLs resolve to versioned Move paths; existing Move ownership/cancellation receiver remains passing"
+      ],
+      "diagnostics": "Unsigned receiver emitted sandbox_extension_consume failure on private pasteboard URLs; unsandboxed operations passed. Signed permissions are not proven."
+    }
+  },
+  "limitations": [
+    "Finder drag destination/clipboard shell menus remain open",
+    "Single filesystem file copy is not interruptible internally; tokens checked before/after it and at each directory entry",
+    "Directory ACL/xattr fidelity, physical picker/drop/keyboard/themes/focused-menu acceptance and signed sandbox grants remain unverified",
+    "Explicit Paste Copy collision question and native folder/symlink copying adapt Windows CopyFile behavior",
+    "No complete hosted CI, App Store eligibility or full source parity claim"
+  ]
+}

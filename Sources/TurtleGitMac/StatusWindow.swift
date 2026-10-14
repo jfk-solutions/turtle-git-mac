@@ -237,6 +237,8 @@ final class StatusNativeWindow: NSWindow {
             }
         }
     }
+    var onCopyAdd: ([String]) -> Void = { _ in }
+    var onPasteFiles: (Bool, [URL]) -> Void = { _, _ in }
     var onAction: (RepositoryAction, [String]) -> Void = { _, _ in }
     var onChanged: () -> Void = {}
     init(repository: GitRepository, access: RepositoryAccessLease?, defaults: UserDefaults = .standard) {
@@ -688,6 +690,12 @@ struct StatusDialog: View {
                         Button { model.withFileMenu(snapshot) { model.onAction(.rename, [path]) } } label: { CommandLabel(title: "Rename…", icon: .rename) }
                     }
                     let selected = model.files.filter { ids.contains($0.id) }
+                    if !selected.isEmpty, selected.allSatisfy({ $0.state != .deleted }) {
+                        Button { model.withFileMenu(snapshot) { FileTransferClipboard.copy(selected.map { model.repository.root.appendingPathComponent($0.id) }) } } label: { CommandLabel(title: "Copy files", icon: .copy) }
+                        Button { model.withFileMenu(snapshot) { model.onCopyAdd(selected.map(\.id)) } } label: { CommandLabel(title: "Copy and Add…", icon: .add) }
+                    }
+                    Button { let urls = FileTransferClipboard.urls(); model.withFileMenu(snapshot) { model.onPasteFiles(true, urls) } } label: { CommandLabel(title: "Paste Copy and Add…", icon: .copy) }
+                    Button { let urls = FileTransferClipboard.urls(); model.withFileMenu(snapshot) { model.onPasteFiles(false, urls) } } label: { CommandLabel(title: "Paste Move…", icon: .rename) }
                     if !selected.isEmpty, selected.allSatisfy({ ![FileState.untracked, .ignored, .deleted].contains($0.state) }) {
                         Button { model.withFileMenu(snapshot) { model.onAction(.move, selected.map(\.id)) } } label: { CommandLabel(title: "Move…", icon: .rename) }
                     }

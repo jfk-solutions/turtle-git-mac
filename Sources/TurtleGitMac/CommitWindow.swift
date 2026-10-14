@@ -439,6 +439,8 @@ import UniformTypeIdentifiers
     var onFileBlame: (String) -> Void = { _ in }
     var onResolve: (RepositoryAction, [String]) -> Void = { _, _ in }
     var onIgnore: (RepositoryAction, [String]) -> Void = { _, _ in }
+    var onCopyAdd: ([String]) -> Void = { _ in }
+    var onPasteFiles: (Bool, [URL]) -> Void = { _, _ in }
     var onMove: ([String]) -> Void = { _ in }
     var onRename: (String) -> Void = { _ in }
     var chooseApplication: (String) async -> URL? = { _ in nil }
@@ -1903,6 +1905,12 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                         Divider()
                         ResolveSelectionMenu(paths: selected.map(\.path), rebase: model.conflictRebase, canEdit: selected.count == 1, action: { action, paths in model.withFileMenu(menuSnapshot) { model.onResolve(action, paths) } })
                     }
+                    if !selected.isEmpty, selected.allSatisfy({ $0.state != .deleted }) {
+                        Button { model.withFileMenu(menuSnapshot) { FileTransferClipboard.copy(selected.map { model.repository.root.appendingPathComponent($0.path) }) } } label: { CommandLabel(title: "Copy files", icon: .copy) }
+                        Button { model.withFileMenu(menuSnapshot) { model.onCopyAdd(selected.map(\.path)) } } label: { CommandLabel(title: "Copy and Add…", icon: .add) }
+                    }
+                    Button { let urls = FileTransferClipboard.urls(); model.withFileMenu(menuSnapshot) { model.onPasteFiles(true, urls) } } label: { CommandLabel(title: "Paste Copy and Add…", icon: .copy) }
+                    Button { let urls = FileTransferClipboard.urls(); model.withFileMenu(menuSnapshot) { model.onPasteFiles(false, urls) } } label: { CommandLabel(title: "Paste Move…", icon: .rename) }
                     if !selected.isEmpty, selected.allSatisfy({ ![FileState.untracked, .ignored, .deleted].contains($0.state) }) {
                         Button { model.withFileMenu(menuSnapshot) { model.onMove(selected.map(\.path)) } } label: { CommandLabel(title: "Move…", icon: .rename) }
                     }

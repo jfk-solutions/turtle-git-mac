@@ -77,8 +77,9 @@ import TurtleGitCore
     let repository: GitRepository
     let access: RepositoryAccessLease?
     let preferences: UserDefaults
-    let paths: [String]
+    @Published private(set) var paths: [String]
     private(set) var retired = false
+    private var pasteMode = false
     private var cancellation: OperationCancellation?
     @Published var folder: URL
     @Published var renameFirst = false
@@ -108,6 +109,14 @@ import TurtleGitCore
     init(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], preferences: UserDefaults = .standard) {
         self.repository = repository; self.access = access; self.preferences = preferences; folder = repository.root
         var seen = Set<String>(); self.paths = paths.filter { seen.insert($0).inserted }
+    }
+    func loadClipboard(_ urls: [URL]) {
+        guard canEdit else { return }; pasteMode = true; let token = OperationCancellation(); cancellation = token; busy = true; error = nil; Self.activeOperations += 1
+        Task {
+            defer { Self.activeOperations -= 1; if cancellation === token { cancellation = nil; busy = false }; withExtendedLifetime(access) {} }
+            do { try checkAccess(); let paths = try await repository.clipboardMovePaths(urls, cancellation: token); if live(token) { self.paths = paths } }
+            catch { if live(token) { self.error = error.localizedDescription } }
+        }
     }
     func retire() { if busy { cancelled = true }; saveActionLog(); retired = true; cancellation?.cancel() }
     private func live(_ token: OperationCancellation) -> Bool { !retired && cancellation === token && !token.isCancelled }
@@ -158,6 +167,7 @@ import TurtleGitCore
                     } catch {
                         try token.check(); guard !retired else { return }
                         output = LocalGitCommandProgress.failure(error, existing: output, preferences: preferences)
+                        if pasteMode { failed = true; break }
                         let ignore = await continueAfterError(source, error.localizedDescription)
                         try token.check(); guard !retired else { return }
                         if !ignore { failed = true; break }; skipped += 1; processed += 1

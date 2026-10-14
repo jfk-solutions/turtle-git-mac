@@ -156,6 +156,7 @@ import TurtleGitCore
     private var stashWindows: [String: StashWindowController] = [:]
     private var cloneWindows: [UUID: CloneWindowController] = [:]
     private var createWindows: [String: CreateRepositoryWindowController] = [:]
+    private var copyWindows: [UUID: FileCopyWindowController] = [:]
     private var moveWindows: [String: FileMoveWindowController] = [:]
     private var renameWindows: [String: RenameWindowController] = [:]
     private var imageConflictWindows: [String: ImageConflictWindowController] = [:]
@@ -697,8 +698,8 @@ import TurtleGitCore
         renameWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    func showMove(repository: GitRepository, access: RepositoryAccessLease?, paths: [String]) {
-        let root = repository.root, key = root.path + "\0" + paths.joined(separator: "\0")
+    func showMove(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], clipboard: [URL]? = nil) {
+        let root = repository.root, key = root.path + "\0" + (clipboard == nil ? paths.joined(separator: "\0") : UUID().uuidString)
         let controller = moveWindows[key] ?? FileMoveWindowController(repository: repository, access: access, paths: paths)
         controller.onClosed = { [weak self] in self?.moveWindows.removeValue(forKey: key) }
         controller.model.onMoved = { [weak self] old, new, text in
@@ -710,6 +711,28 @@ import TurtleGitCore
             if self?.root == root { Task { await self?.refresh() } }
         }
         moveWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        if let clipboard { controller.model.loadClipboard(clipboard) }
+    }
+    func showCopy(repository: GitRepository, access: RepositoryAccessLease?, sources: [URL], paste: Bool = false) {
+        let id = UUID(), root = repository.root
+        let controller = FileCopyWindowController(repository: repository, access: access, sources: sources, paste: paste)
+        controller.onClosed = { [weak self] in self?.copyWindows.removeValue(forKey: id) }
+        controller.model.onChanged = { [weak self] in
+            self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.refreshRepositoryLogs(root)
+            if self?.root == root { Task { await self?.refresh() } }
+        }
+        copyWindows[id] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
+    func showFileTransfer(copy: Bool, repository captured: GitRepository? = nil, access: RepositoryAccessLease? = nil, urls: [URL]? = nil) {
+        let snapshot = urls ?? FileTransferClipboard.urls()
+        if captured == nil {
+            if let owner = (NSApp.keyWindow ?? NSApp.mainWindow)?.delegate as? CommitWindowController { guard owner.model.messageFocusAvailable, !owner.model.inputsBlocked else { return }; owner.model.onPasteFiles(copy, snapshot); return }
+            if let owner = (NSApp.keyWindow ?? NSApp.mainWindow)?.delegate as? StatusWindowController { guard !owner.model.retired, !owner.model.busy, !owner.model.confirmingQuit else { return }; owner.model.onPasteFiles(copy, snapshot); return }
+        }
+        guard let repository = captured ?? repository else { return }
+        let sources = snapshot, lease = captured == nil ? activeAccess : access
+        if copy { showCopy(repository: repository, access: lease, sources: sources, paste: urls == nil || !(urls?.isEmpty ?? true)) }
+        else if !sources.isEmpty { showMove(repository: repository, access: lease, paths: [], clipboard: sources) }
     }
     enum ConflictEditorRoute: String { case deleteModify, submodule, image, text }
     var conflictEditorPresentation: ((ConflictEditorRoute, GitRepository, String, ImageConflictDocument?) -> Void)?
@@ -1563,6 +1586,8 @@ import TurtleGitCore
         let controller = statusWindows[root.path] ?? StatusWindowController(repository: repository, access: access)
         controller.onPullAfterLFSLock = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
         controller.onClosed = { [weak self] in self?.statusWindows.removeValue(forKey: root.path) }
+        controller.model.onCopyAdd = { [weak self] paths in self?.showCopy(repository: repository, access: access, sources: paths.map { repository.root.appendingPathComponent($0) }) }
+        controller.model.onPasteFiles = { [weak self] copy, urls in self?.showFileTransfer(copy: copy, repository: repository, access: access, urls: urls) }
         controller.model.onAction = { [weak self, weak controller] action, paths in
             guard let self else { return }
             if action == .diff { self.showWorkingFiles(repository: repository, access: access, paths: paths, owner: controller?.window); return }
@@ -2097,6 +2122,8 @@ import TurtleGitCore
             guard let self else { done(false); return }
             self.showRevertProgress(repository: repository, access: access, entries: entries, amend: amend, againstHead: againstHead, autoCloseSuccess: !entries.contains(where: { model?.submodules.contains($0.path) == true }), completion: done)
         }
+        model.onCopyAdd = { [weak self] paths in self?.showCopy(repository: repository, access: access, sources: paths.map { repository.root.appendingPathComponent($0) }) }
+        model.onPasteFiles = { [weak self] copy, urls in self?.showFileTransfer(copy: copy, repository: repository, access: access, urls: urls) }
         model.onMove = { [weak self] paths in self?.showMove(repository: repository, access: access, paths: paths) }
         model.onRename = { [weak self] path in self?.showRename(repository: repository, access: access, source: path) }
         model.configureLogPicker = { [weak self] log in

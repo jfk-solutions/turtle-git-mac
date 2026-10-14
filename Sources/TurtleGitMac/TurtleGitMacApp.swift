@@ -58,6 +58,11 @@ import TurtleGitCore
                 Button("SSH Key Generator…") { SSHKeyGenerationService.shared.show() }
                 Button("Saved SSH Authentication…") { SavedSSHAuthenticationService.shared.show() }
             }
+            CommandGroup(after: .pasteboard) {
+                Button { model.showFileTransfer(copy: true, urls: []) } label: { CommandLabel(title: "Copy and Add…", icon: .add) }.disabled(model.root == nil || model.bare || model.busy)
+                Button { model.showFileTransfer(copy: true) } label: { CommandLabel(title: "Paste Copy and Add…", icon: .copy) }.disabled(model.root == nil || model.bare || model.busy)
+                Button { model.showFileTransfer(copy: false) } label: { CommandLabel(title: "Paste Move…", icon: .rename) }.disabled(model.root == nil || model.bare || model.busy)
+            }
             CommandGroup(after: .newItem) {
                 Button { BlameWindowController.openFocused(NSApp.keyWindow ?? NSApp.mainWindow) { model.chooseRepository() } } label: { CommandLabel(title:"Open…",icon:.open) }.keyboardShortcut("o")
                 Button { model.showClipboardPatch() } label: { CommandLabel(title: "Review Clipboard Patch…", icon: .patch) }.disabled(model.busy || model.confirmingQuit)

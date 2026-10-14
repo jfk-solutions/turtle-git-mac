@@ -41,8 +41,11 @@ compile failed because the name callback referenced a nonoptional local window;
 that reference was corrected before the successful repair. All four owned receiver
 processes were reaped. See [batch results](qa/file-move-2026-10-14.json).
 
-Finder drag menus, clipboard Paste Move, Drop Copy/Add, cross-repository copy,
-submodule/gitmodules edge cases and complete shared Rename-dialog consumers remain
-open. Displayed picker, keyboard, light/dark, parent selection restoration and signed
+Finder drag menus, submodule/gitmodules edge cases and complete shared
+Rename-dialog consumers remain open. Clipboard Paste Move and native Copy/Add
+have a separate implementation and acceptance record. Displayed picker, keyboard, light/dark, parent selection restoration and signed
 sandbox/Finder acceptance still require physical QA. This does not certify full
 Rename, shell or TortoiseGit parity. See [Rename parity](RENAME-PARITY.md).
+
+Clipboard Paste Move and native Copy/Add are now tracked in
+[File Transfer parity](FILE-TRANSFER-PARITY.md); Finder destination delivery remains open.
