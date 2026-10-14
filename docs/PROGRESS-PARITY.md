@@ -120,3 +120,8 @@ remaining requirements still apply. See the latest Merge completion follow-up.
 The connected [local command progress family](LOCAL-COMMAND-PROGRESS-PARITY.md)
 adds live Reset/Switch/Stash output, shared native log styling/copy controls,
 bounded presentation, independent ownership and once-only kill questions.
+
+
+The [Worktree progress family](WORKTREE-PARITY.md#connected-worktree-progress-family--october-14-2026)
+adds live creation/management output, native copy icons, batch output limits,
+kill confirmation, captured auto-close decisions and Action log preservation.

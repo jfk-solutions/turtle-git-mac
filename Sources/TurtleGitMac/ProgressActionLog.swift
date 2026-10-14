@@ -67,3 +67,17 @@ extension SubmoduleUpdateProgressWindowModel { var actionLogFailed: Bool { !succ
 extension SubmoduleSyncWindowModel { var actionLogFailed: Bool { !success } }
 
 extension SubmoduleAddProgressWindowModel { var actionLogFailed: Bool { !success } }
+
+
+extension WorktreeCreateWindowModel: ActionLogProgress {
+    var actionLogRepository: URL { chooser.repository.root }
+    var actionLogEligible: Bool { progress }
+    var actionLogFailed: Bool { !success }
+    var actionLogCancelled: Bool { cancelled }
+}
+extension WorktreeListWindowModel: ActionLogProgress {
+    var actionLogRepository: URL { repository.root }
+    var actionLogEligible: Bool { showProgress }
+    var actionLogFailed: Bool { failed }
+    var actionLogCancelled: Bool { cancelled }
+}

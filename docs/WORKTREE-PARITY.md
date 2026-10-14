@@ -329,3 +329,45 @@ reaped. See [batch evidence](qa/worktree-family-2026-10-14.json).
 Physical progress/confirmation
 input, native rendered parity, signed sandbox/Finder grants and full Worktree
 parity remain open.
+
+
+## Connected Worktree progress family — October 14, 2026
+
+Creation, Lock, Unlock, Remove/Force and Prune consume their actual command's
+output while Git runs. Core APIs keep optional output callbacks after validation;
+registered-path checks and reference validation do not leak into the command log.
+The original creation result reaches `onCreated` unchanged. Native presentation
+uses the existing CR/split-UTF-8 parser, current work/percentage indicator and
+read-only colored RichEdit adaptation with original-icon Copy/Copy All menus.
+The private preference domain controls fonts, styling, icons and output limits.
+Management output is bounded across the whole batch, including retained paths;
+full Core result storage is still not claimed to be bounded.
+
+Both dialogs honor ConfirmKillProcess with once-only replies. Ordinary creation
+close requests route through Cancel; forced retirement cancels the owned process,
+fences late display/result callbacks, and ends owned sheets. Quit remains blocked
+until operation/drain/post-command reads settle. Creation retains the captured
+destination lease across execution in addition to source access. Management
+retains granted checkout scopes and the existing safe Prune preflight.
+
+Captured progress auto-close policy now covers creation and management success.
+Creation counts its conditional Submodule Update action. Pending kill questions
+hold natural success open; a late Yes cannot cancel a completed operation or close
+it twice. Failures/cancellation remain visible. Removal's Force retry, ordered
+remaining rows and Close-versus-Cancel batch decisions remain intact. Lock/Unlock
+still offer the source Continue/Abort after errors; their CLI progress display is
+a macOS adaptation of upstream's libgit2 calls/count notification.
+
+Creation and management preserve displayed progress in Action log on close,
+Back/abort and before replacing an attempt. Physical keyboard/scrolling/sheets,
+light/dark window composition, Finder drop creation, shared-picker completeness,
+signed source/destination/common-directory grants and App Store acceptance remain
+open. Focused hidden checks do not certify complete Worktree or application parity.
+
+
+The Debug build and all 14 affected Core tests passed. Six grouped native cases
+covered this progress family, existing Worktree recovery/scope/column behavior,
+and creation pickers with system and bundled Git. Final review repaired the
+pre-command cancellation path so a stopped Prune cannot take successful
+auto-close; only this family's two native engine cases were repeated. All eight
+receivers were reaped. See [batch evidence](qa/worktree-progress-2026-10-14.json).

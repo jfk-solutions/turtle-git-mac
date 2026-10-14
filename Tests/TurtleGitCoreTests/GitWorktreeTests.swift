@@ -2,6 +2,28 @@ import XCTest
 @testable import TurtleGitCore
 
 final class GitWorktreeTests: XCTestCase {
+    private final class OutputCapture: @unchecked Sendable {
+        let lock = NSLock(); var stdout = Data(), stderr = Data()
+        func append(_ chunk: GitOutputChunk) { lock.lock(); defer { lock.unlock() }; if chunk.stream == .stdout { stdout.append(chunk.data) } else { stderr.append(chunk.data) } }
+        var text: String { lock.lock(); defer { lock.unlock() }; return String(decoding: stdout + stderr, as: UTF8.self) }
+    }
+    func testWorktreeCommandOutputCallbacksExcludeValidationAndRetainDiagnostics() async throws {
+        let (base, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: base) }
+        let path = base.appendingPathComponent("streamed")
+        let creation = OutputCapture()
+        let raw = try await repo.createWorktree(at: path, onOutput: creation.append)
+        XCTAssertFalse(raw.isEmpty); XCTAssertEqual(creation.text, raw)
+        let lock = OutputCapture(); let locked = try await repo.lockWorktree(at: path, onOutput: lock.append)
+        XCTAssertEqual(lock.text, locked)
+        let duplicate = OutputCapture()
+        do { _ = try await repo.lockWorktree(at: path, onOutput: duplicate.append); XCTFail("Duplicate lock accepted") }
+        catch let error as GitFailure { XCTAssertFalse(duplicate.text.isEmpty); XCTAssertEqual(duplicate.text, error.message) }
+        let unlock = OutputCapture(); let unlocked = try await repo.unlockWorktree(at: path, onOutput: unlock.append); XCTAssertEqual(unlock.text, unlocked)
+        let removal = OutputCapture(); let removed = try await repo.removeWorktree(at: path, onOutput: removal.append); XCTAssertEqual(removal.text, removed)
+        let prune = OutputCapture(); let pruned = try await repo.pruneWorktrees(onOutput: prune.append); XCTAssertEqual(prune.text, pruned)
+        let remaining = try await repo.worktrees(); XCTAssertEqual(remaining.count, 1)
+    }
+
     func fixture() async throws -> (URL, GitRepository) {
         let base = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitWorktrees-" + UUID().uuidString)
         let root = base.appendingPathComponent("main")

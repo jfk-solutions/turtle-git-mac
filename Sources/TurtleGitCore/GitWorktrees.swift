@@ -81,7 +81,7 @@ extension GitRepository {
 
     /// Matches CreateWorktreeDlg / CAppUtils::CreateWorktree: Force is --force,
     /// never -B; HEAD is omitted so Git uses its directory-name branch behavior.
-    public func createWorktree(at path: URL, options: WorktreeCreationOptions = .init(), cancellation: OperationCancellation? = nil) throws -> String {
+    public func createWorktree(at path: URL, options: WorktreeCreationOptions = .init(), cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
         try cancellation?.check()
         guard path.isFileURL, !path.path.isEmpty, !path.path.contains("\0") else { throw WorktreeFailure.invalidPath }
         guard !(options.detach && options.newBranch != nil) else { throw WorktreeFailure.conflictingOptions }
@@ -104,7 +104,7 @@ extension GitRepository {
         if let name = options.newBranch { args += ["-b", name] }
         args += ["--", path.standardizedFileURL.path]
         if options.revision != "HEAD" { args.append(options.revision) }
-        return try run(args, cancellation: cancellation).text
+        return try run(args, cancellation: cancellation, onOutput: onOutput).text
     }
 
     private func linkedWorktreePath(_ path: URL, cancellation:OperationCancellation?) throws -> String {
@@ -130,24 +130,24 @@ extension GitRepository {
         return resolved.standardizedFileURL
     }
 
-    public func lockWorktree(at path: URL, reason: String? = nil, cancellation: OperationCancellation? = nil) throws -> String {
+    public func lockWorktree(at path: URL, reason: String? = nil, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
         let registered = try linkedWorktreePath(path,cancellation:cancellation)
         var args = ["worktree", "lock"]
         if let reason { args += ["--reason", reason] }
-        return try run(args + ["--", registered], cancellation: cancellation).text
+        return try run(args + ["--", registered], cancellation: cancellation, onOutput: onOutput).text
     }
 
-    public func unlockWorktree(at path: URL, cancellation: OperationCancellation? = nil) throws -> String {
-        try run(["worktree", "unlock", "--", linkedWorktreePath(path,cancellation:cancellation)], cancellation: cancellation).text
+    public func unlockWorktree(at path: URL, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
+        try run(["worktree", "unlock", "--", linkedWorktreePath(path,cancellation:cancellation)], cancellation: cancellation, onOutput: onOutput).text
     }
 
-    public func removeWorktree(at path: URL, force: Bool = false, cancellation: OperationCancellation? = nil) throws -> String {
+    public func removeWorktree(at path: URL, force: Bool = false, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
         let registered = try linkedWorktreePath(path,cancellation:cancellation)
-        return try run(["worktree", "remove"] + (force ? ["--force"] : []) + ["--", registered], cancellation: cancellation).text
+        return try run(["worktree", "remove"] + (force ? ["--force"] : []) + ["--", registered], cancellation: cancellation, onOutput: onOutput).text
     }
 
-    public func pruneWorktrees(cancellation: OperationCancellation? = nil) throws -> String {
+    public func pruneWorktrees(cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
         // Use exactly Git's default prune command, as TortoiseGit does.
-        try run(["worktree", "prune"], cancellation: cancellation).text
+        try run(["worktree", "prune"], cancellation: cancellation, onOutput: onOutput).text
     }
 }

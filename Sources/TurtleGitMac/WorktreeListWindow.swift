@@ -23,6 +23,9 @@ import TurtleGitCore
         model.confirmRemoval = { [weak self] rows, force in
             await self?.ask(title: "Remove worktree\(rows.count == 1 ? "" : "s")?", message: (force ? "Remove with Force will also delete uncommitted and untracked files.\n\n" : "") + rows.map(\.path.path).joined(separator: "\n"), buttons: ["Yes", "No"]) == .alertFirstButtonReturn
         }
+        model.confirmCancellation = { [weak self] reply in
+            Task { let response = await self?.ask(title: "The process is still running.", message: "Are you sure to abort?", buttons: ["Yes", "No"]); reply(response == .alertFirstButtonReturn) }
+        }
         model.continueAfterError = { [weak self] message in
             await self?.ask(title: "Worktree operation failed", message: message, buttons: ["Continue", "Abort"]) == .alertFirstButtonReturn
         }
@@ -39,7 +42,7 @@ import TurtleGitCore
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { model.canInteract && sender.attachedSheet == nil && createWindow == nil }
     func windowWillClose(_ notification: Notification) {
-        model.invalidate()
+        model.saveActionLog(); model.invalidate()
         createWindow?.close(); createWindow=nil
         for sheet in Array(ownedSheets.values) { sheet.sheetParent?.endSheet(sheet,returnCode:.cancel); sheet.orderOut(nil) }; ownedSheets=[:]
         onClosed()
@@ -103,7 +106,7 @@ import TurtleGitCore
     private(set) var generation=UUID()
     @Published var childActive=false
     var canInteract:Bool { active && !busy && !showProgress && !childActive && error == nil }
-    func invalidate() { active=false; generation=UUID(); cancellation?.cancel() }
+    func invalidate() { active=false; generation=UUID(); cancellation?.cancel(); confirmingCancellation=false }
     enum Action { case lock, unlock, remove, removeForce }
     enum AccessPurpose { case removal, prune }
     let requiresScope: Bool
@@ -115,6 +118,17 @@ import TurtleGitCore
     @Published var error: String?
     @Published var showProgress = false
     @Published var output = ""
+    @Published private(set) var currentWork = ""
+    @Published private(set) var percentage: Int?
+    @Published private(set) var cancelling = false
+    @Published private(set) var confirmingCancellation = false
+    @Published private(set) var cancelled = false
+    @Published private(set) var failed = false
+    private var pendingErrorQuestion = false
+    private var autoClosePolicy: GitProgressAutoClose?
+    private var displayTruncated = false
+    var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
+    var canCancel: Bool { active && busy && showProgress && !cancelling && !confirmingCancellation && !pendingErrorQuestion }
     @Published var result = ""
     @Published var failedRemoval: GitWorktree?
     @Published private(set) var remainingRemovals: [GitWorktree] = []
@@ -135,7 +149,34 @@ import TurtleGitCore
     func beginRequest() -> OperationCancellation {
         let token=OperationCancellation(); cancellation=token; generation=UUID(); busy=true; Self.activeOperations += 1; return token
     }
-    func finishRequest() { busy=false; cancellation=nil; Self.activeOperations -= 1 }
+    func finishRequest() { busy=false; cancellation=nil; cancelling=false; currentWork=""; percentage=nil; Self.activeOperations -= 1; finishAutomaticClose() }
+    private func beginProgress() {
+        ProgressActionLog.nextAttempt(self, savePrevious: showProgress)
+        showProgress=true; output=""; result=""; failed=false; cancelled=false; displayTruncated=false
+        cancelling=false; confirmingCancellation=false; autoClosePolicy=GitProgressAutoClose(preferences: preferences)
+    }
+    private func finishAutomaticClose() {
+        guard active, showProgress, !busy, !confirmingCancellation, !pendingErrorQuestion, !failed, !cancelled,
+              autoClosePolicy?.shouldClose(success: true, postActionCount: failedRemoval == nil ? 0 : 1) == true else { return }
+        closeProgress()
+    }
+    private func appendOutput(_ text: String) {
+        guard !displayTruncated else { return }
+        output=LocalGitCommandProgress.bounded(output + text, preferences: preferences)
+        displayTruncated=output.utf8.count >= GitProgressOutputState(preferences: preferences).limit
+    }
+    private func stream(token: OperationCancellation, operation: @escaping (@escaping @Sendable (GitOutputChunk) -> Void) async throws -> String) async throws -> String {
+        let prefix=output, wasTruncated=displayTruncated
+        LocalGitCommandProgress.begin(); defer { LocalGitCommandProgress.end() }
+        return try await LocalGitCommandProgress.stream(preferences: preferences, update: { [weak self] state in
+            guard let self, self.active, self.cancellation === token else { return }
+            if !wasTruncated {
+                self.output=LocalGitCommandProgress.bounded(prefix + state.output, preferences: self.preferences)
+                self.displayTruncated=self.output.utf8.count >= GitProgressOutputState(preferences: self.preferences).limit
+            }
+            self.currentWork=state.currentWork; self.percentage=state.percentage
+        }, resultText: { $0 }, operation: operation)
+    }
     func isLive(_ token:OperationCancellation) -> Bool { active && !token.isCancelled }
     func selected(_ ids: Set<String>) -> [GitWorktree] { rows.filter { ids.contains($0.id) } }
     func showLock(_ ids: Set<String>) -> Bool { let selected = selected(ids); return !selected.isEmpty && (selected.count > 1 || selected[0].lockReason == nil) }
@@ -195,9 +236,11 @@ import TurtleGitCore
                     if requiresScope && !targets.allSatisfy({ hasWorktreeAccess($0.path) }) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 }
                 guard isLive(token) else { return }
-                showProgress = true; output = ""; result = ""; removedCount = 0
+                beginProgress(); removedCount = 0
                 try await runBatch(action, targets: targets, token: token)
-            } catch OperationCancellationFailure.cancelled { }
+            } catch OperationCancellationFailure.cancelled {
+                if active && showProgress { cancelled=true; result="Cancelled" }
+            }
             catch { if isLive(token) { self.error = error.localizedDescription } }
         }
     }
@@ -208,27 +251,35 @@ import TurtleGitCore
         for (index, target) in targets.enumerated() {
             if token.isCancelled || !active { break }
             do {
-                let text: String
-                switch action {
-                case .lock: text = try await repository.lockWorktree(at: target.path, cancellation: token)
-                case .unlock: text = try await repository.unlockWorktree(at: target.path, cancellation: token)
-                case .remove, .removeForce: text = try await repository.removeWorktree(at: target.path, force: action == .removeForce, cancellation: token)
+                appendOutput(target.path.path + "\n")
+                let repository=self.repository
+                _ = try await stream(token: token) { emit in
+                    switch action {
+                    case .lock: return try await repository.lockWorktree(at: target.path, cancellation: token, onOutput: emit)
+                    case .unlock: return try await repository.unlockWorktree(at: target.path, cancellation: token, onOutput: emit)
+                    case .remove, .removeForce: return try await repository.removeWorktree(at: target.path, force: action == .removeForce, cancellation: token, onOutput: emit)
+                    }
                 }
                 guard active else { break }
-                completed += 1; output += target.path.path + "\n" + text
+                completed += 1
             } catch {
                 guard active else { break }
-                output += target.path.path + "\n" + error.localizedDescription + "\n"
+                failed=true
+                if !(error is GitFailure || error is GitCommandCancellationFailure) { appendOutput(error.localizedDescription + "\n") }
+                else if output.hasSuffix(target.path.path + "\n") { appendOutput(error.localizedDescription + "\n") }
                 if token.isCancelled || !active { break }
                 if removing {
                     if action == .remove { failedRemoval = target }
                     remainingRemovals = Array(targets.dropFirst(index + 1)); queuedRemovalAction = action
                     break
                 }
-                if !(await continueAfterError(error.localizedDescription)) || !isLive(token) { break }
+                pendingErrorQuestion=true
+                let shouldContinue=await continueAfterError(error.localizedDescription); pendingErrorQuestion=false
+                if !shouldContinue || !isLive(token) { break }
             }
         }
         guard active else { return }
+        cancelled=token.isCancelled
         if removing { removedCount = completed }
         result = token.isCancelled ? "Cancelled" : action == .lock ? "Locked \(completed) worktree(s)." : action == .unlock ? "Successfully unlocked \(completed) worktree(s)." : "Removed \(completed) worktree(s)."
         try await refreshAfterBatch(token)
@@ -256,23 +307,27 @@ import TurtleGitCore
                     }
                 }
                 guard isLive(token) else { return }
-                showProgress = true; result = ""; output = ""; failedRemoval = nil; remainingRemovals = []
-                let text=try await repository.pruneWorktrees(cancellation: token)
-                guard active else { return }; output=text
+                beginProgress(); failedRemoval = nil; remainingRemovals = []
+                let repository=self.repository
+                _ = try await stream(token: token) { emit in try await repository.pruneWorktrees(cancellation: token, onOutput: emit) }
+                guard active else { return }
                 result = "Prune completed"; try await refreshAfterBatch(token)
-            } catch OperationCancellationFailure.cancelled { }
+            } catch OperationCancellationFailure.cancelled {
+                if active && showProgress { cancelled=true; result="Cancelled" }
+            }
             catch {
                 guard active else { return }
-                if showProgress { result = cancellation?.isCancelled == true ? "Cancelled" : "Prune failed"; output = error.localizedDescription }
+                if showProgress { cancelled=token.isCancelled; failed=true; result = cancelled ? "Cancelled" : "Prune failed"; output = LocalGitCommandProgress.failure(error, existing: output, preferences: preferences) }
                 else { self.error = error.localizedDescription }
             }
         }
     }
     func retryRemovalWithForce() {
-        guard active, !busy, let failedRemoval else { return }
+        guard active, !busy, !confirmingCancellation, let failedRemoval else { return }
         // ProgressDlg's post-action ends with IDOK, resuming the original batch.
         // Force applies to this failed row; subsequent rows retain their original mode.
         let next = remainingRemovals, nextAction = queuedRemovalAction
+        saveActionLog(); ProgressActionLog.nextAttempt(self, savePrevious: false); failed=false; cancelled=false
         let token=beginRequest()
         Task {
             defer { finishRequest(); withExtendedLifetime(access) {} }
@@ -283,12 +338,14 @@ import TurtleGitCore
                 if requiresScope && !([failedRemoval] + next).allSatisfy({ hasWorktreeAccess($0.path) }) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 try await runBatch(.removeForce, targets: [failedRemoval], token: token)
                 if isLive(token) && !next.isEmpty { try await runBatch(nextAction, targets: next, token: token) }
-            } catch OperationCancellationFailure.cancelled { }
+            } catch OperationCancellationFailure.cancelled {
+                if active && showProgress { cancelled=true; result="Cancelled" }
+            }
             catch { if isLive(token) { self.error = error.localizedDescription } }
         }
     }
     func closeProgress() {
-        guard active, !busy else { return }
+        guard active, !busy, !confirmingCancellation else { return }; saveActionLog()
         guard !remainingRemovals.isEmpty else { showProgress = false; failedRemoval = nil; return }
         let next = remainingRemovals, action = queuedRemovalAction
         let token=beginRequest()
@@ -298,8 +355,18 @@ import TurtleGitCore
             catch { if isLive(token) { self.error = error.localizedDescription } }
         }
     }
-    func abortRemovalBatch() { guard active, !busy else { return }; remainingRemovals = []; failedRemoval = nil; showProgress = false }
-    func cancel() { cancellation?.cancel() }
+    func abortRemovalBatch() { guard active, !busy, !confirmingCancellation else { return }; saveActionLog(); remainingRemovals = []; failedRemoval = nil; showProgress = false }
+    func cancel() {
+        guard canCancel, let token=cancellation else { return }
+        if preferences.bool(forKey: "ConfirmKillProcess") {
+            confirmingCancellation=true; var answered=false
+            confirmCancellation { [weak self] accepted in
+                guard !answered, let self, self.active else { return }; answered=true; self.confirmingCancellation=false
+                if self.busy, self.cancellation === token, accepted { self.cancelling=true; token.cancel() }
+                self.finishAutomaticClose()
+            }
+        } else { cancelling=true; token.cancel() }
+    }
 }
 
 private struct WorktreeListDialog: View {
@@ -326,16 +393,16 @@ private struct WorktreeProgress: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(model.busy ? "Working…" : model.result).font(.headline)
-            ScrollView { Text(model.output).font(.system(.body, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }
-            HStack { Spacer()
-                if model.busy { Button("Cancel") { model.cancel() } }
+            SubmoduleProgressOutputView(text: model.output, completed: !model.busy, success: !model.failed && !model.cancelled, preferences: model.preferences)
+            HStack { if model.busy { LocalGitProgressIndicator(percentage: model.percentage); Text(model.cancelling ? "Cancelling…" : model.currentWork).font(.caption) }; Spacer()
+                if model.busy { Button("Cancel") { model.cancel() }.disabled(!model.canCancel) }
                 else {
                     if model.failedRemoval != nil { Button { model.retryRemovalWithForce() } label: { CommandLabel(title: "Force remove", icon: .remove) } }
                     if !model.remainingRemovals.isEmpty { Button("Cancel") { model.abortRemovalBatch() } }
-                    Button("Close") { model.closeProgress() }.keyboardShortcut(.defaultAction)
+                    Button("Close") { model.closeProgress() }.keyboardShortcut(.defaultAction).disabled(model.confirmingCancellation)
                 }
             }
-        }.padding(16).frame(width: 700, height: 330).interactiveDismissDisabled(model.busy)
+        }.padding(16).frame(width: 700, height: 330).interactiveDismissDisabled(model.busy || model.confirmingCancellation)
     }
 }
 

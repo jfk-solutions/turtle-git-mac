@@ -7,7 +7,7 @@ Show opens the UTF-8 log in the system text viewer. Clear deletes this log only.
 
 The following native progress windows save their displayed output when closed:
 Clone, Commit, Push, Fetch, Pull, Merge, Abort Merge, Switch, Reset, Clean,
-Export, and Format Patch. Each entry starts with an empty separator line, the
+Export, Format Patch, Stash Save, New Worktree, and Worktree management progress. Each entry starts with an empty separator line, the
 local date and time, and the repository path (Clone uses its destination).
 Cancelled results append **User cancelled**. Quiet operations still save the
 header. The stored text follows the visible output limit, rather than the full
@@ -16,6 +16,8 @@ raw output used internally to classify Git failures.
 Retry and repeated operations save the previous result before replacing it.
 Format Patch saves when its progress result returns to the options page or
 hands off to Mail. Clean preserves the preview before performing deletion.
+Worktree creation saves on Back/close; management saves on progress Close/abort
+and before a new attempt. Lock/unlock progress is a native CLI adaptation.
 Logging failures do not change the Git result or block its recovery actions.
 
 The line limit removes the oldest lines first. Like TortoiseGit, it always keeps

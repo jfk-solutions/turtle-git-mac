@@ -1,0 +1,70 @@
+{
+  "date": "2026-10-14",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Live command output through Worktree creation/lock/unlock/remove/prune APIs and native models",
+    "Colored native output and original copy icons, per-batch limits and original creation callback",
+    "ConfirmKillProcess/auto-close, forced retirement, batch recovery and scope lifetime",
+    "Action log adoption on close/Back/abort/new attempt"
+  ],
+  "validation": {
+    "debug_initial": {
+      "exit": 0,
+      "log": "build/qa/worktree-progress-debug-2026-10-14.log"
+    },
+    "core": {
+      "exit": 0,
+      "tests": 14,
+      "scope": "GitWorktreeTests",
+      "log": "build/qa/worktree-progress-core-2026-10-14.log"
+    },
+    "native_initial": {
+      "exit": 0,
+      "cases": 6,
+      "families": [
+        "worktree-progress",
+        "worktree-family",
+        "creation-pickers"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "owned_receivers_reaped": [
+        88536,
+        88588,
+        88751,
+        89361,
+        89413,
+        89580
+      ],
+      "log": "build/qa/worktree-progress-native-2026-10-14.log"
+    },
+    "cancellation_final_review": {
+      "reason": "OperationCancellationFailure before Prune command start must retain Cancelled result instead of falling through success auto-close",
+      "debug_exit": 0,
+      "debug_log": "build/qa/worktree-progress-debug-cancellation-2026-10-14.log",
+      "native_exit": 0,
+      "cases": 2,
+      "scope": "worktree-progress only; additional real running Prune cancellation assertion; Core unchanged",
+      "owned_receivers_reaped": [
+        90246,
+        90301
+      ],
+      "log": "build/qa/worktree-progress-native-cancellation-2026-10-14.log"
+    },
+    "site": {
+      "exit": 0,
+      "documents": 199,
+      "unresolved_fragments": 0,
+      "log": "build/qa/worktree-progress-site-2026-10-14.log"
+    }
+  },
+  "limits": [
+    "Hidden native output and model checks do not certify full window/theme/keyboard/VoiceOver or actual nested-sheet interaction",
+    "Existing family checks simulate scope grants; signed source/destination/common-repository access and Finder/App Store acceptance remain open",
+    "Action log call sites were added; this batch does not claim a dedicated Worktree Action log persistence assertion",
+    "macOS hosted CI for preceding commit 6330f712 was in progress; GitHub Pages succeeded; complete hosted CI success is unproven",
+    "Whole app port is incomplete"
+  ]
+}

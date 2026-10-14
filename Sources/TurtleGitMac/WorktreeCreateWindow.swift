@@ -26,13 +26,23 @@ import TurtleGitCore
         window.center()
         model.close = { [weak self] in self?.window?.performClose(nil) }
         model.chooseDirectory = { [weak self] in self?.chooseDirectory() }
+        model.confirmCancellation = { [weak window] reply in
+            guard let window, window.attachedSheet == nil else { reply(false); return }
+            let alert = NSAlert(); alert.messageText = "The process is still running."; alert.informativeText = "Are you sure to abort?"
+            alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No")
+            alert.beginSheetModal(for: window) { reply($0 == .alertFirstButtonReturn) }
+        }
         model.load()
 
         DialogGeometry.attach(window, identifier: "CreateWorktreeDialog", legacyName: "CreateWorktreeDialog")
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && !model.chooser.busy && model.chooser.pickerTarget == nil && sender.attachedSheet == nil }
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if model.busy && model.progress { model.cancel(); return false }
+        return !model.busy && !model.confirmingCancellation && !model.chooser.busy && model.chooser.pickerTarget == nil && sender.attachedSheet == nil
+    }
     func windowWillClose(_ notification: Notification) {
-        model.invalidate(); pickers.invalidate()
+        model.saveActionLog(); model.invalidate(); pickers.invalidate()
+        if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.orderOut(nil) }
         if let panel=directoryPanel { panel.sheetParent?.endSheet(panel,returnCode:.cancel); panel.orderOut(nil) }; directoryPanel=nil
         onClosed()
     }
@@ -71,12 +81,20 @@ import TurtleGitCore
     @Published var progress = false
     @Published var success = false
     @Published var output = ""
+    @Published private(set) var currentWork = ""
+    @Published private(set) var percentage: Int?
+    @Published private(set) var cancelling = false
+    @Published private(set) var confirmingCancellation = false
+    let preferences: UserDefaults
+    private let autoClosePolicy: GitProgressAutoClose
+    var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
+    var canCancel: Bool { active && busy && progress && !cancelling && !confirmingCancellation }
     @Published var error: String?
     @Published var hasSubmodules = false
     @Published var cancelled = false
     private var invalidated = false
     var canPickBase: Bool { !invalidated && !busy && !progress && !useHead }
-    func invalidate() { invalidated = true; cancellation?.cancel(); chooser.invalidate() }
+    func invalidate() { invalidated = true; cancellation?.cancel(); confirmingCancellation = false; chooser.invalidate() }
     private var cancellation: OperationCancellation?
     private var createdPath: URL?
     private var shortHashLength = 7
@@ -86,7 +104,7 @@ import TurtleGitCore
     var onSubmodules: (URL, RepositoryAccessLease?) -> Void = { _, _ in }
     var automaticDetach: Bool { !createBranch && !useHead && (chooser.options.target != .branch || chooser.remote) }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
-        self.access = access; chooser = SwitchWindowModel(repository: repository, access: access, preferences: preferences)
+        self.preferences = preferences; autoClosePolicy = GitProgressAutoClose(preferences: preferences); self.access = access; chooser = SwitchWindowModel(repository: repository, access: access, preferences: preferences)
         let root = repository.root.path
         directory = root.hasSuffix(".git") ? String(root.dropLast(4)) : root + "-worktree"
     }
@@ -142,25 +160,48 @@ import TurtleGitCore
             let ambiguous = chooser.branches.contains(where: { $0.label == reference.label }) && chooser.tags.contains(where: { $0.label == reference.label })
             if !ambiguous { options.revision = reference.label }
         }
+        ProgressActionLog.nextAttempt(self, savePrevious: progress)
         let token = OperationCancellation(); cancellation = token
-        busy = true; progress = true; success = false; cancelled = false; output = "Creating worktree…"; error = nil
+        currentWork = ""; percentage = nil; cancelling = false; confirmingCancellation = false
+        busy = true; progress = true; success = false; cancelled = false; output = ""; error = nil
         Self.activeOperations += 1
+        let destinationLease = destinationAccess
         Task {
-            defer { busy = false; cancellation = nil; Self.activeOperations -= 1; withExtendedLifetime(access) {}; withExtendedLifetime(destinationAccess) {} }
+            defer { busy = false; cancellation = nil; currentWork = ""; percentage = nil; cancelling = false; Self.activeOperations -= 1; LocalGitCommandProgress.end(); withExtendedLifetime(access) {}; withExtendedLifetime(destinationLease) {}; finishAutomaticClose() }
+            LocalGitCommandProgress.begin()
             do {
-                let text=try await chooser.repository.createWorktree(at: path, options: options, cancellation: token)
-                guard active else { return }; output=text
+                let repository = chooser.repository
+                let text = try await LocalGitCommandProgress.stream(preferences: preferences, update: { [weak self] state in
+                    guard let self, self.active, self.cancellation === token else { return }
+                    self.output = state.output; self.currentWork = state.currentWork; self.percentage = state.percentage
+                }, resultText: { $0 }, operation: { emit in try await repository.createWorktree(at: path, options: options, cancellation: token, onOutput: emit) })
+                guard active else { return }
                 success = true; createdPath = path
                 hasSubmodules = checkout && FileManager.default.fileExists(atPath: path.appendingPathComponent(".gitmodules").path)
-                onCreated(output)
-            } catch let failure as GitCommandCancellationFailure { guard active else { return }; cancelled = true; output = failure.result.text }
+                onCreated(text)
+            } catch let failure as GitCommandCancellationFailure { guard active else { return }; cancelled = true; output = LocalGitCommandProgress.failure(failure, existing: output, preferences: preferences) }
             catch OperationCancellationFailure.cancelled { guard active else { return }; cancelled = true; output = "Cancelled before worktree creation." }
-            catch { if active { output = error.localizedDescription } }
+            catch { if active { output = LocalGitCommandProgress.failure(error, existing: output, preferences: preferences) } }
         }
     }
-    func cancel() { cancellation?.cancel() }
+    private func finishAutomaticClose() {
+        guard active, !busy, !confirmingCancellation, success else { return }
+        if autoClosePolicy.shouldClose(success: true, postActionCount: hasSubmodules ? 1 : 0) { saveActionLog(); close() }
+    }
+    func cancel() {
+        guard canCancel, let token = cancellation else { return }
+        if preferences.bool(forKey: "ConfirmKillProcess") {
+            confirmingCancellation = true; var answered = false
+            confirmCancellation { [weak self] accepted in
+                guard !answered, let self, self.active else { return }; answered = true; self.confirmingCancellation = false
+                if self.busy, self.cancellation === token, accepted { self.cancelling = true; token.cancel() }
+                self.finishAutomaticClose()
+            }
+        } else { cancelling = true; token.cancel() }
+    }
+    func returnToOptions() { guard active, !busy, !confirmingCancellation else { return }; saveActionLog(); progress = false }
     func updateSubmodules() {
-        guard active, success, !busy, let createdPath else { return }
+        guard active, success, !busy, !confirmingCancellation, let createdPath else { return }
         let lease = destinationAccess?.contains(createdPath) == true ? destinationAccess : access
         onSubmodules(createdPath, lease); close()
     }
@@ -223,13 +264,13 @@ private struct WorktreeCreateDialog: View {
     private var progress: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(model.busy ? "Creating worktree…" : model.success ? "Worktree created" : model.cancelled ? "Cancelled" : "Worktree creation failed").font(.headline)
-            ScrollView { Text(model.output).font(.system(.body, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }.frame(maxHeight: .infinity)
-            HStack { if model.busy { ProgressView().controlSize(.small) }; Spacer()
+            SubmoduleProgressOutputView(text: model.output, completed: !model.busy, success: model.success, preferences: model.preferences).frame(maxHeight: .infinity)
+            HStack { if model.busy { LocalGitProgressIndicator(percentage: model.percentage); Text(model.cancelling ? "Cancelling…" : model.currentWork).font(.caption) }; Spacer()
                 if model.success && model.hasSubmodules { Button { model.updateSubmodules() } label: { CommandLabel(title: "Submodule Update…", icon: .fetch) } }
-                if model.busy { Button("Cancel") { model.cancel() } }
+                if model.busy { Button("Cancel") { model.cancel() }.disabled(!model.canCancel) }
                 else {
-                    if !model.success { Button("Back") { model.progress = false } }
-                    Button("Close") { model.close() }.keyboardShortcut(.defaultAction)
+                    if !model.success { Button("Back") { model.returnToOptions() }.disabled(model.confirmingCancellation) }
+                    Button("Close") { model.close() }.keyboardShortcut(.defaultAction).disabled(model.confirmingCancellation)
                 }
             }
         }
