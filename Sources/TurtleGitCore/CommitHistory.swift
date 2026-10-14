@@ -483,11 +483,58 @@ public struct HistoryLimitScope: Equatable, Sendable {
     }
 }
 
+/// GetLogCmd's three reference-set masks are distinct from label visibility.
+public enum HistoryReferenceScope: String, CaseIterable, Sendable {
+    case current, all, basic, local
+    public var title: String {
+        switch self { case .current: return "HEAD"; case .all: return "All branches"; case .basic: return "All basic refs"; case .local: return "All local branches" }
+    }
+    public var arguments: [String] {
+        switch self {
+        case .current: return []
+        case .all: return ["--all"]
+        case .basic: return ["--branches", "--tags", "--remotes", "--glob=stas[h]", "--glob=bisect"]
+        case .local: return ["--branches"]
+        }
+    }
+}
+
+/// Browser selections/recents contain Git tokens, never shell command text.
+public enum HistoryReferenceSelection: Equatable, Sendable {
+    case tips([String]), range(HistoryRevisionRange)
+    public init?(expression: String) {
+        guard !expression.isEmpty, !expression.contains("\0"), !expression.contains("\n"), !expression.contains("\r") else { return nil }
+        let names = expression.split(whereSeparator: \.isWhitespace).map(String.init)
+        guard !names.isEmpty else { return nil }
+        if names.count == 1 {
+            let value = names[0]
+            let delimiter = value.contains("...") ? "..." : ".."
+            if let split = value.range(of: delimiter) {
+                let from = String(value[..<split.lowerBound]), to = String(value[split.upperBound...])
+                guard !from.isEmpty, !to.isEmpty, !to.contains("..") else { return nil }
+                self = .range(HistoryRevisionRange(from: from, to: to, kind: delimiter == "..." ? .symmetricDifference : .difference)); return
+            }
+        }
+        self = .tips(names)
+    }
+    public var expression: String {
+        switch self { case .tips(let names): return names.joined(separator: " "); case .range(let range): return range.expression }
+    }
+}
+
+public struct HistoryStartReferences: Equatable, Sendable {
+    public let branch: String
+    public let fetchHead: String?
+    public init(branch: String, fetchHead: String?) { self.branch = branch; self.fetchHead = fetchHead }
+}
+
 public struct HistoryOptions: Sendable {
     public var useMailmap = true
     public var ordering: HistoryOrdering = .topological
     public var walk = HistoryWalkOptions()
     public var allBranches = false
+    public var referenceScope = HistoryReferenceScope.current
+    public var startRevisions: [String] = []
     public var includeBoundaryCommits = false
     /// Log projection needs hidden search rows for lane/rollup state. Limit the
     /// raw Git walk and carry match flags instead of returning only matches.
@@ -898,13 +945,13 @@ extension GitRepository {
         }
         if options.limit == 0 { return [] }
         // An unborn HEAD is valid; --all may still have commits in other branches.
-        if !options.allBranches && options.endRevision == nil && options.revisionRange == nil {
+        if !options.allBranches && options.referenceScope == .current && options.startRevisions.isEmpty && options.endRevision == nil && options.revisionRange == nil {
             do { _ = try historyRun(["rev-parse", "--verify", "--quiet", "HEAD"]) }
             catch let failure as GitFailure where failure.code == 1 { return [] }
         }
         if options.walk.followRenames {
             let paths = (options.path.map { $0.isEmpty ? [] : [$0] } ?? []) + options.paths
-            guard !options.allBranches, try canFollowHistory(paths: paths, revision: options.revisionRange?.to ?? options.endRevision, cancellation: cancellation) else { throw HistoryWalkFailure.singleFile }
+            guard !options.allBranches, options.referenceScope == .current, try canFollowHistory(paths: paths, revision: options.revisionRange?.to ?? options.endRevision ?? options.startRevisions.first, cancellation: cancellation) else { throw HistoryWalkFailure.singleFile }
         }
         let issueProperties = try issueProperties ?? issueTrackerProperties(cancellation: cancellation)
         var issueCache: [String: String] = [:]
@@ -937,7 +984,12 @@ extension GitRepository {
         } else if let revision = options.endRevision {
             let hash = try historyRun(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"]).text.trimmingCharacters(in: .newlines)
             args.append(hash)
-        } else if options.allBranches { args.append("--all") }
+        } else if !options.startRevisions.isEmpty {
+            for revision in options.startRevisions {
+                let hash = try historyRun(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"]).text.trimmingCharacters(in: .newlines)
+                args.append(hash)
+            }
+        } else { args += (options.allBranches ? HistoryReferenceScope.all : options.referenceScope).arguments }
         if filtering && !filterInMemory {
             args.append("--fixed-strings")
             if !options.searchCaseSensitive { args.append("--regexp-ignore-case") }
@@ -1555,5 +1607,16 @@ extension GitRepository {
         // Upstream omits Describe when no matching name can be found.
         guard result.exitCode == 0 else { return nil }
         return result.text.trimmingCharacters(in: .newlines)
+    }
+}
+
+
+extension GitRepository {
+    public func historyStartReferences(cancellation: OperationCancellation? = nil) throws -> HistoryStartReferences {
+        try cancellation?.check()
+        let current = try branch(cancellation: cancellation)
+        let fetched = try run(["rev-parse", "--verify", "--quiet", "FETCH_HEAD^{commit}"], successfulExitCodes: 0...1, cancellation: cancellation)
+        try cancellation?.check()
+        return HistoryStartReferences(branch: current, fetchHead: fetched.exitCode == 0 ? fetched.text.trimmingCharacters(in: .newlines) : nil)
     }
 }

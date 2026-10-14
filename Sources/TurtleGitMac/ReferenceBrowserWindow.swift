@@ -37,8 +37,8 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     var presentDescription: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
     var presentReflog: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
     private var completion: ((String?) -> Void)?
-    init(repository: GitRepository, access: RepositoryAccessLease?, initial: String, preferences: UserDefaults = .standard, scope: ReferenceBrowserScope = .all, picking: Bool = true, pickMultiple: Bool = false, onChoose: @escaping (String?) -> Void) {
-        model = ReferenceBrowserWindowModel(repository: repository, access: access, initial: initial, preferences: preferences, scope: scope, picking: picking, pickMultiple: pickMultiple); completion = onChoose
+    init(repository: GitRepository, access: RepositoryAccessLease?, initial: String, preferences: UserDefaults = .standard, scope: ReferenceBrowserScope = .all, picking: Bool = true, pickMultiple: Bool = false, allowsRangeSelection: Bool = false, onChoose: @escaping (String?) -> Void) {
+        model = ReferenceBrowserWindowModel(repository: repository, access: access, initial: initial, preferences: preferences, scope: scope, picking: picking, pickMultiple: pickMultiple, allowsRangeSelection: allowsRangeSelection); completion = onChoose
         let window = ReferenceBrowserNativeWindow(contentRect: .init(x: 0, y: 0, width: 1130, height: 660), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Browse references – TurtleGit"; window.isReleasedWhenClosed = false; window.contentMinSize = .init(width: 940, height: 450)
         window.contentViewController = NSHostingController(rootView: ReferenceBrowserDialog(model: model).defaultAppStorage(preferences))
@@ -259,6 +259,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class ReferenceBrowserWindowModel: ObservableObject {
+    private(set) static var activeReads = 0
     let repository: GitRepository
     let sshSettings: SSHTransportSettings
     let access: RepositoryAccessLease?
@@ -267,6 +268,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     let scope: ReferenceBrowserScope
     let picking: Bool
     let pickMultiple: Bool
+    let allowsRangeSelection: Bool
     private var token: OperationCancellation?
     private var invalidated = false
     private(set) var deletingReference = false
@@ -423,8 +425,8 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     var onReflog: ((String) -> Void)?
     var onBrowse: ((String) -> Void)?
     var onCompare: ((String) -> Void)?
-    init(repository: GitRepository, access: RepositoryAccessLease?, initial: String, preferences: UserDefaults = .standard, scope: ReferenceBrowserScope = .all, picking: Bool = true, pickMultiple: Bool = false) {
-        self.picking = picking; self.pickMultiple = pickMultiple; sshSettings = SSHTransportSettings(repository: repository); sshSettings.enabled = sshSettings.available
+    init(repository: GitRepository, access: RepositoryAccessLease?, initial: String, preferences: UserDefaults = .standard, scope: ReferenceBrowserScope = .all, picking: Bool = true, pickMultiple: Bool = false, allowsRangeSelection: Bool = false) {
+        self.picking = picking; self.pickMultiple = pickMultiple; self.allowsRangeSelection = allowsRangeSelection; sshSettings = SSHTransportSettings(repository: repository); sshSettings.enabled = sshSettings.available
         self.repository = repository; self.access = access; self.initial = initial; self.preferences = preferences; self.scope = scope
         nested = preferences.object(forKey: "RefBrowserIncludeNestedRefs") as? Bool ?? true
     }
@@ -486,14 +488,14 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         guard !invalidated, !generatingUnified, !hasChild, !deletingReference, !changingTracking, !resolvingCurrentBranch, renameReference == nil else { return }
         let requested = selected?.rawValue ?? (snapshot == nil ? initial : folder.rawValue)
         token?.cancel(); let request = OperationCancellation(); token = request; busy = true; error = preservingError
-        let filter = mergeFilter
+        let filter = mergeFilter; Self.activeReads += 1
         Task {
-            defer { if token === request { token = nil; busy = false } }
+            defer { Self.activeReads -= 1; withExtendedLifetime(access) {}; if token === request { token = nil; busy = false } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let result = try await repository.referenceBrowser(filter: filter, scope: scope, useMailmap: preferences.usesMailmap, cancellation: request)
                 let bare = try await repository.isBare(cancellation: request)
-                guard !invalidated, token === request else { return }
+                guard !invalidated, token === request, !request.isCancelled else { return }
                 let choice = result.initialSelection(requested); folders = result.folders; self.bare = bare; snapshot = result; folder = choice.folder; selected = choice.reference; refilter()
             } catch { if !invalidated, token === request, !request.isCancelled { self.error = error.localizedDescription } }
         }
@@ -508,8 +510,9 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     var canChooseCurrentBranch: Bool { !invalidated && !busy && !hasChild && renameReference == nil }
     func currentBranch() {
         guard canChooseCurrentBranch else { return }
-        let request = OperationCancellation(); token = request; resolvingCurrentBranch = true; busy = true; error = nil
+        let request = OperationCancellation(); token = request; resolvingCurrentBranch = true; busy = true; error = nil; Self.activeReads += 1
         Task {
+            defer { Self.activeReads -= 1; withExtendedLifetime(access) {} }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let revision = try await repository.referenceBrowserCurrentBranch(cancellation: request)
@@ -521,6 +524,17 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
                 if !request.isCancelled { self.error = error.localizedDescription }
             }
         }
+    }
+    var pickRangeChoices: [HistoryRevisionRange] {
+        guard picking, pickMultiple, allowsRangeSelection, let first = selectedRows.first, selectedRows.count == 2 else { return [] }
+        let names = selectedRows.map { $0.reference.name }
+        guard let a = ReferenceBrowserRange(references: names, lastSelected: first.reference.name),
+              let b = ReferenceBrowserRange(references: names, lastSelected: names[1]) else { return [] }
+        return [a.history(), b.history(), b.history(symmetric: true)]
+    }
+    func acceptRange(_ choice: Int) {
+        guard canAccept, pickRangeChoices.indices.contains(choice) else { return }
+        finish(pickRangeChoices[choice].expression)
     }
     func accept() {
         guard canFinish else { return }
@@ -556,7 +570,14 @@ struct ReferenceBrowserDialog: View {
                 Text("Showing \(model.rows.count) ref(s), \(model.selectedRows.count) ref(s) selected").font(.system(size: 11)).foregroundStyle(.secondary)
                 if model.busy { ProgressView().controlSize(.small) }; Spacer()
                 Button("Current Branch") { model.currentBranch() }.disabled(!model.canChooseCurrentBranch)
-                Button("OK") { model.accept() }.keyboardShortcut(.defaultAction).disabled(!model.canFinish)
+                if !model.pickRangeChoices.isEmpty {
+                    Menu("OK") {
+                        Button { model.accept() } label: { CommandLabel(title: model.selectedRows.map { $0.reference.name.browserShortName }.joined(separator: " "), icon: .log) }
+                        ForEach(Array(model.pickRangeChoices.enumerated()), id: \.offset) { index, range in
+                            Button { model.acceptRange(index) } label: { CommandLabel(title: range.expression, icon: .log) }
+                        }
+                    }.disabled(!model.canAccept)
+                } else { Button("OK") { model.accept() }.keyboardShortcut(.defaultAction).disabled(!model.canFinish) }
                 Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(model.busy || model.renameReference != nil)
                 Button { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-browse-ref.html")!) } label: { CommandLabel(title: "Help", icon: .help) }
             }

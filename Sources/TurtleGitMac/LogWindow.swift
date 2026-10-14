@@ -95,6 +95,15 @@ final class LogHistoryWindow: NSWindow {
 }
 
 @MainActor final class LogWindowController: NSWindowController, NSWindowDelegate {
+    private(set) static var activeReferencePickers = 0
+    private var startReferenceRequest: UUID?
+    private(set) var startReferencePicker: ReferenceBrowserWindowController?
+    var configureStartReferencePicker: (ReferenceBrowserWindowModel) -> Void = { _ in }
+    var presentStartReferencePicker: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
+    var makeStartReferencePicker: (GitRepository, RepositoryAccessLease?, String, UserDefaults, @escaping (String?) -> Void) -> ReferenceBrowserWindowController = { repository, access, initial, preferences, choose in
+        ReferenceBrowserWindowController(repository: repository, access: access, initial: initial, preferences: preferences, pickMultiple: true, allowsRangeSelection: true, onChoose: choose)
+    }
+
     let model: LogWindowModel
     private let findAccess: RepositoryAccessLease?
     private let findPreferences: UserDefaults
@@ -120,14 +129,15 @@ final class LogHistoryWindow: NSWindow {
         window.title = "\(repository.root.lastPathComponent) – Log Messages – TurtleGit"
         window.minSize = NSSize(width: 1080, height: 700)
         window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: LogDialog(model: model, savesColumnLayout: savesColumnLayout).disabled(model.findBlocked || model.orderingBlocked).defaultAppStorage(labelDefaults))
+        window.contentViewController = NSHostingController(rootView: LogDialog(model: model, savesColumnLayout: savesColumnLayout).disabled(model.findBlocked || model.orderingBlocked || model.referencePickerBlocked).defaultAppStorage(labelDefaults))
         super.init(window: window)
         model.window = window
         window.find = { [weak self] in self?.showFind() }
-        window.blocksInteraction = { [weak model] in model?.findBlocked == true || model?.orderingBlocked == true }
+        window.blocksInteraction = { [weak model] in model?.findBlocked == true || model?.orderingBlocked == true || model?.referencePickerBlocked == true }
         findAvailability = model.$busy.sink { [weak self] _ in DispatchQueue.main.async { self?.find?.updateAvailability() } }
         notePresenter = CommitNotePresenter(parent: window, model: model, preferences: labelDefaults)
         model.onShowOrdering = { [weak self] in self?.showOrdering() }
+        model.onBrowseStartReference = { [weak self] in self?.showStartReferencePicker() }
         model.onShowContainingReferences = { [weak self] hash in self?.showContainingReferences(hash) }
         model.onFindReferenceRefresh = { [weak self] in self?.find?.loadReferences() }
         model.onPatchPreviewVisibility = { [weak self] visible in self?.setPatchPreviewVisible(visible) }
@@ -336,7 +346,7 @@ final class LogHistoryWindow: NSWindow {
         completion(revisions)
     }
     private var canFind: Bool {
-        !model.isInvalidated && !model.busy && !model.jumping && !model.loadingNote && !model.savingNote && model.noteRequest == nil && !model.copyingDetails && !model.unifiedViewerBusy && !model.findBlocked && !model.orderingBlocked && window?.attachedSheet == nil
+        !model.isInvalidated && !model.busy && !model.jumping && !model.loadingNote && !model.savingNote && model.noteRequest == nil && !model.copyingDetails && !model.unifiedViewerBusy && !model.findBlocked && !model.orderingBlocked && !model.referencePickerBlocked && window?.attachedSheet == nil
     }
     func showFind(regexExecutable: URL? = nil) {
         guard canFind, let parent = window else { return }
@@ -404,12 +414,43 @@ final class LogHistoryWindow: NSWindow {
         if let window = child.window { window.alphaValue = parent.alphaValue; window.appearance = parent.appearance; parent.addChildWindow(window, ordered: .above); window.center(); window.orderFront(nil); window.makeFirstResponder(child.revision) }
         child.refresh()
     }
+    func showStartReferencePicker() {
+        guard model.canChangeStartReference, !hasBlockingReferenceChild, let owner = window, owner.attachedSheet == nil, startReferencePicker == nil else { return }
+        let request = UUID(); startReferenceRequest = request; model.referencePickerBlocked = true; Self.activeReferencePickers += 1
+        let child = makeStartReferencePicker(model.repository, findAccess, model.referenceExpression, findPreferences) { [weak self] value in
+            guard let self, self.startReferenceRequest == request else { return }
+            self.finishStartReferencePicker(request)
+            if let value, !self.model.isInvalidated { self.model.chooseStartReference(value, remember: true) }
+        }
+        startReferencePicker = child; model.configureStartReferenceBrowser(child.model); configureStartReferencePicker(child.model)
+        child.onClosed = { [weak self, weak child] in
+            guard let self, let child, self.startReferencePicker === child else { return }
+            if let window = child.window, window.sheetParent === self.window { self.window?.endSheet(window) }
+            // Accepted value is delivered after windowWillClose; keep its request until that callback.
+            self.startReferencePicker = nil
+        }
+        guard let window = child.window, presentStartReferencePicker(owner, window) else {
+            finishStartReferencePicker(request); child.abandonPresentation(); return
+        }
+        child.model.load()
+    }
+    private func finishStartReferencePicker(_ request: UUID) {
+        guard startReferenceRequest == request else { return }
+        startReferenceRequest = nil; startReferencePicker = nil; model.referencePickerBlocked = false; Self.activeReferencePickers -= 1
+    }
+    private func retireStartReferencePicker() {
+        guard let request = startReferenceRequest else { return }
+        let child = startReferencePicker
+        finishStartReferencePicker(request); child?.abandonPresentation()
+    }
     var hasBlockingReferenceChild: Bool { containingReferences.values.contains { $0.hasBlockingChild } }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard (!model.busy || model.loadingHistory), !model.unifiedViewerBusy, !model.findBlocked, !model.orderingBlocked, !hasBlockingReferenceChild, sender.attachedSheet == nil else { return false }
+        if model.cancelStartReferenceRead() { return false }
+        guard !model.referencePickerBlocked, (!model.busy || model.loadingHistory), !model.unifiedViewerBusy, !model.findBlocked, !model.orderingBlocked, !hasBlockingReferenceChild, sender.attachedSheet == nil else { return false }
         if model.selecting { finishSelection(nil); return false }; return true
     }
     func windowWillClose(_ notification: Notification) {
+        retireStartReferencePicker()
         notePresenter?.close()
         let ordered = ordering; ordering = nil; ordered?.completion = { _ in }; ordered?.close(); model.orderingBlocked = false
         let references = Array(containingReferences.values); containingReferences.removeAll(); references.forEach { $0.close() }
@@ -694,6 +735,57 @@ struct LogCommandRequest: Identifiable {
     private var lastImportedWorkingMark: UUID?
     @Published var comparisonMark: PreparedFileComparisonMark?
     @Published var allBranches = false
+    @Published private(set) var referenceScope = HistoryReferenceScope.current
+    @Published private(set) var startRevisions: [String] = []
+    @Published private(set) var fetchHeadRevision: String?
+    @Published private(set) var recentReferences: [String] = []
+    @Published var referencePickerBlocked = false
+    var onBrowseStartReference: () -> Void = {}
+    var configureStartReferenceBrowser: (ReferenceBrowserWindowModel) -> Void = { _ in }
+    private var startReferenceCancellation: OperationCancellation?
+    private(set) static var activeReferenceReads = 0
+    var canChangeStartReference: Bool { !isInvalidated && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil && !copyingDetails && !unifiedViewerBusy && !findBlocked && !orderingBlocked && !referencePickerBlocked && window?.attachedSheet == nil }
+    var effectiveReferenceScope: HistoryReferenceScope { allBranches ? .all : referenceScope }
+    var referenceExpression: String { revisionRange?.expression ?? endRevision ?? (startRevisions.isEmpty ? "HEAD" : startRevisions.joined(separator: " ")) }
+    var startReferenceTitle: String {
+        if effectiveReferenceScope != .current { return effectiveReferenceScope.title }
+        if referenceExpression == "HEAD" { return currentBranch.isEmpty ? "No branch" : currentBranch }
+        if startRevisions.isEmpty, revisionRange == nil { return HistoryReferenceLabel.shortName(referenceExpression).text }
+        return referenceExpression
+    }
+    func chooseStartReference(_ expression: String, remember: Bool = false) {
+        guard canChangeStartReference, let selection = HistoryReferenceSelection(expression: expression) else { return }
+        allBranches = false; referenceScope = .current; startRevisions = []
+        switch selection {
+        case .range(let range): revisionRange = range; endRevision = nil
+        case .tips(let names): revisionRange = nil; endRevision = names.count == 1 ? names[0] : nil; startRevisions = names.count > 1 ? names : []
+        }
+        if remember { recentReferences = HistoryReferenceRecents(root: repository.root, defaults: labelDefaults).add(expression) }
+        reload()
+    }
+    func chooseReferenceScope(_ scope: HistoryReferenceScope) {
+        guard canChangeStartReference, scope == .current || !historyWalk.followRenames else { return }
+        endRevision = nil; revisionRange = nil; startRevisions = []; referenceScope = scope; allBranches = scope == .all
+        reload()
+    }
+    func browseStartReference() { guard canChangeStartReference else { return }; onBrowseStartReference() }
+    @discardableResult func cancelStartReferenceRead() -> Bool {
+        guard let token = startReferenceCancellation else { return false }; token.cancel(); return true
+    }
+    func chooseFetchHead() {
+        guard canChangeStartReference, fetchHeadRevision != nil else { return }
+        let token = OperationCancellation(); startReferenceCancellation = token; busy = true; Self.activeReferenceReads += 1
+        Task {
+            defer { Self.activeReferenceReads -= 1; withExtendedLifetime(access) {}; if startReferenceCancellation === token { startReferenceCancellation = nil; busy = false } }
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let refs = try await repository.historyStartReferences(cancellation: token)
+                guard !isInvalidated, startReferenceCancellation === token, !token.isCancelled else { return }
+                startReferenceCancellation = nil; busy = false; fetchHeadRevision = refs.fetchHead
+                if let hash = refs.fetchHead { chooseStartReference(hash) }
+            } catch { if !isInvalidated, startReferenceCancellation === token, !token.isCancelled { self.error = error.localizedDescription } }
+        }
+    }
     @Published private(set) var historyWalk = HistoryWalkOptions()
     @Published private(set) var rollupInfo: [String: HistoryRollupInfo] = [:]
     private var rollupStates: [String: HistoryRollupChoice] = [:]
@@ -751,7 +843,7 @@ struct LogCommandRequest: Identifiable {
     func toggleHistoryWalk(_ command: HistoryWalkCommand) {
         guard canToggleHistoryWalk(command) else { return }
         historyWalk.toggle(command)
-        if historyWalk.followRenames { allBranches = false; showWholeProject = false }
+        if historyWalk.followRenames { allBranches = false; referenceScope = .current; showWholeProject = false }
         reload()
     }
     @Published var endRevision: String?
@@ -1232,6 +1324,7 @@ struct LogCommandRequest: Identifiable {
         sshSettings = SSHTransportSettings(repository: repository); sshSettings.enabled = sshSettings.available
         self.repository = repository; self.access = access; self.selecting = selecting; self.selectingMultiple = selectingMultiple; self.labelDefaults = labelDefaults; showWorkingTree = includeWorkingTreeChanges && !selecting
         showGravatar = labelDefaults.object(forKey: gravatarDefaultsKey) == nil ? labelDefaults.bool(forKey: "EnableGravatar") : labelDefaults.bool(forKey: gravatarDefaultsKey)
+        recentReferences = HistoryReferenceRecents(root: repository.root, defaults: labelDefaults).entries
         showUnversionedFiles = labelDefaults.object(forKey: "AddBeforeCommit") == nil || labelDefaults.bool(forKey: "AddBeforeCommit")
         if let stored = labelDefaults.object(forKey: labelDefaultsKey) as? NSNumber, stored.intValue >= 0 {
             referenceVisibility = HistoryReferenceVisibility(rawValue: stored.intValue).intersection(.all).union([.stash, .bisect])
@@ -1274,7 +1367,7 @@ struct LogCommandRequest: Identifiable {
     }
     func canReuseForRange(_ range: HistoryRevisionRange) -> Bool {
         !isInvalidated && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil && !unifiedViewerBusy && !copyingDetails &&
-        revisionRange == range && endRevision == nil && historyPaths.isEmpty
+        revisionRange == range && endRevision == nil && historyPaths.isEmpty && startRevisions.isEmpty && effectiveReferenceScope == .current
     }
     func configureWholeProjectScope() {
         historyWalk.followRenames = false; canFollowRenames = false
@@ -1322,6 +1415,7 @@ struct LogCommandRequest: Identifiable {
         statisticsWindow = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
     }
     func invalidate() {
+        startReferenceCancellation?.cancel(); startReferenceCancellation = nil
         unifiedSessions.values.forEach { $0.cancel() }; if !unifiedSessions.isEmpty { busy = false }
         statisticsWindow?.model.cancel(); statisticsWindow?.close(); statisticsWindow = nil
         restoreHistorySnapshot()
@@ -1338,7 +1432,7 @@ struct LogCommandRequest: Identifiable {
         generation += 1; detailGeneration += 1
     }
     func reload() {
-        guard !busy || loadingHistory else { return }
+        guard !isInvalidated, !referencePickerBlocked, !busy || loadingHistory else { return }
         restoreHistorySnapshot()
         historyRestore = HistoryRestore(entries: entries, graph: graph, rollups: rollupInfo, highlights: searchHighlights)
         onFindReferenceRefresh?()
@@ -1357,7 +1451,7 @@ struct LogCommandRequest: Identifiable {
         }
         cancelClipboardRead()
         generation += 1; let request = generation
-        var options = HistoryOptions(); options.endRevision = endRevision; options.revisionRange = revisionRange; options.allBranches = allBranches; options.search = search; options.searchFields = searchFields; options.searchCaseSensitive = searchCaseSensitive; options.searchRegex = searchRegex
+        var options = HistoryOptions(); options.endRevision = endRevision; options.revisionRange = revisionRange; options.allBranches = allBranches; options.referenceScope = referenceScope; options.startRevisions = startRevisions; options.search = search; options.searchFields = searchFields; options.searchCaseSensitive = searchCaseSensitive; options.searchRegex = searchRegex
         options.useMailmap = labelDefaults.usesMailmap
         options.ordering = HistoryOrdering.load(defaults: labelDefaults)
         options.walk = historyWalk; options.regexExecutable = historyRegexExecutable
@@ -1378,10 +1472,11 @@ struct LogCommandRequest: Identifiable {
                 let conflictRebase: Bool
                 if bare { conflictRebase = false } else { conflictRebase = try await repository.conflictIsRebase() }
                 let referenceContext = try await repository.historyReferenceContext(cancellation: cancellation)
-                let currentBranch = try await repository.branch()
+                let startReferences = try await repository.historyStartReferences(cancellation: cancellation)
+                let currentBranch = startReferences.branch
                 let issueProperties = try await repository.issueTrackerProperties(cancellation: cancellation)
-                let followAllowed = try await repository.canFollowHistory(paths: scope, revision: options.revisionRange?.to ?? options.endRevision, cancellation: cancellation)
-                let pathScopes = try await repository.historyPathScopes(paths: scope, revision: options.revisionRange?.to ?? options.endRevision, cancellation: cancellation)
+                let followAllowed = try await repository.canFollowHistory(paths: scope, revision: options.revisionRange?.to ?? options.endRevision ?? options.startRevisions.first, cancellation: cancellation)
+                let pathScopes = try await repository.historyPathScopes(paths: scope, revision: options.revisionRange?.to ?? options.endRevision ?? options.startRevisions.first, cancellation: cancellation)
                 let showPatch = patchPreviewPreferenceLoaded ? patchPreviewVisible : try await repository.run(["config", "--bool", "--get", "tgit.logshowpatch"], successfulExitCodes: 0...1, cancellation: cancellation).text.trimmingCharacters(in: .newlines) == "true"
                 let progressWalk = options.walk
                 var result = try await repository.history(options: options, cancellation: cancellation, issueProperties: issueProperties, onProgress: { [weak self] count in
@@ -1408,7 +1503,7 @@ struct LogCommandRequest: Identifiable {
                 let selectedFrom = historyLimit.scale.rawValue >= HistoryLimitScale.selectedDate.rawValue ? historyLimit.from.flatMap { $0.timeIntervalSince1970 > 0 ? $0 : nil } : nil
                 if let first = selectedFrom ?? dates.min() { from = first }
                 if let last = historyLimit.until ?? dates.max() { to = last }
-                self.bare = bare; self.mergeActive = mergeActive; self.bisectActive = bisectActive; self.bisectGoodTerm = bisect?.goodTerm ?? "good"; self.bisectBadTerm = bisect?.badTerm ?? "bad"; self.currentBranch = currentBranch; self.issueProperties = issueProperties
+                self.bare = bare; self.mergeActive = mergeActive; self.bisectActive = bisectActive; self.bisectGoodTerm = bisect?.goodTerm ?? "good"; self.bisectBadTerm = bisect?.badTerm ?? "bad"; self.currentBranch = currentBranch; self.fetchHeadRevision = startReferences.fetchHead; self.issueProperties = issueProperties
                 self.conflictRebase = conflictRebase
                 hasStash = metadata.hasStash; hasSubmodules = metadata.hasSubmoduleConfig; hasGitSVN = metadata.hasGitSVN; self.svnRevisions = svnRevisions
                 canFollowRenames = followAllowed
@@ -2299,10 +2394,26 @@ struct LogDialog: View {
     @AppStorage("LogDateFormat") private var shortDate = true
     @AppStorage("RelativeTimes") private var relativeTimes = false
     @AppStorage("UseSystemLocaleForDates") private var useSystemLocale = true
+    @ViewBuilder private var startReferenceActions: some View {
+        Button { model.browseStartReference() } label: { CommandLabel(title: "Browse references…", icon: .branch) }
+        Button { model.chooseStartReference("HEAD") } label: { CommandLabel(title: model.currentBranch.isEmpty ? "HEAD" : "HEAD → \"\(model.currentBranch)\"", icon: .branch) }
+        Button { model.chooseFetchHead() } label: { CommandLabel(title: "FETCH_HEAD", icon: .fetch) }.disabled(model.fetchHeadRevision == nil)
+        ForEach([HistoryReferenceScope.all, .basic, .local], id: \.self) { scope in
+            Button { model.chooseReferenceScope(scope) } label: { CommandLabel(title: scope.title, icon: .log) }.disabled(model.historyWalk.followRenames)
+        }
+        if !model.recentReferences.isEmpty {
+            Divider()
+            ForEach(Array(model.recentReferences.enumerated()), id: \.offset) { _, reference in
+                Button { model.chooseStartReference(reference, remember: true) } label: { CommandLabel(title: reference.count > 150 ? String(reference.prefix(150)) + "…" : reference, icon: .log) }.help(reference)
+            }
+        }
+    }
     var body: some View {
         VStack(spacing: 8) {
             HStack(spacing: 12) {
-                Text(model.repository.root.lastPathComponent).foregroundStyle(.blue).lineLimit(1)
+                Button(model.startReferenceTitle) { model.browseStartReference() }.buttonStyle(.link).lineLimit(1)
+                    .help(model.referenceExpression).disabled(!model.canChangeStartReference)
+                    .contextMenu { TurtleGitContextMenu { startReferenceActions } }
                 Menu(model.historyLimitTitle) {
                     Button("No limitation") { model.chooseHistoryLimit(.noLimit) }
                     if model.defaultHistoryLimitScale.requiresNumber && model.historyLimit.number > 0 {
@@ -2382,7 +2493,8 @@ struct LogDialog: View {
             Text("Showing \(model.entries.filter { !$0.hash.isEmpty }.count) revision(s) • \(model.selectedWorkingTree ? "Working tree selected" : "\(model.revisions.count) revision(s) selected") • \(model.files.count) changed file(s)")
                 .font(.system(size: 11)).frame(maxWidth: .infinity, alignment: .leading)
             HStack {
-                Toggle("All Branches", isOn: $model.allBranches).toggleStyle(.checkbox).disabled(model.endRevision != nil || model.revisionRange != nil || model.historyWalk.followRenames).onChange(of: model.allBranches) { _ in model.reload() }
+                LogReferenceScopeCheckbox(scope: model.effectiveReferenceScope, enabled: model.canChangeStartReference && !model.historyWalk.followRenames) { model.chooseReferenceScope($0 ? .all : .current) }
+                    .contextMenu { TurtleGitContextMenu { startReferenceActions } }
                 Menu {
                     ForEach([HistoryWalkCommand.firstParent, .noMerges, .followRenames, .fullHistory], id: \.self) { command in
                         Toggle(command.rawValue, isOn: Binding(get: { model.historyWalk.contains(command) }, set: { _ in model.toggleHistoryWalk(command) })).disabled(!model.canToggleHistoryWalk(command))
@@ -3505,5 +3617,29 @@ struct LogRevisionDialog: View {
                 continuation.resume(returning: request.choices.indices.contains(index) ? request.choices[index].choice : .abort)
             }
         }
+    }
+}
+
+
+/// Source all-branches control uses an indeterminate state for basic/local refs.
+struct LogReferenceScopeCheckbox: NSViewRepresentable {
+    let scope: HistoryReferenceScope
+    let enabled: Bool
+    let change: (Bool) -> Void
+    func makeCoordinator() -> Coordinator { Coordinator(change: change) }
+    func makeNSView(context: Context) -> NSButton {
+        let button = NSButton(checkboxWithTitle: "All Branches", target: context.coordinator, action: #selector(Coordinator.clicked(_:)))
+        button.allowsMixedState = true; return button
+    }
+    func updateNSView(_ button: NSButton, context: Context) {
+        button.state = scope == .current ? .off : scope == .all ? .on : .mixed
+        button.isEnabled = enabled; button.toolTip = scope.title
+        context.coordinator.change = change; context.coordinator.next = scope == .current
+    }
+    static func dismantleNSView(_ button: NSButton, coordinator: Coordinator) { button.target = nil; button.action = nil; button.isEnabled = false; coordinator.change = { _ in } }
+    final class Coordinator: NSObject {
+        var change: (Bool) -> Void, next = true
+        init(change: @escaping (Bool) -> Void) { self.change = change }
+        @objc func clicked(_ sender: NSButton) { guard sender.isEnabled else { return }; change(next) }
     }
 }

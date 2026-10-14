@@ -44,3 +44,7 @@ sandbox execution or complete ChooseVersion/dialog parity.
 Eight grouped native cases passed with both Git engines, followed by two affected
 control cases after adding Export. The final Debug build passed; Core was unchanged
 and not retested. See the [scoped acceptance](qa/version-combo-2026-10-13.json).
+
+The connected [Log reference-navigation family](LOG-REFERENCE-NAVIGATION-PARITY.md)
+adds source reference-set scopes, multi-tip/range picking, bounded exact recents
+and owned browser/preparation lifetime. ChooseVersion histories remain session-only.

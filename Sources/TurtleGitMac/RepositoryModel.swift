@@ -1870,6 +1870,7 @@ import TurtleGitCore
     }
 
     private func configureLogSwitch(_ model: LogWindowModel, repository: GitRepository, access: RepositoryAccessLease?) {
+        model.configureStartReferenceBrowser = { [weak self] picker in self?.configureReferenceBrowser(picker, repository: repository, access: access) }
         model.onSwitchBranch = { [weak self, weak model] reference in
             guard let parent = model?.window, parent.attachedSheet == nil else { return }
             self?.showSwitchProgress(repository: repository, access: access, reference: reference, parent: parent)

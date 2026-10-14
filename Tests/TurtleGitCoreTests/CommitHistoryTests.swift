@@ -2,6 +2,90 @@ import XCTest
 @testable import TurtleGitCore
 
 final class CommitHistoryTests: XCTestCase {
+    func testReferenceScopesAndMultipleTipsUseSourceNamespacesWithoutWrites() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let base = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        let tree = try await repo.run(["rev-parse", "HEAD^{tree}"]).text.trimmingCharacters(in: .newlines)
+        var tips: [String: String] = [:]
+        for (name, ref) in [("local", "refs/heads/topic"), ("remote", "refs/remotes/origin/topic"), ("tag", "refs/tags/topic"), ("stash", "refs/stash"), ("bisect", "refs/bisect/good"), ("other", "refs/other/private")] {
+            let hash = try await repo.run(["commit-tree", tree, "-p", base], input: Data((name + " only\n").utf8)).text.trimmingCharacters(in: .newlines)
+            tips[name] = hash; _ = try await repo.run(["update-ref", ref, hash])
+        }
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        var options = HistoryOptions(); options.limit = -1
+        options.referenceScope = .local
+        let local = try await repo.history(options: options)
+        XCTAssertEqual(Set(local.map(\.hash)), [base, tips["local"]!])
+        options.referenceScope = .basic
+        let basic = try await repo.history(options: options)
+        XCTAssertEqual(Set(basic.map(\.hash)), Set([base] + ["local", "remote", "tag", "stash", "bisect"].map { tips[$0]! }))
+        options.referenceScope = .all
+        let all = try await repo.history(options: options)
+        XCTAssertEqual(Set(all.map(\.hash)), Set([base] + Array(tips.values)))
+        options.referenceScope = .current; options.startRevisions = ["refs/heads/topic", "refs/remotes/origin/topic"]
+        let union = try await repo.history(options: options)
+        XCTAssertEqual(Set(union.map(\.hash)), [base, tips["local"]!, tips["remote"]!])
+        options.startRevisions = []; options.revisionRange = HistoryRevisionRange(from: "HEAD", to: "refs/tags/topic")
+        let range = try await repo.history(options: options)
+        XCTAssertEqual(range.map(\.hash), [tips["tag"]!])
+        let afterHead = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        XCTAssertEqual(afterHead, base)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+    }
+
+    func testReferenceScopesWorkWithoutHeadAndKeepMultipleTipFollow() async throws {
+        let (root, repo, path) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let base = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await repo.run(["switch", "--orphan", "unborn"])
+        var options = HistoryOptions(); options.referenceScope = .local; options.limit = -1
+        let entries = try await repo.history(options: options)
+        XCTAssertTrue(entries.contains { $0.hash == base })
+        options.referenceScope = .current; options.startRevisions = [base, base]; options.paths = [path]; options.walk.followRenames = true
+        let followed = try await repo.history(options: options)
+        XCTAssertTrue(followed.contains { $0.hash == base }, "Follow must retain explicit multiple tips rather than imposing an upstream-absent restriction")
+    }
+
+    func testStartReferenceMetadataAndCancellation() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let absent = try await repo.historyStartReferences()
+        XCTAssertNil(absent.fetchHead)
+        let hash = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        try Data((hash + "\t\tbranch test of fixture\n").utf8).write(to: root.appendingPathComponent(".git/FETCH_HEAD"))
+        let fetched = try await repo.historyStartReferences()
+        XCTAssertEqual(fetched.fetchHead, hash)
+        let token = OperationCancellation(); token.cancel()
+        do { _ = try await repo.historyStartReferences(cancellation: token); XCTFail("Cancelled metadata read ran") } catch is OperationCancellationFailure {}
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/FETCH_HEAD")), Data((hash + "\t\tbranch test of fixture\n").utf8))
+    }
+
+    func testReferenceSelectionAndRepositoryRecentHistoryKeepExactIdentity() throws {
+        XCTAssertEqual(HistoryReferenceSelection(expression: "a b"), .tips(["a", "b"]))
+        XCTAssertEqual(HistoryReferenceSelection(expression: "a..b"), .range(HistoryRevisionRange(from: "a", to: "b")))
+        XCTAssertEqual(HistoryReferenceSelection(expression: "a...b"), .range(HistoryRevisionRange(from: "a", to: "b", kind: .symmetricDifference)))
+        XCTAssertNil(HistoryReferenceSelection(expression: "a\0b")); XCTAssertNil(HistoryReferenceSelection(expression: "a\nb"))
+        let suite = "TurtleGit.ReferenceRecents." + UUID().uuidString, defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(2, forKey: "MaxRefHistoryItems")
+        let root = URL(fileURLWithPath: "/tmp/reference-recents"), history = HistoryReferenceRecents(root: root, defaults: defaults)
+        history.add("topic"); history.add("Topic"); let expanded = history.add("HEAD..topic")
+        XCTAssertEqual(expanded, ["HEAD..topic", "Topic", "topic"])
+        XCTAssertEqual(history.entries, ["HEAD..topic", "Topic"])
+        let another = HistoryReferenceRecents(root: root, defaults: defaults); another.add("refs/tags/tag")
+        XCTAssertEqual(history.entries, ["refs/tags/tag", "HEAD..topic"])
+        let different = HistoryReferenceRecents(root: URL(fileURLWithPath: "/tmp/another-recents"), defaults: defaults)
+        XCTAssertTrue(different.entries.isEmpty)
+        defaults.set(0, forKey: "MaxRefHistoryItems")
+        let zero = HistoryReferenceRecents(root: root, defaults: defaults); zero.add("one")
+        XCTAssertEqual(zero.entries, ["one"])
+        defaults.set(5, forKey: "MaxRefHistoryItems")
+        let unicode = HistoryReferenceRecents(root: root, defaults: defaults)
+        unicode.add("caf\u{00e9}"); unicode.add("cafe\u{0301}")
+        XCTAssertEqual(unicode.entries.count, 3)
+    }
+
     func testFindHistoryNextStopsBeforeUnreadableLaterRowAndBoundsWrap() async throws {
         let (root, fixtureRepo, path) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

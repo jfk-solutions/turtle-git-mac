@@ -167,3 +167,7 @@ acceptance remain open.
 The shared [rename/copy detection family](DIFF-DETECTION-PARITY.md) now connects
 source percentages, paired file/patch reads, pinned snapshot policy and historical
 cache invalidation. Its separate validation record reports the actual scope.
+
+The connected [Log reference-navigation family](LOG-REFERENCE-NAVIGATION-PARITY.md)
+adds source reference-set scopes, multi-tip/range picking, bounded exact recents
+and owned browser/preparation lifetime. ChooseVersion histories remain session-only.

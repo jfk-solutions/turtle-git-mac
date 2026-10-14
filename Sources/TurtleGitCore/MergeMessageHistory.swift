@@ -27,3 +27,27 @@ public final class MergeMessageHistory: MessageHistory {
         defaults.set(entries.filter { value in !messages.contains(where: { Array($0.utf16).elementsEqual(value.utf16) }) }, forKey: Self.key)
     }
 }
+
+
+/// LogDlg's CRegHistory uses a separate exact-name history for each repository.
+public struct HistoryReferenceRecents {
+    private let defaults: UserDefaults
+    public let key: String
+    public let limit: Int
+    public init(root: URL, defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        key = "History.LogRefs." + root.standardizedFileURL.path
+        let raw = (defaults.object(forKey: "MaxRefHistoryItems") as? NSNumber)?.int64Value ?? 5
+        limit = raw >= 0 && raw <= Int64(UInt32.max) ? Int(raw) : 5
+    }
+    public var entries: [String] { Array((defaults.stringArray(forKey: key) ?? []).prefix(max(1, limit)).prefix { !$0.isEmpty }) }
+    /// Reload before merging so another Log window's recent selection survives.
+    @discardableResult public func add(_ expression: String) -> [String] {
+        guard HistoryReferenceSelection(expression: expression) != nil else { return entries }
+        var values = entries.filter { !Array($0.utf16).elementsEqual(expression.utf16) }
+        values.insert(expression, at: 0)
+        values = Array(values.prefix(limit + 1))
+        defaults.set(values, forKey: key)
+        return values
+    }
+}

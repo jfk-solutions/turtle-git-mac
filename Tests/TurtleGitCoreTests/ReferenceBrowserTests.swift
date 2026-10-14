@@ -4,7 +4,13 @@ import XCTest
 final class ReferenceBrowserTests: XCTestCase {
     func testRemoteResolutionUsesConfiguredOrderAndExactNamespaces() async throws {
         let (root, repo, _) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
-        for name in ["team", "team/nested", "origin"] { _ = try await repo.run(["remote", "add", name, root.path]) }
+        // Recent Git refuses creating a remote below another remote's namespace.
+        // Legacy/manual config remains readable; exercise that state without using
+        // remote-add's creation policy as this lookup fixture's precondition.
+        for name in ["team", "team/nested", "origin"] {
+            _ = try await repo.run(["config", "remote." + name + ".url", root.path])
+            _ = try await repo.run(["config", "remote." + name + ".fetch", "+refs/heads/*:refs/remotes/" + name + "/*"])
+        }
         let snapshot = try await repo.referenceBrowser()
         XCTAssertEqual(snapshot.remote(for: GitReferenceName("refs/remotes/team/nested/topic")), "team")
         XCTAssertEqual(snapshot.remote(for: GitReferenceName("refs/remotes/origin/HEAD")), "origin")

@@ -2305,3 +2305,7 @@ Log's source **LogTooManyItemsThreshold** guard now applies to the complete
 changed-file count before path filtering. Over-threshold lists show the source
 message and expose no file/header rows; equality remains displayed. See
 [Advanced list consumers](ADVANCED-SETTINGS-PARITY.md) for defaults and validation.
+
+The connected [Log reference-navigation family](LOG-REFERENCE-NAVIGATION-PARITY.md)
+adds source reference-set scopes, multi-tip/range picking, bounded exact recents
+and owned browser/preparation lifetime. ChooseVersion histories remain session-only.

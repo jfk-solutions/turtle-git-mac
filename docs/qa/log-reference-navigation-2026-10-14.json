@@ -1,0 +1,95 @@
+{
+  "date": "2026-10-14",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Log start-reference label/menu, all/basic/local history masks and native mixed checkbox",
+    "Single/multiple tip and directional/symmetric range picking with separate Git resolution",
+    "Per-repository exact recent history/MaxRefHistoryItems and fresh owned FETCH_HEAD",
+    "Source-window picker closure ordering/late selection fence and independent reference-read/Quit ownership"
+  ],
+  "validation": {
+    "initial_compilation": {
+      "debug_exit": 65,
+      "core_exit": 1,
+      "tests_run": 0,
+      "logs": [
+        "build/qa/log-reference-navigation-debug-2026-10-14.log",
+        "build/qa/log-reference-navigation-core-2026-10-14.log"
+      ]
+    },
+    "debug_repair": {
+      "exit": 0,
+      "log": "build/qa/log-reference-navigation-debug-repair-2026-10-14.log"
+    },
+    "core_group": {
+      "exit": 1,
+      "tests": 76,
+      "failed_tests": 1,
+      "log": "build/qa/log-reference-navigation-core-repair-2026-10-14.log"
+    },
+    "core_fixture_recheck": {
+      "exit": 0,
+      "tests": 1,
+      "log": "build/qa/log-reference-navigation-core-remote-fixture-2026-10-14.log",
+      "result": "All 76 affected tests have cumulative passing evidence. Only the legacy nested-remote fixture was repeated."
+    },
+    "native": {
+      "exit": 0,
+      "cases": 8,
+      "families": [
+        "log-reference-navigation",
+        "version-combo",
+        "switch-pickers",
+        "creation-pickers"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "owned_receivers_reaped": [
+        63859,
+        64377,
+        64416,
+        64619,
+        65235,
+        65612,
+        65651,
+        65857
+      ],
+      "no_owned_receivers_remain": true,
+      "log": "build/qa/log-reference-navigation-native-2026-10-14.log"
+    },
+    "follow_source_alignment": {
+      "debug_exit": 0,
+      "core_exit": 0,
+      "core_tests": 1,
+      "native_exit": 0,
+      "native_cases": 2,
+      "owned_receivers_reaped": [
+        66901,
+        67482
+      ],
+      "logs": [
+        "build/qa/log-reference-navigation-debug-follow-2026-10-14.log",
+        "build/qa/log-reference-navigation-core-follow-2026-10-14.log",
+        "build/qa/log-reference-navigation-native-follow-2026-10-14.log"
+      ],
+      "result": "Explicit multiple tips retain Follow Renames and the single-file preflight. Rechecked only the corrected Core walk case and native Log navigation family with both Git engines."
+    },
+    "ownership_total": {
+      "receivers": 10,
+      "all_reaped": true
+    }
+  },
+  "repairs": [
+    "FETCH_HEAD catch accidentally assigned to the implicit caught error rather than self.error, exposing a Swift compiler assertion. Corrected the assignment before tests ran and rebuilt the affected app/test products.",
+    "An existing remote-resolution fixture used remote add team/nested after team. The current Git rejects that creation policy. The fixture now writes the legacy/manual remote config and retains its exact namespace/configured-order assertions; only this failing case was rechecked.",
+    "Final source review removed an added single-tip restriction on Follow Renames. Both the Core multi-tip walk and native enable/reselect flow now preserve explicit tips instead of disabling Follow or replacing them with HEAD."
+  ],
+  "limits": [
+    "Native receivers used disposable repositories/preferences and hidden owned windows; the actual NSButton mixed state/action was exercised, not full physical pointer/keyboard/VoiceOver acceptance",
+    "Qualified native range identities and grapheme-safe long-menu labels differ from Windows display shortening",
+    "Full current screenshots/layout/theme acceptance, signed scopes/Finder/App Store deployment and hosted CI remain unverified",
+    "The complete application port and remaining dialog/menu variants are incomplete"
+  ]
+}

@@ -629,3 +629,7 @@ failure. See `qa/reference-pid-publication-ci-2026-10-12.json`.
 The shared [Input dialog batch](INPUT-DIALOG-PARITY.md) replaces the separate
 Log/description forms. The follow-up host consolidation brings Rebase and
 Synchronization onto that same form with effective project settings. Full SciEdit and physical acceptance remain open.
+
+The connected [Log reference-navigation family](LOG-REFERENCE-NAVIGATION-PARITY.md)
+adds source reference-set scopes, multi-tip/range picking, bounded exact recents
+and owned browser/preparation lifetime. ChooseVersion histories remain session-only.
