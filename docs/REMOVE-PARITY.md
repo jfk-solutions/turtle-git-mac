@@ -78,3 +78,30 @@ Native normal-delete execution, full light/dark resize checks, keyboard traversa
 result closure and parent selection need verification. Full Finder conditions,
 submodules/gitmodules handling, cache invalidation, signed sandbox behavior, external
 URL activation and live progress/cancellation also remain. This is a partial port.
+
+
+## Connected removal workflow — October 14, 2026
+
+Normal Delete and Delete (keep local) now capture index entries, HEAD and tracked
+working-file metadata before confirmation. Each ordered mutation revalidates its
+plan; changed files/index/ref context fail into Ignore/Abort instead of deleting a
+replacement. Missing indexed files remain removable. Untracked directory children
+retain ordinary Git rm behavior. These guards do not provide a filesystem transaction.
+
+The native window streams bounded colored Git output, reports attempted/successful/
+ignored paths and retains the source removal count. Remove/Abort and Ignore/Abort
+questions have Abort default and owned once-only callbacks. Running Cancel uses
+ConfirmKillProcess; earlier changes remain applied. Preparation cancels directly.
+Close retires tokens/questions and suppresses late replies/callbacks. Counters and
+repository leases survive outstanding work, blocking Quit until it settles.
+A single captured parent refresh follows actual mutation/error/cancellation, and
+Working Tree dispatch uses its initiating repository even after workspace changes.
+The result remains for Close, adapting upstream's informational summary prompt.
+
+The source remains `RemoveCommand.cpp` at the pinned revision. The native window's
+extra progress/log presentation is a macOS adaptation. Physical sheets/keyboard/
+light-dark layout, signed Finder delivery, complete submodule/gitmodules cases and
+minimum-OS acceptance remain open. Debug compilation, nine relevant Core tests
+and two native checks with system/bundled Git passed on the first grouped run. All
+owned receiver processes were reaped; no repeated or broader test rounds followed.
+See [batch evidence](qa/removal-progress-2026-10-14.json).

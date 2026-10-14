@@ -1,0 +1,55 @@
+{
+  "date": "2026-10-14",
+  "base": "29d5ee99",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Captured immutable index/HEAD/tracked-file removal plans before confirmation and revalidation per ordered rm",
+    "Native normal Delete/keep-local pair with owned Remove/Abort and Ignore/Abort questions",
+    "Bounded streamed progress, direct preparation cancellation, ConfirmKillProcess for running attempts and retained summary",
+    "Full operation lease/counter/Quit lifetime and suppression of retired replies/callbacks",
+    "One parent refresh after actual attempted effects; Working Tree routes its captured repository"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/removal-progress-debug-2026-10-14.log",
+      "diagnostics": "Existing exit-zero/no-output compiler diagnostics; no clean-diagnostics claim."
+    },
+    "core": {
+      "exit": 0,
+      "tests": 9,
+      "families": {
+        "RemovalPlanTests": 3,
+        "RemovalTests": 6
+      },
+      "log": "build/qa/removal-progress-core-2026-10-14.log"
+    },
+    "native": {
+      "exit": 0,
+      "cases": 2,
+      "family": "removal-progress",
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "owned_receivers_reaped": [
+        48257,
+        48349
+      ],
+      "log": "build/qa/removal-progress-native-2026-10-14.log",
+      "evidence": [
+        "Actual normal removal deletes working file and index entry",
+        "Keep-local ordered batch preserves working files while stale replacement is refused and Ignore proceeds",
+        "Captured result emits one parent refresh",
+        "Real gated rm output streams while Quit is blocked; cancellation preserves pre-gate index and file",
+        "Forced close retains pending confirmation work in active count and rejects its later affirmative response"
+      ]
+    }
+  },
+  "limitations": [
+    "Metadata revalidation is not a filesystem transaction",
+    "Progress/result window adapts source informational dialogs; physical layout/sheets/keyboard/themes remain unverified",
+    "Complete submodule/gitmodules, installed Finder routing and signed/minimum-OS acceptance remain open",
+    "No full hosted CI or whole-port/App Store certification"
+  ]
+}

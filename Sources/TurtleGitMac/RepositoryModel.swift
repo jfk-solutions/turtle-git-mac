@@ -1605,6 +1605,7 @@ import TurtleGitCore
             guard let controller, !controller.model.retired else { return }
             // Working Tree belongs to this repository even when the workspace is displaying another one.
             switch action {
+            case .remove, .removeKeep: self.showRemove(repository: repository, access: access, paths: paths, keepLocal: action == .removeKeep); return
             case .move: self.showMove(repository: repository, access: access, paths: paths); return
             case .stash: self.showStash(repository: repository, access: access); return
             case .stashPop: self.showStashRestore(repository: repository, access: access, pop: true, showChanges: 2); return

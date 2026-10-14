@@ -1,11 +1,12 @@
 import Foundation
 
 public enum RemovalFailure: LocalizedError {
-    case selection, outsideWorkingTree, unversioned
+    case selection, outsideWorkingTree, unversioned, changed
     public var errorDescription: String? {
         switch self {
         case .selection: return "Select versioned files or folders to remove."
         case .outsideWorkingTree: return "Removal must stay inside this working tree, outside Git’s administrative directories."
+        case .changed: return "The selected index entries, HEAD or working files changed after confirmation. Refresh before removing them."
         case .unversioned: return "This path is no longer in the index. Refresh the file list before removing it."
         }
     }
@@ -35,7 +36,7 @@ public struct RemovalRequest: Sendable {
 extension GitRepository {
     /// RemoveCommand handles one selected path per invocation so its native
     /// Ignore/Abort prompt can decide whether to continue after a failure.
-    public func removeVersionedPath(_ path: String, keepLocal: Bool, cancellation: OperationCancellation? = nil) throws -> String {
+    public func removeVersionedPath(_ path: String, keepLocal: Bool, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
         try cancellation?.check()
         _ = try RemovalRequest(paths: [path], keepLocal: keepLocal)
         guard try !isBare(cancellation: cancellation) else { throw RemovalFailure.selection }
@@ -50,6 +51,42 @@ extension GitRepository {
         guard tracked.contains(path) || tracked.contains(where: { $0.hasPrefix(path + "/") }) else { throw RemovalFailure.unversioned }
         // Preserve upstream forced/recursive semantics. --cached leaves working
         // files untouched, including their unstaged changes. No shell/path globbing.
-        return try run(["rm", "-r", "-f"] + (keepLocal ? ["--cached"] : []) + ["--", path], cancellation: cancellation).text
+        return try run(["rm", "-r", "-f"] + (keepLocal ? ["--cached"] : []) + ["--", path], cancellation: cancellation, onOutput: onOutput).text
+    }
+}
+
+public struct RemovalPlan: Sendable {
+    public let path: String
+    public let keepLocal: Bool
+    let index: Data
+    let head: Data
+    struct Entry: Sendable, Equatable { let path: String; let fingerprint: FileMoveFingerprint? }
+    let entries: [Entry]
+}
+extension GitRepository {
+    public func prepareRemoval(_ path: String, keepLocal: Bool, cancellation: OperationCancellation? = nil) throws -> RemovalPlan {
+        try cancellation?.check(); _ = try RemovalRequest(paths: [path], keepLocal: keepLocal)
+        guard try !isBare(cancellation: cancellation) else { throw RemovalFailure.selection }
+        let url = root.appendingPathComponent(path)
+        guard RepositoryAccessLease.pathIsContained(url.deletingLastPathComponent(), by: root) else { throw RemovalFailure.outsideWorkingTree }
+        let parent = try CloneOptions.workingDirectory(for: url.deletingLastPathComponent())
+        let top = try run(["-C", parent.path, "rev-parse", "--show-toplevel"], cancellation: cancellation).stdout
+        var bytes = top; if bytes.last == 10 { bytes.removeLast() }
+        guard URL(fileURLWithPath: String(decoding: bytes, as: UTF8.self)).resolvingSymlinksInPath().path == root.resolvingSymlinksInPath().path else { throw RemovalFailure.outsideWorkingTree }
+        let index = try run(["ls-files", "--stage", "-z", "--", path], cancellation: cancellation).stdout
+        guard !index.isEmpty else { throw RemovalFailure.unversioned }
+        let files = try run(["ls-files", "-z", "--", path], cancellation: cancellation).stdout.split(separator: 0).map { String(decoding: $0, as: UTF8.self) }
+        var seen = Set<String>(); let paths = ([path] + files).filter { seen.insert($0).inserted }
+        let entries = try paths.map { item -> RemovalPlan.Entry in
+            try cancellation?.check(); let location = try restoreLocation(item)
+            return RemovalPlan.Entry(path: item, fingerprint: try (try? FileManager.default.attributesOfItem(atPath: location.path)).map(FileMoveFingerprint.init))
+        }
+        let head = try run(["rev-parse", "--verify", "--quiet", "HEAD"], successfulExitCodes: 0...1, cancellation: cancellation).stdout
+        try cancellation?.check(); return RemovalPlan(path: path, keepLocal: keepLocal, index: index, head: head, entries: entries)
+    }
+    public func executeRemoval(_ plan: RemovalPlan, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
+        let fresh = try prepareRemoval(plan.path, keepLocal: plan.keepLocal, cancellation: cancellation)
+        guard fresh.index == plan.index, fresh.head == plan.head, fresh.entries == plan.entries else { throw RemovalFailure.changed }
+        return try removeVersionedPath(plan.path, keepLocal: plan.keepLocal, cancellation: cancellation, onOutput: onOutput)
     }
 }
