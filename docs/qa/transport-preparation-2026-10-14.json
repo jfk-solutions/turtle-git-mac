@@ -1,0 +1,77 @@
+{
+  "date": "2026-10-14",
+  "base": "e84177ba",
+  "scope": [
+    "Push/Pull/Fetch coherent initial metadata publication and cancellable source/remote replacement",
+    "Cancel/retry with caller presets, ordinary close-after-settlement and forced retirement/grant/Quit accounting",
+    "Full Push preflight/transport/post-hook ownership, fresh-token post-hook after Git cancellation and explicit post-hook diagnostics",
+    "Core cancellation through submodule default, every Push validation read and saved-setting writes"
+  ],
+  "validation": {
+    "debug": {
+      "initial_exit": 0,
+      "initial_log": "build/qa/transport-preparation-debug-2026-10-14.log",
+      "preset_repair_exit": 0,
+      "preset_repair_log": "build/qa/transport-preparation-debug-presets-2026-10-14.log",
+      "core_repair_exit": 0,
+      "final_log": "build/qa/transport-preparation-debug-cancellation-2026-10-14.log",
+      "diagnostics": "Existing exit-zero/no-output compile diagnostics; no clean-diagnostics claim"
+    },
+    "core": {
+      "family": "PushTests",
+      "unique_tests": 15,
+      "initial_exit": 0,
+      "initial_log": "build/qa/transport-preparation-core-2026-10-14.log",
+      "repeated_reason": "Native forced-preflight close exposed Core validatedPush reads without the supplied cancellation token; relevant Push tests repeated after actual Core repair",
+      "final_exit": 0,
+      "final_log": "build/qa/transport-preparation-core-cancellation-2026-10-14.log"
+    },
+    "native": {
+      "initial_exit": 1,
+      "initial_log": "build/qa/transport-preparation-native-2026-10-14.log",
+      "first_failure": "Transport preparation receiver timed out. Receiver 96900 reaped; ps showed orphan owned Git fixture group 97231 with a 30-second sleep. Targeted cleanup later found no matching live group; no claim of successful cancellation for this attempt.",
+      "diagnostic_attempt_exit": 1,
+      "diagnostic_log": "build/qa/transport-preparation-native-repair-2026-10-14.log",
+      "diagnostic_failure": "Receiver 97707 timed out at fixture line 116 (+1 generated import) waiting for forced Push preflight settlement. Core accepted a token but remoteNames and subsequent validation reads omitted it. Gate now releases with fixture cleanup; failure handler closes owned controllers and waits for accounting.",
+      "final_exit": 0,
+      "final_log": "build/qa/transport-preparation-native-cancellation-2026-10-14.log",
+      "cases": 6,
+      "families": [
+        "transport-preparation",
+        "fetch-history",
+        "remote-dialogs"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "owned_receivers_reaped": [
+        99700,
+        99918,
+        131,
+        150,
+        364,
+        472
+      ],
+      "receiver_pids_still_live_at_final_check": [],
+      "evidence": [
+        "Actual gated Git metadata/preflight processes; ordinary and forced close, no partial publication, retained scope/Quit until settlement",
+        "Source cancel/retry/supersession and preserved caller branch/URL presets",
+        "Real cancelled Push runs PostPush with fresh token; forced preflight suppresses progress/results/post-hook",
+        "Unchanged HEAD/index/worktree; existing actual local URL Pull/named Fetch/history and owned remote Add/chooser regressions"
+      ]
+    },
+    "site": {
+      "exit": 0,
+      "documents": 212,
+      "unresolved_fragments": [],
+      "log": "build/qa/transport-preparation-site-2026-10-14.log"
+    }
+  },
+  "limitations": [
+    "Hidden native/controller fixtures do not establish physical layout/keyboard/VoiceOver/default focus or complete source parity",
+    "Public transport servers, signed repository/script/security-scoped grants and App Store acceptance remain open",
+    "Metadata publication is guarded but not atomic against every external configuration/reference writer",
+    "Earlier failed attempts do not count as successful process cancellation evidence"
+  ]
+}

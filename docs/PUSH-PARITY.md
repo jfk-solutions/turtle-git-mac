@@ -379,3 +379,39 @@ progress controls, project hooks, authentication/libgit2 progress, real remote
 transfer timing and signed Finder/sandbox/App Store acceptance remain pending.
 Existing screenshots predate live Push output. Full Push/application parity is
 still incomplete.
+
+
+## Connected transport preparation and ownership — October 14, 2026
+
+Push, Pull and Fetch now gather their initial remote/reference/default metadata
+before publishing the controls, retaining the previous accepted values on failure.
+Every Git read in this preparation carries owned cancellation, including Push's
+submodule default and superproject lookup. Source/remote changes replace and
+cancel old requests, guard the exact captured input and fence late publication.
+Independent operation accounting holds repository grants and blocks Quit until
+all superseded or retired workers settle.
+
+Cancel during preparation leaves the window available, marks its metadata for
+Retry loading and prevents submission with stale defaults. Window close cancels
+and closes after settlement; forced closure retires callbacks and cancels owned
+reads. Retry repeats the relevant initial/source/remote preparation. Push keeps
+the source editable during source reads while locking dependent destination and
+option controls. Pull/Fetch show preparation activity and allow Cancel before
+transport progress exists. Their options, SSH settings and history keys retain
+source semantics.
+
+Push now owns preflight, hooks, superproject lookup, transport and post-hook as
+one lifetime, including forced owner closure. A normal cancelled/failed Git Push
+still invokes PostPush using a fresh owned token, as the source does; an exiting
+owner suppresses that callback. Post-hook failure retains the actual Git result
+and includes its own diagnostic. An earlier kill-question reply cannot cancel a
+later token. Application termination stays blocked until the entire worker ends.
+
+Debug and 15 focused Push Core tests passed. The initial native timeout exposed
+missing cancellation in Core Push validation; those reads and saved-setting writes
+were corrected, then the affected Core group and six grouped native cases passed
+with system/bundled Git. All final receivers were reaped. Retry also retains
+caller branch/remote presets. See [the actual results and failure history](qa/transport-preparation-2026-10-14.json). This does not certify physical source layout,
+keyboard/default focus, live transport servers, signed repository/script grants
+or App Store acceptance. Retained values are guarded publication, not an atomic
+snapshot against every external Git/configuration writer.

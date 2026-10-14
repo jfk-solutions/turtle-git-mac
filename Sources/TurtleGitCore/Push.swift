@@ -88,17 +88,28 @@ extension GitRepository {
         return PushDefaults(remote: remote, destination: destination.isEmpty ? merge : destination,
                             setUpstream: branch != nil && merge.isEmpty, localBranch: branch)
     }
-    public func pushSubmoduleDefault() -> PushSubmodules { PushSubmodules(rawValue: pushConfig("push.recurseSubmodules")) ?? .none }
-    private func pushSourceIsUnique(_ source: String) -> Bool {
+    public func pushSubmoduleDefault() -> PushSubmodules { (try? pushSubmoduleDefault(cancellation: nil)) ?? .none }
+    public func pushSubmoduleDefault(cancellation: OperationCancellation?) throws -> PushSubmodules {
+        try cancellation?.check()
+        do {
+            let value = try run(["config", "--get", "push.recurseSubmodules"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+            return PushSubmodules(rawValue: value) ?? .none
+        } catch { try cancellation?.check(); return .none }
+    }
+    private func optionalPushRead(_ arguments: [String], cancellation: OperationCancellation?) throws -> GitResult? {
+        do { return try run(arguments, cancellation: cancellation) }
+        catch { try cancellation?.check(); return nil }
+    }
+    private func pushSourceIsUnique(_ source: String, cancellation: OperationCancellation?) throws -> Bool {
         // CGit::IsBranchTagNameUnique checks exact refs formed from the supplied
         // name. Fully qualified refs/revision expressions retain their source behavior.
-        let branch = (try? run(["show-ref", "--verify", "--quiet", "--", "refs/heads/" + source])) != nil
-        let tag = (try? run(["show-ref", "--verify", "--quiet", "--", "refs/tags/" + source])) != nil
+        let branch = try optionalPushRead(["show-ref", "--verify", "--quiet", "--", "refs/heads/" + source], cancellation: cancellation) != nil
+        let tag = try optionalPushRead(["show-ref", "--verify", "--quiet", "--", "refs/tags/" + source], cancellation: cancellation) != nil
         return !(branch && tag)
     }
     private func validatedPush(_ options: PushOptions, cancellation: OperationCancellation?) throws -> (source: String, destination: String, remotes: [String], localBranch: String?, destinationRef: String) {
         try cancellation?.check()
-        let names = try remoteNames(), source = options.source.trimmingCharacters(in: .whitespacesAndNewlines)
+        let names = try remoteNames(cancellation: cancellation), source = options.source.trimmingCharacters(in: .whitespacesAndNewlines)
         let destination = options.destination.trimmingCharacters(in: .whitespacesAndNewlines)
         let remotes = options.allRemotes ? names : [options.remote]
         guard !remotes.isEmpty, remotes.allSatisfy({ !$0.isEmpty && !$0.contains("\0") }), options.arbitraryURL || remotes.allSatisfy(names.contains) else { throw PushValidationFailure.remote }
@@ -106,14 +117,14 @@ extension GitRepository {
         guard !options.pushOption.contains("\0"), !options.pushOption.contains("\n") else { throw PushValidationFailure.pushOption }
         if !options.allBranches, !source.isEmpty {
             // Verify before passing the original ref to push, retaining branch/tag identity.
-            guard !source.contains(":"), !source.hasPrefix("+"), pushSourceIsUnique(source), (try? run(["rev-parse", "--verify", "--end-of-options", source + "^{object}"])) != nil else { throw PushValidationFailure.source }
+            guard !source.contains(":"), !source.hasPrefix("+"), try pushSourceIsUnique(source, cancellation: cancellation), try optionalPushRead(["rev-parse", "--verify", "--end-of-options", source + "^{object}"], cancellation: cancellation) != nil else { throw PushValidationFailure.source }
         }
         if !options.allBranches, !destination.isEmpty {
             let full = destination.hasPrefix("refs/") ? destination : "refs/heads/" + destination
-            guard (try? run(["check-ref-format", full])) != nil else { throw PushValidationFailure.destination }
+            guard try optionalPushRead(["check-ref-format", full], cancellation: cancellation) != nil else { throw PushValidationFailure.destination }
         }
-        let defaults = try pushDefaults(source: source)
-        let symbolic = ((try? run(["rev-parse", "--symbolic-full-name", "--verify", "--end-of-options", source]).text) ?? "").trimmingCharacters(in: .newlines)
+        let defaults = try pushDefaults(source: source, cancellation: cancellation)
+        let symbolic = try optionalPushRead(["rev-parse", "--symbolic-full-name", "--verify", "--end-of-options", source], cancellation: cancellation)?.text.trimmingCharacters(in: .newlines) ?? ""
         let destinationRef = destination.isEmpty || destination.hasPrefix("refs/") ? destination : (symbolic.hasPrefix("refs/tags/") ? "refs/tags/" : "refs/heads/") + destination
         try cancellation?.check()
         if options.savePushRemote || options.savePushBranch {
@@ -135,11 +146,11 @@ extension GitRepository {
         let source = plan.source, destination = plan.destination, remotes = plan.remotes, destinationRef = plan.destinationRef
         if options.savePushRemote || options.savePushBranch {
             guard !options.arbitraryURL, !options.allRemotes, !options.allBranches, !options.setUpstream, let branch = plan.localBranch else { throw PushValidationFailure.combination }
-            if options.savePushRemote { _ = try run(["config", "--local", "branch." + branch + ".pushRemote", options.remote]) }
+            if options.savePushRemote { _ = try run(["config", "--local", "branch." + branch + ".pushRemote", options.remote], cancellation: cancellation) }
             if options.savePushBranch {
                 let key = "branch." + branch + ".pushbranch"
-                if destination.isEmpty { if !pushConfig(key).isEmpty { _ = try run(["config", "--local", "--unset-all", key]) } }
-                else { _ = try run(["config", "--local", key, destination]) }
+                if destination.isEmpty { if let value = try optionalPushRead(["config", "--get", key], cancellation: cancellation), !value.text.trimmingCharacters(in: .newlines).isEmpty { _ = try run(["config", "--local", "--unset-all", key], cancellation: cancellation) } }
+                else { _ = try run(["config", "--local", key, destination], cancellation: cancellation) }
             }
         }
         var flags = ["--porcelain", "--progress", "--recurse-submodules=" + options.submodules.rawValue]

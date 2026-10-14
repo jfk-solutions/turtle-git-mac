@@ -10,6 +10,17 @@ final class PushTests: XCTestCase {
         try await repo.saveRemote(name: "origin", fetchURL: remoteURL.path, pushURL: "", existing: false)
         return (root, repo, remote, path)
     }
+    func testSubmoduleDefaultOwnedCancellationAndFallback() async throws {
+        let (root, repo, _, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let absent = try await repo.pushSubmoduleDefault(cancellation: nil); XCTAssertEqual(absent, .none)
+        _ = try await repo.run(["config", "push.recurseSubmodules", "on-demand"])
+        let configured = try await repo.pushSubmoduleDefault(cancellation: nil); XCTAssertEqual(configured, .onDemand)
+        let token = OperationCancellation(); token.cancel()
+        do { _ = try await repo.pushSubmoduleDefault(cancellation: token); XCTFail("Cancelled preparation read accepted") }
+        catch is OperationCancellationFailure { }
+        _ = try await repo.run(["config", "push.recurseSubmodules", "unsupported-fixture"])
+        let fallback = try await repo.pushSubmoduleDefault(cancellation: nil); XCTAssertEqual(fallback, .none)
+    }
     func testNamedDestinationUpstreamAndMixedChangesRemainUnchanged() async throws {
         let (root, repo, remote, path) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
         try Data("index\n".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path])

@@ -396,3 +396,12 @@ verification scope.
 
 The connected remote-dialog batch passed 22 Core tests and six grouped native
 checks across system and bundled Git. See the [scoped QA record](qa/remote-dialogs-2026-10-13.json).
+
+
+The connected October 14 transport-preparation batch gathers metadata before
+publishing controls, owns cancellation/grants/Quit until worker settlement,
+refuses stale remote replies and supplies Retry loading after cancellation.
+Normal close cancels and then closes; forced closure fences late publication.
+See [the shared preparation/ownership scope](PUSH-PARITY.md). The Debug build and six grouped native cases passed after the Core Push
+cancellation repair; see [batch evidence](qa/transport-preparation-2026-10-14.json).
+Physical/source/signed/App Store acceptance remains open.

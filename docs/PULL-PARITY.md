@@ -218,3 +218,12 @@ installed. Full production factory, Push/Mail completion chains, physical input,
 rendered UI and signed sandbox acceptance are still pending. See
 [Synchronization parity](SYNCHRONIZATION-PARITY.md) for the source comparison and
 verification scope.
+
+
+The connected October 14 transport-preparation batch gathers metadata before
+publishing controls, owns cancellation/grants/Quit until worker settlement,
+refuses stale remote replies and supplies Retry loading after cancellation.
+Normal close cancels and then closes; forced closure fences late publication.
+See [the shared preparation/ownership scope](PUSH-PARITY.md). The Debug build and six grouped native cases passed after the Core Push
+cancellation repair; see [batch evidence](qa/transport-preparation-2026-10-14.json).
+Physical/source/signed/App Store acceptance remains open.

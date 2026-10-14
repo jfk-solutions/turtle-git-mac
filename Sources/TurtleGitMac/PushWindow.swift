@@ -5,6 +5,7 @@ import TurtleGitCore
 @MainActor final class PushWindowController: NSWindowController, NSWindowDelegate {
     let model: PushWindowModel
     var onClosed: () -> Void = {}
+    private var closingPreparation = false
     private var progressController: PushProgressWindowController?
     private var sourceLogPicker: LogWindowController?
     private var sourceRefLogPicker: ReferenceLogWindowController?
@@ -14,6 +15,7 @@ import TurtleGitCore
         window.title = "\(repository.root.lastPathComponent) – Push – TurtleGit"; window.minSize = NSSize(width: 720, height: 610); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: PushDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); model.clientHooks.windowProvider = { [weak window] in window?.attachedSheet ?? window }; window.delegate = self; window.setContentSize(NSSize(width: 750, height: 590)); window.center()
+        model.becameIdle = { [weak self] in if self?.closingPreparation == true { self?.window?.performClose(nil) } }
         model.close = { [weak self] in guard let self, !self.model.busy, self.model.progress == nil, self.window?.attachedSheet == nil else { return }; self.window?.close() }
         model.onProgress = { [weak self] result in
             guard let self, let window = self.window, window.attachedSheet == nil else { result.abandonPresentation(); return }
@@ -78,6 +80,7 @@ import TurtleGitCore
         onClosed()
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if model.preparing { closingPreparation = true; model.cancelPreparation(); return false }
         if model.progress != nil { if model.transportRunning { model.cancel() }; return false }
         guard model.transportRunning else { return !model.busy && sender.attachedSheet == nil }
         model.cancel(); return false
@@ -86,10 +89,34 @@ import TurtleGitCore
 }
 
 @MainActor final class PushWindowModel: ObservableObject {
+    static var activePreparationReads = 0
+    static var activePushWorkflows = 0
     let repository: GitRepository
     let sshSettings: SSHTransportSettings
     private var invalidated = false
-    func invalidate() { clientHooks.retire(); invalidated = true; cancellation?.cancel(); progress?.invalidate(); progress = nil; busy = false }
+    func invalidate() {
+        clientHooks.retire(); invalidated = true; generation += 1
+        metadataToken?.cancel(); sourceToken?.cancel(); cancellation?.cancel()
+        progress?.invalidate(); progress = nil; busy = false; preparingSource = false; confirmation = nil
+        becameIdle = {}; close = {}
+    }
+    var closed: Bool { invalidated }
+    private var metadataToken: OperationCancellation?
+    private var sourceToken: OperationCancellation?
+    @Published private(set) var preparingSource = false
+    var preparing: Bool { metadataToken != nil || preparingSource }
+    var becameIdle: () -> Void = {}
+    @Published private(set) var preparationNeedsRetry = false
+    private var metadataLoaded = false
+    private var loadPresetSource: String?
+    private var loadPresetPreserveAll = false
+    func retryPreparation() {
+        guard !closed, !busy, !preparing else { return }
+        if !metadataLoaded { load(source: loadPresetSource, preserveAllBranches: loadPresetPreserveAll) } else { sourceChanged() }
+    }
+    private func validateRepositoryAccess() throws {
+        if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+    }
     private let access: RepositoryAccessLease?
     var repositoryAccess: RepositoryAccessLease? { access }
     var settingsPreferences: UserDefaults { preferences }
@@ -112,7 +139,7 @@ import TurtleGitCore
     @Published private(set) var confirmingCancellation = false
     private var cancellation: OperationCancellation?
     var transportRunning: Bool { cancellation != nil }
-    var canCancel: Bool { !busy || transportRunning && !cancelling && !confirmingCancellation }
+    var canCancel: Bool { !invalidated && (preparing || !busy || transportRunning && !cancelling && !confirmingCancellation) }
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { choose in choose(false) }
     @Published var url = ""
     @Published var urls: [String] = []
@@ -139,31 +166,43 @@ import TurtleGitCore
     var canTrack: Bool { !options.arbitraryURL && (options.allBranches || localBranch != nil) }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.preferences = preferences; sshSettings = SSHTransportSettings(repository: repository) }
     func load(source: String? = nil, preserveAllBranches: Bool = false) {
-        guard !busy else { return }; busy = true
-        Task {
-            defer { busy = false }
+        guard !invalidated, !busy, progress == nil else { return }
+        loadPresetSource = source; loadPresetPreserveAll = preserveAllBranches
+        sourceToken?.cancel(); generation += 1
+        busy = true; error = nil; preparationNeedsRetry = false
+        let token = OperationCancellation(); metadataToken = token; Self.activePreparationReads += 1
+        Task { [self, access] in
+            defer {
+                Self.activePreparationReads -= 1
+                if metadataToken === token { metadataToken = nil; busy = false; if !invalidated { becameIdle() } }
+                withExtendedLifetime(access) {}
+            }
             do {
-                remotes = try await repository.remoteNames(); references = try await repository.checkoutReferences()
-                options = PushOptions()
+                try validateRepositoryAccess()
+                let names = try await repository.remoteNames(cancellation: token)
+                let refs = try await repository.checkoutReferences(cancellation: token)
+                let current = try await repository.branch(cancellation: token)
+                var snapshot = PushOptions()
+                snapshot.source = PushSourcePresentation.normalized(source ?? (current.isEmpty ? "HEAD" : current))
+                snapshot.allBranches = (source == nil || preserveAllBranches) && preferences.bool(forKey: key + ".allBranches")
+                snapshot.allRemotes = names.count > 1 && preferences.bool(forKey: key + ".allRemotes")
+                snapshot.submodules = try await repository.pushSubmoduleDefault(cancellation: token)
+                if let stored = preferences.object(forKey: submodulePreferenceKey) as? NSNumber,
+                   PushSubmodules.allCases.indices.contains(stored.intValue) { snapshot.submodules = PushSubmodules.allCases[stored.intValue] }
+                let defaults = try await repository.pushDefaults(source: snapshot.source, cancellation: token)
+                snapshot.remote = defaults.remote; snapshot.destination = defaults.destination; snapshot.setUpstream = defaults.setUpstream
+                if snapshot.remote.isEmpty, let saved = preferences.string(forKey: key + ".remote"), names.contains(saved) { snapshot.remote = saved }
+                try token.check(); guard !invalidated, metadataToken === token else { return }
+                remotes = names; references = refs; options = snapshot; localBranch = defaults.localBranch
                 sshSettings.load(preferences, key: key + ".autoload")
                 urls = FetchDialogHistory.load(preferences, key: urlHistoryKey, caseSensitive: true)
                 pushOptionHistory = FetchDialogHistory.load(preferences, key: pushOptionHistoryKey, caseSensitive: true)
-                url = ""
-                let current = try await repository.branch()
-                options.source = PushSourcePresentation.normalized(source ?? (current.isEmpty ? "HEAD" : current))
-                options.allBranches = (source == nil || preserveAllBranches) && preferences.bool(forKey: key + ".allBranches")
-                options.allRemotes = remotes.count > 1 && preferences.bool(forKey: key + ".allRemotes")
-                options.submodules = await repository.pushSubmoduleDefault()
-                if let stored = preferences.object(forKey: submodulePreferenceKey) as? NSNumber,
-                   PushSubmodules.allCases.indices.contains(stored.intValue) { options.submodules = PushSubmodules.allCases[stored.intValue] }
-                let defaults = try await repository.pushDefaults(source: options.source)
-                options.remote = defaults.remote; loadDestination(defaults.destination); options.setUpstream = defaults.setUpstream; localBranch = defaults.localBranch
-                if options.remote.isEmpty, let saved = preferences.string(forKey: key + ".remote"), remotes.contains(saved) { options.remote = saved }
-            } catch { self.error = error.localizedDescription }
+                url = ""; loadDestination(defaults.destination); metadataLoaded = true; preparationNeedsRetry = false
+            } catch { if !invalidated, metadataToken === token { preparationNeedsRetry = true; self.error = error.localizedDescription } }
         }
     }
     func browseSourceHistory(referenceLog: Bool) {
-        guard !busy, !options.allBranches, confirmation == nil else { return }
+        guard !invalidated, !busy, !preparingSource, !options.allBranches, confirmation == nil else { return }
         if referenceLog { pickSourceRefLog() } else { pickSourceLog() }
     }
     func configureSourceLog(_ log: LogWindowModel) {
@@ -173,22 +212,34 @@ import TurtleGitCore
         log.reload()
     }
     func chooseSourceRevision(_ hash: String?) {
-        guard !busy, let hash, !hash.isEmpty else { return }
+        guard !invalidated, !busy, let hash, !hash.isEmpty else { return }
         options.source = hash; sourceChanged()
     }
     func sourceChanged() {
+        guard !invalidated, !busy, progress == nil, confirmation == nil else { return }
         generation += 1; let request = generation, source = options.source
-        guard !FetchDialogHistory.trim(source).isEmpty else { localBranch = nil; adjustSettings(); return }
-        Task {
+        sourceToken?.cancel(); sourceToken = nil
+        guard !FetchDialogHistory.trim(source).isEmpty else { preparingSource = false; preparationNeedsRetry = false; localBranch = nil; adjustSettings(); becameIdle(); return }
+        let token = OperationCancellation(); sourceToken = token; preparingSource = true; preparationNeedsRetry = false
+        Self.activePreparationReads += 1
+        Task { [self, access] in
+            defer {
+                Self.activePreparationReads -= 1
+                if sourceToken === token { sourceToken = nil; preparingSource = false; if !invalidated { becameIdle() } }
+                withExtendedLifetime(access) {}
+            }
             do {
-                let defaults = try await repository.pushDefaults(source: source)
-                guard request == generation else { return }
+                try validateRepositoryAccess()
+                let defaults = try await repository.pushDefaults(source: source, cancellation: token)
+                guard !invalidated, sourceToken === token, !token.isCancelled, request == generation,
+                      options.source.utf8.elementsEqual(source.utf8), !busy else { return }
                 localBranch = defaults.localBranch; loadDestination(defaults.destination)
                 if !options.arbitraryURL, !options.allRemotes { options.remote = defaults.remote }
-                options.setUpstream = defaults.setUpstream; adjustSettings()
-            } catch { if request == generation { self.error = error.localizedDescription } }
+                options.setUpstream = defaults.setUpstream; preparationNeedsRetry = false; adjustSettings()
+            } catch { if !invalidated, sourceToken === token, request == generation { preparationNeedsRetry = true; self.error = error.localizedDescription } }
         }
     }
+    func cancelPreparation() { if preparing { preparationNeedsRetry = true }; metadataToken?.cancel(); sourceToken?.cancel() }
     func adjustSettings() {
         if !canTrack { options.setUpstream = false }
         if !canSave { options.savePushRemote = false; options.savePushBranch = false }
@@ -231,6 +282,8 @@ import TurtleGitCore
         pushOptionHistory = FetchDialogHistory.save(snapshot.pushOption, entries: pushOptionHistory, preferences: preferences, key: pushOptionHistoryKey, caseSensitive: true)
     }
     func cancel() {
+        guard !invalidated else { return }
+        if preparing { cancelPreparation(); return }
         if let progress, !progress.busy { progress.close(); return }
         guard busy else { close(); return }
         guard let token = cancellation, !cancelling, !confirmingCancellation else { return }
@@ -247,7 +300,7 @@ import TurtleGitCore
     private func askToPush(_ message: String, allBranches: Bool, deletion: Bool) {
         confirmation = message
         confirmPush(message, allBranches, deletion) { [weak self] proceed, remember in
-            guard let self else { return }
+            guard let self, !self.invalidated, self.confirmation != nil else { return }
             self.confirmation = nil
             // PushDlg explicitly remembers Yes even when this invocation chose No.
             if allBranches && remember { self.preferences.set(true, forKey: "PushAllBranches") }
@@ -255,7 +308,7 @@ import TurtleGitCore
         }
     }
     func push(confirmed: Bool = false) {
-        guard !invalidated, !busy, progress == nil, confirmed || confirmation == nil else { return }
+        guard !invalidated, !busy, !preparing, !preparationNeedsRetry, progress == nil, confirmed || confirmation == nil else { return }
         if !confirmed {
             let source = FetchDialogHistory.trim(options.source), destination = FetchDialogHistory.trim(options.destination)
             if options.allBranches && !preferences.bool(forKey: "PushAllBranches") {
@@ -272,10 +325,11 @@ import TurtleGitCore
         if snapshot.arbitraryURL { snapshot.remote = FetchDialogHistory.trim(url) }
         let sshFactory = sshSettings.capture()
         let token = OperationCancellation(); cancellation = token; cancelling = false; error = nil
-        busy = true
-        Task {
-            defer { cancellation = nil; cancelling = false; confirmingCancellation = false; if !invalidated { busy = progress != nil } }
+        busy = true; Self.activePushWorkflows += 1
+        Task { [self, access] in
+            defer { Self.activePushWorkflows -= 1; withExtendedLifetime(access) {}; cancellation = nil; cancelling = false; confirmingCancellation = false; if !invalidated { busy = progress != nil } }
             do {
+                try validateRepositoryAccess()
                 try await repository.validatePushOptions(snapshot, cancellation: token)
                 guard !token.isCancelled else { throw OperationCancellationFailure.cancelled }
                 guard !invalidated else { return }
@@ -288,7 +342,8 @@ import TurtleGitCore
                 if !snapshot.arbitraryURL && !snapshot.allRemotes { preferences.set(snapshot.remote, forKey: key + ".remote") }
                 let result: PushProgressWindowModel?
                 if let onProgress {
-                    let parentText = ((try? await repository.run(["rev-parse", "--show-superproject-working-tree"]).text) ?? "").trimmingCharacters(in: .newlines)
+                    let parentText = ((try? await repository.run(["rev-parse", "--show-superproject-working-tree"], cancellation: token).text) ?? "").trimmingCharacters(in: .newlines)
+                    try token.check(); guard !invalidated else { return }
                     let parent = parentText.isEmpty ? nil : URL(fileURLWithPath: parentText)
                     let captured = PushProgressWindowModel(options: snapshot, superproject: parent, preferences: preferences)
                     captured.close = { [weak self, weak captured] in guard let captured else { return }; self?.finish(captured) }
@@ -305,7 +360,7 @@ import TurtleGitCore
                 guard !token.isCancelled else { throw OperationCancellationFailure.cancelled }
                 cancellation = nil; cancelling = false; confirmingCancellation = false
                 guard !invalidated else { return }
-                do { _ = try await clientHooks.run(.postPush, repository: repository, access: access, cancellation: token) }
+                do { try await runPostPushHook() }
                 catch { postHookFailure = "The push succeeded, but its post-push hook failed.\n\n" + error.localizedDescription; self.error = postHookFailure }
                 guard !invalidated else { return }
                 onTransportResult(output, true); onPushed(output)
@@ -314,18 +369,22 @@ import TurtleGitCore
                 } catch {
                     cancellation = nil; cancelling = false; confirmingCancellation = false
                     guard !invalidated else { return }
-                    if !token.isCancelled {
-                        do { _ = try await clientHooks.run(.postPush, repository: repository, access: access, cancellation: token) }
-                        catch { postHookFailure = "The post-push hook also failed.\n\n" + error.localizedDescription }
-                    }
+                    do { try await runPostPushHook() }
+                    catch { postHookFailure = "The post-push hook also failed.\n\n" + error.localizedDescription }
                     guard !invalidated else { return }
                     onTransportResult(error.localizedDescription, false)
-                    if let result { result.complete(output: error.localizedDescription, success: false, cancelled: token.isCancelled, failure: error as? PushExecutionFailure) }
-                    else { self.error = error.localizedDescription }
+                    if let result { result.complete(output: error.localizedDescription + (postHookFailure.map { "\n" + $0 } ?? ""), success: false, cancelled: token.isCancelled, failure: error as? PushExecutionFailure) }
+                    else { self.error = error.localizedDescription + (postHookFailure.map { "\n" + $0 } ?? "") }
                 }
             }
             catch { if !invalidated { self.error = error.localizedDescription } }
         }
+    }
+    private func runPostPushHook() async throws {
+        guard !invalidated else { return }
+        let token = OperationCancellation(); cancellation = token
+        defer { if cancellation === token { cancellation = nil; cancelling = false; confirmingCancellation = false } }
+        _ = try await clientHooks.run(.postPush, repository: repository, access: access, cancellation: token)
     }
     private func runPush(_ snapshot: PushOptions, cancellation: OperationCancellation, result: PushProgressWindowModel?, sshFactory: SSHTransportFactory?) async throws -> String {
         let coordinator = sshFactory?(); defer { coordinator?.close() }; let preparation = coordinator?.preparation
@@ -343,6 +402,7 @@ import TurtleGitCore
         return try await operation.value
     }
     func pick(_ reference: CheckoutReference, destination: Bool) {
+        guard !invalidated, !busy, progress == nil else { return }
         if !destination { options.source = PushSourcePresentation.normalized(reference.name); sourceChanged() }
         else {
             for remote in remotes.sorted(by: { $0.count > $1.count }) {
@@ -370,7 +430,7 @@ private struct PushDialog: View {
                 }.disabled(model.options.allBranches)
                 HStack { Text("Remote:").frame(width: 115, alignment: .leading); FetchHistoryCombo(value: $model.options.destination, choices: model.destinationHistory, label: "Remote branch or tag", onDelete: model.deleteDestinationHistory)
                     Button("…") { model.browsingDestination = true }.accessibilityLabel("Browse remote references")
-                }.disabled(model.options.allBranches)
+                }.disabled(model.options.allBranches || model.preparingSource)
             }.padding(8) }
             GroupBox("Destination") { VStack(spacing: 8) {
                 HStack { PushDestinationRadio(title: "Remote:", selected: !model.options.arbitraryURL) { model.options.arbitraryURL = false }.frame(width: 115)
@@ -381,7 +441,7 @@ private struct PushDialog: View {
                 HStack { PushDestinationRadio(title: "Arbitrary URL:", selected: model.options.arbitraryURL) { model.selectArbitraryURL() }.frame(width: 115)
                     FetchHistoryCombo(value: $model.url, choices: model.urls, label: "Destination URL or path", onDelete: model.deleteURLHistory).disabled(!model.options.arbitraryURL)
                 }
-            }.padding(8) }
+            }.padding(8) }.disabled(model.preparingSource)
             GroupBox("Options") { VStack(alignment: .leading, spacing: 8) {
                 HStack { Toggle("Force with lease", isOn: $model.options.forceWithLease).disabled(model.options.force || model.options.includeTags)
                     Toggle("Force", isOn: $model.options.force).disabled(model.options.forceWithLease); Spacer() }
@@ -392,11 +452,11 @@ private struct PushDialog: View {
                 Toggle("Always push to the selected remote branch for this local branch", isOn: $model.options.savePushBranch).disabled(!model.canSave)
                 HStack { Text("Recurse submodule").frame(width: 155, alignment: .leading); Picker("Recurse submodule", selection: $model.options.submodules) { Text("None").tag(PushSubmodules.none); Text("Check").tag(PushSubmodules.check); Text("On-demand").tag(PushSubmodules.onDemand) }.labelsHidden(); Spacer() }
                 HStack { Text("Push option:").frame(width: 155, alignment: .leading); FetchHistoryCombo(value: $model.options.pushOption, choices: model.pushOptionHistory, label: "Push option", onDelete: model.deletePushOptionHistory) }
-            }.padding(8) }
+            }.padding(8) }.disabled(model.preparingSource)
             }.disabled(model.busy)
             Spacer(minLength: 0)
-            HStack { if model.busy { ProgressView().controlSize(.small) }; Spacer()
-                Button("OK") { model.push() }.keyboardShortcut(.defaultAction).disabled(model.busy)
+            HStack { if model.busy || model.preparingSource { ProgressView().controlSize(.small) }; if model.preparationNeedsRetry { Button("Retry loading", action: model.retryPreparation).disabled(model.busy || model.preparing) }; Spacer()
+                Button("OK") { model.push() }.keyboardShortcut(.defaultAction).disabled(model.busy || model.preparing || model.preparationNeedsRetry)
                 Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(!model.canCancel)
                 Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-push.html")!) }
             }

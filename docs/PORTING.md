@@ -2,6 +2,13 @@
 
 *A macOS fork of TortoiseGit*
 
+The connected Push/Pull/Fetch preparation batch implements cancellable metadata,
+source/remote replacement, Retry loading, close settlement and complete Push
+preflight/post-hook ownership. Debug, 15 Push Core checks and six grouped native
+cases passed after a real Core cancellation repair. See
+[batch evidence](qa/transport-preparation-2026-10-14.json); full physical/signed
+acceptance remains open.
+
 The connected Statistics/Revision Graph continuation implements calculation close/
 retry, source summary-control visibility, owned exports and destination scopes.
 Debug and four grouped native cases passed; see

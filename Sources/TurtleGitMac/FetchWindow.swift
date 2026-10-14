@@ -9,6 +9,7 @@ import TurtleGitCore
     private(set) var remoteReferenceController: RemoteReferenceWindowController?
     var configureRemoteReferences: (RemoteReferenceWindowController) -> Void = { _ in }
     var presentRemoteReferences: (NSWindow,NSWindow) -> Bool = { owner,child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
+    private var closingPreparation = false
     private(set) var progressController: PullProgressWindowController?
     var presentFetchProgress: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
     private(set) var fetchProgressController: FetchProgressWindowController?
@@ -18,7 +19,8 @@ import TurtleGitCore
         window.title = "\(repository.root.lastPathComponent) – \(isPull ? "Pull" : "Fetch") – TurtleGit"; window.minSize = NSSize(width: 660, height: 450); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: FetchDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self; window.center()
-        model.close = { [weak self] in guard let self, !self.model.operationActive, self.window?.attachedSheet == nil else { return }; self.window?.close() }
+        model.becameIdle = { [weak self] in if self?.closingPreparation == true { self?.window?.performClose(nil) } }
+        model.close = { [weak self] in guard let self, !self.model.busy, !self.model.browsing, !self.model.preparingRemote, self.model.progress == nil, self.model.fetchProgress == nil, self.window?.attachedSheet == nil else { return }; self.window?.close() }
         model.onProgress = { [weak self] progress in
             guard let self else { progress.invalidate(); return }
             guard let window = self.window, window.attachedSheet == nil else { self.model.abandonPullPresentation(progress); return }
@@ -80,6 +82,7 @@ import TurtleGitCore
         onClosed()
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if model.preparing { closingPreparation = true; model.cancelPreparation(); return false }
         if model.progress != nil || model.fetchProgress != nil { if model.transportRunning { model.cancel() }; return false }
         guard model.transportRunning else { return !model.busy && sender.attachedSheet == nil }
         model.cancel(); return false
@@ -87,6 +90,7 @@ import TurtleGitCore
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class FetchWindowModel: ObservableObject {
+    static var activePreparationReads = 0
     let repository: GitRepository
     let isPull: Bool
     let sshSettings: SSHTransportSettings
@@ -125,11 +129,23 @@ import TurtleGitCore
     var onChanged: (String) -> Void = { _ in }
     private var metadataToken: OperationCancellation?
     private var remoteToken: OperationCancellation?
+    @Published private(set) var preparingRemote = false
+    var preparing: Bool { metadataToken != nil || preparingRemote }
+    var becameIdle: () -> Void = {}
+    @Published private(set) var preparationNeedsRetry = false
+    private var metadataLoaded = false
+    private var loadPresetRemote: String?
+    private var loadPresetAllRemotes: Bool?
+    func retryPreparation() {
+        guard !closed, !busy, !preparing else { return }
+        if !metadataLoaded { load(remote: loadPresetRemote, allRemotes: loadPresetAllRemotes) } else { remoteChanged() }
+    }
     private var invalidated = false
     var closed: Bool { invalidated }
-    var operationActive: Bool { busy || browsing || progress != nil || fetchProgress != nil }
+    var operationActive: Bool { preparationNeedsRetry || busy || preparingRemote || browsing || progress != nil || fetchProgress != nil }
     func invalidate() {
         invalidated = true; generation += 1; metadataToken?.cancel(); metadataToken = nil; remoteToken?.cancel(); remoteToken = nil
+        remoteSettings.invalidate(); preparingRemote = false; becameIdle = {}; close = {}
         fetchProgress?.invalidate(); fetchProgress = nil; progress?.invalidate(); progress = nil; busy = false; browsing = false; managing = false
     }
     func abandonPullPresentation(_ result: PullProgressWindowModel) { guard progress === result else { return }; result.invalidate(); progress = nil; busy = false }
@@ -143,7 +159,7 @@ import TurtleGitCore
         fetchProgress = nil; error = nil; result.invalidate(); close()
     }
     var transportRunning: Bool { progress?.busy ?? fetchProgress?.busy ?? false }
-    var canCancel: Bool { progress?.canCancel ?? fetchProgress?.canCancel ?? !busy }
+    var canCancel: Bool { !invalidated && (preparing || (progress?.canCancel ?? fetchProgress?.canCancel ?? !busy)) }
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { choose in choose(false) }
     @Published var error: String?
     @Published var browsing = false
@@ -165,44 +181,48 @@ import TurtleGitCore
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     func load(remote presetRemote: String? = nil, allRemotes presetAllRemotes: Bool? = nil) {
-        guard !invalidated, !operationActive else { return }; busy = true; let token = OperationCancellation(); metadataToken = token
-        Task {
-            defer { if metadataToken === token { metadataToken = nil; busy = false } }
+        guard !invalidated, !busy, !preparingRemote, !browsing, progress == nil, fetchProgress == nil else { return }; busy = true; error = nil; preparationNeedsRetry = false
+        loadPresetRemote = presetRemote; loadPresetAllRemotes = presetAllRemotes
+        let token = OperationCancellation(); metadataToken = token; Self.activePreparationReads += 1
+        Task { [self, access] in
+            defer {
+                Self.activePreparationReads -= 1
+                if metadataToken === token { metadataToken = nil; busy = false; if !invalidated { becameIdle() } }
+                withExtendedLifetime(access) {}
+            }
             do {
                 try validateRepositoryAccess()
-                let names = try await repository.remoteNames(cancellation: token), defaults = try await repository.fetchDefaults(cancellation: token)
-                guard !invalidated, metadataToken === token, !token.isCancelled else { return }
-                remotes = names
-                urls = FetchDialogHistory.load(preferences, key: "History.PullURLS", caseSensitive: true)
-                branchHistory = FetchDialogHistory.load(preferences, key: "History.PullRemoteBranch", caseSensitive: true)
-                options = FetchOptions(); options.remote = defaults.remote
-                sshSettings.load(preferences, key: key + ".autoload")
-                options.branch = branchHistory.first ?? ""
-                selectBranch(defaults.branch, atFront: false)
-                options.allRemotes = !isPull && defaults.remote.isEmpty && remotes.count > 1
-                if isPull && options.remote.isEmpty { options.remote = remotes.first ?? "" }
-                options.namedRemoteFetchAll = preferences.object(forKey: "NamedRemoteFetchAll") as? Bool ?? true
-                if let saved = preferences.string(forKey: key + ".remote"), remotes.contains(saved), defaults.remote.isEmpty { options.remote = saved; options.allRemotes = false }
-                shallow = defaults.shallow; bare = defaults.bare; depthEnabled = shallow
-                tagsDefault = defaults.tags; pruneDefault = defaults.prune
+                let names = try await repository.remoteNames(cancellation: token)
+                let defaults = try await repository.fetchDefaults(cancellation: token)
                 let pullDefaults = try await repository.pullDefaults(cancellation: token)
-                guard !invalidated, metadataToken === token, !token.isCancelled else { return }
-                rebaseRequired = isPull && pullDefaults.rebase
-                preserveMerges = isPull && pullDefaults.preserveMerges
-                launchRebase = !bare && !options.allRemotes && (rebaseRequired || preferences.bool(forKey: key + ".rebase"))
-                fastForwardOnly = isPull && preferences.bool(forKey: key + ".ffonly")
-                squash = false; noCommit = false; noFastForward = false
+                var snapshot = FetchOptions(); snapshot.remote = defaults.remote
+                let history = FetchDialogHistory.load(preferences, key: "History.PullRemoteBranch", caseSensitive: true)
+                snapshot.branch = defaults.branch.isEmpty ? history.first ?? "" : defaults.branch
+                snapshot.allRemotes = !isPull && defaults.remote.isEmpty && names.count > 1
+                if isPull && snapshot.remote.isEmpty { snapshot.remote = names.first ?? "" }
+                snapshot.namedRemoteFetchAll = preferences.object(forKey: "NamedRemoteFetchAll") as? Bool ?? true
+                if let saved = preferences.string(forKey: key + ".remote"), names.contains(saved), defaults.remote.isEmpty { snapshot.remote = saved; snapshot.allRemotes = false }
+                var tags = defaults.tags, prune = defaults.prune, targetURL = ""
+                var rebase = !defaults.bare && !snapshot.allRemotes && (isPull && pullDefaults.rebase || preferences.bool(forKey: key + ".rebase"))
                 if let presetRemote, !presetRemote.isEmpty {
-                    if remotes.contains(presetRemote) {
-                        options.remote = presetRemote; options.arbitraryURL = false; options.allRemotes = false
+                    if names.contains(presetRemote) {
+                        snapshot.remote = presetRemote; snapshot.arbitraryURL = false; snapshot.allRemotes = false
                         let preset = try await repository.fetchDefaults(remote: presetRemote, cancellation: token)
-                        guard !invalidated, metadataToken === token, !token.isCancelled else { return }
-                        tagsDefault = preset.tags; pruneDefault = preset.prune
-                    } else { options.arbitraryURL = true; options.allRemotes = false; url = presetRemote; launchRebase = false }
+                        tags = preset.tags; prune = preset.prune
+                    } else { snapshot.arbitraryURL = true; snapshot.allRemotes = false; targetURL = presetRemote; rebase = false }
                 }
-                if !isPull, let presetAllRemotes { options.allRemotes = presetAllRemotes; if presetAllRemotes { options.arbitraryURL = false; launchRebase = false } }
-                remoteSettings.remotes = remotes
-            } catch { if !invalidated, metadataToken === token, !token.isCancelled { self.error = error.localizedDescription } }
+                if !isPull, let presetAllRemotes { snapshot.allRemotes = presetAllRemotes; if presetAllRemotes { snapshot.arbitraryURL = false; rebase = false } }
+                try token.check(); guard !invalidated, metadataToken === token else { return }
+                remotes = names; options = snapshot; url = targetURL
+                urls = FetchDialogHistory.load(preferences, key: "History.PullURLS", caseSensitive: true)
+                branchHistory = history; selectBranch(snapshot.branch, atFront: false)
+                sshSettings.load(preferences, key: key + ".autoload")
+                shallow = defaults.shallow; bare = defaults.bare; depthEnabled = defaults.shallow
+                tagsDefault = tags; pruneDefault = prune; rebaseRequired = isPull && pullDefaults.rebase
+                preserveMerges = isPull && pullDefaults.preserveMerges; launchRebase = rebase
+                fastForwardOnly = isPull && preferences.bool(forKey: key + ".ffonly")
+                squash = false; noCommit = false; noFastForward = false; remoteSettings.remotes = names; metadataLoaded = true; preparationNeedsRetry = false
+            } catch { if !invalidated, metadataToken === token { preparationNeedsRetry = true; self.error = error.localizedDescription } }
         }
     }
     func selectBranch(_ branch: String, atFront: Bool = true) {
@@ -226,15 +246,26 @@ import TurtleGitCore
         if let branch = selection?.branch { options.branch = branch }
     }
     func remoteChanged() {
-        guard !invalidated, !operationActive else { return }
+        guard !invalidated, !busy, !browsing, !managing, progress == nil, fetchProgress == nil else { return }
         generation += 1; let request = generation, remote = options.remote
-        remoteToken?.cancel(); let token = OperationCancellation(); remoteToken = token
-        Task {
-            defer { if remoteToken === token { remoteToken = nil } }
-            do { try validateRepositoryAccess(); let defaults = try await repository.fetchDefaults(remote: remote, cancellation: token); guard !invalidated, remoteToken === token, !token.isCancelled, request == generation else { return }; tagsDefault = defaults.tags; pruneDefault = defaults.prune }
-            catch { if !invalidated, remoteToken === token, !token.isCancelled, request == generation { self.error = error.localizedDescription } }
+        remoteToken?.cancel(); let token = OperationCancellation(); remoteToken = token; preparingRemote = true; preparationNeedsRetry = false
+        Self.activePreparationReads += 1
+        Task { [self, access] in
+            defer {
+                Self.activePreparationReads -= 1
+                if remoteToken === token { remoteToken = nil; preparingRemote = false; if !invalidated { becameIdle() } }
+                withExtendedLifetime(access) {}
+            }
+            do {
+                try validateRepositoryAccess()
+                let defaults = try await repository.fetchDefaults(remote: remote, cancellation: token)
+                guard !invalidated, remoteToken === token, !token.isCancelled, request == generation,
+                      options.remote.utf8.elementsEqual(remote.utf8) else { return }
+                tagsDefault = defaults.tags; pruneDefault = defaults.prune; preparationNeedsRetry = false
+            } catch { if !invalidated, remoteToken === token, request == generation { preparationNeedsRetry = true; self.error = error.localizedDescription } }
         }
     }
+    func cancelPreparation() { if preparing { preparationNeedsRetry = true }; metadataToken?.cancel(); remoteToken?.cancel() }
     var repositoryAccess: RepositoryAccessLease? { access }
     var currentRemoteDestination: String { options.arbitraryURL ? url : options.remote }
     var onBrowseRemote: ((String) -> Void)?
@@ -248,6 +279,8 @@ import TurtleGitCore
         remoteChanged()
     }
     func cancel() {
+        guard !invalidated else { return }
+        if preparing { cancelPreparation(); return }
         if let progress { if progress.busy { progress.cancel() } else { progress.close() }; return }
         if let fetchProgress { if fetchProgress.busy { fetchProgress.cancel() } else { fetchProgress.close() }; return }
         if !busy { close() }
@@ -337,7 +370,7 @@ private struct FetchDialog: View {
             if model.rebaseRequired && !model.options.arbitraryURL { Text("Git configuration requires Rebase. Fetch will open and start its native Rebase plan.").font(.caption).foregroundStyle(.secondary) }
             }.disabled(model.operationActive)
             Spacer(minLength: 0)
-            HStack { if model.busy { ProgressView().controlSize(.small) }; Spacer(); Button("OK") { model.fetch() }.keyboardShortcut(.defaultAction).disabled(model.operationActive); Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(!model.canCancel); Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-pull.html")!) } }
+            HStack { if model.busy || model.preparingRemote { ProgressView().controlSize(.small) }; if model.preparationNeedsRetry { Button("Retry loading", action: model.retryPreparation).disabled(model.busy || model.preparing) }; Spacer(); Button("OK") { model.fetch() }.keyboardShortcut(.defaultAction).disabled(model.operationActive); Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(!model.canCancel); Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-pull.html")!) } }
         }.padding(16)
         .onChange(of: model.options.remote) { _ in model.remoteChanged() }
         .alert(model.isPull ? "Pull failed" : "Fetch failed", isPresented: Binding(get: { model.progress == nil && model.fetchProgress == nil && model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil }; if model.isPull { Button("Open Working Tree") { model.error = nil; model.onShowStatus() } } } message: { Text(model.error ?? "") }

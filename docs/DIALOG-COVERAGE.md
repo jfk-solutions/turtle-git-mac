@@ -75,8 +75,8 @@ This generated table links explicit implementation/parity reviews and existing Q
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGS_CONFIG` | partial | 2/2 mapped; 0 pending | [ADVANCED-SETTINGS-PARITY](ADVANCED-SETTINGS-PARITY.md); 5 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_CLONE` | partial-native-replacement | 34/34 mapped; 0 pending | [CLONE-PARITY](CLONE-PARITY.md), [UI-PARITY](UI-PARITY.md); 9 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_GITPROGRESS` | partial-native | 6/7 mapped; 1 pending | [MERGE-PARITY](MERGE-PARITY.md), [PROGRESS-PARITY](PROGRESS-PARITY.md); 26 QA records |
-| `src/Resources/TortoiseProcENG.rc` / `IDD_PULLFETCH` | partial-native-replacement | 0/25 mapped; 25 pending | [FETCH-PARITY](FETCH-PARITY.md), [PULL-PARITY](PULL-PARITY.md), [UI-PARITY](UI-PARITY.md); 16 QA records |
-| `src/Resources/TortoiseProcENG.rc` / `IDD_PUSH` | partial-native-replacement | 0/29 mapped; 29 pending | [PUSH-PARITY](PUSH-PARITY.md), [UI-PARITY](UI-PARITY.md); 15 QA records |
+| `src/Resources/TortoiseProcENG.rc` / `IDD_PULLFETCH` | partial-native-replacement | 0/25 mapped; 25 pending | [FETCH-PARITY](FETCH-PARITY.md), [PULL-PARITY](PULL-PARITY.md), [UI-PARITY](UI-PARITY.md); 17 QA records |
+| `src/Resources/TortoiseProcENG.rc` / `IDD_PUSH` | partial-native-replacement | 0/29 mapped; 29 pending | [PUSH-PARITY](PUSH-PARITY.md), [UI-PARITY](UI-PARITY.md); 16 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SVNDCOMMITTYPE` | partial-native-replacement | 0/7 mapped; 7 pending | [SVN-PARITY](SVN-PARITY.md); 3 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_REQUESTPULL` | partial-native-replacement | 0/11 mapped; 11 pending | [REQUEST-PULL-PARITY](REQUEST-PULL-PARITY.md); 2 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_GITSWITCH` | partial-native-replacement | 1/19 mapped; 18 pending | [SWITCH-PARITY](SWITCH-PARITY.md), [UI-PARITY](UI-PARITY.md); 10 QA records |
