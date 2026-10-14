@@ -214,3 +214,31 @@ Trash recovery, captured close settings, failure/Retry, cancellation and deferre
 close, plus the earlier native cleanup regression. No new screenshots or displayed
 app sessions were created for this checkpoint. Physical split-menu selection,
 keyboard/default buttons, light/dark layout and signed acceptance remain pending.
+
+
+## Connected owned access/retirement workflow — October 14, 2026
+
+The options owner now captures one accepted submission and refuses duplicate or
+retired actions. Progress retirement cancels its current Git/removal attempt,
+fences later events/results/recovery callbacks and retains independent Quit/grant
+ownership until the worker settles. Existing protected filesystem steps may
+finish before cancellation is observed; completed effects remain.
+
+App Store failures offer an owned Authorize Folder sheet. A user can authorize
+a repository, external Git/common directory or required child folder, then Retry
+to prepare a fresh plan. Accepted grants last for this window and its workers;
+Cancel/close refuses late answers. All required plan roots must be covered by
+active security scopes before execution. This is manual permission recovery;
+automatic discovery/authorization before every inaccessible metadata read and
+persistent grants across new windows remain open.
+
+The Debug build and six grouped native cases passed across system and bundled
+Git: owned access/retirement, progress policies and existing Clean actions. The
+checks cover fresh Retry, actual cancellation, repository preservation and owned
+receiver cleanup. Two fixture setup/matcher errors required fixture-only repairs;
+no application rebuild or Core rerun followed those repairs. See
+[validation evidence](qa/clean-owned-access-2026-10-14.json).
+
+Physical permission/traversal/Trash, signed
+security-scope inheritance, keyboard/VoiceOver, full upstream parity and App Store
+acceptance remain unverified.

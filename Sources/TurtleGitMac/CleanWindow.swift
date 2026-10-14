@@ -11,6 +11,9 @@ struct CleanDialogRequest {
 }
 
 @MainActor final class CleanWindowModel: ObservableObject {
+    private(set) var retired = false
+    private var submitted = false
+    func retire() { retired = true; close = {}; onAccepted = { _ in } }
     let repository: GitRepository
     private let defaults: UserDefaults
     private let typeKey: String
@@ -32,7 +35,7 @@ struct CleanDialogRequest {
         options = CleanOptions(type: type, directories: directories)
         permanently = defaults.object(forKey: "RevertWithRecycleBin") != nil && !defaults.bool(forKey: "RevertWithRecycleBin")
     }
-    func setScope(_ paths: [String]) { self.paths = paths }
+    func setScope(_ paths: [String]) { guard !retired, !submitted else { return }; self.paths = paths }
     /// Validate before translating files to parent folders: an invalid path must
     /// never become an empty path and silently widen cleanup to the whole tree.
     func directoryScopes() throws -> [String] {
@@ -50,11 +53,12 @@ struct CleanDialogRequest {
         return result
     }
     func accept() {
+        guard !retired, !submitted else { return }
         do {
             let scopes = try directoryScopes()
             defaults.set(options.type.rawValue, forKey: typeKey); defaults.set(options.directories, forKey: directoryKey)
             let request = CleanDialogRequest(options: options, paths: scopes, dryRun: dryRun, submodules: submodules, permanently: permanently)
-            onAccepted(request); close()
+            submitted = true; onAccepted(request); close()
         } catch { self.error = error.localizedDescription }
     }
 }
@@ -74,7 +78,7 @@ struct CleanDialogRequest {
         DialogGeometry.attach(window, identifier: "CleanWindowController")
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
-    func windowWillClose(_ notification: Notification) { onClosed() }
+    func windowWillClose(_ notification: Notification) { model.retire(); onClosed(); onClosed = {} }
 }
 
 private struct CleanDialog: View {
@@ -106,6 +110,21 @@ private struct CleanDialog: View {
 }
 
 @MainActor final class CleanProgressWindowModel: ObservableObject {
+    static var activeOperations = 0
+    @Published private(set) var authorizing = false
+    private(set) var additionalAccess: [RepositoryAccessLease] = []
+    var requiresSecurityScope = GitRuntime.isAppStoreBuild
+    var offerAdditionalPermission = GitRuntime.isAppStoreBuild
+    var authorizeFolder: () -> Void = {}
+    var canAuthorizeFolder: Bool { offerAdditionalPermission && failed && !busy && !authorizing && !confirmingCancellation && !invalidated }
+    func beginAuthorization() -> Bool { guard canAuthorizeFolder else { return false }; authorizing = true; return true }
+    func finishAuthorization(_ lease: RepositoryAccessLease?) {
+        guard !invalidated, authorizing else { return }; authorizing = false
+        if let lease {
+            guard !requiresSecurityScope || lease.hasSecurityScope else { output += "\nThe selected folder did not grant security-scoped access."; return }
+            additionalAccess.append(lease); output += "\nAuthorized for this cleanup: " + lease.url.path + "\nUse Retry to prepare a fresh cleanup plan."
+        }
+    }
     let repository: GitRepository
     private let access: RepositoryAccessLease?
     private let request: CleanDialogRequest
@@ -132,11 +151,12 @@ private struct CleanDialog: View {
     var canCancel: Bool { busy && !cancelRequested && !confirmingCancellation && !invalidated }
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
     var postActions: [CleanPostAction] {
+        if invalidated { return [] }
         if failed { return [.retry] }
         if previewSucceeded { return permanentFirst ? [.permanent, .trash] : [.trash, .permanent] }
         return []
     }
-    func invalidate() { invalidated = true }
+    func invalidate() { invalidated = true; cancellation?.cancel(); confirmingCancellation = false; authorizing = false; authorizeFolder = {}; onFinished = { _, _ in }; close = {}; additionalAccess.removeAll() }
     init(repository: GitRepository, access: RepositoryAccessLease?, request: CleanDialogRequest, preferences: UserDefaults = .standard) {
         self.repository = repository; self.access = access; self.request = request; self.preferences = preferences; autoClosePolicy = GitProgressAutoClose(preferences: preferences)
     }
@@ -144,7 +164,7 @@ private struct CleanDialog: View {
     func retry() { guard failed, !confirmingCancellation, !invalidated else { return }; ProgressActionLog.nextAttempt(self); run(previewOnly: lastPreviewOnly, permanently: lastPermanent) }
     func remove(permanently: Bool) { guard previewSucceeded, !confirmingCancellation, !invalidated else { return }; ProgressActionLog.nextAttempt(self); run(previewOnly: false, permanently: permanently) }
     func perform(_ action: CleanPostAction) {
-        guard !busy, !confirmingCancellation, !invalidated, postActions.contains(action) else { return }
+        guard !busy, !authorizing, !confirmingCancellation, !invalidated, postActions.contains(action) else { return }
         switch action { case .retry: retry(); case .trash: remove(permanently: false); case .permanent: remove(permanently: true) }
     }
     func cancel() {
@@ -162,21 +182,25 @@ private struct CleanDialog: View {
     private func finishAutomaticClose() {
         // Trash uses CSysProgressDlg upstream and ends on successful completion.
         // Git progress settings apply only to dry runs and permanent removal.
-        guard !busy, !confirmingCancellation, !invalidated, !failed else { return }
+        guard !busy, !authorizing, !confirmingCancellation, !invalidated, !failed else { return }
         if !lastPreviewOnly && !lastPermanent || autoClosePolicy.shouldClose(success: true, postActionCount: postActions.count) { close() }
     }
     private func run(previewOnly: Bool, permanently: Bool) {
-        guard !busy, !confirmingCancellation, !invalidated else { return }
+        guard !busy, !authorizing, !confirmingCancellation, !invalidated else { return }
         lastPreviewOnly = previewOnly; lastPermanent = permanently
         busy = true; failed = false; previewSucceeded = false; cancelRequested = false; output = ""; trashedFiles = []
         completed = 0; total = 0
         current = previewOnly ? "Previewing cleanup…" : permanently ? "Removing files…" : "Moving files to Trash…"
         let cancellation = OperationCancellation(); self.cancellation = cancellation
-        Task {
+        let leases = [access].compactMap { $0 } + additionalAccess
+        Self.activeOperations += 1
+        Task { [self, leases] in
+            defer { Self.activeOperations -= 1; withExtendedLifetime(leases) {}; if self.cancellation === cancellation { self.cancellation = nil; busy = false } }
             do {
-                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                if requiresSecurityScope && !leases.contains(where: { $0.hasSecurityScope && $0.contains(repository.root) }) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let plan = try await repository.cleanBatchPreview(options: request.options, paths: request.paths, includeSubmodules: request.submodules, cancellation: cancellation)
-                if GitRuntime.isAppStoreBuild && !plan.repositories.allSatisfy({ item in item.requiredAccess.allSatisfy { access?.contains($0) == true } }) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                if requiresSecurityScope && !plan.repositories.allSatisfy({ item in item.requiredAccess.allSatisfy { target in leases.contains { $0.hasSecurityScope && $0.contains(target) } } }) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                try cancellation.check(); guard !invalidated else { return }
                 output = plan.repositories.map { $0.repository.path + "\n" + String(decoding: $0.preview.output, as: UTF8.self) }.joined(separator: "\n")
                 if previewOnly { previewSucceeded = true; current = "Dry run finished" }
                 else {
@@ -188,11 +212,13 @@ private struct CleanDialog: View {
                         return try await repository.executeCleanBatch(plan, permanently: permanently, cancellation: cancellation) { continuation.yield($0) }
                     }
                     for await event in stream {
+                        guard !invalidated else { continue }
                         completed = event.completed; total = event.total
                         if !cancelRequested { current = (permanently ? "Deleting: " : "Moving to Trash: ") + event.repository.appendingPathComponent(event.path).path }
                         if event.finished { output += "\nRemoved: " + event.repository.appendingPathComponent(event.path).path }
                     }
                     let results = try await operation.value
+                    try cancellation.check(); guard !invalidated else { return }
                     trashedFiles = results.flatMap { $0.result.trashedFiles }
                     output += "\n\(completed) item(s) cleaned."
                     if !trashedFiles.isEmpty { output += "\nRecoverable Trash items:\n" + trashedFiles.map(\.path).joined(separator: "\n") }
@@ -200,6 +226,7 @@ private struct CleanDialog: View {
                 }
                 busy = false; self.cancellation = nil; onFinished(output, !previewOnly); finishAutomaticClose()
             } catch {
+                guard !invalidated else { return }
                 if let failure = error as? CleanBatchExecutionFailure {
                     trashedFiles = failure.completed.flatMap { $0.result.trashedFiles } + (failure.partial?.trashedFiles ?? [])
                 }
@@ -214,6 +241,9 @@ private struct CleanDialog: View {
 @MainActor final class CleanProgressWindowController: NSWindowController, NSWindowDelegate {
     let model: CleanProgressWindowModel
     var onClosed: () -> Void = {}
+    private(set) var authorizationPanel: NSOpenPanel?
+    var presentAuthorization: (NSOpenPanel, NSWindow, @escaping (NSApplication.ModalResponse) -> Void) -> Void = { panel, owner, completion in panel.beginSheetModal(for: owner, completionHandler: completion) }
+    var selectedAuthorizationURL: (NSOpenPanel) -> URL? = { $0.url }
     init(repository: GitRepository, access: RepositoryAccessLease?, request: CleanDialogRequest, preferences: UserDefaults = .standard) {
         model = CleanProgressWindowModel(repository: repository, access: access, request: request, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 500), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
@@ -221,8 +251,9 @@ private struct CleanDialog: View {
         window.contentMinSize = NSSize(width: 650, height: 330); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: CleanProgressDialog(model: model))
         super.init(window: window); window.delegate = self; window.center()
+        model.authorizeFolder = { [weak self] in self?.chooseAuthorizationFolder() }
         model.close = { [weak self, weak window] in
-            guard let self, !self.model.confirmingCancellation, window?.attachedSheet == nil else { return }
+            guard let self, !self.model.authorizing, !self.model.confirmingCancellation, window?.attachedSheet == nil else { return }
             if self.model.busy { self.model.cancel() } else { window?.close() }
         }
         model.confirmCancellation = { [weak window] choose in
@@ -234,9 +265,20 @@ private struct CleanDialog: View {
 
         DialogGeometry.attach(window, identifier: "ProgressDlg")
     }
+    func chooseAuthorizationFolder() {
+        guard authorizationPanel == nil, let window, window.attachedSheet == nil, model.beginAuthorization() else { return }
+        let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.prompt = "Authorize"
+        panel.message = "Authorize the repository, an external Git/common directory, or a required submodule folder for this cleanup. Then retry to prepare a fresh plan."
+        panel.directoryURL = model.repository.root; authorizationPanel = panel
+        presentAuthorization(panel, window) { [weak self, panel] response in
+            guard let self, self.authorizationPanel === panel else { return }; self.authorizationPanel = nil
+            let lease = response == .OK ? self.selectedAuthorizationURL(panel).map { RepositoryAccessLease(url: $0) } : nil
+            self.model.finishAuthorization(lease)
+        }
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; return !model.confirmingCancellation && sender.attachedSheet == nil }
-    func windowWillClose(_ notification: Notification) { model.saveActionLog(); model.invalidate(); onClosed() }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; return !model.authorizing && !model.confirmingCancellation && sender.attachedSheet == nil }
+    func windowWillClose(_ notification: Notification) { model.saveActionLog(); model.invalidate(); if let panel = authorizationPanel { window?.endSheet(panel, returnCode: .cancel); panel.orderOut(nil) }; authorizationPanel = nil; onClosed(); onClosed = {} }
 }
 
 enum CleanPostAction: String, Hashable {
@@ -255,13 +297,14 @@ struct CleanProgressDialog: View {
                 Text(model.current).lineLimit(1).help(model.current).foregroundStyle(model.failed ? Color.red : Color.primary)
                 Spacer()
                 if model.total > 0 { ProgressView(value: Double(model.completed), total: Double(model.total)).frame(width: 120); Text("\(model.completed)/\(model.total)").monospacedDigit() }
+                if model.canAuthorizeFolder { Button("Authorize Folder…", action: model.authorizeFolder) }
                 if let first = model.postActions.first {
                     Button { model.perform(first) } label: { CommandLabel(title: first.title, icon: first.icon) }
                     Menu { ForEach(model.postActions, id: \.self) { action in Button { model.perform(action) } label: { CommandLabel(title: action.title, icon: action.icon) } } } label: { Image(systemName: "chevron.down").accessibilityLabel("Clean post-actions") }.menuStyle(.borderlessButton).fixedSize()
                 }
                 if !model.trashedFiles.isEmpty { Button("Show in Trash") { NSWorkspace.shared.activateFileViewerSelecting(model.trashedFiles) } }
                 Button(model.busy ? model.cancelRequested ? "Cancelling…" : "Cancel" : "Close") { model.close() }.keyboardShortcut(.cancelAction).disabled(model.busy && !model.canCancel)
-            }.disabled(model.confirmingCancellation)
+            }.disabled(model.confirmingCancellation || model.authorizing)
         }.padding(12)
     }
 }

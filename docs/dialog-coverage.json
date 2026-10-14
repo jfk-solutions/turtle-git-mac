@@ -2513,6 +2513,7 @@
       "qa_records": [
         "docs/qa/clean-execution-2026-10-07.json",
         "docs/qa/clean-finder-2026-10-07.json",
+        "docs/qa/clean-owned-access-2026-10-14.json",
         "docs/qa/clean-preview-2026-10-07.json",
         "docs/qa/clean-progress-2026-10-07.json",
         "docs/qa/clean-progress-policy-2026-10-08.json",

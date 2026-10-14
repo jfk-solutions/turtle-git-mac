@@ -1,0 +1,65 @@
+{
+  "date": "2026-10-14",
+  "base": "cb376d4e",
+  "scope": [
+    "Clean one-shot options submission and retirement",
+    "Owned manual folder authorization, session grants and fresh Retry",
+    "Cancellation, late-result refusal and independent operation/Quit lifetime"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/clean-owned-access-debug-2026-10-14.log"
+    },
+    "core": "Unchanged; not rerun",
+    "native": {
+      "unique_passing_cases": 6,
+      "families": [
+        "clean-owned-access",
+        "clean-policy-family",
+        "clean-native-family"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "log": "build/qa/clean-owned-access-native-gate-repair-2026-10-14.log",
+      "repairs": [
+        "Initial fixture fabricated failure before an actual attempt, causing Retry to use unset attempt state. Replaced with actual permission failure. This initial fixture may have left its private untracked file in Trash; its exact returned Trash URL was not recorded. No guessed user Trash cleanup was performed.",
+        "Git gate assumed a fixed argument position despite leading -c options. Changed fixture matcher to inspect all arguments."
+      ],
+      "app_rebuild_after_fixture_repairs": false,
+      "evidence": [
+        "Actual owned permission cancel/accept/late-answer rejection",
+        "Fresh dry-run Retry and forced-close process cancellation",
+        "Independent active operation and Quit accounting",
+        "Private HEAD/index/untracked-byte preservation in passing ownership checks",
+        "Existing dry-run, deletion, real Trash, lock/Retry and policy regression families"
+      ]
+    },
+    "owned_receivers_reaped": [
+      12645,
+      12704,
+      12774,
+      12797,
+      12969,
+      13026,
+      13049,
+      13217
+    ],
+    "receiver_pids_still_live_at_final_check": [],
+    "site": {
+      "exit": 0,
+      "documents": 212,
+      "unresolved_fragments": [],
+      "log": "build/qa/clean-owned-access-site-2026-10-14.log"
+    }
+  },
+  "limitations": [
+    "Unsigned injected scope acceptance does not prove signed security scope inheritance",
+    "Manual session-only additional grants; automatic inaccessible metadata discovery and persistent grants remain open",
+    "Physical Finder/Trash/permission gestures, keyboard/VoiceOver, all upstream visual parity and App Store acceptance remain open",
+    "Local validation does not establish complete hosted CI success",
+    "Cancellation preserves already completed filesystem effects"
+  ]
+}

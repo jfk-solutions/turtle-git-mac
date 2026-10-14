@@ -987,3 +987,10 @@ Commit/Push/Rebase boundaries and non-wait scripts remain cancellable through
 File. Focused Core/native checks pass; alternate routes, precise source edge
 cases and visual/signed acceptance remain open. See
 [Client Hooks audit](CLIENT-HOOKS-PARITY.md).
+
+
+Clean now owns manual folder authorization and fresh Retry, refuses duplicate
+options submissions and cancels retired progress workers while retaining their
+Quit/grant lifetime. Debug and six grouped native cases passed. Automatic access
+discovery, durable additional grants and physical/signed acceptance remain open.
+See [Clean audit](CLEAN-PARITY.md).
