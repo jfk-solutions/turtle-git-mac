@@ -210,7 +210,7 @@ private enum MergeSourceSide {
     let path: String
     private let access: RepositoryAccessLease?
     @Published var document: TextConflictDocument?
-    @Published var sourceComparison: MergeSourceComparison?
+    @Published var sourceComparison: MergeSourceComparison? { didSet { inlineCache = [:] } }
     @Published private(set) var regexFilters = MergeRegexFilters.load()
     @Published private(set) var regexFilterName: String?
     var regexDefaults: UserDefaults = .standard
@@ -218,6 +218,34 @@ private enum MergeSourceSide {
     @Published private(set) var comparisonOptions = MergeComparisonOptions.load()
     var comparisonDefaults: UserDefaults = .standard
     @Published private(set) var generalPreferences = MergeGeneralPreferences.load()
+    @Published private(set) var showInlineDiff = true
+    @Published private(set) var inlineWordDiff = false
+    private struct InlineRow { let value: MergeInlineComparison? }
+    private var inlineCache: [Int: InlineRow] = [:]
+    private var inlineCacheWord = false, inlineCacheMaximum = -1
+    func setInlineDiff(_ value: Bool) {
+        guard !retired, !busy, !confirmingQuit else { return }
+        showInlineDiff = value; MergeInlinePresentation.saveEnabled(value, to: comparisonDefaults)
+    }
+    func setInlineWordDiff(_ value: Bool) {
+        guard !retired, !busy, !confirmingQuit, showInlineDiff else { return }
+        inlineWordDiff = value; inlineCache = [:]
+    }
+    func inlineDifference(_ row: Int, mine: Bool) -> MergeInlineComparison? {
+        guard !retired, !preparing, showInlineDiff, let rows = sourceComparison?.rows, rows.indices.contains(row) else { return nil }
+        let maximum = generalPreferences.maximumInlineLength
+        if inlineCacheWord != inlineWordDiff || inlineCacheMaximum != maximum {
+            inlineCache = [:]; inlineCacheWord = inlineWordDiff; inlineCacheMaximum = maximum
+        }
+        let cell = mine ? rows[row].mine : rows[row].theirs, other = mine ? rows[row].theirs : rows[row].mine
+        guard cell.state != .normal, cell.state != .filtered, cell.state != .empty,
+              cell.displayText.utf16.count <= maximum else { return nil }
+        if let cached = inlineCache[row] { return cached.value }
+        let value = MergeInlinePresentation.comparison(cell: cell, other: other, left: !mine,
+                                                       word: inlineWordDiff, maximumLength: maximum)
+        inlineCache[row] = InlineRow(value: value); return value
+    }
+
     @Published private(set) var wrapLines = UserDefaults.standard.bool(forKey: "TurtleGitMerge.WrapLines")
     let lineWrapping = MergeLineWrapping()
     func setWrapLines(_ value: Bool) {
@@ -417,6 +445,7 @@ private enum MergeSourceSide {
             self.wrapLines = self.comparisonDefaults.bool(forKey: "TurtleGitMerge.WrapLines")
             self.whitespaceDisplay = .load(from: self.comparisonDefaults)
             self.generalPreferences = .load(from: self.comparisonDefaults)
+            self.showInlineDiff = MergeInlinePresentation.defaultEnabled(from: self.comparisonDefaults)
             if next.tabWidth != self.editorPreferences.tabWidth || next.useSpaces != self.editorPreferences.useSpaces || next.smartTab != self.editorPreferences.smartTab {
                 self.tabWidths = [:]; self.spacePanes = [:]; self.smartTabPanes = [:]
                 self.editorPreferences = next
@@ -484,6 +513,7 @@ private enum MergeSourceSide {
         selectedConflict = 0; caret = NSRange(location: 0, length: 0); selectionRequest = nil
         wrapLines = comparisonDefaults.bool(forKey: "TurtleGitMerge.WrapLines")
         generalPreferences = .load(from: comparisonDefaults)
+        showInlineDiff = MergeInlinePresentation.defaultEnabled(from: comparisonDefaults)
         let ranges = MergeLineEndings.lineRanges(in: result)
         let firstChanged = comparison.resultLocator?.states.firstIndex { $0 != .normal && $0 != .filtered && $0 != .empty }
         let difference = firstChanged.flatMap { ranges.indices.contains($0) ? ranges[$0] : nil }
@@ -637,6 +667,7 @@ private struct TextConflictDialog: View {
             }.padding(9)
             HStack {
                 MergeViewControls(preferences: model.locatorPreferences, apply: model.setLocatorPreferences, whitespace: model.whitespaceDisplay, applyWhitespace: model.setWhitespaceDisplay, wrapLines: model.wrapLines, applyWrap: model.setWrapLines)
+                MergeInlineControls(enabled: model.showInlineDiff, word: model.inlineWordDiff, applyEnabled: model.setInlineDiff, applyWord: model.setInlineWordDiff).disabled(model.busy || model.confirmingQuit || model.sourceComparison == nil)
                 MergeComparisonControls(options: model.comparisonOptions, apply: model.setComparisonOptions, supportsComments: model.supportsComments)
                 Menu("Regex Filter: " + (model.regexFilterName ?? "No Filter")) {
                     Button { model.selectRegexFilter(nil) } label: {
@@ -749,6 +780,7 @@ private struct MergeEditor: NSViewRepresentable {
         let entire = NSRange(location: 0, length: (text as NSString).length)
         view.textStorage?.addAttributes([.foregroundColor: MergePalette.foreground(.normal), .backgroundColor: MergePalette.color(MergeSourceState.normal), .font: model.generalPreferences.nativeFont, .paragraphStyle: view.defaultParagraphStyle ?? NSParagraphStyle.default], range: entire)
         if editable {
+            view.inlineMissingOffsets = []
             for block in MergeText.conflicts(in: text) { view.textStorage?.addAttributes([.backgroundColor: MergePalette.color(MergeSourceState.conflicted), .foregroundColor: MergePalette.foreground(.conflicted)], range: block.range) }
             if let requested = model.selectionRequest, NSMaxRange(requested) <= entire.length {
                 view.setSelectedRange(requested); view.scrollRangeToVisible(requested)
@@ -756,18 +788,29 @@ private struct MergeEditor: NSViewRepresentable {
             }
         } else if let sourceCells {
             var offset = 0
-            for cell in sourceCells {
+            view.inlineMissingOffsets = []
+            for (row, cell) in sourceCells.enumerated() {
                 let length = (cell.displayText as NSString).length + 1
                 view.textStorage?.addAttributes([.backgroundColor: MergePalette.color(cell.state), .foregroundColor: MergePalette.foreground(cell.state)], range: NSRange(location: offset, length: length))
+                if let sourceSide, let diff = model.inlineDifference(row, mine: sourceSide == .mine) {
+                    let left = sourceSide == .theirs
+                    let removal = cell.state == .removed
+                    view.textStorage?.addAttribute(.backgroundColor, value: MergePalette.inlineCommon, range: NSRange(location: offset, length: length))
+                    for range in left ? diff.base : diff.destination {
+                        view.textStorage?.addAttribute(.backgroundColor, value: removal ? MergePalette.inlineRemoved : MergePalette.inlineAdded, range: NSRange(location: offset + range.location, length: range.length))
+                    }
+                    view.inlineMissingOffsets += (left ? diff.baseMissing : diff.destinationMissing).map { offset + $0 }
+                }
                 offset += length
             }
-        }
+        } else { view.inlineMissingOffsets = [] }
         model.lineWrapping.geometryChanged = { [weak model] in model?.refreshLocatorViewport() }
         model.lineWrapping.update(scroll, key: label, aligned: sourceCells != nil, enabled: model.wrapLines)
         view.sourceCells = sourceCells
         let other = sourceSide.flatMap { side in model.sourceComparison?.rows.map { side == .mine ? $0.theirs : $0.mine } }
         view.whitespaceRenderer.update(text: text, cells: sourceCells, otherCells: other, preferences: model.whitespaceDisplay)
         view.whitespaceRenderer.removal = sourceSide == .theirs
+        view.whitespaceRenderer.highlightEndings = model.showInlineDiff
         view.needsDisplay = true
         (scroll.verticalRulerView as? MergeLineRuler)?.sourceNumbers = sourceCells?.map(\.lineNumber)
         (scroll.verticalRulerView as? MergeLineRuler)?.updateMetrics(for: view)
@@ -845,7 +888,11 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
         return true
     }
     let whitespaceRenderer = MergeWhitespaceRenderer()
-    override func draw(_ dirtyRect: NSRect) { super.draw(dirtyRect); whitespaceRenderer.draw(in: self, dirtyRect: dirtyRect) }
+    var inlineMissingOffsets: [Int] = []
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect); whitespaceRenderer.draw(in: self, dirtyRect: dirtyRect)
+        MergeInlineTicks.draw(in: self, offsets: inlineMissingOffsets, dirtyRect: dirtyRect)
+    }
     fileprivate var clipboardText: String? {
         guard window != nil, let model, !model.retired else { return nil }
         if let cells = sourceCells {

@@ -2,6 +2,33 @@ import XCTest
 @testable import TurtleGitCore
 
 final class MergeInlineComparisonTests: XCTestCase {
+    func testNavigationVisitsStartsEndsAndZeroWidthChunksWithoutWrapping() throws {
+        let diff = try XCTUnwrap(MergeInlineComparison(base: "keep shared ending", destination: "keep new shared ending", word: true))
+        XCTAssertEqual(diff.basePositions, [NSRange(location: 5, length: 0)])
+        XCTAssertEqual(diff.destinationPositions, [NSRange(location: 5, length: 4)])
+        XCTAssertEqual(diff.navigationOffset(from: 0, base: true, forward: true), 5)
+        XCTAssertNil(diff.navigationOffset(from: 5, base: true, forward: true))
+        XCTAssertEqual(diff.navigationOffset(from: 6, base: true, forward: false), 5)
+        XCTAssertEqual(diff.navigationOffset(from: 5, base: false, forward: true), 9)
+        XCTAssertEqual(diff.navigationOffset(from: 8, base: false, forward: false), 5)
+        XCTAssertNil(diff.navigationOffset(from: 9, base: false, forward: true))
+        XCTAssertNil(diff.navigationOffset(from: 5, base: false, forward: false))
+    }
+    func testPresentationUsesCurrentLineLimitAndSourceRowGates() throws {
+        let short = MergeSourceCell(text: "keep shared ending\r\n", lineNumber: 1, state: .conflicted)
+        let long = MergeSourceCell(text: "keep new shared ending\r\n", lineNumber: 1, state: .conflicted)
+        XCTAssertNotNil(MergeInlinePresentation.comparison(cell: short, other: long, left: true, word: true, maximumLength: 18))
+        XCTAssertNil(MergeInlinePresentation.comparison(cell: long, other: short, left: false, word: true, maximumLength: 18))
+        for state in [MergeSourceState.normal, .filtered, .empty] {
+            let cell = MergeSourceCell(text: short.text, lineNumber: 1, state: state)
+            XCTAssertNil(MergeInlinePresentation.comparison(cell: cell, other: long, left: true, word: false, maximumLength: 100))
+        }
+        let suite = "TurtleGit.InlineTests." + UUID().uuidString, defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        XCTAssertTrue(MergeInlinePresentation.defaultEnabled(from: defaults))
+        MergeInlinePresentation.saveEnabled(false, to: defaults)
+        XCTAssertFalse(MergeInlinePresentation.defaultEnabled(from: defaults))
+    }
     func testCharacterAndWordModesUseExactUTF16Ranges() throws {
         let a = "let count = 10; // keep this shared text", b = "let count = 20; // keep this shared text"
         let chars = try XCTUnwrap(MergeInlineComparison(base: a, destination: b))

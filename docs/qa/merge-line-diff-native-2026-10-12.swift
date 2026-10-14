@@ -23,7 +23,7 @@ struct MergeLineDiffNativeVerification {
         let editors = TwoPaneEngineVerification.editors(owner.window?.contentView)
         let strings = editors.map(\.string), selections = editors.map { $0.selectedRange() }, generation = model.alignmentGeneration
         try check(model.showLineDiffBar, "Source default must show line diff bar")
-        model.showInlineDiff = false; model.setWhitespaceDisplay(.init(visible: false, endingIcons: true))
+        model.setInlineDiff(false); model.setWhitespaceDisplay(.init(visible: false, endingIcons: true))
         let preview = MergeLineDiffPreview(frame: NSRect(x: 0, y: 0, width: 520, height: MergeLineDiffPreview.lineHeight(model.generalPreferences.nativeFont) * 2))
         guard let editor = editors.first, let hover = editor as? MergeLineDiffHoverProviding else { throw NSError(domain: "Missing hover receiver", code: 1) }
         hover.previewLine(atDisplayOffset: 2); preview.update(model)

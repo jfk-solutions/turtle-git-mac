@@ -1541,3 +1541,13 @@ physical appearance or input. Private windows/preferences and owned child groups
 must be closed/reaped. The affected Core group is FileComparisonTests,
 RevisionComparisonTests and WorkingTreeHistoryTests; no full Core rerun is needed
 for this native routing batch. See [comparison launch parity](COMPARISON-LAUNCH-PARITY.md).
+
+The connected inline display/navigation receiver is part of
+`python3 scripts/test-native-merge-regex.py --options-batch`. The default batch
+runs seventeen Merge families in one owned process. `--inline-only` is an
+available focused repair check. The resume flags are for an observed failure
+with unchanged already-passing app objects; they do not prove a full single-run
+pass. The 14 October inline record identifies all four actual executions and
+which families passed in each. No app/Core rebuild or rerun was performed for
+fixture-only corrections. Diagnostic captures were rejected for incomplete
+chrome and were not copied to the website. See [inline parity](MERGE-INLINE-PARITY.md).

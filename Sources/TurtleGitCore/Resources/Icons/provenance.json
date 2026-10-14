@@ -1486,6 +1486,26 @@
       "asset": "hook.ico",
       "source": "src/Resources/hook.ico",
       "sha256": "90fd29efd9aa0f10c40169e413ce54c4801cc0c157b2656660055a752bc66305"
+    },
+    {
+      "asset": "InlineDiff.bmp",
+      "source": "src/Resources/ribbon/InlineDiff.bmp",
+      "sha256": "e4eacdfafe1104ceda0a1ca1296ceb17ed958442ce9abede501814c10895af3c"
+    },
+    {
+      "asset": "InlineDiffWord.bmp",
+      "source": "src/Resources/ribbon/InlineDiffWord.bmp",
+      "sha256": "1393698a06efcaf2d2042ced5469fe79edd545e3b5eca989c2ba0172ac210f12"
+    },
+    {
+      "asset": "OrangeDotLeft.bmp",
+      "source": "src/Resources/ribbon/OrangeDotLeft.bmp",
+      "sha256": "4e58ccc8b32364a24d376c65bc565a81c6f04acd7da75aadf22c37d388669d80"
+    },
+    {
+      "asset": "OrangeDotRight.bmp",
+      "source": "src/Resources/ribbon/OrangeDotRight.bmp",
+      "sha256": "6e9e2135c598365662925de1dedd0220439d26bddc430ef37c539d4d8cdfacae"
     }
   ]
 }

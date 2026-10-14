@@ -1,0 +1,128 @@
+{
+  "date": "2026-10-14",
+  "scope": "Connected inline comparison display, controls, current-line navigation, source-pane painting, ticks, per-pane limits and original artwork. Partial editor/app parity.",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implemented": [
+    "Three-pane paired source character/word inline palette and missing-character overlays without changing result content",
+    "Visibility default/source key and explicit native immediate persistence; word mode stays session-local",
+    "Current displayed-pane length cutoff in two/three-pane, combined and line-diff preview",
+    "Two-pane modified-chunk start/end navigation including zero-width chunks, strict direction/no wrap, current-pane execution gates and Control-Option arrows",
+    "Combined and result-visible layouts refuse inline navigation as source; three-pane source painting remains available",
+    "Shared TextKit glyph-origin missing ticks and four unchanged original ribbon bitmap icons with provenance"
+  ],
+  "build": {
+    "configuration": "Debug",
+    "architecture": "arm64",
+    "signed": false,
+    "exitCode": 0,
+    "runs": 1,
+    "log": "build/qa/merge-inline-build-2026-10-14.log"
+  },
+  "core": {
+    "exitCode": 0,
+    "tests": 6,
+    "suites": [
+      "MergeInlineComparisonTests",
+      "MergeEditorPreferencesTests"
+    ],
+    "runs": 1,
+    "log": "build/qa/merge-inline-core-2026-10-14.log"
+  },
+  "native": {
+    "familiesPassedCumulatively": 17,
+    "fullSingleRunPass": false,
+    "receivers": 4,
+    "allReceiversReaped": true,
+    "remainingOwnedReceivers": [],
+    "compilations": 4,
+    "appOrCoreRebuiltForFixtureRepairs": false,
+    "runs": [
+      {
+        "log": "build/qa/merge-inline-native-2026-10-14.log",
+        "exitCode": 1,
+        "passingFamilies": [
+          "three-pane engine",
+          "two-pane engine"
+        ],
+        "failure": "New inline fixture assumed changed row zero; actual engine has a preceding removed-base row."
+      },
+      {
+        "log": "build/qa/merge-inline-native-final-2026-10-14.log",
+        "exitCode": 1,
+        "passingFamilies": [],
+        "failure": "New standalone merge fixture assumed initial dirty false; generated unsaved merge result is already dirty."
+      },
+      {
+        "log": "build/qa/merge-inline-native-verified-2026-10-14.log",
+        "exitCode": 1,
+        "passingFamilies": [
+          "inline",
+          "locator",
+          "whitespace",
+          "General",
+          "About",
+          "Find",
+          "Open",
+          "Encoding/Go To"
+        ],
+        "failure": "Legacy line-bar fixture bypassed saved visibility by assigning the property directly, then reloaded preferences. Adapted it to the actual setInlineDiff command."
+      },
+      {
+        "log": "build/qa/merge-inline-native-remainder-2026-10-14.log",
+        "exitCode": 0,
+        "passingFamilies": [
+          "line diff bar",
+          "patch",
+          "colors",
+          "one-pane",
+          "one-pane context",
+          "default encoding",
+          "wrapping"
+        ],
+        "notes": "Resumed only the failed/unrun remainder. Generic receiver completion text is not evidence of a full single-process 17-family pass."
+      }
+    ],
+    "checks": [
+      "Real native chunk caret start/end and word endpoints",
+      "No inline wrap or combined-view navigation",
+      "Visibility persistence/disabled word gates",
+      "Actual attributed same-row three-pane source colors",
+      "Light/dark appearance and word/length/alignment cache invalidation",
+      "Unchanged source/result text, initial dirty state, selection, Undo and input files",
+      "Existing engine/Find/save/palette/wrapping/context regressions"
+    ],
+    "notes": "Unsigned fixtures emitted sandbox-extension-consume diagnostics; no signed grant acceptance is claimed."
+  },
+  "bundle": {
+    "exitCode": 0,
+    "originalIconResources": 300,
+    "log": "build/qa/merge-inline-bundle-2026-10-14.log"
+  },
+  "captures": {
+    "directory": "build/qa/merge-inline-captures-2026-10-14",
+    "count": 4,
+    "inspected": true,
+    "published": false,
+    "reason": "Missing/incorrect SwiftUI chrome in bitmap capture. Inline source color content visible, but full-window acceptance not established."
+  },
+  "remaining": [
+    "Full physical shortcut/menu/focus/VoiceOver acceptance",
+    "Complete current full-window light/dark captures",
+    "Exact libsvn repeated-token tie behavior and complete result-state projection",
+    "Signed/App Store/minimum-OS acceptance",
+    "Current-head hosted CI and complete application/Finder parity"
+  ],
+  "sha256": {
+    "Sources/TurtleGitCore/MenuIcons.swift": "c26196874ceb3cb378f22ff761721b38d022971dfae5d37e49e74b544842c137",
+    "Sources/TurtleGitCore/MergeInlineComparison.swift": "02047cb73f51c985f45bdce4ae8d10f33a05e8528467b158d5084fff7b988f16",
+    "Sources/TurtleGitCore/Resources/Icons/provenance.json": "eeb33605a24d43b31fc03b0a58173a7b7bb06e7f23283193af989b41ea41ae89",
+    "Sources/TurtleGitMac/FileComparisonWindow.swift": "d5ad6b5646bc99c8d3566e59e91ccba9f47fd7d04034488d0e8850761bdf6972",
+    "Sources/TurtleGitMac/MergeComparisonControls.swift": "ec59f4367072c81eb3259c37e2d46cad5a7e929ed11538a7c2d20e091bf2f361",
+    "Sources/TurtleGitMac/TextConflictWindow.swift": "3636dc12706c1aadaf0a380fd7a1006486b861ed56c2b1840a6019ba39cbe04c",
+    "Tests/TurtleGitCoreTests/MergeInlineComparisonTests.swift": "d638350241526fb6ea14f7b563544584c2fb021328d19339bc4d8e7798716cac",
+    "docs/qa/merge-inline-native-2026-10-14.swift": "a3156275f47dec88863e46d20fe60e81a3a1e3ff0f1209e6baa0262c883fba0d",
+    "docs/qa/merge-line-diff-native-2026-10-12.swift": "900edd2a2af0d5045c4365d11f5fdb76b2fdd94452d507c86ae3b6e4b1eb6aed",
+    "docs/qa/comparison-options-native-2026-10-12.swift": "2c54cbadd56867937737aef9f86eb354c5458247098ffc1d1b559d76103fe1a9",
+    "scripts/test-native-merge-regex.py": "52fc8f1cfd47c92acacd96c98c49c84a34390cce35c8578182a5cbf5ede13aeb"
+  }
+}

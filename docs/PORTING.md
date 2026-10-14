@@ -98,8 +98,8 @@ controls, full visual matching and signed acceptance are still pending. See
 [Synchronization parity](SYNCHRONIZATION-PARITY.md).
 Across the 130 inventoried dialogs:
 114 dialogs have recorded partial family audits and 16 await a family review.
-No dialog is certified complete. Of 1,659 static controls, 648 have recorded
-native mappings and 1,011 still await control review. These are audit-coverage
+No dialog is certified complete. Of 1,659 static controls, 764 have recorded
+native mappings and 895 still await control review. These are audit-coverage
 counts, not a feature-completion percentage. See [all dialog coverage](DIALOG-COVERAGE.md).
 See [the reference dialog audit](COMMIT-CONTAINING-REFS-PARITY.md).
 

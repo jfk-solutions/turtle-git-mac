@@ -4,6 +4,7 @@ import TurtleGitCore
 @main struct ComparisonOptionsVerification {
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
+        if CommandLine.arguments.contains("--inline-only") { try await MergeInlineNativeVerification.verify(); return }
         if CommandLine.arguments.contains("--wrapping-only") { try await MergeWrappingVerification.verify(); return }
         if CommandLine.arguments.contains("--default-encoding-only") { try await MergeDefaultEncodingVerification.verify(); return }
         if CommandLine.arguments.contains("--one-pane-context-only") { try await MergeOnePaneContextVerification.verify(); return }
@@ -16,15 +17,20 @@ import TurtleGitCore
         if CommandLine.arguments.contains("--about-only") { try await AboutNativeVerification.verify(); return }
         if CommandLine.arguments.contains("--general-only") { try await MergeGeneralVerification.verify(); return }
         if CommandLine.arguments.contains("--whitespace-only") { try await MergeWhitespaceDisplayVerification.verify(); return }
-        try await ThreePaneEngineVerification.verify(configuration: SubversionMergeConfiguration.bundled())
-        try await TwoPaneEngineVerification.verify()
-        try await MergeLocatorVerification.verify()
-        try await MergeWhitespaceDisplayVerification.verify()
-        try await MergeGeneralVerification.verify()
-        try await AboutNativeVerification.verify()
-        try await MergeFindNativeVerification.verify()
-        try await MergeOpenNativeVerification.verify()
-        try await MergeFormatNativeVerification.verify()
+        if !CommandLine.arguments.contains("--resume-from-line-diff") {
+            if !CommandLine.arguments.contains("--resume-after-engines") {
+                try await ThreePaneEngineVerification.verify(configuration: SubversionMergeConfiguration.bundled())
+                try await TwoPaneEngineVerification.verify()
+            }
+            try await MergeInlineNativeVerification.verify()
+            try await MergeLocatorVerification.verify()
+            try await MergeWhitespaceDisplayVerification.verify()
+            try await MergeGeneralVerification.verify()
+            try await AboutNativeVerification.verify()
+            try await MergeFindNativeVerification.verify()
+            try await MergeOpenNativeVerification.verify()
+            try await MergeFormatNativeVerification.verify()
+        }
         try await MergeLineDiffNativeVerification.verify()
         try await MergePatchNativeVerification.verify()
         try await MergeColorsNativeVerification.verify()

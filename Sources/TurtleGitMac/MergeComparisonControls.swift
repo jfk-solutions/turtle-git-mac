@@ -1,6 +1,41 @@
 import SwiftUI
 import TurtleGitCore
 
+struct MergeInlineControls: View {
+    let enabled: Bool
+    let word: Bool
+    let applyEnabled: (Bool) -> Void
+    let applyWord: (Bool) -> Void
+    var body: some View {
+        Menu("Inline diff") {
+            Toggle(isOn: Binding(get: { enabled }, set: applyEnabled)) { CommandLabel(title: "Inline diff", icon: .mergeInline) }
+            Toggle(isOn: Binding(get: { word }, set: applyWord)) { CommandLabel(title: "Inline diff word-wise", icon: .mergeInlineWord) }.disabled(!enabled)
+        }.fixedSize()
+    }
+}
+
+/// Missing-character ticks are an overlay, never inserted into source text.
+@MainActor enum MergeInlineTicks {
+    static func draw(in view: NSTextView, offsets: [Int], dirtyRect: NSRect) {
+        guard !offsets.isEmpty, let layout = view.layoutManager, let container = view.textContainer else { return }
+        let length = (view.string as NSString).length, origin = view.textContainerOrigin
+        MergePalette.inlineRemoved.setFill()
+        for offset in offsets where offset >= 0 && offset < length {
+            let glyphs = layout.glyphRange(forCharacterRange: NSRange(location: offset, length: 1), actualCharacterRange: nil)
+            guard glyphs.location < layout.numberOfGlyphs else { continue }
+            let line = layout.lineFragmentRect(forGlyphAt: glyphs.location, effectiveRange: nil)
+            let point = layout.location(forGlyphAt: glyphs.location)
+            let marker = NSRect(x: origin.x + line.minX + point.x, y: origin.y + line.minY, width: 2, height: line.height)
+            if marker.intersects(dirtyRect) { marker.fill() }
+        }
+    }
+}
+
+@MainActor protocol MergeInlineNavigationProviding: AnyObject {
+    func canNavigateInline(forward: Bool) -> Bool
+    func navigateInline(forward: Bool)
+}
+
 struct MergeComparisonControls: View {
     let options: MergeComparisonOptions
     let apply: (MergeComparisonOptions) -> Void

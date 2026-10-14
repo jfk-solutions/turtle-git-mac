@@ -316,3 +316,10 @@ as one selected-file action. The minimum threshold is three, matching TortoiseGi
 Closing the initiating window cancels pending confirmation and Git preparation.
 Aggregated unified patches remain a single viewer; Changed Files’ per-file
 unified command uses the many-viewer warning.
+
+The comparison and conflict editors offer **Inline diff** and **Inline diff
+word-wise**. Inline visibility is remembered; word mode applies to the current
+window. In two-pane view, **Next/Previous inline difference** move between change
+boundaries on the current line with Control-Option-Right/Left. They do not wrap.
+Three-pane merge sources show inline colors while their result pane remains
+editable; inline navigation is disabled in that layout, matching TortoiseGit.

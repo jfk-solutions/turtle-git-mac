@@ -69,6 +69,8 @@ public enum MenuIcon: String, CaseIterable {
     case mergePaste = "Paste"
     case mergeUndo = "Undo", mergeRedo = "Redo", mergeFind = "Search"
     case mergePreviousConflict = "UpRed", mergeNextConflict = "DownRed"
+    case mergeInline = "InlineDiff", mergeInlineWord = "InlineDiffWord"
+    case mergePreviousInline = "OrangeDotLeft", mergeNextInline = "OrangeDotRight"
     case mergeUseMine = "UseMine", mergeUseTheirs = "UseTheirs"
     case mergeMineThenTheirs = "UseMineTheirs", mergeTheirsThenMine = "UseTheirsMine"
     case jumpUp = "jumpup", jumpDown = "jumpdown"
@@ -82,7 +84,7 @@ public enum MenuIcon: String, CaseIterable {
         #else
         let bundle = Bundle(for: IconResourceBundle.self)
         #endif
-        let ribbon: Set<MenuIcon> = [.mergePaste,.mergeReload, .mergeSave, .mergeSaveAs, .mergeResolved, .mergeUndo, .mergeRedo, .mergeFind, .mergePreviousConflict, .mergeNextConflict, .mergeUseMine, .mergeUseTheirs, .mergeMineThenTheirs, .mergeTheirsThenMine]
+        let ribbon: Set<MenuIcon> = [.mergeInline, .mergeInlineWord, .mergePreviousInline, .mergeNextInline, .mergePaste,.mergeReload, .mergeSave, .mergeSaveAs, .mergeResolved, .mergeUndo, .mergeRedo, .mergeFind, .mergePreviousConflict, .mergeNextConflict, .mergeUseMine, .mergeUseTheirs, .mergeMineThenTheirs, .mergeTheirsThenMine]
         let isRibbon = ribbon.contains(self)
         guard let url = bundle.url(forResource: rawValue, withExtension: isRibbon ? "bmp" : "ico", subdirectory: "Icons"),
               let image = isRibbon ? Self.ribbonImage(at: url) : NSImage(contentsOf: url) else { return nil }

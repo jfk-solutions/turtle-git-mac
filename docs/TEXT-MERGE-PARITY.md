@@ -610,3 +610,10 @@ Both viewers now display source whitespace/EOL symbols and the original CR/LF/CR
 Source/block clipboard payloads, private context-menu boards and grouped cached
 receivers now extend both viewers. See [clipboard workflows](MERGE-CLIPBOARD-PARITY.md)
 for source Cut semantics, covered mutation/Undo checks and remaining gestures.
+
+Three-pane source rows now include character/word inline painting and missing-
+character ticks with saved visibility and the per-pane source cutoff. Inline
+navigation remains disabled while the merge result is visible, as upstream.
+See [inline parity](MERGE-INLINE-PARITY.md) for the current source rules and exact
+remaining scope; earlier text describing all character differences as absent is
+superseded for source panes.

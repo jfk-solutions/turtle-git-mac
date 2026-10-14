@@ -60,3 +60,10 @@ Remaining: physical Settings font preview/input/Apply/Cancel, full General page
 layout comparison, large-font/large-file rulers and locator resize acceptance,
 all gap/adjacent-difference initial navigation boundaries, complete three-pane
 inline behavior, signed/minimum-OS and complete application acceptance.
+
+The inline workflow now applies the source length cutoff per displayed pane,
+including the line-diff preview. Three-pane source inline painting, word mode,
+cache invalidation and two-pane chunk navigation are implemented in the connected
+[inline batch](MERGE-INLINE-PARITY.md). Complete result-state and physical/signed
+acceptance remain open; this supersedes the earlier absence of three-pane source
+inline behavior.

@@ -261,6 +261,21 @@ import TurtleGitCore
     }
     @Published var showInlineDiff = true
     @Published var inlineWordDiff = false
+    func setInlineDiff(_ value: Bool) {
+        guard !retired, !busy, !filtering, !confirmingQuit, !singleFileMode else { return }
+        showInlineDiff = value; MergeInlinePresentation.saveEnabled(value, to: comparisonDefaults)
+    }
+    func setInlineWordDiff(_ value: Bool) {
+        guard !retired, !busy, !filtering, !confirmingQuit, showInlineDiff, !singleFileMode else { return }
+        inlineWordDiff = value
+    }
+    func canNavigateInline(forward: Bool) -> Bool {
+        (scrolls[activeBase]?.documentView as? MergeInlineNavigationProviding)?.canNavigateInline(forward: forward) == true
+    }
+    func navigateInline(forward: Bool) {
+        (scrolls[activeBase]?.documentView as? MergeInlineNavigationProviding)?.navigateInline(forward: forward)
+    }
+
     @Published var editorPreferences = MergeEditorPreferences.load()
     @Published var tabWidths: [Bool: Int] = [:]
     @Published var spacePanes: [Bool: Bool] = [:]
@@ -320,6 +335,7 @@ import TurtleGitCore
     func refreshPreferences() {
         let general = MergeGeneralPreferences.load(from: comparisonDefaults)
         if general != generalPreferences { generalPreferences = general; inlineCache = [:] }
+        if !singleFileMode { showInlineDiff = MergeInlinePresentation.defaultEnabled(from: comparisonDefaults) }
         showLineDiffBar = comparisonDefaults.object(forKey: "TurtleGitMerge.LineDiff") == nil || comparisonDefaults.bool(forKey: "TurtleGitMerge.LineDiff")
         wrapLines = comparisonDefaults.bool(forKey: "TurtleGitMerge.WrapLines")
         locatorPreferences = .load(from: comparisonDefaults)
@@ -352,18 +368,34 @@ import TurtleGitCore
     private(set) var alignmentGeneration = 0
     private struct InlineResult { let value: MergeInlineComparison? }
     private var inlineCache: [Int: InlineResult] = [:]
+    private var inlineNavigationCache: [Int: InlineResult] = [:]
     private var inlineGeneration = -1
     private var cachedWordMode = false
     func inlineDifference(_ index: Int, force: Bool = false) -> MergeInlineComparison? {
         guard !filtering, (showInlineDiff || force), let alignment, alignment.rows.indices.contains(index), alignment.rows[index].changed else { return nil }
         if inlineGeneration != alignmentGeneration || cachedWordMode != inlineWordDiff {
-            inlineCache = [:]; inlineGeneration = alignmentGeneration; cachedWordMode = inlineWordDiff
+            inlineCache = [:]; inlineNavigationCache = [:]; inlineGeneration = alignmentGeneration; cachedWordMode = inlineWordDiff
         }
         if let cached = inlineCache[index] { return cached.value }
         let row = alignment.rows[index]
-        guard generalPreferences.inlineAllowed(baseLength: row.base.displayText.utf16.count, mineLength: row.destination.displayText.utf16.count) else { return nil }
-        let value = row.base.lineNumber != nil && row.destination.lineNumber != nil ? MergeInlineComparison(base: row.base.displayText, destination: row.destination.displayText, word: inlineWordDiff) : nil
+        guard min(row.base.displayText.utf16.count, row.destination.displayText.utf16.count) <= generalPreferences.maximumInlineLength else { return nil }
+        let value = row.base.lineNumber != nil && row.destination.lineNumber != nil ? MergeInlineComparison(base: row.base.displayText, destination: row.destination.displayText, word: inlineWordDiff, maximumLength: generalPreferences.maximumInlineLength) : nil
         inlineCache[index] = InlineResult(value: value); return value
+    }
+    func inlineNavigationDifference(_ row: Int) -> MergeInlineComparison? {
+        guard !retired, !busy, !filtering, !confirmingQuit, showInlineDiff, !onePaneActive,
+              let alignment, alignment.rows.indices.contains(row) else { return nil }
+        if inlineGeneration != alignmentGeneration || cachedWordMode != inlineWordDiff {
+            inlineCache = [:]; inlineNavigationCache = [:]; inlineGeneration = alignmentGeneration; cachedWordMode = inlineWordDiff
+        }
+        if let cached = inlineNavigationCache[row] { return cached.value }
+        let pair = alignment.rows[row]
+        // Source navigation does not use the painting cutoff. Retain the native
+        // upper input bound while permitting navigation beyond a smaller saved
+        // painting limit. The current-line similarity gate still applies.
+        let value = MergeInlineComparison(base: pair.base.displayText, destination: pair.destination.displayText,
+                                          word: inlineWordDiff, maximumLength: 100_000)
+        inlineNavigationCache[row] = InlineResult(value: value); return value
     }
     weak var window: NSWindow?
     var undo: () -> Void = {}
@@ -651,6 +683,7 @@ import TurtleGitCore
     func load() {
         guard !retired, !busy, !confirmingQuit else { return }
         wrapLines = comparisonDefaults.bool(forKey: "TurtleGitMerge.WrapLines")
+        if !singleFileMode { showInlineDiff = MergeInlinePresentation.defaultEnabled(from: comparisonDefaults) }
         if !loadedPaneMode { onePaneMode = OnePaneFileComparison.defaultEnabled(from: comparisonDefaults); loadedPaneMode = true }
         if dirty {
             let alert = NSAlert(); alert.messageText = "Save changes to “\(unsavedFilesDescription)” before reloading?"
@@ -977,8 +1010,11 @@ private struct FileComparisonDialog: View {
             HStack {
                 Toggle("Enable editing", isOn: $model.editingEnabled).disabled(model.editableBase == nil || model.busy || model.confirmingQuit)
                 Spacer()
-                Toggle("Inline diff", isOn: $model.showInlineDiff).disabled(model.alignment == nil)
-                Toggle("Word diff", isOn: $model.inlineWordDiff).disabled(!model.showInlineDiff || model.alignment == nil)
+                MergeInlineControls(enabled: model.showInlineDiff, word: model.inlineWordDiff, applyEnabled: model.setInlineDiff, applyWord: model.setInlineWordDiff).disabled(model.singleFileMode || model.filtering || model.alignment == nil)
+                Menu("Inline navigation") {
+                    Button { model.navigateInline(forward: true) } label: { CommandLabel(title: "Next inline difference", icon: .mergeNextInline) }.disabled(!model.canNavigateInline(forward: true))
+                    Button { model.navigateInline(forward: false) } label: { CommandLabel(title: "Previous inline difference", icon: .mergePreviousInline) }.disabled(!model.canNavigateInline(forward: false))
+                }.fixedSize().disabled(model.onePaneActive || model.filtering || model.alignment == nil)
                 Toggle("Two-pane view", isOn: Binding(get: { !model.onePaneMode }, set: { model.switchPaneMode(!$0) })).disabled(model.singleFileMode || model.filtering || model.alignment == nil)
                 Toggle("Line diff bar", isOn: $model.showLineDiffBar).disabled(model.singleFileMode || model.onePaneActive)
                 Toggle("Line numbers", isOn: $model.showLineNumbers)
@@ -1134,15 +1170,15 @@ struct FileComparisonEditor: NSViewRepresentable {
     static func inline(_ row: Int, model: FileComparisonWindowModel, base: Bool) -> MergeInlineComparison? {
         if model.onePaneActive, !base, model.showInlineDiff, let combined = model.combined, combined.rows.indices.contains(row) {
             let current = combined.rows[row], neighbor = current.base ? row + 1 : row - 1
-            guard combined.rows.indices.contains(neighbor), combined.rows[neighbor].base != current.base,
+            guard current.cell.displayText.utf16.count <= model.generalPreferences.maximumInlineLength, combined.rows.indices.contains(neighbor), combined.rows[neighbor].base != current.base,
                   current.cell.state == (current.base ? .removed : .added),
                   combined.rows[neighbor].cell.state == (current.base ? .added : .removed) else { return nil }
             let old = current.base ? current.cell.displayText : combined.rows[neighbor].cell.displayText
             let new = current.base ? combined.rows[neighbor].cell.displayText : current.cell.displayText
-            guard model.generalPreferences.inlineAllowed(baseLength: old.utf16.count, mineLength: new.utf16.count) else { return nil }
             return MergeInlineComparison(base: old, destination: new, word: model.inlineWordDiff, maximumLength: model.generalPreferences.maximumInlineLength)
         }
-        guard let alignment = model.alignment, alignment.rows.indices.contains(row) else { return nil }
+        guard let alignment = model.alignment, alignment.rows.indices.contains(row),
+              (base ? alignment.rows[row].base : alignment.rows[row].destination).displayText.utf16.count <= model.generalPreferences.maximumInlineLength else { return nil }
         return model.inlineDifference(row)
     }
     static func missingOffsets(_ cells: [MergeSourceCell], model: FileComparisonWindowModel, base: Bool) -> [Int] {
@@ -1239,16 +1275,42 @@ struct FileComparisonEditor: NSViewRepresentable {
 @MainActor protocol ComparisonContextMenuProviding {
     func comparisonContextMenu(defaults: UserDefaults, pasteboard: NSPasteboard) -> NSMenu
 }
-private final class FileComparisonTextView: NSTextView, NSMenuDelegate, ComparisonContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying, MergeFindProviding, MergeLineDiffHoverProviding {
+private final class FileComparisonTextView: NSTextView, NSMenuDelegate, ComparisonContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying, MergeFindProviding, MergeLineDiffHoverProviding, MergeInlineNavigationProviding {
     var chooseNavigationLine: (NSWindow, Int) async -> Int? = MergeLineNumberPrompt.choose
     var navigationPending = false
     var navigationCells: [MergeSourceCell]? { sourceCells }
     var navigationAllowed: Bool { model?.busy == false && model?.confirmingQuit == false }
     @objc func goToSourceLine(_ sender: Any?) { navigateToSourceLine() }
+    private func inlineTarget(forward: Bool) -> Int? {
+        guard let model, window != nil, window?.attachedSheet == nil, model.contextCommandsAllowed,
+              !model.onePaneActive, !model.filtering, model.showInlineDiff else { return nil }
+        let caret = selectedRange().location
+        var start = 0
+        for (row, cell) in sourceCells.enumerated() {
+            let length = cell.displayText.utf16.count
+            if caret <= start + length {
+                return model.inlineNavigationDifference(row)?.navigationOffset(from: caret - start, base: baseSide, forward: forward).map { start + $0 }
+            }
+            start += length + 1
+        }
+        return nil
+    }
+    func canNavigateInline(forward: Bool) -> Bool { inlineTarget(forward: forward) != nil }
+    func navigateInline(forward: Bool) {
+        guard let target = inlineTarget(forward: forward) else { return }
+        model?.selectionRequest = nil
+        setSelectedRange(NSRange(location: target, length: 0)); scrollRangeToVisible(selectedRange())
+    }
+    @objc private func nextInlineDifference(_ sender: Any?) { navigateInline(forward: true) }
+    @objc private func previousInlineDifference(_ sender: Any?) { navigateInline(forward: false) }
+
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         let modifiers = event.modifierFlags.intersection([.command, .shift, .option, .control])
         if modifiers == .control, event.charactersIgnoringModifiers?.lowercased() == "g" {
             goToSourceLine(nil); return true
+        }
+        if modifiers == [.control, .option], event.keyCode == 123 || event.keyCode == 124 {
+            navigateInline(forward: event.keyCode == 124); return true
         }
         return super.performKeyEquivalent(with: event)
     }
@@ -1323,15 +1385,9 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
         whitespaceRenderer.draw(in: self, dirtyRect: dirtyRect)
-        guard let layoutManager, let textContainer else { return }
-        MergePalette.inlineRemoved.setFill()
-        for offset in missingOffsets where offset < (string as NSString).length {
-            let glyphs = layoutManager.glyphRange(forCharacterRange: NSRange(location: offset, length: 1), actualCharacterRange: nil)
-            let frame = layoutManager.boundingRect(forGlyphRange: glyphs, in: textContainer).offsetBy(dx: textContainerInset.width, dy: textContainerInset.height)
-            let marker = NSRect(x: frame.minX, y: frame.minY, width: 2, height: frame.height)
-            if marker.intersects(dirtyRect) { marker.fill() }
-        }
+        MergeInlineTicks.draw(in: self, offsets: missingOffsets, dirtyRect: dirtyRect)
     }
+
     override var undoManager: UndoManager? { history ?? super.undoManager }
     override func insertTab(_ sender: Any?) { indent(remove: false) }
     override func insertBacktab(_ sender: Any?) { indent(remove: true) }
@@ -1440,6 +1496,8 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
 
         }
         menu.addItem(.separator())
+        add("Next inline difference", #selector(nextInlineDifference(_:)), MenuIcon.mergeNextInline.image(), canNavigateInline(forward: true))
+        add("Previous inline difference", #selector(previousInlineDifference(_:)), MenuIcon.mergePreviousInline.image(), canNavigateInline(forward: false))
         add("Go to Line…", #selector(goToSourceLine(_:)), NSImage(systemSymbolName: "number", accessibilityDescription: "Go to Line"), canNavigateToSourceLine)
         menu.items.last?.keyEquivalent = "g"; menu.items.last?.keyEquivalentModifierMask = .control
         add("Save As…", #selector(exportPane), MenuIcon.mergeSaveAs.image(), !model.busy && !model.confirmingQuit)
@@ -1631,10 +1689,11 @@ private struct MergeLineDiffBar: NSViewRepresentable {
         guard let row = model.lineDiffRow, let index = model.previewRow else {
             setAccessibilityValue("No line under pointer"); needsDisplay = true; return
         }
-        let diff = model.inlineDifference(index, force: true)
+        let pairedDiff = model.inlineDifference(index, force: true)
         let font = model.generalPreferences.nativeFont
         for base in [true, false] {
             let cell = base ? row.base : row.destination, other = base ? row.destination : row.base
+            let diff = cell.displayText.utf16.count <= model.generalPreferences.maximumInlineLength ? pairedDiff : nil
             let paragraph = NSMutableParagraphStyle(); paragraph.tabStops = []
             paragraph.defaultTabInterval = CGFloat(model.tabWidth(base: base)) * (" " as NSString).size(withAttributes: [.font: font]).width
             let background = diff == nil ? MergePalette.color(cell.state) : MergePalette.inlineCommon
