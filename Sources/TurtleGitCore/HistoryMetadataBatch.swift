@@ -118,12 +118,13 @@ final class HistoryRecordStream: @unchecked Sendable {
     private let lock = NSLock()
     private var field = Data(), fields: [String] = [], records: [LogEntry] = []
     private var failed = false
+    private var completedCount = 0
     private var recordBytes = 0
     private(set) var maximumBufferedBytes = 0
     @discardableResult func ingest(_ bytes: Data) -> Int? {
         lock.lock(); defer { lock.unlock() }
         guard !failed else { return nil }
-        let before = records.count
+        let before = completedCount
         var cursor = bytes.startIndex
         while cursor < bytes.endIndex, let end = bytes[cursor...].firstIndex(of: 0) {
             field.append(bytes[cursor..<end]); recordBytes += end - cursor
@@ -136,11 +137,19 @@ final class HistoryRecordStream: @unchecked Sendable {
                 let parents = fields[1].split(separator: " ").map(String.init)
                 var entry = LogEntry(hash: hash, author: fields[2], date: fields[4], subject: fields[5], parents: parents, email: fields[3], message: fields[6], committer: fields[7], committerEmail: fields[8], committerDate: fields[9])
                 entry.isBoundary = fields[10] == "-"
-                records.append(entry); fields.removeAll(keepingCapacity: true); recordBytes = 0
+                records.append(entry); completedCount += 1; fields.removeAll(keepingCapacity: true); recordBytes = 0
             }
         }
         if cursor < bytes.endIndex { field.append(bytes[cursor...]); recordBytes += bytes.endIndex - cursor; maximumBufferedBytes = max(maximumBufferedBytes, recordBytes) }
-        return records.count > before ? records.count : nil
+        return completedCount > before ? completedCount : nil
+    }
+    /// Draining drops completed raw records while preserving split-field framing.
+    func drain(maximum:Int = 128,minimum:Int = 1) throws -> [LogEntry] {
+        lock.lock();defer { lock.unlock() }
+        guard !failed else { throw HistoryMetadataFailure.input }
+        guard records.count>=minimum else { return [] }
+        let count=min(maximum,records.count),result=Array(records.prefix(count))
+        records.removeFirst(count);return result
     }
     func finish() throws -> [LogEntry] {
         lock.lock(); defer { lock.unlock() }

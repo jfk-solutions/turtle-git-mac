@@ -2357,3 +2357,50 @@ light/dark heading geometry, late Reset and closed-window overlay cleanup, with
 HEAD/index bytes preserved. Core was unchanged and not rerun. See
 [batch evidence](qa/log-changed-files-2026-10-14.json). This is not all-dialog
 visual/physical/signed certification.
+
+## Live walk to displayed rows — October 15, 2026
+
+History previously framed output while Git ran, but retained every raw record and
+waited for Git exit before preparing any rows. The walk now drains completed raw
+records into batches of at most 128 while its child process is still live. Each
+batch reads actual parents, notes, tag objects, issue IDs and search metadata,
+applies the existing literal/regex/limit rules, then emits complete typed rows.
+Raw parent/metadata arrays and note/tag/path caches are scoped to that batch.
+The eleven-field parser retains split fields and cumulative progress across drains.
+
+Full batches amortize metadata subprocesses. When stdout has been idle for 100 ms,
+the producer's short prefix can be flushed without waiting for process exit. This
+supports small histories and slow walks without spawning metadata reads for each
+record of a normally flowing log. Idle polls are an internal loading mechanism,
+not a scheduled test or background automation.
+
+The synchronous output consumer runs inside the repository's serialized operation.
+A consumer error terminates/reaps the live producer through a private cancellation
+token, preserving the original parsing/metadata error rather than cancelling the
+caller's token and hiding it as user cancellation. Caller cancellation reaches the
+producer and nested metadata processes. Setup and working-tree completion reads
+also receive the load token. Ordinary streaming callbacks keep their existing
+nonempty-chunk behavior; idle notifications are private to synchronous consumers.
+
+The native Log publishes its first nonempty prefix immediately, including histories
+shorter than 128 rows. Later graph projections retain the existing doubling rule.
+Batch deliveries use ordered main-queue submissions; owner/generation/token checks
+reject cancelled or superseded callbacks. Failed/cancelled loads restore the stable
+pre-load entries, graph, rollups and highlights. A successful load installs final
+filter highlights, selection and working-tree state as before.
+
+This closes the earlier Git-walk-to-first-row limitation. It does not bound the
+returned typed history array, native retained rows or disk-backed subprocess output;
+very large unlimited histories still need retention/performance work. Source
+comparison remains the pinned GitLogListBase loading, shown-list and lane/projection
+behavior; this is not a claim of complete Log or application parity.
+
+Validation: the Debug build passed. The initial 77-check Core group found one
+new live-prefix failure: Foundation returns nil at EOF, bypassing idle delivery.
+After that correction, all 10 affected metadata checks passed; the other 67 initial
+checks had passed and were not repeated. The live-prefix/cancellation case now
+completes in 0.936 seconds rather than waiting for the producer's 30-second sleep.
+Both grouped native streaming/progressive-row cases passed on system and bundled
+Git. All four final receivers were reaped. Failure cleanup now waits for active
+load cancellation before exiting the fixture. See qa/log-live-walk-2026-10-15.json
+for original failures, repairs, verification scope and remaining limits.

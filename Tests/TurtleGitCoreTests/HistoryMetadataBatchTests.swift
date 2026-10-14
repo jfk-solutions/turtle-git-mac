@@ -34,6 +34,41 @@ final class HistoryMetadataBatchTests:XCTestCase {
         XCTAssertEqual(retained.values.flatMap { $0 }.map(\.matchesHistoryFilter), filtered.map(\.matchesHistoryFilter))
     }
 
+    func testCompleteRowsArriveWhileWalkIsLiveAndCancellationSettles() async throws {
+        let (root,repo)=try await fixture();defer { try? FileManager.default.removeItem(at:root) }
+        _ = try await repo.run(["commit","--allow-empty","-m","live prefix 雪"])
+        _ = try await repo.run(["notes","add","-m","live note"])
+        let wrapper=root.appendingPathComponent("live-git"),marker=root.appendingPathComponent("walk-pids")
+        let script="""
+        #!/bin/sh
+        if [ "$4" = log ]; then
+          /usr/bin/git "$@"
+          /bin/sleep 30 &
+          task_child=$!
+          printf '%s %s\n' "$$" "$task_child" > '\(marker.path)'
+          wait "$task_child"
+          exit 0
+        fi
+        exec /usr/bin/git "$@"
+        """
+        try script.write(to:wrapper,atomically:true,encoding:.utf8);try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:wrapper.path)
+        let token=OperationCancellation(),capture=BatchCapture(),slow=GitRepository(root:root,executable:wrapper),start=Date()
+        do { _ = try await slow.history(cancellation:token,onBatch:{ rows in capture.append(rows);token.cancel() });XCTFail("Cancelled live walk succeeded") } catch is GitCommandCancellationFailure {} catch is OperationCancellationFailure {}
+        XCTAssertLessThan(Date().timeIntervalSince(start),10)
+        let rows=capture.values.flatMap { $0 };XCTAssertEqual(rows.count,1);XCTAssertEqual(rows.first?.notes,"live note");XCTAssertEqual(rows.first?.subject,"live prefix 雪");XCTAssertTrue(rows.first?.isHead==true)
+        let pids=try String(contentsOf:marker).split(whereSeparator: \.isWhitespace).compactMap { Int32($0) }
+        XCTAssertEqual(pids.count,2)
+        for _ in 0..<500 { if pids.allSatisfy({ kill($0,0) != 0 }) { break };try await Task.sleep(nanoseconds:10_000_000) }
+        XCTAssertTrue(pids.allSatisfy { kill($0,0) != 0 })
+    }
+    func testDrainingRawRecordsKeepsCumulativeProgressAndSplitFraming() throws {
+        let fields=[String(repeating:"d",count:40),"","雪","","","subject","subject\n","","","",""]
+        let record=Data((fields.joined(separator:"\0")+"\0\n").utf8),parser=HistoryRecordStream()
+        XCTAssertEqual(parser.ingest(record),1);XCTAssertEqual(try parser.drain().count,1)
+        XCTAssertEqual(parser.ingest(record),2);XCTAssertEqual(try parser.drain(minimum:128).count,0)
+        XCTAssertEqual(try parser.finish().count,1)
+        XCTAssertEqual(try parser.drain().count,1);XCTAssertTrue(try parser.finish().isEmpty)
+    }
     func testStreamingLogRecordsPreserveEveryUTF8SplitAndEmptyField() throws {
         let hash = String(repeating: "a", count: 40), other = String(repeating: "b", count: 64)
         let fields = [hash, "", "Author 雪", "", "2026-10-14T12:00:00Z", "Subject 🦎", "Subject 🦎\n\nBody é\n", "Committer", "mail@example.invalid", "2026-10-14T13:00:00Z", "-"]

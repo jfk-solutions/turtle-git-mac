@@ -1049,34 +1049,6 @@ extension GitRepository {
             }
             return pathCache[hash] ?? []
         }
-        let stream = HistoryRecordStream()
-        _ = try run(args, cancellation: cancellation, retainStandardOutput: false, onOutput: { chunk in
-            guard case .stdout = chunk.stream else { return }
-            if let count = stream.ingest(chunk.data) { onProgress?(count) }
-        })
-        let rawEntries = try stream.finish()
-        var actualParents: [String: [String]] = [:]
-        if rewritesParents {
-            let hashes = rawEntries.map(\.hash)
-            guard hashes.allSatisfy({ ($0.count == 40 || $0.count == 64) && $0.allSatisfy { $0.isASCII && $0.isHexDigit } }) else { throw RevisionComparisonFailure.range }
-            // Bound argv size even when in-memory searching scans a large history.
-            for start in stride(from: 0, to: hashes.count, by: 128) {
-                let batch = Array(hashes[start..<min(start + 128, hashes.count)])
-                let fields = String(decoding: try historyRun(["show", "--no-patch", "--no-notes", "--format=%H%x00%P%x00"] + batch + ["--"]).stdout, as: UTF8.self).components(separatedBy: "\0")
-                var index = 0
-                while index + 1 < fields.count {
-                    let hash = fields[index].trimmingCharacters(in: .whitespacesAndNewlines)
-                    actualParents[hash] = fields[index + 1].split(whereSeparator: \.isWhitespace).map(String.init)
-                    index += 2
-                }
-                guard batch.allSatisfy({ actualParents[$0] != nil }) else { throw RevisionComparisonFailure.range }
-            }
-        }
-        for raw in rawEntries {
-            try cancellation?.check()
-            metadataPositions[raw.hash] = metadataEntries.count
-            metadataEntries.append(LogEntry(hash: raw.hash, author: "", date: "", subject: "", parents: actualParents[raw.hash] ?? raw.parents))
-        }
         let hasBisectRefs = references.values.contains { $0.contains { $0.name.hasPrefix("refs/bisect/") } }
         let bisectTerms = hasBisectRefs ? try historyBisectTerms(cancellation: cancellation) : HistoryBisectTerms()
         let head = try? historyRun(["rev-parse", "--verify", "HEAD"]).text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1109,39 +1081,87 @@ extension GitRepository {
             entries += ready; onBatch?(ready)
             pending.removeAll(keepingCapacity: true); regexTexts.removeAll(keepingCapacity: true)
         }
-        for raw in rawEntries {
-            try cancellation?.check()
-            let hash = raw.hash, walkedParents = raw.parents
-            let parents = actualParents[hash] ?? walkedParents
-            var matchesFilter = true
-            if filterInMemory {
-                var searchable: [String] = []
-                let messageParts = LogEntry.splitHistoryMessage(raw.message)
-                if !options.searchFields.intersection([.subject, .messages]).isEmpty { searchable.append(messageParts.subject) }
-                if options.searchFields.contains(.messages) { searchable.append(messageParts.body) }
-                if options.searchFields.contains(.bugIDs) { searchable.append(try issueIDs(hash, message: raw.message)) }
-                if options.searchFields.contains(.authors) { searchable += [raw.author, raw.committer] }
-                if options.searchFields.contains(.emails) { searchable += [raw.email, raw.committerEmail] }
-                if options.searchFields.contains(.revisions) { searchable.append(hash) }
-                if options.searchFields.contains(.notes) { searchable.append(try notes(hash)) }
-                if options.searchFields.contains(.referenceNames) {
-                    searchable += (references[hash] ?? []).map(\.name) + (peeledReferenceNames[hash] ?? [])
+        func consumeRecords(_ records:[LogEntry]) throws {
+            for start in stride(from:0,to:records.count,by:128) {
+                try cancellation?.check()
+                let rawEntries=Array(records[start..<min(start+128,records.count)])
+                if filtering && !options.retainFilteredRows && options.limit>0 && entries.count>=options.limit { continue }
+                metadataEntries=[];metadataPositions=[:];notesCache=[:];tagCache=[:];pathCache=[:]
+                var actualParents: [String: [String]] = [:]
+                if rewritesParents {
+                    let hashes = rawEntries.map(\.hash)
+                    guard hashes.allSatisfy({ ($0.count == 40 || $0.count == 64) && $0.allSatisfy { $0.isASCII && $0.isHexDigit } }) else { throw RevisionComparisonFailure.range }
+                    // Bound argv size even when in-memory searching scans a large history.
+                    for start in stride(from: 0, to: hashes.count, by: 128) {
+                        let batch = Array(hashes[start..<min(start + 128, hashes.count)])
+                        let fields = String(decoding: try historyRun(["show", "--no-patch", "--no-notes", "--format=%H%x00%P%x00"] + batch + ["--"]).stdout, as: UTF8.self).components(separatedBy: "\0")
+                        var index = 0
+                        while index + 1 < fields.count {
+                            let hash = fields[index].trimmingCharacters(in: .whitespacesAndNewlines)
+                            actualParents[hash] = fields[index + 1].split(whereSeparator: \.isWhitespace).map(String.init)
+                            index += 2
+                        }
+                        guard batch.allSatisfy({ actualParents[$0] != nil }) else { throw RevisionComparisonFailure.range }
+                    }
                 }
-                if options.searchFields.contains(.tagInfo) { searchable.append(dateSettings.tagInfo(try tagInfo(hash))) }
-                if options.searchFields.contains(.paths) { searchable += try changedPaths(hash) }
-                let text = searchable.isEmpty ? "" : searchable.joined(separator: "\n") + "\n"
-                if options.searchRegex { regexTexts.append(text) }
-                else { matchesFilter = query.matches(text); if !matchesFilter && !options.retainFilteredRows { continue } }
+                for raw in rawEntries {
+                    try cancellation?.check()
+                    metadataPositions[raw.hash] = metadataEntries.count
+                    metadataEntries.append(LogEntry(hash: raw.hash, author: "", date: "", subject: "", parents: actualParents[raw.hash] ?? raw.parents))
+                }
+                for raw in rawEntries {
+                    try cancellation?.check()
+                    let hash = raw.hash, walkedParents = raw.parents
+                    let parents = actualParents[hash] ?? walkedParents
+                    var matchesFilter = true
+                    if filterInMemory {
+                        var searchable: [String] = []
+                        let messageParts = LogEntry.splitHistoryMessage(raw.message)
+                        if !options.searchFields.intersection([.subject, .messages]).isEmpty { searchable.append(messageParts.subject) }
+                        if options.searchFields.contains(.messages) { searchable.append(messageParts.body) }
+                        if options.searchFields.contains(.bugIDs) { searchable.append(try issueIDs(hash, message: raw.message)) }
+                        if options.searchFields.contains(.authors) { searchable += [raw.author, raw.committer] }
+                        if options.searchFields.contains(.emails) { searchable += [raw.email, raw.committerEmail] }
+                        if options.searchFields.contains(.revisions) { searchable.append(hash) }
+                        if options.searchFields.contains(.notes) { searchable.append(try notes(hash)) }
+                        if options.searchFields.contains(.referenceNames) {
+                            searchable += (references[hash] ?? []).map(\.name) + (peeledReferenceNames[hash] ?? [])
+                        }
+                        if options.searchFields.contains(.tagInfo) { searchable.append(dateSettings.tagInfo(try tagInfo(hash))) }
+                        if options.searchFields.contains(.paths) { searchable += try changedPaths(hash) }
+                        let text = searchable.isEmpty ? "" : searchable.joined(separator: "\n") + "\n"
+                        if options.searchRegex { regexTexts.append(text) }
+                        else { matchesFilter = query.matches(text); if !matchesFilter && !options.retainFilteredRows { continue } }
+                    }
+                    var entry = raw; entry.parents = parents
+                    entry.matchesHistoryFilter = matchesFilter
+                    entry.isBoundary = options.includeBoundaryCommits && raw.isBoundary
+                    if rewritesParents { entry.graphParents = walkedParents }
+                    entry.issueIDs = try issueIDs(hash, message: raw.message)
+                    entry.notes = try notes(hash); entry.tagInfo = try tagInfo(hash); pending.append(label(entry))
+                    if pending.count == 128 { try flush() }
+                    if filtering && !options.retainFilteredRows && options.limit > 0 && entries.count + (options.searchRegex ? 0 : pending.count) >= options.limit { break }
+                }
+                try flush()
             }
-            var entry = raw; entry.parents = parents
-            entry.matchesHistoryFilter = matchesFilter
-            entry.isBoundary = options.includeBoundaryCommits && raw.isBoundary
-            if rewritesParents { entry.graphParents = walkedParents }
-            entry.issueIDs = try issueIDs(hash, message: raw.message)
-            entry.notes = try notes(hash); entry.tagInfo = try tagInfo(hash); pending.append(label(entry))
-            if pending.count == 128 { try flush() }
-            if filtering && !options.retainFilteredRows && options.limit > 0 && entries.count + (options.searchRegex ? 0 : pending.count) >= options.limit { break }
         }
+        let stream=HistoryRecordStream()
+        var lastWalkBytes=Date()
+        _ = try run(args,cancellation:cancellation,retainStandardOutput:false,consumeOutput:{ chunk in
+            guard case .stdout=chunk.stream else { return }
+            if !chunk.data.isEmpty {
+                lastWalkBytes=Date()
+                if let count=stream.ingest(chunk.data) { onProgress?(count) }
+            }
+            // Full batches amortize metadata subprocesses. An idle producer can
+            // still publish its short first prefix without waiting for exit.
+            let minimum=chunk.data.isEmpty && Date().timeIntervalSince(lastWalkBytes)>=0.1 ? 1 : 128
+            while true {
+                let ready=try stream.drain(minimum:minimum)
+                if ready.isEmpty { break };try consumeRecords(ready)
+            }
+        })
+        try consumeRecords(stream.finish())
         try flush()
         try cancellation?.check()
         return entries

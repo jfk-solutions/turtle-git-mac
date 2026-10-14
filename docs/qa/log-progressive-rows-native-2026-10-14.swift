@@ -9,7 +9,9 @@ import TurtleGitCore
         throw Failure(message: "Progressive rows timeout")
     }
     @MainActor static func main() async {
-        do { try await verify() } catch { fputs("Progressive rows failed: \(error)\n", stderr); exit(1) }
+        do { try await verify() } catch {
+            for _ in 0..<500 { if LogWindowModel.activeHistoryLoads==0 { break };try? await Task.sleep(nanoseconds:10_000_000) }
+            fputs("Progressive rows failed: \(error)\n", stderr); exit(1) }
     }
     @MainActor static func verify() async throws {
         let root = URL(fileURLWithPath: CommandLine.arguments[1]), git = URL(fileURLWithPath: CommandLine.arguments[2]), repo = GitRepository(root: root, executable: git)

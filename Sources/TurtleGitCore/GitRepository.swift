@@ -15,7 +15,7 @@ public actor GitRepository {
     }
     /// With retainStandardOutput false, stdout is delivered only through onOutput;
     /// stderr and exit/cancellation diagnostics remain in the returned result.
-    public func run(_ arguments: [String], environmentOverrides: [String: String] = [:], literalPathspecs: Bool = true, successfulExitCodes: ClosedRange<Int32> = 0...0, cancellation: OperationCancellation? = nil, input: Data? = nil, retainStandardOutput: Bool = true, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> GitResult {
+    public func run(_ arguments: [String], environmentOverrides: [String: String] = [:], literalPathspecs: Bool = true, successfulExitCodes: ClosedRange<Int32> = 0...0, cancellation: OperationCancellation? = nil, input: Data? = nil, retainStandardOutput: Bool = true, consumeOutput: ((GitOutputChunk) throws -> Void)? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> GitResult {
         let cancellation = cancellation ?? replayCancellation
         let onOutput = onOutput ?? replayCommandOutput(arguments)
         try cancellation?.check()
@@ -64,19 +64,39 @@ public actor GitRepository {
         }
         // Disk-backed streams avoid pipe deadlock with large diffs and command output.
         let status: Int32
-        if cancellation != nil || onOutput != nil {
+        if cancellation != nil || onOutput != nil || consumeOutput != nil {
             let outputReader = try FileHandle(forReadingFrom: out), errorReader = try FileHandle(forReadingFrom: err)
             defer { try? outputReader.close(); try? errorReader.close() }
+            // Synchronous consumers run on this repository actor, so bounded
+            // history metadata reads cannot interleave unrelated mutations.
+            var consumerError:Error?
+            let processCancellation = consumeOutput == nil ? (cancellation ?? OperationCancellation()) : OperationCancellation()
             func read(_ reader: FileHandle, stream: GitOutputChunk.Stream, drain: Bool = false) {
-                guard let onOutput else { return }
+                guard consumerError==nil,onOutput != nil || consumeOutput != nil else { return }
                 repeat {
-                    guard let bytes = try? reader.read(upToCount: 64 * 1024), !bytes.isEmpty else { return }
-                    onOutput(GitOutputChunk(stream: stream, data: bytes))
+                    let bytes = (try? reader.read(upToCount:64 * 1024)) ?? Data()
+                    if bytes.isEmpty {
+                        // A walk may remain live after producing a short prefix.
+                        // Let the synchronous consumer flush it during idle polls.
+                        if !drain,case .stdout=stream {
+                            do { try consumeOutput?(GitOutputChunk(stream:stream,data:Data())) }
+                            catch { consumerError=error;processCancellation.cancel() }
+                        }
+                        return
+                    }
+                    let chunk=GitOutputChunk(stream:stream,data:bytes)
+                    do { try consumeOutput?(chunk) }
+                    catch { consumerError=error;processCancellation.cancel();return }
+                    onOutput?(chunk)
                     if !drain { return }
                 } while true
             }
-            status = try CancellableGitProcess.run(executable: executable, arguments: commandArguments, environment: environment, output: output.fileDescriptor, error: error.fileDescriptor, input:inputReader?.fileDescriptor, cancellation: cancellation ?? OperationCancellation(), pollOutput: { read(outputReader, stream: .stdout); read(errorReader, stream: .stderr) })
+            status = try CancellableGitProcess.run(executable: executable, arguments: commandArguments, environment: environment, output: output.fileDescriptor, error: error.fileDescriptor, input:inputReader?.fileDescriptor, cancellation: processCancellation, pollOutput: {
+                if cancellation?.isCancelled==true { processCancellation.cancel() }
+                read(outputReader, stream:.stdout);read(errorReader, stream:.stderr)
+            })
             read(outputReader, stream: .stdout, drain: true); read(errorReader, stream: .stderr, drain: true)
+            if let consumerError { throw consumerError }
         } else {
             status = try CancellableGitProcess.run(executable: executable, arguments: commandArguments, environment: environment, output: output.fileDescriptor, error: error.fileDescriptor,input:inputReader?.fileDescriptor)
         }

@@ -1,0 +1,67 @@
+{
+  "date": "2026-10-15",
+  "scope": "Live Git walk to complete native Log rows",
+  "implementation": [
+    "Incremental parser drains complete records into at-most-128 batches",
+    "100 ms idle flush publishes short histories before producer exit",
+    "Per-batch actual parents/notes/tags/paths/filter metadata and ordered native row delivery",
+    "First prefix graph publication; cancelled/superseded/error loads restore stable snapshot",
+    "Synchronous serialized output consumption and producer cancellation on consumer errors",
+    "Load token propagated through setup and working-tree completion reads"
+  ],
+  "validation": {
+    "debug_build": {
+      "exit_code": 0,
+      "log": "build/qa/log-live-walk-build-2026-10-15.log"
+    },
+    "initial_core": {
+      "tests": 77,
+      "failures": 1,
+      "log": "build/qa/log-live-walk-core-2026-10-15.log",
+      "failure": "New live-prefix test waited until 30-second producer exit because EOF read returned nil rather than empty Data"
+    },
+    "affected_core_after_repair": {
+      "tests": 10,
+      "failures": 0,
+      "log": "build/qa/log-live-walk-core-repair-2026-10-15.log",
+      "live_prefix_cancellation_seconds": 0.936,
+      "other_initial_families": "67 checks passed: CommitHistory, ordering/ranges, process cancellation and exit ownership; not repeated after EOF-only repair"
+    },
+    "initial_native": {
+      "result": "Live-prefix timeout exposed same EOF bug",
+      "log": "build/qa/log-live-walk-native-2026-10-15.log",
+      "receiver_reaped": 37807,
+      "cleanup_issue": "Failure exited fixture before async cancellation settled; owned 30-second helper/sleep subsequently exited. Failure handlers now wait for active history loads before exiting."
+    },
+    "final_native": {
+      "log": "build/qa/log-live-walk-native-repair-2026-10-15.log",
+      "cases": [
+        "log-history-stream",
+        "log-progressive-rows"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "result": "4 case/engine combinations passed",
+      "receiver_pids_reaped": [
+        39146,
+        39211,
+        39404,
+        39473
+      ],
+      "assertions": [
+        "Three complete UTF-8 rows with graph and labels before Git producer exit",
+        "Quit ownership and producer cancellation",
+        "128 complete rows visible while older metadata blocked",
+        "Stable snapshot rollback and final notes/order preservation"
+      ]
+    }
+  },
+  "remaining": [
+    "Typed returned/native retained histories and disk-backed process output remain materialized",
+    "Large unlimited-history memory/performance acceptance",
+    "Physical full Log visual/keyboard/accessibility parity",
+    "Signed sandbox and complete hosted integration verification"
+  ]
+}

@@ -953,7 +953,7 @@ struct LogCommandRequest: Identifiable {
     private func publishHistoryBatch(_ batch: [LogEntry], request: Int, cancellation: OperationCancellation, walk: HistoryWalkOptions, references: HistoryReferenceVisibility, states: [String: HistoryRollupChoice]) {
         guard request == generation, historyCancellation === cancellation, !isInvalidated, !cancellation.isCancelled else { return }
         provisionalHistory += batch
-        guard provisionalHistory.count >= nextHistoryPublication else { return }
+        guard provisionalHistory.count == batch.count || provisionalHistory.count >= nextHistoryPublication else { return }
         // Doubling prefixes bounds cumulative graph work to a small multiple of
         // the walk length instead of rebuilding it for every arriving chunk.
         nextHistoryPublication = max(128, provisionalHistory.count * 2)
@@ -1536,10 +1536,10 @@ struct LogCommandRequest: Identifiable {
             do {
                 let bare = try await repository.run(["rev-parse", "--is-bare-repository"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) == "true"
                 let mergeActive = try await repository.logMergeActive(cancellation: cancellation)
-                let metadata = try await repository.finderMetadata(), bisectActive = metadata.bisectActive
-                let bisect = bisectActive ? try await repository.bisectState() : nil
+                let metadata = try await repository.finderMetadata(cancellation:cancellation), bisectActive = metadata.bisectActive
+                let bisect = bisectActive ? try await repository.bisectState(cancellation:cancellation) : nil
                 let conflictRebase: Bool
-                if bare { conflictRebase = false } else { conflictRebase = try await repository.conflictIsRebase() }
+                if bare { conflictRebase = false } else { conflictRebase = try await repository.conflictIsRebase(cancellation:cancellation) }
                 let referenceContext = try await repository.historyReferenceContext(cancellation: cancellation)
                 let startReferences = try await repository.historyStartReferences(cancellation: cancellation)
                 let currentBranch = startReferences.branch
@@ -1554,7 +1554,7 @@ struct LogCommandRequest: Identifiable {
                         self.loadedRevisionCount = max(self.loadedRevisionCount, count)
                     }
                 }, onBatch: { [weak self] batch in
-                    Task { @MainActor in self?.publishHistoryBatch(batch, request: request, cancellation: cancellation, walk: progressWalk, references: referenceVisibility, states: rollupStates) }
+                    DispatchQueue.main.async { self?.publishHistoryBatch(batch, request:request, cancellation:cancellation, walk:progressWalk, references:referenceVisibility, states:rollupStates) }
                 })
                 let svnMessages = result.map { $0.historySubject + "\n" + $0.historyBody }
                 let svnExecutable = options.regexExecutable
@@ -1563,8 +1563,8 @@ struct LogCommandRequest: Identifiable {
                 }.value : []
                 let svnRevisions = Dictionary(uniqueKeysWithValues: zip(result.map(\.hash), svnValues))
                 let working = showWorkingTree && includeWorkingTreeChanges && !selecting && !bare ? try await repository.workingTreeHistory(cancellation: cancellation) : nil
-                let indexFiles = working == nil ? [] : try await repository.workingTreeStatus(refreshIndex: false)
-                let submodules = working == nil ? Set<String>() : try await repository.submodulePaths()
+                let indexFiles = working == nil ? [] : try await repository.workingTreeStatus(refreshIndex:false,cancellation:cancellation)
+                let submodules = working == nil ? Set<String>() : try await repository.submodulePaths(cancellation:cancellation)
                 if let working { result.insert(working.entry, at: 0) }
                 guard request == generation else { return }
                 let formatter = ISO8601DateFormatter()
