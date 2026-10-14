@@ -620,6 +620,9 @@ import TurtleGitCore
     func resetHistory() { for actions in editorActions.values { actions.reset() }; selectEditorActions() }
     var selectionRequest: Int?
     private var scrolls: [Bool: NSScrollView] = [:]
+    private var viewportNavigation: [Bool: () -> Void] = [:]
+    func registerViewportNavigation(base: Bool, action: @escaping () -> Void) { guard !retired else { return }; viewportNavigation[base] = action }
+    func applyViewportNavigation() { guard !retired else { return }; for action in viewportNavigation.values { action() } }
     private var synchronizing = false
     var onRegisterScroll: (NSScrollView, Bool) -> Void = { _, _ in }
     var patchEditingEnabled: Bool { drafts?.editingEnabled(base: false) == true }
@@ -645,7 +648,7 @@ import TurtleGitCore
     }
     func retireImageLoader() {
         loadSession?.cancel(); closeAfterLoad = false
-        lineWrapping.retire()
+        lineWrapping.retire(); viewportNavigation.removeAll()
         patchCancellation?.cancel(); patchCancellation = nil; patchRequest = nil
         formatRequest = nil; previewRow = nil
         retired = true; regexCancellation?.cancel(); regexCancellation = nil; regexList?.retire(); regexList = nil
@@ -1163,32 +1166,17 @@ struct FileComparisonEditor: NSViewRepresentable {
             let range = NSRange(location: start, length: max(0, end - start))
             if view.selectedRange() != range { view.setSelectedRange(range) }
         }
-        model.lineWrapping.geometryChanged = { [weak model] in model?.refreshLocatorViewport() }
+        model.lineWrapping.geometryChanged = { [weak model] in model?.applyViewportNavigation(); model?.refreshLocatorViewport() }
         model.lineWrapping.update(scroll, key: base ? "Base" : "Mine", aligned: !model.onePaneActive && !model.singleFileMode, enabled: model.wrapLines)
         scroll.rulersVisible = model.showLineNumbers
         (scroll.verticalRulerView as? MergeLineRuler)?.sourceNumbers = cells.map(\.lineNumber)
         (scroll.verticalRulerView as? MergeLineRuler)?.updateMetrics(for: view)
         (scroll.verticalRulerView as? MergeLineRuler)?.markedRows = model.onePaneActive ? Set((model.combined?.rows ?? []).enumerated().compactMap { model.annotations(base: false).marked.contains($0.element.alignmentRow) ? $0.offset : nil }) : model.annotations(base: base).marked
         scroll.verticalRulerView?.needsDisplay = true
-        if let selection = model.alignmentSelections[base], context.coordinator.appliedSelection != selection.id {
-            context.coordinator.appliedSelection = selection.id
-            let start = FileComparisonEditing.displayOffset(sourceOffset: selection.sourceRange.location, cells: cells)
-            let end = FileComparisonEditing.displayOffset(sourceOffset: NSMaxRange(selection.sourceRange), cells: cells)
-            view.setSelectedRange(NSRange(location: min(start, value.length), length: max(0, min(end, value.length) - min(start, value.length))))
-            if selection.scroll { view.scrollRangeToVisible(view.selectedRange()) }
-            DispatchQueue.main.async { if model.alignmentSelections[base]?.id == selection.id { model.alignmentSelections.removeValue(forKey: base) } }
-        }
-        if model.onePaneActive, !base, let row = model.combinedScrollRow {
-            let offset = cells.prefix(row).reduce(0) { $0 + $1.displayText.utf16.count + 1 }
-            view.setSelectedRange(NSRange(location: min(offset, value.length), length: 0)); view.scrollRangeToVisible(view.selectedRange())
-            DispatchQueue.main.async { if model.combinedScrollRow == row { model.combinedScrollRow = nil } }
-        }
-        if model.editableBase == base, let caret = model.selectionRequest {
-            let offset = FileComparisonEditing.displayOffset(sourceOffset: caret, cells: cells)
-            view.setSelectedRange(NSRange(location: min(offset, (view.string as NSString).length), length: 0))
-            view.scrollRangeToVisible(view.selectedRange())
-            DispatchQueue.main.async { if model.selectionRequest == caret { model.selectionRequest = nil } }
-        }
+        model.registerViewportNavigation(base: base) { [weak coordinator = context.coordinator] in coordinator?.applyViewportSelection() }
+        // Navigation is consumed after wrapping/text extents settle, not while
+        // the SwiftUI representable still has an empty initial viewport.
+
     }
     static func inline(_ row: Int, model: FileComparisonWindowModel, base: Bool) -> MergeInlineComparison? {
         if model.onePaneActive, !base, model.showInlineDiff, let combined = model.combined, combined.rows.indices.contains(row) {
@@ -1235,6 +1223,32 @@ struct FileComparisonEditor: NSViewRepresentable {
         var base = false
         let history = UndoManager()
         init(model: FileComparisonWindowModel) { self.model = model }
+        func applyViewportSelection() {
+            let model = self.model, base = self.base
+            guard let scroll, scroll.window != nil, scroll.contentSize.width > 32, scroll.contentSize.height > 32,
+                  let view = scroll.documentView as? NSTextView,
+                  let layout = view.layoutManager, let container = view.textContainer else { return }
+            layout.ensureLayout(for: container)
+            if let selection = model.alignmentSelections[base], appliedSelection != selection.id {
+                appliedSelection = selection.id
+                let start = FileComparisonEditing.displayOffset(sourceOffset: selection.sourceRange.location, cells: cells)
+                let end = FileComparisonEditing.displayOffset(sourceOffset: NSMaxRange(selection.sourceRange), cells: cells)
+                view.setSelectedRange(NSRange(location: min(start, (view.string as NSString).length), length: max(0, min(end, (view.string as NSString).length) - min(start, (view.string as NSString).length))))
+                if selection.scroll { view.scrollRangeToVisible(view.selectedRange()) }
+                DispatchQueue.main.async { if model.alignmentSelections[base]?.id == selection.id { model.alignmentSelections.removeValue(forKey: base) } }
+            }
+            if model.onePaneActive, !base, let row = model.combinedScrollRow {
+                let offset = cells.prefix(row).reduce(0) { $0 + $1.displayText.utf16.count + 1 }
+                view.setSelectedRange(NSRange(location: min(offset, (view.string as NSString).length), length: 0)); view.scrollRangeToVisible(view.selectedRange())
+                DispatchQueue.main.async { if model.combinedScrollRow == row { model.combinedScrollRow = nil } }
+            }
+            if model.editableBase == base, let caret = model.selectionRequest {
+                let offset = FileComparisonEditing.displayOffset(sourceOffset: caret, cells: cells)
+                view.setSelectedRange(NSRange(location: min(offset, (view.string as NSString).length), length: 0))
+                view.scrollRangeToVisible(view.selectedRange())
+                DispatchQueue.main.async { if model.selectionRequest == caret { model.selectionRequest = nil } }
+            }
+        }
         @objc func scrolled(_ notification: Notification) { if let scroll { model.scrolled(scroll) } }
         func textView(_ textView: NSTextView, shouldChangeTextIn affectedCharRange: NSRange, replacementString: String?) -> Bool {
             guard model.editingEnabled, model.editableBase == base, !model.busy, !model.confirmingQuit else { return false }

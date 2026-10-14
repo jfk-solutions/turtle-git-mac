@@ -30,3 +30,16 @@ validation is warranted by the documentation-only changes after those passes.
 [Recorded results and image hashes](qa/primary-dialog-visual-2026-10-14.json).
 The whole port, complete hosted CI, signed Finder integration and full physical
 visual/accessibility parity remain incomplete.
+
+
+The connected preview/viewport follow-up supplies current unaltered Partial
+Staging captures in both appearances. The preview is a controller-owned modeless
+companion, with native screen placement and sticky edges, so its own compositor
+capture no longer contains the preceding parent/child gap. Both images show the
+complete colored patch. Independent captures do not certify physical adjacent
+placement or all scrolling/keyboard behavior. Six unique native workflow cases
+passed; see [results and remaining work](qa/preview-viewport-2026-10-14.json).
+
+![Current light Partial Staging window](site/assets/partial-staging-current-light.png)
+
+![Current dark Partial Staging window](site/assets/partial-staging-current-dark.png)

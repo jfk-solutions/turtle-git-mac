@@ -289,6 +289,28 @@ private struct PartialPatchFindBar: View {
     }
 }
 
+/// Match the actual text extent after layout, including late viewport sizing.
+/// PatchView's unwrapped lines must scroll horizontally rather than clip.
+@MainActor final class PatchScrollView: NSScrollView {
+    private var measuring = false
+    var resetToStart = false
+    override func layout() { super.layout(); updateDocumentExtent() }
+    func updateDocumentExtent() {
+        guard !measuring, let text = documentView as? NSTextView,
+              let layout = text.layoutManager, let container = text.textContainer,
+              contentSize.width > 0, contentSize.height > 0 else { return }
+        measuring = true; defer { measuring = false }
+        layout.ensureLayout(for: container)
+        let used = layout.usedRect(for: container), inset = text.textContainerInset
+        let size = NSSize(width: max(contentSize.width, ceil(used.maxX + inset.width * 2)), height: max(contentSize.height, ceil(used.maxY + inset.height * 2)))
+        if text.frame.size != size { text.setFrameSize(size) }
+        if resetToStart {
+            resetToStart = false; text.setSelectedRange(NSRange(location: 0, length: 0))
+            contentView.scroll(to: .zero); reflectScrolledClipView(contentView)
+        }
+    }
+}
+
 struct PatchTextView: NSViewRepresentable {
     @ObservedObject var model: PatchWindowModel
     @Environment(\.colorScheme) private var scheme
@@ -301,10 +323,11 @@ struct PatchTextView: NSViewRepresentable {
         text.isRichText = false; text.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
         text.usesFindBar = model.readOnly; text.isIncrementalSearchingEnabled = model.readOnly
         text.isHorizontallyResizable = true; text.isVerticallyResizable = true
-        text.autoresizingMask = [.width]
+        text.autoresizingMask = []
+        text.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         text.textContainer?.widthTracksTextView = false
         text.textContainer?.containerSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
-        let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true
+        let scroll = PatchScrollView(); scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true
         scroll.findBarPosition = .belowContent
         scroll.autohidesScrollers = true; scroll.borderType = .bezelBorder; scroll.documentView = text
         return scroll
@@ -344,11 +367,12 @@ struct PatchTextView: NSViewRepresentable {
         }
         text.textStorage?.setAttributedString(value)
         text.needsDisplay = true
-        if contentChanged { text.setSelectedRange(NSRange(location: 0, length: 0)) }
+        if contentChanged { (scroll as? PatchScrollView)?.resetToStart = true; text.setSelectedRange(NSRange(location: 0, length: 0)) }
         else {
             let location = min(selection.location, value.length)
             text.setSelectedRange(NSRange(location: location, length: min(selection.length, value.length - location)))
         }
+        (scroll as? PatchScrollView)?.updateDocumentExtent()
     }
     static func dismantleNSView(_ scroll: NSScrollView, coordinator: Coordinator) {
         if let text = scroll.documentView as? PatchText { text.delegate = nil; text.coordinator = nil }

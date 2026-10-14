@@ -18,7 +18,7 @@ import TurtleGitCore
         let fixture=URL(fileURLWithPath:"/tmp/TurtleGit-Primary-"+UUID().uuidString.prefix(8)),root=fixture.appendingPathComponent("Harbor"),git=URL(fileURLWithPath:CommandLine.arguments[2])
         defer {try? FileManager.default.removeItem(at:fixture)}
         try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
-        let repo=GitRepository(root:root,executable:git),output=URL(fileURLWithPath:FileManager.default.currentDirectoryPath).appendingPathComponent("build/qa/primary-dialog-captures-2026-10-14")
+        let repo=GitRepository(root:root,executable:git),output=URL(fileURLWithPath:ProcessInfo.processInfo.environment["TURTLEGIT_PREVIEW_CAPTURE_DIR"] ?? "build/qa/primary-dialog-captures-2026-10-14")
         try FileManager.default.createDirectory(at:output,withIntermediateDirectories:true)
         _ = try await repo.run(["init","-b","main"])
         for (key,value) in [("user.name","TurtleGit Team"),("user.email","demo@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null"),("tgit.commitstagingsupport","false"),("tgit.showpatch","false")] {_ = try await repo.run(["config",key,value])}
@@ -51,8 +51,8 @@ import TurtleGitCore
         for (appearance,name) in [(NSAppearance.Name.aqua,"staging-current-light"),(.darkAqua,"staging-current-dark")] {commit.window!.appearance=NSAppearance(named:appearance);try await png(commit.window!,output.appendingPathComponent(name+".png"))}
         commit.window!.appearance=NSAppearance(named:.aqua)
         commit.model.showPartial(false)
-        try await wait {commit.window?.childWindows?.compactMap {$0.delegate as? PatchWindowController}.first?.model.busy == false}
-        let patch=commit.window!.childWindows!.compactMap {$0.delegate as? PatchWindowController}.first!
+        try await wait {commit.partial?.model.busy == false}
+        let patch=commit.partial!
         for (appearance,name) in [(NSAppearance.Name.aqua,"partial-staging-current-light"),(.darkAqua,"partial-staging-current-dark")] {commit.window!.appearance=NSAppearance(named:appearance);patch.window!.appearance=NSAppearance(named:appearance);commit.window!.orderOut(nil);try await png(patch.window!,output.appendingPathComponent(name+".png"))}
         patch.close();commit.close()
         let log=LogWindowController(repository:repo,access:nil,labelDefaults:prefs,savesColumnLayout:false,savesGeometry:false);defer {log.close()};log.model.reload();try await wait {!log.model.busy && !log.model.entries.isEmpty}

@@ -2,6 +2,13 @@
 
 *A macOS fork of TortoiseGit*
 
+The connected Commit/patch/comparison preview batch implements movable sticky
+previews, screen-aware placement, mode reuse, unwrapped patch extent/reset and
+comparison navigation after viewport layout. Debug and six unique native cases
+passed; two current light/dark preview captures are in the gallery. See
+[batch evidence](qa/preview-viewport-2026-10-14.json). Full physical/signed acceptance
+remains open.
+
 The connected Push/Pull/Fetch preparation batch implements cancellable metadata,
 source/remote replacement, Retry loading, close settlement and complete Push
 preflight/post-hook ownership. Debug, 15 Push Core checks and six grouped native

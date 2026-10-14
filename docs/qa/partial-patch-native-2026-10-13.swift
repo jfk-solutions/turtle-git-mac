@@ -238,7 +238,7 @@ import TurtleGitCore
         copyController.model.selection = ["target"]; copyController.model.showPartial(true)
         var copyModel: PatchWindowModel?
         try await wait {
-            copyModel = copyController.window?.childWindows?.flatMap { descendants($0.contentView!) }.compactMap { ($0 as? PatchTextView.PatchText)?.coordinator?.model }.first
+            copyModel = copyController.partial?.model
             return copyModel != nil && copyModel?.busy == false
         }
         try require(copyModel!.document.files.contains { $0.header.contains { $0.hasPrefix("copy from ") } && !$0.supportsPartialChanges } && !copyModel!.canApplyHunks && !copyModel!.canApplyLines, "Commit copy preview lost its source or allowed partial staging")

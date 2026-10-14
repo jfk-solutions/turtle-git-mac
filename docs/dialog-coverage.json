@@ -261,6 +261,7 @@
         "docs/qa/patch-review-native-2026-10-08.json",
         "docs/qa/patch-save-as-2026-10-08.json",
         "docs/qa/patch-whitespace-2026-10-08.json",
+        "docs/qa/preview-viewport-2026-10-14.json",
         "docs/qa/review-lifecycle-2026-10-13.json",
         "docs/qa/send-patch-tools-2026-10-10.json",
         "docs/qa/working-tree-patch-2026-10-08.json"
@@ -524,6 +525,7 @@
         "docs/qa/file-list-layout-2026-10-14.json",
         "docs/qa/lfs-menu-copy-2026-10-09.json",
         "docs/qa/merge-stream-2026-10-08.json",
+        "docs/qa/preview-viewport-2026-10-14.json",
         "docs/qa/primary-dialog-visual-2026-10-14.json",
         "docs/qa/push-stream-2026-10-08.json",
         "docs/qa/saved-data-2026-10-08.json",
@@ -698,6 +700,7 @@
         "docs/qa/partial-file-lifecycle-2026-10-13.json",
         "docs/qa/partial-metadata-2026-10-13.json",
         "docs/qa/partial-patch-2026-10-13.json",
+        "docs/qa/preview-viewport-2026-10-14.json",
         "docs/qa/primary-dialog-visual-2026-10-14.json",
         "docs/qa/push-stream-2026-10-08.json",
         "docs/qa/saved-data-2026-10-08.json",
@@ -2026,6 +2029,7 @@
         "docs/qa/patch-review-native-2026-10-08.json",
         "docs/qa/patch-save-as-2026-10-08.json",
         "docs/qa/patch-whitespace-2026-10-08.json",
+        "docs/qa/preview-viewport-2026-10-14.json",
         "docs/qa/review-lifecycle-2026-10-13.json",
         "docs/qa/send-patch-tools-2026-10-10.json",
         "docs/qa/working-tree-patch-2026-10-08.json"
@@ -2572,6 +2576,7 @@
         "docs/qa/partial-file-lifecycle-2026-10-13.json",
         "docs/qa/partial-metadata-2026-10-13.json",
         "docs/qa/partial-patch-2026-10-13.json",
+        "docs/qa/preview-viewport-2026-10-14.json",
         "docs/qa/shared-unversioned-2026-10-07.json",
         "docs/qa/status-colors-2026-10-09.json"
       ]
@@ -3245,6 +3250,7 @@
         "docs/qa/partial-file-lifecycle-2026-10-13.json",
         "docs/qa/partial-metadata-2026-10-13.json",
         "docs/qa/partial-patch-2026-10-13.json",
+        "docs/qa/preview-viewport-2026-10-14.json",
         "docs/qa/shared-unversioned-2026-10-07.json",
         "docs/qa/status-colors-2026-10-09.json"
       ]

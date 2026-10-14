@@ -2188,3 +2188,32 @@ association/fallback resolution, provider text, owned issue selection, returned
 message/ID, pre-commit check and completion callback. See
 [native issue-provider parity](NATIVE-ISSUE-PROVIDER-PARITY.md). Vendor COM/native
 provider ecosystem and physical/signed acceptance remain open.
+
+
+## Connected preview placement and viewport batch — October 14, 2026
+
+Commit's View Patch/Partial Staging/Partial Unstaging now share the existing Log
+screen-aware placement and sticky-edge geometry. A preview opens to an available
+side or within a visible screen, reuses its frame across mode changes, snaps near
+a parent edge and follows parent move/resize only while docked. Moving it away
+leaves it independent. Minimize hides it; activation/restoration raises it without
+stealing the parent's focus. Ownership, busy/close guards and preference semantics
+remain in the Commit controller. Native left-side/screen clamping and the eight
+point gap are platform adaptations to upstream PatchViewDlg's right-edge frame.
+
+Unwrapped patch text now has a measured document extent after layout and viewport
+resize, preserving horizontal access to long lines. Replacing the patch resets
+selection and scroll to the start, matching PatchViewDlg::SetText. Appearance
+updates retain position. Comparison initial selection/first-difference navigation
+waits until wrapping, text extent and a nonempty viewport are available before it
+is consumed. The same path handles queued edit caret and combined-pane requests;
+closed comparison owners retire these geometry callbacks.
+
+The Debug build and six unique grouped native cases passed with system/bundled
+Git after the recorded closure-capture and fixture repairs. Passing system viewport
+checks were not repeated. All owned receivers were reaped; no Core suite was run.
+Light/dark Partial Staging compositor captures were inspected and published in the
+gallery. See [batch evidence](qa/preview-viewport-2026-10-14.json). These changes
+address the preceding placement and initial-viewport gaps, but do not certify all
+physical side-by-side placement, keyboard,
+VoiceOver, all monitor/fullscreen layouts, signed grants or complete dialog parity.

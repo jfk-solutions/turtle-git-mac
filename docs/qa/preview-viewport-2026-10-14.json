@@ -1,0 +1,102 @@
+{
+  "date": "2026-10-14",
+  "base": "7e2b7980",
+  "scope": [
+    "Commit owned modeless preview screen placement, sticky following/detachment/snap, mode reuse, visibility/focus and close",
+    "Unwrapped patch document extent, late viewport resize and replacement text reset to start",
+    "File comparison navigation consumed after viewport/wrapping layout; retired callback cleanup; shared patch-review consumer"
+  ],
+  "validation": {
+    "debug": {
+      "initial_exit": 65,
+      "initial_log": "build/qa/preview-viewport-debug-2026-10-14.log",
+      "failure": "Moved Coordinator navigation closures required explicit property capture. Added local model/base values before native execution.",
+      "repair_exit": 0,
+      "repair_log": "build/qa/preview-viewport-debug-repair-2026-10-14.log"
+    },
+    "core": {
+      "run": false,
+      "reason": "Core algorithms/Git operations unchanged"
+    },
+    "native": {
+      "initial_exit": 1,
+      "initial_log": "build/qa/preview-viewport-native-2026-10-14.log",
+      "initial_failure": "Fixture used preferences rather than defaults for CommitWindowController; receiver compilation failed before launch. Fixed fixture only, no build repeat.",
+      "next_exit": 1,
+      "next_log": "build/qa/preview-viewport-native-fixture-repair-2026-10-14.log",
+      "next_result": "System-Git preview/viewport passed once. Partial-patch fixture timed out looking in AppKit childWindows for the now modeless Commit preview; receiver 3960 reaped. Updated it to the actual owned Commit controller model.",
+      "repair_exit": 0,
+      "repair_log": "build/qa/preview-viewport-native-ownership-repair-2026-10-14.log",
+      "bundled_preview_exit": 0,
+      "bundled_preview_log": "build/qa/preview-viewport-native-bundled-2026-10-14.log",
+      "unique_passing_cases": 6,
+      "families": [
+        "preview-viewport",
+        "partial-patch",
+        "file-patches"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "system_preview_repeated": false,
+      "evidence": [
+        "Actual native initial placement, dock/follow/detach/snap, mode reuse and ownership close",
+        "Actual NSTextView unwrapped width/height and exact replacement caret/scroll start; comparison first-difference scroll after nonempty layout and retained resize position",
+        "Existing actual line stage/hunk unstage, copying/metadata refusal, Find/export, unrelated index preservation, mutation cancellation/retirement/reaping",
+        "Existing Patch selected/all/retry/failure/editor dispatch and HEAD/index preservation"
+      ]
+    },
+    "captures": {
+      "exit": 0,
+      "log": "build/qa/preview-viewport-captures-2026-10-14.log",
+      "receiver": 5409,
+      "generated": 10,
+      "published": 2,
+      "visual_review": "Inspected unaltered compositor captures of light/dark Partial Staging with native chrome, complete colored patch and no parent/child compositor gap. Independent window images do not certify physical side-by-side placement.",
+      "preserved": [
+        "HEAD",
+        "logical index tree",
+        "porcelain status"
+      ],
+      "commit_or_apply_invoked": false
+    },
+    "owned_receivers_reaped": [
+      3897,
+      3960,
+      4572,
+      4734,
+      4846,
+      5011,
+      5168,
+      5409
+    ],
+    "receiver_pids_still_live_at_final_check": [],
+    "site": {
+      "exit": 0,
+      "documents": 212,
+      "unresolved_fragments": [],
+      "log": "build/qa/preview-viewport-site-2026-10-14.log"
+    }
+  },
+  "published_captures": [
+    {
+      "path": "docs/site/assets/partial-staging-current-light.png",
+      "width": 1200,
+      "height": 1584,
+      "sha256": "87ff7999adc5c3815e36492f3c6f77687812ff9f6fff1efe6d80fb737c74fbbe"
+    },
+    {
+      "path": "docs/site/assets/partial-staging-current-dark.png",
+      "width": 1200,
+      "height": 1584,
+      "sha256": "588925cb5826fdd344cb0385aaf6bba998a4d6699b0c13f141e3bae4fa65b823"
+    }
+  ],
+  "limitations": [
+    "Full conditional source parity, physical clicks/keyboard/VoiceOver, all screen/fullscreen/display/contrast layouts remain open",
+    "Hidden geometry/navigation checks and independent window captures do not certify every displayed comparison/patch-review layout",
+    "Native left-side/clamping/eight-point gap are explicit platform adaptations",
+    "Signed repository grants and App Store distribution acceptance remain open"
+  ]
+}

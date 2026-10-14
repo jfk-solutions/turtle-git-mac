@@ -17,7 +17,10 @@ import UniformTypeIdentifiers
 @MainActor final class CommitWindowController: NSWindowController, NSWindowDelegate {
     let model: CommitWindowModel
     var onClosed: () -> Void = {}
-    private var partial: PatchWindowController?
+    private(set) var partial: PatchWindowController?
+    private var previousPartialParentFrame: NSRect?
+    private var positioningPartial = false
+    var partialPlacementScreens: () -> [NSRect] = { NSScreen.screens.map(\.visibleFrame) }
     private let preferences: UserDefaults
     private var closingCommit = false
     private var historyWindow: NSWindow?
@@ -227,9 +230,12 @@ import UniformTypeIdentifiers
         partial = controller
         controller.onClosed = { [weak self, weak controller] in
             guard let self, self.partial === controller else { return }
+            if let child = controller?.window { child.parent?.removeChildWindow(child) }
+            self.previousPartialParentFrame = nil
             self.partial = nil; self.model.partialMode = nil; self.model.viewingPatch = false
             if !self.closingCommit { self.model.savePatchPreference(false) }
         }
+        controller.onMoved = { [weak self] in self?.snapPartial() }
         controller.model.onApplying = { [weak self] busy in
             guard let self, !self.closingCommit else { return }
             self.model.busy = busy
@@ -247,13 +253,21 @@ import UniformTypeIdentifiers
         model.savePatchPreference(true)
         controller.model.comparisonTitle = model.comparisonBase != nil ? "Parent → Working tree" : model.hasHead ? "HEAD → Working tree" : "Initial commit"
         controller.window?.title = readOnly ? "View Patch – " + controller.model.comparisonTitle : staged ? "Partial Unstaging – HEAD → Index" : "Partial Staging – Index → Working tree"
-        if let patchWindow = controller.window, patchWindow.parent == nil { window.addChildWindow(patchWindow, ordered: .above) }
-        if let child = controller.window, let visible = window.screen?.visibleFrame,
-           window.frame.width + child.frame.width <= visible.width {
-            let x = min(max(window.frame.minX, visible.minX), visible.maxX - window.frame.width - child.frame.width)
-            window.setFrameOrigin(NSPoint(x: x, y: window.frame.minY))
+        if let child = controller.window {
+            // A modeless native companion can be moved independently, as upstream's
+            // sticky PatchView. AppKit child windows otherwise translate on every
+            // parent move, including deliberately detached placements.
+            child.parent?.removeChildWindow(child)
+            if previousPartialParentFrame == nil {
+                positioningPartial = true
+                child.setFrame(LogPatchPlacement.initial(parent: window.frame, width: child.frame.width, screens: partialPlacementScreens()), display: false)
+                positioningPartial = false
+            }
+            child.alphaValue = window.alphaValue; child.appearance = window.appearance
         }
-        alignPartial(); controller.showWindow(nil); reloadPartial()
+        previousPartialParentFrame = window.frame
+        if let preview = controller.window, window.isVisible { preview.order(.above, relativeTo: window.windowNumber) }
+        reloadPartial()
     }
     private func reloadPartial() {
         guard let partial else { return }
@@ -270,15 +284,28 @@ import UniformTypeIdentifiers
         }
         partial.model.reload(paths: Array(Set(paths)).sorted(), staged: partial.model.staged)
     }
-    private func alignPartial() {
-        guard let window, let child = partial?.window else { return }
-        var frame = child.frame
-        frame.origin = NSPoint(x: window.frame.maxX, y: window.frame.minY)
-        frame.size.height = window.frame.height
-        child.setFrame(frame, display: true)
+    private func snapPartial() {
+        guard !closingCommit, !positioningPartial, let parent = window, let preview = partial?.window,
+              let frame = LogPatchPlacement.snap(preview: preview.frame, parent: parent.frame), frame != preview.frame else { return }
+        positioningPartial = true; preview.setFrame(frame, display: false); positioningPartial = false
     }
-    func windowDidMove(_ notification: Notification) { alignPartial() }
-    func windowDidResize(_ notification: Notification) { alignPartial() }
+    private func followPartial() {
+        guard !closingCommit, let parent = window, let preview = partial?.window, let previous = previousPartialParentFrame else { return }
+        previousPartialParentFrame = parent.frame
+        guard previous != parent.frame,
+              let frame = LogPatchPlacement.follow(preview: preview.frame, oldParent: previous, newParent: parent.frame, minimumHeight: preview.minSize.height) else { return }
+        positioningPartial = true; preview.setFrame(frame, display: false); positioningPartial = false
+    }
+    private func showPartialWithoutActivation() {
+        guard !closingCommit, let parent = window, parent.isVisible, !parent.isMiniaturized, let preview = partial?.window else { return }
+        preview.appearance = parent.appearance; preview.alphaValue = parent.alphaValue
+        preview.order(.above, relativeTo: parent.windowNumber)
+    }
+    func windowDidMove(_ notification: Notification) { followPartial() }
+    func windowDidResize(_ notification: Notification) { followPartial() }
+    func windowWillMiniaturize(_ notification: Notification) { partial?.window?.orderOut(nil) }
+    func windowDidDeminiaturize(_ notification: Notification) { showPartialWithoutActivation() }
+    func windowDidBecomeKey(_ notification: Notification) { showPartialWithoutActivation() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
