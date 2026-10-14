@@ -115,9 +115,24 @@ private enum MergeSourceSide {
 
 @MainActor final class TextConflictNSWindow: FileComparisonNativeWindow {
     weak var mergedText: NSTextView?
+    weak var patchModel: WorkingTreePatchWindowModel?
     private weak var findText: NSTextView?
     private var activeText: NSTextView? { (firstResponder as? MergeTextView) ?? findText ?? mergedText }
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if let patchModel {
+            let flags = event.modifierFlags.intersection([.command, .shift, .option, .control])
+            #if DEBUG
+            if flags == [.command, .option, .shift], event.charactersIgnoringModifiers?.lowercased() == "s", Bundle.main.bundleIdentifier?.hasPrefix("org.turtlegit.macos.documentation-preview") == true { DocumentationCapture.saveWindow(); return true }
+            #endif
+            if flags == .command, event.charactersIgnoringModifiers?.lowercased() == "o" { openMergeDocument(); return true }
+            if flags == .command, event.charactersIgnoringModifiers == "s" { patchModel.saveDraft(); return true }
+            if flags == .command || flags == [.command, .shift], event.charactersIgnoringModifiers?.lowercased() == "z", (firstResponder as? NSTextView)?.isFieldEditor != true {
+                if flags.contains(.shift) { patchModel.editor?.redo() } else { patchModel.editor?.undo() }; return true
+            }
+            if flags == .command, event.charactersIgnoringModifiers == "f" { patchModel.findComparison(); return true }
+            if event.keyCode == 96 { (delegate as? WorkingTreePatchWindowController)?.reloadEditor(nil); return true }
+            return super.performKeyEquivalent(with: event)
+        }
         guard mergedText != nil else { return super.performKeyEquivalent(with: event) }
         if event.modifierFlags.intersection([.command, .shift, .option, .control]) == .command, event.charactersIgnoringModifiers?.lowercased() == "o" { openMergeDocument(); return true }
         let modifiers = event.modifierFlags.intersection([.command, .shift, .control, .option])
@@ -161,16 +176,17 @@ private enum MergeSourceSide {
     func windowDidBecomeKey(_ notification: Notification) { editorFileMenu.install(target: self, open: #selector(openMergeDocument(_:)), reload: #selector(reloadEditor(_:))) }
     func windowDidResignKey(_ notification: Notification) { editorFileMenu.remove() }
     func detachForReplacement() { editorFileMenu.remove(); model.retire(); model.window = nil }
-    @objc func reloadEditor(_ sender: Any?) { guard editorOpenWorkflow == nil, window?.attachedSheet == nil else { return }; model.load() }
-    func validateMenuItem(_ item: NSMenuItem) -> Bool { (item.action == #selector(openMergeDocument(_:)) || item.action == #selector(reloadEditor(_:))) && editorOpenWorkflow == nil && !model.busy && !model.preparing && !model.confirmingQuit && !model.retired && window?.attachedSheet == nil }
+    @objc func reloadEditor(_ sender: Any?) { guard !preparingReplacement, editorOpenWorkflow == nil, window?.attachedSheet == nil else { return }; model.load() }
+    func validateMenuItem(_ item: NSMenuItem) -> Bool { (item.action == #selector(openMergeDocument(_:)) || item.action == #selector(reloadEditor(_:))) && !preparingReplacement && editorOpenWorkflow == nil && !model.busy && !model.preparing && !model.confirmingQuit && !model.retired && window?.attachedSheet == nil }
     let model: TextConflictWindowModel
     var onClosed: () -> Void = {}
     var editorOpenWorkflow: MergeEditorOpenWorkflow?
     var makeEditorOpenWorkflow: (NSWindow, [RepositoryAccessLease], UserDefaults) -> MergeEditorOpenWorkflow = { MergeEditorOpenWorkflow(window: $0, permissions: $1, preferences: $2) }
     var replacementOwner: MergeEditorReplacementOwner?
     weak var sharedReplacementOwner: MergeEditorReplacementOwner?
+    var preparingReplacement: Bool { (sharedReplacementOwner ?? replacementOwner)?.preparingPatch == true }
     @objc func openMergeDocument(_ sender: Any?) {
-        guard editorOpenWorkflow == nil, let window, !model.busy, !model.preparing, !model.confirmingQuit, !model.retired, window.attachedSheet == nil else { return }
+        guard !preparingReplacement, editorOpenWorkflow == nil, let window, !model.busy, !model.preparing, !model.confirmingQuit, !model.retired, window.attachedSheet == nil else { return }
         let workflow = makeEditorOpenWorkflow(window, model.openPermissions, model.comparisonDefaults)
         editorOpenWorkflow = workflow
         workflow.onClosed = { [weak self] in self?.editorOpenWorkflow = nil }
@@ -200,7 +216,7 @@ private enum MergeSourceSide {
         DialogGeometry.attach(window, identifier: "TurtleGit.TextConflict", legacyName: "TurtleGit.TextConflict")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard editorOpenWorkflow == nil else { return false }
+        guard !preparingReplacement, editorOpenWorkflow == nil else { return false }
         guard sender.attachedSheet == nil else { return false }
         if model.preparing { return true }
         guard !model.busy, !model.confirmingQuit else { return false }
@@ -531,7 +547,7 @@ private enum MergeSourceSide {
     }
     func load() { load(filterName: regexFilterName) }
     private func load(filterName: String?) {
-        guard !busy, !confirmingQuit, !retired else { return }
+        guard !busy, !confirmingQuit, !retired, window?.attachedSheet == nil else { return }
         if dirty {
             let decision: ReloadDecision
             if let chooseReload { decision = chooseReload() }

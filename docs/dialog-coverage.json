@@ -285,7 +285,8 @@
       "qa_records": [
         "docs/qa/merge-editor-open-2026-10-14.json",
         "docs/qa/merge-open-2026-10-12.json",
-        "docs/qa/merge-open-lifecycle-2026-10-12.json"
+        "docs/qa/merge-open-lifecycle-2026-10-12.json",
+        "docs/qa/merge-patch-open-2026-10-14.json"
       ]
     },
     {

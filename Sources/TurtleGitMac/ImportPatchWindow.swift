@@ -593,37 +593,47 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     }
 }
 
-@MainActor private final class WorkingTreePatchNativeWindow: NSWindow {
-    weak var model: WorkingTreePatchWindowModel?
-    override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        let flags = event.modifierFlags.intersection([.command, .shift, .option, .control])
-        #if DEBUG
-        if flags == [.command,.option,.shift], event.charactersIgnoringModifiers?.lowercased() == "s",
-           Bundle.main.bundleIdentifier?.hasPrefix("org.turtlegit.macos.documentation-preview") == true {
-            DocumentationCapture.saveWindow(); return true
-        }
-        #endif
-        if flags == .command, event.charactersIgnoringModifiers == "s" { model?.saveDraft(); return true }
-        if flags == .command || flags == [.command, .shift], event.charactersIgnoringModifiers?.lowercased() == "z", (firstResponder as? NSTextView)?.isFieldEditor != true {
-            if flags.contains(.shift) { model?.editor?.redo() } else { model?.editor?.undo() }; return true
-        }
-        return super.performKeyEquivalent(with: event)
+@MainActor final class WorkingTreePatchWindowController: NSWindowController, NSWindowDelegate, NSMenuItemValidation {
+    private let editorFileMenu = MergeEditorFileMenu()
+    var editorOpenWorkflow: MergeEditorOpenWorkflow?
+    var replacementOwner: MergeEditorReplacementOwner?
+    weak var sharedReplacementOwner: MergeEditorReplacementOwner?
+    var preparingReplacement: Bool { (sharedReplacementOwner ?? replacementOwner)?.preparingPatch == true }
+    func windowDidBecomeKey(_ notification: Notification) { editorFileMenu.install(target: self, open: #selector(openMergeDocument(_:)), reload: #selector(reloadEditor(_:))) }
+    func windowDidResignKey(_ notification: Notification) { editorFileMenu.remove() }
+    func detachForReplacement() { editorFileMenu.remove(); model.retire(); model.window = nil }
+    func validateMenuItem(_ item: NSMenuItem) -> Bool { !retired && !activeOperation && !preparingReplacement && (item.action == #selector(openMergeDocument(_:)) || item.action == #selector(reloadEditor(_:))) }
+    @objc func reloadEditor(_ sender: Any?) {
+        guard !activeOperation, !preparingReplacement else { return }
+        Task { if await model.resolveDraft() { model.refresh() } }
     }
-}
-
-@MainActor final class WorkingTreePatchWindowController: NSWindowController, NSWindowDelegate {
+    @objc func openMergeDocument(_ sender: Any?) {
+        guard !retired, !activeOperation, !preparingReplacement, let window else { return }
+        let workflow = MergeEditorOpenWorkflow(window: window, permissions: model.openPermissions, preferences: model.openPreferences)
+        editorOpenWorkflow = workflow
+        workflow.onClosed = { [weak self] in self?.editorOpenWorkflow = nil }
+        workflow.accept = { [weak self] request, permissions in
+            guard let self, let window = self.window, !self.model.busy, !self.model.confirmingQuit else { throw OperationCancellationFailure.cancelled }
+            let owner = self.sharedReplacementOwner ?? self.replacementOwner ?? MergeEditorReplacementOwner(onClosed: self.onClosed)
+            if self.sharedReplacementOwner == nil { self.replacementOwner = owner }
+            try owner.replace(request, permissions: permissions, preferences: self.model.openPreferences, window: window, previous: self)
+        }
+        workflow.start(dirty: model.dirty, description: window.title, save: { [weak self] completion in
+            guard let self else { completion(false); return }; self.model.saveDraft(completion: completion)
+        })
+    }
     let model: WorkingTreePatchWindowModel
     var onClosed: () -> Void = {}
     private var approvedClose = false
     private var retired = false
-    var activeOperation: Bool { model.busy || model.confirmingQuit || model.draftDecisionPending || model.previewDocument.busy || model.editor?.exporting == true || window?.attachedSheet != nil }
-    init(repository: GitRepository, access: RepositoryAccessLease?, fileAccess: RepositoryAccessLease?, bytes: Data, title: String, preferences: UserDefaults = .standard, directoryMode: Bool = false, isGitWorkingTree: Bool = true, initialStripCount: Int = 1) {
+    var activeOperation: Bool { editorOpenWorkflow != nil || model.busy || model.confirmingQuit || model.draftDecisionPending || model.previewDocument.busy || model.editor?.exporting == true || window?.attachedSheet != nil }
+    init(repository: GitRepository, access: RepositoryAccessLease?, fileAccess: RepositoryAccessLease?, bytes: Data, title: String, preferences: UserDefaults = .standard, directoryMode: Bool = false, isGitWorkingTree: Bool = true, initialStripCount: Int = 1, automaticallyRefresh: Bool = true) {
         model = WorkingTreePatchWindowModel(repository: repository, access: access, fileAccess: fileAccess, bytes: bytes, preferences: preferences, directoryMode: directoryMode, isGitWorkingTree: isGitWorkingTree, initialStripCount: initialStripCount)
-        let window = WorkingTreePatchNativeWindow(contentRect: .init(x: 0, y: 0, width: 1100, height: 720), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        let window = TextConflictNSWindow(contentRect: .init(x: 0, y: 0, width: 1100, height: 720), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "\(title) – Review Patch – TurtleGitMerge"; window.isReleasedWhenClosed = false
         let host = NSHostingController(rootView: WorkingTreePatchDialog(model: model)); host.sizingOptions = []
         window.contentViewController = host
-        super.init(window: window); window.delegate = self; window.model = model; model.window = window
+        super.init(window: window); window.delegate = self; window.patchModel = model; window.openMergeDocument = { [weak self] in self?.openMergeDocument(nil) }; model.window = window
         window.setContentSize(.init(width: 1100, height: 720)); window.contentMinSize = .init(width: 800, height: 460); window.center()
         DialogGeometry.attach(window, identifier: "TurtleGit.PatchReview")
         model.close = { [weak self] in self?.approvedClose = true; self?.window?.performClose(nil) }
@@ -635,17 +645,18 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
             let response = await withCheckedContinuation { continuation in alert.beginSheetModal(for: window) { continuation.resume(returning: $0) } }
             return response == .alertFirstButtonReturn ? .save : response == .alertSecondButtonReturn ? .discard : .cancel
         }
-        model.refresh()
+        if automaticallyRefresh { model.refresh() }
     }
     func setQuitConfirmation(_ value: Bool) { model.confirmingQuit = value; model.previewDocument.confirmingQuit = value }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard !preparingReplacement else { return false }
         if approvedClose { return true }
         guard !activeOperation else { return false }
         if model.dirty { model.requestClose(); return false }
         return true
     }
     func windowWillClose(_ notification: Notification) {
-        guard !retired else { return }; retired = true; model.retire()
+        guard !retired else { return }; retired = true; editorFileMenu.remove(); editorOpenWorkflow?.retire(); editorOpenWorkflow = nil; model.retire()
         if let sheet = window?.attachedSheet { window?.endSheet(sheet, returnCode: .abort); sheet.orderOut(nil) }
         onClosed()
     }
@@ -660,6 +671,8 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     let repository: GitRepository
     let directoryMode: Bool
     let isGitWorkingTree: Bool
+    var openPreferences: UserDefaults { preferences }
+    var openPermissions: [RepositoryAccessLease] { [access, fileAccess].compactMap { $0 } }
     private let preferences: UserDefaults
     private let access: RepositoryAccessLease?
     private let fileAccess: RepositoryAccessLease?
@@ -793,12 +806,12 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     private func checkAccess() throws {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
-    func refresh() {
-        guard canReplaceComparison, let token = begin() else { return }; selectedReview = nil; appliedPaths = []; comparison = nil; editor?.retireImageLoader(); editor = nil; editorChanges = nil; beforeScroll = nil; afterScroll = nil
+    func refresh(completion: (() -> Void)? = nil) {
+        guard canReplaceComparison, let token = begin() else { completion?(); return }; selectedReview = nil; appliedPaths = []; comparison = nil; editor?.retireImageLoader(); editor = nil; editorChanges = nil; beforeScroll = nil; afterScroll = nil
         fileResults = [:]
         let reverse = reversed, strip = stripCount
         Task {
-            defer { finish(token) }
+            defer { finish(token); completion?() }
             do { try checkAccess(); try await load(reverse: reverse, strip: strip, token: token) }
             catch { if !retired && !token.isCancelled { review = nil; selected = []; notice = error.localizedDescription } }
         }
@@ -920,9 +933,9 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         editorChanges = next.objectWillChange.sink { [weak self] in self?.objectWillChange.send(); self?.onBusyChanged() }
         editor = next; updateParentState(); onBusyChanged()
     }
-    func saveDraft() {
-        guard canSaveDraft, let token = begin() else { return }
-        Task { defer { finish(token) }; _ = await performSave(token) }
+    func saveDraft(completion: ((Bool) -> Void)? = nil) {
+        guard canSaveDraft, let token = begin() else { completion?(false); return }
+        Task { let saved = await performSave(token); finish(token); completion?(saved) }
     }
     private func performSave(_ token: OperationCancellation) async -> Bool {
         guard !retired, let comparison, let editor, editor.canEdit(base: false) else { return false }

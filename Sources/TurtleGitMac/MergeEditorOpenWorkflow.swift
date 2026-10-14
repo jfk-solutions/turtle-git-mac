@@ -68,6 +68,12 @@ import TurtleGitCore
     private static var live: [UUID: MergeEditorReplacementOwner] = [:]
     private let id = UUID()
     private(set) var current: NSWindowController?
+    private(set) var pendingPatch: ReviewPatchWorkflow?
+    private var parentCloseObserver: NSObjectProtocol?
+    var preparingPatch: Bool { pendingPatch != nil }
+    var makePatchWorkflow: (URL?, URL?, Data?, [RepositoryAccessLease], UserDefaults) throws -> ReviewPatchWorkflow = { file, target, bytes, grants, preferences in
+        ReviewPatchWorkflow(file: file, target: target, preferred: target, grants: grants, executable: try GitRuntime.executable(), preferences: preferences, clipboardBytes: bytes)
+    }
     private var onClosed: () -> Void
     init(onClosed: @escaping () -> Void) { self.onClosed = onClosed }
     func replace(_ request: MergeOpenRequest, permissions: [RepositoryAccessLease], preferences: UserDefaults,
@@ -81,10 +87,13 @@ import TurtleGitCore
             let merge = try WorkingTextMerge(base: base, theirs: theirs, mine: mine)
             next = TextConflictWindowController(repository: GitRepository(root: mine.deletingLastPathComponent(), executable: try GitRuntime.executable()), access: nil, path: mine.lastPathComponent, workingMerge: merge, permissions: permissions, preferences: preferences)
         case .patch(let file, let target, let bytes):
-            let workflow = ReviewPatchWorkflow(file: file, target: target, preferred: target, grants: permissions, executable: try GitRuntime.executable(), preferences: preferences, clipboardBytes: bytes)
-            MergeEditorPatchOwners.present(workflow)
+            let workflow = try makePatchWorkflow(file, target, bytes, permissions, preferences)
+            preparePatch(workflow, window: window, previous: previous, preferences: preferences)
             return
         }
+        try adopt(next, window: window, previous: previous)
+    }
+    private func adopt(_ next: NSWindowController, window: NSWindow, previous: NSWindowController) throws {
         guard let prepared = next.window, let host = window as? TextConflictNSWindow else { throw RevisionComparisonFailure.selection }
         // Detach the accepted Open sheet before changing controller/window roles.
         if let sheet = window.attachedSheet { window.endSheet(sheet) }
@@ -93,9 +102,10 @@ import TurtleGitCore
         prepared.contentViewController = nil; prepared.delegate = nil; prepared.orderOut(nil)
         if let pair = previous as? FileComparisonWindowController { pair.detachForReplacement() }
         if let merge = previous as? TextConflictWindowController { merge.detachForReplacement() }
+        if let patch = previous as? WorkingTreePatchWindowController { patch.detachForReplacement() }
         previous.window = nil; next.window = window
         DialogGeometry.detach(prepared); prepared.close()
-        host.model = nil; host.mergedText = nil; host.imageKeyModel = nil; host.imageKeysRetired = true
+        host.model = nil; host.mergedText = nil; host.patchModel = nil; host.imageKeyModel = nil; host.imageKeysRetired = true
         window.contentViewController = content; window.title = title; window.contentMinSize = minimum
         current = next; Self.live[id] = self
         if let pair = next as? FileComparisonWindowController {
@@ -111,21 +121,38 @@ import TurtleGitCore
             window.delegate = merge; merge.onClosed = { [weak self] in self?.finish() }
             merge.model.load(); merge.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification, object: window))
         }
+        if let patch = next as? WorkingTreePatchWindowController {
+            patch.sharedReplacementOwner = self; patch.model.window = window; host.patchModel = patch.model
+            host.openMergeDocument = { [weak patch] in patch?.openMergeDocument(nil) }
+            window.delegate = patch; patch.onClosed = { [weak self] in self?.finish() }
+            patch.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification, object: window))
+        }
         let minimumFrame = window.frameRect(forContentRect: NSRect(origin: .zero, size: window.contentMinSize)).size
         let height = max(originalFrame.height, minimumFrame.height), width = max(originalFrame.width, minimumFrame.width)
         window.setFrame(NSRect(x: originalFrame.minX, y: originalFrame.maxY - height, width: width, height: height), display: false)
         window.makeKeyAndOrderFront(nil)
     }
-    private func finish() { current = nil; Self.live.removeValue(forKey: id); let close = onClosed; onClosed = {}; close() }
-}
-
-@MainActor private enum MergeEditorPatchOwners {
-    static var preparing: [UUID: ReviewPatchWorkflow] = [:]
-    static func present(_ workflow: ReviewPatchWorkflow) {
-        let id = UUID(); preparing[id] = workflow
-        workflow.onFinished = { preparing.removeValue(forKey: id) }
-        workflow.showWindow(nil); workflow.start()
+    private func preparePatch(_ workflow: ReviewPatchWorkflow, window: NSWindow, previous: NSWindowController, preferences: UserDefaults) {
+        guard pendingPatch == nil else { return }
+        pendingPatch = workflow; Self.live[id] = self
+        parentCloseObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { [weak workflow] _ in MainActor.assumeIsolated { workflow?.cancel() } }
+        workflow.preparedPresentation = { [weak self, weak window, weak previous, weak workflow] controller in
+            guard let self, let window, let previous, let workflow,
+                  self.pendingPatch === workflow, previous.window === window else { throw OperationCancellationFailure.cancelled }
+            try self.adopt(controller, window: window, previous: previous)
+        }
+        workflow.onFinished = { [weak self] in
+            guard let self else { return }; self.pendingPatch = nil
+            if let observer = self.parentCloseObserver { NotificationCenter.default.removeObserver(observer); self.parentCloseObserver = nil }
+            if self.current == nil { Self.live.removeValue(forKey: self.id) }
+        }
+        DispatchQueue.main.async { [weak self, weak window, weak workflow] in
+            guard let self, let window, let workflow, self.pendingPatch === workflow else { return }
+            guard window.attachedSheet == nil, let sheet = workflow.window else { workflow.cancel(); return }
+            window.beginSheet(sheet); workflow.start()
+        }
     }
+    private func finish() { pendingPatch?.cancel(); current = nil; Self.live.removeValue(forKey: id); let close = onClosed; onClosed = {}; close() }
 }
 
 /// Scoped entries are installed only while their editor owns the key window.

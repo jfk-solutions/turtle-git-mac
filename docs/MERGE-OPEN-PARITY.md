@@ -96,3 +96,36 @@ workflow; it does not yet replace the current editor with the directory patch
 view. Physical keyboard/menu/focus/VoiceOver, live cached Log/Resolve reopen gestures,
 complete visual captures and signed grant/App Store acceptance remain open.
 The local pass does not certify complete upstream File/Open or hosted CI.
+
+
+## Patch replacement follow-up — partial native parity
+
+File/Open patch mode now prepares a checked Review/Apply model before replacing
+the original editor. A dialog owned by the editor handles file/target permission
+and target suggestions. Failed preparation leaves the original editor available;
+Cancel or parent closure retires the pending model and refuses late adoption.
+Successful preparation transfers content, keyboard/delegate ownership and grants
+into the existing window through the same geometry-preserving replacement owner.
+Review/Apply now has scoped Open/Reload controls and dirty Save/discard handling
+for returning to text comparison. Busy/Open/preparation states block duplicate
+Open, normal Close and Quit. Temporary preparation windows are closed.
+
+The Debug build and one grouped native receiver passed on their first run.
+The patch replacement family verifies invalid-patch preservation, a real Git
+preparation held at repository discovery and cancelled, Close/Quit fences,
+checked model readiness before adoption, same window/frame/delegate across
+text→patch→text, and unchanged input/patch bytes. The existing Review/Apply family
+verifies plain-folder previews, checked subsets, edited Save, source preservation,
+dirty Close and expired picker replies. Existing File/Open and Open-dialog
+families also passed. All owned windows/helpers closed and the receiver was reaped.
+Core code was unchanged and its suite was not repeated. The new family is also
+included in the normal grouped editor receiver for CI. See
+[validation evidence](qa/merge-patch-open-2026-10-14.json).
+
+Earlier descriptions of patch File/Open always opening a separate Review/Apply
+window are superseded for this route. The app's separate Tools/Finder patch
+commands retain their existing standalone behavior. Physical file/target/better-
+folder sheets, live Finder/menu/keyboard/VoiceOver, exact light/dark captures,
+forced-parent-close during every preparation phase and signed grant/App Store
+acceptance remain open. This local checkpoint does not prove full hosted CI or
+complete upstream merge-editor parity.

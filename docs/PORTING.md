@@ -1011,3 +1011,12 @@ identity-safe cached callers accompany the replacement. Debug and grouped native
 Open/editor regressions passed after a frame repair and fixture window-lifetime
 repair. Patch mode still opens the separate native Review/Apply workflow;
 physical/visual/signed acceptance remains open. See [Open audit](MERGE-OPEN-PARITY.md).
+
+
+File/Open patch mode now prepares and checks Review/Apply before replacing the
+same native editor window; invalid patches/cancellation retain the original.
+Review/Apply can Open back into comparison with existing dirty Save handling.
+Scoped menus, shared keyboard ownership and preparation Close/Quit guards cover
+the round trip. First Debug and grouped native patch/Open checks passed; Core
+was unchanged. Physical/signed/full-source acceptance remains open. See the
+[Open patch follow-up](MERGE-OPEN-PARITY.md).

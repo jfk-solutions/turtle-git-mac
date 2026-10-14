@@ -55,10 +55,10 @@ import TurtleGitCore
     }
     @objc func createPatchFile(_ sender: Any?) { model.createUnifiedPatch() }
     @objc func reloadEditor(_ sender: Any?) {
-        guard editorOpenWorkflow == nil, window?.attachedSheet == nil else { return }; model.load()
+        guard !preparingReplacement, editorOpenWorkflow == nil, window?.attachedSheet == nil else { return }; model.load()
     }
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
-        if item.action == #selector(openMergeDocument(_:)) || item.action == #selector(reloadEditor(_:)) { return editorOpenWorkflow == nil && !model.busy && !model.filtering && !model.confirmingQuit && window?.attachedSheet == nil }
+        if item.action == #selector(openMergeDocument(_:)) || item.action == #selector(reloadEditor(_:)) { return !preparingReplacement && !preparingReplacement && editorOpenWorkflow == nil && !model.busy && !model.filtering && !model.confirmingQuit && window?.attachedSheet == nil }
         return item.action == #selector(createPatchFile(_:)) && model.canCreateUnifiedPatch
     }
     var onClosed: () -> Void = {}
@@ -66,8 +66,9 @@ import TurtleGitCore
     var makeEditorOpenWorkflow: (NSWindow, [RepositoryAccessLease], UserDefaults) -> MergeEditorOpenWorkflow = { MergeEditorOpenWorkflow(window: $0, permissions: $1, preferences: $2) }
     var replacementOwner: MergeEditorReplacementOwner?
     weak var sharedReplacementOwner: MergeEditorReplacementOwner?
+    var preparingReplacement: Bool { (sharedReplacementOwner ?? replacementOwner)?.preparingPatch == true }
     @objc func openMergeDocument(_ sender: Any?) {
-        guard editorOpenWorkflow == nil, let window, !model.busy, !model.filtering, !model.confirmingQuit, window.attachedSheet == nil else { return }
+        guard !preparingReplacement, editorOpenWorkflow == nil, let window, !model.busy, !model.filtering, !model.confirmingQuit, window.attachedSheet == nil else { return }
         let workflow = makeEditorOpenWorkflow(window, model.openPermissions, model.comparisonDefaults)
         editorOpenWorkflow = workflow
         workflow.onClosed = { [weak self] in self?.editorOpenWorkflow = nil }
@@ -116,7 +117,7 @@ import TurtleGitCore
         DialogGeometry.attach(window, identifier: "TurtleGit.TwoFileDiff", legacyName: "TurtleGit.TwoFileDiff")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard editorOpenWorkflow == nil else { return false }
+        guard !preparingReplacement, editorOpenWorkflow == nil else { return false }
         if model.cancelLoadForClose() { return false }
         guard sender.attachedSheet == nil, !model.busy, !model.confirmingQuit else { return false }
         guard model.dirty else { return true }
@@ -748,7 +749,7 @@ import TurtleGitCore
         closeAfterLoad = true; loadSession.cancel(); return true
     }
     func load() {
-        guard !retired, !busy, !confirmingQuit else { return }
+        guard !retired, !busy, !confirmingQuit, window?.attachedSheet == nil else { return }
         wrapLines = comparisonDefaults.bool(forKey: "TurtleGitMerge.WrapLines")
         if !singleFileMode { showInlineDiff = MergeInlinePresentation.defaultEnabled(from: comparisonDefaults) }
         if !loadedPaneMode { onePaneMode = OnePaneFileComparison.defaultEnabled(from: comparisonDefaults); loadedPaneMode = true }

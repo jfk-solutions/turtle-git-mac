@@ -25,6 +25,8 @@ import TurtleGitCore
     var chooseFile: (() async -> URL?)?
     var chooseTarget: (() async -> URL?)?
     var presentation: ((WorkingTreePatchWindowController) -> Void)?
+    var preparedPresentation: ((WorkingTreePatchWindowController) throws -> Void)?
+    private var pendingReview: WorkingTreePatchWindowController?
     var onFinished: () -> Void = {}
     init(file: URL?, target: URL?, preferred: URL? = nil, grants: [RepositoryAccessLease] = [], executable: URL, preferences: UserDefaults = .standard, clipboardBytes: Data? = nil, title: String = "Clipboard patch") {
         self.clipboardBytes = clipboardBytes; self.sourceTitle = file?.lastPathComponent ?? title
@@ -110,9 +112,22 @@ import TurtleGitCore
             let access = grants.first { $0.contains(selectedTarget) && (!GitRuntime.isAppStoreBuild || $0.hasSecurityScope) }
             let fileAccess = file.flatMap { file in grants.first { $0.contains(file) && (!GitRuntime.isAppStoreBuild || $0.hasSecurityScope) } }
             let controller = WorkingTreePatchWindowController(repository: repository, access: access, fileAccess: fileAccess,
-                bytes: bytes, title: clipboardBytes == nil ? (file?.lastPathComponent ?? sourceTitle) : sourceTitle, preferences: preferences, directoryMode: true, isGitWorkingTree: isGit, initialStripCount: strip)
-            ReviewPatchWindows.retain(controller, grants: grants)
-            if let presentation { presentation(controller) } else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
+                bytes: bytes, title: clipboardBytes == nil ? (file?.lastPathComponent ?? sourceTitle) : sourceTitle, preferences: preferences, directoryMode: true, isGitWorkingTree: isGit, initialStripCount: strip, automaticallyRefresh: preparedPresentation == nil)
+            if let preparedPresentation {
+                pendingReview = controller
+                await withCheckedContinuation { continuation in controller.model.refresh { continuation.resume() } }
+                guard !retired, generation == current, !token.isCancelled else { controller.close(); pendingReview = nil; return }
+                guard controller.model.review != nil else {
+                    let message = controller.model.notice
+                    controller.close(); pendingReview = nil
+                    throw PreparedReviewFailure(message: message)
+                }
+                do { try preparedPresentation(controller); pendingReview = nil }
+                catch { controller.close(); pendingReview = nil; throw error }
+            } else {
+                ReviewPatchWindows.retain(controller, grants: grants)
+                if let presentation { presentation(controller) } else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
+            }
             window?.close()
         } catch { if !retired, generation == current { fail(error) } }
     }
@@ -125,6 +140,7 @@ import TurtleGitCore
         let response = await withCheckedContinuation { continuation in alert.beginSheetModal(for: window) { continuation.resume(returning: $0) } }
         return response == .alertFirstButtonReturn ? .suggested : response == .alertSecondButtonReturn ? .original : .cancel
     }
+    private struct PreparedReviewFailure: LocalizedError { let message: String; var errorDescription: String? { message.isEmpty ? "Could not prepare the patch review." : message } }
     private func fail(_ failure: Error) { error = failure.localizedDescription; status = "Could not open this patch." }
     func cancel() {
         guard !retired else { return }
@@ -134,9 +150,10 @@ import TurtleGitCore
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { if picker != nil { cancel(); return false }; return true }
     func windowWillClose(_ notification: Notification) {
-        guard !retired else { return }; retired = true; generation += 1; token.cancel()
+        guard !retired else { return }; retired = true; generation += 1; token.cancel(); pendingReview?.close(); pendingReview = nil
         if let picker { window?.endSheet(picker, returnCode: .cancel); picker.close(); self.picker = nil }
         if let sheet = window?.attachedSheet { window?.endSheet(sheet, returnCode: .abort); sheet.close() }
+        if let window, let parent = window.sheetParent { parent.endSheet(window) }
         onFinished()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }

@@ -1,0 +1,55 @@
+{
+  "date": "2026-10-14",
+  "base": "f9f98a84",
+  "scope": [
+    "Checked Review/Apply preparation before replacing original editor",
+    "Owned pending preparation, cancellation/late adoption fences and Close/Quit gates",
+    "Same native window and geometry across text\u2192patch\u2192text, shared keyboard/delegate routing and scoped Open/Reload",
+    "Save completion/refresh barriers, retained input grants and temporary prepared-window cleanup"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/merge-patch-open-debug-2026-10-14.log"
+    },
+    "core": "Unchanged; not rerun",
+    "native": {
+      "exit": 0,
+      "log": "build/qa/merge-patch-open-native-2026-10-14.log",
+      "first_run": true,
+      "families": [
+        "patch File/Open replacement",
+        "existing Review/Apply",
+        "existing File/Open replacement",
+        "existing Open dialog"
+      ],
+      "evidence": [
+        "Invalid patch retains original window/document; cancel clears pending owner",
+        "Real helper Git held at --is-inside-work-tree; cancellation settles active preparation and retains original",
+        "Close and Quit blocked during pending preparation",
+        "Checked Review/Apply model is ready before adoption",
+        "Actual same NSWindow/frame/delegate across text\u2192patch\u2192text",
+        "Source/patch bytes unchanged by preparation/replacement",
+        "Existing plain-folder before/after, checked subset, edited Save, dirty Close and expired picker replies",
+        "Existing Open Save/Cancel/late-answer, held-save lifetime and standalone merge load/save regressions"
+      ],
+      "normal_group_dispatch": "New patch replacement family also included in normal editor group; no runtime rerun for dispatch-only addition"
+    },
+    "owned_receivers_reaped": [
+      20415
+    ],
+    "receiver_pids_still_live_at_final_check": [],
+    "site": {
+      "exit": 0,
+      "documents": 213,
+      "unresolved_fragments": [],
+      "log": "build/qa/merge-patch-open-site-2026-10-14.log"
+    }
+  },
+  "limitations": [
+    "Physical file/target/better-folder sheets, Finder/menu/keyboard/VoiceOver and exact visual captures remain open",
+    "Forced parent closure in every patch preparation phase is implemented but not exhaustively executed here",
+    "Unsigned receiver emits sandbox_extension_consume diagnostics; signed grants/App Store acceptance remain unverified",
+    "Local grouped pass does not prove full hosted CI or complete upstream/application parity"
+  ]
+}
