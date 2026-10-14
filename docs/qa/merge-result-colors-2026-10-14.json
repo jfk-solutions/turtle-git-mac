@@ -1,0 +1,92 @@
+{
+  "date": "2026-10-14",
+  "base": "1f46728a",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Persistent UTF-16 result provenance for resolved choices and manual edits, retaining unaffected middle regions",
+    "Actual merged pane/locator/modified-only Find consume result states and configured light/dark channels",
+    "Complete native edit commands retain text/presentation snapshots with explicit Undo groups",
+    "Two-pane existing manual annotations project Edited colors into panes and locator without changing alignment",
+    "Saving keeps provenance and exact encoded bytes; reload resets provenance/history from authoritative engine output"
+  ],
+  "validation": {
+    "initial_compile": {
+      "debug_exit": 65,
+      "core_command_exit": 1,
+      "cause": "App projection needed an immutable MergeSourceCell copy but its memberwise initializer was internal; added explicit public initializer. Core tests did not run before repair.",
+      "logs": [
+        "build/qa/merge-result-colors-debug-2026-10-14.log",
+        "build/qa/merge-result-colors-core-2026-10-14.log"
+      ]
+    },
+    "debug_repair": {
+      "exit": 0,
+      "log": "build/qa/merge-result-colors-debug-repair-2026-10-14.log"
+    },
+    "core": {
+      "exit": 0,
+      "tests": 23,
+      "filter": "MergeResultPresentationTests|MergeSourceComparisonTests|MergeEditorPreferencesTests|MergeFindTests",
+      "new_provenance_tests": 5,
+      "log": "build/qa/merge-result-colors-core-repair-2026-10-14.log"
+    },
+    "native_fixture_compile": {
+      "exit": 1,
+      "cause": "Two-pane model uses filtering rather than preparing; corrected receiver wait. No receiver launched.",
+      "log": "build/qa/merge-result-colors-native-2026-10-14.log"
+    },
+    "native_history_failures": {
+      "logs": [
+        "build/qa/merge-result-colors-native-fixture-2026-10-14.log",
+        "build/qa/merge-result-colors-native-history-diagnostic-2026-10-14.log",
+        "build/qa/merge-result-colors-native-history-diagnostic2-2026-10-14.log",
+        "build/qa/merge-result-colors-native-history-2026-10-14.log",
+        "build/qa/merge-result-colors-native-undo-diagnostic-2026-10-14.log"
+      ],
+      "cause": "Initially labeled Redo from receiver line offsets, but Undo stalled first. Final stderr diagnostic showed Undo restored unresolved markers: choice and typing were grouped together. Earlier prints placed before Redo were never reached.",
+      "repair": "Merged typing now uses the complete block-edit history path; each complete command has an explicit Undo group with text/presentation snapshot.",
+      "core": "Not rerun; these repairs change native editing/history only.",
+      "owned_receivers_reaped": [
+        45508,
+        45558,
+        45615,
+        45677,
+        45740
+      ]
+    },
+    "history_builds": {
+      "exit": 0,
+      "logs": [
+        "build/qa/merge-result-colors-debug-history-2026-10-14.log",
+        "build/qa/merge-result-colors-debug-groups-2026-10-14.log"
+      ]
+    },
+    "native": {
+      "exit": 0,
+      "cases": 2,
+      "families": [
+        "merge-result-colors",
+        "merge-clipboard"
+      ],
+      "engine": "system Git (new result checks primarily use standalone file/Subversion editors; no duplicate Git-engine run)",
+      "owned_receivers_reaped": [
+        45805,
+        45809
+      ],
+      "log": "build/qa/merge-result-colors-native-groups-2026-10-14.log",
+      "evidence": [
+        "Real block resolution and result/locator states",
+        "Custom palette backgrounds in both appearances and Edited foreground/background channels",
+        "Ordinary native typing Undo/Redo restores exact text/provenance",
+        "Actual save writes exact bytes and retains states; reload clears edited/resolved history",
+        "Two-pane annotations and locator show Edited; Undo removes it",
+        "Source files remain unchanged; clipboard/context regression passes"
+      ]
+    }
+  },
+  "limitations": [
+    "Remaining source DiffState aliases and resolved-empty display gaps are not certified",
+    "Physical typing/IME/VoiceOver, large-file performance, full page appearance and signed/minimum-OS acceptance remain open",
+    "No full hosted CI or complete Merge/application/App Store certification"
+  ]
+}

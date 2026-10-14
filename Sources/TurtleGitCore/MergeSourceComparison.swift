@@ -1,6 +1,6 @@
 import Foundation
 
-public enum MergeSourceState: Sendable, Equatable { case normal, removed, added, conflicted, empty, filtered }
+public enum MergeSourceState: Sendable, Equatable { case normal, removed, added, conflicted, resolved, edited, empty, filtered }
 
 public struct MergeSourceCell: Sendable {
     /// Original bytes represented by this line, including its line ending.
@@ -8,6 +8,7 @@ public struct MergeSourceCell: Sendable {
     /// One-based source line number. Removed base lines and alignment gaps have none.
     public let lineNumber: Int?
     public let state: MergeSourceState
+    public init(text: String, lineNumber: Int?, state: MergeSourceState) { self.text = text; self.lineNumber = lineNumber; self.state = state }
     public var displayText: String {
         MergeLineEndings.droppingFinalEnding(text)
     }

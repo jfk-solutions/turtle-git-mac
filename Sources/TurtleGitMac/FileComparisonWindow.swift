@@ -138,8 +138,12 @@ import TurtleGitCore
         return combinedCache
     }
     func displayCells(base: Bool) -> [MergeSourceCell] {
-        if onePaneActive, !base { return combined?.cells ?? [] }
-        return alignment?.rows.map { base ? $0.base : $0.destination } ?? []
+        func paint(_ cell: MergeSourceCell, row: Int, side: Bool) -> MergeSourceCell {
+            guard annotations(base: side).edited.contains(row), cell.lineNumber != nil else { return cell }
+            return MergeSourceCell(text: cell.text, lineNumber: cell.lineNumber, state: .edited)
+        }
+        if onePaneActive, !base { return combined?.rows.map { paint($0.cell, row: $0.alignmentRow, side: $0.base) } ?? [] }
+        return alignment?.rows.enumerated().map { paint(base ? $0.element.base : $0.element.destination, row: $0.offset, side: base) } ?? []
     }
     var choosePaneSwitch: (String) -> NSApplication.ModalResponse = { description in
         let alert = NSAlert(); alert.messageText = "Save changes to “" + description + "” before changing the view?"
@@ -182,8 +186,8 @@ import TurtleGitCore
     @Published private(set) var locatorPreferences = MergeLocatorPreferences.load()
     @Published private(set) var locatorViewport = MergeLocatorViewport()
     var locatorMap: MergeLocatorMap {
-        if onePaneActive { return MergeLocatorMap(columns: [combined?.rows.map { $0.cell.state } ?? [], [], []]) }
-        return MergeLocatorMap(columns: [alignment?.rows.map { $0.base.state } ?? [], [], alignment?.rows.map { $0.destination.state } ?? []])
+        if onePaneActive { return MergeLocatorMap(columns: [displayCells(base: false).map(\.state), [], []]) }
+        return MergeLocatorMap(columns: [displayCells(base: true).map(\.state), [], displayCells(base: false).map(\.state)])
     }
     func setLocatorPreferences(_ value: MergeLocatorPreferences) {
         guard !retired, !busy, !confirmingQuit else { return }

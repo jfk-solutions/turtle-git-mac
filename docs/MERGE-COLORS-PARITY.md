@@ -74,3 +74,8 @@ controls and panel lifecycle. No new Core tests were added or rerun for these
 native-only changes. See [the controls record](qa/merge-colors-controls-2026-10-12.json).
 All test-owned windows/panels/helpers closed. Full hosted CI and physical
 whole-page/source appearance acceptance remain unproven.
+
+Resolved and manual edited result channels are now connected to editing, history,
+save/reload, Find and locator presentation in
+[Result states parity](MERGE-RESULT-STATES-PARITY.md). Remaining source aliases and
+physical/signed acceptance are still open.

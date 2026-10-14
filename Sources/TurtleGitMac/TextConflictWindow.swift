@@ -261,7 +261,7 @@ private enum MergeSourceSide {
     @Published private(set) var locatorViewport = MergeLocatorViewport()
     private weak var locatorResultScroll: NSScrollView?
     var locatorMap: MergeLocatorMap {
-        let states = sourceComparison?.resultLocator?.states(for: result, conflicts: blocks.map(\.range)) ?? []
+        let states = resultStates
         return MergeLocatorMap(columns: [sourceComparison?.rows.map { $0.theirs.state } ?? [], states, sourceComparison?.rows.map { $0.mine.state } ?? []])
     }
     func setLocatorPreferences(_ value: MergeLocatorPreferences) {
@@ -318,7 +318,11 @@ private enum MergeSourceSide {
         regexList?.retire(); regexList = nil
         editorConfigRequests = [:]
     }
-    @Published var result = ""
+    @Published private(set) var resultPresentation = MergeResultPresentation(text: "", states: [])
+    @Published var result = "" { didSet { if !resultPresentation.text.utf8.elementsEqual(result.utf8) { resultPresentation = resultPresentation.reconciling(result) } } }
+    var resultStates: [MergeSourceState] { resultPresentation.states(conflicts: blocks.map(\.range)) }
+    func updateResultPresentation(_ value: MergeResultPresentation) { resultPresentation = value }
+
     @Published var encoding: ComparisonTextEncoding = .utf8
     @Published var selectedConflict = 0
     @Published var caret = NSRange(location: 0, length: 0)
@@ -376,6 +380,7 @@ private enum MergeSourceSide {
     private var preferencesSubscription: AnyCancellable?
     var applyBlock: ((NSRange, String) -> Void)?
     var replaceEntireResult: ((String) -> Void)?
+    var replaceEntireResolvedResult: ((String) -> Void)?
     var resetHistory: () -> Void = {}
     var undo: () -> Void = {}
     var redo: () -> Void = {}
@@ -506,7 +511,7 @@ private enum MergeSourceSide {
         guard !retired, generation == nil || generation == loadGeneration else { return }
         guard let comparison = next.mergeSources else { throw SubversionMergeDiffFailure.invalidOutput }
         resetHistory()
-        document = next; sourceComparison = comparison; result = next.initialResult; encoding = next.encoding
+        document = next; sourceComparison = comparison; resultPresentation = MergeResultPresentation(text: next.initialResult, states: comparison.resultLocator?.states ?? []); result = next.initialResult; encoding = next.encoding
         commentProfiles = profiles
         comparisonOptions = options; if changingOptions { options.save(to: comparisonDefaults) }; pendingComparisonOptions = nil
         regexFilterName = filter?.name
@@ -529,7 +534,7 @@ private enum MergeSourceSide {
         let index = min(selectedConflict, blocks.count - 1)
         do {
             if let applyBlock { let block = blocks[index]; applyBlock(block.range, block.replacement(choice)) }
-            else { result = try MergeText.applying(choice, block: index, to: result, document: document) }
+            else { let block = blocks[index], replacement = block.replacement(choice); if let presentation = resultPresentation.replacing(block.range, with: replacement, state: .resolved) { resultPresentation = presentation; result = presentation.text } }
             selectConflict(index)
         }
         catch { self.error = error.localizedDescription }
@@ -537,8 +542,8 @@ private enum MergeSourceSide {
     fileprivate func useFile(_ side: MergeSourceSide) {
         guard !busy, !confirmingQuit, let document else { return }
         let contents = side == .mine ? document.mine : document.theirs
-        if let replaceEntireResult { replaceEntireResult(contents) }
-        else { result = contents }
+        if let replaceEntireResolvedResult { replaceEntireResolvedResult(contents) }
+        else { resultPresentation = MergeResultPresentation(text: contents, states: MergeLineEndings.lineRanges(in: contents).map { _ in .resolved }); result = contents }
         selectedConflict = 0
     }
     var chooseEmptyResult: ((String) async -> MergeEmptyResult)?
@@ -614,7 +619,7 @@ enum MergePalette {
     static var revision: Int { storage.snapshot().1 }
     static func reload(defaults: UserDefaults = .standard) { storage.replace(.load(from: defaults)) }
     static func role(_ state: MergeSourceState) -> MergeColorRole {
-        switch state { case .normal: return .normal; case .removed: return .removed; case .added: return .added; case .conflicted: return .conflicted; case .empty: return .empty; case .filtered: return .filtered }
+        switch state { case .normal: return .normal; case .removed: return .removed; case .added: return .added; case .conflicted: return .conflicted; case .resolved: return .resolved; case .edited: return .modified; case .empty: return .empty; case .filtered: return .filtered }
     }
     static func roleColor(_ role: MergeColorRole, foreground: Bool = false) -> NSColor {
         let palette = storage.snapshot().0
@@ -625,7 +630,7 @@ enum MergePalette {
         }
     }
     static func color(_ state: MergeSourceState) -> NSColor { roleColor(role(state)) }
-    static func foreground(_ state: MergeSourceState) -> NSColor { roleColor(role(state), foreground: true) }
+    static func foreground(_ state: MergeSourceState) -> NSColor { roleColor(state == .edited ? .added : role(state), foreground: true) }
     static var inlineCommon: NSColor { roleColor(.modified) }
     static var inlineAdded: NSColor { roleColor(.inlineAdded) }
     static var inlineRemoved: NSColor { roleColor(.inlineRemoved) }
@@ -743,12 +748,16 @@ private struct MergeEditor: NSViewRepresentable {
             model.replaceEntireResult = { [weak view] value in
                 guard let view else { return }
                 view.window?.makeFirstResponder(view)
-                view.replaceMergeBlock(NSRange(location: 0, length: (view.string as NSString).length), with: value, actionName: "Use whole file")
+                view.replaceMergeBlock(NSRange(location: 0, length: (view.string as NSString).length), with: value, actionName: "Edit result")
+            }
+            model.replaceEntireResolvedResult = { [weak view] value in
+                guard let view else { return }; view.window?.makeFirstResponder(view)
+                view.replaceMergeBlock(NSRange(location: 0, length: (view.string as NSString).length), with: value, actionName: "Use whole file", state: .resolved)
             }
             model.applyBlock = { [weak view] range, value in
                 guard let view else { return }
                 view.window?.makeFirstResponder(view)
-                view.replaceMergeBlock(range, with: value)
+                view.replaceMergeBlock(range, with: value, state: .resolved)
             }
         }
         let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true
@@ -781,7 +790,10 @@ private struct MergeEditor: NSViewRepresentable {
         view.textStorage?.addAttributes([.foregroundColor: MergePalette.foreground(.normal), .backgroundColor: MergePalette.color(MergeSourceState.normal), .font: model.generalPreferences.nativeFont, .paragraphStyle: view.defaultParagraphStyle ?? NSParagraphStyle.default], range: entire)
         if editable {
             view.inlineMissingOffsets = []
-            for block in MergeText.conflicts(in: text) { view.textStorage?.addAttributes([.backgroundColor: MergePalette.color(MergeSourceState.conflicted), .foregroundColor: MergePalette.foreground(.conflicted)], range: block.range) }
+            let states = model.resultStates
+            for (index, range) in MergeLineEndings.lineRanges(in: text).enumerated() where states.indices.contains(index) {
+                view.textStorage?.addAttributes([.backgroundColor: MergePalette.color(states[index]), .foregroundColor: MergePalette.foreground(states[index])], range: range)
+            }
             if let requested = model.selectionRequest, NSMaxRange(requested) <= entire.length {
                 view.setSelectedRange(requested); view.scrollRangeToVisible(requested)
                 DispatchQueue.main.async { if model.selectionRequest == requested { model.selectionRequest = nil } }
@@ -837,6 +849,13 @@ private struct MergeEditor: NSViewRepresentable {
                 DispatchQueue.main.async { view.updateUndoState() }
             }
         }
+        func textView(_ textView: NSTextView, shouldChangeTextIn affectedCharRange: NSRange, replacementString: String?) -> Bool {
+            guard editable, let view = textView as? MergeTextView, let replacementString else { return true }
+            guard view.isEditable, !model.busy, !model.confirmingQuit else { return false }
+            view.replaceMergeBlock(affectedCharRange, with: replacementString, actionName: "Typing")
+            view.setSelectedRange(NSRange(location: affectedCharRange.location + replacementString.utf16.count, length: 0))
+            return false
+        }
         func textViewDidChangeSelection(_ notification: Notification) {
             guard editable, let view = notification.object as? NSTextView else { return }
             let range = view.selectedRange()
@@ -874,7 +893,7 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
     var mergeFindWritable: Bool { mergeFindAllowed && mergeEditable && isEditable }
     var mergeFindLines: [MergeFindLine] {
         if let sourceCells { return MergeFindLine.displayCells(sourceCells) }
-        return MergeFindLine.document(string, states: model?.sourceComparison?.resultLocator?.states(for: string, conflicts: model?.blocks.map(\.range) ?? []) ?? [])
+        return MergeFindLine.document(string, states: model?.resultStates ?? [])
     }
     func replaceFindMatches(_ ranges: [NSRange], with replacement: String) -> Bool {
         guard mergeFindWritable, !ranges.isEmpty else { return false }
@@ -951,24 +970,27 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
         paragraph.defaultTabInterval = (" " as NSString).size(withAttributes: [.font: font ?? NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)]).width * CGFloat(width)
         defaultParagraphStyle = paragraph
     }
-    private let mergeUndoManager = UndoManager()
+    private let mergeUndoManager: UndoManager = { let value = UndoManager(); value.groupsByEvent = false; return value }()
     override var undoManager: UndoManager? { mergeEditable ? mergeUndoManager : super.undoManager }
     func updateUndoState() { model?.canUndo = mergeUndoManager.canUndo; model?.canRedo = mergeUndoManager.canRedo }
     func undoMergeEdit() { if mergeUndoManager.canUndo { mergeUndoManager.undo() }; updateUndoState() }
     func redoMergeEdit() { if mergeUndoManager.canRedo { mergeUndoManager.redo() }; updateUndoState() }
     func resetMergeHistory() { mergeUndoManager.removeAllActions(); updateUndoState() }
-    func replaceMergeBlock(_ range: NSRange, with replacement: String, actionName: String = "Use text block") {
+    func replaceMergeBlock(_ range: NSRange, with replacement: String, actionName: String = "Use text block", state: MergeSourceState = .edited) {
         guard isEditable, model?.busy == false, model?.confirmingQuit == false, NSMaxRange(range) <= (string as NSString).length else { return }
-        let previous = string, selection = selectedRange()
-        mergeUndoManager.registerUndo(withTarget: self) { $0.restoreMergeText(previous, selection: selection) }
+        let previous = string, selection = selectedRange(), presentation = model?.resultPresentation
+        mergeUndoManager.beginUndoGrouping(); defer { mergeUndoManager.endUndoGrouping() }
+        mergeUndoManager.registerUndo(withTarget: self) { $0.restoreMergeText(previous, selection: selection, presentation: presentation) }
+        if let next = model?.resultPresentation.replacing(range, with: replacement, state: state) { model?.updateResultPresentation(next) }
         mergeUndoManager.setActionName(actionName)
         textStorage?.replaceCharacters(in: range, with: replacement)
         setSelectedRange(NSRange(location: range.location, length: (replacement as NSString).length))
         didChangeText()
     }
-    private func restoreMergeText(_ text: String, selection: NSRange) {
-        let previous = string, previousSelection = selectedRange()
-        mergeUndoManager.registerUndo(withTarget: self) { $0.restoreMergeText(previous, selection: previousSelection) }
+    private func restoreMergeText(_ text: String, selection: NSRange, presentation: MergeResultPresentation? = nil) {
+        let previous = string, previousSelection = selectedRange(), previousPresentation = model?.resultPresentation
+        mergeUndoManager.registerUndo(withTarget: self) { $0.restoreMergeText(previous, selection: previousSelection, presentation: previousPresentation) }
+        if let presentation { model?.updateResultPresentation(presentation) }
         textStorage?.replaceCharacters(in: NSRange(location: 0, length: (string as NSString).length), with: text)
         setSelectedRange(selection); didChangeText()
     }
@@ -1101,7 +1123,7 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
     @objc private func useBlock(_ sender: NSMenuItem) {
         guard mergeEditable, isEditable, MergeBlockChoice.allCases.indices.contains(sender.tag), let model, !model.busy, !model.confirmingQuit, let block = model.blocks.first(where: { NSIntersectionRange($0.range, selectedRange()).length > 0 || NSLocationInRange(selectedRange().location, $0.range) }) else { return }
         let text = block.replacement(MergeBlockChoice.allCases[sender.tag])
-        replaceMergeBlock(block.range, with: text)
+        replaceMergeBlock(block.range, with: text, state: .resolved)
     }
 }
 final class MergeLineRuler: NSRulerView {
