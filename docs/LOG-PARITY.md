@@ -1,5 +1,7 @@
 # Log Messages parity
 
+Current light/dark main-window review: [primary dialog visual review](PRIMARY-DIALOG-VISUAL-REVIEW.md).
+
 Format Patch now opens from the revision context menu with original menupatch
 artwork and upstream single-revision Since or inclusive multi-revision Range
 presets. One/two/continuous selection rules and actual generated patch subjects

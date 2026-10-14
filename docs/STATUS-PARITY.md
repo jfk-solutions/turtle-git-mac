@@ -1,5 +1,7 @@
 # Working Tree dialog parity
 
+Current light/dark main-window review: [primary dialog visual review](PRIMARY-DIALOG-VISUAL-REVIEW.md).
+
 Reference: `ChangedDlg.cpp`, `ChangedDlg.h`, `IDD_CHANGEDFILES` in the resource
 file, and `RepoStatusCommand`, pinned by `upstream.json`.
 

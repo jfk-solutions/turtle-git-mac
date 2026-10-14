@@ -3729,8 +3729,12 @@ struct LogReferenceScopeCheckbox: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(change: change) }
     func makeNSView(context: Context) -> NSButton {
         let button = NSButton(checkboxWithTitle: "All Branches", target: context.coordinator, action: #selector(Coordinator.clicked(_:)))
-        button.allowsMixedState = true; return button
+        button.allowsMixedState = true
+        button.setContentHuggingPriority(.required,for:.vertical)
+        button.setContentCompressionResistancePriority(.required,for:.vertical)
+        return button
     }
+    func sizeThatFits(_ proposal:ProposedViewSize,nsView:NSButton,context:Context)->CGSize? {nsView.fittingSize}
     func updateNSView(_ button: NSButton, context: Context) {
         button.state = scope == .current ? .off : scope == .all ? .on : .mixed
         button.isEnabled = enabled; button.toolTip = scope.title

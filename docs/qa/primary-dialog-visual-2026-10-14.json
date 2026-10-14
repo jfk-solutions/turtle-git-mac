@@ -1,0 +1,126 @@
+{
+  "date": "2026-10-14",
+  "base": "bc9d109a",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "production_change": "Log All Branches native checkbox intrinsic vertical sizing prevents stretched footer",
+  "published_captures": [
+    {
+      "path": "docs/site/assets/commit-current-light.png",
+      "width": 2000,
+      "height": 1584,
+      "sha256": "bbcea5d403f5fbc40ab06e5b7c3365cf4dcd30ce06784354d9ea9260001a503f"
+    },
+    {
+      "path": "docs/site/assets/commit-current-dark.png",
+      "width": 2000,
+      "height": 1584,
+      "sha256": "183cdfd0f03fb2cbc250d15effc977a6320e2065b30e3d69ec004750bebda8f0"
+    },
+    {
+      "path": "docs/site/assets/staging-current-light.png",
+      "width": 2000,
+      "height": 1584,
+      "sha256": "209b635778b74a7faac5c01290c5a8427c95875a3c351e6773b7da4ec63ba163"
+    },
+    {
+      "path": "docs/site/assets/staging-current-dark.png",
+      "width": 2000,
+      "height": 1584,
+      "sha256": "e2515982c87139aca8f772bc0a759503bc4253e8d890c6cff79e95e1e4ddd321"
+    },
+    {
+      "path": "docs/site/assets/log-current-light.png",
+      "width": 2240,
+      "height": 1624,
+      "sha256": "4a4c5cf432eec45f5001f0b16fff0f2c039a52f6c807acf943c4b7612601de7e"
+    },
+    {
+      "path": "docs/site/assets/log-current-dark.png",
+      "width": 2240,
+      "height": 1624,
+      "sha256": "60362ca704904902221fe9b4743ca875202842b5349f9572a6d3ec9bde53f5f1"
+    },
+    {
+      "path": "docs/site/assets/working-tree-current-light.png",
+      "width": 2200,
+      "height": 1324,
+      "sha256": "1e7372d160d6f155c19e927bd38a704c09f46cc136061ea1062b587a4ff82788"
+    },
+    {
+      "path": "docs/site/assets/working-tree-current-dark.png",
+      "width": 2200,
+      "height": 1324,
+      "sha256": "1ed819b5c1583a7494b836b4ffd95781f925a429123ee674611058a0e41242f9"
+    }
+  ],
+  "validation": {
+    "initial_capture_compile": {
+      "exit": 1,
+      "reason": "Fixture referred to nonexistent confirmQuit; changed to confirmCancel before running receiver",
+      "log": "build/qa/primary-dialog-captures-2026-10-14.log"
+    },
+    "first_capture": {
+      "exit": 0,
+      "owned_receiver_reaped": 2689,
+      "log": "build/qa/primary-dialog-captures-repair-2026-10-14.log"
+    },
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/primary-dialog-layout-debug-2026-10-14.log",
+      "diagnostics": "Existing exit-zero/no-output compiler diagnostics; no clean-diagnostics claim"
+    },
+    "final_capture": {
+      "exit": 0,
+      "owned_receiver_reaped": 3112,
+      "log": "build/qa/primary-dialog-captures-final-2026-10-14.log",
+      "preserved": [
+        "HEAD",
+        "logical git write-tree index tree",
+        "porcelain working-tree status"
+      ],
+      "actions": "No Commit or patch-apply invoked; all owned windows closed"
+    },
+    "native": {
+      "exit": 0,
+      "cases": 4,
+      "families": [
+        "log-reference-navigation",
+        "log-changed-files"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "owned_receivers_reaped": [
+        3116,
+        3871,
+        3938,
+        4519
+      ],
+      "log": "build/qa/primary-dialog-layout-native-2026-10-14.log"
+    },
+    "core": "Not repeated; no Core changes",
+    "site": {
+      "exit": 0,
+      "documents": 200,
+      "unresolved_fragments": 0,
+      "log": "build/qa/primary-dialog-visual-site-2026-10-14.log"
+    }
+  },
+  "excluded_captures": [
+    {
+      "name": "partial-staging-current-light.png",
+      "reason": "Inconsistent compositor parent/child grouping with large gap"
+    },
+    {
+      "name": "partial-staging-current-dark.png",
+      "reason": "Isolated inactive child; does not certify placement"
+    }
+  ],
+  "limits": [
+    "Visual review does not certify all conditional states, graph topologies, minimum sizes, physical clicks/keys or VoiceOver",
+    "Logical index preservation does not assert byte-identical index timestamp metadata",
+    "Partial staging physical placement and signed Finder/sandbox/App Store acceptance remain open",
+    "Focused local checks do not certify complete hosted CI or the whole port"
+  ]
+}

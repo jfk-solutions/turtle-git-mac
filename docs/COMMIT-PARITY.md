@@ -1,5 +1,7 @@
 # Commit dialog parity
 
+Current light/dark main-window review: [primary dialog visual review](PRIMARY-DIALOG-VISUAL-REVIEW.md).
+
 Issue-matching runtime, native property/field/warning behavior and remaining work
 are tracked in [issue tracker parity](ISSUE-TRACKER-PARITY.md).
 
