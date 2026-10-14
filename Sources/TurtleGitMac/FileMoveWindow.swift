@@ -110,8 +110,8 @@ import TurtleGitCore
         self.repository = repository; self.access = access; self.preferences = preferences; folder = repository.root
         var seen = Set<String>(); self.paths = paths.filter { seen.insert($0).inserted }
     }
-    func loadClipboard(_ urls: [URL], destination: URL? = nil) {
-        guard canEdit else { return }; pasteMode = true; let token = OperationCancellation(); cancellation = token; busy = true; error = nil; Self.activeOperations += 1
+    func loadClipboard(_ urls: [URL], destination: URL? = nil, stopOnError: Bool = true) {
+        guard canEdit else { return }; pasteMode = stopOnError; let token = OperationCancellation(); cancellation = token; busy = true; error = nil; Self.activeOperations += 1
         Task {
             defer { Self.activeOperations -= 1; if cancellation === token { cancellation = nil; busy = false }; withExtendedLifetime(access) {} }
             do { try checkAccess(); let folder = try await repository.fileMoveDestination(destination ?? self.folder, cancellation: token); let paths = try await repository.clipboardMovePaths(urls, cancellation: token); if live(token) { self.folder = folder; self.paths = paths } }

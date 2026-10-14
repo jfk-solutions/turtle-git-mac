@@ -237,6 +237,7 @@ final class StatusNativeWindow: NSWindow {
             }
         }
     }
+    var onTransferDrop: ([NSItemProvider]) -> Bool = { _ in false }
     var onCopyAdd: ([String]) -> Void = { _ in }
     var onPasteFiles: (Bool, [URL]) -> Void = { _, _ in }
     var onAction: (RepositoryAction, [String]) -> Void = { _, _ in }
@@ -662,6 +663,9 @@ struct StatusDialog: View {
                 TableColumn("File size", sortUsing: StatusGroupedSort(column: .fileSize)) { item in groupCell(item, column: .fileSize) }.width(min: 70, ideal: 100)
                 TableColumn("LFS Lock", sortUsing: StatusGroupedSort(column: .lfsOwner)) { item in groupCell(item, column: .lfsOwner) }.width(min: 100, ideal: 160)
             }.fileListFont()
+            .onDrop(of: [UTType.fileURL], isTargeted: nil) { providers in
+                guard !model.busy, !model.confirmingQuit, !model.retired else { return false }; return model.onTransferDrop(providers)
+            }
             .background(CommitFileInteraction(rows: model.tableRows.map(\.row), leadingColumnCount: 0, keyboardDeleteEnabled: true,
                 visibleColumns: Set(model.visibleColumns), availableColumns: model.availableColumns, columnText: { entry, column in
                     rowsByID[entry.path].map { model.columnText($0,column) } ?? ""

@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import TurtleGitCore
+import UniformTypeIdentifiers
 
 @MainActor final class RepositoryModel: ObservableObject {
     private let autotextTester = AutotextTesterOwner()
@@ -713,7 +714,7 @@ import TurtleGitCore
         renameWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    func showMove(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], clipboard: [URL]? = nil, destination: URL? = nil) {
+    func showMove(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], clipboard: [URL]? = nil, destination: URL? = nil, renameFirst: Bool = false, stopOnError: Bool = true) {
         let root = repository.root, key = root.path + "\0" + (clipboard == nil ? paths.joined(separator: "\0") : UUID().uuidString)
         let controller = moveWindows[key] ?? FileMoveWindowController(repository: repository, access: access, paths: paths)
         controller.onClosed = { [weak self] in self?.moveWindows.removeValue(forKey: key) }
@@ -726,7 +727,7 @@ import TurtleGitCore
             if self?.root == root { Task { await self?.refresh() } }
         }
         moveWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
-        if let clipboard { controller.model.loadClipboard(clipboard, destination: destination) }
+        if let clipboard { controller.model.renameFirst = renameFirst; controller.model.loadClipboard(clipboard, destination: destination, stopOnError: stopOnError) }
     }
     func showCopy(repository: GitRepository, access: RepositoryAccessLease?, sources: [URL], paste: Bool = false, folder: URL? = nil) {
         let id = UUID(), root = repository.root
@@ -737,6 +738,22 @@ import TurtleGitCore
             if self?.root == root { Task { await self?.refresh() } }
         }
         copyWindows[id] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
+    private var dropTransfers: [UUID: FileDropTransferWindowController] = [:]
+    var canReceiveTransferDrop: Bool { repository != nil && !bare && !busy && !confirmingQuit && workspaceWindow?.attachedSheet == nil }
+    var configureDropTransfer: (FileDropTransferWindowController) -> Void = { _ in }
+    @discardableResult func receiveTransferDrop(_ providers: [NSItemProvider], repository captured: GitRepository? = nil, access capturedAccess: RepositoryAccessLease? = nil, owner capturedOwner: NSWindow? = nil) -> Bool {
+        guard !confirmingQuit, captured != nil || canReceiveTransferDrop, !providers.isEmpty, providers.count <= 256, providers.allSatisfy({ $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) }), let repository = captured ?? repository, let owner = capturedOwner ?? workspaceWindow, owner.attachedSheet == nil else { return false }
+        let id = UUID(), access = captured == nil ? activeAccess : capturedAccess, controller = FileDropTransferWindowController(repository: repository, access: access)
+        controller.onClosed = { [weak self] in self?.dropTransfers.removeValue(forKey: id) }
+        controller.onAccepted = { [weak self] choice, urls, folder in
+            guard let self, !self.confirmingQuit else { return }
+            if choice == .copyAdd { self.showCopy(repository: repository, access: access, sources: urls, folder: folder) }
+            else { self.showMove(repository: repository, access: access, paths: [], clipboard: urls, destination: folder, renameFirst: choice == .moveRename, stopOnError: false) }
+        }
+        configureDropTransfer(controller); dropTransfers[id] = controller
+        guard controller.present(owner: owner) else { controller.close(); dropTransfers.removeValue(forKey: id); return false }
+        controller.model.load(providers); return true
     }
     func showFileTransfer(copy: Bool, repository captured: GitRepository? = nil, access: RepositoryAccessLease? = nil, urls: [URL]? = nil) {
         let snapshot = urls ?? FileTransferClipboard.urls()
@@ -1603,6 +1620,10 @@ import TurtleGitCore
         controller.onClosed = { [weak self] in self?.statusWindows.removeValue(forKey: root.path) }
         controller.model.onCopyAdd = { [weak self] paths in self?.showCopy(repository: repository, access: access, sources: paths.map { repository.root.appendingPathComponent($0) }) }
         controller.model.onPasteFiles = { [weak self] copy, urls in self?.showFileTransfer(copy: copy, repository: repository, access: access, urls: urls) }
+        controller.model.onTransferDrop = { [weak self, weak controller] providers in
+            guard let controller, !controller.model.retired, !controller.model.busy, !controller.model.confirmingQuit else { return false }
+            return self?.receiveTransferDrop(providers, repository: repository, access: access, owner: controller.window) ?? false
+        }
         controller.model.onAction = { [weak self, weak controller] action, paths in
             guard let self else { return }
             if action == .diff { self.showWorkingFiles(repository: repository, access: access, paths: paths, owner: controller?.window); return }

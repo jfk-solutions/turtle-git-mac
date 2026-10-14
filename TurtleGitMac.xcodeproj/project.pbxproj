@@ -318,6 +318,7 @@
 		E870F93D67C68E0FCCDDC0F3 /* SavedDataSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CC68DDC9F827CA4F3DA9A05 /* SavedDataSettings.swift */; };
 		E92971BFB0588C2287D36944 /* GitRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2E43773297420C7FDAE9748 /* GitRepository.swift */; };
 		EA60B23A7ACD493A17E38216 /* LogOrderingWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C692AF42221DDE4FA4070CF1 /* LogOrderingWindow.swift */; };
+		EAF90B30F543060C0CB095AD /* FileDropTransferWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95978CF1E0733DA580F5F3E2 /* FileDropTransferWindow.swift */; };
 		EB7A90B9B17592BFD2605C3C /* WorkingFileRestore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3840500048AA0D9241AC5310 /* WorkingFileRestore.swift */; };
 		EB87E339AFB2D76B191B19BB /* ImportPatchWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DE73255A1E5CE16B62BBCF7 /* ImportPatchWindow.swift */; };
 		EC51E4CE03738676EE135A62 /* SendPatchWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6823801F16A03836426285A5 /* SendPatchWindow.swift */; };
@@ -658,6 +659,7 @@
 		94119EBF871C901C8A360D50 /* HistoryFileCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryFileCache.swift; sourceTree = "<group>"; };
 		94460BAA2864B3BF68F01264 /* TurtleGitWCRev.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TurtleGitWCRev.swift; sourceTree = "<group>"; };
 		94E9E00A7AEA7A5BE84E3097 /* ProgressActionLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressActionLog.swift; sourceTree = "<group>"; };
+		95978CF1E0733DA580F5F3E2 /* FileDropTransferWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileDropTransferWindow.swift; sourceTree = "<group>"; };
 		966FBB093AE190ED7ACA4024 /* DeleteConflict.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteConflict.swift; sourceTree = "<group>"; };
 		96C5E1496CBC8B6DFC29A687 /* MergeClipboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeClipboard.swift; sourceTree = "<group>"; };
 		977DAB97DBBB903654C73A78 /* SwitchWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwitchWindow.swift; sourceTree = "<group>"; };
@@ -904,6 +906,7 @@
 				BA3DD76CCC2D1B2E7E5BEA21 /* FetchWindow.swift */,
 				A142607F55CD34E13938FD40 /* FileComparisonWindow.swift */,
 				B24D3EE6E5499487E3423341 /* FileCopyWindow.swift */,
+				95978CF1E0733DA580F5F3E2 /* FileDropTransferWindow.swift */,
 				70196B2A8593EF35543D4620 /* FileMoveWindow.swift */,
 				2D827F5DBDAAB1F3B311E007 /* FileTransferClipboard.swift */,
 				915E15D41336AA69D1B13F32 /* FinderBackgroundService.swift */,
@@ -1831,6 +1834,7 @@
 				D4DC9BE706E4DFFB73154A96 /* FetchWindow.swift in Sources */,
 				70EA762F97100350401F85ED /* FileComparisonWindow.swift in Sources */,
 				3AA2AF5E3D5C21A539D1C793 /* FileCopyWindow.swift in Sources */,
+				EAF90B30F543060C0CB095AD /* FileDropTransferWindow.swift in Sources */,
 				564344059CE4E64FF08A09FF /* FileMoveWindow.swift in Sources */,
 				188D90E5D9C8F798DE3CD305 /* FileTransferClipboard.swift in Sources */,
 				CDA5CA2296FD4B376D9C26E6 /* FinderBackgroundService.swift in Sources */,

@@ -49,3 +49,7 @@ Rename, shell or TortoiseGit parity. See [Rename parity](RENAME-PARITY.md).
 
 Clipboard Paste Move and native Copy/Add are now tracked in
 [File Transfer parity](FILE-TRANSFER-PARITY.md); Finder destination delivery remains open.
+
+The native application drop consumer now preserves Move/Rename and Drop Move's
+Ignore/Abort recovery separately from clipboard Paste Move. See
+[dropped-file transfer parity](FILE-DROP-TRANSFER-PARITY.md).

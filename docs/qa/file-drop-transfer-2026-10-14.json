@@ -1,0 +1,75 @@
+{
+  "date": "2026-10-14",
+  "base": "a8a3abcb",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Native workspace/Working Tree local URL-drop receiving sheet with active upstream Move, one-item Move/Rename and otherwise Copy/Add choices",
+    "Captured source URL/order/duplicates, repository/lease and destination, owned destination picker and Core administrative/nested-worktree validation",
+    "Production handoff into existing Move/Copy windows; Drop Move Ignore/Abort remains distinct from clipboard Paste Move stop-on-error",
+    "Cancellable provider/task reads, retained counter/lease/Quit lifetime and forced-parent/sheet retirement with late-reply rejection",
+    "User guide, README and source parity documentation"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "first_pass": true,
+      "log": "build/qa/file-drop-debug-2026-10-14.log",
+      "diagnostics": "Existing exit-zero/no-output compiler diagnostics; no clean-diagnostics claim"
+    },
+    "core": {
+      "run": false,
+      "reason": "Core backend unchanged; existing guarded Move/Copy operations reused"
+    },
+    "native": {
+      "exit": 0,
+      "first_pass": true,
+      "cases": 6,
+      "families": [
+        "file-drop-transfer",
+        "file-move",
+        "file-transfer"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "log": "build/qa/file-drop-native-2026-10-14.log",
+      "owned_receivers_reaped": [
+        64108,
+        64252,
+        64354,
+        64444,
+        64531,
+        64637
+      ],
+      "receiver_pids_still_live_at_final_check": [],
+      "evidence": [
+        "Actual local file URL provider reads, duplicate/order retention, single/multiple/external source choices and administrative-destination refusal",
+        "Production captured-repository dispatch works with workspace root absent; Move/Rename child produces exact separately staged/working contents",
+        "External Copy/Add handoff copies and stages source bytes while preserving original and HEAD",
+        "Held provider after owner retirement retains counter/Quit until release and cannot publish or accept",
+        "Existing Move collision/cancel/Ignore/forced-close and Copy/Add overwrite/Keep/copied Git metadata/Paste Move regressions"
+      ]
+    },
+    "hosted": {
+      "older_run": 38572025288,
+      "older_sha": "07b3a162acc833d07d039f5e1a727b46597433f3",
+      "last_observed_status": "in_progress",
+      "current_batch": "Not hosted-verified"
+    },
+    "site": {
+      "exit": 0,
+      "documents": 207,
+      "unresolved_fragments": [],
+      "log": "build/qa/file-drop-site-2026-10-14.log"
+    }
+  },
+  "limitations": [
+    "Receiving sheet and subsequent operation window adapt Windows drop menu; installed Finder right-drag not implemented",
+    "Commit drop-to-Add workflow stays separate",
+    "Hidden native API/provider checks do not establish physical drag, picker, keyboard/theme or signed sandbox/security-scoped provider acceptance",
+    "Source Copy/CopyRename entries are commented out; legacy DropCopy also stages and is not exposed as unstaged copy",
+    "Preflight guards are not an atomic filesystem transaction; cancellation retains earlier completed effects",
+    "No whole-port/App Store certification"
+  ]
+}

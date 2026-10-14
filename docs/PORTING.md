@@ -2,6 +2,12 @@
 
 *A macOS fork of TortoiseGit*
 
+Workspace and Working Tree URL drops now connect the active upstream Move,
+Move/Rename and Copy/Add choices to the existing operation windows, with captured
+repository/destination context and owned preparation/picker retirement. See
+[dropped-file transfer parity](FILE-DROP-TRANSFER-PARITY.md). Installed Finder
+right-drag and signed/physical acceptance remain open.
+
 The connected Rename/reference-management batch covers guarded file/folder Rename,
 inline branch Rename, tracked-branch Set/Drop and ordered local/remote deletion.
 Owned questions, cancellable streamed results, retained action logs and final

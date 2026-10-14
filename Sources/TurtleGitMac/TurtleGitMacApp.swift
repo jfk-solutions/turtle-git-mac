@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import TurtleGitCore
+import UniformTypeIdentifiers
 
 @main struct TurtleGitMacApp: App {
     @NSApplicationDelegateAdaptor(TurtleGitApplicationDelegate.self) private var applicationDelegate
@@ -253,6 +254,7 @@ struct RepositoryWindow: View {
                 TableColumn("File") { entry in Text(entry.path).help(entry.originalPath.map { "Renamed from \($0)" } ?? entry.path) }
             }.fileListFont()
             .frame(minHeight: 140)
+            .onDrop(of: [UTType.fileURL], isTargeted: nil) { model.receiveTransferDrop($0) }
             .contextMenu {
                 TurtleGitContextMenu {
                     Button { model.showDiff() } label: { CommandLabel(title: "Diff", icon: .compare) }

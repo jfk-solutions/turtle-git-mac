@@ -63,3 +63,7 @@ Core tests executed until those repairs finished. All native receiver processes
 were reaped. The unsigned private pasteboard fixture emitted a sandbox-extension
 diagnostic, so this does not verify signed grants. See
 [batch results](qa/file-transfer-2026-10-14.json).
+
+Workspace and Working Tree local URL drops now offer the active pinned transfer
+choices and route captured external sources to Copy/Add. See
+[dropped-file transfer parity](FILE-DROP-TRANSFER-PARITY.md).
