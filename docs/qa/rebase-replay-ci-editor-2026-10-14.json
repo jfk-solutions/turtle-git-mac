@@ -1,0 +1,36 @@
+{
+  "date": "2026-10-14",
+  "base": "35c6ca7d",
+  "observed_hosted_failure": {
+    "run": 38628215141,
+    "job": 116091594704,
+    "step": "Git integration tests",
+    "failures": [
+      "RebaseReplayIOTests.testCancelledSkipRestoresProvisionalSquashBookkeepingWhenHeadDidNotAdvance",
+      "RebaseReplayIOTests.testQueuedCancellationStillRecordsCompletedSplitPartBeforeReturning",
+      "RebaseReplayIOTests.testRunningContinueStreamsAndCancellationLeavesRecoverableSessionWithoutPoisoningLaterReads",
+      "RebaseReplayIOTests.testSplitCommitStreamsAndRetainsDurableContinuationAndFirstParents"
+    ]
+  },
+  "cause": "Replay IO fixture default points to build/Build/Products/Debug/TurtleGitMac.app before CI builds the Xcode app. Git integration tests run swift test first. Other rebase families already use the package editor via RebaseTests.editor.",
+  "change": "Reuse RebaseTests.editor, preserving TURTLEGIT_REBASE_EDITOR override and package default. Production rebase behavior and test assertions unchanged.",
+  "validation": {
+    "exit": 0,
+    "tests": 5,
+    "family": "RebaseReplayIOTests",
+    "editor": ".build/out/debug/TurtleGitMac via explicit TURTLEGIT_REBASE_EDITOR for local scratch-path build",
+    "log": "build/qa/rebase-replay-ci-editor-2026-10-14.log",
+    "evidence": [
+      "Live Continue output/cancellation and subsequent state reads",
+      "Protected split commit queued cancellation retains durable bookkeeping",
+      "Cancelled Skip restores provisional squash bookkeeping",
+      "Split streaming/first-parent continuity",
+      "Pre-cancelled entry points do not mutate or leak scope"
+    ]
+  },
+  "limits": [
+    "Local targeted pass is not a full hosted CI pass",
+    "Hosted default lookup uses the shared established RebaseTests.editor helper; local run selects current scratch-path package product explicitly",
+    "App build/native regressions were not repeated for a fixture-only lookup change"
+  ]
+}

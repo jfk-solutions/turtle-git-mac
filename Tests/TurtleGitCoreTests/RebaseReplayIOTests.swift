@@ -1,7 +1,9 @@
 import XCTest
 @testable import TurtleGitCore
 final class RebaseReplayIOTests: XCTestCase {
-    func editor() -> URL { URL(fileURLWithPath:ProcessInfo.processInfo.environment["TURTLEGIT_REBASE_EDITOR"] ?? FileManager.default.currentDirectoryPath + "/build/Build/Products/Debug/TurtleGitMac.app/Contents/MacOS/TurtleGitMac") }
+    // CI runs swift test before building the Xcode app; use the same package
+    // editor and explicit override as the other rebase integration families.
+    func editor() -> URL { RebaseTests().editor }
     func testPreCancelledReplayEntryPointsDoNotMutateAndScopeDoesNotLeak() async throws {
         let (root,repo,plan)=try await RebaseTests().splitFixture();defer{try? FileManager.default.removeItem(at:root)}
         let before=try await repo.run(["rev-parse","HEAD"]).stdout,token=OperationCancellation();token.cancel()
