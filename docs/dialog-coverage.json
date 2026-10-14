@@ -7,8 +7,8 @@
     "pending_family_reviews": 10,
     "certified_complete": 0,
     "static_controls": 1659,
-    "pending_control_reviews": 852,
-    "mapped_controls": 807,
+    "pending_control_reviews": 848,
+    "mapped_controls": 811,
     "statuses": {
       "pending-review": 10,
       "partial-native-replacement": 88,
@@ -731,7 +731,8 @@
         "docs/SVN-AUTHENTICATION-PARITY.md"
       ],
       "qa_records": [
-        "docs/qa/svn-authentication-2026-10-14.json"
+        "docs/qa/svn-authentication-2026-10-14.json",
+        "docs/qa/svn-certificate-details-2026-10-14.json"
       ]
     },
     {
@@ -930,7 +931,8 @@
         "docs/SVN-AUTHENTICATION-PARITY.md"
       ],
       "qa_records": [
-        "docs/qa/svn-authentication-2026-10-14.json"
+        "docs/qa/svn-authentication-2026-10-14.json",
+        "docs/qa/svn-certificate-details-2026-10-14.json"
       ]
     },
     {
@@ -2983,7 +2985,8 @@
         "docs/SVN-AUTHENTICATION-PARITY.md"
       ],
       "qa_records": [
-        "docs/qa/svn-authentication-2026-10-14.json"
+        "docs/qa/svn-authentication-2026-10-14.json",
+        "docs/qa/svn-certificate-details-2026-10-14.json"
       ]
     },
     {
@@ -3102,8 +3105,8 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 16,
-      "mapped_controls": 6,
-      "pending_control_reviews": 10,
+      "mapped_controls": 10,
+      "pending_control_reviews": 6,
       "certified_complete": false,
       "native_sources": [
         {
@@ -3120,7 +3123,8 @@
         "docs/SVN-AUTHENTICATION-PARITY.md"
       ],
       "qa_records": [
-        "docs/qa/svn-authentication-2026-10-14.json"
+        "docs/qa/svn-authentication-2026-10-14.json",
+        "docs/qa/svn-certificate-details-2026-10-14.json"
       ]
     },
     {

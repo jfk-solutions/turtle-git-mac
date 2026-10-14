@@ -20,7 +20,8 @@ import Darwin
         let ssh = URL(fileURLWithPath: CommandLine.arguments[0]).lastPathComponent == "TurtleGitOpenSSHAskpass"
         do {
             if let request = try GitSVNAuthenticationPrompt.decode(CommandLine.arguments[1], enabled: !ssh && ProcessInfo.processInfo.environment["TURTLEGIT_SVN_NATIVE_PROMPTS"] == "1") {
-                let controller = GitSVNPromptWindowController(prompt: request, icon: icon) { answer in
+                let certificateIcon = NSImage(contentsOf: parent.appendingPathComponent("Contents/Frameworks/TurtleGitCore.framework/Resources/Icons/certcheck.ico"))
+                let controller = GitSVNPromptWindowController(prompt: request, icon: request.kind == .trust ? certificateIcon ?? icon : icon) { answer in
                     guard let answer else { exit(1) }
                     do { let encoded = try answer.encoded(for: request); try FileHandle.standardOutput.write(contentsOf: Data((encoded + "\n").utf8)); exit(0) } catch { exit(1) }
                 }

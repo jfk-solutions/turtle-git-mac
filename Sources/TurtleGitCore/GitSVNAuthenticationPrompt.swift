@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import Foundation
 import Darwin
+import Security
+import CryptoKit
 
 public enum GitSVNAuthenticationFailure: LocalizedError {
     case malformed, response, certificateDirectory
@@ -24,8 +26,9 @@ public struct GitSVNAuthenticationPrompt: Codable, Equatable, Sendable {
     public let validUntil: String?
     public let issuer: String?
     public let fingerprint: String?
-    public init(kind: Kind, realm: String, username: String? = nil, maySave: Bool = false, failures: UInt32? = nil, hostname: String? = nil, validFrom: String? = nil, validUntil: String? = nil, issuer: String? = nil, fingerprint: String? = nil) {
-        version = 1; self.kind = kind; self.realm = realm; self.username = username; self.maySave = maySave; self.failures = failures; self.hostname = hostname; self.validFrom = validFrom; self.validUntil = validUntil; self.issuer = issuer; self.fingerprint = fingerprint
+    public let certificate: String?
+    public init(kind: Kind, realm: String, username: String? = nil, maySave: Bool = false, failures: UInt32? = nil, hostname: String? = nil, validFrom: String? = nil, validUntil: String? = nil, issuer: String? = nil, fingerprint: String? = nil, certificate: String? = nil) {
+        version = 1; self.kind = kind; self.realm = realm; self.username = username; self.maySave = maySave; self.failures = failures; self.hostname = hostname; self.validFrom = validFrom; self.validUntil = validUntil; self.issuer = issuer; self.fingerprint = fingerprint; self.certificate = certificate
     }
     public static func decode(_ text: String, enabled: Bool) throws -> Self? {
         guard enabled, text.hasPrefix(prefix) else { return nil }
@@ -34,9 +37,14 @@ public struct GitSVNAuthenticationPrompt: Codable, Equatable, Sendable {
         do { value = try JSONDecoder().decode(Self.self, from: bytes) } catch { throw GitSVNAuthenticationFailure.malformed }
         guard value.version == 1, [value.realm, value.username ?? "", value.hostname ?? "", value.validFrom ?? "", value.validUntil ?? "", value.issuer ?? "", value.fingerprint ?? ""].allSatisfy({ !$0.contains("\0") }) else { throw GitSVNAuthenticationFailure.malformed }
         if value.kind == .trust { guard let failures = value.failures, failures > 0, value.hostname != nil, value.issuer != nil, value.fingerprint?.isEmpty == false else { throw GitSVNAuthenticationFailure.malformed } }
+        if value.certificate != nil { _ = try value.certificateDetails() }
         return value
     }
     public func encoded() throws -> String { Self.prefix + (try JSONEncoder().encode(self)).base64EncodedString() }
+    public func certificateDetails() throws -> GitCertificateDetails? {
+        guard let certificate else { return nil }
+        return try GitCertificateDetails(base64DER: certificate)
+    }
     public var failureDescriptions: [String] {
         guard let failures else { return [] }; var result: [String] = []
         for (bit, text) in [(UInt32(1), "The certificate is not yet valid."), (2, "The certificate has expired."), (4, "The hostname does not match."), (8, "The issuer is not trusted."), (0x40000000, "An additional certificate error occurred.")] where failures & bit != 0 { result.append(text) }
@@ -78,5 +86,34 @@ public enum GitSVNClientCertificate {
         let target = directory.appendingPathComponent(UUID().uuidString + ".p12")
         do { try manager.copyItem(at: source, to: target); try manager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: target.path); return target }
         catch { try? manager.removeItem(at: target); throw error }
+    }
+}
+
+/// Certificate inspection only: no Keychain import and no trust evaluation/override.
+public struct GitCertificateDetails: Sendable {
+    public let der: Data
+    public let subject: String
+    public let sha1: String
+    public let sha256: String
+    public let description: String
+    public init(base64DER: String) throws {
+        guard base64DER.utf8.count <= 48_000, let data = Data(base64Encoded: base64DER.filter { !$0.isWhitespace }), !data.isEmpty,
+              let certificate = SecCertificateCreateWithData(nil, data as CFData) else { throw GitSVNAuthenticationFailure.malformed }
+        der = data; subject = SecCertificateCopySubjectSummary(certificate).map { $0 as String } ?? "Certificate"
+        func hexadecimal(_ bytes: some Sequence<UInt8>) -> String { bytes.map { String(format: "%02X", $0) }.joined(separator: ":") }
+        sha1 = hexadecimal(Insecure.SHA1.hash(data: data)); sha256 = hexadecimal(SHA256.hash(data: data))
+        var error: Unmanaged<CFError>?
+        let properties = SecCertificateCopyValues(certificate, nil, &error) as? [String: Any] ?? [:]
+        _ = error?.takeRetainedValue()
+        func render(_ value: Any, indent: String = "") -> [String] {
+            if let dictionary = value as? [String: Any], let body = dictionary[kSecPropertyKeyValue as String] {
+                let label = dictionary[kSecPropertyKeyLabel as String] as? String ?? "Value"
+                return [indent + label + ":"] + render(body, indent: indent + "  ")
+            }
+            if let values = value as? [Any] { return values.flatMap { render($0, indent: indent) } }
+            if let bytes = value as? Data { return [indent + hexadecimal(bytes)] }
+            return [indent + String(describing: value)]
+        }
+        description = ([subject, "SHA-1: " + sha1, "SHA-256: " + sha256, ""] + properties.keys.sorted().flatMap { render(properties[$0]!) }).joined(separator: "\n")
     }
 }

@@ -16,10 +16,14 @@ import Foundation
     let errorLabel = NSTextField(wrappingLabelWithString: "")
     private var response: ((GitSVNAuthenticationResponse?) -> Void)?
     private var panel: NSOpenPanel?
+    private(set) var certificateViewer: GitCertificateDetailsWindowController?
+    let certificateDetails: GitCertificateDetails?
+    let sha1 = NSTextField(wrappingLabelWithString: "")
+    let sha256 = NSTextField(wrappingLabelWithString: "")
     private(set) var finished = false
     var certificateDirectory: URL?
     init(prompt: GitSVNAuthenticationPrompt, icon: NSImage? = nil, response: @escaping (GitSVNAuthenticationResponse?) -> Void) {
-        self.prompt = prompt; self.response = response
+        self.prompt = prompt; self.response = response; certificateDetails = try? prompt.certificateDetails()
         let window = GitSVNAuthenticationWindow(contentRect: NSRect(x: 0, y: 0, width: 660, height: prompt.kind == .trust ? 440 : 220), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = prompt.kind == .trust ? "SVN Certificate Check" : prompt.kind == .clientCertificate ? "SVN Client Certificate" : "SVN Authentication"
         window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 530, height: prompt.kind == .trust ? 350 : 190)
@@ -32,8 +36,13 @@ import Foundation
         let realm = NSTextField(wrappingLabelWithString: prompt.realm); realm.setAccessibilityLabel("Authentication realm"); stack.addArrangedSubview(realm); realm.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
         username.stringValue = prompt.username ?? ""; username.setAccessibilityLabel("Username"); password.setAccessibilityLabel("Password"); save.isEnabled = prompt.maySave; save.state = .off
         if prompt.kind == .trust {
-            for (title, value) in [("Hostname", prompt.hostname), ("Issuer", prompt.issuer), ("Valid from", prompt.validFrom), ("Valid until", prompt.validUntil), ("Fingerprint", prompt.fingerprint)] {
+            if let icon { let image = NSImageView(image: icon); image.imageScaling = .scaleProportionallyUpOrDown; image.widthAnchor.constraint(equalToConstant: 32).isActive = true; image.heightAnchor.constraint(equalToConstant: 32).isActive = true; stack.addArrangedSubview(image) }
+            for (title, value) in [("Hostname", prompt.hostname), ("Issuer", prompt.issuer), ("Valid from", prompt.validFrom), ("Valid until", prompt.validUntil)] + (certificateDetails == nil ? [("Fingerprint", prompt.fingerprint)] : []) {
                 let field = NSTextField(wrappingLabelWithString: title + ": " + (value ?? "")); field.isSelectable = true; field.setAccessibilityLabel(title); stack.addArrangedSubview(field); field.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
+            }
+            if let certificateDetails {
+                sha1.stringValue = "SHA-1: " + certificateDetails.sha1; sha256.stringValue = "SHA-256: " + certificateDetails.sha256
+                for (field, label) in [(sha1, "SHA-1"), (sha256, "SHA-256")] { field.isSelectable = true; field.setAccessibilityLabel(label); stack.addArrangedSubview(field); field.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true }
             }
             for text in prompt.failureDescriptions { let field = NSTextField(wrappingLabelWithString: text); field.textColor = .systemRed; stack.addArrangedSubview(field); field.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true }
         } else {
@@ -45,6 +54,7 @@ import Foundation
         let buttons = NSStackView(); buttons.orientation = .horizontal; buttons.spacing = 8
         let cancel = NSButton(title: prompt.kind == .trust ? "Reject" : "Cancel", target: self, action: #selector(abort)); cancel.bezelStyle = .rounded; cancel.keyEquivalent = "\u{1b}"; buttons.addArrangedSubview(cancel)
         if prompt.kind == .trust {
+            let open = NSButton(title: "Open certificate", target: self, action: #selector(openCertificate)); open.bezelStyle = .rounded; open.isEnabled = certificateDetails != nil; buttons.addArrangedSubview(open)
             let temporary = NSButton(title: "Accept temporarily", target: self, action: #selector(trustTemporary)); temporary.bezelStyle = .rounded; buttons.addArrangedSubview(temporary)
             if prompt.maySave { let permanent = NSButton(title: "Accept permanently", target: self, action: #selector(trustPermanent)); permanent.bezelStyle = .rounded; buttons.addArrangedSubview(permanent) }
             window.defaultButtonCell = cancel.cell as? NSButtonCell; cancel.keyEquivalent = "\r"; window.initialFirstResponder = cancel
@@ -55,13 +65,20 @@ import Foundation
         stack.addArrangedSubview(buttons)
         if let icon { window.miniwindowImage = icon }
     }
+    @objc func openCertificate() {
+        guard !finished, prompt.kind == .trust, let certificateDetails, let window, window.attachedSheet == nil else { return }
+        let child = GitCertificateDetailsWindowController(details: certificateDetails)
+        certificateViewer = child
+        child.onClosed = { [weak self, weak child] in guard self?.certificateViewer === child else { return }; self?.certificateViewer = nil }
+        if let sheet = child.window { window.beginSheet(sheet) }
+    }
     @objc func submit() {
         guard !finished, panel == nil else { return }
         let result = GitSVNAuthenticationResponse(username: prompt.kind == .secret ? nil : username.stringValue, password: prompt.kind == .username ? nil : password.stringValue, save: prompt.maySave && save.state == .on)
         do { _ = try result.encoded(for: prompt); finish(result) } catch { errorLabel.stringValue = error.localizedDescription }
     }
-    @objc func trustTemporary() { guard prompt.kind == .trust else { return }; finish(GitSVNAuthenticationResponse(decision: .temporary)) }
-    @objc func trustPermanent() { guard prompt.kind == .trust, prompt.maySave else { return }; finish(GitSVNAuthenticationResponse(save: true, decision: .permanent)) }
+    @objc func trustTemporary() { guard !finished, prompt.kind == .trust, window?.attachedSheet == nil else { return }; finish(GitSVNAuthenticationResponse(decision: .temporary)) }
+    @objc func trustPermanent() { guard !finished, prompt.kind == .trust, prompt.maySave, window?.attachedSheet == nil else { return }; finish(GitSVNAuthenticationResponse(save: true, decision: .permanent)) }
     @objc func abort() { if prompt.kind == .trust { finish(GitSVNAuthenticationResponse(decision: .reject)) } else { finish(nil) } }
     @objc private func chooseCertificate() {
         guard !finished, prompt.kind == .clientCertificate, panel == nil, let window, window.attachedSheet == nil else { return }
@@ -80,8 +97,25 @@ import Foundation
         guard !finished else { return }; finished = true
         username.stringValue = ""; password.stringValue = ""; username.isEnabled = false; password.isEnabled = false; save.isEnabled = false
         if let panel { panel.sheetParent?.endSheet(panel, returnCode: .cancel); panel.orderOut(nil) }; panel = nil
+        certificateViewer?.close(); certificateViewer = nil
         let callback = response; response = nil; close(); callback?(result)
     }
     func windowWillClose(_ notification: Notification) { if !finished { abort() } }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+}
+
+@MainActor final class GitCertificateDetailsWindowController: NSWindowController, NSWindowDelegate {
+    let text = NSTextView()
+    var onClosed: () -> Void = {}
+    init(details: GitCertificateDetails) {
+        let window = GitSVNAuthenticationWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 540), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        window.title = details.subject + " – Certificate"; window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 500, height: 320)
+        super.init(window: window); window.delegate = self
+        let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.autoresizingMask = [.width, .height]; scroll.documentView = text
+        text.string = details.description; text.isEditable = false; text.isSelectable = true; text.isRichText = false; text.font = .monospacedSystemFont(ofSize: 12, weight: .regular); text.isVerticallyResizable = true; text.autoresizingMask = [.width]; text.textContainer?.widthTracksTextView = true; text.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude); text.textContainerInset = NSSize(width: 12, height: 12)
+        window.contentView = scroll
+    }
+    override func close() { if let window { window.sheetParent?.endSheet(window); window.close() } }
+    func windowWillClose(_ notification: Notification) { if let window { window.sheetParent?.endSheet(window) }; onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }

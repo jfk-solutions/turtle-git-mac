@@ -101,7 +101,10 @@ final class MenuIconTests: XCTestCase {
         XCTAssertEqual(RepositoryAction.svnFetch.icon, RepositoryAction.fetch.icon)
         XCTAssertEqual(RepositoryAction.svnIgnore.icon, RepositoryAction.ignore.icon)
         XCTAssertEqual(RepositoryAction.reviewPatch.icon, RepositoryAction.importPatch.icon)
-        let distinctActions = RepositoryAction.allCases.filter { ![.svnDCommit, .svnRebase, .svnFetch, .svnIgnore, .reviewPatch, .lfsLocks, .lfsLock, .lfsUnlock, .previousDiff, .logSubmodule, .referenceBrowser, .submoduleAdd, .requestPull, .bisectStart, .bisectSkip, .worktreeCreate, .worktreeList, .diffLater, .clearComparisonMark, .submoduleUpdate, .stashApply, .stashList, .reflog, .removeKeep, .ignoreMask, .ignoreDelete, .ignoreDeleteMask, .resolveCurrent, .resolveMine, .resolveTheirs].contains($0) }
+        XCTAssertEqual(RepositoryAction.move.icon, RepositoryAction.rename.icon)
+        XCTAssertEqual(RepositoryAction.pasteMove.icon, RepositoryAction.rename.icon)
+        XCTAssertEqual(RepositoryAction.pasteCopy.icon, .copy)
+        let distinctActions = RepositoryAction.allCases.filter { ![.move, .pasteMove, .svnDCommit, .svnRebase, .svnFetch, .svnIgnore, .reviewPatch, .lfsLocks, .lfsLock, .lfsUnlock, .previousDiff, .logSubmodule, .referenceBrowser, .submoduleAdd, .requestPull, .bisectStart, .bisectSkip, .worktreeCreate, .worktreeList, .diffLater, .clearComparisonMark, .submoduleUpdate, .stashApply, .stashList, .reflog, .removeKeep, .ignoreMask, .ignoreDelete, .ignoreDeleteMask, .resolveCurrent, .resolveMine, .resolveTheirs].contains($0) }
         XCTAssertEqual(Set(distinctActions.map { $0.icon.rawValue }).count, distinctActions.count)
     }
 }

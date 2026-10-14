@@ -1,0 +1,92 @@
+{
+  "date": "2026-10-14",
+  "base": "89cd6fc8",
+  "scope": [
+    "Bundled SVN trust callback carries DER certificate with bounded strict decoding",
+    "Security.framework read-only certificate properties and DER CryptoKit SHA-1/SHA-256 fields",
+    "Owned Open certificate details sheet with parent trust guards, release/reopen and forced-parent rejection/cleanup",
+    "Exact upstream certificate icon with hash/provenance and resource audit inclusion",
+    "Partial source CertCheck SHA-1/SHA-256/Open certificate/icon mappings; user/docs updates"
+  ],
+  "validation": {
+    "runtime_build": {
+      "exit": 0,
+      "log": "build/qa/svn-certificate-runtime-build-2026-10-14.log",
+      "cache": "Native dependency stamps reused for both architectures; patched Perl modules repackaged"
+    },
+    "runtime_install": {
+      "exit": 0,
+      "audited_binaries": 179,
+      "log": "build/qa/svn-certificate-runtime-install-2026-10-14.log"
+    },
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/svn-certificate-debug-2026-10-14.log",
+      "diagnostics": "Existing exit-zero/no-output diagnostics and warnings; no clean-diagnostics claim"
+    },
+    "core": {
+      "tests_validated": 9,
+      "initial_exit": 1,
+      "initial_tests": 9,
+      "initial_failure": "The six certificate/authentication tests and icon decoding passed. MenuIconTests unique-action assertion still counted the earlier Move/Paste Move aliases as distinct artwork (46 versus 48). The initial commentary incorrectly described this as a retina-size failure; actual source/assertion inspection corrected that diagnosis.",
+      "initial_log": "build/qa/svn-certificate-core-2026-10-14.log",
+      "repair": "Explicit Move/Paste Move Rename alias and Paste Copy Copy assertions; exclude only those intentional Move aliases from the distinct-action set. No certificate/app behavior changed.",
+      "repair_exit": 0,
+      "repair_tests": 3,
+      "repair_log": "build/qa/svn-certificate-icons-repair-2026-10-14.log",
+      "evidence": [
+        "Known public DER fixture fingerprints independently computed with hashlib; expected SHA-1/SHA-256, subject, properties and unchanged DER pass",
+        "Structured request certificate round trip and malformed DER refusal; legacy fingerprint-only requests remain valid",
+        "Existing request/response, trust policy, private certificate copy/command cleanup and original icon decoder regressions"
+      ],
+      "passing_certificate_families_repeated": false
+    },
+    "perl_callbacks": {
+      "exit": 0,
+      "log": "build/qa/svn-certificate-adapter-2026-10-14.log",
+      "evidence": "Shipped private Perl callback includes certificate bytes along with metadata and preserves all native/legacy callback mappings; simulated credentials, not public server acceptance"
+    },
+    "native": {
+      "exit": 0,
+      "cases": 4,
+      "families": [
+        "svn-authentication",
+        "git-askpass"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "log": "build/qa/svn-certificate-native-2026-10-14.log",
+      "owned_receivers_reaped": [
+        92348,
+        92349,
+        92350,
+        92351
+      ],
+      "receiver_pids_still_live_at_final_check": [],
+      "evidence": [
+        "Actual SHA-1/SHA-256 fields and original certificate artwork",
+        "Read-only selectable certificate subject/properties sheet; blocked trust behind sheet, close/reopen and forced-parent rejection/child cleanup",
+        "Existing secure/normal credentials, save/trust/one-shot/client-file/cancel and legacy askpass regressions"
+      ]
+    },
+    "bundle": {
+      "log": "build/qa/svn-certificate-bundle-2026-10-14.log",
+      "result": "Completed final App/Finder/licenses/resource verification marker; no audit process remains",
+      "upstream_icon_resources": 301
+    },
+    "site": {
+      "log": "build/qa/svn-certificate-site-2026-10-14.log",
+      "documents": 212,
+      "unresolved_fragments": []
+    }
+  },
+  "limitations": [
+    "Certificate inspection does not import certificates or alter/evaluate Keychain trust; explicit SVN decision callback remains the acceptance route",
+    "No public/live TLS server, signed grants/Keychain or App Store acceptance",
+    "Other certificate callers and full physical keyboard/theme/layout/VoiceOver/source CryptoUI equivalence remain unverified",
+    "Legacy requests without DER keep their reported fingerprint and disable Open certificate",
+    "No complete dialog/full port certification"
+  ]
+}

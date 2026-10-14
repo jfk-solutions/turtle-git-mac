@@ -6,8 +6,10 @@ The connected bundled SVN authentication batch implements five native callbacks
 with combined credentials, explicit certificate details/trust, secure certificate
 passwords and command-owned client-certificate copies. The pinned runtime retains
 its dependency caches and records the native adapter/Keychain/plaintext policy.
-See [authentication parity](SVN-AUTHENTICATION-PARITY.md); dual fingerprints/Open
-certificate, live server and signed/physical acceptance remain open.
+See [authentication parity](SVN-AUTHENTICATION-PARITY.md). The certificate
+inspection follow-up adds DER SHA-1/SHA-256, original artwork and an owned read-only
+Open certificate sheet. Live server, other callers and signed/physical acceptance
+remain open.
 
 Native Issue Tracker Integration now connects its formerly missing association
 page/editor and embedded provider to Commit, with project fallback, owned selection,

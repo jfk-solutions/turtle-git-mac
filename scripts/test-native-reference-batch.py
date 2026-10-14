@@ -238,6 +238,7 @@ with ExitStack() as fixture_lifetimes, tempfile.TemporaryDirectory(prefix='Turtl
             command = [str(executable), str(fixture), str(git.absolute()), case]
             print('Checking ' + case + ' with ' + str(git), flush=True)
             case_environment = environment.copy()
+            if case == 'svn-authentication': case_environment['TURTLEGIT_CERTIFICATE_FIXTURE'] = str(root / 'Tests/TurtleGitCoreTests/Fixtures/Certificates/server.der')
             if case in ['settings-family', 'network-settings', 'credential-settings', 'issue-tracker-settings', 'issue-captures']:
                 case_environment['GIT_CONFIG_GLOBAL'] = str(fixture / 'global.config')
                 case_environment['XDG_CONFIG_HOME'] = str(fixture / 'xdg')

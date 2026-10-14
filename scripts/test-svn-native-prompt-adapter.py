@@ -20,7 +20,7 @@ sub cert_file { my $s=shift; $s->{file}=shift if @_; $s->{file} }
 sub accepted_failures { my $s=shift; $s->{failures}=shift if @_; $s->{failures} }
 package FakeCertificate;
 sub hostname { 'fixture.invalid' } sub valid_from { 'from' } sub valid_until { 'until' }
-sub issuer_dname { 'private fixture issuer' } sub fingerprint { 'AA:BB:CC' }
+sub issuer_dname { 'private fixture issuer' } sub fingerprint { 'AA:BB:CC' } sub ascii_cert { 'public-fixture-certificate' }
 package main;
 our ($request, $decision) = (undef, 'temporary');
 { no warnings 'redefine'; *Git::prompt = sub {
@@ -37,7 +37,7 @@ die 'Credentials mapping' unless $cred->{username} eq 'fixture-name' && $cred->{
 { local $Git::SVN::Prompt::_no_auth_cache=1; Git::SVN::Prompt::simple($cred,'fixture realm','default',1,undef); die 'No-cache mapping' if $cred->{save} || $request->{maySave}; }
 my $info=bless {}, 'FakeCertificate';
 Git::SVN::Prompt::ssl_server_trust($cred,'fixture realm',0x40000008,$info,1,undef);
-die 'Trust mapping' unless $cred->{failures}==0x40000008 && !$cred->{save} && $request->{fingerprint} eq 'AA:BB:CC';
+die 'Trust mapping' unless $cred->{failures}==0x40000008 && !$cred->{save} && $request->{fingerprint} eq 'AA:BB:CC' && $request->{certificate} eq 'public-fixture-certificate';
 $decision='permanent';Git::SVN::Prompt::ssl_server_trust($cred,'fixture realm',8,$info,1,undef);die 'Permanent mapping' unless $cred->{save};
 $decision='reject';die 'Reject mapping' unless Git::SVN::Prompt::ssl_server_trust($cred,'fixture realm',8,$info,1,undef)==-1;
 Git::SVN::Prompt::ssl_client_cert($cred,'fixture realm',1,undef);die 'Ephemeral file mapping' unless $cred->{file} eq '/private/owned/fixture.p12' && !$cred->{save};

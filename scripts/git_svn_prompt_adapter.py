@@ -33,7 +33,7 @@ def patch(source: str) -> str:
         ('sub ssl_server_trust {', '''sub ssl_server_trust {
     if ($ENV{TURTLEGIT_SVN_NATIVE_PROMPTS}) {
         my ($cred, $realm, $failures, $info, $may_save, $pool) = @_;
-        my $answer = _turtlegit_prompt('trust', realm => ($realm // ''), failures => 0 + $failures, hostname => $info->hostname, validFrom => $info->valid_from, validUntil => $info->valid_until, issuer => $info->issuer_dname, fingerprint => $info->fingerprint, maySave => (($may_save && !$_no_auth_cache) ? JSON::PP::true() : JSON::PP::false()));
+        my $answer = _turtlegit_prompt('trust', realm => ($realm // ''), failures => 0 + $failures, hostname => $info->hostname, validFrom => $info->valid_from, validUntil => $info->valid_until, issuer => $info->issuer_dname, fingerprint => $info->fingerprint, certificate => $info->ascii_cert, maySave => (($may_save && !$_no_auth_cache) ? JSON::PP::true() : JSON::PP::false()));
         return -1 if ($answer->{decision} // '') eq 'reject';
         die "Invalid SVN trust response\\n" unless ($answer->{decision} // '') eq 'temporary' || (($answer->{decision} // '') eq 'permanent' && $may_save && !$_no_auth_cache);
         $cred->accepted_failures($failures); $cred->may_save($answer->{decision} eq 'permanent' ? $may_save : undef);

@@ -26,6 +26,16 @@ import TurtleGitCore
         var copied: String?; let certificate = GitSVNPromptWindowController(prompt: GitSVNAuthenticationPrompt(kind: .clientCertificate, realm: realm)) { copied = $0?.file }; certificate.certificateDirectory = folder; certificate.acceptCertificate(file)
         guard let copied else { throw Failure(description: "Certificate selection callback absent") }
         try require(Data(contentsOf: URL(fileURLWithPath: copied)) == bytes && Data(contentsOf: file) == bytes && certificate.finished, "Certificate copy lost source/owned data")
+        let fixture = URL(fileURLWithPath: ProcessInfo.processInfo.environment["TURTLEGIT_CERTIFICATE_FIXTURE"]!)
+        let data = try Data(contentsOf: fixture), full = GitSVNAuthenticationPrompt(kind: .trust, realm: realm, maySave: true, failures: 8, hostname: "turtlegit.example.invalid", issuer: "fixture", fingerprint: "SVN", certificate: data.base64EncodedString())
+        var responses = 0
+        let inspecting = GitSVNPromptWindowController(prompt: full, icon: MenuIcon.certificate.image()) { _ in responses += 1 }; defer { inspecting.close() }
+        inspecting.window?.contentView?.layoutSubtreeIfNeeded(); try require(inspecting.sha1.stringValue.contains("49:5F:7D") && inspecting.sha256.stringValue.contains("1D:48:06") && MenuIcon.certificate.image() != nil, "Dual fingerprint fields/original icon absent")
+        inspecting.openCertificate(); guard let viewer = inspecting.certificateViewer else { throw Failure(description: "Owned certificate details absent") }
+        viewer.window?.contentView?.layoutSubtreeIfNeeded(); try require(!viewer.text.isEditable && viewer.text.isSelectable && viewer.text.string.contains("TurtleGit public fixture"), "Certificate viewer is not read-only or lost fields")
+        inspecting.trustTemporary(); try require(responses == 0, "Trust accepted behind owned viewer")
+        viewer.close(); try require(inspecting.certificateViewer == nil && inspecting.window?.attachedSheet == nil, "Viewer did not release owner")
+        inspecting.openCertificate(); let closing = inspecting.certificateViewer; inspecting.close(); try require(responses == 1 && inspecting.certificateViewer == nil && closing?.window?.isVisible != true, "Parent close left viewer or failed to reject")
         var cancelled = 0; let password = GitSVNPromptWindowController(prompt: GitSVNAuthenticationPrompt(kind: .secret, realm: realm)) { answer in if answer == nil { cancelled += 1 } }; password.password.stringValue = "not published"; password.close(); try require(cancelled == 1 && password.password.stringValue.isEmpty, "Password forced close leaked response or secret field")
         print("PASS native SVN prompts: combined/secure fields and save flag, once-only response and secret clearing, default Reject/temporary/permanent policy, forced rejection, private certificate copy/source preservation and password cancellation. Owned windows closed.")
     }

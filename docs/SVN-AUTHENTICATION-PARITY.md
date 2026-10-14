@@ -49,3 +49,26 @@ The first checkpoint passed the cached runtime rebuild/179-binary install audit,
 Debug, fourteen Core tests, shipped Perl callback checks and four native cases.
 All owned receivers were reaped. Actual scope and limits are recorded in
 [the batch evidence](qa/svn-authentication-2026-10-14.json).
+
+## Certificate inspection family — October 14, 2026
+
+The patched SVN trust callback now passes its base64 DER certificate. The bounded
+native request validates that certificate through Security.framework; separate
+SHA-1/SHA-256 fields hash the supplied DER through CryptoKit. Legacy requests that
+carry no DER retain their reported SVN fingerprint and disable Open certificate.
+Invalid DER does not produce an inspectable/accepted structured request.
+
+Open certificate presents an owned read-only native details sheet with subject,
+fingerprints and Security.framework certificate properties, including extensions.
+It does not import a certificate or evaluate/alter Keychain trust. The parent
+cannot accept while its details sheet is open. Closing the sheet releases the
+parent; closing/rejecting the parent closes its details and returns one rejection.
+The exact upstream certcheck.ico now supplies the original artwork, with resource
+provenance/hash and bundle audit coverage. This supersedes the earlier dual-hash/
+Open certificate gaps for this bundled SVN adaptation; other caller variants and
+physical/signed/live-TLS acceptance remain open.
+
+The certificate family passed cached runtime materialization/install audit, Debug,
+nine unique Core tests after a focused three-test icon alias repair, shipped Perl
+callback checks and four native cases. Actual failure/repair and acceptance limits
+are recorded in [the certificate evidence](qa/svn-certificate-details-2026-10-14.json).

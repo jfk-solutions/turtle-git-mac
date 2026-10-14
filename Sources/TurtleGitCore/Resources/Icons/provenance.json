@@ -1506,6 +1506,11 @@
       "asset": "OrangeDotRight.bmp",
       "source": "src/Resources/ribbon/OrangeDotRight.bmp",
       "sha256": "6e9e2135c598365662925de1dedd0220439d26bddc430ef37c539d4d8cdfacae"
+    },
+    {
+      "asset": "certcheck.ico",
+      "source": "src/Resources/certcheck.ico",
+      "sha256": "7efed508445fac8e4b31707d2f96ac5c8e3fc4a5f3d928a341c3799f7c61165d"
     }
   ]
 }

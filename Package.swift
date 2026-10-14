@@ -9,7 +9,7 @@ let package = Package(
         .target(name: "TurtleGitCore", dependencies: ["TurtleGitSMTP"], resources: [.copy("Resources/Icons"), .copy("Resources/Completion")]),
         .executableTarget(name: "TurtleGitWCRev", dependencies: ["TurtleGitCore"]),
         .executableTarget(name: "TurtleGitMac", dependencies: ["TurtleGitCore"]),
-        .testTarget(name: "TurtleGitCoreTests", dependencies: ["TurtleGitCore"], exclude: ["Fixtures/WorkingCopyRevision"], resources: [.copy("Fixtures/GitOutput"), .copy("Fixtures/smtp_server.py")])
+        .testTarget(name: "TurtleGitCoreTests", dependencies: ["TurtleGitCore"], exclude: ["Fixtures/WorkingCopyRevision"], resources: [.copy("Fixtures/GitOutput"), .copy("Fixtures/Certificates"), .copy("Fixtures/smtp_server.py")])
     ],
     swiftLanguageModes: [.v5]
 )
