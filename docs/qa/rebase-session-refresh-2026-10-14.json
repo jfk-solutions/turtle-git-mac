@@ -1,0 +1,57 @@
+{
+  "date": "2026-10-14",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Complete active Rebase/Cherry Pick state/conflict/statistics/HEAD/remaining/replay snapshot with transition checks",
+    "Original session/stopped occurrence/Split-part identity for retained checked-file recovery",
+    "Owned/coalesced/cancellable Refresh State and conflict-diff reads, retirement/access/Quit lifetime",
+    "Initial reopening uses same snapshot and externally ended sessions clear stale data"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/rebase-session-refresh-debug-2026-10-14.log"
+    },
+    "core": {
+      "exit": 0,
+      "tests": 4,
+      "scope": "RebaseSessionSnapshotTests",
+      "editor": "Current Debug app explicitly passed via TURTLEGIT_REBASE_EDITOR",
+      "log": "build/qa/rebase-session-refresh-core-2026-10-14.log"
+    },
+    "native": {
+      "exit": 0,
+      "cases": 6,
+      "families": [
+        "rebase-session-refresh",
+        "rebase-references",
+        "rebase-conditional"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "owned_receivers_reaped": [
+        99704,
+        290,
+        1018,
+        1093,
+        1603,
+        1921
+      ],
+      "log": "build/qa/rebase-session-refresh-native-2026-10-14.log"
+    },
+    "site": {
+      "exit": 0,
+      "documents": 199,
+      "unresolved_fragments": 0,
+      "log": "build/qa/rebase-session-refresh-site-2026-10-14.log"
+    }
+  },
+  "limits": [
+    "Checks refuse relevant session/HEAD/message transitions but do not provide an atomic filesystem snapshot against every external writer",
+    "This batch does not add cancellation to all replay mutation/Split/hook/editor/stash operations",
+    "Hidden controls/model checks and real private Git operations do not certify physical sheets/keyboard/pixels/themes/VoiceOver, all conflict menus or signed Finder/sandbox/App Store execution",
+    "Whole application port and complete hosted CI acceptance remain incomplete"
+  ]
+}

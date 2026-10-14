@@ -107,6 +107,28 @@ public struct RebaseState: Sendable {
     public let session: RebaseSessionContext?
     public var canSplit: Bool { active && conflicts.isEmpty && (isEditPause || squashMessage != nil && squashMessage?.skipBaseHead == nil || split != nil && split?.conflictRecovery != true) }
 }
+/// Identifies the stopped occurrence and original session, not just its step number.
+public struct RebaseConflictIdentity:Equatable,Sendable {
+    public let originalHead:String,branch:String,onto:String,entry:String
+    public let step:Int,splitParts:Int
+    public let cherryPick:Bool
+    public init?(_ state:RebaseState) {
+        guard state.active,state.squashMessage?.skipBaseHead == nil else {return nil}
+        originalHead=state.originalHead;branch=state.branch;onto=state.onto;entry=state.stoppedEntryID
+        step=state.currentStep;splitParts=state.split?.parts ?? 0;cherryPick=state.isCherryPick
+    }
+}
+public struct RebaseSessionSnapshot:Sendable {
+    public let state:RebaseState
+    public let identity:RebaseConflictIdentity?
+    public let fileRecovery:Bool
+    public let conflicts:[ConflictEntry]
+    public let rows:[StatusEntry]
+    public let statistics:[String:CommitFile]
+    public let head:String
+    public let remaining:[RebaseEntry],replay:[RebaseEntry]
+}
+
 public struct RebaseExecution: Sendable {
     public let output: String
     public let exitCode: Int32
@@ -508,6 +530,29 @@ extension GitRepository {
             else if index + 1 == state.currentStep { entry.progress = .current }
             return entry
         }
+    }
+    /// Publish one complete read result, refusing a session/HEAD transition
+    /// during the reads. Mutation and recovery still use their existing engine.
+    public func rebaseSessionSnapshot(retaining previous:RebaseConflictIdentity?=nil,includeReplay:Bool=true,cancellation:OperationCancellation?=nil) throws -> RebaseSessionSnapshot {
+        try cancellation?.check()
+        let state=try rebaseState(cancellation:cancellation),identity=RebaseConflictIdentity(state)
+        let recovery=state.active && identity != nil && (state.needsFileRecovery || identity == previous)
+        let head=try run(["rev-parse","--verify","--quiet","HEAD"],successfulExitCodes:0...1,cancellation:cancellation).text.trimmingCharacters(in:.newlines)
+        var conflicts:[ConflictEntry]=[],rows:[StatusEntry]=[],statistics:[String:CommitFile]=[:]
+        if recovery {
+            conflicts=try self.conflicts(cancellation:cancellation)
+            let group=state.stoppedAction == .squash
+            rows=try commitDialogStatus(amendToParent:group,cancellation:cancellation).filter {$0.state != .untracked && $0.state != .ignored}
+            statistics=Dictionary(try workingTreeFiles(amendToParent:group,cancellation:cancellation).map {($0.path,$0)},uniquingKeysWith:{_,last in last})
+        }
+        let remaining=state.active && includeReplay ? try remainingRebaseEntries(cancellation:cancellation):[]
+        let replay=state.active && includeReplay ? try rebaseReplayEntries(cancellation:cancellation):[]
+        let final=try rebaseState(cancellation:cancellation),finalHead=try run(["rev-parse","--verify","--quiet","HEAD"],successfulExitCodes:0...1,cancellation:cancellation).text.trimmingCharacters(in:.newlines)
+        try cancellation?.check()
+        guard state.active == final.active,identity == RebaseConflictIdentity(final),state.stoppedAction == final.stoppedAction,
+              state.remainingCommands == final.remainingCommands,state.conflicts == final.conflicts,state.message == final.message,
+              state.squashMessage?.message == final.squashMessage?.message,state.isEditPause == final.isEditPause,head == finalHead else {throw RebaseFailure.changed}
+        return RebaseSessionSnapshot(state:state,identity:recovery ? identity:nil,fileRecovery:recovery,conflicts:conflicts,rows:rows,statistics:statistics,head:head,remaining:remaining,replay:replay)
     }
     public func rebaseTodo(_ plan: RebasePlan) throws -> String {
         let ids = plan.entries.map(\.id)

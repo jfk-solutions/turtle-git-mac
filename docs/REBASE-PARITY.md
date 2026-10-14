@@ -490,3 +490,46 @@ See [recovery-family evidence](qa/recovery-family-2026-10-13.json).
 The [reference/preparation family](REBASE-REFERENCE-PREPARATION-PARITY.md) connects
 source dropdowns, Onto alias/Cancel rules, full browser ownership and cancellable
 initial/plan/detail reads. It remains scoped acceptance, not full Rebase parity.
+
+
+## Connected active-session refresh/conflict reads — October 14, 2026
+
+Initial reopening and Refresh State now read one complete Core session snapshot:
+state, remaining/replay occurrences, conflict rows/statistics, actual HEAD and the
+file-recovery identity. Snapshot publication waits until all reads finish, with
+session/HEAD/command/conflict/message checks at the end. A changing Git session is
+refused rather than publishing a mixture. This is guarded publication, not an
+atomic filesystem snapshot against every external writer.
+
+Checked-file recovery uses original HEAD/branch/onto, stopped occurrence, step,
+Cherry Pick kind and Split part count instead of the step number alone. Unchecked
+choices survive a refresh at the same stopped occurrence; new paths follow the
+existing automatic-check rules. Resolved/staged conflicts retain checked-file
+recovery. An externally ended session clears stale conflict/replay/detail rows and
+reports session ended, without claiming that TurtleGit completed it successfully.
+Normal mutation completion retains its existing completed replay rows.
+
+Session refresh and base-conflict comparison own distinct cancellation tokens,
+generations and captured repository grants. Busy refresh requests coalesce to one
+fresh read after the current work; cancelling preparation discards that queue.
+Retirement cancels both readers and rejects late state, diagnostics, comparison
+panels and sibling-refresh callbacks. Quit accounting lasts until owned processes
+and readers return, even after forced closure. The preparation overlay identifies
+session refresh and conflict comparison separately and exposes Cancel. Comparison
+checks the initiating session before/after its literal-path no-external-diff/
+no-textconv read. Failed/cancelled reads keep the previous coherent data visible.
+
+This batch does not replace or cancel every replay mutation, Split, hook/editor or
+stash recovery operation. Full conflict menus, replay progress/cancellation,
+physical/signed/VoiceOver/layout and source tooltip acceptance remain open. These
+read improvements do not certify full Rebase/Cherry Pick or application parity.
+
+
+Debug compilation, four new Core snapshot tests and six grouped native cases
+passed on the first validation run. Core covers real ordinary/Cherry Pick conflicts,
+resolved/staged recovery, abort cleanup, pre-cancellation and an unborn repository.
+Native cases cover reopening, unchanged unchecked selection, queued refresh,
+deliberately held cancelled replies, external session end and forced closure during
+a real gated conflict diff, plus existing references/conditional-column regressions
+with system and bundled Git. Every owned receiver was reaped. No full Core suite
+was repeated. See [batch evidence](qa/rebase-session-refresh-2026-10-14.json).
