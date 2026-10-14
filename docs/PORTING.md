@@ -2,6 +2,13 @@
 
 *A macOS fork of TortoiseGit*
 
+The connected remote-manager family adds source Sync history cleanup on Rename/
+Remove, timed native origin help, owned collision reads and draft-preserving
+Push catalog refresh on manager return, with Pull/Fetch/Sync consumers. Its grouped
+validation passed: Debug plus six native cases across system/bundled Git, with
+all owned receivers reaped. See [batch evidence](qa/remote-management-family-2026-10-14.json);
+full physical/signed acceptance remains open.
+
 The connected Commit/patch/comparison preview batch implements movable sticky
 previews, screen-aware placement, mode reuse, unwrapped patch extent/reset and
 comparison navigation after viewport layout. Debug and six unique native cases

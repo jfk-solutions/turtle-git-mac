@@ -110,9 +110,10 @@ import TurtleGitCore
     private var metadataLoaded = false
     private var loadPresetSource: String?
     private var loadPresetPreserveAll = false
+    private var retryRemoteCatalog = false
     func retryPreparation() {
         guard !closed, !busy, !preparing else { return }
-        if !metadataLoaded { load(source: loadPresetSource, preserveAllBranches: loadPresetPreserveAll) } else { sourceChanged() }
+        if retryRemoteCatalog { refreshRemoteCatalog() } else if !metadataLoaded { load(source: loadPresetSource, preserveAllBranches: loadPresetPreserveAll) } else { sourceChanged() }
     }
     private func validateRepositoryAccess() throws {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
@@ -167,6 +168,7 @@ import TurtleGitCore
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.preferences = preferences; sshSettings = SSHTransportSettings(repository: repository) }
     func load(source: String? = nil, preserveAllBranches: Bool = false) {
         guard !invalidated, !busy, progress == nil else { return }
+        retryRemoteCatalog = false
         loadPresetSource = source; loadPresetPreserveAll = preserveAllBranches
         sourceToken?.cancel(); generation += 1
         busy = true; error = nil; preparationNeedsRetry = false
@@ -201,6 +203,34 @@ import TurtleGitCore
             } catch { if !invalidated, metadataToken === token { preparationNeedsRetry = true; self.error = error.localizedDescription } }
         }
     }
+    /// Refresh after the remote manager without resetting the user's operation draft.
+    func refreshRemoteCatalog() {
+        guard !invalidated, !busy, progress == nil else { return }
+        sourceToken?.cancel(); generation += 1
+        let snapshot = options, token = OperationCancellation()
+        metadataToken = token; busy = true; error = nil; preparationNeedsRetry = false; retryRemoteCatalog = true
+        Self.activePreparationReads += 1
+        Task { [self, access] in
+            defer {
+                Self.activePreparationReads -= 1
+                if metadataToken === token { metadataToken = nil; busy = false; if !invalidated { becameIdle() } }
+                withExtendedLifetime(access) {}
+            }
+            do {
+                try validateRepositoryAccess()
+                let names = try await repository.remoteNames(cancellation: token)
+                let refs = try await repository.checkoutReferences(cancellation: token)
+                let defaults = try await repository.pushDefaults(source: snapshot.source, cancellation: token)
+                try token.check(); guard !invalidated, metadataToken === token else { return }
+                remotes = names; references = refs; localBranch = defaults.localBranch
+                if !snapshot.arbitraryURL, !names.contains(snapshot.remote) {
+                    options.remote = names.contains(defaults.remote) ? defaults.remote : names.first ?? ""
+                }
+                if names.count < 2 { options.allRemotes = false }
+                metadataLoaded = true; retryRemoteCatalog = false; adjustSettings()
+            } catch { if !invalidated, metadataToken === token { preparationNeedsRetry = true; self.error = error.localizedDescription } }
+        }
+    }
     func browseSourceHistory(referenceLog: Bool) {
         guard !invalidated, !busy, !preparingSource, !options.allBranches, confirmation == nil else { return }
         if referenceLog { pickSourceRefLog() } else { pickSourceLog() }
@@ -217,6 +247,7 @@ import TurtleGitCore
     }
     func sourceChanged() {
         guard !invalidated, !busy, progress == nil, confirmation == nil else { return }
+        retryRemoteCatalog = false
         generation += 1; let request = generation, source = options.source
         sourceToken?.cancel(); sourceToken = nil
         guard !FetchDialogHistory.trim(source).isEmpty else { preparingSource = false; preparationNeedsRetry = false; localBranch = nil; adjustSettings(); becameIdle(); return }

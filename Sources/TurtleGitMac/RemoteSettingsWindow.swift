@@ -31,6 +31,10 @@ import TurtleGitCore
     @Published private(set) var closed = false
     @Published var error: String?
     @Published private(set) var collision = false
+    @Published private(set) var originHint: String?
+    var originHintDelay: UInt64 = 1_000_000_000
+    private var hintTask: Task<Void, Never>?
+    private var hintGeneration = UUID()
     var updated: () -> Void = {}
     var close: () -> Void = {}
     var onFetch: (String) -> Void = { _ in }
@@ -56,15 +60,17 @@ import TurtleGitCore
     private func live(_ request: OperationCancellation) -> Bool { !closed && token === request && !request.isCancelled }
     private func checkAccess() throws { if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable } }
     func setChild(_ value: Bool) { hasChild = value; updated() }
-    func invalidate() { let completion = settingsCompletion; settingsCompletion = nil; completion?(false); hasChild = false; closed = true; token?.cancel(); collisionToken?.cancel(); token = nil; collisionToken = nil; pendingFetch = nil; busy = false; updated() }
+    func invalidate() { cancelOriginHint(); let completion = settingsCompletion; settingsCompletion = nil; completion?(false); hasChild = false; closed = true; token?.cancel(); collisionToken?.cancel(); token = nil; collisionToken = nil; pendingFetch = nil; busy = false; updated() }
     func edit(_ field: RemoteSettingsFields, _ change: (inout RemoteSettings) -> Void) {
-        guard !closed, !busy, !hasChild else { return }; change(&draft); changed.formUnion(field)
+        guard !closed, !busy, !hasChild else { return }; if field == .name || field == .url { cancelOriginHint() }; change(&draft); changed.formUnion(field)
         if field == .url, names.isEmpty, draft.name.isEmpty, !draft.url.isEmpty { draft.name = "origin"; changed.insert(.name) }
         if field == .name || field == .url { checkCollision() }; updated()
     }
     private func checkCollision() {
         collisionToken?.cancel(); let request = OperationCancellation(); collisionToken = request; let name = draft.name
-        Task {
+        Self.activeOperations += 1
+        Task { [self, access] in
+            defer { Self.activeOperations -= 1; withExtendedLifetime(access) {} }
             defer { if collisionToken === request { collisionToken = nil } }
             do { try checkAccess(); let value = try await repository.remoteNameCollidesWithRefspec(name, cancellation: request); guard !closed, collisionToken === request, !request.isCancelled else { return }; collision = value; updated() }
             catch { if !closed, collisionToken === request, !request.isCancelled { self.error = error.localizedDescription; updated() } }
@@ -91,10 +97,30 @@ import TurtleGitCore
     }
     private func reloadNames(_ request: OperationCancellation) async throws {
         let values = try await repository.remoteNames(cancellation: request); guard live(request) else { return }
-        names = values.map { GitReferenceName($0) }; onRemotesChanged(values)
+        names = values.map { GitReferenceName($0) }; if !names.isEmpty { cancelOriginHint() }; onRemotesChanged(values)
         if let onReferencesChanged { let references = try await repository.checkoutReferences(cancellation: request); guard live(request) else { return }; onReferencesChanged(references) }
     }
-    func load() { perform { [self] request in try await reloadNames(request) } }
+    func load() { perform { [self] request in try await reloadNames(request); if live(request) { scheduleOriginHint() } } }
+    private func cancelOriginHint() { hintGeneration = UUID(); hintTask?.cancel(); hintTask = nil; originHint = nil }
+    private func scheduleOriginHint() {
+        cancelOriginHint()
+        guard names.isEmpty, draft.name.isEmpty else { return }
+        let identity = hintGeneration, delay = originHintDelay
+        hintTask = Task { [weak self] in
+            do { try await Task.sleep(nanoseconds: delay) } catch { return }
+            guard let self, !self.closed, self.hintGeneration == identity, self.names.isEmpty, self.draft.name.isEmpty else { return }
+            self.hintTask = nil
+            self.originHint = "When you type the URL, the remote name will be automatically filled with \"origin\" if the remote name is empty, so you do not have to."
+            self.updated()
+        }
+    }
+    private func cleanupSyncHistory(_ remote: String) {
+        let key = "TurtleGit.Sync." + repository.root.path + ".urls"
+        let entries = preferences.stringArray(forKey: key) ?? []
+        // Git names remain byte/UTF-16 exact; a distinct spelling or a URL is retained.
+        let retained = entries.filter { !$0.utf16.elementsEqual(remote.utf16) }
+        if retained.count != entries.count { preferences.set(retained, forKey: key) }
+    }
     private func read(_ name: GitReferenceName?, _ request: OperationCancellation) async throws {
         let value: RemoteSettings
         if let name { value = try await repository.remoteSettings(name: name.rawValue, cancellation: request) } else { value = RemoteSettings() }
@@ -156,6 +182,7 @@ import TurtleGitCore
         guard canRename, let old = selected else { return }; let name = draft.name
         perform { [self] request in
             try await repository.renameRemote(from: old.rawValue, to: name, cancellation: request); guard live(request) else { return }
+            cleanupSyncHistory(old.rawValue)
             selected = GitReferenceName(name); changed.remove(.name); try await reloadNames(request)
         }
     }
@@ -164,6 +191,7 @@ import TurtleGitCore
         perform { [self] request in
             let answer = await confirm(.remove(captured.rawValue)); guard live(request), answer.yes else { return }
             try await repository.removeRemote(name: captured.rawValue, cancellation: request); guard live(request) else { return }
+            cleanupSyncHistory(captured.rawValue)
             try await reloadNames(request); try await read(nil, request)
         }
     }
@@ -208,6 +236,8 @@ import TurtleGitCore
     let rename = NSButton(title: "Rename", target: nil, action: nil), add = NSButton(title: "Add New/Save", target: nil, action: nil), remove = NSButton(title: "Remove", target: nil, action: nil)
     let apply = NSButton(title: "Apply", target: nil, action: nil), ok = NSButton(title: "OK", target: nil, action: nil), cancel = NSButton(title: "Cancel", target: nil, action: nil)
     private var updating = false
+    private var hintPopover: NSPopover?
+    private var shownHint: String?
     init(model: RemoteSettingsWindowModel, embeddedSettings: Bool = false) {
         self.model = model; super.init(frame: .zero)
         table.headerView = nil; table.delegate = self; table.dataSource = self; table.rowHeight = 22; table.addTableColumn(NSTableColumn(identifier: .init("remote"))); table.setAccessibilityLabel("Configured remotes")
@@ -236,7 +266,7 @@ import TurtleGitCore
         model.updated = { [weak self] in self?.render() }; render()
     }
     override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow(); guard let window else { return }
+        super.viewDidMoveToWindow(); guard let window else { hintPopover?.close(); hintPopover = nil; return }
         model.confirm = { [weak window] prompt in
             guard let window, window.attachedSheet == nil else { return (false, false) }
             return await withCheckedContinuation { continuation in
@@ -263,6 +293,15 @@ import TurtleGitCore
         tags.selectItem(at: model.draft.tags == .none ? 1 : model.draft.tags == .all ? 2 : 0); tags.isEnabled = !model.busy && !model.closed && !model.hasChild
         prune.state = model.draft.prune == .enabled ? .on : model.draft.prune == .disabled ? .off : .mixed; pushDefault.state = model.draft.pushDefault ? .on : .off
         prune.isEnabled = !model.busy && !model.closed && !model.hasChild; pushDefault.isEnabled = prune.isEnabled; rename.isEnabled = model.canRename; remove.isEnabled = model.canRename; add.isEnabled = model.canSave; apply.isEnabled = model.canApply; ok.isEnabled = !model.busy && !model.closed && !model.hasChild; cancel.isEnabled = ok.isEnabled
+        if let hint = model.originHint, shownHint != hint, window?.isVisible == true, !isHiddenOrHasHiddenAncestor, window?.attachedSheet == nil {
+            let label = NSTextField(wrappingLabelWithString: hint); label.font = .systemFont(ofSize: 12)
+            let container = NSView(frame: NSRect(x: 0, y: 0, width: 330, height: 90))
+            label.frame = container.bounds.insetBy(dx: 12, dy: 12); label.autoresizingMask = [.width, .height]; container.addSubview(label)
+            let content = NSViewController(); content.view = container
+            let popover = NSPopover(); popover.contentViewController = content; popover.contentSize = container.frame.size; popover.behavior = .transient
+            hintPopover?.close(); hintPopover = popover; shownHint = hint
+            popover.show(relativeTo: url.bounds, of: url, preferredEdge: .maxY)
+        } else if model.originHint == nil { hintPopover?.close(); hintPopover = nil; shownHint = nil }
         warning.stringValue = model.collision ? "This remote name collides with fetch refspec of other remotes. Please use another name." : ""
         status.stringValue = model.busy ? "Please wait…" : model.error ?? ""; status.textColor = model.error == nil ? .secondaryLabelColor : .systemRed
     }
@@ -323,7 +362,7 @@ struct PushRemoteSettings: View {
     }
     var body: some View {
         RemoteSettingsEmbeddedPage(model: settings).frame(minWidth: 730, minHeight: 440)
-            .onAppear { settings.close = { if let onClose { onClose() } else { model.managingRemotes = false } }; settings.onRemotesChanged = { model.remotes = $0; if !model.remotes.contains(model.options.remote) { model.options.remote = model.remotes.first ?? "" } }; settings.onReferencesChanged = { model.references = $0 }; settings.load() }
-            .onDisappear { settings.invalidate() }
+            .onAppear { settings.close = { if let onClose { onClose() } else { model.managingRemotes = false } }; settings.onRemotesChanged = { model.remotes = $0 }; settings.onReferencesChanged = { model.references = $0 }; settings.load() }
+            .onDisappear { settings.invalidate(); if !model.closed { model.refreshRemoteCatalog() } }
     }
 }

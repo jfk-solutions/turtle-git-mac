@@ -93,7 +93,7 @@ This generated table links explicit implementation/parity reviews and existing Q
 | `src/Resources/TortoiseProcENG.rc` / `IDD_REFLOG` | partial | 8/8 mapped; 0 pending | [REFLOG-PARITY](REFLOG-PARITY.md), [UI-PARITY](UI-PARITY.md); 18 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SUBMODULE_ADD` | partial | 0/16 mapped; 16 pending | [SUBMODULE-ADD-PARITY](SUBMODULE-ADD-PARITY.md); 3 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGIT_CONFIG` | partial-native-replacement | 0/34 mapped; 34 pending | [GIT-CONFIGURATION-PARITY](GIT-CONFIGURATION-PARITY.md); 1 QA records |
-| `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINREMOTE` | partial | 18/18 mapped; 0 pending | [REMOTE-SETTINGS-PARITY](REMOTE-SETTINGS-PARITY.md), [UI-PARITY](UI-PARITY.md); 6 QA records |
+| `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINREMOTE` | partial | 18/18 mapped; 0 pending | [REMOTE-SETTINGS-PARITY](REMOTE-SETTINGS-PARITY.md), [UI-PARITY](UI-PARITY.md); 7 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SENDMAIL` | partial-native-replacement | 0/14 mapped; 14 pending | [SEND-PATCH-PARITY](SEND-PATCH-PARITY.md); 1 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SYNC` | partial | 26/27 mapped; 1 pending | [UI-PARITY](UI-PARITY.md); 6 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_CLEAN` | partial-native-replacement | 13/13 mapped; 0 pending | [CLEAN-PARITY](CLEAN-PARITY.md); 6 QA records |

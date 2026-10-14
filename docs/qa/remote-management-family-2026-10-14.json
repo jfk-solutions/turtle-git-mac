@@ -1,0 +1,67 @@
+{
+  "date": "2026-10-14",
+  "base": "c487872f",
+  "scope": [
+    "Source CleanupSyncRemotes exact repository/history name removal after successful Rename/Remove",
+    "Push remote/reference/source classification refresh on manager return, retained operation draft/arbitrary URL and catalog-specific Retry",
+    "Source timed origin text in owned native transient URL popover; edit/list/retirement cancellation",
+    "Independent collision-read grant/Quit lifetime, including cancellation/supersession/forced retirement; existing Pull/Fetch/Sync consumers"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/remote-management-family-debug-2026-10-14.log",
+      "diagnostics": "Existing exit-zero/no-output compile diagnostics; no clean-diagnostics claim"
+    },
+    "core": {
+      "run": false,
+      "reason": "Core Git/configuration algorithms unchanged"
+    },
+    "native": {
+      "initial_exit": 1,
+      "initial_log": "build/qa/remote-management-family-native-2026-10-14.log",
+      "initial_failure": "New gated collision fixture expected config at argv[4], but source advisory prepends -c core.precomposeunicode=false. Ready marker was never created; timeout at source line 65 / generated line 66. Receiver 9578 was reaped and no held collision helper remained.",
+      "repair": "Match the actual config argv after the leading option. Fixture-only change; app build not repeated.",
+      "repair_exit": 0,
+      "repair_log": "build/qa/remote-management-family-native-fixture-repair-2026-10-14.log",
+      "unique_passing_cases": 6,
+      "families": [
+        "remote-management-family",
+        "remote-settings-family",
+        "remote-dialogs"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "owned_receivers_reaped": [
+        9773,
+        9932,
+        10191,
+        10210,
+        10369,
+        10632
+      ],
+      "receiver_pids_still_live_at_final_check": [],
+      "evidence": [
+        "Actual rename/remove prunes old exact history while preserving differently-cased names, URLs, another repository and order",
+        "Actual origin hint/autofill/edit/retirement state; hidden fixtures do not show the popover",
+        "Actual manager return names/references/classification, typed branch/force/submodule/push-option/arbitrary URL retention; Pull/Fetch reload and Sync history consumption",
+        "Actual gated collision cancellation/retirement/Quit; catalog cancel/retry retains draft and forced retirement fences results",
+        "Existing native Add/Save/Rename/Remove/Save-Discard/overwrite/tag/Fetch/chooser/SSH key grant/source interop/forced process cleanup and repository invariants"
+      ]
+    },
+    "site": {
+      "exit": 0,
+      "documents": 212,
+      "unresolved_fragments": [],
+      "log": "build/qa/remote-management-family-site-2026-10-14.log"
+    }
+  },
+  "limitations": [
+    "Physical origin popover/focus/layout/keyboard/VoiceOver and all source states remain unverified",
+    "Live transport, signed key/repository grants, installed Finder and App Store acceptance remain open",
+    "History cleanup follows successful accepted mutations; no atomic transaction against external writers or rollback guarantee",
+    "No complete dialog or full port certification"
+  ]
+}
