@@ -190,7 +190,7 @@ import TurtleGitCore
                 try checkAccess()
                 hasHead = try await repository.run(["rev-parse", "--verify", "--quiet", "HEAD^{commit}"], successfulExitCodes: 0...1).exitCode == 0
                 bare = try await repository.isBare()
-                references = try await repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead).filter { !$0.name.hasPrefix("refs/tags/") && $0.symbolicTarget == nil }.map(\.name)
+                references = try await repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead, localBranchesFirst: AdvancedListBehavior(defaults: preferences).localBranchesFirst).filter { !$0.name.hasPrefix("refs/tags/") && $0.symbolicTarget == nil }.map(\.name)
             } catch { self.error = error.localizedDescription }
         }
     }

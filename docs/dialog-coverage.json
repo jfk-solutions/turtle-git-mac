@@ -1643,6 +1643,7 @@
         "docs/ADVANCED-SETTINGS-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/advanced-list-consumers-2026-10-14.json",
         "docs/qa/advanced-settings-2026-10-06.json",
         "docs/qa/commit-message-file-2026-10-07.json",
         "docs/qa/history-boundaries-2026-10-09.json",

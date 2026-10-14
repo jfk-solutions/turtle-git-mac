@@ -189,7 +189,7 @@ extension UserDefaults {
             defer { if referenceSelectionToken === token { referenceSelectionToken = nil; busy = false; pickerTarget = nil; if applied { referenceFocusRequest += 1 }; completion() } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let catalog = try await repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead, cancellation: token)
+                let catalog = try await repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead, localBranchesFirst: AdvancedListBehavior(defaults: preferences).localBranchesFirst, cancellation: token)
                 guard !invalidated, !finished, referenceSelectionToken === token, !token.isCancelled else { return }
                 references = catalog
                 if let reference = catalog.first(where: { GitReferenceName.equal($0.name, requested) }), let target = reference.target {
@@ -219,7 +219,7 @@ extension UserDefaults {
             defer { if initialLoadToken === token { initialLoadToken = nil; busy = false } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let catalog = try await repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead, cancellation: token)
+                let catalog = try await repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead, localBranchesFirst: AdvancedListBehavior(defaults: preferences).localBranchesFirst, cancellation: token)
                 let current = try await repository.branch(cancellation: token)
                 guard !invalidated, !finished, initialLoadToken === token, !token.isCancelled else { return }
                 references = catalog

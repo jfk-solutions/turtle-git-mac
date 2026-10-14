@@ -2300,3 +2300,8 @@ metadata receivers passed with both Git engines; all were reaped. The unrelated
 passing Core checks were not repeated. See
 [actual evidence and limits](qa/log-progressive-rows-2026-10-14.json). Physical scrolling/selection, very large
 histories and signed scope acceptance remain open.
+
+Log's source **LogTooManyItemsThreshold** guard now applies to the complete
+changed-file count before path filtering. Over-threshold lists show the source
+message and expose no file/header rows; equality remains displayed. See
+[Advanced list consumers](ADVANCED-SETTINGS-PARITY.md) for defaults and validation.

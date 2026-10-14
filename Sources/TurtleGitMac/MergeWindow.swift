@@ -123,7 +123,7 @@ import TurtleGitCore
             defer { if referenceSelectionToken === token { referenceSelectionToken = nil; busy = false; pickerTarget = nil; if applied { referenceFocusRequest += 1 }; completion() } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let catalog = try await repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead, cancellation: token)
+                let catalog = try await repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead, localBranchesFirst: AdvancedListBehavior(defaults: preferences).localBranchesFirst, cancellation: token)
                 let current = try await repository.branch(cancellation: token)
                 guard !invalidated, referenceSelectionToken === token, !token.isCancelled else { return }
                 references = catalog; currentBranch = current
@@ -164,7 +164,7 @@ import TurtleGitCore
             defer { if loadToken === token { loadToken = nil; busy = false } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let current = try await repository.branch(cancellation: token), catalog = try await repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead, cancellation: token)
+                let current = try await repository.branch(cancellation: token), catalog = try await repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead, localBranchesFirst: AdvancedListBehavior(defaults: preferences).localBranchesFirst, cancellation: token)
                 let defaults = try await repository.pushDefaults(source: "HEAD", cancellation: token)
                 let destination = defaults.destination.hasPrefix("refs/heads/") ? String(defaults.destination.dropFirst(11)) : defaults.destination
                 let tracked = "refs/remotes/" + defaults.remote + "/" + destination

@@ -16,8 +16,8 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     var onClosed: () -> Void = {}
     private var logPicker: LogWindowController?
     private var reflogPicker: ReferenceLogWindowController?
-    init(repository: GitRepository, access: RepositoryAccessLease?, from: ComparisonRevision, to: ComparisonRevision, paths: [String] = []) {
-        model = RevisionComparisonWindowModel(repository: repository, access: access, from: from, to: to, paths: paths)
+    init(repository: GitRepository, access: RepositoryAccessLease?, from: ComparisonRevision, to: ComparisonRevision, paths: [String] = [], preferences: UserDefaults = .standard) {
+        model = RevisionComparisonWindowModel(repository: repository, access: access, from: from, to: to, paths: paths, preferences: preferences)
         let size = NSSize(width: 1000, height: 700)
         let window = RevisionComparisonNativeWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
         window.title = "\(paths.isEmpty ? repository.root.lastPathComponent : paths.joined(separator: ", ")) – Changed Files – TurtleGit"; window.isReleasedWhenClosed = false
@@ -28,6 +28,12 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         model.pickHistory = { [weak self] side, reflog in self?.showHistoryPicker(side: side, reflog: reflog) }
         model.window = window; window.refresh = { [weak model] in model?.load() }
 
+        model.confirmManyDiffs = { [weak window] count in
+            guard let window, window.attachedSheet == nil else { return false }
+            let alert = NSAlert(); alert.messageText = "Open diffs for \(count) files?"
+            alert.informativeText = "Each selected file opens in its own viewer."; alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No")
+            return await withCheckedContinuation { reply in alert.beginSheetModal(for: window) { reply.resume(returning: $0 == .alertFirstButtonReturn) } }
+        }
         DialogGeometry.attach(window, identifier: "FileDiffDialog", legacyName: "FileDiffDialog")
     }
     private func showHistoryPicker(side: ComparisonSide, reflog: Bool) {
@@ -55,7 +61,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         }
         return true
     }
-    func windowWillClose(_ notification: Notification) { model.invalidate(); logPicker?.close(); reflogPicker?.close(); model.patchWindow?.close(); Array(model.unifiedWindows.values).forEach { $0.close() }; Array(model.comparisonWindows.values).forEach { $0.close() }; onClosed() }
+    func windowWillClose(_ notification: Notification) { if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .cancel); sheet.orderOut(nil) }; model.invalidate(); logPicker?.close(); reflogPicker?.close(); model.patchWindow?.close(); Array(model.unifiedWindows.values).forEach { $0.close() }; Array(model.comparisonWindows.values).forEach { $0.close() }; onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class RevisionComparisonWindowModel: ObservableObject {
@@ -80,6 +86,10 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     var patchWindow: PatchWindowController?
     var unifiedWindows: [String: PatchWindowController] = [:]
     private var patchGeneration = 0
+    private(set) static var activeFileOperations = 0
+    private let preferences: UserDefaults
+    var confirmManyDiffs: (Int) async -> Bool = { _ in false }
+    var openComparedFile: ((RevisionComparisonSnapshot, CommitFile) -> Void)?
     private var patchTokens: [UUID: OperationCancellation] = [:]
     private var loadToken: OperationCancellation?
     private(set) var closed = false
@@ -89,7 +99,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     var onSubmoduleCompare: (String, ComparisonRevision, ComparisonRevision) -> Void = { _, _, _ in }
     var comparisonWindows: [String: FileComparisonWindowController] = [:]
     var visibleFiles: [CommitFile] { snapshot?.files.filter { filter.isEmpty || $0.path.localizedCaseInsensitiveContains(filter) || $0.oldPath?.localizedCaseInsensitiveContains(filter) == true }.sorted(using: sortOrder) ?? [] }
-    init(repository: GitRepository, access: RepositoryAccessLease?, from: ComparisonRevision, to: ComparisonRevision, paths: [String] = []) { self.repository = repository; self.access = access; self.from = from.label; self.to = to.label; scopePaths = paths }
+    init(repository: GitRepository, access: RepositoryAccessLease?, from: ComparisonRevision, to: ComparisonRevision, paths: [String] = [], preferences: UserDefaults = .standard) { self.preferences = preferences; self.repository = repository; self.access = access; self.from = from.label; self.to = to.label; scopePaths = paths }
     func canReuseForComparison(from requestedFrom: ComparisonRevision, to requestedTo: ComparisonRevision, paths: [String] = []) -> Bool {
         !busy && !confirmingQuit && scopePaths == paths && from == requestedFrom.label && to == requestedTo.label &&
         patchWindow?.model.busy != true && patchWindow?.window?.attachedSheet == nil &&
@@ -108,7 +118,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
             defer { if loadToken === token { loadToken = nil; busy = false } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let catalog = try await repository.checkoutReferences(includeAll: true, includeFetchHead: UserDefaults.standard.includesFetchHead, cancellation: token)
+                let catalog = try await repository.checkoutReferences(includeAll: true, includeFetchHead: preferences.includesFetchHead, localBranchesFirst: AdvancedListBehavior(defaults: preferences).localBranchesFirst, cancellation: token)
                 let result = try await repository.revisionComparison(from: old, to: new, options: settings, cancellation: token, paths: scopePaths)
                 guard !closed, loadToken === token, !token.isCancelled else { return }
                 references = catalog; snapshot = result
@@ -146,15 +156,31 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         let revision: String? = { if case .revision(let value) = snapshot.to { return value }; return nil }()
         for file in visibleFiles where ids.contains(file.path) { onFileLog(file.path, revision) }
     }
+    private func runFiles(_ files: [CommitFile], operation: @escaping (OperationCancellation) async -> Void) {
+        guard !closed, !busy, !confirmingQuit, !files.isEmpty else { return }
+        let request = UUID(), token = OperationCancellation(); patchTokens[request] = token; busy = true; Self.activeFileOperations += 1
+        Task {
+            defer { Self.activeFileOperations -= 1; patchTokens.removeValue(forKey: request); if !closed { busy = false }; withExtendedLifetime(access) {} }
+            if AdvancedListBehavior(defaults: preferences).warnsBeforeDiffs(count: files.count) {
+                guard await confirmManyDiffs(files.count), !closed, !token.isCancelled else { return }
+            }
+            guard !closed, !token.isCancelled else { return }; await operation(token)
+        }
+    }
     func compare(_ ids: Set<String>) {
         guard !closed, !busy, !confirmingQuit, let snapshot else { return }
-        for file in visibleFiles where ids.contains(file.path) {
+        let files = visibleFiles.filter { ids.contains($0.path) }
+        runFiles(files) { [self] token in
+        for file in files {
+            guard !closed, !token.isCancelled else { return }
+            if let openComparedFile { openComparedFile(snapshot, file); continue }
             if file.isSubmodule { onSubmoduleCompare(file.path, snapshot.from, snapshot.to); continue }
             let key = file.path + "\0" + snapshot.from.label + "\0" + snapshot.to.label
             let controller = comparisonWindows[key] ?? FileComparisonWindowController(repository: repository, access: access, snapshot: snapshot, path: file.path)
             controller.onClosed = { [weak self] in self?.comparisonWindows.removeValue(forKey: key) }
             comparisonWindows[key] = controller
             controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        }
         }
     }
     func copyPaths(_ ids: Set<String>, extended: Bool = false) {
@@ -193,16 +219,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         guard !closed, !busy, !confirmingQuit, let snapshot, !unifiedWindows.values.contains(where: { $0.model.busy }) else { return }
         let files = visibleFiles.filter { ids.contains($0.path) }
         guard !files.isEmpty else { return }
-        let savedWarning = UserDefaults.standard.object(forKey: "TurtleGit.NumDiffWarning") as? Int ?? 10
-        if files.count > max(3, savedWarning) {
-            let alert = NSAlert(); alert.messageText = "Open unified diffs for \(files.count) files?"
-            alert.informativeText = "Each selected file opens in its own viewer."; alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No")
-            guard alert.runModal() == .alertFirstButtonReturn else { return }
-        }
-        busy = true
-        let request = UUID(), token = OperationCancellation(); patchTokens[request] = token
-        Task {
-            defer { patchTokens.removeValue(forKey: request); if !closed { busy = false } }
+        runFiles(files) { [self] token in
             var failures: [String] = []
             for file in files {
                 guard !closed, !token.isCancelled else { return }

@@ -126,3 +126,37 @@ native Settings → Dialogs. Earlier runtime-only descriptions missed that
 SetDialogs control and are corrected here. See
 [Log message-line configuration](LOG-PARITY.md#full-commit-message-on-each-log-line)
 for the native defaults command, exact whitespace behavior and remaining scope.
+
+## Reference/list consumer batch — October 14, 2026
+
+NoSortLocalBranchesFirst now drives natural branch-label ordering in the shared
+checkout-reference catalogue. The source compares the displayed remotes/ prefix
+when grouping; that includes a local branch whose name begins with that prefix.
+Disabling local-first ordering combines branch labels in one natural order. Tags
+and other reference categories remain separate and FETCH_HEAD stays a virtual
+last item. Shared Switch/Merge/Export/Format Patch revision consumers pass their
+preference domain through; other catalogue callers use the app-wide preference.
+Native numeric/case-insensitive collation and raw-byte ties replace Windows
+StrCmpLogicalW; full Windows-locale equivalence remains unverified.
+
+LogTooManyItemsThreshold now suppresses Log's changed-file list above the strict
+source threshold (default 1000), including parent-group headers, and displays
+“Too many files to display.” Retained file metadata/counts remain available;
+filters do not turn a suppressed oversized list into actionable hidden rows.
+The source DWORD/minimum-three rule now reads NumDiffWarning for Changed Files
+comparison and unified-diff launches. Pending questions hold captured files,
+operation/Quit ownership and the lease; No opens nothing and retired Yes cannot
+open windows. The old TurtleGit.NumDiffWarning alias is read only when the source
+key is absent. Advanced displays the effective legacy value; editing or clearing
+it removes the alias so Reset restores the actual source default.
+
+These three entries now have effective-consumer tooltips. The same audit also
+corrects obsolete no-effect tooltips for the existing superproject pointer, named
+remote fetch policy, LFS list-position restoration, commit sanitization, squash
+date, styled output and release-check/preview consumers. This does not imply
+that every registered Advanced preference is consumed. All fifteen affected
+Core checks and six grouped native consumer/remote/settings receivers passed
+with system and bundled Git, and all were reaped. A native-only tooltip audit
+rebuilt the changed app file without repeating Core tests. See
+[actual results and limits](qa/advanced-list-consumers-2026-10-14.json). Physical sheets, every diff-entry caller and Windows locale/signed
+acceptance remain open.

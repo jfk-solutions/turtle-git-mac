@@ -77,7 +77,7 @@ public struct AdvancedSettingsStore {
     private let defaults: UserDefaults
     public init(defaults: UserDefaults = .standard) { self.defaults = defaults }
     public func value(for setting: AdvancedSettingDefinition) -> String {
-        let saved = defaults.object(forKey: setting.name) as? NSNumber
+        let saved = (defaults.object(forKey: setting.name) as? NSNumber) ?? (setting.name == "NumDiffWarning" ? defaults.object(forKey: "TurtleGit.NumDiffWarning") as? NSNumber : nil)
         switch setting.kind {
         case .boolean(let fallback): return (saved?.boolValue ?? fallback) ? "true" : "false"
         case .dword(let fallback): return String(Int32(bitPattern: saved?.uint32Value ?? fallback))
@@ -88,6 +88,7 @@ public struct AdvancedSettingsStore {
         let changed = AdvancedSettingDefinition.all.filter { edited[$0.name] != nil && edited[$0.name] != value(for: $0) }
         for setting in changed where !setting.accepts(edited[setting.name]!) { throw AdvancedSettingsFailure.invalidValue(setting.name) }
         for setting in changed {
+            if setting.name == "NumDiffWarning" { defaults.removeObject(forKey: "TurtleGit.NumDiffWarning") }
             let text = edited[setting.name]!
             if text.isEmpty { defaults.removeObject(forKey: setting.name); continue }
             switch setting.kind {
@@ -101,4 +102,20 @@ public struct AdvancedSettingsStore {
             }
         }
     }
+}
+
+/// DWORD interpretation follows the source registry consumers, including the
+/// minimum-three multiple-diff safeguard and strict greater-than list threshold.
+public struct AdvancedListBehavior: Sendable {
+    public let localBranchesFirst: Bool
+    public let tooManyFiles: UInt32
+    public let diffWarning: UInt32
+    public init(defaults: UserDefaults = .standard) {
+        localBranchesFirst = !defaults.bool(forKey: "NoSortLocalBranchesFirst")
+        tooManyFiles = (defaults.object(forKey: "LogTooManyItemsThreshold") as? NSNumber)?.uint32Value ?? 1000
+        diffWarning = (defaults.object(forKey: "NumDiffWarning") as? NSNumber)?.uint32Value
+            ?? (defaults.object(forKey: "TurtleGit.NumDiffWarning") as? NSNumber)?.uint32Value ?? 10
+    }
+    public func hidesFileList(count: Int) -> Bool { count > Int(tooManyFiles) }
+    public func warnsBeforeDiffs(count: Int) -> Bool { count > Int(max(3, diffWarning)) }
 }

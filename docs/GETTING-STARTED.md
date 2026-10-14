@@ -307,3 +307,9 @@ batches while later notes and metadata are still being read. History actions
 remain gated until the load finishes. Cancelling a replacement read restores
 the previous stable list and graph; an interrupted prefix is not treated as a
 completed history.
+
+Advanced’s **NoSortLocalBranchesFirst** changes branch ordering on the next
+reference load. **LogTooManyItemsThreshold** controls when Log suppresses an
+oversized changed-file list. **NumDiffWarning** controls Changed Files’ warning
+before opening multiple comparison or unified-diff windows; the minimum warning
+threshold is three, matching TortoiseGit.

@@ -2,6 +2,24 @@ import XCTest
 @testable import TurtleGitCore
 
 final class AdvancedSettingsTests: XCTestCase {
+    func testListThresholdDwordsAndLegacyWarningMigrationMatchSource() throws {
+        let suite = "TurtleGit.ListBehavior." + UUID().uuidString, defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let initial = AdvancedListBehavior(defaults: defaults)
+        XCTAssertTrue(initial.localBranchesFirst); XCTAssertFalse(initial.hidesFileList(count: 1000)); XCTAssertTrue(initial.hidesFileList(count: 1001))
+        XCTAssertFalse(initial.warnsBeforeDiffs(count: 10)); XCTAssertTrue(initial.warnsBeforeDiffs(count: 11))
+        defaults.set(0, forKey: "NumDiffWarning"); defaults.set(0, forKey: "LogTooManyItemsThreshold"); defaults.set(true, forKey: "NoSortLocalBranchesFirst")
+        let changed = AdvancedListBehavior(defaults: defaults)
+        XCTAssertFalse(changed.localBranchesFirst); XCTAssertTrue(changed.hidesFileList(count: 1)); XCTAssertFalse(changed.warnsBeforeDiffs(count: 3)); XCTAssertTrue(changed.warnsBeforeDiffs(count: 4))
+        defaults.set(-1, forKey: "LogTooManyItemsThreshold"); XCTAssertFalse(AdvancedListBehavior(defaults: defaults).hidesFileList(count: 1000000))
+        defaults.removeObject(forKey: "NumDiffWarning"); defaults.set(25, forKey: "TurtleGit.NumDiffWarning")
+        let store = AdvancedSettingsStore(defaults: defaults), setting = AdvancedSettingDefinition.all.first { $0.name == "NumDiffWarning" }!
+        XCTAssertEqual(store.value(for: setting), "25"); XCTAssertFalse(AdvancedListBehavior(defaults: defaults).warnsBeforeDiffs(count: 20))
+        try store.apply(["NumDiffWarning": "3"])
+        XCTAssertNil(defaults.object(forKey: "TurtleGit.NumDiffWarning")); XCTAssertTrue(AdvancedListBehavior(defaults: defaults).warnsBeforeDiffs(count: 4))
+        try store.apply(["NumDiffWarning": ""]); XCTAssertEqual(AdvancedListBehavior(defaults: defaults).diffWarning, 10)
+    }
+
     func withDefaults(_ body: (UserDefaults, AdvancedSettingsStore) throws -> Void) throws {
         let name = "TurtleGit.Advanced.Tests." + UUID().uuidString
         let defaults = try XCTUnwrap(UserDefaults(suiteName: name)); defer { defaults.removePersistentDomain(forName: name) }

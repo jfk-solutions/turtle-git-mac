@@ -29,6 +29,22 @@ public struct CheckoutReference: Identifiable, Sendable {
         return "Branch_" + label
     }
 }
+public enum CheckoutReferenceOrdering {
+    public static func sorted(_ values: [CheckoutReference], localBranchesFirst: Bool) -> [CheckoutReference] {
+        values.sorted { a, b in
+            func category(_ value: CheckoutReference) -> Int { value.isFetchHead ? 3 : value.target == .branch ? 0 : value.target == .tag ? 1 : 2 }
+            let ca = category(a), cb = category(b)
+            if ca != cb { return ca < cb }
+            if ca == 0, localBranchesFirst {
+                let ar = a.label.hasPrefix("remotes/"), br = b.label.hasPrefix("remotes/")
+                if ar != br { return !ar }
+            }
+            let order = a.label.compare(b.label, options: [.caseInsensitive, .numeric], locale: Locale(identifier: "en_US_POSIX"))
+            return order == .orderedSame ? a.name.utf8.lexicographicallyPrecedes(b.name.utf8) : order == .orderedAscending
+        }
+    }
+}
+
 public struct CheckoutOptions: Sendable {
     public var target = CheckoutTarget.branch
     public var revision = ""
@@ -54,7 +70,7 @@ public enum CheckoutFailure: LocalizedError {
 }
 
 extension GitRepository {
-    public func checkoutReferences(includeAll: Bool = false, includeFetchHead: Bool = false, cancellation: OperationCancellation? = nil) throws -> [CheckoutReference] {
+    public func checkoutReferences(includeAll: Bool = false, includeFetchHead: Bool = false, localBranchesFirst: Bool? = nil, cancellation: OperationCancellation? = nil) throws -> [CheckoutReference] {
         let bytes = try run(["for-each-ref", "--sort=refname", "--format=%(refname)%00%(symref)%00"] + (includeAll ? [] : ["refs/heads", "refs/remotes", "refs/tags"]), cancellation: cancellation).stdout
         let fields = String(decoding: bytes, as: UTF8.self).components(separatedBy: "\0")
         var result: [CheckoutReference] = []
@@ -73,7 +89,7 @@ extension GitRepository {
             }
             try cancellation?.check()
         }
-        return result
+        return CheckoutReferenceOrdering.sorted(result, localBranchesFirst: localBranchesFirst ?? AdvancedListBehavior().localBranchesFirst)
     }
     public func checkout(_ options: CheckoutOptions, cancellation: OperationCancellation? = nil) throws -> String {
         try cancellation?.check()

@@ -1199,8 +1199,10 @@ struct LogCommandRequest: Identifiable {
     var finishMultipleSelection: ([LogEntry]?) -> Void = { _ in }
     var revisions: [LogEntry] { entries.filter { !$0.hash.isEmpty && selected.contains($0.hash) } }
     var revision: LogEntry? { selected.count == 1 && revisions.count == 1 ? revisions.first : nil }
+    var hidesTooManyFiles: Bool { AdvancedListBehavior(defaults: labelDefaults).hidesFileList(count: files.count) }
     var visibleFiles: [CommitFile] {
-        files.filter { (unrelatedPathMode != .hide || !unrelatedFile($0)) && (filterPaths.isEmpty || $0.path.localizedCaseInsensitiveContains(filterPaths)) }
+        guard !hidesTooManyFiles else { return [] }
+        return files.filter { (unrelatedPathMode != .hide || !unrelatedFile($0)) && (filterPaths.isEmpty || $0.path.localizedCaseInsensitiveContains(filterPaths)) }
     }
     var message: String {
         if selectedWorkingTree, let snapshot = workingTreeSnapshot { return "Working tree changes\n" + snapshot.entry.message + (snapshot.entry.parents.first.map { "\nHEAD: " + $0 } ?? "") }
@@ -2257,6 +2259,7 @@ struct LogFileTableRow: Identifiable {
 
 extension LogWindowModel {
     var fileTableRows: [LogFileTableRow] {
+        guard !hidesTooManyFiles else { return [] }
         guard !selectedWorkingTree, !fileGroups.isEmpty else {
             return visibleFiles.map { LogFileTableRow(id: $0.id, file: $0, header: nil) }
         }
@@ -2355,6 +2358,7 @@ struct LogDialog: View {
                     TableColumn("Lines added") { row in Text(row.file?.addedText ?? "").foregroundStyle(row.file.map { model.fileForeground($0, selected: model.selectedFiles.contains(row.id)) } ?? .primary) }.width(90)
                     TableColumn("Lines removed") { row in Text(row.file?.removedText ?? "").foregroundStyle(row.file.map { model.fileForeground($0, selected: model.selectedFiles.contains(row.id)) } ?? .primary) }.width(105)
                 }.fileListFont().frame(minHeight: 130, idealHeight: 180)
+                .overlay { if model.hidesTooManyFiles { Text("Too many files to display.").foregroundStyle(.secondary).allowsHitTesting(false) } }
                 .onDeleteCommand { model.deleteWorkingFiles(model.selectedFiles, permanently: NSEvent.modifierFlags.contains(.shift), keyboard: true) }
                 .contextMenu(forSelectionType: String.self) { ids in
                     TurtleGitContextMenu {

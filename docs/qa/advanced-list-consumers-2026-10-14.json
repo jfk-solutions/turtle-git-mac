@@ -1,0 +1,58 @@
+{
+  "date": "2026-10-14",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "NoSortLocalBranchesFirst natural-label sorting in shared reference catalogues",
+    "LogTooManyItemsThreshold full-list suppression and source empty message",
+    "NumDiffWarning source DWORD/minimum-three rule, legacy preference migration and owned Changed Files multi-viewer questions",
+    "Effective-consumer tooltips corrected for new and confirmed existing readers"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/advanced-list-consumers-build-tooltip-2026-10-14.log"
+    },
+    "core": {
+      "exit": 0,
+      "tests": 15,
+      "scope": "AdvancedSettingsTests and CheckoutTests",
+      "log": "build/qa/advanced-list-consumers-core-2026-10-14.log"
+    },
+    "native": {
+      "exit": 0,
+      "cases": 6,
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "scope": "New consumers plus existing remote-dialog and settings-family receivers",
+      "log": "build/qa/advanced-list-consumers-native-2026-10-14.log",
+      "owned_receivers_reaped": [
+        34865,
+        34886,
+        34905,
+        34918,
+        34939,
+        34958
+      ],
+      "no_owned_receivers_remain": true
+    },
+    "website": {
+      "exit": 0,
+      "log": "build/qa/advanced-list-consumers-site-2026-10-14.log"
+    }
+  },
+  "evidence": [
+    "Natural 2-before-10 branch labels, source remotes/ prefix grouping and unchanged real Git references",
+    "Strict 1000/1001 cutoff, zero and unsigned DWORD behavior, minimum-three diff safeguard",
+    "Legacy warning value displayed/read consistently; edit/blank clears alias and restores source defaults",
+    "Captured comparison No/Yes/threshold equality, pending confirmation Quit guard and retired Yes refusal"
+  ],
+  "limits": [
+    "Branch ordering uses native numeric/case-insensitive collation and byte ties; full Windows locale equivalence and physical chooser order acceptance remain unproven",
+    "Native comparison launches/answers are injected; no physical multi-viewer prompt, receiving application or signed scope claim",
+    "NumDiffWarning is wired to Changed Files comparison/unified routes; remaining diff-entry consumers are still open",
+    "Not every registered Advanced preference has a runtime consumer",
+    "No complete hosted CI, Store packaging or whole-port acceptance claim"
+  ]
+}

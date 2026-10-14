@@ -2,6 +2,21 @@ import XCTest
 @testable import TurtleGitCore
 
 final class CheckoutTests: XCTestCase {
+    func testBranchOrderingPreferenceUsesNaturalLabelsWithoutChangingReferences() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        _ = try await repo.run(["branch", "z10"]); _ = try await repo.run(["branch", "z2"]); _ = try await repo.run(["branch", "remotes/local"])
+        let head = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await repo.run(["update-ref", "refs/remotes/origin/a", head])
+        let before = try await repo.run(["show-ref"]).stdout
+        let local = try await repo.checkoutReferences(localBranchesFirst: true).filter { $0.target == .branch }
+        XCTAssertTrue(local.firstIndex { $0.label == "z2" }! < local.firstIndex { $0.label == "z10" }!)
+        XCTAssertEqual(local.last?.label, "remotes/origin/a")
+        XCTAssertTrue(local.firstIndex { $0.label == "z10" }! < local.firstIndex { $0.label == "remotes/local" }!, "Source remote grouping is based on the displayed remotes/ prefix")
+        let mixed = try await repo.checkoutReferences(localBranchesFirst: false).filter { $0.target == .branch }
+        XCTAssertTrue(mixed.firstIndex { $0.remote }! < mixed.firstIndex { $0.label == "z2" }!)
+        let after = try await repo.run(["show-ref"]).stdout; XCTAssertEqual(before, after)
+    }
+
     func testCancelledValidationAndCheckoutDoNotMutate() async throws {
         let (root, repo, path) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
         let head = try Data(contentsOf: root.appendingPathComponent(".git/HEAD")), index = try Data(contentsOf: root.appendingPathComponent(".git/index")), config = try Data(contentsOf: root.appendingPathComponent(".git/config")), file = try Data(contentsOf: root.appendingPathComponent(path))
