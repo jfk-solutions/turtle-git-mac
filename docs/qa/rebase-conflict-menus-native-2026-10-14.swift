@@ -74,6 +74,57 @@ import TurtleGitCore
         try require(probe.handle(event) == nil && pasteboard.string(forType:.string) == path+"\n","Scoped native Command-C failed")
         let checked=model.checkedConflicts;let space=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[],timestamp:0,windowNumber:owner.window!.windowNumber,context:nil,characters:" ",charactersIgnoringModifiers:" ",isARepeat:false,keyCode:49)!
         try require(probe.handle(space) == nil && model.checkedConflicts.contains(path) != checked.contains(path) && model.checkedConflicts.contains(clean) == checked.contains(clean),"Space changed highlight/unchecked other paths")
+        // The lower replay list shares native column visibility/order/width,
+        // numeric metadata sorting, reset ownership and keyboard coordinates.
+        try await wait { table.tableColumns.count==6 && table.headerView?.menu != nil }
+        let fileProbe=descendants(owner.window!.contentView!).compactMap { $0 as? CommitFileInteraction.Probe }.first!
+        let header=table.headerView!.menu!;header.delegate?.menuNeedsUpdate?(header)
+        let addedColumn=header.items.first { $0.title=="Lines added" }!
+        try require(addedColumn.isEnabled && !header.items.contains { $0.title=="File size" || $0.title=="Last modified" || $0.title=="Filename" || $0.title=="LFS Lock" },"Header does not honor source allowed-column mask")
+        _ = NSApp.sendAction(addedColumn.action!,to:addedColumn.target,from:addedColumn)
+        try await wait { !model.conflictFileColumns.visible.contains(.added) && !fileProbe.visibleColumns.contains(.added) }
+        _ = NSApp.sendAction(addedColumn.action!,to:addedColumn.target,from:addedColumn)
+        try await wait { model.conflictFileColumns.visible.contains(.added) && fileProbe.visibleColumns.contains(.added) }
+        var layout=model.conflictFileColumns.order;layout.removeAll { $0 == .added };layout.insert(.added,at:0)
+        try require(model.saveConflictColumnLayout(order:layout,widths:[.path:310,.added:143]),"Replay layout rejected")
+        // Use distinct multi-digit counts to distinguish numeric sorting from
+        // lexical sorting without assuming Git omits conflict-marker statistics.
+        let liveStatistics=model.conflictStatistics
+        for (name,count) in [(path,2),(clean,10)] {
+            model.conflictStatistics[name]=CommitFile(path:name,oldPath:nil,action:"M",added:count,removed:0,hasStatistics:true,isSubmodule:false)
+        }
+        model.setConflictSort([RebaseConflictSort(column:.added,order:.reverse)])
+        owner.window!.contentView!.layoutSubtreeIfNeeded()
+        try await wait { table.tableColumns.first(where:{$0.headerCell.stringValue=="Lines added"})?.isHidden == false }
+        let sorted=model.conflictTableRows.map(\.id)
+        try require(sorted.first==clean,"Lines added did not order numeric 10 ahead of 2")
+        let selected=Set(sorted),captured=model.conflictFileMenu(selected)
+        model.copyConflictFiles(captured,copy:.all)
+        try require((pasteboard.string(forType:.string) ?? "").hasPrefix("Lines added\tPath\tExtension\tStatus\tLines removed\n"),"Clipboard ignored saved visible column order")
+        model.copyConflictFiles(captured,copy:.column(.added))
+        try require(pasteboard.string(forType:.string)==sorted.map { model.conflictStatistics[$0]?.added.map(String.init) ?? "–" }.joined(separator:"\n")+"\n","Clipboard ignored sorted metadata rows")
+        model.conflictStatistics=liveStatistics
+        let reopened=RebaseWindowModel(repository:repo,access:nil,messageDefaults:prefs)
+        try require(reopened.conflictFileColumns.widths[.path]==310 && reopened.conflictFileColumns.widths[.added]==143 && reopened.conflictFileColumns.order.first == .added && reopened.conflictSortOrder.first?.column == .added && reopened.conflictSortOrder.first?.order == .reverse,"Replay file layout/sort did not survive reopening")
+        reopened.retire()
+        let beforeHide=model.conflictFileColumns
+        model.setConflictColumn(.path,visible:false);model.setConflictColumn(.lfsOwner,visible:true)
+        try require(model.conflictFileColumns==beforeHide,"Unavailable/path column visibility changed")
+        var resetReply:CheckedContinuation<Bool,Never>?,accepted=0
+        model.resetConflictColumns(choose:{await withCheckedContinuation {resetReply=$0}},onAccepted:{accepted += 1})
+        try await wait { resetReply != nil }
+        try require(model.busy && RebaseWindowModel.activePreparationReads>0 && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel,"Reset lost owner/Quit guard")
+        resetReply?.resume(returning:false);resetReply=nil;try await wait {!model.busy}
+        try require(model.conflictFileColumns==beforeHide && accepted==0,"Declined Reset changed layout")
+        model.resetConflictColumns(choose:{true},onAccepted:{accepted += 1});try await wait {!model.busy}
+        try require(model.conflictFileColumns==StatusListColumnSettings() && accepted==1,"Accepted Reset did not restore source defaults")
+        // A sorted native row routes Copy and Space to its stable path identity.
+        model.setConflictSort([RebaseConflictSort(column:.path,order:.reverse)])
+        owner.window!.contentView!.layoutSubtreeIfNeeded();try await wait { fileProbe.rows.compactMap(\.entry).map(\.id)==model.conflictTableRows.map(\.id) }
+        table.selectRowIndexes(IndexSet(integer:0),byExtendingSelection:false);owner.window!.makeFirstResponder(table)
+        let sortedFirst=model.conflictTableRows[0].id,checks=model.checkedConflicts
+        try require(probe.handle(event)==nil && pasteboard.string(forType:.string)==sortedFirst+"\n","Sorted Copy targeted old index")
+        try require(probe.handle(space)==nil && model.checkedConflicts.contains(sortedFirst) != checks.contains(sortedFirst),"Sorted Space targeted old index")
         let after=try await repo.run(["rev-parse","HEAD"]).stdout;try require(after == head && Data(contentsOf:root.appendingPathComponent(".git/index")) == index && Data(contentsOf:file) == working,"Review/menu actions changed repository baseline")
         owner.close()
         // Forced-close settles an owned actual native export picker once; late OK
@@ -84,6 +135,14 @@ import TurtleGitCore
         pending.model.conflictFileCommand(.export,menu:pending.model.conflictFileMenu(Set([clean])));try await wait { answer != nil }
         pending.close();answer?(.OK);answer?(.OK);try await wait { RebaseWindowModel.activePreparationReads == 0 }
         try require(pending.model.retired && pending.model.error == nil,"Late export picker revived retired owner")
+        let retired=RebaseWindowModel(repository:repo,access:nil,messageDefaults:prefs)
+        retired.load();try await wait { !retired.busy && retired.fileRecovery }
+        let savedColumns=retired.conflictFileColumns
+        var lateReset:CheckedContinuation<Bool,Never>?
+        retired.resetConflictColumns(choose:{await withCheckedContinuation {lateReset=$0}},onAccepted:{accepted += 100})
+        try await wait {lateReset != nil};retired.retire();lateReset?.resume(returning:true)
+        try await wait {RebaseWindowModel.activePreparationReads==0}
+        try require(retired.conflictFileColumns==savedColumns && accepted==1,"Retired Reset wrote settings or callback")
         _ = try await repo.abortRebase()
         print("Replay file menus: captured Log/Blame/Open With/Editor/Reveal/pair callbacks, exact multi-file export and private clipboard, stale-popup rejection, native stage-1 viewer/parent blocking, scoped native copy/check keys and owned picker retirement passed. HEAD/raw index/working bytes preserved; all owned windows closed.")
     }

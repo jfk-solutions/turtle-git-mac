@@ -117,8 +117,7 @@ working comparisons; unresolved single rows retain Edit conflict.
 private clipboard/export/owned picker and comparison behavior separately from
 injected Open/Editor/Log/Blame/Reveal callbacks. Core is unchanged in this batch.
 The remaining source status-list menus (including broader submodule history,
-Add/Ignore/Revert/Delete and prepared/unified comparison combinations), column
-customization, drag/drop, all conditional layouts, physical keyboard/VoiceOver,
+Add/Ignore/Revert/Delete and prepared/unified comparison combinations), drag/drop, all conditional layouts, physical keyboard/VoiceOver,
 broader editor-dispatch conditional/physical cases and signed Finder/sandbox acceptance remain
 open. This does not certify full Rebase, Cherry Pick or app parity.
 
@@ -126,3 +125,40 @@ Workspace editor dispatch now also owns cancellable preparation across its four
 specialized routes and external tool handoffs. See
 [the routing family](DIFF-TOOLS-PARITY.md) for the implemented lifetime and remaining
 receiving-app/signed acceptance.
+
+
+## Native conflict-list layout and targeting — October 15, 2026
+
+The lower Conflict Files list now shares Commit/Working Tree's native header
+menu, Fitting command, saved visibility/order/widths and confirmed Reset Columns.
+RebaseDlg.cpp::m_FileListCtrl.Init supplies an explicit allowed-column mask: Path,
+Extension, Status, Lines added and Lines removed. The native list honors that
+mask; Path stays visible and unrelated shared-list columns cannot be enabled.
+Preferences use the workbench's existing private/injectable settings store under
+Rebase.ConflictFileColumns, shared by Rebase and Cherry Pick.
+
+Column headers sort rows with native selection bound to stable Git path IDs.
+Line counts use numeric comparison and unavailable values retain the shared
+source ordering. The selected sort column/direction survive reopening. Changing
+layout or order does not change checked commit paths. Scoped Copy and Space map
+AppKit indexes through the current displayed order; the shared interaction also
+supplies its native Home/End, focus, selection and header-copy behavior.
+
+A popup captures its displayed row order and visible-column order alongside the
+existing replay identity/stages/statistics. Copy All uses those captured columns,
+and individual column copy uses the same displayed values. This preserves literal
+Unicode/newline paths and the existing Conflicted status wording.
+
+Reset keeps the owning repository lease and Quit count while its question is
+pending. No retains layout; Yes restores the five source defaults. An owner
+retired during the question cannot save settings or invoke its acceptance
+callback. Closed/busy models reject layout/sort/visibility changes. The shared
+header integration detaches on closure.
+
+Source review also confirmed that author/date overrides belong to the existing
+full Commit dialog used by replay's Edit/Squash split loop, including the first
+squash author's date policy. This batch adds no extra replay author controls.
+
+See [batch evidence](qa/replay-file-list-2026-10-15.json) for the actual validation
+scope. Physical header gestures, full keyboard/VoiceOver, source menus still
+listed above, signed sandbox execution and complete replay parity remain open.

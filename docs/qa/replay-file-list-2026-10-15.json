@@ -1,0 +1,74 @@
+{
+  "date": "2026-10-15",
+  "scope": "Rebase/Cherry Pick lower conflict-file list layout, sorting, clipboard and ownership",
+  "source_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "RebaseDlg.cpp m_FileListCtrl.Init allowed column mask",
+    "GitStatusListCtrl.cpp Init ColumnDefinition, CSorter and header/clipboard behavior"
+  ],
+  "implementation": [
+    "Exactly five source-supported columns; Path always visible",
+    "Shared native header visibility/Fitting/order/width/reset integration",
+    "Saved sort column/direction with numeric line-count ordering and stable path IDs",
+    "Captured displayed row and visible-column order for popup/clipboard",
+    "Sorted native Copy/Space coordinates and shared focus/selection handling",
+    "Reset retains lease/Quit count, No preserves state and retired Yes cannot persist or callback",
+    "Source author/date review retains existing full Commit handoffs without adding extra controls"
+  ],
+  "validation": {
+    "build": {
+      "initial_exit_code": 0,
+      "source_mask_correction_exit_code": 0,
+      "final_log": "build/qa/replay-file-list-final-build-2026-10-15.log"
+    },
+    "core": {
+      "final_changes": false,
+      "note": "An initial candidate included metadata columns and passed 24 selected checks. Source allowedColumns review removed those additions and restored all Core/test files exactly to HEAD; no Core suite was repeated for the final native-only changes.",
+      "initial_candidate_log": "build/qa/replay-file-list-core-2026-10-15.log"
+    },
+    "native": {
+      "result": "2 passed after fixture repairs",
+      "cases": [
+        "rebase-conflict-menus"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "log": "build/qa/replay-file-list-final-native-2026-10-15.log",
+      "owned_receiver_pids_reaped": [
+        56796,
+        57472
+      ],
+      "repairs": [
+        {
+          "log": "build/qa/replay-file-list-native-2026-10-15.log",
+          "failure": "Fixture incorrectly assumed conflict-marker files have no line counts. Replace assumption with explicit 2/10 displayed statistics to verify numeric ordering.",
+          "owned_receiver_reaped": 56180
+        },
+        {
+          "log": "build/qa/replay-file-list-native-recheck-2026-10-15.log",
+          "failure": "Fixture initializer omitted required oldPath argument; added nil. No receiver launched."
+        }
+      ],
+      "coverage": [
+        "Actual native header allowed-mask/toggle behavior",
+        "Saved column order/width and sort preferences survive new model",
+        "Numeric 10 before 2 with injected displayed statistics in actual table; live Git statistics restored afterward",
+        "Clipboard displayed order, visible header order and single-column output",
+        "Path cannot be hidden; unavailable columns cannot be enabled; declined and accepted Reset",
+        "Pending reset lease/Quit guard and retired late answer",
+        "Native sorted row Copy and Space route to stable Git path",
+        "Existing real stage-1 comparison, multi-file export, menu callbacks, stale popup, child ownership and forced picker retirement",
+        "HEAD, index and working bytes unchanged"
+      ]
+    }
+  },
+  "limits": [
+    "Physical header drag/resize/Fitting gestures and complete VoiceOver acceptance remain open",
+    "Some Reset/picker replies are injected; no new visual captures claimed",
+    "Remaining conflict-file mutation/prepared comparison menus and drag/drop stay tracked in REBASE-CONFLICT-FILES.md",
+    "Signed Finder/App Store execution and complete application parity remain incomplete",
+    "No full hosted CI pass claimed"
+  ]
+}

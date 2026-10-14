@@ -238,6 +238,53 @@ struct RebaseReferenceRequest {
     @Published var files: [CommitFile] = []
     @Published var conflictRows: [StatusEntry] = []
     @Published var conflictStatistics: [String: CommitFile] = [:]
+    @Published var conflictFileColumns:StatusListColumnSettings
+    @Published private(set) var conflictSortOrder:[RebaseConflictSort]
+    @Published var focusedConflictPath:String?
+    static let conflictColumnKey="Rebase.ConflictFileColumns"
+    static let conflictColumns=StatusListColumn.defaultColumns
+    var visibleConflictColumns:[StatusListColumn] { conflictFileColumns.order.filter { conflictFileColumns.visible.contains($0) && Self.conflictColumns.contains($0) } }
+    var conflictTableRows:[RebaseConflictSortableRow] {
+        conflictRows.map { RebaseConflictSortableRow(entry:$0,statistics:conflictStatistics[$0.path]) }.sorted(using:conflictSortOrder)
+    }
+    var conflictColumnsAvailable:Bool { !retired && !busy && !selectingSplit && fileRecovery }
+    func setConflictColumn(_ column:StatusListColumn,visible:Bool) {
+        guard conflictColumnsAvailable,column != .path,Self.conflictColumns.contains(column) else { return }
+        if visible { conflictFileColumns.visible.insert(column) } else { conflictFileColumns.visible.remove(column) }
+        conflictFileColumns.save(to:messageDefaults,key:Self.conflictColumnKey)
+    }
+    @discardableResult func saveConflictColumnLayout(order:[StatusListColumn],widths:[StatusListColumn:Double])->Bool {
+        guard conflictColumnsAvailable else { return false }
+        let value=StatusListColumnSettings(visible:conflictFileColumns.visible,order:order,widths:widths)
+        if conflictFileColumns != value { conflictFileColumns=value;value.save(to:messageDefaults,key:Self.conflictColumnKey) };return true
+    }
+    func setConflictSort(_ sort:[RebaseConflictSort]) {
+        guard conflictColumnsAvailable,let first=sort.first,Self.conflictColumns.contains(first.column) else { return }
+        conflictSortOrder=sort.filter { Self.conflictColumns.contains($0.column) }
+        messageDefaults.set(first.column.rawValue,forKey:Self.conflictColumnKey+".SortColumn")
+        messageDefaults.set(first.order == .reverse,forKey:Self.conflictColumnKey+".SortDescending")
+    }
+    func resetConflictColumns(choose:@escaping () async -> Bool,onAccepted:@escaping ()->Void) {
+        guard conflictColumnsAvailable else { return }
+        let generation=conflictMenuGeneration;busy=true;Self.activePreparationReads += 1
+        Task { [self,access] in
+            defer { Self.activePreparationReads -= 1;withExtendedLifetime(access) {};if !retired {busy=false;loadPendingHandoff()} }
+            guard await choose(),!retired,generation==conflictMenuGeneration,fileRecovery else { return }
+            conflictFileColumns=StatusListColumnSettings();conflictFileColumns.save(to:messageDefaults,key:Self.conflictColumnKey);onAccepted()
+        }
+    }
+    func conflictColumnText(_ entry:StatusEntry,_ column:StatusListColumn)->String {
+        switch column {
+        case .path:return StatusListClipboard.displayedPath(entry,abbreviate:messageDefaults.bool(forKey:"AbbreviateRenamings"))
+        case .fileName:return (entry.path as NSString).lastPathComponent
+        case .fileExtension:return StatusListClipboard.fileExtension(entry.path,isDirectory:conflictStatistics[entry.path]?.isSubmodule == true)
+        case .status:return entry.state.rawValue.capitalized
+        case .added:return conflictStatistics[entry.path]?.added.map(String.init) ?? "–"
+        case .removed:return conflictStatistics[entry.path]?.removed.map(String.init) ?? "–"
+        case .lastModified,.fileSize:return "–"
+        case .lfsOwner:return ""
+        }
+    }
     @Published var conflicts: [ConflictEntry] = []
     @Published var selectedConflicts = Set<String>()
     @Published var checkedConflicts = Set<String>()
@@ -464,11 +511,12 @@ struct RebaseReferenceRequest {
         let rows: [StatusEntry]
         let conflicts: [ConflictEntry]
         let statistics: [String: CommitFile]
+        let columns:[StatusListColumn]
         var paths: [String] { rows.map(\.path) }
     }
     func conflictFileMenu(_ ids: Set<String>) -> ConflictFileMenu {
-        let rows = conflictRows.filter { ids.contains($0.id) }
-        return ConflictFileMenu(generation: conflictMenuGeneration, identity: conflictIdentity, head: conflictHead, rows: rows, conflicts: conflicts.filter { ids.contains($0.id) }, statistics: conflictStatistics)
+        let rows = conflictTableRows.map(\.entry).filter { ids.contains($0.id) }
+        return ConflictFileMenu(generation: conflictMenuGeneration, identity: conflictIdentity, head: conflictHead, rows: rows, conflicts: conflicts.filter { ids.contains($0.id) }, statistics: conflictStatistics,columns:visibleConflictColumns)
     }
     private func acceptsConflictFileMenu(_ menu: ConflictFileMenu, duringRequest: Bool = false) -> Bool {
         !retired && (duringRequest || !busy) && !viewingConflictBase && !selectingSplit && fileRecovery &&
@@ -553,12 +601,12 @@ struct RebaseReferenceRequest {
         runConflictFileMenu(menu) { [self] token in try token.check(); onConflictWorkingComparison(menu.paths) }
     }
     func conflictClipboardText(_ menu: ConflictFileMenu, copy: StatusListCopy) -> String {
-        let files = menu.rows.map { entry in
-            let statistics = menu.statistics[entry.path]
-            return CommitFile(path: entry.path, oldPath: entry.originalPath, action: statistics?.action ?? "M", added: statistics?.added, removed: statistics?.removed, hasStatistics: statistics?.hasStatistics ?? false, isSubmodule: statistics?.isSubmodule ?? false)
+        let files=menu.rows.map { entry in
+            let stats=menu.statistics[entry.path]
+            return CommitFile(path:entry.path,oldPath:entry.originalPath,action:stats?.action ?? "M",added:stats?.added,removed:stats?.removed,hasStatistics:stats?.hasStatistics ?? false,isSubmodule:stats?.isSubmodule ?? false)
         }
-        let statuses = Dictionary(uniqueKeysWithValues: zip(files, menu.rows).map { ($0.0.id, $0.1.state.rawValue.capitalized) })
-        return StatusListClipboard.text(files, root: repository.root, statuses: statuses, copy: copy)
+        let statuses=Dictionary(uniqueKeysWithValues:zip(files,menu.rows).map {($0.0.id,$0.1.state.rawValue.capitalized)})
+        return StatusListClipboard.text(files,root:repository.root,statuses:statuses,copy:copy,visibleColumns:menu.columns)
     }
     func copyConflictFiles(_ menu: ConflictFileMenu, copy: StatusListCopy) {
         guard acceptsConflictFileMenu(menu) else { return }; let text = conflictClipboardText(menu, copy: copy)
@@ -695,6 +743,10 @@ struct RebaseReferenceRequest {
     }
     init(repository: GitRepository, access: RepositoryAccessLease?, messageDefaults: UserDefaults = .standard) {
         self.repository = repository; self.access = access; self.messageDefaults = messageDefaults
+        conflictFileColumns=StatusListColumnSettings.load(from:messageDefaults,key:Self.conflictColumnKey)
+        let saved=messageDefaults.string(forKey:Self.conflictColumnKey+".SortColumn").flatMap(StatusListColumn.init(rawValue:))
+        let column=saved.flatMap { Self.conflictColumns.contains($0) ? $0:nil } ?? .path
+        conflictSortOrder=[RebaseConflictSort(column:column,order:messageDefaults.bool(forKey:Self.conflictColumnKey+".SortDescending") ? .reverse:.forward)]
         readColumnMetadata = { try await repository.replayColumnMetadata($0,cancellation:$1) }
         readPlan = { try await repository.rebasePlan($0, cancellation: $1) }
         readSession={try await repository.rebaseSessionSnapshot(retaining:$0,cancellation:$1)}
@@ -1368,17 +1420,36 @@ struct RebaseDialog: View {
         }
     }
 }
+struct RebaseConflictSortableRow:Identifiable {
+    let entry:StatusEntry
+    let statistics:CommitFile?
+    var id:String { entry.id }
+}
+struct RebaseConflictSort:SortComparator {
+    var column:StatusListColumn
+    var order:SortOrder = .forward
+    func compare(_ lhs:RebaseConflictSortableRow,_ rhs:RebaseConflictSortableRow)->ComparisonResult {
+        let result:ComparisonResult
+        if column == .status {
+            let status=lhs.entry.state.rawValue.compare(rhs.entry.state.rawValue,options:.caseInsensitive)
+            result=status == .orderedSame ? StatusListSorting.compare(lhs.entry,rhs.entry,column:.path):status
+        } else {
+            result=StatusListSorting.compare(lhs.entry,rhs.entry,column:column,lhsStatistics:lhs.statistics,rhsStatistics:rhs.statistics)
+        }
+        return order == .forward ? result : (result == .orderedAscending ? .orderedDescending:result == .orderedDescending ? .orderedAscending:.orderedSame)
+    }
+}
 struct RebaseConflictFiles: View {
     @ObservedObject private var statusColorUpdates = StatusColorUpdates.shared
     @ObservedObject var model: RebaseWindowModel
     var body: some View {
-        Table(model.conflictRows, selection: $model.selectedConflicts) {
-            TableColumn("✓") { entry in Toggle("Commit \(entry.path)", isOn: Binding(get: { model.checkedConflicts.contains(entry.path) }, set: { if $0 { model.checkedConflicts.insert(entry.path) } else { model.checkedConflicts.remove(entry.path) } })).labelsHidden().toggleStyle(.checkbox).disabled(!model.supportsConflictSelection) }.width(28)
-            TableColumn("Path") { entry in HStack(spacing: 5) { Image(nsImage: entry.state.icon.image() ?? NSImage()); Text(entry.path).foregroundStyle(entry.state.textColor) } }
-            TableColumn("Extension") { Text(StatusListClipboard.fileExtension($0.path, isDirectory: model.conflictStatistics[$0.path]?.isSubmodule == true)) }.width(70)
-            TableColumn("Status") { Text($0.state.rawValue.capitalized).foregroundStyle($0.state.textColor) }.width(110)
-            TableColumn("Lines added") { Text(model.conflictStatistics[$0.path]?.added.map(String.init) ?? "–") }.width(85)
-            TableColumn("Lines removed") { Text(model.conflictStatistics[$0.path]?.removed.map(String.init) ?? "–") }.width(95)
+        Table(model.conflictTableRows, selection: $model.selectedConflicts, sortOrder:Binding(get:{model.conflictSortOrder},set:{model.setConflictSort($0)})) {
+            TableColumn("✓") { row in Toggle("Commit \(row.entry.path)", isOn: Binding(get: { model.checkedConflicts.contains(row.entry.path) }, set: { if $0 { model.checkedConflicts.insert(row.entry.path) } else { model.checkedConflicts.remove(row.entry.path) } })).labelsHidden().toggleStyle(.checkbox).disabled(!model.supportsConflictSelection || model.busy) }.width(28)
+            TableColumn("Path",sortUsing:RebaseConflictSort(column:.path)) { row in HStack(spacing:5) { Image(nsImage:row.entry.state.icon.image() ?? NSImage());cell(row,.path) } }
+            TableColumn("Extension",sortUsing:RebaseConflictSort(column:.fileExtension)) { cell($0,.fileExtension) }.width(min:45,ideal:70)
+            TableColumn("Status",sortUsing:RebaseConflictSort(column:.status)) { cell($0,.status) }.width(min:80,ideal:110)
+            TableColumn("Lines added",sortUsing:RebaseConflictSort(column:.added)) { cell($0,.added) }.width(min:55,ideal:85)
+            TableColumn("Lines removed",sortUsing:RebaseConflictSort(column:.removed)) { cell($0,.removed) }.width(min:55,ideal:95)
         }.fileListFont().contextMenu(forSelectionType: String.self) { ids in
             let menu = model.conflictFileMenu(ids)
             TurtleGitContextMenu {
@@ -1398,14 +1469,25 @@ struct RebaseConflictFiles: View {
                     Button { model.copyConflictFiles(menu, copy: .fullPaths) } label: { CommandLabel(title: "Full paths", icon: .copy) }
                     Button { model.copyConflictFiles(menu, copy: .relativePaths) } label: { CommandLabel(title: "Relative paths", icon: .copy) }
                     Button { model.copyConflictFiles(menu, copy: .names) } label: { CommandLabel(title: "File/folder names", icon: .copy) }
-                    ForEach(StatusListColumn.defaultColumns, id: \.self) { column in Button { model.copyConflictFiles(menu, copy: .column(column)) } label: { CommandLabel(title: "column '\(column.rawValue)'", icon: .copy) } }
+                    ForEach(model.visibleConflictColumns, id: \.self) { column in Button { model.copyConflictFiles(menu, copy: .column(column)) } label: { CommandLabel(title: "column '\(column.rawValue)'", icon: .copy) } }
                 } label: { CommandLabel(title: "Copy to Clipboard", icon: .copy) }.disabled(menu.rows.isEmpty || model.busy)
             }
         } primaryAction: { ids in
             if ids.count == 1 && model.conflicts.contains(where: { ids.contains($0.id) }) { model.conflictAction(.editConflict, ids: ids) }
             else { model.compareConflictWorkingFiles(model.conflictFileMenu(ids)) }
         }
+        .background(CommitFileInteraction(rows:model.conflictTableRows.map { .file($0.entry) },keyboardDeleteEnabled:false,nativeColumns:RebaseWindowModel.conflictColumns,preferences:model.columnPreferences,
+            visibleColumns:Set(model.visibleConflictColumns),availableColumns:Set(RebaseWindowModel.conflictColumns),columnText:{model.conflictColumnText($0,$1)},
+            savedOrder:model.conflictFileColumns.order,savedWidths:model.conflictFileColumns.widths,
+            saveLayout:{model.saveConflictColumnLayout(order:$0,widths:$1)},setColumnVisible:{model.setConflictColumn($0,visible:$1)},
+            resetColumns:{model.resetConflictColumns(choose:$0,onAccepted:$1)},focusedPath:$model.focusedConflictPath,enabled:model.conflictColumnsAvailable,
+            delete:{_,_,_ in},copy:{entries,status in model.copyConflictFiles(model.conflictFileMenu(Set(entries.map(\.id))),copy:status ? .pathsAndStatus:.relativePaths)},
+            copyColumn:{entries,column in model.copyConflictFiles(model.conflictFileMenu(Set(entries.map(\.id))),copy:.column(column))},
+            toggleCheck:{entries,mark in model.toggleConflictChecks(Set(entries.map(\.id)),mark:mark.id)}))
         .background(RebaseConflictFileKeys(model: model))
+    }
+    private func cell(_ row:RebaseConflictSortableRow,_ column:StatusListColumn)->some View {
+        Text(model.conflictColumnText(row.entry,column)).foregroundStyle(row.entry.statusTextColor(selected:model.selectedConflicts.contains(row.id),preferences:model.columnPreferences))
     }
 }
 /// Scope upstream's unmodified action keys to the AppKit table hosted by this
@@ -1572,13 +1654,13 @@ struct RebaseConflictFileKeys: NSViewRepresentable {
                   let table = table(), let responder = window?.firstResponder as? NSView,
                   responder === table || responder.isDescendant(of: table) else { return event }
             let flags = event.modifierFlags.intersection([.command, .control, .shift, .option]), key = event.charactersIgnoringModifiers?.lowercased()
-            let indexes = table.selectedRowIndexes.filter { model.conflictRows.indices.contains($0) }
-            let ids = Set(indexes.map { model.conflictRows[$0].id })
+            let indexes = table.selectedRowIndexes.filter { model.conflictTableRows.indices.contains($0) }
+            let ids = Set(indexes.map { model.conflictTableRows[$0].id })
             if key == "c", flags == .command || flags == .control || flags == [.command, .shift] || flags == [.control, .shift] {
                 model.copyConflictFiles(model.conflictFileMenu(ids), copy: flags.contains(.shift) ? .pathsAndStatus : .relativePaths); return nil
             }
             if event.keyCode == 49, flags.isEmpty || flags == .control {
-                model.toggleConflictChecks(ids, mark: model.conflictRows.indices.contains(table.selectedRow) ? model.conflictRows[table.selectedRow].id : nil); return nil
+                model.toggleConflictChecks(ids, mark: model.conflictTableRows.indices.contains(table.selectedRow) ? model.conflictTableRows[table.selectedRow].id : nil); return nil
             }
             return event
         }

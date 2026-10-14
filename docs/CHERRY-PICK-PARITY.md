@@ -95,7 +95,7 @@ window title/close gestures. No displayed app or receiver windows were launched.
 Add now uses a native multi-select Log sheet, preserving picker order and repeated
 row identities through recovery. See [Add audit](REBASE-ADD-PARITY.md).
 
-Pending: remaining author overrides; root/Octopus replay,
+Pending: physical author/date override acceptance through full Commit handoffs; root/Octopus replay,
 linked-worktree Cherry Pick and dirty-target interactions;
 full conflict tabs and stash/restore; displayed layout/keyboard/accessibility and
 signed sandbox execution. Existing Rebase screenshots predate these changes and
