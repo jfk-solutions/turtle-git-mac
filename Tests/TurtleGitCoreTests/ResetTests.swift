@@ -3,6 +3,32 @@ import XCTest
 @testable import TurtleGitCore
 
 final class ResetTests: XCTestCase {
+    final class OutputCapture: @unchecked Sendable {
+        private let lock = NSLock(); private var storage = Data()
+        func append(_ chunk: GitOutputChunk) { lock.lock(); storage.append(chunk.data); lock.unlock() }
+        func take() -> Data { lock.lock(); defer { lock.unlock() }; let result = storage; storage = Data(); return result }
+    }
+    func testLocalCommandOutputCallbacksPreserveOriginalResetCheckoutAndStashResults() async throws {
+        let (root, repo, path) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let capture = OutputCapture()
+        let plan = try await repo.prepareReset(to: "HEAD", mode: .hard)
+        let reset = try await repo.reset(plan, onOutput: capture.append)
+        XCTAssertEqual(String(decoding: capture.take(), as: UTF8.self), reset)
+        XCTAssertFalse(reset.isEmpty)
+        _ = try await repo.run(["branch", "stream-target"])
+        var checkout = CheckoutOptions(); checkout.revision = "refs/heads/stream-target"
+        let switched = try await repo.checkout(checkout, onOutput: capture.append)
+        XCTAssertEqual(String(decoding: capture.take(), as: UTF8.self), switched)
+        XCTAssertFalse(switched.isEmpty)
+        try Data("stash streamed contents\n".utf8).write(to: root.appendingPathComponent(path))
+        let saved = try await repo.saveStash(StashSaveOptions(), onOutput: capture.append)
+        XCTAssertEqual(String(decoding: capture.take(), as: UTF8.self), saved.output)
+        XCTAssertTrue(saved.created)
+        let applied = try await repo.restoreStash(pop: false, onOutput: capture.append)
+        XCTAssertEqual(String(decoding: capture.take(), as: UTF8.self), applied.output)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), Data("stash streamed contents\n".utf8))
+    }
     func fixture() async throws -> (URL, GitRepository, String, String) {
         let (root, repo) = try await CommitSelectionTests().fixture()
         try Data("base\n".utf8).write(to: root.appendingPathComponent("file.txt")); try await repo.stage(["file.txt"]); _ = try await repo.commit(message: "base")

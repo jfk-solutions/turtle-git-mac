@@ -268,3 +268,7 @@ and completion routes. Eight focused Core checks and six grouped native receiver
 passed using system and bundled Git, with owned receivers reaped. See
 [results and limits](qa/sync-replay-hooks-2026-10-14.json). Physical and signed restore
 sheets, crash recovery and full replay parity remain open.
+
+The connected [local command progress family](LOCAL-COMMAND-PROGRESS-PARITY.md)
+adds live Reset/Switch/Stash output, shared native log styling/copy controls,
+bounded presentation, independent ownership and once-only kill questions.

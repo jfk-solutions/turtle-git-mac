@@ -116,3 +116,7 @@ and terminal100. Cancellation uses User cancelled; forced invalidation publishes
 no footer. The reset finish timestamp is captured before later metadata reads.
 This advances the earlier footer gap; animation, Dock progress and the other
 remaining requirements still apply. See the latest Merge completion follow-up.
+
+The connected [local command progress family](LOCAL-COMMAND-PROGRESS-PARITY.md)
+adds live Reset/Switch/Stash output, shared native log styling/copy controls,
+bounded presentation, independent ownership and once-only kill questions.

@@ -92,9 +92,9 @@ extension GitRepository {
         }
         return CheckoutReferenceOrdering.sorted(result, localBranchesFirst: localBranchesFirst ?? AdvancedListBehavior().localBranchesFirst)
     }
-    public func checkout(_ options: CheckoutOptions, cancellation: OperationCancellation? = nil) throws -> String {
+    public func checkout(_ options: CheckoutOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
         try cancellation?.check()
-        return try run(checkoutArguments(options, cancellation: cancellation), cancellation: cancellation).text
+        return try run(checkoutArguments(options, cancellation: cancellation), cancellation: cancellation, onOutput: onOutput).text
     }
     /// Read-only validation before a native options dialog hands off to progress.
     public func validateCheckout(_ options: CheckoutOptions, cancellation: OperationCancellation? = nil) throws { _ = try checkoutArguments(options, cancellation: cancellation) }

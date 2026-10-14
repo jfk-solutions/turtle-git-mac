@@ -1,0 +1,81 @@
+{
+  "date": "2026-10-14",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Live bounded CR/UTF-8 command output across Reset, Switch/Checkout, Stash Save and Stash Apply/Pop",
+    "Shared native output/copy icons, percentages, original result callbacks",
+    "Owned cancellation/forced retirement/access lifetime and Stash Save once-only kill confirmation/auto-close",
+    "Cached grouped native receivers and removal of four duplicate CI runs"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/local-command-progress-debug-2026-10-14.log"
+    },
+    "core_group": {
+      "exit": 0,
+      "tests": 27,
+      "scope": "ResetTests|CheckoutTests|StashTests",
+      "log": "build/qa/local-command-progress-core-2026-10-14.log"
+    },
+    "native_initial": {
+      "exit": 1,
+      "reason": "Common driver lacked try/catch for four migrated throwing fixture entry points; no receivers ran",
+      "log": "build/qa/local-command-progress-native-2026-10-14.log"
+    },
+    "native_first_repair": {
+      "exit": 1,
+      "reason": "New fixture timeout; stopped at first case",
+      "owned_receivers_reaped": [
+        85200
+      ],
+      "log": "build/qa/local-command-progress-native-repair-2026-10-14.log"
+    },
+    "native_diagnostic": {
+      "exit": 1,
+      "reason": "Fixture gate expected checkout while implementation correctly invokes switch; repaired only fixture command gates",
+      "owned_receivers_reaped": [
+        85272
+      ],
+      "log": "build/qa/local-command-progress-native-diagnostic-2026-10-14.log"
+    },
+    "native_final": {
+      "exit": 0,
+      "cases": 10,
+      "families": [
+        "local-command-progress",
+        "reset-progress",
+        "switch-progress",
+        "stash-save-progress",
+        "progress-auto-close"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "owned_receivers_reaped": [
+        85415,
+        85480,
+        85784,
+        85999,
+        86030,
+        86533,
+        86602,
+        86902,
+        87117,
+        87147
+      ],
+      "log": "build/qa/local-command-progress-native-final-2026-10-14.log"
+    },
+    "site": {
+      "exit": 0,
+      "documents": 199,
+      "unresolved_fragments": 0,
+      "log": "build/qa/local-command-progress-site-2026-10-14.log"
+    }
+  },
+  "limits": [
+    "Hidden native checks do not certify physical scrolling/keyboard/VoiceOver or full visual/theme parity",
+    "Hosted CI, signed access/Finder/App Store execution and complete application port remain unverified"
+  ]
+}

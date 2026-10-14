@@ -531,7 +531,7 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
         guard !model.confirmingCancellation, sender.attachedSheet == nil else { return false }
         sender.sheetParent?.endSheet(sender); return true
     }
-    func windowWillClose(_ notification: Notification) { model.saveActionLog(); model.invalidate(); if let window { window.sheetParent?.endSheet(window) }; onClosed() }
+    func windowWillClose(_ notification: Notification) { if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.orderOut(nil) }; model.saveActionLog(); model.invalidate(); if let window { window.sheetParent?.endSheet(window) }; onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class SwitchProgressWindowModel: ObservableObject {
@@ -543,7 +543,7 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
     private var started = false, invalidated = false, dispatched = false, abandoned = false
     private var merging = false
     let options: CheckoutOptions
-    private let preferences: UserDefaults
+    let preferences: UserDefaults
     @Published private(set) var cancelling = false
     @Published private(set) var confirmingCancellation = false
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
@@ -554,6 +554,8 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
     @Published private(set) var success = false
     @Published private(set) var cancelled = false
     @Published private(set) var output = ""
+    @Published private(set) var currentWork = ""
+    @Published private(set) var percentage: Int?
     @Published private(set) var previousBranch = ""
     @Published private(set) var postActions: [SwitchPostAction] = []
     var onFinished: (String, Bool) -> Void = { _, _ in }
@@ -597,15 +599,20 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
     private func execute(merge: Bool) async {
         guard !invalidated else { return }
         busy = true; success = false; cancelled = false; cancelling = false; postActions = []; output = ""; merging = merge
-        var nextOutput = "", nextPreviousBranch = "", nextActions: [SwitchPostAction] = [], nextSuccess = false
+        let token = cancellation; LocalGitCommandProgress.begin(); defer { LocalGitCommandProgress.end(); withExtendedLifetime(access) {} }
+        var nextOutput = "", nextPreviousBranch = "", nextActions: [SwitchPostAction] = [], nextSuccess = false, commandCompleted = false
         do {
             if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
             guard try await !repository.isBare(cancellation: cancellation) else { throw CheckoutFailure.invalidRevision }
             nextPreviousBranch = try await repository.branch(cancellation: cancellation)
             var options = self.options; options.merge = merge
-            nextOutput = try await repository.checkout(options, cancellation: cancellation)
+            nextOutput = try await LocalGitCommandProgress.stream(preferences: preferences, update: { [weak self] state in
+                guard let self, !self.invalidated, self.cancellation === token else { return }
+                self.output = state.output; self.currentWork = state.currentWork; self.percentage = state.percentage
+            }, resultText: { $0 }, operation: { [repository] emit in try await repository.checkout(options, cancellation: token, onOutput: emit) })
+            commandCompleted = true
             let conflicts = try await repository.status(refreshIndex: false, cancellation: cancellation).contains { $0.state == .conflicted }
-            if merge && conflicts { nextOutput += "\nHas merge conflict" }
+            if merge && conflicts { nextOutput += "\nHas merge conflict"; output = LocalGitCommandProgress.bounded(output + "\nHas merge conflict", preferences: preferences) }
             else {
                 if FileManager.default.fileExists(atPath: repository.root.appendingPathComponent(".gitmodules").path) { nextActions.append(.submoduleUpdate) }
                 if !nextPreviousBranch.isEmpty { nextActions.append(.mergePreviousBranch) }
@@ -613,7 +620,10 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
                 nextActions.append(.commit)
                 nextSuccess = true
             }
-        } catch { nextOutput += (nextOutput.isEmpty ? "" : "\n") + error.localizedDescription }
+        } catch {
+            nextOutput += (nextOutput.isEmpty ? "" : "\n") + ((error as? GitCommandCancellationFailure)?.result.text ?? error.localizedDescription)
+            if !invalidated { output = commandCompleted ? LocalGitCommandProgress.bounded(output + "\n" + error.localizedDescription, preferences: preferences) : LocalGitCommandProgress.failure(error, existing: output, preferences: preferences) }
+        }
         guard !invalidated else { return }
         if !nextSuccess {
             nextActions = []
@@ -632,8 +642,8 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
             if !merge { nextActions.append(.switchWithMerge) }
         }
         guard !invalidated else { return }
-        output = nextOutput; previousBranch = nextPreviousBranch; postActions = nextActions; success = nextSuccess; cancelled = cancellation.isCancelled
-        busy = false; onFinished(output, success)
+        if output.isEmpty { output = LocalGitCommandProgress.bounded(nextOutput, preferences: preferences) }; currentWork = ""; percentage = nil; previousBranch = nextPreviousBranch; postActions = nextActions; success = nextSuccess; cancelled = cancellation.isCancelled
+        busy = false; onFinished(nextOutput, success)
         finishAutomaticClose()
     }
 }
@@ -642,9 +652,9 @@ struct SwitchProgressDialog: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Switch to \(model.reference)").font(.headline)
-            ScrollView { Text(model.output).font(.system(.body, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }.frame(maxWidth: .infinity, maxHeight: .infinity).padding(8).background(Color(nsColor: .textBackgroundColor))
+            SubmoduleProgressOutputView(text: model.output, completed: !model.busy, success: model.success, preferences: model.preferences).frame(maxWidth: .infinity, maxHeight: .infinity)
             HStack {
-                if model.busy { ProgressView().controlSize(.small); Text(model.cancelling ? "Cancelling…" : "Switching…") }
+                if model.busy { LocalGitProgressIndicator(percentage: model.percentage); Text(model.cancelling ? "Cancelling…" : model.currentWork.isEmpty ? "Switching…" : model.currentWork) }
                 else { Text(model.cancelled ? "Cancelled" : model.success ? "Finished" : "Switch failed").foregroundStyle(model.success ? Color.green : Color.red) }
                 Spacer()
             }

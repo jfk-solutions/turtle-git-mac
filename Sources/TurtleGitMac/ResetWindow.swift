@@ -267,7 +267,7 @@ import TurtleGitCore
         guard !invalidated, !busy, !showingReferencePicker, !showingCommitPicker, !showingModifiedFiles, !confirmingHard, progress == nil else { return }; busy = true; error = nil
         do { try validateAccess() } catch { self.error = error.localizedDescription; busy = false; return }
         if let onProgress {
-            let result = ResetProgressWindowModel(repository: chooser.repository, plan: plan, preferences: preferences)
+            let result = ResetProgressWindowModel(repository: chooser.repository, plan: plan, preferences: preferences, access: access)
             result.close = { [weak self, weak result] in guard let result else { return }; self?.finish(result) }
             result.onChanged = onChanged
             result.onPostAction = { [weak self] action in self?.onPostAction?(action) }
@@ -375,7 +375,8 @@ enum ResetPostAction: String, Hashable {
 @MainActor final class ResetProgressWindowModel: ObservableObject {
     let repository: GitRepository
     let plan: ResetPlan
-    private let preferences: UserDefaults
+    private let access: RepositoryAccessLease?
+    let preferences: UserDefaults
     private let autoClosePolicy: GitProgressAutoClose
     private var cancellation = OperationCancellation()
     private var started = false, invalidated = false, dispatched = false, abandoned = false
@@ -385,25 +386,40 @@ enum ResetPostAction: String, Hashable {
     @Published private(set) var cancelling = false
     @Published private(set) var confirmingCancellation = false
     @Published private(set) var output = ""
+    @Published private(set) var currentWork = ""
+    @Published private(set) var percentage: Int?
     @Published private(set) var postActions: [ResetPostAction] = []
     var close: () -> Void = {}
     var onChanged: (String) -> Void = { _ in }
     var onPostAction: ((ResetPostAction) -> Void)?
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
     var canCancel: Bool { busy && !cancelling && !confirmingCancellation }
-    init(repository: GitRepository, plan: ResetPlan, preferences: UserDefaults = .standard) { self.repository = repository; self.plan = plan; self.preferences = preferences; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences) }
-    func invalidate() { invalidated = true }
+    init(repository: GitRepository, plan: ResetPlan, preferences: UserDefaults = .standard, access: RepositoryAccessLease? = nil) { self.access = access; self.repository = repository; self.plan = plan; self.preferences = preferences; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences) }
+    func invalidate() { invalidated = true; cancellation.cancel(); confirmingCancellation = false; busy = false; postActions = [] }
     func abandonPresentation() { abandoned = true; cancellation.cancel() }
     func start() { Task { await run() } }
     func run() async { guard !started, !invalidated else { return }; started = true; await execute() }
     private func execute() async {
+        guard !invalidated else { return }
+        let token = cancellation; LocalGitCommandProgress.begin(); defer { LocalGitCommandProgress.end(); withExtendedLifetime(access) {} }
+        var originalOutput = ""
         do {
-            output = try await repository.reset(plan, cancellation: cancellation); success = true
+            if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+            originalOutput = try await LocalGitCommandProgress.stream(preferences: preferences, update: { [weak self] state in
+                guard let self, !self.invalidated, self.cancellation === token else { return }
+                self.output = state.output; self.currentWork = state.currentWork; self.percentage = state.percentage
+            }, resultText: { $0 }, operation: { [repository, plan] emit in try await repository.reset(plan, cancellation: token, onOutput: emit) })
+            guard !invalidated, cancellation === token else { return }; success = true
             if plan.mode == .hard, FileManager.default.fileExists(atPath: repository.root.appendingPathComponent(".gitmodules").path) { postActions.append(.submoduleUpdate) }
             if (try? await repository.bisectState().active) == true { postActions += [.bisectGood, .bisectBad, .bisectSkip, .bisectReset] }
             if plan.mode == .hard { postActions.append(.clean) }
-        } catch { output = error.localizedDescription; cancelled = cancellation.isCancelled; postActions = [.retry] }
-        busy = false; cancelling = false; onChanged(output)
+        } catch {
+            guard !invalidated, cancellation === token else { return }
+            originalOutput = (error as? GitCommandCancellationFailure)?.result.text ?? error.localizedDescription
+            output = LocalGitCommandProgress.failure(error, existing: output, preferences: preferences); cancelled = token.isCancelled; postActions = [.retry]
+        }
+        guard !invalidated, cancellation === token else { return }
+        busy = false; cancelling = false; currentWork = ""; percentage = nil; onChanged(originalOutput)
         finishAutomaticClose()
     }
     private func finishAutomaticClose() { if !busy, !confirmingCancellation, !invalidated, abandoned || autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { close() } }
@@ -412,8 +428,9 @@ enum ResetPostAction: String, Hashable {
         let token = cancellation
         if preferences.bool(forKey:"ConfirmKillProcess") {
             confirmingCancellation = true
+            var answered = false
             confirmCancellation { [weak self] accepted in
-                guard let self, self.cancellation === token else { return }; self.confirmingCancellation = false
+                guard !answered, let self, !self.invalidated, self.cancellation === token else { return }; answered = true; self.confirmingCancellation = false
                 if self.busy && accepted { self.cancelling = true; token.cancel() }
                 self.finishAutomaticClose()
             }
@@ -448,15 +465,15 @@ enum ResetPostAction: String, Hashable {
         DialogGeometry.attach(window, identifier: "ProgressDlg")
     }
     func windowShouldClose(_ sender:NSWindow) -> Bool { if model.busy { model.cancel(); return false }; guard !model.confirmingCancellation, sender.attachedSheet == nil else { return false }; sender.sheetParent?.endSheet(sender); return true }
-    func windowWillClose(_ notification:Notification) { model.saveActionLog(); model.invalidate(); onClosed() }
+    func windowWillClose(_ notification:Notification) { if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.orderOut(nil) }; model.saveActionLog(); model.invalidate(); onClosed() }
     required init?(coder:NSCoder) { fatalError("init(coder:) is not supported") }
 }
 struct ResetProgressDialog: View {
     @ObservedObject var model: ResetProgressWindowModel
     var body: some View {
         VStack(alignment:.leading,spacing:12) {
-            ScrollView { Text(model.output).font(.system(.body,design:.monospaced)).textSelection(.enabled).frame(maxWidth:.infinity,alignment:.leading) }.frame(maxWidth:.infinity,maxHeight:.infinity).padding(8).background(Color(nsColor:.textBackgroundColor))
-            HStack { if model.busy { ProgressView().controlSize(.small) }; Text(model.busy ? model.cancelling ? "Cancelling…" : "Resetting…" : model.cancelled ? "Cancelled" : model.success ? "Finished" : "Reset failed").foregroundStyle(model.busy ? Color.primary : model.success ? Color.green : Color.red); Spacer() }
+            SubmoduleProgressOutputView(text: model.output, completed: !model.busy, success: model.success, preferences: model.preferences).frame(maxWidth: .infinity, maxHeight: .infinity)
+            HStack { if model.busy { LocalGitProgressIndicator(percentage: model.percentage) }; Text(model.busy ? model.cancelling ? "Cancelling…" : model.currentWork.isEmpty ? "Resetting…" : model.currentWork : model.cancelled ? "Cancelled" : model.success ? "Finished" : "Reset failed").foregroundStyle(model.busy ? Color.primary : model.success ? Color.green : Color.red); Spacer() }
             HStack { if let first = model.postActions.first { Button { model.perform(first) } label: { CommandLabel(title:first.title,icon:first.icon) }; Menu { ForEach(model.postActions,id:\.self) { action in Button { model.perform(action) } label: { CommandLabel(title:action.title,icon:action.icon) } } } label: { Image(systemName:"chevron.down").accessibilityLabel("Reset post-actions") }.menuStyle(.borderlessButton).fixedSize() }; Spacer()
                 if model.busy { Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(!model.canCancel) }
                 else { Button("Close") { model.close() }.keyboardShortcut(.defaultAction) }

@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import TurtleGitCore
 
 /// Native presentation of ProgressDlg::UpdateCmdOutput / UpdateProgressFromLine.
@@ -40,5 +41,52 @@ struct GitProgressOutputState {
             currentWork = "[Output truncated at about \(bytes.count / 1024) KiB]"; percentage = nil
             output += "\n\n...\n" + currentWork
         }
+    }
+}
+
+
+/// One producer/consumer lifetime for local command dialogs. Result strings stay
+/// original for repository callbacks; only presentation is bounded/CR-normalized.
+@MainActor enum LocalGitCommandProgress {
+    private(set) static var activeOperations = 0
+    static func begin() { activeOperations += 1 }
+    static func end() { activeOperations -= 1 }
+    static func stream<T>(preferences: UserDefaults, update: @escaping (GitProgressOutputState) -> Void,
+                          resultText: @escaping (T) -> String,
+                          operation: @escaping (@escaping @Sendable (GitOutputChunk) -> Void) async throws -> T) async throws -> T {
+        var state = GitProgressOutputState(preferences: preferences)
+        let parser = GitCliOutputParser(limit: state.limit)
+        let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
+        let worker = Task {
+            defer { continuation.finish() }
+            return try await operation { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }
+        }
+        for await _ in updates { state.consume(parser.processPending(), parser: parser); update(state) }
+        state.consume(parser.processPending(), parser: parser); state.consume(parser.finish(), parser: parser); update(state)
+        let result = try await worker.value
+        if state.output.isEmpty {
+            let fallback = GitCliOutputParser(limit: state.limit)
+            fallback.appendChunk(Data(resultText(result).utf8))
+            state.consume(fallback.processPending(), parser: fallback); state.consume(fallback.finish(), parser: fallback); update(state)
+        }
+        return result
+    }
+    static func bounded(_ text: String, preferences: UserDefaults) -> String {
+        var state = GitProgressOutputState(preferences: preferences); let parser = GitCliOutputParser(limit: state.limit)
+        parser.appendChunk(Data(text.utf8)); state.consume(parser.processPending(), parser: parser); state.consume(parser.finish(), parser: parser)
+        return state.output
+    }
+    static func failure(_ error: Error, existing: String, preferences: UserDefaults) -> String {
+        if !existing.isEmpty, error is GitFailure || error is GitCommandCancellationFailure { return existing }
+        return bounded(existing + (existing.isEmpty || existing.hasSuffix("\n") ? "" : "\n") + error.localizedDescription, preferences: preferences)
+    }
+}
+
+
+struct LocalGitProgressIndicator: View {
+    let percentage: Int?
+    var body: some View {
+        if let percentage { ProgressView(value: Double(percentage), total: 100).frame(width: 130) }
+        else { ProgressView().controlSize(.small) }
     }
 }

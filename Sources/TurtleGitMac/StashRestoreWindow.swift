@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 import Combine
 import TurtleGitCore
 
@@ -21,7 +22,7 @@ struct StashRestorePrompt {
     private let access: RepositoryAccessLease?
     private let reference: String?
     private let showChanges: Int
-    private let preferences: UserDefaults
+    let preferences: UserDefaults
     private var started = false, completed = false, invalidated = false
     private var cancellation: OperationCancellation?
     @Published private(set) var cancelled = false
@@ -31,7 +32,14 @@ struct StashRestorePrompt {
     @Published private(set) var result: StashRestoreResult?
     @Published private(set) var error: String?
     @Published private(set) var prompt: StashRestorePrompt?
-    var restore: (Bool, String?, OperationCancellation) async throws -> StashRestoreResult
+    @Published private(set) var output = ""
+    @Published private(set) var currentWork = ""
+    @Published private(set) var percentage: Int?
+    var success: Bool { result?.conflicted == false && !cancelled && error == nil }
+    var restore: (Bool, String?, OperationCancellation) async throws -> StashRestoreResult {
+        didSet { let replacement = restore; restoreStreaming = { pop, reference, token, _ in try await replacement(pop, reference, token) } }
+    }
+    var restoreStreaming: (Bool, String?, OperationCancellation, @escaping @Sendable (GitOutputChunk) -> Void) async throws -> StashRestoreResult
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
     var onChanged: (String) -> Void = { _ in }
     var onViewChanges: () -> Void = {}
@@ -40,6 +48,7 @@ struct StashRestorePrompt {
     var onPresent: (StashRestorePrompt, @escaping (Bool, Bool) -> Void) -> Void = { _, choose in choose(false, false) }
     init(repository: GitRepository, access: RepositoryAccessLease?, pop: Bool, reference: String? = nil, showChanges: Int = 1, preferences: UserDefaults = .standard) {
         restore = { try await repository.restoreStash(pop: $0, reference: $1, cancellation: $2) }
+        restoreStreaming = { try await repository.restoreStash(pop: $0, reference: $1, cancellation: $2, onOutput: $3) }
         self.repository = repository; self.access = access; self.pop = pop; self.reference = reference; self.showChanges = showChanges; self.preferences = preferences
     }
     func invalidate() { invalidated = true; cancellation?.cancel(); confirmingCancellation = false; prompt = nil }
@@ -61,13 +70,17 @@ struct StashRestorePrompt {
         Task { await execute(token) }
     }
     private func execute(_ token: OperationCancellation) async {
-        defer { Self.activeOperations -= 1; busy = false; cancelling = false; confirmingCancellation = false; cancellation = nil }
+        LocalGitCommandProgress.begin()
+        defer { Self.activeOperations -= 1; LocalGitCommandProgress.end(); withExtendedLifetime(access) {}; busy = false; cancelling = false; confirmingCancellation = false; cancellation = nil; currentWork = ""; percentage = nil }
 
         do {
             guard !invalidated else { return }
             if token.isCancelled { throw OperationCancellationFailure.cancelled }
             if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-            let restored = try await restore(pop, reference, token)
+            let restored = try await LocalGitCommandProgress.stream(preferences: preferences, update: { [weak self] state in
+                guard let self, !self.invalidated, self.cancellation === token else { return }
+                self.output = state.output; self.currentWork = state.currentWork; self.percentage = state.percentage; self.onStateChanged()
+            }, resultText: { $0.output }, operation: { [self] emit in try await restoreStreaming(pop, reference, token, emit) })
             guard !invalidated else { return }
             if token.isCancelled { throw OperationCancellationFailure.cancelled }
             result = restored; busy = false; confirmingCancellation = false; onChanged(restored.output); onStateChanged()
@@ -84,6 +97,7 @@ struct StashRestorePrompt {
             guard !invalidated else { return }
             cancelled = token.isCancelled || error is OperationCancellationFailure || error is GitCommandCancellationFailure
             let detail = (error as? GitCommandCancellationFailure)?.result.text ?? error.localizedDescription
+            output = LocalGitCommandProgress.failure(error, existing: output, preferences: preferences)
             self.error = cancelled ? nil : detail; busy = false; confirmingCancellation = false; onChanged(detail); onStateChanged()
             if cancelled {
                 present(StashRestorePrompt(kind: .notice, message: "Stash \(pop ? "Pop" : "Apply") cancelled", detail: "Working-tree/index or stash changes already made are retained. Review Working Tree before continuing.\n\n" + detail, conflicted: false, rememberKey: nil))
@@ -123,16 +137,18 @@ struct StashRestorePrompt {
     private var closed = false
     init(repository: GitRepository, access: RepositoryAccessLease?, pop: Bool, reference: String? = nil, showChanges: Int = 1, preferences: UserDefaults = .standard) {
         model = StashRestoreWindowModel(repository: repository, access: access, pop: pop, reference: reference, showChanges: showChanges, preferences: preferences)
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 440, height: 120), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 680, height: 390), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Stash \(pop ? "Pop" : "Apply") – TurtleGit"
         window.isReleasedWhenClosed = false
         spinner.style = .spinning; spinner.startAnimation(nil)
         waiting.textColor = .secondaryLabelColor
         let labels = NSStackView(views: [running, waiting]); labels.orientation = .vertical; labels.alignment = .leading
         let stack = NSStackView(views: [spinner, labels, cancelButton]); stack.spacing = 16; stack.translatesAutoresizingMaskIntoConstraints = false
-        window.contentView?.addSubview(stack)
+        let output = NSHostingView(rootView: StashRestoreOutputPanel(model: model))
+        let container = NSStackView(views: [output, stack]); container.orientation = .vertical; container.alignment = .leading; container.spacing = 12; container.translatesAutoresizingMaskIntoConstraints = false
+        window.minSize = NSSize(width: 600, height: 320); window.contentView?.addSubview(container)
         if let content = window.contentView {
-            NSLayoutConstraint.activate([stack.centerYAnchor.constraint(equalTo: content.centerYAnchor), stack.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 24), stack.trailingAnchor.constraint(lessThanOrEqualTo: content.trailingAnchor, constant: -24)])
+            NSLayoutConstraint.activate([container.topAnchor.constraint(equalTo: content.topAnchor, constant: 16), container.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -16), container.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 16), container.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -16), output.widthAnchor.constraint(equalTo: container.widthAnchor), output.heightAnchor.constraint(greaterThanOrEqualToConstant: 220)])
         }
         super.init(window: window); window.delegate = self; window.center()
         cancelButton.target = self; cancelButton.action = #selector(cancelPressed); cancelButton.keyEquivalent = "\u{1b}"
@@ -142,8 +158,9 @@ struct StashRestorePrompt {
             self.cancelButton.isEnabled = self.model.busy && !self.model.cancelling && !self.model.confirmingCancellation
             self.cancelButton.isHidden = !self.model.busy
             if self.model.busy {
-                self.spinner.startAnimation(nil)
-                self.waiting.stringValue = self.model.cancelling ? "Cancelling…" : "Please wait…"
+                if let percentage = self.model.percentage { self.spinner.style = .bar; self.spinner.isIndeterminate = false; self.spinner.minValue = 0; self.spinner.maxValue = 100; self.spinner.doubleValue = Double(percentage) }
+                else { self.spinner.style = .spinning; self.spinner.isIndeterminate = true; self.spinner.startAnimation(nil) }
+                self.waiting.stringValue = self.model.cancelling ? "Cancelling…" : self.model.currentWork.isEmpty ? "Please wait…" : self.model.currentWork
             } else {
                 self.spinner.stopAnimation(nil)
                 self.running.stringValue = self.model.cancelled ? "Stash operation cancelled" : self.model.error == nil ? "Stash operation finished" : "Stash operation failed"
@@ -195,4 +212,13 @@ struct StashRestorePrompt {
     func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; return model.prompt == nil && sender.attachedSheet == nil }
     func windowWillClose(_ notification: Notification) { guard !closed else { return }; closed = true; model.invalidate(); endOwnedAlert(); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+}
+
+
+private struct StashRestoreOutputPanel: View {
+    @ObservedObject var model: StashRestoreWindowModel
+    var body: some View {
+        SubmoduleProgressOutputView(text: model.output, completed: !model.busy, success: model.success, preferences: model.preferences)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
 }

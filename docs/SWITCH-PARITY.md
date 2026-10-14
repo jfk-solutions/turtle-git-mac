@@ -173,3 +173,7 @@ incomplete.
 The commit-revision row now uses the shared [editable session combo](VERSION-COMBO-PARITY.md),
 including programmatic custom choices, exact native Git token identity and
 disabled/retired/focus guards. Physical popup and complete dialog acceptance remain open.
+
+The connected [local command progress family](LOCAL-COMMAND-PROGRESS-PARITY.md)
+adds live Reset/Switch/Stash output, shared native log styling/copy controls,
+bounded presentation, independent ownership and once-only kill questions.

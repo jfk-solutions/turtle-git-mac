@@ -304,8 +304,6 @@ jobs:
         run: python3 scripts/test-clone-stream.py
       - name: Native Clone progress and captured recovery
         run: python3 scripts/test-clone-progress.py
-      - name: Native Switch options and progress recovery
-        run: python3 scripts/test-switch-progress.py
       - name: Native all-reference browser and Reset handoff
         run: python3 scripts/test-reference-browser.py
       - name: Native standalone reference browser
@@ -344,8 +342,6 @@ jobs:
         run: python3 scripts/test-format-patch-progress.py
       - name: Format Patch streaming and abandoned owner cleanup
         run: python3 scripts/test-format-patch-progress.py --receiver docs/qa/format-patch-stream-native-2026-10-10.swift
-      - name: Native Stash Save progress and post-actions
-        run: python3 scripts/test-stash-save-progress.py
       - name: Native dialog geometry and Saved Data reset
         run: python3 scripts/test-dialog-geometry.py
       - name: Native temporary storage and Saved Data clearing
@@ -378,8 +374,6 @@ jobs:
         run: python3 scripts/test-pull-progress.py
       - name: Native Clean progress policies and cancellation
         run: python3 scripts/test-clean-progress-policy.py
-      - name: Native Reset retained progress and follow-ups
-        run: python3 scripts/test-reset-progress.py
       - name: Native Push live output and truncated rejection recovery
         run: python3 scripts/test-push-stream.py
       - name: Native Push partial result refresh
@@ -390,8 +384,6 @@ jobs:
         run: python3 scripts/test-request-pull.py
       - name: Native branch revision number display
         run: python3 scripts/test-branch-revision-number.py
-      - name: Native Git progress automatic close policies
-        run: python3 scripts/test-progress-auto-close.py
       - name: Native Commit columns, sorting and closed-owner settings
         run: python3 scripts/test-commit-column-sorting.py
       - name: Native remembered Commit button actions

@@ -146,6 +146,7 @@ enum StashSavePostAction: String, CaseIterable, Hashable {
     let repository: GitRepository
     let options: StashSaveOptions
     let followUp: StashSaveFollowUp
+    let preferences: UserDefaults
     private let autoClosePolicy: GitProgressAutoClose
     private let access: RepositoryAccessLease?
     private let cancellation = OperationCancellation()
@@ -155,31 +156,58 @@ enum StashSavePostAction: String, CaseIterable, Hashable {
     @Published private(set) var success = false
     @Published private(set) var cancelled = false
     @Published private(set) var output = ""
+    @Published private(set) var currentWork = ""
+    @Published private(set) var percentage: Int?
+    @Published private(set) var cancelling = false
+    @Published private(set) var confirmingCancellation = false
+    var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
+    var canCancel: Bool { busy && !invalidated && !cancelling && !confirmingCancellation }
     @Published private(set) var result: StashSaveResult?
     @Published private(set) var postActions: [StashSavePostAction] = []
     var close: () -> Void = {}
     var onFinished: (StashSaveResult?, String) -> Void = { _, _ in }
     var onPostAction: ((StashSavePostAction, StashSaveFollowUp) -> Void)?
-    init(repository: GitRepository, access: RepositoryAccessLease?, options: StashSaveOptions, followUp: StashSaveFollowUp, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.options = options; self.followUp = followUp; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences) }
+    init(repository: GitRepository, access: RepositoryAccessLease?, options: StashSaveOptions, followUp: StashSaveFollowUp, preferences: UserDefaults = .standard) { self.preferences = preferences; self.repository = repository; self.access = access; self.options = options; self.followUp = followUp; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences) }
     func start() { Task { await run() } }
-    func cancel() { guard busy else { return }; cancellation.cancel() }
-    func invalidate() { invalidated = true; cancellation.cancel(); busy = false; postActions = [] }
+    func cancel() {
+        guard canCancel else { return }
+        if preferences.bool(forKey: "ConfirmKillProcess") {
+            confirmingCancellation = true; var answered = false
+            confirmCancellation { [weak self] accepted in
+                guard !answered, let self, !self.invalidated else { return }; answered = true; self.confirmingCancellation = false
+                if self.busy && accepted { self.cancelling = true; self.cancellation.cancel() }
+                self.finishAutomaticClose()
+            }
+        } else { cancelling = true; cancellation.cancel() }
+    }
+    private func finishAutomaticClose() {
+        if !invalidated, !busy, !confirmingCancellation, autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { close() }
+    }
+    func invalidate() { invalidated = true; cancellation.cancel(); confirmingCancellation = false; busy = false; postActions = [] }
     func run() async {
         guard !started, !invalidated else { return }; started = true
+        LocalGitCommandProgress.begin(); defer { LocalGitCommandProgress.end(); withExtendedLifetime(access) {} }
+        var originalOutput = ""
         do {
             if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-            let saved = try await repository.saveStash(options, cancellation: cancellation)
+            let saved = try await LocalGitCommandProgress.stream(preferences: preferences, update: { [weak self] state in
+                guard let self, !self.invalidated else { return }
+                self.output = state.output; self.currentWork = state.currentWork; self.percentage = state.percentage
+            }, resultText: { $0.output }, operation: { [repository, options, cancellation] emit in try await repository.saveStash(options, cancellation: cancellation, onOutput: emit) })
             guard !invalidated else { return }
-            result = saved; output = saved.output; success = true
+            result = saved; originalOutput = saved.output; success = true
             if followUp.showPull { postActions.append(.pull) }
             if followUp.mergeRevision != nil { postActions.append(.merge) }
             if saved.created { postActions += [.pop, .apply] }
-        } catch { guard !invalidated else { return }; output = error.localizedDescription; cancelled = cancellation.isCancelled }
-        busy = false; onFinished(result, output)
-        if autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { close() }
+        } catch {
+            guard !invalidated else { return }; originalOutput = (error as? GitCommandCancellationFailure)?.result.text ?? error.localizedDescription
+            output = LocalGitCommandProgress.failure(error, existing: output, preferences: preferences); cancelled = cancellation.isCancelled
+        }
+        busy = false; cancelling = false; currentWork = ""; percentage = nil; onFinished(result, originalOutput)
+        finishAutomaticClose()
     }
     func perform(_ action: StashSavePostAction) {
-        guard !invalidated, !busy, success, postActions.contains(action), let onPostAction else { return }
+        guard !invalidated, !busy, !confirmingCancellation, success, postActions.contains(action), let onPostAction else { return }
         close(); onPostAction(action, followUp)
     }
 }
@@ -198,23 +226,29 @@ enum StashSavePostAction: String, CaseIterable, Hashable {
             if let window = self.window { window.sheetParent?.endSheet(window); window.close() }
         }
 
+        model.confirmCancellation = { [weak window] choose in
+            guard let window, window.attachedSheet == nil else { choose(false); return }
+            let alert = NSAlert(); alert.messageText = "The process is still running."; alert.informativeText = "Are you sure to abort?"
+            let yes = alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No"); yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
+            alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn) }
+        }
         DialogGeometry.attach(window, identifier: "ProgressDlg")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         if model.busy { model.cancel(); return false }
-        guard sender.attachedSheet == nil else { return false }
+        guard !model.confirmingCancellation, sender.attachedSheet == nil else { return false }
         sender.sheetParent?.endSheet(sender); return true
     }
-    func windowWillClose(_ notification: Notification) { model.saveActionLog(); model.invalidate(); onClosed() }
+    func windowWillClose(_ notification: Notification) { if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.orderOut(nil) }; model.saveActionLog(); model.invalidate(); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 private struct StashSaveProgressDialog: View {
     @ObservedObject var model: StashSaveProgressWindowModel
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            ScrollView { Text(model.output).font(.system(.body, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }.frame(maxWidth: .infinity, maxHeight: .infinity).padding(8).background(Color(nsColor: .textBackgroundColor))
+            SubmoduleProgressOutputView(text: model.output, completed: !model.busy, success: model.success, preferences: model.preferences).frame(maxWidth: .infinity, maxHeight: .infinity)
             HStack {
-                if model.busy { ProgressView().controlSize(.small); Text("Saving stash…") }
+                if model.busy { LocalGitProgressIndicator(percentage: model.percentage); Text(model.currentWork.isEmpty ? "Saving stash…" : model.currentWork) }
                 else { Text(model.cancelled ? "Cancelled" : model.success ? "Finished" : "Stash failed").foregroundStyle(model.success ? Color.green : Color.red) }
                 Spacer()
             }
@@ -226,7 +260,7 @@ private struct StashSaveProgressDialog: View {
                     }.disabled(model.onPostAction == nil)
                 }
                 Spacer()
-                if model.busy { Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction) }
+                if model.busy { Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(!model.canCancel) }
                 else { Button("Close") { model.close() }.keyboardShortcut(.defaultAction) }
             }
         }.padding(12)
