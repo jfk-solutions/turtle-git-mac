@@ -1,0 +1,69 @@
+{
+  "date": "2026-10-14",
+  "base": "3dc19082",
+  "scope": [
+    "Owned File/Open Save/discard/Cancel and Open sheets, duplicate/late reply refusal",
+    "Existing NSWindow transfer across two/three/two pane controllers with retained geometry, keyboard/delegate routing and input grants",
+    "Scoped File/Open and Reload menus, Close/Quit guards and independent pending Save lifetime",
+    "Live replacement retention, cached source callers and identity-safe close callbacks",
+    "Existing patch request routing through separately owned Review/Apply preparation"
+  ],
+  "validation": {
+    "debug": {
+      "initial_exit": 0,
+      "initial_log": "build/qa/merge-editor-open-debug-2026-10-14.log",
+      "repair_exit": 0,
+      "log": "build/qa/merge-editor-open-debug-frame-repair-2026-10-14.log",
+      "repair": "Native replacement changed frame height by 60 points. Restore captured frame subject to minimum content size, maintaining top position."
+    },
+    "core": "Unchanged; not rerun",
+    "native": {
+      "initial_exit": 1,
+      "initial_log": "build/qa/merge-editor-open-native-2026-10-14.log",
+      "diagnostic_exit": 1,
+      "diagnostic_log": "build/qa/merge-editor-open-native-diagnostic-2026-10-14.log",
+      "after_app_repair_exit": 1,
+      "after_app_repair_log": "build/qa/merge-editor-open-native-frame-repair-2026-10-14.log",
+      "lifetime_diagnostic_log": "build/qa/merge-editor-open-native-lifetime-diagnostic-2026-10-14.log",
+      "lifetime_diagnostic": "NSZombie identified a release to deallocated NSKVONotifying_NSWindow. Fixture temporary Save NSWindow used default release-on-close under Swift ownership; set isReleasedWhenClosed=false. Final run passed.",
+      "repair_exit": 0,
+      "log": "build/qa/merge-editor-open-native-window-fixture-repair-2026-10-14.log",
+      "families": [
+        "File/Open replacement",
+        "existing Open",
+        "two-pane engine/editor",
+        "three-pane engine/merge"
+      ],
+      "app_repeated_after_fixture_window_repair": false,
+      "evidence": [
+        "Actual same NSWindow/frame/delegate across two/three/two panes",
+        "Invalid source paths retain editor and Open owner; duplicate Open refused",
+        "Close/Quit guarded while Open pending",
+        "Dirty Cancel and duplicate late answer preserve merge; discard reaches replacement",
+        "Forced owner close retires child and current session once",
+        "Held Save outlives retired workflow; duplicate callback does not leak active count or reopen",
+        "Input bytes unchanged; existing private clipboard/picker, typing/selection/Undo/Save and merge reload regressions passed"
+      ]
+    },
+    "owned_receivers_reaped": [
+      17418,
+      17461,
+      17658,
+      18288,
+      18320
+    ],
+    "receiver_pids_still_live_at_final_check": [],
+    "site": {
+      "exit": 0,
+      "documents": 213,
+      "unresolved_fragments": [],
+      "log": "build/qa/merge-editor-open-site-2026-10-14.log"
+    }
+  },
+  "limitations": [
+    "Patch mode still presents independent Review/Apply rather than replacing current editor with directory patch view",
+    "Physical menu/keyboard/focus/VoiceOver, exact source captures and live cached Log/Resolve gestures remain open",
+    "Unsigned run emitted sandbox_extension_consume diagnostics; it does not prove signed grants/App Store acceptance",
+    "Local grouped checks do not establish complete hosted CI or full application parity"
+  ]
+}

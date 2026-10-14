@@ -4,6 +4,13 @@ import TurtleGitCore
 @main struct ComparisonOptionsVerification {
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
+        if CommandLine.arguments.contains("--editor-open-only") {
+            try await MergeEditorOpenNativeVerification.verify()
+            try await MergeOpenNativeVerification.verify()
+            try await TwoPaneEngineVerification.verify()
+            try await ThreePaneEngineVerification.verify(configuration: SubversionMergeConfiguration.bundled())
+            return
+        }
         if CommandLine.arguments.contains("--folding-only") {
             try await MergeFoldingNativeVerification.verify()
             try await MergeWrappingVerification.verify()
@@ -29,6 +36,7 @@ import TurtleGitCore
                 try await ThreePaneEngineVerification.verify(configuration: SubversionMergeConfiguration.bundled())
                 try await TwoPaneEngineVerification.verify()
             }
+            try await MergeEditorOpenNativeVerification.verify()
             try await MergeFoldingNativeVerification.verify()
             try await MergeInlineNativeVerification.verify()
             try await MergeLocatorVerification.verify()

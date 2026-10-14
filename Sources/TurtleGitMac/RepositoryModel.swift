@@ -42,14 +42,14 @@ import UniformTypeIdentifiers
                 let key = "open-" + UUID().uuidString
                 let controller = FileComparisonWindowController(comparison: try WorkingFileComparison(base: base, destination: mine), permissions: permissions)
                 controller.model.singleFileMode = single
-                controller.onClosed = { [weak self] in self?.fileComparisonWindows.removeValue(forKey: key) }
+                controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.fileComparisonWindows[key] === controller else { return }; self.fileComparisonWindows.removeValue(forKey: key) }
                 self.fileComparisonWindows[key] = controller; controller.showWindow(nil)
             case .merge(let base, let theirs, let mine):
                 let key = "open-merge-" + UUID().uuidString
                 let workingMerge = try WorkingTextMerge(base: base, theirs: theirs, mine: mine)
                 let context = GitRepository(root: mine.deletingLastPathComponent(), executable: try GitRuntime.executable())
                 let controller = TextConflictWindowController(repository: context, access: nil, path: mine.lastPathComponent, workingMerge: workingMerge, permissions: permissions)
-                controller.onClosed = { [weak self] in self?.textConflictWindows.removeValue(forKey: key) }
+                controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.textConflictWindows[key] === controller else { return }; self.textConflictWindows.removeValue(forKey: key) }
                 self.textConflictWindows[key] = controller; controller.showWindow(nil)
             case .patch(let file, let target, let bytes):
                 let workflow = ReviewPatchWorkflow(file: file, target: target, preferred: target ?? self.root, grants: permissions,
@@ -68,7 +68,7 @@ import UniformTypeIdentifiers
             guard let self else { return }
             let key = "images-" + UUID().uuidString
             let controller = FileComparisonWindowController(images: images, permissions: permissions)
-            controller.onClosed = { [weak self] in self?.fileComparisonWindows.removeValue(forKey: key) }
+            controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.fileComparisonWindows[key] === controller else { return }; self.fileComparisonWindows.removeValue(forKey: key) }
             self.fileComparisonWindows[key] = controller; controller.showWindow(nil)
         }
         loader.onClosed = { [weak self] in self?.imageLoader = nil }
@@ -833,8 +833,8 @@ import UniformTypeIdentifiers
                     try await validateConflictEditorEntry(entry, repository: repository, token: token)
                     request.dismissProgress()
                     if let conflictEditorPresentation { conflictEditorPresentation(.text, repository, path, nil); return }
-                    let controller = textConflictWindows[key] ?? TextConflictWindowController(repository: repository, access: access, path: path)
-                    controller.onClosed = { [weak self] in self?.textConflictWindows.removeValue(forKey: key) }
+                    let controller = (textConflictWindows[key]?.window != nil ? textConflictWindows[key] : nil) ?? TextConflictWindowController(repository: repository, access: access, path: path)
+                    controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.textConflictWindows[key] === controller else { return }; self.textConflictWindows.removeValue(forKey: key) }
                     controller.model.onChanged = { [weak self] output in
                         self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState(); self?.refreshRepositoryLogs(root)
                         for resolve in self?.resolveWindows.values ?? Dictionary<String, ResolveWindowController>().values where resolve.model.repository.root == root { resolve.model.load() }
@@ -1493,7 +1493,7 @@ import UniformTypeIdentifiers
                     controller = FileComparisonWindowController(repository: repository, access: access, comparison: comparison, permission: workingAccess.permission)
                 }
                 guard !token.isCancelled, !confirmingQuit else { return }
-                controller.onClosed = { [weak self] in self?.fileComparisonWindows.removeValue(forKey: key) }
+                controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.fileComparisonWindows[key] === controller else { return }; self.fileComparisonWindows.removeValue(forKey: key) }
                 fileComparisonWindows[key] = controller
                 controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
                 _ = try comparisonMarkStore.consume(workingAccess.mark.id)
@@ -1537,8 +1537,8 @@ import UniformTypeIdentifiers
                 continue
             }
             let key = repository.root.path + "\0" + file.path + "\0" + (file.oldPath ?? file.path) + "\0" + snapshot.from.label + "\0" + snapshot.to.label
-            let controller = fileComparisonWindows[key] ?? FileComparisonWindowController(repository: repository, access: access, snapshot: snapshot, path: file.path)
-            controller.onClosed = { [weak self] in self?.fileComparisonWindows.removeValue(forKey: key) }
+            let controller = (fileComparisonWindows[key]?.window != nil ? fileComparisonWindows[key] : nil) ?? FileComparisonWindowController(repository: repository, access: access, snapshot: snapshot, path: file.path)
+            controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.fileComparisonWindows[key] === controller else { return }; self.fileComparisonWindows.removeValue(forKey: key) }
             fileComparisonWindows[key] = controller
             controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
         }
@@ -2510,7 +2510,7 @@ import UniformTypeIdentifiers
                 _ = try comparison.read()
                 let key = "working-mark:" + UUID().uuidString
                 let controller = FileComparisonWindowController(comparison: comparison, permissions: [marked.permission, permission])
-                controller.onClosed = { [weak self] in self?.fileComparisonWindows.removeValue(forKey: key) }
+                controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.fileComparisonWindows[key] === controller else { return }; self.fileComparisonWindows.removeValue(forKey: key) }
                 fileComparisonWindows[key] = controller
                 controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
                 _ = try comparisonMarkStore.consume(marked.mark.id)
@@ -2524,7 +2524,7 @@ import UniformTypeIdentifiers
                 acquire: { try comparisonPermission(for: $0) }) else { return }
             let key = "working-pair:" + UUID().uuidString
             let controller = FileComparisonWindowController(comparison: prepared.comparison, permissions: prepared.permissions)
-            controller.onClosed = { [weak self] in self?.fileComparisonWindows.removeValue(forKey: key) }
+            controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.fileComparisonWindows[key] === controller else { return }; self.fileComparisonWindows.removeValue(forKey: key) }
             fileComparisonWindows[key] = controller
             controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
         } catch { self.error = error.localizedDescription }

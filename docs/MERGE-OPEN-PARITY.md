@@ -57,3 +57,42 @@ saves. A format can be added without changing macOS pasteboard ownership count,
 so monitoring checks both count and advertised formats, never contents. See the
 [lifecycle QA record](qa/merge-open-lifecycle-2026-10-12.json) for failures, repairs
 and exact scope. Case-insensitive pathname variants still need volume acceptance.
+
+
+## File/Open replacement batch — partial native parity
+
+Native comparison windows now share a window subclass so two/three-pane
+controllers can replace content while retaining the same NSWindow and geometry.
+An owned Open workflow spans the Save/Don’t Save/Cancel question and Open sheet;
+repeated commands are fenced, failed Save prevents replacement, and owner close
+retires children/late replies. Replacement constructs the next input snapshot
+before retiring the prior editor, transfers window/delegate/keyboard ownership
+and retains only the current replacement controller in the original registry
+owner. New input leases travel with the receiving editor.
+
+The native File/Open replacement implementation is built and verified within the following scope. Scoped File/Open and Reload entries now follow the active editor; Command-O
+and F5 route through that owner. Close/Quit refuse the question/Open interval,
+and independent Save accounting survives forced closure until completion.
+Temporary prepared windows detach geometry observers and close after transfer.
+The live replacement owner retains only the current editor, so a retired cached
+Log/Resolve caller can be recreated without releasing the existing session.
+Identity-checked registry callbacks cannot remove a newer cached caller.
+
+The Debug build and grouped native File/Open, existing Open, two-pane editor
+and three-pane merge receiver passed. Core was unchanged and was not rerun.
+The first native failure identified a real 60-point frame growth during content
+replacement. The owner now restores the previous frame, respecting the new
+editor's minimum size and retaining its top position. That app repair repeated
+the Debug build and affected native group. A subsequent receiver crash was traced
+with NSZombie to an overreleased plain NSWindow; the fixture's temporary Save
+window now disables release-on-close under Swift ownership. The final grouped
+receiver passed after that fixture-only repair, without another application build.
+Actual same-window/frame/delegate identity, invalid input, duplicate Open,
+Close/Quit guards, dirty Cancel/discard and late answers, two/three/two transitions,
+final close accounting, held Save completion and unchanged input bytes passed.
+Existing Open/clipboard/picker, typing/selection/Undo/Save and merge reload
+regressions also passed. See [validation evidence](qa/merge-editor-open-2026-10-14.json). Patch mode routes through the existing independently retained Review/Apply
+workflow; it does not yet replace the current editor with the directory patch
+view. Physical keyboard/menu/focus/VoiceOver, live cached Log/Resolve reopen gestures,
+complete visual captures and signed grant/App Store acceptance remain open.
+The local pass does not certify complete upstream File/Open or hosted CI.

@@ -3,17 +3,19 @@ import UniformTypeIdentifiers
 import SwiftUI
 import TurtleGitCore
 
-@MainActor private final class FileComparisonNativeWindow: NSWindow, ImageComparisonKeyRouting {
+@MainActor class FileComparisonNativeWindow: NSWindow, ImageComparisonKeyRouting {
     weak var imageKeyModel: ImageComparisonViewModel?
     var imageKeyOwner: UUID?
     var imageKeysRetired = false
     weak var model: FileComparisonWindowModel?
+    var openMergeDocument: () -> Void = {}
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         if let imageKeyModel, !imageKeysRetired {
             if attachedSheet == nil, (firstResponder as? NSTextView)?.isFieldEditor != true,
                imageKeyModel.performKey(event, window: self) { return true }
             return super.performKeyEquivalent(with: event)
         }
+        if event.modifierFlags.intersection([.command, .shift, .option, .control]) == .command, event.charactersIgnoringModifiers?.lowercased() == "o" { openMergeDocument(); return true }
         let flags = event.modifierFlags.intersection([.command, .shift, .option, .control])
         if flags == .command || flags == [.command, .shift], event.charactersIgnoringModifiers?.lowercased() == "z", (firstResponder as? NSTextView)?.isFieldEditor != true {
             if flags.contains(.shift) { model?.redo() } else { model?.undo() }; return true
@@ -26,31 +28,58 @@ import TurtleGitCore
         if flags == .control, event.charactersIgnoringModifiers?.lowercased() == "g", let text = firstResponder as? FileComparisonTextView {
             text.goToSourceLine(nil); return true
         }
-        if event.keyCode == 96 { model?.load(); return true }
+        if event.keyCode == 96 { (delegate as? FileComparisonWindowController)?.reloadEditor(nil); return true }
         return super.performKeyEquivalent(with: event)
     }
 }
 @MainActor final class FileComparisonWindowController: NSWindowController, NSWindowDelegate, NSMenuItemValidation {
     let model: FileComparisonWindowModel
+    private let editorFileMenu = MergeEditorFileMenu()
     private weak var patchMenu: NSMenu?
     private var patchMenuItem: NSMenuItem?
     func windowDidBecomeKey(_ notification: Notification) {
+        editorFileMenu.install(target: self, open: #selector(openMergeDocument(_:)), reload: #selector(reloadEditor(_:)))
         removePatchMenu()
         guard let menu = NSApplication.shared.mainMenu?.items.first(where: { $0.title == "File" })?.submenu else { return }
         let item = NSMenuItem(title: "Create patch file", action: #selector(createPatchFile(_:)), keyEquivalent: "")
         item.target = self; item.image = MenuIcon.patch.image(); menu.addItem(item)
         patchMenu = menu; patchMenuItem = item
     }
-    func windowDidResignKey(_ notification: Notification) { removePatchMenu() }
+    func windowDidResignKey(_ notification: Notification) { removePatchMenu(); editorFileMenu.remove() }
     private func removePatchMenu() {
         if let item = patchMenuItem, let menu = patchMenu, menu.items.contains(item) { menu.removeItem(item) }
         patchMenuItem = nil; patchMenu = nil
     }
+    func detachForReplacement() {
+        editorFileMenu.remove(); removePatchMenu(); model.retireImageLoader(); model.resetHistory(); model.window = nil
+    }
     @objc func createPatchFile(_ sender: Any?) { model.createUnifiedPatch() }
+    @objc func reloadEditor(_ sender: Any?) {
+        guard editorOpenWorkflow == nil, window?.attachedSheet == nil else { return }; model.load()
+    }
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
-        item.action == #selector(createPatchFile(_:)) && model.canCreateUnifiedPatch
+        if item.action == #selector(openMergeDocument(_:)) || item.action == #selector(reloadEditor(_:)) { return editorOpenWorkflow == nil && !model.busy && !model.filtering && !model.confirmingQuit && window?.attachedSheet == nil }
+        return item.action == #selector(createPatchFile(_:)) && model.canCreateUnifiedPatch
     }
     var onClosed: () -> Void = {}
+    var editorOpenWorkflow: MergeEditorOpenWorkflow?
+    var makeEditorOpenWorkflow: (NSWindow, [RepositoryAccessLease], UserDefaults) -> MergeEditorOpenWorkflow = { MergeEditorOpenWorkflow(window: $0, permissions: $1, preferences: $2) }
+    var replacementOwner: MergeEditorReplacementOwner?
+    weak var sharedReplacementOwner: MergeEditorReplacementOwner?
+    @objc func openMergeDocument(_ sender: Any?) {
+        guard editorOpenWorkflow == nil, let window, !model.busy, !model.filtering, !model.confirmingQuit, window.attachedSheet == nil else { return }
+        let workflow = makeEditorOpenWorkflow(window, model.openPermissions, model.comparisonDefaults)
+        editorOpenWorkflow = workflow
+        workflow.onClosed = { [weak self] in self?.editorOpenWorkflow = nil }
+        workflow.accept = { [weak self] request, permissions in try self?.replaceEditor(request, permissions: permissions) }
+        workflow.start(dirty: model.dirty, description: model.unsavedFilesDescription, save: { [weak self] completion in self?.model.saveAll(completion: completion) })
+    }
+    func replaceEditor(_ request: MergeOpenRequest, permissions: [RepositoryAccessLease]) throws {
+        guard let window, !model.busy, !model.filtering, !model.confirmingQuit else { return }
+        let owner = sharedReplacementOwner ?? replacementOwner ?? MergeEditorReplacementOwner(onClosed: onClosed)
+        if sharedReplacementOwner == nil { replacementOwner = owner }
+        try owner.replace(request, permissions: permissions, preferences: model.comparisonDefaults, window: window, previous: self)
+    }
     convenience init(repository: GitRepository, access: RepositoryAccessLease?, snapshot: RevisionComparisonSnapshot, path: String) {
         self.init(model: FileComparisonWindowModel(repository: repository, access: access, snapshot: snapshot, path: path))
     }
@@ -75,11 +104,11 @@ import TurtleGitCore
     private init(model: FileComparisonWindowModel) {
         self.model = model
         let path = model.path
-        let window = FileComparisonNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 720), styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
+        let window = TextConflictNSWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 720), styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
         window.title = "\(path) – TurtleGitMerge"; window.isReleasedWhenClosed = false
         window.contentMinSize = NSSize(width: 800, height: 440)
         window.contentViewController = NSHostingController(rootView: FileComparisonDialog(model: model))
-        super.init(window: window); window.model = model; window.delegate = self; model.window = window; model.installMarkedSavePrompt()
+        super.init(window: window); window.model = model; window.openMergeDocument = { [weak self] in self?.openMergeDocument(nil) }; window.delegate = self; model.window = window; model.installMarkedSavePrompt()
         model.externalDidOpen = { [weak window] in window?.close() }
         window.setContentSize(NSSize(width: 1120, height: 720))
         window.center()
@@ -87,6 +116,7 @@ import TurtleGitCore
         DialogGeometry.attach(window, identifier: "TurtleGit.TwoFileDiff", legacyName: "TurtleGit.TwoFileDiff")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard editorOpenWorkflow == nil else { return false }
         if model.cancelLoadForClose() { return false }
         guard sender.attachedSheet == nil, !model.busy, !model.confirmingQuit else { return false }
         guard model.dirty else { return true }
@@ -99,9 +129,9 @@ import TurtleGitCore
         }
     }
     func windowWillClose(_ notification: Notification) {
-        removePatchMenu()
+        editorFileMenu.remove(); removePatchMenu()
         if let window = window as? FileComparisonNativeWindow { window.imageKeyModel?.presentation.retire(); window.imageKeyModel?.stopAllPlayback(); window.imageKeysRetired = true; window.imageKeyModel = nil; window.imageKeyOwner = nil }
-        model.retireImageLoader(); model.resetHistory(); onClosed()
+        editorOpenWorkflow?.retire(); editorOpenWorkflow = nil; model.retireImageLoader(); model.resetHistory(); onClosed()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
@@ -114,6 +144,7 @@ import TurtleGitCore
     var retainedImageModel: ImageComparisonViewModel?
     var makeImageLoader: (String, [RepositoryAccessLease]) -> ImageLoadWindowController = { ImageLoadWindowController(leftPath: $0, permissions: $1) }
     private var workingPermissions: [RepositoryAccessLease] = []
+    var openPermissions: [RepositoryAccessLease] { workingPermissions + [access].compactMap { $0 } }
     private let access: RepositoryAccessLease?
     let snapshot: RevisionComparisonSnapshot
     let path: String

@@ -113,11 +113,13 @@ private enum MergeSourceSide {
     var icon: MenuIcon { self == .mine ? .mergeUseMine : .mergeUseTheirs }
 }
 
-@MainActor private final class TextConflictNSWindow: NSWindow {
+@MainActor final class TextConflictNSWindow: FileComparisonNativeWindow {
     weak var mergedText: NSTextView?
     private weak var findText: NSTextView?
     private var activeText: NSTextView? { (firstResponder as? MergeTextView) ?? findText ?? mergedText }
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        guard mergedText != nil else { return super.performKeyEquivalent(with: event) }
+        if event.modifierFlags.intersection([.command, .shift, .option, .control]) == .command, event.charactersIgnoringModifiers?.lowercased() == "o" { openMergeDocument(); return true }
         let modifiers = event.modifierFlags.intersection([.command, .shift, .control, .option])
         if modifiers == .command || modifiers == [.command, .shift], event.charactersIgnoringModifiers?.lowercased() == "z", let undo = mergedText?.undoManager {
             if let field = firstResponder as? NSTextView, field.isFieldEditor {
@@ -139,6 +141,7 @@ private enum MergeSourceSide {
         if modifiers == .command || modifiers == [.command, .shift], event.charactersIgnoringModifiers?.lowercased() == "g" {
             find(modifiers.contains(.shift) ? .previousMatch : .nextMatch); return true
         }
+        if event.keyCode == 96 { (delegate as? TextConflictWindowController)?.reloadEditor(nil); return true }
         return super.performKeyEquivalent(with: event)
     }
     func find(_ action: NSTextFinder.Action) {
@@ -153,9 +156,33 @@ private enum MergeSourceSide {
     }
 }
 
-@MainActor final class TextConflictWindowController: NSWindowController, NSWindowDelegate {
+@MainActor final class TextConflictWindowController: NSWindowController, NSWindowDelegate, NSMenuItemValidation {
+    private let editorFileMenu = MergeEditorFileMenu()
+    func windowDidBecomeKey(_ notification: Notification) { editorFileMenu.install(target: self, open: #selector(openMergeDocument(_:)), reload: #selector(reloadEditor(_:))) }
+    func windowDidResignKey(_ notification: Notification) { editorFileMenu.remove() }
+    func detachForReplacement() { editorFileMenu.remove(); model.retire(); model.window = nil }
+    @objc func reloadEditor(_ sender: Any?) { guard editorOpenWorkflow == nil, window?.attachedSheet == nil else { return }; model.load() }
+    func validateMenuItem(_ item: NSMenuItem) -> Bool { (item.action == #selector(openMergeDocument(_:)) || item.action == #selector(reloadEditor(_:))) && editorOpenWorkflow == nil && !model.busy && !model.preparing && !model.confirmingQuit && !model.retired && window?.attachedSheet == nil }
     let model: TextConflictWindowModel
     var onClosed: () -> Void = {}
+    var editorOpenWorkflow: MergeEditorOpenWorkflow?
+    var makeEditorOpenWorkflow: (NSWindow, [RepositoryAccessLease], UserDefaults) -> MergeEditorOpenWorkflow = { MergeEditorOpenWorkflow(window: $0, permissions: $1, preferences: $2) }
+    var replacementOwner: MergeEditorReplacementOwner?
+    weak var sharedReplacementOwner: MergeEditorReplacementOwner?
+    @objc func openMergeDocument(_ sender: Any?) {
+        guard editorOpenWorkflow == nil, let window, !model.busy, !model.preparing, !model.confirmingQuit, !model.retired, window.attachedSheet == nil else { return }
+        let workflow = makeEditorOpenWorkflow(window, model.openPermissions, model.comparisonDefaults)
+        editorOpenWorkflow = workflow
+        workflow.onClosed = { [weak self] in self?.editorOpenWorkflow = nil }
+        workflow.accept = { [weak self] request, permissions in try self?.replaceEditor(request, permissions: permissions) }
+        workflow.start(dirty: model.dirty, description: model.path, save: { [weak self] completion in self?.model.save(markResolved: false, completion: completion) })
+    }
+    func replaceEditor(_ request: MergeOpenRequest, permissions: [RepositoryAccessLease]) throws {
+        guard let window, !model.busy, !model.confirmingQuit, !model.retired else { return }
+        let owner = sharedReplacementOwner ?? replacementOwner ?? MergeEditorReplacementOwner(onClosed: onClosed)
+        if sharedReplacementOwner == nil { replacementOwner = owner }
+        try owner.replace(request, permissions: permissions, preferences: model.comparisonDefaults, window: window, previous: self)
+    }
     init(repository: GitRepository, access: RepositoryAccessLease?, path: String, workingMerge: WorkingTextMerge? = nil, permissions: [RepositoryAccessLease] = [], preferences: UserDefaults = .standard) {
         model = TextConflictWindowModel(repository: repository, access: access, path: path)
         model.comparisonDefaults = preferences
@@ -167,12 +194,13 @@ private enum MergeSourceSide {
         hosting.sizingOptions = [.minSize]
         window.contentViewController = hosting
         window.setContentSize(NSSize(width: 1120, height: 780))
-        super.init(window: window); window.delegate = self; window.center(); model.window = window; model.close = { [weak window] in window?.close() }
+        super.init(window: window); window.delegate = self; window.openMergeDocument = { [weak self] in self?.openMergeDocument(nil) }; window.center(); model.window = window; model.close = { [weak window] in window?.close() }
 
 
         DialogGeometry.attach(window, identifier: "TurtleGit.TextConflict", legacyName: "TurtleGit.TextConflict")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard editorOpenWorkflow == nil else { return false }
         guard sender.attachedSheet == nil else { return false }
         if model.preparing { return true }
         guard !model.busy, !model.confirmingQuit else { return false }
@@ -185,13 +213,14 @@ private enum MergeSourceSide {
         default: return false
         }
     }
-    func windowWillClose(_ notification: Notification) { model.retire(); onClosed() }
+    func windowWillClose(_ notification: Notification) { editorFileMenu.remove(); editorOpenWorkflow?.retire(); editorOpenWorkflow = nil; model.retire(); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class TextConflictWindowModel: ObservableObject {
     let repository: GitRepository
     var workingMerge: WorkingTextMerge?
     var workingMergePermissions: [RepositoryAccessLease] = []
+    var openPermissions: [RepositoryAccessLease] { workingMergePermissions + [access].compactMap { $0 } }
     private(set) var workingMergeOutput: URL?
     private var standaloneSavedResult: String?
     private var standaloneSavedEncoding: ComparisonTextEncoding?

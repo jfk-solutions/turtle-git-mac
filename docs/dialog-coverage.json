@@ -283,6 +283,7 @@
         "docs/MERGE-OPEN-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/merge-editor-open-2026-10-14.json",
         "docs/qa/merge-open-2026-10-12.json",
         "docs/qa/merge-open-lifecycle-2026-10-12.json"
       ]

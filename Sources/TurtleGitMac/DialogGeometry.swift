@@ -43,6 +43,10 @@ import TurtleGitCore
             record.tokens.append(token)
         }
     }
+    static func detach(_ window: NSWindow) {
+        let key = ObjectIdentifier(window)
+        records.removeValue(forKey: key)?.stop()
+    }
     private static func area(_ rect: NSRect) -> CGFloat { rect.isNull ? 0 : rect.width * rect.height }
     private static func geometry(_ rect: NSRect) -> SavedWindowGeometry { SavedWindowGeometry(x: rect.minX, y: rect.minY, width: rect.width, height: rect.height) }
 }

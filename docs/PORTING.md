@@ -1002,3 +1002,12 @@ Three-pane result expansion uses exact engine anchors retained in edit/Undo
 presentation. Debug, 39 focused Core checks and a grouped native folding/wrapping/
 editor receiver passed. Physical, VoiceOver, large-document and signed acceptance
 remain open. See [folding audit](MERGE-FOLDING-PARITY.md).
+
+
+Native File/Open now checks Save/discard/Cancel and replaces two/three-pane
+content in the same window, retaining its geometry and ownership. Scoped Open/
+Reload menus, duplicate/Close/Quit guards, independent pending Save lifetime and
+identity-safe cached callers accompany the replacement. Debug and grouped native
+Open/editor regressions passed after a frame repair and fixture window-lifetime
+repair. Patch mode still opens the separate native Review/Apply workflow;
+physical/visual/signed acceptance remains open. See [Open audit](MERGE-OPEN-PARITY.md).
