@@ -2,6 +2,12 @@
 
 *A macOS fork of TortoiseGit*
 
+The connected Statistics/Revision Graph continuation implements calculation close/
+retry, source summary-control visibility, owned exports and destination scopes.
+Debug and four grouped native cases passed; see
+[batch evidence](qa/graph-workflows-2026-10-14.json). Full visual/signed acceptance
+remains open.
+
 The connected bundled SVN authentication batch implements five native callbacks
 with combined credentials, explicit certificate details/trust, secure certificate
 passwords and command-owned client-certificate copies. The pinned runtime retains
@@ -134,9 +140,9 @@ owned loading/command progress. Native Push variants and owned Shift Push option
 controls, full visual matching and signed acceptance are still pending. See
 [Synchronization parity](SYNCHRONIZATION-PARITY.md).
 Across the 130 inventoried dialogs:
-114 dialogs have recorded partial family audits and 16 await a family review.
-No dialog is certified complete. Of 1,659 static controls, 764 have recorded
-native mappings and 895 still await control review. These are audit-coverage
+120 dialogs have recorded partial family audits and 10 await a family review.
+No dialog is certified complete. Of 1,659 static controls, 811 have recorded
+native mappings and 848 still await control review. These are audit-coverage
 counts, not a feature-completion percentage. See [all dialog coverage](DIALOG-COVERAGE.md).
 See [the reference dialog audit](COMMIT-CONTAINING-REFS-PARITY.md).
 

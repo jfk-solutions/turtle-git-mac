@@ -1,0 +1,61 @@
+{
+  "date": "2026-10-14",
+  "base": "3de5b1ee",
+  "scope": [
+    "Statistics owned calculation/cancel/retry/normal and forced close; actual worker/grant/Quit lifetime",
+    "Source summary/graph control visibility, selection guards and private Log preference handoff",
+    "Statistics and Revision Graph retained save/error sheets, cancellation, late reply refusal and scoped atomic destination writes"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/graph-workflows-debug-2026-10-14.log"
+    },
+    "core": {
+      "run": false,
+      "reason": "Core and Git operation implementations unchanged"
+    },
+    "native": {
+      "initial_exit": 1,
+      "initial_log": "build/qa/graph-workflows-native-2026-10-14.log",
+      "initial_failure": "New Revision Graph fixture attempted a throwing Data read inside a nonthrowing require autoclosure. Compilation failed before any receiver launched. Extracted the read; no app change or build repeat.",
+      "repair_exit": 0,
+      "repair_log": "build/qa/graph-workflows-native-repair-2026-10-14.log",
+      "cases": 4,
+      "families": [
+        "statistics-workflow",
+        "revision-graph"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "owned_receivers_reaped": [
+        93471,
+        93511,
+        93879,
+        93938
+      ],
+      "receiver_pids_still_live_at_final_check": [],
+      "evidence": [
+        "Statistics original full vector/raster/metric/palette regression; fixed snapshot and actual file-change totals/preferences/cancellation/repository preservation",
+        "Statistics actual gated diff-tree child cancellation, ordinary delayed-close/forced retirement and independent Quit accounting",
+        "Statistics summary graph-control state and author-style restoration; injected save cancel/locks/reopen/late reply",
+        "Revision Graph original node/context/filter/Find/reference/submodule/zoom/exports/repository regressions",
+        "Revision Graph actual scoped atomic SVG export and injected save lock/cancel/forced-owner stale response refusal"
+      ]
+    },
+    "site": {
+      "exit": 0,
+      "documents": 212,
+      "unresolved_fragments": [],
+      "log": "build/qa/graph-workflows-site-2026-10-14.log"
+    }
+  },
+  "limitations": [
+    "Hidden native fixtures and injected Save replies do not prove physical Save/overwrite/error-sheet/keyboard/VoiceOver input or displayed source geometry",
+    "Signed repository/destination grants, actual signing, App Store submission and full source parity remain open",
+    "Author graph saved incompatible line style falls back to Bar as an explicit native repair",
+    "Existing native split-view/constraint warnings are retained; no clean-diagnostics claim"
+  ]
+}

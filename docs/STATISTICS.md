@@ -52,3 +52,10 @@ through this command.
 This dialog is still being compared with TortoiseGit. Exact displayed label geometry, outlines/shading,
 dense history layouts, displayed save-sheet behavior and signed sandbox checks
 remain pending; see [the parity record](LOG-STATISTICS-PARITY.md).
+
+
+Cancel stops gathering file changes and keeps the previous complete summary.
+Use Calculate to retry. Closing during calculation first cancels the read, then
+closes after Git finishes. The summary page hides graph style and author-limit
+controls; those appear when you select a graph. Save Graph As opens an owned
+native save sheet; cancelling leaves the graph available for another export.

@@ -531,6 +531,26 @@ import Darwin
         }
         try require(RevisionGraphExport.xml("雪<&\"'>") == "雪&lt;&amp;&quot;&apos;&gt;")
         print("PASS: Revision Graph SVG/Graphviz/PDF/PNG/JPEG/BMP/GIF encodings, escaped refs, native format control, extents and unchanged view state")
+        // Owned export uses the same displayed graph without changing the repository.
+        let ownedExport = root.appendingPathComponent("owned-export.svg")
+        try controller.exportGraph(to: ownedExport, format: .svg)
+        let ownedBytes = try Data(contentsOf: ownedExport)
+        try require(XMLParser(data: ownedBytes).parse())
+        var saveReply: ((NSApplication.ModalResponse) -> Void)?
+        controller.presentSavePanel = { _, _, completion in saveReply = completion }
+        controller.saveGraph(); try require(controller.graphSavePanel != nil && controller.hasExportSheet)
+        try require(!controller.windowShouldClose(window) && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel)
+        do { try controller.exportGraph(to: root.appendingPathComponent("blocked.svg"), format: .svg); throw Failure(line: #line) }
+        catch RevisionGraphExportFailure.unavailable { }
+        saveReply?(.cancel); try require(controller.graphSavePanel == nil && !controller.hasExportSheet)
+        let retiredExport = RevisionGraphWindowController(repository: repo, access: nil, preferences: prefs, layoutExecutable: helper)
+        try await wait { !retiredExport.model.busy }; try require(retiredExport.model.geometry != nil)
+        var retiredReply: ((NSApplication.ModalResponse) -> Void)?
+        retiredExport.presentSavePanel = { _, _, completion in retiredReply = completion }
+        retiredExport.saveGraph(); try require(retiredExport.graphSavePanel != nil)
+        retiredExport.close(); retiredReply?(.OK)
+        try require(retiredExport.model.closed && retiredExport.graphSavePanel == nil && !retiredExport.hasExportSheet)
+        print("PASS: Revision Graph owned export, sheet lock/cancel/reopen and forced-owner stale reply refusal")
         // Destructive checks touch only this disposable repository, after the read-only invariants above.
         func itemDeleting(_ name: String) throws -> NSMenuItem {
             let menu = controller.nodeMenu()

@@ -1477,7 +1477,7 @@ struct LogCommandRequest: Identifiable {
     func showStatistics() {
         guard !busy, !isInvalidated, !entries.isEmpty else { return }
         if let statisticsWindow { statisticsWindow.showWindow(nil); statisticsWindow.window?.makeKeyAndOrderFront(nil); return }
-        let controller = StatisticsWindowController(repository: repository, access: access, entries: entries)
+        let controller = StatisticsWindowController(repository: repository, access: access, entries: entries, defaults: labelDefaults)
         controller.onClosed = { [weak self] in self?.statisticsWindow = nil }
         statisticsWindow = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
     }

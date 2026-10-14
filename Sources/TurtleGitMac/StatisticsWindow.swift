@@ -4,12 +4,18 @@ import Charts
 import TurtleGitCore
 
 @MainActor final class StatisticsWindowModel: ObservableObject {
+    static var activeOperations = 0
     let repository: GitRepository
     let entries: [LogEntry]
     private let access: RepositoryAccessLease?
     private let defaults: UserDefaults
     private var changes: [String: LogStatisticsChanges]?
     private var cancellation: OperationCancellation?
+    private var worker: Task<Void, Never>?
+    private var generation = UUID()
+    private(set) var retired = false
+    @Published var hasSheet = false
+    var becameIdle: () -> Void = {}
     @Published var options = LogStatisticsOptions()
     @Published var metric = LogStatisticsMetric.statistics
     @Published var style = LogStatisticsStyle.line
@@ -21,7 +27,13 @@ import TurtleGitCore
     @Published var error: String?
     var close: () -> Void = {}
     var graphSize = CGSize(width: 860, height: 400)
-    var canExportGraph: Bool { !busy && metric != .statistics && graph != nil }
+    var canInteract: Bool { !retired && !busy && !hasSheet }
+    var showsGraphControls: Bool { metric != .statistics }
+    var canExportGraph: Bool { canInteract && metric != .statistics && graph != nil }
+    func supports(_ style: LogStatisticsStyle) -> Bool { !metric.byAuthor || ![.line, .stackedLine].contains(style) }
+    func selectStyle(_ style: LogStatisticsStyle) { guard canInteract, supports(style) else { return }; self.style = style }
+    func setOptions(_ options: LogStatisticsOptions) { guard canInteract else { return }; self.options = options; rebuild(resetAuthors: true) }
+    func setAuthorLimit(_ value: Double) { guard canInteract, value.isFinite else { return }; authorsShown = max(1, value); rebuild() }
     init(repository: GitRepository, access: RepositoryAccessLease?, entries: [LogEntry], defaults: UserDefaults = .standard) {
         self.repository = repository; self.access = access; self.entries = entries; self.defaults = defaults
         options.caseSensitive = defaults.object(forKey: "StatAuthorsCaseSensitive") == nil || defaults.bool(forKey: "StatAuthorsCaseSensitive")
@@ -31,6 +43,7 @@ import TurtleGitCore
         let page = defaults.integer(forKey: "LastViewedStatsPage")
         metric = LogStatisticsMetric(rawValue: page / 10) ?? .statistics
         style = LogStatisticsStyle(rawValue: page % 10) ?? (metric.byAuthor ? .bar : .line)
+        if !supports(style) { style = .bar }
         rebuild(resetAuthors: true)
     }
     var availableAuthorCount: Int {
@@ -40,11 +53,12 @@ import TurtleGitCore
     }
     func start() { if metric.needsChanges { calculate() } }
     func selectMetric(_ metric: LogStatisticsMetric) {
-        guard !busy else { return }; self.metric = metric
+        guard canInteract else { return }; self.metric = metric
         if metric.byAuthor { style = .bar } else if metric == .statistics || metric == .commitsByDate { style = .line }
         rebuild(resetAuthors: true); if metric.needsChanges && changes == nil { calculate() }
     }
     func rebuild(resetAuthors: Bool = false) {
+        guard !retired else { return }
         do {
             summary = try LogStatistics.analyze(entries, options: options, changes: changes)
             if resetAuthors { authorsShown = Double(min(250, max(1, availableAuthorCount))) }
@@ -55,24 +69,44 @@ import TurtleGitCore
         } catch { self.error = error.localizedDescription; graph = nil }
     }
     func calculate() {
-        guard !busy, changes == nil else { return }; busy = true; completed = 0
-        let token = OperationCancellation(); cancellation = token
-        Task {
+        guard canInteract, changes == nil else { return }; busy = true; completed = 0; error = nil
+        let token = OperationCancellation(), request = UUID()
+        cancellation = token; generation = request; Self.activeOperations += 1
+        worker = Task { [self, access] in
+            defer {
+                Self.activeOperations -= 1
+                if request == generation || retired {
+                    busy = false; cancellation = nil; worker = nil
+                    if !retired { becameIdle() }
+                }
+                withExtendedLifetime(access) {}
+            }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let (stream, continuation) = AsyncStream<Int>.makeStream()
-                let operation = Task {
+                let operation = Task { [repository, entries] in
                     defer { continuation.finish() }
                     return try await repository.logStatisticsChanges(entries, cancellation: token) { done, _ in continuation.yield(done) }
                 }
-                for await done in stream { completed = done }
-                changes = try await operation.value; rebuild(resetAuthors: true)
-            } catch { self.error = error.localizedDescription }
-            busy = false; cancellation = nil
+                for await done in stream {
+                    if !retired, request == generation, !token.isCancelled { completed = done }
+                }
+                let result = try await operation.value
+                try token.check()
+                guard !retired, request == generation else { return }
+                changes = result; rebuild(resetAuthors: true)
+            } catch {
+                if !retired, request == generation { self.error = error.localizedDescription }
+            }
         }
     }
     func cancel() { cancellation?.cancel() }
+    func retire() {
+        guard !retired else { return }
+        retired = true; generation = UUID(); cancel(); becameIdle = {}; close = {}
+    }
     func savePreferences() {
+        guard !retired else { return }
         defaults.set(options.caseSensitive, forKey: "StatAuthorsCaseSensitive"); defaults.set(options.sortByCommitCount, forKey: "StatSortByCommitCount")
         defaults.set(options.useCommitterNames, forKey: "StatCommiterNames"); defaults.set(options.useCommitDates, forKey: "StatCommitDates")
         defaults.set(metric.rawValue * 10 + style.rawValue, forKey: "LastViewedStatsPage")
@@ -90,74 +124,103 @@ private final class StatisticsNativeWindow: NSWindow {
 @MainActor final class StatisticsWindowController: NSWindowController, NSWindowDelegate {
     let model: StatisticsWindowModel
     var onClosed: () -> Void = {}
-    private var savePanel: StatisticsGraphSavePanel?
+    private(set) var savePanel: StatisticsGraphSavePanel?
+    private var exportError: NSAlert?
+    private var closing = false
+    private var closed = false
+    var presentSavePanel: (NSSavePanel, NSWindow, @escaping (NSApplication.ModalResponse) -> Void) -> Void = { panel, window, completion in panel.beginSheetModal(for: window, completionHandler: completion) }
+    var canSaveGraph: Bool { !closed && model.canExportGraph && window?.attachedSheet == nil }
     init(repository: GitRepository, access: RepositoryAccessLease?, entries: [LogEntry], defaults: UserDefaults = .standard) {
         model = StatisticsWindowModel(repository: repository, access: access, entries: entries, defaults: defaults)
         let window = StatisticsNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 620), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Statistics – TurtleGit"; window.contentMinSize = NSSize(width: 720, height: 530); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: StatisticsDialog(model: model))
         super.init(window: window); window.delegate = self; window.center()
-        model.close = { [weak self, weak window] in if self?.model.busy == true { self?.model.cancel() } else { window?.performClose(nil) } }
+        model.close = { [weak window] in window?.performClose(nil) }
+        model.becameIdle = { [weak self] in if self?.closing == true { self?.window?.performClose(nil) } }
         window.escape = { [weak model] in model?.close() }
 
         DialogGeometry.attach(window, identifier: "StatisticsDialog", legacyName: "StatisticsDialog")
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     func saveGraphAs() {
-        guard model.canExportGraph, savePanel == nil, let window, window.attachedSheet == nil else { return }
-        let choice = StatisticsGraphSavePanel(); savePanel = choice
-        choice.panel.beginSheetModal(for: window) { [weak self, choice] response in
-            defer { self?.savePanel = nil }
-            guard response == .OK, let url = choice.panel.url, let self else { return }
+        guard canSaveGraph, savePanel == nil, let window else { return }
+        let choice = StatisticsGraphSavePanel(); savePanel = choice; model.hasSheet = true
+        presentSavePanel(choice.panel, window) { [weak self, choice, weak window] response in
+            guard let self, !self.closed, self.savePanel === choice, let window else { return }
+            self.savePanel = nil; self.model.hasSheet = false
+            guard response == .OK, let url = choice.panel.url else { return }
             do { try self.exportGraph(to: url, format: choice.format) }
-            catch { NSAlert(error: error).beginSheetModal(for: window) }
+            catch {
+                let alert = NSAlert(error: error); self.exportError = alert; self.model.hasSheet = true
+                alert.beginSheetModal(for: window) { [weak self, weak alert] _ in
+                    guard let self, !self.closed, self.exportError === alert else { return }
+                    self.exportError = nil; self.model.hasSheet = false
+                }
+            }
         }
     }
     func exportGraph(to url: URL, format: StatisticsGraphFormat) throws {
-        guard model.canExportGraph, let graph = model.graph else { throw StatisticsGraphExportFailure.unavailable }
+        guard canSaveGraph, let graph = model.graph else { throw StatisticsGraphExportFailure.unavailable }
         let dark = window?.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
         let data = try StatisticsGraphExport.data(graph: graph, metric: model.metric, style: model.style, size: model.graphSize, dark: dark, format: format)
         let scoped = url.startAccessingSecurityScopedResource(); defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         try data.write(to: url, options: .atomic)
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; return true }
-    func windowWillClose(_ notification: Notification) { model.savePreferences(); onClosed() }
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard !model.hasSheet, sender.attachedSheet == nil else { return false }
+        if model.busy { closing = true; model.cancel(); return false }; return true
+    }
+    func windowWillClose(_ notification: Notification) {
+        guard !closed else { return }; closed = true
+        model.savePreferences(); model.retire()
+        if let sheet = savePanel?.panel { window?.endSheet(sheet, returnCode: .cancel); sheet.orderOut(nil) }
+        if let alert = exportError { window?.endSheet(alert.window, returnCode: .cancel); alert.window.orderOut(nil) }
+        savePanel = nil; exportError = nil; model.hasSheet = false
+        onClosed(); onClosed = {}
+    }
 }
 
 private struct StatisticsDialog: View {
     @ObservedObject var model: StatisticsWindowModel
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack { Text("Graph type:"); Spacer(); Picker("Graph type", selection: Binding(get: { model.metric }, set: { model.selectMetric($0) })) { ForEach(LogStatisticsMetric.allCases, id: \.rawValue) { Text($0.title).tag($0) } }.labelsHidden().frame(width: 360).disabled(model.busy) }
+            HStack { Text("Graph type:"); Spacer(); Picker("Graph type", selection: Binding(get: { model.metric }, set: { model.selectMetric($0) })) { ForEach(LogStatisticsMetric.allCases, id: \.rawValue) { Text($0.title).tag($0) } }.labelsHidden().frame(width: 360).disabled(!model.canInteract) }
             GroupBox {
-                if model.metric == .statistics, let summary = model.summary { StatisticsSummary(summary: summary, calculate: model.calculate).disabled(model.busy).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading) }
+                if model.metric == .statistics, let summary = model.summary { StatisticsSummary(summary: summary, calculate: model.calculate).disabled(!model.canInteract).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading) }
                 else if let graph = model.graph { StatisticsChart(graph: graph, style: model.style, byAuthor: model.metric.byAuthor).frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(GeometryReader { proxy in Color.clear.onAppear { model.graphSize = proxy.size }.onChange(of: proxy.size) { model.graphSize = $0 } }) }
-                else { Text(model.busy ? "Gathering statistics…" : "No graph data available.").frame(maxWidth: .infinity, maxHeight: .infinity) }
+                else { VStack {
+                    Text(model.busy ? "Gathering statistics…" : "No graph data available.")
+                    if model.metric.needsChanges && !model.busy { Button("Calculate", action: model.calculate).disabled(!model.canInteract) }
+                }.frame(maxWidth: .infinity, maxHeight: .infinity) }
             }
             HStack(alignment: .top) {
                 VStack(alignment: .leading) {
-                    Toggle("Authors case sensitive", isOn: $model.options.caseSensitive)
-                    Toggle("Use committer names", isOn: $model.options.useCommitterNames)
-                    Toggle("Use commit dates", isOn: $model.options.useCommitDates)
-                    Toggle("Sort by commit count", isOn: $model.options.sortByCommitCount)
-                }.disabled(model.busy).onChange(of: model.options) { _ in model.rebuild(resetAuthors: true) }
+                    Toggle("Authors case sensitive", isOn: option(\.caseSensitive))
+                    Toggle("Use committer names", isOn: option(\.useCommitterNames))
+                    Toggle("Use commit dates", isOn: option(\.useCommitDates))
+                    if model.showsGraphControls { Toggle("Sort by commit count", isOn: option(\.sortByCommitCount)) }
+                }.disabled(!model.canInteract)
                 Spacer()
-                HStack {
+                if model.showsGraphControls { HStack {
                     ForEach([LogStatisticsStyle.pie, .stackedLine, .line, .stackedBar, .bar], id: \.rawValue) { style in
-                        Button { model.style = style } label: { Image(nsImage: styleIcon(style).image() ?? NSImage()).frame(width: 18, height: 18) }.accessibilityLabel(styleTitle(style)).disabled(model.busy || model.metric.byAuthor && [.line, .stackedLine].contains(style)).help(styleTitle(style))
+                        Button { model.selectStyle(style) } label: { Image(nsImage: styleIcon(style).image() ?? NSImage()).frame(width: 18, height: 18) }.accessibilityLabel(styleTitle(style)).disabled(!model.canInteract || !model.supports(style)).help(styleTitle(style)).tint(model.style == style ? .accentColor : nil)
                     }
-                }
+                } }
             }
             HStack {
-                Text("# authors shown individually:")
-                Slider(value: $model.authorsShown, in: 1...Double(max(2, min(250, model.availableAuthorCount))), step: 1).frame(maxWidth: 220).disabled(model.busy || model.availableAuthorCount < 2).onChange(of: model.authorsShown) { _ in model.rebuild() }
-                Text("\(Int(model.authorsShown))").monospacedDigit()
+                if model.showsGraphControls { Text("# authors shown individually:")
+                Slider(value: Binding(get: { model.authorsShown }, set: { model.setAuthorLimit($0) }), in: 1...Double(max(2, min(250, model.availableAuthorCount))), step: 1).frame(maxWidth: 220).disabled(!model.canInteract || model.availableAuthorCount < 2)
+                Text("\(Int(model.authorsShown))").monospacedDigit() }
                 if model.busy { ProgressView(value: Double(model.completed), total: Double(max(1, model.entries.count))).frame(width: 100); Button("Cancel") { model.cancel() } }
                 Spacer(); Button("OK") { model.close() }.keyboardShortcut(.defaultAction)
             }
             if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
         }.padding(12)
+    }
+    private func option(_ key: WritableKeyPath<LogStatisticsOptions, Bool>) -> Binding<Bool> {
+        Binding(get: { model.options[keyPath: key] }, set: { value in var options = model.options; options[keyPath: key] = value; model.setOptions(options) })
     }
     private func styleIcon(_ style: LogStatisticsStyle) -> MenuIcon {
         switch style { case .pie: return .graphPie; case .line: return .graphLine; case .stackedLine: return .graphStackedLine; case .bar: return .graphBar; case .stackedBar: return .graphStackedBar }

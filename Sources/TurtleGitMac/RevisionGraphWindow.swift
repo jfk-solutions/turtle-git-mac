@@ -262,11 +262,15 @@ enum RevisionGraphReferenceCommand {
     private let overview: RevisionGraphOverview
     private(set) var filter: RevisionGraphFilterController?
     private(set) var find: RevisionGraphFindController?
-    private var hasFindError: Bool { find?.acknowledgingFailure == true || find?.window?.attachedSheet != nil }
+    private var hasFindError: Bool { exportError != nil || find?.acknowledgingFailure == true || find?.window?.attachedSheet != nil }
     private var closing = false
     private var exporting = false
+    private(set) var graphSavePanel: RevisionGraphSavePanel?
+    private var exportError: NSAlert?
+    var presentSavePanel: (NSSavePanel, NSWindow, @escaping (NSApplication.ModalResponse) -> Void) -> Void = { panel, window, completion in panel.beginSheetModal(for: window, completionHandler: completion) }
     private var pendingRepositoryRefresh = false
     private var unifiedViewer: PatchWindowController?
+    var hasExportSheet: Bool { exporting || exportError != nil }
     var onClosed: () -> Void = {}
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, layoutExecutable: URL? = nil, automaticallyLoad: Bool = true) {
         let model = RevisionGraphWindowModel(repository: repository, access: access, preferences: preferences, layoutExecutable: layoutExecutable)
@@ -556,20 +560,33 @@ enum RevisionGraphReferenceCommand {
         self.filter = filter; if let child = filter.window { child.alphaValue = window.alphaValue; window.beginSheet(child) }
         update()
     }
-    private func saveGraph() {
-        guard let window, window.attachedSheet == nil, model.geometry != nil else { return }
-        let picker = RevisionGraphSavePanel(); exporting = true
-        picker.panel.beginSheetModal(for: window) { [weak self] response in
-            guard let self else { return }
-            var failure: String?
-            defer { self.exporting = false; self.update(); if let failure { self.status.stringValue = failure } }
-            if response == .OK, let url = picker.panel.url {
-                do {
-                    let data = try RevisionGraphExport.data(canvas: self.canvas, viewport: self.scroll.contentSize, format: picker.format, appearance: window.effectiveAppearance)
-                    try data.write(to: url, options: .atomic)
-                } catch { failure = error.localizedDescription }
+    func saveGraph() {
+        guard !model.closed, !model.busy, filter == nil, !exporting, !hasFindError,
+              let window, window.attachedSheet == nil, model.geometry != nil else { return }
+        let picker = RevisionGraphSavePanel(), generation = model.generation
+        graphSavePanel = picker; exporting = true; update()
+        presentSavePanel(picker.panel, window) { [weak self, weak window] response in
+            guard let self, !self.model.closed, self.graphSavePanel === picker, let window else { return }
+            self.graphSavePanel = nil; self.exporting = false
+            defer { self.update() }
+            guard response == .OK, let url = picker.panel.url, generation == self.model.generation else { return }
+            do { try self.exportGraph(to: url, format: picker.format) }
+            catch {
+                let alert = NSAlert(error: error); self.exportError = alert
+                alert.beginSheetModal(for: window) { [weak self, weak alert] _ in
+                    guard let self, !self.model.closed, self.exportError === alert else { return }
+                    self.exportError = nil; self.update()
+                }
             }
         }
+    }
+    func exportGraph(to url: URL, format: RevisionGraphFormat) throws {
+        guard !model.closed, !model.busy, !exporting, filter == nil, !hasFindError,
+              window?.attachedSheet == nil, let window else { throw RevisionGraphExportFailure.unavailable }
+        let data = try RevisionGraphExport.data(canvas: canvas, viewport: scroll.contentSize, format: format, appearance: window.effectiveAppearance)
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        try data.write(to: url, options: .atomic)
     }
 
     func showFind(regexExecutable: URL? = nil) {
@@ -603,7 +620,10 @@ enum RevisionGraphReferenceCommand {
     func windowWillClose(_ notification: Notification) {
         colorUpdates = nil
         NotificationCenter.default.removeObserver(self); model.invalidate(); unifiedViewer?.close(); unifiedViewer = nil
-        filter?.close(); filter = nil; find?.close(); find = nil; onClosed()
+        if let sheet = graphSavePanel?.panel { window?.endSheet(sheet, returnCode: .cancel); sheet.orderOut(nil) }
+        if let alert = exportError { window?.endSheet(alert.window, returnCode: .cancel); alert.window.orderOut(nil) }
+        graphSavePanel = nil; exportError = nil; exporting = false
+        filter?.close(); filter = nil; find?.close(); find = nil; onClosed(); onClosed = {}
     }
 }
 

@@ -649,3 +649,11 @@ All receivers were reaped. Core was unchanged and was not rerun. Physical typing
 completion popup gestures, full error-sheet presentation, VoiceOver, signed sandbox
 and complete Revision Graph parity remain open. See
 [batch evidence](qa/revision-graph-interaction-2026-10-14.json).
+
+
+The connected Statistics/Revision Graph export-ownership continuation retains
+Save panels, handles cancellation and forced-owner dismissal, refuses stale
+replies/generations, scopes atomic destination writes and shows an owned error
+sheet. See [the graph workflow audit](LOG-STATISTICS-PARITY.md). The Debug build and both engine groups passed; see
+[batch evidence](qa/graph-workflows-2026-10-14.json). Physical and signed export
+acceptance remain open.

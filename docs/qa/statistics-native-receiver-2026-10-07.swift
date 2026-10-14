@@ -228,6 +228,54 @@ import PDFKit
         precondition(restored.metric == .authorship && restored.style == .pie && restored.options.useCommitterNames && !restored.options.caseSensitive)
         restored.start(); restored.cancel(); try await wait(restored)
         precondition(restored.error != nil && restored.summary?.changesCalculated == false)
+        // Related calculation/closing and native export ownership, with private response seams.
+        precondition(!model.canExportGraph && model.retired)
+        let oldMetric = model.metric; model.selectMetric(.commitsByDate); precondition(model.metric == oldMetric)
+        isolated.set(LogStatisticsMetric.commitsByAuthor.rawValue * 10 + LogStatisticsStyle.line.rawValue, forKey: "LastViewedStatsPage")
+        let normalized = StatisticsWindowModel(repository: repo, access: nil, entries: entries, defaults: isolated)
+        precondition(normalized.style == .bar && normalized.showsGraphControls)
+        normalized.selectMetric(.statistics); precondition(!normalized.showsGraphControls)
+        let exportOwner = StatisticsWindowController(repository: repo, access: nil, entries: entries, defaults: isolated)
+        exportOwner.model.selectMetric(.commitsByDate)
+        var reply: ((NSApplication.ModalResponse) -> Void)?
+        exportOwner.presentSavePanel = { _, _, completion in reply = completion }
+        exportOwner.saveGraphAs(); precondition(exportOwner.savePanel != nil && exportOwner.model.hasSheet && !exportOwner.canSaveGraph)
+        precondition(!exportOwner.windowShouldClose(exportOwner.window!) && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel)
+        let lockedMetric = exportOwner.model.metric, lockedStyle = exportOwner.model.style, lockedOptions = exportOwner.model.options
+        exportOwner.model.selectMetric(.authorship); exportOwner.model.selectStyle(.pie)
+        var changedOptions = lockedOptions; changedOptions.caseSensitive.toggle(); exportOwner.model.setOptions(changedOptions)
+        precondition(exportOwner.model.metric == lockedMetric && exportOwner.model.style == lockedStyle && exportOwner.model.options == lockedOptions)
+        reply?(.cancel); precondition(exportOwner.savePanel == nil && !exportOwner.model.hasSheet && exportOwner.canSaveGraph)
+        exportOwner.saveGraphAs(); let lateReply = reply
+        exportOwner.close(); lateReply?(.OK)
+        precondition(exportOwner.model.retired && exportOwner.savePanel == nil && !exportOwner.canSaveGraph)
+
+        let helper = root.appendingPathComponent("statistics-gated-git"), ready = root.appendingPathComponent("statistics-ready")
+        let script = #"""
+        #!/bin/sh
+        if [ "$4" = diff-tree ]; then
+          : > "$3/statistics-ready"; /bin/sleep 30
+        fi
+        exec "$TG_STATISTICS_GIT" "$@"
+        """#
+        try Data(script.utf8).write(to: helper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
+        setenv("TG_STATISTICS_GIT", CommandLine.arguments[2], 1); defer { unsetenv("TG_STATISTICS_GIT") }
+        let wrapped = GitRepository(root: root, executable: helper)
+        for forced in [false, true] {
+            try? FileManager.default.removeItem(at: ready)
+            let calculating = StatisticsWindowController(repository: wrapped, access: nil, entries: entries, defaults: isolated)
+            var didClose = false; calculating.onClosed = { didClose = true }
+            calculating.model.calculate()
+            for _ in 0..<3000 { if FileManager.default.fileExists(atPath: ready.path) { break }; try await Task.sleep(nanoseconds: 10_000_000) }
+            precondition(FileManager.default.fileExists(atPath: ready.path) && StatisticsWindowModel.activeOperations == 1)
+            precondition(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel)
+            if forced { calculating.close() } else { calculating.window?.performClose(nil) }
+            precondition(StatisticsWindowModel.activeOperations == 1)
+            for _ in 0..<3000 { if StatisticsWindowModel.activeOperations == 0 && didClose { break }; try await Task.sleep(nanoseconds: 10_000_000) }
+            precondition(StatisticsWindowModel.activeOperations == 0 && didClose && calculating.model.retired && !calculating.model.busy)
+            precondition(calculating.model.summary?.changesCalculated == false)
+        }
+        print("Statistics workflow: source summary controls, restored author-style normalization, sheet locks/cancel/reopen/late reply, actual held Git cancellation, automatic and forced close/Quit lifetime passed")
         let after = try paths.map { try Data(contentsOf: root.appendingPathComponent($0)) }; precondition(before == after)
         print("Native Statistics: defaults, snapshot graphs, actual lazy diff totals, automatic calculation, preference restoration, cancellation and unchanged repository passed")
     }

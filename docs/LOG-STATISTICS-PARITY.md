@@ -233,3 +233,36 @@ Source labels/average/stack/tick verification: [graph presentation QA](qa/statis
   outline/shading/font/geometry comparison, plus sparse-date/year-wrap acceptance.
 - Displayed layout, regional/DST/case acceptance, keyboard/VoiceOver and signed
   sandbox/App Store verification. The full application port remains incomplete.
+
+
+## Connected graph workflow ownership — October 14, 2026
+
+Statistics now keeps its owned Git calculation, repository grant and application
+Quit protection until the worker finishes. Cancel retains the previous complete
+summary without a partial changes cache. A requested window close cancels and
+closes automatically after settlement; forced closure retires progress, results
+and errors while retaining operation accounting. A cancelled changes graph offers
+Calculate again without requiring a new window. Log supplies its own preference
+store to its Statistics child.
+
+The summary hides Sort by commit count, author-limit slider and graph-style
+buttons, following StatGraphDlg::ShowLabels. The graph keeps original style icons
+and identifies the selected style. Busy/sheet/retired owners reject changes through
+native bindings. A saved author graph with an incompatible line style falls back
+to Bar; this native repair prevents restoring a style disabled for author graphs.
+Source metric-change defaults and the encoded preference keys are retained.
+
+Statistics and Revision Graph now retain their Save panels and error sheets under
+their owning windows. Cancel releases the sheet and permits another export.
+Forced closure dismisses owned children and refuses delayed replies. Export
+writes hold the destination's available security scope and remain atomic. Revision
+Graph now reports export failures in an owned native error sheet. Its panel blocks
+zoom/filter/Find/reload until it settles; stale graph generations cannot write.
+Existing vector/raster formats, palette and rendering remain unchanged.
+
+The Debug build and four grouped native cases passed with system and bundled
+Git. An initial fixture compilation error was corrected before any receiver
+launched; no app build or Core check was repeated. All four owned receivers were
+reaped. See [batch evidence](qa/graph-workflows-2026-10-14.json). Injected panel replies do
+not prove physical save/overwrite input, signed destination grants, keyboard or
+VoiceOver acceptance. Full visual/source/App Store certification remains open.

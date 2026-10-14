@@ -20,6 +20,7 @@ import AppKit
         if LogWindowModel.activeActionReads > 0 { return .terminateCancel }
         if ReferenceLogWindowModel.activeRevisionReads > 0 { return .terminateCancel }
         if WorktreeListWindowModel.activeOperations > 0 || WorktreeCreateWindowModel.activeOperations > 0 { return .terminateCancel }
+        if StatisticsWindowModel.activeOperations > 0 || sender.windows.compactMap({ $0.delegate as? StatisticsWindowController }).contains(where: { $0.model.hasSheet }) { return .terminateCancel }
         if RevisionGraphWindowModel.activeOperations > 0 || RevisionGraphFilterController.activeOperations > 0 { return .terminateCancel }
         if FileCopyWindowModel.activeOperations > 0 || sender.windows.compactMap({ $0.delegate as? FileCopyWindowController }).contains(where: { $0.model.question || $0.model.confirmingCancel }) { return .terminateCancel }
         if FileMoveWindowModel.activeOperations > 0 || sender.windows.compactMap({ $0.delegate as? FileMoveWindowController }).contains(where: { $0.model.hasQuestion || $0.model.choosingFolder || $0.model.confirmingCancellation }) { return .terminateCancel }
@@ -66,7 +67,7 @@ import AppKit
         if IssueRegexTesterModel.activeRequests > 0 { return .terminateCancel }
         if IssueTrackerSettingsModel.activeSaves > 0 { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? SynchronizationWindowController }).contains(where: { $0.model.busy || $0.model.hasBlockingChild || $0.window?.attachedSheet != nil }) { return .terminateCancel }
-        if sender.windows.compactMap({ $0.delegate as? RevisionGraphWindowController }).contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }) { return .terminateCancel }
+        if sender.windows.compactMap({ $0.delegate as? RevisionGraphWindowController }).contains(where: { $0.model.busy || $0.hasExportSheet || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? MergeAbortWindowController }).contains(where: { $0.model.busy || $0.model.hasChild || $0.model.confirmingCancellation || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? MergeAbortProgressWindowController }).contains(where: { $0.model.busy || $0.model.confirmingCancellation || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if confirmingQuit { return .terminateLater }

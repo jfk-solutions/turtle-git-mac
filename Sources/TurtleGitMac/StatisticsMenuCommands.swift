@@ -23,7 +23,7 @@ import TurtleGitCore
             modelChanges = nil; model = controller?.model
             modelChanges = model?.objectWillChange.sink { [weak self] _ in Task { @MainActor in self?.refresh() } }
         }
-        let enabled = controller.map { $0.model.canExportGraph && $0.window?.attachedSheet == nil } ?? false
+        let enabled = controller.map { $0.canSaveGraph } ?? false
         if available != enabled { available = enabled }
     }
     func saveGraphAs() { refresh(); guard available else { return }; current?.saveGraphAs() }

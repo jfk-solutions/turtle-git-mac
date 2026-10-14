@@ -1122,6 +1122,7 @@
         "docs/LOG-STATISTICS-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/graph-workflows-2026-10-14.json",
         "docs/qa/log-statistics-2026-10-07.json",
         "docs/qa/statistics-export-2026-10-07.json",
         "docs/qa/statistics-interaction-2026-10-07.json",
