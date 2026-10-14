@@ -76,6 +76,21 @@ coverage and process cleanup. Close app instances after manual testing.
 An unsigned build verifies compilation and bundle structure, not distribution
 acceptance.
 
+## Local preview package
+
+To produce a universal Release preview from this checkout:
+
+```sh
+python3 scripts/build-distribution.py --configuration Release
+python3 scripts/package-local-preview.py --audit build-distribution/distribution-audit.json --output build/local-preview
+```
+
+The fresh output directory contains the app, a ZIP, checksum, license notices and
+installation notes. Packaging preserves the audited build and finalized runtime
+payloads, seals a separate copy ad hoc, and does not install, launch or upload it.
+The preview is not notarized or App Store signed. See the
+[release blockers](docs/RELEASE-BLOCKERS.md) for the remaining acceptance work.
+
 ## Finder integration
 
 Configure your signing team in `TurtleGitMac.xcodeproj`. Register an App Group

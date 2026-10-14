@@ -429,3 +429,17 @@ archive was refused before export. The initial path-fixture and relocated-helper
 symbol-name checks were corrected without rebuilding the archive; exact UUID
 matching remains required. See [the scoped QA record](qa/distribution-archive-2026-10-14.json).
 This is a local unsigned candidate, not an App Store submission-ready release.
+
+
+## Local Release preview ZIP
+
+`package-local-preview.py` consumes a successful Release distribution audit,
+checks its code hashes and refuses inherited-sandbox payloads. It preserves the
+source build, copies into a fresh staging directory, reuses the explicit signing
+inventory while preserving finalized runtime bytes, then verifies the copied
+app's ad-hoc seal, universal bundle and cache-service layout. The app/ZIP,
+SHA256SUMS, LICENSE, NOTICE, installation notes and preview manifest are published
+locally only after these checks. Existing output is never overwritten. The
+script does not install, launch, register services, notarize, upload or submit.
+This is a local preview path; signed runtime/Finder and App Store acceptance
+remain governed by the [release blocker list](RELEASE-BLOCKERS.md).

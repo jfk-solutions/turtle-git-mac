@@ -1,0 +1,58 @@
+{
+  "date": "2026-10-15",
+  "workspace_commit_at_build_and_packaging": "51cd7187432583fb572fedc3451639e32ee25e27",
+  "scope": "Concrete universal Release local preview; no publication or installed GUI acceptance",
+  "release_build": {
+    "exit": 0,
+    "configuration": "Release",
+    "architectures": [
+      "arm64",
+      "x86_64"
+    ],
+    "log": "build/qa/preview-release-build-2026-10-15.log",
+    "audit": "build/preview-2026-10-15/distribution-audit.json",
+    "source_preserved": true
+  },
+  "package": {
+    "exit": 0,
+    "directory": "build/previews/TurtleGit-2026-10-15",
+    "zip": "TurtleGit-for-Mac-0.1.0-local-preview.zip",
+    "sha256": "b076038575fbde3683ddb808125fa2166ddc4ff0a02c5f776a2040d33d4a048a",
+    "bytes": 338219279,
+    "log": "build/qa/preview-package-2026-10-15.log",
+    "validation": [
+      "Copied app ad-hoc deep strict seal",
+      "Universal app, embedded Finder extension, helpers, licenses and 301 original icon resources",
+      "Production runtime code/data layout and packaged WCRev provenance",
+      "Cache agent layout and expected unsigned-helper startup refusal; owned process reaped, no launch registration",
+      "ZIP extracted independently and extracted app deep strict seal verified"
+    ],
+    "contents": [
+      "TurtleGitMac.app",
+      "ZIP",
+      "SHA256SUMS",
+      "LICENSE",
+      "NOTICE",
+      "START-HERE.txt",
+      "preview-manifest.json"
+    ]
+  },
+  "hosted_ci": {
+    "run": 38644508135,
+    "revision": "51cd7187432583fb572fedc3451639e32ee25e27",
+    "observed_status": "pending",
+    "full_pass": false
+  },
+  "limitations": [
+    "Local ad-hoc seal is not Developer ID signing, notarization, provisioning or App Store acceptance",
+    "No app GUI launch, physical Finder activation/menu/overlay acceptance or installed cache-service registration performed",
+    "Intel slice compiled/audited, not runtime-executed on this Apple Silicon host",
+    "Complete TortoiseGit dialog/behavior parity and minimum-OS acceptance remain open"
+  ],
+  "site": {
+    "exit": 0,
+    "log": "build/qa/preview-site-final-2026-10-15.log",
+    "documents": 215,
+    "unresolved_fragments": []
+  }
+}
