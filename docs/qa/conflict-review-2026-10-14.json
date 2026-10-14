@@ -1,0 +1,129 @@
+{
+  "date": "2026-10-14",
+  "base": "ddd9b81b",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Exact stage-1/live working native base comparison shared by Delete/Modify and single ordinary Resolve selections; editable destination and guarded saves without index mutation",
+    "Cancellable Delete/Modify and Submodule metadata and Log validation; reject changed stages and checkout HEAD before publishing",
+    "Owned asynchronous Yes/No and Delete/Abort questions, shared bounded native progress/cancel/retry and action logging",
+    "Owner/generation-fenced Submodule Reset success retry/dismissal; source success closure; permission/Quit lifetime",
+    "Canonical filesystem conflict ownership for directory URL forms and symlink aliases, including submodule Reset target reads"
+  ],
+  "references": [
+    "src/TortoiseProc/DeleteConflictDlg.cpp",
+    "src/TortoiseProc/SubmoduleResolveConflictDlg.cpp",
+    "src/TortoiseProc/AppUtils.cpp:ConflictEdit",
+    "src/TortoiseProc/ProgressCommands/ResolveProgressCommand.cpp",
+    "src/Resources/TortoiseProcENG.rc:IDD_RESOLVE_CONFLICT/IDD_RESOLVESUBMODULECONFLICT"
+  ],
+  "validation": {
+    "initial_debug": {
+      "exit": 0,
+      "log": "build/qa/conflict-review-debug-2026-10-14.log",
+      "diagnostics": "Existing exit-zero/no-output compiler messages; no clean-diagnostics claim"
+    },
+    "initial_core": {
+      "exit": 1,
+      "tests": 18,
+      "failures": 1,
+      "log": "build/qa/conflict-review-core-2026-10-14.log",
+      "failure": "Fixture compared equivalent directory URL forms literally; assert canonical path instead"
+    },
+    "core_fixture_repair": {
+      "exit": 0,
+      "tests": 4,
+      "log": "build/qa/conflict-review-core-repair-2026-10-14.log"
+    },
+    "native_failed_attempts": [
+      {
+        "exit": 1,
+        "log": "build/qa/conflict-review-native-2026-10-14.log",
+        "owned_receivers_reaped": [
+          10612
+        ],
+        "failure": "Initial Delete read was rejected by literal URL ownership comparison; early fixture timeouts obscured the actual read error"
+      },
+      {
+        "exit": 1,
+        "log": "build/qa/conflict-review-native-repair-2026-10-14.log",
+        "owned_receivers_reaped": [
+          10698
+        ],
+        "failure": "Initial Delete read was rejected by literal URL ownership comparison; early fixture timeouts obscured the actual read error"
+      },
+      {
+        "exit": 1,
+        "log": "build/qa/conflict-review-native-diagnosis-2026-10-14.log",
+        "owned_receivers_reaped": [
+          10812
+        ],
+        "failure": "Initial Delete read was rejected by literal URL ownership comparison; early fixture timeouts obscured the actual read error"
+      },
+      {
+        "exit": 1,
+        "log": "build/qa/conflict-review-native-read-diagnosis-2026-10-14.log",
+        "owned_receivers_reaped": [
+          10929
+        ],
+        "failure": "Initial Delete read was rejected by literal URL ownership comparison; early fixture timeouts obscured the actual read error"
+      }
+    ],
+    "debug_owner_repair": {
+      "exit": 0,
+      "log": "build/qa/conflict-review-debug-owner-repair-2026-10-14.log"
+    },
+    "core": {
+      "exit": 0,
+      "tests": 29,
+      "families": [
+        "ConflictReviewTests",
+        "ConflictResolutionTests",
+        "DeleteConflictTests",
+        "SubmoduleConflictTests"
+      ],
+      "log": "build/qa/conflict-review-core-owner-repair-2026-10-14.log"
+    },
+    "native": {
+      "exit": 0,
+      "cases": 4,
+      "families": [
+        "conflict-review",
+        "resolve-progress"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "owned_receivers_reaped": [
+        13406,
+        13796,
+        13868,
+        14258
+      ],
+      "log": "build/qa/conflict-review-native-owner-repair-2026-10-14.log",
+      "evidence": [
+        "Native base/working editor document, real Subversion alignment, editable-side policy, live working-byte reload and parent-child close gate",
+        "Comparison save preserves raw conflict index and rejects replaced bytes/resolved stages in Core",
+        "Exact incoming-parent and checkout-HEAD child Log callbacks; actual Log windows were not opened",
+        "Real streaming add process cancellation before mutation preserves raw index; Modified stages reviewed contents without changing HEAD",
+        "Retired Use this question ignores duplicate late Yes callbacks",
+        "Reset dismissal blocks old callback; captured retry after real child Soft reset resolves exact selected gitlink without parent commit or subsequent child index/workfile mutation",
+        "Existing Resolve progress cancellation/ownership cases remain passing"
+      ]
+    },
+    "site": {
+      "exit": 0,
+      "documents": 200,
+      "unresolved_fragments": 0,
+      "log": "build/qa/conflict-review-site-2026-10-14.log"
+    }
+  },
+  "limits": [
+    "Native comparison Save button/keyboard and actual child Log/Reset windows are not exercised; save uses real Core API and Reset uses injected handoff plus real Git Soft reset",
+    "Owned Delete/Abort/kill sheet gestures and all mixed/uninitialized/missing-object conflict states remain incompletely accepted; relevant Core submodule deletion cases passed",
+    "Directory URL identity fix does not certify every repository factory/command or atomic snapshots against all external writers",
+    "Multiple Resolve selections still use unified output; remaining conflict menus, temporary merge artifact parity and drag/drop remain open",
+    "No new screenshots, physical light/dark/VoiceOver/signed Finder/sandbox/App Store certification",
+    "Focused local checks do not establish complete hosted CI or whole application completion"
+  ]
+}

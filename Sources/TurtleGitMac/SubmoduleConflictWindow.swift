@@ -5,71 +5,124 @@ import TurtleGitCore
 @MainActor final class SubmoduleConflictWindowController: NSWindowController, NSWindowDelegate {
     let model: SubmoduleConflictWindowModel
     var onClosed: () -> Void = {}
-    init(repository: GitRepository, access: RepositoryAccessLease?, path: String) {
-        model = SubmoduleConflictWindowModel(repository: repository, access: access, path: path)
+    private(set) var sheets: ConflictReviewSheets!
+    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, preferences: UserDefaults = .standard) {
+        model = SubmoduleConflictWindowModel(repository: repository, access: access, path: path, preferences: preferences)
         let size = NSSize(width: 780, height: 570)
         let window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "Submodule conflict – TurtleGit"; window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: SubmoduleConflictDialog(model: model))
-        window.minSize = NSSize(width: 690, height: 570)
+        window.contentViewController = NSHostingController(rootView: SubmoduleConflictDialog(model: model, operation: model.operation))
+        window.contentMinSize = NSSize(width: 690, height: 570)
         super.init(window: window); window.delegate = self
-        window.setContentSize(size); window.center(); model.close = { [weak window] in window?.close() }
-
+        window.setContentSize(size); window.center(); sheets = ConflictReviewSheets(window: window, operation: model.operation)
+        model.close = { [weak self] in self?.window?.performClose(nil) }
+        model.confirmChoice = { [weak self] in await self?.sheets.ask("Are you sure you want to mark the conflicted file(s) as resolved?", buttons: ["Yes", "No"]) == .alertFirstButtonReturn }
+        model.confirmDeletion = { [weak self] request in
+            await self?.sheets.ask("Delete submodule folder?", message: request.gitError + "\n\nMove “\(request.path)” to Trash to resolve its deletion?", buttons: ["Delete", "Abort"]) == .alertFirstButtonReturn
+        }
+        model.operation.confirmCancellation = { [weak self] reply in Task { reply(await self?.sheets.ask("The process is still running.", message: "Are you sure to abort?", buttons: ["Yes", "No"]) == .alertFirstButtonReturn) } }
         DialogGeometry.attach(window, identifier: "TurtleGit.SubmoduleConflict", legacyName: "TurtleGit.SubmoduleConflict")
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy }
-    func windowWillClose(_ notification: Notification) { onClosed() }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.abort(); return false }; return model.operation.canClose && sender.attachedSheet == nil }
+    func windowWillClose(_ notification: Notification) { guard model.operation.active else { return }; model.invalidate(); sheets.retire(); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class SubmoduleConflictWindowModel: ObservableObject {
     let repository: GitRepository
     let path: String
-    private let access: RepositoryAccessLease?
+    let operation: ConflictReviewOperation
+    var busy: Bool { operation.busy }
+    var error: String? { get { operation.error } set { operation.error = newValue } }
     @Published var details: SubmoduleConflictDetails?
-    @Published var busy = false
-    @Published var error: String?
+    private var reloadQueued = false, closeAfterRead = false
     var close: () -> Void = {}
     var onChanged: (String) -> Void = { _ in }
     var onLog: (GitRepository, String) -> Void = { _, _ in }
     var onReset: (GitRepository, String, @escaping () -> Void) -> Void = { _, _, _ in }
-    init(repository: GitRepository, access: RepositoryAccessLease?, path: String) { self.repository = repository; self.access = access; self.path = path }
-    func load() {
-        guard !busy else { return }; busy = true
-        Task { defer { busy = false }; do { details = try await repository.submoduleConflictDetails(path: path) } catch { self.error = error.localizedDescription } }
-    }
-    func log(_ side: SubmoduleConflictSide) {
-        guard !busy, side.canShowLog, let revision = side.revision, let checkout = details?.checkout else { return }
-        onLog(GitRepository(root: checkout, executable: repository.executable), revision)
-    }
-    func choose(_ side: SubmoduleConflictSide) {
-        guard !busy, let choice = side.choice, let details else { return }
-        let alert = NSAlert(); alert.messageText = "Are you sure you want to mark the conflicted file(s) as resolved?"
-        alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No")
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
-        apply(details.entry, choice: choice)
-    }
-    func apply(_ entry: ConflictEntry, choice: ResolveChoice) {
-        guard !busy else { return }; busy = true
-        Task {
-            defer { busy = false }
-            do {
-                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let output = try await repository.resolveConflicts([entry], using: choice, confirmSubmoduleDeletion: { request in await ConflictPrompts.deleteSubmodule(request) })
-                onChanged(output); close()
-            } catch ResolveFailure.cancelled {
-                Task { @MainActor [weak self] in self?.load() }
-            } catch ResolveFailure.submoduleCheckout {
-                do {
-                    let (root, revision) = try await repository.submoduleResetTarget(entry, using: choice)
-                    busy = false
-                    onReset(GitRepository(root: root, executable: repository.executable), revision) { [weak self] in self?.apply(entry, choice: choice) }
-                } catch { self.error = error.localizedDescription }
-            } catch { self.error = error.localizedDescription }
+    var confirmChoice: () async -> Bool = { false }
+    var confirmDeletion: @Sendable (SubmoduleDeletionRequest) async -> Bool = { request in await ConflictPrompts.deleteSubmodule(request) }
+    var readDetails: ((OperationCancellation) async throws -> SubmoduleConflictDetails)?
+    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, preferences: UserDefaults = .standard) {
+        self.repository = repository; self.path = path; operation = ConflictReviewOperation(repository: repository, access: access, preferences: preferences)
+        operation.onIdle = { [weak self] in
+            guard let self, self.operation.active, self.operation.canClose else { return }
+            // Upstream's chooser explicitly closes progress on success, independent
+            // of the general preference, then ends this chooser.
+            if self.closeAfterRead || self.operation.success { self.closeAfterRead = false; self.close() }
+            else if self.reloadQueued, !self.operation.showingProgress { self.reloadQueued = false; self.load() }
         }
     }
+    func invalidate() { reloadQueued = false; operation.invalidate() }
+    func abort() { guard operation.active else { return }; if busy { if !operation.showingProgress { closeAfterRead = true }; operation.cancel() } else if operation.canClose { close() } }
+    func back() { guard operation.canClose else { return }; operation.back(); details = nil; load() }
+    func load() {
+        guard operation.active else { return }
+        guard operation.canInteract else { reloadQueued = true; return }; reloadQueued = false
+        let token = operation.begin()
+        Task {
+            defer { operation.finish(token); withExtendedLifetime(operation.access) {} }
+            do {
+                try operation.checkAccess(); let value: SubmoduleConflictDetails
+                if let readDetails { value = try await readDetails(token) } else { value = try await repository.submoduleConflictDetails(path: path, cancellation: token) }
+                try token.check(); guard operation.live(token) else { return }; details = value
+            } catch { operation.fail(error, token: token) }
+        }
+    }
+    func log(_ side: SubmoduleConflictSide) {
+        guard operation.canInteract, side.canShowLog, let revision = side.revision, let original = details, let checkout = original.checkout,
+              [original.base, original.mine, original.theirs].contains(where: { $0.stage == side.stage && $0.revision == revision && $0.canShowLog }) else { return }
+        let token = operation.begin()
+        Task {
+            defer { operation.finish(token); withExtendedLifetime(operation.access) {} }
+            do {
+                try operation.checkAccess(); let current = try await repository.submoduleConflictDetails(path: path, cancellation: token)
+                guard current.entry == original.entry, current.checkout == checkout,
+                      [current.base, current.mine, current.theirs].contains(where: { $0.stage == side.stage && $0.revision == revision && $0.canShowLog }) else { throw ResolveFailure.stale }
+                try token.check(); guard operation.live(token) else { return }; onLog(GitRepository(root: checkout, executable: repository.executable), revision)
+            } catch { operation.fail(error, token: token) }
+        }
+    }
+    func choose(_ side: SubmoduleConflictSide) {
+        guard operation.canInteract, let choice = side.choice, let details,
+              [details.mine, details.theirs].contains(where: { $0.stage == side.stage && $0.revision == side.revision }) else { return }
+        let generation = operation.generation
+        Task {
+            let accepted = await confirmChoice()
+            guard operation.active, operation.generation == generation else { return }
+            if accepted { apply(details.entry, choice: choice) } else { operation.onIdle() }
+        }
+    }
+    func apply(_ entry: ConflictEntry, choice: ResolveChoice) {
+        guard operation.active, !busy, !operation.hasQuestion, !operation.hasChild, !operation.confirmingCancellation else { return }
+        let token = operation.begin(progress: true)
+        Task {
+            defer { operation.finish(token); withExtendedLifetime(operation.access) {} }
+            do {
+                let text = try await operation.stream(token) { [self] emit in
+                    try await repository.resolveConflicts([entry], using: choice, confirmSubmoduleDeletion: confirmDeletion, cancellation: token, onOutput: emit)
+                }
+                guard operation.live(token) else { return }; operation.complete(token); onChanged(text)
+            } catch ResolveFailure.submoduleCheckout {
+                guard operation.live(token), !token.isCancelled else { return }
+                do {
+                    let (root, revision) = try await repository.submoduleResetTarget(entry, using: choice, cancellation: token)
+                    try token.check(); guard operation.live(token) else { return }
+                    let generation = operation.generation; operation.hasChild = true
+                    onReset(GitRepository(root: root, executable: repository.executable), revision) { [weak self] in
+                        guard let self, self.operation.active, self.operation.generation == generation, self.operation.hasChild, !self.busy else { return }
+                        self.operation.hasChild = false; self.apply(entry, choice: choice)
+                    }
+                } catch { operation.fail(error, token: token) }
+            } catch {
+                guard operation.live(token) else { return }; operation.fail(error, token: token); onChanged(operation.output)
+            }
+        }
+    }
+    func dismissReset() { guard operation.active, operation.hasChild, !busy else { return }; operation.hasChild = false; back() }
 }
 private struct SubmoduleConflictDialog: View {
     @ObservedObject var model: SubmoduleConflictWindowModel
+    @ObservedObject var operation: ConflictReviewOperation
     func tint(_ type: SubmoduleChangeType) -> Color {
         switch type {
         case .fastForward: return Color(red: 211/255, green: 249/255, blue: 154/255)
@@ -102,9 +155,11 @@ private struct SubmoduleConflictDialog: View {
                     Text(side.subject).foregroundStyle(side.available ? Color.primary : Color.red).textSelection(.enabled).frame(maxWidth: .infinity, minHeight: base ? 28 : 42, alignment: .topLeading)
                 }
             }.padding(8).frame(maxWidth: .infinity, alignment: .leading)
-        }
+        }.disabled(!operation.canInteract)
     }
     var body: some View {
+        Group {
+        if operation.showingProgress { ConflictReviewProgressView(operation: operation, back: model.back) } else {
         VStack(spacing: 12) {
             HStack {
                 Text("Submodule \"\(model.path)\"").textSelection(.enabled).lineLimit(1).truncationMode(.middle)
@@ -114,7 +169,11 @@ private struct SubmoduleConflictDialog: View {
             if let details = model.details { section(details.base, base: true); section(details.mine); section(details.theirs) }
             else { ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity) }
             Spacer(minLength: 0)
-        }.padding(14).disabled(model.busy).onAppear { model.load() }
+            if model.busy { HStack { ProgressView().controlSize(.small); Text("Reading conflict metadata…"); Spacer(); Button("Cancel") { model.abort() } } }
+        }.padding(14)
+        }
+        }.onAppear { model.load() }
+        .background(Button("") { model.abort() }.keyboardShortcut(.cancelAction).hidden())
         .alert("Could not resolve submodule conflict", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
     }
 }

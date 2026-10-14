@@ -43,8 +43,11 @@ cannot be deleted through this dialog. No action commits or continues a merge,
 rebase or cherry-pick. The access lease stays alive; Store builds require covering
 repository scope.
 
-Show changes displays the stage-1-to-working-contents unified diff. Upstream opens
-its external side-by-side diff tool; that full editor remains unported. No adjacent
+Show changes now opens the native side-by-side comparison editor with exact
+stage-1 bytes and current working contents. The working pane is editable when
+its file type permits; saves retain index stages and reject replaced working
+bytes or resolved/stale conflicts. Configured external diff tools remain routed
+through the existing adapter. No adjacent
 .LOCAL/.REMOTE/.BASE temporary files are produced or blindly removed.
 
 Show log opens a distinct Log window scoped to the path and exact side commit.
@@ -83,6 +86,35 @@ interaction was ambiguous, and is not counted as a successful handoff.
 
 Native Created, both orientations/rebase/cherry-pick/revert, Delete execution,
 stale/error retry, Help, Escape/keyboard focus and parent refresh/selection need
-broader QA. Full side-by-side comparison, merge editor, temporary artifact ownership,
+broader QA. Remaining comparison/editor conditional states, temporary artifact ownership,
 submodule conflict chooser, Finder menu coverage and signed sandbox runtime remain
 pending. All dialog/control workflow records remain partial.
+
+## Conflict review family — 14 October 2026
+
+Delete/Modify, Submodule and single ordinary Resolve-base comparisons now share
+the native two-pane editor. Reads validate captured index stages before and after
+collecting bytes; reload preserves the captured base identity, while the working
+pane remains live. Save changes only reviewed working contents and uses the
+existing encoding, backup, empty-result and stale-byte safeguards. Adjacent merge
+temporary files are not created. The chooser retains its comparison controller;
+normal close is blocked until the child closes, and child close refreshes details.
+Multiple Resolve-base selections still use unified output.
+
+Delete/Modify now owns cancellable details, exact-side Log validation, comparison
+preparation and ordinary add/rm through settlement. Mutations show bounded,
+copyable Git output and optionally confirm Cancel. Success refreshes the caller
+and closes, retaining the source ordinary add/rm behavior; failures/cancellation
+keep progress for Back and a fresh details read. Retiring an owner cancels its
+work, settles its prompt once and prevents late rows/errors/handoffs. Abort during
+a metadata read cancels it and closes only after settlement. Global counters and
+covering repository permissions remain held until work settles.
+
+See [grouped conflict review evidence](qa/conflict-review-2026-10-14.json).
+Physical light/dark/input/VoiceOver and all conditional editor/Save/Trash/Reset
+variants remain open, as do signed Finder/sandbox/App Store and full port parity.
+
+Conflict ownership compares canonical filesystem paths rather than literal URL
+forms. A repository URL lacking a trailing slash or using a symlink alias now
+retains the same owner, while nested repositories and escaping parents remain
+subject to the existing containment and Git-top-level validation.

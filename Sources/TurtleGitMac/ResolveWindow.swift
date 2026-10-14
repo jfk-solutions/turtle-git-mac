@@ -8,6 +8,8 @@ import TurtleGitCore
     var onChanged: (String) -> Void = { _ in }
     var onCommit: () -> Void = {}
     private(set) var retired = false
+    var configureComparison: (FileComparisonWindowModel) -> Void = { _ in }
+    private(set) var baseComparison: FileComparisonWindowController?
     private var question: (UUID, NSAlert, (NSApplication.ModalResponse?) -> Void)?
     var presentQuestion: (NSWindow, NSAlert, @escaping (NSApplication.ModalResponse) -> Void) -> Bool = { owner, alert, reply in
         guard owner.attachedSheet == nil else { return false }; alert.beginSheetModal(for: owner, completionHandler: reply); return true
@@ -29,6 +31,16 @@ import TurtleGitCore
             guard let self, !self.retired, let window = self.window else { return }
             window.contentMinSize = NSSize(width: 660, height: 340)
             if window.frame.width < 660 || window.contentLayoutRect.height < 340 { window.setContentSize(NSSize(width: 780, height: 450)) }
+        }
+        model.onComparison = { [weak self] prepared in
+            guard let self, !self.retired, self.baseComparison == nil else { return }
+            let child = FileComparisonWindowController(repository: repository, access: access, conflict: prepared, preferences: preferences)
+            self.configureComparison(child.model); self.baseComparison = child; self.model.hasChild = true
+            child.onClosed = { [weak self] in
+                guard let self else { return }; self.baseComparison = nil; self.model.hasChild = false
+                if !self.retired { self.model.load() }
+            }
+            child.showWindow(nil); child.window?.makeKeyAndOrderFront(nil)
         }
         model.confirmCancellation = { [weak self] reply in
             Task { let answer = await self?.ask(title: "The process is still running.", message: "Are you sure to abort?", buttons: ["Yes", "No"]); reply(answer == .alertFirstButtonReturn) }
@@ -71,7 +83,7 @@ import TurtleGitCore
         return !model.hasQuestion && !model.hasChild && !model.confirmingCancellation && sender.attachedSheet == nil
     }
     func windowWillClose(_ notification: Notification) {
-        guard !retired else { return }; retired = true; model.invalidate()
+        guard !retired else { return }; retired = true; model.invalidate(); baseComparison?.close(); baseComparison = nil
         if let pending = question { finishQuestion(pending.0, answer: nil) }
         onClosed()
     }
@@ -118,6 +130,7 @@ import TurtleGitCore
     var onChanged: (String) -> Void = { _ in }
     var onFinished: (Int) -> Void = { _ in }
     var onProgress: () -> Void = {}
+    var onComparison: (ConflictBaseComparison) -> Void = { _ in }
     var onEdit: (String) -> Void = { _ in }
     var onSubmoduleReset: (GitRepository, String, @escaping () -> Void) -> Void = { _, _, _ in }
     var readConflicts: ((OperationCancellation) async throws -> ([ConflictEntry], Bool))?
@@ -278,6 +291,10 @@ import TurtleGitCore
             do {
                 let fresh = try await repository.conflicts(paths: selected.map(\.path), cancellation: token)
                 guard fresh == selected else { throw ResolveFailure.stale }
+                if selected.count == 1, !selected[0].isSubmodule, selected[0].stages.contains(where: { $0.number == 1 }) {
+                    let prepared = try await repository.conflictBaseComparison(selected[0], cancellation: token)
+                    guard live(token), !token.isCancelled else { return }; onComparison(prepared); return
+                }
                 let text = try await repository.run(["diff", "--no-ext-diff", "--no-textconv", "--no-color", "--base", "--"] + selected.map(\.path), cancellation: token).text
                 guard try await repository.conflicts(paths: selected.map(\.path), cancellation: token) == selected else { throw ResolveFailure.stale }
                 guard live(token), !token.isCancelled else { return }; patch = text

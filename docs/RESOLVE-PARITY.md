@@ -115,3 +115,8 @@ Validation evidence is recorded in
 Physical controls, full conflict-editor/menu parity, drag/drop, temporary merge
 artifacts and signed Finder/App Store execution remain open. This is a connected
 workflow batch, not complete Resolve or whole-app certification.
+
+Single ordinary Compare with base now opens the full native two-pane editor with
+captured stage-1 and editable working contents. Multiple selections retain the
+unified output sheet. Index-stale and working-byte-stale saves are rejected; see
+[the conflict review family](DELETE-CONFLICT-PARITY.md).

@@ -78,9 +78,32 @@ Native child Log handoff, Reset/resume from this chooser, resizing/persistence,
 uninitialized/error/rebase controls and all menu consumers still need broader QA.
 Missing-object handling and the full uninitialized decision table need further
 fixtures. Reverse gitlink-to-file replacement, registered submodule removal,
-multiple-item failure/recovery and other mixed type changes need broader QA. Full progress,
-cancellation and signed permissions for external submodule administrative directories
+multiple-item failure/recovery and other mixed type changes need broader QA. Remaining physical progress/Cancel variants and signed permissions for external submodule administrative directories
 remain pending. Child Log handoff attempts failed in the UI observer, so that
 workflow is still unverified. Native signed Finder icon appearance also remains pending.
 
 All 26 resource controls and related source files remain **partial**.
+
+## Owned chooser, progress and handoffs — 14 October 2026
+
+Use this now presents an owned asynchronous Yes/No sheet, replacing runModal.
+Failed nonempty submodule removal uses an owned Delete/Abort sheet with Abort as
+Return. Sheet retirement settles once; duplicate/late affirmative replies cannot
+start another mutation. Parent stages and selected checkout are revalidated after
+confirmation and during execution. Cancellable details include child subject,
+ancestry and checkout-HEAD reads; the snapshot also rejects a changed child HEAD
+or parent stages before publishing.
+
+The chooser shares live bounded/copyable Resolve progress, cancellation tokens
+and optional kill confirmation. Successful resolution closes progress and the
+chooser as upstream explicitly requests, independently of general auto-close.
+Cancellation/failure retains Back and fresh details. Log captures the displayed
+side then revalidates its availability before handing off the exact child hash.
+A mismatched checkout retains the captured choice across Reset. Cancelling or
+closing Reset returns to the chooser; an old callback cannot revive a dismissed
+or retired owner. Successful Reset retries only the captured original stages.
+
+Native/Core grouped evidence and its limits are in
+[the conflict review record](qa/conflict-review-2026-10-14.json).
+The existing type colors, three vertical groups and real stage-2/stage-3 identities
+are retained. No new screenshots or complete physical/signed acceptance is claimed.

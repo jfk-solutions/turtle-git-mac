@@ -733,7 +733,7 @@ import TurtleGitCore
                     if let self, self.root == root { self.output = output; Task { await self.refresh() } }
                 }
                 controller.model.onLog = { [weak self] child, revision in self?.showLog(repository: child, access: access, paths: [], endRevision: revision) }
-                controller.model.onReset = { [weak self] child, revision, done in self?.showReset(repository: child, access: access, revision: revision, completion: done) }
+                controller.model.onReset = { [weak self, weak controller] child, revision, done in self?.showReset(repository: child, access: access, revision: revision, completion: done, dismissed: { [weak controller] in controller?.model.dismissReset() }) }
                 submoduleConflictWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
             } catch { self.error = error.localizedDescription }
         }

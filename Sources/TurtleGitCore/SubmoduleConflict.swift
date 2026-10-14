@@ -26,28 +26,28 @@ public enum SubmoduleConflictFailure: LocalizedError {
     public var errorDescription: String? { "Choose a conflicted submodule to open this dialog." }
 }
 extension GitRepository {
-    public func submoduleConflictDetails(path: String) throws -> SubmoduleConflictDetails {
-        guard let entry = try conflicts(paths: [path]).first(where: { $0.path == path }) else { throw ResolveFailure.stale }
+    public func submoduleConflictDetails(path: String, cancellation: OperationCancellation? = nil) throws -> SubmoduleConflictDetails {
+        guard let entry = try conflicts(paths: [path], cancellation: cancellation).first(where: { $0.path == path }) else { throw ResolveFailure.stale }
         guard entry.isSubmodule else { throw SubmoduleConflictFailure.unsupported }
-        try validateConflicts([entry], using: .current)
+        try validateConflicts([entry], using: .current, cancellation: cancellation)
         let url = root.appendingPathComponent(path)
         let initialized = FileManager.default.fileExists(atPath: url.appendingPathComponent(".git").path)
         if initialized {
-            var bytes = try run(["-C", url.path, "rev-parse", "--show-toplevel"]).stdout
+            var bytes = try run(["-C", url.path, "rev-parse", "--show-toplevel"], cancellation: cancellation).stdout
             if bytes.last == 10 { bytes.removeLast() }
-            guard URL(fileURLWithPath: String(decoding: bytes, as: UTF8.self)).standardizedFileURL == url.standardizedFileURL else { throw ResolveFailure.outsideWorkingTree }
+            guard URL(fileURLWithPath: String(decoding: bytes, as: UTF8.self)).standardizedFileURL.resolvingSymlinksInPath().path == url.standardizedFileURL.resolvingSymlinksInPath().path else { throw ResolveFailure.outsideWorkingTree }
         }
         let originalBase = entry.stages.first { $0.number == 1 }
         let local = entry.stages.first { $0.number == 2 }, remote = entry.stages.first { $0.number == 3 }
         // Upstream compares destinations to the initialized checkout's HEAD, while
         // retaining the original conflict stages for validation before resolving.
-        var baseHash = initialized ? try run(["-C", url.path, "rev-parse", "--verify", "HEAD"]).text.trimmingCharacters(in: .newlines) : originalBase?.object
+        var baseHash = initialized ? try run(["-C", url.path, "rev-parse", "--verify", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) : originalBase?.object
         if !initialized, baseHash == nil, local != nil, remote == nil { baseHash = local?.object }
         func metadata(_ hash: String?) -> (String, Bool, Int64) {
             guard let hash else { return (initialized ? "" : "no submodule", initialized, 0) }
             guard initialized else { return ("not initialized", false, 0) }
             do {
-                let text = try run(["-C", url.path, "log", "--encoding=UTF-8", "-1", "--format=%ct %s", hash, "--"]).text.trimmingCharacters(in: .newlines)
+                let text = try run(["-C", url.path, "log", "--encoding=UTF-8", "-1", "--format=%ct %s", hash, "--"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
                 let parts = text.split(separator: " ", maxSplits: 1, omittingEmptySubsequences: false)
                 guard parts.count == 2, let time = Int64(parts[0]) else { return ("Could not read commit", false, 0) }
                 return (String(parts[1]), true, time)
@@ -63,8 +63,8 @@ extension GitRepository {
                 else if stage == nil { change = .deleteSubmodule }
                 else if baseHash == stage?.object { change = .identical }
                 else if baseInfo.1 && info.1, let baseHash, let hash = stage?.object {
-                    if (try? run(["-C", url.path, "merge-base", "--is-ancestor", baseHash, hash])) != nil { change = .fastForward }
-                    else if (try? run(["-C", url.path, "merge-base", "--is-ancestor", hash, baseHash])) != nil { change = .rewind }
+                    if (try? run(["-C", url.path, "merge-base", "--is-ancestor", baseHash, hash], cancellation: cancellation)) != nil { change = .fastForward }
+                    else if (try? run(["-C", url.path, "merge-base", "--is-ancestor", hash, baseHash], cancellation: cancellation)) != nil { change = .rewind }
                     else { change = info.2 > baseInfo.2 ? .newerTime : info.2 < baseInfo.2 ? .olderTime : .sameTime }
                 }
                 if !baseInfo.1 || !info.1 { change = .unknown }
@@ -84,12 +84,12 @@ extension GitRepository {
             }
             return SubmoduleConflictSide(stage: number, title: title, revision: stage?.object, subject: info.0, available: info.1, change: change)
         }
-        let rebase = try conflictIsRebase()
+        let rebase = try conflictIsRebase(cancellation: cancellation)
         var incomingTitle = "changes to-be-integrated"
         for reference in ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD"] {
-            if let hash = try? run(["rev-parse", "--verify", reference + "^{commit}"]).text.trimmingCharacters(in: .newlines) {
+            if let hash = try? run(["rev-parse", "--verify", reference + "^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) {
                 var identity = String(hash.prefix(7))
-                if reference == "MERGE_HEAD", let refs = try? run(["for-each-ref", "--points-at", hash, "--format=%(refname:short)", "refs/heads", "refs/remotes"]).text.split(separator: "\n"), let first = refs.first { identity = String(first) + ", " + identity }
+                if reference == "MERGE_HEAD", let refs = try? run(["for-each-ref", "--points-at", hash, "--format=%(refname:short)", "refs/heads", "refs/remotes"], cancellation: cancellation).text.split(separator: "\n"), let first = refs.first { identity = String(first) + ", " + identity }
                 incomingTitle = reference == "REVERT_HEAD" ? "Parent of " + identity : reference + " (" + identity + ")"
                 break
             }
@@ -97,6 +97,12 @@ extension GitRepository {
         let mine = side(rebase ? remote : local, number: rebase ? 3 : 2, title: rebase ? "Branch being rebased" : "HEAD")
         let theirs = side(rebase ? local : remote, number: rebase ? 2 : 3, title: rebase ? "Branch being rebased onto" : incomingTitle)
         let base = SubmoduleConflictSide(stage: 1, title: "Base", revision: baseHash, subject: baseInfo.0, available: baseInfo.1, change: .identical)
+        try cancellation?.check()
+        try validateConflicts([entry], using: .current, cancellation: cancellation)
+        if initialized {
+            let currentHead = try run(["-C", url.path, "rev-parse", "--verify", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+            guard currentHead == baseHash else { throw ResolveFailure.stale }
+        }
         return SubmoduleConflictDetails(entry: entry, checkout: initialized ? url : nil, base: base, mine: mine, theirs: theirs)
     }
 }

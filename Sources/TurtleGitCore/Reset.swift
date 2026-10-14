@@ -47,7 +47,7 @@ extension GitRepository {
         guard RepositoryAccessLease.pathIsContained(url, by: root), FileManager.default.fileExists(atPath: url.appendingPathComponent(".git").path) else { throw ResolveFailure.outsideWorkingTree }
         var bytes = try run(["-C", url.path, "rev-parse", "--show-toplevel"], cancellation: cancellation).stdout
         if bytes.last == 10 { bytes.removeLast() }
-        guard URL(fileURLWithPath: String(decoding: bytes, as: UTF8.self), isDirectory: true).standardizedFileURL == url.standardizedFileURL else { throw ResolveFailure.outsideWorkingTree }
+        guard URL(fileURLWithPath: String(decoding: bytes, as: UTF8.self), isDirectory: true).standardizedFileURL.resolvingSymlinksInPath().path == url.standardizedFileURL.resolvingSymlinksInPath().path else { throw ResolveFailure.outsideWorkingTree }
         try cancellation?.check()
         return (url, destination.object)
     }

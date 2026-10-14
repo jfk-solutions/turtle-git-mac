@@ -54,6 +54,10 @@ import TurtleGitCore
     convenience init(repository: GitRepository, access: RepositoryAccessLease?, snapshot: RevisionComparisonSnapshot, path: String) {
         self.init(model: FileComparisonWindowModel(repository: repository, access: access, snapshot: snapshot, path: path))
     }
+    convenience init(repository: GitRepository, access: RepositoryAccessLease?, conflict: ConflictBaseComparison, preferences: UserDefaults = .standard) {
+        let model = FileComparisonWindowModel(repository: repository, access: access, conflict: conflict)
+        model.comparisonDefaults = preferences; self.init(model: model)
+    }
     convenience init(images: ImageFileComparison, permissions: [RepositoryAccessLease]) {
         self.init(model: FileComparisonWindowModel(images: images, permissions: permissions))
     }
@@ -118,6 +122,9 @@ import TurtleGitCore
     var externalDidOpen: () -> Void = {}
     private let alternateTool = NSEvent.modifierFlags.contains(.shift)
     private var externalAttempted = false, retired = false
+    var openExternalComparison: (FileComparisonDocument, URL, [RepositoryAccessLease], Bool) async throws -> Bool = { document, root, permissions, alternate in
+        try await DiffToolApplication.open(document, root: root, permissions: permissions, alternate: alternate)
+    }
     @Published var document: FileComparisonDocument?
     var singleFileMode = false
     @Published var alignment: FileComparisonAlignment? { didSet { combinedCache = nil } }
@@ -654,6 +661,11 @@ import TurtleGitCore
         loader.onClosed = { [weak self] in self?.imageLoader = nil }
         loader.present(parent: window)
     }
+    private var conflictBaseEntry: ConflictEntry?
+    init(repository: GitRepository, access: RepositoryAccessLease?, conflict: ConflictBaseComparison) {
+        self.repository = repository; self.access = access; snapshot = conflict.snapshot; path = conflict.entry.path
+        conflictBaseEntry = conflict.entry
+    }
     private var changeSetDocument: FileComparisonDocument?
     init(repository: GitRepository, access: RepositoryAccessLease?, changeSets: CommitChangeSetComparison) {
         self.repository = repository; self.access = access
@@ -712,7 +724,10 @@ import TurtleGitCore
             do {
                 try await session.run(selectedCount: 0) { [self] token in
                     let value: FileComparisonDocument
-                    if let changeSetDocument {
+                    if let conflictBaseEntry, let repository {
+                        if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                        value = try await repository.conflictBaseComparison(conflictBaseEntry, cancellation: token).document
+                    } else if let changeSetDocument {
                         value = changeSetDocument
                     } else if let standaloneImages {
                         guard !GitRuntime.isAppStoreBuild || [standaloneImages.base, standaloneImages.destination].compactMap({ $0 }).allSatisfy({ file in workingPermissions.contains { $0.hasSecurityScope && $0.contains(file) } }) else { throw ImageFileComparisonFailure.filePermissionRequired }
@@ -730,7 +745,7 @@ import TurtleGitCore
                     guard !retired, !token.isCancelled else { return }
                     if !externalAttempted {
                         externalAttempted = true
-                        externalOpened = try await DiffToolApplication.open(value, root: snapshot.root, permissions: workingPermissions + [access].compactMap { $0 }, alternate: alternateTool)
+                        externalOpened = try await openExternalComparison(value, snapshot.root, workingPermissions + [access].compactMap { $0 }, alternateTool)
                         guard !externalOpened, !retired, !token.isCancelled else { return }
                 }
                 let adapted = value.usingMergeEncoding(preferUTF8: ComparisonTextEncoding.preferUTF8(from: comparisonDefaults))
@@ -879,7 +894,11 @@ import TurtleGitCore
                     else { choice = .keep }
                     let options = MergeFileSaveOptions(backupOriginal: MergeFileSaveOptions.backupEnabled(from: comparisonDefaults), emptyResult: choice)
                     let result: FileComparisonDocument
-                    if let historicalWorkingComparison {
+                    if let conflictBaseEntry, let repository {
+                        guard !base else { throw FileComparisonEditFailure.unsupported }
+                        if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                        result = try await repository.saveConflictBaseComparison(conflictBaseEntry, document: document, text: text, encoding: drafts?.encoding(base: base), options: options)
+                    } else if let historicalWorkingComparison {
                         try validateHistoricalWorkingAccess(historicalWorkingComparison)
                         guard base else { throw FileComparisonEditFailure.unsupported }
                         guard try authorizeWorkingReplacement(at: historicalWorkingComparison.workingFile) else { return }

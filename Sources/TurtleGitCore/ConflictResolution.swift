@@ -186,7 +186,7 @@ extension GitRepository {
             let existing = try CloneOptions.workingDirectory(for: parent)
             var bytes = try run(["-C", existing.path, "rev-parse", "--show-toplevel"], cancellation: cancellation).stdout
             if bytes.last == 10 { bytes.removeLast() }
-            guard URL(fileURLWithPath: String(decoding: bytes, as: UTF8.self), isDirectory: true).standardizedFileURL == root else { throw ResolveFailure.outsideWorkingTree }
+            guard URL(fileURLWithPath: String(decoding: bytes, as: UTF8.self), isDirectory: true).standardizedFileURL.resolvingSymlinksInPath().path == root.resolvingSymlinksInPath().path else { throw ResolveFailure.outsideWorkingTree }
             if entry.isSubmodule && !RepositoryAccessLease.pathIsContained(root.appendingPathComponent(entry.path), by: root) { throw ResolveFailure.outsideWorkingTree }
             if let destination = entry.stages.first(where: { $0.number == choice.rawValue }), destination.mode == "160000" {
                 let url = root.appendingPathComponent(entry.path)
