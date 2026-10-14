@@ -83,6 +83,7 @@ import TurtleGitCore
         DialogGeometry.attach(window, identifier: "TurtleGit.TwoFileDiff", legacyName: "TurtleGit.TwoFileDiff")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if model.cancelLoadForClose() { return false }
         guard sender.attachedSheet == nil, !model.busy, !model.confirmingQuit else { return false }
         guard model.dirty else { return true }
         let alert = NSAlert(); alert.messageText = "Save changes to “\(model.unsavedFilesDescription)” before closing?"
@@ -230,6 +231,8 @@ import TurtleGitCore
         controller.onClosed = { [weak self] in self?.regexList = nil; self?.refreshRegexFilters() }
         regexList = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
+    private var loadSession: FileListComparisonSession?
+    private var closeAfterLoad = false
     @Published var busy = false
     @Published var confirmingQuit = false
     @Published var error: String?
@@ -598,6 +601,7 @@ import TurtleGitCore
         snapshot = images.snapshot; path = images.destination?.path ?? images.base?.path ?? "Images"
     }
     func retireImageLoader() {
+        loadSession?.cancel(); closeAfterLoad = false
         lineWrapping.retire()
         patchCancellation?.cancel(); patchCancellation = nil; patchRequest = nil
         formatRequest = nil; previewRow = nil
@@ -640,6 +644,10 @@ import TurtleGitCore
             workingPermissions.contains { $0.hasSecurityScope && $0.contains(file) }
         }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
+    func cancelLoadForClose() -> Bool {
+        guard let loadSession else { return false }
+        closeAfterLoad = true; loadSession.cancel(); return true
+    }
     func load() {
         guard !retired, !busy, !confirmingQuit else { return }
         wrapLines = comparisonDefaults.bool(forKey: "TurtleGitMerge.WrapLines")
@@ -656,32 +664,41 @@ import TurtleGitCore
         reloadCommentProfiles = true
         generalPreferences = .load(from: comparisonDefaults); pendingLoadNavigation = generalPreferences.firstDifference
         initialScrollRow = nil; combinedScrollRow = nil; initialScrollSides = []
-        busy = true
+        let session = FileListComparisonSession(window: window, preferences: comparisonDefaults)
+        loadSession = session; busy = true
         Task {
             var externalOpened = false
-            defer { busy = false; if externalOpened, !retired { externalDidOpen() } }
+            defer {
+                if loadSession === session { loadSession = nil; busy = false }
+                if !retired {
+                    if externalOpened { externalDidOpen() }
+                    else if closeAfterLoad { closeAfterLoad = false; window?.performClose(nil) }
+                }
+                withExtendedLifetime(access) {}; withExtendedLifetime(workingPermissions) {}
+            }
             do {
-                let value: FileComparisonDocument
-                if let changeSetDocument {
-                    value = changeSetDocument
-                } else if let standaloneImages {
-                    guard !GitRuntime.isAppStoreBuild || [standaloneImages.base, standaloneImages.destination].compactMap({ $0 }).allSatisfy({ file in workingPermissions.contains { $0.hasSecurityScope && $0.contains(file) } }) else { throw ImageFileComparisonFailure.filePermissionRequired }
-                    value = try standaloneImages.read()
-                } else if let historicalWorkingComparison, let repository {
-                    try validateHistoricalWorkingAccess(historicalWorkingComparison)
-                    value = try await repository.comparisonFile(historicalWorkingComparison)
-                } else if let workingComparison {
-                    try validateWorkingAccess(workingComparison)
-                    value = try workingComparison.read()
-                } else if let repository {
-                    if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                    value = try await repository.comparisonFile(snapshot, path: path)
-                } else { throw RevisionComparisonFailure.selection }
-                guard !retired else { return }
-                if !externalAttempted {
-                    externalAttempted = true
-                    externalOpened = try await DiffToolApplication.open(value, root: snapshot.root, permissions: workingPermissions + [access].compactMap { $0 }, alternate: alternateTool)
-                    guard !externalOpened, !retired else { return }
+                try await session.run(selectedCount: 0) { [self] token in
+                    let value: FileComparisonDocument
+                    if let changeSetDocument {
+                        value = changeSetDocument
+                    } else if let standaloneImages {
+                        guard !GitRuntime.isAppStoreBuild || [standaloneImages.base, standaloneImages.destination].compactMap({ $0 }).allSatisfy({ file in workingPermissions.contains { $0.hasSecurityScope && $0.contains(file) } }) else { throw ImageFileComparisonFailure.filePermissionRequired }
+                        value = try standaloneImages.read()
+                    } else if let historicalWorkingComparison, let repository {
+                        try validateHistoricalWorkingAccess(historicalWorkingComparison)
+                        value = try await repository.comparisonFile(historicalWorkingComparison, cancellation: token)
+                    } else if let workingComparison {
+                        try validateWorkingAccess(workingComparison)
+                        value = try workingComparison.read()
+                    } else if let repository {
+                        if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                        value = try await repository.comparisonFile(snapshot, path: path, cancellation: token)
+                    } else { throw RevisionComparisonFailure.selection }
+                    guard !retired, !token.isCancelled else { return }
+                    if !externalAttempted {
+                        externalAttempted = true
+                        externalOpened = try await DiffToolApplication.open(value, root: snapshot.root, permissions: workingPermissions + [access].compactMap { $0 }, alternate: alternateTool)
+                        guard !externalOpened, !retired, !token.isCancelled else { return }
                 }
                 let adapted = value.usingMergeEncoding(preferUTF8: ComparisonTextEncoding.preferUTF8(from: comparisonDefaults))
                 document = adapted
@@ -694,7 +711,8 @@ import TurtleGitCore
                 rebuildAlignment(); resetHistory(); selectionRequest = nil
                 difference = -1
                 if imageComparison == nil { reloadEditorConfig() }
-            } catch { self.error = error.localizedDescription }
+                }
+            } catch { if !retired, !session.cancellation.isCancelled { self.error = error.localizedDescription } }
         }
     }
     func rebuildAlignment() {

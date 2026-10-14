@@ -310,6 +310,9 @@ completed history.
 
 Advanced’s **NoSortLocalBranchesFirst** changes branch ordering on the next
 reference load. **LogTooManyItemsThreshold** controls when Log suppresses an
-oversized changed-file list. **NumDiffWarning** controls Changed Files’ warning
-before opening multiple comparison or unified-diff windows; the minimum warning
-threshold is three, matching TortoiseGit.
+oversized changed-file list. **NumDiffWarning** controls the warning before opening multiple file viewers
+from Log, Commit, Working Tree, Add and Changed Files. Log’s parent groups count
+as one selected-file action. The minimum threshold is three, matching TortoiseGit.
+Closing the initiating window cancels pending confirmation and Git preparation.
+Aggregated unified patches remain a single viewer; Changed Files’ per-file
+unified command uses the many-viewer warning.

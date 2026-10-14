@@ -869,9 +869,9 @@ import TurtleGitCore
                 guard !controller.model.busy else { controller.window?.makeKeyAndOrderFront(nil); return }
                 controller.onClosed = { [weak self] in self?.addWindows.removeValue(forKey: key) }
                 controller.model.onAccepted = { [weak self] paths in self?.showAddProgress(repository: repository, access: access, paths: paths) }
-                controller.model.onPreview = { [weak self] path in self?.showWorkingFiles(repository: repository, access: access, paths: [path]) }
-                controller.model.onCompare = { [weak self] paths in self?.showWorkingFiles(repository: repository, access: access, paths: paths) }
-                controller.model.onCompareTwo = { [weak self] paths in self?.showWorkingFilePair(repository: repository, access: access, paths: paths) }
+                controller.model.onPreview = { [weak self, weak controller] path in guard let controller else { return }; self?.showWorkingFiles(repository: repository, access: access, paths: [path], owner: controller.window) }
+                controller.model.onCompare = { [weak self, weak controller] paths in guard let controller else { return }; self?.showWorkingFiles(repository: repository, access: access, paths: paths, owner: controller.window) }
+                controller.model.onCompareTwo = { [weak self, weak controller] paths in guard let controller else { return }; self?.showWorkingFilePair(repository: repository, access: access, paths: paths, owner: controller.window) }
                 controller.model.unifiedViewerBusy = { [weak self] in self?.addUnifiedWindows[key]?.model.busy == true || self?.addUnifiedWindows[key]?.window?.attachedSheet != nil }
                 controller.model.onUnifiedPatch = { [weak self] bytes, alternate in
                     guard let self else { return }
@@ -1295,122 +1295,121 @@ import TurtleGitCore
             self?.showSubmoduleDiff(repository: repository, access: access, path: path, from: from, to: to)
         }
     }
-    private func showWorkingFiles(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], amendToParent: Bool = false) {
-        guard !busy, !confirmingQuit else { return }; busy = true
-        let conflicts = paths.filter { path in entries.contains { $0.path == path && $0.state == .conflicted } }
-        for path in conflicts { showConflictEditor(repository: repository, access: access, path: path) }
-        let ordinary = paths.filter { !conflicts.contains($0) }
-        guard !ordinary.isEmpty else { busy = false; return }
+    var fileComparisonPreferences: UserDefaults = .standard
+    var fileComparisonQuestion: ((Int) async -> Bool)?
+    var fileComparisonPresentation: ((RevisionComparisonSnapshot, CommitFile) -> Void)?
+    private var fileComparisonSessions: [UUID: FileListComparisonSession] = [:]
+    private func prepareFileComparisons(repository: GitRepository, access: RepositoryAccessLease?, selectedCount: Int, owner: NSWindow?, operation: @escaping (OperationCancellation) async throws -> Void) {
+        guard !busy, !confirmingQuit else { return }
+        let id = UUID(), session = FileListComparisonSession(window: owner ?? NSApp.keyWindow ?? workspaceWindow, preferences: fileComparisonPreferences)
+        session.confirmation = fileComparisonQuestion
+        fileComparisonSessions[id] = session; busy = true
         Task {
-            defer { busy = false }
+            defer { fileComparisonSessions.removeValue(forKey: id); busy = false; withExtendedLifetime(access) {} }
             do {
-                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let snapshot = try await repository.workingFileComparison(paths: ordinary, amendToParent: amendToParent)
-                if snapshot.files.isEmpty { output = "No changes for the selected files."; return }
-                showFileComparisons(repository: repository, access: access, snapshot: snapshot)
-            } catch { self.error = error.localizedDescription }
-        }
-    }
-    private func showPreviousDiff(repository: GitRepository, access: RepositoryAccessLease?, path: String) {
-        guard !busy, !confirmingQuit else { return }; busy = true
-        Task {
-            defer { busy = false }
-            do {
-                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let base = try await repository.previousDiffBase(path: path)
-                guard !confirmingQuit else { return }
-                if base.directory {
-                    showRevisionComparison(repository: repository, access: access, from: .revision(base.revision), to: .workingTree, paths: [path])
-                } else {
-                    let snapshot = try await repository.revisionFileComparison(from: .revision(base.revision), to: .workingTree, paths: [path])
+                try await session.run(selectedCount: selectedCount) { [self] token in
                     guard !confirmingQuit else { return }
-                    showFileComparisons(repository: repository, access: access, snapshot: snapshot)
+                    if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                    try await operation(token)
                 }
-            } catch { self.error = error.localizedDescription }
+            } catch { if !session.cancellation.isCancelled, !confirmingQuit { self.error = error.localizedDescription } }
         }
     }
-    private func showWorkingFilePair(repository: GitRepository, access: RepositoryAccessLease?, paths: [String]) {
-        guard !busy, !confirmingQuit else { return }; busy = true
-        Task {
-            defer { busy = false }
-            do {
-                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let snapshot = try await repository.workingFilePairComparison(paths: paths)
-                showFileComparisons(repository: repository, access: access, snapshot: snapshot)
-            } catch { self.error = error.localizedDescription }
+    func showFileComparisons(repository: GitRepository, access: RepositoryAccessLease?, snapshot: RevisionComparisonSnapshot, owner: NSWindow? = nil) {
+        prepareFileComparisons(repository: repository, access: access, selectedCount: snapshot.files.count, owner: owner) { [self] token in
+            presentFileComparisons(repository: repository, access: access, snapshot: snapshot, cancellation: token)
         }
     }
-    private func showPreparedFileComparison(repository: GitRepository, access: RepositoryAccessLease?, marked: PreparedFileComparisonMark, current: PreparedFileComparisonMark) {
-        guard !busy, !confirmingQuit else { return }; busy = true
-        Task {
-            defer { busy = false }
-            do {
-                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                if let workingAccess = marked.workingAccess {
-                    if GitRuntime.isAppStoreBuild && (!workingAccess.permission.hasSecurityScope || !workingAccess.permission.contains(workingAccess.file)) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                    let key = "historical-working:" + UUID().uuidString
-                    let controller: FileComparisonWindowController
-                    if current.revision.isEmpty {
-                        let file = repository.root.appendingPathComponent(current.path)
-                        if GitRuntime.isAppStoreBuild && access?.contains(file) != true { throw RepositoryAccessFailure.securityScopeUnavailable }
-                        let comparison = try WorkingFileComparison(base: workingAccess.file, destination: file)
-                        _ = try comparison.read()
-                        controller = FileComparisonWindowController(comparison: comparison, permissions: [workingAccess.permission] + [access].compactMap { $0 })
-                    } else {
-                        let comparison = try await repository.historicalWorkingFileComparison(revision: current.revision, path: current.path, workingFile: workingAccess.file)
-                        controller = FileComparisonWindowController(repository: repository, access: access, comparison: comparison, permission: workingAccess.permission)
-                    }
-                    controller.onClosed = { [weak self] in self?.fileComparisonWindows.removeValue(forKey: key) }
-                    fileComparisonWindows[key] = controller
-                    controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
-                    _ = try comparisonMarkStore.consume(workingAccess.mark.id)
-                    try publishComparisonMark()
+    func showWorkingFiles(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], amendToParent: Bool = false, owner: NSWindow? = nil) {
+        let conflicts = paths.filter { path in entries.contains { $0.path == path && $0.state == .conflicted } }
+        let ordinary = paths.filter { !conflicts.contains($0) }
+        prepareFileComparisons(repository: repository, access: access, selectedCount: paths.count, owner: owner) { [self] token in
+            for path in conflicts {
+                guard !token.isCancelled, !confirmingQuit else { return }
+                showConflictEditor(repository: repository, access: access, path: path)
+            }
+            guard !ordinary.isEmpty else { return }
+            let snapshot = try await repository.workingFileComparison(paths: ordinary, amendToParent: amendToParent, cancellation: token)
+            if snapshot.files.isEmpty { output = "No changes for the selected files."; return }
+            presentFileComparisons(repository: repository, access: access, snapshot: snapshot, cancellation: token)
+        }
+    }
+    func showPreviousDiff(repository: GitRepository, access: RepositoryAccessLease?, path: String, owner: NSWindow? = nil) {
+        prepareFileComparisons(repository: repository, access: access, selectedCount: 1, owner: owner) { [self] token in
+            let base = try await repository.previousDiffBase(path: path, cancellation: token)
+            guard !confirmingQuit, !token.isCancelled else { return }
+            if base.directory {
+                showRevisionComparison(repository: repository, access: access, from: .revision(base.revision), to: .workingTree, paths: [path])
+            } else {
+                let snapshot = try await repository.revisionFileComparison(from: .revision(base.revision), to: .workingTree, paths: [path], cancellation: token)
+                guard !confirmingQuit, !token.isCancelled else { return }
+                presentFileComparisons(repository: repository, access: access, snapshot: snapshot, cancellation: token)
+            }
+        }
+    }
+    func showWorkingFilePair(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], owner: NSWindow? = nil) {
+        prepareFileComparisons(repository: repository, access: access, selectedCount: paths.count, owner: owner) { [self] token in
+            let snapshot = try await repository.workingFilePairComparison(paths: paths, cancellation: token)
+            presentFileComparisons(repository: repository, access: access, snapshot: snapshot, cancellation: token)
+        }
+    }
+    func showPreparedFileComparison(repository: GitRepository, access: RepositoryAccessLease?, marked: PreparedFileComparisonMark, current: PreparedFileComparisonMark, owner: NSWindow? = nil) {
+        prepareFileComparisons(repository: repository, access: access, selectedCount: 2, owner: owner) { [self] token in
+            if let workingAccess = marked.workingAccess {
+                if GitRuntime.isAppStoreBuild && (!workingAccess.permission.hasSecurityScope || !workingAccess.permission.contains(workingAccess.file)) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                guard !token.isCancelled, !confirmingQuit else { return }
+                let key = "historical-working:" + UUID().uuidString
+                let controller: FileComparisonWindowController
+                if current.revision.isEmpty {
+                    let file = repository.root.appendingPathComponent(current.path)
+                    if GitRuntime.isAppStoreBuild && access?.contains(file) != true { throw RepositoryAccessFailure.securityScopeUnavailable }
+                    let comparison = try WorkingFileComparison(base: workingAccess.file, destination: file)
+                    _ = try comparison.read()
+                    controller = FileComparisonWindowController(comparison: comparison, permissions: [workingAccess.permission] + [access].compactMap { $0 })
                 } else {
-                    let snapshot = try await repository.preparedPathComparison(from: marked.revision.isEmpty ? .workingTree : .revision(marked.revision), fromPath: marked.path, to: current.revision.isEmpty ? .workingTree : .revision(current.revision), toPath: current.path)
-                    showFileComparisons(repository: repository, access: access, snapshot: snapshot)
+                    let comparison = try await repository.historicalWorkingFileComparison(revision: current.revision, path: current.path, workingFile: workingAccess.file, cancellation: token)
+                    controller = FileComparisonWindowController(repository: repository, access: access, comparison: comparison, permission: workingAccess.permission)
                 }
-            } catch { self.error = error.localizedDescription }
+                guard !token.isCancelled, !confirmingQuit else { return }
+                controller.onClosed = { [weak self] in self?.fileComparisonWindows.removeValue(forKey: key) }
+                fileComparisonWindows[key] = controller
+                controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+                _ = try comparisonMarkStore.consume(workingAccess.mark.id)
+                try publishComparisonMark()
+            } else {
+                let snapshot = try await repository.preparedPathComparison(from: marked.revision.isEmpty ? .workingTree : .revision(marked.revision), fromPath: marked.path, to: current.revision.isEmpty ? .workingTree : .revision(current.revision), toPath: current.path, cancellation: token)
+                presentFileComparisons(repository: repository, access: access, snapshot: snapshot, cancellation: token)
+            }
         }
     }
-    private func showHistoricalFilePair(repository: GitRepository, access: RepositoryAccessLease?, revision: String, files: [CommitFile]) {
-        guard !busy, !confirmingQuit else { return }; busy = true
-        Task {
-            defer { busy = false }
-            do {
-                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let snapshot = try await repository.historicalFilePairComparison(revision: revision, files: files)
-                showFileComparisons(repository: repository, access: access, snapshot: snapshot)
-            } catch { self.error = error.localizedDescription }
+    func showHistoricalFilePair(repository: GitRepository, access: RepositoryAccessLease?, revision: String, files: [CommitFile], owner: NSWindow? = nil) {
+        prepareFileComparisons(repository: repository, access: access, selectedCount: files.count, owner: owner) { [self] token in
+            let snapshot = try await repository.historicalFilePairComparison(revision: revision, files: files, cancellation: token)
+            presentFileComparisons(repository: repository, access: access, snapshot: snapshot, cancellation: token)
         }
     }
-    private func showGroupedHistoricalFiles(repository: GitRepository, access: RepositoryAccessLease?, requests: [(ComparisonRevision, ComparisonRevision, [String])]) {
-        guard !busy, !confirmingQuit, !requests.isEmpty else { return }; busy = true
-        Task {
-            defer { busy = false }
-            do {
-                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                var snapshots: [RevisionComparisonSnapshot] = []
-                for (from, to, paths) in requests {
-                    snapshots.append(try await repository.revisionFileComparison(from: from, to: to, paths: paths))
-                }
-                for snapshot in snapshots { showFileComparisons(repository: repository, access: access, snapshot: snapshot) }
-            } catch { self.error = error.localizedDescription }
+    func showGroupedHistoricalFiles(repository: GitRepository, access: RepositoryAccessLease?, requests: [(ComparisonRevision, ComparisonRevision, [String])], owner: NSWindow? = nil) {
+        guard !requests.isEmpty else { return }
+        prepareFileComparisons(repository: repository, access: access, selectedCount: requests.reduce(0) { $0 + $1.2.count }, owner: owner) { [self] token in
+            var snapshots: [RevisionComparisonSnapshot] = []
+            for (from, to, paths) in requests {
+                guard !token.isCancelled, !confirmingQuit else { return }
+                snapshots.append(try await repository.revisionFileComparison(from: from, to: to, paths: paths, cancellation: token))
+            }
+            for snapshot in snapshots { presentFileComparisons(repository: repository, access: access, snapshot: snapshot, cancellation: token) }
         }
     }
-    private func showHistoricalFiles(repository: GitRepository, access: RepositoryAccessLease?, from: ComparisonRevision, to: ComparisonRevision, paths: [String]) {
-        guard !busy, !confirmingQuit else { return }; busy = true
-        Task {
-            defer { busy = false }
-            do {
-                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let snapshot = try await repository.revisionFileComparison(from: from, to: to, paths: paths)
-                if snapshot.files.isEmpty { output = "No files exist at the selected comparison paths."; return }
-                showFileComparisons(repository: repository, access: access, snapshot: snapshot)
-            } catch { self.error = error.localizedDescription }
+    func showHistoricalFiles(repository: GitRepository, access: RepositoryAccessLease?, from: ComparisonRevision, to: ComparisonRevision, paths: [String], owner: NSWindow? = nil) {
+        prepareFileComparisons(repository: repository, access: access, selectedCount: paths.count, owner: owner) { [self] token in
+            let snapshot = try await repository.revisionFileComparison(from: from, to: to, paths: paths, cancellation: token)
+            if snapshot.files.isEmpty { output = "No files exist at the selected comparison paths."; return }
+            presentFileComparisons(repository: repository, access: access, snapshot: snapshot, cancellation: token)
         }
     }
-    private func showFileComparisons(repository: GitRepository, access: RepositoryAccessLease?, snapshot: RevisionComparisonSnapshot) {
+    private func presentFileComparisons(repository: GitRepository, access: RepositoryAccessLease?, snapshot: RevisionComparisonSnapshot, cancellation: OperationCancellation) {
         for file in snapshot.files {
+            guard !confirmingQuit, !cancellation.isCancelled else { return }
+            if let fileComparisonPresentation { fileComparisonPresentation(snapshot, file); continue }
             if file.isSubmodule {
                 showSubmoduleDiff(repository: repository, access: access, path: file.path, from: snapshot.from == .emptyTree ? "" : snapshot.from.label, to: snapshot.to == .workingTree ? nil : snapshot.to == .emptyTree ? "" : snapshot.to.label)
                 continue
@@ -1497,8 +1496,9 @@ import TurtleGitCore
         let controller = statusWindows[root.path] ?? StatusWindowController(repository: repository, access: access)
         controller.onPullAfterLFSLock = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
         controller.onClosed = { [weak self] in self?.statusWindows.removeValue(forKey: root.path) }
-        controller.model.onAction = { [weak self] action, paths in
+        controller.model.onAction = { [weak self, weak controller] action, paths in
             guard let self else { return }
+            if action == .diff { self.showWorkingFiles(repository: repository, access: access, paths: paths, owner: controller?.window); return }
             if self.root != root, let access {
                 self.openSession(access, action: action, actionPaths: paths); return
             }
@@ -1507,7 +1507,7 @@ import TurtleGitCore
         }
         controller.model.onSubmoduleLog = { [weak self] child in self?.showLog(repository: child, access: access, paths: []) }
         controller.model.onBlame = { [weak self] path in self?.showBlame(repository: repository, access: access, path: path, revision: "HEAD") }
-        controller.model.onCompareTwoFiles = { [weak self] paths in self?.showWorkingFilePair(repository: repository, access: access, paths: paths) }
+        controller.model.onCompareTwoFiles = { [weak self, weak controller] paths in guard let controller else { return }; self?.showWorkingFilePair(repository: repository, access: access, paths: paths, owner: controller.window) }
         controller.model.onChanged = { [weak self] in Task { await self?.refresh() } }
         statusWindows[root.path] = controller
         controller.model.setScope(paths)
@@ -1537,12 +1537,12 @@ import TurtleGitCore
             }
         }
         controller.model.onBisect = { [weak self] request in self?.showBisect(repository: repository, access: access, good: request.good, bad: request.bad, operation: request.operation, revisions: request.revisions, requireStart: request.operation == nil) }
-        controller.model.onCombineRevisions = { [weak self, weak controller] entries, offset, head in self?.showHistoryCombine(repository: repository, access: access, entries: entries, offset: offset, head: head, owner: controller?.window) }
+        controller.model.onCombineRevisions = { [weak self, weak controller] entries, offset, head in guard let controller else { return }; self?.showHistoryCombine(repository: repository, access: access, entries: entries, offset: offset, head: head, owner: controller.window) }
         controller.model.onFormatPatch = { [weak self] preset in self?.showFormatPatch(repository: repository, access: access, preset: preset) }
         controller.model.onMergeRevision = { [weak self] hash in self?.showMerge(repository: repository, access: access, revision: hash) }
         controller.model.onRebaseRevision = { [weak self] upstream in self?.showRebase(repository: repository, access: access, upstream: upstream) }
         controller.model.onCherryPick = { [weak self] commits in self?.showRebase(repository: repository, access: access, cherryPick: commits) }
-        controller.model.onRevertRevisions = { [weak self, weak controller] entries, mainline in self?.showHistoryRevert(repository: repository, access: access, entries: entries, mainline: mainline, owner: controller?.window) }
+        controller.model.onRevertRevisions = { [weak self, weak controller] entries, mainline in guard let controller else { return }; self?.showHistoryRevert(repository: repository, access: access, entries: entries, mainline: mainline, owner: controller.window) }
         controller.model.onApply = { [weak self] hash in self?.showStashRestore(repository: repository, access: access, pop: false, reference: hash) }
         controller.model.onChanged = { [weak self] output in
             self?.refreshRepositoryLogs(root)
@@ -1648,7 +1648,7 @@ import TurtleGitCore
         controller.onClosed = { [weak self] in self?.browserWindows.removeValue(forKey: key) }
         controller.model.onLog = { [weak self] path, hash in self?.showLog(repository: repository, access: access, paths: path.isEmpty ? [] : [path], endRevision: hash) }
         controller.model.onBlame = { [weak self] path, hash in self?.showBlame(repository: repository, access: access, path: path, revision: hash) }
-        controller.model.onCompare = { [weak self] path, hash in self?.showHistoricalFiles(repository: repository, access: access, from: .revision(hash), to: .workingTree, paths: [path]) }
+        controller.model.onCompare = { [weak self, weak controller] path, hash in guard let controller else { return }; self?.showHistoricalFiles(repository: repository, access: access, from: .revision(hash), to: .workingTree, paths: [path], owner: controller.window) }
         controller.model.onChanged = { [weak self] in
             guard let self else { return }
             self.statusWindows[repository.root.path]?.model.reload()
@@ -1656,7 +1656,7 @@ import TurtleGitCore
             if self.root == repository.root { Task { await self.refresh() } }
         }
         controller.model.importWorkingComparisonMark(try? comparisonMarkStore.acquire(requireSecurityScope: GitRuntime.isAppStoreBuild))
-        controller.model.onPreparedFileCompare = { [weak self] marked, current in self?.showPreparedFileComparison(repository: repository, access: access, marked: marked, current: current) }
+        controller.model.onPreparedFileCompare = { [weak self, weak controller] marked, current in guard let controller else { return }; self?.showPreparedFileComparison(repository: repository, access: access, marked: marked, current: current, owner: controller.window) }
         controller.model.onSubmoduleUpdate = { [weak self] path in
             self?.showSubmoduleUpdate(repository:repository,access:access,scope:[],selected:[path])
         }
@@ -1676,7 +1676,7 @@ import TurtleGitCore
     private func configureBlameRoutes(_ controller:BlameWindowController) {
         let repository=controller.model.repository,access=controller.model.repositoryAccess
         controller.model.onLog={ [weak self] origin,hash in self?.showLog(repository:repository,access:access,paths:[origin],endRevision:hash) }
-        controller.model.onChanges={ [weak self] snapshot in self?.showFileComparisons(repository:repository,access:access,snapshot:snapshot) }
+        controller.model.onChanges={ [weak self, weak controller] snapshot in guard let controller else { return }; self?.showFileComparisons(repository:repository,access:access,snapshot:snapshot,owner:controller.window) }
         controller.model.onPrevious={ [weak self] origin,hash,number,inherited in self?.showBlame(repository:repository,access:access,path:origin,revision:hash,line:number,options:inherited) }
     }
     private func showBlame(repository:GitRepository,access:RepositoryAccessLease?,path:String,revision:String,line:Int? = nil,options:GitBlameOptions? = nil) {
@@ -1779,8 +1779,8 @@ import TurtleGitCore
         controller.model.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
         controller.model.onHistoryPush = { [weak self] revision, preserveAllBranches in self?.showPush(repository: repository, access: access, source: revision, preserveAllBranches: preserveAllBranches) }
         controller.model.onHistoryPull = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
-        controller.model.onCombineRevisions = { [weak self, weak controller] entries, offset, head in self?.showHistoryCombine(repository: repository, access: access, entries: entries, offset: offset, head: head, owner: controller?.window) }
-        controller.model.onRevertRevisions = { [weak self, weak controller] entries, mainline in self?.showHistoryRevert(repository: repository, access: access, entries: entries, mainline: mainline, owner: controller?.window) }
+        controller.model.onCombineRevisions = { [weak self, weak controller] entries, offset, head in guard let controller else { return }; self?.showHistoryCombine(repository: repository, access: access, entries: entries, offset: offset, head: head, owner: controller.window) }
+        controller.model.onRevertRevisions = { [weak self, weak controller] entries, mainline in guard let controller else { return }; self?.showHistoryRevert(repository: repository, access: access, entries: entries, mainline: mainline, owner: controller.window) }
         controller.model.onFormatPatch = { [weak self] preset in self?.showFormatPatch(repository: repository, access: access, preset: preset) }
         controller.model.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
         controller.model.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
@@ -1806,8 +1806,8 @@ import TurtleGitCore
         }
         controller.model.onCompare = { [weak self] from, to in self?.showRevisionComparison(repository: repository, access: access, from: from, to: to) }
         controller.model.importWorkingComparisonMark(try? comparisonMarkStore.acquire(requireSecurityScope: GitRuntime.isAppStoreBuild))
-        controller.model.onPreparedFileCompare = { [weak self] marked, current in self?.showPreparedFileComparison(repository: repository, access: access, marked: marked, current: current) }
-        controller.model.onFilePairCompare = { [weak self] revision, files in self?.showHistoricalFilePair(repository: repository, access: access, revision: revision, files: files) }
+        controller.model.onPreparedFileCompare = { [weak self, weak controller] marked, current in guard let controller else { return }; self?.showPreparedFileComparison(repository: repository, access: access, marked: marked, current: current, owner: controller.window) }
+        controller.model.onFilePairCompare = { [weak self, weak controller] revision, files in guard let controller else { return }; self?.showHistoricalFilePair(repository: repository, access: access, revision: revision, files: files, owner: controller.window) }
         controller.model.onWorkingFiles = { [weak self] action, paths in
             if action == .add { self?.showAdd(repository: repository, access: access, paths: paths) }
             else if action == .commit { self?.showCommitDialog(repository: repository, access: access, paths: paths) }
@@ -1819,13 +1819,13 @@ import TurtleGitCore
         controller.model.onIgnoreFiles = { [weak self] action, paths in
             self?.showIgnore(repository: repository, access: access, paths: paths, action: action)
         }
-        controller.model.onWorkingFilePairCompare = { [weak self] paths in self?.showWorkingFilePair(repository: repository, access: access, paths: paths) }
+        controller.model.onWorkingFilePairCompare = { [weak self, weak controller] paths in guard let controller else { return }; self?.showWorkingFilePair(repository: repository, access: access, paths: paths, owner: controller.window) }
         controller.model.onConflictAction = { [weak self] action, paths in
             if action == .editConflict, let path = paths.first { self?.showConflictEditor(repository: repository, access: access, path: path) }
             else { self?.showResolve(repository: repository, access: access, paths: paths, quick: action.resolveChoice) }
         }
-        controller.model.onFileCompare = { [weak self] from, to, paths in self?.showHistoricalFiles(repository: repository, access: access, from: from, to: to, paths: paths) }
-        controller.model.onFileComparisons = { [weak self] requests in self?.showGroupedHistoricalFiles(repository: repository, access: access, requests: requests) }
+        controller.model.onFileCompare = { [weak self, weak controller] from, to, paths in guard let controller else { return }; self?.showHistoricalFiles(repository: repository, access: access, from: from, to: to, paths: paths, owner: controller.window) }
+        controller.model.onFileComparisons = { [weak self, weak controller] requests in guard let controller else { return }; self?.showGroupedHistoricalFiles(repository: repository, access: access, requests: requests, owner: controller.window) }
         controller.model.onFileLog = { [weak self] path, hash in self?.showLog(repository: repository, access: access, paths: [path], endRevision: hash) }
         controller.model.onSubmoduleFileLog = { [weak self] checkout, hash in
             let child = GitRepository(root: checkout, executable: repository.executable)
@@ -1997,11 +1997,13 @@ import TurtleGitCore
             guard !GitRuntime.isAppStoreBuild || access?.hasSecurityScope == true && access?.contains(checkout) == true else { self?.error = RepositoryAccessFailure.securityScopeUnavailable.localizedDescription; return }
             self?.showCommitDialog(repository: GitRepository(root: checkout, executable: repository.executable), access: access, paths: [])
         }
-        model.onCompare = { [weak self] paths, amendToParent in
-            self?.showWorkingFiles(repository: repository, access: access, paths: paths, amendToParent: amendToParent)
+        model.onCompare = { [weak self, weak model] paths, amendToParent in
+            guard let model, model.messageFocusAvailable else { return }
+            self?.showWorkingFiles(repository: repository, access: access, paths: paths, amendToParent: amendToParent, owner: model.comparisonWindow)
         }
-        model.onCompareTwoFiles = { [weak self] paths in
-            self?.showWorkingFilePair(repository: repository, access: access, paths: paths)
+        model.onCompareTwoFiles = { [weak self, weak model] paths in
+            guard let model, model.messageFocusAvailable else { return }
+            self?.showWorkingFilePair(repository: repository, access: access, paths: paths, owner: model.comparisonWindow)
         }
         model.onSubmoduleLog = { [weak self] child in self?.showLog(repository: child, access: access, paths: []) }
         model.onFileLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }

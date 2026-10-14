@@ -87,7 +87,7 @@ final class StatusNativeWindow: NSWindow {
         window.title = "\(repository.root.lastPathComponent) – Working Tree – TurtleGit"
         window.minSize = NSSize(width: 960, height: 540); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: StatusDialog(model: model))
-        super.init(window: window); window.delegate = self
+        super.init(window: window); model.comparisonWindow = window; window.delegate = self
         window.refresh = { [weak model] in model?.reload() }
         window.setContentSize(NSSize(width: 1100, height: 630)); window.center()
         model.close = { [weak window] in window?.performClose(nil) }
@@ -202,6 +202,8 @@ final class StatusNativeWindow: NSWindow {
     @Published var busy = false
     @Published var confirmingQuit = false
     @Published var error: String?
+    var onUnifiedDiff: ((Data, Bool) async throws -> Void)?
+    weak var comparisonWindow: NSWindow?
     var unifiedWindow: PatchWindowController?
     var unifiedViewerBusy: Bool { unifiedWindow?.model.busy == true || unifiedWindow?.window?.attachedSheet != nil }
     var close: () -> Void = {}
@@ -416,12 +418,17 @@ final class StatusNativeWindow: NSWindow {
         guard !unifiedViewerBusy else { return }
         let paths = sortedRows.filter { ids.contains($0.id) }.map(\.id)
         guard !paths.isEmpty else { return }
+        let owner = comparisonWindow
         runOperation("Preparing unified diff…", operation: { [self] token in
-            let bytes = try await repository.workingTreeDiffData(paths: paths, cancellation: token)
-            guard isLive(token) else { return }
-            if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
+            let session = FileListComparisonSession(window: owner, preferences: defaults, cancellation: token)
+            try await session.run(selectedCount: 0) { [self] token in
+                let bytes = try await repository.workingTreeDiffData(paths: paths, cancellation: token)
                 guard isLive(token) else { return }
-                unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "HEAD → Working tree", onClosed: { [weak self] in self?.unifiedWindow = nil })
+                if let onUnifiedDiff { try await onUnifiedDiff(bytes, alternate) }
+                else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
+                    guard isLive(token) else { return }
+                    unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "HEAD → Working tree", onClosed: { [weak self] in self?.unifiedWindow = nil })
+            }
             }
         })
     }

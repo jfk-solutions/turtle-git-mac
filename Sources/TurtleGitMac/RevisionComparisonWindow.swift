@@ -28,12 +28,6 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         model.pickHistory = { [weak self] side, reflog in self?.showHistoryPicker(side: side, reflog: reflog) }
         model.window = window; window.refresh = { [weak model] in model?.load() }
 
-        model.confirmManyDiffs = { [weak window] count in
-            guard let window, window.attachedSheet == nil else { return false }
-            let alert = NSAlert(); alert.messageText = "Open diffs for \(count) files?"
-            alert.informativeText = "Each selected file opens in its own viewer."; alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No")
-            return await withCheckedContinuation { reply in alert.beginSheetModal(for: window) { reply.resume(returning: $0 == .alertFirstButtonReturn) } }
-        }
         DialogGeometry.attach(window, identifier: "FileDiffDialog", legacyName: "FileDiffDialog")
     }
     private func showHistoryPicker(side: ComparisonSide, reflog: Bool) {
@@ -88,12 +82,13 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     private var patchGeneration = 0
     private(set) static var activeFileOperations = 0
     private let preferences: UserDefaults
-    var confirmManyDiffs: (Int) async -> Bool = { _ in false }
+    var confirmManyDiffs: ((Int) async -> Bool)?
     var openComparedFile: ((RevisionComparisonSnapshot, CommitFile) -> Void)?
+    private var comparisonSessions: [UUID: FileListComparisonSession] = [:]
     private var patchTokens: [UUID: OperationCancellation] = [:]
     private var loadToken: OperationCancellation?
     private(set) var closed = false
-    func invalidate() { closed = true; patchTokens.values.forEach { $0.cancel() }; patchTokens.removeAll(); loadToken?.cancel(); loadToken = nil; patchGeneration += 1; busy = false }
+    func invalidate() { closed = true; comparisonSessions.values.forEach { $0.cancel() }; patchTokens.values.forEach { $0.cancel() }; patchTokens.removeAll(); loadToken?.cancel(); loadToken = nil; patchGeneration += 1; busy = false }
     var onLog: (String?) -> Void = { _ in }
     var onFileLog: (String, String?) -> Void = { _, _ in }
     var onSubmoduleCompare: (String, ComparisonRevision, ComparisonRevision) -> Void = { _, _, _ in }
@@ -158,15 +153,19 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     }
     private func runFiles(_ files: [CommitFile], operation: @escaping (OperationCancellation) async -> Void) {
         guard !closed, !busy, !confirmingQuit, !files.isEmpty else { return }
-        let request = UUID(), token = OperationCancellation(); patchTokens[request] = token; busy = true; Self.activeFileOperations += 1
+        let request = UUID(), session = FileListComparisonSession(window: window, preferences: preferences)
+        session.confirmation = confirmManyDiffs; comparisonSessions[request] = session
+        patchTokens[request] = session.cancellation; busy = true; Self.activeFileOperations += 1
         Task {
-            defer { Self.activeFileOperations -= 1; patchTokens.removeValue(forKey: request); if !closed { busy = false }; withExtendedLifetime(access) {} }
-            if AdvancedListBehavior(defaults: preferences).warnsBeforeDiffs(count: files.count) {
-                guard await confirmManyDiffs(files.count), !closed, !token.isCancelled else { return }
-            }
-            guard !closed, !token.isCancelled else { return }; await operation(token)
+            defer { Self.activeFileOperations -= 1; comparisonSessions.removeValue(forKey: request); patchTokens.removeValue(forKey: request); if !closed { busy = false }; withExtendedLifetime(access) {} }
+            do {
+                try await session.run(selectedCount: files.count) { [self] token in
+                    guard !closed, !confirmingQuit, !token.isCancelled else { return }; await operation(token)
+                }
+            } catch { if !closed, !session.cancellation.isCancelled { self.error = error.localizedDescription } }
         }
     }
+
     func compare(_ ids: Set<String>) {
         guard !closed, !busy, !confirmingQuit, let snapshot else { return }
         let files = visibleFiles.filter { ids.contains($0.path) }

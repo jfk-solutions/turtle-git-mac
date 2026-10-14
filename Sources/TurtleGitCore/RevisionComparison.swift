@@ -60,25 +60,30 @@ extension GitRepository {
     }
     /// Ordinary file Diff uses HEAD-to-working content, including staged edits.
     /// Explicit untracked selections use an empty base without staging them.
-    public func workingFileComparison(paths: [String], amendToParent: Bool = false) throws -> RevisionComparisonSnapshot {
+    public func workingFileComparison(paths: [String], amendToParent: Bool = false, cancellation: OperationCancellation? = nil) throws -> RevisionComparisonSnapshot {
+        try cancellation?.check()
+        func read(_ args: [String], successfulExitCodes: ClosedRange<Int32> = 0...0) throws -> GitResult {
+            try run(args, successfulExitCodes: successfulExitCodes, cancellation: cancellation)
+        }
+
         guard !paths.isEmpty else { throw RevisionComparisonFailure.selection }
         for path in paths { _ = try restoreLocation(path) }
-        let head = try run(["rev-parse", "--verify", "--quiet", "HEAD^{commit}"], successfulExitCodes: 0...1)
+        let head = try read(["rev-parse", "--verify", "--quiet", "HEAD^{commit}"], successfulExitCodes: 0...1)
         let from: ComparisonRevision
         if head.exitCode == 0 {
             let hash = String(decoding: head.stdout, as: UTF8.self).trimmingCharacters(in: .newlines)
             if amendToParent {
-                let parents = try run(["rev-list", "--parents", "-n", "1", hash]).text.split(whereSeparator: \.isWhitespace)
+                let parents = try read(["rev-list", "--parents", "-n", "1", hash]).text.split(whereSeparator: \.isWhitespace)
                 from = parents.count > 1 ? .revision(String(parents[1])) : .emptyTree
             } else { from = .revision(hash) }
         }
         else {
-            let ref = try run(["symbolic-ref", "--quiet", "HEAD"]).text.trimmingCharacters(in: .newlines)
-            guard try run(["show-ref", "--verify", "--quiet", ref], successfulExitCodes: 0...1).exitCode == 1 else { throw RevisionComparisonFailure.range }
+            let ref = try read(["symbolic-ref", "--quiet", "HEAD"]).text.trimmingCharacters(in: .newlines)
+            guard try read(["show-ref", "--verify", "--quiet", ref], successfulExitCodes: 0...1).exitCode == 1 else { throw RevisionComparisonFailure.range }
             from = .emptyTree
         }
-        let snapshot = try revisionComparison(from: from, to: .workingTree)
-        let selected = try selectedFileComparison(snapshot, paths: paths)
+        let snapshot = try revisionComparison(from: from, to: .workingTree, cancellation: cancellation)
+        let selected = try selectedFileComparison(snapshot, paths: paths, cancellation: cancellation)
         // Keep this status-list route limited to changes, while explicit files
         // absent from the base (including ignored paths) use an empty side.
         let changed = Set(snapshot.files.map(\.path))
@@ -87,12 +92,19 @@ extension GitRepository {
     }
     /// Selected-file comparisons also display unchanged files. Working bytes
     /// take precedence over an index deletion when the path exists on disk.
-    public func revisionFileComparison(from: ComparisonRevision, to: ComparisonRevision, paths: [String]) throws -> RevisionComparisonSnapshot {
+    public func revisionFileComparison(from: ComparisonRevision, to: ComparisonRevision, paths: [String], cancellation: OperationCancellation? = nil) throws -> RevisionComparisonSnapshot {
+        try cancellation?.check()
+
         guard !paths.isEmpty else { throw RevisionComparisonFailure.selection }
         for path in paths { _ = try restoreLocation(path) }
-        return try selectedFileComparison(revisionComparison(from: from, to: to), paths: paths)
+        return try selectedFileComparison(revisionComparison(from: from, to: to, cancellation: cancellation), paths: paths, cancellation: cancellation)
     }
-    private func selectedFileComparison(_ snapshot: RevisionComparisonSnapshot, paths: [String]) throws -> RevisionComparisonSnapshot {
+    private func selectedFileComparison(_ snapshot: RevisionComparisonSnapshot, paths: [String], cancellation: OperationCancellation? = nil) throws -> RevisionComparisonSnapshot {
+        try cancellation?.check()
+        func read(_ args: [String], successfulExitCodes: ClosedRange<Int32> = 0...0) throws -> GitResult {
+            try run(args, successfulExitCodes: successfulExitCodes, cancellation: cancellation)
+        }
+
         func mode(_ revision: ComparisonRevision, _ path: String) throws -> String? {
             if revision == .emptyTree { return nil }
             if revision == .workingTree {
@@ -107,7 +119,7 @@ extension GitRepository {
                 } catch let error as NSError where error.domain == NSCocoaErrorDomain && [NSFileNoSuchFileError, NSFileReadNoSuchFileError].contains(error.code) { return nil }
             }
             guard case .revision(let hash) = revision else { throw RevisionComparisonFailure.range }
-            for record in try run(["ls-tree", "-z", hash, "--", path]).stdout.split(separator: 0) {
+            for record in try read(["ls-tree", "-z", hash, "--", path]).stdout.split(separator: 0) {
                 guard let tab = record.firstIndex(of: 9), Data(record[record.index(after: tab)...]) == Data(path.utf8) else { continue }
                 let header = String(decoding: record[..<tab], as: UTF8.self).split(separator: " ")
                 guard header.count == 3, ["100644", "100755", "120000", "160000"].contains(String(header[0])) else { throw RevisionComparisonFailure.selection }
@@ -117,6 +129,7 @@ extension GitRepository {
         }
         var files: [CommitFile] = []
         for path in Set(paths).sorted() {
+            try cancellation?.check()
             let existing = snapshot.files.first { $0.path == path || $0.oldPath == path }
             let destination = existing?.path ?? path, original = existing?.oldPath ?? path
             guard !files.contains(where: { $0.path == destination }) else { continue }

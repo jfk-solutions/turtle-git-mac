@@ -1336,10 +1336,16 @@ extension GitRepository {
         String(decoding: try revisionFileDiffData(entry, files: files, workingTree: workingTree), as: UTF8.self)
     }
     /// Preserve Git's patch bytes for external unified-diff viewers.
-    public func revisionFileDiffData(_ entry: LogEntry, files: [CommitFile], workingTree: Bool = false) throws -> Data {
+    public func revisionFileDiffData(_ entry: LogEntry, files: [CommitFile], workingTree: Bool = false, cancellation: OperationCancellation? = nil) throws -> Data {
+        try cancellation?.check()
+        func read(_ args: [String], successfulExitCodes: ClosedRange<Int32> = 0...0) throws -> GitResult {
+            try run(args, successfulExitCodes: successfulExitCodes, cancellation: cancellation)
+        }
+
         guard !files.isEmpty else { throw RevisionComparisonFailure.selection }
         var seen = Set<String>(), patch = Data()
         for file in files where seen.insert(file.id).inserted {
+            try cancellation?.check()
             guard !file.path.isEmpty, !file.path.contains("\0") else { throw RevisionComparisonFailure.selection }
             var scoped = entry
             if let index = file.parentIndex {
@@ -1352,21 +1358,26 @@ extension GitRepository {
                 else if let parent = scoped.parents.first { args = ["diff", "--no-ext-diff", "--no-color", parent, entry.hash] }
                 else { args = ["show", "--format=", "--no-ext-diff", "--no-color", entry.hash] }
                 args += ["--", oldPath, file.path]
-                patch.append(try run(args).stdout)
-            } else { patch.append(try revisionDiffData(scoped, path: file.path, workingTree: workingTree)) }
+                patch.append(try read(args).stdout)
+            } else { patch.append(try revisionDiffData(scoped, path: file.path, workingTree: workingTree, cancellation: cancellation)) }
         }
         return patch
     }
     public func revisionDiff(_ entry: LogEntry, path: String? = nil, workingTree: Bool = false) throws -> String {
         String(decoding: try revisionDiffData(entry, path: path, workingTree: workingTree), as: UTF8.self)
     }
-    public func revisionDiffData(_ entry: LogEntry, path: String? = nil, workingTree: Bool = false) throws -> Data {
+    public func revisionDiffData(_ entry: LogEntry, path: String? = nil, workingTree: Bool = false, cancellation: OperationCancellation? = nil) throws -> Data {
+        try cancellation?.check()
+        func read(_ args: [String], successfulExitCodes: ClosedRange<Int32> = 0...0) throws -> GitResult {
+            try run(args, successfulExitCodes: successfulExitCodes, cancellation: cancellation)
+        }
+
         var args: [String]
         if workingTree { args = ["diff", "--no-ext-diff", "--no-color", entry.hash] }
         else if let parent = entry.parents.first { args = ["diff", "--no-ext-diff", "--no-color", parent, entry.hash] }
         else { args = ["show", "--format=", "--no-ext-diff", "--no-color", entry.hash] }
         args.append("--"); if let path { args.append(path) }
-        return try run(args).stdout
+        return try read(args).stdout
     }
     /// FillPatchView: whole changes with stats, or selected versioned rows in list order.
     public func logPatchPreviewData(_ entry: LogEntry, files: [CommitFile]? = nil, cancellation: OperationCancellation? = nil) throws -> Data {

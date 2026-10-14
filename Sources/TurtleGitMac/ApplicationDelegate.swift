@@ -28,6 +28,7 @@ import AppKit
         if MergeRegexOperations.activeRequests > 0 { return .terminateCancel }
         if SVNWindowModel.activeOperations > 0 { return .terminateCancel }
         if ReviewPatchWorkflow.activeLoads > 0 { return .terminateCancel }
+        if FileListComparisonSession.activeOperations > 0 { return .terminateCancel }
         if RevisionComparisonWindowModel.activeFileOperations > 0 { return .terminateCancel }
         if LogWindowModel.activeHistoryLoads > 0 { return .terminateCancel }
         if SubmoduleWorkingLogSession.activeReads > 0 || SubmoduleDiffWindowModel.activeReads > 0 { return .terminateCancel }

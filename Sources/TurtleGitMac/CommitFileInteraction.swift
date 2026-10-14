@@ -2,6 +2,66 @@ import AppKit
 import SwiftUI
 import TurtleGitCore
 
+/// Own the complete selected-file launch, including its question and Git reads.
+/// The initiating window is captured before any suspension; switching windows
+/// cannot move the question or retarget the eventual viewers.
+@MainActor final class FileListComparisonSession {
+    private(set) static var activeOperations = 0
+    let cancellation: OperationCancellation
+    private weak var window: NSWindow?
+    private let preferences: UserDefaults
+    private var observer: NSObjectProtocol?
+    private var alert: NSAlert?
+    private var started = false
+    var confirmation: ((Int) async -> Bool)?
+
+    init(window: NSWindow?, preferences: UserDefaults = .standard, cancellation: OperationCancellation = OperationCancellation()) {
+        self.window = window; self.preferences = preferences; self.cancellation = cancellation
+        if let window {
+            observer = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.cancel() }
+            }
+        }
+    }
+    func cancel() {
+        cancellation.cancel()
+        if let alert, let window, window.attachedSheet === alert.window {
+            window.endSheet(alert.window, returnCode: .cancel); alert.window.orderOut(nil)
+        }
+    }
+    func check() throws {
+        guard !cancellation.isCancelled, !Task.isCancelled else { throw OperationCancellationFailure.cancelled }
+    }
+    func run(selectedCount: Int, operation: (OperationCancellation) async throws -> Void) async throws {
+        guard !started else { throw OperationCancellationFailure.cancelled }
+        started = true; Self.activeOperations += 1
+        defer {
+            Self.activeOperations -= 1
+            if let observer { NotificationCenter.default.removeObserver(observer); self.observer = nil }
+            alert = nil
+        }
+        try check()
+        if AdvancedListBehavior(defaults: preferences).warnsBeforeDiffs(count: selectedCount) {
+            let accepted: Bool
+            if let confirmation { accepted = await confirmation(selectedCount) }
+            else {
+                guard let window, window.attachedSheet == nil else { return }
+                let question = NSAlert(); question.messageText = "Open diffs for \(selectedCount) files?"
+                question.informativeText = "Each selected file opens in its own viewer."
+                question.addButton(withTitle: "Yes"); question.addButton(withTitle: "No"); alert = question
+                accepted = await withCheckedContinuation { reply in
+                    question.beginSheetModal(for: window) { reply.resume(returning: $0 == .alertFirstButtonReturn) }
+                }
+            }
+            try check()
+            guard accepted else { return }
+        }
+        try await operation(cancellation)
+        try check()
+    }
+    deinit { if let observer { NotificationCenter.default.removeObserver(observer) } }
+}
+
 /// Source group headings span the list, independently of text-column widths.
 /// This drawing layer leaves the underlying native row/accessibility and input
 /// implementations intact and never intercepts pointer events.

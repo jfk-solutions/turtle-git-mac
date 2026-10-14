@@ -93,8 +93,8 @@ refreshes its captured resolved revision snapshot instead of following later
 dialog changes, and is reused by path. External viewers receive the original
 bytes. Rename patch scope includes old and new names. The multi-diff warning
 uses upstream's default ten and minimum three, with the optional native
-`TurtleGit.NumDiffWarning` preference; an Advanced settings editor remains
-pending. Individual failures are reported together after trying remaining files.
+`NumDiffWarning` Advanced setting. The older `TurtleGit.NumDiffWarning`
+alias is migrated when the setting is edited or cleared. Individual failures are reported together after trying remaining files.
 View Patch stays built-in and follows selection. Parent Close/Quit guard busy
 context viewers, which close with their parent; patch windows also guard their
 own busy/confirmation/sheet lifetime. These native behaviors compile but have

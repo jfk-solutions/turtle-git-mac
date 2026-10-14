@@ -143,8 +143,11 @@ LogTooManyItemsThreshold now suppresses Log's changed-file list above the strict
 source threshold (default 1000), including parent-group headers, and displays
 “Too many files to display.” Retained file metadata/counts remain available;
 filters do not turn a suppressed oversized list into actionable hidden rows.
-The source DWORD/minimum-three rule now reads NumDiffWarning for Changed Files
-comparison and unified-diff launches. Pending questions hold captured files,
+The source DWORD/minimum-three rule reads NumDiffWarning for selected-file
+comparison launches from Log, Commit, Working Tree and Add, plus Changed Files
+comparison and per-file unified-diff launches. Log parent groups share one
+confirmation covering the selected rows. Aggregated GNU patches open one viewer
+and do not acquire a many-viewer warning. Pending questions hold captured files,
 operation/Quit ownership and the lease; No opens nothing and retired Yes cannot
 open windows. The old TurtleGit.NumDiffWarning alias is read only when the source
 key is absent. Advanced displays the effective legacy value; editing or clearing

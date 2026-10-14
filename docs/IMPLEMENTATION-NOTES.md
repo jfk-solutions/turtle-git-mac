@@ -544,3 +544,10 @@ cancellation confirmation; see [Clone parity](CLONE-PARITY.md).
 
 Clone displays live command output and transfer percentages using upstream-style
 CR/remote-line handling and output limits; see [Clone parity](CLONE-PARITY.md).
+
+Selected-file comparisons share captured source-window, question, cancellation
+and Quit ownership across preparation and viewer handoff. Log parent groups
+confirm together; aggregate GNU patches remain single viewers. Historical blob
+loading in the child viewer also participates in this ownership. See
+[comparison launch parity](COMPARISON-LAUNCH-PARITY.md) for source rules, route
+coverage and remaining acceptance.

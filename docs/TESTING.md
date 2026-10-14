@@ -1527,3 +1527,17 @@ bookmark persistence, moved relative scopes, failed-entry retention and file mod
 The finder-service-grants worker now installs a private receiver registry, releases
 initial accesses, reopens/restores it and reads real Git/files through restored
 accesses. Scope requirements are disabled only in that unsigned fixture.
+
+Selected-file comparison launch ownership is checked in one reference receiver
+batch with `--only comparison-launch --only advanced-list-consumers
+--only working-tree-file-menu`, using system and bundled Git. The launch receiver
+covers captured working/historical/grouped endpoints, one question across parent
+groups, No/Yes/threshold equality, retained Quit ownership, late Yes after source
+closure, a real owned NSAlert teardown, cancellation after actual Git preparation
+and blob children start, and captured Commit/Working Tree/Log aggregate patches.
+It compares HEAD, index and working bytes before/after. Presentation callbacks
+replace external viewer launch; the owned sheet check proves lifecycle, not
+physical appearance or input. Private windows/preferences and owned child groups
+must be closed/reaped. The affected Core group is FileComparisonTests,
+RevisionComparisonTests and WorkingTreeHistoryTests; no full Core rerun is needed
+for this native routing batch. See [comparison launch parity](COMPARISON-LAUNCH-PARITY.md).

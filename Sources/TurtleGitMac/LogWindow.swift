@@ -1058,6 +1058,7 @@ struct LogCommandRequest: Identifiable {
     }
     @Published var bare = true
     @Published var error: String?
+    private var unifiedSessions: [UUID: FileListComparisonSession] = [:]
     var unifiedWindow: PatchWindowController?
     @Published private(set) var patchPreviewVisible = false
     @Published private(set) var patchPreviewData = Data()
@@ -1321,6 +1322,7 @@ struct LogCommandRequest: Identifiable {
         statisticsWindow = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
     }
     func invalidate() {
+        unifiedSessions.values.forEach { $0.cancel() }; if !unifiedSessions.isEmpty { busy = false }
         statisticsWindow?.model.cancel(); statisticsWindow?.close(); statisticsWindow = nil
         restoreHistorySnapshot()
         isInvalidated = true; gravatar.clear()
@@ -1648,24 +1650,27 @@ struct LogCommandRequest: Identifiable {
         let revisions = self.revisions
         guard (1...2).contains(revisions.count) else { return }
         let request = generation, selection = selected
-        busy = true
+        let id = UUID(), session = FileListComparisonSession(window: window, preferences: labelDefaults)
+        unifiedSessions[id] = session; busy = true
         Task {
-            defer { busy = false }
+            defer { unifiedSessions.removeValue(forKey: id); if request == generation { busy = false }; withExtendedLifetime(access) {} }
             do {
-                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let bytes: Data
-                if revisions.count == 2, !workingTree {
-                    var args = ["diff", "--no-ext-diff", "--no-color", revisions[1].hash, revisions[0].hash, "--"]
-                    if let path { args.append(path) }
-                    bytes = try await repository.run(args).stdout
-                } else { bytes = try await repository.revisionDiffData(revisions[0], path: path, workingTree: workingTree) }
-                guard request == generation, selection == selected, !isInvalidated else { return }
-                if let onUnifiedDiff { try await onUnifiedDiff(bytes, alternate) }
-                else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
-                    guard request == generation, selection == selected, !isInvalidated else { return }
-                    unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "Selected revision changes", onClosed: { [weak self] in self?.unifiedWindow = nil })
+                try await session.run(selectedCount: 0) { [self] token in
+                    if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                    let bytes: Data
+                    if revisions.count == 2, !workingTree {
+                        var args = ["diff", "--no-ext-diff", "--no-color", revisions[1].hash, revisions[0].hash, "--"]
+                        if let path { args.append(path) }
+                        bytes = try await repository.run(args, cancellation: token).stdout
+                    } else { bytes = try await repository.revisionDiffData(revisions[0], path: path, workingTree: workingTree, cancellation: token) }
+                    guard request == generation, selection == selected, !isInvalidated, !token.isCancelled else { return }
+                    if let onUnifiedDiff { try await onUnifiedDiff(bytes, alternate) }
+                    else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
+                        guard request == generation, selection == selected, !isInvalidated, !token.isCancelled else { return }
+                        unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "Selected revision changes", onClosed: { [weak self] in self?.unifiedWindow = nil })
                 }
-            } catch { if request == generation, selection == selected, !isInvalidated { self.error = error.localizedDescription } }
+                }
+            } catch { if request == generation, selection == selected, !isInvalidated, !session.cancellation.isCancelled { self.error = error.localizedDescription } }
         }
     }
     func copyDetails(includePaths: Bool = true) {
@@ -2144,22 +2149,25 @@ struct LogCommandRequest: Identifiable {
         let chosen = visibleFiles.filter { ids.contains($0.id) }
         guard !chosen.isEmpty, !working || workingTreeSnapshot?.entry.parents.first != nil && chosen.allSatisfy({ $0.action != "?" }) else { return }
         let request = generation, selection = selected
-        busy = true
+        let id = UUID(), session = FileListComparisonSession(window: window, preferences: labelDefaults)
+        unifiedSessions[id] = session; busy = true
         Task {
-            defer { busy = false }
+            defer { unifiedSessions.removeValue(forKey: id); if request == generation { busy = false }; withExtendedLifetime(access) {} }
             do {
-                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let bytes: Data
-                if working { bytes = try await repository.workingTreeFileDiffData(files: chosen) }
-                else if let revision { bytes = try await repository.revisionFileDiffData(revision, files: chosen) }
-                else { return }
-                guard request == generation, selection == selected, !isInvalidated else { return }
-                if let onUnifiedDiff { try await onUnifiedDiff(bytes, alternate) }
-                else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
-                    guard request == generation, selection == selected, !isInvalidated else { return }
-                    unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: working ? "Selected working-tree changes" : "Selected revision changes", onClosed: { [weak self] in self?.unifiedWindow = nil })
+                try await session.run(selectedCount: 0) { [self] token in
+                    if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                    let bytes: Data
+                    if working { bytes = try await repository.workingTreeFileDiffData(files: chosen, cancellation: token) }
+                    else if let revision { bytes = try await repository.revisionFileDiffData(revision, files: chosen, cancellation: token) }
+                    else { return }
+                    guard request == generation, selection == selected, !isInvalidated, !token.isCancelled else { return }
+                    if let onUnifiedDiff { try await onUnifiedDiff(bytes, alternate) }
+                    else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
+                        guard request == generation, selection == selected, !isInvalidated, !token.isCancelled else { return }
+                        unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: working ? "Selected working-tree changes" : "Selected revision changes", onClosed: { [weak self] in self?.unifiedWindow = nil })
                 }
-            } catch { if request == generation, selection == selected, !isInvalidated { self.error = error.localizedDescription } }
+                }
+            } catch { if request == generation, selection == selected, !isInvalidated, !session.cancellation.isCancelled { self.error = error.localizedDescription } }
         }
     }
     func canCompareFilePair(_ ids: Set<String>) -> Bool {
@@ -2232,21 +2240,24 @@ struct LogCommandRequest: Identifiable {
     private func workingTreeDiff(path: String?, alternate: Bool) {
         guard selected.count <= 2, let base = revisions.first?.hash ?? workingTreeSnapshot?.entry.parents.first else { return }
         let request = generation, selection = selected
-        busy = true
+        let id = UUID(), session = FileListComparisonSession(window: window, preferences: labelDefaults)
+        unifiedSessions[id] = session; busy = true
         Task {
-            defer { busy = false }
+            defer { unifiedSessions.removeValue(forKey: id); if request == generation { busy = false }; withExtendedLifetime(access) {} }
             do {
-                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                var args = ["diff", "--no-ext-diff", "--no-textconv", "--no-color", base, "--"]
-                if let path { args.append(path) }
-                let bytes = try await repository.run(args).stdout
-                guard request == generation, selection == selected, !isInvalidated else { return }
-                if let onUnifiedDiff { try await onUnifiedDiff(bytes, alternate) }
-                else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
-                    guard request == generation, selection == selected, !isInvalidated else { return }
-                    unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "Working tree changes", onClosed: { [weak self] in self?.unifiedWindow = nil })
+                try await session.run(selectedCount: 0) { [self] token in
+                    if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                    var args = ["diff", "--no-ext-diff", "--no-textconv", "--no-color", base, "--"]
+                    if let path { args.append(path) }
+                    let bytes = try await repository.run(args, cancellation: token).stdout
+                    guard request == generation, selection == selected, !isInvalidated, !token.isCancelled else { return }
+                    if let onUnifiedDiff { try await onUnifiedDiff(bytes, alternate) }
+                    else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
+                        guard request == generation, selection == selected, !isInvalidated, !token.isCancelled else { return }
+                        unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "Working tree changes", onClosed: { [weak self] in self?.unifiedWindow = nil })
                 }
-            } catch { if request == generation, selection == selected, !isInvalidated { self.error = error.localizedDescription } }
+                }
+            } catch { if request == generation, selection == selected, !isInvalidated, !session.cancellation.isCancelled { self.error = error.localizedDescription } }
         }
     }
 }

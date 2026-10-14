@@ -1,0 +1,97 @@
+{
+  "date": "2026-10-14",
+  "scope": "Connected selected-file comparison preparation, confirmation, source-window ownership, unified patch reads and child historical blob loading. Partial parity; whole port incomplete.",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implemented": [
+    "Source DWORD/strict-greater/minimum-three NumDiffWarning across working/historical/grouped file launch routes; one captured question per grouped Log action",
+    "Original owner retained for Log/Commit/Working Tree/Add/Repository Browser/Blame callbacks; source closure cancels owned question/read and late approval cannot launch",
+    "Cancellable working/pair/prepared/historical file snapshots, per-path mode and blob reads, and historical patch data",
+    "Commit captures amend/staging intent; Log retains generation/selection fences; aggregated patch routes stay one viewer without a many-viewer question",
+    "Changed Files reuses shared question ownership; child file viewer cancels initial/replacement reads and returns close through dirty handling",
+    "Independent active-operation Quit guard and retained access lease lifetimes"
+  ],
+  "build": {
+    "configuration": "Debug",
+    "architecture": "arm64",
+    "signed": false,
+    "exitCode": 0,
+    "log": "build/qa/comparison-launch-build-2026-10-14.log",
+    "notes": "Existing exit-zero/no-output diagnostics retained; terminal build exit 0 verified before native linking."
+  },
+  "core": {
+    "exitCode": 0,
+    "tests": 38,
+    "suites": [
+      "FileComparisonTests",
+      "ImageFileComparisonTests",
+      "OnePaneFileComparisonTests",
+      "RevisionComparisonTests",
+      "WorkingTreeHistoryTests"
+    ],
+    "log": "build/qa/comparison-launch-core-2026-10-14.log",
+    "runs": 1
+  },
+  "native": {
+    "exitCode": 0,
+    "cases": [
+      "comparison-launch",
+      "advanced-list-consumers",
+      "working-tree-file-menu"
+    ],
+    "git": [
+      "system /usr/bin/git",
+      "bundled Git from Debug app"
+    ],
+    "successfulReceivers": 6,
+    "failedReceivers": 2,
+    "allReceiversReaped": true,
+    "remainingOwnedReceiversOrSlowGit": [],
+    "log": "build/qa/comparison-launch-native-final-2026-10-14.log",
+    "checks": [
+      "No/Yes/equality and captured selected paths",
+      "Grouped parent endpoints and a single aggregate question",
+      "Pending warning Quit lifetime and retired approval refusal",
+      "Actual owned NSAlert close teardown",
+      "Cancellation after real preparation and viewer blob Git children start",
+      "Real Commit/Working Tree/Log aggregate patches with injected receiving presentation",
+      "Unchanged HEAD/index/working bytes",
+      "Existing working-tree captured menu and Changed Files warning regressions"
+    ],
+    "iterations": "Initial timeout and diagnostic timeout came from fixture wrapper checking $1 instead of the Git subcommand at $4 after path options. Both receivers reaped. Fixed fixture only; final full six-receiver group passed. No app/Core rebuild or rerun for fixture repair."
+  },
+  "site": {
+    "exitCode": 0,
+    "log": "build/qa/comparison-launch-site-2026-10-14.log"
+  },
+  "coverage": {
+    "dialogs": 130,
+    "partialFamilyAudits": 114,
+    "pendingFamilyReviews": 16,
+    "certifiedComplete": 0,
+    "mappedControls": 764,
+    "pendingControlReviews": 895,
+    "totalControls": 1659,
+    "notFeaturePercentage": true
+  },
+  "remaining": [
+    "Physical context/menu/alert interaction and visual parity of all dialogs",
+    "Configured external receiving app/tool launches",
+    "Signed sandbox grants and App Store/minimum-OS acceptance",
+    "Current-head hosted CI completion",
+    "Other comparison/editor gaps recorded in parity documents; full application and Finder parity"
+  ],
+  "sha256": {
+    "Sources/TurtleGitCore/CommitHistory.swift": "49f8d79b6f26b3222fb5c977bf6bc6c9d542af7ed482f439e730e583b48942ad",
+    "Sources/TurtleGitCore/FileComparison.swift": "c13c49bd553bec558cd8598931ab064df56608abd251996d163bd76d50adc17d",
+    "Sources/TurtleGitCore/RevisionComparison.swift": "cf02db82816d14669df61848b189f9336073cb91467c45e8bdd3160edec709e9",
+    "Sources/TurtleGitMac/CommitFileInteraction.swift": "661f9d808c3541738efc7d157fe65e25b937977ec35160b5fd2f727fd6ad15a6",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "03896a28290faa5938daf9de97c92bb28ed9d29c29aba3d6aa0ecca977d40a83",
+    "Sources/TurtleGitMac/FileComparisonWindow.swift": "fd17981812e1a1399a8dce6e5911cd3b2b2e571e55ba572fa6eb33a224464c63",
+    "Sources/TurtleGitMac/CommitWindow.swift": "613b8794ad1a998bf9009e9e40f38ad32635a7dfcba5a02f0d905b39531c834a",
+    "Sources/TurtleGitMac/LogWindow.swift": "a662f1a9889c7badf83936bd235c0d2a962dd51708ab503fc9d257b72180bc74",
+    "Sources/TurtleGitMac/StatusWindow.swift": "a72ec5c3b981d66ca3e1a9ec37ce6b3271a876d22b50da5c07f6dc390a378b2b",
+    "Sources/TurtleGitMac/RevisionComparisonWindow.swift": "33f629a0428ef7c8e3dbf3514d0459149f76c9cf416b5e5aa4155821d4c453cb",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "af0be0feb90fbee6ed80a5beacffca615a6c9b12b0e1e1f353dd5abc9df144af",
+    "docs/qa/comparison-launch-native-2026-10-14.swift": "038592a4de6225fbf820618c36b92a4d6062e1d657d81c53411eecd8e9b6187d"
+  }
+}

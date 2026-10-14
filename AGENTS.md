@@ -15,6 +15,14 @@ functionality and layout work before validation; do not interrupt implementation
 for repeated builds, screenshot runs or commits. A failure may require a focused
 repair and recheck, but does not justify restarting the complete validation set.
 
+A single setting consumer, warning, menu action or parity defect is not normally
+a complete implementation batch. Use the outstanding work in its workflow family
+to define a substantial batch covering related menus, dialog behavior, Git actions,
+ownership/cancellation and source parity. Implement the batch before its build or
+verification checkpoint. Progress/status requests do not trigger another test run.
+If a specific blocker requires an earlier compile, explain that blocker and run
+only the check needed to resolve it, then continue the implementation batch.
+
 Do not run tests on a timer or after every small edit. Perform one relevant Core
 check and one grouped native check at the end of the implementation batch when
 needed. Repeat only checks affected by an actual failure or subsequent change.

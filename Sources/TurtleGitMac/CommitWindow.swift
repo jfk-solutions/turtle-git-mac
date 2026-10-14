@@ -38,7 +38,7 @@ import UniformTypeIdentifiers
         window.title = "\(repository.root.lastPathComponent) – Commit – TurtleGit"
         window.minSize = NSSize(width: 900, height: 680); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: CommitDialog(model: model).defaultAppStorage(defaults))
-        super.init(window: window); model.clientHooks.windowProvider = { [weak window] in window?.attachedSheet ?? window }; window.model = model; window.delegate = self; window.setContentSize(NSSize(width: 1000, height: 760)); window.center()
+        super.init(window: window); model.comparisonWindow = window; model.clientHooks.windowProvider = { [weak window] in window?.attachedSheet ?? window }; window.model = model; window.delegate = self; window.setContentSize(NSSize(width: 1000, height: 760)); window.center()
         model.close = { [weak self, weak window] in
             guard let self, self.partial?.model.busy != true, self.partial?.window?.attachedSheet == nil, !self.model.unifiedViewerBusy else { return }
             window?.close()
@@ -483,6 +483,9 @@ import UniformTypeIdentifiers
     @Published var busy = false
     @Published var confirmingQuit = false
     @Published var error: String?
+    private var diffSession: FileListComparisonSession?
+    var onUnifiedDiff: ((Data, Bool) async throws -> Void)?
+    weak var comparisonWindow: NSWindow?
     var unifiedWindow: PatchWindowController?
     var unifiedViewerBusy: Bool { unifiedWindow?.model.busy == true || unifiedWindow?.window?.attachedSheet != nil }
     var showViewPatch: () -> Void = {}
@@ -1085,6 +1088,7 @@ import UniformTypeIdentifiers
         messageFocusAvailable = false; messageFocusRequest = 0; appliedMessageFocusRequest = 0
     }
     func invalidateForClose() {
+        diffSession?.cancel(); diffSession = nil
         clientHooks.retire(); submoduleLog.retire()
         reloadCancellation?.cancel(); reloadTask?.cancel(); lfsOwnerCancellation?.cancel()
         reloadCancellation = nil; reloadTask = nil; lfsOwnerCancellation = nil
@@ -1165,26 +1169,33 @@ import UniformTypeIdentifiers
         guard !paths.isEmpty else { return }; onCompare(paths, amendToParent)
     }
     func diff(paths selected: Set<String>, staged: Bool? = nil, alternate: Bool = false) {
-        guard !busy, !confirmingQuit, !unifiedViewerBusy else { return }
+        guard messageFocusAvailable, !busy, !confirmingQuit, !unifiedViewerBusy else { return }
         let paths = entries.filter { selected.contains($0.id) }.map(\.path)
         guard !paths.isEmpty else { return }
-        busy = true
+        let amendToParent = self.amendToParent
+        let session = FileListComparisonSession(window: comparisonWindow, preferences: dialogDefaults)
+        diffSession = session; busy = true
         Task {
-            defer { busy = false }
+            defer { if diffSession === session { diffSession = nil; busy = false }; withExtendedLifetime(access) {} }
             do {
-                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let bytes: Data
-                if let staged { bytes = try await repository.patchData(paths: paths, staged: staged, base: amendToParent && staged ? try await repository.commitComparisonBase(amendToParent: true) : nil) }
-                else {
-                    let head = try? await repository.run(["rev-parse", "--verify", "HEAD"])
-                    let base = amendToParent ? try await repository.commitComparisonBase(amendToParent: true) : "HEAD"
-                    let args = ["diff", "--no-ext-diff", "--no-color"] + (head == nil ? ["--cached"] : [base]) + ["--"] + paths
-                    bytes = try await repository.run(args).stdout
+                try await session.run(selectedCount: 0) { [self] token in
+                    if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                    let bytes: Data
+                    if let staged { bytes = try await repository.patchData(paths: paths, staged: staged, base: amendToParent && staged ? try await repository.commitComparisonBase(amendToParent: true, cancellation: token) : nil, cancellation: token) }
+                    else {
+                        let head = try? await repository.run(["rev-parse", "--verify", "HEAD"], cancellation: token)
+                        let base = amendToParent ? try await repository.commitComparisonBase(amendToParent: true, cancellation: token) : "HEAD"
+                        let args = ["diff", "--no-ext-diff", "--no-color"] + (head == nil ? ["--cached"] : [base]) + ["--"] + paths
+                        bytes = try await repository.run(args, cancellation: token).stdout
                 }
-                if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
+                guard messageFocusAvailable, !confirmingQuit, !token.isCancelled else { return }
+                if let onUnifiedDiff { try await onUnifiedDiff(bytes, alternate) }
+                else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
+                    guard messageFocusAvailable, !confirmingQuit, !token.isCancelled else { return }
                     unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: staged == true ? "Index changes" : staged == false ? "Working tree changes" : "Commit changes", onClosed: { [weak self] in self?.unifiedWindow = nil })
                 }
-            } catch { self.error = error.localizedDescription }
+                }
+            } catch { if messageFocusAvailable, !session.cancellation.isCancelled { self.error = error.localizedDescription } }
         }
     }
     func commit(_ action: CompletionAction = .commit) {

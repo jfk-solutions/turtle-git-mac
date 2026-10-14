@@ -125,7 +125,12 @@ public struct FileComparisonAlignment: Sendable {
 extension GitRepository {
     /// Status-list Compare two files uses each working path independently,
     /// falling back to the same pinned HEAD for files deleted from disk.
-    public func workingFilePairComparison(paths: [String]) throws -> RevisionComparisonSnapshot {
+    public func workingFilePairComparison(paths: [String], cancellation: OperationCancellation? = nil) throws -> RevisionComparisonSnapshot {
+        try cancellation?.check()
+        func read(_ args: [String], successfulExitCodes: ClosedRange<Int32> = 0...0) throws -> GitResult {
+            try run(args, successfulExitCodes: successfulExitCodes, cancellation: cancellation)
+        }
+
         guard paths.count == 2, paths[0] != paths[1] else { throw RevisionComparisonFailure.selection }
         var head: ComparisonRevision?
         func side(_ path: String) throws -> ComparisonRevision {
@@ -136,7 +141,7 @@ extension GitRepository {
                 return .workingTree
             } catch let error as NSError where error.domain == NSCocoaErrorDomain && [NSFileNoSuchFileError, NSFileReadNoSuchFileError].contains(error.code) {
                 if let head { return head }
-                let hash = try run(["rev-parse", "--verify", "HEAD^{commit}"]).text.trimmingCharacters(in: .newlines)
+                let hash = try read(["rev-parse", "--verify", "HEAD^{commit}"]).text.trimmingCharacters(in: .newlines)
                 let pinned = ComparisonRevision.revision(hash); head = pinned
                 return pinned
             }
@@ -145,24 +150,29 @@ extension GitRepository {
         let file = CommitFile(path: paths[1], oldPath: paths[0], action: "M", added: nil, removed: nil, hasStatistics: false, isSubmodule: false)
         let snapshot = RevisionComparisonSnapshot(root: root, from: from, to: to, fromDetails: nil, toDetails: nil, files: [file], options: RevisionDiffOptions())
         // Reject missing historical paths, directories and gitlinks before opening.
-        _ = try comparisonFile(snapshot, path: paths[1])
+        _ = try comparisonFile(snapshot, path: paths[1], cancellation: cancellation)
         return snapshot
     }
     /// Compare two selected historical paths in list order. Deleted sides use
     /// the selected occurrence's parent, matching upstream CompareTwoFiles.
-    public func historicalFilePairComparison(revision: String, files: [CommitFile]) throws -> RevisionComparisonSnapshot {
+    public func historicalFilePairComparison(revision: String, files: [CommitFile], cancellation: OperationCancellation? = nil) throws -> RevisionComparisonSnapshot {
+        try cancellation?.check()
+        func read(_ args: [String], successfulExitCodes: ClosedRange<Int32> = 0...0) throws -> GitResult {
+            try run(args, successfulExitCodes: successfulExitCodes, cancellation: cancellation)
+        }
+
         guard files.count == 2, files[0].path != files[1].path, files.allSatisfy({ !$0.isSubmodule }) else { throw RevisionComparisonFailure.selection }
-        let hash = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"]).text.trimmingCharacters(in: .newlines)
+        let hash = try read(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"]).text.trimmingCharacters(in: .newlines)
         func side(_ file: CommitFile) throws -> ComparisonRevision {
             guard file.action.hasPrefix("D") else { return .revision(hash) }
             let index = file.parentIndex ?? 0
             guard index >= 0 else { throw RevisionComparisonFailure.selection }
-            return .revision(try run(["rev-parse", "--verify", hash + "^\(index + 1)^{commit}"]).text.trimmingCharacters(in: .newlines))
+            return .revision(try read(["rev-parse", "--verify", hash + "^\(index + 1)^{commit}"]).text.trimmingCharacters(in: .newlines))
         }
         let from = try side(files[0]), to = try side(files[1])
         let file = CommitFile(path: files[1].path, oldPath: files[0].path, action: "M", added: nil, removed: nil, hasStatistics: false, isSubmodule: false)
         let snapshot = RevisionComparisonSnapshot(root: root, from: from, to: to, fromDetails: nil, toDetails: nil, files: [file], options: RevisionDiffOptions())
-        _ = try comparisonFile(snapshot, path: file.path)
+        _ = try comparisonFile(snapshot, path: file.path, cancellation: cancellation)
         return snapshot
     }
     /// Compare arbitrary historical paths, including the same path at different
@@ -172,29 +182,42 @@ extension GitRepository {
     }
     /// Prepared comparisons may mix current disk files and historical blobs.
     /// Pin each historical side; working sides remain live and editable.
-    public func preparedPathComparison(from: ComparisonRevision, fromPath: String, to: ComparisonRevision, toPath: String) throws -> RevisionComparisonSnapshot {
+    public func preparedPathComparison(from: ComparisonRevision, fromPath: String, to: ComparisonRevision, toPath: String, cancellation: OperationCancellation? = nil) throws -> RevisionComparisonSnapshot {
+        try cancellation?.check()
+        func read(_ args: [String], successfulExitCodes: ClosedRange<Int32> = 0...0) throws -> GitResult {
+            try run(args, successfulExitCodes: successfulExitCodes, cancellation: cancellation)
+        }
+
         _ = try restoreLocation(fromPath); _ = try restoreLocation(toPath)
-        if from == .workingTree || to == .workingTree { guard try !isBare() else { throw RevisionComparisonFailure.selection } }
+        if from == .workingTree || to == .workingTree { guard try !isBare(cancellation: cancellation) else { throw RevisionComparisonFailure.selection } }
         func pin(_ revision: ComparisonRevision) throws -> ComparisonRevision {
             if revision == .workingTree { return revision }
             guard case .revision(let name) = revision else { throw RevisionComparisonFailure.selection }
-            return .revision(try run(["rev-parse", "--verify", "--end-of-options", name + "^{commit}"]).text.trimmingCharacters(in: .newlines))
+            return .revision(try read(["rev-parse", "--verify", "--end-of-options", name + "^{commit}"]).text.trimmingCharacters(in: .newlines))
         }
         let from = try pin(from), to = try pin(to)
         let file = CommitFile(path: toPath, oldPath: fromPath, action: "M", added: nil, removed: nil, hasStatistics: false, isSubmodule: false)
         let snapshot = RevisionComparisonSnapshot(root: root, from: from, to: to, fromDetails: nil, toDetails: nil, files: [file], options: RevisionDiffOptions())
-        _ = try comparisonFile(snapshot, path: toPath)
+        _ = try comparisonFile(snapshot, path: toPath, cancellation: cancellation)
         return snapshot
     }
     /// Read exact bytes from a pinned commit for Save As; no checkout or index write.
-    public func historicalFile(revision: String, path: String) throws -> ComparisonFileContent {
-        let snapshot = try revisionFileComparison(from: .emptyTree, to: .revision(revision), paths: [path])
+    public func historicalFile(revision: String, path: String, cancellation: OperationCancellation? = nil) throws -> ComparisonFileContent {
+        try cancellation?.check()
+
+        let snapshot = try revisionFileComparison(from: .emptyTree, to: .revision(revision), paths: [path], cancellation: cancellation)
         guard snapshot.files.contains(where: { $0.path == path && !$0.isSubmodule }) else { throw RevisionComparisonFailure.selection }
-        return try comparisonFile(snapshot, path: path).destination
+        return try comparisonFile(snapshot, path: path, cancellation: cancellation).destination
     }
-    public func comparisonFile(_ snapshot: RevisionComparisonSnapshot, path: String) throws -> FileComparisonDocument {
+    public func comparisonFile(_ snapshot: RevisionComparisonSnapshot, path: String, cancellation: OperationCancellation? = nil) throws -> FileComparisonDocument {
+        try cancellation?.check()
+        func read(_ args: [String], successfulExitCodes: ClosedRange<Int32> = 0...0) throws -> GitResult {
+            try run(args, successfulExitCodes: successfulExitCodes, cancellation: cancellation)
+        }
+
         guard snapshot.root == root, let file = snapshot.files.first(where: { $0.path == path }), !file.isSubmodule else { throw RevisionComparisonFailure.selection }
-        func read(_ revision: ComparisonRevision, _ path: String, absent: Bool) throws -> ComparisonFileContent {
+        func content(_ revision: ComparisonRevision, _ path: String, absent: Bool) throws -> ComparisonFileContent {
+            try cancellation?.check()
             if absent || revision == .emptyTree { return ComparisonFileContent(path: path, revision: revision, bytes: Data(), mode: nil) }
             if revision == .workingTree {
                 let location = try restoreLocation(path)
@@ -209,17 +232,17 @@ extension GitRepository {
             }
             guard case .revision(let hash) = revision else { throw RevisionComparisonFailure.range }
             // Literal, NUL-delimited tree lookup handles colons, tabs and newlines.
-            let records = try run(["ls-tree", "-z", hash, "--", path]).stdout.split(separator: 0)
+            let records = try read(["ls-tree", "-z", hash, "--", path]).stdout.split(separator: 0)
             for record in records {
                 guard let tab = record.firstIndex(of: 9), Data(record[record.index(after: tab)...]) == Data(path.utf8) else { continue }
                 let header = String(decoding: record[..<tab], as: UTF8.self).split(separator: " ")
                 guard header.count == 3, header[1] == "blob" else { throw RevisionComparisonFailure.selection }
-                return ComparisonFileContent(path: path, revision: revision, bytes: try run(["cat-file", "blob", String(header[2])]).stdout, mode: String(header[0]))
+                return ComparisonFileContent(path: path, revision: revision, bytes: try read(["cat-file", "blob", String(header[2])]).stdout, mode: String(header[0]))
             }
             throw RevisionComparisonFailure.selection
         }
-        return FileComparisonDocument(base: try read(snapshot.from, file.oldPath ?? path, absent: file.action.hasPrefix("A")),
-                                      destination: try read(snapshot.to, path, absent: file.action.hasPrefix("D")))
+        return FileComparisonDocument(base: try content(snapshot.from, file.oldPath ?? path, absent: file.action.hasPrefix("A")),
+                                      destination: try content(snapshot.to, path, absent: file.action.hasPrefix("D")))
     }
 }
 
@@ -271,18 +294,24 @@ public struct HistoricalWorkingFileComparison: Sendable {
     }
 }
 extension GitRepository {
-    public func historicalWorkingFileComparison(revision: String, path: String, workingFile: URL) throws -> HistoricalWorkingFileComparison {
-        let hash = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"]).text.trimmingCharacters(in: .newlines)
-        _ = try historicalFile(revision: hash, path: path)
+    public func historicalWorkingFileComparison(revision: String, path: String, workingFile: URL, cancellation: OperationCancellation? = nil) throws -> HistoricalWorkingFileComparison {
+        try cancellation?.check()
+        func read(_ args: [String], successfulExitCodes: ClosedRange<Int32> = 0...0) throws -> GitResult {
+            try run(args, successfulExitCodes: successfulExitCodes, cancellation: cancellation)
+        }
+
+        let hash = try read(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"]).text.trimmingCharacters(in: .newlines)
+        _ = try historicalFile(revision: hash, path: path, cancellation: cancellation)
         let url = workingFile.standardizedFileURL
         _ = try WorkingFileComparison.workingContent(at: url)
         let file = CommitFile(path: path, oldPath: url.path, action: "M", added: nil, removed: nil, hasStatistics: false, isSubmodule: false)
         let snapshot = RevisionComparisonSnapshot(root: root, from: .workingTree, to: .revision(hash), fromDetails: nil, toDetails: nil, files: [file], options: RevisionDiffOptions())
         return HistoricalWorkingFileComparison(workingFile: url, snapshot: snapshot, path: path)
     }
-    public func comparisonFile(_ comparison: HistoricalWorkingFileComparison) throws -> FileComparisonDocument {
+    public func comparisonFile(_ comparison: HistoricalWorkingFileComparison, cancellation: OperationCancellation? = nil) throws -> FileComparisonDocument {
+        try cancellation?.check()
         guard comparison.snapshot.root == root, case .revision(let hash) = comparison.snapshot.to else { throw RevisionComparisonFailure.selection }
-        return FileComparisonDocument(base: try WorkingFileComparison.workingContent(at: comparison.workingFile), destination: try historicalFile(revision: hash, path: comparison.path))
+        return FileComparisonDocument(base: try WorkingFileComparison.workingContent(at: comparison.workingFile), destination: try historicalFile(revision: hash, path: comparison.path, cancellation: cancellation))
     }
 }
 
