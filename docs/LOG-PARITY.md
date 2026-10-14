@@ -219,7 +219,7 @@ still apply.
 Native Log now limits the raw scoped walk, then keeps search-hidden rows for
 graph/rollup state before display filtering. Its configured count applies to
 raw records; No limitation removes the count cap. The match-only Core API still
-provides its prior matching-result limit contract. Both reads currently materialize
+provides its prior matching-result limit contract. Both typed history results currently materialize
 their output; incremental filtering remains unfinished. The source count/date
 controls are covered by the history-limit checkpoint below. Returned rows retain committer name/email
 metadata as well as author identity. The native Search in layout and interaction,
@@ -327,7 +327,7 @@ and commit parsing and between merge parents, and passes the token through every
 Git command, including notes, tag objects, path diffs and final HEAD/ref metadata.
 The shared process runner terminates only the owned child process group. A cancelled
 read never returns its rows. Other Log operations still need their own cancellation coverage; large-output
-buffering and incremental loading remain unfinished. See [the cancellation record](qa/log-history-cancel-2026-10-06.json).
+typed-history retention and incremental row publication remain unfinished; raw Git transport is now incremental as recorded in the October 14 checkpoint. See [the cancellation record](qa/log-history-cancel-2026-10-06.json).
 
 ## Changed-file detail cancellation
 
@@ -2231,3 +2231,38 @@ were reaped. See [batch evidence](qa/log-metadata-2026-10-14.json).
 This is
 bounded batching, not a streaming unlimited-history reader, repository-wide notes
 transaction, complete large-repository responsiveness guarantee or full Log parity.
+
+## Incremental history transport — October 14, 2026
+
+Git Log now feeds the eleven-field record parser incrementally from the owned
+stdout spool. The walk no longer materializes a second complete stdout Data,
+a complete decoded String and its field array before building Log entries.
+NUL framing preserves empty fields; decoding waits for complete fields so split
+UTF-8 code points remain exact. SHA-1/SHA-256 hashes are validated and a truncated
+record is an explicit failure rather than a partial successful history. The
+framing buffer follows the largest active record, independently of walk length.
+
+The existing actual-parent restoration, rewritten graph parents, reference
+labels, notes/tag/path batches, issue IDs, query/regex modes, boundaries, count
+limits and raw-versus-matching-result contracts operate on the typed records.
+Successful log stdout is consumed by the stream rather than returned again in
+GitResult; other Git callers retain their previous output contract by default.
+Git still uses a private disk spool so a slow metadata/UI consumer cannot block
+a stdout pipe or accumulate an unbounded in-memory chunk queue.
+
+Native Log reports a live revision count while Git is still running. Counts
+are coalesced by completed-record chunks and fenced by the history generation,
+cancellation and owner retirement. A removed window retains independent Quit
+protection and its repository lease until the owned history task settles.
+
+This removes raw-walk buffering and provides incremental ingestion/progress.
+Typed entries, filter texts and the final graph are still materialized, and
+visible filtered rows are published after metadata/filter completion. Full
+streaming row publication, bounded retained history and regex batching remain
+unfinished; this is not a complete unlimited-history port.
+
+Debug, all 83 affected history/process Core checks and six grouped native
+stream/metadata/column receivers passed with system and bundled Git. All
+receivers were reaped; the grouped checks required no repair/rerun. See
+[actual evidence and limits](qa/log-history-stream-2026-10-14.json). Physical progress/cancellation acceptance,
+very large histories and signed scope acceptance remain open.

@@ -891,7 +891,7 @@ extension GitRepository {
         try cancellation?.check()
         return nil
     }
-    public func history(options: HistoryOptions = HistoryOptions(), cancellation: OperationCancellation? = nil, issueProperties: IssueTrackerProperties? = nil, dateSettings: HistoryDateSettings = .load()) throws -> [LogEntry] {
+    public func history(options: HistoryOptions = HistoryOptions(), cancellation: OperationCancellation? = nil, issueProperties: IssueTrackerProperties? = nil, dateSettings: HistoryDateSettings = .load(), onProgress: (@Sendable (Int) -> Void)? = nil) throws -> [LogEntry] {
         try cancellation?.check()
         func historyRun(_ arguments: [String], successfulExitCodes: ClosedRange<Int32> = 0...0) throws -> GitResult {
             try run(arguments, successfulExitCodes: successfulExitCodes, cancellation: cancellation)
@@ -997,12 +997,15 @@ extension GitRepository {
             }
             return pathCache[hash] ?? []
         }
-        let fieldsInHistory = String(decoding: try historyRun(args).stdout, as: UTF8.self).components(separatedBy: "\0")
+        let stream = HistoryRecordStream()
+        _ = try run(args, cancellation: cancellation, retainStandardOutput: false, onOutput: { chunk in
+            guard case .stdout = chunk.stream else { return }
+            if let count = stream.ingest(chunk.data) { onProgress?(count) }
+        })
+        let rawEntries = try stream.finish()
         var actualParents: [String: [String]] = [:]
         if rewritesParents {
-            let hashes = stride(from: 0, to: max(0, fieldsInHistory.count - 10), by: 11).map {
-                fieldsInHistory[$0].trimmingCharacters(in: .whitespacesAndNewlines)
-            }.filter { !$0.isEmpty }
+            let hashes = rawEntries.map(\.hash)
             guard hashes.allSatisfy({ ($0.count == 40 || $0.count == 64) && $0.allSatisfy { $0.isASCII && $0.isHexDigit } }) else { throw RevisionComparisonFailure.range }
             // Bound argv size even when in-memory searching scans a large history.
             for start in stride(from: 0, to: hashes.count, by: 128) {
@@ -1017,54 +1020,44 @@ extension GitRepository {
                 guard batch.allSatisfy({ actualParents[$0] != nil }) else { throw RevisionComparisonFailure.range }
             }
         }
-        for offset in stride(from:0,to:max(0,fieldsInHistory.count-10),by:11) {
-            let hash=fieldsInHistory[offset].trimmingCharacters(in:.whitespacesAndNewlines)
-            guard HistoryMetadataProtocol.objectID(hash) else { throw HistoryMetadataFailure.input }
-            let parents=actualParents[hash] ?? fieldsInHistory[offset+1].split(separator:" ").map(String.init)
-            metadataPositions[hash]=metadataEntries.count
-            metadataEntries.append(LogEntry(hash:hash,author:"",date:"",subject:"",parents:parents))
+        for raw in rawEntries {
+            try cancellation?.check()
+            metadataPositions[raw.hash] = metadataEntries.count
+            metadataEntries.append(LogEntry(hash: raw.hash, author: "", date: "", subject: "", parents: actualParents[raw.hash] ?? raw.parents))
         }
         let hasBisectRefs = references.values.contains { $0.contains { $0.name.hasPrefix("refs/bisect/") } }
         let bisectTerms = hasBisectRefs ? try historyBisectTerms(cancellation: cancellation) : HistoryBisectTerms()
         var entries: [LogEntry] = []
         var regexTexts: [String] = []
-        var record = 0
-        while record + 10 < fieldsInHistory.count {
+        for raw in rawEntries {
             try cancellation?.check()
-            let fields = Array(fieldsInHistory[record..<(record + 11)])
-            record += 11
-            let hash = fields[0].trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !hash.isEmpty else { continue }
-            let walkedParents = fields[1].split(separator: " ").map(String.init)
+            let hash = raw.hash, walkedParents = raw.parents
             let parents = actualParents[hash] ?? walkedParents
             var matchesFilter = true
             if filterInMemory {
                 var searchable: [String] = []
-                let messageParts = LogEntry.splitHistoryMessage(fields[6])
+                let messageParts = LogEntry.splitHistoryMessage(raw.message)
                 if !options.searchFields.intersection([.subject, .messages]).isEmpty { searchable.append(messageParts.subject) }
                 if options.searchFields.contains(.messages) { searchable.append(messageParts.body) }
-                if options.searchFields.contains(.bugIDs) { searchable.append(try issueIDs(fields[0].trimmingCharacters(in: .whitespacesAndNewlines), message: fields[6])) }
-                if options.searchFields.contains(.authors) { searchable += [fields[2], fields[7]] }
-                if options.searchFields.contains(.emails) { searchable += [fields[3], fields[8]] }
-                if options.searchFields.contains(.revisions) { searchable.append(fields[0].trimmingCharacters(in: .newlines)) }
-                if options.searchFields.contains(.notes) { searchable.append(try notes(fields[0].trimmingCharacters(in: .whitespacesAndNewlines))) }
+                if options.searchFields.contains(.bugIDs) { searchable.append(try issueIDs(hash, message: raw.message)) }
+                if options.searchFields.contains(.authors) { searchable += [raw.author, raw.committer] }
+                if options.searchFields.contains(.emails) { searchable += [raw.email, raw.committerEmail] }
+                if options.searchFields.contains(.revisions) { searchable.append(hash) }
+                if options.searchFields.contains(.notes) { searchable.append(try notes(hash)) }
                 if options.searchFields.contains(.referenceNames) {
-                    let hash = fields[0].trimmingCharacters(in: .whitespacesAndNewlines)
                     searchable += (references[hash] ?? []).map(\.name) + (peeledReferenceNames[hash] ?? [])
                 }
-                if options.searchFields.contains(.tagInfo) { searchable.append(dateSettings.tagInfo(try tagInfo(fields[0].trimmingCharacters(in: .whitespacesAndNewlines)))) }
+                if options.searchFields.contains(.tagInfo) { searchable.append(dateSettings.tagInfo(try tagInfo(hash))) }
                 if options.searchFields.contains(.paths) { searchable += try changedPaths(hash) }
                 let text = searchable.isEmpty ? "" : searchable.joined(separator: "\n") + "\n"
                 if options.searchRegex { regexTexts.append(text) }
                 else { matchesFilter = query.matches(text); if !matchesFilter && !options.retainFilteredRows { continue } }
             }
-            var entry = LogEntry(hash: hash, author: fields[2], date: fields[4], subject: fields[5],
-                parents: parents, email: fields[3], message: fields[6],
-                committer: fields[7], committerEmail: fields[8], committerDate: fields[9])
+            var entry = raw; entry.parents = parents
             entry.matchesHistoryFilter = matchesFilter
-            entry.isBoundary = options.includeBoundaryCommits && fields[10] == "-"
+            entry.isBoundary = options.includeBoundaryCommits && raw.isBoundary
             if rewritesParents { entry.graphParents = walkedParents }
-            entry.issueIDs = try issueIDs(hash, message: fields[6])
+            entry.issueIDs = try issueIDs(hash, message: raw.message)
             entry.notes = try notes(hash); entry.tagInfo = try tagInfo(hash); entries.append(entry)
             if filtering && !options.retainFilteredRows && !options.searchRegex && options.limit > 0 && entries.count >= options.limit { break }
         }

@@ -2,6 +2,28 @@ import XCTest
 @testable import TurtleGitCore
 
 final class HistoryMetadataBatchTests:XCTestCase {
+    func testStreamingLogRecordsPreserveEveryUTF8SplitAndEmptyField() throws {
+        let hash = String(repeating: "a", count: 40), other = String(repeating: "b", count: 64)
+        let fields = [hash, "", "Author 雪", "", "2026-10-14T12:00:00Z", "Subject 🦎", "Subject 🦎\n\nBody é\n", "Committer", "mail@example.invalid", "2026-10-14T13:00:00Z", "-"]
+        let second = [other, hash, "", "", "", "", "", "", "", "", ""]
+        let bytes = Data((fields.joined(separator: "\0") + "\0\n" + second.joined(separator: "\0") + "\0\n").utf8)
+        for split in 0...bytes.count {
+            let parser = HistoryRecordStream(); parser.ingest(Data(bytes.prefix(split))); parser.ingest(Data(bytes.dropFirst(split)))
+            let records = try parser.finish()
+            XCTAssertEqual(records.map(\.hash), [hash, other]); XCTAssertEqual(records[0].author, fields[2]); XCTAssertEqual(records[0].message, fields[6]); XCTAssertTrue(records[0].isBoundary)
+            XCTAssertEqual(records[1].parents, [hash]); XCTAssertEqual(records[1].email, "")
+        }
+        let truncated = HistoryRecordStream(); truncated.ingest(Data(bytes.dropLast(4))); XCTAssertThrowsError(try truncated.finish())
+        let invalid = HistoryRecordStream(); invalid.ingest(Data(("bad\0" + fields.dropFirst().joined(separator: "\0") + "\0").utf8)); XCTAssertThrowsError(try invalid.finish())
+    }
+    func testStreamingFramingBufferDoesNotGrowWithWalkLength() throws {
+        let fields = [String(repeating: "c", count: 40), "", "Author", "", "", "subject", String(repeating: "雪", count: 1024), "", "", "", ""]
+        let record = Data((fields.joined(separator: "\0") + "\0\n").utf8), parser = HistoryRecordStream()
+        for _ in 0..<200 { for start in stride(from: 0, to: record.count, by: 7) { parser.ingest(Data(record[start..<min(start + 7, record.count)])) } }
+        XCTAssertEqual(try parser.finish().count, 200)
+        XCTAssertLessThanOrEqual(parser.maximumBufferedBytes, record.count)
+    }
+
     func fixture() async throws -> (URL,GitRepository) {
         let root=FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitMetadata-"+UUID().uuidString)
         try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)

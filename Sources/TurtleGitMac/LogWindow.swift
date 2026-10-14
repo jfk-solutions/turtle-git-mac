@@ -520,6 +520,7 @@ struct LogCommandRequest: Identifiable {
 
 @MainActor final class LogWindowModel: ObservableObject {
     private(set) static var activeHistoryDeletions = 0
+    private(set) static var activeHistoryLoads = 0
     private(set) static var activeActionReads = 0
     let repository: GitRepository
     let sshSettings: SSHTransportSettings
@@ -780,6 +781,7 @@ struct LogCommandRequest: Identifiable {
     }
     private var detailCancellation: OperationCancellation?
     private var historyCancellation: OperationCancellation?
+    @Published private(set) var loadedRevisionCount = 0
     var loadingHistory: Bool { historyCancellation != nil }
     @Published var issueProperties = IssueTrackerProperties()
     @Published var search = ""
@@ -1337,8 +1339,9 @@ struct LogCommandRequest: Identifiable {
         let scope = historyPaths
         if !showWholeProject { options.paths = historyPaths }
         historyLimit.apply(to: &options)
-        busy = true
+        busy = true; loadedRevisionCount = 0; Self.activeHistoryLoads += 1
         Task {
+            defer { Self.activeHistoryLoads -= 1; withExtendedLifetime(access) {} }
             do {
                 let bare = try await repository.run(["rev-parse", "--is-bare-repository"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) == "true"
                 let mergeActive = try await repository.logMergeActive(cancellation: cancellation)
@@ -1352,7 +1355,12 @@ struct LogCommandRequest: Identifiable {
                 let followAllowed = try await repository.canFollowHistory(paths: scope, revision: options.revisionRange?.to ?? options.endRevision, cancellation: cancellation)
                 let pathScopes = try await repository.historyPathScopes(paths: scope, revision: options.revisionRange?.to ?? options.endRevision, cancellation: cancellation)
                 let showPatch = patchPreviewPreferenceLoaded ? patchPreviewVisible : try await repository.run(["config", "--bool", "--get", "tgit.logshowpatch"], successfulExitCodes: 0...1, cancellation: cancellation).text.trimmingCharacters(in: .newlines) == "true"
-                var result = try await repository.history(options: options, cancellation: cancellation, issueProperties: issueProperties)
+                var result = try await repository.history(options: options, cancellation: cancellation, issueProperties: issueProperties, onProgress: { [weak self] count in
+                    Task { @MainActor in
+                        guard let self, request == self.generation, self.loadingHistory, !self.isInvalidated, !cancellation.isCancelled else { return }
+                        self.loadedRevisionCount = max(self.loadedRevisionCount, count)
+                    }
+                })
                 let svnMessages = result.map { $0.historySubject + "\n" + $0.historyBody }
                 let svnExecutable = options.regexExecutable
                 let svnValues = metadata.hasGitSVN ? try await Task.detached {
@@ -2369,7 +2377,7 @@ struct LogDialog: View {
             HStack {
                 Button("Refresh") { model.reload() }.disabled(model.busy)
                 Button("Statistics") { model.showStatistics() }.disabled(model.busy || model.entries.isEmpty || model.isInvalidated)
-                if model.busy { ProgressView().controlSize(.small) }
+                if model.busy { ProgressView().controlSize(.small); if model.loadingHistory { Text("Read \(model.loadedRevisionCount) revisions…").font(.caption).foregroundStyle(.secondary) } }
                 if model.patchPreviewLoading { ProgressView("Reading patch…").controlSize(.small) }
                 if let error = model.patchPreviewError { Text(error).foregroundStyle(.red).font(.caption) }
                 if let error = model.patchPreferenceError { Text("Could not remember View Patch: " + error).foregroundStyle(.red).font(.caption) }

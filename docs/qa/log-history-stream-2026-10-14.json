@@ -1,0 +1,56 @@
+{
+  "date": "2026-10-14",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Incremental eleven-field Git history record ingestion without retained successful raw stdout",
+    "UTF-8 chunk boundaries, empty fields, SHA-1/SHA-256 and malformed/truncated record gates",
+    "Typed metadata/filter pipeline preservation, live native count and retired task/Quit accounting"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/log-history-stream-build-2026-10-14.log"
+    },
+    "core": {
+      "exit": 0,
+      "tests": 83,
+      "scope": "Commit history, metadata framing/batches, ranges, ordering, limits, reference labels and process cancellation/exit groups",
+      "log": "build/qa/log-history-stream-core-2026-10-14.log"
+    },
+    "native": {
+      "exit": 0,
+      "cases": 6,
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "scope": "New stream lifecycle plus existing Log metadata and column receivers",
+      "log": "build/qa/log-history-stream-native-2026-10-14.log",
+      "owned_receivers_reaped": [
+        25518,
+        25578,
+        25658,
+        25805,
+        25872,
+        25952
+      ],
+      "no_owned_receivers_remain": true
+    },
+    "website": {
+      "exit": 0,
+      "log": "build/qa/log-history-stream-site-2026-10-14.log"
+    }
+  },
+  "framing_evidence": [
+    "Every split offset of two mixed SHA-1/SHA-256 records preserves UTF-8 author/body and empty fields",
+    "200 records with 1024 Unicode characters per body, ingested in seven-byte chunks, keep the measured framing buffer within one encoded record",
+    "Malformed hash/truncated final record fail explicitly",
+    "Existing 130-row notes/tag batching and search/graph-parent/filter regression checks pass"
+  ],
+  "limits": [
+    "Typed records/entries, final graph and regex filter texts remain materialized; visible row publication still waits for metadata/filter completion",
+    "Raw Git output still uses a private disk spool; this removes duplicate memory retention rather than providing bounded disk usage",
+    "Native live count uses real private Git output and a waiting owned wrapper; no physical progress/keyboard or signed acceptance claim",
+    "No complete hosted CI, refreshed Store package or whole-port acceptance claim"
+  ]
+}

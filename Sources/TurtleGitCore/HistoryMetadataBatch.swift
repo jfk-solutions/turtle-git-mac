@@ -111,3 +111,40 @@ extension GitRepository {
         return result
     }
 }
+
+/// Incremental byte framing for the eleven NUL-terminated Git log fields.
+/// UTF-8 is decoded only once a field is complete, including split code points.
+final class HistoryRecordStream: @unchecked Sendable {
+    private let lock = NSLock()
+    private var field = Data(), fields: [String] = [], records: [LogEntry] = []
+    private var failed = false
+    private var recordBytes = 0
+    private(set) var maximumBufferedBytes = 0
+    @discardableResult func ingest(_ bytes: Data) -> Int? {
+        lock.lock(); defer { lock.unlock() }
+        guard !failed else { return nil }
+        let before = records.count
+        var cursor = bytes.startIndex
+        while cursor < bytes.endIndex, let end = bytes[cursor...].firstIndex(of: 0) {
+            field.append(bytes[cursor..<end]); recordBytes += end - cursor
+            maximumBufferedBytes = max(maximumBufferedBytes, recordBytes)
+            fields.append(String(decoding: field, as: UTF8.self)); field.removeAll(keepingCapacity: true)
+            cursor = bytes.index(after: end)
+            if fields.count == 11 {
+                let hash = fields[0].trimmingCharacters(in: .whitespacesAndNewlines)
+                guard HistoryMetadataProtocol.objectID(hash) else { failed = true; return nil }
+                let parents = fields[1].split(separator: " ").map(String.init)
+                var entry = LogEntry(hash: hash, author: fields[2], date: fields[4], subject: fields[5], parents: parents, email: fields[3], message: fields[6], committer: fields[7], committerEmail: fields[8], committerDate: fields[9])
+                entry.isBoundary = fields[10] == "-"
+                records.append(entry); fields.removeAll(keepingCapacity: true); recordBytes = 0
+            }
+        }
+        if cursor < bytes.endIndex { field.append(bytes[cursor...]); recordBytes += bytes.endIndex - cursor; maximumBufferedBytes = max(maximumBufferedBytes, recordBytes) }
+        return records.count > before ? records.count : nil
+    }
+    func finish() throws -> [LogEntry] {
+        lock.lock(); defer { lock.unlock() }
+        guard !failed, fields.isEmpty, field.allSatisfy({ [9, 10, 13, 32].contains($0) }) else { throw HistoryMetadataFailure.input }
+        return records
+    }
+}
