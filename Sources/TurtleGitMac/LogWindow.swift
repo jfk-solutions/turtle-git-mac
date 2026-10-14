@@ -563,6 +563,13 @@ struct LogCommandRequest: Identifiable {
     private(set) static var activeHistoryDeletions = 0
     private(set) static var activeHistoryLoads = 0
     private(set) static var activeActionReads = 0
+    private var combineSelectionReads:[UUID:OperationCancellation]=[:]
+    func validateCombineSelection(_ entries:[LogEntry],offset:Int,head:String,token:OperationCancellation) async throws {
+        let identity=UUID();combineSelectionReads[identity]=token
+        defer { combineSelectionReads.removeValue(forKey:identity) }
+        guard !isInvalidated else { throw OperationCancellationFailure.cancelled }
+        try await HistoryCombineSelectionReader.validate(repository:repository,access:access,entries:entries,offset:offset,head:head,token:token)
+    }
     let repository: GitRepository
     let sshSettings: SSHTransportSettings
     private var deletionCancellation: OperationCancellation?
@@ -1415,6 +1422,7 @@ struct LogCommandRequest: Identifiable {
         statisticsWindow = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
     }
     func invalidate() {
+        combineSelectionReads.values.forEach {$0.cancel()};combineSelectionReads.removeAll()
         startReferenceCancellation?.cancel(); startReferenceCancellation = nil
         unifiedSessions.values.forEach { $0.cancel() }; if !unifiedSessions.isEmpty { busy = false }
         statisticsWindow?.model.cancel(); statisticsWindow?.close(); statisticsWindow = nil
@@ -3322,10 +3330,9 @@ struct RevisionTable: NSViewRepresentable {
                 let repository = model.repository
                 combineMenuTask = Task { [weak self, weak combine] in
                     do {
-                        let first = try await repository.run(["rev-parse", "--verify", "HEAD~" + String(offset)], cancellation: request).text.trimmingCharacters(in: .newlines)
-                        let last = try await repository.run(["rev-parse", "--verify", "HEAD~" + String(offset + chosen.count - 1)], cancellation: request).text.trimmingCharacters(in: .newlines)
-                        guard !Task.isCancelled, !request.isCancelled, let self, !self.model.isInvalidated,
-                              first == chosen[0].hash, last == chosen[chosen.count - 1].hash else { return }
+                        guard let self else { return }
+                        try await self.model.validateCombineSelection(chosen,offset:offset,head:head,token:request)
+                        guard !Task.isCancelled,!request.isCancelled,!self.model.isInvalidated,self.model.selected == Set(chosen.map(\.hash)) else { return }
                         combine?.isHidden = false; combine?.isEnabled = !self.model.busy && !self.model.findBlocked && !self.model.orderingBlocked && self.model.window?.attachedSheet == nil
                     } catch { /* Source omits Combine when ancestry cannot be resolved. */ }
                 }

@@ -851,6 +851,13 @@ enum SynchronizationHistoryDiff {
     private(set) static var activePushWorkflows=0
     lazy var clientHooks=ClientHookSession(preferences:preferences)
     private(set) static var activeHistoryDeletions = 0
+    private var combineSelectionReads:[UUID:OperationCancellation]=[:]
+    func validateCombineSelection(_ entries:[LogEntry],offset:Int,head:String,token:OperationCancellation) async throws {
+        let identity=UUID();combineSelectionReads[identity]=token
+        defer { combineSelectionReads.removeValue(forKey:identity) }
+        guard !closed else { throw OperationCancellationFailure.cancelled }
+        try await HistoryCombineSelectionReader.validate(repository:repository,access:access,entries:entries,offset:offset,head:head,token:token)
+    }
     let repository: GitRepository
     let access: RepositoryAccessLease?
     let preferences: UserDefaults
@@ -1311,7 +1318,7 @@ enum SynchronizationHistoryDiff {
         case nil: return ""
         }
     }
-    func invalidate() { closed = true; clientHooks.retire(); historyDeletionCoordinator?.close(); historyDeletionCoordinator = nil; cancelHistoryActions(); token?.cancel(); token = nil; comparison.invalidate(); incomingComparison.invalidate(); busy = false; transportRunning = false; cancelling = false; confirmingCancellation = false; cancellationQuestion = nil; transportID = nil }
+    func invalidate() { combineSelectionReads.values.forEach {$0.cancel()};combineSelectionReads.removeAll();closed = true; clientHooks.retire(); historyDeletionCoordinator?.close(); historyDeletionCoordinator = nil; cancelHistoryActions(); token?.cancel(); token = nil; comparison.invalidate(); incomingComparison.invalidate(); busy = false; transportRunning = false; cancelling = false; confirmingCancellation = false; cancellationQuestion = nil; transportID = nil }
     func reload(selectTracking: Bool = false, initial: Bool = false, preserveError: Bool = false, refreshRemoteSelection: Bool = false) {
         guard !closed, !confirmingQuit, !transportRunning, !hasBlockingChild else { return }
         token?.cancel()
@@ -2493,9 +2500,10 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
                 let repository = model.repository
                 combineMenuTask = Task { [weak item, weak self] in
                     do {
-                        let first = try await repository.run(["rev-parse", "--verify", "HEAD~" + String(offset)], cancellation: request).text.trimmingCharacters(in: .newlines)
-                        let last = try await repository.run(["rev-parse", "--verify", "HEAD~" + String(offset + entries.count - 1)], cancellation: request).text.trimmingCharacters(in: .newlines)
-                        guard !request.isCancelled, !Task.isCancelled, first == entries[0].hash, last == entries[entries.count - 1].hash, let self else { return }
+                        guard let self else { return }
+                        try await self.model.validateCombineSelection(entries,offset:offset,head:expectedHead,token:request)
+                        guard !request.isCancelled,!Task.isCancelled,!self.model.closed,let table=self.table,
+                              table.selectedRowIndexes.compactMap({ self.model.historyEntries.indices.contains($0) ? self.model.historyEntries[$0].hash:nil }) == entries.map(\.hash) else { return }
                         item?.isHidden = false; item?.isEnabled = self.revisionActionAvailable
                     } catch { /* Source omits Combine when ancestry cannot be resolved. */ }
                 }

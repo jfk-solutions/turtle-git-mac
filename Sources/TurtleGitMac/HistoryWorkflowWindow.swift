@@ -121,7 +121,7 @@ import TurtleGitCore
     private var alert: NSAlert?
     private var pendingAnswer: ((Bool) -> Void)?
     init(repository: GitRepository, access: RepositoryAccessLease?, entries: [LogEntry], mainline: Int?, preferences: UserDefaults) {
-        model = HistoryRevertWindowModel(repository: repository, access: access, entries: entries, mainline: mainline)
+        model = HistoryRevertWindowModel(repository: repository, access: access, entries: entries, mainline: mainline, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 380), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Revert commits – TurtleGit"
         window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 600, height: 300)
@@ -147,11 +147,11 @@ import TurtleGitCore
             }
         }
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && alert == nil }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel();return false };return alert == nil }
     func windowWillClose(_ notification: Notification) {
         model.invalidate()
         let answer = pendingAnswer; pendingAnswer = nil
-        if let alert { window?.endSheet(alert.window, returnCode: .abort) }; alert = nil; answer?(false)
+        if let alert { window?.endSheet(alert.window, returnCode: .abort);alert.window.orderOut(nil) }; alert = nil; answer?(false)
         if let window { window.sheetParent?.endSheet(window) }; onClosed()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
@@ -162,6 +162,12 @@ import TurtleGitCore
     let access: RepositoryAccessLease?
     let entries: [LogEntry]
     let mainline: Int?
+    let preferences: UserDefaults
+    @Published private(set) var currentWork=""
+    @Published private(set) var percentage: Int?
+    private var originalOutput=""
+    private var displayTruncated=false
+    private var streamedCurrentCommand=false
     @Published private(set) var busy = false
     @Published private(set) var output = ""
     @Published private(set) var completed = 0
@@ -176,13 +182,14 @@ import TurtleGitCore
     var close: () -> Void = {}
     var onChanged: (String) -> Void = { _ in }
     var onCommit: () -> Void = {}
-    init(repository: GitRepository, access: RepositoryAccessLease?, entries: [LogEntry], mainline: Int?) { self.repository = repository; self.access = access; self.entries = entries; self.mainline = mainline }
+    init(repository: GitRepository, access: RepositoryAccessLease?, entries: [LogEntry], mainline: Int?, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.entries = entries; self.mainline = mainline;self.preferences=preferences }
     func start() {
         guard !started, !invalidated else { return }; started = true; busy = true; Self.activeOperations += 1
         worker = Task { [weak self, access] in
             _ = access
-            defer { Self.activeOperations -= 1 }
+            defer { Self.activeOperations -= 1;withExtendedLifetime(access) {} }
             guard let self else { return }
+            defer { self.busy=false;self.worker=nil;self.currentWork="";self.percentage=nil }
             self.confirming = true
             let accepted = await self.ask("Revert the selected commit(s)?", "", "Yes", "No")
             self.confirming = false
@@ -194,20 +201,24 @@ import TurtleGitCore
                 let messageURL = path.hasPrefix("/") ? URL(fileURLWithPath: path) : self.repository.root.appendingPathComponent(path)
                 for entry in self.entries {
                     if self.cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
-                    if entry.hash.isEmpty { self.completed += 1; continue }
-                    self.output += entry.hash + " " + entry.subject + "\n"
+                    self.completed += 1
+                    if entry.hash.isEmpty { continue }
+                    self.append(entry.hash + " " + entry.subject + "\n")
                     do {
-                        let result = try await self.repository.revertLogRevision(revision: entry.hash, mainline: self.entries.count == 1 ? self.mainline : nil, cancellation: self.cancellation)
+                        let repository=self.repository,token=self.cancellation,parent=self.entries.count == 1 ? self.mainline:nil
+                        let result=try await self.stream { emit in try await repository.revertLogRevision(revision:entry.hash,mainline:parent,cancellation:token,onOutput:emit) }
+                        self.originalOutput += result.text
                         changed = true
                         if let message = try? String(contentsOf: messageURL, encoding: .utf8) {
                             messages += (messages.isEmpty ? "" : "\n") + message
                             try messages.write(to: messageURL, atomically: true, encoding: .utf8)
                         }
                         guard !self.invalidated else { return }
-                        self.output += result.text
                     } catch {
                         guard !self.invalidated else { return }
-                        self.output += error.localizedDescription + "\n"
+                        self.originalOutput += error.localizedDescription + "\n"
+                        if self.streamedCurrentCommand { self.output=LocalGitCommandProgress.failure(error,existing:self.output,preferences:self.preferences) }
+                        else if !self.displayTruncated { self.output=LocalGitCommandProgress.bounded(self.output + error.localizedDescription + "\n",preferences:self.preferences) }
                         if self.cancellation.isCancelled { break }
                         if self.entries.count == 1 { break }
                         self.confirming = true
@@ -215,14 +226,13 @@ import TurtleGitCore
                         self.confirming = false
                         guard skip, !self.invalidated else { break }
                     }
-                    self.completed += 1
                 }
                 if self.cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
                 if !messages.isEmpty { try messages.write(to: messageURL, atomically: true, encoding: .utf8) }
-            } catch { if !self.invalidated { self.output += error.localizedDescription + "\n" } }
+            } catch { if !self.invalidated { self.originalOutput += error.localizedDescription + "\n";self.output=LocalGitCommandProgress.failure(error,existing:self.output,preferences:self.preferences) } }
             guard !self.invalidated else { return }
             self.cancelled = self.cancellation.isCancelled; self.success = changed && !self.cancelled
-            self.onChanged(self.output)
+            self.onChanged(self.originalOutput)
             if self.success {
                 self.confirming = true
                 let commit = await self.ask("Revision(s) reverted. All changes are integrated into your working tree now.", "", "Commit", "OK")
@@ -231,6 +241,21 @@ import TurtleGitCore
             } else { self.busy = false }
             self.worker = nil
         }
+    }
+    private func append(_ text:String) {
+        originalOutput += text
+        guard !displayTruncated else { return }
+        output=LocalGitCommandProgress.bounded(output + text,preferences:preferences)
+        displayTruncated=output.utf8.count >= GitProgressOutputState(preferences:preferences).limit
+    }
+    private func stream(operation:@escaping (@escaping @Sendable (GitOutputChunk)->Void) async throws -> GitResult) async throws -> GitResult {
+        let prefix=output,wasTruncated=displayTruncated;streamedCurrentCommand=false
+        LocalGitCommandProgress.begin();defer { LocalGitCommandProgress.end() }
+        return try await LocalGitCommandProgress.stream(preferences:preferences,update: { [weak self] state in
+            guard let self,!self.invalidated else { return };self.streamedCurrentCommand=state.hasOutput
+            if !wasTruncated { self.output=LocalGitCommandProgress.bounded(prefix + state.output,preferences:self.preferences);self.displayTruncated=self.output.utf8.count >= GitProgressOutputState(preferences:self.preferences).limit }
+            self.currentWork=state.currentWork;self.percentage=state.percentage
+        },resultText: { $0.text },operation:operation)
     }
     func cancel() { guard busy, !confirming else { return }; cancellation.cancel() }
     func invalidate() { invalidated = true; cancellation.cancel(); worker?.cancel(); worker = nil; busy = false }
@@ -241,8 +266,9 @@ private struct HistoryRevertDialog: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Revert selected commits").font(.headline)
             ProgressView(value: Double(model.completed), total: Double(max(1, model.entries.count)))
-            ScrollView { Text(model.output).font(.system(.body, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }.frame(maxHeight: .infinity)
+            SubmoduleProgressOutputView(text:model.output,completed:!model.busy,success:model.success,preferences:model.preferences).frame(maxHeight:.infinity)
             HStack {
+                if model.busy { LocalGitProgressIndicator(percentage:model.percentage);Text(model.currentWork).font(.caption) }
                 Text(model.busy ? "Reverting…" : model.cancelled ? "Cancelled" : model.success ? "Reverted" : "Revert failed").foregroundStyle(model.success ? Color.green : Color.secondary)
                 Spacer()
                 if model.busy { Button("Cancel", action: model.cancel).disabled(model.confirming).keyboardShortcut(.cancelAction) }
@@ -260,7 +286,7 @@ private struct HistoryRevertDialog: View {
     private var parentWarning: NSAlert?
     private var parentWarningAnswer: ((Bool) -> Void)?
     init(repository: GitRepository, access: RepositoryAccessLease?, entries: [LogEntry], firstOffset: Int, expectedHead: String, preferences: UserDefaults) {
-        model = HistoryCombineWindowModel(repository: repository, access: access, entries: entries, firstOffset: firstOffset, expectedHead: expectedHead)
+        model = HistoryCombineWindowModel(repository: repository, access: access, entries: entries, firstOffset: firstOffset, expectedHead: expectedHead, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 320), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Combine commits – TurtleGit"
         window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 600, height: 260)
@@ -325,6 +351,14 @@ private struct HistoryRevertDialog: View {
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
+@MainActor enum HistoryCombineSelectionReader {
+    private(set) static var activeReads=0
+    static func validate(repository:GitRepository,access:RepositoryAccessLease?,entries:[LogEntry],offset:Int,head:String,token:OperationCancellation) async throws {
+        activeReads += 1;defer { activeReads -= 1;withExtendedLifetime(access) {} }
+        if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+        _ = try await repository.validateHistoryCombineSelection(hashes:entries.map(\.hash),firstOffset:offset,expectedHead:head,cancellation:token)
+    }
+}
 @MainActor final class HistoryCombineWindowModel: ObservableObject {
     private(set) static var activeOperations = 0
     let repository: GitRepository
@@ -332,6 +366,13 @@ private struct HistoryRevertDialog: View {
     let entries: [LogEntry]
     let firstOffset: Int
     let expectedHead: String
+    let preferences: UserDefaults
+    @Published private(set) var currentWork=""
+    @Published private(set) var percentage: Int?
+    @Published private(set) var recovering=false
+    @Published private(set) var presentingCommit=false
+    @Published private(set) var success=false
+    private var originalOutput=""
     @Published private(set) var busy = false
     @Published private(set) var output = ""
     @Published private(set) var status = "Preparing Combine…"
@@ -342,39 +383,57 @@ private struct HistoryRevertDialog: View {
     var presentCommit: (HistoryCombinePlan) async -> Bool = { _ in false }
     var onChanged: (String) -> Void = { _ in }
     var close: () -> Void = {}
-    init(repository: GitRepository, access: RepositoryAccessLease?, entries: [LogEntry], firstOffset: Int, expectedHead: String) { self.repository = repository; self.access = access; self.entries = entries; self.firstOffset = firstOffset; self.expectedHead = expectedHead }
+    init(repository: GitRepository, access: RepositoryAccessLease?, entries: [LogEntry], firstOffset: Int, expectedHead: String, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.entries = entries; self.firstOffset = firstOffset; self.expectedHead = expectedHead;self.preferences=preferences }
     func start() {
         guard !started, !invalidated else { return }; started = true; busy = true; Self.activeOperations += 1
         worker = Task { [weak self, access] in
             _ = access
-            defer { Self.activeOperations -= 1 }
+            defer { Self.activeOperations -= 1;withExtendedLifetime(access) {} }
             guard let self else { return }
+            defer { self.busy=false;self.worker=nil;self.recovering=false;self.presentingCommit=false;self.currentWork="";self.percentage=nil }
             var recovery: HistoryCombinePlan?
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(self.repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let plan = try await self.repository.prepareHistoryCombine(hashes: self.entries.map(\.hash), firstOffset: self.firstOffset, expectedHead: self.expectedHead, cancellation: self.cancellation)
-                let preparedOutput = try await self.repository.beginHistoryCombine(plan, cancellation: self.cancellation)
+                let repository=self.repository,token=self.cancellation
+                let preparedOutput=try await self.stream { emit in try await repository.beginHistoryCombine(plan,cancellation:token,onOutput:emit) }
+                self.originalOutput += preparedOutput
                 recovery = plan
                 guard !self.invalidated, !self.cancellation.isCancelled else { throw OperationCancellationFailure.cancelled }
-                self.output = preparedOutput; self.status = "Edit the combined commit message"
-                guard await self.presentCommit(plan), !self.invalidated, !self.cancellation.isCancelled else { throw OperationCancellationFailure.cancelled }
+                self.status = "Edit the combined commit message";self.presentingCommit=true
+                let committed=await self.presentCommit(plan);self.presentingCommit=false
+                guard committed, !self.invalidated, !self.cancellation.isCancelled else { throw OperationCancellationFailure.cancelled }
                 self.status = "Replaying commits above the combined range…"
-                let replayOutput = try await self.repository.finishHistoryCombine(plan, cancellation: self.cancellation)
+                let replayOutput=try await self.stream { emit in try await repository.finishHistoryCombine(plan,cancellation:token,onOutput:emit) };self.originalOutput += replayOutput
                 guard !self.invalidated, !self.cancellation.isCancelled else { throw OperationCancellationFailure.cancelled }
-                self.output += replayOutput; recovery = nil; self.status = "Combined commits"
+                recovery = nil; self.success=true;self.status = "Combined commits"
             } catch {
                 var message = error.localizedDescription
                 if let plan = recovery {
-                    do { let result = try await self.repository.abortHistoryCombine(plan); message += "\nRestored original HEAD.\n" + result }
+                    do {
+                        self.recovering=true;if !self.invalidated { self.status="Restoring original HEAD…" }
+                        let repository=self.repository
+                        let result=try await self.stream { emit in try await repository.abortHistoryCombine(plan,onOutput:emit) }
+                        self.originalOutput += result;message += "\nRestored original HEAD.\n"
+                    }
                     catch { message += "\n" + HistoryCombineFailure.rollback(error.localizedDescription).localizedDescription }
                 }
-                if !self.invalidated { self.output += "\n" + message; self.status = "Combine stopped" }
+                self.originalOutput += "\n" + message
+                if !self.invalidated { self.output=LocalGitCommandProgress.bounded(self.output + "\n" + message,preferences:self.preferences);self.status="Combine stopped" }
             }
             self.busy = false; self.worker = nil
-            if !self.invalidated { self.onChanged(self.output) }
+            if !self.invalidated { self.onChanged(self.originalOutput) }
         }
     }
-    func cancel() { guard busy else { return }; cancellation.cancel() }
+    func cancel() { guard busy,!recovering,!presentingCommit else { return }; cancellation.cancel() }
+    private func stream(operation:@escaping (@escaping @Sendable (GitOutputChunk)->Void) async throws -> String) async throws -> String {
+        let prefix=output
+        LocalGitCommandProgress.begin();defer { LocalGitCommandProgress.end() }
+        return try await LocalGitCommandProgress.stream(preferences:preferences,update: { [weak self] state in
+            guard let self,!self.invalidated else { return }
+            self.output=LocalGitCommandProgress.bounded(prefix + state.output,preferences:self.preferences);self.currentWork=state.currentWork;self.percentage=state.percentage
+        },resultText: { $0 },operation:operation)
+    }
     func invalidate() { invalidated = true; cancellation.cancel() }
 }
 private struct HistoryCombineDialog: View {
@@ -382,9 +441,9 @@ private struct HistoryCombineDialog: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(model.status).font(.headline)
-            if model.busy { ProgressView().controlSize(.small) }
-            ScrollView { Text(model.output).font(.system(.body, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }.frame(maxHeight: .infinity)
-            HStack { Spacer(); if model.busy { Button("Cancel", action: model.cancel).keyboardShortcut(.cancelAction) } else { Button("Close", action: model.close).keyboardShortcut(.defaultAction) } }
+            if model.busy { HStack { LocalGitProgressIndicator(percentage:model.percentage);Text(model.currentWork).font(.caption) } }
+            SubmoduleProgressOutputView(text:model.output,completed:!model.busy,success:model.success,preferences:model.preferences).frame(maxHeight:.infinity)
+            HStack { Spacer(); if model.busy { Button("Cancel", action: model.cancel).keyboardShortcut(.cancelAction).disabled(model.recovering || model.presentingCommit) } else { Button("Close", action: model.close).keyboardShortcut(.defaultAction) } }
         }.padding(12).frame(minWidth: 600, minHeight: 260)
     }
 }

@@ -872,7 +872,7 @@ extension GitRepository {
         return choices
     }
     /// Source GitRevert: reverse the chosen mainline into index/worktree without committing.
-    public func revertLogRevision(revision: String, mainline: Int? = nil, cancellation: OperationCancellation? = nil) throws -> GitResult {
+    public func revertLogRevision(revision: String, mainline: Int? = nil, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> GitResult {
         try cancellation?.check()
         guard try run(["rev-parse", "--is-bare-repository"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) != "true" else { throw LogRevertFailure.bare }
         guard try !logMergeActive(cancellation: cancellation) else { throw LogRevertFailure.mergeActive }
@@ -884,7 +884,7 @@ extension GitRepository {
         var arguments = ["revert", "--no-edit", "--no-commit"]
         if let mainline { arguments += ["--mainline", String(mainline)] }
         arguments.append(hash)
-        return try run(arguments, cancellation: cancellation)
+        return try run(arguments, cancellation: cancellation, onOutput: onOutput)
     }
     /// Read the active notes ref, independently of additional log display refs.
     public func editableCommitNote(revision: String, cancellation: OperationCancellation? = nil) throws -> CommitNoteSnapshot {
@@ -1502,18 +1502,23 @@ public enum HistoryCombineFailure: LocalizedError {
     }
 }
 extension GitRepository {
-    public func prepareHistoryCombine(hashes: [String], firstOffset: Int, expectedHead: String, cancellation: OperationCancellation? = nil) throws -> HistoryCombinePlan {
+    /// Check every captured visible row, rather than only the endpoints of a
+    /// potentially filtered/nonlinear Log list. Menu checks do not reject dirtiness.
+    public func validateHistoryCombineSelection(hashes:[String],firstOffset:Int,expectedHead:String,cancellation:OperationCancellation?=nil) throws -> String? {
         try cancellation?.check()
-        guard hashes.count > 1, firstOffset >= 0, !hashes.contains(where: { $0.isEmpty }), try !isBare(cancellation: cancellation), try !logMergeActive(cancellation: cancellation) else { throw HistoryCombineFailure.selection }
-        let head = try run(["rev-parse", "--verify", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+        guard hashes.count > 1,firstOffset >= 0,!hashes.contains(where:{$0.isEmpty}),try !isBare(cancellation:cancellation),try !logMergeActive(cancellation:cancellation) else { throw HistoryCombineFailure.selection }
+        let head=try run(["rev-parse","--verify","HEAD"],cancellation:cancellation).text.trimmingCharacters(in:.newlines)
         guard head == expectedHead else { throw HistoryCombineFailure.changed }
-        let reference = try? run(["symbolic-ref", "--quiet", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
-        // Source uses row offsets from HEAD, rather than assuming filtered rows
-        // necessarily form an ancestry range. Verify every captured row as well.
-        for (index, hash) in hashes.enumerated() {
-            let actual = try run(["rev-parse", "--verify", "HEAD~" + String(firstOffset + index)], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+        let reference=try? run(["symbolic-ref","--quiet","HEAD"],cancellation:cancellation).text.trimmingCharacters(in:.newlines)
+        for (index,hash) in hashes.enumerated() {
+            let actual=try run(["rev-parse","--verify","HEAD~" + String(firstOffset + index)],cancellation:cancellation).text.trimmingCharacters(in:.newlines)
             guard actual == hash else { throw HistoryCombineFailure.selection }
         }
+        try cancellation?.check();return reference
+    }
+    public func prepareHistoryCombine(hashes:[String],firstOffset:Int,expectedHead:String,cancellation:OperationCancellation?=nil) throws -> HistoryCombinePlan {
+        let reference=try validateHistoryCombineSelection(hashes:hashes,firstOffset:firstOffset,expectedHead:expectedHead,cancellation:cancellation)
+        let head=expectedHead
         guard try run(["diff", "--quiet", "--"], successfulExitCodes: 0...1, cancellation: cancellation).exitCode == 0,
               try run(["diff", "--cached", "--quiet", "--"], successfulExitCodes: 0...1, cancellation: cancellation).exitCode == 0 else { throw HistoryCombineFailure.dirty }
         let first = hashes[0], last = hashes[hashes.count - 1]
@@ -1536,16 +1541,16 @@ extension GitRepository {
         try cancellation?.check()
         guard reference == plan.originalReference else { throw HistoryCombineFailure.changed }
     }
-    public func beginHistoryCombine(_ plan: HistoryCombinePlan, cancellation: OperationCancellation? = nil) throws -> String {
+    public func beginHistoryCombine(_ plan: HistoryCombinePlan, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
         try verifyHistoryCombineReference(plan, cancellation: cancellation)
         guard try run(["rev-parse", "--verify", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) == plan.originalHead else { throw HistoryCombineFailure.changed }
         guard try run(["diff", "--quiet", "--"], successfulExitCodes: 0...1, cancellation: cancellation).exitCode == 0,
               try run(["diff", "--cached", "--quiet", "--"], successfulExitCodes: 0...1, cancellation: cancellation).exitCode == 0 else { throw HistoryCombineFailure.dirty }
         do {
-            let output = try run(["reset", "--hard", plan.first, "--"], cancellation: cancellation).text
-            return output + (try run(["reset", "--soft", plan.last, "--"], cancellation: cancellation).text)
+            let output = try run(["reset", "--hard", plan.first, "--"], cancellation: cancellation, onOutput: onOutput).text
+            return output + (try run(["reset", "--soft", plan.last, "--"], cancellation: cancellation, onOutput: onOutput).text)
         } catch {
-            do { _ = try abortHistoryCombine(plan) } catch { throw HistoryCombineFailure.rollback(error.localizedDescription) }
+            do { _ = try abortHistoryCombine(plan, onOutput: onOutput) } catch { throw HistoryCombineFailure.rollback(error.localizedDescription) }
             throw error
         }
     }
@@ -1553,18 +1558,18 @@ extension GitRepository {
         try verifyHistoryCombineReference(plan, cancellation: cancellation)
         guard try run(["rev-parse", "--verify", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) == plan.last else { throw HistoryCombineFailure.changed }
     }
-    public func finishHistoryCombine(_ plan: HistoryCombinePlan, cancellation: OperationCancellation? = nil) throws -> String {
+    public func finishHistoryCombine(_ plan: HistoryCombinePlan, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
         try verifyHistoryCombineReference(plan, cancellation: cancellation)
         guard plan.first != plan.originalHead else { return "" }
         let hashes = try run(["rev-list", "--reverse", plan.first + ".." + plan.originalHead, "--"], cancellation: cancellation).text.split(whereSeparator: \.isWhitespace)
         var output = ""
-        for hash in hashes { output += try run(["cherry-pick", String(hash)], cancellation: cancellation).text }
+        for hash in hashes { output += try run(["cherry-pick", String(hash)], cancellation: cancellation, onOutput: onOutput).text }
         return output
     }
-    public func abortHistoryCombine(_ plan: HistoryCombinePlan) throws -> String {
+    public func abortHistoryCombine(_ plan: HistoryCombinePlan, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
         // Recovery is intentionally independent of the cancelled worker token.
         try verifyHistoryCombineReference(plan)
-        return try run(["reset", "--hard", plan.originalHead, "--"]).text
+        return try run(["reset", "--hard", plan.originalHead, "--"], onOutput: onOutput).text
     }
 }
 

@@ -1,0 +1,55 @@
+{
+  "date": "2026-10-14",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Revert/Combine streamed actual commands with bounded native copy output and original callbacks",
+    "Revert attempt counts, preserved successful MERGE_MSG during later cancellation, Skip and ordered once-only Commit handoff",
+    "Combine native Commit presets, actual amendment/replay and pending-child forced retirement/independent rollback",
+    "Full captured Combine ancestry validation, owned Log/Sync cancellation and Quit accounting"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/history-workflows-debug-2026-10-14.log"
+    },
+    "core": {
+      "exit": 0,
+      "tests": 5,
+      "scope": "HistoryWorkflowTests plus CommitHistoryTests.testMergeRevertEachMainlinePreservesUnrelatedChangesAndDoesNotCommit",
+      "log": "build/qa/history-workflows-core-2026-10-14.log"
+    },
+    "native": {
+      "exit": 0,
+      "cases": 2,
+      "family": "history-workflows",
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "owned_receivers_reaped": [
+        94393,
+        94577
+      ],
+      "log": "build/qa/history-workflows-native-2026-10-14.log"
+    },
+    "hosted_checkpoint": {
+      "preceding_sha": "182f7141",
+      "pages": "success",
+      "macos": "pending",
+      "source": "GitHub workflow runs API at validation checkpoint"
+    },
+    "site": {
+      "exit": 0,
+      "documents": 199,
+      "unresolved_fragments": 0,
+      "log": "build/qa/history-workflows-site-2026-10-14.log"
+    }
+  },
+  "limits": [
+    "Native questions/Commit continuation are injected; real Git amendment/replay is executed but actual Commit button/sheet/pointer/keyboard is not exercised",
+    "Log/Sync read ownership uses actual model APIs; all composed menus, nested consumers and physical handoffs are not certified",
+    "Core reset rollback preserves original logical tree/HEAD, not byte-identical index timestamps",
+    "Screenshots, theme/VoiceOver, linked-worktree variants, signed sandbox/Finder/App Store acceptance and full hosted CI remain open",
+    "Complete TortoiseGit port remains incomplete"
+  ]
+}

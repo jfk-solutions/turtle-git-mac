@@ -71,3 +71,42 @@ Quit remains blocked until the cancelled Git worker returns. Successful Revert
 messages are accumulated back into MERGE_MSG after each applied revision, so
 cancellation of a later revision cannot discard earlier message text. These
 lifecycle changes await the same deferred verification pass.
+
+
+## Connected selected-history Revert/Combine family — October 14, 2026
+
+Selected Revert now streams each actual command into the shared native styled
+output with original copy icons, parsed current work/percentage, CR replacement,
+split UTF-8 and a bounded whole-batch log. Original command results and diagnostics
+remain in repository callbacks rather than being replaced by the display limit.
+Validation failures without streamed bytes still append their diagnostic. The
+attempt counter advances before each row, including failed/placeholder rows, as
+the source progress does. Initial No, multi-failure Skip/Abort and final OK/Commit
+remain separate questions; Commit closes the result before dispatch exactly once.
+
+Successful messages are written back to MERGE_MSG before the next attempt,
+including when a later command is cancelled. Partial index/worktree changes are
+retained; no automatic commit or rollback is introduced. The controller's ordinary
+busy close routes through Cancel. Forced closure settles owned questions, cancels
+Git and fences late output/result/Commit handoffs. Operation accounting and captured
+scope remain alive until the worker and output drain return. The shared Combine
+family additionally owns preparation, Commit, replay and rollback, described in
+[Combine commits](HISTORY-COMBINE.md).
+
+The native output UI adapts the source system progress window; no Git-progress
+auto-close/kill-confirmation policy is imposed on that different source workflow.
+Physical submenu/question/default/Commit-button handling, linked-worktree/error
+variants, screenshots/themes/VoiceOver and signed scopes remain open. Earlier
+October 11 deferred notes are historical; dated evidence below covers the new
+connected implementation and its actual limited verification scope.
+
+
+The Debug build, five affected Core tests and two native engine cases passed on
+the first validation attempt. Core checks cover a real combined middle range with
+replayed descendants, unchanged final tree/branch, mismatched interior-row refusal,
+dirty preparation, cancelled hard/soft recovery and both merge Revert mainlines.
+The native family covers preserved messages, Skip/Commit ordering, actual Commit
+presets/Git amendment/replay, forced pending-child rollback and retired Log/Sync
+reads. Both receivers were reaped. See [batch evidence](qa/history-workflows-2026-10-14.json).
+No full Core or legacy Sync suite was repeated. Actual Commit-button and all
+physical/nested-menu interactions remain outside this evidence.
