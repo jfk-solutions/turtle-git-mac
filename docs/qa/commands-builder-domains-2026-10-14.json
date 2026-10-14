@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-14",
+  "base": "35cd2520",
+  "failed_commit": "29d5ee99",
+  "hosted_run": 38564335935,
+  "hosted_job": 115853494565,
+  "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38564335935/job/115853494565",
+  "hosted_toolchain": "Xcode 16.4 / Apple Swift 6.1.2",
+  "observed_failure": "TurtleGitMacApp.swift:100: extra argument in call, at Debug Development command. Swift Package app compilation failed before the Git integration tests ran.",
+  "cause": "Clipboard command group raised the outer CommandsBuilder from ten to eleven children; the older SwiftUI SDK limits buildBlock to ten. Local Xcode 27 accepts the larger builder.",
+  "change": "Compose AppUtilityCommands (four children), EditorFileCommands (three), RepositoryCommands (three), keeping Scene Commands at five Debug/four Release children. Retain observed repository/hook contexts and all menu placement/action/shortcut definitions.",
+  "validation": {
+    "intermediate_compaction": {
+      "xcode_exit": 0,
+      "package_exit": 0,
+      "note": "Initial provider consolidation reached ten children; final domain composition adds headroom rather than shipping at that boundary.",
+      "logs": [
+        "build/qa/commands-compatibility-debug-2026-10-14.log",
+        "build/qa/commands-compatibility-package-2026-10-14.log"
+      ]
+    },
+    "final_package": {
+      "exit": 0,
+      "log": "build/qa/commands-compatibility-domains-package-2026-10-14.log"
+    },
+    "core_tests": "Not repeated; command composition only, with no Git/backend changes.",
+    "hosted": "New exact-commit Xcode 16.4/full integration/native acceptance remains unproven until hosted workflow completes.",
+    "final_xcode": {
+      "exit": 0,
+      "log": "build/qa/commands-compatibility-domains-debug-2026-10-14.log",
+      "diagnostics": "Existing exit-zero/no-output compiler diagnostics; no clean-diagnostics claim."
+    }
+  },
+  "limitations": [
+    "Local compiler is Xcode 27; local builds do not prove exact older-SDK or minimum-OS runtime acceptance.",
+    "No full hosted CI/port completion claim."
+  ]
+}

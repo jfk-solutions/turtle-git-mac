@@ -38,59 +38,9 @@ import TurtleGitCore
                 #endif
         }
         .commands {
-            CommandGroup(replacing: .appSettings) {
-                Button("Settings…") { SettingsPresentationService.shared.show() }.keyboardShortcut(",", modifiers: .command)
-            }
-            CommandGroup(replacing: .appInfo) {
-                Button("About TurtleGit for Mac") { SettingsPresentationService.showAbout() }
-                Menu("About Tools") {
-                    ForEach(TurtleGitAboutTool.tools, id: \.self) { tool in Button("About " + tool.title) { TurtleGitAboutService.shared.show(tool) } }
-                }
-            }
-            CommandGroup(replacing: .help) {
-                Button("TurtleGit Help") { SettingsPresentationService.showHelp() }
-            }
-            BlameCommands(context:blameMenuContext)
-            ViewerFileCommands(patch: patchMenuContext, statistics: statisticsMenuContext)
-            CommandGroup(after: .appInfo) {
-                Button("Check for Updates…") { ReleaseUpdateService.shared.show() }
-                Button("First Start Wizard…") { FirstStartWizardService.shared.show() }
-                Button("SSH Key Generator…") { SSHKeyGenerationService.shared.show() }
-                Button("Saved SSH Authentication…") { SavedSSHAuthenticationService.shared.show() }
-            }
-            CommandGroup(after: .pasteboard) {
-                Button { model.showFileTransfer(copy: true, urls: []) } label: { CommandLabel(title: "Copy and Add…", icon: .add) }.disabled(model.root == nil || model.bare || model.busy)
-                Button { model.showFileTransfer(copy: true) } label: { CommandLabel(title: "Paste Copy and Add…", icon: .copy) }.disabled(model.root == nil || model.bare || model.busy)
-                Button { model.showFileTransfer(copy: false) } label: { CommandLabel(title: "Paste Move…", icon: .rename) }.disabled(model.root == nil || model.bare || model.busy)
-            }
-            CommandGroup(after: .newItem) {
-                Button { BlameWindowController.openFocused(NSApp.keyWindow ?? NSApp.mainWindow) { model.chooseRepository() } } label: { CommandLabel(title:"Open…",icon:.open) }.keyboardShortcut("o")
-                Button { model.showClipboardPatch() } label: { CommandLabel(title: "Review Clipboard Patch…", icon: .patch) }.disabled(model.busy || model.confirmingQuit)
-                Button { model.showReviewPatch(files: []) } label: { CommandLabel(title: RepositoryAction.reviewPatch.title, icon: RepositoryAction.reviewPatch.icon) }.disabled(model.busy || model.confirmingQuit)
-                Button { model.showMergeOpen() } label: { CommandLabel(title: "Open in TurtleGitMerge…", icon: .open) }.disabled(model.busy || model.confirmingQuit)
-                Button("Cancel Running Hook Scripts", action: hookProcesses.cancelAll).disabled(hookProcesses.activeScripts == 0)
-                Button { model.showAutotextTester() } label: { CommandLabel(title: "Autotext Tester…", icon: .settings) }.disabled(model.busy || model.confirmingQuit)
-                Button { model.showIssueRegexTester() } label: { CommandLabel(title: "Bugtraq Regex Tester…", icon: .settings) }.disabled(model.busy || model.confirmingQuit)
-                Button("Load Images…") { model.showLoadImages() }.disabled(model.busy || model.confirmingQuit)
-                Menu("Open Recent") {
-                    ForEach(model.recentRepositories) { saved in
-                        Button(saved.name) { model.openRecent(saved) }.help(saved.lastKnownPath)
-                    }
-                }.disabled(model.busy || model.recentRepositories.isEmpty)
-                Button("Close Repository") { model.closeRepository() }.disabled(model.busy || model.root == nil)
-                Button("Clone…") { model.activate(.clone) }.keyboardShortcut("c", modifiers: [.command, .shift])
-                Button("Create Repository…") { model.activate(.initialize) }.keyboardShortcut("r", modifiers: [.command, .shift])
-            }
-            CommandMenu("TurtleGit") {
-                ForEach(RepositoryAction.allCases.filter { $0 != .reviewPatch && $0 != .clone && $0 != .initialize && $0 != .editConflict && $0 != .diffLater && $0 != .clearComparisonMark && $0.resolveChoice == nil }) { action in
-                    Button { model.activate(action) } label: { CommandLabel(title: action.title, icon: action.icon) }.disabled(model.root == nil || model.busy || (action.svnOperation != nil && !model.hasGitSVN) || (model.bare && action.requiresWorkingTree) || (action == .mergeAbort && !model.mergeActive) || (action == .rename && !model.canRenameSelection) || ([RepositoryAction.remove, .removeKeep].contains(action) && !model.canRemoveSelection) || (action.isIgnore && !model.canIgnoreSelection(action)) || (action.isResolve && !model.canResolveSelection))
-                }
-                Button { model.showLFSLocks() } label: { CommandLabel(title: "LFS Locks…", icon: .lock) }.disabled(model.root == nil || model.bare || model.busy || model.confirmingQuit)
-                Button { model.showSynchronization() } label: { CommandLabel(title: "Git Synchronization…", icon: .sync) }.disabled(model.root == nil || model.bare || model.busy || model.confirmingQuit)
-                Divider()
-                Button { model.activate(.diffLater) } label: { CommandLabel(title: model.comparisonMarkTitle, icon: .compare) }.disabled(model.busy || model.confirmingQuit)
-                Button { model.activate(.clearComparisonMark) } label: { CommandLabel(title: RepositoryAction.clearComparisonMark.title, icon: .compare) }.disabled(model.busy || model.confirmingQuit || model.workingComparisonMark == nil)
-            }
+            AppUtilityCommands()
+            EditorFileCommands(blame: blameMenuContext, patch: patchMenuContext, statistics: statisticsMenuContext)
+            RepositoryCommands(model: model, hookProcesses: hookProcesses)
             CommandMenu("Appearance") {
                 Picker("Appearance", selection: $appearance.choice) {
                     ForEach(AppearanceChoice.allCases) { Text($0.title).tag($0) }
@@ -105,12 +55,77 @@ import TurtleGitCore
     }
 }
 
-// Older SwiftUI SDKs limit each CommandsBuilder block to ten children. Keep
-// viewer command providers together without changing their placement or routing.
-@MainActor private struct ViewerFileCommands: Commands {
+// Keep command domains below the ten-child limit of older SwiftUI SDKs.
+// The Scene builder has five Debug/four Release children; these providers have
+// four and three. Actions, placements, shortcut bindings and order stay local.
+@MainActor private struct AppUtilityCommands: Commands {
+    var body: some Commands {
+        CommandGroup(replacing: .appSettings) {
+            Button("Settings…") { SettingsPresentationService.shared.show() }.keyboardShortcut(",", modifiers: .command)
+        }
+        CommandGroup(replacing: .appInfo) {
+            Button("About TurtleGit for Mac") { SettingsPresentationService.showAbout() }
+            Menu("About Tools") {
+                ForEach(TurtleGitAboutTool.tools, id: \.self) { tool in Button("About " + tool.title) { TurtleGitAboutService.shared.show(tool) } }
+            }
+        }
+        CommandGroup(replacing: .help) {
+            Button("TurtleGit Help") { SettingsPresentationService.showHelp() }
+        }
+        CommandGroup(after: .appInfo) {
+            Button("Check for Updates…") { ReleaseUpdateService.shared.show() }
+            Button("First Start Wizard…") { FirstStartWizardService.shared.show() }
+            Button("SSH Key Generator…") { SSHKeyGenerationService.shared.show() }
+            Button("Saved SSH Authentication…") { SavedSSHAuthenticationService.shared.show() }
+        }
+    }
+}
+@MainActor private struct RepositoryCommands: Commands {
+    @ObservedObject var model: RepositoryModel
+    @ObservedObject var hookProcesses: ClientHookProcessPool
+    var body: some Commands {
+        CommandGroup(after: .pasteboard) {
+            Button { model.showFileTransfer(copy: true, urls: []) } label: { CommandLabel(title: "Copy and Add…", icon: .add) }.disabled(model.root == nil || model.bare || model.busy)
+            Button { model.showFileTransfer(copy: true) } label: { CommandLabel(title: "Paste Copy and Add…", icon: .copy) }.disabled(model.root == nil || model.bare || model.busy)
+            Button { model.showFileTransfer(copy: false) } label: { CommandLabel(title: "Paste Move…", icon: .rename) }.disabled(model.root == nil || model.bare || model.busy)
+        }
+        CommandGroup(after: .newItem) {
+            Button { BlameWindowController.openFocused(NSApp.keyWindow ?? NSApp.mainWindow) { model.chooseRepository() } } label: { CommandLabel(title:"Open…",icon:.open) }.keyboardShortcut("o")
+            Button { model.showClipboardPatch() } label: { CommandLabel(title: "Review Clipboard Patch…", icon: .patch) }.disabled(model.busy || model.confirmingQuit)
+            Button { model.showReviewPatch(files: []) } label: { CommandLabel(title: RepositoryAction.reviewPatch.title, icon: RepositoryAction.reviewPatch.icon) }.disabled(model.busy || model.confirmingQuit)
+            Button { model.showMergeOpen() } label: { CommandLabel(title: "Open in TurtleGitMerge…", icon: .open) }.disabled(model.busy || model.confirmingQuit)
+            Button("Cancel Running Hook Scripts", action: hookProcesses.cancelAll).disabled(hookProcesses.activeScripts == 0)
+            Button { model.showAutotextTester() } label: { CommandLabel(title: "Autotext Tester…", icon: .settings) }.disabled(model.busy || model.confirmingQuit)
+            Button { model.showIssueRegexTester() } label: { CommandLabel(title: "Bugtraq Regex Tester…", icon: .settings) }.disabled(model.busy || model.confirmingQuit)
+            Button("Load Images…") { model.showLoadImages() }.disabled(model.busy || model.confirmingQuit)
+            Menu("Open Recent") {
+                ForEach(model.recentRepositories) { saved in
+                    Button(saved.name) { model.openRecent(saved) }.help(saved.lastKnownPath)
+                }
+            }.disabled(model.busy || model.recentRepositories.isEmpty)
+            Button("Close Repository") { model.closeRepository() }.disabled(model.busy || model.root == nil)
+            Button("Clone…") { model.activate(.clone) }.keyboardShortcut("c", modifiers: [.command, .shift])
+            Button("Create Repository…") { model.activate(.initialize) }.keyboardShortcut("r", modifiers: [.command, .shift])
+        }
+        CommandMenu("TurtleGit") {
+            ForEach(RepositoryAction.allCases.filter { $0 != .reviewPatch && $0 != .clone && $0 != .initialize && $0 != .editConflict && $0 != .diffLater && $0 != .clearComparisonMark && $0.resolveChoice == nil }) { action in
+                Button { model.activate(action) } label: { CommandLabel(title: action.title, icon: action.icon) }.disabled(model.root == nil || model.busy || (action.svnOperation != nil && !model.hasGitSVN) || (model.bare && action.requiresWorkingTree) || (action == .mergeAbort && !model.mergeActive) || (action == .rename && !model.canRenameSelection) || ([RepositoryAction.remove, .removeKeep].contains(action) && !model.canRemoveSelection) || (action.isIgnore && !model.canIgnoreSelection(action)) || (action.isResolve && !model.canResolveSelection))
+            }
+            Button { model.showLFSLocks() } label: { CommandLabel(title: "LFS Locks…", icon: .lock) }.disabled(model.root == nil || model.bare || model.busy || model.confirmingQuit)
+            Button { model.showSynchronization() } label: { CommandLabel(title: "Git Synchronization…", icon: .sync) }.disabled(model.root == nil || model.bare || model.busy || model.confirmingQuit)
+            Divider()
+            Button { model.activate(.diffLater) } label: { CommandLabel(title: model.comparisonMarkTitle, icon: .compare) }.disabled(model.busy || model.confirmingQuit)
+            Button { model.activate(.clearComparisonMark) } label: { CommandLabel(title: RepositoryAction.clearComparisonMark.title, icon: .compare) }.disabled(model.busy || model.confirmingQuit || model.workingComparisonMark == nil)
+        }
+    }
+}
+
+@MainActor private struct EditorFileCommands: Commands {
+    let blame: BlameMenuContext
     let patch: PatchMenuContext
     let statistics: StatisticsMenuContext
     var body: some Commands {
+        BlameCommands(context: blame)
         PatchFileCommands(context: patch)
         StatisticsFileCommands(context: statistics)
     }

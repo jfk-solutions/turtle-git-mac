@@ -58,3 +58,11 @@ references, run `python3 scripts/reconcile-dialog-coverage.py` before committing
 The generated ledger covers every pinned resource/id pair and separates partial
 family audits from unmapped controls. Do not describe its counts as a feature
 completion percentage or mark a dialog complete from a file/class existing.
+
+## macOS command composition
+
+Keep each SwiftUI CommandsBuilder body below ten children, including Debug-only
+commands. The hosted SDK currently has that limit even when the newer local SDK
+accepts a larger body. Add commands within cohesive App/editor/repository providers
+rather than growing the Scene builder to its limit. Preserve provider placement,
+relative order, shortcuts and observed model bindings when regrouping commands.
