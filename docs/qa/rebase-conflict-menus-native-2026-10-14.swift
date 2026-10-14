@@ -10,6 +10,73 @@ import TurtleGitCore
     }
     @MainActor static func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
     @MainActor static func main() async { do { try await verify() } catch { fputs("Replay file menu failed: \(error)\n",stderr);exit(1) } }
+    @MainActor static func verifyMutations(root:URL,git:URL,prefs:UserDefaults) async throws {
+        let root=root.appendingPathComponent("mutations");try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
+        let repo=GitRepository(root:root,executable:git),path="normal 雪.txt",conflict="conflict.txt"
+        _ = try await repo.run(["init","-b","main"])
+        for (key,value) in [("user.name","Replay mutation QA"),("user.email","qa@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")] {_ = try await repo.run(["config",key,value])}
+        for name in [path,conflict] {try Data("base\n".utf8).write(to:root.appendingPathComponent(name))};try await repo.stage([path,conflict]);_ = try await repo.commit(message:"base")
+        let base=try await repo.rebaseCommit("HEAD");_ = try await repo.run(["switch","-c","upstream"])
+        try Data("upstream\n".utf8).write(to:root.appendingPathComponent(conflict));try await repo.stage([conflict]);_ = try await repo.commit(message:"upstream")
+        _ = try await repo.run(["switch","-c","topic",base.hash])
+        for name in [path,conflict] {try Data("topic\n".utf8).write(to:root.appendingPathComponent(name))};try await repo.stage([path,conflict]);_ = try await repo.commit(message:"topic")
+        var options=RebaseOptions();options.branch="topic";options.upstream="upstream"
+        let editor=URL(fileURLWithPath:FileManager.default.currentDirectoryPath).appendingPathComponent("build/Build/Products/Debug/TurtleGitMac.app/Contents/MacOS/TurtleGitMac")
+        _ = try await repo.startRebase(try await repo.rebasePlan(options),editorExecutable:editor)
+        let owner=RebaseWindowController(repository:repo,access:nil,preferences:prefs),model=owner.model
+        defer {owner.close()};model.load();try await wait {!model.busy && model.fileRecovery}
+        let head=try await repo.run(["rev-parse","HEAD"]).stdout,stages=try await repo.run(["ls-files","--unmerged","-z"]).stdout
+        let index=try Data(contentsOf:root.appendingPathComponent(".git/index")),working=try Data(contentsOf:root.appendingPathComponent(path))
+        model.focusedConflictPath=path
+        let selected=model.conflictFileMenu([path]),bad=model.conflictFileMenu([conflict])
+        try require(model.canSetConflictFlags(.assumeUnchanged,menu:selected) && !model.canSetConflictFlags(.clear,menu:selected) && !model.canSetConflictFlags(.skipWorktree,menu:bad),"Index flag source gates wrong")
+        model.setConflictFlags(.assumeUnchanged,menu:selected)
+        try await wait {owner.window?.attachedSheet != nil && model.hasReplayQuestion}
+        let question=owner.window!.attachedSheet!
+        try require(question.defaultButtonCell?.title=="No","Index flags must default to No")
+        owner.window!.endSheet(question,returnCode:.alertSecondButtonReturn);question.orderOut(nil)
+        try await wait {!model.busy && RebaseWindowModel.activePreparationReads==0}
+        try require(try Data(contentsOf:root.appendingPathComponent(".git/index"))==index,"No changed index flags")
+        model.confirmConflictMutation={_,_ in true}
+        model.setConflictFlags(.assumeUnchanged,menu:model.conflictFileMenu([path,conflict]));try await wait {!model.busy && RebaseWindowModel.activePreparationReads==0}
+        try require(model.error != nil,"Mixed stage-zero/unmerged selection lost its partial failure")
+        model.error=nil;try await wait {owner.window?.attachedSheet == nil}
+        try require(model.conflictIndexFlags[path]?.assumeUnchanged==true && model.conflictColumnText(model.conflictRows.first {$0.path==path}!, .status)=="Assume unchanged","Index flag result/status not refreshed")
+        let stale=model.conflictFileMenu([path])
+        model.setConflictFlags(.skipWorktree,menu:stale);try await wait {!model.busy && RebaseWindowModel.activePreparationReads==0}
+        try require(model.conflictIndexFlags[path]?.skipWorktree==true && model.conflictIndexFlags[path]?.assumeUnchanged==true,"Skip overwrote other index flag")
+        let beforeStale=try Data(contentsOf:root.appendingPathComponent(".git/index"));model.setConflictFlags(.clear,menu:stale)
+        try require(!model.busy && Data(contentsOf:root.appendingPathComponent(".git/index"))==beforeStale,"Stale flag popup mutated index")
+        model.setConflictFlags(.clear,menu:model.conflictFileMenu([path]));try await wait {!model.busy && RebaseWindowModel.activePreparationReads==0}
+        try require(model.conflictIndexFlags[path]==nil && Data(contentsOf:root.appendingPathComponent(path))==working,"Clear flags changed working bytes")
+        var progress:RevertProgressWindowModel?
+        owner.configureConflictRevert={progress=$0};model.confirmConflictMutation={_,_ in false}
+        let revertIndex=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        model.revertConflictFiles(model.conflictFileMenu([path]));try await wait {!model.busy && RebaseWindowModel.activePreparationReads==0}
+        try require(progress==nil && Data(contentsOf:root.appendingPathComponent(".git/index"))==revertIndex,"Declined Revert opened operation or changed index")
+        model.confirmConflictMutation={_,_ in true};model.revertConflictFiles(model.conflictFileMenu([path]))
+        try await wait {progress != nil && progress?.busy==false && RevertProgressWindowModel.activeOperations==0}
+        guard let progress else {throw Failure(description:"Owned Revert progress missing")}
+        defer {for copy in progress.trashedFiles {try? FileManager.default.removeItem(at:copy)}}
+        try require(!progress.failed && !progress.cancelled,"Owned Revert failed: "+progress.information)
+        try await wait {!model.busy && RebaseWindowModel.activePreparationReads==0}
+        try require(progress.retired && !progress.failed && !progress.cancelled && owner.conflictRevertWindow==nil,"Owned Revert did not finish/close")
+        try require(try Data(contentsOf:root.appendingPathComponent(path))==Data("base\n".utf8) && !model.conflictRows.contains {$0.path==path},"Revert did not restore HEAD or refresh list")
+        let afterHead=try await repo.run(["rev-parse","HEAD"]).stdout,afterStages=try await repo.run(["ls-files","--unmerged","-z"]).stdout
+        try require(afterHead==head && afterStages==stages && model.active,"Revert advanced replay or changed unrelated conflict")
+        try require(progress.trashedFiles.count==1 && Data(contentsOf:progress.trashedFiles[0])==working,"Revert lost recoverable working bytes")
+        owner.close()
+        // A captured Yes after retirement cannot resume a pending flag command.
+        try Data("later\n".utf8).write(to:root.appendingPathComponent(path))
+        let late=RebaseWindowController(repository:repo,access:nil,preferences:prefs);defer {late.close()};late.model.load();try await wait {!late.model.busy && late.model.fileRecovery}
+        var reply:CheckedContinuation<Bool,Never>?
+        late.model.confirmConflictMutation={_,_ in await withCheckedContinuation {reply=$0}}
+        let lateIndex=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        late.model.setConflictFlags(.assumeUnchanged,menu:late.model.conflictFileMenu([path]));try await wait {reply != nil}
+        late.close();reply?.resume(returning:true);try await wait {RebaseWindowModel.activePreparationReads==0}
+        try require(try Data(contentsOf:root.appendingPathComponent(".git/index"))==lateIndex,"Retired confirmation changed index")
+        _ = try await repo.abortRebase()
+    }
     @MainActor static func verify() async throws {
         let root=URL(fileURLWithPath:CommandLine.arguments[1]),git=URL(fileURLWithPath:CommandLine.arguments[2]),repo=GitRepository(root:root,executable:git)
         _ = try await repo.run(["init","-b","main"])
@@ -144,6 +211,7 @@ import TurtleGitCore
         try await wait {RebaseWindowModel.activePreparationReads==0}
         try require(retired.conflictFileColumns==savedColumns && accepted==1,"Retired Reset wrote settings or callback")
         _ = try await repo.abortRebase()
+        try await verifyMutations(root:root,git:git,prefs:prefs)
         print("Replay file menus: captured Log/Blame/Open With/Editor/Reveal/pair callbacks, exact multi-file export and private clipboard, stale-popup rejection, native stage-1 viewer/parent blocking, scoped native copy/check keys and owned picker retirement passed. HEAD/raw index/working bytes preserved; all owned windows closed.")
     }
 }

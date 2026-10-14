@@ -31,6 +31,23 @@ final class RebaseSessionSnapshotTests:XCTestCase {
         XCTAssertTrue(after.fileRecovery);XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(path)),bytes)
         let afterHead=try await repo.run(["rev-parse","HEAD"]).stdout;XCTAssertEqual(afterHead,head);_ = try await repo.abortRebase()
     }
+    func testConflictSnapshotCarriesActualIndexFlagsWithoutChangingIndexOrConflictStages() async throws {
+        let tests=RebaseTests(),(root,repo,_)=try await tests.fixture(conflict:true);defer {try? FileManager.default.removeItem(at:root)}
+        _ = try await repo.startRebase(try await repo.rebasePlan(tests.options()),editorExecutable:tests.editor)
+        let path="flagged 雪.txt";try Data("private flag content\n".utf8).write(to:root.appendingPathComponent(path));try await repo.stage([path])
+        _ = try await repo.run(["update-index","--assume-unchanged","--",path])
+        let index=try Data(contentsOf:root.appendingPathComponent(".git/index")),stages=try await repo.run(["ls-files","--unmerged","-z"]).stdout
+        let snapshot=try await repo.rebaseSessionSnapshot()
+        let flags=try XCTUnwrap(snapshot.indexFlags[path]);XCTAssertTrue(flags.assumeUnchanged);XCTAssertFalse(flags.skipWorktree)
+        let entry=try XCTUnwrap(snapshot.rows.first {$0.path==path})
+        XCTAssertTrue(IndexFlagAction.clear.isAvailable(for:entry,flags:flags))
+        XCTAssertFalse(IndexFlagAction.skipWorktree.isAvailable(for:entry,flags:flags))
+        XCTAssertFalse(IndexFlagAction.assumeUnchanged.isAvailable(for:entry,flags:flags))
+        let conflict=try XCTUnwrap(snapshot.rows.first {$0.state == .conflicted})
+        XCTAssertFalse(IndexFlagAction.skipWorktree.isAvailable(for:conflict,flags:FinderIndexFlags()))
+        XCTAssertEqual(index,try Data(contentsOf:root.appendingPathComponent(".git/index")))
+        let after=try await repo.run(["ls-files","--unmerged","-z"]).stdout;XCTAssertEqual(stages,after)
+    }
     func testUnbornSnapshotHasNoRecoveryOrReplayData() async throws {
         let root=FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGit.UnbornSnapshot."+UUID().uuidString);try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true);defer {try? FileManager.default.removeItem(at:root)}
         let repo=GitRepository(root:root);_ = try await repo.run(["init","-b","main"])

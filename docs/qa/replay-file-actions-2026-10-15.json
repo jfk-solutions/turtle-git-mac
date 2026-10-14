@@ -1,0 +1,89 @@
+{
+  "date": "2026-10-15",
+  "scope": "Rebase/Cherry Pick conflict-file Revert and index-flag workflow family",
+  "source_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "GitStatusListCtrl.cpp Revert confirmation/progress, index-flag mark gates and SetGitIndexFlagsForSelectedFiles",
+    "RebaseDlg.cpp allowed status-list context menu mask"
+  ],
+  "implementation": [
+    "Captured mark/rows/index flags and replay identity/head/generation across questions",
+    "Source No-default index-flag questions and modified-file Revert confirmation",
+    "Owned existing Revert progress sheet with HEAD restore, fresh selected-path Retry, parent Cancel routing and submodule handoff",
+    "Explicit sheet end before successful model Close; forced owner closure retires child",
+    "Snapshot flags use relative Git paths mapped from absolute Finder flag keys",
+    "Flag status labels, status sorting and clipboard retain captured flag wording",
+    "Flag backend supports eligible-mark mixed selection, locked index and partial error reporting",
+    "Operation settlement queues replay and repository view refresh; retired answers cannot mutate",
+    "Unavailable replay question refuses and actual default native button is installed"
+  ],
+  "validation": {
+    "core": {
+      "final_checks": 30,
+      "failures": 0,
+      "log": "build/qa/replay-file-actions-final-core-2026-10-15.log",
+      "initial_failure": {
+        "log": "build/qa/replay-file-actions-core-2026-10-15.log",
+        "reason": "New snapshot bridge filtered absolute Finder keys by relative replay paths. New test force unwrap then crashed; fixed mapping and changed test to XCTUnwrap. The full selected group was rerun because its initial run aborted."
+      },
+      "coverage": [
+        "Actual flagged Unicode staged path during stopped replay",
+        "Snapshot and eligibility bridge preserve raw index/unmerged stages",
+        "Existing Working Tree flag gates, mark/mixed-selection behavior and private index preservation",
+        "Existing Revert original-byte/Trash/index/failure/cancellation checks"
+      ]
+    },
+    "build": {
+      "initial_exit_code": 0,
+      "mapping_fix_exit_code": 0,
+      "sheet_fix_exit_code": 0,
+      "final_log": "build/qa/replay-file-actions-sheet-build-2026-10-15.log",
+      "note": "Core was unchanged after the final native-only sheet-close repair and not rerun"
+    },
+    "native": {
+      "result": "2 passed after owned-sheet repair",
+      "cases": [
+        "rebase-conflict-menus"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "log": "build/qa/replay-file-actions-final-native-2026-10-15.log",
+      "owned_receiver_pids_reaped": [
+        62072,
+        63524
+      ],
+      "initial_failure": {
+        "log": "build/qa/replay-file-actions-native-2026-10-15.log",
+        "reason": "Parent awaited a completed child whose performClose did not dismiss its sheet. End the sheet before validated direct Close; fixture now reports operation failure separately from parent settlement timeout.",
+        "owned_receiver_reaped": 60639
+      },
+      "coverage": [
+        "Actual native index-flag question defaults to No; refusal retains index bytes",
+        "Eligible normal mark with normal/unmerged mixed selection updates available entry and retains partial failure",
+        "Assume and Skip preserve one another, status reflects flags, Clear resets both",
+        "Stale popup cannot change index",
+        "Declined Revert does not open progress or modify files",
+        "Actual owned Revert restores selected working/index contents to destination HEAD, preserves unrelated unmerged stages and does not advance replay",
+        "Successful progress ends and closes sheet; exact owned Trash copy verified and removed in final fixtures",
+        "Late Yes after owner retirement leaves exact index unchanged",
+        "Original read/menu/layout/private clipboard/export/comparison regressions remain in the same case"
+      ]
+    },
+    "hosted_snapshot": {
+      "active_run": 38649492168,
+      "active_revision": "24af83b3",
+      "pending_run": 38654008201,
+      "pending_revision": "b80b6f1a",
+      "note": "Read-only snapshot; no hosted success claimed"
+    }
+  },
+  "limits": [
+    "Physical menu/cancellation/Retry and full keyboard/VoiceOver acceptance remain open",
+    "Submodule follow-up is wired/compiled; this fixture uses ordinary files",
+    "Original read fixture preserves its HEAD/index/tracked work bytes; separate private mutation fixture intentionally changes flags and reverts one file",
+    "Broader type transitions/partial-Revert retry and signed sandbox/Finder/App Store acceptance remain open",
+    "Remaining Add/Ignore/Delete/prepared comparison menu families and full application parity remain incomplete"
+  ]
+}

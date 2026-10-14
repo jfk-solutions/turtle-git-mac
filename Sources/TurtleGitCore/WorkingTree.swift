@@ -138,6 +138,9 @@ public enum IndexFlagAction: String, CaseIterable, Sendable {
         case .clear: return "Do you really want to unflag the selected file(s) as skip-worktree or assume-unchanged?"
         }
     }
+    public func isAvailable(for entry:StatusEntry,flags:FinderIndexFlags) -> Bool {
+        isAvailable(for:[WorkingTreeFile(entry:entry,assumeUnchanged:flags.assumeUnchanged,skipWorktree:flags.skipWorktree,modificationDate:nil)])
+    }
     public func isAvailable(for files: [WorkingTreeFile]) -> Bool {
         guard !files.isEmpty, files.allSatisfy({ ![FileState.untracked, .ignored, .conflicted].contains($0.state) && !$0.entry.hasUnversionedCopy }) else { return false }
         switch self {

@@ -125,6 +125,7 @@ public struct RebaseSessionSnapshot:Sendable {
     public let conflicts:[ConflictEntry]
     public let rows:[StatusEntry]
     public let statistics:[String:CommitFile]
+    public var indexFlags:[String:FinderIndexFlags]=[:]
     public let head:String
     public let remaining:[RebaseEntry],replay:[RebaseEntry]
 }
@@ -545,6 +546,10 @@ extension GitRepository {
             rows=try commitDialogStatus(amendToParent:group,cancellation:cancellation).filter {$0.state != .untracked && $0.state != .ignored}
             statistics=Dictionary(try workingTreeFiles(amendToParent:group,cancellation:cancellation).map {($0.path,$0)},uniquingKeysWith:{_,last in last})
         }
+        let absoluteFlags=recovery ? try finderIndexFlags(cancellation:cancellation):[:]
+        let indexFlags=Dictionary(uniqueKeysWithValues:rows.compactMap { row in
+            absoluteFlags[root.appendingPathComponent(row.path).path].map {(row.path,$0)}
+        })
         let remaining=state.active && includeReplay ? try remainingRebaseEntries(cancellation:cancellation):[]
         let replay=state.active && includeReplay ? try rebaseReplayEntries(cancellation:cancellation):[]
         let final=try rebaseState(cancellation:cancellation),finalHead=try run(["rev-parse","--verify","--quiet","HEAD"],successfulExitCodes:0...1,cancellation:cancellation).text.trimmingCharacters(in:.newlines)
@@ -552,7 +557,7 @@ extension GitRepository {
         guard state.active == final.active,identity == RebaseConflictIdentity(final),state.stoppedAction == final.stoppedAction,
               state.remainingCommands == final.remainingCommands,state.conflicts == final.conflicts,state.message == final.message,
               state.squashMessage?.message == final.squashMessage?.message,state.isEditPause == final.isEditPause,head == finalHead else {throw RebaseFailure.changed}
-        return RebaseSessionSnapshot(state:state,identity:recovery ? identity:nil,fileRecovery:recovery,conflicts:conflicts,rows:rows,statistics:statistics,head:head,remaining:remaining,replay:replay)
+        return RebaseSessionSnapshot(state:state,identity:recovery ? identity:nil,fileRecovery:recovery,conflicts:conflicts,rows:rows,statistics:statistics,indexFlags:indexFlags,head:head,remaining:remaining,replay:replay)
     }
     public func rebaseTodo(_ plan: RebasePlan) throws -> String {
         let ids = plan.entries.map(\.id)

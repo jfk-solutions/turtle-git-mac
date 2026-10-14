@@ -2216,6 +2216,9 @@ import UniformTypeIdentifiers
             if action == .editConflict, let path = paths.first { self?.showConflictEditor(repository: repository, access: access, path: path, owner: controller?.window) }
             else { self?.showResolve(repository: repository, access: access, paths: paths, quick: action.resolveChoice) }
         }
+        controller.model.onConflictRevertSubmodules={ [weak self] revision,paths in
+            for path in paths {self?.showSubmoduleDiff(repository:repository,access:access,path:path,from:revision)}
+        }
         controller.model.onConflictFileLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
         controller.model.onConflictFileBlame = { [weak self] path, revision in self?.showBlame(repository: repository, access: access, path: path, revision: revision) }
         controller.model.onConflictWorkingComparison = { [weak self, weak controller] paths in

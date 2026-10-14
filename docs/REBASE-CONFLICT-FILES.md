@@ -117,7 +117,7 @@ working comparisons; unresolved single rows retain Edit conflict.
 private clipboard/export/owned picker and comparison behavior separately from
 injected Open/Editor/Log/Blame/Reveal callbacks. Core is unchanged in this batch.
 The remaining source status-list menus (including broader submodule history,
-Add/Ignore/Revert/Delete and prepared/unified comparison combinations), drag/drop, all conditional layouts, physical keyboard/VoiceOver,
+Add/Ignore/Delete and prepared/unified comparison combinations), drag/drop, all conditional layouts, physical keyboard/VoiceOver,
 broader editor-dispatch conditional/physical cases and signed Finder/sandbox acceptance remain
 open. This does not certify full Rebase, Cherry Pick or app parity.
 
@@ -162,3 +162,40 @@ squash author's date policy. This batch adds no extra replay author controls.
 See [batch evidence](qa/replay-file-list-2026-10-15.json) for the actual validation
 scope. Physical header gestures, full keyboard/VoiceOver, source menus still
 listed above, signed sandbox execution and complete replay parity remain open.
+
+
+## Revert and index-flag action family — October 15, 2026
+
+The conflict-file menu now includes source-gated Revert, Skip worktree, Assume
+Unchanged and Clear both flags. The immutable popup captures the selection mark,
+selected paths and current flags alongside replay identity, HEAD, stages and
+refresh generation. An eligible mark supplies upstream mixed-selection behavior;
+Core independently checks each selected stage-zero entry and reports unavailable
+entries after applying eligible ones. The owned refresh preserves that partial
+failure and reports the actual resulting flags.
+
+Index-flag questions use the source No default. Fresh replay/row/flag checks run
+after the answer and before the locked-index operation. Reads convert the
+existing Finder helper's absolute-path flag map into replay-relative row keys.
+The Status cell, status sorting and clipboard use the captured flag wording.
+Snapshot reads do not alter index flags, unmerged stages or working files.
+
+Revert uses the existing native progress owner as a sheet. It asks for source
+modified-file confirmation, restores against destination HEAD, retains added
+working files and existing Trash recovery, and automatically closes successful
+results without submodule choices. Retry refreshes selected-path status and
+revalidates the same stopped replay/HEAD before each attempt; it does not require
+the original status rows to survive a partial Revert. Submodule follow-up uses
+the existing comparison route. Revert does not Continue, Skip or commit replay.
+
+The Rebase parent retains its repository lease and busy/Quit accounting through
+the question and child settlement. Its preparation Cancel routes to the Revert
+child. Forced parent closure retires the child and cancels owned work. Both flag
+and Revert operations queue an actual replay/view refresh after completion or
+partial failure. Unpresentable/retired replay questions return refusal; their
+default button is explicitly installed on the native window.
+
+[Batch evidence](qa/replay-file-actions-2026-10-15.json) records the Core and native
+checks, repairs and actual scope. Physical menu/cancellation/retry gestures,
+broader submodule/type-transition failure variants, signed sandbox deployment and
+the remaining menu families listed above remain open.
