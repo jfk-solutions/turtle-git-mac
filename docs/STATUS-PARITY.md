@@ -216,9 +216,9 @@ receivers passed with system and bundled Git. A capture-only correction supplied
 the native background; one Groups receiver regenerated inspected light/dark
 content renders without repeating app/Core/LFS validation. All seven receivers
 were reaped. See [results and capture limits](qa/working-tree-groups-2026-10-14.json).
-Long group headings remain clipped by the first column; the offscreen captures
-can show an optional header without its cells, so full-width group headings and
-complete column/whole-window visual acceptance remain unfinished. Physical header gestures/name
+The subsequent shared-layout checkpoint below repairs first-column heading
+clipping and the observed optional-header discrepancy. Complete whole-window
+visual acceptance remains unfinished. Physical header gestures/name
 dialog appearance, full source group-state accessibility and signed worktree
 access remain open. This does not certify complete status-list parity.
 
@@ -243,3 +243,27 @@ The connected Submodule Diff/handoff batch passed twelve Core checks and four
 grouped native receivers with both Git engines. See [results and limits](qa/submodule-handoffs-2026-10-14.json).
 Full marked-row/directory menu variants and signed child scope acceptance remain
 open; these new routes do not complete all status-list behavior.
+
+## Shared file-list layout batch — October 14, 2026
+
+Commit and Working Tree group headers now draw across the visible native table
+width, with a colored heading and trailing rule independent of the Path column.
+The AppKit drawing layer does not intercept pointer events or create duplicate
+accessibility elements; the underlying group row retains its full accessible
+label and its existing context/selection behavior. Keyboard/clipboard mapping
+still uses the same group/file slots. Horizontal scrolling, resize and appearance
+changes update the drawing geometry through owned, coalesced notifications.
+
+The shared column integration now detects replaced column objects within the
+same table, resolves their existing semantic headings and reapplies saved order,
+width and visibility. It does not record automatic repair as a user layout edit.
+This also applies to the LFS Locks table. Deferred configuration and geometry
+observers retire with their probe and cannot reinstall a drawing layer afterward.
+
+Debug and six grouped native layout/groups/LFS receivers passed with both Git
+engines. Two unsupported column-surgery fixtures were stopped/reaped; the final
+ordinary-table data-source correction was rechecked only on system Git. All nine
+owned receivers were reaped. Refreshed light/dark content renders were inspected
+and show full titles and the intended columns. See
+[actual evidence, fixture repairs and limits](qa/file-list-layout-2026-10-14.json). Full physical appearance/scrolling/accessibility and
+signed acceptance remain open; no Core behavior changes in this batch.

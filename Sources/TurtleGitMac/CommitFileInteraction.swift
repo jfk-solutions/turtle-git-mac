@@ -2,6 +2,45 @@ import AppKit
 import SwiftUI
 import TurtleGitCore
 
+/// Source group headings span the list, independently of text-column widths.
+/// This drawing layer leaves the underlying native row/accessibility and input
+/// implementations intact and never intercepts pointer events.
+final class FileListGroupHeaders: NSView {
+    weak var table: NSTableView?
+    var rows: [StatusListRow] = []
+    var font = NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)
+    override var isFlipped: Bool { true }
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    var headings: [(title: String, rect: NSRect)] {
+        guard let table, table.numberOfRows == rows.count else { return [] }
+        let visible = table.visibleRect
+        return rows.enumerated().compactMap { index, row in
+            guard let group = row.group else { return nil }
+            var rect = table.rect(ofRow: index)
+            rect.origin.x = visible.minX; rect.size.width = visible.width
+            return (group.title, rect)
+        }
+    }
+    override func draw(_ dirtyRect: NSRect) {
+        for heading in headings where heading.rect.intersects(dirtyRect) {
+            NSColor.controlBackgroundColor.setFill(); heading.rect.fill()
+            let paragraph = NSMutableParagraphStyle(); paragraph.lineBreakMode = .byTruncatingTail
+            let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.controlAccentColor, .paragraphStyle: paragraph]
+            let text = heading.title as NSString
+            let available = heading.rect.insetBy(dx: 12, dy: 0)
+            let measured = text.size(withAttributes: attributes)
+            let rect = NSRect(x: available.minX, y: available.midY - measured.height / 2, width: available.width, height: measured.height)
+            text.draw(in: rect, withAttributes: attributes)
+            let start = available.minX + measured.width + 12
+            if start < available.maxX {
+                NSColor.controlAccentColor.withAlphaComponent(0.35).setFill()
+                NSRect(x: start, y: available.midY, width: available.maxX - start, height: 1).fill()
+            }
+        }
+    }
+    override func viewDidChangeEffectiveAppearance() { super.viewDidChangeEffectiveAppearance(); needsDisplay = true }
+}
+
 /// Observe the public AppKit table underlying a SwiftUI Table without replacing
 /// its selection, accessibility, checkbox or context-menu implementations.
 struct CommitFileInteraction: NSViewRepresentable {
@@ -48,7 +87,7 @@ struct CommitFileInteraction: NSViewRepresentable {
         view.rows = rows; view.focusedPath = $focusedPath
         view.enabled = enabled; view.delete = delete; view.copy = copy; view.copyColumn = copyColumn; view.toggleCheck = toggleCheck
         configureRefresh?(view)
-        DispatchQueue.main.async { [weak view] in view?.configureColumns() }
+        view.scheduleColumnConfiguration()
     }
     static func dismantleNSView(_ view: Probe, coordinator: ()) { view.stopObserving() }
 
@@ -86,6 +125,32 @@ struct CommitFileInteraction: NSViewRepresentable {
         private var desiredColumns: [NSTableColumn] = []
         private var desiredWidths: [ObjectIdentifier: CGFloat] = [:]
         private var layoutObservers: [NSObjectProtocol] = []
+        private var geometryObservers: [NSObjectProtocol] = []
+        private(set) var groupHeaders: FileListGroupHeaders?
+        private var integrationActive = false
+        private var integrationGeneration = UUID()
+        private var configurationScheduled = false
+        func scheduleColumnConfiguration() {
+            guard !configurationScheduled else { return }; configurationScheduled = true
+            let generation = integrationGeneration
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.integrationGeneration == generation else { return }
+                self.configurationScheduled = false
+                guard self.integrationActive else { return }; self.configureColumns()
+            }
+        }
+        override func viewDidChangeEffectiveAppearance() {
+            super.viewDidChangeEffectiveAppearance(); scheduleColumnConfiguration()
+        }
+        private func configureGroupHeadings(_ table: NSTableView) {
+            guard rows.contains(where: { $0.group != nil }) else { groupHeaders?.removeFromSuperview(); groupHeaders = nil; return }
+            let layer = groupHeaders ?? FileListGroupHeaders(frame: table.bounds)
+            groupHeaders = layer; layer.table = table; layer.rows = rows
+            layer.font = fileListFont.map { NSFontManager.shared.convert($0, toHaveTrait: .boldFontMask) } ?? NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)
+            layer.frame = table.bounds; layer.setAccessibilityElement(false)
+            table.addSubview(layer, positioned: .above, relativeTo: nil)
+            layer.needsDisplay = true
+        }
         private struct ListPosition {
             let origin: NSPoint
             let selectedIndex: Int?
@@ -191,15 +256,22 @@ struct CommitFileInteraction: NSViewRepresentable {
             }
         }
         func configureColumns() {
-            guard let content = window?.contentView else { return }
+            guard integrationActive, let content = window?.contentView else { return }
             func find(_ view: NSView) -> NSTableView? {
                 if let table = view as? NSTableView, contains(table) { return table }
                 return view.subviews.compactMap(find).first
             }
             guard let table = find(content), table.tableColumns.count == nativeColumns.count + leadingColumnCount else { return }
-            if configuredTable !== table {
+            let currentObjects = Set(table.tableColumns.map(ObjectIdentifier.init))
+            let originalObjects = Set(originalColumns.map(ObjectIdentifier.init))
+            if configuredTable !== table || currentObjects != originalObjects || layoutObservers.isEmpty {
+                for observer in geometryObservers { NotificationCenter.default.removeObserver(observer) }; geometryObservers = []
+                groupHeaders?.removeFromSuperview(); groupHeaders = nil
                 configuredTable = table; originalColumns = table.tableColumns
-                columnDefinitions = Dictionary(uniqueKeysWithValues: zip(table.tableColumns.dropFirst(leadingColumnCount), nativeColumns).map { (ObjectIdentifier($0.0), $0.1) })
+                columnDefinitions = Dictionary(uniqueKeysWithValues: zip(table.tableColumns.dropFirst(leadingColumnCount), nativeColumns).map { column, fallback in
+                    let named = StatusListColumn(rawValue: column.headerCell.stringValue)
+                    return (ObjectIdentifier(column), named.flatMap { nativeColumns.contains($0) ? $0 : nil } ?? fallback)
+                })
                 originalWidths = Dictionary(uniqueKeysWithValues: table.tableColumns.map { (ObjectIdentifier($0), $0.width) })
                 desiredColumns = originalColumns; desiredWidths = originalWidths
                 for observer in layoutObservers { NotificationCenter.default.removeObserver(observer) }
@@ -232,6 +304,18 @@ struct CommitFileInteraction: NSViewRepresentable {
             }
             applyNativeColumnLayout()
             table.headerView?.menu = columnMenu()
+            configureGroupHeadings(table)
+            if geometryObservers.isEmpty {
+                table.postsFrameChangedNotifications = true
+                var observations: [(Notification.Name, AnyObject)] = [(NSView.frameDidChangeNotification, table)]
+                if let clip = table.enclosingScrollView?.contentView { clip.postsBoundsChangedNotifications = true; observations.append((NSView.boundsDidChangeNotification, clip)) }
+                if let window { observations.append((NSWindow.didResizeNotification, window)) }
+                geometryObservers = observations.map { name, object in
+                    NotificationCenter.default.addObserver(forName: name, object: object, queue: .main) { [weak self] _ in
+                        guard let self, !self.adjustingLayout else { return }; self.scheduleColumnConfiguration()
+                    }
+                }
+            }
         }
         func columnDefinition(atNativeIndex index: Int) -> StatusListColumn? {
             guard let table = configuredTable, table.tableColumns.indices.contains(index) else { return nil }
@@ -288,6 +372,7 @@ struct CommitFileInteraction: NSViewRepresentable {
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow(); stopObserving()
             guard window != nil else { return }
+            integrationActive = true; scheduleColumnConfiguration()
             monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp, .rightMouseDown, .keyDown]) { [weak self] event in
                 guard let self else { return event }
                 return self.observe(event)
@@ -298,6 +383,9 @@ struct CommitFileInteraction: NSViewRepresentable {
             }
         }
         func stopObserving() {
+            integrationActive = false; integrationGeneration = UUID(); configurationScheduled = false
+            for observer in geometryObservers { NotificationCenter.default.removeObserver(observer) }; geometryObservers = []
+            groupHeaders?.removeFromSuperview(); groupHeaders = nil
             cancelListPosition()
             if let monitor { NSEvent.removeMonitor(monitor) }
             monitor = nil

@@ -1,0 +1,66 @@
+{
+  "date": "2026-10-14",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Shared full-width group drawing in Commit/Working Tree without input or row-identity replacement",
+    "Same-table replaced-column detection and restored semantic mappings/order/width/visibility",
+    "Owned coalesced appearance/viewport/resize notifications and retirement"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/file-list-layout-build-2026-10-14.log"
+    },
+    "core": "Unchanged; no Core checks repeated for this native layout batch",
+    "native_group": {
+      "exit": 0,
+      "cases": 6,
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "scope": "Layout/actual Commit groups, existing Working Tree groups and full LFS/Commit/Working Tree columns/routing",
+      "log": "build/qa/file-list-layout-native-2026-10-14.log"
+    },
+    "native_fixture_recheck": {
+      "exit": 0,
+      "cases": 1,
+      "engine": "system Git",
+      "log": "build/qa/file-list-layout-fixture-repair-2026-10-14.log"
+    },
+    "owned_receivers_reaped": [
+      26480,
+      26591,
+      26676,
+      26735,
+      26788,
+      27237,
+      27296,
+      27349,
+      27823
+    ],
+    "no_owned_receivers_remain": true,
+    "website": {
+      "exit": 0,
+      "log": "build/qa/file-list-layout-site-2026-10-14.log"
+    }
+  },
+  "repairs": [
+    "Two early layout fixtures mutated SwiftUI-owned NSOutlineView columns and stalled. Owned receivers 26480 and 26591 were terminated and reaped; a one-second sample showed an idle main loop rather than a production redraw loop. Replacement policy now uses a separate ordinary native table, while real SwiftUI tables supply appearance/group/checkbox checks.",
+    "The ordinary-table fixture initially omitted its object-value data-source method and emitted an AppKit warning despite passing geometry/policy checks. Added the required method and explicit data-source lifetime; rechecked only that fixture on system Git. App and LFS groups were not repeated."
+  ],
+  "captures": {
+    "files": [
+      "docs/site/assets/working-tree-groups-light.png",
+      "docs/site/assets/working-tree-groups-dark.png"
+    ],
+    "kind": "Native content-view renders, not physical desktop screenshots",
+    "inspected": "Both show the full local-change group title and intended six-column layout; prior clipping/optional-header discrepancy is absent in these captures"
+  },
+  "limits": [
+    "Column replacement is simulated on ordinary NSTableView; no private SwiftUI hierarchy mutation is part of production code",
+    "The final fixture-only data-source repair was checked on system Git; grouped production-code regressions passed both engines",
+    "Physical pointer/context input, VoiceOver, every resize/large-table variant, signed scopes and complete dialog visual acceptance remain open",
+    "No full hosted CI, Store packaging or whole-port acceptance claim"
+  ]
+}
