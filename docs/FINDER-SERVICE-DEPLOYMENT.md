@@ -49,3 +49,11 @@ Git). Every owned native parent receiver was independently checked absent. The
 website build passed. Initial compilation/project-location/fixture issues were
 corrected and only affected checks repeated. Results and limits are recorded in
 `qa/finder-service-deployment-2026-10-13.json`.
+
+Additional administration scopes are managed per watched repository under Icon
+Overlays → Watched Repositories. Private IPC protocol 2 and receiver archive 2
+carry these scopes; existing protocol/archive 1 remains readable. Each receiver
+creates its own persistent bookmarks for every transferred folder before committing
+the set. Keep app and cache helper from the same build: older helpers reject the
+new protocol instead of dropping additional grants. A linked worktree can grant
+its main repository's `.git` folder without granting its entire parent directory.

@@ -26,9 +26,9 @@ the Settings Cancel button does not undo them. Ordinary Settings dismissal is
 blocked during management mutations. Closing the page leaves app-owned watches
 running. Quit retires streams, cancels reads and waits before its termination reply.
 
-This batch does not add a login/cache process. Signed grants for linked-worktree
-administration outside a selected root, multi-grant management, physical Finder
-activation, volume relocation acceptance and App Store distribution remain open.
+The original batch did not add a login/cache process or additional grants; later
+service and multi-grant work is described below. Physical Finder activation, volume
+relocation acceptance and App Store distribution remain open.
 Private/simulated permission checks do not prove signed sandbox behavior.
 Validation is recorded after execution in qa/finder-watched-roots-2026-10-13.json.
 
@@ -38,3 +38,38 @@ checks after a duplicate-message correction. Both final captures were individual
 reviewed; the initial clipped host images were not published. All receivers were
 reaped and independently checked absent. App Store rebuild/signing remains
 deferred to service packaging; no target or entitlement changed in this batch.
+
+## Additional administration permissions (October 15)
+
+Watched Repositories now includes an Additional folder access list for the selected
+repository, with Add Folder Access, Renew Folder Access and confirmed Remove Access.
+Folder pickers show hidden folders so the main repository's `.git` directory can
+be selected for a linked worktree. Renewal preserves the grant identity; removing
+an additional grant leaves the watched repository and files in place. Existing
+single-folder records decode without migration or another permission prompt.
+
+Each watcher retains all its private security scopes. Changing a grant retires the
+old monitor, cancels its reader and waits for that reader before installing the
+new session. Root renewal preserves additional grants. The collector validates
+root administration directories against the complete grant set before starting
+status collection or installing its monitor; child administration is checked too.
+The worktree and submodule path boundary remains the selected repository scope.
+
+Private IPC uses protocol version 2 when additional scopes are present. The receiver
+resolves every transferred scope, mints its own durable bookmarks, and resolves all
+of them before atomically replacing its previous registration. Relaunch renews
+moved/stale administration grants while scopes are live. A failed additional grant
+retains the saved entry and reports a permission failure rather than running with
+partial authorization. Neither durable nor IPC bookmarks enter the shared cache.
+
+This supersedes the earlier single-grant limitation above. The independent service
+is described in FINDER-SERVICE-DEPLOYMENT.md. Signed installed Finder activation,
+actual sandbox access across volumes and App Store acceptance still require
+separate verification; injected bookmark providers do not prove those behaviors.
+
+Validation: the Debug app build and 23 focused Core checks passed. The grouped
+watch/service cases passed on system and bundled Git (four case/engine combinations).
+New native assertions exercise a linked worktree denied before the extra grant,
+publication after granting its main `.git` folder, service transfer of the grant,
+and rejection again after removing it. All four owned receiver processes were
+reaped. See qa/finder-additional-permissions-2026-10-15.json for scope and limits.

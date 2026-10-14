@@ -7,6 +7,21 @@ final class FinderCollectionTests:XCTestCase {
         let lock=NSLock();var directories:[URL]=[]
         func capture(_ values:[URL]) { lock.lock();directories=values;lock.unlock() }
     }
+    func testLinkedWorktreeRequiresExplicitExternalAdministrationAccess() async throws {
+        let folder=FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitLinkedScope-"+UUID().uuidString)
+        try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true);defer { try? FileManager.default.removeItem(at:folder) }
+        let main=folder.appendingPathComponent("main"),linked=folder.appendingPathComponent("linked")
+        try FileManager.default.createDirectory(at:main,withIntermediateDirectories:true)
+        let repo=GitRepository(root:main)
+        _ = try await repo.run(["init","-b","main"])
+        for (key,value) in [("user.name","Scope QA"),("user.email","scope@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")] { _ = try await repo.run(["config",key,value]) }
+        try Data("baseline\n".utf8).write(to:main.appendingPathComponent("file"));try await repo.stage(["file"]);_ = try await repo.commit(message:"baseline")
+        _ = try await repo.run(["worktree","add","-b","linked",linked.path])
+        let worktree=GitRepository(root:linked)
+        do { _ = try await worktree.collectFinderRepository(authorizedRoot:linked,additionalAuthorizedRoots:[]);XCTFail("External metadata accepted without grant") } catch RepositoryAccessFailure.repositoryRootOutsidePermission(let path) { XCTAssertTrue(path.contains(".git")) }
+        let result=try await worktree.collectFinderRepository(authorizedRoot:linked,additionalAuthorizedRoots:[main.appendingPathComponent(".git")])
+        XCTAssertEqual(result.branch,"linked");XCTAssertTrue(result.failures.isEmpty);XCTAssertGreaterThan(result.watchDirectories.count,1)
+    }
     func testCancelledReadsNeverFallBackToDefaultsOrPartialChildFailures() async throws {
         let root=URL(fileURLWithPath:"/nonexistent-turtlegit-collector"),repo=GitRepository(root:root,executable:URL(fileURLWithPath:"/usr/bin/false")),token=OperationCancellation();token.cancel()
         let reads:[() async throws -> Void]=[

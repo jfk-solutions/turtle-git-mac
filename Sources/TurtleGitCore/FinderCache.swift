@@ -646,12 +646,12 @@ public struct FinderSubmoduleScan: Sendable {
 
 extension GitRepository {
     /// Foreground app refresh only. Finder consumes the resulting cache without Git.
-    public func finderSubmoduleSnapshots(authorizedRoot: URL,cancellation:OperationCancellation? = nil) async throws -> FinderSubmoduleScan {
+    public func finderSubmoduleSnapshots(authorizedRoot: URL,additionalAuthorizedRoots:[URL]? = nil,cancellation:OperationCancellation? = nil) async throws -> FinderSubmoduleScan {
         try cancellation?.check()
         guard RepositoryAccessLease.pathIsContained(root, by: authorizedRoot) else {
             throw RepositoryAccessFailure.securityScopeUnavailable
         }
-        return try await scanFinderSubmodules(authorizedRoot:authorizedRoot,ancestors:[],cancellation:cancellation)
+        return try await scanFinderSubmodules(authorizedRoot:authorizedRoot,additionalAuthorizedRoots:additionalAuthorizedRoots,ancestors:[],cancellation:cancellation)
     }
     private func configuredFinderSubmodulePaths(cancellation:OperationCancellation?) throws -> Set<String> {
         let modules = root.appendingPathComponent(".gitmodules")
@@ -667,7 +667,7 @@ extension GitRepository {
         }
         return paths
     }
-    private func scanFinderSubmodules(authorizedRoot: URL, ancestors:Set<String>,cancellation:OperationCancellation?) async throws -> FinderSubmoduleScan {
+    private func scanFinderSubmodules(authorizedRoot: URL, additionalAuthorizedRoots:[URL]?, ancestors:Set<String>,cancellation:OperationCancellation?) async throws -> FinderSubmoduleScan {
         try cancellation?.check()
         var result = FinderSubmoduleScan()
         let canonical = root.resolvingSymlinksInPath().path
@@ -690,6 +690,12 @@ extension GitRepository {
                 let discovered = try await child.discoverRoot(cancellation:cancellation)
                 // An uninitialized directory inherits its parent's root; it is not a child repository.
                 guard discovered.path == location.path, try await !child.isBare(cancellation:cancellation) else { continue }
+                if let additionalAuthorizedRoots {
+                    let scopes=[authorizedRoot]+additionalAuthorizedRoots
+                    for directory in try await child.finderWatchDirectories(cancellation:cancellation) where !scopes.contains(where:{ RepositoryAccessLease.pathIsContained(directory,by:$0) }) {
+                        throw RepositoryAccessFailure.repositoryRootOutsidePermission(directory.path)
+                    }
+                }
                 let metadata = try await child.finderMetadata(knownBare:false,cancellation:cancellation)
                 guard metadata.submoduleParentRoot == root.path else { continue }
                 let tracked = try await child.trackedPaths(cancellation:cancellation), changes = try await child.status(refreshIndex:false,cancellation:cancellation)
@@ -697,7 +703,7 @@ extension GitRepository {
                 snapshot.indexFlags = try await child.finderIndexFlags(cancellation:cancellation)
                 snapshot.repositories[location.path] = metadata
                 result.snapshots.append(snapshot)
-                let nested = try await child.scanFinderSubmodules(authorizedRoot:authorizedRoot,ancestors:visited,cancellation:cancellation)
+                let nested = try await child.scanFinderSubmodules(authorizedRoot:authorizedRoot,additionalAuthorizedRoots:additionalAuthorizedRoots,ancestors:visited,cancellation:cancellation)
                 result.snapshots.append(contentsOf: nested.snapshots)
                 result.failures.merge(nested.failures) { _, latest in latest }
             } catch { try cancellation?.check();result.failures[failurePath] = error.localizedDescription }
@@ -756,11 +762,17 @@ public struct FinderRepositoryCollection:Sendable {
     public let failures:[String:String]
 }
 extension GitRepository {
-    public func collectFinderRepository(authorizedRoot:URL,cancellation:OperationCancellation? = nil,watchReady:(@Sendable ([URL]) async -> Void)? = nil) async throws -> FinderRepositoryCollection {
+    public func collectFinderRepository(authorizedRoot:URL,additionalAuthorizedRoots:[URL]? = nil,cancellation:OperationCancellation? = nil,watchReady:(@Sendable ([URL]) async -> Void)? = nil) async throws -> FinderRepositoryCollection {
         try cancellation?.check()
         guard RepositoryAccessLease.pathIsContained(root,by:authorizedRoot) else { throw RepositoryAccessFailure.securityScopeUnavailable }
         let bare=try isBare(cancellation:cancellation)
         let watch=try finderWatchDirectories(cancellation:cancellation)
+        if let additionalAuthorizedRoots {
+            let scopes=[authorizedRoot]+additionalAuthorizedRoots
+            for directory in watch where !scopes.contains(where:{ RepositoryAccessLease.pathIsContained(directory,by:$0) }) {
+                throw RepositoryAccessFailure.repositoryRootOutsidePermission(directory.path)
+            }
+        }
         await watchReady?(watch)
         try cancellation?.check()
         let entries=try bare ? [] : status(refreshIndex:false,cancellation:cancellation)
@@ -772,7 +784,7 @@ extension GitRepository {
         var base=FinderSnapshot.build(root:root,tracked:tracked,changes:entries)
         base.indexFlags=try bare ? [:] : finderIndexFlags(cancellation:cancellation)
         base.repositories[root.path]=metadata
-        let children=try await bare ? FinderSubmoduleScan() : finderSubmoduleSnapshots(authorizedRoot:authorizedRoot,cancellation:cancellation)
+        let children=try await bare ? FinderSubmoduleScan() : finderSubmoduleSnapshots(authorizedRoot:authorizedRoot,additionalAuthorizedRoots:additionalAuthorizedRoots,cancellation:cancellation)
         try cancellation?.check()
         return FinderRepositoryCollection(root:root,bare:bare,entries:entries,branch:branch,conflictIsRebase:conflict,submodules:submodules,metadata:metadata,watchDirectories:watch,snapshots:[base]+children.snapshots,failures:children.failures)
     }

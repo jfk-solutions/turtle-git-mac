@@ -20,6 +20,24 @@ final class FinderServicePermissionStoreTests:XCTestCase {
         let root=FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitReceiverStore-"+UUID().uuidString)
         try FileManager.default.createDirectory(at:root,withIntermediateDirectories:false);return root
     }
+    @MainActor func testAdditionalScopesTransferPersistMoveAndFailAtomically() throws {
+        let folder=try folder();defer { try? FileManager.default.removeItem(at:folder) }
+        let provider=Provider(),url=folder.appendingPathComponent("grants.json"),store=try FinderServicePermissionStore(url:url,provider:provider),id=UUID()
+        let request=FinderServiceAuthorization(grants:[FinderServiceWatchGrant(id:id,bookmark:Data("TRANSFER:/worktree".utf8),repositoryComponents:[],additionalBookmarks:[Data("TRANSFER:/main/.git".utf8)])])
+        XCTAssertEqual(request.version,2)
+        do { let access=try XCTUnwrap(store.install(request,transfer:provider).first);XCTAssertTrue(access.contains(URL(fileURLWithPath:"/main/.git/index")));XCTAssertFalse(access.contains(URL(fileURLWithPath:"/main/other"))) }
+        XCTAssertEqual(provider.starts,provider.stops)
+        let reopened=try FinderServicePermissionStore(url:url,provider:provider)
+        provider.moves["/main/.git"]=URL(fileURLWithPath:"/moved/.git")
+        do { let restored=try reopened.restore();XCTAssertTrue(restored.failures.isEmpty);XCTAssertEqual(restored.accesses[0].additionalLeases[0].url.path,"/moved/.git") }
+        provider.unavailable.insert("/moved/.git")
+        let failed=try reopened.restore();XCTAssertTrue(failed.accesses.isEmpty);XCTAssertNotNil(failed.failures[id])
+        XCTAssertEqual(provider.starts,provider.stops)
+        let before=try Data(contentsOf:url)
+        let broken=FinderServiceAuthorization(grants:[FinderServiceWatchGrant(id:id,bookmark:Data("TRANSFER:/new".utf8),repositoryComponents:[],additionalBookmarks:[Data("TRANSFER:/moved/.git".utf8)])])
+        XCTAssertThrowsError(try reopened.install(broken,transfer:provider));XCTAssertEqual(try Data(contentsOf:url),before)
+        XCTAssertEqual(provider.starts,provider.stops)
+    }
     @MainActor func testInstallRelaunchMovedScopeAndFailedEntriesRemain() throws {
         let folder=try folder();defer { try? FileManager.default.removeItem(at:folder) }
         let provider=Provider(),url=folder.appendingPathComponent("private/grants.json"),store=try FinderServicePermissionStore(url:url,provider:provider)

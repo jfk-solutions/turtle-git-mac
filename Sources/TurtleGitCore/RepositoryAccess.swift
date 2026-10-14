@@ -6,6 +6,13 @@ public struct SavedRepository: Codable, Identifiable, Equatable, Sendable {
     public var lastKnownPath: String
     public var bookmark: Data
     public var lastOpened: Date
+    public var additionalPermissions: [SavedFolderPermission]? = nil
+}
+
+public struct SavedFolderPermission: Codable, Identifiable, Equatable, Sendable {
+    public let id: UUID
+    public var path: String
+    public var bookmark: Data
 }
 
 public struct ResolvedBookmark {
@@ -120,7 +127,7 @@ public final class RepositoryAccessStore {
         let bookmark = try provider.create(for: url)
         let old = repositories.first { $0.lastKnownPath == path }
         let saved = SavedRepository(id: old?.id ?? UUID(), name: url.lastPathComponent, lastKnownPath: path,
-                                    bookmark: bookmark, lastOpened: Date())
+                                    bookmark: bookmark, lastOpened: Date(), additionalPermissions: old?.additionalPermissions)
         let updated = [saved] + repositories.filter { $0.id != saved.id }
         try persist(updated)
         return saved
@@ -144,8 +151,35 @@ public final class RepositoryAccessStore {
         guard repositories.contains(where:{ $0.id==id }) else { throw RepositoryAccessFailure.unknownRepository }
         let path=url.standardizedFileURL.resolvingSymlinksInPath().path
         guard !repositories.contains(where:{ $0.id != id && $0.lastKnownPath==path }) else { throw GitConfigurationFailure.invalidValue }
-        let value=SavedRepository(id:id,name:url.lastPathComponent,lastKnownPath:path,bookmark:try provider.create(for:url),lastOpened:Date())
+        let value=SavedRepository(id:id,name:url.lastPathComponent,lastKnownPath:path,bookmark:try provider.create(for:url),lastOpened:Date(),additionalPermissions:repositories.first { $0.id==id }?.additionalPermissions)
         try persist([value]+repositories.filter { $0.id != id });return value
+    }
+    public func addPermission(_ id:UUID, url:URL, replacing permission:UUID? = nil) throws {
+        guard let index=repositories.firstIndex(where:{ $0.id==id }) else { throw RepositoryAccessFailure.unknownRepository }
+        let path=url.standardizedFileURL.resolvingSymlinksInPath().path
+        var values=repositories, grants=values[index].additionalPermissions ?? []
+        let existing=grants.first { permission == nil ? $0.path==path : $0.id==permission }
+        if permission != nil && existing==nil { throw RepositoryAccessFailure.unknownRepository }
+        let grant=SavedFolderPermission(id:existing?.id ?? UUID(),path:path,bookmark:try provider.create(for:url))
+        guard existing != nil || grants.count<64 else { throw GitConfigurationFailure.invalidValue }
+        grants.removeAll { $0.id==grant.id || $0.path==path };grants.append(grant)
+        values[index].additionalPermissions=grants;try persist(values)
+    }
+    public func removePermission(_ id:UUID, permission:UUID) throws {
+        guard let index=repositories.firstIndex(where:{ $0.id==id }) else { throw RepositoryAccessFailure.unknownRepository }
+        var values=repositories;values[index].additionalPermissions?.removeAll { $0.id==permission };try persist(values)
+    }
+    public func acquireAdditionalPermissions(_ id:UUID, requireSecurityScope:Bool = false) throws -> [RepositoryAccessLease] {
+        guard let index=repositories.firstIndex(where:{ $0.id==id }) else { throw RepositoryAccessFailure.unknownRepository }
+        var values=repositories, grants=values[index].additionalPermissions ?? [], leases:[RepositoryAccessLease]=[]
+        for offset in grants.indices {
+            let resolved=try provider.resolve(grants[offset].bookmark),lease=RepositoryAccessLease(url:resolved.url,provider:provider)
+            guard !requireSecurityScope || lease.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
+            if resolved.stale { grants[offset].bookmark=try provider.create(for:resolved.url) }
+            grants[offset].path=resolved.url.standardizedFileURL.resolvingSymlinksInPath().path;leases.append(lease)
+        }
+        if grants != (values[index].additionalPermissions ?? []) { values[index].additionalPermissions=grants;try persist(values) }
+        return leases
     }
     public func forget(_ id: UUID) throws { try persist(repositories.filter { $0.id != id }) }
 }

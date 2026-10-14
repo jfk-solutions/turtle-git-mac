@@ -24,6 +24,21 @@ final class RepositoryAccessTests: XCTestCase {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         return (folder, folder.appendingPathComponent("private/repositories.json"))
     }
+    func testAdditionalPermissionsSurviveRenewalRelaunchAndExplicitRemoval() throws {
+        let (folder,url)=try fixture();defer { try? FileManager.default.removeItem(at:folder) }
+        let provider=TestBookmarks(),store=try RepositoryAccessStore(storageURL:url,provider:provider)
+        let saved=try store.remember(folder.appendingPathComponent("worktree")),admin=folder.appendingPathComponent("main/.git")
+        try store.addPermission(saved.id,url:admin)
+        let grant=try XCTUnwrap(store.repositories[0].additionalPermissions?.first)
+        _ = try store.replace(saved.id,with:folder.appendingPathComponent("worktree"))
+        let reopened=try RepositoryAccessStore(storageURL:url,provider:provider)
+        do { let leases=try reopened.acquireAdditionalPermissions(saved.id,requireSecurityScope:true);XCTAssertEqual(leases.map(\.url),[admin]);XCTAssertTrue(leases[0].contains(admin.appendingPathComponent("index")));XCTAssertFalse(leases[0].contains(folder)) }
+        XCTAssertEqual(provider.starts,provider.stops)
+        try reopened.addPermission(saved.id,url:folder.appendingPathComponent("moved/.git"),replacing:grant.id)
+        XCTAssertEqual(reopened.repositories[0].additionalPermissions?.map(\.id),[grant.id])
+        try reopened.removePermission(saved.id,permission:grant.id)
+        XCTAssertTrue(try reopened.acquireAdditionalPermissions(saved.id).isEmpty)
+    }
     func testSavedPermissionSurvivesRelaunchAndForgetDoesNotDeleteRepository() throws {
         let (folder, storage) = try fixture(); defer { try? FileManager.default.removeItem(at: folder) }
         let provider = TestBookmarks(), repository = folder.appendingPathComponent("repo", isDirectory: true)

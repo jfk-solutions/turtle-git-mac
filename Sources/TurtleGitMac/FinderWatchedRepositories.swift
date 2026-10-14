@@ -36,6 +36,7 @@ struct FinderWatchRow:Identifiable {
     @MainActor private final class Session {
         let id:UUID
         let lease:RepositoryAccessLease
+        var additionalLeases:[RepositoryAccessLease]=[]
         var repository:GitRepository
         var active=true
         var permissionReady=false
@@ -64,6 +65,7 @@ struct FinderWatchRow:Identifiable {
         guard active else { return };sessions.removeValue(forKey:id)?.retire()
         do {
             let lease=try permissions.acquire(id,requireSecurityScope:requireScope,updatingRecord:false),session=Session(id:id,lease:lease,repository:try repositoryFactory(lease.url))
+            session.additionalLeases=try permissions.acquireAdditionalPermissions(id,requireSecurityScope:requireScope)
             sessions[id]=session
             session.scheduler=RepositoryEventRefresh(available:{ [weak self,weak session] in
                 guard let self,let session else { return false };return self.active && !self.busy && session.active && session.request==nil
@@ -74,7 +76,7 @@ struct FinderWatchRow:Identifiable {
     private func install(_ session:Session,_ directories:[URL]) {
         guard active,session.active,sessions[session.id] === session,session.watched != directories else { return }
         session.monitor?.stop();session.monitor=nil
-        let allowed=directories.filter { !requireScope || session.lease.contains($0) }
+        let allowed=directories.filter { directory in !requireScope || ([session.lease]+session.additionalLeases).contains { $0.contains(directory) } }
         do {
             session.monitor=try RepositoryFileEventMonitor(roots:allowed) { [weak self,weak session] events in
                 guard !events.isEmpty else { return }
@@ -102,7 +104,7 @@ struct FinderWatchRow:Identifiable {
             }
             var ticket:FinderPublicationTicket?
             if let cache { ticket=try await Task.detached { try cache.begin(root:root,cancellation:token) }.value }
-            let result=try await session.repository.collectFinderRepository(authorizedRoot:session.lease.url,cancellation:token,watchReady:{ [weak self,weak session] paths in if let self,let session { await self.install(session,paths) } })
+            let result=try await session.repository.collectFinderRepository(authorizedRoot:session.lease.url,additionalAuthorizedRoots:session.additionalLeases.map(\.url),cancellation:token,watchReady:{ [weak self,weak session] paths in if let self,let session { await self.install(session,paths) } })
             guard active,session.active,!token.isCancelled,sessions[session.id] === session else { return }
             if let cache,let ticket {
                 let published=try await Task.detached { try cache.publish(ticket,snapshots:result.snapshots,cancellation:token) }.value
@@ -158,12 +160,30 @@ struct FinderWatchRow:Identifiable {
             try permissions.forget(id);serviceRevision += 1;statuses[id]=nil;render()
         } catch { if active,!token.isCancelled { self.error=error.localizedDescription;attach(id) } }
     }
-    func serviceLeases() -> [RepositoryAccessLease] { sessions.values.map { $0.lease } }
+    func additionalPermissions(_ id:UUID) -> [SavedFolderPermission] { permissions.repositories.first { $0.id==id }?.additionalPermissions ?? [] }
+    func changePermission(_ id:UUID,url:URL? = nil,replacing replacement:UUID? = nil,removing permission:UUID? = nil) async {
+        guard active,!busy,permissions.repositories.contains(where:{ $0.id==id }) else { return }
+        busy=true;pendingOperations += 1;error=nil
+        let old=sessions.removeValue(forKey:id);old?.retire()
+        defer { pendingOperations -= 1;busy=false }
+        // Retain every old lease until its cancelled Git reader has settled.
+        while old?.request != nil { try? await Task.sleep(nanoseconds:10_000_000) }
+        guard active else { return }
+        do {
+            if let url {
+                let lease=RepositoryAccessLease(url:url,provider:scopeProvider)
+                guard !requireScope || lease.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
+                try permissions.addPermission(id,url:url,replacing:replacement);withExtendedLifetime(lease) {}
+            } else if let permission { try permissions.removePermission(id,permission:permission) }
+            serviceRevision += 1;attach(id);render()
+        } catch { self.error=error.localizedDescription;attach(id);render() }
+    }
+    func serviceLeases() -> [RepositoryAccessLease] { sessions.values.flatMap { [$0.lease]+$0.additionalLeases } }
     func serviceAuthorization(provider:any RepositoryTransferBookmarkProvider = SystemRepositoryTransferBookmarks()) throws -> FinderServiceAuthorization {
         guard active,!busy,pendingOperations==0,rows.count==sessions.count else { throw RepositoryAccessFailure.securityScopeUnavailable }
-        let values=try sessions.values.map { session -> (UUID,URL,RepositoryAccessLease) in
+        let values=try sessions.values.map { session -> (UUID,URL,RepositoryAccessLease,[RepositoryAccessLease]) in
             guard session.active,session.permissionReady else { throw RepositoryAccessFailure.securityScopeUnavailable }
-            return (session.id,session.repository.root,session.lease)
+            return (session.id,session.repository.root,session.lease,session.additionalLeases)
         }.sorted { $0.0.uuidString<$1.0.uuidString }
         return try FinderServiceAuthorization.capture(values,provider:provider)
     }
@@ -175,6 +195,8 @@ struct FinderWatchedRepositoriesPage:View {
     @ObservedObject var manager:FinderWatchManager
     @State private var selection=Set<UUID>()
     @State private var confirmingRemove=false
+    @State private var permissionSelection:UUID?
+    @State private var confirmingPermissionRemove=false
     var body:some View {
         VStack(alignment:.leading,spacing:12) {
             Text("Keep these repositories refreshed for Finder.")
@@ -190,15 +212,44 @@ struct FinderWatchedRepositoriesPage:View {
                 Button { if let id=selection.first { manager.refresh(id) } } label: { CommandLabel(title:"Refresh",icon:.refresh) }.disabled(selection.count != 1)
                 Button { choose(selection.first) } label: { CommandLabel(title:"Renew Access…",icon:.open) }.disabled(selection.count != 1)
             }.disabled(manager.busy || !manager.active)
+            if let id=selection.first,selection.count==1 {
+                GroupBox("Additional folder access") {
+                    VStack(alignment:.leading,spacing:8) {
+                        Text("Linked worktrees may need access to the main repository’s Git folder. Add only the folders reported in the repository status.").font(.caption).foregroundStyle(.secondary)
+                        List(manager.additionalPermissions(id),selection:$permissionSelection) { grant in
+                            Label(grant.path,systemImage:"folder").tag(grant.id).help(grant.path)
+                        }.frame(height:90).accessibilityLabel("Additional authorized folders")
+                        HStack {
+                            Button { chooseAdditional(id) } label: { CommandLabel(title:"Add Folder Access…",icon:.add) }
+                            Button { chooseAdditional(id,replacing:permissionSelection) } label: { CommandLabel(title:"Renew Folder Access…",icon:.open) }.disabled(permissionSelection==nil)
+                            Button { confirmingPermissionRemove=true } label: { CommandLabel(title:"Remove Access",icon:.remove) }.disabled(permissionSelection==nil)
+                        }.disabled(manager.busy || !manager.active)
+                    }.padding(4)
+                }
+            }
             if manager.pendingOperations>0 { ProgressView("Refreshing watched repositories…").controlSize(.small) }
             if let error=manager.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
             Text("Changes take effect immediately. An open workspace refreshes its repository separately.").font(.caption).foregroundStyle(.secondary)
             Spacer()
         }.padding(16).onAppear { manager.restore() }
+        .onChange(of:selection) { _ in permissionSelection=nil }
+        .alert("Remove additional folder access?",isPresented:$confirmingPermissionRemove) {
+            Button("Cancel",role:.cancel) {}
+            Button("Remove Access") { if let id=selection.first,let permission=permissionSelection { Task { await manager.changePermission(id,removing:permission);permissionSelection=nil } } }
+        } message: { Text("Refresh may stop until access is granted again. Files remain unchanged.") }
         .alert("Remove watched repository?",isPresented:$confirmingRemove) {
             Button("Cancel",role:.cancel) {}
             Button("Remove") { if let id=selection.first { Task { await manager.remove(id);selection=[] } } }
         } message: { Text("Stop its background watch and remove its cached subtree. Repository files remain unchanged.") }
+    }
+    private func chooseAdditional(_ id:UUID,replacing permission:UUID? = nil) {
+        guard let window=NSApp.keyWindow,window.attachedSheet==nil,!manager.busy,manager.active else { return }
+        let panel=NSOpenPanel();panel.canChooseDirectories=true;panel.canChooseFiles=false;panel.showsHiddenFiles=true
+        panel.prompt="Grant Folder Access";panel.message="Choose the Git administration folder reported in the repository status, or a parent folder containing it."
+        panel.beginSheetModal(for:window) { response in
+            guard response == .OK,let url=panel.url,manager.active else { return }
+            Task { await manager.changePermission(id,url:url,replacing:permission) }
+        }
     }
     private func choose(_ id:UUID?) {
         guard let window=NSApp.keyWindow,window.attachedSheet==nil,!manager.busy,manager.active else { return }

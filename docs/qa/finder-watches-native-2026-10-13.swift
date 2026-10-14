@@ -48,6 +48,22 @@ import TurtleGitCore
             try require(Set(received.map { $0.root.path })==Set(repositories.map { $0.root.path }),"Watcher export lost authorized roots")
             withExtendedLifetime(received) {}
         }
+        let linkedRoot=folder.appendingPathComponent("Linked Watch")
+        _ = try await repositories[0].run(["worktree","add","-b","linked-watch",linkedRoot.path])
+        await first.add(linkedRoot)
+        let linkedID=permissions.repositories.first { $0.lastKnownPath==linkedRoot.path }!.id
+        try await wait { first.pendingOperations==0 && first.rows.first { $0.id==linkedID }?.status.contains(".git")==true }
+        await first.changePermission(linkedID,url:repositories[0].root.appendingPathComponent(".git"))
+        try await wait { first.pendingOperations==0 && first.rows.first { $0.id==linkedID }?.status=="Updated" }
+        do {
+            let request=try first.serviceAuthorization(provider:provider),accesses=try request.acquire(provider:provider)
+            try require(request.version==2 && accesses.first { $0.id==linkedID }?.additionalScopes.count==1,"External scope missing from IPC")
+        }
+        let extra=first.additionalPermissions(linkedID).first!
+        await first.changePermission(linkedID,removing:extra.id)
+        try await wait { first.pendingOperations==0 && first.rows.first { $0.id==linkedID }?.status.contains(".git")==true }
+        await first.remove(linkedID)
+        try await wait { first.pendingOperations==0 && first.rows.count==2 }
         let originalIDs=Set(first.rows.map(\.id))
         await first.add(repositories[0].root);try await wait { first.pendingOperations==0 && first.rows.allSatisfy { $0.status=="Updated" } }
         try require(Set(first.rows.map(\.id))==originalIDs,"Duplicate Add created another watcher")

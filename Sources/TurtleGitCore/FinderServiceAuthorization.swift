@@ -33,14 +33,15 @@ public struct FinderServiceWatchGrant:Codable,Sendable {
     public let id:UUID
     public let bookmark:Data
     public let repositoryComponents:[String]
-    public init(id:UUID,bookmark:Data,repositoryComponents:[String]) {
-        self.id=id;self.bookmark=bookmark;self.repositoryComponents=repositoryComponents
+    public var additionalBookmarks:[Data]? = nil
+    public init(id:UUID,bookmark:Data,repositoryComponents:[String],additionalBookmarks:[Data]? = nil) {
+        self.id=id;self.bookmark=bookmark;self.repositoryComponents=repositoryComponents;self.additionalBookmarks=additionalBookmarks
     }
 }
 public struct FinderServiceAuthorization:Codable,Sendable {
     public let version:Int
     public let grants:[FinderServiceWatchGrant]
-    public init(grants:[FinderServiceWatchGrant]) { version=1;self.grants=grants }
+    public init(grants:[FinderServiceWatchGrant]) { version=grants.contains { !($0.additionalBookmarks ?? []).isEmpty } ? 2 : 1;self.grants=grants }
     public static func capture(_ values:[(UUID,URL,RepositoryAccessLease)],provider:any RepositoryTransferBookmarkProvider = SystemRepositoryTransferBookmarks()) throws -> Self {
         var seen=Set<UUID>()
         let grants=try values.map { id,root,lease -> FinderServiceWatchGrant in
@@ -53,12 +54,23 @@ public struct FinderServiceAuthorization:Codable,Sendable {
         }
         return Self(grants:grants)
     }
+    fileprivate static func validBookmarks(_ values:[Data]?) -> Bool {
+        (values?.count ?? 0)<=64 && (values ?? []).allSatisfy { !$0.isEmpty && $0.count<=1_048_576 }
+    }
+    public static func capture(_ values:[(UUID,URL,RepositoryAccessLease,[RepositoryAccessLease])],provider:any RepositoryTransferBookmarkProvider = SystemRepositoryTransferBookmarks()) throws -> Self {
+        let primary=try capture(values.map { ($0.0,$0.1,$0.2) },provider:provider)
+        return Self(grants:try zip(primary.grants,values).map { grant,value in
+            guard value.3.count<=64 else { throw FinderServiceAuthorizationFailure.invalidRequest }
+            return FinderServiceWatchGrant(id:grant.id,bookmark:grant.bookmark,repositoryComponents:grant.repositoryComponents,
+                additionalBookmarks:try value.3.map { try provider.createTransfer(for:$0.url) })
+        })
+    }
     fileprivate static func valid(_ components:[String]) -> Bool {
         components.allSatisfy { !$0.isEmpty && $0 != "." && $0 != ".." && !$0.contains("/") && !$0.utf8.contains(0) }
     }
     public func acquire(provider:any RepositoryTransferBookmarkProvider = SystemRepositoryTransferBookmarks(),requireSecurityScope:Bool = true) throws -> [FinderServiceAccess] {
-        guard version==1 else { throw FinderServiceAuthorizationFailure.unsupportedVersion }
-        guard grants.count<=1024,Set(grants.map(\.id)).count==grants.count,grants.allSatisfy({ !$0.bookmark.isEmpty && $0.bookmark.count<=1_048_576 && Self.valid($0.repositoryComponents) }) else { throw FinderServiceAuthorizationFailure.invalidRequest }
+        guard version==1 || version==2 else { throw FinderServiceAuthorizationFailure.unsupportedVersion }
+        guard grants.count<=1024,Set(grants.map(\.id)).count==grants.count,grants.allSatisfy({ !$0.bookmark.isEmpty && $0.bookmark.count<=1_048_576 && Self.valid($0.repositoryComponents) && Self.validBookmarks($0.additionalBookmarks) }) else { throw FinderServiceAuthorizationFailure.invalidRequest }
         var accesses:[FinderServiceAccess]=[]
         for grant in grants {
             let resolved=try provider.resolveTransfer(grant.bookmark)
@@ -66,7 +78,11 @@ public struct FinderServiceAuthorization:Codable,Sendable {
             if requireSecurityScope && !lease.hasSecurityScope { throw RepositoryAccessFailure.securityScopeUnavailable }
             let root=grant.repositoryComponents.reduce(resolved.url) { $0.appendingPathComponent($1,isDirectory:true) }.standardizedFileURL
             guard lease.contains(root) else { throw FinderServiceAuthorizationFailure.invalidRequest }
-            accesses.append(FinderServiceAccess(id:grant.id,root:root,scope:lease,bookmarkWasStale:resolved.stale))
+            let additional=try (grant.additionalBookmarks ?? []).map { data -> FinderServiceScope in
+                let resolved=try provider.resolveTransfer(data),scope=FinderServiceScope(url:resolved.url,provider:provider)
+                guard !requireSecurityScope || scope.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable };return scope
+            }
+            accesses.append(FinderServiceAccess(id:grant.id,root:root,scope:lease,bookmarkWasStale:resolved.stale,additionalScopes:additional))
         }
         return accesses
     }
@@ -84,13 +100,14 @@ public struct FinderServiceAccess {
     public let root:URL
     public let scope:FinderServiceScope
     public let bookmarkWasStale:Bool
+    public var additionalScopes:[FinderServiceScope] = []
     /// Receiver creates its own persistent scope, rather than saving the IPC bookmark.
     public func persistentGrant(provider:any RepositoryBookmarkProvider = SystemRepositoryBookmarkProvider()) throws -> FinderServicePersistentGrant {
         let scopePath=scope.url.standardizedFileURL.resolvingSymlinksInPath().path,rootPath=root.standardizedFileURL.resolvingSymlinksInPath().path
         guard scope.contains(root) else { throw FinderServiceAuthorizationFailure.invalidRequest }
         let suffix=rootPath==scopePath ? "" : String(rootPath.dropFirst(scopePath=="/" ? 1 : scopePath.count+1))
         let components=suffix.isEmpty ? [] : suffix.components(separatedBy:"/")
-        return FinderServicePersistentGrant(id:id,bookmark:try provider.create(for:scope.url),repositoryComponents:components)
+        return FinderServicePersistentGrant(id:id,bookmark:try provider.create(for:scope.url),repositoryComponents:components,additionalBookmarks:try additionalScopes.map { try provider.create(for:$0.url) })
     }
 }
 
@@ -99,6 +116,14 @@ public struct FinderServicePersistentGrant:Codable,Sendable,Equatable {
     public let id:UUID
     public let bookmark:Data
     public let repositoryComponents:[String]
+    public var additionalBookmarks:[Data]? = nil
+    public func acquireAdditional(provider:any RepositoryBookmarkProvider = SystemRepositoryBookmarkProvider(),requireSecurityScope:Bool = true) throws -> [RepositoryAccessLease] {
+        guard FinderServiceAuthorization.validBookmarks(additionalBookmarks) else { throw FinderServiceAuthorizationFailure.invalidRequest }
+        return try (additionalBookmarks ?? []).map { data in
+            let resolved=try provider.resolve(data),lease=RepositoryAccessLease(url:resolved.url,provider:provider)
+            guard !requireSecurityScope || lease.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable };return lease
+        }
+    }
     public func acquire(provider:any RepositoryBookmarkProvider = SystemRepositoryBookmarkProvider(),requireSecurityScope:Bool = true) throws -> (URL,RepositoryAccessLease) {
         guard !bookmark.isEmpty,bookmark.count<=1_048_576,FinderServiceAuthorization.valid(repositoryComponents) else { throw FinderServiceAuthorizationFailure.invalidRequest }
         let resolved=try provider.resolve(bookmark),lease=RepositoryAccessLease(url:resolved.url,provider:provider)
@@ -122,16 +147,16 @@ public struct FinderServicePersistentGrant:Codable,Sendable,Equatable {
             let bytes=try Data(contentsOf:url)
             guard bytes.count<=16_777_216 else { throw FinderServiceAuthorizationFailure.invalidRequest }
             let archive=try JSONDecoder().decode(Archive.self,from:bytes)
-            guard archive.version==1 else { throw FinderServiceAuthorizationFailure.unsupportedVersion }
+            guard archive.version==1 || archive.version==2 else { throw FinderServiceAuthorizationFailure.unsupportedVersion }
             guard Self.valid(archive.grants) else { throw FinderServiceAuthorizationFailure.invalidRequest };grants=archive.grants
         } else { grants=[] }
     }
     private static func valid(_ values:[FinderServicePersistentGrant]) -> Bool {
-        values.count<=1024 && Set(values.map(\.id)).count==values.count && values.allSatisfy { !$0.bookmark.isEmpty && $0.bookmark.count<=1_048_576 && FinderServiceAuthorization.valid($0.repositoryComponents) }
+        values.count<=1024 && Set(values.map(\.id)).count==values.count && values.allSatisfy { !$0.bookmark.isEmpty && $0.bookmark.count<=1_048_576 && FinderServiceAuthorization.valid($0.repositoryComponents) && FinderServiceAuthorization.validBookmarks($0.additionalBookmarks) }
     }
     private func save(_ values:[FinderServicePersistentGrant]) throws {
         guard Self.valid(values) else { throw FinderServiceAuthorizationFailure.invalidRequest }
-        let bytes=try JSONEncoder().encode(Archive(version:1,grants:values))
+        let bytes=try JSONEncoder().encode(Archive(version:values.contains { !($0.additionalBookmarks ?? []).isEmpty } ? 2 : 1,grants:values))
         guard bytes.count<=16_777_216 else { throw FinderServiceAuthorizationFailure.invalidRequest }
         try FileManager.default.createDirectory(at:url.deletingLastPathComponent(),withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
         let temporary=url.deletingLastPathComponent().appendingPathComponent(".service-grants-"+UUID().uuidString)
@@ -147,7 +172,7 @@ public struct FinderServicePersistentGrant:Codable,Sendable,Equatable {
         // Resolve every minted bookmark before committing it: persistence must be usable.
         let accesses=try persisted.map { value -> FinderServicePersistentAccess in
             let (root,lease)=try value.acquire(provider:provider,requireSecurityScope:requireSecurityScope)
-            return FinderServicePersistentAccess(id:value.id,root:root,lease:lease)
+            return FinderServicePersistentAccess(id:value.id,root:root,lease:lease,additionalLeases:try value.acquireAdditional(provider:provider,requireSecurityScope:requireSecurityScope))
         }
         try save(persisted);return accesses
     }
@@ -159,8 +184,11 @@ public struct FinderServicePersistentGrant:Codable,Sendable,Equatable {
                 if requireSecurityScope && !lease.hasSecurityScope { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let root=value.repositoryComponents.reduce(resolved.url) { $0.appendingPathComponent($1,isDirectory:true) }.standardizedFileURL
                 guard lease.contains(root) else { throw FinderServiceAuthorizationFailure.invalidRequest }
-                if resolved.stale { renewed[index]=FinderServicePersistentGrant(id:value.id,bookmark:try provider.create(for:resolved.url),repositoryComponents:value.repositoryComponents) }
-                accesses.append(FinderServicePersistentAccess(id:value.id,root:root,lease:lease))
+                let additional=try value.acquireAdditional(provider:provider,requireSecurityScope:requireSecurityScope)
+                // Refresh receiver-private bookmarks while all scopes are live.
+                let bookmarks=try additional.map { try provider.create(for:$0.url) }
+                renewed[index]=FinderServicePersistentGrant(id:value.id,bookmark:resolved.stale ? try provider.create(for:resolved.url) : value.bookmark,repositoryComponents:value.repositoryComponents,additionalBookmarks:bookmarks.isEmpty ? nil : bookmarks)
+                accesses.append(FinderServicePersistentAccess(id:value.id,root:root,lease:lease,additionalLeases:additional))
             } catch { failures[value.id]=error.localizedDescription }
         }
         // Failed entries remain available for explicit renewed authorization.
@@ -173,6 +201,9 @@ public struct FinderServicePersistentAccess {
     public let id:UUID
     public let root:URL
     public let lease:RepositoryAccessLease
+    public var additionalLeases:[RepositoryAccessLease] = []
+    public var authorizedRoots:[URL] { [lease.url]+additionalLeases.map(\.url) }
+    public func contains(_ url:URL) -> Bool { authorizedRoots.contains { RepositoryAccessLease.pathIsContained(url,by:$0) } }
 }
 public struct FinderServiceRestoration {
     public let accesses:[FinderServicePersistentAccess]
@@ -282,13 +313,13 @@ public enum FinderCacheServiceFailure:LocalizedError {
     private func collect(_ session:Session,token:OperationCancellation) async {
         do {
             let ticket=try cache.begin(root:session.access.root,cancellation:token)
-            let collection=try await session.repository.collectFinderRepository(authorizedRoot:session.access.lease.url,cancellation:token,watchReady:{ [weak self,weak session] paths in
+            let collection=try await session.repository.collectFinderRepository(authorizedRoot:session.access.lease.url,additionalAuthorizedRoots:session.access.additionalLeases.map(\.url),cancellation:token,watchReady:{ [weak self,weak session] paths in
                 await self?.watch(session,paths:paths)
             })
             try token.check()
             guard running,session.active,sessions[session.access.id]===session else { return }
             // An unauthorized shared Git directory must not be silently monitored.
-            guard collection.watchDirectories.allSatisfy({ session.access.lease.contains($0) }) else { throw FinderCacheServiceFailure.outsidePermission }
+            guard collection.watchDirectories.allSatisfy({ session.access.contains($0) }) else { throw FinderCacheServiceFailure.outsidePermission }
             if let failure=session.watchFailure { throw NSError(domain:"TurtleGit.FinderWatcher",code:1,userInfo:[NSLocalizedDescriptionKey:failure]) }
             let publication=try cache.publish(ticket,snapshots:collection.snapshots,cancellation:token)
             if publication.published {
@@ -303,7 +334,7 @@ public enum FinderCacheServiceFailure:LocalizedError {
     }
     private func watch(_ session:Session?,paths:[URL]) {
         guard let session,running,session.active else { return }
-        guard paths.allSatisfy({ session.access.lease.contains($0) }),paths != session.directories else { return }
+        guard paths.allSatisfy({ session.access.contains($0) }),paths != session.directories else { return }
         do {
             let monitor=try RepositoryFileEventMonitor(roots:paths,onEvents:{ [weak self,weak session] _ in
                 Task { @MainActor in

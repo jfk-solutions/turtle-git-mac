@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-15",
+  "scope": "Finder watched repositories: additional folder permissions for external administration and linked worktrees",
+  "implementation": [
+    "Private additional bookmarks survive root renewal and relaunch; explicit replacement retains permission identity",
+    "Native Add/Renew/Remove folder controls with hidden-folder picker and confirmed removal",
+    "Watchers cancel and settle old reads before replacing scoped sessions",
+    "Private IPC and receiver archive version 2 retain protocol/archive 1 readers",
+    "Receiver mints and validates its own bookmarks atomically; moved additional scopes renewed on restoration",
+    "Collector validates administration paths against grants before status reads and monitor installation"
+  ],
+  "validation": {
+    "core": {
+      "tests": 23,
+      "failures": 0,
+      "log": "build/qa/finder-multiscope-core-2026-10-15.log"
+    },
+    "debug_build": {
+      "exit_code": 0,
+      "log": "build/qa/finder-multiscope-build-2026-10-15.log",
+      "repair": "Initial compile caught missing await for child actor watch-directory lookup; repaired before successful run"
+    },
+    "native": {
+      "cases": [
+        "finder-watches",
+        "finder-service-grants"
+      ],
+      "engines": [
+        "/usr/bin/git",
+        "bundled Git"
+      ],
+      "result": "4 case/engine combinations passed",
+      "new_assertions": [
+        "linked worktree initially reports external administration permission",
+        "grant enables publication and appears in service transfer",
+        "removal restores denied administration status"
+      ],
+      "log": "build/qa/finder-multiscope-native-2026-10-15.log",
+      "owned_receiver_pids_reaped": [
+        31906,
+        32096,
+        32144,
+        32342
+      ]
+    }
+  },
+  "limits": [
+    "Actual signed installed Finder and App Store sandbox acceptance remain unverified",
+    "Native grant mutation checks use injected providers; service process fixture explicitly disables scope requirement",
+    "New selected-row permission section and picker have not received physical visual/accessibility acceptance",
+    "No production agent registration, Finder activation, signing provisioning, or user-folder changes performed"
+  ]
+}
