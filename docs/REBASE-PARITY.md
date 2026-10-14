@@ -533,3 +533,7 @@ deliberately held cancelled replies, external session end and forced closure dur
 a real gated conflict diff, plus existing references/conditional-column regressions
 with system and bundled Git. Every owned receiver was reaped. No full Core suite
 was repeated. See [batch evidence](qa/rebase-session-refresh-2026-10-14.json).
+
+The connected replay streaming/cancellation and owned recovery batch is tracked
+in [Replay progress parity](REBASE-REPLAY-PROGRESS-PARITY.md). Physical and signed
+acceptance, full hook/editor interruption and broader source parity remain open.

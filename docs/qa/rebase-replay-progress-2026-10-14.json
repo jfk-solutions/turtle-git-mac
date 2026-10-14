@@ -1,0 +1,103 @@
+{
+  "date": "2026-10-14",
+  "base": "05d89b7b",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Owned synchronous Core replay I/O scope across Start/Continue/Skip/Abort/Edit/Squash and helpers; mutation-only streaming with token restoration",
+    "Native bounded colored progress, running Cancel/ConfirmKillProcess, fresh actual session recovery and retired callback fencing",
+    "Once-settled mainline/empty-result/conflict-hint/another-Split questions and retained replay grants/counters",
+    "Protected Stash/selected-conflict/Split write and durable continuation phases before queued cancellation",
+    "Split Commit streaming/ownership, declined pre-replay question preserves message draft and Start; provisional Skip bookkeeping restored if HEAD/step did not advance"
+  ],
+  "validation": {
+    "initial_debug": {
+      "exit": 0,
+      "log": "build/qa/rebase-replay-progress-debug-2026-10-14.log",
+      "diagnostics": "Existing exit-zero/no-output compiler messages; no clean-diagnostics claim."
+    },
+    "initial_core": {
+      "exit": 1,
+      "tests": 84,
+      "passed": 83,
+      "families": {
+        "RebaseTests": 77,
+        "RebaseSessionSnapshotTests": 4,
+        "RebaseReplayIOTests": 3
+      },
+      "failure": "New Split fixture used default amendDiffToLastCommit=true; first Split part requires false. Existing 81 Rebase/session cases all passed.",
+      "log": "build/qa/rebase-replay-progress-core-2026-10-14.log"
+    },
+    "boundary_repair": {
+      "debug_exit": 0,
+      "core_exit": 0,
+      "tests": 4,
+      "change": "Correct Split fixture flag; protect durable commit/continuation records and stash ownership; test queued cancellation still records actual part/HEAD.",
+      "logs": [
+        "build/qa/rebase-replay-progress-debug-boundary-2026-10-14.log",
+        "build/qa/rebase-replay-progress-core-boundary-2026-10-14.log"
+      ]
+    },
+    "skip_compile_repair": {
+      "initial_debug_exit": 65,
+      "initial_core_exit": 1,
+      "cause": "Throwing HEAD read inside short-circuit condition required a leading try; moved read into explicit captured actualHead. No Skip test ran in this compile-failed attempt.",
+      "debug_exit": 0,
+      "core_exit": 0,
+      "tests": 1,
+      "scope": "Cancelled Skip before Git advances restores provisional Squash bookkeeping; only this affected test reran.",
+      "logs": [
+        "build/qa/rebase-replay-progress-debug-skip-2026-10-14.log",
+        "build/qa/rebase-replay-progress-core-skip-2026-10-14.log",
+        "build/qa/rebase-replay-progress-debug-skip-repair-2026-10-14.log",
+        "build/qa/rebase-replay-progress-core-skip-repair-2026-10-14.log"
+      ]
+    },
+    "native_initial": {
+      "exit": 1,
+      "cause": "Receiver tried to inspect private completion; changed assertion to displayed status. No receiver launched.",
+      "log": "build/qa/rebase-replay-progress-native-2026-10-14.log"
+    },
+    "native_status_draft": {
+      "debug_exit": 0,
+      "logs": [
+        "build/qa/rebase-replay-progress-debug-status-2026-10-14.log",
+        "build/qa/rebase-replay-progress-debug-draft-2026-10-14.log"
+      ],
+      "change": "Expose stopped/failed outcome through displayed status; preserve declined message draft/retry state; suppress queued refresh on cancellation and use question default on unavailable presentation.",
+      "core": "Not repeated; only native code/fixture changed."
+    },
+    "native": {
+      "exit": 0,
+      "cases": 4,
+      "families": [
+        "rebase-replay-progress",
+        "rebase-session-refresh"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "owned_receivers_reaped": [
+        42843,
+        43121,
+        43524,
+        43803
+      ],
+      "log": "build/qa/rebase-replay-progress-native-repair-2026-10-14.log",
+      "evidence": [
+        "Real gated Continue streams CR percentages and split UTF-8 while busy",
+        "No retains command; Yes cancels owned process; actual paused HEAD/stage data remain available",
+        "Forced close during gated Abort suppresses callbacks and retains lifetime until process reaped",
+        "Fresh independent Abort works after canceled Core scope",
+        "Declined pre-replay Stash keeps unsaved message and Start state",
+        "Existing coherent session refresh/conflict cancellation/ownership remains passing"
+      ]
+    }
+  },
+  "limitations": [
+    "Running cancellation stops the process; explicit Abort is separate from undoing replay",
+    "Protected commit/stash phases finish durable metadata before queued stop; they are not internally interrupted",
+    "Physical sheets/layout/VoiceOver, complete signing/hook/editor interruption, all structural/cousin/octopus variants and signed grants remain open",
+    "No full hosted CI or complete Rebase/application/App Store certification"
+  ]
+}

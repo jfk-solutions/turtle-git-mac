@@ -5,6 +5,10 @@ public actor GitRepository {
     public nonisolated let root: URL
     public nonisolated let executable: URL
     public nonisolated let askpass: URL?
+    // Synchronous actor-isolated replay scopes cannot interleave repository work.
+    // Nested helpers inherit the owned token; explicit caller tokens still win.
+    var replayCancellation: OperationCancellation?
+    var replayOutput: (@Sendable (GitOutputChunk) -> Void)?
     public nonisolated let diffDetection: GitDiffDetection
     public init(root: URL, executable: URL = URL(fileURLWithPath: "/usr/bin/git"), askpass: URL? = GitAskpassRuntime.bundled(), diffDetection: GitDiffDetection = .load()) {
         self.root = root.standardizedFileURL; self.executable = executable; self.askpass = askpass; self.diffDetection = diffDetection
@@ -12,6 +16,8 @@ public actor GitRepository {
     /// With retainStandardOutput false, stdout is delivered only through onOutput;
     /// stderr and exit/cancellation diagnostics remain in the returned result.
     public func run(_ arguments: [String], environmentOverrides: [String: String] = [:], literalPathspecs: Bool = true, successfulExitCodes: ClosedRange<Int32> = 0...0, cancellation: OperationCancellation? = nil, input: Data? = nil, retainStandardOutput: Bool = true, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> GitResult {
+        let cancellation = cancellation ?? replayCancellation
+        let onOutput = onOutput ?? replayCommandOutput(arguments)
         try cancellation?.check()
         let temporary = try TurtleGitTemporaryStorage.root.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: true)

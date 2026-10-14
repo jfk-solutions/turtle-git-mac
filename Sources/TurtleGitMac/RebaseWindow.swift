@@ -6,6 +6,7 @@ import TurtleGitCore
 @MainActor final class RebaseWindowController: NSWindowController, NSWindowDelegate {
     let model: RebaseWindowModel
     var onClosed: () -> Void = {}
+    private var replayQuestion: (UUID, NSAlert, (Int) -> Void)?
     private(set) var conflictBaseViewer: FileComparisonWindowController?
     var configureConflictBaseViewer: (FileComparisonWindowModel) -> Void = { _ in }
     private var conflictPanel: (UUID, NSOpenPanel, (URL?) -> Void)?
@@ -108,46 +109,40 @@ import TurtleGitCore
                 else { child.close() }
             }
         }
-        model.chooseAnotherSplit = { [weak window] in
-            guard let window, window.attachedSheet == nil else { return false }
-            let alert = NSAlert(); alert.messageText = "Add another commit?"; alert.addButton(withTitle: "No"); alert.addButton(withTitle: "Yes")
-            return await alert.beginSheetModal(for: window) == .alertSecondButtonReturn
+        model.confirmReplayCancellation = { [weak self] in
+            await self?.askReplay("The process is still running.", detail: "Stop the running replay? Applied changes remain available for Continue, Skip or Abort.", buttons: ["Yes", "No"], defaultIndex: 1) == 0
         }
+        model.chooseAnotherSplit = { [weak self] in await self?.askReplay("Add another commit?", buttons: ["No", "Yes"], defaultIndex: 0) == 1 }
         model.chooseEmptyResult = { [weak self] in
-            guard let window = self?.window else { return .cancel }
-            let alert = NSAlert(); alert.messageText = "The current commit will be empty"
-            alert.informativeText = "Skip the commit or keep the message-only commit?"
-            alert.addButton(withTitle: "Commit"); alert.addButton(withTitle: "Skip")
-            let cancel = alert.addButton(withTitle: "Cancel"); alert.buttons.first?.keyEquivalent = ""; cancel.keyEquivalent = "\r"; alert.window.defaultButtonCell = cancel.cell as? NSButtonCell
-            let answer = await alert.beginSheetModal(for: window)
-            if answer == .alertFirstButtonReturn { return .commit }
-            if answer == .alertSecondButtonReturn { return .skip }
-            return .cancel
+            let answer = await self?.askReplay("The current commit will be empty", detail: "Skip the commit or keep the message-only commit?", buttons: ["Commit", "Skip", "Cancel"], defaultIndex: 2) ?? 2
+            return answer == 0 ? .commit : answer == 1 ? .skip : .cancel
         }
         model.confirmConflictHints = { [weak self] in
-            guard let window = self?.window else { return false }
-            let alert = NSAlert(); alert.messageText = "Conflict hints remain in the commit message"
-            alert.informativeText = "The message contains Git's commented conflict list. Ignore the warning to continue, or abort to edit the message."
-            alert.addButton(withTitle: "Ignore"); let abort = alert.addButton(withTitle: "Abort")
-            alert.buttons.first?.keyEquivalent = ""; abort.keyEquivalent = "\r"; alert.window.defaultButtonCell = abort.cell as? NSButtonCell
-            let remember = NSButton(checkboxWithTitle: "Do not show again", target: nil, action: nil); alert.accessoryView = remember
-            let answer = await alert.beginSheetModal(for: window)
-            if answer == .alertFirstButtonReturn, remember.state == .on { preferences.set(true, forKey: "CommitMessageContainsConflictHint") }
-            return answer == .alertFirstButtonReturn
+            let remember = NSButton(checkboxWithTitle: "Do not show again", target: nil, action: nil)
+            let answer = await self?.askReplay("Conflict hints remain in the commit message", detail: "The message contains Git's commented conflict list. Ignore the warning to continue, or abort to edit the message.", buttons: ["Ignore", "Abort"], defaultIndex: 1, accessory: remember)
+            if answer == 0 && remember.state == .on { preferences.set(true, forKey: "CommitMessageContainsConflictHint") }
+            return answer == 0
         }
-        model.chooseMainline = { [weak window] commit, choices in
-            guard let window, window.attachedSheet == nil else { return nil }
-            let alert = NSAlert(); alert.messageText = "TurtleGit"; alert.alertStyle = .informational
-            alert.informativeText = "\"\(commit.hash)\" - \"\(commit.subject)\"\nis a merge commit.\n\nWhich parent do you want to pick?"
-            for choice in choices { alert.addButton(withTitle: choice.title) }
-            let cancel = alert.addButton(withTitle: "Cancel")
-            alert.buttons.first?.keyEquivalent = ""; cancel.keyEquivalent = "\r"; alert.window.defaultButtonCell = cancel.cell as? NSButtonCell
-            let response = await alert.beginSheetModal(for: window)
-            let index = response.rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
-            return choices.indices.contains(index) ? choices[index].number : nil
+        model.chooseMainline = { [weak self] commit, choices in
+            let answer = await self?.askReplay("TurtleGit", detail: "\"\(commit.hash)\" - \"\(commit.subject)\"\nis a merge commit.\n\nWhich parent do you want to pick?", buttons: choices.map(\.title) + ["Cancel"], defaultIndex: choices.count) ?? choices.count
+            return choices.indices.contains(answer) ? choices[answer].number : nil
         }
 
         DialogGeometry.attach(window, identifier: "RebaseWindowController")
+    }
+    private func askReplay(_ title: String, detail: String = "", buttons: [String], defaultIndex: Int, accessory: NSView? = nil) async -> Int {
+        guard !model.retired, replayQuestion == nil, let window, window.attachedSheet == nil else { return defaultIndex }
+        let alert = NSAlert(); alert.messageText = title; alert.informativeText = detail; alert.accessoryView = accessory
+        for (index, title) in buttons.enumerated() { let button = alert.addButton(withTitle: title); button.keyEquivalent = index == defaultIndex ? "\r" : "" }
+        let id = UUID(); model.hasReplayQuestion = true
+        return await withCheckedContinuation { continuation in
+            replayQuestion = (id, alert, { continuation.resume(returning: $0) })
+            alert.beginSheetModal(for: window) { [weak self] response in self?.finishReplayQuestion(id, answer: response.rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue) }
+        }
+    }
+    private func finishReplayQuestion(_ id: UUID, answer: Int) {
+        guard let pending = replayQuestion, pending.0 == id else { return }; replayQuestion = nil; model.hasReplayQuestion = false
+        if pending.1.window.sheetParent === window { window?.endSheet(pending.1.window) }; pending.1.window.orderOut(nil); pending.2(answer)
     }
     private func chooseConflictLocation(application: Bool) async -> URL? {
         guard !model.retired, conflictPanel == nil, let window, window.attachedSheet == nil else { return nil }
@@ -183,7 +178,7 @@ import TurtleGitCore
         let commit = child.model
         model.configureCommitSelection(commit)
         var committed = false
-        commit.onCommitted = { [weak model] text in committed = true; model?.output += text + "\n"; model?.onChanged() }
+        commit.onCommitted = { [weak model] text in committed = true; guard let model, !model.retired else { return }; model.output += text + "\n"; model.onChanged() }
         let originalClose = commit.close
         commit.close = { [weak window, weak child] in
             if let sheet = child?.window { window?.endSheet(sheet); sheet.orderOut(nil) }; originalClose()
@@ -193,12 +188,14 @@ import TurtleGitCore
         if let sheet = child.window { window.beginSheet(sheet) } else { splitCommitPicker = nil; model.splitSelectionClosed(committed: false) }
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if model.replaying { model.cancelReplay(); return false }
+        if model.hasReplayQuestion || model.confirmingReplayCancellation { return false }
         if model.cancelPreparation() { return false }
         guard model.pickingReference == nil, !model.busy, !model.selectingSplit, !(model.active && model.hasReplayStash), sender.attachedSheet == nil else { return false }
         if !model.active && model.hasReplayStash { model.finishReplay(); return false }
         return true
     }
-    func windowWillClose(_ notification: Notification) { retireReferencePicker(); model.retire(); if let pending = conflictPanel { finishConflictPanel(pending.0, accepted: false) }; conflictBaseViewer?.close(); conflictBaseViewer = nil; notePresenter?.close(); if let alert = stashAlert { window?.endSheet(alert.window, returnCode: .abort); alert.window.orderOut(nil) }; stashAlert = nil; stashRestore?.close(); stashRestore = nil; logPicker?.close(); logPicker = nil; splitCommitPicker?.close(); splitCommitPicker = nil; onClosed() }
+    func windowWillClose(_ notification: Notification) { retireReferencePicker(); model.retire(); if let pending = replayQuestion { finishReplayQuestion(pending.0, answer: Int.max) }; if let pending = conflictPanel { finishConflictPanel(pending.0, accepted: false) }; conflictBaseViewer?.close(); conflictBaseViewer = nil; notePresenter?.close(); if let alert = stashAlert { window?.endSheet(alert.window, returnCode: .abort); alert.window.orderOut(nil) }; stashAlert = nil; stashRestore?.close(); stashRestore = nil; logPicker?.close(); logPicker = nil; splitCommitPicker?.close(); splitCommitPicker = nil; onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 enum RebaseReferenceTarget: Equatable { case upstream, onto }
@@ -371,6 +368,22 @@ struct RebaseReferenceRequest {
     private(set) var retired = false
     @Published private(set) var hasReplayStash = false
     private var replayPreparationCancellation: OperationCancellation?
+    static private(set) var activeReplayOperations = 0
+    static func beginReplayWork() { activeReplayOperations += 1 }
+    static func endReplayWork() { activeReplayOperations -= 1 }
+    @Published private(set) var replaying = false
+    @Published private(set) var replayStopped = false
+    @Published private(set) var cancellingReplay = false
+    @Published private(set) var confirmingReplayCancellation = false
+    @Published var hasReplayQuestion = false
+    var confirmReplayCancellation: () async -> Bool = { false }
+    func cancelReplay() {
+        guard !retired, replaying, !hasReplayQuestion, !confirmingReplayCancellation, !cancellingReplay, let token = replayPreparationCancellation else { return }
+        if !messageDefaults.bool(forKey: "ConfirmKillProcess") { pendingSessionRefresh = false; cancellingReplay = true; token.cancel(); return }
+        confirmingReplayCancellation = true
+        Task { let accepted = await confirmReplayCancellation(); confirmingReplayCancellation = false; if accepted && !retired && replayPreparationCancellation === token { pendingSessionRefresh = false; cancellingReplay = true; token.cancel() } }
+    }
+
     var chooseStashBeforeReplay: () async -> Bool = { false }
     var chooseRestoreReplayStash: () async -> Bool = { false }
     var restoreReplayStash: (Int) async -> Void = { _ in }
@@ -667,6 +680,7 @@ struct RebaseReferenceRequest {
         return "Continue"
     }
     var status: String {
+        if replayStopped { return completion }
         if finished { return completion }
         if state?.squashMessage?.skipBaseHead != nil { return "Continue retries the approved empty-group Skip." }
         if state?.squashMessage != nil { return "Edit the combined commit message, then Commit." }
@@ -848,17 +862,18 @@ struct RebaseReferenceRequest {
     }
     private func prepareCherryPick() {
         guard canStart, var snapshot = plan else { return }
-        busy = true
+        busy = true; Self.beginReplayWork()
         Task {
+            defer { Self.endReplayWork(); withExtendedLifetime(access) {} }
             do {
                 try requireAccess()
                 for index in snapshot.entries.indices where snapshot.entries[index].action != .skip && snapshot.entries[index].commit.parents.count > 1 {
                     let commit = snapshot.entries[index].commit
-                    let choices = try await repository.logParentChoices(commit)
+                    let choices = try await repository.logParentChoices(commit); guard !retired else { return }
                     guard let parent = await chooseMainline(commit, choices) else { busy = false; loadPendingHandoff(); return }
                     snapshot.entries[index].mainline = parent
                 }
-                plan = snapshot; busy = false; execute("start")
+                guard !retired else { return }; plan = snapshot; busy = false; execute("start")
             } catch { busy = false; self.error = error.localizedDescription; loadPendingHandoff() }
         }
     }
@@ -1012,58 +1027,67 @@ struct RebaseReferenceRequest {
     }
     func execute(_ action: String) {
         guard !retired, !busy, !pickingCommits, !selectingSplit, action != "start" || canStart else { return }
-        let snapshot = plan; busy = true; tab = 2
-        let preparation = OperationCancellation(); replayPreparationCancellation = preparation
+        let snapshot = plan, draftMessage = amendMessage, previouslyFinished = finished; busy = true; tab = 2
+        let preparation = OperationCancellation(); replayPreparationCancellation = preparation; replaying = true; cancellingReplay = false; replayStopped = false
+        Self.beginReplayWork(); LocalGitCommandProgress.begin()
         Task {
             var followRecovery = false, followEmpty = false, finishingReplay = false
             var skippedID = action == "skip" ? state?.stoppedEntryID : nil
-            defer { replayPreparationCancellation = nil; if !finishingReplay { busy = false }; if followEmpty { execute("continue") } else if followRecovery { resumeConflictSelection(afterCommit: true) } else { loadPendingHandoff() } }
+            defer { Self.endReplayWork(); LocalGitCommandProgress.end(); withExtendedLifetime(access) {}; if replayPreparationCancellation === preparation { replayPreparationCancellation = nil; replaying = false; cancellingReplay = false }; if !finishingReplay { busy = false }; if !retired && !preparation.isCancelled { if followEmpty { execute("continue") } else if followRecovery { resumeConflictSelection(afterCommit: true) } else { loadPendingHandoff() } } }
             do {
                 try requireAccess()
-                let result: RebaseExecution
+                let prefix = output
+                let result = try await LocalGitCommandProgress.stream(preferences: messageDefaults, update: { [weak self] progress in
+                    guard let self, !self.retired, self.replayPreparationCancellation === preparation else { return }; self.output = LocalGitCommandProgress.bounded(prefix + progress.output, preferences: self.messageDefaults)
+                }, resultText: { $0.output }) { [self] emit in
+                    let result: RebaseExecution
+                try preparation.check()
                 switch action {
                 case "start": guard let snapshot, let executable = editorExecutable else { throw RebaseFailure.plan }
                     let condition = try await repository.replayStashCondition(cherryPick: snapshot.options.isCherryPick, cancellation: preparation)
                     if condition.dirty {
                         let accepted = condition.automatic ? true : await chooseStashBeforeReplay()
-                        guard !retired, accepted else { return }
-                        let saved = try await repository.saveStash(StashSaveOptions(), cancellation: preparation)
-                        guard !retired else { return }
-                        output += saved.output + "\n"; onChanged()
+                        guard !retired, accepted else { throw OperationCancellationFailure.cancelled }
+                        try preparation.check()
+                        let saved = try await repository.saveStash(StashSaveOptions(), onOutput: emit)
                         if saved.created { hasReplayStash = true }
+                        try preparation.check(); guard !retired else { throw OperationCancellationFailure.cancelled }
+                        onChanged()
                     }
-                    guard !retired else { return }
+                    try preparation.check(); guard !retired else { throw OperationCancellationFailure.cancelled }
                     if !snapshot.options.isCherryPick {
                         _ = try await clientHooks.run(.preRebase, repository: repository, access: access, upstream: snapshot.options.upstream, rebasedBranch: snapshot.options.branch, cancellation: preparation, allowContinue: true)
                     }
-                    guard !retired else { return }
-                    replayRows = snapshot.entries; result = try await repository.startRebase(snapshot, editorExecutable: executable, afterFetch: completionAfterFetch, autoStart: completionAutoStart, fromLog: completionFromLog)
-                case "abort": result = try await repository.abortRebase()
-                case "skip": result = try await repository.skipRebase()
+                    try preparation.check(); guard !retired else { throw OperationCancellationFailure.cancelled }
+                    replayRows = snapshot.entries; result = try await repository.startRebase(snapshot, editorExecutable: executable, afterFetch: completionAfterFetch, autoStart: completionAutoStart, fromLog: completionFromLog, cancellation: preparation, onOutput: emit)
+                case "abort": result = try await repository.abortRebase(cancellation: preparation, onOutput: emit)
+                case "skip": result = try await repository.skipRebase(cancellation: preparation, onOutput: emit)
                 default:
                     let rawText = amendMessage, paths = checkedConflicts, head = conflictHead
                     let stripComments = messageDefaults.bool(forKey: "StripCommentedLines")
                     let text = try await repository.prepareCommitMessageFile(rawText, stripComments: stripComments, sanitize: messageDefaults.object(forKey: "SanitizeCommitMsg") as? Bool ?? true).contents
                     if fileRecovery, state?.split == nil, !messageDefaults.bool(forKey: "CommitMessageContainsConflictHint"), try await repository.rebaseMessageContainsConflictHints(rawText, stripComments: stripComments) {
-                        guard await confirmConflictHints() else { tab = 1; return }
+                        guard await confirmConflictHints() else { tab = 1; throw OperationCancellationFailure.cancelled }
                     }
-                    if state?.squashMessage?.skipBaseHead != nil { result = try await repository.continueRebase() }
-                    else if state?.squashMessage != nil, state?.split == nil, try await repository.rebaseSquashIsEmpty() {
-                        let capturedState = state, capturedHead = try await repository.rebaseCommit("HEAD").hash
+                    if state?.squashMessage?.skipBaseHead != nil { result = try await repository.continueRebase(cancellation: preparation, onOutput: emit) }
+                    else if state?.squashMessage != nil, state?.split == nil, try await repository.rebaseSquashIsEmpty(cancellation: preparation) {
+                        let capturedState = state, capturedHead = try await repository.rebaseCommit("HEAD", cancellation: preparation).hash
                         let choice = await chooseEmptyResult()
-                        if choice == .cancel { tab = 1; return }
-                        result = try await repository.continueRebase(squashMessage: text, emptySquashChoice: choice, expectedSquashHead: capturedHead, expectedSquashState: capturedState)
+                        if choice == .cancel { tab = 1; throw OperationCancellationFailure.cancelled }
+                        result = try await repository.continueRebase(squashMessage: text, emptySquashChoice: choice, expectedSquashHead: capturedHead, expectedSquashState: capturedState, cancellation: preparation, onOutput: emit)
                     } else if fileRecovery, supportsConflictSelection, state?.split == nil, let captured = state {
-                        let empty = try await repository.rebaseConflictSelectionIsEmpty(paths: paths, expected: captured, expectedHead: head)
+                        let empty = try await repository.rebaseConflictSelectionIsEmpty(paths: paths, expected: captured, expectedHead: head, cancellation: preparation)
                         let choice = empty ? await chooseEmptyResult() : RebaseEmptyChoice.commit
-                        if choice == .cancel { tab = 0; return }
-                        if empty, !(try await repository.rebaseConflictSelectionIsEmpty(paths: paths, expected: captured, expectedHead: head)) { throw RebaseFailure.changed }
-                        if choice == .skip { skippedID = state?.stoppedEntryID; result = try await repository.skipRebase() }
-                        else { result = try await repository.commitRebaseConflictSelection(message: text, paths: paths, expected: captured, expectedHead: head, allowEmpty: empty) }
-                    } else { result = try await repository.continueRebase(squashMessage: state?.squashMessage == nil ? nil : text, editMessage: state?.isEditPause == true ? text : nil) }
+                        if choice == .cancel { tab = 0; throw OperationCancellationFailure.cancelled }
+                        if empty, !(try await repository.rebaseConflictSelectionIsEmpty(paths: paths, expected: captured, expectedHead: head, cancellation: preparation)) { throw RebaseFailure.changed }
+                        if choice == .skip { skippedID = state?.stoppedEntryID; result = try await repository.skipRebase(cancellation: preparation, onOutput: emit) }
+                        else { try preparation.check(); guard !retired else { throw OperationCancellationFailure.cancelled }; result = try await repository.commitRebaseConflictSelection(message: text, paths: paths, expected: captured, expectedHead: head, allowEmpty: empty, onOutput: emit) }
+                    } else { result = try await repository.continueRebase(squashMessage: state?.squashMessage == nil ? nil : text, editMessage: state?.isEditPause == true ? text : nil, cancellation: preparation, onOutput: emit) }
+                }
+                    return result
                 }
                 guard !retired else { return }
-                output += result.output + "\n"; state = result.state; finished = result.exitCode == 0 && !result.state.active; completedSuccessfully = finished && action != "abort"; completion = action == "abort" ? "\(operationTitle) aborted" : "\(operationTitle) finished"
+                try preparation.check(); state = result.state; finished = result.exitCode == 0 && !result.state.active; completedSuccessfully = finished && action != "abort"; completion = action == "abort" ? "\(operationTitle) aborted" : "\(operationTitle) finished"
                 if result.exitCode == 0, let skippedID { replayRows = replayRows.map { var row = $0; if row.id == skippedID { row.action = .skip }; return row } }
                 if finished, action != "abort" { replayRows = replayRows.map { var row = $0; row.progress = .completed; return row } }
                 try await loadConflictFiles()
@@ -1075,46 +1099,55 @@ struct RebaseReferenceRequest {
                 onChanged()
                 if action == "abort", finished { busy = false; finishingReplay = true; finishReplay(); return }
                 if action == "continue", state?.split?.conflictRecovery == true { followRecovery = true }
-            } catch { if !retired { self.error = error.localizedDescription } }
+            } catch {
+                guard !retired else { return }; output = LocalGitCommandProgress.failure(error, existing: output, preferences: messageDefaults)
+                let declined = !preparation.isCancelled && error is OperationCancellationFailure
+                replayStopped = true; self.error = preparation.isCancelled || error is OperationCancellationFailure ? nil : error.localizedDescription
+                do { let actual = try await readSession(conflictIdentity, OperationCancellation()); guard !retired else { return }; applyConflictSnapshot(actual); recovered = actual.remaining; replayRows = actual.replay; amendMessage = declined ? draftMessage : state?.squashMessage?.message ?? state?.message ?? ""; finished = declined ? previouslyFinished : !actual.state.active && (action != "start" || actual.head != snapshot?.branchHash); completedSuccessfully = false; completion = preparation.isCancelled || error is OperationCancellationFailure ? "Replay stopped; review the current state." : "Replay failed; review the current state."; onChanged() }
+                catch { if !retired { self.error = error.localizedDescription } }
+            }
         }
     }
     var canSplit: Bool { !busy && !selectingSplit && state?.canSplit == true }
     func beginSplitSelection() {
-        guard canSplit else { return }; busy = true
+        guard canSplit else { return }; busy = true; Self.beginReplayWork()
         Task {
-            do { try requireAccess(); let split = try await repository.beginRebaseSplit(); state = try await repository.rebaseState(); busy = false; selectingSplit = true; showSplitSelection(split, amendMessage) }
-            catch { busy = false; self.error = error.localizedDescription }
+            defer { Self.endReplayWork(); withExtendedLifetime(access) {} }
+            do { try requireAccess(); let split = try await repository.beginRebaseSplit(); guard !retired else { return }; state = try await repository.rebaseState(); guard !retired else { return }; busy = false; selectingSplit = true; showSplitSelection(split, amendMessage) }
+            catch { if !retired { busy = false; self.error = error.localizedDescription } }
         }
     }
     private func resumeConflictSelection(afterCommit: Bool = false) {
-        guard !busy, !selectingSplit, let continuation = state?.split, continuation.conflictRecovery == true else { return }; busy = true
+        guard !busy, !selectingSplit, let continuation = state?.split, continuation.conflictRecovery == true else { return }; busy = true; Self.beginReplayWork()
         Task {
+            defer { Self.endReplayWork(); withExtendedLifetime(access) {} }
             do {
                 try requireAccess()
-                let remaining = try await repository.rebaseSplitHasRemainingChanges()
+                let remaining = try await repository.rebaseSplitHasRemainingChanges(); guard !retired else { return }
                 busy = false
                 if remaining { selectingSplit = true; showSplitSelection(continuation, amendMessage) }
                 else if afterCommit && state?.isEditPause == true { tab = 1 }
                 else { execute("continue") }
-            } catch { busy = false; self.error = error.localizedDescription }
+            } catch { if !retired { busy = false; self.error = error.localizedDescription } }
         }
     }
     func splitSelectionClosed(committed: Bool) {
-        guard selectingSplit else { return }; selectingSplit = false; busy = true
+        guard !retired, selectingSplit else { return }; selectingSplit = false; busy = true; Self.beginReplayWork()
         Task {
+            defer { Self.endReplayWork(); withExtendedLifetime(access) {} }
             do {
-                state = try await repository.rebaseState(); splitCommit = state?.split != nil && state?.split?.conflictRecovery != true
+                state = try await repository.rebaseState(); guard !retired else { return }; splitCommit = state?.split != nil && state?.split?.conflictRecovery != true
                 guard committed else { if state?.split?.parts == 0 { try await repository.cancelUnstartedRebaseSplit(); state = try await repository.rebaseState(); splitCommit = false }; busy = false; loadPendingHandoff(); return }
                 if state?.split?.conflictRecovery == true {
                     try await loadConflictFiles(); amendMessage = try await repository.rebaseCommit("HEAD").message
                     busy = false; resumeConflictSelection(afterCommit: true); return
                 }
                 let remaining = try await repository.rebaseSplitHasRemainingChanges()
-                let another = remaining ? true : await chooseAnotherSplit()
+                let another = remaining ? true : await chooseAnotherSplit(); guard !retired else { return }
                 busy = false
                 if another { beginSplitSelection() }
                 else { splitCommit = false; execute("continue") }
-            } catch { busy = false; self.error = error.localizedDescription; loadPendingHandoff() }
+            } catch { if !retired { busy = false; self.error = error.localizedDescription; loadPendingHandoff() } }
         }
     }
 
@@ -1285,7 +1318,7 @@ struct RebaseDialog: View {
                             }.padding(8)
                         } else { ScrollView { Text(model.message).font(messageFont).frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled).padding(8) } }
                     }.tabItem { Text("Commit Message") }.tag(1)
-                    OutputView(text: model.output, usesLogFont: true).tabItem { Text("Progress") }.tag(2)
+                    SubmoduleProgressOutputView(text: model.output, completed: !model.busy, success: model.completedSuccessfully, preferences: model.columnPreferences).tabItem { Text("Progress") }.tag(2)
                 }.frame(minHeight: 150)
             }
             if model.active {
@@ -1313,7 +1346,9 @@ struct RebaseDialog: View {
             }
         }.padding(12).disabled(model.busy || model.selectingSplit || model.pickingReference != nil)
         .overlay(alignment: .bottomLeading) {
-            if model.hasCancellablePreparation {
+            if model.replaying {
+                HStack { Text(model.cancellingReplay ? "Stopping replay…" : "Running replay…").font(.caption); Button(model.cancellingReplay ? "Cancelling…" : "Cancel") { model.cancelReplay() }.disabled(model.cancellingReplay || model.hasReplayQuestion || model.confirmingReplayCancellation) }.padding(12)
+            } else if model.hasCancellablePreparation {
                 HStack { ProgressView().controlSize(.small); Text(model.refreshingSession ? "Refreshing replay state…":model.preparingConflictFiles ? "Preparing file action…":model.preparingConflictDiff ? "Preparing conflict comparison…":model.loadingPlan ? "Preparing commit plan…" : "Reading references…").font(.caption); Button(model.cancellingPreparation ? "Cancelling…" : "Cancel") { model.cancelPreparation() }.disabled(model.cancellingPreparation) }.padding(12)
             }
         }

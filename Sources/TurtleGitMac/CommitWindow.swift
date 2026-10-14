@@ -1379,13 +1379,16 @@ import UniformTypeIdentifiers
                 let output: String
                 commitAttempted = true
                 if let historyCombine { try await repository.verifyHistoryCombineAmend(historyCombine) }
-                if let replaySplit { output = try await repository.commitRebaseSplit(message: text, paths: paths, staging: staging, options: options, expected: replaySplit) }
-                else {
+                let countedReplay = replaySplit != nil
+                if countedReplay { RebaseWindowModel.beginReplayWork() }
+                defer { if countedReplay { RebaseWindowModel.endReplayWork() } }
+                do {
                     let parser = GitCliOutputParser(limit: result.outputLimit)
                     let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
                     let operation = Task {
                         defer { continuation.finish() }
                         let onOutput: @Sendable (GitOutputChunk) -> Void = { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }
+                        if let replaySplit { return try await repository.commitRebaseSplit(message: text, paths: paths, staging: staging, options: options, expected: replaySplit, onOutput: onOutput) }
                         if staging { return try await repository.commitIndex(message: text, options: options, cancellation: result.cancellation, onOutput: onOutput) }
                         return try await repository.commitSelected(message: text, paths: paths, options: options, cancellation: result.cancellation, onOutput: onOutput)
                     }
