@@ -1,0 +1,81 @@
+{
+  "date": "2026-10-15",
+  "scope": "Revision Graph ordering, measured font, zoom text and export font family",
+  "source_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "LogDlgHelper.h CLogDataVector constructors and LogDataVector.cpp ParserFromLog",
+    "CommonAppUtils.cpp GetLogFontName",
+    "RevisionGraphDlgFunc.cpp FetchRevisionData and DoZoom",
+    "RevisionGraphDlgDraw.cpp DrawTexts and export font attributes"
+  ],
+  "implementation": [
+    "All four configured Log walk orders feed decoration simplification, graph nodes and parent edges",
+    "Native reload captures owning ordering and font family",
+    "Published geometry and font replace together after successful layout; failure retains prior pair",
+    "Graph family uses native Menlo default/fallback and graph-owned 12-point sizing, independent of message font size",
+    "Source integer 9/11/6 zoom text thresholds adapted to existing native 9-to-12 point scale",
+    "Canvas, overview and raster exports share drawing font",
+    "SVG/Graphviz carry captured graph font; SVG baseline uses font metrics",
+    "README and Settings description explain family versus graph sizing"
+  ],
+  "validation": {
+    "build": {
+      "exit_code": 0,
+      "log": "build/qa/revision-graph-display-build-2026-10-15.log"
+    },
+    "core": {
+      "unique_checks": 17,
+      "initial_group": {
+        "checks": 17,
+        "failing_checks": 1,
+        "assertion_failures": 2,
+        "log": "build/qa/revision-graph-display-core-2026-10-15.log"
+      },
+      "repair": "New scoped oracle initially omitted source terminal boundary nodes. Compare non-boundary walk order against Git and independently assert exact boundary hashes/empty parents. Production was unchanged.",
+      "affected_recheck": {
+        "checks": 1,
+        "failures": 0,
+        "log": "build/qa/revision-graph-display-order-recheck-2026-10-15.log"
+      },
+      "coverage": [
+        "Four walks on genuinely skewed author/committer dates with at least three distinct orders",
+        "Exact parent edges and scoped range boundary behavior",
+        "Index/config/HEAD/refs unchanged",
+        "Existing graph layout, tag scopes, pointers, search, bare and cancellation checks"
+      ]
+    },
+    "native": {
+      "result": "2 passed on first run",
+      "cases": [
+        "revision-graph"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "log": "build/qa/revision-graph-display-native-2026-10-15.log",
+      "owned_receiver_pids_reaped": [
+        54298,
+        54651
+      ],
+      "new_coverage": [
+        "Owning author-date preference and custom Courier family on real load",
+        "Message font size does not alter graph sizing",
+        "Pending preference edit leaves published font stable",
+        "Failed load retains prior measured geometry and font",
+        "Invalid family falls back to native default",
+        "Exact zoom sizing/hide/invalid-scale boundaries",
+        "Custom-family SVG/XML and Graphviz output",
+        "Existing seven export formats, toolbar/Find/filter/menu/pointer lifecycle regressions"
+      ]
+    }
+  },
+  "limits": [
+    "No new physical visual or Settings picker acceptance",
+    "Native point metrics differ from Windows GDI; exact cross-platform font matching unverified",
+    "Vector exports retain native unit zoom; raster uses screen zoom",
+    "Actual external Graphviz rendering and missing fonts on other hosts unverified",
+    "Signed Finder/App Store and full upstream graph/application parity remain incomplete",
+    "GitHub Pages run 38652192862 succeeded for 8d5607f4; macOS run 38652192742 was pending when inspected; no full hosted pass claimed"
+  ]
+}

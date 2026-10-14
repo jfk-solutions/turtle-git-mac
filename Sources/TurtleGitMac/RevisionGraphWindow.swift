@@ -74,13 +74,27 @@ final class RevisionGraphSurface: NSView {
     var onCompare: (ComparisonRevision, ComparisonRevision) -> Void = { _, _ in }
     var onCheckout: (String) -> Void = { _ in }
     var onUnified: (Data) -> Void = { _ in }
-    static let font = NSFont.systemFont(ofSize: 12)
+    private(set) var font: NSFont
+    private static func configuredFont(_ preferences: UserDefaults) -> NSFont {
+        MessageEditorFont.resolve(name: preferences.string(forKey: "LogFontName") ?? MessageEditorFont.defaultName, size: 12)
+    }
+    /// DoZoom's integer 9/11/6 font thresholds, with the existing 9→12 point
+    /// native sizing. The context already scales geometry, so undo that scale
+    /// when supplying the actual display font. At very small zoom source hides text.
+    func drawingFont(zoom: CGFloat) -> NSFont? {
+        guard zoom.isFinite, zoom > 0, zoom <= 100 else { return nil }
+        var size = max(1, Int(9 * zoom))
+        if size < 6 { size = min(6, Int(11 * zoom)) }
+        guard size > 0 else { return nil }
+        return NSFontManager.shared.convert(font, toSize: CGFloat(size) * (4.0 / 3.0) / zoom)
+    }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, layoutExecutable: URL? = nil) {
-        self.repository = repository; self.access = access; self.preferences = preferences; self.layoutExecutable = layoutExecutable; sshSettings = SSHTransportSettings(repository: repository)
+        self.repository = repository; self.access = access; self.preferences = preferences; self.layoutExecutable = layoutExecutable; font = Self.configuredFont(preferences); sshSettings = SSHTransportSettings(repository: repository)
         // InitialSetMenu defaults and keys from RevisionGraphDlg.cpp. These
         // display choices are global; the revision filter and zoom are transient.
         showOverview = preferences.bool(forKey: "ShowRevGraphOverview")
         arrowsTowardMerges = preferences.bool(forKey: "ArrowPointToMerges")
+        options.ordering = HistoryOrdering.load(defaults: preferences)
         options.showBranchingsAndMerges = preferences.bool(forKey: "ShowRevGraphBranchesMerges")
         options.showAllTags = preferences.object(forKey: "ShowRevGraphAllTags") == nil ? true : preferences.bool(forKey: "ShowRevGraphAllTags")
         options.showSuperprojectPointers = preferences.object(forKey: "LogShowSuperProjectSubmodulePointer") == nil ? true : preferences.bool(forKey: "LogShowSuperProjectSubmodulePointer")
@@ -98,6 +112,8 @@ final class RevisionGraphSurface: NSView {
         let token = OperationCancellation(), request = UUID()
         var options = self.options
         options.useMailmap = GitIdentityDisplay(defaults: preferences).useMailmap
+        options.ordering = HistoryOrdering.load(defaults: preferences)
+        let font = Self.configuredFont(preferences)
         cancellation = token; generation = request
         Self.activeOperations += 1
         worker = Task { [self] in
@@ -113,15 +129,15 @@ final class RevisionGraphSurface: NSView {
                 guard !closed, !token.isCancelled, request == generation else { return }
                 let sizes = graph.nodes.map { node -> CGSize in
                     let labels = self.lines(node, pointers: graph.superprojectLabels)
-                    let widths = labels.map { ($0.0 as NSString).size(withAttributes: [.font: Self.font]).width }
-                    return CGSize(width: ceil(max(widths.max() ?? 0, ("88888888" as NSString).size(withAttributes: [.font: Self.font]).width)) + 40, height: CGFloat(labels.count) * (ceil(Self.font.ascender - Self.font.descender) + 10))
+                    let widths = labels.map { ($0.0 as NSString).size(withAttributes: [.font: font]).width }
+                    return CGSize(width: ceil(max(widths.max() ?? 0, ("88888888" as NSString).size(withAttributes: [.font: font]).width)) + 40, height: CGFloat(labels.count) * (ceil(font.ascender - font.descender) + 10))
                 }
                 let executable = layoutExecutable
                 let layout = try await Task.detached {
                     try RevisionGraphLayoutRuntime.layout(nodes: graph.nodes, sizes: sizes, executable: executable, cancellation: token)
                 }.value
                 guard !closed, !token.isCancelled, request == generation else { return }
-                bare = isBare; nodes = graph.nodes; pointers = graph.superprojectLabels; geometry = layout
+                bare = isBare; nodes = graph.nodes; pointers = graph.superprojectLabels; geometry = layout; self.font = font; self.options.ordering = options.ordering
                 selection = selection.filter { hash in self.nodes.contains { $0.hash == hash } }
             } catch { if !closed, !token.isCancelled, request == generation { self.error = error.localizedDescription } }
         }
@@ -669,6 +685,7 @@ enum RevisionGraphReferenceCommand {
             let previous = points[points.count - 2], angle = atan2(end.y - previous.y, end.x - previous.x), length: CGFloat = 8
             let arrow = NSBezierPath(); arrow.move(to: CGPoint(x: end.x - length * cos(angle - .pi / 8), y: end.y - length * sin(angle - .pi / 8))); arrow.line(to: end); arrow.line(to: CGPoint(x: end.x - length * cos(angle + .pi / 8), y: end.y - length * sin(angle + .pi / 8))); arrow.lineWidth = 2; arrow.stroke()
         }
+        let font = model.drawingFont(zoom: zoom)
         let nodes = Dictionary(uniqueKeysWithValues: model.nodes.map { ($0.hash, $0) })
         for geometry in geometry.nodes {
             guard let node = nodes[geometry.hash] else { continue }
@@ -679,8 +696,8 @@ enum RevisionGraphReferenceCommand {
                 let row = CGRect(x: rect.minX, y: rect.minY + CGFloat(index) * height, width: rect.width, height: height)
                 let background = RevisionGraphPalette.background(label.1, pointer: label.2, preferences: model.preferences)
                 background.setFill(); row.fill()
-                if text {
-                    let attributes: [NSAttributedString.Key: Any] = [.font: RevisionGraphWindowModel.font, .foregroundColor: RevisionGraphPalette.foreground(background)]
+                if text, let font {
+                    let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: RevisionGraphPalette.foreground(background)]
                     let size = (label.0 as NSString).size(withAttributes: attributes)
                     (label.0 as NSString).draw(at: CGPoint(x: rect.minX + 20, y: row.midY - size.height / 2), withAttributes: attributes)
                 }
@@ -695,8 +712,8 @@ enum RevisionGraphReferenceCommand {
                         marker.move(to: CGPoint(x: rect.minX + x, y: rect.minY - 25)); marker.line(to: CGPoint(x: rect.minX + x, y: rect.minY - 5))
                     }
                     marker.stroke()
-                    if index == 0, model.selection.count == 2 {
-                        ("(Base)" as NSString).draw(at: CGPoint(x: rect.minX + 14, y: rect.minY - 25), withAttributes: [.font: RevisionGraphWindowModel.font, .foregroundColor: color])
+                    if index == 0, model.selection.count == 2, let font {
+                        ("(Base)" as NSString).draw(at: CGPoint(x: rect.minX + 14, y: rect.minY - 25), withAttributes: [.font: font, .foregroundColor: color])
                     }
                 }
             }

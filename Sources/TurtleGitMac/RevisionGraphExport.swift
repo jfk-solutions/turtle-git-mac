@@ -26,8 +26,8 @@ enum RevisionGraphExportFailure: LocalizedError {
     static func xml(_ value: String) -> String {
         value.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;").replacingOccurrences(of: ">", with: "&gt;").replacingOccurrences(of: "\"", with: "&quot;").replacingOccurrences(of: "'", with: "&apos;")
     }
-    static var fontName: String {
-        let family = RevisionGraphWindowModel.font.familyName ?? "Helvetica"
+    static func fontName(_ font: NSFont) -> String {
+        let family = font.familyName ?? "Helvetica"
         // AppKit's private .AppleSystemUIFont name is not a portable SVG/DOT font.
         return family.hasPrefix(".") ? "Helvetica" : family
     }
@@ -86,6 +86,7 @@ enum RevisionGraphExportFailure: LocalizedError {
     }
     private static func svg(canvas: RevisionGraphCanvas, size: CGSize) -> String {
         let model = canvas.model, graph = model.geometry!
+        let font = model.font, fontName = fontName(model.font)
         var parts = ["<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"\(number(size.width))\" height=\"\(number(size.height))\" viewBox=\"0 0 \(number(size.width)) \(number(size.height))\">", "<rect width=\"100%\" height=\"100%\" fill=\"\(color(.textBackgroundColor))\"/>", "<g transform=\"translate(10 10)\">"]
         for edge in graph.edges {
             let points = model.arrowsTowardMerges ? Array(edge.points.reversed()) : edge.points
@@ -107,7 +108,7 @@ enum RevisionGraphExportFailure: LocalizedError {
                 let background = RevisionGraphPalette.background(label.1, pointer: label.2, preferences: model.preferences)
                 let y = rect.minY + CGFloat(line) * height
                 parts.append("<rect x=\"\(number(rect.minX))\" y=\"\(number(y))\" width=\"\(number(rect.width))\" height=\"\(number(height))\" fill=\"\(color(background))\"/>")
-                parts.append("<text x=\"\(number(rect.minX + 20))\" y=\"\(number(y + 5 + 12))\" font-family=\"\(xml(fontName))\" font-size=\"12\" fill=\"\(color(RevisionGraphPalette.foreground(background)))\">\(xml(label.0))</text>")
+                parts.append("<text x=\"\(number(rect.minX + 20))\" y=\"\(number(y + (height - (font.ascender - font.descender)) / 2 + font.ascender))\" font-family=\"\(xml(fontName))\" font-size=\"\(number(font.pointSize))\" fill=\"\(color(RevisionGraphPalette.foreground(background)))\">\(xml(label.0))</text>")
             }
             parts.append("</g>")
             if let selection = model.selection.firstIndex(of: node.hash) {
@@ -119,7 +120,8 @@ enum RevisionGraphExportFailure: LocalizedError {
     }
     private static func graphviz(canvas: RevisionGraphCanvas) -> String {
         let model = canvas.model
-        var parts = ["digraph G {", "graph [rankdir=BT];", "node [style=\"filled, rounded\", shape=box, fontname=\"\(fontName)\", fontsize=12, height=0.26, penwidth=0];"]
+        let fontName = fontName(model.font).replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+        var parts = ["digraph G {", "graph [rankdir=BT];", "node [style=\"filled, rounded\", shape=box, fontname=\"\(fontName)\", fontsize=\(number(model.font.pointSize)), height=0.26, penwidth=0];"]
         // Full hashes avoid the upstream abbreviated-ID collision while preserving
         // parent-to-child edges, BT orientation and colored reference-table rows.
         for edge in model.geometry!.edges { parts.append("g\(edge.targetHash) -> g\(edge.sourceHash);") }

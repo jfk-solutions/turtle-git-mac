@@ -216,7 +216,8 @@ artwork are documented in NOTICE and the bundle's license resources.
 Distribution clearance remains incomplete; see [distribution requirements](docs/DISTRIBUTION.md).
 
 The native [Revision Graph](docs/REVISION-GRAPH.md) now has a separate colored
-reference-box canvas and source-style Filter sheet. See the
+reference-box canvas and source-style Filter sheet. It follows the shared Log
+commit ordering and font family, with graph zoom sizing and matching export fonts. See the
 [light/dark graph and filter captures](docs/site/index.html) and
 [remaining parity work](docs/REVISION-GRAPH-PARITY.md).
 

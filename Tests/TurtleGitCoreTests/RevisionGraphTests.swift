@@ -2,6 +2,39 @@ import XCTest
 @testable import TurtleGitCore
 
 final class RevisionGraphTests: XCTestCase {
+    func testGraphOrderingUsesConfiguredWalkWithSkewedDatesAndUnchangedEdges() async throws {
+        let (root, repo, base, merge) = try await HistoryOrderingTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let hashes = try await repo.run(["rev-list","--all"]).text.split(separator: "\n").map(String.init)
+        // Retain every skewed-date commit in the decoration-simplified graph.
+        for (n, hash) in hashes.enumerated() { _ = try await repo.run(["tag","ordering-\(n)",hash]) }
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index")), config = try Data(contentsOf: root.appendingPathComponent(".git/config"))
+        let refs = try await repo.run(["show-ref"]).stdout, head = try await repo.run(["rev-parse","HEAD"]).stdout
+        var orders = Set<[String]>(), expectedEdges: Set<String>?
+        for order in HistoryOrdering.allCases {
+            var options = RevisionGraphOptions(); options.ordering = order
+            let graph = try await repo.revisionGraph(options: options)
+            let oracle = try await repo.run(["log","--format=%H|%P"] + order.arguments + ["--parents","--simplify-by-decoration","--all","--"]).text.split(separator: "\n").map(String.init)
+            XCTAssertEqual(graph.nodes.map { $0.hash + "|" + $0.parents.joined(separator: " ") }, oracle)
+            XCTAssertEqual(graph.nodes.count, 6); orders.insert(graph.nodes.map(\.hash))
+            let edges = Set(graph.nodes.flatMap { node in node.parents.map { node.hash + "|" + $0 } })
+            if let expectedEdges { XCTAssertEqual(edges, expectedEdges) } else { expectedEdges = edges }
+            options.from = base; options.to = merge
+            let scoped = try await repo.revisionGraph(options: options)
+            let scopedOracle = try await repo.run(["log","--format=%H|%P"] + order.arguments + ["--parents","--simplify-by-decoration",merge,"^"+base,"--"]).text.split(separator: "\n").map(String.init)
+            XCTAssertEqual(scoped.nodes.filter { !$0.isBoundary }.map { $0.hash + "|" + $0.parents.joined(separator: " ") }, scopedOracle)
+            let displayed = Set(scopedOracle.map { String($0.split(separator: "|")[0]) })
+            let missing = Set(scoped.nodes.filter { !$0.isBoundary }.flatMap(\.parents)).subtracting(displayed)
+            XCTAssertEqual(Set(scoped.nodes.filter(\.isBoundary).map(\.hash)), missing)
+            XCTAssertTrue(scoped.nodes.filter(\.isBoundary).allSatisfy { $0.parents.isEmpty })
+        }
+        XCTAssertGreaterThanOrEqual(orders.count, 3)
+        XCTAssertEqual(index, try Data(contentsOf: root.appendingPathComponent(".git/index")))
+        XCTAssertEqual(config, try Data(contentsOf: root.appendingPathComponent(".git/config")))
+        let afterRefs = try await repo.run(["show-ref"]).stdout, afterHead = try await repo.run(["rev-parse","HEAD"]).stdout
+        XCTAssertEqual(refs, afterRefs); XCTAssertEqual(head, afterHead)
+    }
+
     func testFindSearchesSourceFieldsAndWrapsWithoutRepeatingPreviousResult() throws {
         let helper = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("build/issue-regex-runtime/IssueRegex/issue-regex")
         let nodes = [RevisionGraphNode(hash: "abc123", references: [RevisionReference(name: "refs/tags/Release", kind: .annotatedTag)], author: "Author", message: "Subject\n\nBody 🐢", authorEmail: "author@sample.test", committer: "Integrator", committerEmail: "committer@sample.test"), RevisionGraphNode(hash: "def456", message: "other")]

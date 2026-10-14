@@ -6,6 +6,7 @@ import Foundation
 /// The two branch checkboxes and From/To fields of IDD_REVGRAPHFILTER.
 public struct RevisionGraphOptions: Sendable {
     public var useMailmap = true
+    public var ordering: HistoryOrdering = .topological
     public var from = ""
     public var to = ""
     public var onlyCurrentBranch = false
@@ -115,7 +116,7 @@ extension GitRepository {
         }
         let identity = GitIdentityDisplay(useMailmap: options.useMailmap)
         let identityFormat = identity.authorName + "%x00%aI%x00%B%x00" + identity.authorEmail + "%x00" + identity.committerName + "%x00" + identity.committerEmail + "%x00"
-        var arguments = ["log", "--encoding=UTF-8", "--format=%H%x00%P%x00" + identityFormat, "--topo-order", "--parents", "--simplify-by-decoration"]
+        var arguments = ["log", "--encoding=UTF-8", "--format=%H%x00%P%x00" + identityFormat] + options.ordering.arguments + ["--parents", "--simplify-by-decoration"]
         if options.showBranchingsAndMerges { arguments.append("--sparse") }
         // Upstream gives Only Local Branches precedence if both flags are set.
         if options.onlyLocalBranches { arguments.append("--branches") }

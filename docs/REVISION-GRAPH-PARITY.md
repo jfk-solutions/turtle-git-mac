@@ -100,8 +100,7 @@ Remaining requirements include:
   modifier routing, and complete external handoffs.
 - App and Finder launch routing, native screenshots, physical keyboard/mouse,
   accessibility, signed sandbox and distribution verification.
-- Configured Log ordering beyond the current default topo order, superproject
-  pointer signed/worktree acceptance, unusual nested tags, shallow/missing objects,
+- Superproject pointer signed/worktree acceptance, unusual nested tags, shallow/missing objects,
   large-repository responsiveness and source-state persistence.
 
 ## Verification
@@ -657,3 +656,39 @@ replies/generations, scopes atomic destination writes and shows an owned error
 sheet. See [the graph workflow audit](LOG-STATISTICS-PARITY.md). The Debug build and both engine groups passed; see
 [batch evidence](qa/graph-workflows-2026-10-14.json). Physical and signed export
 acceptance remain open.
+
+
+## Ordering, font and export family — October 15, 2026
+
+The graph walk now accepts all four existing LogOrderBy modes. The native graph
+loads the owning preference before its decoration-simplified walk instead of
+hardcoding topological order. This follows CLogDataVector's registry default and
+ParserFromLog's ordered Git command. The existing tag/branch/range scopes,
+rewritten parent edges and terminal boundary nodes remain in that walk. Reload
+picks up a changed preference, a native adaptation allowing an already-open
+graph to follow the shared Log ordering setting.
+
+Graph labels now use the configured LogFontName family, including the native
+Menlo default/fallback. Like upstream GetLogFontName and m_nFontSize, this uses
+the family with graph-owned size, rather than the message editor's LogFontSize.
+The existing native 12-point normal sizing represents upstream's 9-point zoom
+font. DoZoom's integer 9/11/6 thresholds preserve relatively larger text at small
+zooms and hide text below the source threshold. The canvas, overview and raster
+exports share this path.
+
+A load captures its font before the async walk. Node measurements, font and layout
+publish together only after successful layout. A failed or cancelled load retains
+the prior font with the prior geometry. Unavailable configured font names fall
+back through the existing native font resolver.
+
+SVG and Graphviz now use the captured graph font rather than hardcoded Helvetica.
+SVG labels use the font metrics for their baseline, and Graphviz quotes the
+font-family attribute. Vector exports retain the existing unit-zoom geometry;
+raster export uses the current zoom and its source text threshold. The Settings
+font description now explains the graph's family-only use.
+
+Focused Core/native checks and remaining limits are recorded in
+[the batch evidence](qa/revision-graph-display-2026-10-15.json). Physical font
+selection, exact Windows/macOS metrics, monitor/VoiceOver acceptance, arbitrary
+external Graphviz fonts, signed Finder/App Store deployment and full graph
+parity remain open.

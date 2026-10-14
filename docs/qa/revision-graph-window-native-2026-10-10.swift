@@ -53,6 +53,28 @@ import Darwin
         defer { window.close() }
         model.load(); try await wait { !model.busy }
         try require(model.error == nil && model.nodes.count == 3 && model.geometry?.nodes.count == 3)
+        let originalFont = model.font
+        try require(originalFont.pointSize == 12 && model.options.ordering == .topological)
+        for (zoom, points) in [(1.0,12.0),(0.5,40.0/3.0),(0.1,40.0/3.0),(2.0,12.0)] {
+            try require(abs(Double(model.drawingFont(zoom:zoom)!.pointSize)-points) < 0.001)
+        }
+        try require(model.drawingFont(zoom:0.01)==nil && model.drawingFont(zoom:0)==nil && model.drawingFont(zoom:.infinity)==nil)
+        prefs.set("Courier", forKey:"LogFontName"); prefs.set(88, forKey:"LogFontSize")
+        HistoryOrdering.authorDate.save(defaults:prefs)
+        try require(model.font.fontName==originalFont.fontName)
+        model.load();try await wait { !model.busy }
+        try require(model.error==nil && model.font.familyName=="Courier" && model.font.pointSize==12 && model.options.ordering == .authorDate)
+        let customSVG=try RevisionGraphExport.data(canvas:controller.canvas,viewport:CGSize(width:800,height:500),format:.svg,appearance:NSAppearance(named:.aqua)!)
+        let customDOT=try RevisionGraphExport.data(canvas:controller.canvas,viewport:CGSize(width:800,height:500),format:.graphviz,appearance:NSAppearance(named:.aqua)!)
+        try require(XMLParser(data:customSVG).parse() && String(decoding:customSVG,as:UTF8.self).contains("font-family=\"Courier\""))
+        try require(String(decoding:customDOT,as:UTF8.self).contains("fontname=\"Courier\", fontsize=12.000"))
+        let publishedFont=model.font,publishedGeometry=model.geometry!.nodes.map(\.rect)
+        prefs.set("Helvetica",forKey:"LogFontName");model.options.to="missing-graph-font-revision";model.load();try await wait { !model.busy }
+        try require(model.error != nil && model.font.fontName==publishedFont.fontName && model.geometry!.nodes.map(\.rect)==publishedGeometry)
+        prefs.set("TurtleGit-no-such-font",forKey:"LogFontName");prefs.removeObject(forKey:"LogFontSize");HistoryOrdering.topological.save(defaults:prefs);model.options.to=""
+        model.load();try await wait { !model.busy }
+        try require(model.error==nil && model.font.familyName==originalFont.familyName && model.font.pointSize==12)
+        prefs.removeObject(forKey:"LogFontName");prefs.removeObject(forKey:HistoryOrdering.preferenceKey)
         window.contentView!.layoutSubtreeIfNeeded(); controller.update()
         try require(controller.scroll.contentSize.width > 600 && controller.scroll.contentSize.height > 300)
         NSAppearance(named: .aqua)!.performAsCurrentDrawingAppearance {
@@ -513,7 +535,7 @@ import Darwin
             if format == .svg {
                 try require(XMLParser(data: data).parse())
                 let text = String(decoding: data, as: UTF8.self)
-                try require(text.contains("font-family=\"Helvetica\"") && text.contains("&lt;&amp;&quot;&apos;&gt;") && text.contains("<polyline") && !text.contains("<image"))
+                try require(text.contains("font-family=\"" + RevisionGraphExport.fontName(model.font) + "\"") && text.contains("&lt;&amp;&quot;&apos;&gt;") && text.contains("<polyline") && !text.contains("<image"))
             } else if format == .graphviz {
                 let text = String(decoding: data, as: UTF8.self)
                 try require(text.contains("rankdir=BT") && text.contains("&lt;&amp;&quot;&apos;&gt;"))
@@ -648,7 +670,7 @@ import Darwin
             let rows = childGraph.model.lines(node)
             try require(rows.first!.0 == label && rows.first!.2)
             let geometry = childGraph.model.geometry!.nodes.first { $0.hash == hash }!
-            try require(geometry.rect.height >= CGFloat(rows.count) * (ceil(RevisionGraphWindowModel.font.ascender - RevisionGraphWindowModel.font.descender) + 10))
+            try require(geometry.rect.height >= CGFloat(rows.count) * (ceil(childGraph.model.font.ascender - childGraph.model.font.descender) + 10))
         }
         let pointerSVG = try RevisionGraphExport.data(canvas: childGraph.canvas, viewport: childGraph.scroll.contentSize, format: .svg, appearance: NSAppearance(named: .aqua)!)
         let svgText = String(decoding: pointerSVG, as: UTF8.self)
