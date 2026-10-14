@@ -688,6 +688,9 @@ struct StatusDialog: View {
                         Button { model.withFileMenu(snapshot) { model.onAction(.rename, [path]) } } label: { CommandLabel(title: "Rename…", icon: .rename) }
                     }
                     let selected = model.files.filter { ids.contains($0.id) }
+                    if !selected.isEmpty, selected.allSatisfy({ ![FileState.untracked, .ignored, .deleted].contains($0.state) }) {
+                        Button { model.withFileMenu(snapshot) { model.onAction(.move, selected.map(\.id)) } } label: { CommandLabel(title: "Move…", icon: .rename) }
+                    }
                     if !selected.isEmpty && selected.allSatisfy({ ![FileState.normal, .untracked, .ignored].contains($0.state) }) {
                         Button { model.withFileMenu(snapshot) { model.onAction(.revert, selected.map(\.id)) } } label: { CommandLabel(title: "Revert…", icon: .revert) }
                     }

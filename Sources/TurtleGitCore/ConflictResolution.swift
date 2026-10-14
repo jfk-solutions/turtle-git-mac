@@ -57,16 +57,16 @@ extension GitRepository {
                   let parent = try await GitRepository(root: resolved, executable: executable).registeredSubmoduleParent() else { throw FinderCommandFailure.submodule }
             return parent
         }
-        guard action.isResolve || action == .revert || action == .submoduleUpdate || action == .submoduleSync || action == .diff || action == .rename || action == .remove, selected.standardizedFileURL == resolved else { return resolved }
+        guard action.isResolve || action == .revert || action == .submoduleUpdate || action == .submoduleSync || action == .diff || action == .rename || action == .move || action == .remove, selected.standardizedFileURL == resolved else { return resolved }
         let parent = GitRepository(root: resolved.deletingLastPathComponent(), executable: executable)
         guard let containing = try? await parent.discoverRoot(), containing != resolved,
               RepositoryAccessLease.pathIsContained(resolved, by: containing) else { return resolved }
         let path = String(resolved.path.dropFirst(containing.path.count + 1))
         let owner = GitRepository(root: containing, executable: executable)
-        if action == .rename || action == .remove {
+        if action == .rename || action == .move || action == .remove {
             guard try await GitRepository(root: resolved, executable: executable).registeredSubmoduleParent() == containing else { return resolved }
         }
-        if action == .revert || action == .submoduleUpdate || action == .submoduleSync || action == .diff || action == .rename || action == .remove {
+        if action == .revert || action == .submoduleUpdate || action == .submoduleSync || action == .diff || action == .rename || action == .move || action == .remove {
             let indexed = try? await owner.run(["ls-files", "--stage", "-z", "--", path]).stdout
             if indexed?.split(separator: 0).contains(where: { record in
                 let fields = record.split(separator: 9, maxSplits: 1)

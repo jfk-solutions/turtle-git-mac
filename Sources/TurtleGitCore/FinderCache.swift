@@ -306,7 +306,7 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
     case svnDCommit, svnRebase, svnFetch, svnIgnore
     case reviewPatch, daemon, lfs, lfsLocks, lfsLock, lfsUnlock, sendMail
     case synchronize, blame, previousDiff, logSubmodule, properties, settings, help, about
-    case status, commit, add, revert, clean, submoduleAdd, submoduleUpdate, submoduleSync, log, revisionGraph, referenceBrowser, repositoryBrowser, export, bisect, bisectStart, bisectGood, bisectBad, bisectSkip, bisectReset, formatPatch, importPatch, requestPull, worktreeCreate, worktreeList, diff, diffLater, clearComparisonMark, pull, push, fetch, branch, tag, switchBranch, merge, mergeAbort, rebase, stash, stashApply, stashPop, stashList, reflog, clone, initialize, rename, remove, removeKeep, ignore, ignoreMask, ignoreDelete, ignoreDeleteMask, resolve, resolveCurrent, resolveMine, resolveTheirs, reset, editConflict
+    case status, commit, add, revert, clean, submoduleAdd, submoduleUpdate, submoduleSync, log, revisionGraph, referenceBrowser, repositoryBrowser, export, bisect, bisectStart, bisectGood, bisectBad, bisectSkip, bisectReset, formatPatch, importPatch, requestPull, worktreeCreate, worktreeList, diff, diffLater, clearComparisonMark, pull, push, fetch, branch, tag, switchBranch, merge, mergeAbort, rebase, stash, stashApply, stashPop, stashList, reflog, clone, initialize, rename, move, remove, removeKeep, ignore, ignoreMask, ignoreDelete, ignoreDeleteMask, resolve, resolveCurrent, resolveMine, resolveTheirs, reset, editConflict
     public var id: String { rawValue }
     public var title: String {
         switch self {
@@ -373,6 +373,7 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
         case .clone: return "Clone…"
         case .initialize: return "Create repository here…"
         case .rename: return "Rename…"
+        case .move: return "Move…"
         case .remove: return "Delete"
         case .removeKeep: return "Delete (keep local)"
         case .ignore: return "Add to ignore list"
@@ -405,7 +406,7 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
     public var ignoresByExtension: Bool { self == .ignoreMask || self == .ignoreDeleteMask }
     public var removesWhenIgnoring: Bool { self == .ignoreDelete || self == .ignoreDeleteMask }
     public var requiresValue: Bool { [.branch, .tag, .switchBranch, .merge, .rebase, .stash, .clone].contains(self) }
-    public var requiresWorkingTree: Bool { [.svnDCommit, .svnRebase, .svnFetch, .svnIgnore, .lfs, .lfsLocks, .lfsLock, .lfsUnlock, .synchronize, .blame, .previousDiff, .logSubmodule, .status, .commit, .importPatch, .add, .revert, .clean, .submoduleAdd, .submoduleUpdate, .submoduleSync, .diff, .bisect, .bisectStart, .bisectGood, .bisectBad, .bisectSkip, .bisectReset, .pull, .switchBranch, .merge, .mergeAbort, .rebase, .stash, .stashApply, .stashPop, .stashList, .rename, .remove, .removeKeep, .ignore, .ignoreMask, .ignoreDelete, .ignoreDeleteMask, .resolve, .resolveCurrent, .resolveMine, .resolveTheirs, .editConflict].contains(self) }
+    public var requiresWorkingTree: Bool { [.svnDCommit, .svnRebase, .svnFetch, .svnIgnore, .lfs, .lfsLocks, .lfsLock, .lfsUnlock, .synchronize, .blame, .previousDiff, .logSubmodule, .status, .commit, .importPatch, .add, .revert, .clean, .submoduleAdd, .submoduleUpdate, .submoduleSync, .diff, .bisect, .bisectStart, .bisectGood, .bisectBad, .bisectSkip, .bisectReset, .pull, .switchBranch, .merge, .mergeAbort, .rebase, .stash, .stashApply, .stashPop, .stashList, .rename, .move, .remove, .removeKeep, .ignore, .ignoreMask, .ignoreDelete, .ignoreDeleteMask, .resolve, .resolveCurrent, .resolveMine, .resolveTheirs, .editConflict].contains(self) }
     public var prompt: String {
         switch self {
         case .clone: return "Repository URL"

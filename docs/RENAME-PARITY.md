@@ -74,3 +74,6 @@ The native Commit list was verified to display index renames as Renamed even if 
 low-similarity HEAD comparison reports an added file. The workspace now shares the
 existing upstream status-color palette; its broader native visual QA remains.
 No full upstream or App Store parity is claimed.
+
+The native multi-file Move and Move/Rename adaptation is tracked separately in
+[File Move parity](FILE-MOVE-PARITY.md); Finder drag and clipboard consumers remain open.

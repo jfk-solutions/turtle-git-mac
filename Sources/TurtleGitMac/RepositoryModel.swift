@@ -156,6 +156,7 @@ import TurtleGitCore
     private var stashWindows: [String: StashWindowController] = [:]
     private var cloneWindows: [UUID: CloneWindowController] = [:]
     private var createWindows: [String: CreateRepositoryWindowController] = [:]
+    private var moveWindows: [String: FileMoveWindowController] = [:]
     private var renameWindows: [String: RenameWindowController] = [:]
     private var imageConflictWindows: [String: ImageConflictWindowController] = [:]
     private var textConflictWindows: [String: TextConflictWindowController] = [:]
@@ -487,6 +488,11 @@ import TurtleGitCore
             let selected = paths.isEmpty ? selectedPaths : paths
             guard selected.count == 1, selected[0] != "." else { error = RenameFailure.source.localizedDescription; return }
             showRename(repository: repository, access: activeAccess, source: selected[0])
+        case .move:
+            guard let repository else { return }
+            let selected = paths.isEmpty ? selectedPaths : paths
+            guard !selected.isEmpty, !selected.contains(".") else { error = FileMoveFailure.selection.localizedDescription; return }
+            showMove(repository: repository, access: activeAccess, paths: selected)
         case .editConflict:
             guard let repository else { return }
             let selected = paths.isEmpty ? selectedPaths : paths
@@ -690,6 +696,20 @@ import TurtleGitCore
         }
         renameWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
+    func showMove(repository: GitRepository, access: RepositoryAccessLease?, paths: [String]) {
+        let root = repository.root, key = root.path + "\0" + paths.joined(separator: "\0")
+        let controller = moveWindows[key] ?? FileMoveWindowController(repository: repository, access: access, paths: paths)
+        controller.onClosed = { [weak self] in self?.moveWindows.removeValue(forKey: key) }
+        controller.model.onMoved = { [weak self] old, new, text in
+            guard let self else { return }; self.statusWindows[root.path]?.model.didRename(old, to: new); self.commitWindows[root.path]?.model.didRename(old, to: new)
+            if self.root == root { self.selection = Set(self.selection.map { $0 == old ? new : $0.hasPrefix(old + "/") ? new + $0.dropFirst(old.count) : $0 }); self.output = text.isEmpty ? "Moved \(old) to \(new)." : text }
+        }
+        controller.model.onChanged = { [weak self] in
+            self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState(); self?.refreshRepositoryLogs(root)
+            if self?.root == root { Task { await self?.refresh() } }
+        }
+        moveWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     enum ConflictEditorRoute: String { case deleteModify, submodule, image, text }
     var conflictEditorPresentation: ((ConflictEditorRoute, GitRepository, String, ImageConflictDocument?) -> Void)?
@@ -1549,6 +1569,7 @@ import TurtleGitCore
             guard let controller, !controller.model.retired else { return }
             // Working Tree belongs to this repository even when the workspace is displaying another one.
             switch action {
+            case .move: self.showMove(repository: repository, access: access, paths: paths); return
             case .stash: self.showStash(repository: repository, access: access); return
             case .stashPop: self.showStashRestore(repository: repository, access: access, pop: true, showChanges: 2); return
             case .stashApply: self.showStashRestore(repository: repository, access: access, pop: false, showChanges: 0); return
@@ -2076,6 +2097,7 @@ import TurtleGitCore
             guard let self else { done(false); return }
             self.showRevertProgress(repository: repository, access: access, entries: entries, amend: amend, againstHead: againstHead, autoCloseSuccess: !entries.contains(where: { model?.submodules.contains($0.path) == true }), completion: done)
         }
+        model.onMove = { [weak self] paths in self?.showMove(repository: repository, access: access, paths: paths) }
         model.onRename = { [weak self] path in self?.showRename(repository: repository, access: access, source: path) }
         model.configureLogPicker = { [weak self] log in
             log.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }

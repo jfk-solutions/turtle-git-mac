@@ -1,0 +1,71 @@
+{
+  "date": "2026-10-14",
+  "base": "4a46e57b",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Native multi-file Move and single Move/Rename in Commit and Working Tree",
+    "Same-working-tree destination reads, immutable collision name plan, literal guarded git mv preserving index/working data",
+    "Ordered Ignore/Abort progress, owned cancellation/prompt/lease/retirement and captured parent callbacks"
+  ],
+  "references": [
+    "src/TortoiseProc/Commands/DropMoveCommand.cpp",
+    "src/TortoiseProc/Commands/PasteMoveCommand.cpp"
+  ],
+  "validation": {
+    "initial_compile": {
+      "debug_exit": 65,
+      "core_command_exit": 1,
+      "cause": "FileMoveWindowController name callback conditionally bound the local nonoptional NSWindow; fixed by explicit self.window. Core tests did not execute in this attempt.",
+      "logs": [
+        "build/qa/file-move-debug-2026-10-14.log",
+        "build/qa/file-move-core-2026-10-14.log"
+      ]
+    },
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/file-move-debug-repair-2026-10-14.log"
+    },
+    "core": {
+      "exit": 0,
+      "tests": 21,
+      "families": {
+        "FileMoveTests": 6,
+        "RenameTests": 5,
+        "ConflictResolutionTests": 10
+      },
+      "log": "build/qa/file-move-core-repair-2026-10-14.log"
+    },
+    "native": {
+      "exit": 0,
+      "cases": 4,
+      "families": [
+        "file-move",
+        "commit-file-workflows"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "owned_receivers_reaped": [
+        25255,
+        25342,
+        25523,
+        25609
+      ],
+      "log": "build/qa/file-move-native-2026-10-14.log",
+      "evidence": [
+        "Real streamed pre-mutation cancellation preserves raw index",
+        "Actual collision sheet retains invalid name then accepts corrected literal name",
+        "Separate staged and working bytes survive real git mv with unchanged HEAD",
+        "Ordered Ignore continues after invalid source",
+        "Forced retirement retains active command lifetime and cancels actual late mutation without callbacks"
+      ]
+    }
+  },
+  "limitations": [
+    "Native folder/result window adapts shell drag destination and auto-ending progress",
+    "Finder drag menu and clipboard Paste Move/Copy/Add not implemented in this batch",
+    "Physical UI, complete shared Rename consumers, submodule/gitmodules cases and signed Finder/sandbox acceptance remain open",
+    "No full hosted CI, full dialog parity or completion claim"
+  ]
+}

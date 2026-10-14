@@ -117,6 +117,7 @@
 		552406DDFBEB165400BBDC81 /* IssueRegexTester.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC889BB298CAB567A75F53F6 /* IssueRegexTester.swift */; };
 		5530D7CAC8A20AD3B4EEA016 /* MergeClipboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96C5E1496CBC8B6DFC29A687 /* MergeClipboard.swift */; };
 		55B7CD6C3BF86B590E0F64B9 /* TurtleGitSMTP.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1F81A7BFF0565C5791A405B0 /* TurtleGitSMTP.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		564344059CE4E64FF08A09FF /* FileMoveWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70196B2A8593EF35543D4620 /* FileMoveWindow.swift */; };
 		566929EB924A146E09618757 /* StatusListSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48ED07A9B4D7F1E9FB4E87B3 /* StatusListSelection.swift */; };
 		56B94B831C0F93189FCA10AB /* SubmoduleProgressCompletion.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3285697EA8FA321AA94C400 /* SubmoduleProgressCompletion.swift */; };
 		57D0F31F4AA8A43D27C48511 /* SMTP.c in Sources */ = {isa = PBXBuildFile; fileRef = 205A616C02EABD9EE7DB57A2 /* SMTP.c */; };
@@ -261,6 +262,7 @@
 		C1AC88672C3BE1B0E0F66493 /* RemoteTags.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1541756F953A41D68C44D74B /* RemoteTags.swift */; };
 		C213A92E162437E851582352 /* MergeFindWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D954D7C476A0758756B6D99 /* MergeFindWindow.swift */; };
 		C23CCEFA7DA0A805EFCE94C7 /* GitBlamePreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50C02E4063D7394453CC537A /* GitBlamePreferences.swift */; };
+		C3F073F2CCF2B29299BFDD24 /* FileMove.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF916A1DC9051A8C70F0370C /* FileMove.swift */; };
 		C4A8B6E914D346865B81FC58 /* HistoryLanes.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0C826BF8D2B76F52F29C6CD /* HistoryLanes.swift */; };
 		C6CCA1EF335DB4A2C8B07B25 /* FinderContextMenuSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 534D2BCEF1E4DBDFF070E193 /* FinderContextMenuSettings.swift */; };
 		C74FD1797BC0727D5BBFBFA6 /* BlameSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ABE7B92864A28F4229F6063 /* BlameSettings.swift */; };
@@ -593,6 +595,7 @@
 		6E301A686F051DF474EF1D7D /* WorkingFileDelete.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingFileDelete.swift; sourceTree = "<group>"; };
 		6E739051B0ED0ECCB43FDF35 /* RepositoryModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryModel.swift; sourceTree = "<group>"; };
 		6F95A32F6B4ECD8AA7745857 /* ReferenceBrowserWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceBrowserWindow.swift; sourceTree = "<group>"; };
+		70196B2A8593EF35543D4620 /* FileMoveWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileMoveWindow.swift; sourceTree = "<group>"; };
 		70C7ACC80D04EACA76A42FF8 /* StatusWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusWindow.swift; sourceTree = "<group>"; };
 		7147E00D8870E2CB238BAEDD /* ProjectDialogSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectDialogSettings.swift; sourceTree = "<group>"; };
 		71E4D9CD12160681F11F6E2E /* ReleaseUpdateWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReleaseUpdateWindow.swift; sourceTree = "<group>"; };
@@ -782,6 +785,7 @@
 		FD325E61874E68F270271CC9 /* FileComparisonEditing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileComparisonEditing.swift; sourceTree = "<group>"; };
 		FF1FD77D0F8E1D8790692A3D /* MergeFind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeFind.swift; sourceTree = "<group>"; };
 		FF512B23E2DBAC7E83B73747 /* CommitPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitPreferences.swift; sourceTree = "<group>"; };
+		FF916A1DC9051A8C70F0370C /* FileMove.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileMove.swift; sourceTree = "<group>"; };
 		FFA8ABAE7D9E9C611A3AA3BF /* SSHIdentityAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHIdentityAccess.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -889,6 +893,7 @@
 				26B86A4879EF89058692598F /* ExportWindow.swift */,
 				BA3DD76CCC2D1B2E7E5BEA21 /* FetchWindow.swift */,
 				A142607F55CD34E13938FD40 /* FileComparisonWindow.swift */,
+				70196B2A8593EF35543D4620 /* FileMoveWindow.swift */,
 				915E15D41336AA69D1B13F32 /* FinderBackgroundService.swift */,
 				D093EAD0CE5B754453B7C11E /* FinderContextMenuSettings.swift */,
 				A3F90E32273723C62C5C2E88 /* FinderOverlaySettings.swift */,
@@ -1100,6 +1105,7 @@
 				181B9FE19CD19EA7DAB1E824 /* Fetch.swift */,
 				7428B46131B5378475891E94 /* FileComparison.swift */,
 				FD325E61874E68F270271CC9 /* FileComparisonEditing.swift */,
+				FF916A1DC9051A8C70F0370C /* FileMove.swift */,
 				F01FB406B12CA9FED59A3121 /* FinderCache.swift */,
 				534D2BCEF1E4DBDFF070E193 /* FinderContextMenuSettings.swift */,
 				EFA280FD82A687572025B806 /* FinderOverlaySettings.swift */,
@@ -1621,6 +1627,7 @@
 				96858E5400FE448CEE799A09 /* Fetch.swift in Sources */,
 				4CCA62C8CECAD2B41E2E888A /* FileComparison.swift in Sources */,
 				7402B84E5CE3702EC56EBAD8 /* FileComparisonEditing.swift in Sources */,
+				C3F073F2CCF2B29299BFDD24 /* FileMove.swift in Sources */,
 				0E60EC4DFD35AD719021FCB2 /* FinderCache.swift in Sources */,
 				C6CCA1EF335DB4A2C8B07B25 /* FinderContextMenuSettings.swift in Sources */,
 				31EF8A4E8017B7CAE75B4113 /* FinderOverlaySettings.swift in Sources */,
@@ -1805,6 +1812,7 @@
 				C8FEE2A6E0B1D5FDE647F228 /* ExportWindow.swift in Sources */,
 				D4DC9BE706E4DFFB73154A96 /* FetchWindow.swift in Sources */,
 				70EA762F97100350401F85ED /* FileComparisonWindow.swift in Sources */,
+				564344059CE4E64FF08A09FF /* FileMoveWindow.swift in Sources */,
 				CDA5CA2296FD4B376D9C26E6 /* FinderBackgroundService.swift in Sources */,
 				4556F8934B7D589ABF9888FA /* FinderContextMenuSettings.swift in Sources */,
 				AB3FEF9D5BF2A47C6276F174 /* FinderOverlaySettings.swift in Sources */,
@@ -2145,7 +2153,6 @@
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../../../../Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = org.turtlegit.macos.finder;
 				SDKROOT = macosx;
-				SKIP_INSTALL = YES;
 			};
 			name = AppStore;
 		};
@@ -2342,7 +2349,6 @@
 					"@executable_path/../Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = org.turtlegit.macos;
-				SKIP_INSTALL = NO;
 				SDKROOT = macosx;
 			};
 			name = AppStore;
@@ -2419,7 +2425,6 @@
 					"@executable_path/../Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = org.turtlegit.macos;
-				SKIP_INSTALL = NO;
 				SDKROOT = macosx;
 			};
 			name = Debug;
@@ -2512,7 +2517,6 @@
 					"@executable_path/../Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = org.turtlegit.macos;
-				SKIP_INSTALL = NO;
 				SDKROOT = macosx;
 			};
 			name = Release;
@@ -2527,7 +2531,6 @@
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../../../../Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = org.turtlegit.macos.finder;
 				SDKROOT = macosx;
-				SKIP_INSTALL = YES;
 			};
 			name = Debug;
 		};
@@ -2541,7 +2544,6 @@
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../../../../Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = org.turtlegit.macos.finder;
 				SDKROOT = macosx;
-				SKIP_INSTALL = YES;
 			};
 			name = Release;
 		};

@@ -439,6 +439,7 @@ import UniformTypeIdentifiers
     var onFileBlame: (String) -> Void = { _ in }
     var onResolve: (RepositoryAction, [String]) -> Void = { _, _ in }
     var onIgnore: (RepositoryAction, [String]) -> Void = { _, _ in }
+    var onMove: ([String]) -> Void = { _ in }
     var onRename: (String) -> Void = { _ in }
     var chooseApplication: (String) async -> URL? = { _ in nil }
     var chooseExportFolder: ([String]) async -> URL? = { _ in nil }
@@ -1901,6 +1902,9 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                     if !selected.isEmpty && selected.allSatisfy({ $0.state == .conflicted }) {
                         Divider()
                         ResolveSelectionMenu(paths: selected.map(\.path), rebase: model.conflictRebase, canEdit: selected.count == 1, action: { action, paths in model.withFileMenu(menuSnapshot) { model.onResolve(action, paths) } })
+                    }
+                    if !selected.isEmpty, selected.allSatisfy({ ![FileState.untracked, .ignored, .deleted].contains($0.state) }) {
+                        Button { model.withFileMenu(menuSnapshot) { model.onMove(selected.map(\.path)) } } label: { CommandLabel(title: "Move…", icon: .rename) }
                     }
                     if selected.count == 1, let entry = selected.first {
                         Divider()
