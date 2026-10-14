@@ -1,0 +1,56 @@
+{
+  "date": "2026-10-14",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Distinct superproject and working-child Log in Commit/Working Tree",
+    "Validated current/configured/HEAD-recorded child checkout lookup and parent-fallback refusal",
+    "Submodule Diff cancellable snapshot, close/retirement, pinned child callbacks and independent Quit protection"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/submodule-handoffs-build-2026-10-14.log"
+    },
+    "core": {
+      "exit": 0,
+      "tests": 12,
+      "scope": "SubmoduleComparisonTests",
+      "log": "build/qa/submodule-handoffs-core-2026-10-14.log"
+    },
+    "native": {
+      "exit": 0,
+      "cases": 4,
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "scope": "Submodule handoffs and existing Working Tree file-menu receivers",
+      "log": "build/qa/submodule-handoffs-native-2026-10-14.log"
+    },
+    "owned_receivers_reaped": [
+      20487,
+      20572,
+      20639,
+      20699,
+      20752,
+      20812
+    ],
+    "no_owned_receivers_remain": true,
+    "website": {
+      "exit": 0,
+      "log": "build/qa/submodule-handoffs-site-2026-10-14.log"
+    }
+  },
+  "repairs": [
+    "Initial compile attached callbacks to Add and Revision Comparison because matching property names occur earlier in RepositoryModel. Wiring was corrected specifically in Working Tree and configureCommitInteractions; no tests ran on the failed compile.",
+    "Initial native attempt started before Debug terminal status was confirmed; final native evidence was produced after successful Debug completion.",
+    "Two native attempts exposed a fixture comparison of directory URLs with differing trailing-slash metadata. Final checks compare exact filesystem paths, still rejecting superproject fallback; Core/app builds were not repeated for this fixture correction."
+  ],
+  "limits": [
+    "Actual new Log windows are verified via captured repository/revision callbacks rather than physical displayed history acceptance",
+    "Pending native reads/close responses use injected continuations; actual cancellable Git lookup is covered by Core and native initialized/uninitialized cases",
+    "HEAD-recorded removed-index child lookup is exercised by the final native receiver with raw-index preservation",
+    "Signed parent/child repository scope grants, Shift alternative tools, full dialog visual acceptance and complete status-list menus remain open",
+    "Current Pages a4dab12e succeeded; macOS 55541c56 was running and a4dab12e pending when inspected. No complete hosted CI or refreshed App Store acceptance claim"
+  ]
+}

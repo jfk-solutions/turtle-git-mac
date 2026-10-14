@@ -1505,6 +1505,7 @@ import TurtleGitCore
             self.activate(action, paths: paths)
             if action != .clean && action != .add && action != .diff && action != .submoduleSync && action != .submoduleAdd && action != .submoduleUpdate && action != .commit && action != .revert && action != .log && action != .switchBranch && action != .branch && action != .tag && action != .push && action != .fetch && action != .pull && action != .rebase && action != .merge && action != .mergeAbort && action != .export && action != .bisect && action != .bisectStart && action.bisectOperation == nil && action != .stash && action != .stashApply && action != .stashPop && action != .stashList && action != .reflog && action != .rename && !action.isIgnore && !action.isResolve && action != .reset { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
         }
+        controller.model.onSubmoduleLog = { [weak self] child in self?.showLog(repository: child, access: access, paths: []) }
         controller.model.onBlame = { [weak self] path in self?.showBlame(repository: repository, access: access, path: path, revision: "HEAD") }
         controller.model.onCompareTwoFiles = { [weak self] paths in self?.showWorkingFilePair(repository: repository, access: access, paths: paths) }
         controller.model.onChanged = { [weak self] in Task { await self?.refresh() } }
@@ -2002,6 +2003,7 @@ import TurtleGitCore
         model.onCompareTwoFiles = { [weak self] paths in
             self?.showWorkingFilePair(repository: repository, access: access, paths: paths)
         }
+        model.onSubmoduleLog = { [weak self] child in self?.showLog(repository: child, access: access, paths: []) }
         model.onFileLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
         model.onFileBlame = { [weak self] path in self?.showBlame(repository: repository, access: access, path: path, revision: "HEAD") }
         model.onResolve = { [weak self] action, paths in

@@ -221,3 +221,25 @@ can show an optional header without its cells, so full-width group headings and
 complete column/whole-window visual acceptance remain unfinished. Physical header gestures/name
 dialog appearance, full source group-state accessibility and signed worktree
 access remain open. This does not certify complete status-list parity.
+
+## Submodule history handoffs — October 14, 2026
+
+The status-list source separates Show log (the superproject's gitlink path)
+from Show submodule log (the child checkout's history). Working Tree and Commit
+now expose the second command with the original Log artwork. Working-tree
+child history uses the child's current history rather than pinning it to the
+superproject's older gitlink. Historical Log comparisons retain their existing
+revision-pinned child routing.
+
+A shared owned lookup verifies that the path is an indexed/configured or
+HEAD-recorded gitlink, its checkout is confined, its .git marker is regular,
+and Git discovers that exact checkout root. An uninitialized empty directory
+cannot silently discover the parent repository. Cancellation and retired owners
+fence the read and child-window callback; independent accounting blocks Quit
+while even a removed owner's lookup settles. App Store routes retain and check
+the parent lease for both repositories.
+
+The connected Submodule Diff/handoff batch passed twelve Core checks and four
+grouped native receivers with both Git engines. See [results and limits](qa/submodule-handoffs-2026-10-14.json).
+Full marked-row/directory menu variants and signed child scope acceptance remain
+open; these new routes do not complete all status-list behavior.

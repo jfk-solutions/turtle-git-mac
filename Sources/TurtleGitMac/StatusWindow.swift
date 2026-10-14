@@ -39,12 +39,12 @@ struct StatusGroupedSort: SortComparator {
 }
 
 enum StatusFileCommand: String, CaseIterable {
-    case compareTwo = "Compare two files", log = "Show log", oldNameLog = "Show log of old name", blame = "Blame"
+    case compareTwo = "Compare two files", log = "Show log", submoduleLog = "Show submodule log", oldNameLog = "Show log of old name", blame = "Blame"
     case export = "Export…", editor = "View revision in alternative editor", open = "Open", openWith = "Open With…", reveal = "Reveal in Finder", delete = "Delete"
     var icon: MenuIcon {
         switch self {
         case .compareTwo: return .compare
-        case .log, .oldNameLog: return .log
+        case .log, .oldNameLog, .submoduleLog: return .log
         case .blame: return .blame
         case .export: return .export
         case .editor: return .editor
@@ -206,6 +206,8 @@ final class StatusNativeWindow: NSWindow {
     var unifiedViewerBusy: Bool { unifiedWindow?.model.busy == true || unifiedWindow?.window?.attachedSheet != nil }
     var close: () -> Void = {}
     var savePatch: (Data) -> Void = { _ in }
+    lazy var submoduleLog = SubmoduleWorkingLogSession(repository: repository, access: access)
+    var onSubmoduleLog: (GitRepository) -> Void = { _ in }
     var onBlame: (String) -> Void = { _ in }
     var onCompareTwoFiles: ([String]) -> Void = { _ in }
     var chooseApplication: () async -> URL? = { nil }
@@ -310,11 +312,11 @@ final class StatusNativeWindow: NSWindow {
     }
     @discardableResult func cancelOperation() -> Bool {
         guard let token = operationCancellation else { return cancelLFSOwnerQuery() }
-        cancelling = true; token.cancel(); ownerCancellation?.cancel(); return true
+        cancelling = true; token.cancel(); ownerCancellation?.cancel(); submoduleLog.cancel(); return true
     }
     func invalidate() {
         guard !retired else { return }; retired = true
-        operationCancellation?.cancel(); ownerCancellation?.cancel()
+        operationCancellation?.cancel(); ownerCancellation?.cancel(); submoduleLog.retire()
         unifiedWindow?.close(); unifiedWindow = nil
     }
     private func isLive(_ token: OperationCancellation) -> Bool {
@@ -433,6 +435,7 @@ final class StatusNativeWindow: NSWindow {
             let entry = row.file.entry
             if ![FileState.untracked, .ignored].contains(entry.state) {
                 commands.append(.log)
+                if directory(row) { commands.append(.submoduleLog) }
                 if entry.originalPath != nil { commands.append(.oldNameLog) }
                 if !directory(row), entry.index != "A", entry.worktree != "A", entry.index != "D" { commands.append(.blame) }
             }
@@ -461,6 +464,11 @@ final class StatusNativeWindow: NSWindow {
         switch command {
         case .compareTwo: onCompareTwoFiles(paths)
         case .log: onAction(.log, paths)
+        case .submoduleLog:
+            runOperation("Reading submodule checkout…", operation: { [self] token in
+                let child = try await submoduleLog.load(paths[0])
+                guard isLive(token), accepts(snapshot, duringOperation: true) else { return }; onSubmoduleLog(child)
+            })
         case .oldNameLog: if let old = snapshot.entries.first?.originalPath { onAction(.log, [old]) }
         case .blame: onBlame(paths[0])
         case .reveal:

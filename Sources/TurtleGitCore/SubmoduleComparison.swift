@@ -29,7 +29,36 @@ public enum SubmoduleComparisonFailure: LocalizedError {
     }
 }
 
+public enum SubmoduleWorkingHistoryFailure: LocalizedError {
+    case uninitialized
+    public var errorDescription: String? { "The submodule is not initialized. Initialize its working checkout to show its history." }
+}
+
 extension GitRepository {
+    /// Resolve only an initialized working checkout; never let Git discover the
+    /// superproject from an empty/uninitialized child directory.
+    public func submoduleWorkingRepository(path: String, cancellation: OperationCancellation? = nil) throws -> GitRepository {
+        try cancellation?.check()
+        let location = try restoreLocation(path)
+        if try !submoduleUpdatePaths(cancellation: cancellation).contains(path) {
+            let previous = try run(["ls-tree", "--full-tree", "-z", "HEAD", "--", path], successfulExitCodes: 0...128, cancellation: cancellation)
+            let wasGitlink = previous.exitCode == 0 && previous.stdout.split(separator: 0).contains { record in
+                let parts = record.split(separator: 9, maxSplits: 1)
+                return parts.count == 2 && String(decoding: parts[1], as: UTF8.self) == path && parts[0].starts(with: Data("160000 ".utf8))
+            }
+            guard wasGitlink else { throw SubmoduleComparisonFailure.unsupported }
+        }
+        guard FileManager.default.fileExists(atPath: location.appendingPathComponent(".git").path) else { throw SubmoduleWorkingHistoryFailure.uninitialized }
+        let kind = try FileManager.default.attributesOfItem(atPath: location.path)[.type] as? FileAttributeType
+        let gitKind = try FileManager.default.attributesOfItem(atPath: location.appendingPathComponent(".git").path)[.type] as? FileAttributeType
+        guard kind == .typeDirectory, gitKind == .typeRegular || gitKind == .typeDirectory else { throw SubmoduleComparisonFailure.unsafeCheckout }
+        var bytes = try run(["-C", location.path, "rev-parse", "--show-toplevel"], cancellation: cancellation).stdout
+        if bytes.last == 10 { bytes.removeLast() }
+        let discovered = URL(fileURLWithPath: String(decoding: bytes, as: UTF8.self)).resolvingSymlinksInPath().standardizedFileURL
+        guard discovered == location.resolvingSymlinksInPath().standardizedFileURL else { throw SubmoduleComparisonFailure.unsafeCheckout }
+        try cancellation?.check()
+        return GitRepository(root: location, executable: executable, askpass: askpass)
+    }
     /// `from` and `to` are revisions of this superproject; nil `to` compares
     /// against the actual child HEAD (or indexed gitlink if uninitialized).
     public func submoduleComparison(path: String, from: String = "HEAD", to: String? = nil, cancellation: OperationCancellation? = nil) throws -> SubmoduleComparison {

@@ -180,6 +180,7 @@ import UniformTypeIdentifiers
         logPicker?.close(); logPicker = nil; partial?.close(); partial = nil; model.unifiedWindow?.close(); onClosed()
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if model.submoduleLog.isReading { model.submoduleLog.cancel(); return false }
         guard sender.attachedSheet == nil, !hasMessagePicker, partial?.model.busy != true, partial?.window?.attachedSheet == nil, !model.unifiedViewerBusy else { return false }
         model.cancel(); return false
     }
@@ -417,6 +418,8 @@ import UniformTypeIdentifiers
     var configureLogPicker: (LogWindowModel) -> Void = { _ in }
     var onCompare: ([String], Bool) -> Void = { _, _ in }
     var onCompareTwoFiles: ([String]) -> Void = { _ in }
+    lazy var submoduleLog = SubmoduleWorkingLogSession(repository: repository, access: access)
+    var onSubmoduleLog: (GitRepository) -> Void = { _ in }
     var onFileLog: (String) -> Void = { _ in }
     var onFileBlame: (String) -> Void = { _ in }
     var onResolve: (RepositoryAction, [String]) -> Void = { _, _ in }
@@ -589,6 +592,17 @@ import UniformTypeIdentifiers
     }
     var stagedEntries: [StatusEntry] { visibleEntries.filter(\.staged) }
     var unstagedEntries: [StatusEntry] { visibleEntries.filter { $0.worktree != " " && $0.worktree != "!" } }
+    func showSubmoduleLog(_ path: String) {
+        guard messageFocusAvailable, !busy, !confirmingQuit, submodules.contains(path) else { return }
+        busy = true
+        Task {
+            defer { busy = false; withExtendedLifetime(access) {} }
+            do {
+                let child = try await submoduleLog.load(path)
+                guard messageFocusAvailable else { return }; onSubmoduleLog(child)
+            } catch { if messageFocusAvailable { self.error = error.localizedDescription } }
+        }
+    }
     func openFile(_ path: String, application: URL? = nil) {
         guard !busy else { return }
         let url = repository.root.appendingPathComponent(path)
@@ -1071,7 +1085,7 @@ import UniformTypeIdentifiers
         messageFocusAvailable = false; messageFocusRequest = 0; appliedMessageFocusRequest = 0
     }
     func invalidateForClose() {
-        clientHooks.retire()
+        clientHooks.retire(); submoduleLog.retire()
         reloadCancellation?.cancel(); reloadTask?.cancel(); lfsOwnerCancellation?.cancel()
         reloadCancellation = nil; reloadTask = nil; lfsOwnerCancellation = nil
         pendingReloadCancel = false; busy = false
@@ -1767,6 +1781,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                         Divider()
                         if entry.state != .untracked && entry.state != .ignored {
                             Button { model.onFileLog(entry.path) } label: { CommandLabel(title: "Show log", icon: .log) }
+                            if model.submodules.contains(entry.path) { Button { model.showSubmoduleLog(entry.path) } label: { CommandLabel(title: "Show submodule log", icon: .log) } }
                             if entry.state != .deleted {
                                 Button { model.onRename(entry.path) } label: { CommandLabel(title: "Rename…", icon: .rename) }
                             }

@@ -19,6 +19,18 @@ final class SubmoduleComparisonTests: XCTestCase {
         return (root, parent, child, path, hash)
     }
 
+    func testWorkingSubmoduleHistoryResolvesChildAndRefusesParentFallbackAndCancellation() async throws {
+        let (root, parent, child, path, _) = try await fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let resolved = try await parent.submoduleWorkingRepository(path: path)
+        XCTAssertEqual(resolved.root, child.root); XCTAssertEqual(resolved.executable, parent.executable)
+        let token = OperationCancellation(); token.cancel()
+        do { _ = try await parent.submoduleWorkingRepository(path: path, cancellation: token); XCTFail("Cancelled child lookup ran") } catch is OperationCancellationFailure {}
+        try FileManager.default.removeItem(at: child.root.appendingPathComponent(".git"))
+        do { _ = try await parent.submoduleWorkingRepository(path: path); XCTFail("Uninitialized checkout discovered parent repository") } catch is SubmoduleWorkingHistoryFailure {}
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+    }
     func testCommitDirtySubmoduleWarningsFollowSourceAndPreserveRepositories() async throws {
         let (root, parent, child, path, _) = try await fixture()
         defer { try? FileManager.default.removeItem(at: root) }

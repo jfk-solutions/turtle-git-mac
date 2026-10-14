@@ -2,6 +2,32 @@ import AppKit
 import SwiftUI
 import TurtleGitCore
 
+@MainActor final class SubmoduleWorkingLogSession {
+    private(set) static var activeReads = 0
+    let repository: GitRepository
+    let access: RepositoryAccessLease?
+    private var retired = false
+    private var token: OperationCancellation?
+    var readCheckout: (String, OperationCancellation) async throws -> GitRepository
+    init(repository: GitRepository, access: RepositoryAccessLease?) {
+        self.repository = repository; self.access = access
+        readCheckout = { try await repository.submoduleWorkingRepository(path: $0, cancellation: $1) }
+    }
+    var isReading: Bool { token != nil }
+    func cancel() { token?.cancel() }
+    func retire() { retired = true; cancel() }
+    func load(_ path: String) async throws -> GitRepository {
+        guard !retired, token == nil else { throw OperationCancellationFailure.cancelled }
+        let request = OperationCancellation(); token = request; Self.activeReads += 1
+        defer { Self.activeReads -= 1; if token === request { token = nil }; withExtendedLifetime(access) {} }
+        if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+        let child = try await readCheckout(path, request)
+        guard !retired, !request.isCancelled else { throw OperationCancellationFailure.cancelled }
+        if GitRuntime.isAppStoreBuild && access?.contains(child.root) != true { throw RepositoryAccessFailure.securityScopeUnavailable }
+        return child
+    }
+}
+
 private final class SubmoduleDiffNativeWindow: NSWindow {
     var refresh: () -> Void = {}
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
@@ -12,6 +38,7 @@ private final class SubmoduleDiffNativeWindow: NSWindow {
 @MainActor final class SubmoduleDiffWindowController: NSWindowController, NSWindowDelegate {
     let model: SubmoduleDiffWindowModel
     var onClosed: () -> Void = {}
+    private var closed = false
     init(repository: GitRepository, access: RepositoryAccessLease?, path: String, from: String, to: String? = nil) {
         model = SubmoduleDiffWindowModel(repository: repository, access: access, path: path, from: from, to: to)
         let size = NSSize(width: 900, height: 320)
@@ -25,11 +52,16 @@ private final class SubmoduleDiffNativeWindow: NSWindow {
 
         DialogGeometry.attach(window, identifier: "SubmoduleDiffDialog", legacyName: "SubmoduleDiffDialog")
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy }
-    func windowWillClose(_ notification: Notification) { onClosed() }
+    func windowWillClose(_ notification: Notification) { guard !closed else { return }; closed = true; model.invalidate(); onClosed() }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { if model.cancelRead() { return false }; return !model.busy && !model.confirmingQuit && sender.attachedSheet == nil }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class SubmoduleDiffWindowModel: ObservableObject {
+    private(set) static var activeReads = 0
+    private(set) var retired = false
+    private var token: OperationCancellation?
+    private var generation = UUID()
+    var readDetails: (OperationCancellation) async throws -> SubmoduleComparison
     let repository: GitRepository
     private let access: RepositoryAccessLease?
     let path: String
@@ -43,27 +75,35 @@ private final class SubmoduleDiffNativeWindow: NSWindow {
     var onStatus: (GitRepository) -> Void = { _ in }
     var onCompare: (GitRepository, ComparisonRevision, ComparisonRevision) -> Void = { _, _, _ in }
     var onUpdate: (@escaping () -> Void) -> Void = { _ in }
-    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, from: String, to: String?) { self.repository = repository; self.access = access; self.path = path; self.from = from; self.to = to }
+    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, from: String, to: String?) { self.repository = repository; self.access = access; self.path = path; self.from = from; self.to = to; readDetails = { try await repository.submoduleComparison(path: path, from: from, to: to, cancellation: $0) } }
+    @discardableResult func cancelRead() -> Bool { guard let token else { return false }; token.cancel(); return true }
+    func invalidate() { retired = true; generation = UUID(); token?.cancel() }
     func load() {
-        guard !busy, !confirmingQuit else { return }; busy = true
-        Task { defer { busy = false }; do {
-            if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-            details = try await repository.submoduleComparison(path: path, from: from, to: to)
-        } catch { self.error = error.localizedDescription } }
+        guard !retired, !busy, !confirmingQuit else { return }; busy = true
+        let request = OperationCancellation(), epoch = UUID(); token = request; generation = epoch; Self.activeReads += 1
+        Task {
+            defer { Self.activeReads -= 1; if token === request { token = nil; busy = false }; withExtendedLifetime(access) {} }
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let next = try await readDetails(request)
+                guard !retired, generation == epoch, !request.isCancelled else { return }
+                details = next
+            } catch { if !retired, generation == epoch, !request.isCancelled { self.error = error.localizedDescription } }
+        }
     }
     func log(_ side: SubmoduleComparisonSide) {
-        guard !busy, !confirmingQuit, side.canShowLog, let hash = side.revision, let root = details?.checkout else { return }
+        guard !retired, !busy, !confirmingQuit, details.map({ ($0.from.revision == side.revision && $0.from.available) || ($0.to.revision == side.revision && $0.to.available) }) == true, side.canShowLog, let hash = side.revision, let root = details?.checkout else { return }
         onLog(GitRepository(root: root, executable: repository.executable), hash)
     }
     func compare(workingTree: Bool = false) {
-        guard !busy, !confirmingQuit, let details, details.from.available, details.to.available, let root = details.checkout else { return }
+        guard !retired, !busy, !confirmingQuit, let details, details.from.available, details.to.available, let root = details.checkout else { return }
         let child = GitRepository(root: root, executable: repository.executable)
         if details.change == .identical { onStatus(child); return }
         let old = details.from.revision.map(ComparisonRevision.revision) ?? .emptyTree
         let new: ComparisonRevision = workingTree || (details.dirty && details.change == .unknown) ? .workingTree : details.to.revision.map(ComparisonRevision.revision) ?? .emptyTree
         onCompare(child, old, new)
     }
-    func update() { guard !busy, !confirmingQuit else { return }; onUpdate { [weak self] in self?.load() } }
+    func update() { guard !retired, !busy, !confirmingQuit else { return }; onUpdate { [weak self] in guard let self, !self.retired else { return }; self.load() } }
 }
 private struct SubmoduleDiffDialog: View {
     @ObservedObject var model: SubmoduleDiffWindowModel
@@ -116,7 +156,8 @@ private struct SubmoduleDiffDialog: View {
             Text("Submodule \"\(model.path)\"").textSelection(.enabled).lineLimit(1).truncationMode(.middle)
             if let details = model.details { section(details.from, details: details, to: false); section(details.to, details: details, to: true) }
             else { ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity) }
-        }.padding(12).disabled(model.busy || model.confirmingQuit).onAppear { model.load() }
+        }.padding(12).disabled(model.busy || model.confirmingQuit || model.retired)
+        .overlay(alignment: .bottomLeading) { if model.busy { Button("Cancel") { model.cancelRead() }.padding(12) } }.onAppear { model.load() }
         .alert("Submodule comparison failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
     }
 }

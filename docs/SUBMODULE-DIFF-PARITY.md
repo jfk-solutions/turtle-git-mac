@@ -469,3 +469,25 @@ native Save/Cancel and signed sandbox acceptance.
 File-list build validation: unsigned Xcode Debug and App Store builds passed,
 as did their bundle audits, including the 60 original icons, embedded Finder
 extension and universal Git runtime. The static site build passed.
+
+## Connected child-history and Diff lifecycle batch — October 14, 2026
+
+Commit/Working Tree child Log now uses a common validated, cancellable checkout
+lookup; see [Working Tree parity](STATUS-PARITY.md). Submodule Diff's metadata
+read also has owned cancellation, a native Cancel control and an independent
+Quit guard. F5 still refreshes. Cancellation/failure retains the last complete
+From/To snapshot; forced owner retirement cancels reads and refuses late Log,
+Compare, Update and refresh callbacks. A passed Log side must still be present
+and available in the current details. Controller close cleanup runs once.
+
+The source Update button launches a separate Update dialog; this port retains
+that behavior and refreshes on successful update without making the parent wait
+for an options dialog that the user may cancel. Log and Compare preserve the
+existing child revisions/type colors and identical-revision Status route.
+
+Debug, all twelve affected Submodule Core checks and four grouped native child
+handoff/file-menu receivers passed with system and bundled Git. All initial/final
+receivers were reaped; fixture-only URL repairs did not repeat app/Core builds.
+See [results and limitations](qa/submodule-handoffs-2026-10-14.json). Physical sheets,
+Shift alternative tools, complete visual comparison and signed scope acceptance
+remain open.

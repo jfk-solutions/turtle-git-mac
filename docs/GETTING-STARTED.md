@@ -294,3 +294,10 @@ files out of automatic checked-file selection in Commit; assigning it in Working
 Tree does not change staging. **Keep changelists** shares Commit’s preference for
 retaining membership after a successful commit. Clipboard copies follow the
 visible group order and omit headings.
+
+For a submodule row, **Show log** shows changes to its gitlink in the parent
+repository; **Show submodule log** opens the child checkout’s current history.
+The latter is available in Commit and Working Tree and requires an initialized
+child checkout. Submodule Diff’s From/To Log buttons instead open history at the
+respective displayed child revision. Its Cancel button stops an active refresh
+while retaining the prior From/To information.
