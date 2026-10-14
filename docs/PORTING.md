@@ -1020,3 +1020,11 @@ Scoped menus, shared keyboard ownership and preparation Close/Quit guards cover
 the round trip. First Debug and grouped native patch/Open checks passed; Core
 was unchanged. Physical/signed/full-source acceptance remains open. See the
 [Open patch follow-up](MERGE-OPEN-PARITY.md).
+
+
+Three-pane Save As now offers left/right/result, with source row inclusion,
+encoding and owned export handling. Compare either source with Base opens a
+separate native comparison of private read-only stage snapshots. Debug, 16 Core
+checks and grouped native source/editor checks passed; source path rebinding,
+physical/visual/signed acceptance remain open. See
+[source tools](MERGE-SOURCE-TOOLS-PARITY.md).

@@ -176,8 +176,8 @@ private enum MergeSourceSide {
     func windowDidBecomeKey(_ notification: Notification) { editorFileMenu.install(target: self, open: #selector(openMergeDocument(_:)), reload: #selector(reloadEditor(_:))) }
     func windowDidResignKey(_ notification: Notification) { editorFileMenu.remove() }
     func detachForReplacement() { editorFileMenu.remove(); model.retire(); model.window = nil }
-    @objc func reloadEditor(_ sender: Any?) { guard !preparingReplacement, editorOpenWorkflow == nil, window?.attachedSheet == nil else { return }; model.load() }
-    func validateMenuItem(_ item: NSMenuItem) -> Bool { (item.action == #selector(openMergeDocument(_:)) || item.action == #selector(reloadEditor(_:))) && !preparingReplacement && editorOpenWorkflow == nil && !model.busy && !model.preparing && !model.confirmingQuit && !model.retired && window?.attachedSheet == nil }
+    @objc func reloadEditor(_ sender: Any?) { guard !preparingReplacement, !model.exportingSource, editorOpenWorkflow == nil, window?.attachedSheet == nil else { return }; model.load() }
+    func validateMenuItem(_ item: NSMenuItem) -> Bool { (item.action == #selector(openMergeDocument(_:)) || item.action == #selector(reloadEditor(_:))) && !preparingReplacement && editorOpenWorkflow == nil && !model.busy && !model.preparing && !model.confirmingQuit && !model.retired && !model.exportingSource && window?.attachedSheet == nil }
     let model: TextConflictWindowModel
     var onClosed: () -> Void = {}
     var editorOpenWorkflow: MergeEditorOpenWorkflow?
@@ -186,7 +186,7 @@ private enum MergeSourceSide {
     weak var sharedReplacementOwner: MergeEditorReplacementOwner?
     var preparingReplacement: Bool { (sharedReplacementOwner ?? replacementOwner)?.preparingPatch == true }
     @objc func openMergeDocument(_ sender: Any?) {
-        guard !preparingReplacement, editorOpenWorkflow == nil, let window, !model.busy, !model.preparing, !model.confirmingQuit, !model.retired, window.attachedSheet == nil else { return }
+        guard !preparingReplacement, !model.exportingSource, editorOpenWorkflow == nil, let window, !model.busy, !model.preparing, !model.confirmingQuit, !model.retired, window.attachedSheet == nil else { return }
         let workflow = makeEditorOpenWorkflow(window, model.openPermissions, model.comparisonDefaults)
         editorOpenWorkflow = workflow
         workflow.onClosed = { [weak self] in self?.editorOpenWorkflow = nil }
@@ -194,7 +194,7 @@ private enum MergeSourceSide {
         workflow.start(dirty: model.dirty, description: model.path, save: { [weak self] completion in self?.model.save(markResolved: false, completion: completion) })
     }
     func replaceEditor(_ request: MergeOpenRequest, permissions: [RepositoryAccessLease]) throws {
-        guard let window, !model.busy, !model.confirmingQuit, !model.retired else { return }
+        guard let window, !model.busy, !model.confirmingQuit, !model.retired, !model.exportingSource else { return }
         let owner = sharedReplacementOwner ?? replacementOwner ?? MergeEditorReplacementOwner(onClosed: onClosed)
         if sharedReplacementOwner == nil { replacementOwner = owner }
         try owner.replace(request, permissions: permissions, preferences: model.comparisonDefaults, window: window, previous: self)
@@ -216,7 +216,7 @@ private enum MergeSourceSide {
         DialogGeometry.attach(window, identifier: "TurtleGit.TextConflict", legacyName: "TurtleGit.TextConflict")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard !preparingReplacement, editorOpenWorkflow == nil else { return false }
+        guard !preparingReplacement, !model.exportingSource, editorOpenWorkflow == nil else { return false }
         guard sender.attachedSheet == nil else { return false }
         if model.preparing { return true }
         guard !model.busy, !model.confirmingQuit else { return false }
@@ -296,6 +296,30 @@ private enum MergeSourceSide {
         // expandable marker at the start of the surviving hidden result run.
         for row in visibility.indices where visibility[row] == .hidden && (row == 0 || visibility[row - 1] == .shown) { visibility[row] = .marker }
         resultFolding.install(visibility: visibility)
+    }
+    @Published private(set) var exportingSource = false
+    lazy var sourceExporter: MergeSourceExport = {
+        let value = MergeSourceExport()
+        value.stateChanged = { [weak self] in self?.exportingSource = $0 }
+        value.failure = { [weak self] in self?.error = $0 }
+        return value
+    }()
+    var sourceToolsAllowed: Bool { !retired && !busy && !preparing && !confirmingQuit && !exportingSource && window?.attachedSheet == nil && document != nil }
+    func exportSource(mine: Bool) {
+        guard sourceToolsAllowed, let window, let document, let sourceComparison else { return }
+        do {
+            let encoding = (mine ? document.mineEncoding : document.theirsEncoding) ?? document.encoding
+            let bytes = try MergePaneSaveAs.sourceBytes(rows: sourceComparison.rows, mine: mine, encoding: encoding)
+            sourceExporter.save(bytes, name: (mine ? "Mine-" : "Theirs-") + (path as NSString).lastPathComponent, owner: window)
+        } catch { self.error = error.localizedDescription }
+    }
+    func compareSourceWithBase(mine: Bool) {
+        guard sourceToolsAllowed, let document else { return }
+        do {
+            let base = try (document.baseEncoding ?? document.encoding).encode(document.base)
+            let side = try ((mine ? document.mineEncoding : document.theirsEncoding) ?? document.encoding).encode(mine ? document.mine : document.theirs)
+            try MergeSourceComparisonWindows.open(base: base, side: side, name: path, sideName: mine ? "Mine" : "Theirs", preferences: comparisonDefaults)
+        } catch { self.error = error.localizedDescription }
     }
     @Published private(set) var regexFilters = MergeRegexFilters.load()
     @Published private(set) var regexFilterName: String?
@@ -399,6 +423,7 @@ private enum MergeSourceSide {
         load(filterName: name)
     }
     func retire() {
+        sourceExporter.retire()
         folding.retire(); resultFolding.retire()
         lineWrapping.retire()
         retired = true; loadGeneration += 1; loadCancellation?.cancel(); loadCancellation = nil
@@ -683,14 +708,12 @@ private enum MergeSourceSide {
         }
     }
     func export() {
+        guard sourceToolsAllowed, let window else { return }
         if workingMerge != nil { save(markResolved: false, chooseNewOutput: true); return }
-        let panel = NSSavePanel(); panel.nameFieldStringValue = (path as NSString).lastPathComponent
-        panel.allowedContentTypes = [.plainText]; panel.canCreateDirectories = true
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        let scoped = url.startAccessingSecurityScopedResource()
-        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-        do { try encoding.encode(result).write(to: url, options: .atomic) } catch { self.error = error.localizedDescription }
+        do { sourceExporter.save(try encoding.encode(result), name: (path as NSString).lastPathComponent, owner: window, warning: MergeText.hasMarkers(result) ? "Save with unresolved conflict markers?" : nil) }
+        catch { self.error = error.localizedDescription }
     }
+
 }
 @MainActor private final class WeakMergeScroll {
     weak var view: NSScrollView?
@@ -747,7 +770,15 @@ private struct TextConflictDialog: View {
             HStack(spacing: 10) {
                 Button { model.save(markResolved: false) } label: { CommandLabel(title: "Save", icon: .mergeSave) }.keyboardShortcut("s", modifiers: .command)
                 Button { model.save(markResolved: true) } label: { CommandLabel(title: "Mark as resolved", icon: .mergeResolved) }.disabled(model.workingMerge != nil || model.document == nil || MergeText.hasMarkers(model.result))
-                Button { model.export() } label: { CommandLabel(title: "Save As…", icon: .mergeSaveAs) }
+                Menu {
+                    Button { model.exportSource(mine: false) } label: { CommandLabel(title: "Save left pane as…", icon: .mergeSaveAs) }
+                    Button { model.exportSource(mine: true) } label: { CommandLabel(title: "Save right pane as…", icon: .mergeSaveAs) }
+                    Button { model.export() } label: { CommandLabel(title: "Save merged result as…", icon: .mergeSaveAs) }
+                } label: { CommandLabel(title: "Save As…", icon: .mergeSaveAs) }.disabled(!model.sourceToolsAllowed)
+                Menu("Compare sources") {
+                    Button { model.compareSourceWithBase(mine: false) } label: { CommandLabel(title: "Compare Theirs with Base", icon: .compare) }
+                    Button { model.compareSourceWithBase(mine: true) } label: { CommandLabel(title: "Compare Mine with Base", icon: .compare) }
+                }.disabled(!model.sourceToolsAllowed)
                 Divider().frame(height: 20)
                 Button { model.selectConflict(model.selectedConflict - 1) } label: { CommandLabel(title: "Previous conflict", icon: .mergePreviousConflict) }.disabled(model.blocks.isEmpty || model.selectedConflict == 0)
                 Button { model.selectConflict(model.selectedConflict + 1) } label: { CommandLabel(title: "Next conflict", icon: .mergeNextConflict) }.disabled(model.blocks.isEmpty || model.selectedConflict >= model.blocks.count - 1)
@@ -1134,6 +1165,8 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
         if let sourceSide {
             menu.addItem(.separator())
             let useFile = NSMenuItem(title: "Use this whole file", action: #selector(useSourceFile(_:)), keyEquivalent: "")
+            editingItem("Save this pane as…", #selector(saveSourceAs(_:)), MenuIcon.mergeSaveAs.contextImage(defaults: defaults), model?.sourceToolsAllowed == true)
+            editingItem("Compare with Base", #selector(compareSourceWithBase(_:)), MenuIcon.compare.contextImage(defaults: defaults), model?.sourceToolsAllowed == true)
             useFile.target = self; useFile.isEnabled = model?.document != nil && model?.busy == false && model?.confirmingQuit == false; useFile.image = sourceSide.icon.contextImage(defaults: defaults); menu.addItem(useFile)
         }
         guard mergeEditable, let model else { return menu }
@@ -1193,6 +1226,7 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
         if menuItem.action == #selector(convertLineEndings(_:)) {
             return mergeEditable && isEditable && model?.busy == false && model?.confirmingQuit == false && MergeLineEnding.allCases.indices.contains(menuItem.tag)
         }
+        if menuItem.action == #selector(saveSourceAs(_:)) || menuItem.action == #selector(compareSourceWithBase(_:)) { return sourceSide != nil && model?.sourceToolsAllowed == true }
         if menuItem.action == #selector(useSourceFile(_:)) { return sourceSide != nil && model?.document != nil && model?.busy == false && model?.confirmingQuit == false }
         if menuItem.action == #selector(useBlock(_:)) {
             guard mergeEditable, isEditable, let model, !model.busy, !model.confirmingQuit,
@@ -1202,6 +1236,8 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
         }
         return super.validateMenuItem(menuItem)
     }
+    @objc private func saveSourceAs(_ sender: Any?) { guard let sourceSide else { return }; model?.exportSource(mine: sourceSide == .mine) }
+    @objc private func compareSourceWithBase(_ sender: Any?) { guard let sourceSide else { return }; model?.compareSourceWithBase(mine: sourceSide == .mine) }
     @objc private func useSourceFile(_ sender: NSMenuItem) {
         guard let sourceSide else { return }
         model?.useFile(sourceSide)

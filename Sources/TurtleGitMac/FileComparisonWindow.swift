@@ -145,6 +145,14 @@ import TurtleGitCore
     var retainedImageModel: ImageComparisonViewModel?
     var makeImageLoader: (String, [RepositoryAccessLease]) -> ImageLoadWindowController = { ImageLoadWindowController(leftPath: $0, permissions: $1) }
     private var workingPermissions: [RepositoryAccessLease] = []
+    private var sourceSnapshotRoot: URL?
+    func retainSourceSnapshotDirectory(_ folder: URL) throws {
+        let root = folder.resolvingSymlinksInPath().standardizedFileURL
+        let temporary = FileManager.default.temporaryDirectory.resolvingSymlinksInPath().standardizedFileURL
+        guard root.deletingLastPathComponent() == temporary, root.lastPathComponent.hasPrefix("TurtleGitSourceCompare-"),
+              let comparison = workingComparison, [comparison.base, comparison.destination].allSatisfy({ $0.resolvingSymlinksInPath().deletingLastPathComponent() == root }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+        sourceSnapshotRoot = root
+    }
     var openPermissions: [RepositoryAccessLease] { workingPermissions + [access].compactMap { $0 } }
     private let access: RepositoryAccessLease?
     let snapshot: RevisionComparisonSnapshot
@@ -412,12 +420,13 @@ import TurtleGitCore
     @Published private var drafts: FileComparisonDrafts?
     @Published private(set) var activeBase = false
     var editingEnabled: Bool {
-        get { drafts?.editingEnabled(base: activeBase) == true }
-        set { drafts?.setEditing(newValue, base: activeBase) }
+        get { sourceSnapshotRoot == nil && drafts?.editingEnabled(base: activeBase) == true }
+        set { guard sourceSnapshotRoot == nil else { return }; drafts?.setEditing(newValue, base: activeBase) }
     }
-    func canEdit(base: Bool) -> Bool { !retired && drafts?.canEdit(base: base) == true }
+    func canEdit(base: Bool) -> Bool { sourceSnapshotRoot == nil && !retired && drafts?.canEdit(base: base) == true }
     func draftText(base: Bool) -> String { drafts?.text(base: base) ?? "" }
     func updateDraft(_ text: String, base: Bool) {
+        guard sourceSnapshotRoot == nil else { return }
         do { try drafts?.update(text: text, base: base) } catch { self.error = error.localizedDescription }
     }
     func updateAnnotations(_ value: FileComparisonEditing.Annotations, base: Bool) { drafts?.update(annotations: value, base: base) }
@@ -460,7 +469,7 @@ import TurtleGitCore
     var undo: () -> Void = {}
     var redo: () -> Void = {}
     var canTransfer: Bool { canTransfer(toBase: activeBase) }
-    func canTransfer(toBase base: Bool) -> Bool { drafts?.editingEnabled(base: base) == true && alignment != nil && !busy && !confirmingQuit && !filtering }
+    func canTransfer(toBase base: Bool) -> Bool { sourceSnapshotRoot == nil && drafts?.editingEnabled(base: base) == true && alignment != nil && !busy && !confirmingQuit && !filtering }
     var contextCommandsAllowed: Bool { !retired && !busy && !confirmingQuit && window?.attachedSheet == nil }
     var oppositeViewCommandsAllowed: Bool { !onePaneActive && contextCommandsAllowed }
     var transferRows: Range<Int>? { selectedRows ?? alignment.flatMap { $0.differences.indices.contains(difference) ? $0.differences[difference] : nil } }
@@ -635,7 +644,7 @@ import TurtleGitCore
             }
         }
     }
-    var editableBase: Bool? { drafts?.canEdit(base: activeBase) == true ? activeBase : nil }
+    var editableBase: Bool? { canEdit(base: activeBase) ? activeBase : nil }
     var editedFilePath: String { activeBase ? document?.base.path ?? path : document?.destination.path ?? path }
     var unsavedFilesDescription: String { drafts?.dirtyPaths.joined(separator: "”, “") ?? editedFilePath }
     var dirty: Bool { drafts?.dirtySides.isEmpty == false }
@@ -740,6 +749,7 @@ import TurtleGitCore
         guard !GitRuntime.isAppStoreBuild || (access?.hasSecurityScope == true && access?.contains(snapshot.root) == true && workingPermissions.contains { $0.hasSecurityScope && $0.contains(comparison.workingFile) }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     private func validateWorkingAccess(_ comparison: WorkingFileComparison) throws {
+        if let sourceSnapshotRoot, [comparison.base, comparison.destination].allSatisfy({ $0.resolvingSymlinksInPath().deletingLastPathComponent() == sourceSnapshotRoot }) { return }
         guard !GitRuntime.isAppStoreBuild || [comparison.base, comparison.destination].allSatisfy({ file in
             workingPermissions.contains { $0.hasSecurityScope && $0.contains(file) }
         }) else { throw RepositoryAccessFailure.securityScopeUnavailable }

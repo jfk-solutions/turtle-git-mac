@@ -1,0 +1,71 @@
+{
+  "date": "2026-10-14",
+  "base": "7f170714",
+  "scope": [
+    "Left/right/result Save As, source row inclusion and captured encoding/bytes",
+    "Owned export sheet, warning, cancellation/retirement and active-write Quit lifetime",
+    "Base-versus-Mine/Theirs native comparisons using private read-only snapshots with cleanup",
+    "Native menus/context icons and source-tool busy/Close/Open/Reload gates"
+  ],
+  "validation": {
+    "debug": {
+      "initial_exit": 65,
+      "initial_log": "build/qa/merge-source-tools-debug-2026-10-14.log",
+      "repair_exit": 0,
+      "log": "build/qa/merge-source-tools-debug-compile-repair-2026-10-14.log",
+      "repair": "Explicit self required for export Task properties"
+    },
+    "core": {
+      "initial_exit": 1,
+      "reason": "Application compile required by Swift package; interrupted by same export Task error",
+      "repair_exit": 0,
+      "tests": 16,
+      "families": [
+        "MergePaneSaveAsTests",
+        "MergeResultPresentationTests",
+        "SubversionMergePresentationTests"
+      ],
+      "log": "build/qa/merge-source-tools-core-compile-repair-2026-10-14.log"
+    },
+    "native": {
+      "initial_exit": 1,
+      "initial_log": "build/qa/merge-source-tools-native-2026-10-14.log",
+      "diagnostic_log": "build/qa/merge-source-tools-native-diagnostic-2026-10-14.log",
+      "fixture_repair": "Merged-output fixture inserted emoji while source-selected Windows-1252 could not represent it. Explicit UTF-16LE BOM output verifies captured selected encoding. App correctly rejected original encoding before showing panel.",
+      "repair_exit": 0,
+      "log": "build/qa/merge-source-tools-native-encoding-fixture-repair-2026-10-14.log",
+      "app_or_core_repeated_after_fixture_repair": false,
+      "families": [
+        "source tools",
+        "two-pane editor",
+        "three-pane merge"
+      ],
+      "evidence": [
+        "Exact left/right and UTF-16LE BOM merged export bytes",
+        "Owned Cancel/duplicate late reply and Close/Quit guards",
+        "Actual private source comparison refuses UI/direct-model editing and dirty state",
+        "Private snapshot directory removed on close; source inputs unchanged",
+        "Existing Unicode typing/selection/Undo/Save and merge reload/resolution/private Git preservation checks"
+      ]
+    },
+    "owned_receivers_reaped": [
+      25371,
+      25418,
+      25480
+    ],
+    "receiver_pids_still_live_at_final_check": [],
+    "site": {
+      "exit": 0,
+      "documents": 214,
+      "unresolved_fragments": [],
+      "log": "build/qa/merge-source-tools-site-2026-10-14.log"
+    }
+  },
+  "limitations": [
+    "Source SaveFileTo path rebinding not yet ported; current exports are copies",
+    "Pinned conflict marker NoEnding bytes ported literally; complete Windows conflict-gap/EOL equivalence unverified",
+    "Native warning control is implemented but physical button/VoiceOver acceptance unverified",
+    "Signed container/security scopes, exact visual captures, App Store and full application parity remain open",
+    "Latest hosted macOS CI is failing RebaseReplayIOTests; local source-tools pass is not full CI success"
+  ]
+}

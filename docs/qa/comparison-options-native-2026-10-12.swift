@@ -4,6 +4,12 @@ import TurtleGitCore
 @main struct ComparisonOptionsVerification {
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
+        if CommandLine.arguments.contains("--source-tools-only") {
+            try await MergeSourceToolsNativeVerification.verify()
+            try await TwoPaneEngineVerification.verify()
+            try await ThreePaneEngineVerification.verify(configuration: SubversionMergeConfiguration.bundled())
+            return
+        }
         if CommandLine.arguments.contains("--patch-open-only") {
             try await MergePatchOpenNativeVerification.verify()
             try await ReviewPatchNativeVerification.verify()
@@ -43,6 +49,7 @@ import TurtleGitCore
                 try await ThreePaneEngineVerification.verify(configuration: SubversionMergeConfiguration.bundled())
                 try await TwoPaneEngineVerification.verify()
             }
+            try await MergeSourceToolsNativeVerification.verify()
             try await MergePatchOpenNativeVerification.verify()
             try await MergeEditorOpenNativeVerification.verify()
             try await MergeFoldingNativeVerification.verify()
