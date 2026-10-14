@@ -58,7 +58,7 @@ This generated table links explicit implementation/parity reviews and existing Q
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSLOOKANDFEEL` | partial-native-replacement | 0/9 mapped; 9 pending | [CONTEXT-MENU-SETTINGS-PARITY](CONTEXT-MENU-SETTINGS-PARITY.md); 1 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSDIALOGS` | partial-native-replacement | 28/28 mapped; 0 pending | [SETTINGS-NAVIGATION-PARITY](SETTINGS-NAVIGATION-PARITY.md); 5 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSDIALOGS2` | partial-native-replacement | 22/22 mapped; 0 pending | [SETTINGS-NAVIGATION-PARITY](SETTINGS-NAVIGATION-PARITY.md); 5 QA records |
-| `src/Resources/TortoiseProcENG.rc` / `IDD_RESOLVE` | partial | 6/6 mapped; 0 pending | [RESOLVE-PARITY](RESOLVE-PARITY.md), [UI-PARITY](UI-PARITY.md); 7 QA records |
+| `src/Resources/TortoiseProcENG.rc` / `IDD_RESOLVE` | partial | 6/6 mapped; 0 pending | [RESOLVE-PARITY](RESOLVE-PARITY.md), [UI-PARITY](UI-PARITY.md); 8 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_DIFFFILES` | partial-native-replacement | 15/15 mapped; 0 pending | [LOG-PARITY](LOG-PARITY.md), [SUBMODULE-DIFF-PARITY](SUBMODULE-DIFF-PARITY.md); 63 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSCOLORS_2` | partial-native-replacement | 12/12 mapped; 0 pending | [SETTINGS-NAVIGATION-PARITY](SETTINGS-NAVIGATION-PARITY.md); 5 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSSAVEDDATA` | partial-native-replacement | 19/19 mapped; 0 pending | [SAVED-DATA](SAVED-DATA.md); 0 QA records |

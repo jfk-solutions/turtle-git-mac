@@ -776,7 +776,7 @@ import TurtleGitCore
             }
         }
     }
-    private func showReset(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, mode: ResetMode? = nil, completion: (() -> Void)? = nil) {
+    private func showReset(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, mode: ResetMode? = nil, completion: (() -> Void)? = nil, dismissed: (() -> Void)? = nil) {
         let root = repository.root, key = root.path + "\0" + (revision.map { $0 + "\0" + UUID().uuidString } ?? "")
         if revision == nil, let existing = resetWindows[key] {
             if let completion { let previous = existing.model.onReset; existing.model.onReset = { output in previous(output); completion() } }
@@ -784,7 +784,7 @@ import TurtleGitCore
         }
         let controller = ResetWindowController(repository: repository, access: access, revision: revision)
         if let mode { controller.model.mode = mode }
-        controller.onClosed = { [weak self] in self?.resetWindows.removeValue(forKey: key) }
+        controller.onClosed = { [weak self] in self?.resetWindows.removeValue(forKey: key); dismissed?() }
         configureResetInteractions(controller, repository: repository, access: access, completion: completion)
         resetWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
@@ -798,8 +798,8 @@ import TurtleGitCore
             self.output = output; Task { await self.refresh() }
         }
         controller.model.onEdit = { [weak self] path in self?.showConflictEditor(repository: repository, access: access, path: path) }
-        controller.model.onSubmoduleReset = { [weak self] child, revision, done in
-            self?.showReset(repository: child, access: access, revision: revision, completion: done)
+        controller.model.onSubmoduleReset = { [weak self, weak controller] child, revision, done in
+            self?.showReset(repository: child, access: access, revision: revision, completion: done, dismissed: { [weak controller] in controller?.model.dismissSubmoduleReset() })
         }
         controller.onCommit = { [weak self] in
             guard let self else { return }

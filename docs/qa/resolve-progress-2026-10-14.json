@@ -1,0 +1,84 @@
+{
+  "date": "2026-10-14",
+  "base": "769d0a86",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Cancellable validation and every Resolve mutation, submodule reset-target read and pre-Trash confirmation boundary",
+    "Shared checked/current/Mine/Theirs streamed bounded progress, completed-path count and raw parent callback",
+    "Owned result Back/Close/Commit, captured auto-close and kill-question policies, action logging",
+    "Cancellable initial/queued refresh and stage-validated base comparison, retirement/lease/Quit lifetime",
+    "Owner/generation-fenced Reset retry and cancelled Reset dismissal"
+  ],
+  "source_references": [
+    "src/TortoiseProc/ResolveDlg.cpp",
+    "src/TortoiseProc/Commands/ResolveCommand.cpp",
+    "src/TortoiseProc/ProgressCommands/ResolveProgressCommand.cpp",
+    "src/Resources/TortoiseProcENG.rc:IDD_RESOLVE"
+  ],
+  "validation": {
+    "initial_debug": {
+      "exit": 65,
+      "log": "build/qa/resolve-progress-debug-2026-10-14.log",
+      "failure": "New error handler shadowed model.error; repaired with self.error"
+    },
+    "initial_core_build": {
+      "exit": 1,
+      "log": "build/qa/resolve-progress-core-2026-10-14.log",
+      "failure": "Same native compile failure; no failed Core behavior assertions"
+    },
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/resolve-progress-debug-repair-2026-10-14.log",
+      "diagnostics": "Existing exit-zero/no-output compiler messages; no clean-diagnostics claim"
+    },
+    "core": {
+      "exit": 0,
+      "tests": 22,
+      "families": [
+        "ResolveProgressTests",
+        "ConflictResolutionTests",
+        "SubmoduleConflictTests"
+      ],
+      "log": "build/qa/resolve-progress-core-repair-2026-10-14.log"
+    },
+    "native": {
+      "exit": 0,
+      "cases": 4,
+      "families": [
+        "resolve-progress",
+        "rebase-conditional"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "owned_receivers_reaped": [
+        7469,
+        7541,
+        7616,
+        7682
+      ],
+      "log": "build/qa/resolve-progress-native-2026-10-14.log",
+      "evidence": [
+        "Live real Git CR/split-UTF8 output before mutation and owned process-group cancellation",
+        "Cancellation before mutation preserves raw index and leaves both conflicts",
+        "One checked current-content resolution leaves other conflict and HEAD unchanged; original raw callback retained",
+        "Forced-close pending quick confirmation settles once; duplicate late affirmative cannot mutate",
+        "Non-cooperative retired reader retains global Quit count through actual settlement and cannot publish rows"
+      ]
+    },
+    "site": {
+      "exit": 0,
+      "documents": 200,
+      "unresolved_fragments": 0,
+      "log": "build/qa/resolve-progress-site-2026-10-14.log"
+    }
+  },
+  "limits": [
+    "Resolution batches remain nontransactional; cancellation/failure can retain earlier index and working-file mutations",
+    "Source still has additional conflict list menus, drag/drop and temporary merge artifact parity work",
+    "No new physical light/dark screenshots, keyboard/VoiceOver or full editor/menu acceptance",
+    "Native Commit button, auto-close/kill preference combinations and submodule Reset/Trash sheet gestures are implemented but not fully exercised by this new receiver; existing relevant Core cases cover actual gitlink/deletion behavior",
+    "No complete hosted CI, signed Finder/sandbox/App Store or whole-port certification"
+  ]
+}

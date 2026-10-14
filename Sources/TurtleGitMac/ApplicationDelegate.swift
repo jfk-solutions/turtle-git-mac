@@ -14,6 +14,7 @@ import AppKit
         if ReferenceLogWindowModel.activeRevisionReads > 0 { return .terminateCancel }
         if WorktreeListWindowModel.activeOperations > 0 || WorktreeCreateWindowModel.activeOperations > 0 { return .terminateCancel }
         if RevisionGraphWindowModel.activeOperations > 0 || RevisionGraphFilterController.activeOperations > 0 { return .terminateCancel }
+        if ResolveWindowModel.activeOperations > 0 || sender.windows.compactMap({ $0.delegate as? ResolveWindowController }).contains(where: { $0.model.hasQuestion || $0.model.hasChild || $0.model.confirmingCancellation || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if IgnoreWindowModel.activeOperations > 0 { return .terminateCancel }
         if AddWindowModel.activeOperations > 0 { return .terminateCancel }
         if CommitWindowModel.activeFileOperations > 0 { return .terminateCancel }

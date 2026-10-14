@@ -40,14 +40,15 @@ extension GitRepository {
         try cancellation?.check()
         return try run(["reset", "--" + plan.mode.rawValue, plan.revision, "--"], cancellation: cancellation, onOutput: onOutput).text
     }
-    public func submoduleResetTarget(_ entry: ConflictEntry, using choice: ResolveChoice) throws -> (URL, String) {
-        guard let current = try conflicts().first(where: { $0.path == entry.path }), current == entry,
+    public func submoduleResetTarget(_ entry: ConflictEntry, using choice: ResolveChoice, cancellation: OperationCancellation? = nil) throws -> (URL, String) {
+        guard let current = try conflicts(cancellation: cancellation).first(where: { $0.path == entry.path }), current == entry,
               let destination = entry.stages.first(where: { $0.number == choice.rawValue }), destination.mode == "160000" else { throw ResolveFailure.stale }
         let url = root.appendingPathComponent(entry.path)
         guard RepositoryAccessLease.pathIsContained(url, by: root), FileManager.default.fileExists(atPath: url.appendingPathComponent(".git").path) else { throw ResolveFailure.outsideWorkingTree }
-        var bytes = try run(["-C", url.path, "rev-parse", "--show-toplevel"]).stdout
+        var bytes = try run(["-C", url.path, "rev-parse", "--show-toplevel"], cancellation: cancellation).stdout
         if bytes.last == 10 { bytes.removeLast() }
         guard URL(fileURLWithPath: String(decoding: bytes, as: UTF8.self), isDirectory: true).standardizedFileURL == url.standardizedFileURL else { throw ResolveFailure.outsideWorkingTree }
+        try cancellation?.check()
         return (url, destination.object)
     }
 }

@@ -89,3 +89,10 @@ extension BisectWindowModel: ActionLogProgress {
     var actionLogFailed: Bool { lastExitCode != 0 }
     var actionLogCancelled: Bool { cancelled }
 }
+
+extension ResolveWindowModel: ActionLogProgress {
+    var actionLogRepository: URL { repository.root }
+    var actionLogEligible: Bool { showingProgress }
+    var actionLogFailed: Bool { !success }
+    var actionLogCancelled: Bool { cancelled }
+}

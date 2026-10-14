@@ -7,57 +7,89 @@ import TurtleGitCore
     var onClosed: () -> Void = {}
     var onChanged: (String) -> Void = { _ in }
     var onCommit: () -> Void = {}
-    init(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], quick: ResolveChoice? = nil) {
-        model = ResolveWindowModel(repository: repository, access: access, paths: paths, quick: quick)
+    private(set) var retired = false
+    private var question: (UUID, NSAlert, (NSApplication.ModalResponse?) -> Void)?
+    var presentQuestion: (NSWindow, NSAlert, @escaping (NSApplication.ModalResponse) -> Void) -> Bool = { owner, alert, reply in
+        guard owner.attachedSheet == nil else { return false }; alert.beginSheetModal(for: owner, completionHandler: reply); return true
+    }
+    init(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], quick: ResolveChoice? = nil, preferences: UserDefaults = .standard) {
+        model = ResolveWindowModel(repository: repository, access: access, paths: paths, quick: quick, preferences: preferences)
         let size = quick == nil ? NSSize(width: 780, height: 450) : NSSize(width: 480, height: 110)
-        let window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: quick == nil ? [.titled, .closable, .miniaturizable, .resizable] : [.titled], backing: .buffered, defer: false)
+        let window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Resolve – TurtleGit"
         window.contentMinSize = quick == nil ? NSSize(width: 660, height: 340) : size
         window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: ResolveDialog(model: model))
         super.init(window: window); window.delegate = self
-
+        window.contentViewController = NSHostingController(rootView: ResolveDialog(model: model, commit: { [weak self] in self?.commit() }).defaultAppStorage(preferences))
         window.setContentSize(size); window.center()
-        model.close = { [weak window] in window?.close() }
+        model.close = { [weak self] in guard let self, !self.retired else { return }; self.window?.performClose(nil) }
         model.confirm = { [weak self] choice, entries in self?.confirm(choice, entries: entries) }
-        model.onChanged = { [weak self] output in self?.onChanged(output) }
-        model.onFinished = { [weak self] count in self?.finished(count) }
-
+        model.onChanged = { [weak self] output in guard let self, !self.retired else { return }; self.onChanged(output) }
+        model.onProgress = { [weak self] in
+            guard let self, !self.retired, let window = self.window else { return }
+            window.contentMinSize = NSSize(width: 660, height: 340)
+            if window.frame.width < 660 || window.contentLayoutRect.height < 340 { window.setContentSize(NSSize(width: 780, height: 450)) }
+        }
+        model.confirmCancellation = { [weak self] reply in
+            Task { let answer = await self?.ask(title: "The process is still running.", message: "Are you sure to abort?", buttons: ["Yes", "No"]); reply(answer == .alertFirstButtonReturn) }
+        }
+        model.confirmSubmoduleDeletion = { [weak self] request in
+            await self?.ask(title: "Delete submodule folder?", message: request.gitError + "\n\nMove “\(request.path)” to Trash to resolve its deletion?", buttons: ["Delete", "Abort"]) == .alertFirstButtonReturn
+        }
         DialogGeometry.attach(window, identifier: quick == nil ? "ResolveDialog" : "QuickResolveDialog", legacyName: "ResolveDialog")
     }
     private func confirm(_ choice: ResolveChoice, entries: [ConflictEntry]) {
-        guard let window else { return }
-        let alert = NSAlert(); alert.alertStyle = .warning
-        alert.messageText = "Are you sure you want to mark the conflicted file(s) as resolved?"
-        alert.informativeText = choice == .current ? "The current working contents will be staged." : "This replaces the selected working contents with index stage \(choice.rawValue). A missing stage resolves the path as deleted."
-        alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No")
-        alert.beginSheetModal(for: window) { [weak model] response in
-            guard let model else { return }
-            if response == .alertFirstButtonReturn { model.apply(entries, using: choice) }
-            else if model.quick != nil { model.close() }
+        let generation = model.generation
+        Task {
+            let message = choice == .current ? "The current working contents will be staged." : "This replaces the selected working contents with index stage \(choice.rawValue). A missing stage resolves the path as deleted."
+            let answer = await ask(title: "Are you sure you want to mark the conflicted file(s) as resolved?", message: message, buttons: ["Yes", "No"])
+            guard !retired, model.generation == generation else { return }
+            if answer == .alertFirstButtonReturn { model.apply(entries, using: choice) } else { model.rejectConfirmation() }
         }
     }
-    private func finished(_ count: Int) {
-        guard let window else { return }
-        let alert = NSAlert(); alert.messageText = "Resolved \(count) files."
-        alert.informativeText = "Reminder: Commit your change after resolve."
-        alert.addButton(withTitle: "OK"); alert.addButton(withTitle: "Commit…")
-        alert.beginSheetModal(for: window) { [weak self] response in
-            guard let self else { return }
-            if self.model.closeAfterResolution || response == .alertSecondButtonReturn { self.close() } else { self.model.load() }
-            if response == .alertSecondButtonReturn { self.onCommit() }
+    private func ask(title: String, message: String, buttons: [String]) async -> NSApplication.ModalResponse? {
+        guard !retired, question == nil, let window, window.attachedSheet == nil else { return nil }
+        let alert = NSAlert(); alert.alertStyle = .warning; alert.messageText = title; alert.informativeText = message
+        buttons.forEach { alert.addButton(withTitle: $0) }
+        let id = UUID(); model.hasQuestion = true
+        return await withCheckedContinuation { continuation in
+            question = (id, alert, { continuation.resume(returning: $0) })
+            if !presentQuestion(window, alert, { [weak self] answer in self?.finishQuestion(id, answer: answer) }) { finishQuestion(id, answer: nil) }
         }
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy }
-    func windowWillClose(_ notification: Notification) { onClosed() }
+    private func finishQuestion(_ id: UUID, answer: NSApplication.ModalResponse?) {
+        guard let pending = question, pending.0 == id else { return }; question = nil; model.hasQuestion = false
+        if pending.1.window.sheetParent === window { window?.endSheet(pending.1.window, returnCode: answer ?? .abort) }
+        pending.1.window.orderOut(nil); pending.2(answer)
+    }
+    func commit() {
+        guard !retired, model.success, !model.busy, !model.hasQuestion, !model.hasChild, !model.confirmingCancellation else { return }
+        let callback = onCommit; model.closeProgress(commit: true); callback()
+    }
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if model.busy { model.cancel(); return false }
+        return !model.hasQuestion && !model.hasChild && !model.confirmingCancellation && sender.attachedSheet == nil
+    }
+    func windowWillClose(_ notification: Notification) {
+        guard !retired else { return }; retired = true; model.invalidate()
+        if let pending = question { finishQuestion(pending.0, answer: nil) }
+        onClosed()
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
 @MainActor final class ResolveWindowModel: ObservableObject {
+    static private(set) var activeOperations = 0
     let repository: GitRepository
     private let access: RepositoryAccessLease?
+    let preferences: UserDefaults
     let quick: ResolveChoice?
     let paths: [String]
+    private(set) var active = true
+    private(set) var generation = UUID()
+    private var cancellation: OperationCancellation?
+    private var refreshCancellation: OperationCancellation?
+    private var loaded = false, reloadQueued = false
     @Published var entries: [ConflictEntry] = []
     @Published var checked = Set<String>()
     @Published var selection = Set<String>()
@@ -65,74 +97,191 @@ import TurtleGitCore
     @Published var busy = false
     @Published var error: String?
     @Published var patch: String?
-    private var loaded = false
+    @Published private(set) var showingProgress = false
+    @Published private(set) var output = ""
+    @Published private(set) var currentWork = ""
+    @Published private(set) var percentage: Int?
+    @Published private(set) var resolvedCount = 0
+    @Published private(set) var success = false
+    @Published private(set) var cancelled = false
+    @Published private(set) var cancelling = false
+    @Published private(set) var confirmingCancellation = false
+    @Published var hasQuestion = false
+    @Published var hasChild = false
+    private var autoClosePolicy: GitProgressAutoClose?
+    private var pendingResolution: (UUID, [ConflictEntry], ResolveChoice)?
     var closeAfterResolution = true
     var close: () -> Void = {}
     var confirm: (ResolveChoice, [ConflictEntry]) -> Void = { _, _ in }
+    var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
+    var confirmSubmoduleDeletion: @Sendable (SubmoduleDeletionRequest) async -> Bool = { request in await ConflictPrompts.deleteSubmodule(request) }
     var onChanged: (String) -> Void = { _ in }
     var onFinished: (Int) -> Void = { _ in }
+    var onProgress: () -> Void = {}
     var onEdit: (String) -> Void = { _ in }
     var onSubmoduleReset: (GitRepository, String, @escaping () -> Void) -> Void = { _, _, _ in }
-    init(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], quick: ResolveChoice?) {
-        self.repository = repository; self.access = access; self.paths = paths; self.quick = quick
+    var readConflicts: ((OperationCancellation) async throws -> ([ConflictEntry], Bool))?
+    var executeResolution: (([ConflictEntry], ResolveChoice, OperationCancellation, @escaping @Sendable (GitOutputChunk) -> Void, @escaping @Sendable (ConflictResolutionProgress) -> Void) async throws -> String)?
+    var canInteract: Bool { active && !busy && !showingProgress && !hasQuestion && !hasChild }
+    var canCancel: Bool { active && busy && !cancelling && !confirmingCancellation && !hasQuestion && !hasChild }
+    init(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], quick: ResolveChoice?, preferences: UserDefaults = .standard) {
+        self.repository = repository; self.access = access; self.paths = paths; self.quick = quick; self.preferences = preferences
     }
-    func load() {
-        guard !busy else { return }; busy = true
-        Task {
-            defer { busy = false }
-            do {
-                let next = try await repository.conflicts(paths: paths)
-                entries = next; rebase = try await repository.conflictIsRebase()
-                let available = Set(next.map(\.path))
-                checked = loaded ? checked.intersection(available) : available; loaded = true
-                selection.formIntersection(available)
-                if let quick {
-                    guard !next.isEmpty else { throw ResolveFailure.stale }
-                    confirm(quick, next)
-                }
-            } catch { self.error = error.localizedDescription }
+    func invalidate() {
+        if busy { cancelled = true }; saveActionLog(); active = false; generation = UUID(); cancellation?.cancel(); refreshCancellation?.cancel(); pendingResolution = nil; reloadQueued = false; patch = nil
+    }
+    private func begin() -> OperationCancellation {
+        let token = OperationCancellation(); cancellation = token; generation = UUID(); busy = true; error = nil
+        Self.activeOperations += 1; return token
+    }
+    private func live(_ token: OperationCancellation) -> Bool { active && cancellation === token }
+    private func finish(_ token: OperationCancellation) {
+        Self.activeOperations -= 1
+        if cancellation === token {
+            cancellation = nil; busy = false; cancelling = false; currentWork = ""; percentage = nil
+            finishAutomaticClose()
+            if active, reloadQueued, !showingProgress, !hasChild, !hasQuestion { reloadQueued = false; load() }
         }
     }
-    func resolveChecked() { closeAfterResolution = true; apply(entries.filter { checked.contains($0.path) }, using: .current) }
+    private func checkAccess() throws {
+        if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+    }
+    private func refresh(_ token: OperationCancellation) async throws {
+        try checkAccess()
+        let next: ([ConflictEntry], Bool)
+        if let readConflicts { next = try await readConflicts(token) }
+        else { next = try await (repository.conflicts(paths: paths, cancellation: token), repository.conflictIsRebase(cancellation: token)) }
+        try token.check(); guard live(token) else { return }
+        let available = Set(next.0.map(\.path)); entries = next.0; rebase = next.1
+        checked = loaded ? checked.intersection(available) : available; loaded = true; selection.formIntersection(available)
+    }
+    func load() {
+        guard active else { return }
+        if busy || hasQuestion || hasChild || showingProgress { reloadQueued = true; return }
+        let token = begin()
+        Task {
+            defer { finish(token); withExtendedLifetime(access) {} }
+            do {
+                try await refresh(token); guard live(token), !token.isCancelled else { return }
+                if let quick { guard !entries.isEmpty else { throw ResolveFailure.stale }; busy = false; request(quick, ids: Set(entries.map(\.path))) }
+            } catch { if live(token), !token.isCancelled { self.error = error.localizedDescription } }
+        }
+    }
+    func resolveChecked() { guard canInteract else { return }; closeAfterResolution = true; apply(entries.filter { checked.contains($0.path) }, using: .current) }
     func request(_ choice: ResolveChoice, ids: Set<String>) {
         let selected = entries.filter { ids.contains($0.path) }
-        guard !busy, !selected.isEmpty else { return }; closeAfterResolution = false; confirm(choice, selected)
+        guard canInteract, !selected.isEmpty else { return }
+        closeAfterResolution = false; pendingResolution = (generation, selected, choice); confirm(choice, selected)
     }
+    func rejectConfirmation() { pendingResolution = nil; if quick != nil { close() } else if reloadQueued { reloadQueued = false; load() } }
     func apply(_ selected: [ConflictEntry], using choice: ResolveChoice) {
-        guard !busy else { return }
-        do {
-            guard !selected.isEmpty else { throw ResolveFailure.selection }
-            if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-            busy = true
-            Task {
-                defer { busy = false }
+        guard active, !busy, !hasQuestion, !hasChild else { return }
+        if let pendingResolution {
+            guard pendingResolution.0 == generation, pendingResolution.1 == selected, pendingResolution.2 == choice else { return }
+        }
+        pendingResolution = nil
+        do { guard !selected.isEmpty else { throw ResolveFailure.selection }; try checkAccess() }
+        catch { self.error = error.localizedDescription; return }
+        ProgressActionLog.nextAttempt(self, savePrevious: showingProgress)
+        let token = begin(); showingProgress = true; output = ""; success = false; cancelled = false; resolvedCount = 0; patch = nil
+        autoClosePolicy = GitProgressAutoClose(preferences: preferences)
+        onProgress(); LocalGitCommandProgress.begin()
+        Task {
+            defer { LocalGitCommandProgress.end(); finish(token); withExtendedLifetime(access) {} }
+            do {
+                let progress: @Sendable (ConflictResolutionProgress) -> Void = { [weak self] event in
+                    Task { @MainActor in
+                        guard let self, self.live(token) else { return }
+                        self.resolvedCount = max(self.resolvedCount, event.completed)
+                        if self.busy { self.currentWork = event.path; self.percentage = event.total > 0 ? event.completed * 100 / event.total : nil }
+                    }
+                }
+                let text = try await LocalGitCommandProgress.stream(preferences: preferences, update: { [weak self] state in
+                    guard let self, self.live(token) else { return }; self.output = state.output
+                }, resultText: { $0 }) { [self] emit in
+                    if let executeResolution { return try await executeResolution(selected, choice, token, emit, progress) }
+                    return try await repository.resolveConflicts(selected, using: choice, confirmSubmoduleDeletion: confirmSubmoduleDeletion, cancellation: token, onOutput: emit, onProgress: progress)
+                }
+                guard live(token) else { return }
+                resolvedCount = selected.count
+                // A cancellation arriving after Git settled must still refresh the
+                // actual index, while suppressing success/Commit post actions.
+                if token.isCancelled { cancelled = true } else { success = true }
+                onChanged(text); if success { onFinished(selected.count) }
+            } catch ResolveFailure.submoduleCheckout(let path) {
+                guard live(token), !token.isCancelled else { return }
                 do {
-                    let output = try await repository.resolveConflicts(selected, using: choice, confirmSubmoduleDeletion: { request in await ConflictPrompts.deleteSubmodule(request) })
-                    onChanged(output); onFinished(selected.count)
-                } catch ResolveFailure.cancelled {
-                    onChanged(ResolveFailure.cancelled.localizedDescription)
-                    Task { @MainActor [weak self] in self?.load() }
-                } catch ResolveFailure.submoduleCheckout(let path) {
-                    do {
-                        guard let entry = selected.first(where: { $0.path == path }) else { throw ResolveFailure.stale }
-                        let (root, revision) = try await repository.submoduleResetTarget(entry, using: choice)
-                        busy = false
-                        onSubmoduleReset(GitRepository(root: root, executable: repository.executable), revision) { [weak self] in self?.apply(selected, using: choice) }
-                    } catch { self.error = error.localizedDescription }
-                } catch { self.error = error.localizedDescription; onChanged(error.localizedDescription) }
+                    guard let entry = selected.first(where: { $0.path == path }) else { throw ResolveFailure.stale }
+                    let (root, revision) = try await repository.submoduleResetTarget(entry, using: choice, cancellation: token)
+                    guard live(token), !token.isCancelled else { return }
+                    // The retry retains the original stages and is fenced to this
+                    // owner; closing/reloading cannot revive an old reset callback.
+                    let ownerGeneration = generation; hasChild = true
+                    onSubmoduleReset(GitRepository(root: root, executable: repository.executable), revision) { [weak self] in
+                        guard let self, self.active, self.generation == ownerGeneration, self.hasChild, !self.busy else { return }
+                        self.hasChild = false; self.apply(selected, using: choice)
+                    }
+                } catch { if live(token) { output = LocalGitCommandProgress.failure(error, existing: output, preferences: preferences) } }
+            } catch {
+                guard live(token) else { return }
+                cancelled = token.isCancelled || error is OperationCancellationFailure || error is GitCommandCancellationFailure || (error as? ResolveFailure).map { if case .cancelled = $0 { return true }; return false } == true
+                output = LocalGitCommandProgress.failure(error, existing: output, preferences: preferences)
+                if cancelled { output = LocalGitCommandProgress.bounded(output + "\nResolution aborted. Earlier resolved items remain resolved.", preferences: preferences) }
+                onChanged(output)
             }
-        } catch { self.error = error.localizedDescription }
+            // Use a fresh read token after cancellation; retain ownership/count
+            // until the refreshed conflict list has settled, including failures.
+            guard live(token), !hasChild else { return }
+            let refreshToken = OperationCancellation(); refreshCancellation = refreshToken
+            defer { if refreshCancellation === refreshToken { refreshCancellation = nil } }
+            do {
+                let next = try await repository.conflicts(paths: paths, cancellation: refreshToken)
+                guard live(token) else { return }
+                let available = Set(next.map(\.path)); entries = next; checked.formIntersection(available); selection.formIntersection(available); reloadQueued = false
+            } catch { if live(token) { output = LocalGitCommandProgress.bounded(output + "\nRefresh failed: " + error.localizedDescription, preferences: preferences) } }
+            if live(token), token.isCancelled { cancelled = true; success = false }
+        }
     }
+    func cancel() {
+        guard canCancel, let token = cancellation else { return }
+        if !showingProgress || !preferences.bool(forKey: "ConfirmKillProcess") { cancelling = true; token.cancel(); refreshCancellation?.cancel(); return }
+        confirmingCancellation = true; var answered = false
+        confirmCancellation { [weak self] accepted in
+            guard !answered, let self, self.active else { return }; answered = true; self.confirmingCancellation = false
+            if accepted, self.busy, self.cancellation === token { self.cancelling = true; token.cancel(); self.refreshCancellation?.cancel() }
+            self.finishAutomaticClose()
+        }
+    }
+    private func finishAutomaticClose() {
+        guard active, showingProgress, !busy, !hasQuestion, !hasChild, !confirmingCancellation, success, !cancelled,
+              autoClosePolicy?.shouldClose(success: true, postActionCount: 1) == true else { return }
+        closeProgress()
+    }
+    func closeProgress(commit: Bool = false) {
+        guard active, !busy, !confirmingCancellation, !hasQuestion, !hasChild else { return }
+        saveActionLog()
+        if commit || quick != nil || (success && closeAfterResolution) { close() }
+        else { showingProgress = false; load() }
+    }
+    func dismissSubmoduleReset() { guard active, hasChild, !busy else { return }; hasChild = false; showingProgress = false; load() }
     func editOrCompare(_ ids: Set<String>) {
+        guard canInteract else { return }
         if ids.count == 1, let entry = entries.first(where: { ids.contains($0.id) }) { onEdit(entry.path) }
         else { compare(ids) }
     }
     func compare(_ ids: Set<String>) {
-        guard !busy, !ids.isEmpty else { return }; busy = true
+        guard canInteract, !ids.isEmpty else { return }
+        let selected = entries.filter { ids.contains($0.path) }; guard !selected.isEmpty else { return }
+        let token = begin()
         Task {
-            defer { busy = false }
-            do { patch = try await repository.run(["diff", "--no-ext-diff", "--no-color", "--base", "--"] + entries.filter { ids.contains($0.path) }.map(\.path)).text }
-            catch { self.error = error.localizedDescription }
+            defer { finish(token); withExtendedLifetime(access) {} }
+            do {
+                let fresh = try await repository.conflicts(paths: selected.map(\.path), cancellation: token)
+                guard fresh == selected else { throw ResolveFailure.stale }
+                let text = try await repository.run(["diff", "--no-ext-diff", "--no-textconv", "--no-color", "--base", "--"] + selected.map(\.path), cancellation: token).text
+                guard try await repository.conflicts(paths: selected.map(\.path), cancellation: token) == selected else { throw ResolveFailure.stale }
+                guard live(token), !token.isCancelled else { return }; patch = text
+            } catch { if live(token), !token.isCancelled { self.error = error.localizedDescription } }
         }
     }
 }
@@ -140,9 +289,26 @@ import TurtleGitCore
 private struct ResolveDialog: View {
     @ObservedObject private var statusColorUpdates = StatusColorUpdates.shared
     @ObservedObject var model: ResolveWindowModel
+    let commit: () -> Void
     var body: some View {
         Group {
-            if model.quick != nil {
+            if model.showingProgress {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(model.busy ? "Resolving selected conflicts…" : model.success ? "Resolved \(model.resolvedCount) files." : model.cancelled ? "Resolution aborted. Earlier resolved items remain resolved." : "Resolution failed.").font(.headline)
+                    SubmoduleProgressOutputView(text: model.output, completed: !model.busy, success: model.success, preferences: model.preferences)
+                    Text("Reminder: Commit your change after resolve").font(.caption).foregroundStyle(.secondary)
+                    HStack {
+                        if model.busy { LocalGitProgressIndicator(percentage: model.percentage); Text(model.cancelling ? "Cancelling…" : model.currentWork).font(.caption) }
+                        Spacer()
+                        if model.busy { Button("Cancel") { model.cancel() }.disabled(!model.canCancel) }
+                        else if model.hasChild { Button("Back") { model.dismissSubmoduleReset() } }
+                        else {
+                            if model.success { Button { commit() } label: { CommandLabel(title: "Commit…", icon: .commit) } }
+                            Button(model.quick == nil && (!model.success || !model.closeAfterResolution) ? "Back" : "Close") { model.closeProgress() }.keyboardShortcut(.defaultAction).disabled(model.hasQuestion || model.confirmingCancellation)
+                        }
+                    }
+                }.padding(16)
+            } else if model.quick != nil {
                 HStack(spacing: 16) { ProgressView().controlSize(.small); Text(model.busy ? "Resolving selected conflicts…" : "Review the selected resolution.") }.padding(20)
             } else {
                 VStack(alignment: .leading, spacing: 12) {
@@ -153,28 +319,28 @@ private struct ResolveDialog: View {
                         TableColumn("Path") { entry in HStack { Image(nsImage: FileState.conflicted.icon.image() ?? NSImage()); Text(entry.path).foregroundStyle(FileState.conflicted.textColor) } }.width(min: 260, ideal: 440)
                         TableColumn("Extension") { Text(($0.path as NSString).pathExtension) }.width(70)
                         TableColumn("Status") { _ in Text("Conflicted").foregroundStyle(FileState.conflicted.textColor) }.width(95)
-                    }.fileListFont().contextMenu(forSelectionType: String.self) { ids in
+                    }.disabled(!model.canInteract).fileListFont().contextMenu(forSelectionType: String.self) { ids in
                         TurtleGitContextMenu {
                             Button { model.compare(ids) } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(ids.isEmpty)
                             Divider()
                             ResolveSelectionMenu(paths: Array(ids), rebase: model.rebase, canEdit: ids.count == 1 && model.entries.contains(where: { ids.contains($0.id) })) { action, paths in
-                                if action == .editConflict, let path = paths.first { model.onEdit(path) } else { model.request(action.resolveChoice ?? .current, ids: Set(paths)) }
+                                if action == .editConflict, let path = paths.first { model.editOrCompare(Set(paths)) } else { model.request(action.resolveChoice ?? .current, ids: Set(paths)) }
                             }
                         }
                     } primaryAction: { ids in model.editOrCompare(ids) }
                     HStack {
-                        SelectionAllCheckbox(checked: model.checked.count, total: model.entries.count, checkedCount: { model.checked.count }) { model.checked = $0 ? Set(model.entries.map(\.path)) : [] }.fixedSize()
+                        SelectionAllCheckbox(checked: model.checked.count, total: model.entries.count, checkedCount: { model.checked.count }) { model.checked = $0 ? Set(model.entries.map(\.path)) : [] }.fixedSize().disabled(!model.canInteract)
                         Spacer()
                         Text("Reminder: Commit your change after resolve").font(.caption).foregroundStyle(.secondary)
                     }
                     HStack {
                         if model.busy { ProgressView().controlSize(.small) }
                         Spacer()
-                        Button("OK") { model.resolveChecked() }.disabled(model.checked.isEmpty).keyboardShortcut(.defaultAction)
-                        Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction)
+                        Button("OK") { model.resolveChecked() }.disabled(model.checked.isEmpty || !model.canInteract).keyboardShortcut(.defaultAction)
+                        Button(model.busy ? "Cancel read" : "Cancel") { if model.busy { model.cancel() } else { model.close() } }.keyboardShortcut(.cancelAction)
                         Button { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-resolve.html")!) } label: { CommandLabel(title: "Help", icon: .help) }
                     }
-                }.padding(12).disabled(model.busy)
+                }.padding(12)
                 .background(Button("") { model.load() }.keyboardShortcut(KeyEquivalent("\u{f708}"), modifiers: []).hidden())
             }
         }.onAppear { model.load() }

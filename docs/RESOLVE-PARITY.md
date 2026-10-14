@@ -15,7 +15,7 @@ The original menuresolve.ico is bundled with source/hash provenance.
 OK stages only checked paths using their current working contents. Context menus
 also offer Resolved, Resolve using mine and Resolve using theirs. Context actions
 ask Yes/No before execution; normal OK follows the upstream checked-list flow.
-Success reports the resolved count and offers Commit. No operation automatically
+Success now reports the resolved count in the owned progress view and offers Commit. No operation automatically
 commits or continues a merge, rebase or cherry-pick.
 
 Mine uses actual index stage 2 and theirs uses stage 3. During rebase the menu
@@ -62,7 +62,7 @@ claimed. The actual native capture is site/assets/resolve.png (1560 × 964).
 ## Remaining parity
 
 Full three-way merge integration, remaining submodule chooser cases, upstream status-list menu coverage, drag/drop, temporary merge artifact
-ownership and cleanup, progress cancellation/error continuation, branch identity
+ownership and cleanup, remaining batch/error variants, branch identity
 labels, broader native side-choice execution, stale
 refresh/retry, Commit handoff, dark-mode/keyboard/Help QA, parent restoration,
 signed Finder and sandbox runtime remain pending. Double-click now opens the native delete/modify chooser for a single ordinary
@@ -82,3 +82,36 @@ Git, including consecutive activations and disabled activation.
 Selection-only checks preserve the raw index; they do not establish additional
 resolution operation or physical input coverage. See
 [shared checkbox QA](qa/lfs-tristate-2026-10-08.json).
+
+## Resolve progress and ownership batch — 14 October 2026
+
+Checked OK and quick/current/Mine/Theirs resolution now use the same owned
+progress view, with streamed Git output and resolved-path notifications even
+when Git is silent. The visible log uses the shared bounded UTF-8/CR parser and
+native colored, selectable/copyable output; parent callbacks retain original
+command output. The completed-path count and current path update during a batch.
+There is no automatic commit, replay Continue or rollback of earlier resolutions.
+
+Cancellation is carried through initial/all-item validation, every owned Git
+command, per-item boundaries, submodule reset-target reads and the Delete/Abort
+confirmation before a recoverable Trash move. Cancel optionally uses the captured
+Confirm Kill Process preference. A settled command cannot be cancelled by a late
+answer; duplicate sheet replies cannot resume twice. Cancel and errors refresh
+the actual conflict list, retaining earlier resolutions and remaining checks.
+Back returns to the checked list after failure/context actions. Success offers
+Commit and closes Resolve before invoking its caller. The source auto-close
+policy is captured per attempt; Commit counts as an available post-action.
+
+Initial refresh and base comparison now own cancellable reads, repository access
+and Quit counters through settlement. Base comparison validates captured stages
+before and after the no-ext-diff/no-textconv read. Refresh requests during work
+are coalesced. Retirement cancels owned work and settles its question once;
+late rows, prompts, errors and handoffs cannot revive a retired Resolve owner.
+Submodule Reset retries retain the captured stages and owner generation. Closing
+a cancelled Reset returns Resolve to its list without applying a resolution.
+
+Validation evidence is recorded in
+[the Resolve progress QA record](qa/resolve-progress-2026-10-14.json).
+Physical controls, full conflict-editor/menu parity, drag/drop, temporary merge
+artifacts and signed Finder/App Store execution remain open. This is a connected
+workflow batch, not complete Resolve or whole-app certification.

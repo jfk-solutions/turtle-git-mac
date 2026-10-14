@@ -12,6 +12,12 @@ public struct ConflictEntry: Identifiable, Hashable, Sendable {
     public var isSubmodule: Bool { stages.contains { $0.mode == "160000" } }
     public var isDeleteModify: Bool { !isSubmodule && stages.contains(where: { $0.number == 2 }) != stages.contains(where: { $0.number == 3 }) }
 }
+public struct ConflictResolutionProgress: Sendable {
+    public let path: String
+    public let completed: Int
+    public let total: Int
+    public let finished: Bool
+}
 public enum ResolveChoice: Int, Sendable { case current = 0, mine = 2, theirs = 3 }
 public enum ResolveFailure: LocalizedError {
     case selection, outsideWorkingTree, stale, indexFormat, cancelled, submoduleCheckout(String)
@@ -104,15 +110,18 @@ extension GitRepository {
     /// Capture stages when populating the dialog and revalidate all checked rows
     /// before mutation. Resolving records the index result; it does not commit or
     /// continue a merge/rebase/cherry-pick automatically.
-    public func resolveConflicts(_ checked: [ConflictEntry], using choice: ResolveChoice, confirmSubmoduleDeletion: (@Sendable (SubmoduleDeletionRequest) async -> Bool)? = nil) async throws -> String {
-        try validateConflicts(checked, using: choice)
+    public func resolveConflicts(_ checked: [ConflictEntry], using choice: ResolveChoice, confirmSubmoduleDeletion: (@Sendable (SubmoduleDeletionRequest) async -> Bool)? = nil, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, onProgress: (@Sendable (ConflictResolutionProgress) -> Void)? = nil) async throws -> String {
+        try cancellation?.check()
+        try validateConflicts(checked, using: choice, cancellation: cancellation)
         var output: [String] = []
-        for entry in checked {
+        for (index, entry) in checked.enumerated() {
+            try cancellation?.check()
+            onProgress?(ConflictResolutionProgress(path: entry.path, completed: index, total: checked.count, finished: false))
             // Confirmation suspends this actor. Recheck every remaining item after
             // resumption, including the original index stages and path containment.
-            try validateConflicts([entry], using: choice)
+            try validateConflicts([entry], using: choice, cancellation: cancellation)
             if choice == .current {
-                output.append(try run(["add", "-f", "--", entry.path]).text)
+                output.append(try run(["add", "-f", "--", entry.path], cancellation: cancellation, onOutput: onOutput).text)
             } else if let destination = entry.stages.first(where: { $0.number == choice.rawValue }) {
                 if destination.mode == "160000" {
                     let location = root.appendingPathComponent(entry.path)
@@ -120,17 +129,18 @@ extension GitRepository {
                     if !FileManager.default.fileExists(atPath: location.path, isDirectory: &directory) || !directory.boolValue {
                         // Upstream checks out an uninitialized gitlink first. This
                         // replaces a conflicting file with the submodule directory.
-                        output.append(try run(["checkout-index", "-f", "--stage=" + String(choice.rawValue), "--", entry.path]).text)
+                        output.append(try run(["checkout-index", "-f", "--stage=" + String(choice.rawValue), "--", entry.path], cancellation: cancellation, onOutput: onOutput).text)
                     }
-                    output.append(try run(["update-index", "--replace", "--cacheinfo", "160000," + destination.object + "," + entry.path]).text)
+                    output.append(try run(["update-index", "--replace", "--cacheinfo", "160000," + destination.object + "," + entry.path], cancellation: cancellation, onOutput: onOutput).text)
                 } else {
-                    output.append(try run(["checkout-index", "-f", "--stage=" + String(choice.rawValue), "--", entry.path]).text)
-                    output.append(try run(["add", "-f", "--", entry.path]).text)
+                    output.append(try run(["checkout-index", "-f", "--stage=" + String(choice.rawValue), "--", entry.path], cancellation: cancellation, onOutput: onOutput).text)
+                    output.append(try run(["add", "-f", "--", entry.path], cancellation: cancellation, onOutput: onOutput).text)
                 }
             } else {
                 // A missing selected stage means that side deleted the path.
-                do { output.append(try run(["rm", "-f", "--", entry.path]).text) }
+                do { output.append(try run(["rm", "-f", "--", entry.path], cancellation: cancellation, onOutput: onOutput).text) }
                 catch let failure as GitFailure {
+                    try cancellation?.check()
                     let location = root.appendingPathComponent(entry.path)
                     var directory: ObjCBool = false
                     guard entry.isSubmodule,
@@ -138,23 +148,29 @@ extension GitRepository {
                           !(try FileManager.default.contentsOfDirectory(atPath: location.path)).isEmpty,
                           let confirmSubmoduleDeletion else { throw failure }
                     let request = SubmoduleDeletionRequest(path: entry.path, location: location, gitError: failure.localizedDescription)
-                    guard await confirmSubmoduleDeletion(request) else { throw ResolveFailure.cancelled }
-                    try validateConflicts([entry], using: choice)
+                    let accepted = await confirmSubmoduleDeletion(request)
+                    try cancellation?.check()
+                    guard accepted else { throw ResolveFailure.cancelled }
+                    try validateConflicts([entry], using: choice, cancellation: cancellation)
                     // Move the complete checkout (including its .git directory) to
                     // macOS Trash, matching upstream's recycle-bin deletion.
                     guard (try FileManager.default.attributesOfItem(atPath: location.path)[.type]) as? FileAttributeType == .typeDirectory else { throw ResolveFailure.stale }
                     #if os(macOS)
                     var trashed: NSURL?
+                    try cancellation?.check()
                     try FileManager.default.trashItem(at: location, resultingItemURL: &trashed)
                     if let path = trashed?.path { output.append("Moved to Trash: " + path) }
-                    do { output.append(try run(["rm", "-f", "--", entry.path]).text) }
+                    do { output.append(try run(["rm", "-f", "--", entry.path], cancellation: cancellation, onOutput: onOutput).text) }
                     catch { throw SubmoduleDeletionFailure(path: entry.path, trashedLocation: trashed as URL?, gitError: error.localizedDescription) }
                     #else
                     throw failure
                     #endif
                 }
             }
-            output.append("Resolved: " + entry.path)
+            let resolved = "Resolved: " + entry.path
+            output.append(resolved)
+            onOutput?(GitOutputChunk(stream: .stdout, data: Data((resolved + "\n").utf8)))
+            onProgress?(ConflictResolutionProgress(path: entry.path, completed: index + 1, total: checked.count, finished: true))
         }
         return output.filter { !$0.isEmpty }.joined(separator: "\n")
     }
@@ -162,19 +178,20 @@ extension GitRepository {
         guard !checked.isEmpty, Set(checked.map(\.path)).count == checked.count else { throw ResolveFailure.selection }
         let current = Dictionary(try conflicts(cancellation: cancellation).map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
         for entry in checked {
+            try cancellation?.check()
             do { _ = try RemovalRequest(paths: [entry.path], keepLocal: true) } catch { throw ResolveFailure.outsideWorkingTree }
             guard current[entry.path] == entry else { throw ResolveFailure.stale }
             let parent = root.appendingPathComponent(entry.path).deletingLastPathComponent()
             guard RepositoryAccessLease.pathIsContained(parent, by: root) else { throw ResolveFailure.outsideWorkingTree }
             let existing = try CloneOptions.workingDirectory(for: parent)
-            var bytes = try run(["-C", existing.path, "rev-parse", "--show-toplevel"]).stdout
+            var bytes = try run(["-C", existing.path, "rev-parse", "--show-toplevel"], cancellation: cancellation).stdout
             if bytes.last == 10 { bytes.removeLast() }
             guard URL(fileURLWithPath: String(decoding: bytes, as: UTF8.self), isDirectory: true).standardizedFileURL == root else { throw ResolveFailure.outsideWorkingTree }
             if entry.isSubmodule && !RepositoryAccessLease.pathIsContained(root.appendingPathComponent(entry.path), by: root) { throw ResolveFailure.outsideWorkingTree }
             if let destination = entry.stages.first(where: { $0.number == choice.rawValue }), destination.mode == "160000" {
                 let url = root.appendingPathComponent(entry.path)
                 if FileManager.default.fileExists(atPath: url.appendingPathComponent(".git").path) {
-                    let head = try run(["-C", url.path, "rev-parse", "--verify", "HEAD"]).text.trimmingCharacters(in: .newlines)
+                    let head = try run(["-C", url.path, "rev-parse", "--verify", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
                     guard head == destination.object else { throw ResolveFailure.submoduleCheckout(entry.path) }
                 }
             }
