@@ -10,6 +10,81 @@ import TurtleGitCore
     }
     @MainActor static func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
     @MainActor static func main() async { do { try await verify() } catch { fputs("Replay file menu failed: \(error)\n",stderr);exit(1) } }
+    struct PrivateBookmarks:RepositoryBookmarkProvider {
+        func create(for url:URL) throws -> Data {Data(url.path.utf8)}
+        func resolve(_ data:Data) throws -> ResolvedBookmark {ResolvedBookmark(url:URL(fileURLWithPath:String(decoding:data,as:UTF8.self)),stale:false)}
+        func startAccessing(_ url:URL)->Bool {true}
+        func stopAccessing(_ url:URL) {}
+    }
+    @MainActor static func verifyComparisons(owner:RebaseWindowController,repo:GitRepository,root:URL,path:String,clean:String,prefs:UserDefaults) async throws {
+        let model=owner.model,window=owner.window!,git=URL(fileURLWithPath:CommandLine.arguments[2])
+        let all=model.conflictFileMenu([path,clean]);var externalChoice:Bool?
+        owner.openConflictUnifiedExternal={_,alternate,_ in externalChoice=alternate;return false}
+        model.showConflictUnified(all,alternate:true)
+        try await wait {!model.busy && RebaseWindowModel.activePreparationReads==0 && owner.conflictUnifiedWindows.count==1}
+        var expected=Data()
+        for row in all.rows {expected.append(try await repo.run(["diff","--no-ext-diff","--no-textconv","--no-color",all.head,"--",row.path]+(row.originalPath.map {[$0]} ?? [])).stdout)}
+        let viewer=owner.conflictUnifiedWindows.values.first!
+        try require(externalChoice==true && viewer.model.readOnly && viewer.model.exportDocument.bytes==expected,"Unified diff lost selected order/raw bytes/Shift")
+        viewer.model.busy=true;try require(!owner.windowShouldClose(window),"Parent closed while unified child was busy");viewer.model.busy=false
+        viewer.close();try await wait {owner.conflictUnifiedWindows.isEmpty}
+        let workspace=RepositoryModel(startMonitoring:false,initializePreferences:false);workspace.fileComparisonPreferences=prefs
+        var opened:[String]=[],choices:[Bool]=[]
+        workspace.fileComparisonPresentation={_,file in opened.append(file.path);choices.append(ComparisonToolInvocation.capture)}
+        var mixed:([String],Bool)?
+        model.onConflictWorkingComparison={paths,amend in mixed=(paths,amend);workspace.showWorkingFiles(repository:repo,access:nil,paths:paths,amendToParent:amend,owner:window)}
+        ComparisonToolInvocation.$alternate.withValue(true) {model.compareConflictMenu(all)}
+        model.selectedConflicts=[clean]
+        try await wait {!model.busy && !workspace.busy && RebaseWindowModel.activePreparationReads==0 && FileListComparisonSession.activeOperations==0}
+        try require(mixed?.0==all.paths && mixed?.1==false && Set(opened)==Set([path,clean]) && choices.allSatisfy {$0},"Mixed comparison dropped rows or Shift")
+        model.markConflictForComparison(model.conflictFileMenu([clean]));try await wait {!model.busy}
+        let captured=model.conflictFileMenu([path]);try require(captured.comparisonMark?.path==clean,"Local comparison mark was not captured")
+        model.markConflictForComparison(model.conflictFileMenu([path]));try await wait {!model.busy}
+        opened=[];choices=[];var prepared:(PreparedFileComparisonMark,PreparedFileComparisonMark,Bool)?
+        model.onConflictPreparedComparison={marked,current in
+            prepared=(marked,current,ComparisonToolInvocation.capture)
+            if marked.workingAccess==nil {workspace.showPreparedFileComparison(repository:repo,access:nil,marked:marked,current:current,owner:window)}
+        }
+        model.compareConflictWithMarked(captured,alternate:true)
+        try await wait {!model.busy && !workspace.busy && RebaseWindowModel.activePreparationReads==0 && FileListComparisonSession.activeOperations==0}
+        try require(prepared?.0.path==clean && prepared?.1.path==path && prepared?.2==true && opened==[path] && choices==[true],"Captured local mark comparison followed a new mark")
+        let external=root.appendingPathComponent("external-mark.txt");try Data("external marked bytes\n".utf8).write(to:external)
+        let bookmarks=PrivateBookmarks(),grant=RepositoryAccessLease(url:root,provider:bookmarks)
+        let store=WorkingComparisonMarkStore(storageURL:root.appendingPathComponent("private-mark.json"),provider:bookmarks)
+        _ = try store.remember(file:external,permission:grant);let access=try store.acquire()
+        model.importConflictComparisonMark(access);let imported=model.conflictFileMenu([path])
+        model.markConflictForComparison(model.conflictFileMenu([clean]));try await wait {!model.busy};model.importConflictComparisonMark(access)
+        try require(model.conflictComparisonMark?.path==clean,"Repeated Finder mark overwrote local choice")
+        model.compareConflictWithMarked(imported,alternate:false);try await wait {!model.busy}
+        try require(prepared?.0.workingAccess?.mark.id==access.mark.id && prepared?.1.path==path && prepared?.2==false,"Imported mark lost captured permission/endpoint")
+        // Real initialized working gitlink history, without advancing the parent.
+        let index=root.appendingPathComponent(".git/index"),savedIndex=try Data(contentsOf:index),mode=try FileManager.default.attributesOfItem(atPath:index.path)[.posixPermissions]!
+        let modulePath="module",moduleRoot=root.appendingPathComponent(modulePath),modules=root.appendingPathComponent(".gitmodules")
+        try require(!FileManager.default.fileExists(atPath:moduleRoot.path) && !FileManager.default.fileExists(atPath:modules.path),"Submodule fixture target already exists")
+        try FileManager.default.createDirectory(at:moduleRoot,withIntermediateDirectories:true)
+        defer {try? savedIndex.write(to:index,options:.atomic);try? FileManager.default.setAttributes([.posixPermissions:mode],ofItemAtPath:index.path);try? FileManager.default.removeItem(at:moduleRoot);try? FileManager.default.removeItem(at:modules)}
+        let child=GitRepository(root:moduleRoot,executable:git);_ = try await child.run(["init","-b","main"])
+        for (key,value) in [("user.name","Module QA"),("user.email","qa@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")] {_ = try await child.run(["config",key,value])}
+        try Data("module bytes\n".utf8).write(to:moduleRoot.appendingPathComponent("module.txt"));try await child.stage(["module.txt"]);_ = try await child.commit(message:"Module history")
+        let childHead=try await child.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
+        try Data("[submodule \"module\"]\n\tpath = module\n\turl = ./module\n".utf8).write(to:modules)
+        _ = try await repo.run(["update-index","--add","--cacheinfo","160000",childHead,modulePath])
+        model.refreshState();try await wait {!model.busy && model.conflictRows.contains {$0.path==modulePath}}
+        let moduleMenu=model.conflictFileMenu([modulePath]);try require(model.canConflictFileCommand(.submoduleLog,menu:moduleMenu) && !model.canMarkConflictComparison(moduleMenu),"Gitlink history/mark gates wrong")
+        var loaded:GitRepository?;model.onConflictSubmoduleLog={loaded=$0};model.conflictFileCommand(.submoduleLog,menu:moduleMenu)
+        try await wait {!model.busy && SubmoduleWorkingLogSession.activeReads==0}
+        guard let loaded else {throw Failure(description:"Submodule Log callback missing: "+(model.error ?? ""))}
+        let childRows=try await loaded.history();try require(loaded.root.resolvingSymlinksInPath().path==moduleRoot.resolvingSymlinksInPath().path && childRows.first?.hash==childHead,"Submodule Log endpoint mismatch: \(loaded.root.path), expected \(moduleRoot.path); HEAD \(childRows.first?.hash ?? "nil"), expected \(childHead)")
+        // Stale generation and retired async preparation cannot publish a viewer.
+        let stale=model.conflictFileMenu([path]);model.refreshState();try await wait {!model.busy}
+        model.showConflictUnified(stale);try require(!model.busy && owner.conflictUnifiedWindows.isEmpty,"Stale unified popup launched")
+        let late=RebaseWindowModel(repository:repo,access:nil,messageDefaults:prefs);late.load();try await wait {!late.busy && late.fileRecovery}
+        let snapshot=try await repo.rebaseSessionSnapshot();var reply:CheckedContinuation<RebaseSessionSnapshot,Never>?,delivered=0
+        late.readSession={_,_ in await withCheckedContinuation {reply=$0}};late.onConflictUnified={_,_,_,_ in delivered += 1}
+        late.showConflictUnified(late.conflictFileMenu([path]));try await wait {reply != nil};late.retire();reply?.resume(returning:snapshot)
+        try await wait {RebaseWindowModel.activePreparationReads==0}
+        try require(delivered==0 && late.error==nil && late.conflictComparisonMark==nil,"Retired comparison preparation published")
+    }
     @MainActor static func verifyMutations(root:URL,git:URL,prefs:UserDefaults) async throws {
         let root=root.appendingPathComponent("mutations");try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
         let repo=GitRepository(root:root,executable:git),path="normal 雪.txt",conflict="conflict.txt"
@@ -145,9 +220,10 @@ import TurtleGitCore
         // numeric metadata sorting, reset ownership and keyboard coordinates.
         try await wait { table.tableColumns.count==6 && table.headerView?.menu != nil }
         let fileProbe=descendants(owner.window!.contentView!).compactMap { $0 as? CommitFileInteraction.Probe }.first!
+        try await wait {fileProbe.enabled && model.conflictColumnsAvailable && table.headerView?.menu?.items.first(where:{$0.title=="Lines added"})?.isEnabled == true}
         let header=table.headerView!.menu!;header.delegate?.menuNeedsUpdate?(header)
         let addedColumn=header.items.first { $0.title=="Lines added" }!
-        try require(addedColumn.isEnabled && !header.items.contains { $0.title=="File size" || $0.title=="Last modified" || $0.title=="Filename" || $0.title=="LFS Lock" },"Header does not honor source allowed-column mask")
+        try require(addedColumn.isEnabled && !header.items.contains { $0.title=="File size" || $0.title=="Last modified" || $0.title=="Filename" || $0.title=="LFS Lock" },"Header does not honor source allowed-column mask; enabled=\(fileProbe.enabled), busy=\(model.busy), items=\(header.items.map { $0.title })")
         _ = NSApp.sendAction(addedColumn.action!,to:addedColumn.target,from:addedColumn)
         try await wait { !model.conflictFileColumns.visible.contains(.added) && !fileProbe.visibleColumns.contains(.added) }
         _ = NSApp.sendAction(addedColumn.action!,to:addedColumn.target,from:addedColumn)
@@ -192,6 +268,7 @@ import TurtleGitCore
         let sortedFirst=model.conflictTableRows[0].id,checks=model.checkedConflicts
         try require(probe.handle(event)==nil && pasteboard.string(forType:.string)==sortedFirst+"\n","Sorted Copy targeted old index")
         try require(probe.handle(space)==nil && model.checkedConflicts.contains(sortedFirst) != checks.contains(sortedFirst),"Sorted Space targeted old index")
+        try await verifyComparisons(owner:owner,repo:repo,root:root,path:path,clean:clean,prefs:prefs)
         let after=try await repo.run(["rev-parse","HEAD"]).stdout;try require(after == head && Data(contentsOf:root.appendingPathComponent(".git/index")) == index && Data(contentsOf:file) == working,"Review/menu actions changed repository baseline")
         owner.close()
         // Forced-close settles an owned actual native export picker once; late OK

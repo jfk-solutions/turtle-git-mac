@@ -190,7 +190,8 @@ extension GitRepository {
         try cancellation?.check()
         let args = ["diff", "--no-ext-diff", "--no-color"] + diffDetection.comparisonArguments + (staged ? ["--cached"] + (base.map { [$0] } ?? []) : [])
         return CommitFile.parse(names: try run(args + ["--name-status", "-z", "--"], cancellation: cancellation).stdout,
-                                statistics: try run(args + ["--numstat", "-z", "--"], cancellation: cancellation).stdout)
+                                statistics: try run(args + ["--numstat", "-z", "--"], cancellation: cancellation).stdout,
+                                raw: try run(args + ["--raw", "-z", "--"], cancellation: cancellation).stdout)
     }
 
     public func workingTreeFiles(amendToParent: Bool = false, cancellation: OperationCancellation? = nil) throws -> [CommitFile] {
@@ -199,7 +200,8 @@ extension GitRepository {
         let base = amendToParent ? [try commitComparisonBase(amendToParent: true, cancellation: cancellation)] : head ? ["HEAD"] : ["--cached"]
         let args = ["diff", "--no-ext-diff", "--no-color"] + diffDetection.comparisonArguments + base
         return CommitFile.parse(names: try run(args + ["--name-status", "-z", "--"], cancellation: cancellation).stdout,
-                                statistics: try run(args + ["--numstat", "-z", "--"], cancellation: cancellation).stdout)
+                                statistics: try run(args + ["--numstat", "-z", "--"], cancellation: cancellation).stdout,
+                                raw: try run(args + ["--raw", "-z", "--"], cancellation: cancellation).stdout)
     }
 }
 

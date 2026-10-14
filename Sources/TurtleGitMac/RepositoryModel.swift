@@ -2219,12 +2219,17 @@ import UniformTypeIdentifiers
         controller.model.onConflictRevertSubmodules={ [weak self] revision,paths in
             for path in paths {self?.showSubmoduleDiff(repository:repository,access:access,path:path,from:revision)}
         }
+        controller.model.importConflictComparisonMark(try? comparisonMarkStore.acquire(requireSecurityScope:GitRuntime.isAppStoreBuild))
+        controller.model.onConflictPreparedComparison={ [weak self,weak controller] marked,current in
+            guard let controller else {return};self?.showPreparedFileComparison(repository:repository,access:access,marked:marked,current:current,owner:controller.window)
+        }
+        controller.model.onConflictSubmoduleLog={ [weak self] child in self?.showLog(repository:child,access:access,paths:[]) }
         controller.model.onConflictFileLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
         controller.model.onConflictFileBlame = { [weak self] path, revision in self?.showBlame(repository: repository, access: access, path: path, revision: revision) }
-        controller.model.onConflictWorkingComparison = { [weak self, weak controller] paths in
+        controller.model.onConflictWorkingComparison = { [weak self, weak controller] paths,amendToParent in
             guard let self, let controller else { return }
             self.prepareFileComparisons(repository: repository, access: access, selectedCount: paths.count, owner: controller.window) { [weak self] token in
-                let snapshot = try await repository.workingFileComparison(paths: paths, cancellation: token)
+                let snapshot = try await repository.workingFileComparison(paths: paths,amendToParent:amendToParent, cancellation: token)
                 self?.presentFileComparisons(repository: repository, access: access, snapshot: snapshot, cancellation: token)
             }
         }
@@ -2483,6 +2488,7 @@ import UniformTypeIdentifiers
             let access = try? comparisonMarkStore.acquire(requireSecurityScope: GitRuntime.isAppStoreBuild)
             if let access { workingComparisonMark = access.mark }
             for controller in logWindows.values { controller.model.importWorkingComparisonMark(access) }
+            for controller in rebaseWindows.values {controller.model.importConflictComparisonMark(access)}
         }
         if try WorkingComparisonMarkSnapshot.publish(workingComparisonMark) {
             DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderIntegration.notification), object: nil)

@@ -1,0 +1,82 @@
+{
+  "date": "2026-10-15",
+  "scope": "Replay file comparison and initialized child-history family",
+  "source_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation": [
+    "Mixed selections retain all selected paths and captured Squash parent scope",
+    "Aggregate raw per-row unified diffs with owned read-only viewers",
+    "Captured local and imported authorized comparison marks through existing file comparison factories",
+    "Initialized working-child Log with no parent fallback",
+    "Shift tool selection survives async reads; stale and retired preparation cannot dispatch",
+    "Shared working/staging statistics read raw Git modes to retain added, modified and deleted gitlink classification"
+  ],
+  "validation": {
+    "core": {
+      "initial_log": "build/qa/replay-comparison-family-core-2026-10-15.log",
+      "initial_checks": 20,
+      "initial_failures": 1,
+      "initial_failure": "Private fixture staged a new gitlink then attempted non-force cached removal. The read/classification assertions passed; Git correctly refused removal. Fixture now explicitly force-removes only its private index entry.",
+      "recheck_log": "build/qa/replay-comparison-family-core-recheck-2026-10-15.log",
+      "recheck_checks": 1,
+      "recheck_failures": 0
+    },
+    "build": {
+      "native_build_exit_code": 0,
+      "log": "build/qa/replay-comparison-family-final-build-2026-10-15.log",
+      "core_mode_followup_log": "build/qa/replay-comparison-family-gitlink-build-2026-10-15.log",
+      "followup_note": "Quiet build produced no diagnostics; original command handle was lost during context compaction. Do not infer a captured exit status."
+    },
+    "native": {
+      "earlier_failures": [
+        {
+          "pid_reaped": 65719,
+          "reason": "Header fixture read a menu before asynchronous enabled-state reconstruction."
+        },
+        {
+          "pid_reaped": 66305,
+          "reason": "Added gitlink was classified as an ordinary file; fixed shared raw-mode reads."
+        },
+        {
+          "pid_reaped": 68805,
+          "reason": "Header probe was enabled before its actual menu was reconstructed; now wait for menu item readiness."
+        },
+        {
+          "pid_reaped": 69494,
+          "reason": "Fixture compared directory URL forms; compare resolved absolute paths while retaining exact child history hash check."
+        }
+      ],
+      "result": "2 passed",
+      "log": "build/qa/replay-comparison-family-native-endpoints-2026-10-15.log",
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "coverage": [
+        "Raw selected-row aggregate patch bytes and read-only viewer ownership",
+        "Mixed selection reaches real shared preparation; Shift and captured parent scope retained",
+        "Old popup retains local mark after mark replacement; shared viewer preparation",
+        "Imported mark retains private grant and endpoint across later publication",
+        "Actual initialized child root and exact child HEAD history",
+        "Stale and retired preparations cannot publish; original HEAD, raw index and working bytes retained",
+        "Existing grouped replay menu, native header, key handling and mutation checks"
+      ],
+      "owned_receiver_pids_reaped": [
+        70569,
+        72682
+      ],
+      "receivers_absent_after_check": true
+    },
+    "documentation": {
+      "reconciled": true,
+      "site_exit_code": 0,
+      "unresolved_fragments": []
+    }
+  },
+  "limits": [
+    "Injected external tool and presentation boundaries; no third-party application activation established",
+    "Private fake bookmark provider is not signed security-scope acceptance",
+    "Physical Finder integration and signed deployment remain open",
+    "Full gitlink mark/directory comparison and remaining replay mutation menus remain open",
+    "No complete visual parity or hosted CI pass claimed"
+  ]
+}

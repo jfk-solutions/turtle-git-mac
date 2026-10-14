@@ -49,13 +49,13 @@ Ignore/Abort hint warning. See [empty results and message hints](REBASE-EMPTY-RE
 
 ## Remaining parity work
 
-This is a partial port of upstream's conflict tab. Squash checkbox acceptance
+This is a partial port of upstream's conflict tab. Squash checkbox acceptance,
 the Strip Commented Lines preference, all contextual
 commands and full displayed layout/keyboard/accessibility acceptance remain
 pending. Squash conflicts keep the existing staged Continue
 path, and their checkboxes are disabled. Single ordinary base comparison now
-uses the full native editor; multiple paths and unavailable stage-1 cases retain
-unified output. No new screenshot establishes this tab's displayed layout.
+uses the full native editor; multiple selected paths use the shared working-file
+comparison preparation. The separate unified command retains an aggregate patch. No new screenshot establishes this tab's displayed layout.
 
 ## Verification
 
@@ -116,8 +116,8 @@ working comparisons; unresolved single rows retain Edit conflict.
 [Grouped native evidence](qa/rebase-conflict-menus-2026-10-14.json) records actual
 private clipboard/export/owned picker and comparison behavior separately from
 injected Open/Editor/Log/Blame/Reveal callbacks. Core is unchanged in this batch.
-The remaining source status-list menus (including broader submodule history,
-Add/Ignore/Delete and prepared/unified comparison combinations), drag/drop, all conditional layouts, physical keyboard/VoiceOver,
+The remaining source status-list menus (including Add/Ignore/Delete and broader
+gitlink prepared-comparison combinations), drag/drop, all conditional layouts, physical keyboard/VoiceOver,
 broader editor-dispatch conditional/physical cases and signed Finder/sandbox acceptance remain
 open. This does not certify full Rebase, Cherry Pick or app parity.
 
@@ -199,3 +199,51 @@ default button is explicitly installed on the native window.
 checks, repairs and actual scope. Physical menu/cancellation/retry gestures,
 broader submodule/type-transition failure variants, signed sandbox deployment and
 the remaining menu families listed above remain open.
+
+
+## File comparison and child history family — October 15, 2026
+
+The lower file list now exposes source-gated Show changes as unified diff, Mark
+for comparison, Compare with the captured mark and Show log of submodule, with
+the existing original command artwork. Ordinary Compare with base is available
+for clean tracked rows. Mixed/multiple selection forwards every selected path
+instead of dropping ordinary rows when conflicts are present. A single ordinary
+conflict with stage 1 keeps the existing editable Base/current comparison.
+Working comparisons carry the captured Squash parent-base choice.
+
+Unified preparation follows IDGITLC_GNUDIFF1: each captured row contributes its
+Git patch in displayed order to one raw-byte aggregate. Rename inputs include the
+old path; Git's configured context and native rename/copy detection remain in the
+command. Fresh stopped-replay/HEAD/row/flag checks run before preparation and
+before handing off. One immutable read-only unified viewer opens, with no refresh
+or Apply, through the configured external/built-in tool choice. Built-in viewers
+are owned by the replay controller, block parent close during their busy/sheet
+work and close on owner retirement.
+
+Local marks refer to working content, as in the source status list. A popup
+captures its mark and target independently of later highlighting or a replacement
+mark. Rebase/Cherry Pick also import an authorized Finder mark on open and when
+publication changes, retaining its grant through the shared comparison route.
+Repeated publication of the same mark does not override a subsequent local mark.
+File marks use the existing comparison factories; deleted paths and gitlinks
+remain excluded from the native regular-file mark command. Gitlink mark/directory
+comparison parity remains open.
+
+Submodule Log retains the superproject Log command and adds the initialized
+working-child route. The shared resolver validates a real child checkout and
+refuses parent-repository discovery from uninitialized or unrelated directories.
+Its owned token, grant and Quit accounting settle before delivery; retirement
+cancels it. No clone or network access is performed by this read.
+
+The initiating Shift choice now spans the entire captured file-action operation,
+including working pairs and Base viewers created after a Git read. Explicit
+marked/unified choices survive the same suspension. Stale-generation or retired
+preparations cannot create viewers or dispatch a captured comparison.
+
+[Grouped evidence](qa/replay-comparison-family-2026-10-15.json) records actual
+patch bytes, selected-path preparation, captured marks, initialized gitlink
+history, native child ownership and retirement. Shared working/staging statistics
+now read raw Git modes so added, changed and deleted gitlinks retain their
+submodule classification. Physical
+menu/tool activation, Finder/security-scope grants, full gitlink comparisons,
+remaining mutation menus and complete replay/application parity remain open.

@@ -19,6 +19,29 @@ final class SubmoduleComparisonTests: XCTestCase {
         return (root, parent, child, path, hash)
     }
 
+    func testWorkingAndStagingStatisticsRetainAddedModifiedAndDeletedGitlinkModes() async throws {
+        let (root,parent,child,path,_)=try await fixture();defer {try? FileManager.default.removeItem(at:root)}
+        _ = try await parent.run(["reset","--soft","HEAD~1"])
+        var index=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        let added=try await parent.workingTreeFiles(),stagedAddition=try await parent.stagingFiles(staged:true)
+        XCTAssertTrue(added.first {$0.path==path}?.isSubmodule == true);XCTAssertEqual(stagedAddition.first {$0.path==path}?.action,"A");XCTAssertTrue(stagedAddition.first {$0.path==path}?.isSubmodule == true)
+        XCTAssertEqual(index,try Data(contentsOf:root.appendingPathComponent(".git/index")))
+        _ = try await parent.commit(message:"reattach child")
+        try Data("new module bytes\n".utf8).write(to:child.root.appendingPathComponent("file.txt"));try await child.stage(["file.txt"]);_ = try await child.commit(message:"new child")
+        index=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        let modified=try await parent.workingTreeFiles(),unstaged=try await parent.stagingFiles(staged:false)
+        XCTAssertTrue(modified.first {$0.path==path}?.isSubmodule == true);XCTAssertTrue(unstaged.first {$0.path==path}?.isSubmodule == true)
+        XCTAssertEqual(index,try Data(contentsOf:root.appendingPathComponent(".git/index")))
+        try await parent.stage([path]);let staged=try await parent.stagingFiles(staged:true)
+        XCTAssertTrue(staged.first {$0.path==path}?.isSubmodule == true)
+        _ = try await parent.run(["rm","--cached","-f","--",path])
+        index=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        let deleted=try await parent.workingTreeFiles(),stagedDeletion=try await parent.stagingFiles(staged:true)
+        XCTAssertEqual(stagedDeletion.first {$0.path==path}?.action,"D");XCTAssertTrue(stagedDeletion.first {$0.path==path}?.isSubmodule == true);XCTAssertTrue(deleted.first {$0.path==path}?.isSubmodule == true)
+        XCTAssertEqual(index,try Data(contentsOf:root.appendingPathComponent(".git/index")))
+        XCTAssertEqual(try Data(contentsOf:child.root.appendingPathComponent("file.txt")),Data("new module bytes\n".utf8))
+    }
+
     func testWorkingSubmoduleHistoryResolvesChildAndRefusesParentFallbackAndCancellation() async throws {
         let (root, parent, child, path, _) = try await fixture()
         defer { try? FileManager.default.removeItem(at: root) }
