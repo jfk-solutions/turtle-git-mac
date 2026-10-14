@@ -38,3 +38,7 @@ combined section check. Physical checkbox and keyboard/visual acceptance remain
 open. Source immutable commit-metadata cache efficiency still needs comparison;
 this implements persistent diff-file reuse, not certification of every source
 cache behavior. The older Settings/History QA records do not cover this change.
+
+The shared [rename/copy detection family](DIFF-DETECTION-PARITY.md) now connects
+source percentages, paired file/patch reads, pinned snapshot policy and historical
+cache invalidation. Its separate validation record reports the actual scope.

@@ -142,7 +142,7 @@ extension GitRepository {
     public func workingTreePatchData(paths: [String], base: String? = nil, cancellation: OperationCancellation? = nil) throws -> Data {
         let head = try run(["rev-parse", "--verify", "--quiet", "HEAD"], environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], successfulExitCodes: 0...1, cancellation: cancellation).exitCode == 0
         let comparison = base.map { [$0] } ?? (head ? ["HEAD"] : ["--cached"])
-        let args = ["diff", "--no-ext-diff", "--no-color", "--no-textconv", "--unified=3", "-M"] + comparison + ["--"] + paths
+        let args = ["diff", "--no-ext-diff", "--no-color", "--no-textconv", "--unified=3"] + diffDetection.comparisonArguments + comparison + ["--"] + paths
         return try run(args, environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation).stdout
     }
     public func patch(paths: [String], staged: Bool, base: String? = nil, cancellation: OperationCancellation? = nil, includeUntracked: Bool = false) throws -> GitPatch {
@@ -152,7 +152,7 @@ extension GitRepository {
     /// Unified viewers receive original bytes; partial staging still requires UTF-8.
     public func patchData(paths: [String], staged: Bool, base: String? = nil, cancellation: OperationCancellation? = nil, includeUntracked: Bool = false) throws -> Data {
         let options = ["--no-ext-diff", "--no-color", "--no-textconv", "--unified=3", "--src-prefix=a/", "--dst-prefix=b/"]
-        var args = ["diff"]
+        var args = ["diff"] + diffDetection.comparisonArguments
         args.append(contentsOf: options)
         if staged {
             args.append("--cached")

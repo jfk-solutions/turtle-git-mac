@@ -122,7 +122,7 @@ extension GitRepository {
         try cancellation?.check()
         let head = try run(["rev-parse", "--verify", "HEAD"], successfulExitCodes: 0...128, cancellation: cancellation)
         try cancellation?.check()
-        return try run(["diff", "--no-ext-diff", "--no-color"] + (head.exitCode == 0 ? ["HEAD"] : ["--cached"]) + ["--"] + paths, cancellation: cancellation).stdout
+        return try run(["diff", "--no-ext-diff", "--no-color"] + diffDetection.comparisonArguments + (head.exitCode == 0 ? ["HEAD"] : ["--cached"]) + ["--"] + paths, cancellation: cancellation).stdout
     }
 
 }

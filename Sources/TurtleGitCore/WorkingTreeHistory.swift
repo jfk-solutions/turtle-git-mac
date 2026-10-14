@@ -26,7 +26,7 @@ extension GitRepository {
         for file in files where seen.insert(file.path).inserted {
             guard valid(file.path), file.oldPath.map(valid) != false else { throw RevisionComparisonFailure.selection }
             let paths = file.oldPath.map { [$0, file.path] } ?? [file.path]
-            patch.append(try read(["diff", "--no-ext-diff", "--no-textconv", "--no-color", "-M", base, "--"] + paths).stdout)
+            patch.append(try read(["diff", "--no-ext-diff", "--no-textconv", "--no-color"] + diffDetection.comparisonArguments + [base, "--"] + paths).stdout)
         }
         return patch
     }
@@ -38,7 +38,7 @@ extension GitRepository {
         guard try read(["rev-parse", "--is-bare-repository"]).text.trimmingCharacters(in: .newlines) != "true" else { return nil }
         let head = try read(["rev-parse", "--verify", "--quiet", "HEAD"], successfulExitCodes: 0...1)
         let parents = head.exitCode == 0 ? [head.text.trimmingCharacters(in: .newlines)] : []
-        let status = StatusEntry.parse(try read(["status", "--porcelain=v1", "-z", "--untracked-files=all"]).stdout)
+        let status = StatusEntry.parse(try read(["status", "--porcelain=v1", "-z", "--untracked-files=all", diffDetection.statusArgument]).stdout)
         // Net HEAD diff can be empty even though the index has a different
         // gitlink. Keep that row typed as a submodule rather than a text file.
         let indexRecords = try read(["ls-files", "--stage", "-z"]).stdout.split(separator: 0)
@@ -49,7 +49,7 @@ extension GitRepository {
         }
         var differences: [String: CommitFile] = [:]
         if let parent = parents.first {
-            let args = ["diff", "--no-ext-diff", "--no-textconv", "--no-color", "-M", parent, "--"]
+            let args = ["diff", "--no-ext-diff", "--no-textconv", "--no-color"] + diffDetection.comparisonArguments + [parent, "--"]
             func data(_ format: String) throws -> Data { try read([args[0], format, "-z"] + args.dropFirst()).stdout }
             let parsed = try CommitFile.parse(names: data("--name-status"), statistics: data("--numstat"), raw: data("--raw"))
             for file in parsed { differences[file.path] = file }

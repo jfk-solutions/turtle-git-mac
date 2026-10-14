@@ -163,3 +163,7 @@ with system and bundled Git, and all were reaped. A native-only tooltip audit
 rebuilt the changed app file without repeating Core tests. See
 [actual results and limits](qa/advanced-list-consumers-2026-10-14.json). Physical sheets, every diff-entry caller and Windows locale/signed
 acceptance remain open.
+
+The shared [rename/copy detection family](DIFF-DETECTION-PARITY.md) now connects
+source percentages, paired file/patch reads, pinned snapshot policy and historical
+cache invalidation. Its separate validation record reports the actual scope.

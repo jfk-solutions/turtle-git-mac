@@ -178,7 +178,7 @@ extension GitRepository {
     }
     public func stagingFiles(staged: Bool, base: String? = nil, cancellation: OperationCancellation? = nil) throws -> [CommitFile] {
         try cancellation?.check()
-        let args = ["diff", "--no-ext-diff", "--no-color", "-M"] + (staged ? ["--cached"] + (base.map { [$0] } ?? []) : [])
+        let args = ["diff", "--no-ext-diff", "--no-color"] + diffDetection.comparisonArguments + (staged ? ["--cached"] + (base.map { [$0] } ?? []) : [])
         return CommitFile.parse(names: try run(args + ["--name-status", "-z", "--"], cancellation: cancellation).stdout,
                                 statistics: try run(args + ["--numstat", "-z", "--"], cancellation: cancellation).stdout)
     }
@@ -187,7 +187,7 @@ extension GitRepository {
         try cancellation?.check()
         let head = (try? run(["rev-parse", "--verify", "HEAD"], cancellation: cancellation)) != nil
         let base = amendToParent ? [try commitComparisonBase(amendToParent: true, cancellation: cancellation)] : head ? ["HEAD"] : ["--cached"]
-        let args = ["diff", "--no-ext-diff", "--no-color", "-M"] + base
+        let args = ["diff", "--no-ext-diff", "--no-color"] + diffDetection.comparisonArguments + base
         return CommitFile.parse(names: try run(args + ["--name-status", "-z", "--"], cancellation: cancellation).stdout,
                                 statistics: try run(args + ["--numstat", "-z", "--"], cancellation: cancellation).stdout)
     }

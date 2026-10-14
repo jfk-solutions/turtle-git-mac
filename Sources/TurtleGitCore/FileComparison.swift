@@ -44,7 +44,7 @@ extension GitRepository {
         let a = try content(first), b = try content(second)
         try token.check()
         let file = CommitFile(path: b.path, oldPath: a.path, action: "M", added: nil, removed: nil, hasStatistics: false, isSubmodule: false)
-        let snapshot = RevisionComparisonSnapshot(root: root, from: a.revision, to: b.revision, fromDetails: nil, toDetails: nil, files: [file], options: RevisionDiffOptions())
+        let snapshot = RevisionComparisonSnapshot(root: root, from: a.revision, to: b.revision, fromDetails: nil, toDetails: nil, files: [file], options: RevisionDiffOptions(), diffDetection: diffDetection)
         return CommitChangeSetComparison(snapshot: snapshot, document: FileComparisonDocument(base: a, destination: b))
     }
 }
@@ -148,7 +148,7 @@ extension GitRepository {
         }
         let from = try side(paths[0]), to = try side(paths[1])
         let file = CommitFile(path: paths[1], oldPath: paths[0], action: "M", added: nil, removed: nil, hasStatistics: false, isSubmodule: false)
-        let snapshot = RevisionComparisonSnapshot(root: root, from: from, to: to, fromDetails: nil, toDetails: nil, files: [file], options: RevisionDiffOptions())
+        let snapshot = RevisionComparisonSnapshot(root: root, from: from, to: to, fromDetails: nil, toDetails: nil, files: [file], options: RevisionDiffOptions(), diffDetection: diffDetection)
         // Reject missing historical paths, directories and gitlinks before opening.
         _ = try comparisonFile(snapshot, path: paths[1], cancellation: cancellation)
         return snapshot
@@ -171,7 +171,7 @@ extension GitRepository {
         }
         let from = try side(files[0]), to = try side(files[1])
         let file = CommitFile(path: files[1].path, oldPath: files[0].path, action: "M", added: nil, removed: nil, hasStatistics: false, isSubmodule: false)
-        let snapshot = RevisionComparisonSnapshot(root: root, from: from, to: to, fromDetails: nil, toDetails: nil, files: [file], options: RevisionDiffOptions())
+        let snapshot = RevisionComparisonSnapshot(root: root, from: from, to: to, fromDetails: nil, toDetails: nil, files: [file], options: RevisionDiffOptions(), diffDetection: diffDetection)
         _ = try comparisonFile(snapshot, path: file.path, cancellation: cancellation)
         return snapshot
     }
@@ -197,7 +197,7 @@ extension GitRepository {
         }
         let from = try pin(from), to = try pin(to)
         let file = CommitFile(path: toPath, oldPath: fromPath, action: "M", added: nil, removed: nil, hasStatistics: false, isSubmodule: false)
-        let snapshot = RevisionComparisonSnapshot(root: root, from: from, to: to, fromDetails: nil, toDetails: nil, files: [file], options: RevisionDiffOptions())
+        let snapshot = RevisionComparisonSnapshot(root: root, from: from, to: to, fromDetails: nil, toDetails: nil, files: [file], options: RevisionDiffOptions(), diffDetection: diffDetection)
         _ = try comparisonFile(snapshot, path: toPath, cancellation: cancellation)
         return snapshot
     }

@@ -927,7 +927,7 @@ extension GitRepository {
         if rewritesParents { args.append("--parents") }
         if options.walk.firstParent { args.append("--first-parent") }
         if options.walk.noMerges { args.append("--no-merges") }
-        if options.walk.followRenames { args.append("--follow") }
+        if options.walk.followRenames { args += ["--follow", diffDetection.renameArgument] }
         if options.walk.fullHistory { args.append("--full-history") }
         if options.limit > 0 && (options.retainFilteredRows || !filterInMemory) { args.append("-\(options.limit)") }
         if let range = options.revisionRange {
@@ -1235,7 +1235,7 @@ extension GitRepository {
             try cancellation?.check(); return record.files
         }
         try cancellation?.check()
-        var args = ["diff-tree", "--root", "--no-commit-id", "-r", "-M", "--no-ext-diff", "--no-color"]
+        var args = ["diff-tree", "--root", "--no-commit-id", "-r"] + diffDetection.historyArguments + ["--no-ext-diff", "--no-color"]
         if let parent = entry.parents.first { args.append(parent) }
         args += [entry.hash, "--"]
         var names = args; names.insert(contentsOf: ["--name-status", "-z"], at: 1)
@@ -1357,6 +1357,7 @@ extension GitRepository {
                 if workingTree { args = ["diff", "--no-ext-diff", "--no-color", entry.hash] }
                 else if let parent = scoped.parents.first { args = ["diff", "--no-ext-diff", "--no-color", parent, entry.hash] }
                 else { args = ["show", "--format=", "--no-ext-diff", "--no-color", entry.hash] }
+                args.insert(contentsOf: workingTree ? diffDetection.comparisonArguments : diffDetection.historyArguments, at: 1)
                 args += ["--", oldPath, file.path]
                 patch.append(try read(args).stdout)
             } else { patch.append(try revisionDiffData(scoped, path: file.path, workingTree: workingTree, cancellation: cancellation)) }
@@ -1376,6 +1377,7 @@ extension GitRepository {
         if workingTree { args = ["diff", "--no-ext-diff", "--no-color", entry.hash] }
         else if let parent = entry.parents.first { args = ["diff", "--no-ext-diff", "--no-color", parent, entry.hash] }
         else { args = ["show", "--format=", "--no-ext-diff", "--no-color", entry.hash] }
+        args.insert(contentsOf: workingTree ? diffDetection.comparisonArguments : diffDetection.historyArguments, at: 1)
         args.append("--"); if let path { args.append(path) }
         return try read(args).stdout
     }
@@ -1401,7 +1403,7 @@ extension GitRepository {
             if parents.isEmpty { return Data() }
         }
         guard validHash(hash), parents.allSatisfy(validHash) else { throw RevisionComparisonFailure.range }
-        let flags = ["--no-ext-diff", "--no-textconv", "--no-color"]
+        let flags = ["--no-ext-diff", "--no-textconv", "--no-color"] + (working ? diffDetection.comparisonArguments : diffDetection.historyArguments)
         if let files {
             var output = Data()
             func validPath(_ path: String) -> Bool { !path.isEmpty && !path.hasPrefix("/") && !path.contains("\0") && !path.split(separator: "/").contains("..") }

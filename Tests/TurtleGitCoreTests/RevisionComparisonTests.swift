@@ -2,6 +2,95 @@ import XCTest
 @testable import TurtleGitCore
 
 final class RevisionComparisonTests: XCTestCase {
+    func testDiffDetectionPreferenceBoundariesAndCapturedSession() throws {
+        let suite = "TurtleGit.DiffDetection." + UUID().uuidString, prefs = UserDefaults(suiteName: suite)!
+        defer { prefs.removePersistentDomain(forName: suite) }
+        XCTAssertEqual(GitDiffDetection.load(from: prefs).percentage, 50)
+        for (raw, expected) in [(-1, 50), (0, 0), (100, 100), (101, 50), (Int(UInt32.max), 50)] {
+            prefs.set(raw, forKey: "DiffSimilarityIndexThreshold")
+            XCTAssertEqual(GitDiffDetection.load(from: prefs).percentage, expected)
+        }
+        prefs.set("35", forKey: "DiffSimilarityIndexThreshold")
+        let repo = GitRepository(root: URL(fileURLWithPath: "/tmp"), diffDetection: .load(from: prefs))
+        prefs.set(90, forKey: "DiffSimilarityIndexThreshold")
+        XCTAssertEqual(repo.diffDetection.percentage, 35)
+        XCTAssertEqual(GitDiffDetection(percentage: 0).historyArguments, ["--no-renames"])
+        XCTAssertEqual(GitDiffDetection(percentage: 0).comparisonArguments, ["-M0%", "-C0%"])
+    }
+
+    func testSimilarityConnectsStatusStagingWorkingAndPinnedComparisonPatches() async throws {
+        let (root, seed, _) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let old = "similar old\n雪.txt", new = "similar new\n雪.txt"
+        let original = (0..<80).map { "original numbered line \($0)\n" }.joined()
+        try Data(original.utf8).write(to: root.appendingPathComponent(old)); try await seed.stage([old]); _ = try await seed.commit(message: "similarity base")
+        _ = try await seed.run(["config", "diff.renames", "false"])
+        _ = try await seed.run(["mv", "--", old, new])
+        let edited = original.replacingOccurrences(of: (0..<20).map { "original numbered line \($0)\n" }.joined(), with: (0..<20).map { "replacement with different contents \($0)\n" }.joined())
+        try Data(edited.utf8).write(to: root.appendingPathComponent(new)); try await seed.stage([new])
+        let low = GitRepository(root: root, diffDetection: .init(percentage: 30)), high = GitRepository(root: root, diffDetection: .init(percentage: 100))
+        let lowStatus = try await low.status(refreshIndex: false), highStatus = try await high.status(refreshIndex: false)
+        XCTAssertEqual(lowStatus.first(where: { $0.path == new })?.originalPath, old)
+        XCTAssertNil(highStatus.first(where: { $0.path == new })?.originalPath)
+        let rows = try await low.stagingFiles(staged: true), strict = try await high.stagingFiles(staged: true)
+        XCTAssertEqual(rows.first(where: { $0.path == new })?.oldPath, old)
+        XCTAssertTrue(strict.contains(where: { $0.path == old && $0.action == "D" }))
+        let workingRows = try await low.workingTreeFiles()
+        XCTAssertEqual(workingRows.first(where: { $0.path == new })?.oldPath, old)
+        let snapshot = try await low.revisionComparison(from: .revision("HEAD"), to: .workingTree)
+        let patch = try await high.revisionComparisonPatchData(snapshot)
+        XCTAssertNotNil(patch.range(of: Data("rename from ".utf8)), "A different repository session must honor the snapshot's detection policy")
+        XCTAssertEqual(snapshot.diffDetection.percentage, 30)
+        let stagedPatch = try await low.patchData(paths: [old, new], staged: true)
+        let workingPatch = try await low.workingTreeDiffData(paths: [old, new])
+        XCTAssertNotNil(stagedPatch.range(of: Data("rename from ".utf8)))
+        XCTAssertNotNil(workingPatch.range(of: Data("rename from ".utf8)))
+        let token = OperationCancellation(); token.cancel()
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        do { _ = try await low.revisionComparisonPatchData(snapshot, cancellation: token); XCTFail("Cancelled pinned comparison ran") } catch is OperationCancellationFailure {}
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(new)), Data(edited.utf8))
+    }
+
+    func testHistoryCacheThresholdCopyClassificationAndZeroBackendBehavior() async throws {
+        let (root, seed, _) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let old = "history old", new = "history new", source = "copy source", copy = "copy target"
+        let text = (0..<80).map { "history source line \($0)\n" }.joined()
+        let copyText = (0..<80).map { "copy source distinctive line \($0)\n" }.joined()
+        try Data(text.utf8).write(to: root.appendingPathComponent(old)); try Data(copyText.utf8).write(to: root.appendingPathComponent(source))
+        try await seed.stage([old, source]); _ = try await seed.commit(message: "history base")
+        let base = try await seed.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await seed.run(["mv", "--", old, new])
+        try Data(text.replacingOccurrences(of: "history source line 0\n", with: "edited history line\n").utf8).write(to: root.appendingPathComponent(new))
+        try Data(copyText.utf8).write(to: root.appendingPathComponent(copy))
+        try Data((copyText + "extra line\n").utf8).write(to: root.appendingPathComponent(source))
+        try await seed.stage([new, source, copy]); _ = try await seed.commit(message: "rename and copy")
+        let low = GitRepository(root: root, diffDetection: .init(percentage: 30)), high = GitRepository(root: root, diffDetection: .init(percentage: 100)), zero = GitRepository(root: root, diffDetection: .init(percentage: 0))
+        let entries = try await low.history()
+        let entry = try XCTUnwrap(entries.first)
+        let cache = HistoryFileCache(root: root.appendingPathComponent("cache"))
+        let initial = try await low.files(in: entry, cache: cache)
+        XCTAssertEqual(initial.first(where: { $0.path == new })?.oldPath, old)
+        XCTAssertTrue(initial.first(where: { $0.path == copy })?.action.hasPrefix("C") == true)
+        let strict = try await high.files(in: entry, cache: cache)
+        XCTAssertNil(strict.first(where: { $0.path == new })?.oldPath, "Cached classification ignored the new threshold")
+        let disabled = try await zero.files(in: entry, cache: cache)
+        XCTAssertTrue(disabled.allSatisfy { $0.oldPath == nil })
+        let batched = try await low.revisionChanges(in: [entry])
+        XCTAssertTrue(batched[entry.hash]?.first(where: { $0.path == copy })?.action.hasPrefix("C") == true)
+        let patch = try await low.revisionFileDiffData(entry, files: initial)
+        XCTAssertNotNil(patch.range(of: Data("copy from ".utf8)))
+        XCTAssertNotNil(patch.range(of: Data("rename from ".utf8)))
+        let comparison = try await low.revisionComparison(from: .revision(base), to: .revision(entry.hash))
+        XCTAssertTrue(comparison.files.first(where: { $0.path == copy })?.action.hasPrefix("C") == true)
+        let copyPreview = try await low.workingTreePatch(paths: [source, copy], base: base)
+        XCTAssertTrue(copyPreview.files.contains { $0.header.contains { $0.hasPrefix("copy from ") } && !$0.supportsPartialChanges }, "Copy preview must retain the whole-file gate")
+        var options = RevisionDiffOptions(); options.detectCopies = false
+        let withoutCopies = try await low.revisionComparison(from: .revision(base), to: .revision(entry.hash), options: options)
+        XCTAssertEqual(withoutCopies.files.first(where: { $0.path == copy })?.action, "A")
+    }
+
     func testPinnedComparisonRawPatchKeepsBytesAndSelectedScopeAfterHeadMoves() async throws {
         let (root, repo, path) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

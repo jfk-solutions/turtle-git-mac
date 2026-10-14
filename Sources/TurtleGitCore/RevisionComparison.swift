@@ -1,5 +1,24 @@
 import Foundation
 
+/// Shared source percentage, captured with a repository session so paired name,
+/// statistic and patch reads cannot observe different preferences mid-operation.
+public struct GitDiffDetection: Equatable, Sendable {
+    public let percentage: Int
+    public init(percentage: Int = 50) { self.percentage = (0...100).contains(percentage) ? percentage : 50 }
+    public static func load(from preferences: UserDefaults = .standard) -> GitDiffDetection {
+        guard let value = preferences.object(forKey: "DiffSimilarityIndexThreshold") else { return GitDiffDetection() }
+        let number = (value as? NSNumber)?.intValue ?? Int(value as? String ?? "") ?? 50
+        return GitDiffDetection(percentage: number)
+    }
+    public var renameArgument: String { "-M\(percentage)%" }
+    public var copyArgument: String { "-C\(percentage)%" }
+    public var statusArgument: String { "--find-renames=\(percentage)%" }
+    public var comparisonArguments: [String] { [renameArgument, copyArgument] }
+    /// GetFiles' libgit2 path skips find-similar entirely at zero, while the CLI
+    /// source still emits -C0%/-M0%. Keep that distinction explicit.
+    public var historyArguments: [String] { percentage == 0 ? ["--no-renames"] : comparisonArguments }
+}
+
 public enum ComparisonRevision: Hashable, Sendable {
     case revision(String), workingTree, emptyTree
     public var label: String {
@@ -8,10 +27,10 @@ public enum ComparisonRevision: Hashable, Sendable {
 }
 public struct RevisionDiffOptions: Equatable, Sendable {
     public var ignoreSpaceAtEnd = false, ignoreSpaceChange = false, ignoreAllSpace = false, ignoreBlankLines = false, commonAncestor = false
-    public var detectCopies = false
+    public var detectCopies = true
     public init() {}
-    var arguments: [String] {
-        (detectCopies ? ["-C50%"] : []) + (ignoreSpaceAtEnd ? ["--ignore-space-at-eol"] : []) + (ignoreSpaceChange ? ["-b"] : []) + (ignoreAllSpace ? ["-w"] : []) + (ignoreBlankLines ? ["--ignore-blank-lines"] : [])
+    func arguments(detection: GitDiffDetection) -> [String] {
+        (detectCopies ? [detection.copyArgument] : []) + (ignoreSpaceAtEnd ? ["--ignore-space-at-eol"] : []) + (ignoreSpaceChange ? ["-b"] : []) + (ignoreAllSpace ? ["-w"] : []) + (ignoreBlankLines ? ["--ignore-blank-lines"] : [])
     }
 }
 public struct ComparisonRevisionDetails: Sendable {
@@ -30,9 +49,10 @@ public struct RevisionComparisonSnapshot: Sendable {
     public let files: [CommitFile]
     public let options: RevisionDiffOptions
     public let scopePaths: [String]
-    public init(root: URL, from: ComparisonRevision, to: ComparisonRevision, fromDetails: ComparisonRevisionDetails?, toDetails: ComparisonRevisionDetails?, files: [CommitFile], options: RevisionDiffOptions, scopePaths: [String] = []) {
+    public let diffDetection: GitDiffDetection
+    public init(root: URL, from: ComparisonRevision, to: ComparisonRevision, fromDetails: ComparisonRevisionDetails?, toDetails: ComparisonRevisionDetails?, files: [CommitFile], options: RevisionDiffOptions, scopePaths: [String] = [], diffDetection: GitDiffDetection = .load()) {
         self.root = root; self.from = from; self.to = to; self.fromDetails = fromDetails; self.toDetails = toDetails
-        self.files = files; self.options = options; self.scopePaths = scopePaths
+        self.files = files; self.options = options; self.scopePaths = scopePaths; self.diffDetection = diffDetection
     }
 }
 public enum RevisionComparisonFailure: LocalizedError {
@@ -88,7 +108,7 @@ extension GitRepository {
         // absent from the base (including ignored paths) use an empty side.
         let changed = Set(snapshot.files.map(\.path))
         let files = selected.files.filter { changed.contains($0.path) || $0.action == "A" }
-        return RevisionComparisonSnapshot(root: root, from: snapshot.from, to: snapshot.to, fromDetails: snapshot.fromDetails, toDetails: snapshot.toDetails, files: files, options: snapshot.options)
+        return RevisionComparisonSnapshot(root: root, from: snapshot.from, to: snapshot.to, fromDetails: snapshot.fromDetails, toDetails: snapshot.toDetails, files: files, options: snapshot.options, scopePaths: snapshot.scopePaths, diffDetection: snapshot.diffDetection)
     }
     /// Selected-file comparisons also display unchanged files. Working bytes
     /// take precedence over an index deletion when the path exists on disk.
@@ -140,7 +160,7 @@ extension GitRepository {
             let action = oldMode == nil ? "A" : newMode == nil ? "D" : existing?.action.hasPrefix("R") == true ? "R" : "M"
             files.append(CommitFile(path: destination, oldPath: existing?.oldPath, action: action, added: existing?.added, removed: existing?.removed, hasStatistics: existing?.hasStatistics ?? false, isSubmodule: isSubmodule))
         }
-        return RevisionComparisonSnapshot(root: root, from: snapshot.from, to: snapshot.to, fromDetails: snapshot.fromDetails, toDetails: snapshot.toDetails, files: files, options: snapshot.options)
+        return RevisionComparisonSnapshot(root: root, from: snapshot.from, to: snapshot.to, fromDetails: snapshot.fromDetails, toDetails: snapshot.toDetails, files: files, options: snapshot.options, scopePaths: snapshot.scopePaths, diffDetection: snapshot.diffDetection)
     }
     public func revisionComparison(from: ComparisonRevision, to: ComparisonRevision, options: RevisionDiffOptions = RevisionDiffOptions(), useMailmap: Bool = GitIdentityDisplay().useMailmap, cancellation: OperationCancellation? = nil, paths: [String] = []) throws -> RevisionComparisonSnapshot {
         let scope = paths.filter { $0 != "." }
@@ -164,7 +184,7 @@ extension GitRepository {
         }
         let args = try comparisonArguments(from: old, to: new, options: options, cancellation: token)
         let files = CommitFile.parse(names: try run(args + ["--name-status", "-z", "--"] + scope, cancellation: token).stdout, statistics: try run(args + ["--numstat", "-z", "--"] + scope, cancellation: token).stdout, raw: try run(args + ["--raw", "-z", "--"] + scope, cancellation: token).stdout).filter { $0.hasStatistics || $0.isSubmodule }
-        return RevisionComparisonSnapshot(root: root, from: old, to: new, fromDetails: try comparisonDetails(old, useMailmap: useMailmap, cancellation: token), toDetails: try comparisonDetails(new, useMailmap: useMailmap, cancellation: token), files: files, options: options, scopePaths: scope)
+        return RevisionComparisonSnapshot(root: root, from: old, to: new, fromDetails: try comparisonDetails(old, useMailmap: useMailmap, cancellation: token), toDetails: try comparisonDetails(new, useMailmap: useMailmap, cancellation: token), files: files, options: options, scopePaths: scope, diffDetection: diffDetection)
     }
     public func revisionComparisonPatch(_ snapshot: RevisionComparisonSnapshot, paths: [String] = []) throws -> String {
         String(decoding: try revisionComparisonPatchData(snapshot, paths: paths), as: UTF8.self)
@@ -174,7 +194,7 @@ extension GitRepository {
         guard snapshot.root == root, paths.allSatisfy({ path in snapshot.files.contains { $0.path == path } }) else { throw RevisionComparisonFailure.selection }
         let selected = paths.isEmpty ? snapshot.scopePaths : snapshot.files.filter { paths.contains($0.path) }.flatMap { [$0.path] + ($0.oldPath.map { [$0] } ?? []) }
         for path in selected { _ = try restoreLocation(path) }
-        return try run(comparisonArguments(from: snapshot.from, to: snapshot.to, options: snapshot.options, cancellation: token) + ["--"] + Set(selected).sorted(), cancellation: token).stdout
+        return try run(comparisonArguments(from: snapshot.from, to: snapshot.to, options: snapshot.options, detection: snapshot.diffDetection, cancellation: token) + ["--"] + Set(selected).sorted(), cancellation: token).stdout
     }
     private func comparisonDetails(_ side: ComparisonRevision, useMailmap: Bool, cancellation: OperationCancellation? = nil) throws -> ComparisonRevisionDetails? {
         guard case .revision(let hash) = side else { return nil }
@@ -182,12 +202,13 @@ extension GitRepository {
         guard fields.count == 5 else { throw RevisionComparisonFailure.range }
         return ComparisonRevisionDetails(shortHash: fields[0], subject: fields[1], author: fields[2], authorDate: TimeInterval(fields[3]).map(Date.init(timeIntervalSince1970:)), committerDate: TimeInterval(fields[4]).map(Date.init(timeIntervalSince1970:)))
     }
-    private func comparisonArguments(from: ComparisonRevision, to: ComparisonRevision, options: RevisionDiffOptions, cancellation: OperationCancellation? = nil) throws -> [String] {
+    private func comparisonArguments(from: ComparisonRevision, to: ComparisonRevision, options: RevisionDiffOptions, detection: GitDiffDetection? = nil, cancellation: OperationCancellation? = nil) throws -> [String] {
         guard from != .workingTree || to != .workingTree else { throw RevisionComparisonFailure.range }
         func hash(_ side: ComparisonRevision) throws -> String {
             switch side { case .revision(let value): return value; case .emptyTree: return try run(["mktree"], cancellation: cancellation).text.trimmingCharacters(in: .newlines); case .workingTree: throw RevisionComparisonFailure.range }
         }
-        var args = ["diff", "--no-ext-diff", "--no-color", "-M"] + options.arguments
+        let detection = detection ?? diffDetection
+        var args = ["diff", "--no-ext-diff", "--no-color", detection.renameArgument] + options.arguments(detection: detection)
         if from == .workingTree { args += ["-R", try hash(to)] }
         else if to == .workingTree { args += [try hash(from)] }
         else { args += [try hash(from), try hash(to)] }

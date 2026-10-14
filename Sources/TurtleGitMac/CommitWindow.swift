@@ -259,7 +259,13 @@ import UniformTypeIdentifiers
         partial.model.comparisonTitle = model.comparisonBase != nil ? "Parent → Working tree" : model.hasHead ? "HEAD → Working tree" : "Initial commit"
         partial.window?.title = partial.model.readOnly ? "View Patch – " + partial.model.comparisonTitle : partial.model.staged ? (model.comparisonBase == nil ? "Partial Unstaging – HEAD → Index" : "Partial Unstaging – Parent → Index") : "Partial Staging – Index → Working tree"
         let selected = model.entries.filter { model.selection.contains($0.id) && $0.state != .untracked && $0.state != .ignored }
-        let paths = selected.flatMap { [$0.path] + ($0.originalPath.map { [$0] } ?? []) }
+        let statistics = partial.model.readOnly ? model.statistics : partial.model.staged ? model.stagedStatistics : model.unstagedStatistics
+        // A copied row may have no originalPath in porcelain status. Include
+        // its diff source so the preview retains the copy header and whole-file gate.
+        let paths = selected.flatMap { entry in
+            let source = entry.originalPath ?? statistics[entry.path]?.oldPath
+            return [entry.path] + (source.map { [$0] } ?? [])
+        }
         partial.model.reload(paths: Array(Set(paths)).sorted(), staged: partial.model.staged)
     }
     private func alignPartial() {

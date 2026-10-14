@@ -5,8 +5,9 @@ public actor GitRepository {
     public nonisolated let root: URL
     public nonisolated let executable: URL
     public nonisolated let askpass: URL?
-    public init(root: URL, executable: URL = URL(fileURLWithPath: "/usr/bin/git"), askpass: URL? = GitAskpassRuntime.bundled()) {
-        self.root = root.standardizedFileURL; self.executable = executable; self.askpass = askpass
+    public nonisolated let diffDetection: GitDiffDetection
+    public init(root: URL, executable: URL = URL(fileURLWithPath: "/usr/bin/git"), askpass: URL? = GitAskpassRuntime.bundled(), diffDetection: GitDiffDetection = .load()) {
+        self.root = root.standardizedFileURL; self.executable = executable; self.askpass = askpass; self.diffDetection = diffDetection
     }
     /// With retainStandardOutput false, stdout is delivered only through onOutput;
     /// stderr and exit/cancellation diagnostics remain in the returned result.
@@ -87,7 +88,7 @@ public actor GitRepository {
         return URL(fileURLWithPath: String(decoding: bytes, as: UTF8.self), isDirectory: true).standardizedFileURL
     }
     public func isBare(cancellation: OperationCancellation? = nil) throws -> Bool { try run(["rev-parse", "--is-bare-repository"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) == "true" }
-    public func status(refreshIndex: Bool = true, cancellation: OperationCancellation? = nil) throws -> [StatusEntry] { StatusEntry.parse(try run(["status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignored"], environmentOverrides: refreshIndex ? [:] : ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation).stdout) }
+    public func status(refreshIndex: Bool = true, cancellation: OperationCancellation? = nil) throws -> [StatusEntry] { StatusEntry.parse(try run(["status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignored", diffDetection.statusArgument], environmentOverrides: refreshIndex ? [:] : ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation).stdout) }
     public func trackedPaths(cancellation:OperationCancellation? = nil) throws -> [String] {
         try run(["ls-files", "-z"],cancellation:cancellation).stdout.split(separator: 0).map { String(decoding: $0, as: UTF8.self) }
     }

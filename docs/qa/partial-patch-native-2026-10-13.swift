@@ -219,6 +219,30 @@ import TurtleGitCore
         let renameRemaining = try await repo.run(["ls-files", "-z", "--", renameNew]).stdout
         try require(renameIndex == Data(renameBefore.utf8) && renameRemaining.isEmpty && lifecycleModel.error == nil, "Native rename unstage failed")
         try require((try Data(contentsOf: root.appendingPathComponent(renameNew))) == Data(renameWorking.utf8) && !FileManager.default.fileExists(atPath: root.appendingPathComponent(renameOld).path), "Native rename unstage changed working paths")
+        // A porcelain Added row can be a copied diff row. The Commit-owned
+        // preview must include its statistics source and retain the whole-file gate.
+        let copyRoot = root.appendingPathComponent("copy-scope")
+        try FileManager.default.createDirectory(at: copyRoot, withIntermediateDirectories: true)
+        let copyRepo = GitRepository(root: copyRoot, executable: engine, diffDetection: .init(percentage: 30))
+        _ = try await copyRepo.run(["init", "-b", "main"])
+        for (key, value) in [("user.name", "Copy QA"), ("user.email", "copy@example.invalid"), ("commit.gpgsign", "false"), ("core.hooksPath", "/dev/null")] { _ = try await copyRepo.run(["config", key, value]) }
+        let copyBytes = Data((0..<80).map { "copy line \($0)\n" }.joined().utf8)
+        try copyBytes.write(to: copyRoot.appendingPathComponent("source")); try await copyRepo.stage(["source"]); _ = try await copyRepo.commit(message: "copy base")
+        try copyBytes.write(to: copyRoot.appendingPathComponent("target"))
+        try Data((String(decoding: copyBytes, as: UTF8.self) + "source extra\n").utf8).write(to: copyRoot.appendingPathComponent("source"))
+        try await copyRepo.stage(["source", "target"])
+        let copyController = CommitWindowController(repository: copyRepo, access: nil, defaults: prefs)
+        defer { copyController.close() }
+        copyController.model.reload(); try await wait { !copyController.model.busy }
+        try require(copyController.model.entries.first { $0.path == "target" }?.originalPath == nil && copyController.model.stagedStatistics["target"]?.oldPath == "source", "Copy fixture did not exercise the porcelain/statistics distinction")
+        copyController.model.selection = ["target"]; copyController.model.showPartial(true)
+        var copyModel: PatchWindowModel?
+        try await wait {
+            copyModel = copyController.window?.childWindows?.flatMap { descendants($0.contentView!) }.compactMap { ($0 as? PatchTextView.PatchText)?.coordinator?.model }.first
+            return copyModel != nil && copyModel?.busy == false
+        }
+        try require(copyModel!.document.files.contains { $0.header.contains { $0.hasPrefix("copy from ") } && !$0.supportsPartialChanges } && !copyModel!.canApplyHunks && !copyModel!.canApplyLines, "Commit copy preview lost its source or allowed partial staging")
+        copyController.close()
         print("Partial patch: source Staging/Unstaging menu gates and bottom Find/case/no-wrap boundaries, exact rendering and original-byte export; real line stage/hunk unstage, unrelated index preservation, superseded/cancelled/retired reads closed-mutation Quit/parent gates and owned process reaping passed.")
     }
 }

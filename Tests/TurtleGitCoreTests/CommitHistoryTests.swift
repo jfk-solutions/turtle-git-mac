@@ -367,7 +367,7 @@ final class CommitHistoryTests: XCTestCase {
         let selected = try await repo.logPatchPreviewData(displayed, files: [fromSecond, rename, rawRow, binaryRow])
         var expected = Data()
         for (parent, paths) in [(secondParent, ["main-only"]), (firstParent, [original, renamed]), (firstParent, [raw]), (firstParent, [binary])] {
-            expected.append(try await repo.run(["diff", "--no-ext-diff", "--no-textconv", "--no-color", parent, merge.hash, "--"] + paths).stdout)
+            expected.append(try await repo.run(["diff", "--no-ext-diff", "--no-textconv", "--no-color"] + repo.diffDetection.historyArguments + [parent, merge.hash, "--"] + paths).stdout)
         }
         XCTAssertEqual(selected, expected, "Selected rows must retain visible order, real merge parents and both rename paths")
         XCTAssertNotNil(selected.range(of: Data([0x2d, 0xff, 0x0a])))
@@ -375,7 +375,7 @@ final class CommitHistoryTests: XCTestCase {
         XCTAssertTrue(String(decoding: selected, as: UTF8.self).contains("Binary files"))
         XCTAssertFalse(String(decoding: selected, as: UTF8.self).components(separatedBy: "\n").contains(" line 14"), "Configured zero context must be respected")
         let whole = try await repo.logPatchPreviewData(displayed)
-        let wholeExpected = try await repo.run(["diff-tree", "-r", "-p", "--stat", "--no-ext-diff", "--no-textconv", "--no-color", firstParent, merge.hash, "--"]).stdout
+        let wholeExpected = try await repo.run(["diff-tree", "-r", "-p", "--stat", "--no-ext-diff", "--no-textconv", "--no-color"] + repo.diffDetection.historyArguments + [firstParent, merge.hash, "--"]).stdout
         XCTAssertEqual(whole, wholeExpected)
         XCTAssertFalse(String(decoding: whole, as: UTF8.self).contains("Patch metadata note"))
         let afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout

@@ -51,3 +51,7 @@ tool activation, signed sandbox grants, minimum-OS execution and full hosted CI
 remain separate acceptance work. This batch does not certify all comparison
 menus or the complete TortoiseGit port. Other viewer/editor source-parity gaps
 remain tracked in their comparison documents and the dialog coverage ledger.
+
+The shared [rename/copy detection family](DIFF-DETECTION-PARITY.md) now connects
+source percentages, paired file/patch reads, pinned snapshot policy and historical
+cache invalidation. Its separate validation record reports the actual scope.

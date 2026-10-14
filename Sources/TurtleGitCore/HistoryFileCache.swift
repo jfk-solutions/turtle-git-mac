@@ -117,7 +117,7 @@ extension GitRepository {
         do { indexDigest = HistoryFileCache.digest(try Data(contentsOf: index)) }
         catch let error as NSError where error.domain == NSCocoaErrorDomain && error.code == NSFileReadNoSuchFileError { indexDigest = "absent" }
         let diffEnvironment = ["GIT_DIFF_OPTS", "GIT_ATTR_SOURCE", "GIT_ATTR_NOSYSTEM"].map { $0 + "=" + (environment[$0] ?? "") }
-        let context = HistoryFileCache.digest(Array(lines.dropFirst(2)) + [HistoryFileCache.digest(config), indexDigest, String(describing: engine[.modificationDate]), String(describing: engine[.size])] + diffEnvironment)
+        let context = HistoryFileCache.digest(Array(lines.dropFirst(2)) + ["diff-detection-v1=" + diffDetection.historyArguments.joined(separator: ","), HistoryFileCache.digest(config), indexDigest, String(describing: engine[.modificationDate]), String(describing: engine[.size])] + diffEnvironment)
         return (key, context, info, global)
     }
     func historyFileAttributesFingerprint(_ files: [CommitFile], info: URL, global: URL, cancellation: OperationCancellation?) throws -> String {

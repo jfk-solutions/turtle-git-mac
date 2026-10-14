@@ -1,0 +1,79 @@
+{
+  "date": "2026-10-14",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Shared rename/copy percentage and immutable repository/snapshot detection policy",
+    "Status/staging/working/revision/history file and original-byte patch routes",
+    "CLI vs historical zero behavior, default copy comparison and history-cache policy invalidation",
+    "Commit copy-preview source path and existing whole-file partial staging gate"
+  ],
+  "validation": {
+    "debug_initial": {
+      "exit": 0,
+      "log": "build/qa/diff-detection-debug-2026-10-14.log"
+    },
+    "core_initial": {
+      "exit": 1,
+      "tests": 113,
+      "failed_test_cases": 2,
+      "failed_assertions": 5,
+      "log": "build/qa/diff-detection-core-2026-10-14.log"
+    },
+    "debug_repair": {
+      "exit": 0,
+      "log": "build/qa/diff-detection-debug-repair-2026-10-14.log"
+    },
+    "core_affected_recheck": {
+      "exit": 0,
+      "tests": 15,
+      "log": "build/qa/diff-detection-core-repair-2026-10-14.log",
+      "result": "All 113 affected tests have cumulative passing evidence. Only failed/new detection cases and affected patch/working-history regressions were rechecked; no second full group run."
+    },
+    "native_initial": {
+      "exit": 0,
+      "cases": 4,
+      "families": [
+        "comparison-launch",
+        "partial-patch"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "log": "build/qa/diff-detection-native-2026-10-14.log"
+    },
+    "native_affected_recheck": {
+      "exit": 0,
+      "cases": 2,
+      "family": "partial-patch including Commit-owned copied row source/whole-file gate",
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "log": "build/qa/diff-detection-native-repair-2026-10-14.log"
+    },
+    "ownership": {
+      "owned_receivers_reaped": [
+        54573,
+        54860,
+        55205,
+        55477,
+        58744,
+        58903
+      ],
+      "no_owned_receivers_remain": true
+    }
+  },
+  "repairs": [
+    "Historical shared flags initially placed -M after -C, which disabled copy detection. Rename now precedes copy to retain both; real-Git copy list/metadata/patch checks verify the ordering.",
+    "The new fixture incorrectly expected C instead of Git's scored C100 action. It now checks the copy action prefix while retaining exact source path/header assertions.",
+    "The older whole-preview fixture compared against Git defaults. Its byte oracle now explicitly uses the captured historical detection policy.",
+    "Commit's copied porcelain Added row may have no originalPath. Partial preview includes the diff-statistics source path and preserves its whole-file-only gate; a native receiver exercises this exact distinction."
+  ],
+  "limits": [
+    "No physical visual/menu/pointer, configured external tool, signed Finder/sandbox or App Store acceptance claim",
+    "CLI and historical backends retain their explicit different zero semantics",
+    "Existing repository sessions retain their captured setting until a new session is created",
+    "Complete hosted CI, every copy-candidate edge case and full application/dialog parity remain open"
+  ]
+}

@@ -73,7 +73,7 @@ extension GitRepository {
             let batch=Array(entries[start..<min(start+128,entries.count)])
             guard batch.allSatisfy({ HistoryMetadataProtocol.objectID($0.hash) && $0.parents.allSatisfy(HistoryMetadataProtocol.objectID) }) else { throw HistoryMetadataFailure.input }
             let text=batch.map { ([$0.hash]+$0.parents).joined(separator:" ") }.joined(separator:"\n")+"\n"
-            let data=try run(["diff-tree","--stdin","--root","--always","-m","--name-status","-z","-r","-M","--no-ext-diff","--no-color","--"],environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"],cancellation:cancellation,input:Data(text.utf8)).stdout
+            let data=try run(["diff-tree","--stdin","--root","--always","-m","--name-status","-z","-r"] + diffDetection.historyArguments + ["--no-ext-diff","--no-color","--"],environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"],cancellation:cancellation,input:Data(text.utf8)).stdout
             let values=try HistoryMetadataProtocol.changes(data,expected:Set(batch.map { $0.hash.lowercased() }))
             for entry in batch { result[entry.hash]=values[entry.hash.lowercased()] }
         }
