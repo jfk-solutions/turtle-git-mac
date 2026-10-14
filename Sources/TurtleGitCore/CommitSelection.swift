@@ -9,6 +9,8 @@ public struct CommitOptions: Sendable {
     public var resetAuthorDate = false
     public var messageOnly = false
     public var newBranch: String?
+    /// Explicit Commit-dialog Ignore choice; checked conflicts remain forbidden.
+    public var ignoreUnresolvedConflicts = false
     public init() {}
 }
 
@@ -40,17 +42,18 @@ extension GitRepository {
         try cancellation?.check()
         func failure(_ message: String) -> GitFailure { GitFailure(arguments: ["commit"], code: 1, message: message) }
         guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw failure("Enter a commit message.") }
-        let operation = try commitOperation()
+        let operation = try commitOperation(cancellation:cancellation)
         if operation != nil, options.amend || options.newBranch != nil {
             throw failure("Finish the pending operation before amending or creating a new branch.")
         }
         let paths = options.messageOnly ? Set<String>() : paths
         guard !paths.isEmpty || options.amend || options.messageOnly || operation == .merge else { throw failure("Check at least one file to commit.") }
         let parentMode = options.amend && !options.amendDiffToLastCommit
-        let changes = try commitDialogStatus(amendToParent: parentMode)
-        guard !changes.contains(where: { $0.state == .conflicted }) else { throw failure("Resolve the conflicted files before committing.") }
+        let changes = try commitDialogStatus(amendToParent:parentMode,cancellation:cancellation)
+        let hasConflicts=changes.contains { $0.state == .conflicted }
+        guard !hasConflicts || options.ignoreUnresolvedConflicts else { throw failure("Resolve the conflicted files before committing.") }
         let checked = changes.filter { paths.contains($0.path) }
-        guard checked.count == paths.count, checked.allSatisfy({ $0.state != .ignored }) else {
+        guard checked.count == paths.count, checked.allSatisfy({ $0.state != .ignored && $0.state != .conflicted }) else {
             throw failure("The checked files have changed since the dialog was loaded. Refresh the file list before committing.")
         }
         if operation != nil {
@@ -62,7 +65,7 @@ extension GitRepository {
         if options.amend { _ = try run(["rev-parse", "--verify", "HEAD"]) }
         if parentMode { return try commitParentSelection(message: message, checked: checked, options: options, cancellation: cancellation, onOutput: onOutput) }
         let modes = try selectedStagedFileModes(checked)
-        if !modes.isEmpty {
+        if hasConflicts || !modes.isEmpty {
             let base = try (try? run(["rev-parse", "--verify", "HEAD^{commit}"]).text.trimmingCharacters(in: .newlines))
                 ?? (try run(["mktree"]).text.trimmingCharacters(in: .newlines))
             return try commitSeparateSelection(message: message, checked: checked, options: options, base: base, fileModes: modes, cancellation: cancellation, onOutput: onOutput)
@@ -148,7 +151,7 @@ extension GitRepository {
         guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw GitFailure(arguments: ["commit"], code: 1, message: "Enter a commit message.")
         }
-        if try commitOperation() != nil, options.amend || options.newBranch != nil {
+        if try commitOperation(cancellation:cancellation) != nil, options.amend || options.newBranch != nil {
             throw GitFailure(arguments: ["commit"], code: 1, message: "Finish the pending operation before amending or creating a new branch.")
         }
         let messageFile = try makeCommitMessageFile(message); defer { messageFile.remove() }
@@ -161,6 +164,13 @@ extension GitRepository {
         if options.signOff { args.append("--signoff") }
         if let author = options.author, !author.isEmpty { args.append("--author=" + author) }
         return try run(args, cancellation: cancellation, onOutput: onOutput).text
+    }
+    public func validateCommitBranch(_ name:String,cancellation:OperationCancellation? = nil) throws -> Bool {
+        try cancellation?.check()
+        guard !name.isEmpty,!name.contains("\0"),!name.hasPrefix("-") else { throw GitFailure(arguments:["branch"],code:1,message:"Enter a valid new branch name.") }
+        _ = try run(["check-ref-format","refs/heads/"+name],cancellation:cancellation)
+        guard try run(["show-ref","--verify","--quiet","refs/heads/"+name],successfulExitCodes:0...1,cancellation:cancellation).exitCode==1 else { throw GitFailure(arguments:["branch"],code:1,message:"A branch named “"+name+"” already exists. Choose another name.") }
+        return try run(["show-ref","--verify","--quiet","refs/tags/"+name],successfulExitCodes:0...1,cancellation:cancellation).exitCode==0
     }
     func prepareCommitBranch(_ name: String?, cancellation: OperationCancellation? = nil) throws {
         try cancellation?.check()
@@ -202,24 +212,26 @@ extension GitRepository {
     /// CommitDlg warns only for checked directories. Tracked gitlinks use the
     /// working/index diff's -dirty marker; newly added nested repos use status.
     /// This read does not stage either repository or initialize missing children.
-    public func commitDirtySubmodules(paths: [String]) throws -> [CommitDirtySubmodule] {
+    public func commitDirtySubmodules(paths: [String],cancellation:OperationCancellation? = nil) throws -> [CommitDirtySubmodule] {
+        try cancellation?.check()
         var result: [CommitDirtySubmodule] = [], seen = Set<String>()
         for path in paths where seen.insert(path).inserted {
+            try cancellation?.check()
             let location = try restoreLocation(path)
             var isDirectory: ObjCBool = false
             guard FileManager.default.fileExists(atPath: location.path, isDirectory: &isDirectory), isDirectory.boolValue,
                   (try FileManager.default.attributesOfItem(atPath: location.path))[.type] as? FileAttributeType == .typeDirectory,
                   FileManager.default.fileExists(atPath: location.appendingPathComponent(".git").path) else { continue }
-            let discovered = try run(["-C", location.path, "rev-parse", "--show-toplevel"], environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"]).stdout
+            let discovered = try run(["-C", location.path, "rev-parse", "--show-toplevel"], environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"],cancellation:cancellation).stdout
             var bytes = discovered
             if bytes.last == 10 { bytes.removeLast() }
             guard URL(fileURLWithPath: String(decoding: bytes, as: UTF8.self)).resolvingSymlinksInPath().standardizedFileURL == location.resolvingSymlinksInPath().standardizedFileURL else { throw SubmoduleComparisonFailure.unsafeCheckout }
-            let tracked = try !run(["ls-files", "--stage", "-z", "--", path], environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"]).stdout.isEmpty
+            let tracked = try !run(["ls-files", "--stage", "-z", "--", path], environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"],cancellation:cancellation).stdout.isEmpty
             let dirty: Bool
             if tracked {
-                dirty = try run(["diff", "--no-ext-diff", "--no-textconv", "--no-color", "--", path], environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"]).text.hasSuffix("-dirty\n")
+                dirty = try run(["diff", "--no-ext-diff", "--no-textconv", "--no-color", "--", path], environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"],cancellation:cancellation).text.hasSuffix("-dirty\n")
             } else {
-                dirty = try !run(["-C", location.path, "status", "--porcelain=v1", "-z"], environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"]).stdout.isEmpty
+                dirty = try !run(["-C", location.path, "status", "--porcelain=v1", "-z"], environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"],cancellation:cancellation).stdout.isEmpty
             }
             if dirty { result.append(CommitDirtySubmodule(path: path, checkout: location)) }
         }

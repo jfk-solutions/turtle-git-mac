@@ -2217,3 +2217,30 @@ gallery. See [batch evidence](qa/preview-viewport-2026-10-14.json). These change
 address the preceding placement and initial-viewport gaps, but do not certify all
 physical side-by-side placement, keyboard,
 VoiceOver, all monitor/fullscreen layouts, signed grants or complete dialog parity.
+
+
+## Commit preflight family — October 15, 2026
+
+Commit now checks fresh conflict status before the new-branch and message
+preflight, following CommitDlg::OnOK. The warning has the source OK/Ignore
+choices: OK stops and selects/focuses the first conflicted file; Ignore explicitly
+continues with the checked selection. Checked conflicted files still cannot be
+committed. In checkbox mode a separate commit index uses the original tree for
+unchecked paths while retaining their real unmerged index stages and working
+bytes. This is a macOS implementation adaptation to upstream's temporary-index
+selection handling. A pending merge retains both parents. Staging mode continues
+to require a valid Git index.
+
+New-branch names are validated before staging or checkout. Existing branches are
+rejected; an existing tag prompts Continue/Abort with Abort as the default. The
+read-only checks leave HEAD and the index unchanged. Existing issue, template,
+sign-off, conflict-hint, hook, provider and dirty-submodule warnings retain their
+sequence after these checks.
+
+Preflight reads and issue matching share an owned cancellation token. Every
+awaited warning checks the owning Commit window before continuing. Closing the
+owner retires late replies and the progress choice, while repository access and
+the application Quit guard remain held until owned work settles.
+
+Validation and remaining acceptance limits are recorded in
+[batch evidence](qa/commit-preflight-family-2026-10-15.json).

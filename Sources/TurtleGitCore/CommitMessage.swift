@@ -38,20 +38,22 @@ public struct CommitMessageFile: Equatable, Sendable {
 }
 
 extension GitRepository {
-    public func prepareCommitMessageFile(_ message: String, stripComments: Bool = false, sanitize: Bool = true) throws -> CommitMessageFile {
+    public func prepareCommitMessageFile(_ message: String, stripComments: Bool = false, sanitize: Bool = true,cancellation:OperationCancellation? = nil) throws -> CommitMessageFile {
+        try cancellation?.check()
         var prefix = "#"
         if stripComments {
-            do { prefix = try run(["config", "--get", "core.commentchar"]).text.trimmingCharacters(in: .newlines) }
+            do { prefix = try run(["config", "--get", "core.commentchar"],cancellation:cancellation).text.trimmingCharacters(in: .newlines) }
             catch let failure as GitFailure where failure.code == 1 { }
         }
         return CommitMessageFile.format(message, stripComments: stripComments, sanitize: sanitize, commentPrefix: prefix)
     }
 
     /// Mirrors upstream AppUtils' conflict hint detection and cleanup exemptions.
-    public func rebaseMessageContainsConflictHints(_ message: String, stripComments: Bool = false) throws -> Bool {
+    public func rebaseMessageContainsConflictHints(_ message: String, stripComments: Bool = false,cancellation:OperationCancellation? = nil) throws -> Bool {
+        try cancellation?.check()
         if stripComments { return false }
         func value(_ key: String) throws -> String {
-            do { return try run(["config", "--get", key]).text.trimmingCharacters(in: .newlines) }
+            do { return try run(["config", "--get", key],cancellation:cancellation).text.trimmingCharacters(in: .newlines) }
             catch let failure as GitFailure where failure.code == 1 { return "" }
         }
         if ["verbatim", "whitespace", "scissors"].contains(try value("core.cleanup")) { return false }

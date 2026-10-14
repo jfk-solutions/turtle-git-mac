@@ -1,0 +1,61 @@
+{
+  "date": "2026-10-15",
+  "scope": "Commit conflict/new-branch preflight and owner retirement",
+  "source": [
+    "CommitDlg.cpp OnOK conflict, branch and tag warning order",
+    "CommitDlg.cpp temporary-index unchecked selection handling"
+  ],
+  "implementation": [
+    "Source OK/Ignore conflict warning and first conflict focus",
+    "Explicit Ignore checkbox commit preserves real unmerged stages and working bytes",
+    "Read-only new-branch validation and default-Abort tag collision warning",
+    "Cancellable preflight reads and rejection of retired-window warning replies",
+    "Retained repository access and application Quit guard through preflight/progress settlement"
+  ],
+  "validation": {
+    "core": {
+      "tests": 50,
+      "failures": 0,
+      "log": "build/qa/commit-preflight-family-core-2026-10-15.log"
+    },
+    "build": {
+      "exit_code": 0,
+      "log": "build/qa/commit-preflight-family-build-2026-10-15.log"
+    },
+    "native": {
+      "status": "4 passed",
+      "cases": [
+        "commit-progress",
+        "native-issue-provider"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "log": "build/qa/commit-preflight-family-native-2026-10-15.log",
+      "owned_receiver_pids_reaped": [
+        47760,
+        49357,
+        49520,
+        51158
+      ],
+      "new_coverage": [
+        "Actual owned conflict alert, OK default and focus",
+        "Ignore commits checked bytes while retaining unmerged index and working files",
+        "Abort/Continue tag collision with real branch/tag checks",
+        "Late missing-issue warning reply after owner retirement leaves HEAD/index untouched"
+      ]
+    },
+    "documentation": {
+      "coverage_reconciliation_exit_code": 0,
+      "site_exit_code": 0,
+      "unresolved_fragments": []
+    }
+  },
+  "limits": [
+    "Separate commit index preserves actual unmerged entries instead of replacing unchecked conflict stages; documented platform adaptation",
+    "Staging mode still requires a valid Git index",
+    "Full physical keyboard/VoiceOver, signed installation and complete dialog visual parity remain open",
+    "Focused local checks do not establish hosted integration success"
+  ]
+}

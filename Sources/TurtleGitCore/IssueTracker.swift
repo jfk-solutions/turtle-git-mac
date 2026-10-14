@@ -112,15 +112,16 @@ public struct IssueTrackerProperties: Sendable, Equatable {
             return found.text.substring(with: NSRange(location: offset, length: part.utf16.count))
         }
     }
-    public func prepareCommit(message: String, issueID: String, executable: URL? = nil) throws -> IssueCommitPreparation {
+    public func prepareCommit(message: String, issueID: String, executable: URL? = nil,cancellation:OperationCancellation? = nil) throws -> IssueCommitPreparation {
+        try cancellation?.check()
         guard validatesIssueID(issueID) else {
             throw IssueTrackerFailure.invalidIssueID
         }
-        let match = checkExpression.isEmpty ? nil : try IssueRegexRuntime.match(message: message, check: checkExpression, extract: extractionExpression, executable: executable)
+        let match = checkExpression.isEmpty ? nil : try IssueRegexRuntime.match(message:message,check:checkExpression,extract:extractionExpression,executable:executable,cancellation:cancellation)
         let warning = warnIfNoIssue && issueID.isEmpty && match?.hasMatch != true
         let id = issueID.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !id.isEmpty, showsIssueField else { return IssueCommitPreparation(message: message, requiresIssueWarning: warning) }
-        let ids = try match?.identifiers(in: message) ?? identifiers(in: message, executable: executable)
+        let ids = try match?.identifiers(in: message) ?? identifiers(in:message,executable:executable,cancellation:cancellation)
         // Foundation's numeric comparison supplies natural numeric ordering.
         // Full StrCmpLogicalW punctuation/locale parity is still under audit.
         let existing = Self.naturalIssueIDs(ids)
@@ -196,15 +197,15 @@ extension GitRepository {
         }
         return (String(decoding: record[..<split], as: UTF8.self).lowercased(), String(decoding: record[record.index(after: split)...], as: UTF8.self))
     }
-    public func prepareIssueCommit(properties: IssueTrackerProperties, message: String, issueID: String) throws -> IssueCommitPreparation {
-        try properties.prepareCommit(message: message, issueID: issueID)
+    public func prepareIssueCommit(properties: IssueTrackerProperties, message: String, issueID: String,cancellation:OperationCancellation? = nil) throws -> IssueCommitPreparation {
+        try properties.prepareCommit(message:message,issueID:issueID,cancellation:cancellation)
     }
     public func issueFieldValue(properties: IssueTrackerProperties, message: String, cancellation: OperationCancellation? = nil) throws -> String {
         try properties.issueFieldValue(in: message, cancellation: cancellation)
     }
-    public func commitSignOffLine() throws -> String {
-        let name = try run(["config", "user.name"]).text.replacingOccurrences(of: "\n", with: "")
-        let email = try run(["config", "user.email"]).text.replacingOccurrences(of: "\n", with: "")
+    public func commitSignOffLine(cancellation:OperationCancellation? = nil) throws -> String {
+        let name = try run(["config", "user.name"],cancellation:cancellation).text.replacingOccurrences(of: "\n", with: "")
+        let email = try run(["config", "user.email"],cancellation:cancellation).text.replacingOccurrences(of: "\n", with: "")
         return "Signed-off-by: \(name) <\(email)>"
     }
 }

@@ -13,6 +13,37 @@ final class CommitSelectionTests: XCTestCase {
         return (root, repo)
     }
     func write(_ root: URL, _ path: String, _ text: String) throws { try Data(text.utf8).write(to: root.appendingPathComponent(path)) }
+    func testExplicitIgnoreCommitsCheckedMergeAndRetainsUnmergedIndex() async throws {
+        let (root,repo)=try await fixture();defer { try? FileManager.default.removeItem(at:root) }
+        for path in ["conflict.txt","checked.txt"] { try write(root,path,"base\n") };try await repo.stage(["conflict.txt","checked.txt"]);_ = try await repo.commit(message:"base")
+        _ = try await repo.run(["checkout","-b","side"]);try write(root,"conflict.txt","side\n");try await repo.stage(["conflict.txt"]);_ = try await repo.commit(message:"side")
+        let side=try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
+        _ = try await repo.run(["checkout","main"]);try write(root,"conflict.txt","main\n");try await repo.stage(["conflict.txt"]);_ = try await repo.commit(message:"main")
+        let head=try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
+        do { _ = try await repo.run(["merge","--no-ff","side"]);XCTFail("Merge should conflict") } catch is GitFailure {}
+        try write(root,"checked.txt","selected\n")
+        let stages=try await repo.run(["ls-files","--unmerged","-z"]).stdout,conflict=try Data(contentsOf:root.appendingPathComponent("conflict.txt"))
+        do { _ = try await repo.commitSelected(message:"guarded",paths:["checked.txt"]);XCTFail("Unresolved files require explicit Ignore") } catch is GitFailure {}
+        var options=CommitOptions();options.ignoreUnresolvedConflicts=true
+        do { _ = try await repo.commitSelected(message:"checked conflict rejected",paths:["conflict.txt"],options:options);XCTFail("Checked conflicts must remain forbidden") } catch is GitFailure {}
+        _ = try await repo.commitSelected(message:"explicit Ignore",paths:["checked.txt"],options:options)
+        let parents=try await repo.run(["show","-s","--format=%P","HEAD"]).text,selected=try await repo.run(["show","HEAD:checked.txt"]).text,unselected=try await repo.run(["show","HEAD:conflict.txt"]).text
+        XCTAssertEqual(parents,head+" "+side+"\n");XCTAssertEqual(selected,"selected\n");XCTAssertEqual(unselected,"main\n")
+        let retained=try await repo.run(["ls-files","--unmerged","-z"]).stdout;XCTAssertEqual(retained,stages);XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent("conflict.txt")),conflict)
+        let operation=try await repo.commitOperation();XCTAssertNil(operation)
+    }
+    func testBranchPreflightIsReadOnlyAndDistinguishesExistingTag() async throws {
+        let (root,repo)=try await fixture();defer { try? FileManager.default.removeItem(at:root) }
+        try write(root,"file","base\n");try await repo.stage(["file"]);_ = try await repo.commit(message:"base");_ = try await repo.run(["tag","collision"])
+        let head=try await repo.run(["rev-parse","HEAD"]).stdout,index=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        let collision=try await repo.validateCommitBranch("collision"),fresh=try await repo.validateCommitBranch("fresh")
+        XCTAssertTrue(collision);XCTAssertFalse(fresh)
+        for name in ["main","invalid:branch","-option"] { do { _ = try await repo.validateCommitBranch(name);XCTFail("Invalid/existing branch accepted") } catch is GitFailure {} }
+        let token=OperationCancellation();token.cancel()
+        do { _ = try await repo.validateCommitBranch("fresh",cancellation:token);XCTFail("Cancelled branch check succeeded") } catch is OperationCancellationFailure {}
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index)
+        let after=try await repo.run(["rev-parse","HEAD"]).stdout,branch=try await repo.branch();XCTAssertEqual(after,head);XCTAssertEqual(branch,"main")
+    }
     func testMessageOnlyCommitsAndDatesPreserveUncheckedIndex() async throws {
         let (root, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
         try write(root, "file.txt", "base\n"); try await repo.stage(["file.txt"]); _ = try await repo.commit(message: "base")

@@ -28,6 +28,7 @@ import UniformTypeIdentifiers
         NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 320), styleMask: [.titled, .resizable], backing: .buffered, defer: false)
     }
     private var logPicker: LogWindowController?
+    private(set) var preflightAlert:NSAlert?
     var hasMessagePicker: Bool { historyWindow != nil || logPicker != nil }
     private(set) var issueProviderOwner: CommitIssueProviderOwner?
     private var progressController: CommitProgressWindowController?
@@ -147,6 +148,26 @@ import UniformTypeIdentifiers
                 choose(response == .alertFirstButtonReturn)
             }
         }
+        model.confirmUnresolvedConflicts={ [weak self,weak window] paths,choose in
+            guard let self,!self.closingCommit,let window,window.attachedSheet==nil else { choose(false);return }
+            let alert=NSAlert();alert.alertStyle = .warning;alert.messageText="One or more files are in a conflicted state."
+            alert.informativeText="OK selects the first conflicted file. Ignore continues with the current commit selection.\n\n"+paths.prefix(8).joined(separator:"\n")
+            alert.addButton(withTitle:"OK");alert.addButton(withTitle:"Ignore");self.preflightAlert=alert
+            alert.beginSheetModal(for:window) { [weak self] response in
+                guard let self else { choose(false);return };if self.preflightAlert===alert { self.preflightAlert=nil }
+                choose(!self.closingCommit && response == .alertSecondButtonReturn)
+            }
+        }
+        model.confirmBranchTagCollision={ [weak self,weak window] name,choose in
+            guard let self,!self.closingCommit,let window,window.attachedSheet==nil else { choose(false);return }
+            let alert=NSAlert();alert.alertStyle = .warning;alert.messageText="A tag with this name already exists."
+            alert.informativeText="Creating branch “"+name+"” makes the short name ambiguous. Continue anyway?"
+            alert.addButton(withTitle:"Continue");let abort=alert.addButton(withTitle:"Abort");alert.buttons[0].keyEquivalent="";abort.keyEquivalent="\r";alert.window.defaultButtonCell=abort.cell as? NSButtonCell;self.preflightAlert=alert
+            alert.beginSheetModal(for:window) { [weak self] response in
+                guard let self else { choose(false);return };if self.preflightAlert===alert { self.preflightAlert=nil }
+                choose(!self.closingCommit && response == .alertFirstButtonReturn)
+            }
+        }
         model.confirmMissingIssue = { [weak window] choose in
             guard let window else { choose(false); return }
             let alert = NSAlert(); alert.alertStyle = .warning
@@ -186,7 +207,7 @@ import UniformTypeIdentifiers
     func setQuitConfirmation(_ pending: Bool) { model.confirmingQuit = pending; partial?.model.confirmingQuit = pending }
     func windowWillClose(_ notification: Notification) {
         if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .cancel); sheet.orderOut(nil) }
-        closingCommit = true; model.invalidateForClose(); issueProviderOwner?.retire(); issueProviderOwner = nil; lfsOperation?.close(); lfsOperation = nil
+        closingCommit = true;preflightAlert=nil; model.invalidateForClose(); issueProviderOwner?.retire(); issueProviderOwner = nil; lfsOperation?.close(); lfsOperation = nil
         if let child = historyWindow {
             historyWindow = nil; window?.endSheet(child); child.orderOut(nil); child.close()
         }
@@ -521,6 +542,19 @@ import UniformTypeIdentifiers
     var confirmCancel: (@escaping (Bool) -> Void) -> Void = { choose in choose(false) }
     private var originalAmendMessage = ""
     var confirmUneditedTemplate: (@escaping (Bool) -> Void) -> Void = { choose in choose(false) }
+    var confirmUnresolvedConflicts:([String],@escaping (Bool)->Void)->Void = { _,choose in choose(false) }
+    var confirmBranchTagCollision:(String,@escaping (Bool)->Void)->Void = { _,choose in choose(false) }
+    private var preflightCancellation:OperationCancellation?
+    private var preflightRequest=UUID()
+    private(set) static var activeCommitPreflights=0
+    private func validatePreflight(_ request:UUID,_ token:OperationCancellation) throws {
+        guard messageFocusAvailable,preflightRequest==request,!token.isCancelled else { throw OperationCancellationFailure.cancelled }
+    }
+    private func focusConflictedFile(_ conflicts:[StatusEntry]) {
+        guard let first=visibleEntries.first(where:{ $0.state == .conflicted }) ?? conflicts.first else { return }
+        if !visibleEntries.contains(where:{ $0.path==first.path }) { showWholeProject=true }
+        selection=[first.id];focusedFiles[stagingEnabled ? "unstaged" : "checkbox"]=first.id
+    }
     var confirmMissingIssue: (@escaping (Bool) -> Void) -> Void = { choose in choose(false) }
     var confirmConflictHints: (@escaping (Bool, Bool) -> Void) -> Void = { choose in choose(false, false) }
     enum DirtySubmoduleChoice { case commit, ignore, cancel }
@@ -1254,6 +1288,8 @@ import UniformTypeIdentifiers
         messageFocusAvailable = false; messageFocusRequest = 0; appliedMessageFocusRequest = 0
     }
     func invalidateForClose() {
+        preflightRequest=UUID();preflightCancellation?.cancel();preflightCancellation=nil
+        if let progress=commitProgress { progress.invalidate();if !progress.busy { progress.choose(nil) } }
         issueProviderGeneration = UUID(); issueProviderBusy = false
         fileMenuGeneration = UUID(); fileOperationToken?.cancel(); cancelChangelist()
         diffSession?.cancel(); diffSession = nil
@@ -1377,48 +1413,79 @@ import UniformTypeIdentifiers
         let preserveChangelists = keepChangelists
         var options = CommitOptions(); options.amend = amend; options.amendDiffToLastCommit = amendDiffToLastCommit; options.author = setAuthor ? author : nil
         options.authorDate = setAuthorDate ? authorDate : nil; options.resetAuthorDate = amend && setAuthorDate && resetAuthorDate; options.messageOnly = messageOnly; options.newBranch = createBranch ? newBranch : nil
-        busy = true
-        Task {
+        let preflight=UUID(),preflightToken=OperationCancellation();preflightRequest=preflight;preflightCancellation=preflightToken
+        busy = true;Self.activeCommitPreflights += 1
+        Task { [self,access] in
+            defer { Self.activeCommitPreflights -= 1;withExtendedLifetime(access) {};if preflightRequest==preflight { preflightCancellation=nil } }
             var commitAttempted = false
             var progress: CommitProgressWindowModel?
             var selectedPostAction: CommitPostAction?
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let current=try await repository.commitDialogStatus(amendToParent:options.amend && !options.amendDiffToLastCommit,cancellation:preflightToken)
+                try validatePreflight(preflight,preflightToken)
+                let conflicts=current.filter { $0.state == .conflicted }
+                if !conflicts.isEmpty {
+                    let ignore=await withCheckedContinuation { continuation in confirmUnresolvedConflicts(conflicts.map(\.path)) { continuation.resume(returning:$0) } }
+                    try validatePreflight(preflight,preflightToken)
+                    guard ignore else { entries=current;focusConflictedFile(conflicts);busy=false;return }
+                    options.ignoreUnresolvedConflicts=true
+                }
+                if let name=options.newBranch {
+                    let collision=try await repository.validateCommitBranch(name,cancellation:preflightToken)
+                    try validatePreflight(preflight,preflightToken)
+                    if collision {
+                        let proceed=await withCheckedContinuation { continuation in confirmBranchTagCollision(name) { continuation.resume(returning:$0) } }
+                        try validatePreflight(preflight,preflightToken);guard proceed else { busy=false;return }
+                    }
+                }
                 if let historyCombine { try await repository.verifyHistoryCombineAmend(historyCombine) }
-                let validation = try await repository.prepareIssueCommit(properties: properties, message: rawMessage, issueID: rawIssueID)
+                let validation = try await repository.prepareIssueCommit(properties: properties, message: rawMessage, issueID:rawIssueID,cancellation:preflightToken)
+                try validatePreflight(preflight,preflightToken)
                 if validation.requiresIssueWarning {
                     let proceed = await withCheckedContinuation { continuation in confirmMissingIssue { continuation.resume(returning: $0) } }
+                    try validatePreflight(preflight,preflightToken)
                     guard proceed else { busy = false; return }
                 }
                 if !messageTemplate.isEmpty && rawMessage == messageTemplate && !dialogDefaults.bool(forKey: "Commit.TemplateNotEdited.Proceed") {
                     let proceed = await withCheckedContinuation { continuation in confirmUneditedTemplate { continuation.resume(returning: $0) } }
+                    try validatePreflight(preflight,preflightToken)
                     guard proceed else { busy = false; return }
                 }
                 var text = rawMessage
                 if properties.warnNoSignedOffBy {
-                    let line = try await repository.commitSignOffLine()
+                    let line = try await repository.commitSignOffLine(cancellation:preflightToken)
+                    try validatePreflight(preflight,preflightToken)
                     if !text.contains(line) {
                         let choice = await withCheckedContinuation { continuation in confirmMissingSignOff { continuation.resume(returning: $0) } }
+                        try validatePreflight(preflight,preflightToken)
                         if choice == .abort { busy = false; return }
                         if choice == .add { text = IssueTrackerProperties.addingSignOff(line, to: text); message = text }
                     }
                 }
                 // AppUtils' detector is shared by Commit and Rebase. Test the
                 // draft after sign-off handling, before issue insertion or staging.
-                if !dialogDefaults.bool(forKey: "CommitMessageContainsConflictHint"), try await repository.rebaseMessageContainsConflictHints(text, stripComments: dialogDefaults.bool(forKey: "StripCommentedLines")) {
+                let conflictHints = !dialogDefaults.bool(forKey:"CommitMessageContainsConflictHint") ? try await repository.rebaseMessageContainsConflictHints(text,stripComments:dialogDefaults.bool(forKey:"StripCommentedLines"),cancellation:preflightToken) : false
+                try validatePreflight(preflight,preflightToken)
+                if conflictHints {
                     let choice = await withCheckedContinuation { continuation in confirmConflictHints { continuation.resume(returning: ($0, $1)) } }
+                    try validatePreflight(preflight,preflightToken)
                     guard choice.0 else { busy = false; return }
                     if choice.1 { dialogDefaults.set(true, forKey: "CommitMessageContainsConflictHint") }
                 }
                 if let hook = try await clientHooks.run(.preCommit, repository: repository, access: access, paths: committedPaths.sorted().map { repository.root.appendingPathComponent($0).path }, message: text, allowContinue: true) { text = hook.message; message = text }
-                let prepared = text == rawMessage ? validation : try await repository.prepareIssueCommit(properties: properties, message: text, issueID: rawIssueID)
+                try validatePreflight(preflight,preflightToken)
+                let prepared = text == rawMessage ? validation : try await repository.prepareIssueCommit(properties: properties, message: text, issueID:rawIssueID,cancellation:preflightToken)
+                try validatePreflight(preflight,preflightToken)
                 text = prepared.message; message = text
-                try provider?.checkCommit(context: NativeIssueProviderContext(repositoryRoot: repository.root, paths: committedPaths.sorted(), message: text, issueID: rawIssueID))
+                try provider?.checkCommit(context: NativeIssueProviderContext(repositoryRoot:repository.root,paths:committedPaths.sorted(),message:text,issueID:rawIssueID))
                 if !options.messageOnly {
                     let candidates = staging ? visibleEntries.filter(\.staged).map(\.path) : visibleEntries.filter { paths.contains($0.path) }.map(\.path)
-                    let dirty = try await repository.commitDirtySubmodules(paths: candidates)
+                    let dirty = try await repository.commitDirtySubmodules(paths:candidates,cancellation:preflightToken)
+                    try validatePreflight(preflight,preflightToken)
                     for child in dirty {
                         let choice = await withCheckedContinuation { continuation in confirmDirtySubmodule(child.path) { continuation.resume(returning: $0) } }
+                        try validatePreflight(preflight,preflightToken)
                         guard choice == .ignore else {
                             busy = false
                             if choice == .commit { onCommitSubmodule(child.checkout) }
@@ -1426,9 +1493,11 @@ import UniformTypeIdentifiers
                         }
                     }
                 }
-                let isGitSVN = try await repository.finderMetadata(knownBare: false).hasGitSVN
-                let written = try await repository.prepareCommitMessageFile(text, stripComments: dialogDefaults.bool(forKey: "StripCommentedLines"), sanitize: dialogDefaults.object(forKey: "SanitizeCommitMsg") as? Bool ?? true)
+                try validatePreflight(preflight,preflightToken)
+                let isGitSVN = try await repository.finderMetadata(knownBare:false,cancellation:preflightToken).hasGitSVN
+                let written = try await repository.prepareCommitMessageFile(text, stripComments: dialogDefaults.bool(forKey: "StripCommentedLines"), sanitize:dialogDefaults.object(forKey:"SanitizeCommitMsg") as? Bool ?? true,cancellation:preflightToken)
                 text = written.contents; message = written.draft
+                try validatePreflight(preflight,preflightToken)
                 let result = CommitProgressWindowModel(repository: repository, action: action, staging: staging, paths: paths, options: options, preferences: dialogDefaults, cancellable: replaySplit == nil && historyCombine == nil)
                 progress = result; commitProgress = result
                 onCommitProgress?(result)
@@ -1453,19 +1522,24 @@ import UniformTypeIdentifiers
                     result.consume(parser.processPending(), parser: parser); result.consume(parser.finish(), parser: parser)
                     output = try await operation.value
                 }
+                guard messageFocusAvailable,preflightRequest==preflight,!preflightToken.isCancelled else {
+                    result.complete(output:output,success:true,cancelled:false,postActions:[]);commitProgress=nil;return
+                }
                 var postHookFailure: String?
                 if let provider {
-                    do { let revision = try await repository.run(["rev-parse", "--verify", "HEAD"]).text.trimmingCharacters(in: .newlines); try provider.commitFinished(context: NativeIssueProviderContext(repositoryRoot: repository.root, paths: committedPaths.sorted(), message: text, issueID: rawIssueID), revision: revision) }
+                    do { let revision = try await repository.run(["rev-parse", "--verify", "HEAD"]).text.trimmingCharacters(in: .newlines); try provider.commitFinished(context: NativeIssueProviderContext(repositoryRoot:repository.root,paths:committedPaths.sorted(),message:text,issueID:rawIssueID), revision: revision) }
                     catch { postHookFailure = "The commit succeeded, but its issue-provider completion failed.\n\n" + error.localizedDescription }
                 }
                 do { _ = try await clientHooks.run(.postCommit, repository: repository, access: access, amend: options.amend) }
                 catch { postHookFailure = (postHookFailure.map { $0 + "\n\n" } ?? "") + "The commit succeeded, but its post-commit hook failed.\n\n" + error.localizedDescription }
+                try validatePreflight(preflight,preflightToken)
                 messageHistory?.add(written.draft)
                 if options.amend && !nonAmendMessage.isEmpty && nonAmendMessage != messageTemplate { messageHistory?.add(nonAmendMessage) }
                 if !result.isAbandoned { onCommitted(output) }
                 result.complete(output: output + (postHookFailure.map { "\n" + $0 } ?? ""), success: true, cancelled: false, postActions: replaySplit == nil && historyCombine == nil ? (isGitSVN ? [.svnDCommit, .push, .pull, .recommit, .createTag] : [.push, .pull, .recommit, .createTag]) : [])
                 if action != .commit || replaySplit != nil || historyCombine != nil || !presented || result.isAbandoned { result.choose(nil) }
                 selectedPostAction = await result.waitForChoice()
+                try validatePreflight(preflight,preflightToken)
                 rememberCompletionAction(action)
                 commitProgress = nil
                 do { try await restoreSavedCopies(Set(restoreCopies.keys)) }
@@ -1502,6 +1576,9 @@ import UniformTypeIdentifiers
                     else if selectedPostAction == .svnDCommit { onSVNDCommit() }
                 }
             } catch {
+                guard messageFocusAvailable,preflightRequest==preflight,!preflightToken.isCancelled else {
+                    if let progress { progress.complete(output:error.localizedDescription,success:false,cancelled:true,postActions:[]);progress.choose(nil) };commitProgress=nil;return
+                }
                 let commitError = error.localizedDescription
                 let shownInProgress = progress != nil && onCommitProgress != nil && progress?.dismissWithoutWindow != true
                 if let progress {

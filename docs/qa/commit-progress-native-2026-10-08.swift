@@ -10,7 +10,7 @@ import Darwin
         for model in ownedOwners { model.commitProgress?.cancellation.cancel() }
         try await wait { ownedOwners.allSatisfy { $0.commitProgress?.busy != true } }
         for model in ownedOwners { model.commitProgress?.choose(nil) }
-        try await wait { ownedOwners.allSatisfy { !$0.busy } }
+        try await wait { ownedOwners.allSatisfy { !$0.busy } && CommitWindowModel.activeCommitPreflights==0 }
         ownedOwners.removeAll()
     }
     @MainActor static func wait(_ condition: @escaping () -> Bool) async throws {
@@ -47,6 +47,50 @@ import Darwin
             value.message = "progress message"; value.checked = ["a 雪"]
             return value
         }
+        let unresolvedRepo=try await fixture("unresolved-preflight")
+        var blobs:[String]=[]
+        for text in ["base\n","ours\n","theirs\n"] { blobs.append(try await unresolvedRepo.run(["hash-object","-w","--stdin"],input:Data(text.utf8)).text.trimmingCharacters(in:.newlines)) }
+        _ = try await unresolvedRepo.run(["update-index","--force-remove","--","b"])
+        let stages=(1...3).map { "100644 \(blobs[$0-1]) \($0)\tb\n" }.joined()
+        _ = try await unresolvedRepo.run(["update-index","--index-info"],input:Data(stages.utf8));try Data("unresolved working text\n".utf8).write(to:unresolvedRepo.root.appendingPathComponent("b"))
+        let conflictStages=try await unresolvedRepo.run(["ls-files","--unmerged","-z"]).stdout,conflictHead=try await unresolvedRepo.run(["rev-parse","HEAD"]).stdout
+        let sheetOwner=CommitWindowController(repository:unresolvedRepo,access:nil,defaults:preferences);defer { sheetOwner.close() };ownedOwners.append(sheetOwner.model)
+        sheetOwner.model.reload(paths:["."]);try await wait { !sheetOwner.model.busy && sheetOwner.model.changelistsLoaded }
+        sheetOwner.model.message="Inspect conflicts";sheetOwner.model.checked=["a 雪"];sheetOwner.model.commit()
+        try await wait { sheetOwner.preflightAlert != nil && sheetOwner.window?.attachedSheet != nil }
+        let conflictAlert=sheetOwner.preflightAlert!
+        try require(conflictAlert.buttons.map(\.title)==["OK","Ignore"],"Conflict prompt differs from source")
+        sheetOwner.window!.endSheet(conflictAlert.window,returnCode:.alertFirstButtonReturn);conflictAlert.window.orderOut(nil)
+        try await wait { !sheetOwner.model.busy && CommitWindowModel.activeCommitPreflights==0 }
+        try require(sheetOwner.model.selection==["b"] && sheetOwner.model.focusedFiles["checkbox"]=="b","OK did not focus first conflict")
+        sheetOwner.close()
+        let ignored=try await owner(unresolvedRepo);ignored.confirmUnresolvedConflicts={ _,reply in reply(true) }
+        var ignoredSuccess=0;ignored.onCommitted={ _ in ignoredSuccess += 1 };ignored.commit()
+        try await wait { !ignored.busy && CommitWindowModel.activeCommitPreflights==0 }
+        let committedChecked=try await unresolvedRepo.run(["show","HEAD:a 雪"]).stdout,remainingStages=try await unresolvedRepo.run(["ls-files","--unmerged","-z"]).stdout
+        try require(ignoredSuccess==1 && committedChecked==Data("selected\n".utf8) && remainingStages==conflictStages,"Ignore lost selection/unmerged index")
+        try require(try Data(contentsOf:unresolvedRepo.root.appendingPathComponent("b"))==Data("unresolved working text\n".utf8),"Ignore rewrote conflict working bytes")
+        let tagRepo=try await fixture("tag-collision"),tagged=try await owner(tagRepo)
+        _ = try await tagRepo.run(["tag","topic"])
+        let tagHead=try await tagRepo.run(["rev-parse","HEAD"]).stdout;tagged.createBranch=true;tagged.newBranch="topic"
+        var tagWarnings=0;tagged.confirmBranchTagCollision={ _,reply in tagWarnings += 1;reply(false) };tagged.commit()
+        try await wait { !tagged.busy && CommitWindowModel.activeCommitPreflights==0 }
+        let abortedHead=try await tagRepo.run(["rev-parse","HEAD"]).stdout,abortedBranch=try await tagRepo.branch()
+        try require(tagWarnings==1 && tagHead==abortedHead && abortedBranch=="main","Abort created a branch or committed")
+        tagged.confirmBranchTagCollision={ _,reply in tagWarnings += 1;reply(true) };tagged.commit()
+        try await wait { !tagged.busy && CommitWindowModel.activeCommitPreflights==0 }
+        let afterBranch=try await tagRepo.branch(),tagStill=try await tagRepo.run(["rev-parse","refs/tags/topic"]).stdout
+        try require(tagWarnings==2 && afterBranch=="topic" && tagStill==tagHead,"Continue did not retain the tag/create branch")
+        let retiredRepo=try await fixture("retired-warning"),retired=try await owner(retiredRepo)
+        retired.issueProperties=IssueTrackerProperties(values:["bugtraq.warnifnoissue":"true"])
+        var lateReply:((Bool)->Void)?;retired.confirmMissingIssue={ lateReply=$0 }
+        let retiredHead=try await retiredRepo.run(["rev-parse","HEAD"]).stdout,retiredIndex=try Data(contentsOf:retiredRepo.root.appendingPathComponent(".git/index"))
+        retired.commit();try await wait { lateReply != nil };retired.invalidateForClose();lateReply?(true)
+        try await wait { CommitWindowModel.activeCommitPreflights==0 }
+        let retiredAfter=try await retiredRepo.run(["rev-parse","HEAD"]).stdout
+        try require(retiredAfter==retiredHead && (try Data(contentsOf:retiredRepo.root.appendingPathComponent(".git/index")))==retiredIndex && retired.commitProgress==nil,"Late warning acceptance staged or committed after owner close")
+        let ignoredHead=try await unresolvedRepo.run(["rev-parse","HEAD"]).stdout
+        try require(conflictHead != ignoredHead,"Ignore did not create commit")
         for action in CommitPostAction.allCases {
             let repo = try await fixture(action.rawValue)
             if action == .svnDCommit {

@@ -34,6 +34,7 @@ import AppKit
         if ResolveWindowModel.activeOperations > 0 || sender.windows.compactMap({ $0.delegate as? ResolveWindowController }).contains(where: { $0.model.hasQuestion || $0.model.hasChild || $0.model.confirmingCancellation || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if IgnoreWindowModel.activeOperations > 0 { return .terminateCancel }
         if AddWindowModel.activeOperations > 0 { return .terminateCancel }
+        if CommitWindowModel.activeCommitPreflights > 0 { return .terminateCancel }
         if CommitWindowModel.activeFileOperations > 0 { return .terminateCancel }
         if CommitWindowModel.activeFileDrops > 0 { return .terminateCancel }
         if LogWindowModel.activeNoteReads > 0 || LogWindowModel.activeNoteSaves > 0 { return .terminateCancel }
