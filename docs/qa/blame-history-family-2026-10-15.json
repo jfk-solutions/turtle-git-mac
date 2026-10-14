@@ -1,0 +1,57 @@
+{
+  "date": "2026-10-15",
+  "scope": "Blame embedded Log column management and revision workflows",
+  "source": [
+    "OutputWnd.cpp m_IsIDReplaceAction and Blameloglist",
+    "GitLogListBase.cpp InsertGitColumn and clipboard branches",
+    "LogListBlameAction.cpp hideUnimplementedCommands/ContextMenuAction"
+  ],
+  "implementation": [
+    "Native ID/default and optional identity columns; private date preferences",
+    "Versioned visibility/order/width persistence and No/Yes reset with retirement guards",
+    "Captured Export/Branch/Tag/Switch/Browse/containing-reference routes",
+    "Multiple-revision clipboard formats with captured display order",
+    "Cancellable scoped clipboard reads, static Quit ownership and stale-result refusal",
+    "Native right-click targeting, Return and Copy routes"
+  ],
+  "validation": {
+    "debug_build": {
+      "exit_code": 0,
+      "log": "build/qa/blame-history-family-build-2026-10-15.log"
+    },
+    "native": {
+      "log": "build/qa/blame-history-family-native-2026-10-15.log",
+      "cases": [
+        "blame-menus",
+        "blame-source"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "result": "4 passed",
+      "owned_receiver_pids_reaped": [
+        40273,
+        40406,
+        40430,
+        40565
+      ],
+      "new_coverage": [
+        "Three-revision IDs and optional columns",
+        "Private layout order/width persistence and reset refusal/acceptance",
+        "Six pinned revision callback routes after selection change",
+        "Multi-revision hash/subject/full-detail clipboard",
+        "Reload stale-target rejection"
+      ],
+      "limits": "Revision destination callbacks injected; this batch does not re-prove every downstream dialog or actual Finder/signed acceptance"
+    },
+    "core": "Unchanged; not rerun"
+  },
+  "remaining": [
+    "Conditional Bug-ID/SVN columns",
+    "Embedded-Log previous-revision/compare/unified-diff actions",
+    "Full docking and source-equivalent menu ordering",
+    "Physical/VoiceOver/new screenshot acceptance",
+    "Signed sandbox and App Store verification"
+  ]
+}

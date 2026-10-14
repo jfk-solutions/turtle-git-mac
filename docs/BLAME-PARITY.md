@@ -1089,3 +1089,55 @@ acceptance remain open. Validation is recorded for the complete related batch.
 
 Blame annotation/history/properties and Copy Log now share the supplied UseMailmap
 display choice. See [identity display parity](IDENTITY-DISPLAY-PARITY.md).
+
+## Embedded Log columns and revision workflows — October 15, 2026
+
+The source comparison is OutputWnd.cpp's `m_IsIDReplaceAction` and `Blameloglist`
+column registration, GitLogListBase.cpp InsertGitColumn/clipboard branches, and
+LogListBlameAction.cpp's allowed context commands and dispatch. The native Log
+now includes the source's ID column (oldest entry is 1), alongside Graph, SHA-1,
+Message, Author and Date. Optional Email, Commit Name, Commit Email and Commit
+Date columns use the existing pinned metadata. Author/committer dates use the
+supplied Log date preferences. The Graph retains complete-log/follow-rename gates.
+
+The native header supports visibility, order, widths, content fitting and a
+confirmed reset. Blame.LogColumns stores its own versioned layout in the supplied
+preferences; missing/invalid settings normalize to defaults and Message remains
+visible. Reset defaults to No; busy/retired/reset-pending owners refuse changes,
+and late accepted answers cannot modify a retired document. The controller owns
+and dismisses its reset sheet on forced closure.
+
+Single-revision menus add Export, Create Branch, Create Tag, Switch/Checkout,
+Browse Repository and Show branches this commit is on, with original artwork.
+They route the captured commit to the existing native workflows. The containing-
+references window is owned by Blame, follows its initial appearance and closes
+with its owner or document replacement. These commands do not mutate Git until
+their respective workflow is accepted. Source parent/previous-revision and unified-
+diff actions in the embedded Log are still missing; source-pane parent actions
+remain available but do not establish embedded-Log equivalence.
+
+Native right-click targets an unselected row and preserves an existing multiple
+selection. A menu retains its ordered entries across subsequent selection changes;
+reload/document retirement rejects stale actions. Return/double-click opens Log
+for one revision; Command-C copies selected hashes in display order. The source
+Log command uses the displayed document path at the captured revision.
+
+The clipboard submenu supports full messages with/without changed paths, hashes,
+author names/emails, subjects and messages for multiple selected revisions.
+Subjects/messages reuse the shared source clipboard formatting. Full detail reads
+are cancellable, retain the repository grant, use private identity/date preferences,
+and participate in Quit ownership even after the window closes. Late cancelled or
+retired reads cannot write to the pasteboard.
+
+The Debug build and four grouped native menu/source checks passed on system and
+bundled Git. New assertions cover three-revision ID numbering, optional Email,
+layout save/restore, No/Yes reset, all six revision callback targets after selection
+changes, multi-selection hash/subject/detail clipboard output, and stale-menu
+rejection after reload. Existing source selection, menu focus, themes, encoding,
+read-only guards and HEAD/index/file preservation remain checked. Core was unchanged
+and was not rerun. All four owned receivers were reaped and checked absent.
+See qa/blame-history-family-2026-10-15.json for actual scope and limits.
+
+Conditional Bug-ID/SVN columns, embedded-Log parent/unified actions, docking,
+full physical menu/keyboard/VoiceOver and signed sandbox acceptance remain open.
+No new screenshot or full visual certification is claimed for this batch.

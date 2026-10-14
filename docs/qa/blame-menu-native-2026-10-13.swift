@@ -16,6 +16,8 @@ import TurtleGitCore
         for (key,value) in [("user.name","Menus QA"),("user.email","menus@example.invalid"),("core.hooksPath","/dev/null"),("commit.gpgsign","false")] { _ = try await repo.run(["config",key,value]) }
         let text="int value = 42;\n// needle 雪\n",file=root.appendingPathComponent("menus.cpp")
         try Data(text.utf8).write(to:file);try await repo.stage(["menus.cpp"]);_ = try await repo.commit(message:"Menu baseline")
+        try Data(text.replacingOccurrences(of:"42",with:"43").utf8).write(to:file);try await repo.stage(["menus.cpp"]);_ = try await repo.commit(message:"Second revision")
+        try Data(text.utf8).write(to:file);try await repo.stage(["menus.cpp"]);_ = try await repo.commit(message:"Restore display")
         let head=try await repo.run(["rev-parse","HEAD"]).stdout,index=try Data(contentsOf:root.appendingPathComponent(".git/index"))
         let name="TurtleGit.BlameMenus.QA."+UUID().uuidString,prefs=UserDefaults(suiteName:name)!
         defer { prefs.removePersistentDomain(forName:name) }
@@ -27,6 +29,47 @@ import TurtleGitCore
         window.contentView?.layoutSubtreeIfNeeded()
         func source()->NSTextView? { descendants(window.contentView!).compactMap { $0 as? NSTextView }.first { $0.accessibilityLabel()=="Blame source text" } }
         try await wait { !model.busy && !model.syntaxWorking && source()?.string==text }
+        func historyTable()->BlameHistoryNativeTable? { descendants(window.contentView!).compactMap { $0 as? BlameHistoryNativeTable }.first }
+        try await wait { historyTable()?.numberOfRows==3 }
+        let history=historyTable()!,historyCoordinator=history.delegate as! BlameHistoryTable.Coordinator
+        try require(history.tableColumns.map { $0.identifier.rawValue }==BlameHistoryColumns.names,"Source Blame column inventory")
+        try require(historyCoordinator.text("id",0)=="3" && historyCoordinator.text("id",2)=="1","Blame Log ID numbering")
+        let header=history.headerView as! BlameHistoryColumnHeader,columns=header.buildMenu()!,email=columns.items.first { $0.title=="Email" }!
+        _ = NSApp.sendAction(email.action!,to:email.target,from:email)
+        try await wait { history.tableColumns.first { $0.identifier.rawValue=="email" }?.isHidden==false }
+        history.moveColumn(6,toColumn:1);history.tableColumns[1].width=217;historyCoordinator.saveLayout()
+        try require(model.historyColumns.order[1]=="email" && model.historyColumns.widths["email"]==217,"History width/order persistence")
+        try require(BlameHistoryColumns.load(prefs)==model.historyColumns,"History layout private restoration")
+        var routed:[String]=[],historyCopied=""
+        model.onHistoryExport={ routed.append("export:"+$0) };model.onHistoryReference={ routed.append(($0 ? "tag:" : "branch:")+$1) }
+        model.onHistorySwitch={ routed.append("switch:"+$0) };model.onHistoryBrowse={ routed.append("browse:"+$0) };model.onContainingReferences={ routed.append("refs:"+$0) }
+        model.writeClipboard={ historyCopied=$0 }
+        history.selectRowIndexes(IndexSet(integer:0),byExtendingSelection:false)
+        let historyMenu=history.menu!;historyCoordinator.menuNeedsUpdate(historyMenu)
+        let pinned=model.selectedHistoryEntry!.hash,export=historyMenu.items.first { $0.title=="Export this version…" }!
+        history.selectRowIndexes(IndexSet(integer:1),byExtendingSelection:false)
+        for title in ["Export this version…","Create branch at this version…","Create tag at this version…","Switch/Checkout to this…","Browse repository","Show branches this commit is on"] {
+            let item=historyMenu.items.first { $0.title==title }!;try require(item.image != nil && item.isEnabled,"Missing enabled source revision command")
+            _ = NSApp.sendAction(item.action!,to:item.target,from:item)
+        }
+        try require(routed==["export:","branch:","tag:","switch:","browse:","refs:"].map { $0+pinned },"Retained history menu followed new selection")
+        history.selectRowIndexes(IndexSet([0,1,2]),byExtendingSelection:false);historyCoordinator.menuNeedsUpdate(historyMenu)
+        let hashes=historyMenu.items.first { $0.title=="Copy SHA-1 to clipboard" }!;_ = NSApp.sendAction(hashes.action!,to:hashes.target,from:hashes)
+        try require(historyCopied==model.historyEntries.map(\.hash).joined(separator:"\n"),"Multi-revision hash clipboard")
+        let clipboard=historyMenu.items.first { $0.title=="Copy to clipboard" }!.submenu!,subjects=clipboard.items.first { $0.title=="Subjects" }!
+        _ = NSApp.sendAction(subjects.action!,to:subjects.target,from:subjects)
+        try require(historyCopied==LogEntry.historyClipboard(model.historyEntries,subjectsOnly:true),"Multi-revision subject clipboard")
+        let details=clipboard.items.first { $0.title=="Full log messages without changed paths" }!;_ = NSApp.sendAction(details.action!,to:details.target,from:details)
+        try await wait { !model.copyingLog && BlameWindowModel.activeHistoryOperations==0 }
+        try require(historyCopied.components(separatedBy:"Revision: ").count==4,"Multi-revision complete clipboard")
+        model.confirmHistoryReset={ false };let savedColumns=model.historyColumns;model.resetHistoryColumns();try await wait { !model.resettingHistoryColumns }
+        try require(model.historyColumns==savedColumns,"No reset changed layout")
+        model.confirmHistoryReset={ true };model.resetHistoryColumns();try await wait { !model.resettingHistoryColumns }
+        try require(model.historyColumns==BlameHistoryColumns(),"Yes reset did not restore layout")
+        model.reload();try await wait { !model.busy && !model.syntaxWorking }
+        let beforeRoutes=routed;_ = NSApp.sendAction(export.action!,to:export.target,from:export)
+        try require(routed==beforeRoutes,"Old menu survived Blame reload")
+        model.selectedLogHashes=[]
         let layout = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/GraphLayout/graph-layout")
         let graph = RevisionGraphWindowModel(repository: repo, access: nil, preferences: prefs, layoutExecutable: layout)
         defer { graph.invalidate() }
