@@ -167,6 +167,10 @@ final class CommitHistoryTests: XCTestCase {
         let range = try await repo.history(options: options)
         XCTAssertEqual(range.map(\.hash), [hashes[1], hashes[0]])
         XCTAssertEqual(range.map(\.isBoundary), [false, true])
+        let previousLimit = options.limit; options.limit = 1
+        let boundedRange = try await repo.history(options: options)
+        XCTAssertEqual(boundedRange.map(\.hash), [hashes[1], hashes[0]], "A raw walk limit must retain Git's extra boundary row")
+        options.limit = previousLimit
         XCTAssertEqual(range.last?.parents, [base], "Boundary detail actions must retain the excluded endpoint's real parent")
         XCTAssertEqual(range.last?.graphParents, [base])
         XCTAssertTrue(CommitGraph.layout(range).last!.lanes.contains { $0.isBoundary })

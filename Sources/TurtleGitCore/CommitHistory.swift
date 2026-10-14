@@ -891,7 +891,7 @@ extension GitRepository {
         try cancellation?.check()
         return nil
     }
-    public func history(options: HistoryOptions = HistoryOptions(), cancellation: OperationCancellation? = nil, issueProperties: IssueTrackerProperties? = nil, dateSettings: HistoryDateSettings = .load(), onProgress: (@Sendable (Int) -> Void)? = nil) throws -> [LogEntry] {
+    public func history(options: HistoryOptions = HistoryOptions(), cancellation: OperationCancellation? = nil, issueProperties: IssueTrackerProperties? = nil, dateSettings: HistoryDateSettings = .load(), onProgress: (@Sendable (Int) -> Void)? = nil, onBatch: (@Sendable ([LogEntry]) -> Void)? = nil) throws -> [LogEntry] {
         try cancellation?.check()
         func historyRun(_ arguments: [String], successfulExitCodes: ClosedRange<Int32> = 0...0) throws -> GitResult {
             try run(arguments, successfulExitCodes: successfulExitCodes, cancellation: cancellation)
@@ -1027,8 +1027,36 @@ extension GitRepository {
         }
         let hasBisectRefs = references.values.contains { $0.contains { $0.name.hasPrefix("refs/bisect/") } }
         let bisectTerms = hasBisectRefs ? try historyBisectTerms(cancellation: cancellation) : HistoryBisectTerms()
+        let head = try? historyRun(["rev-parse", "--verify", "HEAD"]).text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let currentRef = try? historyRun(["symbolic-ref", "--quiet", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        func label(_ input: LogEntry) -> LogEntry {
+            var entry = input
+            entry.references = (references[entry.hash] ?? []).map { value in
+                var reference = value; reference.isCurrent = currentRef.map { GitReferenceName.equal(value.name, $0) } ?? false
+                let short = HistoryReferenceLabel.shortName(value.name, terms: bisectTerms)
+                reference.kind = short.kind; reference.displayName = short.text
+                if value.name.utf8.starts(with: "refs/tags/".utf8), (peeledReferenceNames[entry.hash] ?? []).contains(where: { GitReferenceName.equal($0, value.name + "^{}") }) { reference.kind = .annotatedTag }
+                return reference
+            }
+            entry.isHead = entry.hash == head
+            return entry
+        }
         var entries: [LogEntry] = []
-        var regexTexts: [String] = []
+        var regexTexts: [String] = [], pending: [LogEntry] = []
+        func flush() throws {
+            guard !pending.isEmpty else { return }
+            try cancellation?.check()
+            var ready = pending
+            if filtering && options.searchRegex {
+                let matches = try IssueRegexRuntime.logMatches(regexTexts, pattern: options.search, caseSensitive: options.searchCaseSensitive, executable: options.regexExecutable, cancellation: cancellation)
+                if options.retainFilteredRows { ready = zip(ready, matches).map { item, matches in var item = item; item.matchesHistoryFilter = matches; return item } }
+                else { ready = zip(ready, matches).filter { $0.1 }.map { $0.0 } }
+            }
+            if filtering && filterInMemory && !options.retainFilteredRows && options.limit > 0 { ready = Array(ready.prefix(max(0, options.limit - entries.count))) }
+            try cancellation?.check()
+            entries += ready; onBatch?(ready)
+            pending.removeAll(keepingCapacity: true); regexTexts.removeAll(keepingCapacity: true)
+        }
         for raw in rawEntries {
             try cancellation?.check()
             let hash = raw.hash, walkedParents = raw.parents
@@ -1058,30 +1086,11 @@ extension GitRepository {
             entry.isBoundary = options.includeBoundaryCommits && raw.isBoundary
             if rewritesParents { entry.graphParents = walkedParents }
             entry.issueIDs = try issueIDs(hash, message: raw.message)
-            entry.notes = try notes(hash); entry.tagInfo = try tagInfo(hash); entries.append(entry)
-            if filtering && !options.retainFilteredRows && !options.searchRegex && options.limit > 0 && entries.count >= options.limit { break }
+            entry.notes = try notes(hash); entry.tagInfo = try tagInfo(hash); pending.append(label(entry))
+            if pending.count == 128 { try flush() }
+            if filtering && !options.retainFilteredRows && options.limit > 0 && entries.count + (options.searchRegex ? 0 : pending.count) >= options.limit { break }
         }
-        if filtering && options.searchRegex {
-            let matches = try IssueRegexRuntime.logMatches(regexTexts, pattern: options.search, caseSensitive: options.searchCaseSensitive, executable: options.regexExecutable, cancellation: cancellation)
-            if options.retainFilteredRows {
-                entries = zip(entries, matches).map { entry, matches in var entry = entry; entry.matchesHistoryFilter = matches; return entry }
-            } else {
-                entries = zip(entries, matches).filter { $0.1 }.map { $0.0 }
-                if options.limit > 0 { entries = Array(entries.prefix(options.limit)) }
-            }
-        }
-        let head = try? historyRun(["rev-parse", "--verify", "HEAD"]).text.trimmingCharacters(in: .whitespacesAndNewlines)
-        let currentRef = try? historyRun(["symbolic-ref", "--quiet", "HEAD"]).text.trimmingCharacters(in: .newlines)
-        for index in entries.indices {
-            entries[index].references = (references[entries[index].hash] ?? []).map { value in
-                var reference = value; reference.isCurrent = currentRef.map { GitReferenceName.equal(value.name, $0) } ?? false
-                let short = HistoryReferenceLabel.shortName(value.name, terms: bisectTerms)
-                reference.kind = short.kind; reference.displayName = short.text
-                if value.name.utf8.starts(with: "refs/tags/".utf8), (peeledReferenceNames[entries[index].hash] ?? []).contains(where: { GitReferenceName.equal($0, value.name + "^{}") }) { reference.kind = .annotatedTag }
-                return reference
-            }
-            entries[index].isHead = entries[index].hash == head
-        }
+        try flush()
         try cancellation?.check()
         return entries
     }

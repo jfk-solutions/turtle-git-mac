@@ -301,3 +301,9 @@ The latter is available in Commit and Working Tree and requires an initialized
 child checkout. Submodule Diff’s From/To Log buttons instead open history at the
 respective displayed child revision. Its Cancel button stops an active refresh
 while retaining the prior From/To information.
+
+Log shows a read count while Git loads revisions, then displays complete row
+batches while later notes and metadata are still being read. History actions
+remain gated until the load finishes. Cancelling a replacement read restores
+the previous stable list and graph; an interrupted prefix is not treated as a
+completed history.

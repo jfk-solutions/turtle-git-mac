@@ -1,0 +1,67 @@
+{
+  "date": "2026-10-14",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Complete metadata batches and bounded regex evaluation with preserved raw/matching limit contracts",
+    "Native growing-prefix graph publication while later metadata is pending",
+    "Stable entries/graph/rollup/highlight restoration on cancellation/failure/replacement and stale-publication fences"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/log-progressive-rows-build-repair-2026-10-14.log"
+    },
+    "core_initial": {
+      "exit": 1,
+      "tests": 77,
+      "failed": 1,
+      "log": "build/qa/log-progressive-rows-core-2026-10-14.log",
+      "failure": "New regex fixture lacked an explicit runtime path; other 76 tests passed."
+    },
+    "core_affected_recheck": {
+      "exit": 0,
+      "tests": 13,
+      "scope": "Metadata batch fixtures, limit group and raw-boundary regression",
+      "log": "build/qa/log-progressive-rows-core-repair-2026-10-14.log"
+    },
+    "native": {
+      "exit": 0,
+      "cases": 6,
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "scope": "Progressive rows plus existing ingestion and metadata receivers",
+      "log": "build/qa/log-progressive-rows-native-2026-10-14.log",
+      "owned_receivers_reaped": [
+        32977,
+        33201,
+        33265,
+        33345,
+        33565,
+        33636
+      ],
+      "no_owned_receivers_remain": true
+    },
+    "website": {
+      "exit": 0,
+      "log": "build/qa/log-progressive-rows-site-2026-10-14.log"
+    }
+  },
+  "repairs": [
+    "Configured the new regex fixture with the same bundled helper path used by existing history regex tests.",
+    "Review found that a result clamp could incorrectly trim extra Git boundary rows beyond a raw -n count. Restricted result clamping to in-memory matching APIs and added the limit-one range/boundary regression; repeated only affected checks."
+  ],
+  "evidence": [
+    "Delivered Core batches flatten to final hashes, parents, notes/current-reference/HEAD labels and regex match flags; 128/2 chunk counts and matching-result limits verified",
+    "Native 128-row graph/metadata prefix is visible while an actual second notes command waits; cancellation kills the owned process and restores the old complete 130-row graph/list",
+    "Final 130-row ordering and oldest note preserved with both Git engines",
+    "Graph prefixes grow geometrically to avoid cumulative quadratic rebuild work"
+  ],
+  "limits": [
+    "Publication begins after the initial Git walk and actual-parent restoration; Git-walk-to-first-row streaming remains open",
+    "Typed history and final results remain materialized; bounded retained history is not implemented",
+    "SVN values, highlights, working-tree insertion and final selection are completed at the end of loading",
+    "Physical scrolling/selection acceptance, very large histories, signed scope and complete hosted CI/Store acceptance remain open"
+  ]
+}

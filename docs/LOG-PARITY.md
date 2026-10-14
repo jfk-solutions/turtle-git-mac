@@ -2256,13 +2256,47 @@ cancellation and owner retirement. A removed window retains independent Quit
 protection and its repository lease until the owned history task settles.
 
 This removes raw-walk buffering and provides incremental ingestion/progress.
-Typed entries, filter texts and the final graph are still materialized, and
-visible filtered rows are published after metadata/filter completion. Full
-streaming row publication, bounded retained history and regex batching remain
-unfinished; this is not a complete unlimited-history port.
+Typed entries and the final graph are still materialized. The subsequent
+checkpoint below adds metadata-stage row publication and bounded regex batches.
+Git-walk-to-first-row streaming and bounded retained history remain unfinished; this is not a complete unlimited-history port.
 
 Debug, all 83 affected history/process Core checks and six grouped native
 stream/metadata/column receivers passed with system and bundled Git. All
 receivers were reaped; the grouped checks required no repair/rerun. See
 [actual evidence and limits](qa/log-history-stream-2026-10-14.json). Physical progress/cancellation acceptance,
 very large histories and signed scope acceptance remain open.
+
+## Progressive metadata-row publication — October 14, 2026
+
+History now emits complete batches after each row has actual parents, rewritten
+graph parents, notes/tag/issue metadata and current-reference/HEAD labels. Plain
+filter semantics remain unchanged. Regex matches are evaluated in bounded
+128-record batches; retain-hidden-row and matching-result limit contracts still
+apply before publishing each batch. Flattening delivered batches produces the
+same returned rows and metadata as the completed read.
+
+Native Log displays growing prefixes while later metadata batches are still
+loading. Prefix sizes grow geometrically so cumulative graph work stays within
+a small multiple of the history size rather than rebuilding every prefix.
+Generation/cancellation guards reject stale queued publications. Final rows,
+working-tree insertion, SVN values and highlights still use the completed load.
+Selection callbacks are suppressed during provisional loading; mutation actions
+retain their existing busy gates.
+
+A replacement read keeps the last stable entries/graph/rollups/highlights.
+Failure, cancellation, owner retirement or another refresh restores that stable
+snapshot rather than presenting a partial prefix as a completed history. Full
+completion discards the restore snapshot and applies final selection normally.
+
+This is progressive publication during metadata loading. The initial Git walk
+and actual-parent restoration still finish before these complete batches begin,
+and typed records/results remain materialized. Git-walk-to-first-row streaming
+and bounded retained history remain open.
+
+The initial 77-test history/filter group had one fixture runtime-path failure.
+After configuring that fixture and preserving Git raw-limit boundary rows, all
+13 affected rechecks passed. Debug and six grouped native publication/ingestion/
+metadata receivers passed with both Git engines; all were reaped. The unrelated
+passing Core checks were not repeated. See
+[actual evidence and limits](qa/log-progressive-rows-2026-10-14.json). Physical scrolling/selection, very large
+histories and signed scope acceptance remain open.

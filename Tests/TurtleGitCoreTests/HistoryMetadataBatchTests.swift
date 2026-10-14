@@ -2,6 +2,38 @@ import XCTest
 @testable import TurtleGitCore
 
 final class HistoryMetadataBatchTests:XCTestCase {
+    final class BatchCapture: @unchecked Sendable {
+        private let lock = NSLock(); private var stored: [[LogEntry]] = []
+        func append(_ values: [LogEntry]) { lock.lock(); stored.append(values); lock.unlock() }
+        var values: [[LogEntry]] { lock.lock(); defer { lock.unlock() }; return stored }
+    }
+    func testProgressiveBatchesHaveFinalMetadataAndPreserveRegexAndLimitContracts() async throws {
+        let (root, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let tree = try await repo.run(["mktree"], input: Data()).text.trimmingCharacters(in: .newlines)
+        var hashes: [String] = []
+        for i in 0..<130 {
+            var arguments = ["commit-tree", tree]; if let hash = hashes.last { arguments += ["-p", hash] }
+            hashes.append(try await repo.run(arguments, input: Data("row \(i) 雪\n".utf8)).text.trimmingCharacters(in: .newlines))
+        }
+        _ = try await repo.run(["update-ref", "refs/heads/main", hashes.last!])
+        _ = try await repo.run(["notes", "add", "-m", "complete note", hashes.last!])
+        var options = HistoryOptions(); options.limit = -1
+        let capture = BatchCapture(), entries = try await repo.history(options: options, onBatch: { capture.append($0) })
+        XCTAssertEqual(capture.values.map(\.count), [128, 2])
+        let delivered = capture.values.flatMap { $0 }
+        XCTAssertEqual(delivered.map(\.hash), entries.map(\.hash)); XCTAssertTrue(delivered.first!.isHead)
+        XCTAssertTrue(delivered.first!.references.contains { $0.isCurrent && $0.name == "refs/heads/main" }); XCTAssertEqual(delivered.first!.notes, "complete note")
+        XCTAssertEqual(delivered.map(\.parents), entries.map(\.parents))
+        options.regexExecutable = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("build/issue-regex-runtime/IssueRegex/issue-regex")
+        options.searchRegex = true; options.search = "row (12[0-9]|[0-9]) 雪"; options.searchFields = .subject; options.limit = 4
+        let matching = BatchCapture(), result = try await repo.history(options: options, onBatch: { matching.append($0) })
+        XCTAssertEqual(result.count, 4); XCTAssertEqual(matching.values.flatMap { $0 }.map(\.hash), result.map(\.hash))
+        options.limit = -1; options.retainFilteredRows = true
+        let retained = BatchCapture(), filtered = try await repo.history(options: options, onBatch: { retained.append($0) })
+        XCTAssertEqual(retained.values.map(\.count), [128, 2]); XCTAssertEqual(filtered.count, 130)
+        XCTAssertEqual(retained.values.flatMap { $0 }.map(\.matchesHistoryFilter), filtered.map(\.matchesHistoryFilter))
+    }
+
     func testStreamingLogRecordsPreserveEveryUTF8SplitAndEmptyField() throws {
         let hash = String(repeating: "a", count: 40), other = String(repeating: "b", count: 64)
         let fields = [hash, "", "Author 雪", "", "2026-10-14T12:00:00Z", "Subject 🦎", "Subject 🦎\n\nBody é\n", "Committer", "mail@example.invalid", "2026-10-14T13:00:00Z", "-"]

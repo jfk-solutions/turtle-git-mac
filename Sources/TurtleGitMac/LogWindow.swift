@@ -781,6 +781,27 @@ struct LogCommandRequest: Identifiable {
     }
     private var detailCancellation: OperationCancellation?
     private var historyCancellation: OperationCancellation?
+    private struct HistoryRestore {
+        let entries: [LogEntry], graph: [CommitGraphRow], rollups: [String: HistoryRollupInfo]
+        let highlights: [String: [String: [NSRange]]]
+    }
+    private var historyRestore: HistoryRestore?
+    private var provisionalHistory: [LogEntry] = []
+    private var nextHistoryPublication = 128
+    private func restoreHistorySnapshot() {
+        if let snapshot = historyRestore { entries = snapshot.entries; graph = snapshot.graph; rollupInfo = snapshot.rollups; searchHighlights = snapshot.highlights }
+        historyRestore = nil; provisionalHistory = []; nextHistoryPublication = 128
+    }
+    private func publishHistoryBatch(_ batch: [LogEntry], request: Int, cancellation: OperationCancellation, walk: HistoryWalkOptions, references: HistoryReferenceVisibility, states: [String: HistoryRollupChoice]) {
+        guard request == generation, historyCancellation === cancellation, !isInvalidated, !cancellation.isCancelled else { return }
+        provisionalHistory += batch
+        guard provisionalHistory.count >= nextHistoryPublication else { return }
+        // Doubling prefixes bounds cumulative graph work to a small multiple of
+        // the walk length instead of rebuilding it for every arriving chunk.
+        nextHistoryPublication = max(128, provisionalHistory.count * 2)
+        let projection = CommitGraph.project(provisionalHistory, walk: walk, references: references, rollupStates: states)
+        entries = projection.entries; graph = projection.graph; rollupInfo = projection.rollups; searchHighlights = [:]
+    }
     @Published private(set) var loadedRevisionCount = 0
     var loadingHistory: Bool { historyCancellation != nil }
     @Published var issueProperties = IssueTrackerProperties()
@@ -1299,6 +1320,7 @@ struct LogCommandRequest: Identifiable {
     }
     func invalidate() {
         statisticsWindow?.model.cancel(); statisticsWindow?.close(); statisticsWindow = nil
+        restoreHistorySnapshot()
         isInvalidated = true; gravatar.clear()
         if let deletionCancellation { deletionCancellation.cancel(); self.deletionCancellation = nil; busy = false }
         cancelPatchPreview(); onPatchPreviewVisibility?(false)
@@ -1313,6 +1335,8 @@ struct LogCommandRequest: Identifiable {
     }
     func reload() {
         guard !busy || loadingHistory else { return }
+        restoreHistorySnapshot()
+        historyRestore = HistoryRestore(entries: entries, graph: graph, rollups: rollupInfo, highlights: searchHighlights)
         onFindReferenceRefresh?()
         cancelPatchPreview()
         cancelRepositoryRefresh()
@@ -1355,11 +1379,14 @@ struct LogCommandRequest: Identifiable {
                 let followAllowed = try await repository.canFollowHistory(paths: scope, revision: options.revisionRange?.to ?? options.endRevision, cancellation: cancellation)
                 let pathScopes = try await repository.historyPathScopes(paths: scope, revision: options.revisionRange?.to ?? options.endRevision, cancellation: cancellation)
                 let showPatch = patchPreviewPreferenceLoaded ? patchPreviewVisible : try await repository.run(["config", "--bool", "--get", "tgit.logshowpatch"], successfulExitCodes: 0...1, cancellation: cancellation).text.trimmingCharacters(in: .newlines) == "true"
+                let progressWalk = options.walk
                 var result = try await repository.history(options: options, cancellation: cancellation, issueProperties: issueProperties, onProgress: { [weak self] count in
                     Task { @MainActor in
                         guard let self, request == self.generation, self.loadingHistory, !self.isInvalidated, !cancellation.isCancelled else { return }
                         self.loadedRevisionCount = max(self.loadedRevisionCount, count)
                     }
+                }, onBatch: { [weak self] batch in
+                    Task { @MainActor in self?.publishHistoryBatch(batch, request: request, cancellation: cancellation, walk: progressWalk, references: referenceVisibility, states: rollupStates) }
                 })
                 let svnMessages = result.map { $0.historySubject + "\n" + $0.historyBody }
                 let svnExecutable = options.regexExecutable
@@ -1409,8 +1436,9 @@ struct LogCommandRequest: Identifiable {
                 parentMetadata = parentMetadata.filter { hashes.contains($0.key) }
                 selected.formIntersection(Set(result.map(\.hash)))
                 if selected.isEmpty, let first = result.first { selected = [first.hash] }
+                historyRestore = nil; provisionalHistory = []; nextHistoryPublication = 128
                 historyCancellation = nil; busy = false; select(selected)
-            } catch { if request == generation { historyCancellation = nil; if !cancellation.isCancelled { self.error = error.localizedDescription }; busy = false } }
+            } catch { if request == generation { restoreHistorySnapshot(); historyCancellation = nil; if !cancellation.isCancelled { self.error = error.localizedDescription }; busy = false } }
         }
     }
     func select(_ hashes: Set<String>) {
@@ -3017,7 +3045,7 @@ struct RevisionTable: NSViewRepresentable {
             return cell
         }
         func tableViewSelectionDidChange(_ notification: Notification) {
-            guard !updating, let table else { return }
+            guard !updating, !model.loadingHistory, let table else { return }
             let hashes = Set(table.selectedRowIndexes.compactMap { model.entries.indices.contains($0) ? model.entries[$0].hash : nil })
             if hashes != model.selected { model.select(hashes) }
         }
