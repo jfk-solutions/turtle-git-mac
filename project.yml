@@ -40,6 +40,7 @@ targets:
     sources:
       - path: Sources/TurtleGitGitAskpass
       - path: Sources/TurtleGitCore/GitAskpassPrompt.swift
+      - path: Sources/TurtleGitCore/GitSVNAuthenticationPrompt.swift
       - path: Sources/TurtleGitMac/DocumentationCapture.swift
     settings:
       base:

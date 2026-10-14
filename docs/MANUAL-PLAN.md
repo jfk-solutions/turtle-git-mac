@@ -110,3 +110,7 @@ Trash recovery, protected-step cancellation, Retry and captured close policy.
 The [Issue tracker provider guide](ISSUE-PROVIDERS.md) documents the native
 association/editor and embedded catalog/Commit flow. Its new macOS screenshots,
 third-party provider ecosystem and physical/signed acceptance remain pending.
+
+The [SVN authentication guide](SVN-AUTHENTICATION.md) covers native credentials,
+certificate decisions and client-certificate selection. Public/signed/physical
+acceptance and full certificate-viewer controls remain pending.

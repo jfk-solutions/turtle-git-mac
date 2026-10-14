@@ -18,7 +18,18 @@ import Darwin
         let icon = NSImage(contentsOf: parent.appendingPathComponent("Contents/Frameworks/TurtleGitCore.framework/Resources/Icons/TortoiseSmall.ico"))
         if let icon { application.applicationIconImage = icon }
         let ssh = URL(fileURLWithPath: CommandLine.arguments[0]).lastPathComponent == "TurtleGitOpenSSHAskpass"
-        let prompt = GitAskpassPrompt(CommandLine.arguments[1], ssh: ssh, hint: ProcessInfo.processInfo.environment["SSH_ASKPASS_PROMPT"])
+        do {
+            if let request = try GitSVNAuthenticationPrompt.decode(CommandLine.arguments[1], enabled: !ssh && ProcessInfo.processInfo.environment["TURTLEGIT_SVN_NATIVE_PROMPTS"] == "1") {
+                let controller = GitSVNPromptWindowController(prompt: request, icon: icon) { answer in
+                    guard let answer else { exit(1) }
+                    do { let encoded = try answer.encoded(for: request); try FileHandle.standardOutput.write(contentsOf: Data((encoded + "\n").utf8)); exit(0) } catch { exit(1) }
+                }
+                if let directory = ProcessInfo.processInfo.environment["TURTLEGIT_SVN_CERT_DIRECTORY"] { controller.certificateDirectory = URL(fileURLWithPath: directory) }
+                controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); application.activate(ignoringOtherApps: true)
+                withExtendedLifetime(controller) { application.run() }; exit(1)
+            }
+        } catch { exit(1) }
+        let prompt = GitAskpassPrompt(CommandLine.arguments[1], ssh: ssh, hint: ProcessInfo.processInfo.environment["SSH_ASKPASS_PROMPT"], svn: !ssh && ProcessInfo.processInfo.environment["TURTLEGIT_SVN_NATIVE_PROMPTS"] == "1")
         let controller = GitAskpassWindowController(prompt: prompt, icon: icon) { answer in
             guard let answer else { exit(1) }
             do { try FileHandle.standardOutput.write(contentsOf: Data((answer + "\n").utf8)); exit(0) }

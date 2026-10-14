@@ -17,6 +17,13 @@ ROOT = Path(__file__).resolve().parents[1]
 MACH = {b'\xcf\xfa\xed\xfe', b'\xfe\xed\xfa\xcf', b'\xca\xfe\xba\xbe', b'\xbe\xba\xfe\xca'}
 
 def audit(runtime, manifest, installed=False):
+    if manifest.get('authentication'):
+        assert manifest['authentication'] == {'native_prompt_version': 1, 'keychain': True, 'plaintext_password_storage': False}
+        adapter = ROOT / 'scripts/git_svn_prompt_adapter.py'
+        assert manifest['native_prompt_adapter_sha256'] == hashlib.sha256(adapter.read_bytes()).hexdigest(), 'Native SVN prompt adapter changed; rebuild payload'
+        for arch in manifest['architectures']:
+            module = runtime / 'libexec/git-svn-runtime' / arch / 'GitPerl/Git/SVN/Prompt.pm'
+            assert '# TurtleGit native SVN prompt adapter' in module.read_text(), 'Native SVN prompt bridge missing'
     assert manifest['pin'] == json.loads((ROOT / 'Configuration/GitSVNRuntime.json').read_text()), 'SVN source pins differ'
     assert manifest['git'] == json.loads((ROOT / 'Configuration/GitRuntime.json').read_text()), 'Git source pins differ'
     assert manifest['architectures'] and set(manifest['architectures']) <= {'arm64', 'x86_64'}, 'Invalid architecture list'

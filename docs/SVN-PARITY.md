@@ -143,3 +143,9 @@ workflow/lifecycle/scoped-window checks remain in the same receiver. No Core or
 full seventeen-family group was rerun. No physical pointer/keyboard, screenshot,
 public SVN authentication, signed grants or App Store acceptance is claimed.
 See `qa/svn-progress-native-2026-10-12.json`.
+
+The bundled authentication callback family now has combined credentials, secure
+certificate passphrases, native certificate information/explicit trust choices
+and owned client-certificate file selection. See
+[SVN authentication parity](SVN-AUTHENTICATION-PARITY.md). Public server/TLS,
+physical and signed grant/Keychain acceptance remain open.

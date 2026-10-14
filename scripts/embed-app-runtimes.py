@@ -57,6 +57,8 @@ def input_paths(root, products):
              'git-prompt-source': root/'Sources/TurtleGitGitAskpass',
              'ssh-prompt-source': root/'Sources/TurtleGitSSHAskpass',
              'prompt-model': root/'Sources/TurtleGitCore/GitAskpassPrompt.swift',
+             'svn-prompt-model': root/'Sources/TurtleGitCore/GitSVNAuthenticationPrompt.swift',
+             'svn-prompt-adapter': root/'scripts/git_svn_prompt_adapter.py',
              'prompt-capture': root/'Sources/TurtleGitMac/DocumentationCapture.swift'}
     for name, directory in KITS + [('git', 'Git')]: paths['kit/' + name] = root/'build'/(name + '-runtime')/directory
     # Include validators, builders and shared runtime/relocation/downloader logic.

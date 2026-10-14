@@ -53,6 +53,15 @@ public actor GitRepository {
                 environment["TURTLEGIT_ASKPASS_APPEARANCE"] = UserDefaults.standard.string(forKey: "appearance") ?? "system"
             }
         }
+        if arguments.prefix(while: { $0 != "--" }).contains("svn"), let askpass,
+           environment["GIT_ASKPASS"] == GitAskpassRuntime.command(askpass), environment["TURTLEGIT_DISABLE_ASKPASS"] != "1" {
+            let certificates = temporary.appendingPathComponent("svn-certificates", isDirectory: true)
+            try FileManager.default.createDirectory(at: certificates, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+            environment["TURTLEGIT_SVN_NATIVE_PROMPTS"] = "1"
+            environment["TURTLEGIT_SVN_CERT_DIRECTORY"] = certificates.path
+        } else {
+            environment.removeValue(forKey: "TURTLEGIT_SVN_NATIVE_PROMPTS"); environment.removeValue(forKey: "TURTLEGIT_SVN_CERT_DIRECTORY")
+        }
         // Disk-backed streams avoid pipe deadlock with large diffs and command output.
         let status: Int32
         if cancellation != nil || onOutput != nil {

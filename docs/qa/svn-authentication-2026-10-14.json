@@ -1,0 +1,96 @@
+{
+  "date": "2026-10-14",
+  "base": "e2332478",
+  "scope": [
+    "Versioned native SVN credentials/username/secret/trust/client-certificate prompt request/response and bounded validation",
+    "Combined normal username/secure password/save controls, explicit certificate metadata/reason/reject/temporary/permanent controls and owned file picker",
+    "Private per-command certificate copies with unchanged sources, 0700/0600 modes and command cleanup; explicit custom askpass behavior preserved",
+    "Pinned Perl five-callback adapter, cached native runtime reconstruction, adapter digest and required Keychain/disabled plaintext storage manifest",
+    "Partial native family/control reviews for Prompt/SimplePrompt/UserPasswd/CertCheck with remaining dual fingerprint/Open certificate gaps explicit"
+  ],
+  "validation": {
+    "runtime_build": {
+      "exit": 0,
+      "log": "build/qa/svn-native-runtime-build-2026-10-14.log",
+      "native_dependencies": "Completed native build caches reused; Perl modules repatched/repackaged for both architectures"
+    },
+    "runtime_install": {
+      "exit": 0,
+      "audited_binaries": 179,
+      "log": "build/qa/svn-native-runtime-install-2026-10-14.log",
+      "authentication": {
+        "native_prompt_version": 1,
+        "keychain": true,
+        "plaintext_password_storage": false
+      }
+    },
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/svn-auth-debug-2026-10-14.log",
+      "diagnostics": "Existing exit-zero/no-output diagnostics and warnings; no clean-diagnostics claim"
+    },
+    "core": {
+      "exit": 0,
+      "tests": 14,
+      "families": {
+        "GitAskpassTests": 6,
+        "GitSVNAuthenticationPromptTests": 4,
+        "GitSVNTests": 4
+      },
+      "log": "build/qa/svn-auth-core-2026-10-14.log",
+      "evidence": [
+        "Typed prompt gate/round trip and bounded response/line validation",
+        "Exact SVN TLS failure bits, reject/temporary/permanent policy and malformed request refusal",
+        "Private certificate copy modes/source bytes and invalid directory refusal",
+        "Actual command-owned certificate folder lifecycle and custom helper isolation",
+        "Existing Git askpass and SVN Core regressions"
+      ]
+    },
+    "perl_callbacks": {
+      "exit": 0,
+      "log": "build/qa/svn-native-adapter-2026-10-14.log",
+      "evidence": "Shipped module under private native Perl/Subversion bindings; simulated Git::prompt/credential objects exercise all five callbacks, no-auth-cache, temporary/permanent/reject, fields/failure mask, ephemeral client file and legacy username fallback",
+      "public_server_acceptance": false
+    },
+    "native": {
+      "exit": 0,
+      "cases": 4,
+      "families": [
+        "svn-authentication",
+        "git-askpass"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "log": "build/qa/svn-auth-native-2026-10-14.log",
+      "owned_receivers_reaped": [
+        84326,
+        84327,
+        84328,
+        84330
+      ],
+      "receiver_pids_still_live_at_final_check": [],
+      "evidence": [
+        "Native combined credentials/save output, normal/secure fields, one-shot response and secret clearing",
+        "Default certificate Reject and all trust choices/policy, forced rejection",
+        "Actual private certificate copy and unchanged source data",
+        "Secure password forced-close cancellation and existing Return/Escape/Git masking/invalid response regressions"
+      ]
+    },
+    "site": {
+      "exit": 0,
+      "documents": 212,
+      "unresolved_fragments": [],
+      "log": "build/qa/svn-auth-site-final-2026-10-14.log"
+    }
+  },
+  "limitations": [
+    "No public SVN server authentication/TLS/client-certificate end-to-end or signed Keychain/cache delivery acceptance",
+    "Save delegates to existing Subversion platform providers; build flags do not prove signed Keychain persistence",
+    "Certificate UI carries the SVN fingerprint; source separate SHA-1/SHA-256 and Open certificate viewer remain unported in this adaptation",
+    "Physical keyboard/panel/layout/theme/VoiceOver, all non-SVN caller variants and installed/signed grants remain open",
+    "Client certificate filenames are ephemeral and intentionally not cached; command cleanup is not a filesystem transaction against arbitrary external writers",
+    "No complete dialog, hosted current-batch, App Store or full-port certification"
+  ]
+}

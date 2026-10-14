@@ -1,8 +1,8 @@
 # Dialog coverage and remaining review
 
-The pinned inventory contains **130 dialogs**: **116 have partial family audits**, **14 await a family review**, and **none are certified complete**.
+The pinned inventory contains **130 dialogs**: **120 have partial family audits**, **10 await a family review**, and **none are certified complete**.
 
-There are 1659 inventoried static controls. 782 have recorded native mappings; 877 still have pending control reviews. Dynamic menus, runtime-created controls, full layout and signed acceptance require separate evidence. A partial family audit never clears its unmapped controls. Recorded control mappings also remain partial; they do not prove all associated behavior.
+There are 1659 inventoried static controls. 807 have recorded native mappings; 852 still have pending control reviews. Dynamic menus, runtime-created controls, full layout and signed acceptance require separate evidence. A partial family audit never clears its unmapped controls. Recorded control mappings also remain partial; they do not prove all associated behavior.
 
 This generated table links explicit implementation/parity reviews and existing QA. Missing links indicate missing recorded evidence, rather than proof that a feature is absent. The full machine-readable ledger is [dialog coverage](dialog-coverage.json). Review decisions live in `dialog-coverage-reviews.json`; regeneration is pinned to the source commit.
 
@@ -34,7 +34,7 @@ This generated table links explicit implementation/parity reviews and existing Q
 | `src/Resources/TortoiseProcENG.rc` / `IDD_CHANGEDFILES` | partial-native-replacement | 0/15 mapped; 15 pending | [PRIMARY-DIALOG-VISUAL-REVIEW](PRIMARY-DIALOG-VISUAL-REVIEW.md), [STATUS-PARITY](STATUS-PARITY.md), [UI-PARITY](UI-PARITY.md); 16 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_LOGMESSAGE` | partial-workflow-replacement | 2/27 mapped; 25 pending | [LOG-PARITY](LOG-PARITY.md); 62 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_COMMITDLG` | partial-workflow-replacement | 45/45 mapped; 0 pending | [COMMIT-PARITY](COMMIT-PARITY.md), [PRIMARY-DIALOG-VISUAL-REVIEW](PRIMARY-DIALOG-VISUAL-REVIEW.md), [UI-PARITY](UI-PARITY.md); 47 QA records |
-| `src/Resources/TortoiseProcENG.rc` / `IDD_PROMPT` | pending-review | 0/5 mapped; 5 pending | No recorded family document; 0 QA records |
+| `src/Resources/TortoiseProcENG.rc` / `IDD_PROMPT` | partial-native-replacement | 5/5 mapped; 0 pending | [SVN-AUTHENTICATION-PARITY](SVN-AUTHENTICATION-PARITY.md); 1 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_RENAME` | partial-native-replacement | 6/6 mapped; 0 pending | [RENAME-PARITY](RENAME-PARITY.md), [UI-PARITY](UI-PARITY.md); 7 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_REPOSITORY_BROWSER` | partial-native-replacement | 0/10 mapped; 10 pending | [REPOSITORY-BROWSER-PARITY](REPOSITORY-BROWSER-PARITY.md); 7 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSMAIN` | partial-native-replacement | 0/16 mapped; 16 pending | [GENERAL-SETTINGS-PARITY](GENERAL-SETTINGS-PARITY.md); 1 QA records |
@@ -43,7 +43,7 @@ This generated table links explicit implementation/parity reviews and existing Q
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSPROXY` | partial-native-replacement | 0/14 mapped; 14 pending | [NETWORK-SETTINGS-PARITY](NETWORK-SETTINGS-PARITY.md); 2 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSMTP` | partial-native-replacement | 0/16 mapped; 16 pending | No recorded family document; 0 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SVNPROGRESS` | partial | 6/8 mapped; 2 pending | [REVERT-PARITY](REVERT-PARITY.md), [UI-PARITY](UI-PARITY.md); 7 QA records |
-| `src/Resources/TortoiseProcENG.rc` / `IDD_SIMPLEPROMPT` | pending-review | 0/9 mapped; 9 pending | No recorded family document; 0 QA records |
+| `src/Resources/TortoiseProcENG.rc` / `IDD_SIMPLEPROMPT` | partial-native-replacement | 8/9 mapped; 1 pending | [SVN-AUTHENTICATION-PARITY](SVN-AUTHENTICATION-PARITY.md); 1 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_INPUTDLG` | partial-native-replacement | 5/5 mapped; 0 pending | [EDIT-NOTES-PARITY](EDIT-NOTES-PARITY.md), [INPUT-DIALOG-PARITY](INPUT-DIALOG-PARITY.md); 3 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSPROGSADV` | partial-native-replacement | 0/8 mapped; 8 pending | No recorded family document; 0 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_URL` | pending-review | 0/4 mapped; 4 pending | No recorded family document; 0 QA records |
@@ -112,13 +112,13 @@ This generated table links explicit implementation/parity reviews and existing Q
 | `src/Resources/TortoiseProcENG.rc` / `IDD_ADD_REMOTE` | partial-native-replacement | 7/7 mapped; 0 pending | [REMOTE-DIALOGS-PARITY](REMOTE-DIALOGS-PARITY.md); 1 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_DELETEREMOTETAG` | partial-native-replacement | 0/7 mapped; 7 pending | [REMOTE-TAGS-PARITY](REMOTE-TAGS-PARITY.md); 1 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_REVISIONGRAPH` | partial | 0/0 mapped; 0 pending | [UI-PARITY](UI-PARITY.md); 6 QA records |
-| `src/Resources/TortoiseProcENG.rc` / `IDD_USER_PASSWD` | pending-review | 0/6 mapped; 6 pending | No recorded family document; 0 QA records |
+| `src/Resources/TortoiseProcENG.rc` / `IDD_USER_PASSWD` | partial-native-replacement | 6/6 mapped; 0 pending | [SVN-AUTHENTICATION-PARITY](SVN-AUTHENTICATION-PARITY.md); 1 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_LOGORDERING` | partial-native-replacement | 4/4 mapped; 0 pending | [LOG-ORDERING-PARITY](LOG-ORDERING-PARITY.md); 2 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSCREDENTIAL` | partial-native-replacement | 0/18 mapped; 18 pending | [CREDENTIAL-SETTINGS-PARITY](CREDENTIAL-SETTINGS-PARITY.md); 1 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_MERGEABORT` | partial-native-replacement | 9/9 mapped; 0 pending | No recorded family document; 0 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSDIALOGS3` | partial-native-replacement | 0/33 mapped; 33 pending | [GIT-CONFIGURATION-PARITY](GIT-CONFIGURATION-PARITY.md); 1 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_BUGTRAQREGEXTESTER` | partial-native-replacement | 0/8 mapped; 8 pending | [ISSUE-TRACKER-PARITY](ISSUE-TRACKER-PARITY.md); 8 QA records |
-| `src/Resources/TortoiseProcENG.rc` / `IDD_CERTCHECK` | pending-review | 0/16 mapped; 16 pending | No recorded family document; 0 QA records |
+| `src/Resources/TortoiseProcENG.rc` / `IDD_CERTCHECK` | partial-native-replacement | 6/16 mapped; 10 pending | [SVN-AUTHENTICATION-PARITY](SVN-AUTHENTICATION-PARITY.md); 1 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSUDIFF` | partial-native | 29/29 mapped; 0 pending | [UNIFIED-DIFF-VIEWER-PARITY](UNIFIED-DIFF-VIEWER-PARITY.md); 6 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_RESOLVESUBMODULECONFLICT` | partial | 26/26 mapped; 0 pending | [SUBMODULE-CONFLICT-PARITY](SUBMODULE-CONFLICT-PARITY.md); 1 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_FINDBAR` | partial-native-replacement | 0/6 mapped; 6 pending | [COMMIT-PARITY](COMMIT-PARITY.md); 40 QA records |

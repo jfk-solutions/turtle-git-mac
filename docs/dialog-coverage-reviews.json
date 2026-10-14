@@ -513,6 +513,70 @@
           "anchor": "class IssueProviderAssociationEditor"
         }
       ]
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_PROMPT",
+      "status": "partial-native-replacement",
+      "parity_document": "docs/SVN-AUTHENTICATION-PARITY.md",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitGitAskpass/SVNPromptWindow.swift",
+          "anchor": "class GitSVNPromptWindowController"
+        },
+        {
+          "path": "Sources/TurtleGitCore/GitSVNAuthenticationPrompt.swift",
+          "anchor": "struct GitSVNAuthenticationPrompt"
+        }
+      ]
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_SIMPLEPROMPT",
+      "status": "partial-native-replacement",
+      "parity_document": "docs/SVN-AUTHENTICATION-PARITY.md",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitGitAskpass/SVNPromptWindow.swift",
+          "anchor": "class GitSVNPromptWindowController"
+        },
+        {
+          "path": "Sources/TurtleGitCore/GitSVNAuthenticationPrompt.swift",
+          "anchor": "struct GitSVNAuthenticationPrompt"
+        }
+      ]
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_USER_PASSWD",
+      "status": "partial-native-replacement",
+      "parity_document": "docs/SVN-AUTHENTICATION-PARITY.md",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitGitAskpass/SVNPromptWindow.swift",
+          "anchor": "class GitSVNPromptWindowController"
+        },
+        {
+          "path": "Sources/TurtleGitCore/GitSVNAuthenticationPrompt.swift",
+          "anchor": "struct GitSVNAuthenticationPrompt"
+        }
+      ]
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_CERTCHECK",
+      "status": "partial-native-replacement",
+      "parity_document": "docs/SVN-AUTHENTICATION-PARITY.md",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitGitAskpass/SVNPromptWindow.swift",
+          "anchor": "class GitSVNPromptWindowController"
+        },
+        {
+          "path": "Sources/TurtleGitCore/GitSVNAuthenticationPrompt.swift",
+          "anchor": "struct GitSVNAuthenticationPrompt"
+        }
+      ]
     }
   ]
 }

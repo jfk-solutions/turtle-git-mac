@@ -21,6 +21,7 @@ import uuid
 import zipfile
 
 from pinned_download import download_verified
+from git_svn_prompt_adapter import apply as apply_native_prompts
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -173,6 +174,10 @@ def main():
             destination = modules / source.relative_to(git / 'perl'); destination.parent.mkdir(parents=True, exist_ok=True)
             text = source.read_text().replace('@@NO_GETTEXT@@', 'YesPlease').replace('@@NO_PERL_CPAN_FALLBACKS@@', '').replace('@@LOCALEDIR@@', '').replace('@NO_GETTEXT@', 'YesPlease').replace('@NO_PERL_CPAN_FALLBACKS@', '').replace('@LOCALEDIR@', '')
             destination.write_text(text)
+        security = (trees['subversion'] / 'subversion/svn_private_config.h').read_text()
+        if '#define SVN_HAVE_KEYCHAIN_SERVICES 1' not in security or '#define SVN_DISABLE_PLAINTEXT_PASSWORD_STORAGE 1' not in security:
+            raise RuntimeError('Native SVN authentication requires Keychain support and disabled plaintext password storage')
+        apply_native_prompts(modules / 'Git/SVN/Prompt.pm')
         text = (git / 'git-svn.perl').read_text().replace('@@GIT_VERSION@@', git_pin['version']).replace('@GIT_VERSION@', git_pin['version'])
         adapter = "BEGIN { if (defined $ENV{TURTLEGIT_SVN_CONFIG_DIR}) { $Git::SVN::Ra::config_dir = $ENV{TURTLEGIT_SVN_CONFIG_DIR}; } }\n"
         (modules / 'git-svn.perl').write_text(adapter + text)
@@ -198,12 +203,14 @@ def main():
         reconstruction = licenses / 'build'; (reconstruction / 'scripts').mkdir(parents=True)
         (reconstruction / 'Configuration').mkdir(); (reconstruction / 'Sources/GitSVNLauncher').mkdir(parents=True)
         shutil.copy2(__file__, reconstruction / 'scripts/build-git-svn-runtime.py')
-        for name in ['pinned_download.py', 'validate-git-svn-runtime.py', 'validate_git_svn_support.py', 'validate-git-runtime.py', 'git_lfs_runtime.py', 'runtime_bundle_layout.py']:
+        for name in ['git_svn_prompt_adapter.py', 'pinned_download.py', 'validate-git-svn-runtime.py', 'validate_git_svn_support.py', 'validate-git-runtime.py', 'git_lfs_runtime.py', 'runtime_bundle_layout.py']:
             shutil.copy2(ROOT / 'scripts' / name, reconstruction / 'scripts' / name)
         for name in ['GitSVNRuntime.json', 'GitRuntime.json']: shutil.copy2(ROOT / 'Configuration' / name, reconstruction / 'Configuration' / name)
         shutil.copy2(ROOT / 'Sources/GitSVNLauncher/main.c', reconstruction / 'Sources/GitSVNLauncher/main.c')
         manifest = {'pin': pin, 'git': git_pin, 'architectures': architectures, 'buildInputs': inputs, 'signed': False,
             'status': 'built; validation, embedding and signed acceptance pending',
+            'authentication': {'native_prompt_version': 1, 'keychain': True, 'plaintext_password_storage': False},
+            'native_prompt_adapter_sha256': hashlib.sha256((ROOT / 'scripts/git_svn_prompt_adapter.py').read_bytes()).hexdigest(),
             'files_sha256': {str(p.relative_to(prepared)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(prepared.rglob('*')) if p.is_file() and not p.is_symlink()}}
         (prepared / 'runtime-manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
         prepared.replace(output)

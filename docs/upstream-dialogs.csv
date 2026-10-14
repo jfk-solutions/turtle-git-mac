@@ -25,7 +25,7 @@ src/Resources/TortoiseProcENG.rc,IDD_ADD,Add,native-partial
 src/Resources/TortoiseProcENG.rc,IDD_CHANGEDFILES,Working Tree,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_LOGMESSAGE,Log Messages,partial-workflow-replacement
 src/Resources/TortoiseProcENG.rc,IDD_COMMITDLG,Commit,partial-workflow-replacement
-src/Resources/TortoiseProcENG.rc,IDD_PROMPT,Authentication,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_PROMPT,Authentication,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_RENAME,Rename - TortoiseGit,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_REPOSITORY_BROWSER,Repository Browser,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSMAIN,General,partial-native-replacement
@@ -34,7 +34,7 @@ src/Resources/TortoiseProcENG.rc,IDD_SETTINGSOVERLAYHANDLERS,Overlay Handlers,pa
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSPROXY,Network,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSMTP,Email,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_SVNPROGRESS,Progress,partial
-src/Resources/TortoiseProcENG.rc,IDD_SIMPLEPROMPT,Authentication,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SIMPLEPROMPT,Authentication,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_INPUTDLG,Input,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSPROGSADV,Advanced Diff/Merge Settings,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_URL,URL,pending-review
@@ -103,13 +103,13 @@ src/Resources/TortoiseProcENG.rc,IDD_BROWSE_REFS,Browse references,partial-nativ
 src/Resources/TortoiseProcENG.rc,IDD_ADD_REMOTE,Add Remote,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_DELETEREMOTETAG,Delete remote tag - TortoiseGit,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_REVISIONGRAPH,Revision Graph,partial
-src/Resources/TortoiseProcENG.rc,IDD_USER_PASSWD,Password,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_USER_PASSWD,Password,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_LOGORDERING,Log commit ordering,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSCREDENTIAL,Credential,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_MERGEABORT,Abort Merge,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSDIALOGS3,Dialogs 3,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_BUGTRAQREGEXTESTER,Bugtraq Regex Tester - TortoiseGit,partial-native-replacement
-src/Resources/TortoiseProcENG.rc,IDD_CERTCHECK,TortoiseGit,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_CERTCHECK,TortoiseGit,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSUDIFF,TortoiseGitUDiff,partial-native
 src/Resources/TortoiseProcENG.rc,IDD_RESOLVESUBMODULECONFLICT,Resolve Submodule Conflict,partial
 src/Resources/TortoiseProcENG.rc,IDD_FINDBAR,,partial-native-replacement
