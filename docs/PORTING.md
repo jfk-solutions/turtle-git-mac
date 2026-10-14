@@ -994,3 +994,11 @@ options submissions and cancels retired progress workers while retaining their
 Quit/grant lifetime. Debug and six grouped native cases passed. Automatic access
 discovery, durable additional grants and physical/signed acceptance remain open.
 See [Clean audit](CLEAN-PARITY.md).
+
+
+Both comparison editors now expose saved Collapsed view, source-context folding,
+marker expansion and reveal-before-navigation without rewriting editor text.
+Three-pane result expansion uses exact engine anchors retained in edit/Undo
+presentation. Debug, 39 focused Core checks and a grouped native folding/wrapping/
+editor receiver passed. Physical, VoiceOver, large-document and signed acceptance
+remain open. See [folding audit](MERGE-FOLDING-PARITY.md).

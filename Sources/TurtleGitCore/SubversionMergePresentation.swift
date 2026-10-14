@@ -60,7 +60,7 @@ public struct SubversionMergePresentation: Sendable {
     public let result: String
     public init(plan: SubversionDiffPlan) throws {
         guard let theirs = plan.theirs else { throw SubversionMergeDiffFailure.invalidOutput }
-        var rows: [MergeSourceRow] = [], output = ""
+        var rows: [MergeSourceRow] = [], output = "", anchors: [Int: Int] = [:]
         var spans: [(Range<Int>, MergeSourceState)] = [], outputLength = 0
         func append(_ text: String, state: MergeSourceState) {
             let count = text.utf16.count
@@ -80,6 +80,7 @@ public struct SubversionMergePresentation: Sendable {
         for segment in plan.segments {
             let baseText = plan.base[segment.base].joined(), mineText = plan.mine[segment.mine].joined(), theirsText = theirs[segment.theirs].joined()
             if segment.kind == .common {
+                let firstRow = rows.count
                 for offset in 0..<segment.base.count {
                     let b = segment.base.lowerBound + offset, m = segment.mine.lowerBound + offset, t = segment.theirs.lowerBound + offset
                     let state: MergeSourceState = equal(plan.base[b], plan.mine[m]) && equal(plan.mine[m], theirs[t]) ? .normal : .filtered
@@ -87,6 +88,7 @@ public struct SubversionMergePresentation: Sendable {
                 }
                 for offset in 0..<segment.mine.count {
                     let m = segment.mine.lowerBound + offset, b = segment.base.lowerBound + offset, t = segment.theirs.lowerBound + offset
+                    anchors[firstRow + offset] = outputLength
                     append(plan.mine[m], state: equal(plan.base[b], plan.mine[m]) && equal(plan.mine[m], theirs[t]) ? .normal : .filtered)
                 }
                 continue
@@ -117,6 +119,6 @@ public struct SubversionMergePresentation: Sendable {
                 append(separator + "<<<<<<< Mine\n" + separated(mineText) + "||||||| Base\n" + separated(baseText) + "=======\n" + separated(theirsText) + ">>>>>>> Theirs\n", state: .conflicted)
             }
         }
-        sources = MergeSourceComparison(rows: rows, resultLocator: MergeLocatorResult(text: output, spans: spans)); result = output
+        sources = MergeSourceComparison(rows: rows, resultLocator: MergeLocatorResult(text: output, spans: spans), resultAnchors: anchors); result = output
     }
 }

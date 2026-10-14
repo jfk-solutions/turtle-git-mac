@@ -21,6 +21,7 @@ struct MergeInlineControls: View {
         let length = (view.string as NSString).length, origin = view.textContainerOrigin
         MergePalette.inlineRemoved.setFill()
         for offset in offsets where offset >= 0 && offset < length {
+            guard view.textStorage?.attribute(.mergeFoldHidden, at: offset, effectiveRange: nil) == nil, view.textStorage?.attribute(.mergeFoldMarker, at: offset, effectiveRange: nil) == nil else { continue }
             let glyphs = layout.glyphRange(forCharacterRange: NSRange(location: offset, length: 1), actualCharacterRange: nil)
             guard glyphs.location < layout.numberOfGlyphs else { continue }
             let line = layout.lineFragmentRect(forGlyphAt: glyphs.location, effectiveRange: nil)
@@ -74,9 +75,12 @@ struct MergeViewControls: View {
     let applyWhitespace: (MergeWhitespaceDisplayPreferences) -> Void
     var wrapLines = false
     var applyWrap: (Bool) -> Void = { _ in }
+    var collapsed = false
+    var applyCollapsed: (Bool) -> Void = { _ in }
     var body: some View {
         Menu("View") {
             Toggle("Wrap long lines", isOn: Binding(get: { wrapLines }, set: applyWrap))
+            Toggle("Collapsed", isOn: Binding(get: { collapsed }, set: applyCollapsed))
             Divider()
             Toggle("Show Whitespaces", isOn: Binding(get: { whitespace.visible }, set: { var next = whitespace; next.visible = $0; applyWhitespace(next) }))
             Toggle("Line-ending icons", isOn: Binding(get: { whitespace.endingIcons }, set: { var next = whitespace; next.endingIcons = $0; applyWhitespace(next) }))
@@ -260,7 +264,9 @@ struct MergeLocatorBar: NSViewRepresentable {
         let advance = (" " as NSString).size(withAttributes: [.font: font]).width
         for marker in markers[low...] {
             if marker.offset > NSMaxRange(visible) { break }
-            guard marker.offset < textLength else { continue }
+            guard marker.offset < textLength,
+                  layout.textStorage?.attribute(.mergeFoldHidden, at: marker.offset, effectiveRange: nil) == nil,
+                  layout.textStorage?.attribute(.mergeFoldMarker, at: marker.offset, effectiveRange: nil) == nil else { continue }
             let glyphs = layout.glyphRange(forCharacterRange: NSRange(location: marker.offset, length: 1), actualCharacterRange: nil)
             guard glyphs.location < layout.numberOfGlyphs else { continue }
             let fragment = layout.lineFragmentRect(forGlyphAt: glyphs.location, effectiveRange: nil)
@@ -399,6 +405,7 @@ struct MergeLocatorBar: NSViewRepresentable {
                 let minimum = layout.defaultLineHeight(for: view.font ?? NSFont.monospacedSystemFont(ofSize: 10, weight: .regular))
                 let heights = ranges.map { range -> CGFloat in
                     let glyphs = layout.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
+                    if storage.attribute(.mergeFoldHidden, at: range.location, effectiveRange: nil) != nil { return 0.01 }
                     return max(minimum, layout.boundingRect(forGlyphRange: glyphs, in: container).height)
                 }
                 measured.append((view, ranges, heights))

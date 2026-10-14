@@ -137,6 +137,22 @@ import TurtleGitCore
         if combinedCache == nil { combinedCache = OnePaneFileComparison(alignment: alignment, options: comparisonOptions) }
         return combinedCache
     }
+    lazy var folding: MergeFoldingController = {
+        let value = MergeFoldingController(preferences: comparisonDefaults)
+        value.geometryChanged = { [weak self] in DispatchQueue.main.async { self?.objectWillChange.send() } }
+        value.actionsAllowed = { [weak self] in self?.contextCommandsAllowed == true && self?.filtering == false }
+        return value
+    }()
+    func setCollapsed(_ value: Bool) {
+        guard !retired, !busy, !filtering, !confirmingQuit else { return }
+        folding.setCollapsed(value)
+    }
+    func updateFolding() {
+        let unchanged: [Bool]
+        if onePaneActive { unchanged = combined?.rows.map { $0.cell.state == .normal || $0.cell.state == .filtered } ?? [] }
+        else { unchanged = alignment?.rows.map { ($0.base.state == .normal || $0.base.state == .filtered) && ($0.destination.state == .normal || $0.destination.state == .filtered) } ?? [] }
+        folding.update(unchanged: unchanged)
+    }
     func displayCells(base: Bool) -> [MergeSourceCell] {
         func paint(_ cell: MergeSourceCell, row: Int, side: Bool) -> MergeSourceCell {
             guard annotations(base: side).edited.contains(row), cell.lineNumber != nil else { return cell }
@@ -647,6 +663,7 @@ import TurtleGitCore
         snapshot = images.snapshot; path = images.destination?.path ?? images.base?.path ?? "Images"
     }
     func retireImageLoader() {
+        folding.retire()
         loadSession?.cancel(); closeAfterLoad = false
         lineWrapping.retire(); viewportNavigation.removeAll()
         patchCancellation?.cancel(); patchCancellation = nil; patchRequest = nil
@@ -1046,7 +1063,7 @@ private struct FileComparisonDialog: View {
                 Toggle("Line numbers", isOn: $model.showLineNumbers)
             }.toggleStyle(.checkbox).padding(.horizontal, 10).padding(.bottom, 8)
             HStack {
-                MergeViewControls(preferences: model.locatorPreferences, apply: model.setLocatorPreferences, whitespace: model.whitespaceDisplay, applyWhitespace: model.setWhitespaceDisplay, wrapLines: model.wrapLines, applyWrap: model.setWrapLines).disabled(model.busy || model.confirmingQuit)
+                MergeViewControls(preferences: model.locatorPreferences, apply: model.setLocatorPreferences, whitespace: model.whitespaceDisplay, applyWhitespace: model.setWhitespaceDisplay, wrapLines: model.wrapLines, applyWrap: model.setWrapLines, collapsed: model.folding.collapsed, applyCollapsed: model.setCollapsed).disabled(model.busy || model.confirmingQuit)
                 MergeComparisonControls(options: model.comparisonOptions, apply: model.setComparisonOptions, supportsComments: model.supportsComments).disabled(model.busy || model.confirmingQuit)
                 Menu {
                     Button { model.selectRegexFilter(nil) } label: {
@@ -1142,6 +1159,7 @@ struct FileComparisonEditor: NSViewRepresentable {
         // Hosting can deliver a previously captured View value after an edit.
         // Read the current alignment and preserve the selection in source
         // coordinates before replacing attributed display text.
+        (view as? FileComparisonTextView)?.foldLayout.prepare(view)
         let oldDisplay = view.string
         let previousCells = (view as? FileComparisonTextView)?.sourceCells ?? context.coordinator.cells
         let sourceSelection = try? FileComparisonEditing.sourceRange(view.selectedRange(), cells: previousCells)
@@ -1166,6 +1184,8 @@ struct FileComparisonEditor: NSViewRepresentable {
             let range = NSRange(location: start, length: max(0, end - start))
             if view.selectedRange() != range { view.setSelectedRange(range) }
         }
+        model.updateFolding()
+        (view as? FileComparisonTextView)?.foldLayout.apply(to: view, controller: model.folding)
         model.lineWrapping.geometryChanged = { [weak model] in model?.applyViewportNavigation(); model?.refreshLocatorViewport() }
         model.lineWrapping.update(scroll, key: base ? "Base" : "Mine", aligned: !model.onePaneActive && !model.singleFileMode, enabled: model.wrapLines)
         scroll.rulersVisible = model.showLineNumbers
@@ -1262,6 +1282,7 @@ struct FileComparisonEditor: NSViewRepresentable {
         }
         func textViewDidChangeSelection(_ notification: Notification) {
             guard let view = notification.object as? NSTextView else { return }
+            (view as? FileComparisonTextView)?.foldLayout.reveal(selection: view.selectedRange(), in: view)
             let range = view.selectedRange(), cells = cells, generation = model.alignmentGeneration
             // A user's new selection supersedes the caret requested by the
             // preceding edit. Clear it synchronously before a queued hosting
@@ -1318,6 +1339,7 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
     var navigationCells: [MergeSourceCell]? { sourceCells }
     var navigationAllowed: Bool { model?.busy == false && model?.confirmingQuit == false }
     @objc func goToSourceLine(_ sender: Any?) { navigateToSourceLine() }
+    @objc private func expandFoldedSection(_ sender: Any?) { _ = foldLayout.expandSelection(in: self) }
     private func inlineTarget(forward: Bool) -> Int? {
         guard let model, window != nil, window?.attachedSheet == nil, model.contextCommandsAllowed,
               !model.onePaneActive, !model.filtering, model.showInlineDiff else { return nil }
@@ -1355,6 +1377,11 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
     weak var model: FileComparisonWindowModel?
     var baseSide = false
     var sourceCells: [MergeSourceCell] = []
+    let foldLayout = MergeFoldTextLayout()
+    override func scrollRangeToVisible(_ range: NSRange) {
+        foldLayout.reveal(selection: range, in: self, includeMarker: true)
+        super.scrollRangeToVisible(range)
+    }
     private var lineDiffTracking: NSTrackingArea?
     override func updateTrackingAreas() {
         if let lineDiffTracking { removeTrackingArea(lineDiffTracking) }
@@ -1402,6 +1429,7 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
     }
     override func mouseDown(with event: NSEvent) {
         model?.activatePane(base: baseSide)
+        if model?.contextCommandsAllowed == true, foldLayout.expand(at: event, in: self) { return }
         super.mouseDown(with: event)
     }
     @objc(undo:) func undoComparison(_ sender: Any?) { model?.undo() }
@@ -1423,6 +1451,7 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
         super.draw(dirtyRect)
         whitespaceRenderer.draw(in: self, dirtyRect: dirtyRect)
         MergeInlineTicks.draw(in: self, offsets: missingOffsets, dirtyRect: dirtyRect)
+        foldLayout.draw(in: self, dirtyRect: dirtyRect)
     }
 
     override var undoManager: UndoManager? { history ?? super.undoManager }
@@ -1466,6 +1495,10 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
         let clipboard = ComparisonClipboardCommands(view: self, pasteboard: pasteboard); menu.clipboard = clipboard
         func add(_ title: String, _ action: Selector, _ icon: NSImage?, _ enabled: Bool) {
             let item = NSMenuItem(title: title, action: action, keyEquivalent: ""); item.target = self; item.image = MenuPresentationSettings.applicationContextIcons(defaults: defaults) ? icon : nil; item.isEnabled = enabled; menu.addItem(item)
+        }
+        if model.folding.collapsed {
+            add("Expand unchanged section", #selector(expandFoldedSection(_:)), NSImage(systemSymbolName: "chevron.down", accessibilityDescription: "Expand"), model.contextCommandsAllowed && foldLayout.canExpandSelection(in: self))
+            menu.addItem(.separator())
         }
         let displayLeft = baseSide || model.onePaneActive
         let block = model.oppositeViewCommandsAllowed && model.canTransfer(toBase: false) && model.transferRows != nil

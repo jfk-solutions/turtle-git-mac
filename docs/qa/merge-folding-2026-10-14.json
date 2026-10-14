@@ -1,0 +1,73 @@
+{
+  "date": "2026-10-14",
+  "base": "48280566",
+  "source": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Pinned unchanged-section hide/context/marker rules and saved Collapsed View",
+    "Native two-pane/combined/three-pane folding with full source offsets, rulers, whitespace/ticks and wrapping",
+    "Exact common engine anchors through result editing/Undo and synchronized source/result expansion",
+    "Double-click, context/accessibility expansion, navigation reveal and busy/retired gates"
+  ],
+  "validation": {
+    "debug": {
+      "initial_exit": 65,
+      "repair_exit": 0,
+      "initial_log": "build/qa/merge-folding-debug-2026-10-14.log",
+      "log": "build/qa/merge-folding-debug-compile-repair-2026-10-14.log",
+      "repair": "Whitespace draw helper has layout manager, not a text view; reads fold attributes through layout.textStorage"
+    },
+    "core": {
+      "initial_exit": 1,
+      "initial_reason": "Package builds application target; same renderer scope error interrupted compilation",
+      "repair_exit": 0,
+      "tests": 39,
+      "families": [
+        "MergeFoldingTests",
+        "MergeResultPresentationTests",
+        "SubversionMergePresentationTests",
+        "FileComparisonEditingTests"
+      ],
+      "log": "build/qa/merge-folding-core-compile-repair-2026-10-14.log"
+    },
+    "native": {
+      "initial_exit": 1,
+      "initial_log": "build/qa/merge-folding-native-2026-10-14.log",
+      "repair_exit": 0,
+      "log": "build/qa/merge-folding-native-fixture-repair-2026-10-14.log",
+      "families": [
+        "folding",
+        "wrapping",
+        "two-pane engine/editing",
+        "three-pane engine/merge"
+      ],
+      "fixture_repair": "Standalone prepared merge can already be dirty. Compare captured initial dirty and Undo state, rather than assuming false. Text and anchors also compared.",
+      "app_or_core_repeated_after_fixture_repair": false,
+      "evidence": [
+        "Actual TextKit seventy-line collapsed geometry <350 points with complete original text retained",
+        "Hidden navigation reveal in paired panes and combined fold projection",
+        "Exact common result anchors, result expansion reveals both sources, no result/provenance/history change",
+        "Busy/retired gates, accessible action presence and both appearance switches",
+        "Existing Unicode typing/selection, Undo/Redo, marks, exact BOM/CRLF Save and source-byte preservation",
+        "Existing three-pane filtering, dirty Save/discard/Cancel, resolution and private Git HEAD preservation"
+      ]
+    },
+    "owned_receivers_reaped": [
+      16045,
+      16091
+    ],
+    "receiver_pids_still_live_at_final_check": [],
+    "site": {
+      "exit": 0,
+      "documents": 213,
+      "unresolved_fragments": [],
+      "log": "build/qa/merge-folding-site-2026-10-14.log"
+    }
+  },
+  "limitations": [
+    "Physical double-click/menus/keyboard, actual VoiceOver and full light/dark visual captures remain unverified",
+    "Subpixel hidden paragraphs retain text storage; exact Windows screen geometry and very large-document performance remain open",
+    "Fallback non-Subversion alignment lacks exact result anchors; its result remains visible",
+    "Signed grants/helpers, minimum-OS/Finder/App Store acceptance and full app parity remain incomplete",
+    "Local grouped passes do not prove complete hosted CI success"
+  ]
+}

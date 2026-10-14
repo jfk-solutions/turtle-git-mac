@@ -10,14 +10,15 @@ public struct MergeResultPresentation: Sendable, Equatable {
     }
     public let text: String
     public let runs: [Run]
-    public static func == (a: Self, b: Self) -> Bool { a.text.utf8.elementsEqual(b.text.utf8) && a.runs == b.runs }
-    public init(text: String, states: [MergeSourceState]) {
-        self.text = text
+    public let foldAnchors: MergeFoldAnchors
+    public static func == (a: Self, b: Self) -> Bool { a.text.utf8.elementsEqual(b.text.utf8) && a.runs == b.runs && a.foldAnchors == b.foldAnchors }
+    public init(text: String, states: [MergeSourceState], foldAnchors: MergeFoldAnchors = .init()) {
+        self.text = text; self.foldAnchors = foldAnchors
         runs = Self.compact(MergeLineEndings.lineRanges(in: text).enumerated().map { index, range in
             Run(range: range.location..<NSMaxRange(range), state: states.indices.contains(index) ? states[index] : .normal)
         })
     }
-    private init(text: String, runs: [Run]) { self.text = text; self.runs = Self.compact(runs) }
+    private init(text: String, runs: [Run], foldAnchors: MergeFoldAnchors) { self.text = text; self.runs = Self.compact(runs); self.foldAnchors = foldAnchors }
     private static func compact(_ runs: [Run]) -> [Run] {
         var result: [Run] = []
         for run in runs where !run.range.isEmpty {
@@ -66,7 +67,8 @@ public struct MergeResultPresentation: Sendable, Equatable {
                 output.insert(contentsOf: parts, at: index)
             }
         }
-        return Self(text: value, runs: output)
+        var anchors = foldAnchors; anchors.reconcile(old: text, new: value)
+        return Self(text: value, runs: output, foldAnchors: anchors)
     }
     public func states(conflicts: [NSRange]) -> [MergeSourceState] {
         let conflicts = conflicts.sorted { $0.location < $1.location }

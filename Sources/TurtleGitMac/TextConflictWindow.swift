@@ -211,6 +211,47 @@ private enum MergeSourceSide {
     private let access: RepositoryAccessLease?
     @Published var document: TextConflictDocument?
     @Published var sourceComparison: MergeSourceComparison? { didSet { inlineCache = [:] } }
+    lazy var folding: MergeFoldingController = {
+        let value = makeFoldingController()
+        value.expanded = { [weak self] _ in self?.synchronizeResultFolding() }
+        return value
+    }()
+    lazy var resultFolding: MergeFoldingController = {
+        let value = makeFoldingController()
+        value.expanded = { [weak self] range in
+            guard let self else { return }
+            let mapping = self.resultPresentation.foldAnchors.resultRows(in: self.result)
+            for (source, resultRow) in mapping where range.contains(resultRow) { _ = self.folding.reveal(sourceRow: source) }
+            self.synchronizeResultFolding()
+        }
+        return value
+    }()
+    private func makeFoldingController() -> MergeFoldingController {
+        let value = MergeFoldingController(preferences: comparisonDefaults)
+        value.geometryChanged = { [weak self] in DispatchQueue.main.async { self?.objectWillChange.send() } }
+        value.actionsAllowed = { [weak self] in self?.retired == false && self?.busy == false && self?.preparing == false && self?.confirmingQuit == false }
+        return value
+    }
+    func setCollapsed(_ value: Bool) {
+        guard !retired, !busy, !preparing, !confirmingQuit else { return }
+        folding.setCollapsed(value); resultFolding.setCollapsed(value)
+    }
+    func updateFolding() {
+        folding.update(unchanged: sourceComparison?.rows.map { ($0.mine.state == .normal || $0.mine.state == .filtered) && ($0.theirs.state == .normal || $0.theirs.state == .filtered) } ?? [])
+        synchronizeResultFolding()
+    }
+    private func synchronizeResultFolding() {
+        let states = resultStates
+        let mapping = resultPresentation.foldAnchors.resultRows(in: result)
+        var visibility = Array(repeating: MergeFolding.Visibility.shown, count: states.count)
+        for (source, row) in mapping where folding.folding.visibility.indices.contains(source) && states.indices.contains(row) {
+            if states[row] == .normal || states[row] == .filtered { visibility[row] = folding.folding.visibility[source] }
+        }
+        // If an edit invalidates the original marker anchor, retain an
+        // expandable marker at the start of the surviving hidden result run.
+        for row in visibility.indices where visibility[row] == .hidden && (row == 0 || visibility[row - 1] == .shown) { visibility[row] = .marker }
+        resultFolding.install(visibility: visibility)
+    }
     @Published private(set) var regexFilters = MergeRegexFilters.load()
     @Published private(set) var regexFilterName: String?
     var regexDefaults: UserDefaults = .standard
@@ -313,6 +354,7 @@ private enum MergeSourceSide {
         load(filterName: name)
     }
     func retire() {
+        folding.retire(); resultFolding.retire()
         lineWrapping.retire()
         retired = true; loadGeneration += 1; loadCancellation?.cancel(); loadCancellation = nil
         regexList?.retire(); regexList = nil
@@ -511,7 +553,7 @@ private enum MergeSourceSide {
         guard !retired, generation == nil || generation == loadGeneration else { return }
         guard let comparison = next.mergeSources else { throw SubversionMergeDiffFailure.invalidOutput }
         resetHistory()
-        document = next; sourceComparison = comparison; resultPresentation = MergeResultPresentation(text: next.initialResult, states: comparison.resultLocator?.states ?? []); result = next.initialResult; encoding = next.encoding
+        document = next; sourceComparison = comparison; resultPresentation = MergeResultPresentation(text: next.initialResult, states: comparison.resultLocator?.states ?? [], foldAnchors: .init(offsets: comparison.resultAnchors)); result = next.initialResult; encoding = next.encoding
         commentProfiles = profiles
         comparisonOptions = options; if changingOptions { options.save(to: comparisonDefaults) }; pendingComparisonOptions = nil
         regexFilterName = filter?.name
@@ -671,7 +713,7 @@ private struct TextConflictDialog: View {
                 Button { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegitmerge/tmerge-dug-conflicts.html")!) } label: { CommandLabel(title: "Help", icon: .help) }
             }.padding(9)
             HStack {
-                MergeViewControls(preferences: model.locatorPreferences, apply: model.setLocatorPreferences, whitespace: model.whitespaceDisplay, applyWhitespace: model.setWhitespaceDisplay, wrapLines: model.wrapLines, applyWrap: model.setWrapLines)
+                MergeViewControls(preferences: model.locatorPreferences, apply: model.setLocatorPreferences, whitespace: model.whitespaceDisplay, applyWhitespace: model.setWhitespaceDisplay, wrapLines: model.wrapLines, applyWrap: model.setWrapLines, collapsed: model.folding.collapsed, applyCollapsed: model.setCollapsed)
                 MergeInlineControls(enabled: model.showInlineDiff, word: model.inlineWordDiff, applyEnabled: model.setInlineDiff, applyWord: model.setInlineWordDiff).disabled(model.busy || model.confirmingQuit || model.sourceComparison == nil)
                 MergeComparisonControls(options: model.comparisonOptions, apply: model.setComparisonOptions, supportsComments: model.supportsComments)
                 Menu("Regex Filter: " + (model.regexFilterName ?? "No Filter")) {
@@ -786,6 +828,7 @@ private struct MergeEditor: NSViewRepresentable {
         view.mergeFindController?.updateGates()
         let range = view.selectedRange()
         if !view.string.utf8.elementsEqual(text.utf8) { view.string = text; view.setSelectedRange(NSRange(location: min(range.location, (text as NSString).length), length: 0)) }
+        view.foldLayout.prepare(view)
         let entire = NSRange(location: 0, length: (text as NSString).length)
         view.textStorage?.addAttributes([.foregroundColor: MergePalette.foreground(.normal), .backgroundColor: MergePalette.color(MergeSourceState.normal), .font: model.generalPreferences.nativeFont, .paragraphStyle: view.defaultParagraphStyle ?? NSParagraphStyle.default], range: entire)
         if editable {
@@ -816,6 +859,8 @@ private struct MergeEditor: NSViewRepresentable {
                 offset += length
             }
         } else { view.inlineMissingOffsets = [] }
+        model.updateFolding()
+        view.foldLayout.apply(to: view, controller: editable ? model.resultFolding : model.folding)
         model.lineWrapping.geometryChanged = { [weak model] in model?.refreshLocatorViewport() }
         model.lineWrapping.update(scroll, key: label, aligned: sourceCells != nil, enabled: model.wrapLines)
         view.sourceCells = sourceCells
@@ -857,7 +902,9 @@ private struct MergeEditor: NSViewRepresentable {
             return false
         }
         func textViewDidChangeSelection(_ notification: Notification) {
-            guard editable, let view = notification.object as? NSTextView else { return }
+            guard let view = notification.object as? MergeTextView else { return }
+            view.foldLayout.reveal(selection: view.selectedRange(), in: view)
+            guard editable else { return }
             let range = view.selectedRange()
             DispatchQueue.main.async {
                 if self.model.caret != range { self.model.caret = range }
@@ -873,6 +920,7 @@ private struct MergeEditor: NSViewRepresentable {
 private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying, MergeFindProviding {
     var chooseNavigationLine: (NSWindow, Int) async -> Int? = MergeLineNumberPrompt.choose
     var navigationPending = false
+    @objc private func expandFoldedSection(_ sender: Any?) { _ = foldLayout.expandSelection(in: self) }
     var navigationCells: [MergeSourceCell]? { sourceCells }
     var navigationAllowed: Bool { model?.busy == false && model?.confirmingQuit == false }
     @objc func goToSourceLine(_ sender: Any?) { navigateToSourceLine() }
@@ -906,11 +954,21 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
         scrollRangeToVisible(selectedRange())
         return true
     }
+    let foldLayout = MergeFoldTextLayout()
+    override func scrollRangeToVisible(_ range: NSRange) {
+        foldLayout.reveal(selection: range, in: self, includeMarker: true)
+        super.scrollRangeToVisible(range)
+    }
+    override func mouseDown(with event: NSEvent) {
+        if model?.busy == false, model?.confirmingQuit == false, foldLayout.expand(at: event, in: self) { return }
+        super.mouseDown(with: event)
+    }
     let whitespaceRenderer = MergeWhitespaceRenderer()
     var inlineMissingOffsets: [Int] = []
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect); whitespaceRenderer.draw(in: self, dirtyRect: dirtyRect)
         MergeInlineTicks.draw(in: self, offsets: inlineMissingOffsets, dirtyRect: dirtyRect)
+        foldLayout.draw(in: self, dirtyRect: dirtyRect)
     }
     fileprivate var clipboardText: String? {
         guard window != nil, let model, !model.retired else { return nil }
@@ -1025,6 +1083,9 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
         let navigationImage = MenuPresentationSettings.applicationContextIcons(defaults: defaults) ? NSImage(systemSymbolName: "number", accessibilityDescription: "Go to Line") : nil
         editingItem("Go to Line…", #selector(goToSourceLine(_:)), navigationImage, canNavigateToSourceLine)
         menu.items.last?.keyEquivalent = "g"; menu.items.last?.keyEquivalentModifierMask = .control
+        if model?.folding.collapsed == true {
+            editingItem("Expand unchanged section", #selector(expandFoldedSection(_:)), MenuPresentationSettings.applicationContextIcons(defaults: defaults) ? NSImage(systemSymbolName: "chevron.down", accessibilityDescription: "Expand") : nil, foldLayout.canExpandSelection(in: self))
+        }
         if let sourceSide {
             menu.addItem(.separator())
             let useFile = NSMenuItem(title: "Use this whole file", action: #selector(useSourceFile(_:)), keyEquivalent: "")
@@ -1152,7 +1213,8 @@ final class MergeLineRuler: NSRulerView {
             let range = text.lineRange(for: NSRange(location: location, length: 0))
             let glyph = manager.glyphRange(forCharacterRange: NSRange(location: location, length: 1), actualCharacterRange: nil)
             let frame = manager.boundingRect(forGlyphRange: glyph, in: container).offsetBy(dx: view.textContainerInset.width, dy: view.textContainerInset.height)
-            if frame.maxY >= visible.minY && frame.minY <= visible.maxY {
+            let folded = view.textStorage?.attribute(.mergeFoldHidden, at: location, effectiveRange: nil) != nil || view.textStorage?.attribute(.mergeFoldMarker, at: location, effectiveRange: nil) != nil
+            if !folded && frame.maxY >= visible.minY && frame.minY <= visible.maxY {
                 let number = sourceNumbers == nil ? line : (sourceNumbers!.indices.contains(line - 1) ? sourceNumbers![line - 1] : nil)
                 let value = number.map(String.init) as NSString? ?? ""
                 value.draw(at: NSPoint(x: ruleThickness - value.size(withAttributes: attrs).width - 6, y: convert(frame.origin, from: view).y), withAttributes: attrs)

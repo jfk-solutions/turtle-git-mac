@@ -24,9 +24,14 @@ public struct MergeSourceRow: Sendable {
 public struct MergeSourceComparison: Sendable {
     public let rows: [MergeSourceRow]
     public let resultLocator: MergeLocatorResult?
-    public init(rows: [MergeSourceRow], resultLocator: MergeLocatorResult? = nil) { self.rows = rows; self.resultLocator = resultLocator }
+    /// Alignment-row anchors into the initial editable result. Common rows only;
+    /// conflict markers and removed/gap rows never acquire guessed anchors.
+    public let resultAnchors: [Int: Int]
+    public init(rows: [MergeSourceRow], resultLocator: MergeLocatorResult? = nil, resultAnchors: [Int: Int] = [:]) {
+        self.rows = rows; self.resultLocator = resultLocator; self.resultAnchors = resultAnchors
+    }
     public init(base: String, mine: String, theirs: String) {
-        resultLocator = nil
+        resultLocator = nil; resultAnchors = [:]
         let baseLines = Self.lines(base), mineLines = Self.lines(mine), theirLines = Self.lines(theirs)
         let mineHunks = Self.hunks(base: baseLines, side: mineLines, mine: true)
         let theirHunks = Self.hunks(base: baseLines, side: theirLines, mine: false)

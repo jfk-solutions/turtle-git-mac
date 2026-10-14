@@ -617,3 +617,10 @@ navigation remains disabled while the merge result is visible, as upstream.
 See [inline parity](MERGE-INLINE-PARITY.md) for the current source rules and exact
 remaining scope; earlier text describing all character differences as absent is
 superseded for source panes.
+
+
+Collapsed comparison views now preserve source text and editing coordinates,
+with shared source expansion and exact engine-anchored result expansion. See
+[folding parity](MERGE-FOLDING-PARITY.md) for the grouped checkpoint and remaining
+physical/geometry/signed scope. Earlier descriptions of all unchanged-section
+collapse as absent are superseded for these native paths.
