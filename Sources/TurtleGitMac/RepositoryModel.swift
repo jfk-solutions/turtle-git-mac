@@ -186,7 +186,7 @@ import TurtleGitCore
     private var eventRefresh:RepositoryEventRefresh?
     private var watchIdentity=UUID()
     private var watchPaths:[URL]=[]
-    func stopMonitoringForTermination() { stopFileMonitoring() }
+    func stopMonitoringForTermination() { cancelConflictEditorPreparations(); stopFileMonitoring() }
     private func stopFileMonitoring() {
         watchIdentity=UUID();fileMonitor?.stop();fileMonitor=nil;watchPaths=[];eventRefresh?.retire();eventRefresh=nil
     }
@@ -691,21 +691,61 @@ import TurtleGitCore
         renameWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showConflictEditor(repository: GitRepository, access: RepositoryAccessLease?, path: String) {
-        let alternate = NSEvent.modifierFlags.contains(.shift), owner = NSApp.keyWindow
+    enum ConflictEditorRoute: String { case deleteModify, submodule, image, text }
+    var conflictEditorPresentation: ((ConflictEditorRoute, GitRepository, String, ImageConflictDocument?) -> Void)?
+    var readConflictEditorEntry: ((GitRepository, String, OperationCancellation) async throws -> ConflictEntry)?
+    var openExternalConflict: (GitRepository, RepositoryAccessLease?, String, Bool, NSWindow?, ConflictEntry, OperationCancellation, @escaping () -> Void) async throws -> Bool = { repository, access, path, alternate, owner, entry, token, prepared in
+        try await MergeToolApplication.open(repository: repository, access: access, path: path, alternate: alternate, owner: owner, cancellation: token, onPrepared: prepared, expectedEntry: entry)
+    }
+    private var conflictEditorPreparations: [String: ConflictEditorLaunch] = [:]
+    @Published private(set) var conflictEditorPreparationCount = 0
+    func cancelConflictEditorPreparations() { for request in conflictEditorPreparations.values { request.cancel() } }
+    func cancelConflictEditorPreparation(repository: GitRepository, path: String) { conflictEditorPreparations[repository.root.path + "\0" + path]?.cancel() }
+    private func validateConflictEditorEntry(_ entry: ConflictEntry, repository: GitRepository, token: OperationCancellation) async throws {
+        try token.check()
+        guard !confirmingQuit, try await repository.conflictEditorEntry(path: entry.path, cancellation: token) == entry else { throw ResolveFailure.stale }
+        try token.check()
+    }
+    func showConflictEditor(repository: GitRepository, access: RepositoryAccessLease?, path: String, owner: NSWindow? = nil) {
+        guard !confirmingQuit else { return }
+        let key = repository.root.path + "\0" + path
+        guard conflictEditorPreparations[key] == nil else { return }
+        let alternate = NSEvent.modifierFlags.contains(.shift), owner = owner ?? NSApp.keyWindow ?? workspaceWindow
+        let request = ConflictEditorLaunch(owner: owner, preferences: fileComparisonPreferences)
+        conflictEditorPreparations[key] = request; conflictEditorPreparationCount = conflictEditorPreparations.count
+        request.showProgress(path: path)
         Task {
+            defer {
+                request.dismissProgress(); if conflictEditorPreparations[key] === request { conflictEditorPreparations.removeValue(forKey: key); conflictEditorPreparationCount = conflictEditorPreparations.count }
+                withExtendedLifetime(access) {}
+            }
             do {
-                guard let entry = try await repository.conflicts(paths: [path]).first(where: { $0.path == path }) else { throw ResolveFailure.stale }
-                if entry.isDeleteModify { showDeleteConflict(repository: repository, access: access, path: path); return }
+                try await request.session.run(selectedCount: 0) { [self] token in
+                    try token.check(); guard !confirmingQuit else { return }
+                    if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                    let entry: ConflictEntry
+                    if let readConflictEditorEntry { entry = try await readConflictEditorEntry(repository, path, token) }
+                    else { entry = try await repository.conflictEditorEntry(path: path, cancellation: token) }
+                    guard entry.path == path else { throw ResolveFailure.stale }; try token.check()
+                if entry.isDeleteModify {
+                    try await validateConflictEditorEntry(entry, repository: repository, token: token)
+                    request.dismissProgress(); if let conflictEditorPresentation { conflictEditorPresentation(.deleteModify, repository, path, nil) }
+                    else { showDeleteConflict(repository: repository, access: access, path: path) }; return
+                }
                 if !entry.isSubmodule {
-                    if try await MergeToolApplication.open(repository: repository, access: access, path: path, alternate: alternate, owner: owner) {
+                    if try await openExternalConflict(repository, access, path, alternate, owner, entry, token, { request.dismissProgress() }) {
+                        try token.check(); guard !confirmingQuit else { return }
                         let root = repository.root
                         statusWindows[root.path]?.model.requestReload(); commitWindows[root.path]?.model.reload(); rebaseWindows[root.path]?.model.refreshState(); refreshRepositoryLogs(root)
                         for resolve in resolveWindows.values where resolve.model.repository.root == root { resolve.model.load() }
                         if self.root == root { await refresh() }; return
                     }
                     let root = repository.root, key = root.path + "\0" + path
-                    if let document = try await repository.imageConflictDocument(path: path) {
+                    if let document = try await repository.imageConflictDocument(path: path, cancellation: token) {
+                        guard document.entry == entry else { throw ResolveFailure.stale }
+                        try await validateConflictEditorEntry(entry, repository: repository, token: token)
+                        request.dismissProgress()
+                        if let conflictEditorPresentation { conflictEditorPresentation(.image, repository, path, document); return }
                         let controller = imageConflictWindows[key] ?? ImageConflictWindowController(repository: repository, access: access, document: document)
                         controller.onClosed = { [weak self] in self?.imageConflictWindows.removeValue(forKey: key) }
                         controller.model.onChanged = { [weak self] output in
@@ -715,6 +755,9 @@ import TurtleGitCore
                         }
                         imageConflictWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); return
                     }
+                    try await validateConflictEditorEntry(entry, repository: repository, token: token)
+                    request.dismissProgress()
+                    if let conflictEditorPresentation { conflictEditorPresentation(.text, repository, path, nil); return }
                     let controller = textConflictWindows[key] ?? TextConflictWindowController(repository: repository, access: access, path: path)
                     controller.onClosed = { [weak self] in self?.textConflictWindows.removeValue(forKey: key) }
                     controller.model.onChanged = { [weak self] output in
@@ -725,6 +768,9 @@ import TurtleGitCore
                     textConflictWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); return
                 }
                 let root = repository.root, key = root.path + "\0" + path
+                try await validateConflictEditorEntry(entry, repository: repository, token: token)
+                request.dismissProgress()
+                if let conflictEditorPresentation { conflictEditorPresentation(.submodule, repository, path, nil); return }
                 let controller = submoduleConflictWindows[key] ?? SubmoduleConflictWindowController(repository: repository, access: access, path: path)
                 controller.onClosed = { [weak self] in self?.submoduleConflictWindows.removeValue(forKey: key) }
                 controller.model.onChanged = { [weak self] output in
@@ -735,7 +781,8 @@ import TurtleGitCore
                 controller.model.onLog = { [weak self] child, revision in self?.showLog(repository: child, access: access, paths: [], endRevision: revision) }
                 controller.model.onReset = { [weak self, weak controller] child, revision, done in self?.showReset(repository: child, access: access, revision: revision, completion: done, dismissed: { [weak controller] in controller?.model.dismissReset() }) }
                 submoduleConflictWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
-            } catch { self.error = error.localizedDescription }
+                }
+            } catch { if !request.session.cancellation.isCancelled, !confirmingQuit { self.error = error.localizedDescription } }
         }
     }
     private func showDeleteConflict(repository: GitRepository, access: RepositoryAccessLease?, path: String) {
@@ -797,7 +844,7 @@ import TurtleGitCore
             guard let self, self.root == root else { return }
             self.output = output; Task { await self.refresh() }
         }
-        controller.model.onEdit = { [weak self] path in self?.showConflictEditor(repository: repository, access: access, path: path) }
+        controller.model.onEdit = { [weak self, weak controller] path in self?.showConflictEditor(repository: repository, access: access, path: path, owner: controller?.window) }
         controller.model.onSubmoduleReset = { [weak self, weak controller] child, revision, done in
             self?.showReset(repository: child, access: access, revision: revision, completion: done, dismissed: { [weak controller] in controller?.model.dismissSubmoduleReset() })
         }
@@ -1326,7 +1373,7 @@ import TurtleGitCore
         prepareFileComparisons(repository: repository, access: access, selectedCount: paths.count, owner: owner) { [self] token in
             for path in conflicts {
                 guard !token.isCancelled, !confirmingQuit else { return }
-                showConflictEditor(repository: repository, access: access, path: path)
+                showConflictEditor(repository: repository, access: access, path: path, owner: owner)
             }
             guard !ordinary.isEmpty else { return }
             let snapshot = try await repository.workingFileComparison(paths: ordinary, amendToParent: amendToParent, cancellation: token)
@@ -1831,8 +1878,8 @@ import TurtleGitCore
             self?.showIgnore(repository: repository, access: access, paths: paths, action: action)
         }
         controller.model.onWorkingFilePairCompare = { [weak self, weak controller] paths in guard let controller else { return }; self?.showWorkingFilePair(repository: repository, access: access, paths: paths, owner: controller.window) }
-        controller.model.onConflictAction = { [weak self] action, paths in
-            if action == .editConflict, let path = paths.first { self?.showConflictEditor(repository: repository, access: access, path: path) }
+        controller.model.onConflictAction = { [weak self, weak controller] action, paths in
+            if action == .editConflict, let path = paths.first { self?.showConflictEditor(repository: repository, access: access, path: path, owner: controller?.window) }
             else { self?.showResolve(repository: repository, access: access, paths: paths, quick: action.resolveChoice) }
         }
         controller.model.onFileCompare = { [weak self, weak controller] from, to, paths in guard let controller else { return }; self?.showHistoricalFiles(repository: repository, access: access, from: from, to: to, paths: paths, owner: controller.window) }
@@ -2020,8 +2067,8 @@ import TurtleGitCore
         model.onSubmoduleLog = { [weak self] child in self?.showLog(repository: child, access: access, paths: []) }
         model.onFileLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
         model.onFileBlame = { [weak self] path in self?.showBlame(repository: repository, access: access, path: path, revision: "HEAD") }
-        model.onResolve = { [weak self] action, paths in
-            if action == .editConflict, let path = paths.first { self?.showConflictEditor(repository: repository, access: access, path: path) }
+        model.onResolve = { [weak self, weak model] action, paths in
+            if action == .editConflict, let path = paths.first { self?.showConflictEditor(repository: repository, access: access, path: path, owner: model?.comparisonWindow) }
             else { self?.showResolve(repository: repository, access: access, paths: paths, quick: action.resolveChoice) }
         }
         model.onIgnore = { [weak self] action, paths in self?.showIgnore(repository: repository, access: access, paths: paths, action: action) }
@@ -2069,8 +2116,8 @@ import TurtleGitCore
             if self.root == root { self.activate(.status) }
             else if let access { self.openSession(access, action: .status) }
         }
-        controller.model.onConflictAction = { [weak self] action, paths in
-            if action == .editConflict, let path = paths.first { self?.showConflictEditor(repository: repository, access: access, path: path) }
+        controller.model.onConflictAction = { [weak self, weak controller] action, paths in
+            if action == .editConflict, let path = paths.first { self?.showConflictEditor(repository: repository, access: access, path: path, owner: controller?.window) }
             else { self?.showResolve(repository: repository, access: access, paths: paths, quick: action.resolveChoice) }
         }
         controller.model.onConflictFileLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
@@ -2457,4 +2504,37 @@ import TurtleGitCore
 private enum FinderSelectionFailure: LocalizedError {
     case multipleRepositories
     var errorDescription: String? { "Select files from one repository at a time. The Finder selection spans different repositories." }
+}
+
+/// One captured initiating window and token for every conflict-editor route.
+/// The preparation sheet is dismissed before handing control to an editor/tool.
+@MainActor final class ConflictEditorLaunch: NSObject, NSWindowDelegate {
+    let session: FileListComparisonSession
+    private weak var owner: NSWindow?
+    private var panel: NSPanel?
+    private weak var cancelButton: NSButton?
+    init(owner: NSWindow?, preferences: UserDefaults) { self.owner = owner; session = FileListComparisonSession(window: owner, preferences: preferences); super.init() }
+    func showProgress(path: String) {
+        guard panel == nil, !session.cancellation.isCancelled else { return }
+        let view = NSView(frame: NSRect(x: 0, y: 0, width: 520, height: 110))
+        let progress = NSProgressIndicator(); progress.style = .spinning; progress.controlSize = .small; progress.isIndeterminate = true; progress.startAnimation(nil)
+        progress.translatesAutoresizingMaskIntoConstraints = false; NSLayoutConstraint.activate([progress.widthAnchor.constraint(equalToConstant: 16), progress.heightAnchor.constraint(equalToConstant: 16)])
+        let title = NSTextField(labelWithString: "Preparing conflict editor…"), file = NSTextField(labelWithString: path)
+        file.lineBreakMode = .byTruncatingMiddle; file.maximumNumberOfLines = 1; file.toolTip = path
+        let cancel = NSButton(title: "Cancel", target: self, action: #selector(cancel)); cancelButton = cancel; cancel.keyEquivalent = "\u{1b}"
+        let heading = NSStackView(views: [progress, title, cancel]); heading.orientation = .horizontal; heading.spacing = 12
+        let stack = NSStackView(views: [heading, file]); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 12
+        stack.translatesAutoresizingMaskIntoConstraints = false; view.addSubview(stack)
+        NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20), stack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20), stack.centerYAnchor.constraint(equalTo: view.centerYAnchor)])
+        let panel = NSPanel(contentRect: view.frame, styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        panel.title = "Conflict – TurtleGit"; panel.contentView = view; panel.isReleasedWhenClosed = false; panel.delegate = self; self.panel = panel
+        if let owner, owner.isVisible, owner.attachedSheet == nil { owner.beginSheet(panel) }
+        else { panel.center(); panel.orderFront(nil) }
+    }
+    @objc func cancel() { session.cancel(); cancelButton?.isEnabled = false; cancelButton?.title = "Cancelling…" }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { cancel(); return false }
+    func dismissProgress() {
+        guard let panel else { return }; self.panel = nil; cancelButton = nil; panel.delegate = nil
+        if let parent = panel.sheetParent { parent.endSheet(panel, returnCode: .cancel) }; panel.orderOut(nil); panel.close()
+    }
 }

@@ -303,22 +303,32 @@ struct MergeToolSettings: View {
 /// Owns only TurtleGit's wait and confirmation, never the external application.
 @MainActor final class ExternalMergeSession {
     private(set) var retired = false
+    let cancellation: OperationCancellation
+    private var cancellationMonitor: Task<Void, Never>?
     private weak var owner: NSWindow?
     private var ownerObserver: NSObjectProtocol?
     private var stopObservation: (() -> Void)?
     private var answer: ((Bool) -> Void)?
     private var alert: NSAlert?
     var presentConfirmation: ((NSWindow, NSAlert, @escaping (NSApplication.ModalResponse) -> Void) -> Void)?
-    init(owner: NSWindow?) {
-        self.owner = owner
+    init(owner: NSWindow?, cancellation: OperationCancellation? = nil) {
+        self.owner = owner; self.cancellation = cancellation ?? OperationCancellation()
         if let owner {
             ownerObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: owner, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated { self?.retire() }
             }
         }
+        let token = self.cancellation
+        cancellationMonitor = Task { [weak self] in
+            while !Task.isCancelled && !token.isCancelled {
+                guard self?.retired == false else { return }
+                do { try await Task.sleep(nanoseconds: 20_000_000) } catch { return }
+            }
+            if token.isCancelled { self?.retire() }
+        }
     }
-    func retire() {
-        guard !retired else { return }; retired = true
+    func retire(cancelWork: Bool = true) {
+        guard !retired else { return }; retired = true; if cancelWork { cancellation.cancel() }; cancellationMonitor?.cancel(); cancellationMonitor = nil
         let stop = stopObservation; stopObservation = nil; stop?()
         if let alert, let parent = alert.window.sheetParent { parent.endSheet(alert.window, returnCode: .abort) }
         alert?.window.orderOut(nil); alert = nil
@@ -327,7 +337,7 @@ struct MergeToolSettings: View {
     }
     /// The returned cleanup is called once, including synchronous completion.
     func wait(observe: (@escaping () -> Void) -> (() -> Void)) async -> Bool {
-        guard !retired, !Task.isCancelled else { retire(); return false }
+        guard !retired, !cancellation.isCancelled, !Task.isCancelled else { retire(); return false }
         guard answer == nil else { return false }
         return await withTaskCancellationHandler(operation: {
             await withCheckedContinuation { continuation in
@@ -338,7 +348,7 @@ struct MergeToolSettings: View {
                     continuation.resume(returning: value)
                 }
                 answer = finish
-                let stop = observe { [weak self] in finish(self?.retired == false) }
+                let stop = observe { [weak self] in finish(self?.retired == false && self?.cancellation.isCancelled == false) }
                 if finished { stop() } else { stopObservation = stop }
             }
         }, onCancel: { Task { @MainActor [weak self] in self?.retire() } })
@@ -354,7 +364,7 @@ struct MergeToolSettings: View {
         }
     }
     func confirmResolution(path: String) async -> Bool {
-        guard !retired, !Task.isCancelled, answer == nil, let owner, owner.isVisible, owner.attachedSheet == nil else { return false }
+        guard !retired, !cancellation.isCancelled, !Task.isCancelled, answer == nil, let owner, owner.isVisible, owner.attachedSheet == nil else { return false }
         let question = NSAlert(); question.messageText = "Was the merge of “" + path + "” successful?"
         question.addButton(withTitle: "Mark Resolved"); question.addButton(withTitle: "No")
         question.buttons[0].keyEquivalent = ""; question.buttons[1].keyEquivalent = "\r"; alert = question
@@ -367,7 +377,7 @@ struct MergeToolSettings: View {
                 }
                 answer = reply
                 let response: (NSApplication.ModalResponse) -> Void = { [weak self, weak owner] result in
-                    reply(result == .alertFirstButtonReturn && self?.retired == false && owner?.isVisible == true)
+                    reply(result == .alertFirstButtonReturn && self?.retired == false && self?.cancellation.isCancelled == false && owner?.isVisible == true)
                 }
                 if let presentConfirmation { presentConfirmation(owner, question, response) }
                 else { question.beginSheetModal(for: owner, completionHandler: response) }
@@ -375,24 +385,29 @@ struct MergeToolSettings: View {
         }, onCancel: { Task { @MainActor [weak self] in self?.retire() } })
     }
     func resolveIfConfirmed(repository: GitRepository, entry: ConflictEntry, path: String) async throws {
-        guard await confirmResolution(path: path), !retired, !Task.isCancelled else { return }
-        _ = try await repository.resolveConflicts([entry], using: .current)
+        guard await confirmResolution(path: path), !retired, !cancellation.isCancelled, !Task.isCancelled else { return }
+        _ = try await repository.resolveConflicts([entry], using: .current, cancellation: cancellation)
     }
 }
 
 @MainActor enum MergeToolApplication {
-    private static var previews: [URL] = []
+    private(set) static var previews: [URL] = []
     private(set) static var activeRequests = 0
     static func discardAll() { for folder in previews { try? FileManager.default.removeItem(at: folder) }; previews = [] }
-    static func open(repository: GitRepository, access: RepositoryAccessLease?, path: String, alternate: Bool, owner: NSWindow?) async throws -> Bool {
-        let settings = MergeToolPreferences.load()
+    static func open(repository: GitRepository, access: RepositoryAccessLease?, path: String, alternate: Bool, owner: NSWindow?, cancellation: OperationCancellation? = nil, onPrepared: () -> Void = {}, preferences: MergeToolPreferences? = nil, expectedEntry: ConflictEntry? = nil, launch: ((URL, NSWorkspace.OpenConfiguration) async throws -> NSRunningApplication)? = nil) async throws -> Bool {
+        let token = cancellation ?? OperationCancellation(); try token.check()
+        let settings = preferences ?? MergeToolPreferences.load()
         guard let program = try settings.selected(path: path, alternate: alternate) else { return false }
         guard !settings.trustExitCode else { throw NSError(domain: "TurtleGit.MergeTools", code: 1, userInfo: [NSLocalizedDescriptionKey: "This application does not expose an exit code. Turn off Trust the exit code in Merge Tool settings."]) }
         guard !GitRuntime.isAppStoreBuild || (access?.hasSecurityScope == true && access?.contains(repository.root) == true) else { throw RepositoryAccessFailure.securityScopeUnavailable }
-        let session = ExternalMergeSession(owner: owner)
-        defer { session.retire() }
-        let input = try await repository.externalMergeInputs(path: path)
-        try Task.checkCancellation()
+        activeRequests += 1
+        defer { activeRequests -= 1; withExtendedLifetime(access) {} }
+        let session = ExternalMergeSession(owner: owner, cancellation: token)
+        defer { session.retire(cancelWork: false) }
+        return try await withTaskCancellationHandler(operation: {
+        let input = try await repository.externalMergeInputs(path: path, cancellation: token)
+        try Task.checkCancellation(); try token.check()
+        if let expectedEntry, input.entry != expectedEntry { throw ResolveFailure.stale }
         guard !session.retired else { return true }
         guard !GitRuntime.isAppStoreBuild || access?.contains(input.result) == true else { throw RepositoryAccessFailure.securityScopeUnavailable }
         let target: URL
@@ -403,28 +418,45 @@ struct MergeToolSettings: View {
         let manager = FileManager.default
         let folder = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGitMergeTool-" + UUID().uuidString)
         try manager.createDirectory(at: folder, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
-        activeRequests += 1
-        defer { activeRequests -= 1; withExtendedLifetime(grant) {}; withExtendedLifetime(access) {} }
+        defer { withExtendedLifetime(grant) {} }
         do {
             var values = ["merged": input.result.path, "bname": path + " : Base", "tname": path + " : Theirs", "yname": path + " : Mine", "mname": path, "wtroot": repository.root.path]
-            for (side, bytes) in [("base", input.base), ("theirs", input.theirs), ("mine", input.mine)] {
-                let file = folder.appendingPathComponent(side + "-" + (path as NSString).lastPathComponent)
-                try bytes.write(to: file, options: .withoutOverwriting); try manager.setAttributes([.posixPermissions: 0o444], ofItemAtPath: file.path); values[side] = file.path
-            }
+            let privateFiles = try await Task.detached(priority: .userInitiated) { () throws -> [String: String] in
+                var files: [String: String] = [:]
+                for (side, bytes) in [("base", input.base), ("theirs", input.theirs), ("mine", input.mine)] {
+                    try token.check()
+                    let file = folder.appendingPathComponent(side + "-" + (path as NSString).lastPathComponent)
+                    try bytes.write(to: file, options: .withoutOverwriting)
+                    try FileManager.default.setAttributes([.posixPermissions: 0o444], ofItemAtPath: file.path)
+                    try token.check(); files[side] = file.path
+                }
+                return files
+            }.value
+            try Task.checkCancellation(); for (side, file) in privateFiles { values[side] = file }
             let configuration = NSWorkspace.OpenConfiguration(); configuration.createsNewApplicationInstance = true
             configuration.arguments = try program.expandedArguments(values: values, files: ["base", "theirs", "mine", "merged"])
-            let app = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<NSRunningApplication, Error>) in
+            try await repository.validateExternalMergeInputs(input, cancellation: token)
+            try token.check(); guard !session.retired else { throw OperationCancellationFailure.cancelled }
+            onPrepared()
+            let app: NSRunningApplication
+            if let launch { app = try await launch(target, configuration) }
+            else { app = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<NSRunningApplication, Error>) in
                 NSWorkspace.shared.openApplication(at: target, configuration: configuration) { application, error in
                     if let error { continuation.resume(throwing: error) }
                     else if let application { continuation.resume(returning: application) }
                     else { continuation.resume(throwing: DiffToolFailure.application) }
                 }
-            }
+            } }
+            // A receiving app may already hold these files even if its caller
+            // closed while NSWorkspace was returning. Never kill that app or
+            // delete its inputs merely because TurtleGit's request was cancelled.
             previews.append(folder)
+            guard !session.retired, !token.isCancelled else { return true }
             if settings.blockWhileMerging, !session.retired {
                 if await session.wait(for: app) { try await session.resolveIfConfirmed(repository: repository, entry: input.entry, path: path) }
             }
             return true
         } catch { if !previews.contains(folder) { try? manager.removeItem(at: folder) }; throw error }
+        }, onCancel: { token.cancel() })
     }
 }

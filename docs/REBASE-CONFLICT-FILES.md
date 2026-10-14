@@ -119,5 +119,10 @@ injected Open/Editor/Log/Blame/Reveal callbacks. Core is unchanged in this batch
 The remaining source status-list menus (including broader submodule history,
 Add/Ignore/Revert/Delete and prepared/unified comparison combinations), column
 customization, drag/drop, all conditional layouts, physical keyboard/VoiceOver,
-workspace editor-dispatch preparation and signed Finder/sandbox acceptance remain
+broader editor-dispatch conditional/physical cases and signed Finder/sandbox acceptance remain
 open. This does not certify full Rebase, Cherry Pick or app parity.
+
+Workspace editor dispatch now also owns cancellable preparation across its four
+specialized routes and external tool handoffs. See
+[the routing family](DIFF-TOOLS-PARITY.md) for the implemented lifetime and remaining
+receiving-app/signed acceptance.

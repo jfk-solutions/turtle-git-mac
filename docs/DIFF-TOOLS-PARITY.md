@@ -166,3 +166,42 @@ Owned windows were closed. Tool apps were neither launched nor killed; actual
 NSWorkspace argument delivery, real tool KVO termination, physical owned sheets,
 receiving-app edits, signed grants and exit-code trust remain open. Native-only
 changes did not rerun Core or the complete thirteen-case group.
+
+## Conflict-editor routing and cancellation — 14 October 2026
+
+The workspace editor dispatcher now owns a captured repository, literal path,
+initiating window, stage record and cancellation token before its first read.
+Delete/Modify, Submodule, image and text routes share a native preparation panel
+with Cancel. Repeated same-repository/path requests reuse the current preparation.
+The panel closes before an editor/tool receives control. Window close or explicit
+Cancel stops owned Git reads, and late results cannot open another editor, report
+an obsolete error or retarget to the newly focused window. The permission and
+shared Quit count remain held through actual settlement, including noncooperative
+injected readers. Commit, Resolve, Log and Rebase handoffs now pass their actual
+initiating owner where available.
+
+Image read/selection/resolution and external merge inputs now carry cancellation
+through stage validation and owned Git commands. Image/text reads revalidate
+stages and rebase orientation before returning documents. External side files
+are private/read-only; the real result remains the captured working path. The
+prepared stages and result ownership are validated again before launch, and the
+external input record must match the factory's captured entry.
+
+External-tool preparation now counts as active before input reads. Private side
+files are written off the UI thread, checking cancellation between copies; Task
+cancellation also cancels the shared preparation token. A cooperative
+token also retires its wait and owned resolution question; Task cancellation is
+not required. Late Yes and duplicate observation callbacks cannot stage a result.
+The same token reaches actual Mark Resolved commands. The receiving app is never
+terminated by TurtleGit cancellation. If NSWorkspace returns a successful launch
+after the owner has closed, the private inputs are retained for that app and no
+native fallback or automatic resolution starts. Normal successful cleanup does
+not cancel its caller's token. Retained copies still use explicit app-termination
+cleanup; complete receiving-app/signed lifetime acceptance remains open.
+
+[Grouped routing/cancellation evidence](qa/conflict-editor-routing-2026-10-14.json)
+separates real Git reads/staging and private input files from injected native
+presentation/SDK launch/wait replies. This is partial editor and tool parity:
+all actual receiving apps, every binary/mixed/symlink/encoding case, physical
+progress/prompt/Shift gestures, complete specialized editor behavior and signed
+Finder/App Store grants still require acceptance.

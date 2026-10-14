@@ -1,0 +1,84 @@
+{
+  "date": "2026-10-14",
+  "base": "aad0b5c0",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Owned single-key conflict editor preparation/panel with captured owner/repository/literal path/validated stages and close/cancel/duplicate request fencing",
+    "Delete/Modify, Submodule, image and text dispatch plus bound initiating owners at Commit/Resolve/Log/Rebase and working comparison handoffs",
+    "Cancellable conflict editor entry/image read/selection/Mark Resolved/external input reads and final stage/rebase orientation checks",
+    "External SDK launch retains original expected stages, validates inputs before launch, counts full preparation/wait/confirmation and preserves already-launched inputs on cancellation",
+    "Private read-only tool input writes move off the UI thread; cooperative/Task cancellation propagates across prep, waits, questions and actual resolve commands"
+  ],
+  "references": [
+    "src/TortoiseProc/AppUtils.cpp:ConflictEdit/PickMergeTool/StartExtMerge",
+    "src/Git/GitStatusListCtrl.cpp:IDGITLC_EDITCONFLICT",
+    "src/TortoiseProc/ProgressCommands/ResolveProgressCommand.cpp"
+  ],
+  "validation": {
+    "initial_debug": {
+      "exit": 0,
+      "log": "build/qa/conflict-editor-routing-debug-2026-10-14.log",
+      "diagnostics": "Existing exit-zero/no-output compiler messages; no clean-diagnostics claim"
+    },
+    "core": {
+      "exit": 0,
+      "tests": 35,
+      "families": {
+        "ConflictEditorPreparationTests": 3,
+        "ConflictResolutionTests": 10,
+        "DiffToolPreferencesTests": 4,
+        "ImageConflictTests": 6,
+        "TextConflictTests": 12
+      },
+      "log": "build/qa/conflict-editor-routing-core-2026-10-14.log"
+    },
+    "native_copy_followup": {
+      "change": "Review found existing external input copies still ran on UI thread; moved to detached writer with boundary checks and full Task cancellation handler before native group",
+      "debug_exit": 0,
+      "log": "build/qa/conflict-editor-routing-copy-debug-2026-10-14.log",
+      "core": "Not repeated; followup only changes native preparation"
+    },
+    "native": {
+      "exit": 0,
+      "cases": 4,
+      "families": [
+        "conflict-editor-routing",
+        "external-merge-lifecycle"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "owned_receivers_reaped": [
+        22299,
+        22485,
+        22537,
+        22723
+      ],
+      "log": "build/qa/conflict-editor-routing-native-2026-10-14.log",
+      "evidence": [
+        "Real text, image, delete/modify and uninitialized gitlink index records classify into exact injected native destinations; image mine bytes and owner/path remain captured",
+        "Dispatch leaves private HEAD/raw index/working baselines unchanged; repeated key creates one held read",
+        "Retired noncooperative entry read retains Quit counter until actual settlement and cannot route/publish error",
+        "Explicit cancel kills actual gated stage-blob Git process before image/text fallback",
+        "Prepared external files contain exact Base/Theirs/Mine bytes and original result path; injected SDK reply after owner close retains private files without resolving/fallback",
+        "Explicit private input cleanup succeeds; cooperative token settles tool observation once without Task.cancel",
+        "Existing native mock tool completion/confirmation exercises synchronous/async cleanup, caller/task cancellation, late replies, default No, exact actual Git Mark Resolved and stale-stage refusal"
+      ]
+    },
+    "site": {
+      "exit": 0,
+      "documents": 200,
+      "unresolved_fragments": 0,
+      "log": "build/qa/conflict-editor-routing-site-2026-10-14.log"
+    }
+  },
+  "limits": [
+    "Four route destinations and external SDK receiving app/termination are injected; no actual external app launched/killed and no complete receiving-app integration proof",
+    "Native preparation panel is constructed/closed during checks but physical Cancel/Shift/light/dark/VoiceOver and every specialized editor popup are not certified",
+    "File writes check cancellation at boundaries; synchronous writes already underway are allowed to settle, and late launched-app inputs remain retained until explicit app cleanup",
+    "Final stage/orientation checks and stale-byte save guards do not constitute atomic filesystem snapshots against all external writers",
+    "Complete binary/mixed/symlink/encoding and existing-dialog type-transition/reuse behavior remains partial",
+    "Signed Finder/sandbox/App Store, complete hosted CI and whole application parity remain open"
+  ]
+}

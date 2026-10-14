@@ -126,18 +126,32 @@ public struct ExternalMergeInputs: Sendable {
     public let result: URL
 }
 extension GitRepository {
-    public func externalMergeInputs(path: String) throws -> ExternalMergeInputs {
-        guard let entry = try conflicts(paths: [path]).first(where: { $0.path == path }), !entry.isSubmodule, !entry.isDeleteModify,
+    public func externalMergeInputs(path: String, cancellation: OperationCancellation? = nil) throws -> ExternalMergeInputs {
+        guard let entry = try conflicts(paths: [path], cancellation: cancellation).first(where: { $0.path == path }), !entry.isSubmodule, !entry.isDeleteModify,
               entry.stages.allSatisfy({ ["100644", "100755"].contains($0.mode) }) else { throw TextConflictFailure.unsupported }
-        try validateConflicts([entry], using: .current)
-        let rebase = try conflictIsRebase()
+        try validateConflicts([entry], using: .current, cancellation: cancellation)
+        let rebase = try conflictIsRebase(cancellation: cancellation)
         func bytes(_ stage: Int) throws -> Data {
             guard let object = entry.stages.first(where: { $0.number == stage })?.object else { return Data() }
-            return try run(["cat-file", "blob", object]).stdout
+            return try run(["cat-file", "blob", object], cancellation: cancellation).stdout
         }
         let result = root.appendingPathComponent(path)
         _ = try conflictWorkingSnapshot(result)
         let input = try ExternalMergeInputs(entry: entry, base: bytes(1), mine: bytes(rebase ? 3 : 2), theirs: bytes(rebase ? 2 : 3), result: result)
-        try validateConflicts([entry], using: .current); return input
+        try validateConflicts([entry], using: .current, cancellation: cancellation)
+        guard try conflictIsRebase(cancellation: cancellation) == rebase else { throw ResolveFailure.stale }
+        try cancellation?.check(); return input
+    }
+}
+
+extension GitRepository {
+    /// Revalidate immediately before launching a tool. Private side files may
+    /// already have been prepared while the real result stays in this repository.
+    public func validateExternalMergeInputs(_ input: ExternalMergeInputs, cancellation: OperationCancellation? = nil) throws {
+        try cancellation?.check()
+        guard input.result.standardizedFileURL.path == root.appendingPathComponent(input.entry.path).standardizedFileURL.path else { throw ResolveFailure.outsideWorkingTree }
+        try validateConflicts([input.entry], using: .current, cancellation: cancellation)
+        _ = try conflictWorkingSnapshot(input.result)
+        try cancellation?.check()
     }
 }

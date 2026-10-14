@@ -95,6 +95,14 @@ extension GitRepository {
         }
         return entries.map { ConflictEntry(path: $0.key, stages: $0.value.sorted { $0.number < $1.number }) }.sorted { $0.path < $1.path }
     }
+    /// Native editor routing needs validated stages and filesystem ownership
+    /// before selecting a specialized editor or preparing external tool inputs.
+    public func conflictEditorEntry(path: String, cancellation: OperationCancellation? = nil) throws -> ConflictEntry {
+        try cancellation?.check()
+        guard let entry = try conflicts(paths: [path], cancellation: cancellation).first(where: { $0.path == path }) else { throw ResolveFailure.stale }
+        try validateConflicts([entry], using: .current, cancellation: cancellation)
+        try cancellation?.check(); return entry
+    }
     public func conflictIsRebase(cancellation: OperationCancellation? = nil) throws -> Bool {
         try cancellation?.check()
         for name in ["rebase-merge", "rebase-apply"] {

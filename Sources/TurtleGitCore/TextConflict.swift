@@ -171,6 +171,9 @@ extension GitRepository {
         }
         let encoding = working.flatMap(detect) ?? sourceEncodings[mineStage] ?? .utf8
         var document = TextConflictDocument(entry: entry, base: base, mine: mine, theirs: theirs, mineStage: mineStage, theirsStage: theirsStage, initialResult: result, generatedResult: result, workingContents: working, permissions: permissions, encoding: encoding, baseEncoding: sourceEncodings[1], mineEncoding: sourceEncodings[mineStage], theirsEncoding: sourceEncodings[theirsStage])
+        try validateConflicts([entry], using: .current, cancellation: cancellation)
+        guard try conflictIsRebase(cancellation: cancellation) == rebase else { throw ResolveFailure.stale }
+        try cancellation?.check()
         document.mergeSources = sources; return document
     }
     public func saveTextConflict(_ document: TextConflictDocument, result: String, markResolved: Bool, encoding: ComparisonTextEncoding? = nil, options: MergeFileSaveOptions = .init()) throws -> TextConflictDocument {

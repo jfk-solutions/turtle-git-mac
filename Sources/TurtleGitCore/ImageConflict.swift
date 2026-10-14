@@ -4,7 +4,7 @@ public enum ImageConflictSide: String, CaseIterable, Identifiable, Sendable {
     case mine = "Mine", base = "Base", theirs = "Theirs"
     public var id: String { rawValue }
 }
-public struct ImageConflictDocument {
+public struct ImageConflictDocument: Sendable {
     public let entry: ConflictEntry
     public let mineStage: Int
     public let theirsStage: Int
@@ -28,26 +28,31 @@ extension GitRepository {
     /// A missing base is allowed for add/add conflicts; selection stays unavailable.
     public func imageConflictDocument(path: String, cancellation: OperationCancellation? = nil) throws -> ImageConflictDocument? {
         try cancellation?.check()
-        guard let entry = try conflicts(paths: [path]).first(where: { $0.path == path }) else { throw ResolveFailure.stale }
+        guard let entry = try conflicts(paths: [path], cancellation: cancellation).first(where: { $0.path == path }) else { throw ResolveFailure.stale }
+        try cancellation?.check()
         guard !entry.isSubmodule, !entry.isDeleteModify,
               entry.stages.allSatisfy({ ["100644", "100755"].contains($0.mode) }) else { return nil }
-        try validateConflicts([entry], using: .current)
-        let rebase = try conflictIsRebase(), mineStage = rebase ? 3 : 2, theirsStage = rebase ? 2 : 3
+        try validateConflicts([entry], using: .current, cancellation: cancellation)
+        let rebase = try conflictIsRebase(cancellation: cancellation), mineStage = rebase ? 3 : 2, theirsStage = rebase ? 2 : 3
         var contents: [ImageConflictSide: Data] = [:]
         for (side, stage) in [(ImageConflictSide.mine, mineStage), (.base, 1), (.theirs, theirsStage)] {
             guard let object = entry.stages.first(where: { $0.number == stage })?.object else { continue }
             let bytes = try run(["cat-file", "blob", object], cancellation: cancellation).stdout
-            guard ComparisonImage(bytes: bytes) != nil else { return nil }
+            let image = ComparisonImage(bytes: bytes); try cancellation?.check()
+            guard image != nil else { return nil }
             contents[side] = bytes
         }
         try cancellation?.check()
         guard contents[.mine] != nil, contents[.theirs] != nil else { return nil }
         let (working, permissions) = try conflictWorkingSnapshot(root.appendingPathComponent(path))
+        try validateConflicts([entry], using: .current, cancellation: cancellation)
+        guard try conflictIsRebase(cancellation: cancellation) == rebase else { throw ResolveFailure.stale }
+        try cancellation?.check()
         return ImageConflictDocument(entry: entry, mineStage: mineStage, theirsStage: theirsStage, contents: contents,
                                      workingContents: working, permissions: permissions ?? (entry.stages.first { $0.number == mineStage }?.mode == "100755" ? 0o755 : 0o644))
     }
-    private func validateImageWorkingFile(_ document: ImageConflictDocument) throws {
-        try validateConflicts([document.entry], using: .current)
+    private func validateImageWorkingFile(_ document: ImageConflictDocument, cancellation: OperationCancellation? = nil) throws {
+        try validateConflicts([document.entry], using: .current, cancellation: cancellation)
         let current: Data?, permissions: Int?
         do { (current, permissions) = try conflictWorkingSnapshot(root.appendingPathComponent(document.entry.path)) }
         catch TextConflictFailure.unsupported { throw ImageConflictFailure.changedWorkingFile }
@@ -56,7 +61,7 @@ extension GitRepository {
     /// Copy exact bytes first, leaving conflict stages intact until confirmation.
     public func selectImageConflict(_ document: ImageConflictDocument, side: ImageConflictSide, cancellation: OperationCancellation? = nil) throws -> ImageConflictDocument {
         try cancellation?.check()
-        try validateImageWorkingFile(document)
+        try validateImageWorkingFile(document, cancellation: cancellation)
         try cancellation?.check()
         guard let bytes = document.contents[side] else { throw ImageConflictFailure.unavailable }
         let location = root.appendingPathComponent(document.entry.path)
@@ -68,8 +73,8 @@ extension GitRepository {
     }
     public func markImageConflictResolved(_ document: ImageConflictDocument, cancellation: OperationCancellation? = nil) throws -> String {
         try cancellation?.check()
-        try validateImageWorkingFile(document)
+        try validateImageWorkingFile(document, cancellation: cancellation)
         try cancellation?.check()
-        return try run(["add", "-f", "--", document.entry.path]).text
+        return try run(["add", "-f", "--", document.entry.path], cancellation: cancellation).text
     }
 }
