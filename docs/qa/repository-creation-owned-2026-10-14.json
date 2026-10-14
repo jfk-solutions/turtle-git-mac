@@ -1,0 +1,75 @@
+{
+  "date": "2026-10-14",
+  "base": "7637faa8",
+  "scope": [
+    "Clone owned asynchronous source/destination/key Browse and App Store source/destination authorization continuation with late-reply refusal",
+    "Synchronous captured clone options before permission wait; direct/progress clone metadata cancellation and independent grant/Quit lifetime",
+    "Create Repository captured warning and final acknowledgment ownership, guarded callbacks, cancellable init/root/bare discovery and retirement"
+  ],
+  "validation": {
+    "debug": {
+      "initial_exit": 0,
+      "initial_log": "build/qa/repository-creation-debug-2026-10-14.log",
+      "repair_exit": 0,
+      "repair_log": "build/qa/repository-creation-debug-presenter-repair-2026-10-14.log",
+      "repair_reason": "Missing Clone progress presenter returned without releasing parent progress; early abandoned execution now uses the existing close/settlement path"
+    },
+    "core": {
+      "exit": 0,
+      "tests": 6,
+      "family": "RepositoryInitializationTests",
+      "log": "build/qa/repository-creation-core-2026-10-14.log",
+      "evidence": "Actual init/default branch/template/content/bare warning regressions plus pre-cancelled creation refusal; no repeat after native-only repair"
+    },
+    "native": {
+      "initial_exit": 1,
+      "initial_log": "build/qa/repository-creation-native-2026-10-14.log",
+      "initial_result": "System creation ownership passed. Clone fixture then read the previous completed result before asynchronous submission published its replacement; wait now checks new result identity.",
+      "fixture_retry_exit": 1,
+      "fixture_retry_log": "build/qa/repository-creation-native-fixture-repair-2026-10-14.log",
+      "actual_defect": "Missing presenter regression timed out because abandoned execute returned without invoking existing automatic-close path; actual app repair, not assertion removal",
+      "repair_exit": 0,
+      "repair_log": "build/qa/repository-creation-native-presenter-repair-2026-10-14.log",
+      "bundled_owned_exit": 0,
+      "bundled_owned_log": "build/qa/repository-creation-native-bundled-2026-10-14.log",
+      "unique_passing_cases": 4,
+      "families": [
+        "repository-creation-owned",
+        "clone-progress-family"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "passing_system_ownership_repeated": false,
+      "evidence": [
+        "Injected actual source/destination NSOpenPanel cancel/ownership/retired response; private preferences and fixtures",
+        "Actual gated post-clone/post-init root-discovery cancellation; no late adoption/metadata publication; independent worker/Quit accounting and retained filesystem effects",
+        "Actual init completed/owned once-only success acknowledgment",
+        "Existing real shallow branch/custom origin, bare/no-checkout, immutable Clone fields/history, captured Retry, missing presenter, actual No/Yes process-group cancellation/retained partial files/fresh Retry, post-actions and source HEAD/index/worktree preservation"
+      ]
+    },
+    "owned_receivers_reaped": [
+      11622,
+      11646,
+      11756,
+      11906,
+      11987,
+      12130
+    ],
+    "receiver_pids_still_live_at_final_check": [],
+    "site": {
+      "exit": 0,
+      "documents": 212,
+      "unresolved_fragments": [],
+      "log": "build/qa/repository-creation-site-2026-10-14.log"
+    }
+  },
+  "limitations": [
+    "Physical file/key/authorization and warning/result sheets, focus/keyboard/VoiceOver and signed security scope acceptance remain open",
+    "Native warning branches are implemented and Core warning predicates covered; every native warning gesture/late-answer condition is not yet executed",
+    "Public transport/TLS/SSH/SVN servers, complete source layout/control parity and App Store acceptance remain incomplete",
+    "Cancellation retains completed init/clone effects; no filesystem rollback claim",
+    "Unsigned native checks and local passes do not establish a full hosted CI pass"
+  ]
+}

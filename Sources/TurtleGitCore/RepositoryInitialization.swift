@@ -39,11 +39,12 @@ public enum RepositoryInitialization {
     }
 }
 extension GitRepository {
-    public func initialize(at destination: URL, bare: Bool, confirmedWarnings: Set<InitializationWarning> = []) throws -> String {
+    public func initialize(at destination: URL, bare: Bool, confirmedWarnings: Set<InitializationWarning> = [], cancellation: OperationCancellation? = nil) throws -> String {
+        try cancellation?.check()
         let warnings = try RepositoryInitialization.warnings(for: destination, bare: bare)
         guard warnings.isSubset(of: confirmedWarnings) else { throw InitializationFailure.confirmationRequired(warnings.subtracting(confirmedWarnings)) }
         // Let Git honor init.defaultBranch and GIT_TEMPLATE_DIR. Do not impose main
         // or delete existing contents when creating/reinitializing a repository.
-        return try run(["init"] + (bare ? ["--bare"] : []) + ["--", destination.standardizedFileURL.path]).text
+        return try run(["init"] + (bare ? ["--bare"] : []) + ["--", destination.standardizedFileURL.path], cancellation: cancellation).text
     }
 }

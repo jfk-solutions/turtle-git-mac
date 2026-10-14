@@ -184,3 +184,28 @@ pending. These checks use generated fixture keys and invocation-only local URL
 rewrites; they do not prove network authentication or displayed UI acceptance.
 Post-clone metadata discovery cancellation and modal browse-panel ownership still
 need broader acceptance. Earlier progress/screenshot records remain historical.
+
+
+## Connected creation ownership — October 14, 2026
+
+Clone source/destination/key Browse and App Store source/destination authorization
+now use owned asynchronous native sheets. Pending selection blocks competing
+actions; forced closure dismisses its panel, settles the pending continuation
+once and refuses late replies. Clone captures options before authorization so
+a delayed permission cannot change the submitted destination or Git arguments.
+
+Clone and Init metadata discovery now carry the owned cancellation token. Their
+independent operation counts retain grants and Quit protection after forced
+owner closure, while suppressing late repository adoption and result actions.
+Create Repository captures warning choices, fences duplicate/retired answers,
+uses cancellable init/root/bare reads and owns its final acknowledgment. Its
+Cancel remains available after preparation failure. Completed filesystem/Git
+effects are retained; cancellation is not rollback.
+
+Debug compilation, six focused initialization Core tests and four unique native
+cases passed across system/bundled Git after the documented fixture wait and
+actual missing-presenter repairs. Core and the already-passing system ownership
+case were not repeated for the native-only repair. All receivers were reaped. See
+[creation batch evidence](qa/repository-creation-owned-2026-10-14.json). Physical permission,
+warning and confirmation sheets, live transports, signed grants, full dialog
+parity and App Store acceptance remain open.

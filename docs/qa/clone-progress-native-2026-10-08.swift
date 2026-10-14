@@ -50,10 +50,10 @@ import TurtleGitCore
         var failed:CloneProgressWindowModel?, failedAdoptions = 0; failedOwner.onProgress = { failed = $0 }; failedOwner.onCloned = { _,_,_,_,_ in failedAdoptions += 1 }; failedOwner.clone(); try await wait { failed?.busy == false }; precondition(!failed!.success && failed!.postActions == [.retry])
         failedOwner.directory = root.appendingPathComponent("later-edit").path; failedOwner.source = "later-source"; failed!.perform(.retry); try await wait { !failed!.busy }; let keptBytes = try Data(contentsOf:keep); precondition(!failed!.success && failedAdoptions == 0 && keptBytes == Data("user bytes".utf8) && !FileManager.default.fileExists(atPath:root.appendingPathComponent("later-edit").path))
         failed!.close(); precondition(!failedOwner.busy && failedOwner.progress == nil)
-        failedOwner.source = source.path; failedOwner.directory = root.appendingPathComponent("reviewed").path; failedOwner.clone(); try await wait { failed?.busy == false }; precondition(failed!.success && failedAdoptions == 1); failed!.close()
+        let priorFailed = failed; failedOwner.source = source.path; failedOwner.directory = root.appendingPathComponent("reviewed").path; failedOwner.clone(); try await wait { failed !== priorFailed && failed?.busy == false }; precondition(failed!.success && failedAdoptions == 1); failed!.close()
         // Missing presentation cancels before any destination is created.
         let absent = CloneWindowModel(directory:root,access:lease,preferences:prefs,executable:git), absentDest = root.appendingPathComponent("absent")
-        absent.source = source.path; absent.directory = absentDest.path; absent.onProgress = { $0.abandonPresentation() }; absent.clone(); try await wait { !absent.busy }; precondition(absent.progress == nil && !FileManager.default.fileExists(atPath:absentDest.path))
+        absent.source = source.path; absent.directory = absentDest.path; absent.onProgress = { $0.abandonPresentation() }; absent.clone(); try await wait { !absent.activeOperation }; precondition(absent.progress == nil && !FileManager.default.fileExists(atPath:absentDest.path))
         // Owned wrapper at clone boundary writes partial content; No/Yes cancellation preserves it.
         let helper = root.appendingPathComponent("slow-git"), marker = URL(fileURLWithPath:helper.path+".started"), release = URL(fileURLWithPath:helper.path+".release")
         let quoted = "'" + git.path.replacingOccurrences(of:"'",with:"'\\''") + "'"

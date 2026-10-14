@@ -2,6 +2,13 @@
 
 *A macOS fork of TortoiseGit*
 
+The connected Clone/Create Repository family implements owned browse/permission
+sheets, captured submission choices, cancellable metadata discovery and guarded
+warning/result lifetimes. Debug, six initialization tests and four unique native
+cases passed after the recorded repairs. See
+[batch evidence](qa/repository-creation-owned-2026-10-14.json); physical/signed
+acceptance remains open.
+
 The connected remote-manager family adds source Sync history cleanup on Rename/
 Remove, timed native origin help, owned collision reads and draft-preserving
 Push catalog refresh on manager return, with Pull/Fetch/Sync consumers. Its grouped

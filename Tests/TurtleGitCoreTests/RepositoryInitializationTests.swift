@@ -7,6 +7,14 @@ final class RepositoryInitializationTests: XCTestCase {
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         return url
     }
+    func testCancelledCreationPublishesNoRepository() async throws {
+        let root = try parent(); defer { try? FileManager.default.removeItem(at: root) }
+        let target = root.appendingPathComponent("cancelled")
+        let token = OperationCancellation(); token.cancel()
+        do { _ = try await GitRepository(root: root).initialize(at: target, bare: false, cancellation: token); XCTFail("Cancelled init ran") }
+        catch is OperationCancellationFailure { }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: target.appendingPathComponent(".git").path))
+    }
     func testNormalCreationHonorsDefaultBranchAndTemplatesWithoutChangingFiles() async throws {
         let parent = try parent(); defer { try? FileManager.default.removeItem(at: parent) }
         let template = parent.appendingPathComponent("template"), target = parent.appendingPathComponent("new 雪 repository")

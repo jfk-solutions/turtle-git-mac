@@ -16,7 +16,7 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
         window.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: 452)
         window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: CloneDialog(model: model))
-        super.init(window: window); window.delegate = self
+        super.init(window: window); window.delegate = self; model.window = window
         window.setContentSize(NSSize(width: 820, height: 420)); window.center()
         model.close = { [weak self] in guard let self, !self.model.activeOperation, self.window?.attachedSheet == nil else { return }; self.window?.close() }
         model.onExplore = { NSWorkspace.shared.activateFileViewerSelecting([$0]) }
@@ -39,6 +39,33 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
 }
 
 @MainActor final class CloneWindowModel: ObservableObject {
+    static var activeOperations = 0
+    weak var window: NSWindow?
+    private(set) var openPanel: NSOpenPanel?
+    private var panelReply: CheckedContinuation<URL?, Never>?
+    private var panelGeneration = UUID()
+    var presentOpenPanel: (NSOpenPanel, NSWindow, @escaping (NSApplication.ModalResponse) -> Void) -> Void = { panel, owner, completion in panel.beginSheetModal(for: owner, completionHandler: completion) }
+    var selectedPanelURL: (NSOpenPanel) -> URL? = { $0.url }
+    private func choose(_ panel: NSOpenPanel) async -> URL? {
+        guard !invalidated, openPanel == nil, let window, window.attachedSheet == nil else { return nil }
+        let identity = UUID(); panelGeneration = identity; openPanel = panel
+        return await withCheckedContinuation { continuation in
+            panelReply = continuation
+            presentOpenPanel(panel, window) { [weak self, panel] response in
+                guard let self, !self.invalidated, self.panelGeneration == identity, self.openPanel === panel else { return }
+                let value = response == .OK ? self.selectedPanelURL(panel) : nil
+                self.openPanel = nil; let reply = self.panelReply; self.panelReply = nil; reply?.resume(returning: value)
+            }
+        }
+    }
+    private func browse(_ panel: NSOpenPanel, selected: @escaping (URL) -> Void) {
+        guard !activeOperation, !invalidated, !finished else { return }
+        granting = true; Self.activeOperations += 1
+        Task { [self] in
+            defer { granting = false; Self.activeOperations -= 1 }
+            if let url = await choose(panel), !invalidated, !finished { selected(url) }
+        }
+    }
     @Published var source = ""
     @Published var directory: String
     @Published var recursive: Bool
@@ -80,7 +107,11 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
     var activeOperation: Bool { busy || granting || progress != nil }
     var onProgress: ((CloneProgressWindowModel) -> Void)?
     var onExplore: (URL) -> Void = { _ in }
-    func invalidate() { invalidated = true; operationCancellation?.cancel(); progress?.invalidate(); keyAccess = nil }
+    func invalidate() {
+        invalidated = true; panelGeneration = UUID(); operationCancellation?.cancel(); progress?.invalidate(); keyAccess = nil
+        if let panel = openPanel { window?.endSheet(panel, returnCode: .cancel); panel.orderOut(nil) }
+        openPanel = nil; let reply = panelReply; panelReply = nil; reply?.resume(returning: nil)
+    }
     func finish(_ result: CloneProgressWindowModel) {
         guard progress === result, !result.busy, !result.confirmingCancellation else { return }
         progress = nil; result.invalidate(); busy = false
@@ -133,20 +164,17 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
         }
     }
     func browseSource() {
-        guard !activeOperation, !invalidated, !finished else { return }; granting = true; defer { granting = false }
         let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.prompt = "Select repository"
-        if panel.runModal() == .OK, let url = panel.url { sourceAccess = RepositoryAccessLease(url: url); source = url.path; sourceChanged() }
+        browse(panel) { [weak self] url in self?.sourceAccess = RepositoryAccessLease(url: url); self?.source = url.path; self?.sourceChanged() }
     }
     func browseDirectory() {
-        guard !activeOperation, !invalidated, !finished else { return }; granting = true; defer { granting = false }
         let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false
         panel.canCreateDirectories = true; panel.prompt = "Select destination"; panel.directoryURL = URL(fileURLWithPath: directory)
-        if panel.runModal() == .OK, let url = panel.url { destinationAccess = RepositoryAccessLease(url: url); directory = url.path; automaticDirectory = "" }
+        browse(panel) { [weak self] url in self?.destinationAccess = RepositoryAccessLease(url: url); self?.directory = url.path; self?.automaticDirectory = "" }
     }
     func browseKey() {
-        guard !activeOperation, !invalidated, !finished else { return }; granting = true; defer { granting = false }
         let panel = NSOpenPanel(); panel.canChooseDirectories = false; panel.canChooseFiles = true; panel.prompt = "Select OpenSSH key"
-        if panel.runModal() == .OK, let url = panel.url { acceptKeySelection(url) }
+        browse(panel) { [weak self] url in self?.acceptKeySelection(url) }
     }
     func acceptKeySelection(_ url: URL) {
         guard !invalidated, !finished, !busy, progress == nil else { return }
@@ -158,18 +186,19 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
         let identities = identities, present = presentSSH
         return { repo in let value = SSHTransportCoordinator(repository: repo, identities: identities); value.present = present; return value }
     }
-    private func grant(_ target: URL, current: RepositoryAccessLease?, message: String, file: Bool = false) -> RepositoryAccessLease? {
+    private func grant(_ target: URL, current: RepositoryAccessLease?, message: String, file: Bool = false) async -> RepositoryAccessLease? {
+        guard !invalidated else { return nil }
         if let current, current.contains(target), !GitRuntime.isAppStoreBuild || current.hasSecurityScope { return current }
         if !GitRuntime.isAppStoreBuild { return RepositoryAccessLease(url: target) }
         let panel = NSOpenPanel(); panel.canChooseDirectories = !file; panel.canChooseFiles = file
         panel.message = message; panel.prompt = "Authorize"; panel.directoryURL = file ? target.deletingLastPathComponent() : target
-        guard panel.runModal() == .OK, let url = panel.url else { return nil }
+        guard let url = await choose(panel), !invalidated else { return nil }
         let lease = RepositoryAccessLease(url: url)
         guard lease.hasSecurityScope, lease.contains(target) else { error = "The selected permission does not cover “\(target.path)”."; return nil }
         return lease
     }
     func clone() {
-        guard !activeOperation, completed == nil, !invalidated, !finished else { return }; granting = true; defer { granting = false }
+        guard !activeOperation, completed == nil, !invalidated, !finished else { return }; granting = true
         do {
             let path = directory.trimmingCharacters(in: .whitespacesAndNewlines)
             guard path.hasPrefix("/") else { throw CloneFailure.destination }
@@ -187,12 +216,20 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
             }
             if useKey { guard key.hasPrefix("/"), supportsKey else { throw CloneFailure.value }; guard sshAvailable else { throw CloneFailure.keyRuntime }; options.sshKey = URL(fileURLWithPath: key); options.loadSSHKeyWithAgent = true }
             _ = try options.arguments(destination: destination)
-            guard let access = grant(cwd, current: destinationAccess, message: "Authorize the destination or an existing parent folder so TurtleGit can create the clone.") else { return }
+            let capturedOptions = options
+            Self.activeOperations += 1
+            Task { [self] in
+                defer { granting = false; Self.activeOperations -= 1 }
+                guard !invalidated, !finished else { return }
+                do {
+                    let options = capturedOptions
+            guard let access = await grant(cwd, current: destinationAccess, message: "Authorize the destination or an existing parent folder so TurtleGit can create the clone.") else { return }
+            guard !invalidated else { return }
             guard access.contains(destination) else { throw RepositoryAccessFailure.repositoryRootOutsidePermission(destination.path) }
             destinationAccess = access
             let localSource = options.source.hasPrefix("/") ? URL(fileURLWithPath: options.source) : URL(string: options.source).flatMap { $0.isFileURL ? $0 : nil }
             if let localSource {
-                guard let lease = grant(localSource, current: sourceAccess, message: "Authorize the local source repository.") else { return }; sourceAccess = lease
+                guard let lease = await grant(localSource, current: sourceAccess, message: "Authorize the local source repository.") else { return }; sourceAccess = lease
             }
             if let key = options.sshKey {
                 keyAccess = try identities.acquire(path: key.path, requireSecurityScope: GitRuntime.isAppStoreBuild).permission
@@ -200,7 +237,8 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
             let executable = try self.executable ?? GitRuntime.executable(), snapshot = options
             let capturedSourceAccess = sourceAccess, capturedKeyAccess = keyAccess
             let sshFactory = options.loadSSHKeyWithAgent ? captureSSHFactory() : nil
-            preferences.set(useKey, forKey: "Clone.UseSSHKey")
+            preferences.set(snapshot.sshKey != nil, forKey: "Clone.UseSSHKey")
+            guard !invalidated, !finished else { return }
             busy = true; output = nil; error = nil
             if let onProgress {
                 let result = CloneProgressWindowModel(options: snapshot, destination: destination, executable: executable, destinationAccess: access, sourceAccess: capturedSourceAccess, keyAccess: capturedKeyAccess, preferences: preferences)
@@ -211,7 +249,9 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
                 progress = result; onProgress(result); result.start()
             } else {
                 let token = OperationCancellation(); operationCancellation = token
-                Task {
+                Self.activeOperations += 1
+                Task { [self, access, capturedSourceAccess, capturedKeyAccess] in
+                    defer { Self.activeOperations -= 1; withExtendedLifetime((access, capturedSourceAccess, capturedKeyAccess)) {} }
                     defer { if operationCancellation === token { operationCancellation = nil; busy = false } }
                     do {
                         let runner = GitRepository(root: cwd, executable: executable)
@@ -219,13 +259,15 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
                         if snapshot.svn { _ = try await runner.run(["svn", "--version"], cancellation: token) }
                         let output = try await runner.clone(snapshot, to: destination, cancellation: token, prepareTransport: snapshot.sshKey.flatMap { coordinator?.explicitPreparation(path: $0.path) })
                         let candidate = GitRepository(root: destination, executable: executable)
-                        let repo = snapshot.bare ? candidate : GitRepository(root: try await candidate.discoverRoot(), executable: executable)
-                        guard !invalidated else { return }
+                        let repo = snapshot.bare ? candidate : GitRepository(root: try await candidate.discoverRoot(cancellation: token), executable: executable)
+                        try token.check(); guard !invalidated else { return }
                         recordClone(repo, output: output, options: snapshot, destination: destination, access: access, keyAccess: capturedKeyAccess)
                     } catch { if !invalidated, !token.isCancelled { self.output = error.localizedDescription; self.error = error.localizedDescription } }
                 }
             }
-        } catch { self.error = error.localizedDescription }
+                } catch { if !invalidated { self.error = error.localizedDescription } }
+            }
+        } catch { granting = false; if !invalidated { self.error = error.localizedDescription } }
     }
     private func recordClone(_ repo: GitRepository, output: String, options: CloneOptions, destination: URL, access: RepositoryAccessLease, keyAccess: RepositoryAccessLease?) {
         guard !invalidated else { return }
@@ -344,6 +386,7 @@ enum ClonePostAction: String, Hashable {
     var icon: MenuIcon { switch self { case .retry: return .refresh; case .log: return .log; case .explore: return .explore } }
 }
 @MainActor final class CloneProgressWindowModel: ObservableObject {
+    static var activeOperations = 0
     let options: CloneOptions
     let destination: URL
     private let executable: URL
@@ -379,6 +422,9 @@ enum ClonePostAction: String, Hashable {
     func start() { Task { await run() } }
     func run() async { guard !started, !invalidated else { return }; started = true; await execute() }
     private func execute() async {
+        guard !invalidated else { busy = false; return }
+        if abandoned { busy = false; finishAutomaticClose(); return }
+        Self.activeOperations += 1; defer { Self.activeOperations -= 1; withExtendedLifetime((destinationAccess, sourceAccess, keyAccess)) {} }
         do {
             if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
             let cwd = try CloneOptions.workingDirectory(for: destination)
@@ -401,12 +447,13 @@ enum ClonePostAction: String, Hashable {
             for await _ in updates { if !invalidated { consume(parser.processPending(), parser: parser) } }
             consume(parser.processPending(), parser: parser); consume(parser.finish(), parser: parser)
             let resultOutput = try await operation.value
+            if !invalidated { currentWork = "Inspecting cloned repository…"; percentage = nil }
             let candidate = GitRepository(root: destination, executable: executable)
-            let repo = options.bare ? candidate : GitRepository(root: try await candidate.discoverRoot(), executable: executable)
+            let repo = options.bare ? candidate : GitRepository(root: try await candidate.discoverRoot(cancellation: cancellation), executable: executable)
             if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
             if GitRuntime.isAppStoreBuild && !destinationAccess.contains(repo.root) { throw RepositoryAccessFailure.repositoryRootOutsidePermission(repo.root.path) }
+            guard !invalidated, !abandoned else { busy = false; cancelling = false; return }
             repository = repo; success = true; postActions = [.log, .explore]
-            guard !invalidated else { busy = false; cancelling = false; return }
             onCloned(repo, resultOutput)
         } catch {
             guard !invalidated else { busy = false; cancelling = false; return }
