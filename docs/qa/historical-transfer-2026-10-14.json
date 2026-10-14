@@ -1,0 +1,87 @@
+{
+  "date": "2026-10-14",
+  "scope": "Historical transport/CI composition, item-provider export ownership, queued activity, Progress cancellation and coordinated exclusive file/folder promise writes. Partial browser/app parity.",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "ciEvidence": {
+    "run": 38495441420,
+    "head": "2fdc2546",
+    "job": 115630783974,
+    "failedStep": "Native historical file and folder item-provider receivers",
+    "rawLogsAndAnnotations": "Connector rejected those endpoint URLs; exact hosted diagnostic unavailable. Source inspection identified standalone transport referencing the window model, now separated. Local exact entry verifies recovery; hosted current-head recovery remains unproven."
+  },
+  "implemented": [
+    "Folder button/SwiftUI adapter moved to browser UI; standalone transport references Core/AppKit only",
+    "Provider-owned prepared exports and weak global cleanup registry; provider release removes its copies",
+    "Transfer receipts count queued work before a main-actor hop and remain through completion",
+    "Progress cancellation reaches Git preparation and checks before successful retention",
+    "Receiver-supplied promise destination uses NSFileCoordinator and detached copy with exclusive atomic rename",
+    "Existing receiver items preserved; failed/cancelled staging and historical copies cleaned",
+    "Standalone CI harness builds only Core, handles native/Xcode SwiftPM layouts, caches exact inputs and reaps owned receiver/helpers"
+  ],
+  "build": {
+    "configuration": "Debug",
+    "architecture": "arm64",
+    "signed": false,
+    "exitCode": 0,
+    "runs": 1,
+    "log": "build/qa/historical-transfer-build-2026-10-14.log"
+  },
+  "core": "No Core source changed; no additional Core test suite run.",
+  "standalone": {
+    "exitCode": 0,
+    "receiverProcesses": 1,
+    "compilations": 1,
+    "packageTarget": "TurtleGitCore only",
+    "packageBackend": "Xcode-backed SwiftPM on local host",
+    "log": "build/qa/historical-transfer-provider-2026-10-14.log",
+    "checks": [
+      "Exact pinned binary file/folder receivers",
+      "Prepared temporary export removed when provider released",
+      "Activity counted before queued native promise delivery",
+      "Coordinated exclusive promise delivery and existing-destination refusal",
+      "Pre-cancel refusal and staging cleanup",
+      "Cancellation after actual Git cat-file child starts through NSItemProvider Progress",
+      "HEAD/index/working bytes preserved"
+    ]
+  },
+  "native": {
+    "exitCode": 0,
+    "compilations": 1,
+    "receiverProcesses": 4,
+    "git": [
+      "system /usr/bin/git",
+      "bundled Debug app Git"
+    ],
+    "cases": [
+      "repository-browser-table",
+      "repository-browser"
+    ],
+    "log": "build/qa/historical-transfer-native-2026-10-14.log",
+    "checks": [
+      "Actual folder/root/list adapters and pinned delivery after source owner close/branch movement",
+      "Destination collision/cleanup",
+      "Existing browser menus, sorting, columns, lifecycle, metadata and owned cancellation regressions"
+    ]
+  },
+  "cleanup": {
+    "allOwnedReceiversReaped": true,
+    "remainingOwnedReceiversOrSlowGit": []
+  },
+  "site": {
+    "exitCode": 0,
+    "log": "build/qa/historical-transfer-site-2026-10-14.log"
+  },
+  "remaining": [
+    "New-head hosted CI pass, including Intel/native SwiftPM backend execution",
+    "Physical Finder/other-app drag and receiving behavior",
+    "Signed provider/receiver sandbox permissions and minimum-OS execution",
+    "Complete browser tree-object history/invalid-path/menu parity and complete app/Finder parity"
+  ],
+  "sha256": {
+    "Sources/TurtleGitMac/RepositoryBrowserDrag.swift": "ffaa91adc3b464ecf87177d5f4d383d327cddc66098b364cd2cd22338f1048c1",
+    "Sources/TurtleGitMac/RepositoryBrowserWindow.swift": "72ddd9ae4bdceadd66280a20156f1b198ff08126c4b37a6ed76e51db09309ad6",
+    "scripts/verify-browser-item-provider.sh": "2af1c7549c4999ca2efc928997b45bbf7ab52683ffe4c9f089dc676e79dd7110",
+    "scripts/verify-browser-item-provider.py": "59d51fa4abadf6ff0e27c0b36aff007f637c210f1dc6e87cfcc8f3b02c595ee9",
+    "scripts/verify-browser-item-provider.swift": "94bf0b36b7025b66e4ea54f8b72d1c03df62deeee016038672c19bd9549cbff4"
+  }
+}

@@ -566,3 +566,48 @@ private struct RepositoryBrowserSplit<Left: View, Right: View>: NSViewController
         (controller.splitViewItems[1].viewController as? NSHostingController<Right>)?.rootView = right
     }
 }
+
+/// Tree and root rows use AppKit's promised-file drag surface, like the list.
+@MainActor struct RepositoryFolderDragButton: NSViewRepresentable {
+    @ObservedObject var model: RepositoryBrowserWindowModel
+    let path: String
+    let name: String
+    func makeNSView(context: Context) -> RepositoryFolderNativeButton { RepositoryFolderNativeButton() }
+    func updateNSView(_ button: RepositoryFolderNativeButton, context: Context) {
+        button.model=model; button.path=path; button.title=name
+        button.isEnabled=model.canUseMenu
+        button.layer?.backgroundColor=(model.snapshot?.directory == path ? NSColor.controlAccentColor.withAlphaComponent(0.2) : NSColor.clear).cgColor
+    }
+}
+@MainActor final class RepositoryFolderNativeButton: NSButton, NSDraggingSource {
+    weak var model: RepositoryBrowserWindowModel?
+    var path=""
+    override init(frame: NSRect) {
+        super.init(frame:frame); isBordered=false; alignment = .left; imagePosition = .imageLeft
+        image=NSWorkspace.shared.icon(for:.folder); imageScaling = .scaleProportionallyDown
+        font = .systemFont(ofSize:12); cell?.lineBreakMode = .byTruncatingTail
+        wantsLayer=true; layer?.cornerRadius=3; target=self; action=#selector(openFolder)
+        setContentCompressionResistancePriority(.defaultLow,for:.horizontal)
+    }
+    convenience init() { self.init(frame:.zero) }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+    @objc private func openFolder() { model?.openFolder(path) }
+    override func mouseDown(with event: NSEvent) {
+        guard isEnabled, let owner=window, let model, let target=model.menuTarget() else { return }
+        let start=convert(event.locationInWindow,from:nil)
+        highlight(true); defer { highlight(false) }
+        while self.window === owner && model.acceptsMenu(target) {
+            guard let next=owner.nextEvent(matching:[.leftMouseDragged,.leftMouseUp,.keyDown],until:Date().addingTimeInterval(0.1),inMode:.eventTracking,dequeue:true) else { continue }
+            if next.type == .keyDown { if next.keyCode == 53 { return }; continue }
+            if next.type == .leftMouseUp { if bounds.contains(convert(next.locationInWindow,from:nil)) { performClick(nil) }; return }
+            let point=convert(next.locationInWindow,from:nil)
+            guard hypot(point.x-start.x,point.y-start.y) >= 4, let promise=model.folderPromise(path) else { continue }
+            let item=NSDraggingItem(pasteboardWriter:promise)
+            let preview=NSImage(size:bounds.size)
+            if let bitmap=bitmapImageRepForCachingDisplay(in:bounds) { cacheDisplay(in:bounds,to:bitmap); preview.addRepresentation(bitmap) }
+            item.setDraggingFrame(bounds,contents:preview)
+            beginDraggingSession(with:[item],event:next,source:self); return
+        }
+    }
+    func draggingSession(_ session:NSDraggingSession,sourceOperationMaskFor context:NSDraggingContext)->NSDragOperation { .copy }
+}

@@ -1563,3 +1563,16 @@ physical dialogs, Trash/editor/Finder launches and signed grants are not proved.
 Core covers the affected Restore/Amend/Add/Delete/Export/changelist APIs, including
 cancelled restore/amend-unstage preserving bytes and index. See
 [the connected workflow audit](COMMIT-FILE-WORKFLOWS-PARITY.md).
+
+Historical item-provider CI still invokes `scripts/verify-browser-item-provider.sh`.
+Its Python harness builds only Core, detects native SwiftPM or Xcode-backed object
+layouts, caches the standalone transport receiver and reaps its owned process and
+helpers. Locally, `--scratch-path .build/out` uses the existing Core artifacts;
+`--skip-build` requires those artifacts to be current. The receiver compiles
+RepositoryBrowserDrag independently of the window model and checks provider-lifetime
+cleanup, real Progress cancellation, queued promise ownership, coordinated exclusive
+receiver writes/collision refusal and pinned binary file/folder content. The grouped
+browser table/lifecycle reference receivers separately exercise the actual UI
+adapters and root/folder/list promise handoffs after owner closure. None proves
+physical Finder drops or signed sandbox permissions. See
+[historical transfer parity](HISTORICAL-TRANSFER-PARITY.md).

@@ -1,15 +1,50 @@
 // Replaces RepositoryBrowser.cpp/GitDataObject.cpp historical drag data with native item providers.
 // GPL-2.0-or-later; Copyright (C) 2009-2026 TortoiseGit; 2003-2014 TortoiseSVN.
 import AppKit
-import SwiftUI
 import TurtleGitCore
 import UniformTypeIdentifiers
+import Darwin
+
+/// Count a request before dispatching it to the main actor. Quit must also see
+/// work queued by an arbitrary NSItemProvider/NSFilePromise callback thread.
+private final class RepositoryBrowserTransferActivity: @unchecked Sendable {
+    static let shared = RepositoryBrowserTransferActivity()
+    private let lock = NSLock()
+    private var count = 0
+    var active: Int { lock.lock(); defer { lock.unlock() }; return count }
+    func begin() { lock.lock(); count += 1; lock.unlock() }
+    func end() { lock.lock(); count -= 1; lock.unlock() }
+}
+private final class RepositoryBrowserTransferReceipt: @unchecked Sendable {
+    init() { RepositoryBrowserTransferActivity.shared.begin() }
+    deinit { RepositoryBrowserTransferActivity.shared.end() }
+}
+
+/// A provider owns its prepared exports. Releasing it cleans up those copies;
+/// the global registry only permits explicit app-termination cleanup.
+fileprivate final class RepositoryBrowserExportRetention: @unchecked Sendable {
+    private let lock = NSLock()
+    private var exports: [RepositoryBrowserExport] = []
+    func retain(_ export: RepositoryBrowserExport) { lock.lock(); exports.append(export); lock.unlock() }
+    func discardAll() {
+        lock.lock(); let items = exports; exports = []; lock.unlock()
+        for item in items { item.discard() }
+    }
+    deinit { discardAll() }
+}
+private final class RepositoryBrowserWeakRetention {
+    weak var value: RepositoryBrowserExportRetention?
+    init(_ value: RepositoryBrowserExportRetention) { self.value = value }
+}
 
 @MainActor enum RepositoryBrowserExportFiles {
-    static var activeLoads = 0
-    private static var exports: [URL: RepositoryBrowserExport] = [:]
-    static func retain(_ export: RepositoryBrowserExport) { exports[export.directory] = export }
-    static func discardAll() { for export in exports.values { export.discard() }; exports.removeAll() }
+    static var activeLoads: Int { RepositoryBrowserTransferActivity.shared.active }
+    private static var owners: [RepositoryBrowserWeakRetention] = []
+    fileprivate static func owner() -> RepositoryBrowserExportRetention {
+        owners.removeAll { $0.value == nil }
+        let value = RepositoryBrowserExportRetention(); owners.append(RepositoryBrowserWeakRetention(value)); return value
+    }
+    static func discardAll() { for owner in owners { owner.value?.discardAll() }; owners.removeAll() }
 }
 
 @MainActor enum RepositoryBrowserDrag {
@@ -19,8 +54,9 @@ import UniformTypeIdentifiers
         let payload = RepositoryBrowserDragPayload(repository: repository, access: access, snapshot: snapshot, entry: entry, directory: directory)
         provider.registerFileRepresentation(forTypeIdentifier: type.identifier, fileOptions: [], visibility: .all) { completion in
             let cancellation = OperationCancellation(), progress = Progress(totalUnitCount: 1)
+            let receipt = RepositoryBrowserTransferReceipt()
             progress.cancellationHandler = { cancellation.cancel() }
-            Task { await payload.load(completion: completion, progress: progress, cancellation: cancellation) }
+            Task { await payload.load(completion: completion, progress: progress, cancellation: cancellation); withExtendedLifetime(receipt) {} }
             return progress
         }
         return provider
@@ -35,20 +71,22 @@ import UniformTypeIdentifiers
     let snapshot: RepositoryBrowserSnapshot
     let entry: RepositoryBrowserEntry?
     let directory: String?
+    private let retention = RepositoryBrowserExportFiles.owner()
     init(repository: GitRepository, access: RepositoryAccessLease?, snapshot: RepositoryBrowserSnapshot, entry: RepositoryBrowserEntry?, directory: String?) {
         self.repository = repository; self.access = access; self.snapshot = snapshot; self.entry = entry; self.directory = directory
     }
     func load(completion: @escaping (URL?, Bool, Error?) -> Void, progress: Progress, cancellation: OperationCancellation) async {
-        RepositoryBrowserExportFiles.activeLoads += 1
-        defer { RepositoryBrowserExportFiles.activeLoads -= 1; withExtendedLifetime(access) {} }
+        defer { withExtendedLifetime(access) {} }
         do {
             if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
             let current: RepositoryBrowserSnapshot
             if let directory { current = try await repository.browseRepositoryDirectory(snapshot, directory: directory, cancellation: cancellation) }
             else { current = snapshot }
             let export = try await repository.exportRepositoryBrowser(current, entry: entry, cancellation: cancellation)
-            RepositoryBrowserExportFiles.retain(export)
-            completion(export.item, false, nil); progress.completedUnitCount = 1
+            guard !cancellation.isCancelled else { export.discard(); throw OperationCancellationFailure.cancelled }
+            retention.retain(export)
+            progress.totalUnitCount = Int64(export.fileCount)
+            completion(export.item, false, nil); progress.completedUnitCount = progress.totalUnitCount
         } catch { completion(nil, false, error) }
     }
 }
@@ -73,66 +111,47 @@ import UniformTypeIdentifiers
     func filePromiseProvider(_ filePromiseProvider:NSFilePromiseProvider,fileNameForType fileType:String) -> String { name }
     func operationQueue(for filePromiseProvider:NSFilePromiseProvider) -> OperationQueue { .main }
     nonisolated func filePromiseProvider(_ filePromiseProvider:NSFilePromiseProvider,writePromiseTo url:URL,completionHandler:@escaping (Error?)->Void) {
+        let receipt = RepositoryBrowserTransferReceipt()
         Task { @MainActor [self] in
-            RepositoryBrowserExportFiles.activeLoads += 1
-            defer { RepositoryBrowserExportFiles.activeLoads -= 1;withExtendedLifetime(access) {} }
+            defer { withExtendedLifetime(receipt) {}; withExtendedLifetime(access) {} }
             do {
-                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let listing: RepositoryBrowserSnapshot
-                if let directory { listing = try await repository.browseRepositoryDirectory(snapshot,directory:directory) } else { listing = snapshot }
-                let export=try await repository.exportRepositoryBrowser(listing,entry:entry)
-                defer { export.discard() }
-                let staging=url.deletingLastPathComponent().appendingPathComponent(".turtlegit-promise-"+UUID().uuidString)
-                defer { try? FileManager.default.removeItem(at:staging) }
-                try FileManager.default.copyItem(at:export.item,to:staging)
-                try FileManager.default.moveItem(at:staging,to:url)
+                try await write(to: url)
                 completionHandler(nil)
             } catch { completionHandler(error) }
         }
     }
-}
-
-/// Tree and root rows use AppKit's promised-file drag surface, like the list.
-@MainActor struct RepositoryFolderDragButton: NSViewRepresentable {
-    @ObservedObject var model: RepositoryBrowserWindowModel
-    let path: String
-    let name: String
-    func makeNSView(context: Context) -> RepositoryFolderNativeButton { RepositoryFolderNativeButton() }
-    func updateNSView(_ button: RepositoryFolderNativeButton, context: Context) {
-        button.model=model; button.path=path; button.title=name
-        button.isEnabled=model.canUseMenu
-        button.layer?.backgroundColor=(model.snapshot?.directory == path ? NSColor.controlAccentColor.withAlphaComponent(0.2) : NSColor.clear).cgColor
+    /// Shared by native delivery and controlled receiver checks. The destination
+    /// is receiver-supplied, and an existing item must never be overwritten.
+    func write(to url: URL, cancellation: OperationCancellation? = nil) async throws {
+        guard url.isFileURL else { throw RepositoryBrowserFailure.selection }
+        if cancellation?.isCancelled == true { throw OperationCancellationFailure.cancelled }
+        if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+        let listing: RepositoryBrowserSnapshot
+        if let directory { listing = try await repository.browseRepositoryDirectory(snapshot, directory: directory, cancellation: cancellation) } else { listing = snapshot }
+        let export = try await repository.exportRepositoryBrowser(listing, entry: entry, cancellation: cancellation)
+        defer { export.discard(); withExtendedLifetime(access) {} }
+        let source = export.item
+        try await Task.detached(priority: .userInitiated) {
+            try Self.writeMaterialized(source, to: url, cancellation: cancellation)
+        }.value
     }
-}
-@MainActor final class RepositoryFolderNativeButton: NSButton, NSDraggingSource {
-    weak var model: RepositoryBrowserWindowModel?
-    var path=""
-    override init(frame: NSRect) {
-        super.init(frame:frame); isBordered=false; alignment = .left; imagePosition = .imageLeft
-        image=NSWorkspace.shared.icon(for:.folder); imageScaling = .scaleProportionallyDown
-        font = .systemFont(ofSize:12); cell?.lineBreakMode = .byTruncatingTail
-        wantsLayer=true; layer?.cornerRadius=3; target=self; action=#selector(openFolder)
-        setContentCompressionResistancePriority(.defaultLow,for:.horizontal)
-    }
-    convenience init() { self.init(frame:.zero) }
-    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
-    @objc private func openFolder() { model?.openFolder(path) }
-    override func mouseDown(with event: NSEvent) {
-        guard isEnabled, let owner=window, let model, let target=model.menuTarget() else { return }
-        let start=convert(event.locationInWindow,from:nil)
-        highlight(true); defer { highlight(false) }
-        while self.window === owner && model.acceptsMenu(target) {
-            guard let next=owner.nextEvent(matching:[.leftMouseDragged,.leftMouseUp,.keyDown],until:Date().addingTimeInterval(0.1),inMode:.eventTracking,dequeue:true) else { continue }
-            if next.type == .keyDown { if next.keyCode == 53 { return }; continue }
-            if next.type == .leftMouseUp { if bounds.contains(convert(next.locationInWindow,from:nil)) { performClick(nil) }; return }
-            let point=convert(next.locationInWindow,from:nil)
-            guard hypot(point.x-start.x,point.y-start.y) >= 4, let promise=model.folderPromise(path) else { continue }
-            let item=NSDraggingItem(pasteboardWriter:promise)
-            let preview=NSImage(size:bounds.size)
-            if let bitmap=bitmapImageRepForCachingDisplay(in:bounds) { cacheDisplay(in:bounds,to:bitmap); preview.addRepresentation(bitmap) }
-            item.setDraggingFrame(bounds,contents:preview)
-            beginDraggingSession(with:[item],event:next,source:self); return
+    nonisolated private static func writeMaterialized(_ source: URL, to url: URL, cancellation: OperationCancellation?) throws {
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        var coordinationError: NSError?, writeError: Error?
+        NSFileCoordinator().coordinate(writingItemAt: url, options: [], error: &coordinationError) { destination in
+            let staging = destination.deletingLastPathComponent().appendingPathComponent(".turtlegit-promise-" + UUID().uuidString)
+            defer { try? FileManager.default.removeItem(at: staging) }
+            do {
+                if cancellation?.isCancelled == true { throw OperationCancellationFailure.cancelled }
+                try FileManager.default.copyItem(at: source, to: staging)
+                if cancellation?.isCancelled == true { throw OperationCancellationFailure.cancelled }
+                guard Darwin.renamex_np(staging.path, destination.path, UInt32(RENAME_EXCL)) == 0 else {
+                    throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno), userInfo: [NSFilePathErrorKey: destination.path])
+                }
+            } catch { writeError = error }
         }
+        if let writeError { throw writeError }
+        if let coordinationError { throw coordinationError }
     }
-    func draggingSession(_ session:NSDraggingSession,sourceOperationMaskFor context:NSDraggingContext)->NSDragOperation { .copy }
 }

@@ -2,16 +2,4 @@
 # Native transport check; no GUI app or Finder instance is launched.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-swift build -c debug
-provider_build_path="$(swift build -c debug --show-bin-path)"
-provider_check_directory="$(mktemp -d -t TurtleGitProviderCheck)"
-trap 'rm -rf "$provider_check_directory"' EXIT
-swiftc -parse-as-library -I "$provider_build_path/Modules" \
-  -Xcc "-fmodule-map-file=$provider_build_path/TurtleGitSMTP.build/module.modulemap" \
-  Sources/TurtleGitMac/RepositoryBrowserDrag.swift scripts/verify-browser-item-provider.swift \
-  "$provider_build_path"/TurtleGitCore.build/*.o "$provider_build_path"/TurtleGitSMTP.build/*.o \
-  -lcurl -o "$provider_check_directory/check"
-python3 - "$provider_check_directory/check" <<'PYTHON'
-import subprocess, sys
-subprocess.run([sys.argv[1]], check=True, timeout=60)
-PYTHON
+exec python3 scripts/verify-browser-item-provider.py "$@"

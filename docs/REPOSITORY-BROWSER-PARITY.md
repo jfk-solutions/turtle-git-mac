@@ -381,3 +381,11 @@ clipboard records, folder/root tree hashes, and pinned root/folder delivery afte
 branch movement and owner close. All four owned receivers were reaped and checked
 absent. Core was unchanged and was not rerun. The website build passed. See
 [action-batch evidence](qa/repository-browser-actions-2026-10-13.json).
+
+The connected historical transfer batch separates folder-button UI from the
+standalone transport compiled by CI. Item-provider exports now follow provider
+lifetime instead of accumulating until Quit; queued/running delivery accounting,
+Progress cancellation and coordinated exclusive receiver writes are shared across
+file/folder/root handoffs. See [historical transfer parity](HISTORICAL-TRANSFER-PARITY.md)
+for exact ownership, the observed CI step, local results and remaining physical/
+signed acceptance.
