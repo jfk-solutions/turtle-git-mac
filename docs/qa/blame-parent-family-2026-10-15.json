@@ -1,0 +1,63 @@
+{
+  "date": "2026-10-15",
+  "scope": "Blame embedded Log and source parent-revision actions",
+  "source": "Pinned LogListBlameAction.cpp GetPaths/GetParentNumbers/GetParentHash and previous/compare/GNU-diff dispatch",
+  "implementation": [
+    "All attributed origin paths with displayed-path fallback; relevant parent/file grouping and rename old paths",
+    "Captured previous/compare/unified parent menu actions with generation/owner guards",
+    "Cancellable scoped parent and patch reads with static Quit ownership",
+    "Source-pane unified diff and guarded parent targets even when origin omitted from complete history",
+    "Read-only owned unified windows, appearance updates and Close/Open child guards",
+    "Explicit per-file patch scope includes rename paths and excludes unrelated commit files"
+  ],
+  "validation": {
+    "debug_build": {
+      "exit_code": 0,
+      "log": "build/qa/blame-parent-family-build-2026-10-15.log"
+    },
+    "initial_core": {
+      "tests": 20,
+      "failures": 1,
+      "log": "build/qa/blame-parent-family-core-2026-10-15.log",
+      "failure": "Fixture expected a literal Unicode/newline path in a Git-quoted patch header; production patch was correctly scoped"
+    },
+    "corrected_core": {
+      "tests": 1,
+      "failures": 0,
+      "log": "build/qa/blame-parent-family-core-fixture-repair-2026-10-15.log",
+      "correction": "Assert one-file patch and exact expected added content, retaining unrelated-file exclusion",
+      "other_checks": "Other 19 passed initially and were not rerun; includes rename paths, merge parents and owned diff-process cancellation"
+    },
+    "native": {
+      "cases": [
+        "blame-menus",
+        "blame-source"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "result": "4 passed",
+      "log": "build/qa/blame-parent-family-native-2026-10-15.log",
+      "owned_receivers_reaped": [
+        42236,
+        42384,
+        42408,
+        42555
+      ],
+      "new_assertions": [
+        "Captured previous parent after selection change",
+        "Actual comparison sides retain 43/42 content",
+        "Actual built-in read-only unified viewer excludes unrelated file",
+        "Blocking viewer prevents ordinary owner Close/Open",
+        "Child closes and stale parent menu refuses reload"
+      ]
+    }
+  },
+  "limits": [
+    "Multi-origin Core case combines two actual blame outputs to exercise aggregation; it does not prove all moved/copied-line UI cases",
+    "Physical parent submenu/Shift-F10/VoiceOver acceptance remains separate",
+    "Alternate external unified viewer selection uses existing workflow but not physically launched in these checks",
+    "Alternate external normal comparison, conditional Bug-ID/SVN columns, docking, full menu order and signed/App Store acceptance remain open"
+  ]
+}

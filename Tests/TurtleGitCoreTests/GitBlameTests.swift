@@ -2,6 +2,30 @@ import XCTest
 @testable import TurtleGitCore
 
 final class GitBlameTests: XCTestCase {
+    func testHistoryParentOriginsFallbackAndScopedPatch() async throws {
+        let (root,repo,firstPath)=try await GitPatchTests().fixture();defer { try? FileManager.default.removeItem(at:root) }
+        let second="second.txt",other="unrelated.txt"
+        try Data("second base\n".utf8).write(to:root.appendingPathComponent(second));try await repo.stage([second]);_ = try await repo.commit(message:"second birth")
+        try Data("first changed\n".utf8).write(to:root.appendingPathComponent(firstPath));try Data("second changed\n".utf8).write(to:root.appendingPathComponent(second));try Data("other data\n".utf8).write(to:root.appendingPathComponent(other));try await repo.stage([firstPath,second,other]);_ = try await repo.commit(message:"change two origins")
+        let first=try await repo.blame(path:firstPath),secondSnapshot=try await repo.blame(path:second)
+        let combined=GitBlameSnapshot(revision:first.revision,path:firstPath,contents:first.contents,encoding:first.encoding,lines:first.lines+secondSnapshot.lines)
+        let index=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        let choices=try await repo.blameHistoryParentComparisons(combined,revision:first.revision)
+        XCTAssertEqual(choices.count,2);XCTAssertEqual(Set(choices.map(\.path)),Set([firstPath,second]));XCTAssertEqual(Set(choices.map(\.parentNumber)),[1])
+        for choice in choices {
+            let patch=try await repo.revisionComparisonPatchData(choice.comparison)
+            let text=String(decoding:patch,as:UTF8.self)
+            XCTAssertEqual(GitPatch(text:text).files.count,1)
+            XCTAssertTrue(text.contains(choice.path==firstPath ? "+first changed\n" : "+second changed\n"));XCTAssertFalse(text.contains(other))
+        }
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index)
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(firstPath)),Data("first changed\n".utf8))
+        _ = try await repo.run(["rm","--",firstPath]);_ = try await repo.commit(message:"delete displayed file")
+        let removed=try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
+        let deleted=try await repo.blameHistoryParentComparisons(first,revision:removed);XCTAssertTrue(deleted.isEmpty)
+        let token=OperationCancellation();token.cancel()
+        do { _ = try await repo.blameHistoryParentComparisons(combined,revision:first.revision,cancellation:token);XCTFail("Cancelled parent scan succeeded") } catch is OperationCancellationFailure {}
+    }
     func testFirstParentAttributesSideBranchLinesToIntegrationCommit() async throws {
         let (root, repo, fixturePath) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -235,6 +259,8 @@ final class GitBlameTests: XCTestCase {
         let parent = try XCTUnwrap(parents.first); XCTAssertEqual(parents.count, 1)
         XCTAssertEqual(parent.parentNumber, 1); XCTAssertEqual(parent.revision, first); XCTAssertEqual(parent.path, original)
         XCTAssertEqual(parent.comparison.files.map(\.path), [renamed]); XCTAssertEqual(parent.comparison.files.first?.oldPath, original)
+        let snapshot=try await repo.blame(path:renamed,revision:hash),historyParents=try await repo.blameHistoryParentComparisons(snapshot,revision:hash)
+        XCTAssertEqual(historyParents.map(\.path),[original]);XCTAssertEqual(historyParents.first?.comparison.files.first?.path,renamed)
         let document = try await repo.comparisonFile(parent.comparison, path: renamed)
         XCTAssertEqual(document.base.bytes, old); XCTAssertEqual(document.destination.bytes, new)
         XCTAssertEqual(document.base.path, original); XCTAssertEqual(document.destination.path, renamed)
@@ -261,6 +287,8 @@ final class GitBlameTests: XCTestCase {
         let annotations = try await repo.blame(path: path), index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
         XCTAssertEqual(annotations.lines[1].hash, annotations.revision)
         let parents = try await repo.blameParentComparisons(revision: annotations.lines[1].hash, path: annotations.lines[1].filename)
+        let historyParents=try await repo.blameHistoryParentComparisons(annotations,revision:annotations.revision)
+        XCTAssertEqual(historyParents.map(\.revision),[main,side]);XCTAssertEqual(historyParents.map(\.parentNumber),[1,2])
         XCTAssertEqual(parents.map(\.revision), [main, side]); XCTAssertEqual(parents.map(\.parentNumber), [1, 2])
         let logText = try await repo.commitLogText(revision: annotations.revision)
         XCTAssertEqual(logText.components(separatedBy: "Modified: \(path)\n").count - 1, 2)

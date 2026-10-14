@@ -11,6 +11,7 @@ final class BlameReadCancellationTests:XCTestCase {
         _ = try await repo.run(["init","-b","main"])
         _ = try await repo.run(["config","user.name","Blame Read"]);_ = try await repo.run(["config","user.email","read@example.invalid"])
         try bytes.write(to:root.appendingPathComponent(path));try await repo.stage([path]);_ = try await repo.run(["-c","commit.gpgsign=false","-c","core.hooksPath=/dev/null","commit","-m","baseline"])
+        _ = try await repo.run(["-c","commit.gpgsign=false","-c","core.hooksPath=/dev/null","commit","--allow-empty","-m","parent scan"] )
         let snapshot=try await repo.blame(path:path),head=try await repo.run(["rev-parse","HEAD"]).stdout,index=try Data(contentsOf:root.appendingPathComponent(".git/index"))
         XCTAssertEqual(snapshot.contents,bytes);XCTAssertEqual(snapshot.lines.count,2)
         // A failed whole-tree diff must not affect this single-file operation.
@@ -19,7 +20,7 @@ final class BlameReadCancellationTests:XCTestCase {
         try "#!/bin/sh\nfor arg in \"$@\"; do if [ \"$arg\" = diff ]; then exit 93; fi; done\nexec /usr/bin/git \"$@\"\n".write(to:fast,atomically:true,encoding:.utf8)
         try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:fast.path)
         let fastResult=try await GitRepository(root:root,executable:fast).blame(path:path);XCTAssertEqual(fastResult.contents,bytes)
-        for phase in ["rev-parse","ls-tree","cat-file","blame","log"] {
+        for phase in ["rev-parse","ls-tree","cat-file","blame","log","diff"] {
             let helper=root.appendingPathComponent("held-"+phase),marker=URL(fileURLWithPath:helper.path+".ready")
             let script="""
             #!/bin/sh
@@ -38,7 +39,8 @@ final class BlameReadCancellationTests:XCTestCase {
             try script.write(to:helper,atomically:true,encoding:.utf8);try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:helper.path)
             let token=OperationCancellation(),slow=GitRepository(root:root,executable:helper)
             let work=Task {
-                if phase=="log" { _ = try await slow.blameHistory(snapshot,options:GitBlameOptions(),cancellation:token) }
+                if phase=="diff" { _ = try await slow.blameHistoryParentComparisons(snapshot,revision:snapshot.revision,cancellation:token) }
+                else if phase=="log" { _ = try await slow.blameHistory(snapshot,options:GitBlameOptions(),cancellation:token) }
                 else { _ = try await slow.blame(path:path,cancellation:token) }
             }
             var pids:[Int32]=[]

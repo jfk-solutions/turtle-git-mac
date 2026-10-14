@@ -306,21 +306,34 @@ extension GitRepository {
     }
     /// Only parents that changed an existing origin file are relevant, matching
     /// TortoiseBlame's menu gates. Preserve each parent's old rename path.
-    public func blameParentComparisons(revision: String, path: String) throws -> [GitBlameParentComparison] {
-        let file = try historicalFile(revision: revision, path: path)
-        guard case .revision(let hash) = file.revision, ["100644", "100755"].contains(file.mode ?? "") else { throw GitBlameFailure.unsupported }
-        let parents = try run(["rev-list", "--parents", "-n", "1", hash]).text.split(whereSeparator: \.isWhitespace).dropFirst().map(String.init)
-        var result: [GitBlameParentComparison] = []
-        for (index, parent) in parents.enumerated() {
-            let range = try revisionComparison(from: .revision(parent), to: .revision(hash))
-            guard let changed = range.files.first(where: { $0.path == path }), !changed.isSubmodule,
-                  ["M", "R", "T"].contains(String(changed.action.prefix(1))) else { continue }
-            let comparison = RevisionComparisonSnapshot(root: root, from: range.from, to: range.to,
-                fromDetails: range.fromDetails, toDetails: range.toDetails, files: [changed], options: range.options)
-            result.append(GitBlameParentComparison(parentNumber: index + 1, revision: parent,
-                path: changed.oldPath ?? changed.path, comparison: comparison))
+    public func blameParentComparisons(revision:String,path:String,cancellation:OperationCancellation? = nil) throws -> [GitBlameParentComparison] {
+        let file=try historicalFile(revision:revision,path:path,cancellation:cancellation)
+        guard case .revision(let hash)=file.revision,["100644","100755"].contains(file.mode ?? "") else { throw GitBlameFailure.unsupported }
+        return try blameParentComparisons(revision:hash,paths:[path],cancellation:cancellation)
+    }
+    /// LogListBlameAction::GetPaths uses all attributed origins for the selected
+    /// commit, falling back to the displayed file for complete-history-only rows.
+    public func blameHistoryParentComparisons(_ snapshot:GitBlameSnapshot,revision:String,cancellation:OperationCancellation? = nil) throws -> [GitBlameParentComparison] {
+        try cancellation?.check()
+        let hash=try run(["rev-parse","--verify","--end-of-options",revision+"^{commit}"],cancellation:cancellation).text.trimmingCharacters(in:.newlines)
+        let origins=Set(snapshot.lines.filter { $0.hash==hash }.map(\.filename))
+        return try blameParentComparisons(revision:hash,paths:origins.isEmpty ? [snapshot.path] : origins.sorted(),cancellation:cancellation)
+    }
+    private func blameParentComparisons(revision:String,paths:[String],cancellation:OperationCancellation?) throws -> [GitBlameParentComparison] {
+        try cancellation?.check()
+        for path in paths { _ = try restoreLocation(path) }
+        let parents=try run(["rev-list","--parents","-n","1",revision],cancellation:cancellation).text.split(whereSeparator: \.isWhitespace).dropFirst().map(String.init)
+        var result:[GitBlameParentComparison]=[]
+        for (index,parent) in parents.enumerated() {
+            try cancellation?.check()
+            let range=try revisionComparison(from:.revision(parent),to:.revision(revision),cancellation:cancellation)
+            for path in paths {
+                guard let changed=range.files.first(where:{ $0.path==path }),!changed.isSubmodule,["M","R","T"].contains(String(changed.action.prefix(1))) else { continue }
+                let comparison=RevisionComparisonSnapshot(root:root,from:range.from,to:range.to,fromDetails:range.fromDetails,toDetails:range.toDetails,files:[changed],options:range.options,scopePaths:[changed.path]+(changed.oldPath.map { [$0] } ?? []),diffDetection:range.diffDetection)
+                result.append(GitBlameParentComparison(parentNumber:index+1,revision:parent,path:changed.oldPath ?? changed.path,comparison:comparison))
+            }
         }
-        return result
+        try cancellation?.check();return result
     }
     /// A pinned single-file read, without diffing the entire repository tree.
     private func blameContents(revision:String,path:String,cancellation:OperationCancellation?) throws -> ComparisonFileContent {

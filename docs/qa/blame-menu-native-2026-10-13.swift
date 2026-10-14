@@ -9,7 +9,9 @@ import TurtleGitCore
         throw Failure(description:"Blame menu did not settle")
     }
     @MainActor static func descendants(_ view:NSView)->[NSView] { [view]+view.subviews.flatMap(descendants) }
-    @MainActor static func main() async { do { try await verify() } catch { fputs("Blame menus failed: \(error)\n",stderr);exit(1) } }
+    @MainActor static func main() async { do { try await verify() } catch {
+        for _ in 0..<500 { if BlameWindowModel.activeHistoryOperations==0 { break };try? await Task.sleep(nanoseconds:10_000_000) }
+        fputs("Blame menus failed: \(error)\n",stderr);exit(1) } }
     @MainActor static func verify() async throws {
         let root=URL(fileURLWithPath:CommandLine.arguments[1]),repo=GitRepository(root:root,executable:URL(fileURLWithPath:CommandLine.arguments[2]))
         _ = try await repo.run(["init","-b","main"])
@@ -17,7 +19,7 @@ import TurtleGitCore
         let text="int value = 42;\n// needle 雪\n",file=root.appendingPathComponent("menus.cpp")
         try Data(text.utf8).write(to:file);try await repo.stage(["menus.cpp"]);_ = try await repo.commit(message:"Menu baseline")
         try Data(text.replacingOccurrences(of:"42",with:"43").utf8).write(to:file);try await repo.stage(["menus.cpp"]);_ = try await repo.commit(message:"Second revision")
-        try Data(text.utf8).write(to:file);try await repo.stage(["menus.cpp"]);_ = try await repo.commit(message:"Restore display")
+        try Data(text.utf8).write(to:file);try Data("unrelated diff must be excluded\n".utf8).write(to:root.appendingPathComponent("unrelated.txt"));try await repo.stage(["menus.cpp","unrelated.txt"]);_ = try await repo.commit(message:"Restore display")
         let head=try await repo.run(["rev-parse","HEAD"]).stdout,index=try Data(contentsOf:root.appendingPathComponent(".git/index"))
         let name="TurtleGit.BlameMenus.QA."+UUID().uuidString,prefs=UserDefaults(suiteName:name)!
         defer { prefs.removePersistentDomain(forName:name) }
@@ -53,6 +55,27 @@ import TurtleGitCore
             _ = NSApp.sendAction(item.action!,to:item.target,from:item)
         }
         try require(routed==["export:","branch:","tag:","switch:","browse:","refs:"].map { $0+pinned },"Retained history menu followed new selection")
+        history.selectRowIndexes(IndexSet(integer:0),byExtendingSelection:false)
+        let parentTarget=model.historyTarget([model.historyEntries[0]])!
+        var ready=false,previousRoute:(String,String,Int)?,comparison:RevisionComparisonSnapshot?
+        model.onPrevious={ path,hash,line,_ in previousRoute=(path,hash,line) };model.onChanges={ comparison=$0 }
+        model.prepareHistoryParents(parentTarget) { _ in ready=true };try await wait { ready && BlameWindowModel.activeHistoryOperations==0 }
+        historyCoordinator.menuNeedsUpdate(historyMenu)
+        let previous=historyMenu.items.first { $0.title=="Blame previous revision" }!,compare=historyMenu.items.first { $0.title=="Compare with previous revision" }!,unified=historyMenu.items.first { $0.title=="Show changes as unified diff" }!
+        history.selectRowIndexes(IndexSet(integer:1),byExtendingSelection:false)
+        _ = NSApp.sendAction(previous.action!,to:previous.target,from:previous);_ = NSApp.sendAction(compare.action!,to:compare.target,from:compare)
+        try require(previousRoute?.0=="menus.cpp" && previousRoute?.1==model.historyEntries[1].hash && previousRoute?.2==1,"Previous Blame lost captured parent")
+        let compared=try await repo.comparisonFile(comparison!,path:"menus.cpp")
+        try require(compared.base.text?.contains("43")==true && compared.destination.text?.contains("42")==true,"Parent comparison changed pinned file sides")
+        _ = NSApp.sendAction(unified.action!,to:unified.target,from:unified)
+        try await wait { owner.historyUnifiedWindows.count==1 && BlameWindowModel.activeHistoryOperations==0 }
+        let diff=owner.historyUnifiedWindows.values.first!,patch=String(decoding:diff.model.exportDocument.bytes,as:UTF8.self)
+        try require(diff.model.readOnly && patch.contains("menus.cpp") && !patch.contains("unrelated.txt"),"Unified parent patch included unrelated file or was editable")
+        diff.model.busy=true
+        var requestedOpen=false;let oldChoose=owner.chooseFile;owner.chooseFile={ _,_,_ in requestedOpen=true };owner.openDocument()
+        try require(!owner.windowShouldClose(window) && !requestedOpen,"Blocking unified child allowed owner Close/Open")
+        owner.chooseFile=oldChoose;diff.model.busy=false
+        diff.close();try await wait { owner.historyUnifiedWindows.isEmpty }
         history.selectRowIndexes(IndexSet([0,1,2]),byExtendingSelection:false);historyCoordinator.menuNeedsUpdate(historyMenu)
         let hashes=historyMenu.items.first { $0.title=="Copy SHA-1 to clipboard" }!;_ = NSApp.sendAction(hashes.action!,to:hashes.target,from:hashes)
         try require(historyCopied==model.historyEntries.map(\.hash).joined(separator:"\n"),"Multi-revision hash clipboard")
@@ -69,6 +92,7 @@ import TurtleGitCore
         model.reload();try await wait { !model.busy && !model.syntaxWorking }
         let beforeRoutes=routed;_ = NSApp.sendAction(export.action!,to:export.target,from:export)
         try require(routed==beforeRoutes,"Old menu survived Blame reload")
+        previousRoute=nil;_ = NSApp.sendAction(previous.action!,to:previous.target,from:previous);try require(previousRoute==nil,"Old parent menu survived reload")
         model.selectedLogHashes=[]
         let layout = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/GraphLayout/graph-layout")
         let graph = RevisionGraphWindowModel(repository: repo, access: nil, preferences: prefs, layoutExecutable: layout)

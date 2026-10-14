@@ -1141,3 +1141,49 @@ See qa/blame-history-family-2026-10-15.json for actual scope and limits.
 Conditional Bug-ID/SVN columns, embedded-Log parent/unified actions, docking,
 full physical menu/keyboard/VoiceOver and signed sandbox acceptance remain open.
 No new screenshot or full visual certification is claimed for this batch.
+
+## Parent actions in the embedded Log — October 15, 2026
+
+LogListBlameAction.cpp GetPaths/GetParentNumbers/GetParentHash and its previous
+Blame, comparison and GNU-diff branches are now represented in the native Log.
+The Core resolver collects every origin filename attributed to the selected commit;
+when no source line carries that hash, it falls back to the displayed document path.
+It retains relevant changed-file parents, excludes birth/deletion-only entries and
+gitlinks, and preserves each rename's old path. Multiple files are grouped under
+their actual parent number in the native menu. A single relevant parent needs no
+submenu. The source-pane menu also exposes unified diff.
+
+Native right-click/Control-click prepares parent metadata before presenting its
+captured menu; Shift-F10 uses the selected row. Selection changes while preparation
+is pending suppress the old popup. Once presented, actions retain the captured
+revision, parent and file set. Reload, document replacement and retirement refuse
+stale targets. Source-pane parent targets also retain document identity and accept
+origins omitted from the displayed complete-history list.
+
+Previous Blame opens each old parent filename at the captured parent revision.
+Comparison uses the pinned parent/current snapshot. Unified diff reads exact patch
+bytes for that file pair, explicitly including both old and new rename paths;
+unrelated files from the same commit are excluded. Shift selects the alternate
+unified viewer through the existing private viewer preferences. Built-in viewers
+are read-only, owned by Blame, follow appearance changes and close with their owner
+or document replacement. Blocking child sheets/reads prevent ordinary Close/Open.
+
+Parent and patch readers retain access grants, pass cancellation to every Git
+process and participate in Quit ownership. Superseded reads are cancelled; closed
+or replaced documents cannot publish menus or open a late built-in viewer. Existing
+source-pane parent reads now share these cancellation/lifetime guarantees.
+
+This supersedes the previous embedded-Log parent/unified-action gap. Full menu
+order, Shift/alternate external comparison behavior, physical popup/keyboard/
+VoiceOver acceptance, conditional Bug-ID/SVN columns, docking and signed sandbox
+acceptance remain open. No complete Blame/application parity is claimed.
+
+Validation: the Debug build passed. Of 20 focused Core checks, 19 passed initially;
+one new fixture assertion incorrectly expected an unquoted newline-containing
+filename in Git's patch header. The corrected one-file/exact-added-content check
+passed without changing production code or removing unrelated-file exclusion.
+Both grouped native menu/source cases passed on system and bundled Git. They
+exercise actual parent/current content, a real read-only unified viewer, exclusion
+of an unrelated changed file, owner Close/Open guards, viewer cleanup and stale
+parent-menu rejection. All four receivers were reaped and checked absent.
+See qa/blame-parent-family-2026-10-15.json for evidence and remaining limits.

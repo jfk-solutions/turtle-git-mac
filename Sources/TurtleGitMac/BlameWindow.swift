@@ -6,6 +6,7 @@ private struct BlameParentMenuTarget {
     let choice: GitBlameParentComparison
     let originalLine: Int
     let options: GitBlameOptions
+    let target:BlameWindowModel.HistoryTarget?
 }
 
 @MainActor final class BlameWindowController: NSWindowController, NSWindowDelegate {
@@ -15,6 +16,7 @@ private struct BlameParentMenuTarget {
     private(set) var findAlert:NSAlert?
     private var feedbackGeneration=0
     private var columnAlert:NSAlert?
+    private(set) var historyUnifiedWindows:[UUID:PatchWindowController]=[:]
     private(set) var containingReferences:[UUID:CommitContainingReferencesWindowController]=[:]
     var configureContainingReferences:(CommitContainingReferencesWindowController)->Void = { _ in }
     private let preferences:UserDefaults
@@ -49,7 +51,7 @@ private struct BlameParentMenuTarget {
     private let requireScope:Bool
     private let scopeProvider:any RepositoryBookmarkProvider
     func openDocument() {
-        guard model.canFind,!model.openingDocument,let window,window.attachedSheet==nil else { return }
+        guard model.canFind,!model.openingDocument,!hasBlockingHistoryChild,let window,window.attachedSheet==nil else { return }
         let panel=NSOpenPanel();panel.canChooseFiles=true;panel.canChooseDirectories=false;panel.allowsMultipleSelection=false;panel.prompt="Blame File"
         panel.directoryURL=model.repository.root;panel.appearance=window.appearance
         recentID=nil;openPanel=panel;model.openingDocument=true;openingGeneration += 1;let identity=openingGeneration
@@ -82,7 +84,7 @@ private struct BlameParentMenuTarget {
         }
     }
     func openRecent(_ entry:BlameRecentDocument) {
-        guard model.canFind,!model.openingDocument,let recentDocuments else { return }
+        guard model.canFind,!model.openingDocument,!hasBlockingHistoryChild,let recentDocuments else { return }
         recentID=entry.id;model.openingDocument=true;openingGeneration += 1
         do { let (_,file,lease)=try recentDocuments.acquire(entry,requireScope:requireScope);prepare(file,scope:lease) }
         catch { model.openingDocument=false;model.error=error.localizedDescription }
@@ -99,6 +101,7 @@ private struct BlameParentMenuTarget {
                 model=replacement;replacement.onFind={ [weak self] in self?.showFind() };replacement.onFindFeedback={ [weak self] in self?.feedback($0) };replacement.onOpenDocument={ [weak self] in self?.openDocument() };replacement.onCancelDocumentOpen={ [weak self] in self?.cancelOpenDocument() };replacement.onOpenRecent={ [weak self] in self?.openRecent($0) };replacement.recentDocuments=recentDocuments
                 window?.contentViewController=NSHostingController(rootView:BlameDialog(model:replacement))
                 Array(containingReferences.values).forEach { $0.close() };containingReferences=[:]
+                Array(historyUnifiedWindows.values).forEach { $0.close() };historyUnifiedWindows=[:]
                 configureHistoryActions();findWindow?.rebind(replacement);applyWindowAppearance()
                 NotificationCenter.default.post(name:NSNotification.Name("TurtleGit.BlameDocumentChanged"),object:window)
                 window?.title="\(document.snapshot.path) at HEAD – Blame – TurtleGit";replacement.goToLine(1)
@@ -111,7 +114,17 @@ private struct BlameParentMenuTarget {
             }
         }
     }
+    private var hasBlockingHistoryChild:Bool { containingReferences.values.contains { $0.hasBlockingChild } || historyUnifiedWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil } }
     private func configureHistoryActions() {
+        model.onHistoryUnified={ [weak self] bytes,title,alternate in
+            guard let self,!self.model.retired else { return };let original=self.model
+            if try await !UnifiedDiffApplication.openExternal(bytes,alternate:alternate,preferences:self.preferences) {
+                guard self.model===original,!original.retired else { return };let id=UUID()
+                let child=UnifiedDiffApplication.presentBuiltin(bytes,repository:original.repository,access:original.repositoryAccess,existing:nil,title:title,onClosed:{ [weak self] in self?.historyUnifiedWindows.removeValue(forKey:id) })
+                child.window?.appearance=self.window?.appearance;self.historyUnifiedWindows[id]=child
+            }
+        }
+
         model.confirmHistoryReset={ [weak self] in
             guard let self,let window=self.window,window.attachedSheet==nil,!self.model.retired else { return false }
             let alert=NSAlert();alert.messageText="Reset Blame Log columns?";alert.informativeText="Restore the default columns, order and widths?";alert.addButton(withTitle:"No");alert.addButton(withTitle:"Yes");self.columnAlert=alert
@@ -135,6 +148,7 @@ private struct BlameParentMenuTarget {
         window?.appearance=model.darkOverride.map { NSAppearance(named:$0 ? .darkAqua : .aqua)! }
         findWindow?.window?.appearance=window?.appearance
         findAlert?.window.appearance=window?.appearance
+        historyUnifiedWindows.values.forEach { $0.window?.appearance=window?.appearance }
     }
     func setDarkMode(_ value:Bool) { guard model.canFind else { return };model.setDarkOverride(value);applyWindowAppearance() }
     func followSystemAppearance() { guard model.canFind else { return };model.setDarkOverride(nil);applyWindowAppearance() }
@@ -174,10 +188,11 @@ private struct BlameParentMenuTarget {
             }
         }
     }
-    func windowShouldClose(_ sender:NSWindow) -> Bool { !model.searchFeedbackBusy && !model.openingDocument && !model.resettingHistoryColumns && !containingReferences.values.contains { $0.hasBlockingChild } }
+    func windowShouldClose(_ sender:NSWindow) -> Bool { !model.searchFeedbackBusy && !model.openingDocument && !model.resettingHistoryColumns && !hasBlockingHistoryChild }
     func windowWillClose(_ notification:Notification) {
         feedbackGeneration += 1;openingGeneration += 1;documentOpener.cancel()
         if let alert=columnAlert { alert.window.sheetParent?.endSheet(alert.window,returnCode:.cancel);alert.window.close();columnAlert=nil }
+        Array(historyUnifiedWindows.values).forEach { $0.close() };historyUnifiedWindows=[:]
         Array(containingReferences.values).forEach { $0.close() };containingReferences=[:]
         if let panel=openPanel { panel.sheetParent?.endSheet(panel,returnCode:.cancel);panel.close();openPanel=nil };model.openingDocument=false
         if let alert=findAlert {
@@ -248,6 +263,52 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     var onHistorySwitch:((String)->Void)?
     var onHistoryBrowse:((String)->Void)?
     var onContainingReferences:((String)->Void)?
+    var onHistoryUnified:((Data,String,Bool) async throws -> Void)?
+    private var historyParentCache:[String:[GitBlameParentComparison]]=[:]
+    private var historyParentToken:OperationCancellation?
+    private var sourceParentToken:OperationCancellation?
+    @Published private(set) var readingHistoryParents=false
+    func cachedHistoryParents(_ target:HistoryTarget)->[GitBlameParentComparison] {
+        guard acceptsHistory(target),target.entries.count==1 else { return [] };return historyParentCache[target.entries[0].hash] ?? []
+    }
+    private var unifiedReadTokens:[UUID:OperationCancellation]=[:]
+    func prepareHistoryParents(_ target:HistoryTarget,completion:@escaping ([GitBlameParentComparison])->Void) {
+        guard acceptsHistory(target),target.entries.count==1,let snapshot else { completion([]);return }
+        let hash=target.entries[0].hash
+        if let choices=historyParentCache[hash] { completion(choices);return }
+        historyParentToken?.cancel();let token=OperationCancellation();historyParentToken=token;readingHistoryParents=true;Self.activeHistoryOperations += 1
+        Task { [self,access] in
+            defer { Self.activeHistoryOperations -= 1;withExtendedLifetime(access) {};if historyParentToken===token { historyParentToken=nil;readingHistoryParents=false } }
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let choices=try await repository.blameHistoryParentComparisons(snapshot,revision:hash,cancellation:token)
+                guard acceptsHistory(target),!token.isCancelled else { return };historyParentCache[hash]=choices;completion(choices)
+            } catch { if acceptsHistory(target),!token.isCancelled { self.error=error.localizedDescription;completion([]) } }
+        }
+    }
+    enum ParentAction { case previous,compare,unified }
+    func performHistoryParent(_ target:HistoryTarget,choices:[GitBlameParentComparison],action:ParentAction,alternate:Bool = false,originalLine:Int = 1) {
+        guard acceptsHistory(target),!choices.isEmpty else { return }
+        if action == .previous { for choice in choices { onPrevious?(choice.path,choice.revision,originalLine,appliedOptions) };return }
+        if action == .compare { for choice in choices { onChanges?(choice.comparison) };return }
+        let id=UUID(),token=OperationCancellation();unifiedReadTokens[id]=token;Self.activeHistoryOperations += 1
+        Task { [self,access] in
+            defer { unifiedReadTokens.removeValue(forKey:id);Self.activeHistoryOperations -= 1;withExtendedLifetime(access) {} }
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                for choice in choices {
+                    let bytes=try await repository.revisionComparisonPatchData(choice.comparison,paths:choice.comparison.files.map(\.path),cancellation:token)
+                    guard acceptsHistory(target),!token.isCancelled else { return }
+                    try await onHistoryUnified?(bytes,"Parent \(choice.parentNumber) → \(target.entries[0].hash.prefix(8)) — \(choice.path)",alternate)
+                }
+            } catch { if acceptsHistory(target),!token.isCancelled { self.error=error.localizedDescription } }
+        }
+    }
+    private func cancelHistoryParentReads() {
+        sourceParentToken?.cancel();sourceParentToken=nil;readingHistoryParents=false
+        historyParentToken?.cancel();historyParentToken=nil;unifiedReadTokens.values.forEach { $0.cancel() };historyParentCache=[:]
+    }
+
     func saveHistoryColumns(_ value:BlameHistoryColumns) { guard canFind else { return };historyColumns=value;value.save(labelDefaults) }
     func resetHistoryColumns() {
         guard canFind else { return };let request=generation;resettingHistoryColumns=true;Self.activeHistoryOperations += 1
@@ -257,12 +318,17 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
             guard !retired,request==generation,accepted else { return };historyColumns=BlameHistoryColumns();historyColumns.save(labelDefaults)
         }
     }
-    struct HistoryTarget { let owner:ObjectIdentifier,generation:Int;let entries:[LogEntry] }
+    struct HistoryTarget { let owner:ObjectIdentifier,generation:Int;let entries:[LogEntry];var sourceOrigin=false }
+    func sourceParentTarget(_ hash:String)->HistoryTarget? {
+        guard canFind,let line=lines.first(where:{ $0.hash==hash }) else { return nil }
+        let entry=historyEntries.first { $0.hash==hash } ?? LogEntry(hash:hash,author:line.author,date:ISO8601DateFormatter().string(from:line.date),subject:line.summary)
+        return HistoryTarget(owner:ObjectIdentifier(self),generation:generation,entries:[entry],sourceOrigin:true)
+    }
     func historyTarget(_ entries:[LogEntry])->HistoryTarget? {
         guard canFind,!entries.isEmpty,entries.allSatisfy({ item in historyEntries.contains { $0.hash==item.hash } }) else { return nil }
         return HistoryTarget(owner:ObjectIdentifier(self),generation:generation,entries:entries)
     }
-    func acceptsHistory(_ target:HistoryTarget)->Bool { canFind && target.owner==ObjectIdentifier(self) && target.generation==generation && target.entries.allSatisfy { item in historyEntries.contains { $0.hash==item.hash } } }
+    func acceptsHistory(_ target:HistoryTarget)->Bool { canFind && target.owner==ObjectIdentifier(self) && target.generation==generation && target.entries.allSatisfy { item in target.sourceOrigin ? lines.contains { $0.hash==item.hash } : historyEntries.contains { $0.hash==item.hash } } }
 
     @Published var copyingLog = false
     @Published var snapshot: GitBlameSnapshot?
@@ -450,24 +516,27 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     func retire() {
         retired=true;onFind=nil;onFindFeedback=nil;onGoTo=nil;onOpenDocument=nil;onCancelDocumentOpen=nil;onOpenRecent=nil;onLoaded=nil;onLog=nil;onChanges=nil;onPrevious=nil;recentDocuments=nil;invalidate()
     }
-    func invalidate() { historyClipboardCancellation?.cancel();historyClipboardCancellation=nil;generation += 1; parentGeneration += 1; clipboardGeneration += 1; copyingLog = false; firstVisibleSourceRow = nil; scrollSourceRowToTop = nil; selectedSourceText = nil; sourceNavigation = nil }
+    func invalidate() { cancelHistoryParentReads();historyClipboardCancellation?.cancel();historyClipboardCancellation=nil;generation += 1; parentGeneration += 1; clipboardGeneration += 1; copyingLog = false; firstVisibleSourceRow = nil; scrollSourceRowToTop = nil; selectedSourceText = nil; sourceNavigation = nil }
     func prepareParentMenu(number: Int, completion: @escaping () -> Void) {
         selection = number; loadParents(completion: completion)
     }
     private func loadParents(completion: @escaping () -> Void) {
+        sourceParentToken?.cancel()
         parentGeneration += 1; let request = parentGeneration
         guard let line = selectedLine else { parentChoices = []; loadingParents = false; return }
         let key = line.hash + "\0" + line.filename
         if let cached = parentCache[key] { parentChoices = cached; loadingParents = false; completion(); return }
-        parentChoices = []; loadingParents = true
-        Task {
+        sourceParentToken?.cancel();let token=OperationCancellation();sourceParentToken=token
+        parentChoices = []; loadingParents = true;Self.activeHistoryOperations += 1
+        Task { [self,access] in
+            defer { Self.activeHistoryOperations -= 1;withExtendedLifetime(access) {};if sourceParentToken===token { sourceParentToken=nil } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let choices = try await repository.blameParentComparisons(revision: line.hash, path: line.filename)
+                let choices = try await repository.blameParentComparisons(revision:line.hash,path:line.filename,cancellation:token)
                 guard request == parentGeneration else { return }
                 parentCache[key] = choices; parentChoices = choices; loadingParents = false
                 if selectedLine?.number == line.number, selectedLine?.hash == line.hash, selectedLine?.filename == line.filename { completion() }
-            } catch { if request == parentGeneration { self.error = error.localizedDescription; loadingParents = false } }
+            } catch { if request == parentGeneration { if !token.isCancelled { self.error = error.localizedDescription }; loadingParents = false } }
         }
     }
     func reload(saveThresholds: Bool = false) {
@@ -476,6 +545,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
         if let required, required.isEmpty || !required.utf8.allSatisfy({ (48...57).contains($0) }) || UInt32(required) == nil {
             error = "Enter a character count from 0 to 4294967295."; return
         }
+        cancelHistoryParentReads()
         parentGeneration += 1; parentChoices = []; loadingParents = false
         historyClipboardCancellation?.cancel();historyClipboardCancellation=nil
         clipboardGeneration += 1; copyingLog = false
@@ -642,7 +712,7 @@ private struct BlameDialog: View {
             if model.busy { ProgressView("Reading annotations…").controlSize(.small) }
             if model.syntaxWorking { ProgressView("Coloring source…").controlSize(.small) }
             if let error = model.syntaxError { Text(error).font(.caption).foregroundStyle(.red).textSelection(.enabled) }
-            if model.loadingParents { ProgressView("Reading previous revisions…").controlSize(.small) }
+            if model.loadingParents || model.readingHistoryParents { ProgressView("Reading previous revisions…").controlSize(.small) }
             if model.copyingLog { ProgressView("Reading log message for clipboard…").controlSize(.small) }
             if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
             HSplitView {
@@ -857,7 +927,7 @@ struct BlameHistoryTable:NSViewRepresentable {
             table.delegate=self;table.dataSource=self;table.target=self;table.doubleAction=#selector(showLog)
             table.menu=NSMenu();table.menu?.delegate=self
             let header=BlameHistoryColumnHeader(frame:NSRect(x:0,y:0,width:1000,height:24));header.buildMenu={ [weak self] in self?.columnMenu() };table.headerView=header
-            table.copySelection={ [weak self] in self?.copyHashes() };table.openSelection={ [weak self] in self?.showLog() }
+            table.copySelection={ [weak self] in self?.copyHashes() };table.openSelection={ [weak self] in self?.showLog() };table.showContext={ [weak self] event in self?.showContext(event) }
             self.table=table
             let scroll=NSScrollView();scroll.borderType = .bezelBorder;scroll.hasVerticalScroller=true;scroll.hasHorizontalScroller=true;scroll.documentView=table
             update();return scroll
@@ -939,13 +1009,48 @@ struct BlameHistoryTable:NSViewRepresentable {
             if value.visible.contains(id) { value.visible.remove(id) } else { value.visible.insert(id) };model.saveHistoryColumns(value)
         }
         @objc func reset() { guard available else { return };model.resetHistoryColumns() }
+        private var contextTarget:BlameWindowModel.HistoryTarget?
+        func showContext(_ event:NSEvent) {
+            guard available,let table,let window=table.window else { return }
+            let row=event.type == .keyDown ? table.selectedRow : table.row(at:table.convert(event.locationInWindow,from:nil))
+            guard row>=0 else { return }
+            if !table.selectedRowIndexes.contains(row) { table.selectRowIndexes(IndexSet(integer:row),byExtendingSelection:false) }
+            guard let target=model.historyTarget(selected) else { return }
+            model.prepareHistoryParents(target) { [weak self,weak table,weak window] _ in
+                guard let self,let table,let window,table.window===window,window.isVisible,self.available,self.model.acceptsHistory(target),Set(self.selected.map(\.hash))==Set(target.entries.map(\.hash)),let menu=table.menu else { return }
+                self.contextTarget=target;defer { self.contextTarget=nil }
+                NSMenu.popUpContextMenu(menu,with:event,for:table)
+            }
+        }
         private class Invocation:NSObject { let target:BlameWindowModel.HistoryTarget,command:String;init(_ target:BlameWindowModel.HistoryTarget,_ command:String) { self.target=target;self.command=command } }
+        private final class ParentInvocation:NSObject {
+            let target:BlameWindowModel.HistoryTarget,choices:[GitBlameParentComparison],action:BlameWindowModel.ParentAction
+            init(_ target:BlameWindowModel.HistoryTarget,_ choices:[GitBlameParentComparison],_ action:BlameWindowModel.ParentAction) { self.target=target;self.choices=choices;self.action=action }
+        }
+        @objc func invokeParent(_ sender:NSMenuItem) {
+            guard available,let value=sender.representedObject as? ParentInvocation else { return }
+            model.performHistoryParent(value.target,choices:value.choices,action:value.action,alternate:NSEvent.modifierFlags.contains(.shift))
+        }
         var selected:[LogEntry] { entries.filter { model.selectedLogHashes.contains($0.hash) } }
         func menuNeedsUpdate(_ menu:NSMenu) {
             menu.removeAllItems();menu.autoenablesItems=false
-            guard available,let target=model.historyTarget(selected) else { return }
+            guard available,let target=contextTarget ?? model.historyTarget(selected),model.acceptsHistory(target) else { return }
             func item(_ title:String,_ command:String,_ icon:MenuIcon,enabled:Bool=true,into parent:NSMenu? = nil) {
                 let item=NSMenuItem(title:title,action:#selector(invoke(_:)),keyEquivalent:"");item.target=self;item.image=icon.contextImage(defaults:model.labelDefaults);item.representedObject=Invocation(target,command);item.isEnabled=enabled;(parent ?? menu).addItem(item)
+            }
+            if target.entries.count==1 {
+                let choices=model.cachedHistoryParents(target),parents=Dictionary(grouping:choices,by: \.parentNumber)
+                for (title,action,icon,enabled) in [("Blame previous revision",BlameWindowModel.ParentAction.previous,MenuIcon.blame,model.onPrevious != nil),("Compare with previous revision",.compare,.compare,model.onChanges != nil),("Show changes as unified diff",.unified,.unifiedDiff,model.onHistoryUnified != nil)] where !parents.isEmpty {
+                    func command(_ number:Int,_ title:String)->NSMenuItem {
+                        let result=NSMenuItem(title:title,action:#selector(invokeParent(_:)),keyEquivalent:"");result.target=self;result.image=icon.contextImage(defaults:model.labelDefaults);result.isEnabled=enabled;result.representedObject=ParentInvocation(target,parents[number]!,action);return result
+                    }
+                    if parents.count==1,let number=parents.keys.first { menu.addItem(command(number,title)) }
+                    else {
+                        let item=NSMenuItem(title:title,action:nil,keyEquivalent:"");item.image=icon.contextImage(defaults:model.labelDefaults);let sub=NSMenu();sub.autoenablesItems=false
+                        for number in parents.keys.sorted() { sub.addItem(command(number,"Parent \(number) (\(parents[number]![0].revision.prefix(8)))")) };item.submenu=sub;menu.addItem(item)
+                    }
+                }
+                if !parents.isEmpty { menu.addItem(.separator()) }
             }
             if target.entries.count==1 {
                 item("Show log","log",.log,enabled:model.onLog != nil);menu.addItem(.separator())
@@ -990,11 +1095,14 @@ struct BlameHistoryTable:NSViewRepresentable {
 }
 @MainActor final class BlameHistoryNativeTable:NSTableView {
     var copySelection:()->Void = {},openSelection:()->Void = {}
+    var showContext:(NSEvent)->Void = { _ in }
+    override func rightMouseDown(with event:NSEvent) { if isEnabled { showContext(event) } }
+    override func mouseDown(with event:NSEvent) { if event.modifierFlags.contains(.control) { if isEnabled { showContext(event) };return };super.mouseDown(with:event) }
     override func menu(for event:NSEvent)->NSMenu? {
         guard isEnabled else { return nil };let row=row(at:convert(event.locationInWindow,from:nil));guard row>=0 else { return nil }
         if !selectedRowIndexes.contains(row) { selectRowIndexes(IndexSet(integer:row),byExtendingSelection:false) };menu?.update();return menu
     }
-    override func keyDown(with event:NSEvent) { if isEnabled,event.keyCode==36 || event.keyCode==76 { openSelection();return };super.keyDown(with:event) }
+    override func keyDown(with event:NSEvent) { if isEnabled,event.keyCode==109,event.modifierFlags.contains(.shift) { showContext(event);return };if isEnabled,event.keyCode==36 || event.keyCode==76 { openSelection();return };super.keyDown(with:event) }
     override func performKeyEquivalent(with event:NSEvent)->Bool {
         if isEnabled,event.modifierFlags.intersection([.command,.control,.option]) == .command,event.charactersIgnoringModifiers?.lowercased()=="c" { copySelection();return true };return super.performKeyEquivalent(with:event)
     }
@@ -1168,7 +1276,7 @@ private struct BlameTable: NSViewRepresentable {
                     func item(_ choice: GitBlameParentComparison, title: String) -> NSMenuItem {
                         let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
                         item.target = self; item.image = icon.contextImage()
-                        item.representedObject = BlameParentMenuTarget(choice: choice, originalLine: originalLine, options: model.appliedOptions)
+                        item.representedObject = BlameParentMenuTarget(choice: choice, originalLine: originalLine, options:model.appliedOptions,target:model.sourceParentTarget(selectedLine.hash))
                         item.isEnabled = enabled; return item
                     }
                     if model.parentChoices.count == 1 { menu.addItem(item(model.parentChoices[0], title: title)) }
@@ -1181,6 +1289,7 @@ private struct BlameTable: NSViewRepresentable {
                 }
                 addCommand(title: "Blame previous revision", action: #selector(blamePrevious(_:)), icon: .blame, enabled: model.onPrevious != nil)
                 addCommand(title: "Show changes", action: #selector(showChanges(_:)), icon: .compare, enabled: model.onChanges != nil)
+                addCommand(title:"Show changes as unified diff",action:#selector(showUnified(_:)),icon:.unifiedDiff,enabled:model.onHistoryUnified != nil)
             }
             let log = NSMenuItem(title: "Show log", action: #selector(showLog), keyEquivalent: "")
             log.target = self; log.image = MenuIcon.log.contextImage(); log.isEnabled = model.onLog != nil; menu.addItem(log)
@@ -1198,12 +1307,13 @@ private struct BlameTable: NSViewRepresentable {
         }
         @objc func showLog() { if let line = model.selectedLine { model.showLog(line) } }
         @objc func showChanges(_ sender: NSMenuItem) {
-            if let target = sender.representedObject as? BlameParentMenuTarget { model.onChanges?(target.choice.comparison) }
+            if let target=sender.representedObject as? BlameParentMenuTarget,let history=target.target { model.performHistoryParent(history,choices:[target.choice],action:.compare) }
+        }
+        @objc func showUnified(_ sender:NSMenuItem) {
+            if let target=sender.representedObject as? BlameParentMenuTarget,let history=target.target { model.performHistoryParent(history,choices:[target.choice],action:.unified,alternate:NSEvent.modifierFlags.contains(.shift)) }
         }
         @objc func blamePrevious(_ sender: NSMenuItem) {
-            if let target = sender.representedObject as? BlameParentMenuTarget {
-                model.onPrevious?(target.choice.path, target.choice.revision, target.originalLine, target.options)
-            }
+            if let target=sender.representedObject as? BlameParentMenuTarget,let history=target.target { model.performHistoryParent(history,choices:[target.choice],action:.previous,originalLine:target.originalLine) }
         }
         @objc func copyLogMessage(_ sender: NSMenuItem) {
             if let hash = sender.representedObject as? String { model.copyLogMessage(hash) }
