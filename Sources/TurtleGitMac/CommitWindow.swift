@@ -26,6 +26,7 @@ import UniformTypeIdentifiers
     }
     private var logPicker: LogWindowController?
     var hasMessagePicker: Bool { historyWindow != nil || logPicker != nil }
+    private(set) var issueProviderOwner: CommitIssueProviderOwner?
     private var progressController: CommitProgressWindowController?
     var onPullAfterLFSLock: () -> Void = {}
     private var lfsOperation: LFSFileOperationController?
@@ -39,6 +40,7 @@ import UniformTypeIdentifiers
         window.minSize = NSSize(width: 900, height: 680); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: CommitDialog(model: model).defaultAppStorage(defaults))
         super.init(window: window); model.comparisonWindow = window; model.clientHooks.windowProvider = { [weak window] in window?.attachedSheet ?? window }; window.model = model; window.delegate = self; window.setContentSize(NSSize(width: 1000, height: 760)); window.center()
+        issueProviderOwner = CommitIssueProviderOwner(model: model, parent: window)
         model.close = { [weak self, weak window] in
             guard let self, self.partial?.model.busy != true, self.partial?.window?.attachedSheet == nil, !self.model.unifiedViewerBusy else { return }
             window?.close()
@@ -181,7 +183,7 @@ import UniformTypeIdentifiers
     func setQuitConfirmation(_ pending: Bool) { model.confirmingQuit = pending; partial?.model.confirmingQuit = pending }
     func windowWillClose(_ notification: Notification) {
         if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .cancel); sheet.orderOut(nil) }
-        closingCommit = true; model.invalidateForClose(); lfsOperation?.close(); lfsOperation = nil
+        closingCommit = true; model.invalidateForClose(); issueProviderOwner?.retire(); issueProviderOwner = nil; lfsOperation?.close(); lfsOperation = nil
         if let child = historyWindow {
             historyWindow = nil; window?.endSheet(child); child.orderOut(nil); child.close()
         }
@@ -337,6 +339,31 @@ import UniformTypeIdentifiers
     @Published var message = "" { didSet { if message != oldValue { cancelHistoryIssueUpdate(); scheduleIssueStyling() } } }
     @Published var projectSettings = ProjectDialogSettings()
     var projectIconAccess: RepositoryAccessLease? { access }
+    static private(set) var activeIssueProviderOperations = 0
+    @Published private(set) var issueProviderBusy = false
+    @Published private(set) var nativeIssueProvider: NativeIssueCatalogProvider?
+    @Published private(set) var issueProviderError: String?
+    private var issueProviderGeneration = UUID()
+    var chooseProviderIssues: (NativeIssueCatalogProvider, NativeIssueProviderContext) async -> NativeIssueProviderResult? = { _, _ in nil }
+    var providerContext: NativeIssueProviderContext { NativeIssueProviderContext(repositoryRoot: repository.root, paths: scopePaths, message: message, issueID: issueID) }
+    func selectProviderIssues() {
+        guard messageFocusAvailable, !inputsBlocked, let provider = nativeIssueProvider else { return }
+        let context = providerContext, generation = UUID(); issueProviderGeneration = generation; issueProviderBusy = true; Self.activeIssueProviderOperations += 1
+        Task {
+            defer { Self.activeIssueProviderOperations -= 1; withExtendedLifetime(access) {}; if issueProviderGeneration == generation { issueProviderBusy = false } }
+            let result = await chooseProviderIssues(provider, context)
+            guard messageFocusAvailable, issueProviderGeneration == generation, !confirmingQuit, message.utf8.elementsEqual(context.message.utf8), issueID.utf8.elementsEqual(context.issueID.utf8), scopePaths == context.paths, let result else { return }
+            message = result.message; issueID = result.issueID; requestMessageFocus()
+        }
+    }
+    private func loadNativeIssueProvider(_ token: OperationCancellation) async throws {
+        let rows: [NativeIssueAssociation]
+        do { rows = try NativeIssueAssociations.load(from: dialogDefaults) } catch { nativeIssueProvider = nil; issueProviderError = error.localizedDescription; return }
+        let association = try await readReload(token) { try await repository.nativeIssueAssociation(rows: rows, cancellation: token) }
+        guard messageFocusAvailable else { return }
+        do { nativeIssueProvider = try association.map { try NativeIssueCatalogProvider(parameters: $0.parameters, identifier: $0.provider) }; issueProviderError = nil }
+        catch { nativeIssueProvider = nil; issueProviderError = error.localizedDescription }
+    }
     @Published var issueProperties = IssueTrackerProperties() { didSet { if issueProperties != oldValue { cancelHistoryIssueUpdate(); scheduleIssueStyling() } } }
     @Published private(set) var issueMessageStyles: [IssueMessageStyle] = []
     private let issueStyler = IssueMessageStyler()
@@ -941,7 +968,7 @@ import UniformTypeIdentifiers
         return changelists.assignments[entry.path].map { origin + "\nChangelist: " + $0 } ?? origin
     }
     var checkedPathsForCommit: Set<String> { Set(visibleEntries.filter { checked.contains($0.id) }.map(\.path)) }
-    var canCommit: Bool { messageFocusAvailable && !pendingReloadCancel && !busy && !confirmingQuit && !loadingAuthorIdentity && !loadingAuthorDate && !loadingAmendMessage && loadedMessage && changelistsLoaded && (messageOnly || (stagingEnabled ? entries.contains(where: \.staged) || operation == .merge || amend : !checkedPathsForCommit.isEmpty || operation == .merge || (amend && amendDiffToLastCommit))) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && message.trimmingCharacters(in: .whitespacesAndNewlines).utf16.count >= projectSettings.minimumLength && (!createBranch || !newBranch.isEmpty) && (!setAuthor || !author.isEmpty) }
+    var canCommit: Bool { messageFocusAvailable && !issueProviderBusy && !pendingReloadCancel && !busy && !confirmingQuit && !loadingAuthorIdentity && !loadingAuthorDate && !loadingAmendMessage && loadedMessage && changelistsLoaded && (messageOnly || (stagingEnabled ? entries.contains(where: \.staged) || operation == .merge || amend : !checkedPathsForCommit.isEmpty || operation == .merge || (amend && amendDiffToLastCommit))) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && message.trimmingCharacters(in: .whitespacesAndNewlines).utf16.count >= projectSettings.minimumLength && (!createBranch || !newBranch.isEmpty) && (!setAuthor || !author.isEmpty) }
     func didRename(_ source: String, to destination: String) {
         func moved(_ path: String) -> String { path == source ? destination : path.hasPrefix(source + "/") ? destination + path.dropFirst(source.count) : path }
         checked = Set(checked.map(moved)); selection = Set(selection.map(moved)); scopePaths = scopePaths.map(moved); reload()
@@ -1008,7 +1035,7 @@ import UniformTypeIdentifiers
         return true
     }
     func reload(paths: [String]? = nil) {
-        guard messageFocusAvailable, !busy, !pendingReloadCancel else { return }; fileMenuGeneration = UUID(); busy = true
+        guard messageFocusAvailable, !issueProviderBusy, !busy, !pendingReloadCancel else { return }; fileMenuGeneration = UUID(); busy = true
         let token = OperationCancellation(); reloadCancellation = token
         lfsOwners = [:]; lfsLockedPaths = []; lfsOwnershipKnown = false
         let resetChecks = paths != nil && (!hasLoaded || (paths!.contains(".") ? [] : paths!) != scopePaths)
@@ -1071,6 +1098,7 @@ import UniformTypeIdentifiers
                         return name.isEmpty ? "" : "\(name) <\(email)>"
                     }
                 }
+                try await loadNativeIssueProvider(token)
                 hasLoaded = true; refreshPartial()
                 if !loadedMessage {
                     issueProperties = try await readReload(token) { try await repository.issueTrackerProperties(cancellation: token) }
@@ -1199,6 +1227,7 @@ import UniformTypeIdentifiers
         messageFocusAvailable = false; messageFocusRequest = 0; appliedMessageFocusRequest = 0
     }
     func invalidateForClose() {
+        issueProviderGeneration = UUID(); issueProviderBusy = false
         fileMenuGeneration = UUID(); fileOperationToken?.cancel(); cancelChangelist()
         diffSession?.cancel(); diffSession = nil
         clientHooks.retire(); submoduleLog.retire()
@@ -1314,7 +1343,7 @@ import UniformTypeIdentifiers
         guard canCommit, replaySplit == nil && historyCombine == nil || action == .commit,
               historyCombine == nil || (amend && !createBranch) else { return }
         if replaySplit == nil && historyCombine == nil { completionAction = action }
-        let rawMessage = message, rawIssueID = issueID, properties = issueProperties, paths = checkedPathsForCommit, staging = stagingEnabled
+        let rawMessage = message, rawIssueID = issueID, properties = issueProperties, provider = nativeIssueProvider, paths = checkedPathsForCommit, staging = stagingEnabled
         let committedPaths = staging ? Set(entries.filter(\.staged).map(\.path)) : messageOnly ? Set<String>() : paths
         let retainedChangelists = Set(visibleEntries.filter { !committedPaths.contains($0.path) }.map(\.path)).union(restoreCopies.keys)
         let pruningScope = showWholeProject ? [] : scopePaths
@@ -1357,6 +1386,7 @@ import UniformTypeIdentifiers
                 if let hook = try await clientHooks.run(.preCommit, repository: repository, access: access, paths: committedPaths.sorted().map { repository.root.appendingPathComponent($0).path }, message: text, allowContinue: true) { text = hook.message; message = text }
                 let prepared = text == rawMessage ? validation : try await repository.prepareIssueCommit(properties: properties, message: text, issueID: rawIssueID)
                 text = prepared.message; message = text
+                try provider?.checkCommit(context: NativeIssueProviderContext(repositoryRoot: repository.root, paths: committedPaths.sorted(), message: text, issueID: rawIssueID))
                 if !options.messageOnly {
                     let candidates = staging ? visibleEntries.filter(\.staged).map(\.path) : visibleEntries.filter { paths.contains($0.path) }.map(\.path)
                     let dirty = try await repository.commitDirtySubmodules(paths: candidates)
@@ -1397,8 +1427,12 @@ import UniformTypeIdentifiers
                     output = try await operation.value
                 }
                 var postHookFailure: String?
+                if let provider {
+                    do { let revision = try await repository.run(["rev-parse", "--verify", "HEAD"]).text.trimmingCharacters(in: .newlines); try provider.commitFinished(context: NativeIssueProviderContext(repositoryRoot: repository.root, paths: committedPaths.sorted(), message: text, issueID: rawIssueID), revision: revision) }
+                    catch { postHookFailure = "The commit succeeded, but its issue-provider completion failed.\n\n" + error.localizedDescription }
+                }
                 do { _ = try await clientHooks.run(.postCommit, repository: repository, access: access, amend: options.amend) }
-                catch { postHookFailure = "The commit succeeded, but its post-commit hook failed.\n\n" + error.localizedDescription }
+                catch { postHookFailure = (postHookFailure.map { $0 + "\n\n" } ?? "") + "The commit succeeded, but its post-commit hook failed.\n\n" + error.localizedDescription }
                 messageHistory?.add(written.draft)
                 if options.amend && !nonAmendMessage.isEmpty && nonAmendMessage != messageTemplate { messageHistory?.add(nonAmendMessage) }
                 if !result.isAbandoned { onCommitted(output) }
@@ -1467,7 +1501,7 @@ import UniformTypeIdentifiers
             return label.padding(toLength: max(10, label.count), withPad: " ", startingAt: 0) + " " + entry.path + "\n"
         }.joined()
     }
-    var inputsBlocked: Bool { busy || confirmingQuit || pendingReloadCancel }
+    var inputsBlocked: Bool { busy || issueProviderBusy || confirmingQuit || pendingReloadCancel }
     var canCancel: Bool { messageFocusAvailable && !confirmingQuit && !pendingReloadCancel && (!busy || reloadCancellation != nil || fileOperationToken != nil) }
     func cancel(closeWindow: Bool = true, completion: ((Bool) -> Void)? = nil) {
         cancel(closeWindow: closeWindow, completion: completion, confirmationAccepted: false)
@@ -1654,12 +1688,14 @@ struct CommitDialog: View {
                     else { Text(model.branch.isEmpty ? "Detached / unborn HEAD" : model.branch).foregroundStyle(.blue) }
                     Toggle("new branch", isOn: $model.createBranch).toggleStyle(.checkbox).disabled(model.operation != nil || model.replaySplit != nil || model.historyCombine != nil)
                     Spacer()
+                    if let provider = model.nativeIssueProvider { Button { model.selectProviderIssues() } label: { CommandLabel(title: provider.linkText, icon: .settingsIssueTracker) }.disabled(model.inputsBlocked) }
                     if model.issueProperties.showsIssueField {
                         Text(model.issueProperties.label)
                         TextField("", text: $model.issueID).textFieldStyle(.roundedBorder).frame(width: 140).accessibilityLabel(model.issueProperties.label).focused($issueFieldFocused)
                     }
                 if model.busy { ProgressView().controlSize(.small) }
                 }
+                if let error = model.issueProviderError { Text(error).font(.caption).foregroundStyle(.red).textSelection(.enabled) }
                 if !model.fileOperationTitle.isEmpty { HStack { Text(model.fileOperationCancelling ? "Cancelling…" : model.fileOperationTitle).font(.caption); Spacer(); Button("Cancel operation") { model.cancelFileOperation() }.disabled(model.fileOperationCancelling) } }
                 if let operation = model.operation {
                     CommandLabel(title: operation.title, icon: operation == .merge ? .merge : operation == .cherryPick ? .cherryPick : .revert).font(.callout).foregroundStyle(.orange)

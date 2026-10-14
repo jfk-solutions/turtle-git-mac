@@ -27,6 +27,7 @@
 		099DB59A50F13AEF9077BEA2 /* TurtleGitWCRev.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94460BAA2864B3BF68F01264 /* TurtleGitWCRev.swift */; };
 		0BA99C6714D09E37A7B5E0CE /* BlameOpenDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90FF7E1758DBA2D17D00C67C /* BlameOpenDocument.swift */; };
 		0CA3576B6D4FD01F747903E0 /* GitPropertyIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73B2D722BCF6A197E0E25D2C /* GitPropertyIndex.swift */; };
+		0D5BFCDC9D85ED08AF4BD084 /* NativeIssueProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A16C71D5D9BCDAFE0100B40 /* NativeIssueProvider.swift */; };
 		0DDC9B58143481D73B56D530 /* IssueTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D07F0B7B2714BF454BD5BD62 /* IssueTracker.swift */; };
 		0E60EC4DFD35AD719021FCB2 /* FinderCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = F01FB406B12CA9FED59A3121 /* FinderCache.swift */; };
 		0FBFEB0FC27D3E17BE0D1C35 /* ReferenceBrowser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 338C73A7EDBB0AF3F14DD64D /* ReferenceBrowser.swift */; };
@@ -70,6 +71,7 @@
 		2BE2A50FE49349D97E029CD3 /* UnifiedDiffPrintMargins.swift in Sources */ = {isa = PBXBuildFile; fileRef = 548BA53E454CA6C5917EABE9 /* UnifiedDiffPrintMargins.swift */; };
 		2C55E0EBFCD53E3B244197A8 /* RemoteSettingsWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 837C5F7103FADCDAC3F99EC1 /* RemoteSettingsWindow.swift */; };
 		2D11419DF7A44BFFC87F88DB /* ProjectDialogSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7147E00D8870E2CB238BAEDD /* ProjectDialogSettings.swift */; };
+		2D9636CAF8ECE838038BF5F8 /* IssueProviderSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7E6DA5F93A0F9287456B57C /* IssueProviderSettings.swift */; };
 		2F166DC70EEE317B9A6F3FF2 /* SettingsTransaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = B07F1FB47DC4A875FEE5ECD4 /* SettingsTransaction.swift */; };
 		2F7197DC1FEF6925132426F2 /* MergeComparisonOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0038AFD2AD4CE0CE4AC18AA /* MergeComparisonOptions.swift */; };
 		2F880914CC17252579DC49AD /* StatusWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70C7ACC80D04EACA76A42FF8 /* StatusWindow.swift */; };
@@ -197,6 +199,7 @@
 		9309E5E308F3A0D96BF06CDD /* WorkingFileAdd.swift in Sources */ = {isa = PBXBuildFile; fileRef = C60249DCAD62F60EB41319E4 /* WorkingFileAdd.swift */; };
 		9449C31C758AF7B42027F8D8 /* PromptWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90DFF4CDAE0527E5D655290C /* PromptWindow.swift */; };
 		94D627C3502D8ACE734DD470 /* Reset.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE3C7BF5278D5807BDDF4B21 /* Reset.swift */; };
+		954B7585EF0813B486DF9D5E /* IssueProviderWindows.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001BF3B476FF7414E244B9A6 /* IssueProviderWindows.swift */; };
 		95BAD6A5438DD5C71269869B /* PatchMailMIME.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2D25384D2D6DFB1195D0656 /* PatchMailMIME.swift */; };
 		96858E5400FE448CEE799A09 /* Fetch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 181B9FE19CD19EA7DAB1E824 /* Fetch.swift */; };
 		98048D0E5A3F46AB730E8DB2 /* TextConflictWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 396DA0B43F5B2A897481DC7E /* TextConflictWindow.swift */; };
@@ -271,6 +274,7 @@
 		C74FD1797BC0727D5BBFBFA6 /* BlameSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ABE7B92864A28F4229F6063 /* BlameSettings.swift */; };
 		C79E2D2625CC23A93974946E /* SubversionMergeDiff.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04D263E75220EBA0522F605A /* SubversionMergeDiff.swift */; };
 		C7F46AA23DC99E2E4AAFAD5D /* SubmoduleAddWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8547B7FA28A893C7D185689 /* SubmoduleAddWindow.swift */; };
+		C7FBD2873BDC70C3FFECB70D /* CommitIssueProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9360FE4E1923D5B727AC05FD /* CommitIssueProvider.swift */; };
 		C8FEE2A6E0B1D5FDE647F228 /* ExportWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26B86A4879EF89058692598F /* ExportWindow.swift */; };
 		C90C42AC6C78C7122C11B302 /* SerialPatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = B448BFA0806C28AEC8AE9126 /* SerialPatch.swift */; };
 		CA42C872966F166A14FB76F2 /* DiffToolSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = A061EE120C020CB545734E4A /* DiffToolSettings.swift */; };
@@ -459,6 +463,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		001BF3B476FF7414E244B9A6 /* IssueProviderWindows.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssueProviderWindows.swift; sourceTree = "<group>"; };
 		0116DCC8551A2AEF10D0BFB8 /* LogStatistics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogStatistics.swift; sourceTree = "<group>"; };
 		018E0B6FCDC123277FE2DB0C /* LFSLocks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LFSLocks.swift; sourceTree = "<group>"; };
 		022B0A05DF90D278FC860589 /* CreateRepositoryWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateRepositoryWindow.swift; sourceTree = "<group>"; };
@@ -542,6 +547,7 @@
 		3840500048AA0D9241AC5310 /* WorkingFileRestore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingFileRestore.swift; sourceTree = "<group>"; };
 		392877DE7F6A7F5BB1CC3391 /* LogAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogAppearance.swift; sourceTree = "<group>"; };
 		396DA0B43F5B2A897481DC7E /* TextConflictWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextConflictWindow.swift; sourceTree = "<group>"; };
+		3A16C71D5D9BCDAFE0100B40 /* NativeIssueProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeIssueProvider.swift; sourceTree = "<group>"; };
 		3A93F4AB3BFC676A7095AACC /* PatchPageSetup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchPageSetup.swift; sourceTree = "<group>"; };
 		3B2C20E57D290CF64F63761F /* TurtleGitCache.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TurtleGitCache.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		3BE14912ACD87B35508C186F /* GitBlamePresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitBlamePresentation.swift; sourceTree = "<group>"; };
@@ -656,6 +662,7 @@
 		9239515FD50D7B6B92A181A5 /* ComparisonFileList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComparisonFileList.swift; sourceTree = "<group>"; };
 		92BCC367833CF7B0CCC10BC6 /* NativeWatermarkTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeWatermarkTable.swift; sourceTree = "<group>"; };
 		92C50E53F34624CECCEC69FA /* LogSearchHighlights.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogSearchHighlights.swift; sourceTree = "<group>"; };
+		9360FE4E1923D5B727AC05FD /* CommitIssueProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitIssueProvider.swift; sourceTree = "<group>"; };
 		94119EBF871C901C8A360D50 /* HistoryFileCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryFileCache.swift; sourceTree = "<group>"; };
 		94460BAA2864B3BF68F01264 /* TurtleGitWCRev.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TurtleGitWCRev.swift; sourceTree = "<group>"; };
 		94E9E00A7AEA7A5BE84E3097 /* ProgressActionLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressActionLog.swift; sourceTree = "<group>"; };
@@ -746,6 +753,7 @@
 		D5BC4298E9DBF0AB06FA8087 /* GitModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitModels.swift; sourceTree = "<group>"; };
 		D621E333B5222878393878C2 /* PatchTargetMatching.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchTargetMatching.swift; sourceTree = "<group>"; };
 		D653B9C802C1DF2EE95F01A9 /* LogGraphDrawing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogGraphDrawing.swift; sourceTree = "<group>"; };
+		D7E6DA5F93A0F9287456B57C /* IssueProviderSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssueProviderSettings.swift; sourceTree = "<group>"; };
 		D7FAB28527E314AA877C27D3 /* MergeCommentProfiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeCommentProfiles.swift; sourceTree = "<group>"; };
 		D975B1620A435727724213D1 /* Merge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Merge.swift; sourceTree = "<group>"; };
 		DA1D2D9DD08218C53951382F /* StatusListGroups.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusListGroups.swift; sourceTree = "<group>"; };
@@ -891,6 +899,7 @@
 				0804A891E850FB3E19658ECD /* CommitContainingReferencesWindow.swift */,
 				6550FBB1F596C99DAC65C4C3 /* CommitFileDrop.swift */,
 				ADFF9F8C8624249F4AB965DF /* CommitFileInteraction.swift */,
+				9360FE4E1923D5B727AC05FD /* CommitIssueProvider.swift */,
 				4B4940FBDB475FC25EC9B3EC /* CommitMessageEditor.swift */,
 				4ED10F9E629EFB06F9F5F264 /* CommitWindow.swift */,
 				A4DD237526A9AB5C51C92B2B /* ConflictPrompts.swift */,
@@ -930,6 +939,8 @@
 				8507AEE60EB25AB3DFDC1830 /* ImageWindowPresentation.swift */,
 				2DE73255A1E5CE16B62BBCF7 /* ImportPatchWindow.swift */,
 				D4C6BF6E19AAE3084DA015CF /* InputWindow.swift */,
+				D7E6DA5F93A0F9287456B57C /* IssueProviderSettings.swift */,
+				001BF3B476FF7414E244B9A6 /* IssueProviderWindows.swift */,
 				EC889BB298CAB567A75F53F6 /* IssueRegexTester.swift */,
 				155C3080F23D2A10CD8EC65C /* IssueTrackerSettings.swift */,
 				D5A68AB404EF711AFEFE6135 /* LFSLocksWindow.swift */,
@@ -1190,6 +1201,7 @@
 				81E52787ACF6315F812EA290 /* MessageSnippets.swift */,
 				98FB2A1DFAD46AEBD2A7826D /* MessageSpelling.swift */,
 				E7A0AFE1810E078E1C6F598D /* MessageURLFinder.swift */,
+				3A16C71D5D9BCDAFE0100B40 /* NativeIssueProvider.swift */,
 				BA9C491D545F62D715E5BDA1 /* NetworkSettings.swift */,
 				3169F8F4F55DC037603B8A0D /* OperationCancellation.swift */,
 				E2D25384D2D6DFB1195D0656 /* PatchMailMIME.swift */,
@@ -1715,6 +1727,7 @@
 				02B318481C48E5ACC8497EF9 /* MessageSnippets.swift in Sources */,
 				9FCCF3C7B9757CF88874DA66 /* MessageSpelling.swift in Sources */,
 				603768B96A855B625D7D5E0C /* MessageURLFinder.swift in Sources */,
+				0D5BFCDC9D85ED08AF4BD084 /* NativeIssueProvider.swift in Sources */,
 				828742F77F4A7A8CC586389A /* NetworkSettings.swift in Sources */,
 				BD7B4EFF6714DB43BFECDB71 /* OperationCancellation.swift in Sources */,
 				95BAD6A5438DD5C71269869B /* PatchMailMIME.swift in Sources */,
@@ -1819,6 +1832,7 @@
 				4147FFF07AE3EC01FD10AA15 /* CommitContainingReferencesWindow.swift in Sources */,
 				399947645BD361DF78ED305C /* CommitFileDrop.swift in Sources */,
 				17FDB52BEE9F67B214702790 /* CommitFileInteraction.swift in Sources */,
+				C7FBD2873BDC70C3FFECB70D /* CommitIssueProvider.swift in Sources */,
 				E08926979B3B614AFB769298 /* CommitMessageEditor.swift in Sources */,
 				F5EE3ED18BC448DB2B9E658A /* CommitWindow.swift in Sources */,
 				1E72435F8842C227747192C5 /* ConflictPrompts.swift in Sources */,
@@ -1858,6 +1872,8 @@
 				36CCF97A9662F8905E4612BA /* ImageWindowPresentation.swift in Sources */,
 				EB87E339AFB2D76B191B19BB /* ImportPatchWindow.swift in Sources */,
 				ED662E435F530B7A19153FBC /* InputWindow.swift in Sources */,
+				2D9636CAF8ECE838038BF5F8 /* IssueProviderSettings.swift in Sources */,
+				954B7585EF0813B486DF9D5E /* IssueProviderWindows.swift in Sources */,
 				552406DDFBEB165400BBDC81 /* IssueRegexTester.swift in Sources */,
 				BE010DEA813D0B5A2AB75681 /* IssueTrackerSettings.swift in Sources */,
 				F93F7A1EFBB98F60DB0C7F4D /* LFSLocksWindow.swift in Sources */,

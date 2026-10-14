@@ -2,6 +2,13 @@
 
 *A macOS fork of TortoiseGit*
 
+Native Issue Tracker Integration now connects its formerly missing association
+page/editor and embedded provider to Commit, with project fallback, owned selection,
+message/ID results, pre-commit checks and completion interfaces. The two settings
+dialog families and Commit button have explicit partial native mappings.
+See [native issue-provider parity](NATIVE-ISSUE-PROVIDER-PARITY.md); Windows COM
+provider execution, vendor native ports and physical/signed acceptance remain open.
+
 The connected working-file Revert recovery batch adds owned cancellable preparation,
 streamed private-index Git output, captured progress closing policy, retained
 Trash locations/action logs and fresh-status Retry. Forced retirement keeps

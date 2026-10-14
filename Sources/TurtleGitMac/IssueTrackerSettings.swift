@@ -181,7 +181,12 @@ import TurtleGitCore
                 }
                 GroupBox("IBugTraqProvider") {
                     VStack(alignment:.leading,spacing:10) {field(.provider32,title:"Provider uuid win32:");field(.provider64,title:"Provider uuid x64:");field(.parameters,title:"Provider parameters:")
-                        Text("Windows provider IDs are preserved for shared repositories. Native tracker providers are not yet available.").font(.caption).foregroundStyle(.secondary)
+                        Text("Windows provider IDs are preserved for shared repositories. Configure native providers on the Issue Tracker Integration page. Windows COM providers require a native implementation.").font(.caption).foregroundStyle(.secondary)
+                    }.padding(8)
+                }
+                GroupBox("Native provider fallback") {
+                    VStack(alignment: .leading, spacing: 10) { field(.nativeProvider, title: "Native provider ID:"); field(.nativeParameters, title: "Native parameters:")
+                        Text("Native issue catalog ID: " + NativeIssueCatalogProvider.identifier + ". Enabled exact-path associations take priority.").font(.caption).foregroundStyle(.secondary)
                     }.padding(8)
                 }
                 HStack { Text("Save to:");Picker("Save to",selection:$model.destination) {

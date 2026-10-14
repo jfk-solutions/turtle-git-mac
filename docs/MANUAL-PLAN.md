@@ -106,3 +106,7 @@ New receiving-sheet screenshots and physical/signed acceptance remain pending.
 
 The [Reverting working files guide](REVERTING-FILES.md) covers the baseline,
 Trash recovery, protected-step cancellation, Retry and captured close policy.
+
+The [Issue tracker provider guide](ISSUE-PROVIDERS.md) documents the native
+association/editor and embedded catalog/Commit flow. Its new macOS screenshots,
+third-party provider ecosystem and physical/signed acceptance remain pending.

@@ -489,6 +489,30 @@
       ],
       "parity_document": "docs/IGNORE-PARITY.md",
       "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_SETTINGSBUGTRAQ",
+      "status": "partial-native-replacement",
+      "parity_document": "docs/NATIVE-ISSUE-PROVIDER-PARITY.md",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/IssueProviderSettings.swift",
+          "anchor": "struct IssueProviderSettingsPage"
+        }
+      ]
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_SETTINGSBUGTRAQADV",
+      "status": "partial-native-replacement",
+      "parity_document": "docs/NATIVE-ISSUE-PROVIDER-PARITY.md",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/IssueProviderWindows.swift",
+          "anchor": "class IssueProviderAssociationEditor"
+        }
+      ]
     }
   ]
 }

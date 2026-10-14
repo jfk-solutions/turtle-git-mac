@@ -1,0 +1,97 @@
+{
+  "date": "2026-10-14",
+  "base": "0a9d7924",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Native Issue Tracker Integration association list and advanced editor: enabled checkbox, exact working-tree path/browse, provider/parameters/Options, Add/Edit/Copy/Remove and Apply/Cancel",
+    "Versioned app-private archive with malformed-read preservation and exact enabled path resolution before effective project/local/global fallback",
+    "Native keys separated from preserved Windows UUID fields; existing settings scoped reader/writer supplies project fallback",
+    "Embedded Native issue catalog with button text, searched multi-selection retaining hidden checks, catalog ordering, previous generated-line replacement, required selection check and provider contracts",
+    "Commit provider button, captured draft/scope/lease selection, returned message/ID, validation before staging, completion call and reported post-commit failure semantics; retirement and pending-response Quit counters",
+    "Two source dialog family reviews and eighteen explicit partial control mappings, including Commit provider button"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "first_pass": true,
+      "log": "build/qa/native-issue-provider-debug-2026-10-14.log",
+      "diagnostics": "Existing exit-zero/no-output compiler diagnostics and warnings remain; no clean-diagnostics claim",
+      "follow_up": {
+        "exit": 0,
+        "log": "build/qa/native-issue-provider-debug-parent-close-2026-10-14.log",
+        "reason": "Final ownership inspection found the settings page retired its child on navigation only; explicit parent-window willClose retirement was added."
+      }
+    },
+    "core": {
+      "exit": 0,
+      "tests": 12,
+      "first_pass": true,
+      "families": {
+        "NativeIssueProviderTests": 3,
+        "IssueTrackerTests": 6,
+        "IssueTrackerSettingsTests": 3
+      },
+      "log": "build/qa/native-issue-provider-core-2026-10-14.log",
+      "evidence": [
+        "Catalog selection ordering, required check, exact previous-line replacement and invalid/unknown provider parameters",
+        "Exact enabled association priority without ancestor matching, archive round trip and malformed archive bytes preserved",
+        "Project/local fallback and association precedence while Windows UUID values remain preserved",
+        "Existing issue message validation/preparation and scoped settings regressions"
+      ]
+    },
+    "native": {
+      "exit": 0,
+      "first_pass": true,
+      "cases": 8,
+      "families": [
+        "native-issue-provider",
+        "issue-tracker-settings",
+        "commit-progress"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "owned_receivers_reaped": [
+        72422,
+        72561,
+        72607,
+        73875,
+        74012,
+        74057,
+        75733,
+        75916
+      ],
+      "receiver_pids_still_live_at_final_check": [],
+      "log": "build/qa/native-issue-provider-native-2026-10-14.log",
+      "evidence": [
+        "Actual association editor retains invalid path, commits draft only on OK, then Apply persists; Copy/Remove and parent Cancel retain correct identities/data",
+        "Required provider check leaves index/HEAD unchanged; actual owned issue picker Cancel leaves draft unchanged; filtered hidden selections retain catalog output order",
+        "Real Commit includes returned issue line/ID once and invokes success callback; retired delayed provider replies cannot overwrite draft and retain Quit lifetime until return",
+        "Existing effective/scoped issue settings, Tester ownership/validation/held save and actual checked/staged/ordinary/amend Commit progress/hook cancellation regressions"
+      ],
+      "follow_up": {
+        "exit": 0,
+        "cases": 2,
+        "family": "native-issue-provider",
+        "log": "build/qa/native-issue-provider-parent-close-2026-10-14.log",
+        "evidence": "Actual hosted integration page receives parent close, retires its editor and refuses a later accepted draft. Passing Core, issue settings and Commit progress families were not repeated."
+      }
+    },
+    "site": {
+      "exit": 0,
+      "documents": 210,
+      "unresolved_fragments": [],
+      "log": "build/qa/native-issue-provider-site-2026-10-14.log",
+      "final_log": "build/qa/native-issue-provider-site-final-2026-10-14.log"
+    }
+  },
+  "limitations": [
+    "Embedded catalog is a functional native provider, not execution or discovery of third-party Windows COM providers",
+    "Vendor native ports, external provider registration/isolation, network authentication/catalogs, arbitrary vendor options and full provider error fallback parity remain open",
+    "Commit numeric-ID validation still follows existing bugtraq.number configuration; catalog uses numeric IDs by default",
+    "Provider catalog completion has no remote write effects; native test verifies the commit/success route, not a remote service notification",
+    "Hidden native checks do not prove physical folder/Options/keyboard/theme/VoiceOver or signed security-scope delivery",
+    "All mapped controls remain partial; no certified complete dialog, hosted current-batch or App Store/full-port claim"
+  ]
+}

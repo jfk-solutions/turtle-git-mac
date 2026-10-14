@@ -352,6 +352,7 @@ extension GitRepository {
 
 public enum IssueTrackerStringKey: String, CaseIterable, Sendable {
     case url = "bugtraq.url", message = "bugtraq.message", label = "bugtraq.label"
+    case nativeProvider = "turtlegit.issueprovider", nativeParameters = "turtlegit.issueproviderparams"
     case parameters = "bugtraq.providerparams", provider32 = "bugtraq.provideruuid", provider64 = "bugtraq.provideruuid64", regex = "bugtraq.logregex"
 }
 public struct IssueTrackerSettings: Equatable, Sendable {
@@ -366,7 +367,7 @@ public struct IssueTrackerSettings: Equatable, Sendable {
         guard let newline = text.firstIndex(of:"\n") else { return (text.trimmingCharacters(in:.whitespacesAndNewlines), "") }
         return (String(text[..<newline]).trimmingCharacters(in:.whitespacesAndNewlines),String(text[text.index(after:newline)...]).trimmingCharacters(in:.whitespacesAndNewlines))
     }
-    static let pattern = "^bugtraq[.](url|message|label|providerparams|provideruuid|provideruuid64|append|number|warnifnoissue|logregex)$"
+    static let pattern = "^(bugtraq[.](url|message|label|providerparams|provideruuid|provideruuid64|append|number|warnifnoissue|logregex)|turtlegit[.](issueprovider|issueproviderparams))$"
     var values: [(String, String?)] {
         var values = IssueTrackerStringKey.allCases.filter { $0 != .regex }.map { key -> (String,String?) in
             let field = fields[key] ?? GitConfigurationIdentity(); return (key.rawValue,field.inherit ? nil:field.value)

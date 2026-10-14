@@ -2182,3 +2182,9 @@ menu actions also reject obsolete captures. A source operation cannot clear the
 busy state of its subsequent refresh. See
 [the workflow audit](COMMIT-FILE-WORKFLOWS-PARITY.md) for exact source gates,
 behavior and remaining physical/signed acceptance.
+
+The formerly missing IDC_BUGTRAQBUTTON has an embedded native provider workflow:
+association/fallback resolution, provider text, owned issue selection, returned
+message/ID, pre-commit check and completion callback. See
+[native issue-provider parity](NATIVE-ISSUE-PROVIDER-PARITY.md). Vendor COM/native
+provider ecosystem and physical/signed acceptance remain open.
