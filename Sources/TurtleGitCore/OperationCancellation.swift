@@ -14,7 +14,7 @@ public final class OperationCancellation: @unchecked Sendable {
     public init() {}
     public func cancel() { lock.lock(); cancelled = true; lock.unlock() }
     public var isCancelled: Bool { lock.lock(); defer { lock.unlock() }; return cancelled }
-    func check() throws { if isCancelled { throw OperationCancellationFailure.cancelled } }
+    public func check() throws { if isCancelled { throw OperationCancellationFailure.cancelled } }
 }
 
 public struct WorkingFileRevertProgress: Sendable {

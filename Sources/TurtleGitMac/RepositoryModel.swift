@@ -2052,6 +2052,7 @@ import TurtleGitCore
         let existing = rebaseWindows[root.path]
         if let existing, existing.window?.sheetParent != nil { existing.window?.makeKeyAndOrderFront(nil); return }
         let controller = existing ?? RebaseWindowController(repository: repository, access: access)
+        controller.configureReferencePicker = { [weak self] picker in self?.configureReferenceBrowser(picker, repository: repository, access: access) }
         var dismissed = false
         controller.onClosed = { [weak self, weak controller] in
             guard !dismissed else { return }; dismissed = true

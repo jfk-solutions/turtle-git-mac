@@ -48,3 +48,7 @@ and not retested. See the [scoped acceptance](qa/version-combo-2026-10-13.json).
 The connected [Log reference-navigation family](LOG-REFERENCE-NAVIGATION-PARITY.md)
 adds source reference-set scopes, multi-tip/range picking, bounded exact recents
 and owned browser/preparation lifetime. ChooseVersion histories remain session-only.
+
+The shared dropdown popup now rejects disabled/dismantled callbacks and deferred
+focus on retired controls. Rebase uses it with original reference icons; see
+[Rebase reference preparation](REBASE-REFERENCE-PREPARATION-PARITY.md).

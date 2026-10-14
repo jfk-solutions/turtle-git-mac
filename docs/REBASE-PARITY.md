@@ -28,9 +28,9 @@ retaining resolved changes until the step advances. Start, Skip and Abort have
 confirmations. Selecting commits
 loads their files/message without invalidating a concurrently loading plan.
 
-Branch/upstream fields are currently editable native combo boxes rather than
-upstream's dropdown-only controls. Browse is a filtered reference list, not the
-complete reference/log browser. Edit now uses a multiline message tab and Continue
+Branch/upstream now use dropdown-only native popups with the source reference
+kinds, and Browse/Onto open the full native reference browser. See the connected
+[reference/preparation audit](REBASE-REFERENCE-PREPARATION-PARITY.md). Edit now uses a multiline message tab and Continue
 applies it. Split opens full Commit selection dialogs, with durable part recovery.
 See [Edit/Split workflow](REBASE-SPLIT.md) and
 [Conflict Files](REBASE-CONFLICT-FILES.md). Pick/Edit conflict Continue now
@@ -486,3 +486,7 @@ its affirmative response retained all assertions and passed. No Core restart or
 app rebuild was needed for that fixture repair. This is family acceptance within
 the recorded scope, not certification of full source/physical/signed parity.
 See [recovery-family evidence](qa/recovery-family-2026-10-13.json).
+
+The [reference/preparation family](REBASE-REFERENCE-PREPARATION-PARITY.md) connects
+source dropdowns, Onto alias/Cancel rules, full browser ownership and cancellable
+initial/plan/detail reads. It remains scoped acceptance, not full Rebase parity.

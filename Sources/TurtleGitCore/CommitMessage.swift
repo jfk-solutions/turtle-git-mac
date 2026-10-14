@@ -314,15 +314,16 @@ struct EncodedCommitMessageFile {
 }
 
 extension GitRepository {
-    func commitMessageEncodingName() throws -> String {
-        do { return try run(["config", "--get", "i18n.commitencoding"]).text.trimmingCharacters(in: .newlines) }
+    func commitMessageEncodingName(cancellation: OperationCancellation? = nil) throws -> String {
+        do { return try run(["config", "--get", "i18n.commitencoding"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) }
         catch let failure as GitFailure where failure.code == 1 { return "" }
     }
     public func encodedCommitMessage(_ message: String) throws -> Data {
         try CommitMessageEncoding.encode(message, name: commitMessageEncodingName())
     }
-    public func decodedCommitMessage(_ data: Data) throws -> String {
-        try CommitMessageEncoding.decode(data, name: commitMessageEncodingName())
+    public func decodedCommitMessage(_ data: Data, cancellation: OperationCancellation? = nil) throws -> String {
+        try cancellation?.check()
+        return try CommitMessageEncoding.decode(data, name: commitMessageEncodingName(cancellation: cancellation))
     }
     func makeCommitMessageFile(_ message: String, appendFinalNewline: Bool = true) throws -> EncodedCommitMessageFile {
         let payload = !appendFinalNewline || message.hasSuffix("\n") ? message : message + "\n"

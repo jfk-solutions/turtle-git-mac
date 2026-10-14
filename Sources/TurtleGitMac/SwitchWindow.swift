@@ -427,6 +427,7 @@ struct ReferencePopup: NSViewRepresentable {
     let references: [CheckoutReference]
     @Binding var selection: String
     var accessibilityLabel: String? = nil
+    var displaysIcons = false
     var focusRequest = 0
     var onFocus: ((NSPopUpButton) -> Void)? = nil
     @Environment(\.isEnabled) private var enabled
@@ -443,20 +444,29 @@ struct ReferencePopup: NSViewRepresentable {
         if context.coordinator.names.map({ GitReferenceName($0) }) != names.map({ GitReferenceName($0) }) || button.numberOfItems == 0 {
             button.removeAllItems()
             // addItems(withTitles:) replaces canonically equivalent titles, but Git refs are byte-distinct.
-            for title in references.isEmpty ? ["No references"] : references.map(\.label) {
+            for title in references.isEmpty ? ["No references"] : references.map({ $0.name.isEmpty ? "Choose revision" : $0.label }) {
                 button.menu?.addItem(NSMenuItem(title: title, action: nil, keyEquivalent: ""))
             }
         }
+        for (index, reference) in references.enumerated() where index < button.numberOfItems {
+            button.item(at: index)?.image = displaysIcons && !reference.name.isEmpty ? (reference.isFetchHead ? MenuIcon.fetch : reference.target == .tag ? .tag : .branch).image() : nil
+            button.item(at: index)?.toolTip = reference.name
+        }
         context.coordinator.names = names
+        context.coordinator.live = true
         if let index = names.firstIndex(where: { GitReferenceName.equal($0, selection) }) { button.selectItem(at: index) }
         button.isEnabled = enabled && !references.isEmpty
         context.coordinator.change = { selection = $0 }
-        if focusRequest > 0, let onFocus { DispatchQueue.main.async { [weak button] in if let button { onFocus(button) } } }
+        if focusRequest > 0, let onFocus { DispatchQueue.main.async { [weak button, weak coordinator = context.coordinator] in if let button, coordinator?.live == true, button.isEnabled { onFocus(button) } } }
+    }
+    static func dismantleNSView(_ button: NSPopUpButton, coordinator: Coordinator) {
+        coordinator.live = false; coordinator.change = { _ in }; button.target = nil; button.action = nil; button.isEnabled = false
     }
     final class Coordinator: NSObject {
+        var live = true
         var names: [String] = []; var change: (String) -> Void = { _ in }
         @MainActor @objc func changed(_ sender: NSPopUpButton) {
-            guard names.indices.contains(sender.indexOfSelectedItem) else { return }; change(names[sender.indexOfSelectedItem])
+            guard live, sender.isEnabled, names.indices.contains(sender.indexOfSelectedItem) else { return }; change(names[sender.indexOfSelectedItem])
         }
     }
 }

@@ -9,6 +9,7 @@ public struct CheckoutReference: Identifiable, Sendable {
     public var id: String { name }
     public let name: String
     public let symbolicTarget: String?
+    public init(name: String, symbolicTarget: String? = nil) { self.name = name; self.symbolicTarget = symbolicTarget }
     public var isFetchHead: Bool { GitReferenceName.equal(name, "FETCH_HEAD") }
     public var remote: Bool { GitReferenceName.removingPrefix("refs/remotes/", from: name) != nil }
     public var target: CheckoutTarget? {

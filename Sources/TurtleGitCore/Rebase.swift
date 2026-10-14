@@ -309,19 +309,22 @@ private struct RebaseReplayIdentity: Codable {
     var id: String { occurrence == 0 ? hash : hash + ":" + String(occurrence) }
 }
 extension GitRepository {
-    private func rebaseRevision(_ name: String) throws -> String {
+    private func rebaseRevision(_ name: String, cancellation: OperationCancellation? = nil) throws -> String {
+        try cancellation?.check()
         guard !name.isEmpty, !name.contains("\0") else { throw RebaseFailure.revision }
-        guard let result = try? run(["rev-parse", "--verify", "--end-of-options", name + "^{commit}"]) else { throw RebaseFailure.revision }
+        guard let result = try? run(["rev-parse", "--verify", "--end-of-options", name + "^{commit}"], cancellation: cancellation) else { try cancellation?.check(); throw RebaseFailure.revision }
+        try cancellation?.check()
         return result.text.trimmingCharacters(in: .newlines)
     }
-    private func rebasePath(_ name: String) throws -> URL {
-        var bytes = try run(["rev-parse", "--git-path", name]).stdout
+    private func rebasePath(_ name: String, cancellation: OperationCancellation? = nil) throws -> URL {
+        var bytes = try run(["rev-parse", "--git-path", name], cancellation: cancellation).stdout
         if bytes.last == 10 { bytes.removeLast() }
         let path = String(decoding: bytes, as: UTF8.self)
         return path.hasPrefix("/") ? URL(fileURLWithPath: path) : root.appendingPathComponent(path)
     }
-    public func rebaseState() throws -> RebaseState {
-        let merge = try rebasePath("rebase-merge"), apply = try rebasePath("rebase-apply")
+    public func rebaseState(cancellation: OperationCancellation? = nil) throws -> RebaseState {
+        try cancellation?.check()
+        let merge = try rebasePath("rebase-merge", cancellation: cancellation), apply = try rebasePath("rebase-apply", cancellation: cancellation)
         let manager = FileManager.default
         let directory = manager.fileExists(atPath: merge.path) ? merge : apply
         let active = manager.fileExists(atPath: directory.path)
@@ -329,9 +332,9 @@ extension GitRepository {
         func line(_ file: String) -> String { read(file).trimmingCharacters(in: .newlines) }
         func readMessage() throws -> String {
             guard let data = try? Data(contentsOf: directory.appendingPathComponent("message")) else { return "" }
-            return try decodedCommitMessage(data)
+            return try decodedCommitMessage(data, cancellation: cancellation)
         }
-        let conflicts = active ? try run(["diff", "--name-only", "--diff-filter=U", "-z"]).stdout.split(separator: 0).map { String(decoding: $0, as: UTF8.self) } : []
+        let conflicts = active ? try run(["diff", "--name-only", "--diff-filter=U", "-z"], cancellation: cancellation).stdout.split(separator: 0).map { String(decoding: $0, as: UTF8.self) } : []
         let metadataURL = directory.appendingPathComponent("turtlegit-cherry-pick.json")
         let mapping = (try? JSONDecoder().decode([String: String].self, from: Data(contentsOf: metadataURL))) ?? [:]
         let stopped = line("stopped-sha")
@@ -360,9 +363,10 @@ extension GitRepository {
         let editPause = active && conflicts.isEmpty && action == .edit && (mergeEdit || manager.fileExists(atPath: directory.appendingPathComponent("amend").path) || split?.step == step && (split?.conflictRecovery == true && (split?.parts ?? 0) > 0 || split?.conflictRecoveryReturn != nil))
         let pending = request?.step == step && conflicts.isEmpty ? request : nil
         let activeSplit = split?.step == step && split?.entryID == stoppedIdentity ? split : nil
-        let mergeResult = active && structural && (editPause || pending != nil) ? try rebaseCommit("HEAD").parents.count > 1 : false
+        let mergeResult = active && structural && (editPause || pending != nil) ? try rebaseCommit("HEAD", cancellation: cancellation).parents.count > 1 : false
+        try cancellation?.check()
         return RebaseState(active: active, isCherryPick: active && manager.fileExists(atPath: metadataURL.path), branch: line("head-name"), originalHead: line("orig-head"), onto: line("onto"),
-                           stoppedEntryID: stoppedIdentity, stoppedCommit: originalStopped, mergeParents: active ? ((try? String(contentsOf:rebasePath("MERGE_HEAD"),encoding:.utf8)) ?? "").split(whereSeparator: \.isWhitespace).map(String.init) : [], message: mergeEdit || activeSplit?.conflictRecovery == true || activeSplit?.conflictRecoveryReturn != nil ? try rebaseCommit("HEAD").message : try readMessage(), currentStep: step,
+                           stoppedEntryID: stoppedIdentity, stoppedCommit: originalStopped, mergeParents: active ? ((try? String(contentsOf:rebasePath("MERGE_HEAD", cancellation: cancellation),encoding:.utf8)) ?? "").split(whereSeparator: \.isWhitespace).map(String.init) : [], message: mergeEdit || activeSplit?.conflictRecovery == true || activeSplit?.conflictRecoveryReturn != nil ? try rebaseCommit("HEAD", cancellation: cancellation).message : try readMessage(), currentStep: step,
                            total: referenceUpdates || structural ? identities.count : Int(line("end")) ?? Int(line("last")) ?? 0, conflicts: conflicts,
                            remainingCommands: structural ? commands.compactMap { command in
                                let fields = command.split(separator:" ").map(String.init)
@@ -405,57 +409,69 @@ extension GitRepository {
         }
         return entries
     }
-    private func currentRebaseBranch() throws -> String {
-        ((try? run(["symbolic-ref", "--quiet", "HEAD"]).text) ?? "").trimmingCharacters(in: .newlines)
+    private func currentRebaseBranch(cancellation: OperationCancellation? = nil) throws -> String {
+        try cancellation?.check()
+        let value = ((try? run(["symbolic-ref", "--quiet", "HEAD"], cancellation: cancellation).text) ?? "").trimmingCharacters(in: .newlines)
+        try cancellation?.check(); return value
     }
     /// Input follows the Log's newest-first visible selection; execution is oldest-first.
-    public func cherryPickPlan(revisions: [String]) throws -> RebasePlan {
-        guard !(try rebaseState().active) else { throw RebaseFailure.active }
+    public func cherryPickPlan(revisions: [String], cancellation: OperationCancellation? = nil) throws -> RebasePlan {
+        guard !(try rebaseState(cancellation: cancellation).active) else { throw RebaseFailure.active }
         guard !revisions.isEmpty else { throw RebaseFailure.plan }
-        let commits = try revisions.reversed().map { try rebaseCommit($0) }
+        let commits = try revisions.reversed().map { try rebaseCommit($0, cancellation: cancellation) }
         guard Set(commits.map(\.hash)).count == commits.count else { throw RebaseFailure.plan }
-        let head = try rebaseRevision("HEAD"), branch = try currentRebaseBranch()
+        let head = try rebaseRevision("HEAD", cancellation: cancellation), branch = try currentRebaseBranch(cancellation: cancellation)
         var options = RebaseOptions(); options.branch = "HEAD"; options.upstream = head; options.force = true; options.isCherryPick = true
+        try cancellation?.check()
         return RebasePlan(disposition: .ready, options: options, branchHash: head, upstreamHash: head, ontoHash: head,
                           branchReference: branch, originalCommits: commits.map(\.hash), entries: commits.map { RebaseEntry(commit: $0) })
     }
-    public func rebasePlan(_ options: RebaseOptions) throws -> RebasePlan {
+    public func rebasePlan(_ options: RebaseOptions, cancellation: OperationCancellation? = nil) throws -> RebasePlan {
+        try cancellation?.check()
         guard !options.isCherryPick else { throw RebaseFailure.plan }
-        guard !(try rebaseState().active) else { throw RebaseFailure.active }
-        let branchHash = try rebaseRevision(options.branch), upstreamHash = try rebaseRevision(options.upstream)
-        let ontoHash = options.onto.isEmpty ? upstreamHash : try rebaseRevision(options.onto)
-        let symbolic = ((try? run(["rev-parse", "--symbolic-full-name", "--verify", "--end-of-options", options.branch]).text) ?? "").trimmingCharacters(in: .newlines)
+        guard !(try rebaseState(cancellation: cancellation).active) else { throw RebaseFailure.active }
+        let branchHash = try rebaseRevision(options.branch, cancellation: cancellation), upstreamHash = try rebaseRevision(options.upstream, cancellation: cancellation)
+        let ontoHash = options.onto.isEmpty ? upstreamHash : try rebaseRevision(options.onto, cancellation: cancellation)
+        let symbolic = ((try? run(["rev-parse", "--symbolic-full-name", "--verify", "--end-of-options", options.branch], cancellation: cancellation).text) ?? "").trimmingCharacters(in: .newlines)
+        try cancellation?.check()
         let branchReference = symbolic.hasPrefix("refs/heads/") ? symbolic : ""
         var args = ["log", "--encoding=UTF-8", "--reverse", "--topo-order", "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00%cn%x00%ce%x00%cI%x00"]
         if !options.preserveMerges { args.append("--no-merges") }
         args += [upstreamHash + ".." + branchHash, "--"]
-        let commits = LogEntry.parseReplayHistory(try run(args).stdout)
-        let cherry = try run(["cherry", upstreamHash, branchHash]).text
+        let commits = LogEntry.parseReplayHistory(try run(args, cancellation: cancellation).stdout)
+        let cherry = try run(["cherry", upstreamHash, branchHash], cancellation: cancellation).text
         let redundant = Set(cherry.split(separator: "\n").compactMap { line -> String? in
             let parts = line.split(separator: " "); return parts.count == 2 && parts[0] == "-" ? String(parts[1]) : nil
         })
         let disposition: RebaseDisposition
         if branchHash == ontoHash && branchHash == upstreamHash { disposition = .equal }
-        else if options.onto.isEmpty && !options.force && (try? run(["merge-base", "--is-ancestor", branchHash, upstreamHash])) != nil { disposition = .fastForward }
-        else if options.onto.isEmpty && !options.force && (try? run(["merge-base", "--is-ancestor", upstreamHash, branchHash])) != nil { disposition = .upToDate }
+        else if options.onto.isEmpty && !options.force {
+            let forward = try run(["merge-base", "--is-ancestor", branchHash, upstreamHash], successfulExitCodes: 0...1, cancellation: cancellation)
+            if forward.exitCode == 0 { disposition = .fastForward }
+            else {
+                let current = try run(["merge-base", "--is-ancestor", upstreamHash, branchHash], successfulExitCodes: 0...1, cancellation: cancellation)
+                disposition = current.exitCode == 0 ? .upToDate : .ready
+            }
+        }
         else { disposition = .ready }
+        try cancellation?.check()
         return RebasePlan(disposition: disposition, options: options, branchHash: branchHash, upstreamHash: upstreamHash, ontoHash: ontoHash,
                           branchReference: branchReference, originalCommits: commits.map(\.hash),
                           entries: commits.map { RebaseEntry(commit: $0, action: redundant.contains($0.hash) && !options.force && !options.preserveMerges ? .skip : .pick) })
     }
-    public func rebaseCommit(_ revision: String) throws -> LogEntry {
-        let hash = try rebaseRevision(revision)
-        let result = try run(["show", "--encoding=UTF-8", "-s", "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00%cn%x00%ce%x00%cI%x00", hash, "--"])
+    public func rebaseCommit(_ revision: String, cancellation: OperationCancellation? = nil) throws -> LogEntry {
+        let hash = try rebaseRevision(revision, cancellation: cancellation)
+        let result = try run(["show", "--encoding=UTF-8", "-s", "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00%cn%x00%ce%x00%cI%x00", hash, "--"], cancellation: cancellation)
         guard let entry = LogEntry.parseReplayHistory(result.stdout).first else { throw RebaseFailure.revision }
         return entry
     }
-    public func remainingRebaseEntries() throws -> [RebaseEntry] {
-        let state = try rebaseState()
+    public func remainingRebaseEntries(cancellation: OperationCancellation? = nil) throws -> [RebaseEntry] {
+        let state = try rebaseState(cancellation: cancellation)
         guard state.active else { return [] }
-        let identities = replayIdentities(try rebasePath("rebase-merge"))
+        let identities = replayIdentities(try rebasePath("rebase-merge", cancellation: cancellation))
         var result: [RebaseEntry] = []
         func recovered(_ hash: String, action: RebaseAction, position: Int) throws -> RebaseEntry {
-            var entry = RebaseEntry(commit: try rebaseCommit(hash), action: action)
+            var entry = RebaseEntry(commit: try rebaseCommit(hash, cancellation: cancellation), action: action)
             if identities.indices.contains(position), identities[position].hash == entry.commit.hash { entry.occurrence = identities[position].occurrence }
             return entry
         }
@@ -469,10 +485,10 @@ extension GitRepository {
         return result
     }
     /// Full original replay list for native progress display, including completed occurrences.
-    public func rebaseReplayEntries() throws -> [RebaseEntry] {
-        let state = try rebaseState()
+    public func rebaseReplayEntries(cancellation: OperationCancellation? = nil) throws -> [RebaseEntry] {
+        let state = try rebaseState(cancellation: cancellation)
         guard state.active else { return [] }
-        let directory = try rebasePath("rebase-merge")
+        let directory = try rebasePath("rebase-merge", cancellation: cancellation)
         let identities = replayIdentities(directory)
         // Older sessions retain hashes/occurrences; recover their actions from Git's commands.
         let done = (try? String(contentsOf: directory.appendingPathComponent("done"), encoding: .utf8)) ?? ""
@@ -480,10 +496,10 @@ extension GitRepository {
             guard let word = line.split(separator: " ").first else { return nil }
             return RebaseAction(rawValue: String(word))
         }
-        guard !identities.isEmpty else { return try remainingRebaseEntries() }
+        guard !identities.isEmpty else { return try remainingRebaseEntries(cancellation: cancellation) }
         let skipped = (try? JSONDecoder().decode(Set<Int>.self, from: Data(contentsOf: directory.appendingPathComponent("turtlegit-skipped-steps.json")))) ?? []
         return try identities.enumerated().map { index, identity in
-            var entry = RebaseEntry(commit: try rebaseCommit(identity.hash))
+            var entry = RebaseEntry(commit: try rebaseCommit(identity.hash, cancellation: cancellation))
             entry.occurrence = identity.occurrence
             entry.action = identity.action.flatMap(RebaseAction.init(rawValue:)) ?? (commands.indices.contains(index) ? commands[index] : .pick)
             if skipped.contains(index + 1) { entry.action = .skip }
@@ -869,5 +885,19 @@ extension GitRepository {
         let revisions = svn ? try IssueRegexRuntime.svnRevisions(commits.map { $0.historySubject + "\n" + $0.historyBody },executable:executable,cancellation:cancellation) : []
         try cancellation?.check()
         return ReplayColumnMetadata(showsIssueIDs:properties.showsBugIDColumn,hasGitSVN:svn,issueIDs:issues,svnRevisions:Dictionary(uniqueKeysWithValues:zip(commits.map(\.hash),revisions)))
+    }
+}
+
+
+extension GitRepository {
+    /// RebaseDlg clears Onto when it aliases Branch or Upstream, even via another ref/tag.
+    public func rebaseOntoSelection(_ candidate: String, branch: String, upstream: String, cancellation: OperationCancellation? = nil) throws -> String? {
+        try cancellation?.check()
+        guard !candidate.isEmpty else { return nil }
+        let onto = try rebaseRevision(candidate, cancellation: cancellation)
+        let branchHash = try rebaseRevision(branch, cancellation: cancellation)
+        let upstreamHash = try rebaseRevision(upstream, cancellation: cancellation)
+        try cancellation?.check()
+        return onto == branchHash || onto == upstreamHash ? nil : candidate
     }
 }

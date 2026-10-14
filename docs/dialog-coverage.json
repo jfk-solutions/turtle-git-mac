@@ -2167,6 +2167,7 @@
       "missing_native_references": [],
       "parity_documents": [
         "docs/REBASE-PARITY.md",
+        "docs/REBASE-REFERENCE-PREPARATION-PARITY.md",
         "docs/UI-PARITY.md"
       ],
       "qa_records": [
@@ -2177,6 +2178,7 @@
         "docs/qa/rebase-columns-2026-10-13.json",
         "docs/qa/rebase-conditional-2026-10-13.json",
         "docs/qa/rebase-list-interaction-2026-10-06.json",
+        "docs/qa/rebase-references-2026-10-14.json",
         "docs/qa/rebase-row-drag-2026-10-13.json",
         "docs/qa/rebase-split-return-2026-10-06.json",
         "docs/qa/recovery-family-2026-10-13.json",

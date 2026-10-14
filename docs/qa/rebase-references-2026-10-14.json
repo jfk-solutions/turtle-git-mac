@@ -1,0 +1,95 @@
+{
+  "date": "2026-10-14",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Rebase dropdown-only Branch/Upstream reference kinds, exact presets and original icons",
+    "Full owned Upstream/Onto browser, Onto alias/Cancel/presentation rules and late request fences",
+    "Cancellable initial/ordinary/Cherry Pick plan/state/replay/detail reads and immutable generation ownership",
+    "Accepted unchanged reference refresh, coalesced field notifications and shared disabled/dismantled popup callbacks"
+  ],
+  "validation": {
+    "debug_initial": {
+      "exit": 65,
+      "tests_run": 0,
+      "log": "build/qa/rebase-references-debug-2026-10-14.log"
+    },
+    "debug_boundary_repair": {
+      "exit": 0,
+      "log": "build/qa/rebase-references-debug-repair-2026-10-14.log"
+    },
+    "core_group": {
+      "exit": 1,
+      "tests": 96,
+      "failed_tests": 1,
+      "scope": "RebaseTests, CheckoutTests, CommitMessageTests",
+      "log": "build/qa/rebase-references-core-2026-10-14.log"
+    },
+    "core_cancellation_recheck": {
+      "exit": 0,
+      "tests": 1,
+      "log": "build/qa/rebase-references-core-cancellation-2026-10-14.log",
+      "result": "All 96 affected tests have cumulative passing evidence; only the actual failed cancellation fixture was repeated."
+    },
+    "native_group": {
+      "exit": 0,
+      "cases": 10,
+      "families": [
+        "rebase-references",
+        "rebase-conditional",
+        "rebase-columns",
+        "rebase-row-drag",
+        "version-combo"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "owned_receivers_reaped": [
+        69149,
+        69421,
+        69491,
+        71115,
+        72410,
+        72522,
+        73018,
+        73186,
+        73344,
+        74576
+      ],
+      "log": "build/qa/rebase-references-native-2026-10-14.log"
+    },
+    "accepted_reference_freshness": {
+      "debug_exit": 0,
+      "native_exit": 0,
+      "native_cases": 2,
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "owned_receivers_reaped": [
+        82379,
+        82632
+      ],
+      "logs": [
+        "build/qa/rebase-references-debug-fresh-2026-10-14.log",
+        "build/qa/rebase-references-native-fresh-2026-10-14.log"
+      ],
+      "result": "Only the affected reference family was repeated after source review required accepted same-name refs to refresh their captured plan hash."
+    },
+    "ownership": {
+      "total_receivers": 12,
+      "all_reaped": true
+    }
+  },
+  "repairs": [
+    "The new app-side read fence called OperationCancellation.check, which was internal to Core. Exposed that existing cooperative check publicly and rebuilt; no tests ran on the first failed compilation.",
+    "The real started-Git cancellation fixture caught only OperationCancellationFailure. GitRepository preserves started-command cancellation as GitCommandCancellationFailure with its result. The fixture accepts both cancellation types, checks the token and retains exact HEAD/index/file assertions.",
+    "PickRefForCombo returns true for an accepted unchanged reference name. Native accepted Upstream/Onto choices now bypass the option-signature cache; the added real-ref-move native assertion verifies a fresh hash."
+  ],
+  "limits": [
+    "Hidden owned receivers exercise actual native dropdown/disabled actions and sheets, not full physical popup/Return/Escape/VoiceOver or current screenshot acceptance",
+    "Active replay mutation/refresh, complete conflict menus and reference tooltip metadata remain partial",
+    "Signed scopes/Finder/App Store execution and complete hosted CI are unverified",
+    "The complete TortoiseGit port remains unfinished"
+  ]
+}

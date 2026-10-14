@@ -2,6 +2,53 @@ import XCTest
 @testable import TurtleGitCore
 
 final class RebaseTests: XCTestCase {
+    func testOntoSelectionClearsEquivalentReferencesAndKeepsDistinctIdentity() async throws {
+        let (root, repo, _) = try await fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        _ = try await repo.run(["tag", "alias-topic", "topic"])
+        _ = try await repo.run(["tag", "alias-upstream", "upstream"])
+        let branch = "refs/heads/topic", upstream = "refs/heads/upstream"
+        let topicAlias = try await repo.rebaseOntoSelection("refs/tags/alias-topic", branch: branch, upstream: upstream)
+        let upstreamAlias = try await repo.rebaseOntoSelection("refs/tags/alias-upstream", branch: branch, upstream: upstream)
+        let separate = try await repo.rebaseOntoSelection("refs/heads/main", branch: branch, upstream: upstream)
+        XCTAssertNil(topicAlias); XCTAssertNil(upstreamAlias); XCTAssertEqual(separate, "refs/heads/main")
+        do { _ = try await repo.rebaseOntoSelection("missing", branch: branch, upstream: upstream); XCTFail("Invalid Onto accepted") } catch RebaseFailure.revision {}
+        let cancelled = OperationCancellation(); cancelled.cancel()
+        do { _ = try await repo.rebaseOntoSelection("refs/heads/main", branch: branch, upstream: upstream, cancellation: cancelled); XCTFail("Cancelled Onto accepted") } catch is OperationCancellationFailure {}
+        do { _ = try await repo.rebasePlan(options(), cancellation: cancelled); XCTFail("Cancelled plan accepted") } catch is OperationCancellationFailure {}
+        do { _ = try await repo.rebaseState(cancellation: cancelled); XCTFail("Cancelled state accepted") } catch is OperationCancellationFailure {}
+        do { _ = try await repo.cherryPickPlan(revisions: [branch], cancellation: cancelled); XCTFail("Cancelled Cherry Pick accepted") } catch is OperationCancellationFailure {}
+    }
+
+    func testStartedPlanCancellationPreservesHeadIndexAndWorkingFiles() async throws {
+        let (root, repo, _) = try await fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let head = try await repo.run(["rev-parse", "HEAD"]).stdout, index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let contents = try Data(contentsOf: root.appendingPathComponent("first.txt"))
+        let helper = root.appendingPathComponent("slow-plan-git"), marker = root.appendingPathComponent("plan-started")
+        let script = """
+        #!/bin/sh
+        if [ "$4" = log ]; then
+          : > "$3/plan-started"
+          /bin/sleep 30
+        fi
+        exec /usr/bin/git "$@"
+        """
+        try Data(script.utf8).write(to: helper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
+        let slow = GitRepository(root: root, executable: helper), token = OperationCancellation(), settings = options()
+        let task = Task { try await slow.rebasePlan(settings, cancellation: token) }
+        for _ in 0..<500 { if FileManager.default.fileExists(atPath: marker.path) { break }; try await Task.sleep(nanoseconds: 10_000_000) }
+        XCTAssertTrue(FileManager.default.fileExists(atPath: marker.path)); token.cancel()
+        do { _ = try await task.value; XCTFail("Started plan escaped cancellation") }
+        catch is OperationCancellationFailure {}
+        catch is GitCommandCancellationFailure {}
+        XCTAssertTrue(token.isCancelled)
+        let after = try await repo.run(["rev-parse", "HEAD"]).stdout
+        XCTAssertEqual(after, head); XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent("first.txt")), contents)
+        let state = try await repo.rebaseState(); XCTAssertFalse(state.active)
+    }
+
     var editor: URL { if let path = ProcessInfo.processInfo.environment["TURTLEGIT_REBASE_EDITOR"] { return URL(fileURLWithPath:path) }; return URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent(".build/debug/TurtleGitMac") }
     func fixture(conflict: Bool = false) async throws -> (URL, GitRepository, String) {
         let (root, original, path) = try await GitPatchTests().fixture()
