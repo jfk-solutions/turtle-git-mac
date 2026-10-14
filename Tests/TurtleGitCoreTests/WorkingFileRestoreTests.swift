@@ -2,6 +2,24 @@ import XCTest
 @testable import TurtleGitCore
 
 final class WorkingFileRestoreTests: XCTestCase {
+    func testCancelledCaptureRestoreAndAmendUnstagePreserveCurrentBytesAndIndex() async throws {
+        let (root, repo, path) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let copy = try await repo.captureWorkingFileRestoreCopy(path: path)
+        let changed = Data("later changed\n".utf8)
+        try changed.write(to: root.appendingPathComponent(path))
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let token = OperationCancellation(); token.cancel()
+        do { _ = try await repo.captureWorkingFileRestoreCopy(path: path, cancellation: token); XCTFail("Cancelled capture succeeded") }
+        catch OperationCancellationFailure.cancelled {}
+        do { try await repo.restoreWorkingFile(copy, cancellation: token); XCTFail("Cancelled restoration wrote data") }
+        catch OperationCancellationFailure.cancelled {}
+        do { try await repo.unstageCommitPaths([path], amendToParent: true, cancellation: token); XCTFail("Cancelled amend unstage wrote index") }
+        catch OperationCancellationFailure.cancelled {}
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), changed)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+    }
+
     func testRevealSelectsLiteralFilesAndLinksOrOpensNearestExistingFolderWithoutCheckout() async throws {
         let (root, repo, path) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

@@ -1551,3 +1551,15 @@ pass. The 14 October inline record identifies all four actual executions and
 which families passed in each. No app/Core rebuild or rerun was performed for
 fixture-only corrections. Diagnostic captures were rejected for incomplete
 chrome and were not copied to the website. See [inline parity](MERGE-INLINE-PARITY.md).
+
+Commit file-menu ownership uses one reference batch with
+`--only commit-file-workflows --only commit-drop --only working-tree-lifecycle
+--only working-tree-file-menu --only submodule-handoffs` against system and bundled
+Git. It checks captured menu/panel/name replies, source missing/rename gates,
+actual Export/Restore/Delete/changelist operations, cancellation after Git starts,
+a held subsequent refresh's busy state, retired replies and Quit ownership. It
+injects external app receiving/panels and touches only private inputs/preferences;
+physical dialogs, Trash/editor/Finder launches and signed grants are not proved.
+Core covers the affected Restore/Amend/Add/Delete/Export/changelist APIs, including
+cancelled restore/amend-unstage preserving bytes and index. See
+[the connected workflow audit](COMMIT-FILE-WORKFLOWS-PARITY.md).

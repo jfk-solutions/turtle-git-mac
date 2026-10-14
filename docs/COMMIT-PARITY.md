@@ -2170,3 +2170,13 @@ hooks, cancellation and post-actions. All four receivers were reaped. No Core
 suite was rerun for this app-only batch. Source color-store wiring is checked;
 rendered color/contrast and physical warning/checkbox gestures remain open.
 [Batch evidence](qa/commit-preferences-2026-10-13.json) records the exact scope.
+
+## Connected file-menu workflows — October 14, 2026
+
+Commit now uses captured menu ownership and cancellable file-operation lifetime
+for its connected status-list workflows, including pending Open With/Export/
+Delete/Restore replies, staging, flags, Add and changelists. Group and nested
+menu actions also reject obsolete captures. A source operation cannot clear the
+busy state of its subsequent refresh. See
+[the workflow audit](COMMIT-FILE-WORKFLOWS-PARITY.md) for exact source gates,
+behavior and remaining physical/signed acceptance.

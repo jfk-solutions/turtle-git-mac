@@ -29,10 +29,11 @@ public final class WorkingFileRestoreCopy: @unchecked Sendable {
 }
 
 extension GitRepository {
-    public func captureWorkingFileRestoreCopy(path: String, allowUnversioned: Bool = false) throws -> WorkingFileRestoreCopy {
-        if !allowUnversioned { guard try trackedPaths().contains(path) else { throw WorkingFileRestoreFailure.selection } }
+    public func captureWorkingFileRestoreCopy(path: String, allowUnversioned: Bool = false, cancellation: OperationCancellation? = nil) throws -> WorkingFileRestoreCopy {
+        try cancellation?.check()
+        if !allowUnversioned { guard try trackedPaths(cancellation: cancellation).contains(path) else { throw WorkingFileRestoreFailure.selection } }
         let location = try restoreLocation(path)
-        if allowUnversioned { try validateRestoreOwner(location) }
+        if allowUnversioned { try validateRestoreOwner(location, cancellation: cancellation) }
         let manager = FileManager.default
         let before = try manager.attributesOfItem(atPath: location.path)
         let type = before[.type] as? FileAttributeType
@@ -48,18 +49,20 @@ extension GitRepository {
                 guard (before[key] as? NSObject) == (after[key] as? NSObject) else { throw WorkingFileRestoreFailure.changed }
             }
             if let target, target != (try manager.destinationOfSymbolicLink(atPath: location.path)) { throw WorkingFileRestoreFailure.changed }
+            try cancellation?.check()
             return WorkingFileRestoreCopy(path: path, root: root, directory: directory,
                 permissions: (before[.posixPermissions] as? NSNumber)?.intValue ?? 0o644, linkTarget: target)
         } catch { try? manager.removeItem(at: directory); throw error }
     }
-    public func restoreWorkingFile(_ copy: WorkingFileRestoreCopy) throws {
+    public func restoreWorkingFile(_ copy: WorkingFileRestoreCopy, cancellation: OperationCancellation? = nil) throws {
+        try cancellation?.check()
         guard copy.root == root else { throw WorkingFileRestoreFailure.location }
         let location = try restoreLocation(copy.path), manager = FileManager.default
         if let attributes = try? manager.attributesOfItem(atPath: location.path) {
             let type = attributes[.type] as? FileAttributeType
             guard type == .typeRegular || type == .typeSymbolicLink else { throw WorkingFileRestoreFailure.unsupported }
         }
-        try validateRestoreOwner(location)
+        try validateRestoreOwner(location, cancellation: cancellation)
         let temporary = location.deletingLastPathComponent().appendingPathComponent(".TurtleGitRestore-" + UUID().uuidString)
         defer { try? manager.removeItem(at: temporary) }
         if let target = copy.linkTarget { try manager.createSymbolicLink(atPath: temporary.path, withDestinationPath: target) }
@@ -67,12 +70,13 @@ extension GitRepository {
             try manager.copyItem(at: copy.directory.appendingPathComponent("contents"), to: temporary)
             try manager.setAttributes([.posixPermissions: copy.permissions, .modificationDate: Date()], ofItemAtPath: temporary.path)
         }
+        try cancellation?.check()
         guard Darwin.rename(temporary.path, location.path) == 0 else {
             throw GitFailure(arguments: ["restore working copy"], code: 1, message: String(cString: strerror(errno)))
         }
     }
-    private func validateRestoreOwner(_ location: URL) throws {
-        var owner = try run(["-C", location.deletingLastPathComponent().path, "rev-parse", "--show-toplevel"]).stdout
+    private func validateRestoreOwner(_ location: URL, cancellation: OperationCancellation? = nil) throws {
+        var owner = try run(["-C", location.deletingLastPathComponent().path, "rev-parse", "--show-toplevel"], cancellation: cancellation).stdout
         if owner.last == 10 { owner.removeLast() }
         guard URL(fileURLWithPath: String(decoding: owner, as: UTF8.self)).resolvingSymlinksInPath().path == root.resolvingSymlinksInPath().path else { throw WorkingFileRestoreFailure.location }
     }

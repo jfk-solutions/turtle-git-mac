@@ -1,0 +1,94 @@
+{
+  "date": "2026-10-14",
+  "scope": "Connected Commit status-list captured menus, pending native panels, cancellable file actions/restoration/changelists/staging and shared Working Tree completion cleanup. Partial dialog/app parity.",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implemented": [
+    "Captured displayed files/focus mark and generation gates across all Commit menu/group/nested actions",
+    "Source marked/missing/rename gates and existing-ancestor reveal; original icons retained",
+    "Owned Open With/Export/Delete/Restore async replies with stale/retired refusal and independent Quit accounting",
+    "Cancellable Add/Stage/Unstage/flags/Delete/Export/restore-copy/changelist actions, captured amend/staging intent and retained diagnostics",
+    "Captured new-changelist reply; ignore-on-commit still unchecks and unstages captured paths in staging mode",
+    "Cancel reaches shared submodule lookup token in Commit and Working Tree",
+    "Old completion clears only its own token before starting a fresh reload; cannot clear new busy state",
+    "Restoration cancellation before copy publication/atomic target replacement; completed writes retained"
+  ],
+  "build": {
+    "configuration": "Debug",
+    "architecture": "arm64",
+    "signed": false,
+    "exitCode": 0,
+    "log": "build/qa/commit-file-workflows-build-final-2026-10-14.log",
+    "attempts": 2,
+    "initialFailure": "Missing closing brace in added sort observer. Fixed before any native checks; also completed shared submodule cancellation propagation."
+  },
+  "core": {
+    "exitCode": 0,
+    "tests": 42,
+    "suites": [
+      "WorkingFileRestoreTests",
+      "CommitAmendTests",
+      "WorkingFileDeleteTests",
+      "WorkingFileAddTests",
+      "ChangelistTests",
+      "WorkingFileExportTests"
+    ],
+    "log": "build/qa/commit-file-workflows-core-final-2026-10-14.log",
+    "attempts": 2,
+    "initialFailure": "App target compile failed on the same missing brace; no tests executed in that attempt. Final affected group passed."
+  },
+  "native": {
+    "exitCode": 0,
+    "receiverProcesses": 10,
+    "compilations": 1,
+    "cases": [
+      "commit-file-workflows",
+      "commit-drop",
+      "working-tree-lifecycle",
+      "working-tree-file-menu",
+      "submodule-handoffs"
+    ],
+    "git": [
+      "system /usr/bin/git",
+      "bundled Debug app Git"
+    ],
+    "log": "build/qa/commit-file-workflows-native-2026-10-14.log",
+    "firstGroupedRunPassed": true,
+    "allReceiversReaped": true,
+    "remainingOwnedReceiversOrSlowGit": [],
+    "checks": [
+      "Source marked/missing/renamed path gates",
+      "Stale menu and changelist-name refusal",
+      "Pending/retired panel and Quit lifetime",
+      "Captured app/working-file export with actual bytes",
+      "Restore and permanent Delete No/Yes",
+      "Real Git child cancellation after staging begins",
+      "Held fresh refresh remains busy after old operation finishes",
+      "Cancellation diagnostic retained",
+      "HEAD preserved and read-only actions preserve index",
+      "Existing Drop/Working Tree/submodule regressions"
+    ],
+    "externalAppsLaunched": false,
+    "panelsAndReceivingApps": "Injected; physical/native panel input and launch acceptance not claimed."
+  },
+  "site": {
+    "exitCode": 0,
+    "log": "build/qa/commit-file-workflows-site-final-2026-10-14.log"
+  },
+  "remaining": [
+    "Physical panel/menu/keyboard and whole-window source layout acceptance",
+    "Real Trash/editor/application/Finder launches",
+    "Signed sandbox/access grants and App Store/minimum-OS execution",
+    "Current-head hosted CI completion",
+    "Complete dialog, Finder and application parity"
+  ],
+  "sha256": {
+    "Sources/TurtleGitCore/CommitAmend.swift": "d99b3fee584d23820b7bf84eba75ba24291335fc6d79c202f433fee539d3ca01",
+    "Sources/TurtleGitCore/WorkingFileRestore.swift": "d8a95d305cd87b401a44778d9fd1a69088594db13dc65bf5e169758ead09650e",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "e3b694d306f229027211ba04f1455d0c4aa5d84ed41eb312dc2100e597c040a6",
+    "Sources/TurtleGitMac/CommitWindow.swift": "3fac9d1cbe872ce66afd1dabb47dc01d5515e489b84e5410b1bd3ccfd583a942",
+    "Sources/TurtleGitMac/StatusWindow.swift": "8d0105b17f38953b3e72df1c0aa94bed668f54f9f47c7e5b8eacdcf7056a3e1c",
+    "Sources/TurtleGitMac/SubmoduleDiffWindow.swift": "a833c2fe782f4f12d34ea6420085b68ac71729c63c138463591643fe538f667b",
+    "Tests/TurtleGitCoreTests/WorkingFileRestoreTests.swift": "a8fac28b939a79a3808f6cf6b5e70b62e936a5ea8d070cd70ea236401f4560f8",
+    "docs/qa/commit-file-workflows-native-2026-10-14.swift": "e27ebe10f5550cfd16bf4c28bc04b59859ff677d594f9c82683c0417ed733140"
+  }
+}

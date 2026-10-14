@@ -267,3 +267,10 @@ owned receivers were reaped. Refreshed light/dark content renders were inspected
 and show full titles and the intended columns. See
 [actual evidence, fixture repairs and limits](qa/file-list-layout-2026-10-14.json). Full physical appearance/scrolling/accessibility and
 signed acceptance remain open; no Core behavior changes in this batch.
+
+The Commit file-workflow batch also corrects Working Tree operation cleanup:
+completion releases the old token before starting its refresh, so the old defer
+cannot clear the new operation's busy/progress state. Failure diagnostics are
+restored after starting the refresh. Existing Working Tree lifecycle/file-menu
+checks are part of the grouped validation; see
+[the connected audit](COMMIT-FILE-WORKFLOWS-PARITY.md).

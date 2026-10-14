@@ -60,7 +60,7 @@ struct StatusFileMenuSnapshot {
     let mark: StatusEntry?
     let commands: [StatusFileCommand]
 }
-private struct StatusFileActionFailure: LocalizedError {
+struct StatusFileActionFailure: LocalizedError {
     let message: String
     var errorDescription: String? { message }
 }
@@ -338,12 +338,11 @@ final class StatusNativeWindow: NSWindow {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 try await operation(token)
                 guard isLive(token) else { return }
-                busy = false; completed()
+                operationCancellation = nil; busy = false; cancelling = false; currentOperation = ""; completed()
             } catch {
                 guard !retired else { return }
-                if token.isCancelled { self.error = "Operation cancelled. Any completed changes are retained; refresh to inspect the working tree." }
-                else { self.error = error.localizedDescription }
-                busy = false; failed()
+                let diagnostic = token.isCancelled ? "Operation cancelled. Any completed changes are retained; refresh to inspect the working tree." : error.localizedDescription
+                operationCancellation = nil; busy = false; cancelling = false; currentOperation = ""; failed(); self.error = diagnostic
             }
         }
     }
@@ -473,7 +472,7 @@ final class StatusNativeWindow: NSWindow {
         case .log: onAction(.log, paths)
         case .submoduleLog:
             runOperation("Reading submodule checkout…", operation: { [self] token in
-                let child = try await submoduleLog.load(paths[0])
+                let child = try await submoduleLog.load(paths[0], cancellation: token)
                 guard isLive(token), accepts(snapshot, duringOperation: true) else { return }; onSubmoduleLog(child)
             })
         case .oldNameLog: if let old = snapshot.entries.first?.originalPath { onAction(.log, [old]) }

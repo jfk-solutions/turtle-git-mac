@@ -16,9 +16,9 @@ import TurtleGitCore
     var isReading: Bool { token != nil }
     func cancel() { token?.cancel() }
     func retire() { retired = true; cancel() }
-    func load(_ path: String) async throws -> GitRepository {
+    func load(_ path: String, cancellation: OperationCancellation? = nil) async throws -> GitRepository {
         guard !retired, token == nil else { throw OperationCancellationFailure.cancelled }
-        let request = OperationCancellation(); token = request; Self.activeReads += 1
+        let request = cancellation ?? OperationCancellation(); token = request; Self.activeReads += 1
         defer { Self.activeReads -= 1; if token === request { token = nil }; withExtendedLifetime(access) {} }
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
         let child = try await readCheckout(path, request)

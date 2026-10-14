@@ -15,6 +15,7 @@ import AppKit
         if RevisionGraphWindowModel.activeOperations > 0 || RevisionGraphFilterController.activeOperations > 0 { return .terminateCancel }
         if IgnoreWindowModel.activeOperations > 0 { return .terminateCancel }
         if AddWindowModel.activeOperations > 0 { return .terminateCancel }
+        if CommitWindowModel.activeFileOperations > 0 { return .terminateCancel }
         if CommitWindowModel.activeFileDrops > 0 { return .terminateCancel }
         if LogWindowModel.activeNoteReads > 0 || LogWindowModel.activeNoteSaves > 0 { return .terminateCancel }
         if InputWindowController.activeSaves > 0 { return .terminateCancel }

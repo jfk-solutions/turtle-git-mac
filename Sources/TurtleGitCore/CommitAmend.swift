@@ -44,11 +44,12 @@ extension GitRepository {
         return Dictionary(result.map { ($0.path, $0) }, uniquingKeysWith: { _, last in last }).values.sorted { $0.path < $1.path }
     }
 
-    public func unstageCommitPaths(_ paths: [String], amendToParent: Bool) throws {
-        guard amendToParent else { try unstage(paths); return }
+    public func unstageCommitPaths(_ paths: [String], amendToParent: Bool, cancellation: OperationCancellation? = nil) throws {
+        try cancellation?.check()
+        guard amendToParent else { try unstage(paths, cancellation: cancellation); return }
         guard !paths.isEmpty else { return }
-        let base = try commitComparisonBase(amendToParent: true)
-        _ = try run(["restore", "--source=" + base, "--staged", "--"] + paths)
+        let base = try commitComparisonBase(amendToParent: true, cancellation: cancellation)
+        _ = try run(["restore", "--source=" + base, "--staged", "--"] + paths, cancellation: cancellation)
     }
 
     func commitParentSelection(message: String, checked: [StatusEntry], options: CommitOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
